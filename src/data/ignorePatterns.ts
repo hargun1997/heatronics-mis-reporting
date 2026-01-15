@@ -7,8 +7,21 @@ import { IgnorePattern } from '../types';
 // - TDS entries
 // - Inter-company transfers
 // - Balance sheet items (not P&L)
+// - Internal adjustments (Amazon Cash Sale via B2B ledger)
 
 export const DEFAULT_IGNORE_PATTERNS: IgnorePattern[] = [
+  // === AMAZON CASH SALE ADJUSTMENTS ===
+  // These are internal entries to adjust Amazon cash sales via B2B ledger
+  // The Amazon sale entry and corresponding party entry should both be ignored
+  { pattern: "AMAZON SALE.*CASH SALE", reason: "Amazon Cash Sale Adjustment" },
+  { pattern: "AMAZON.*CASH.*SALE.*DELHI", reason: "Amazon Cash Sale Adjustment" },
+  { pattern: "AMAZON.*CASH.*SALE.*U\\.?P\\.?", reason: "Amazon Cash Sale Adjustment" },
+  { pattern: "AMAZON.*CASH.*SALE.*MH", reason: "Amazon Cash Sale Adjustment" },
+  { pattern: "AMAZON.*CASH.*SALE.*KA", reason: "Amazon Cash Sale Adjustment" },
+  { pattern: "AMAZON.*CASH.*SALE.*TN", reason: "Amazon Cash Sale Adjustment" },
+  { pattern: "AMAZON.*CASH.*SALE.*GJ", reason: "Amazon Cash Sale Adjustment" },
+  { pattern: "AMAZON CASH SALE", reason: "Amazon Cash Sale Adjustment" },
+
   // GST Entries - Input
   { pattern: "CGST Input", reason: "GST Input Credit" },
   { pattern: "SGST Input", reason: "GST Input Credit" },
@@ -79,6 +92,12 @@ export const DEFAULT_IGNORE_PATTERNS: IgnorePattern[] = [
   { pattern: "INVENTORY", reason: "Inventory Account" }
 ];
 
+// Patterns to detect Amazon Cash Sale adjustment entries (for offset matching)
+export const AMAZON_CASH_SALE_PATTERNS = [
+  /AMAZON.*SALE.*CASH.*SALE/i,
+  /AMAZON.*CASH.*SALE/i
+];
+
 // Check if a transaction should be auto-ignored
 export function shouldAutoIgnore(accountName: string, patterns: IgnorePattern[]): { ignore: boolean; reason: string } {
   for (const { pattern, reason } of patterns) {
@@ -92,6 +111,11 @@ export function shouldAutoIgnore(accountName: string, patterns: IgnorePattern[])
     }
   }
   return { ignore: false, reason: '' };
+}
+
+// Check if a transaction is an Amazon Cash Sale entry
+export function isAmazonCashSale(accountName: string): boolean {
+  return AMAZON_CASH_SALE_PATTERNS.some(pattern => pattern.test(accountName));
 }
 
 // Get all unique ignore reasons for statistics
