@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #f3f4f6;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Table row animations */
+.transaction-row {
+  transition: background-color 0.15s ease;
+}
+
+.transaction-row:hover {
+  background-color: #f9fafb;
+}
+
+/* Classification status colors */
+.status-classified {
+  background-color: #d1fae5;
+}
+
+.status-suggested {
+  background-color: #fef3c7;
+}
+
+.status-unclassified {
+  background-color: #ffffff;
+}
+
+/* Custom dropdown styling */
+.classification-dropdown {
+  @apply border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+/* Print styles for MIS report */
+@media print {
+  body {
+    background: white;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .mis-report {
+    page-break-inside: avoid;
+  }
+}
+
+/* Number formatting */
+.currency {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Loading animation */
+.loading-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
