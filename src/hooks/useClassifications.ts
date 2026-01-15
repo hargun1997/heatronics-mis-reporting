@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Transaction, Heads, FilterState, AccountPattern, IgnorePattern } from '../types';
 import { DEFAULT_HEADS } from '../data/defaultHeads';
 import { DEFAULT_PATTERNS, getRecommendation } from '../data/accountPatterns';
-import { DEFAULT_IGNORE_PATTERNS, shouldAutoIgnore } from '../data/ignorePatterns';
+import { DEFAULT_IGNORE_PATTERNS, shouldAutoIgnore, isAmazonCashSale } from '../data/ignorePatterns';
 
 const STORAGE_KEY = 'mis-classifications';
 const HEADS_STORAGE_KEY = 'mis-heads';
@@ -83,8 +83,65 @@ export function useClassifications() {
       !DEFAULT_IGNORE_PATTERNS.some(dp => dp.pattern === p.pattern)
     )];
 
+    // === STEP 1: Detect Amazon Cash Sale entries and their offsets ===
+    // Amazon Cash Sale entries are internal adjustments that should be ignored along with their matching B2B entries
+    const amazonCashSaleIds = new Set<string>();
+    const offsetEntryIds = new Set<string>();
+
+    // Find all Amazon Cash Sale entries (typically credits)
+    const amazonEntries = newTransactions.filter(txn => isAmazonCashSale(txn.account));
+
+    // For each Amazon entry, find a matching offset entry (same date, same amount, opposite side)
+    for (const amazonEntry of amazonEntries) {
+      amazonCashSaleIds.add(amazonEntry.id);
+      const amazonAmount = amazonEntry.credit > 0 ? amazonEntry.credit : amazonEntry.debit;
+
+      // Find matching offset entry: same date, same amount, opposite side (debit if Amazon is credit)
+      const offsetEntry = newTransactions.find(txn => {
+        if (txn.id === amazonEntry.id) return false;
+        if (txn.date !== amazonEntry.date) return false;
+
+        // Check for matching amount on opposite side
+        const txnAmount = amazonEntry.credit > 0 ? txn.debit : txn.credit;
+        if (Math.abs(txnAmount - amazonAmount) > 0.01) return false;
+
+        // Don't match if it's another Amazon entry or already a known ignore pattern
+        if (isAmazonCashSale(txn.account)) return false;
+        if (shouldAutoIgnore(txn.account, allIgnorePatterns).ignore) return false;
+
+        return true;
+      });
+
+      if (offsetEntry) {
+        offsetEntryIds.add(offsetEntry.id);
+      }
+    }
+
+    // === STEP 2: Process all transactions ===
     const processedTransactions = newTransactions.map(txn => {
-      // Check if should be auto-ignored first
+      // Check if this is an Amazon Cash Sale entry
+      if (amazonCashSaleIds.has(txn.id)) {
+        return {
+          ...txn,
+          status: 'ignored' as const,
+          isAutoIgnored: true,
+          head: 'Z. Ignore (Non-P&L)',
+          subhead: 'Amazon Cash Sale Adjustment'
+        };
+      }
+
+      // Check if this is an offset entry for Amazon Cash Sale
+      if (offsetEntryIds.has(txn.id)) {
+        return {
+          ...txn,
+          status: 'ignored' as const,
+          isAutoIgnored: true,
+          head: 'Z. Ignore (Non-P&L)',
+          subhead: 'Amazon Cash Sale Offset (B2B Adjustment)'
+        };
+      }
+
+      // Check if should be auto-ignored based on patterns
       const ignoreResult = shouldAutoIgnore(txn.account, allIgnorePatterns);
       if (ignoreResult.ignore) {
         return {
