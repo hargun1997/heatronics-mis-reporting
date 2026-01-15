@@ -266,6 +266,71 @@ export function MISPreview({ report, isVisible, onClose }: MISPreviewProps) {
               />
             </div>
 
+            {/* Reconciliation Section - only show if BS data exists */}
+            {report.bsNetSales !== undefined && report.bsNetSales > 0 && (
+              <div className="p-4 bg-amber-50 border-t-2 border-amber-300">
+                <h3 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  RECONCILIATION (Balance Sheet vs Classified)
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">Balance Sheet Net Sales:</span>
+                    <span className="font-mono font-medium text-amber-900">{formatCurrencyFull(report.bsNetSales)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-amber-700">Classified Net Revenue:</span>
+                    <span className="font-mono font-medium text-amber-900">{formatCurrencyFull(report.netRevenue)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-amber-300">
+                    <span className="text-amber-800 font-medium">Revenue Variance:</span>
+                    <span className={`font-mono font-bold ${
+                      Math.abs(report.revenueVariance || 0) < 1
+                        ? 'text-green-600'
+                        : (report.revenueVariance || 0) > 0
+                          ? 'text-red-600'
+                          : 'text-blue-600'
+                    }`}>
+                      {(report.revenueVariance || 0) > 0 ? '+' : ''}{formatCurrencyFull(report.revenueVariance || 0)}
+                      {Math.abs(report.revenueVariance || 0) < 1 && ' ✓'}
+                    </span>
+                  </div>
+                  {report.bsNetProfit !== undefined && report.bsNetProfit !== 0 && (
+                    <>
+                      <div className="flex justify-between pt-2">
+                        <span className="text-amber-700">Balance Sheet Net Profit:</span>
+                        <span className="font-mono font-medium text-amber-900">{formatCurrencyFull(report.bsNetProfit)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-amber-700">Classified Net Income:</span>
+                        <span className="font-mono font-medium text-amber-900">{formatCurrencyFull(report.netIncome)}</span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-amber-300">
+                        <span className="text-amber-800 font-medium">Profit Variance:</span>
+                        <span className={`font-mono font-bold ${
+                          Math.abs(report.profitVariance || 0) < 1
+                            ? 'text-green-600'
+                            : (report.profitVariance || 0) > 0
+                              ? 'text-red-600'
+                              : 'text-blue-600'
+                        }`}>
+                          {(report.profitVariance || 0) > 0 ? '+' : ''}{formatCurrencyFull(report.profitVariance || 0)}
+                          {Math.abs(report.profitVariance || 0) < 1 && ' ✓'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {Math.abs(report.revenueVariance || 0) > 100 && (
+                  <div className="mt-3 text-xs text-amber-700 bg-amber-100 p-2 rounded">
+                    Note: Significant variance detected. Check for missing revenue entries or unclassified transactions.
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Memo Items */}
             <div className="p-4 bg-gray-50 border-t border-gray-200">
               <h3 className="text-sm font-semibold text-gray-600 mb-2">MEMO:</h3>

@@ -9,9 +9,10 @@ export interface Transaction {
   notes: string;
   head?: string;
   subhead?: string;
-  status: 'unclassified' | 'suggested' | 'classified';
+  status: 'unclassified' | 'suggested' | 'classified' | 'ignored';
   suggestedHead?: string;
   suggestedSubhead?: string;
+  isAutoIgnored?: boolean;  // Auto-ignored based on patterns
 }
 
 export interface HeadConfig {
@@ -34,11 +35,21 @@ export interface AccountPattern {
   subhead: string;
 }
 
+export interface IgnorePattern {
+  pattern: string;
+  reason: string;
+}
+
 export interface BalanceSheetData {
   openingStock: number;
   closingStock: number;
-  sales: number;
+  grossSales: number;
+  netSales: number;  // Net of discounts and GST - use this for reconciliation
+  revenueDiscounts: number;
+  gstOnSales: number;
   netProfit: number;
+  purchases: number;
+  extractedLines?: { label: string; value: number; source: string }[];
 }
 
 export interface COGSData {
@@ -65,6 +76,11 @@ export interface MISLineItem {
 }
 
 export interface MISReport {
+  // From Balance Sheet (reference)
+  bsNetSales: number;  // Net Sales from Balance Sheet
+  bsNetProfit: number;  // Net Profit from Balance Sheet
+
+  // From Classifications
   grossRevenue: number;
   revenueByChannel: { [key: string]: number };
   returns: number;
@@ -90,13 +106,18 @@ export interface MISReport {
   netIncome: number;
   excluded: number;
   ignored: number;
+
+  // Reconciliation
+  revenueVariance: number;  // bsNetSales - netRevenue
+  profitVariance: number;   // bsNetProfit - netIncome
 }
 
 export interface FilterState {
   search: string;
-  status: 'all' | 'unclassified' | 'suggested' | 'classified';
+  status: 'all' | 'unclassified' | 'suggested' | 'classified' | 'ignored';
   head: string | null;
   type: 'all' | 'debit' | 'credit';
+  showIgnored: boolean;
 }
 
 export interface AppState {
@@ -107,4 +128,5 @@ export interface AppState {
   filter: FilterState;
   selectedIds: string[];
   customPatterns: AccountPattern[];
+  ignorePatterns: IgnorePattern[];
 }

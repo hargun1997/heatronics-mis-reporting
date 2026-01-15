@@ -1,8 +1,9 @@
-import { Transaction, MISReport, Heads } from '../types';
+import { Transaction, MISReport, Heads, BalanceSheetData } from '../types';
 
 export function generateMISReport(
   transactions: Transaction[],
-  heads: Heads
+  heads: Heads,
+  balanceSheetData?: BalanceSheetData | null
 ): MISReport {
   // Initialize breakdown objects
   const revenueByChannel: { [key: string]: number } = {};
@@ -116,7 +117,20 @@ export function generateMISReport(
   const ebitda = cm3 - operating;
   const netIncome = ebitda - nonOperating;
 
+  // Get Balance Sheet reference values
+  const bsNetSales = balanceSheetData?.netSales || 0;
+  const bsNetProfit = balanceSheetData?.netProfit || 0;
+
+  // Calculate variances
+  const revenueVariance = bsNetSales - netRevenue;
+  const profitVariance = bsNetProfit - netIncome;
+
   return {
+    // Balance Sheet reference
+    bsNetSales,
+    bsNetProfit,
+
+    // Classified data
     grossRevenue,
     revenueByChannel,
     returns,
@@ -141,7 +155,11 @@ export function generateMISReport(
     nonOperating,
     netIncome,
     excluded,
-    ignored
+    ignored,
+
+    // Reconciliation
+    revenueVariance,
+    profitVariance
   };
 }
 

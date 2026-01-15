@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Transaction, Heads, FilterState, AccountPattern } from '../types';
+import { Transaction, Heads, FilterState, AccountPattern, IgnorePattern } from '../types';
 import { DEFAULT_HEADS } from '../data/defaultHeads';
 import { DEFAULT_PATTERNS, getRecommendation } from '../data/accountPatterns';
+import { DEFAULT_IGNORE_PATTERNS, shouldAutoIgnore } from '../data/ignorePatterns';
 
 const STORAGE_KEY = 'mis-classifications';
 const HEADS_STORAGE_KEY = 'mis-heads';
 const PATTERNS_STORAGE_KEY = 'mis-patterns';
+const IGNORE_STORAGE_KEY = 'mis-ignore-patterns';
 
 interface StoredState {
   transactions: Transaction[];
@@ -16,12 +18,14 @@ export function useClassifications() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [heads, setHeads] = useState<Heads>(DEFAULT_HEADS);
   const [customPatterns, setCustomPatterns] = useState<AccountPattern[]>([]);
+  const [ignorePatterns, setIgnorePatterns] = useState<IgnorePattern[]>(DEFAULT_IGNORE_PATTERNS);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<FilterState>({
     search: '',
     status: 'all',
     head: null,
-    type: 'all'
+    type: 'all',
+    showIgnored: false
   });
   const [undoStack, setUndoStack] = useState<Transaction[][]>([]);
 
@@ -45,6 +49,11 @@ export function useClassifications() {
       if (storedPatterns) {
         setCustomPatterns(JSON.parse(storedPatterns));
       }
+
+      const storedIgnore = localStorage.getItem(IGNORE_STORAGE_KEY);
+      if (storedIgnore) {
+        setIgnorePatterns(JSON.parse(storedIgnore));
+      }
     } catch (error) {
       console.error('Failed to load from localStorage:', error);
     }
@@ -60,19 +69,46 @@ export function useClassifications() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       localStorage.setItem(HEADS_STORAGE_KEY, JSON.stringify(heads));
       localStorage.setItem(PATTERNS_STORAGE_KEY, JSON.stringify(customPatterns));
+      localStorage.setItem(IGNORE_STORAGE_KEY, JSON.stringify(ignorePatterns));
     } catch (error) {
       console.error('Failed to save to localStorage:', error);
     }
-  }, [transactions, heads, customPatterns]);
+  }, [transactions, heads, customPatterns, ignorePatterns]);
 
   // Import new transactions
   const importTransactions = useCallback((newTransactions: Transaction[]) => {
-    // Apply auto-recommendations to new transactions
+    // Apply auto-recommendations and auto-ignore to new transactions
     const allPatterns = [...DEFAULT_PATTERNS, ...customPatterns];
+    const allIgnorePatterns = [...DEFAULT_IGNORE_PATTERNS, ...ignorePatterns.filter(p =>
+      !DEFAULT_IGNORE_PATTERNS.some(dp => dp.pattern === p.pattern)
+    )];
 
     const processedTransactions = newTransactions.map(txn => {
+      // Check if should be auto-ignored first
+      const ignoreResult = shouldAutoIgnore(txn.account, allIgnorePatterns);
+      if (ignoreResult.ignore) {
+        return {
+          ...txn,
+          status: 'ignored' as const,
+          isAutoIgnored: true,
+          head: 'Z. Ignore (Non-P&L)',
+          subhead: ignoreResult.reason
+        };
+      }
+
+      // Check for classification recommendation
       const recommendation = getRecommendation(txn.account, allPatterns);
       if (recommendation) {
+        // If recommendation is to Z. Ignore, mark as ignored
+        if (recommendation.head === 'Z. Ignore (Non-P&L)') {
+          return {
+            ...txn,
+            status: 'ignored' as const,
+            isAutoIgnored: true,
+            head: recommendation.head,
+            subhead: recommendation.subhead
+          };
+        }
         return {
           ...txn,
           suggestedHead: recommendation.head,
@@ -85,7 +121,7 @@ export function useClassifications() {
 
     setTransactions(processedTransactions);
     setUndoStack([]);
-  }, [customPatterns]);
+  }, [customPatterns, ignorePatterns]);
 
   // Classify a single transaction
   const classifyTransaction = useCallback((id: string, head: string, subhead: string) => {
@@ -93,11 +129,13 @@ export function useClassifications() {
 
     setTransactions(prev => prev.map(txn => {
       if (txn.id === id) {
+        const isIgnore = head === 'Z. Ignore (Non-P&L)';
         return {
           ...txn,
           head,
           subhead,
-          status: 'classified' as const
+          status: isIgnore ? 'ignored' as const : 'classified' as const,
+          isAutoIgnored: false
         };
       }
       return txn;
@@ -108,13 +146,16 @@ export function useClassifications() {
   const classifyMultiple = useCallback((ids: string[], head: string, subhead: string) => {
     setUndoStack(prev => [...prev, transactions]);
 
+    const isIgnore = head === 'Z. Ignore (Non-P&L)';
+
     setTransactions(prev => prev.map(txn => {
       if (ids.includes(txn.id)) {
         return {
           ...txn,
           head,
           subhead,
-          status: 'classified' as const
+          status: isIgnore ? 'ignored' as const : 'classified' as const,
+          isAutoIgnored: false
         };
       }
       return txn;
@@ -129,11 +170,12 @@ export function useClassifications() {
 
     setTransactions(prev => prev.map(txn => {
       if (txn.id === id && txn.suggestedHead && txn.suggestedSubhead) {
+        const isIgnore = txn.suggestedHead === 'Z. Ignore (Non-P&L)';
         return {
           ...txn,
           head: txn.suggestedHead,
           subhead: txn.suggestedSubhead,
-          status: 'classified' as const
+          status: isIgnore ? 'ignored' as const : 'classified' as const
         };
       }
       return txn;
@@ -146,6 +188,7 @@ export function useClassifications() {
 
     try {
       const regex = new RegExp(accountPattern, 'i');
+      const isIgnore = head === 'Z. Ignore (Non-P&L)';
 
       setTransactions(prev => prev.map(txn => {
         if (regex.test(txn.account)) {
@@ -153,7 +196,8 @@ export function useClassifications() {
             ...txn,
             head,
             subhead,
-            status: 'classified' as const
+            status: isIgnore ? 'ignored' as const : 'classified' as const,
+            isAutoIgnored: false
           };
         }
         return txn;
@@ -166,6 +210,49 @@ export function useClassifications() {
       console.error('Invalid regex pattern');
     }
   }, [transactions]);
+
+  // Ignore a transaction
+  const ignoreTransaction = useCallback((id: string, reason: string = 'Manually Ignored') => {
+    setUndoStack(prev => [...prev, transactions]);
+
+    setTransactions(prev => prev.map(txn => {
+      if (txn.id === id) {
+        return {
+          ...txn,
+          head: 'Z. Ignore (Non-P&L)',
+          subhead: reason,
+          status: 'ignored' as const,
+          isAutoIgnored: false
+        };
+      }
+      return txn;
+    }));
+  }, [transactions]);
+
+  // Ignore multiple transactions
+  const ignoreMultiple = useCallback((ids: string[], reason: string = 'Manually Ignored') => {
+    setUndoStack(prev => [...prev, transactions]);
+
+    setTransactions(prev => prev.map(txn => {
+      if (ids.includes(txn.id)) {
+        return {
+          ...txn,
+          head: 'Z. Ignore (Non-P&L)',
+          subhead: reason,
+          status: 'ignored' as const,
+          isAutoIgnored: false
+        };
+      }
+      return txn;
+    }));
+
+    setSelectedIds([]);
+  }, [transactions]);
+
+  // Add ignore pattern
+  const addIgnorePattern = useCallback((pattern: string, reason: string) => {
+    setIgnorePatterns(prev => [...prev, { pattern, reason }]);
+  }, []);
 
   // Undo last action
   const undo = useCallback(() => {
@@ -183,18 +270,31 @@ export function useClassifications() {
     setTransactions(prev => prev.map(txn => {
       if (txn.id === id) {
         const recommendation = getRecommendation(txn.account, [...DEFAULT_PATTERNS, ...customPatterns]);
+        const ignoreResult = shouldAutoIgnore(txn.account, ignorePatterns);
+
+        if (ignoreResult.ignore) {
+          return {
+            ...txn,
+            head: 'Z. Ignore (Non-P&L)',
+            subhead: ignoreResult.reason,
+            status: 'ignored' as const,
+            isAutoIgnored: true
+          };
+        }
+
         return {
           ...txn,
           head: undefined,
           subhead: undefined,
           status: recommendation ? 'suggested' as const : 'unclassified' as const,
           suggestedHead: recommendation?.head,
-          suggestedSubhead: recommendation?.subhead
+          suggestedSubhead: recommendation?.subhead,
+          isAutoIgnored: false
         };
       }
       return txn;
     }));
-  }, [transactions, customPatterns]);
+  }, [transactions, customPatterns, ignorePatterns]);
 
   // Add a new head
   const addHead = useCallback((name: string, type: 'credit' | 'debit' | 'calculated' | 'exclude' | 'ignore') => {
@@ -220,6 +320,11 @@ export function useClassifications() {
 
   // Filter transactions
   const filteredTransactions = transactions.filter(txn => {
+    // Hide ignored unless showIgnored is true
+    if (!filter.showIgnored && txn.status === 'ignored') {
+      return false;
+    }
+
     // Search filter
     if (filter.search) {
       const searchLower = filter.search.toLowerCase();
@@ -232,8 +337,12 @@ export function useClassifications() {
     }
 
     // Status filter
-    if (filter.status !== 'all' && txn.status !== filter.status) {
-      return false;
+    if (filter.status !== 'all') {
+      if (filter.status === 'ignored') {
+        if (txn.status !== 'ignored') return false;
+      } else if (txn.status !== filter.status) {
+        return false;
+      }
     }
 
     // Head filter
@@ -248,9 +357,10 @@ export function useClassifications() {
     return true;
   });
 
-  // Calculate progress
-  const progress = transactions.length > 0
-    ? Math.round((transactions.filter(t => t.status === 'classified').length / transactions.length) * 100)
+  // Calculate progress (excluding ignored from total)
+  const nonIgnoredTransactions = transactions.filter(t => t.status !== 'ignored');
+  const progress = nonIgnoredTransactions.length > 0
+    ? Math.round((nonIgnoredTransactions.filter(t => t.status === 'classified').length / nonIgnoredTransactions.length) * 100)
     : 0;
 
   // Stats
@@ -258,7 +368,9 @@ export function useClassifications() {
     total: transactions.length,
     classified: transactions.filter(t => t.status === 'classified').length,
     suggested: transactions.filter(t => t.status === 'suggested').length,
-    unclassified: transactions.filter(t => t.status === 'unclassified').length
+    unclassified: transactions.filter(t => t.status === 'unclassified').length,
+    ignored: transactions.filter(t => t.status === 'ignored').length,
+    toClassify: nonIgnoredTransactions.length
   };
 
   return {
@@ -271,6 +383,7 @@ export function useClassifications() {
     stats,
     undoStack,
     customPatterns,
+    ignorePatterns,
     setFilter,
     setSelectedIds,
     importTransactions,
@@ -279,6 +392,9 @@ export function useClassifications() {
     applySuggestion,
     applyToSimilar,
     clearClassification,
+    ignoreTransaction,
+    ignoreMultiple,
+    addIgnorePattern,
     addHead,
     addSubhead,
     saveToStorage,

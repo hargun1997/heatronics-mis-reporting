@@ -11,6 +11,8 @@ interface SearchBarProps {
     classified: number;
     suggested: number;
     unclassified: number;
+    ignored: number;
+    toClassify: number;
   };
   heads: Heads;
 }
@@ -26,7 +28,7 @@ export function SearchBar({
     <div className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex flex-wrap items-center gap-4">
         {/* Search input */}
-        <div className="flex-1 min-w-[250px]">
+        <div className="flex-1 min-w-[200px]">
           <div className="relative">
             <svg
               className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400"
@@ -69,10 +71,11 @@ export function SearchBar({
             onChange={(e) => onFilterChange({ ...filter, status: e.target.value as FilterState['status'] })}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">All ({stats.total})</option>
+            <option value="all">To Classify ({stats.toClassify})</option>
             <option value="unclassified">Unclassified ({stats.unclassified})</option>
             <option value="suggested">Suggested ({stats.suggested})</option>
             <option value="classified">Classified ({stats.classified})</option>
+            <option value="ignored">Ignored ({stats.ignored})</option>
           </select>
         </div>
 
@@ -105,10 +108,29 @@ export function SearchBar({
           </select>
         </div>
 
+        {/* Show Ignored toggle */}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filter.showIgnored}
+            onChange={(e) => onFilterChange({ ...filter, showIgnored: e.target.checked })}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-600">Show Ignored</span>
+          {stats.ignored > 0 && (
+            <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
+              {stats.ignored}
+            </span>
+          )}
+        </label>
+
         {/* Progress bar */}
         <div className="flex items-center gap-3 ml-auto">
           <div className="text-sm text-gray-600">
             Progress: <span className="font-semibold">{progress}%</span>
+            <span className="text-xs text-gray-400 ml-1">
+              ({stats.classified}/{stats.toClassify})
+            </span>
           </div>
           <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div

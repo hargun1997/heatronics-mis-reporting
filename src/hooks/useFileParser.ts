@@ -60,18 +60,33 @@ export function useFileParser() {
     setState(prev => ({ ...prev, balanceSheetFile: file, loading: true, error: null }));
 
     try {
-      let result: { openingStock: number; closingStock: number; sales: number; netProfit: number };
+      let result: BalanceSheetData;
 
       if (file.name.toLowerCase().endsWith('.pdf')) {
         const pdfResult = await parseBalanceSheetPDF(file);
         result = {
           openingStock: pdfResult.openingStock,
           closingStock: pdfResult.closingStock,
-          sales: pdfResult.sales,
-          netProfit: pdfResult.netProfit
+          grossSales: pdfResult.grossSales,
+          netSales: pdfResult.netSales,
+          revenueDiscounts: pdfResult.revenueDiscounts,
+          gstOnSales: pdfResult.gstOnSales,
+          netProfit: pdfResult.netProfit,
+          purchases: pdfResult.purchases,
+          extractedLines: pdfResult.extractedLines
         };
       } else {
-        result = await parseBalanceSheetExcel(file);
+        const excelResult = await parseBalanceSheetExcel(file);
+        result = {
+          openingStock: excelResult.openingStock,
+          closingStock: excelResult.closingStock,
+          grossSales: excelResult.sales,
+          netSales: excelResult.sales, // Excel parser doesn't separate gross/net
+          revenueDiscounts: 0,
+          gstOnSales: 0,
+          netProfit: excelResult.netProfit,
+          purchases: 0
+        };
       }
 
       setBalanceSheetData(result);
@@ -81,9 +96,12 @@ export function useFileParser() {
         loading: false
       }));
 
-      // Recalculate COGS if we have purchase data
-      if (purchaseTotal > 0) {
-        const cogs = calculateCOGS(result.openingStock, purchaseTotal, result.closingStock);
+      // Use purchases from PDF if available
+      const purchases = result.purchases > 0 ? result.purchases : purchaseTotal;
+
+      // Recalculate COGS
+      if (purchases > 0 || purchaseTotal > 0) {
+        const cogs = calculateCOGS(result.openingStock, purchases || purchaseTotal, result.closingStock);
         setCOGSData(cogs);
       }
 
@@ -157,10 +175,31 @@ export function useFileParser() {
     } : {
       openingStock,
       closingStock,
-      sales: 0,
-      netProfit: 0
+      grossSales: 0,
+      netSales: 0,
+      revenueDiscounts: 0,
+      gstOnSales: 0,
+      netProfit: 0,
+      purchases: purchases
     });
     setPurchaseTotal(purchases);
+  }, []);
+
+  // Manual Net Sales override
+  const setNetSalesManually = useCallback((netSales: number) => {
+    setBalanceSheetData(prev => prev ? {
+      ...prev,
+      netSales
+    } : {
+      openingStock: 0,
+      closingStock: 0,
+      grossSales: netSales,
+      netSales,
+      revenueDiscounts: 0,
+      gstOnSales: 0,
+      netProfit: 0,
+      purchases: 0
+    });
   }, []);
 
   return {
@@ -174,6 +213,7 @@ export function useFileParser() {
     parsePurchase,
     clearError,
     resetAll,
-    setCOGSManually
+    setCOGSManually,
+    setNetSalesManually
   };
 }

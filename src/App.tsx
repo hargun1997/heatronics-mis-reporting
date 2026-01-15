@@ -25,8 +25,8 @@ function App() {
 
   // Generate MIS report from classified transactions
   const misReport = useMemo(() => {
-    return generateMISReport(classifications.transactions, classifications.heads);
-  }, [classifications.transactions, classifications.heads]);
+    return generateMISReport(classifications.transactions, classifications.heads, fileParser.balanceSheetData);
+  }, [classifications.transactions, classifications.heads, fileParser.balanceSheetData]);
 
   // Handle bulk apply suggestions
   const handleApplyAllSuggestions = useCallback(() => {
