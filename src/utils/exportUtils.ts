@@ -35,60 +35,123 @@ export async function exportToExcel(
 
 function generatePLSheetData(report: MISReport): (string | number)[][] {
   const netRevenue = report.netRevenue || 1; // Prevent division by zero
+  const hasBSData = report.bsNetSales > 0;
 
-  return [
+  const data: (string | number)[][] = [
     ['P&L MIS REPORT', '', ''],
     ['Generated on:', new Date().toLocaleDateString('en-IN'), ''],
+    ['Data Source:', hasBSData ? 'Balance Sheet (Authoritative)' : 'Journal Classifications', ''],
     ['', '', ''],
     ['', 'Amount (₹)', '% of Net Revenue'],
     ['', '', ''],
-    ['A. GROSS REVENUE (With GST)', report.grossRevenue, ''],
-    ...Object.entries(report.revenueByChannel)
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => ['   ' + k, v, formatPercentage(v, report.grossRevenue)]),
+  ];
+
+  // Revenue Section
+  if (hasBSData) {
+    data.push(
+      ['A. NET REVENUE (From Balance Sheet)', '', ''],
+      ['   Net Sales', report.bsNetSales, '100.0%'],
+      ['', '', '']
+    );
+    if (report.bsGrossSales > 0 && report.bsGrossSales !== report.bsNetSales) {
+      data.push(['   (Gross Sales before discounts/GST)', report.bsGrossSales, '']);
+    }
+  } else {
+    data.push(['A. NET REVENUE (From Journal)', '', '']);
+  }
+
+  // Show journal revenue breakdown for reference
+  if (report.journalRevenue > 0) {
+    data.push(
+      ['', '', ''],
+      ['   Journal Revenue Breakdown (Reference):', '', ''],
+      ...Object.entries(report.revenueByChannel)
+        .filter(([, v]) => v > 0)
+        .map(([k, v]) => ['      ' + k, v, formatPercentage(v, report.journalRevenue)] as (string | number)[])
+    );
+    if (report.journalReturns > 0) data.push(['      Less: Returns', -report.journalReturns, '']);
+    if (report.journalDiscounts > 0) data.push(['      Less: Discounts', -report.journalDiscounts, '']);
+    if (report.journalTaxes > 0) data.push(['      Less: Taxes (GST)', -report.journalTaxes, '']);
+    data.push(['      Journal Net Revenue', report.journalNetRevenue, '']);
+  }
+
+  data.push(
     ['', '', ''],
-    ['B. LESS: RETURNS', -report.returns, formatPercentage(report.returns, report.grossRevenue)],
-    ['C. LESS: DISCOUNTS', -report.discounts, formatPercentage(report.discounts, report.grossRevenue)],
-    ['D. LESS: TAXES (GST)', -report.taxes, formatPercentage(report.taxes, report.grossRevenue)],
-    ['', '', ''],
-    ['NET REVENUE', report.netRevenue, '100.0%'],
-    ['', '', ''],
-    ['E. COST OF GOODS MANUFACTURED (COGM)', -report.cogm, formatPercentage(report.cogm, netRevenue)],
-    ...Object.entries(report.cogmBreakdown)
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => ['   ' + k, -v, formatPercentage(v, netRevenue)]),
+    ['NET REVENUE (Used for P&L)', report.netRevenue, '100.0%'],
+    ['', '', '']
+  );
+
+  // COGS Section
+  data.push(['B. COST OF GOODS SOLD (COGS)', '', '']);
+  if (hasBSData && report.bsCOGS > 0) {
+    data.push(
+      ['   Opening Stock (from BS)', report.bsOpeningStock, ''],
+      ['   Add: Purchases (from BS)', report.bsPurchases, ''],
+      ['   Less: Closing Stock (from BS)', -report.bsClosingStock, '']
+    );
+  }
+  data.push(
+    ['   ─────────────────────────────────────────────────────', '', ''],
+    ['   TOTAL COGS', -report.cogm, formatPercentage(report.cogm, netRevenue)],
     ['', '', ''],
     ['GROSS MARGIN', report.grossMargin, formatPercentage(report.grossMargin, netRevenue)],
-    ['', '', ''],
-    ['F. CHANNEL & FULFILLMENT', -report.channelCosts, formatPercentage(report.channelCosts, netRevenue)],
-    ...Object.entries(report.channelCostsBreakdown)
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => ['   ' + k, -v, formatPercentage(v, netRevenue)]),
+    ['', '', '']
+  );
+
+  // Purchase Register Validation
+  if (report.purchaseRegisterTotal > 0 && report.bsPurchases > 0) {
+    data.push(
+      ['PURCHASE REGISTER VALIDATION', '', ''],
+      ['   BS Purchases', report.bsPurchases, ''],
+      ['   Purchase Register Total', report.purchaseRegisterTotal, ''],
+      ['   Variance', report.purchaseVariance, ''],
+      ['', '', '']
+    );
+  }
+
+  // Expense sections from Journal
+  data.push(['C. CHANNEL & FULFILLMENT (From Journal)', -report.channelCosts, formatPercentage(report.channelCosts, netRevenue)]);
+  for (const [k, v] of Object.entries(report.channelCostsBreakdown)) {
+    if (v > 0) data.push(['   ' + k, -v, formatPercentage(v, netRevenue)]);
+  }
+  data.push(
     ['', '', ''],
     ['CM1 (Contribution Margin 1)', report.cm1, formatPercentage(report.cm1, netRevenue)],
-    ['', '', ''],
-    ['G. SALES & MARKETING', -report.marketing, formatPercentage(report.marketing, netRevenue)],
-    ...Object.entries(report.marketingBreakdown)
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => ['   ' + k, -v, formatPercentage(v, netRevenue)]),
+    ['', '', '']
+  );
+
+  data.push(['D. SALES & MARKETING (From Journal)', -report.marketing, formatPercentage(report.marketing, netRevenue)]);
+  for (const [k, v] of Object.entries(report.marketingBreakdown)) {
+    if (v > 0) data.push(['   ' + k, -v, formatPercentage(v, netRevenue)]);
+  }
+  data.push(
     ['', '', ''],
     ['CM2 (After Marketing)', report.cm2, formatPercentage(report.cm2, netRevenue)],
-    ['', '', ''],
-    ['H. PLATFORM COSTS', -report.platform, formatPercentage(report.platform, netRevenue)],
-    ...Object.entries(report.platformBreakdown)
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => ['   ' + k, -v, formatPercentage(v, netRevenue)]),
+    ['', '', '']
+  );
+
+  data.push(['E. PLATFORM COSTS (From Journal)', -report.platform, formatPercentage(report.platform, netRevenue)]);
+  for (const [k, v] of Object.entries(report.platformBreakdown)) {
+    if (v > 0) data.push(['   ' + k, -v, formatPercentage(v, netRevenue)]);
+  }
+  data.push(
     ['', '', ''],
     ['CM3 (After Platform)', report.cm3, formatPercentage(report.cm3, netRevenue)],
-    ['', '', ''],
-    ['I. OPERATING EXPENSES', -report.operating, formatPercentage(report.operating, netRevenue)],
-    ...Object.entries(report.operatingBreakdown)
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => ['   ' + k, -v, formatPercentage(v, netRevenue)]),
+    ['', '', '']
+  );
+
+  data.push(['F. OPERATING EXPENSES (From Journal)', -report.operating, formatPercentage(report.operating, netRevenue)]);
+  for (const [k, v] of Object.entries(report.operatingBreakdown)) {
+    if (v > 0) data.push(['   ' + k, -v, formatPercentage(v, netRevenue)]);
+  }
+  data.push(
     ['', '', ''],
     ['EBITDA', report.ebitda, formatPercentage(report.ebitda, netRevenue)],
-    ['', '', ''],
-    ['J. NON-OPERATING', -report.nonOperating, formatPercentage(report.nonOperating, netRevenue)],
+    ['', '', '']
+  );
+
+  data.push(
+    ['G. NON-OPERATING', -report.nonOperating, formatPercentage(report.nonOperating, netRevenue)],
     ['', '', ''],
     ['NET INCOME', report.netIncome, formatPercentage(report.netIncome, netRevenue)],
     ['', '', ''],
@@ -96,7 +159,21 @@ function generatePLSheetData(report: MISReport): (string | number)[][] {
     ['MEMO:', '', ''],
     ['Excluded (Personal)', report.excluded, ''],
     ['Ignored (Non-P&L)', report.ignored, '']
-  ];
+  );
+
+  // Reconciliation section
+  if (hasBSData) {
+    data.push(
+      ['', '', ''],
+      ['RECONCILIATION:', '', ''],
+      ['BS Net Sales vs Calculated Net Revenue', '', ''],
+      ['   Variance', report.revenueVariance, ''],
+      ['BS Net Profit (Reference)', report.bsNetProfit, ''],
+      ['   Profit Variance', report.profitVariance, '']
+    );
+  }
+
+  return data;
 }
 
 function generateTransactionsSheetData(transactions: Transaction[]): (string | number)[][] {
@@ -182,61 +259,53 @@ export async function exportToImage(
 
 export function exportMISAsText(report: MISReport): string {
   const netRevenue = report.netRevenue || 1;
+  const hasBSData = report.bsNetSales > 0;
+  const sourceLabel = hasBSData ? 'Revenue & COGS from Balance Sheet' : 'All data from Journal';
+  const revenueSource = hasBSData ? '(From Balance Sheet)' : '(From Journal)';
 
   let text = `
 ╔════════════════════════════════════════════════════════════════╗
 ║                       P&L MIS REPORT                           ║
+║  ${sourceLabel.padEnd(60)}║
 ╠════════════════════════════════════════════════════════════════╣
 
-A. TOTAL REVENUE (With GST)
+A. NET REVENUE ${revenueSource}
 `;
 
-  for (const [channel, amount] of Object.entries(report.revenueByChannel)) {
-    if (amount > 0) {
-      text += `   ${channel.padEnd(25)} ${formatCurrencyFull(amount).padStart(15)}  ${formatPercentage(amount, report.grossRevenue).padStart(6)}\n`;
-    }
+  text += `   Net Revenue               ${formatCurrencyFull(report.netRevenue).padStart(15)}  100.0%
+
+B. COST OF GOODS SOLD
+`;
+
+  if (hasBSData) {
+    text += `   Opening Stock             ${formatCurrencyFull(report.bsOpeningStock).padStart(15)}
+   Add: Purchases            ${formatCurrencyFull(report.bsPurchases).padStart(15)}
+   Less: Closing Stock      (${formatCurrencyFull(report.bsClosingStock).padStart(14)})
+`;
   }
 
   text += `   ─────────────────────────────────────────────────────
-   GROSS REVENUE             ${formatCurrencyFull(report.grossRevenue).padStart(15)}
-
-B. LESS: RETURNS             (${formatCurrencyFull(report.returns).padStart(14)})
-C. LESS: DISCOUNTS           (${formatCurrencyFull(report.discounts).padStart(14)})
-D. LESS: TAXES (GST)         (${formatCurrencyFull(report.taxes).padStart(14)})
-   ─────────────────────────────────────────────────────
-   NET REVENUE               ${formatCurrencyFull(report.netRevenue).padStart(15)}  100.0%
-
-E. COST OF GOODS MANUFACTURED (COGM)
-`;
-
-  for (const [item, amount] of Object.entries(report.cogmBreakdown)) {
-    if (amount > 0) {
-      text += `   ${item.padEnd(25)} ${formatCurrencyFull(amount).padStart(15)}\n`;
-    }
-  }
-
-  text += `   ─────────────────────────────────────────────────────
-   TOTAL COGM               (${formatCurrencyFull(report.cogm).padStart(14)})  ${formatPercentage(report.cogm, netRevenue).padStart(6)}
+   TOTAL COGS               (${formatCurrencyFull(report.cogm).padStart(14)})  ${formatPercentage(report.cogm, netRevenue).padStart(6)}
 
    GROSS MARGIN              ${formatCurrencyFull(report.grossMargin).padStart(15)}  ${formatPercentage(report.grossMargin, netRevenue).padStart(6)}
 
-F. CHANNEL & FULFILLMENT    (${formatCurrencyFull(report.channelCosts).padStart(14)})  ${formatPercentage(report.channelCosts, netRevenue).padStart(6)}
+C. CHANNEL & FULFILLMENT    (${formatCurrencyFull(report.channelCosts).padStart(14)})  ${formatPercentage(report.channelCosts, netRevenue).padStart(6)}
    ─────────────────────────────────────────────────────
    CM1 (Contribution)        ${formatCurrencyFull(report.cm1).padStart(15)}  ${formatPercentage(report.cm1, netRevenue).padStart(6)}
 
-G. SALES & MARKETING        (${formatCurrencyFull(report.marketing).padStart(14)})  ${formatPercentage(report.marketing, netRevenue).padStart(6)}
+D. SALES & MARKETING        (${formatCurrencyFull(report.marketing).padStart(14)})  ${formatPercentage(report.marketing, netRevenue).padStart(6)}
    ─────────────────────────────────────────────────────
    CM2 (After Marketing)     ${formatCurrencyFull(report.cm2).padStart(15)}  ${formatPercentage(report.cm2, netRevenue).padStart(6)}
 
-H. PLATFORM COSTS           (${formatCurrencyFull(report.platform).padStart(14)})  ${formatPercentage(report.platform, netRevenue).padStart(6)}
+E. PLATFORM COSTS           (${formatCurrencyFull(report.platform).padStart(14)})  ${formatPercentage(report.platform, netRevenue).padStart(6)}
    ─────────────────────────────────────────────────────
    CM3 (After Platform)      ${formatCurrencyFull(report.cm3).padStart(15)}  ${formatPercentage(report.cm3, netRevenue).padStart(6)}
 
-I. OPERATING EXPENSES       (${formatCurrencyFull(report.operating).padStart(14)})  ${formatPercentage(report.operating, netRevenue).padStart(6)}
+F. OPERATING EXPENSES       (${formatCurrencyFull(report.operating).padStart(14)})  ${formatPercentage(report.operating, netRevenue).padStart(6)}
    ─────────────────────────────────────────────────────
    EBITDA                    ${formatCurrencyFull(report.ebitda).padStart(15)}  ${formatPercentage(report.ebitda, netRevenue).padStart(6)}
 
-J. NON-OPERATING            (${formatCurrencyFull(report.nonOperating).padStart(14)})
+G. NON-OPERATING            (${formatCurrencyFull(report.nonOperating).padStart(14)})
    ─────────────────────────────────────────────────────
    NET INCOME                ${formatCurrencyFull(report.netIncome).padStart(15)}  ${formatPercentage(report.netIncome, netRevenue).padStart(6)}
 
