@@ -123,3 +123,91 @@ src/
 │   └── index.ts             # TypeScript interfaces
 └── App.tsx                  # Main application
 ```
+
+## Deployment
+
+### Docker (Local)
+
+Build and run locally with Docker:
+
+```bash
+# Build the image
+docker build -t mis-classification-tool .
+
+# Run the container
+docker run -p 8080:8080 mis-classification-tool
+```
+
+Or use Docker Compose:
+
+```bash
+docker-compose up --build
+```
+
+The app will be available at `http://localhost:8080`
+
+### Google Cloud Run
+
+#### Option 1: Using Cloud Build (Recommended)
+
+```bash
+# Set your project ID
+gcloud config set project YOUR_PROJECT_ID
+
+# Deploy using Cloud Build
+gcloud builds submit --config cloudbuild.yaml
+```
+
+#### Option 2: Manual Deployment
+
+```bash
+# Set your project ID
+export PROJECT_ID=your-project-id
+export REGION=asia-south1
+
+# Build and push to Container Registry
+gcloud builds submit --tag gcr.io/$PROJECT_ID/mis-classification-tool
+
+# Deploy to Cloud Run
+gcloud run deploy mis-classification-tool \
+  --image gcr.io/$PROJECT_ID/mis-classification-tool \
+  --region $REGION \
+  --platform managed \
+  --allow-unauthenticated \
+  --memory 512Mi \
+  --port 8080
+```
+
+#### Option 3: Using Artifact Registry (Recommended for new projects)
+
+```bash
+# Enable Artifact Registry API
+gcloud services enable artifactregistry.googleapis.com
+
+# Create a repository
+gcloud artifacts repositories create mis-tool \
+  --repository-format=docker \
+  --location=$REGION
+
+# Configure Docker auth
+gcloud auth configure-docker $REGION-docker.pkg.dev
+
+# Build and push
+docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/mis-tool/mis-classification-tool .
+docker push $REGION-docker.pkg.dev/$PROJECT_ID/mis-tool/mis-classification-tool
+
+# Deploy
+gcloud run deploy mis-classification-tool \
+  --image $REGION-docker.pkg.dev/$PROJECT_ID/mis-tool/mis-classification-tool \
+  --region $REGION \
+  --platform managed \
+  --allow-unauthenticated
+```
+
+### Environment Variables
+
+No environment variables are required for basic deployment. The app runs entirely in the browser.
+
+### Health Check
+
+The app includes a health check endpoint at `/health` that returns `200 OK`.
