@@ -1,12 +1,13 @@
-import { Transaction, MISReport, Heads } from '../types';
+import { Transaction, MISReport, Heads, BalanceSheetData } from '../types';
 
 export function generateMISReport(
   transactions: Transaction[],
-  heads: Heads
+  heads: Heads,
+  balanceSheetData?: BalanceSheetData | null,
+  purchaseRegisterTotal?: number
 ): MISReport {
-  // Initialize breakdown objects
+  // Initialize breakdown objects for expense categories
   const revenueByChannel: { [key: string]: number } = {};
-  const cogmBreakdown: { [key: string]: number } = {};
   const channelCostsBreakdown: { [key: string]: number } = {};
   const marketingBreakdown: { [key: string]: number } = {};
   const platformBreakdown: { [key: string]: number } = {};
@@ -14,17 +15,19 @@ export function generateMISReport(
 
   // Initialize subheads for each category
   heads["A. Revenue"]?.subheads.forEach(s => revenueByChannel[s] = 0);
-  heads["E. COGM"]?.subheads.forEach(s => cogmBreakdown[s] = 0);
   heads["F. Channel & Fulfillment"]?.subheads.forEach(s => channelCostsBreakdown[s] = 0);
   heads["G. Sales & Marketing"]?.subheads.forEach(s => marketingBreakdown[s] = 0);
   heads["H. Platform Costs"]?.subheads.forEach(s => platformBreakdown[s] = 0);
   heads["I. Operating Expenses"]?.subheads.forEach(s => operatingBreakdown[s] = 0);
 
-  let grossRevenue = 0;
-  let returns = 0;
-  let discounts = 0;
-  let taxes = 0;
-  let cogm = 0;
+  // Journal data (for validation against Balance Sheet)
+  let journalRevenue = 0;
+  let journalReturns = 0;
+  let journalDiscounts = 0;
+  let journalTaxes = 0;
+  let journalCOGM = 0;
+
+  // Expense classifications (from Journal)
   let channelCosts = 0;
   let marketing = 0;
   let platform = 0;
@@ -33,39 +36,39 @@ export function generateMISReport(
   let excluded = 0;
   let ignored = 0;
 
-  // Process each transaction
+  // Process each transaction from journal
   for (const txn of transactions) {
     if (!txn.head || !txn.subhead) continue;
 
     const amount = txn.credit > 0 ? txn.credit : txn.debit;
 
     switch (txn.head) {
+      // Revenue items (captured for validation, but BS is authoritative)
       case "A. Revenue":
-        grossRevenue += txn.credit;
+        journalRevenue += txn.credit;
         if (revenueByChannel[txn.subhead] !== undefined) {
           revenueByChannel[txn.subhead] += txn.credit;
         }
         break;
 
       case "B. Returns":
-        returns += txn.debit;
+        journalReturns += txn.debit;
         break;
 
       case "C. Discounts":
-        discounts += txn.debit;
+        journalDiscounts += txn.debit;
         break;
 
       case "D. Taxes (GST)":
-        taxes += txn.credit > 0 ? txn.credit : txn.debit;
+        journalTaxes += txn.credit > 0 ? txn.credit : txn.debit;
         break;
 
+      // COGM from journal (for validation, but BS is authoritative)
       case "E. COGM":
-        cogm += txn.debit;
-        if (cogmBreakdown[txn.subhead] !== undefined) {
-          cogmBreakdown[txn.subhead] += txn.debit;
-        }
+        journalCOGM += txn.debit;
         break;
 
+      // Expense categories (these are used from journal)
       case "F. Channel & Fulfillment":
         channelCosts += txn.debit;
         if (channelCostsBreakdown[txn.subhead] !== undefined) {
@@ -108,7 +111,22 @@ export function generateMISReport(
     }
   }
 
-  const netRevenue = grossRevenue - returns - discounts - taxes;
+  // === BALANCE SHEET DATA (AUTHORITATIVE SOURCE) ===
+  const bsNetSales = balanceSheetData?.netSales || 0;
+  const bsGrossSales = balanceSheetData?.grossSales || 0;
+  const bsPurchases = balanceSheetData?.purchases || 0;
+  const bsOpeningStock = balanceSheetData?.openingStock || 0;
+  const bsClosingStock = balanceSheetData?.closingStock || 0;
+  const bsNetProfit = balanceSheetData?.netProfit || 0;
+
+  // Calculate COGS from Balance Sheet
+  const bsCOGS = Math.max(0, bsOpeningStock + bsPurchases - bsClosingStock);
+
+  // === P&L CALCULATIONS (using BS for Revenue and COGS) ===
+  // If Balance Sheet data is available, use it. Otherwise fall back to journal data
+  const netRevenue = bsNetSales > 0 ? bsNetSales : (journalRevenue - journalReturns - journalDiscounts - journalTaxes);
+  const cogm = bsCOGS > 0 ? bsCOGS : journalCOGM;
+
   const grossMargin = netRevenue - cogm;
   const cm1 = grossMargin - channelCosts;
   const cm2 = cm1 - marketing;
@@ -116,16 +134,38 @@ export function generateMISReport(
   const ebitda = cm3 - operating;
   const netIncome = ebitda - nonOperating;
 
+  // Journal net revenue (for comparison/validation)
+  const journalNetRevenue = journalRevenue - journalReturns - journalDiscounts - journalTaxes;
+
+  // === PURCHASE REGISTER VALIDATION ===
+  const prTotal = purchaseRegisterTotal || 0;
+  const purchaseVariance = bsPurchases - prTotal;
+
+  // === RECONCILIATION ===
+  const revenueVariance = bsNetSales - journalNetRevenue;
+  const cogsVariance = bsCOGS - journalCOGM;
+  const profitVariance = bsNetProfit - netIncome;
+
   return {
-    grossRevenue,
-    revenueByChannel,
-    returns,
-    discounts,
-    taxes,
+    // === FROM BALANCE SHEET (AUTHORITATIVE SOURCE) ===
+    bsNetSales,
+    bsGrossSales,
+    bsPurchases,
+    bsOpeningStock,
+    bsClosingStock,
+    bsCOGS,
+    bsNetProfit,
+
+    // === PURCHASE REGISTER VALIDATION ===
+    purchaseRegisterTotal: prTotal,
+    purchaseVariance,
+
+    // === P&L REPORT (using BS for Revenue and COGS) ===
     netRevenue,
     cogm,
-    cogmBreakdown,
     grossMargin,
+
+    // === EXPENSE CLASSIFICATIONS (from Journal) ===
     channelCosts,
     channelCostsBreakdown,
     cm1,
@@ -140,8 +180,24 @@ export function generateMISReport(
     ebitda,
     nonOperating,
     netIncome,
+
+    // === OTHER JOURNAL ITEMS ===
     excluded,
-    ignored
+    ignored,
+
+    // === JOURNAL DATA (for validation/reference) ===
+    journalRevenue,
+    journalReturns,
+    journalDiscounts,
+    journalTaxes,
+    journalNetRevenue,
+    journalCOGM,
+    revenueByChannel,
+
+    // === RECONCILIATION ===
+    revenueVariance,
+    cogsVariance,
+    profitVariance
   };
 }
 

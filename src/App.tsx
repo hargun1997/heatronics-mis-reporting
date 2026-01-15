@@ -24,9 +24,15 @@ function App() {
   }, [fileParser.transactions]);
 
   // Generate MIS report from classified transactions
+  // Balance Sheet is authoritative for Revenue and COGS; Journal is for expense classification
   const misReport = useMemo(() => {
-    return generateMISReport(classifications.transactions, classifications.heads);
-  }, [classifications.transactions, classifications.heads]);
+    return generateMISReport(
+      classifications.transactions,
+      classifications.heads,
+      fileParser.balanceSheetData,
+      fileParser.purchaseTotal
+    );
+  }, [classifications.transactions, classifications.heads, fileParser.balanceSheetData, fileParser.purchaseTotal]);
 
   // Handle bulk apply suggestions
   const handleApplyAllSuggestions = useCallback(() => {

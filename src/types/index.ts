@@ -9,9 +9,10 @@ export interface Transaction {
   notes: string;
   head?: string;
   subhead?: string;
-  status: 'unclassified' | 'suggested' | 'classified';
+  status: 'unclassified' | 'suggested' | 'classified' | 'ignored';
   suggestedHead?: string;
   suggestedSubhead?: string;
+  isAutoIgnored?: boolean;  // Auto-ignored based on patterns
 }
 
 export interface HeadConfig {
@@ -34,11 +35,21 @@ export interface AccountPattern {
   subhead: string;
 }
 
+export interface IgnorePattern {
+  pattern: string;
+  reason: string;
+}
+
 export interface BalanceSheetData {
   openingStock: number;
   closingStock: number;
-  sales: number;
+  grossSales: number;
+  netSales: number;  // Net of discounts and GST - use this for reconciliation
+  revenueDiscounts: number;
+  gstOnSales: number;
   netProfit: number;
+  purchases: number;
+  extractedLines?: { label: string; value: number; source: string }[];
 }
 
 export interface COGSData {
@@ -65,15 +76,25 @@ export interface MISLineItem {
 }
 
 export interface MISReport {
-  grossRevenue: number;
-  revenueByChannel: { [key: string]: number };
-  returns: number;
-  discounts: number;
-  taxes: number;
-  netRevenue: number;
-  cogm: number;
-  cogmBreakdown: { [key: string]: number };
-  grossMargin: number;
+  // === FROM BALANCE SHEET (AUTHORITATIVE SOURCE) ===
+  bsNetSales: number;           // Net Sales from Balance Sheet (used as Revenue)
+  bsGrossSales: number;         // Gross Sales from Balance Sheet
+  bsPurchases: number;          // Purchases from Balance Sheet
+  bsOpeningStock: number;       // Opening Stock from Balance Sheet
+  bsClosingStock: number;       // Closing Stock from Balance Sheet
+  bsCOGS: number;               // COGS calculated from BS (Opening + Purchases - Closing)
+  bsNetProfit: number;          // Net Profit from Balance Sheet (for reference)
+
+  // === PURCHASE REGISTER VALIDATION ===
+  purchaseRegisterTotal: number;  // Total from Purchase Register Excel
+  purchaseVariance: number;       // bsPurchases - purchaseRegisterTotal
+
+  // === P&L REPORT (using BS for Revenue and COGS) ===
+  netRevenue: number;           // = bsNetSales (from Balance Sheet)
+  cogm: number;                 // = bsCOGS (from Balance Sheet)
+  grossMargin: number;          // = netRevenue - cogm
+
+  // === EXPENSE CLASSIFICATIONS (from Journal) ===
   channelCosts: number;
   channelCostsBreakdown: { [key: string]: number };
   cm1: number;
@@ -88,15 +109,32 @@ export interface MISReport {
   ebitda: number;
   nonOperating: number;
   netIncome: number;
+
+  // === OTHER JOURNAL ITEMS ===
   excluded: number;
   ignored: number;
+
+  // === JOURNAL DATA (for validation/reference) ===
+  journalRevenue: number;       // Gross revenue found in journal
+  journalReturns: number;       // Returns from journal
+  journalDiscounts: number;     // Discounts from journal
+  journalTaxes: number;         // Taxes from journal
+  journalNetRevenue: number;    // Net revenue from journal (gross - returns - discounts - taxes)
+  journalCOGM: number;          // COGM from journal classifications
+  revenueByChannel: { [key: string]: number };  // Journal revenue breakdown
+
+  // === RECONCILIATION ===
+  revenueVariance: number;      // bsNetSales - journalNetRevenue (should be ~0 or explained)
+  cogsVariance: number;         // bsCOGS - journalCOGM
+  profitVariance: number;       // bsNetProfit - netIncome
 }
 
 export interface FilterState {
   search: string;
-  status: 'all' | 'unclassified' | 'suggested' | 'classified';
+  status: 'all' | 'unclassified' | 'suggested' | 'classified' | 'ignored';
   head: string | null;
   type: 'all' | 'debit' | 'credit';
+  showIgnored: boolean;
 }
 
 export interface AppState {
@@ -107,4 +145,5 @@ export interface AppState {
   filter: FilterState;
   selectedIds: string[];
   customPatterns: AccountPattern[];
+  ignorePatterns: IgnorePattern[];
 }
