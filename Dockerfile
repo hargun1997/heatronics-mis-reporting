@@ -8,7 +8,7 @@ COPY package*.json ./
 COPY client/package*.json ./client/
 COPY server/package*.json ./server/
 
-# Install all dependencies
+# Install all dependencies (including dev for building)
 RUN npm ci --workspace=client
 
 # Copy client source code
@@ -26,13 +26,13 @@ WORKDIR /app
 COPY package*.json ./
 COPY server/package*.json ./server/
 
-# Install server dependencies only
-RUN npm ci --workspace=server --omit=dev
+# Install ALL server dependencies (including dev for TypeScript compilation)
+RUN npm ci --workspace=server
 
 # Copy server source code
 COPY server ./server
 
-# Build server
+# Build server (TypeScript compilation)
 RUN npm run build --workspace=server
 
 # Production stage
@@ -43,10 +43,15 @@ WORKDIR /app
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 
-# Copy server build and node_modules
+# Copy package files for production install
+COPY package*.json ./
+COPY server/package.json ./server/
+
+# Install only production dependencies
+RUN npm ci --workspace=server --omit=dev
+
+# Copy server build output
 COPY --from=server-build /app/server/dist ./server/dist
-COPY --from=server-build /app/node_modules ./node_modules
-COPY --from=server-build /app/server/package.json ./server/
 
 # Copy client build to server's public directory
 COPY --from=client-build /app/client/dist ./client/dist
