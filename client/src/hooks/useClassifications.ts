@@ -8,10 +8,17 @@ const STORAGE_KEY = 'mis-classifications';
 const HEADS_STORAGE_KEY = 'mis-heads';
 const PATTERNS_STORAGE_KEY = 'mis-patterns';
 const IGNORE_STORAGE_KEY = 'mis-ignore-patterns';
+const SESSION_KEY = 'mis-session-id';
 
 interface StoredState {
   transactions: Transaction[];
   timestamp: number;
+  sessionId?: string;
+}
+
+// Generate a unique session ID for each file upload
+function generateSessionId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 export function useClassifications() {
@@ -20,6 +27,8 @@ export function useClassifications() {
   const [customPatterns, setCustomPatterns] = useState<AccountPattern[]>([]);
   const [ignorePatterns, setIgnorePatterns] = useState<IgnorePattern[]>(DEFAULT_IGNORE_PATTERNS);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [filter, setFilter] = useState<FilterState>({
     search: '',
     status: 'all',
@@ -32,11 +41,15 @@ export function useClassifications() {
   // Load from localStorage on mount
   useEffect(() => {
     try {
+      const storedSession = localStorage.getItem(SESSION_KEY);
       const storedData = localStorage.getItem(STORAGE_KEY);
-      if (storedData) {
+
+      if (storedData && storedSession) {
         const parsed: StoredState = JSON.parse(storedData);
-        if (parsed.transactions && Array.isArray(parsed.transactions)) {
+        // Only restore if session matches and data is valid
+        if (parsed.transactions && Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
           setTransactions(parsed.transactions);
+          setSessionId(storedSession);
         }
       }
 
@@ -57,26 +70,50 @@ export function useClassifications() {
     } catch (error) {
       console.error('Failed to load from localStorage:', error);
     }
+    setIsLoaded(true);
   }, []);
 
   // Save to localStorage when transactions change
   const saveToStorage = useCallback(() => {
     try {
+      if (!sessionId) return; // Don't save if no session
+
       const state: StoredState = {
         transactions,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        sessionId
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(SESSION_KEY, sessionId);
       localStorage.setItem(HEADS_STORAGE_KEY, JSON.stringify(heads));
       localStorage.setItem(PATTERNS_STORAGE_KEY, JSON.stringify(customPatterns));
       localStorage.setItem(IGNORE_STORAGE_KEY, JSON.stringify(ignorePatterns));
     } catch (error) {
       console.error('Failed to save to localStorage:', error);
     }
-  }, [transactions, heads, customPatterns, ignorePatterns]);
+  }, [transactions, heads, customPatterns, ignorePatterns, sessionId]);
+
+  // Clear all stored data
+  const clearStorage = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SESSION_KEY);
+      // Keep heads, patterns, and ignore patterns as they are user preferences
+    } catch (error) {
+      console.error('Failed to clear localStorage:', error);
+    }
+  }, []);
 
   // Import new transactions
   const importTransactions = useCallback((newTransactions: Transaction[]) => {
+    // Generate new session ID for this upload - this ensures new uploads always replace old data
+    const newSessionId = generateSessionId();
+    setSessionId(newSessionId);
+
+    // Clear old session data immediately
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.setItem(SESSION_KEY, newSessionId);
+
     // Apply auto-recommendations and auto-ignore to new transactions
     const allPatterns = [...DEFAULT_PATTERNS, ...customPatterns];
     const allIgnorePatterns = [...DEFAULT_IGNORE_PATTERNS, ...ignorePatterns.filter(p =>
@@ -178,6 +215,18 @@ export function useClassifications() {
 
     setTransactions(processedTransactions);
     setUndoStack([]);
+
+    // Immediately save to localStorage so reloads preserve the new data
+    try {
+      const state: StoredState = {
+        transactions: processedTransactions,
+        timestamp: Date.now(),
+        sessionId: newSessionId
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.error('Failed to auto-save after import:', error);
+    }
   }, [customPatterns, ignorePatterns]);
 
   // Classify a single transaction
@@ -441,6 +490,8 @@ export function useClassifications() {
     undoStack,
     customPatterns,
     ignorePatterns,
+    sessionId,
+    isLoaded,
     setFilter,
     setSelectedIds,
     importTransactions,
@@ -455,6 +506,7 @@ export function useClassifications() {
     addHead,
     addSubhead,
     saveToStorage,
+    clearStorage,
     undo
   };
 }
