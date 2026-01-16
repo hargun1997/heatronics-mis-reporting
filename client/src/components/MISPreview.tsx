@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MISReport } from '../types';
 import { formatCurrencyFull, formatPercentage } from '../utils/cogsCalculator';
 
@@ -6,6 +6,55 @@ interface MISPreviewProps {
   report: MISReport;
   isVisible: boolean;
   onClose: () => void;
+}
+
+// VC Metrics Card Component
+function MetricCard({ label, value, percentage, trend, color, size = 'normal' }: {
+  label: string;
+  value: number;
+  percentage: string;
+  trend?: 'positive' | 'negative' | 'neutral';
+  color: string;
+  size?: 'normal' | 'large';
+}) {
+  const trendColors = {
+    positive: 'text-green-600',
+    negative: 'text-red-600',
+    neutral: 'text-gray-600'
+  };
+
+  return (
+    <div className={`bg-white rounded-lg border ${color} p-4 ${size === 'large' ? 'col-span-2' : ''}`}>
+      <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">{label}</div>
+      <div className={`font-bold ${size === 'large' ? 'text-2xl' : 'text-xl'} ${trend ? trendColors[trend] : 'text-gray-900'}`}>
+        {formatCurrencyFull(value)}
+      </div>
+      <div className="text-sm text-gray-600 mt-1">{percentage}</div>
+    </div>
+  );
+}
+
+// Progress/Margin Bar
+function MarginBar({ label, percentage, color }: { label: string; percentage: number; color: string }) {
+  const isNegative = percentage < 0;
+  const displayPct = Math.min(Math.abs(percentage), 100);
+
+  return (
+    <div className="mb-3">
+      <div className="flex justify-between text-sm mb-1">
+        <span className="text-gray-600">{label}</span>
+        <span className={`font-semibold ${isNegative ? 'text-red-600' : 'text-gray-900'}`}>
+          {isNegative ? '-' : ''}{displayPct.toFixed(1)}%
+        </span>
+      </div>
+      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${isNegative ? 'bg-red-500' : color} rounded-full transition-all duration-500`}
+          style={{ width: `${displayPct}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 interface LineItemProps {
@@ -96,15 +145,25 @@ function VarianceIndicator({ variance, label }: { variance: number; label: strin
 }
 
 export function MISPreview({ report, isVisible, onClose }: MISPreviewProps) {
+  const [viewMode, setViewMode] = useState<'summary' | 'detailed'>('summary');
+
   if (!isVisible) return null;
 
   const netRevenue = report.netRevenue || 1;
   const hasBSData = report.bsNetSales > 0 || report.bsCOGS > 0;
   const hasPurchaseRegister = report.purchaseRegisterTotal > 0;
 
+  // Calculate margin percentages
+  const grossMarginPct = (report.grossMargin / netRevenue) * 100;
+  const cm1Pct = (report.cm1 / netRevenue) * 100;
+  const cm2Pct = (report.cm2 / netRevenue) * 100;
+  const ebitdaPct = (report.ebitda / netRevenue) * 100;
+  const netIncomePct = (report.netIncome / netRevenue) * 100;
+  const cogsPct = (report.cogm / netRevenue) * 100;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
@@ -113,18 +172,241 @@ export function MISPreview({ report, isVisible, onClose }: MISPreviewProps) {
               {hasBSData ? 'Revenue & COGS from Balance Sheet' : 'All data from Journal classification'}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-3">
+            {/* View Toggle */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('summary')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'summary'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                VC Summary
+              </button>
+              <button
+                onClick={() => setViewMode('detailed')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'detailed'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Detailed View
+              </button>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto" id="mis-report-content">
+          {/* VC Summary View */}
+          {viewMode === 'summary' && (
+            <div className="p-6 space-y-6">
+              {/* Key Metrics Cards */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Key Financial Metrics
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <MetricCard
+                    label="Net Revenue"
+                    value={report.netRevenue}
+                    percentage="100% of Revenue"
+                    color="border-blue-200"
+                    size="large"
+                  />
+                  <MetricCard
+                    label="Gross Margin"
+                    value={report.grossMargin}
+                    percentage={`${grossMarginPct.toFixed(1)}% Margin`}
+                    trend={grossMarginPct >= 30 ? 'positive' : grossMarginPct >= 15 ? 'neutral' : 'negative'}
+                    color="border-green-200"
+                  />
+                  <MetricCard
+                    label="EBITDA"
+                    value={report.ebitda}
+                    percentage={`${ebitdaPct.toFixed(1)}% Margin`}
+                    trend={ebitdaPct >= 10 ? 'positive' : ebitdaPct >= 0 ? 'neutral' : 'negative'}
+                    color="border-purple-200"
+                  />
+                  <MetricCard
+                    label="Net Income"
+                    value={report.netIncome}
+                    percentage={`${netIncomePct.toFixed(1)}% Margin`}
+                    trend={report.netIncome >= 0 ? 'positive' : 'negative'}
+                    color="border-indigo-200"
+                  />
+                </div>
+              </div>
+
+              {/* Margin Waterfall */}
+              <div className="bg-gray-50 rounded-lg p-5">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Margin Waterfall</h3>
+                <div className="space-y-1">
+                  <MarginBar label="Gross Margin" percentage={grossMarginPct} color="bg-green-500" />
+                  <MarginBar label="CM1 (After Channel Costs)" percentage={cm1Pct} color="bg-blue-500" />
+                  <MarginBar label="CM2 (After Marketing)" percentage={cm2Pct} color="bg-indigo-500" />
+                  <MarginBar label="EBITDA" percentage={ebitdaPct} color="bg-purple-500" />
+                  <MarginBar label="Net Income" percentage={netIncomePct} color="bg-violet-500" />
+                </div>
+              </div>
+
+              {/* Unit Economics */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Cost Structure */}
+                <div className="bg-white border border-gray-200 rounded-lg p-5">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                    Cost Structure (% of Revenue)
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">COGS</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-red-500 rounded-full" style={{ width: `${Math.min(cogsPct, 100)}%` }} />
+                        </div>
+                        <span className="text-sm font-semibold w-12 text-right">{cogsPct.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Channel & Fulfillment</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-orange-500 rounded-full" style={{ width: `${Math.min((report.channelCosts / netRevenue) * 100, 100)}%` }} />
+                        </div>
+                        <span className="text-sm font-semibold w-12 text-right">{((report.channelCosts / netRevenue) * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Marketing</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${Math.min((report.marketing / netRevenue) * 100, 100)}%` }} />
+                        </div>
+                        <span className="text-sm font-semibold w-12 text-right">{((report.marketing / netRevenue) * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Platform</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min((report.platform / netRevenue) * 100, 100)}%` }} />
+                        </div>
+                        <span className="text-sm font-semibold w-12 text-right">{((report.platform / netRevenue) * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Operating</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min((report.operating / netRevenue) * 100, 100)}%` }} />
+                        </div>
+                        <span className="text-sm font-semibold w-12 text-right">{((report.operating / netRevenue) * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* P&L Summary Table */}
+                <div className="bg-white border border-gray-200 rounded-lg p-5">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    P&L Summary
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between py-1.5 border-b border-gray-100">
+                      <span className="text-gray-600">Net Revenue</span>
+                      <span className="font-semibold">{formatCurrencyFull(report.netRevenue)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-gray-100">
+                      <span className="text-gray-600">(-) COGS</span>
+                      <span className="font-semibold text-red-600">{formatCurrencyFull(report.cogm)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-gray-100 bg-green-50 -mx-2 px-2">
+                      <span className="font-semibold text-green-800">= Gross Margin</span>
+                      <span className="font-bold text-green-800">{formatCurrencyFull(report.grossMargin)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-gray-100">
+                      <span className="text-gray-600">(-) Channel Costs</span>
+                      <span className="font-semibold text-red-600">{formatCurrencyFull(report.channelCosts)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-gray-100">
+                      <span className="text-gray-600">(-) Marketing</span>
+                      <span className="font-semibold text-red-600">{formatCurrencyFull(report.marketing)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-gray-100">
+                      <span className="text-gray-600">(-) Platform & Operating</span>
+                      <span className="font-semibold text-red-600">{formatCurrencyFull(report.platform + report.operating)}</span>
+                    </div>
+                    <div className="flex justify-between py-2 bg-blue-50 -mx-2 px-2 rounded">
+                      <span className="font-bold text-blue-800">= EBITDA</span>
+                      <span className="font-bold text-blue-800">{formatCurrencyFull(report.ebitda)}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5">
+                      <span className="text-gray-600">(-) Non-Operating</span>
+                      <span className="font-semibold text-red-600">{formatCurrencyFull(report.nonOperating)}</span>
+                    </div>
+                    <div className={`flex justify-between py-2 -mx-2 px-2 rounded ${report.netIncome >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                      <span className={`font-bold ${report.netIncome >= 0 ? 'text-green-800' : 'text-red-800'}`}>= Net Income</span>
+                      <span className={`font-bold ${report.netIncome >= 0 ? 'text-green-800' : 'text-red-800'}`}>{formatCurrencyFull(report.netIncome)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Channel Breakdown if data exists */}
+              {Object.values(report.channelCostsBreakdown).some(v => v > 0) && (
+                <div className="bg-white border border-gray-200 rounded-lg p-5">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Channel & Fulfillment Breakdown</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {Object.entries(report.channelCostsBreakdown)
+                      .filter(([, v]) => v > 0)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([item, amount]) => (
+                        <div key={item} className="text-center p-3 bg-gray-50 rounded-lg">
+                          <div className="text-xs text-gray-500 truncate mb-1">{item}</div>
+                          <div className="font-semibold text-gray-800">{formatCurrencyFull(amount)}</div>
+                          <div className="text-xs text-gray-500">{((amount / netRevenue) * 100).toFixed(1)}%</div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Data Source Indicator */}
+              <div className="text-xs text-gray-500 text-center py-2">
+                {hasBSData ? (
+                  <span className="inline-flex items-center gap-1">
+                    <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                    Revenue & COGS from Balance Sheet (Authoritative)
+                  </span>
+                ) : (
+                  <span>All data from Journal classification</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Detailed View */}
+          {viewMode === 'detailed' && (
           <div className="mis-report">
             {/* Balance Sheet Source Indicator */}
             {hasBSData && (
@@ -446,6 +728,7 @@ export function MISPreview({ report, isVisible, onClose }: MISPreviewProps) {
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Footer */}
