@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Transaction, BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, INDIAN_STATES } from '../types';
+import { Transaction, BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, AggregatedRevenueData } from '../types';
 import { parseJournalExcel, parsePurchaseExcel, parseBalanceSheetExcel, parseSalesExcel } from '../utils/excelParser';
 import { parseBalanceSheetPDF } from '../utils/pdfParser';
 import { calculateCOGS } from '../utils/cogsCalculator';
@@ -363,7 +363,8 @@ export function useFileParser() {
     setMultiState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      const result = await parseSalesExcel(file);
+      // Pass state code to detect inter-company transfers (especially for UP)
+      const result = await parseSalesExcel(file, stateCode);
 
       setMultiState(prev => {
         const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
@@ -394,15 +395,37 @@ export function useFileParser() {
   const getAggregatedData = useCallback(() => {
     const allTransactions: Transaction[] = [];
     let totalPurchase = 0;
-    let totalSales = 0;
     const salesByChannel: { [key: string]: number } = {};
 
-    Object.values(multiState.stateData).forEach(stateData => {
+    // Revenue calculation variables
+    let totalGrossSales = 0;
+    let totalInterCompanyTransfers = 0;
+    let totalReturns = 0;
+    const salesByState: { [key in IndianState]?: number } = {};
+    const returnsByState: { [key in IndianState]?: number } = {};
+
+    Object.entries(multiState.stateData).forEach(([stateCode, stateData]) => {
       if (stateData) {
         allTransactions.push(...stateData.transactions);
         totalPurchase += stateData.purchaseTotal || 0;
+
         if (stateData.salesData) {
-          totalSales += stateData.salesData.totalSales || 0;
+          // Add gross sales (which already excludes inter-company transfers for UP)
+          totalGrossSales += stateData.salesData.grossSales || 0;
+
+          // Track inter-company transfers (only from UP state)
+          if (stateCode === 'UP') {
+            totalInterCompanyTransfers += stateData.salesData.interCompanyTransfers || 0;
+          }
+
+          // Collect returns separately (all negative sales)
+          totalReturns += stateData.salesData.returns || 0;
+
+          // Track by state
+          salesByState[stateCode as IndianState] = stateData.salesData.netSales || 0;
+          returnsByState[stateCode as IndianState] = stateData.salesData.returns || 0;
+
+          // Aggregate channel breakdown
           if (stateData.salesData.salesByChannel) {
             Object.entries(stateData.salesData.salesByChannel).forEach(([channel, amount]) => {
               salesByChannel[channel] = (salesByChannel[channel] || 0) + amount;
@@ -412,11 +435,25 @@ export function useFileParser() {
       }
     });
 
+    // Total Net Revenue = Sum of all gross sales
+    // (Inter-company transfers are already excluded from UP's gross sales in the parser)
+    const totalNetRevenue = totalGrossSales;
+
+    const revenueData: AggregatedRevenueData = {
+      totalGrossSales,
+      totalInterCompanyTransfers,
+      totalNetRevenue,
+      totalReturns,
+      salesByState,
+      returnsByState
+    };
+
     return {
       transactions: allTransactions,
       totalPurchase,
-      totalSales,
-      salesByChannel
+      totalSales: totalNetRevenue,  // Backward compatible
+      salesByChannel,
+      revenueData
     };
   }, [multiState.stateData]);
 
