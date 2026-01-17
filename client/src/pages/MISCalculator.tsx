@@ -553,6 +553,49 @@ export function MISCalculator() {
           stateName={INDIAN_STATES.find(s => s.code === showSalesVerification)?.name}
         />
       )}
+
+      {/* MIS Report Modal */}
+      {showMISReport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div>
+                  <h2 className="text-xl font-bold text-blue-900">MIS Report</h2>
+                  <p className="text-sm text-blue-700">Review line items and reassign classifications</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMISReport(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <MISReportTable
+                transactions={transactions}
+                heads={heads}
+                report={misReport}
+                activeHead={activeHead}
+                onReassignTransactions={(txnIds, head, subhead) => classifyMultiple(txnIds, head, subhead)}
+                revenueData={isMultiStateMode ? getAggregatedData().revenueData : undefined}
+                salesByChannel={isMultiStateMode ? getAggregatedData().salesByChannel : undefined}
+                onStateClick={(state) => setShowSalesVerification(state)}
+                getSalesLineItemsCount={(state) => getSalesLineItems(state).length}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
