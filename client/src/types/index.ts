@@ -172,9 +172,26 @@ export interface AppState {
 
 // Sales Register Data
 export interface SalesRegisterData {
-  totalSales: number;
+  grossSales: number;           // All positive sales
+  returns: number;              // All negative sales (stored as positive value)
+  interCompanyTransfers: number; // Sales to other Heatronics entities (for UP state)
+  netSales: number;             // grossSales - interCompanyTransfers (returns NOT subtracted here)
   itemCount: number;
   salesByChannel?: { [key: string]: number };
+  interCompanyDetails?: {       // Details of inter-company transfers
+    toState: IndianState;
+    amount: number;
+  }[];
+}
+
+// Aggregated revenue data across all states
+export interface AggregatedRevenueData {
+  totalGrossSales: number;          // Sum of all states' gross sales
+  totalInterCompanyTransfers: number; // Total UP to other states transfers
+  totalNetRevenue: number;          // totalGrossSales - totalInterCompanyTransfers
+  totalReturns: number;             // Sum of all returns across states
+  salesByState: { [key in IndianState]?: number };
+  returnsByState: { [key in IndianState]?: number };
 }
 
 // State-specific file uploads

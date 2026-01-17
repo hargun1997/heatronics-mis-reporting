@@ -188,8 +188,10 @@ export function MISCalculator() {
 
   // Generate MIS report
   const misReport = useMemo(() => {
-    return generateMISReport(transactions, heads, balanceSheetData, purchaseTotal);
-  }, [transactions, heads, balanceSheetData, purchaseTotal]);
+    // In multi-state mode, use aggregated sales revenue data
+    const salesRevenueData = isMultiStateMode ? getAggregatedData().revenueData : null;
+    return generateMISReport(transactions, heads, balanceSheetData, purchaseTotal, salesRevenueData);
+  }, [transactions, heads, balanceSheetData, purchaseTotal, isMultiStateMode, getAggregatedData]);
 
   // Filter by head when panel is clicked
   useEffect(() => {
@@ -398,18 +400,38 @@ export function MISCalculator() {
           </div>
         )}
 
-        {/* Sales Register indicator */}
-        {salesData && salesData.totalSales > 0 && !isMultiStateMode && (
-          <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center gap-3">
-            <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-purple-800">
-              <strong>Sales Register Total:</strong> ₹{salesData.totalSales.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-              {salesData.itemCount > 0 && <span className="text-purple-600 ml-2">({salesData.itemCount} items)</span>}
-            </span>
+        {/* Sales Register indicator (Single Mode) */}
+        {salesData && salesData.grossSales > 0 && !isMultiStateMode && (
+          <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-purple-900 font-medium">Sales Register Summary</span>
+              {salesData.itemCount > 0 && <span className="text-purple-600 text-sm">({salesData.itemCount} items)</span>}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-white p-2 rounded border border-purple-100">
+                <div className="text-xs text-purple-600">Gross Sales</div>
+                <div className="text-sm font-medium text-purple-900">₹{salesData.grossSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              </div>
+              <div className="bg-white p-2 rounded border border-purple-100">
+                <div className="text-xs text-red-600">Returns</div>
+                <div className="text-sm font-medium text-red-700">₹{salesData.returns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              </div>
+              {salesData.interCompanyTransfers > 0 && (
+                <div className="bg-white p-2 rounded border border-purple-100">
+                  <div className="text-xs text-orange-600">Inter-Company</div>
+                  <div className="text-sm font-medium text-orange-700">₹{salesData.interCompanyTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                </div>
+              )}
+              <div className="bg-white p-2 rounded border border-green-200">
+                <div className="text-xs text-green-600">Net Sales</div>
+                <div className="text-sm font-medium text-green-700">₹{salesData.netSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              </div>
+            </div>
             {salesData.salesByChannel && Object.keys(salesData.salesByChannel).length > 0 && (
-              <div className="ml-auto flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {Object.entries(salesData.salesByChannel).map(([channel, amount]) => (
                   <span key={channel} className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
                     {channel}: ₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
@@ -419,6 +441,80 @@ export function MISCalculator() {
             )}
           </div>
         )}
+
+        {/* Multi-State Revenue Summary */}
+        {isMultiStateMode && (() => {
+          const aggregated = getAggregatedData();
+          const { revenueData } = aggregated;
+          if (!revenueData || revenueData.totalGrossSales === 0) return null;
+
+          return (
+            <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span className="text-indigo-900 font-medium">Consolidated Revenue Summary (All States)</span>
+              </div>
+
+              {/* Main Revenue Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div className="bg-white p-3 rounded border border-indigo-100">
+                  <div className="text-xs text-indigo-600">Total Gross Sales</div>
+                  <div className="text-lg font-semibold text-indigo-900">₹{revenueData.totalGrossSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                </div>
+                {revenueData.totalInterCompanyTransfers > 0 && (
+                  <div className="bg-white p-3 rounded border border-orange-200">
+                    <div className="text-xs text-orange-600">Inter-Company (UP)</div>
+                    <div className="text-lg font-semibold text-orange-700">- ₹{revenueData.totalInterCompanyTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                    <div className="text-xs text-orange-500 mt-1">Stock transfers to other states</div>
+                  </div>
+                )}
+                <div className="bg-white p-3 rounded border border-red-200">
+                  <div className="text-xs text-red-600">Total Returns</div>
+                  <div className="text-lg font-semibold text-red-700">₹{revenueData.totalReturns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                </div>
+                <div className="bg-white p-3 rounded border border-green-300 bg-green-50">
+                  <div className="text-xs text-green-600 font-medium">NET REVENUE</div>
+                  <div className="text-lg font-bold text-green-700">₹{revenueData.totalNetRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                  <div className="text-xs text-green-500 mt-1">Gross - Inter-company</div>
+                </div>
+              </div>
+
+              {/* State-wise Breakdown */}
+              <div className="border-t border-indigo-200 pt-3">
+                <div className="text-xs text-indigo-600 mb-2 font-medium">State-wise Sales</div>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(revenueData.salesByState).map(([state, amount]) => (
+                    <div key={state} className="bg-white px-3 py-2 rounded border border-indigo-100 text-sm">
+                      <span className="text-indigo-700 font-medium">{state}:</span>
+                      <span className="text-indigo-900 ml-1">₹{(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                      {revenueData.returnsByState[state as IndianState] && revenueData.returnsByState[state as IndianState]! > 0 && (
+                        <span className="text-red-500 ml-2 text-xs">
+                          (Returns: ₹{revenueData.returnsByState[state as IndianState]!.toLocaleString('en-IN', { maximumFractionDigits: 0 })})
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Channel Breakdown */}
+              {aggregated.salesByChannel && Object.keys(aggregated.salesByChannel).length > 0 && (
+                <div className="border-t border-indigo-200 pt-3 mt-3">
+                  <div className="text-xs text-indigo-600 mb-2 font-medium">Channel Breakdown</div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(aggregated.salesByChannel).map(([channel, amount]) => (
+                      <span key={channel} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
+                        {channel}: ₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Balance Sheet Net Sales indicator */}
         {balanceSheetData && balanceSheetData.netSales > 0 && !isMultiStateMode && (

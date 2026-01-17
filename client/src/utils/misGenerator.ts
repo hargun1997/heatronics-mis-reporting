@@ -1,10 +1,19 @@
-import { Transaction, MISReport, Heads, BalanceSheetData } from '../types';
+import { Transaction, MISReport, Heads, BalanceSheetData, AggregatedRevenueData } from '../types';
+
+export interface MISReportOptions {
+  transactions: Transaction[];
+  heads: Heads;
+  balanceSheetData?: BalanceSheetData | null;
+  purchaseRegisterTotal?: number;
+  salesRevenueData?: AggregatedRevenueData | null;  // From sales registers (multi-state)
+}
 
 export function generateMISReport(
   transactions: Transaction[],
   heads: Heads,
   balanceSheetData?: BalanceSheetData | null,
-  purchaseRegisterTotal?: number
+  purchaseRegisterTotal?: number,
+  salesRevenueData?: AggregatedRevenueData | null
 ): MISReport {
   // Initialize breakdown objects for expense categories
   const revenueByChannel: { [key: string]: number } = {};
@@ -111,7 +120,7 @@ export function generateMISReport(
     }
   }
 
-  // === BALANCE SHEET DATA (AUTHORITATIVE SOURCE) ===
+  // === BALANCE SHEET DATA ===
   const bsNetSales = balanceSheetData?.netSales || 0;
   const bsGrossSales = balanceSheetData?.grossSales || 0;
   const bsPurchases = balanceSheetData?.purchases || 0;
@@ -122,9 +131,30 @@ export function generateMISReport(
   // Calculate COGS from Balance Sheet
   const bsCOGS = Math.max(0, bsOpeningStock + bsPurchases - bsClosingStock);
 
-  // === P&L CALCULATIONS (using BS for Revenue and COGS) ===
-  // If Balance Sheet data is available, use it. Otherwise fall back to journal data
-  const netRevenue = bsNetSales > 0 ? bsNetSales : (journalRevenue - journalReturns - journalDiscounts - journalTaxes);
+  // === SALES REGISTER DATA (from multi-state aggregation) ===
+  // When sales register data is available, use it as the authoritative source for revenue
+  // Returns are captured separately and shown in returns section (not subtracted from revenue)
+  const salesRegisterRevenue = salesRevenueData?.totalNetRevenue || 0;
+  const salesRegisterReturns = salesRevenueData?.totalReturns || 0;
+
+  // === P&L CALCULATIONS ===
+  // Priority: Sales Register > Balance Sheet > Journal
+  // Note: Returns from sales register are NOT subtracted from revenue here,
+  // they go to the returns section separately
+  let netRevenue: number;
+  if (salesRegisterRevenue > 0) {
+    // Use sales register as authoritative (returns already excluded from netRevenue calculation)
+    netRevenue = salesRegisterRevenue;
+    // Update journal returns to use sales register returns if available
+    if (salesRegisterReturns > 0) {
+      journalReturns = salesRegisterReturns;
+    }
+  } else if (bsNetSales > 0) {
+    netRevenue = bsNetSales;
+  } else {
+    netRevenue = journalRevenue - journalReturns - journalDiscounts - journalTaxes;
+  }
+
   const cogm = bsCOGS > 0 ? bsCOGS : journalCOGM;
 
   const grossMargin = netRevenue - cogm;
