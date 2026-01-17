@@ -310,13 +310,11 @@ export function MISReportTable({
               <div className="text-xs text-indigo-600">Total Gross Sales</div>
               <div className="text-lg font-semibold text-indigo-900">₹{revenueData.totalGrossSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
-            {revenueData.totalInterCompanyTransfers > 0 && (
-              <div className="bg-white p-3 rounded border border-orange-200">
-                <div className="text-xs text-orange-600">Inter-Company (UP)</div>
-                <div className="text-lg font-semibold text-orange-700">- ₹{revenueData.totalInterCompanyTransfers.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <div className="text-xs text-orange-500 mt-1">Excluded from gross</div>
-              </div>
-            )}
+            <div className="bg-white p-3 rounded border border-amber-200">
+              <div className="text-xs text-amber-600">Stock Transfer</div>
+              <div className="text-lg font-semibold text-amber-700">- ₹{revenueData.totalStockTransfer.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-amber-500 mt-1">Inter-company (UP)</div>
+            </div>
             <div className="bg-white p-3 rounded border border-red-200">
               <div className="text-xs text-red-600">Returns</div>
               <div className="text-lg font-semibold text-red-700">- ₹{revenueData.totalReturns.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
@@ -334,7 +332,7 @@ export function MISReportTable({
             <div className="bg-white p-3 rounded border border-green-300 bg-green-50">
               <div className="text-xs text-green-600 font-medium">NET REVENUE</div>
               <div className="text-lg font-bold text-green-700">₹{revenueData.totalNetRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className="text-xs text-green-500 mt-1">Gross - Returns - Taxes - Discounts</div>
+              <div className="text-xs text-green-500 mt-1">Gross - Stock Transfer - Returns - Taxes - Discounts</div>
             </div>
           </div>
 

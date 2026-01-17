@@ -12,8 +12,22 @@ function generateId(): string {
 // Convert a SalesLineItem to a Transaction
 function salesLineItemToTransaction(item: SalesLineItem, stateCode: IndianState): Transaction {
   const isReturn = item.isReturn;
-  const head = isReturn ? 'B. Returns' : 'A. Revenue';
-  const subhead = item.channel; // Amazon, Website, Blinkit, Offline/OEM
+  const isInterCompany = item.isInterCompany;
+
+  // Determine head based on type
+  let head: string;
+  let subhead: string;
+
+  if (isInterCompany) {
+    head = 'B. Stock Transfer';
+    subhead = item.toState || 'Other';
+  } else if (isReturn) {
+    head = 'C. Returns';
+    subhead = item.channel;
+  } else {
+    head = 'A. Revenue';
+    subhead = item.channel;
+  }
 
   return {
     id: `sales-${item.id}`,
@@ -21,9 +35,9 @@ function salesLineItemToTransaction(item: SalesLineItem, stateCode: IndianState)
     vchBillNo: '',
     gstNature: '',
     account: item.partyName,
-    debit: isReturn ? item.amount : 0, // Returns are debits
-    credit: isReturn ? 0 : item.amount, // Sales are credits
-    notes: item.isInterCompany ? `Inter-company transfer to ${item.toState || 'other state'}` : '',
+    debit: (isReturn || isInterCompany) ? item.amount : 0, // Returns and Stock Transfers are debits
+    credit: (isReturn || isInterCompany) ? 0 : item.amount, // Only Revenue is credit
+    notes: isInterCompany ? `Inter-company transfer to ${item.toState || 'other entity'}` : '',
     head,
     subhead,
     status: 'classified',
@@ -393,12 +407,10 @@ export function useFileParser() {
       // Pass state code to detect inter-company transfers (especially for UP)
       const result = await parseSalesExcel(file, stateCode);
 
-      // Convert sales line items to transactions (excluding inter-company transfers)
+      // Convert sales line items to transactions (including inter-company as Stock Transfer)
       const salesTransactions: Transaction[] = [];
       if (result.salesData.lineItems) {
         for (const item of result.salesData.lineItems) {
-          // Skip inter-company transfers - they shouldn't appear as revenue
-          if (item.isInterCompany) continue;
           salesTransactions.push(salesLineItemToTransaction(item, stateCode));
         }
       }
@@ -444,7 +456,7 @@ export function useFileParser() {
 
     // Revenue calculation variables
     let totalGrossSales = 0;
-    let totalInterCompanyTransfers = 0;
+    let totalStockTransfer = 0;
     let totalReturns = 0;
     let totalTaxes = 0;       // Placeholder for future implementation
     let totalDiscounts = 0;   // Placeholder for future implementation
@@ -457,12 +469,12 @@ export function useFileParser() {
         totalPurchase += stateData.purchaseTotal || 0;
 
         if (stateData.salesData) {
-          // Add gross sales (which already excludes inter-company transfers for UP)
+          // Add gross sales (includes all positive amounts including stock transfers)
           totalGrossSales += stateData.salesData.grossSales || 0;
 
-          // Track inter-company transfers (only from UP state)
+          // Track stock transfers (inter-company transfers, only from UP state)
           if (stateCode === 'UP') {
-            totalInterCompanyTransfers += stateData.salesData.interCompanyTransfers || 0;
+            totalStockTransfer += stateData.salesData.interCompanyTransfers || 0;
           }
 
           // Collect returns separately (all negative sales)
@@ -482,13 +494,12 @@ export function useFileParser() {
       }
     });
 
-    // Net Revenue = Total Gross Sales - Returns - Taxes - Discounts
-    // Note: Inter-company transfers are already excluded from UP's gross sales in the parser
-    const totalNetRevenue = totalGrossSales - totalReturns - totalTaxes - totalDiscounts;
+    // Net Revenue = Total Gross Sales - Stock Transfer - Returns - Taxes - Discounts
+    const totalNetRevenue = totalGrossSales - totalStockTransfer - totalReturns - totalTaxes - totalDiscounts;
 
     const revenueData: AggregatedRevenueData = {
       totalGrossSales,
-      totalInterCompanyTransfers,
+      totalStockTransfer,
       totalReturns,
       totalTaxes,
       totalDiscounts,
