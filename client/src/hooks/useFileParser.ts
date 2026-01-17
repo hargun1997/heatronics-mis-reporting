@@ -538,6 +538,81 @@ export function useFileParser() {
     });
   }, []);
 
+  // Update a sales line item's channel and recalculate totals
+  const updateSalesLineItem = useCallback((stateCode: IndianState, itemId: string, newChannel: string) => {
+    setMultiState(prev => {
+      const stateData = prev.stateData[stateCode];
+      if (!stateData || !stateData.salesData || !stateData.salesData.lineItems) {
+        return prev;
+      }
+
+      // Update the line item
+      const updatedLineItems = stateData.salesData.lineItems.map(item =>
+        item.id === itemId ? { ...item, channel: newChannel } : item
+      );
+
+      // Recalculate totals based on updated line items
+      let grossSales = 0;
+      let returns = 0;
+      let interCompanyTransfers = 0;
+      const salesByChannel: { [key: string]: number } = {};
+
+      updatedLineItems.forEach(item => {
+        if (item.isReturn) {
+          returns += item.amount;
+        } else if (item.isInterCompany) {
+          interCompanyTransfers += item.amount;
+        } else {
+          grossSales += item.amount;
+          salesByChannel[item.channel] = (salesByChannel[item.channel] || 0) + item.amount;
+        }
+      });
+
+      const updatedSalesData = {
+        ...stateData.salesData,
+        grossSales,
+        returns,
+        interCompanyTransfers,
+        netSales: grossSales,
+        salesByChannel: Object.keys(salesByChannel).length > 0 ? salesByChannel : undefined,
+        lineItems: updatedLineItems
+      };
+
+      return {
+        ...prev,
+        stateData: {
+          ...prev.stateData,
+          [stateCode]: {
+            ...stateData,
+            salesData: updatedSalesData
+          }
+        }
+      };
+    });
+  }, []);
+
+  // Get all sales line items for a state (for verification)
+  const getSalesLineItems = useCallback((stateCode: IndianState) => {
+    const stateData = multiState.stateData[stateCode];
+    return stateData?.salesData?.lineItems || [];
+  }, [multiState.stateData]);
+
+  // Get all sales line items across all states
+  const getAllSalesLineItems = useCallback(() => {
+    const allItems: { stateCode: IndianState; items: SalesRegisterData['lineItems'] }[] = [];
+
+    Object.entries(multiState.stateData).forEach(([stateCode, stateData]) => {
+      if (stateData?.salesData?.lineItems) {
+        allItems.push({
+          stateCode: stateCode as IndianState,
+          items: stateData.salesData.lineItems
+        });
+      }
+    });
+
+    return allItems;
+  }, [multiState.stateData]);
+
   return {
     // Single mode state
     ...state,
@@ -564,6 +639,10 @@ export function useFileParser() {
     parsePurchaseForState,
     parseSalesForState,
     getAggregatedData,
-    getStateFileStatus
+    getStateFileStatus,
+    // Sales verification
+    updateSalesLineItem,
+    getSalesLineItems,
+    getAllSalesLineItems
   };
 }

@@ -8,10 +8,11 @@ import { MISPreview, MISMiniPreview } from '../components/MISPreview';
 import { COGSDisplay } from '../components/COGSDisplay';
 import { ExportButton } from '../components/ExportButton';
 import { StateSelector, StateFileSummary } from '../components/StateSelector';
+import { SalesVerification } from '../components/SalesVerification';
 import { useFileParser } from '../hooks/useFileParser';
 import { useClassifications } from '../hooks/useClassifications';
 import { generateMISReport } from '../utils/misGenerator';
-import { IndianState, INDIAN_STATES } from '../types';
+import { IndianState, INDIAN_STATES, SalesLineItem } from '../types';
 
 export function MISCalculator() {
   // File parsing state
@@ -47,7 +48,10 @@ export function MISCalculator() {
     parsePurchaseForState,
     parseSalesForState,
     getAggregatedData,
-    getStateFileStatus
+    getStateFileStatus,
+    // Sales verification
+    updateSalesLineItem,
+    getSalesLineItems
   } = useFileParser();
 
   // Classification state
@@ -77,6 +81,7 @@ export function MISCalculator() {
   const [activeHead, setActiveHead] = useState<string | null>(null);
   const [showMISPreview, setShowMISPreview] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showSalesVerification, setShowSalesVerification] = useState<IndianState | null>(null);
 
   // Check if we're in multi-state mode
   const isMultiStateMode = multiState.selectedStates.length > 0;
@@ -483,19 +488,37 @@ export function MISCalculator() {
 
               {/* State-wise Breakdown */}
               <div className="border-t border-indigo-200 pt-3">
-                <div className="text-xs text-indigo-600 mb-2 font-medium">State-wise Sales</div>
+                <div className="text-xs text-indigo-600 mb-2 font-medium">State-wise Sales (Click to verify)</div>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(revenueData.salesByState).map(([state, amount]) => (
-                    <div key={state} className="bg-white px-3 py-2 rounded border border-indigo-100 text-sm">
-                      <span className="text-indigo-700 font-medium">{state}:</span>
-                      <span className="text-indigo-900 ml-1">₹{(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                      {revenueData.returnsByState[state as IndianState] && revenueData.returnsByState[state as IndianState]! > 0 && (
-                        <span className="text-red-500 ml-2 text-xs">
-                          (Returns: ₹{revenueData.returnsByState[state as IndianState]!.toLocaleString('en-IN', { maximumFractionDigits: 0 })})
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                  {Object.entries(revenueData.salesByState).map(([state, amount]) => {
+                    const stateCode = state as IndianState;
+                    const hasLineItems = getSalesLineItems(stateCode).length > 0;
+                    return (
+                      <button
+                        key={state}
+                        onClick={() => hasLineItems && setShowSalesVerification(stateCode)}
+                        disabled={!hasLineItems}
+                        className={`bg-white px-3 py-2 rounded border text-sm text-left transition-colors ${
+                          hasLineItems
+                            ? 'border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer'
+                            : 'border-gray-100 cursor-not-allowed opacity-60'
+                        }`}
+                      >
+                        <span className="text-indigo-700 font-medium">{state}:</span>
+                        <span className="text-indigo-900 ml-1">₹{(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                        {revenueData.returnsByState[stateCode] && revenueData.returnsByState[stateCode]! > 0 && (
+                          <span className="text-red-500 ml-2 text-xs">
+                            (Returns: ₹{revenueData.returnsByState[stateCode]!.toLocaleString('en-IN', { maximumFractionDigits: 0 })})
+                          </span>
+                        )}
+                        {hasLineItems && (
+                          <svg className="inline-block w-3 h-3 ml-2 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -646,6 +669,16 @@ export function MISCalculator() {
         isVisible={showMISPreview}
         onClose={() => setShowMISPreview(false)}
       />
+
+      {/* Sales Verification Modal */}
+      {showSalesVerification && (
+        <SalesVerification
+          lineItems={getSalesLineItems(showSalesVerification)}
+          onUpdateItem={(itemId, newChannel) => updateSalesLineItem(showSalesVerification, itemId, newChannel)}
+          onClose={() => setShowSalesVerification(null)}
+          stateName={INDIAN_STATES.find(s => s.code === showSalesVerification)?.name}
+        />
+      )}
     </div>
   );
 }

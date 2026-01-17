@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { Transaction, SalesRegisterData, IndianState } from '../types';
+import { Transaction, SalesRegisterData, IndianState, SalesLineItem } from '../types';
 
 // Generate unique ID
 function generateId(): string {
@@ -293,6 +293,24 @@ function isInterCompanyTransfer(partyName: string): boolean {
   return HEATRONICS_ENTITY_PATTERNS.some(pattern => pattern.test(partyName));
 }
 
+// Categorize party name into channel
+// Priority: Blinkit > Amazon > Shiprocket (Website) > Offline/OEM (default)
+function categorizeChannel(partyName: string): string {
+  const name = partyName.toLowerCase();
+
+  if (name.includes('blinkit') || name.includes('grofers')) {
+    return 'Blinkit';
+  }
+  if (name.includes('amazon')) {
+    return 'Amazon';
+  }
+  if (name.includes('shiprocket')) {
+    return 'Website';
+  }
+  // Default: everything else goes to Offline/OEM
+  return 'Offline/OEM';
+}
+
 export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<SalesParseResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -317,6 +335,7 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
         let itemCount = 0;
         const salesByChannel: { [key: string]: number } = {};
         const interCompanyDetails: { toState: IndianState; amount: number }[] = [];
+        const lineItems: SalesLineItem[] = [];  // Track individual items for verification
         const errors: string[] = [];
 
         // Skip first few rows (headers)
@@ -336,8 +355,7 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
           itemCount++;
 
           // Get party/account name
-          const partyName = String(row[1] || row[0] || '');
-          const partyNameLower = partyName.toLowerCase();
+          const partyName = String(row[1] || row[0] || '').trim();
 
           // Get amount - try multiple columns (credit column usually)
           let amount = parseNumber(row[5]) || parseNumber(row[6]) || parseNumber(row[4]);
@@ -357,7 +375,20 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
 
           // Handle negative amounts (returns)
           if (amount < 0) {
-            returns += Math.abs(amount);
+            const absAmount = Math.abs(amount);
+            returns += absAmount;
+            const channel = categorizeChannel(partyName);
+
+            // Track return line item
+            lineItems.push({
+              id: generateId(),
+              partyName,
+              amount: absAmount,
+              channel,
+              isReturn: true,
+              isInterCompany: false,
+              originalChannel: channel
+            });
             continue;
           }
 
@@ -374,27 +405,38 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
                 interCompanyDetails.push({ toState, amount });
               }
             }
+
+            // Track inter-company line item
+            lineItems.push({
+              id: generateId(),
+              partyName,
+              amount,
+              channel: 'Inter-Company',
+              isReturn: false,
+              isInterCompany: true,
+              toState: toState || undefined,
+              originalChannel: 'Inter-Company'
+            });
             continue; // Don't add to regular sales
           }
 
+          // Categorize by channel using updated logic
+          const channel = categorizeChannel(partyName);
+
           // Add to gross sales
           grossSales += amount;
-
-          // Categorize by channel
-          let channel = 'Other';
-          if (partyNameLower.includes('amazon')) {
-            channel = 'Amazon';
-          } else if (partyNameLower.includes('blinkit') || partyNameLower.includes('grofers')) {
-            channel = 'Blinkit';
-          } else if (partyNameLower.includes('flipkart')) {
-            channel = 'Flipkart';
-          } else if (partyNameLower.includes('website') || partyNameLower.includes('shopify') || partyNameLower.includes('d2c')) {
-            channel = 'Website/D2C';
-          } else if (partyNameLower.includes('offline') || partyNameLower.includes('retail') || partyNameLower.includes('oem')) {
-            channel = 'Offline/OEM';
-          }
-
           salesByChannel[channel] = (salesByChannel[channel] || 0) + amount;
+
+          // Track sales line item
+          lineItems.push({
+            id: generateId(),
+            partyName,
+            amount,
+            channel,
+            isReturn: false,
+            isInterCompany: false,
+            originalChannel: channel
+          });
         }
 
         // Net sales = gross sales (returns are NOT subtracted, they go to returns section)
@@ -409,7 +451,8 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
             netSales,
             itemCount,
             salesByChannel: Object.keys(salesByChannel).length > 0 ? salesByChannel : undefined,
-            interCompanyDetails: interCompanyDetails.length > 0 ? interCompanyDetails : undefined
+            interCompanyDetails: interCompanyDetails.length > 0 ? interCompanyDetails : undefined,
+            lineItems: lineItems.length > 0 ? lineItems : undefined
           },
           errors
         });
