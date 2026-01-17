@@ -4,8 +4,7 @@ import { TransactionTable } from '../components/TransactionTable';
 import { HeadsPanel } from '../components/HeadsPanel';
 import { SearchBar } from '../components/SearchBar';
 import { BulkActions } from '../components/BulkActions';
-import { MISReportTable } from '../components/MISReportTable';
-import { COGSDisplay } from '../components/COGSDisplay';
+import { MISPreview } from '../components/MISPreview';
 import { ExportButton } from '../components/ExportButton';
 import { StateSelector, StateFileSummary } from '../components/StateSelector';
 import { SalesVerification } from '../components/SalesVerification';
@@ -13,7 +12,6 @@ import { useFileParser } from '../hooks/useFileParser';
 import { useClassifications } from '../hooks/useClassifications';
 import { generateMISReport } from '../utils/misGenerator';
 import { IndianState, INDIAN_STATES, SalesLineItem } from '../types';
-
 
 export function MISCalculator() {
   // File parsing state
@@ -397,79 +395,7 @@ export function MISCalculator() {
           </div>
         )}
 
-        {/* COGS Display */}
-        {(balanceSheetParsed || cogsData) && !isMultiStateMode && (
-          <div className="mt-4">
-            <COGSDisplay
-              cogsData={cogsData}
-              onManualUpdate={setCOGSManually}
-            />
-          </div>
-        )}
 
-        {/* Sales Register indicator (Single Mode) */}
-        {salesData && salesData.grossSales > 0 && !isMultiStateMode && (
-          <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-purple-900 font-medium">Sales Register Summary</span>
-              {salesData.itemCount > 0 && <span className="text-purple-600 text-sm">({salesData.itemCount} items)</span>}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-white p-2 rounded border border-purple-100">
-                <div className="text-xs text-purple-600">Gross Sales</div>
-                <div className="text-sm font-medium text-purple-900">₹{salesData.grossSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-              </div>
-              <div className="bg-white p-2 rounded border border-purple-100">
-                <div className="text-xs text-red-600">Returns</div>
-                <div className="text-sm font-medium text-red-700">₹{salesData.returns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-              </div>
-              {salesData.interCompanyTransfers > 0 && (
-                <div className="bg-white p-2 rounded border border-purple-100">
-                  <div className="text-xs text-orange-600">Inter-Company</div>
-                  <div className="text-sm font-medium text-orange-700">₹{salesData.interCompanyTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                </div>
-              )}
-              <div className="bg-white p-2 rounded border border-green-200">
-                <div className="text-xs text-green-600">Net Sales</div>
-                <div className="text-sm font-medium text-green-700">₹{salesData.netSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-              </div>
-            </div>
-            {salesData.salesByChannel && Object.keys(salesData.salesByChannel).length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {Object.entries(salesData.salesByChannel).map(([channel, amount]) => (
-                  <span key={channel} className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                    {channel}: ₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-
-        {/* Balance Sheet Net Sales indicator */}
-        {balanceSheetData && balanceSheetData.netSales > 0 && !isMultiStateMode && (
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-            <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-green-800">
-              <strong>Net Sales from Balance Sheet:</strong> ₹{balanceSheetData.netSales.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-            </span>
-            <button
-              onClick={() => {
-                const value = prompt('Enter Net Sales manually:', balanceSheetData.netSales.toString());
-                if (value) setNetSalesManually(parseFloat(value));
-              }}
-              className="ml-auto text-sm text-green-600 hover:text-green-800"
-            >
-              Edit
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Main Content Area */}
@@ -610,6 +536,13 @@ export function MISCalculator() {
           </div>
         </div>
       )}
+
+      {/* MIS Preview Modal */}
+      <MISPreview
+        report={misReport}
+        isVisible={showMISReport}
+        onClose={() => setShowMISReport(false)}
+      />
 
       {/* Sales Verification Modal */}
       {showSalesVerification && (
