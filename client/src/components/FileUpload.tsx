@@ -8,6 +8,7 @@ interface FileUploadProps {
   isLoading: boolean;
   fileName?: string;
   icon: React.ReactNode;
+  idPrefix?: string;
 }
 
 export function FileUpload({
@@ -17,8 +18,10 @@ export function FileUpload({
   isParsed,
   isLoading,
   fileName,
-  icon
+  icon,
+  idPrefix = ''
 }: FileUploadProps) {
+  const inputId = `file-${idPrefix}${label}`.replace(/\s+/g, '-');
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -39,6 +42,8 @@ export function FileUpload({
     if (file) {
       onFileSelect(file);
     }
+    // Reset input value so the same file can be selected again (e.g., for different states)
+    e.target.value = '';
   }, [onFileSelect]);
 
   return (
@@ -54,10 +59,10 @@ export function FileUpload({
       `}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
-      onClick={() => document.getElementById(`file-${label}`)?.click()}
+      onClick={() => document.getElementById(inputId)?.click()}
     >
       <input
-        id={`file-${label}`}
+        id={inputId}
         type="file"
         accept={accept}
         onChange={handleFileInput}
@@ -195,6 +200,7 @@ export function FileUploadSection({
           isLoading={loading && !!balanceSheetFile && !balanceSheetParsed}
           fileName={balanceSheetFile?.name}
           icon={PDFIcon}
+          idPrefix={stateLabel ? `${stateLabel}-` : ''}
         />
 
         <FileUpload
@@ -205,6 +211,7 @@ export function FileUploadSection({
           isLoading={loading && !!journalFile && !journalParsed}
           fileName={journalFile?.name}
           icon={ExcelIcon}
+          idPrefix={stateLabel ? `${stateLabel}-` : ''}
         />
 
         <FileUpload
@@ -215,6 +222,7 @@ export function FileUploadSection({
           isLoading={loading && !!purchaseFile && !purchaseParsed}
           fileName={purchaseFile?.name}
           icon={ExcelIcon}
+          idPrefix={stateLabel ? `${stateLabel}-` : ''}
         />
 
         <FileUpload
@@ -225,6 +233,7 @@ export function FileUploadSection({
           isLoading={loading && !!salesFile && !salesParsed}
           fileName={salesFile?.name}
           icon={SalesIcon}
+          idPrefix={stateLabel ? `${stateLabel}-` : ''}
         />
       </div>
     </div>
