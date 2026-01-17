@@ -3,6 +3,8 @@ import { Transaction, Heads, Classification } from '../types';
 import { formatCurrency } from '../utils/cogsCalculator';
 import { HEAD_COLORS, HEAD_ORDER } from '../data/defaultHeads';
 
+const ITEMS_PER_PAGE = 50;
+
 interface ClassificationDropdownProps {
   value: Classification | null;
   suggestion: Classification | null;
@@ -173,36 +175,58 @@ export function TransactionTable({
   onApplyToSimilar,
   heads
 }: TransactionTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
     transaction: Transaction;
   } | null>(null);
 
+  // Reset to page 1 when transactions change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [transactions.length]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedTransactions = transactions.slice(startIndex, endIndex);
+
   const handleSelectAll = useCallback(() => {
-    if (selectedIds.length === transactions.length) {
-      onSelectionChange([]);
+    // Select all on current page only
+    const pageIds = paginatedTransactions.map(t => t.id);
+    const allSelected = pageIds.every(id => selectedIds.includes(id));
+
+    if (allSelected) {
+      // Deselect all on this page
+      onSelectionChange(selectedIds.filter(id => !pageIds.includes(id)));
     } else {
-      onSelectionChange(transactions.map(t => t.id));
+      // Select all on this page
+      onSelectionChange(Array.from(new Set([...selectedIds, ...pageIds])));
     }
-  }, [selectedIds, transactions, onSelectionChange]);
+  }, [selectedIds, paginatedTransactions, onSelectionChange]);
 
   const handleRowSelect = useCallback((id: string, shiftKey: boolean) => {
     if (shiftKey && selectedIds.length > 0) {
-      // Range selection
+      // Range selection within current page
       const lastSelected = selectedIds[selectedIds.length - 1];
-      const lastIdx = transactions.findIndex(t => t.id === lastSelected);
-      const currentIdx = transactions.findIndex(t => t.id === id);
-      const start = Math.min(lastIdx, currentIdx);
-      const end = Math.max(lastIdx, currentIdx);
-      const rangeIds = transactions.slice(start, end + 1).map(t => t.id);
-      onSelectionChange(Array.from(new Set([...selectedIds, ...rangeIds])));
+      const lastIdx = paginatedTransactions.findIndex(t => t.id === lastSelected);
+      const currentIdx = paginatedTransactions.findIndex(t => t.id === id);
+      if (lastIdx !== -1 && currentIdx !== -1) {
+        const start = Math.min(lastIdx, currentIdx);
+        const end = Math.max(lastIdx, currentIdx);
+        const rangeIds = paginatedTransactions.slice(start, end + 1).map(t => t.id);
+        onSelectionChange(Array.from(new Set([...selectedIds, ...rangeIds])));
+      } else {
+        onSelectionChange([...selectedIds, id]);
+      }
     } else if (selectedIds.includes(id)) {
       onSelectionChange(selectedIds.filter(i => i !== id));
     } else {
       onSelectionChange([...selectedIds, id]);
     }
-  }, [selectedIds, transactions, onSelectionChange]);
+  }, [selectedIds, paginatedTransactions, onSelectionChange]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, transaction: Transaction) => {
     e.preventDefault();
@@ -227,6 +251,10 @@ export function TransactionTable({
     }
   };
 
+  // Check if all items on current page are selected
+  const pageIds = paginatedTransactions.map(t => t.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id));
+
   if (transactions.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
@@ -242,99 +270,146 @@ export function TransactionTable({
   }
 
   return (
-    <div className="overflow-auto flex-1">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50 sticky top-0 z-10">
-          <tr>
-            <th className="w-10 px-3 py-3">
-              <input
-                type="checkbox"
-                checked={selectedIds.length === transactions.length && transactions.length > 0}
-                onChange={handleSelectAll}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-            </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-              Date
-            </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
-              State
-            </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Account
-            </th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
-              Debit
-            </th>
-            <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
-              Credit
-            </th>
-            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-72">
-              Classification
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {transactions.map((txn) => (
-            <tr
-              key={txn.id}
-              className={`transaction-row ${getRowClass(txn.status)} ${selectedIds.includes(txn.id) ? 'bg-blue-50' : ''}`}
-              onContextMenu={(e) => handleContextMenu(e, txn)}
-            >
-              <td className="px-3 py-2">
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Table */}
+      <div className="overflow-auto flex-1">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50 sticky top-0 z-10">
+            <tr>
+              <th className="w-10 px-3 py-3">
                 <input
                   type="checkbox"
-                  checked={selectedIds.includes(txn.id)}
-                  onChange={(e) => handleRowSelect(txn.id, e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey)}
+                  checked={allOnPageSelected}
+                  onChange={handleSelectAll}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-              </td>
-              <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">
-                {txn.date}
-              </td>
-              <td className="px-3 py-2 text-xs">
-                {txn.state && (
-                  <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded font-medium">
-                    {txn.state}
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-2 text-sm text-gray-900">
-                <div className="truncate max-w-md" title={txn.account}>
-                  {txn.account}
-                </div>
-                {txn.notes && (
-                  <div className="text-xs text-gray-500 truncate" title={txn.notes}>
-                    {txn.notes}
-                  </div>
-                )}
-              </td>
-              <td className="px-3 py-2 text-sm text-right font-mono">
-                {txn.debit > 0 && (
-                  <span className="text-red-600">{formatCurrency(txn.debit)}</span>
-                )}
-              </td>
-              <td className="px-3 py-2 text-sm text-right font-mono">
-                {txn.credit > 0 && (
-                  <span className="text-green-600">{formatCurrency(txn.credit)}</span>
-                )}
-              </td>
-              <td className="px-3 py-2">
-                <ClassificationDropdown
-                  value={txn.head && txn.subhead ? { head: txn.head, subhead: txn.subhead } : null}
-                  suggestion={txn.suggestedHead && txn.suggestedSubhead
-                    ? { head: txn.suggestedHead, subhead: txn.suggestedSubhead }
-                    : null
-                  }
-                  heads={heads}
-                  onChange={({ head, subhead }) => onClassify(txn.id, head, subhead)}
-                  onApplySuggestion={() => onApplySuggestion(txn.id)}
-                />
-              </td>
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                Date
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                State
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Account
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
+                Debit
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
+                Credit
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-72">
+                Classification
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {paginatedTransactions.map((txn) => (
+              <tr
+                key={txn.id}
+                className={`transaction-row ${getRowClass(txn.status)} ${selectedIds.includes(txn.id) ? 'bg-blue-50' : ''}`}
+                onContextMenu={(e) => handleContextMenu(e, txn)}
+              >
+                <td className="px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(txn.id)}
+                    onChange={(e) => handleRowSelect(txn.id, e.nativeEvent instanceof MouseEvent && e.nativeEvent.shiftKey)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </td>
+                <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">
+                  {txn.date}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  {txn.state && (
+                    <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded font-medium">
+                      {txn.state}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-sm text-gray-900">
+                  <div className="truncate max-w-md" title={txn.account}>
+                    {txn.account}
+                  </div>
+                  {txn.notes && (
+                    <div className="text-xs text-gray-500 truncate" title={txn.notes}>
+                      {txn.notes}
+                    </div>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-sm text-right font-mono">
+                  {txn.debit > 0 && (
+                    <span className="text-red-600">{formatCurrency(txn.debit)}</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-sm text-right font-mono">
+                  {txn.credit > 0 && (
+                    <span className="text-green-600">{formatCurrency(txn.credit)}</span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  <ClassificationDropdown
+                    value={txn.head && txn.subhead ? { head: txn.head, subhead: txn.subhead } : null}
+                    suggestion={txn.suggestedHead && txn.suggestedSubhead
+                      ? { head: txn.suggestedHead, subhead: txn.suggestedSubhead }
+                      : null
+                    }
+                    heads={heads}
+                    onChange={({ head, subhead }) => onClassify(txn.id, head, subhead)}
+                    onApplySuggestion={() => onApplySuggestion(txn.id)}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+            <span className="font-medium">{Math.min(endIndex, transactions.length)}</span> of{' '}
+            <span className="font-medium">{transactions.length}</span> items
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1.5 text-sm">
+              Page <span className="font-medium">{currentPage}</span> of <span className="font-medium">{totalPages}</span>
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Context menu */}
       {contextMenu && (
@@ -345,7 +420,6 @@ export function TransactionTable({
           <button
             onClick={() => {
               if (contextMenu.transaction.head && contextMenu.transaction.subhead) {
-                // Create a pattern from the account name (escape special chars)
                 const pattern = contextMenu.transaction.account
                   .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
                   .substring(0, 30);

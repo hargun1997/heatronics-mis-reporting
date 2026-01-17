@@ -58,10 +58,6 @@ export const DEFAULT_HEADS: Heads = {
   "X. Exclude (Personal)": {
     subheads: ["Personal Expenses", "Owner Withdrawals"],
     type: "exclude"
-  },
-  "Z. Ignore (Non-P&L)": {
-    subheads: ["GST Input/Output", "TDS", "Bank Transfers", "Inter-company"],
-    type: "ignore"
   }
 };
 
@@ -76,8 +72,7 @@ export const HEAD_ORDER = [
   "H. Platform Costs",
   "I. Operating Expenses",
   "J. Non-Operating",
-  "X. Exclude (Personal)",
-  "Z. Ignore (Non-P&L)"
+  "X. Exclude (Personal)"
 ];
 
 export const HEAD_COLORS: { [key: string]: string } = {
@@ -91,6 +86,5 @@ export const HEAD_COLORS: { [key: string]: string } = {
   "H. Platform Costs": "bg-cyan-100 text-cyan-800",
   "I. Operating Expenses": "bg-yellow-100 text-yellow-800",
   "J. Non-Operating": "bg-gray-100 text-gray-800",
-  "X. Exclude (Personal)": "bg-red-200 text-red-900",
-  "Z. Ignore (Non-P&L)": "bg-gray-200 text-gray-600"
+  "X. Exclude (Personal)": "bg-red-200 text-red-900"
 };
