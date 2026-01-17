@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Transaction, Heads, MISReport } from '../types';
+import { Transaction, Heads, MISReport, AggregatedRevenueData, IndianState, INDIAN_STATES } from '../types';
 import { formatCurrency } from '../utils/cogsCalculator';
 import { HEAD_COLORS, HEAD_ORDER } from '../data/defaultHeads';
 
@@ -21,6 +21,11 @@ interface MISReportTableProps {
   report: MISReport;
   activeHead: string | null;
   onReassignTransactions: (transactionIds: string[], newHead: string, newSubhead: string) => void;
+  // Revenue data from sales registers (multi-state)
+  revenueData?: AggregatedRevenueData | null;
+  salesByChannel?: { [channel: string]: number };
+  onStateClick?: (state: IndianState) => void;
+  getSalesLineItemsCount?: (state: IndianState) => number;
 }
 
 // Classification dropdown for reassigning line items
@@ -164,7 +169,11 @@ export function MISReportTable({
   heads,
   report,
   activeHead,
-  onReassignTransactions
+  onReassignTransactions,
+  revenueData,
+  salesByChannel,
+  onStateClick,
+  getSalesLineItemsCount
 }: MISReportTableProps) {
   // Build line items from transactions grouped by head/subhead
   const lineItems = useMemo<MISLineItem[]>(() => {
@@ -285,6 +294,102 @@ export function MISReportTable({
 
   return (
     <div className="overflow-auto flex-1" id="mis-report-content">
+      {/* Revenue Summary Section (from Sales Registers) */}
+      {revenueData && revenueData.totalGrossSales > 0 && (
+        <div className="p-4 bg-indigo-50 border-b border-indigo-200">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span className="text-indigo-900 font-medium">Revenue Summary (All States)</span>
+          </div>
+
+          {/* Main Revenue Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+            <div className="bg-white p-3 rounded border border-indigo-100">
+              <div className="text-xs text-indigo-600">Total Gross Sales</div>
+              <div className="text-lg font-semibold text-indigo-900">₹{revenueData.totalGrossSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+            </div>
+            {revenueData.totalInterCompanyTransfers > 0 && (
+              <div className="bg-white p-3 rounded border border-orange-200">
+                <div className="text-xs text-orange-600">Inter-Company (UP)</div>
+                <div className="text-lg font-semibold text-orange-700">- ₹{revenueData.totalInterCompanyTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                <div className="text-xs text-orange-500 mt-1">Excluded from gross</div>
+              </div>
+            )}
+            <div className="bg-white p-3 rounded border border-red-200">
+              <div className="text-xs text-red-600">Returns</div>
+              <div className="text-lg font-semibold text-red-700">- ₹{revenueData.totalReturns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+            </div>
+            <div className="bg-white p-3 rounded border border-purple-200">
+              <div className="text-xs text-purple-600">Taxes</div>
+              <div className="text-lg font-semibold text-purple-700">- ₹{revenueData.totalTaxes.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-xs text-purple-400 mt-1">Coming soon</div>
+            </div>
+            <div className="bg-white p-3 rounded border border-pink-200">
+              <div className="text-xs text-pink-600">Discounts</div>
+              <div className="text-lg font-semibold text-pink-700">- ₹{revenueData.totalDiscounts.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-xs text-pink-400 mt-1">Coming soon</div>
+            </div>
+            <div className="bg-white p-3 rounded border border-green-300 bg-green-50">
+              <div className="text-xs text-green-600 font-medium">NET REVENUE</div>
+              <div className="text-lg font-bold text-green-700">₹{revenueData.totalNetRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-xs text-green-500 mt-1">Gross - Returns - Taxes - Discounts</div>
+            </div>
+          </div>
+
+          {/* State-wise Breakdown */}
+          <div className="border-t border-indigo-200 pt-3">
+            <div className="text-xs text-indigo-600 mb-2 font-medium">State-wise Sales (Click to verify)</div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(revenueData.salesByState).map(([state, amount]) => {
+                const stateCode = state as IndianState;
+                const hasLineItems = getSalesLineItemsCount ? getSalesLineItemsCount(stateCode) > 0 : false;
+                return (
+                  <button
+                    key={state}
+                    onClick={() => hasLineItems && onStateClick && onStateClick(stateCode)}
+                    disabled={!hasLineItems}
+                    className={`bg-white px-3 py-2 rounded border text-sm text-left transition-colors ${
+                      hasLineItems
+                        ? 'border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer'
+                        : 'border-gray-100 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    <span className="text-indigo-700 font-medium">{state}:</span>
+                    <span className="text-indigo-900 ml-1">₹{(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    {revenueData.returnsByState[stateCode] && revenueData.returnsByState[stateCode]! > 0 && (
+                      <span className="text-red-500 ml-2 text-xs">
+                        (Returns: ₹{revenueData.returnsByState[stateCode]!.toLocaleString('en-IN', { maximumFractionDigits: 0 })})
+                      </span>
+                    )}
+                    {hasLineItems && (
+                      <svg className="inline-block w-3 h-3 ml-2 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Channel Breakdown */}
+          {salesByChannel && Object.keys(salesByChannel).length > 0 && (
+            <div className="border-t border-indigo-200 pt-3 mt-3">
+              <div className="text-xs text-indigo-600 mb-2 font-medium">Channel Breakdown</div>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(salesByChannel).map(([channel, amount]) => (
+                  <span key={channel} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
+                    {channel}: ₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50 sticky top-0 z-10">
           <tr>
