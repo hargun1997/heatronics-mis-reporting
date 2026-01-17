@@ -171,6 +171,17 @@ export interface AppState {
 }
 
 // Sales Register Data
+export interface SalesLineItem {
+  id: string;
+  partyName: string;
+  amount: number;
+  channel: string;          // Assigned channel (Amazon, Blinkit, Website, Offline/OEM)
+  isReturn: boolean;        // True if this is a return (negative amount)
+  isInterCompany: boolean;  // True if inter-company transfer
+  toState?: IndianState;    // If inter-company, which state
+  originalChannel?: string; // Original auto-detected channel (before manual edit)
+}
+
 export interface SalesRegisterData {
   grossSales: number;           // All positive sales
   returns: number;              // All negative sales (stored as positive value)
@@ -182,14 +193,17 @@ export interface SalesRegisterData {
     toState: IndianState;
     amount: number;
   }[];
+  lineItems?: SalesLineItem[];  // Individual line items for verification
 }
 
 // Aggregated revenue data across all states
 export interface AggregatedRevenueData {
   totalGrossSales: number;          // Sum of all states' gross sales
   totalInterCompanyTransfers: number; // Total UP to other states transfers
-  totalNetRevenue: number;          // totalGrossSales - totalInterCompanyTransfers
   totalReturns: number;             // Sum of all returns across states
+  totalTaxes: number;               // Sum of all taxes (placeholder for now)
+  totalDiscounts: number;           // Sum of all discounts (placeholder for now)
+  totalNetRevenue: number;          // totalGrossSales - totalReturns - totalTaxes - totalDiscounts
   salesByState: { [key in IndianState]?: number };
   returnsByState: { [key in IndianState]?: number };
 }
