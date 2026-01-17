@@ -257,6 +257,9 @@ export function TransactionTable({
             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
               Date
             </th>
+            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+              State
+            </th>
             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Account
             </th>
@@ -288,6 +291,13 @@ export function TransactionTable({
               </td>
               <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">
                 {txn.date}
+              </td>
+              <td className="px-3 py-2 text-xs">
+                {txn.state && (
+                  <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded font-medium">
+                    {txn.state}
+                  </span>
+                )}
               </td>
               <td className="px-3 py-2 text-sm text-gray-900">
                 <div className="truncate max-w-md" title={txn.account}>
