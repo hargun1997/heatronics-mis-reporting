@@ -114,26 +114,34 @@ interface FileUploadSectionProps {
   onJournalUpload: (file: File) => void;
   onBalanceSheetUpload: (file: File) => void;
   onPurchaseUpload: (file: File) => void;
+  onSalesUpload: (file: File) => void;
   journalParsed: boolean;
   balanceSheetParsed: boolean;
   purchaseParsed: boolean;
+  salesParsed: boolean;
   loading: boolean;
   journalFile?: File | null;
   balanceSheetFile?: File | null;
   purchaseFile?: File | null;
+  salesFile?: File | null;
+  stateLabel?: string;
 }
 
 export function FileUploadSection({
   onJournalUpload,
   onBalanceSheetUpload,
   onPurchaseUpload,
+  onSalesUpload,
   journalParsed,
   balanceSheetParsed,
   purchaseParsed,
+  salesParsed,
   loading,
   journalFile,
   balanceSheetFile,
-  purchaseFile
+  purchaseFile,
+  salesFile,
+  stateLabel
 }: FileUploadSectionProps) {
   const ExcelIcon = (
     <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,37 +165,68 @@ export function FileUploadSection({
     </svg>
   );
 
+  const SalesIcon = (
+    <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+
   return (
-    <div className="flex flex-wrap gap-4 items-center">
-      <FileUpload
-        label="Balance Sheet"
-        accept=".pdf,.xlsx,.xls"
-        onFileSelect={onBalanceSheetUpload}
-        isParsed={balanceSheetParsed}
-        isLoading={loading && !!balanceSheetFile && !balanceSheetParsed}
-        fileName={balanceSheetFile?.name}
-        icon={PDFIcon}
-      />
+    <div>
+      {stateLabel && (
+        <div className="mb-3 flex items-center gap-2">
+          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded">
+            {stateLabel}
+          </span>
+          <span className="text-sm text-gray-500">Upload files for this state</span>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-4 items-center">
+        <FileUpload
+          label="Balance Sheet"
+          accept=".pdf,.xlsx,.xls"
+          onFileSelect={onBalanceSheetUpload}
+          isParsed={balanceSheetParsed}
+          isLoading={loading && !!balanceSheetFile && !balanceSheetParsed}
+          fileName={balanceSheetFile?.name}
+          icon={PDFIcon}
+        />
 
-      <FileUpload
-        label="Journal Vouchers"
-        accept=".xlsx,.xls"
-        onFileSelect={onJournalUpload}
-        isParsed={journalParsed}
-        isLoading={loading && !!journalFile && !journalParsed}
-        fileName={journalFile?.name}
-        icon={ExcelIcon}
-      />
+        <FileUpload
+          label="Journal Vouchers"
+          accept=".xlsx,.xls"
+          onFileSelect={onJournalUpload}
+          isParsed={journalParsed}
+          isLoading={loading && !!journalFile && !journalParsed}
+          fileName={journalFile?.name}
+          icon={ExcelIcon}
+        />
 
-      <FileUpload
-        label="Purchase Ledger"
-        accept=".xlsx,.xls"
-        onFileSelect={onPurchaseUpload}
-        isParsed={purchaseParsed}
-        isLoading={loading && !!purchaseFile && !purchaseParsed}
-        fileName={purchaseFile?.name}
-        icon={ExcelIcon}
-      />
+        <FileUpload
+          label="Purchase Ledger"
+          accept=".xlsx,.xls"
+          onFileSelect={onPurchaseUpload}
+          isParsed={purchaseParsed}
+          isLoading={loading && !!purchaseFile && !purchaseParsed}
+          fileName={purchaseFile?.name}
+          icon={ExcelIcon}
+        />
+
+        <FileUpload
+          label="Sales Register"
+          accept=".xlsx,.xls"
+          onFileSelect={onSalesUpload}
+          isParsed={salesParsed}
+          isLoading={loading && !!salesFile && !salesParsed}
+          fileName={salesFile?.name}
+          icon={SalesIcon}
+        />
+      </div>
     </div>
   );
 }

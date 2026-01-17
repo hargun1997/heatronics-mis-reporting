@@ -7,9 +7,11 @@ import { BulkActions } from '../components/BulkActions';
 import { MISPreview, MISMiniPreview } from '../components/MISPreview';
 import { COGSDisplay } from '../components/COGSDisplay';
 import { ExportButton } from '../components/ExportButton';
+import { StateSelector, StateFileSummary } from '../components/StateSelector';
 import { useFileParser } from '../hooks/useFileParser';
 import { useClassifications } from '../hooks/useClassifications';
 import { generateMISReport } from '../utils/misGenerator';
+import { IndianState, INDIAN_STATES } from '../types';
 
 export function MISCalculator() {
   // File parsing state
@@ -17,21 +19,35 @@ export function MISCalculator() {
     journalFile,
     balanceSheetFile,
     purchaseFile,
+    salesFile,
     journalParsed,
     balanceSheetParsed,
     purchaseParsed,
+    salesParsed,
     loading,
     error,
     balanceSheetData,
     cogsData,
     purchaseTotal,
+    salesData,
     parseJournal,
     parseBalanceSheet,
     parsePurchase,
+    parseSales,
     clearError,
     resetAll,
     setCOGSManually,
-    setNetSalesManually
+    setNetSalesManually,
+    // Multi-state
+    multiState,
+    toggleState,
+    setActiveState,
+    parseJournalForState,
+    parseBalanceSheetForState,
+    parsePurchaseForState,
+    parseSalesForState,
+    getAggregatedData,
+    getStateFileStatus
   } = useFileParser();
 
   // Classification state
@@ -62,14 +78,27 @@ export function MISCalculator() {
   const [showMISPreview, setShowMISPreview] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
 
-  // Import transactions when journal is parsed
+  // Check if we're in multi-state mode
+  const isMultiStateMode = multiState.selectedStates.length > 0;
+
+  // Import transactions when journal is parsed (single mode)
   useEffect(() => {
     if (journalParsed && transactions.length === 0) {
       // Transactions will be imported by the hook
     }
   }, [journalParsed, transactions.length]);
 
-  // Handle journal file upload
+  // Import transactions from multi-state mode
+  useEffect(() => {
+    if (isMultiStateMode) {
+      const aggregated = getAggregatedData();
+      if (aggregated.transactions.length > 0 && transactions.length === 0) {
+        importTransactions(aggregated.transactions);
+      }
+    }
+  }, [isMultiStateMode, multiState.stateData, getAggregatedData, importTransactions, transactions.length]);
+
+  // Handle journal file upload (single mode)
   const handleJournalUpload = async (file: File) => {
     try {
       const parsedTransactions = await parseJournal(file);
@@ -79,7 +108,7 @@ export function MISCalculator() {
     }
   };
 
-  // Handle balance sheet upload
+  // Handle balance sheet upload (single mode)
   const handleBalanceSheetUpload = async (file: File) => {
     try {
       await parseBalanceSheet(file);
@@ -88,7 +117,7 @@ export function MISCalculator() {
     }
   };
 
-  // Handle purchase ledger upload
+  // Handle purchase ledger upload (single mode)
   const handlePurchaseUpload = async (file: File) => {
     try {
       await parsePurchase(file);
@@ -96,6 +125,66 @@ export function MISCalculator() {
       console.error('Failed to parse purchase ledger:', error);
     }
   };
+
+  // Handle sales register upload (single mode)
+  const handleSalesUpload = async (file: File) => {
+    try {
+      await parseSales(file);
+    } catch (error) {
+      console.error('Failed to parse sales register:', error);
+    }
+  };
+
+  // Multi-state file upload handlers
+  const handleStateJournalUpload = async (file: File) => {
+    if (!multiState.activeState) return;
+    try {
+      const parsedTransactions = await parseJournalForState(file, multiState.activeState);
+      // Aggregate and import all transactions
+      const aggregated = getAggregatedData();
+      importTransactions(aggregated.transactions);
+    } catch (error) {
+      console.error('Failed to parse journal for state:', error);
+    }
+  };
+
+  const handleStateBalanceSheetUpload = async (file: File) => {
+    if (!multiState.activeState) return;
+    try {
+      await parseBalanceSheetForState(file, multiState.activeState);
+    } catch (error) {
+      console.error('Failed to parse balance sheet for state:', error);
+    }
+  };
+
+  const handleStatePurchaseUpload = async (file: File) => {
+    if (!multiState.activeState) return;
+    try {
+      await parsePurchaseForState(file, multiState.activeState);
+    } catch (error) {
+      console.error('Failed to parse purchase ledger for state:', error);
+    }
+  };
+
+  const handleStateSalesUpload = async (file: File) => {
+    if (!multiState.activeState) return;
+    try {
+      await parseSalesForState(file, multiState.activeState);
+    } catch (error) {
+      console.error('Failed to parse sales register for state:', error);
+    }
+  };
+
+  // Get current state data for file upload section
+  const getCurrentStateData = () => {
+    if (!multiState.activeState) return null;
+    return multiState.stateData[multiState.activeState];
+  };
+
+  const currentStateData = getCurrentStateData();
+  const activeStateName = multiState.activeState
+    ? INDIAN_STATES.find(s => s.code === multiState.activeState)?.name
+    : undefined;
 
   // Generate MIS report
   const misReport = useMemo(() => {
@@ -224,24 +313,73 @@ export function MISCalculator() {
           </div>
         </div>
 
+        {/* State Selection */}
+        <div className="mb-4">
+          <StateSelector
+            selectedStates={multiState.selectedStates}
+            onStateToggle={toggleState}
+            activeState={multiState.activeState}
+            onActiveStateChange={setActiveState}
+          />
+        </div>
+
+        {/* State File Summary (when states are selected) */}
+        {isMultiStateMode && (
+          <StateFileSummary
+            selectedStates={multiState.selectedStates}
+            getStateFileStatus={getStateFileStatus}
+          />
+        )}
+
         {/* File Upload Section */}
-        <FileUploadSection
-          onJournalUpload={handleJournalUpload}
-          onBalanceSheetUpload={handleBalanceSheetUpload}
-          onPurchaseUpload={handlePurchaseUpload}
-          journalParsed={journalParsed}
-          balanceSheetParsed={balanceSheetParsed}
-          purchaseParsed={purchaseParsed}
-          loading={loading}
-          journalFile={journalFile}
-          balanceSheetFile={balanceSheetFile}
-          purchaseFile={purchaseFile}
-        />
+        <div className="mt-4">
+          {isMultiStateMode && multiState.activeState ? (
+            // Multi-state mode - show file uploads for active state
+            <FileUploadSection
+              onJournalUpload={handleStateJournalUpload}
+              onBalanceSheetUpload={handleStateBalanceSheetUpload}
+              onPurchaseUpload={handleStatePurchaseUpload}
+              onSalesUpload={handleStateSalesUpload}
+              journalParsed={currentStateData?.journalParsed || false}
+              balanceSheetParsed={currentStateData?.balanceSheetParsed || false}
+              purchaseParsed={currentStateData?.purchaseParsed || false}
+              salesParsed={currentStateData?.salesParsed || false}
+              loading={multiState.loading}
+              journalFile={currentStateData?.journalFile}
+              balanceSheetFile={currentStateData?.balanceSheetFile}
+              purchaseFile={currentStateData?.purchaseFile}
+              salesFile={currentStateData?.salesFile}
+              stateLabel={activeStateName}
+            />
+          ) : !isMultiStateMode ? (
+            // Single mode - show regular file uploads
+            <FileUploadSection
+              onJournalUpload={handleJournalUpload}
+              onBalanceSheetUpload={handleBalanceSheetUpload}
+              onPurchaseUpload={handlePurchaseUpload}
+              onSalesUpload={handleSalesUpload}
+              journalParsed={journalParsed}
+              balanceSheetParsed={balanceSheetParsed}
+              purchaseParsed={purchaseParsed}
+              salesParsed={salesParsed}
+              loading={loading}
+              journalFile={journalFile}
+              balanceSheetFile={balanceSheetFile}
+              purchaseFile={purchaseFile}
+              salesFile={salesFile}
+            />
+          ) : (
+            // Multi-state mode but no active state selected
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+              Select a state tab above to upload files for that state.
+            </div>
+          )}
+        </div>
 
         {/* Error display */}
-        {error && (
+        {(error || multiState.error) && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
-            <span className="text-red-700">{error}</span>
+            <span className="text-red-700">{error || multiState.error}</span>
             <button onClick={clearError} className="text-red-500 hover:text-red-700">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -251,7 +389,7 @@ export function MISCalculator() {
         )}
 
         {/* COGS Display */}
-        {(balanceSheetParsed || cogsData) && (
+        {(balanceSheetParsed || cogsData) && !isMultiStateMode && (
           <div className="mt-4">
             <COGSDisplay
               cogsData={cogsData}
@@ -260,8 +398,30 @@ export function MISCalculator() {
           </div>
         )}
 
+        {/* Sales Register indicator */}
+        {salesData && salesData.totalSales > 0 && !isMultiStateMode && (
+          <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center gap-3">
+            <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-purple-800">
+              <strong>Sales Register Total:</strong> ₹{salesData.totalSales.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+              {salesData.itemCount > 0 && <span className="text-purple-600 ml-2">({salesData.itemCount} items)</span>}
+            </span>
+            {salesData.salesByChannel && Object.keys(salesData.salesByChannel).length > 0 && (
+              <div className="ml-auto flex gap-2">
+                {Object.entries(salesData.salesByChannel).map(([channel, amount]) => (
+                  <span key={channel} className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                    {channel}: ₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Balance Sheet Net Sales indicator */}
-        {balanceSheetData && balanceSheetData.netSales > 0 && (
+        {balanceSheetData && balanceSheetData.netSales > 0 && !isMultiStateMode && (
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
             <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -366,14 +526,16 @@ export function MISCalculator() {
             <h3 className="mt-4 text-lg font-medium text-gray-900">No transactions loaded</h3>
             <p className="mt-2 text-sm text-gray-500">
               Upload a Journal Vouchers Excel file to get started. You can also upload a Balance Sheet PDF
-              for Net Sales & COGS calculation, and a Purchase Ledger for validation.
+              for Net Sales & COGS calculation, a Purchase Ledger for validation, and a Sales Register for sales data.
             </p>
             <div className="mt-6 p-4 bg-blue-50 rounded-lg text-left">
               <h4 className="text-sm font-medium text-blue-900 mb-2">Workflow:</h4>
               <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                <li>Optionally select states for multi-state reporting</li>
                 <li>Upload Balance Sheet PDF (for authoritative Revenue & COGS)</li>
                 <li>Upload Journal Vouchers Excel (for expense classification)</li>
                 <li>Optionally upload Purchase Ledger (for validation)</li>
+                <li>Optionally upload Sales Register (for sales data)</li>
                 <li>Classify transactions using the heads panel</li>
                 <li>Review and export your MIS report</li>
               </ol>
