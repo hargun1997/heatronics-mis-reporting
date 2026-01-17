@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FileUploadSection } from '../components/FileUpload';
 import { TransactionTable } from '../components/TransactionTable';
 import { HeadsPanel } from '../components/HeadsPanel';
@@ -92,15 +92,8 @@ export function MISCalculator() {
     }
   }, [journalParsed, transactions.length]);
 
-  // Import transactions from multi-state mode
-  useEffect(() => {
-    if (isMultiStateMode) {
-      const aggregated = getAggregatedData();
-      if (aggregated.transactions.length > 0 && transactions.length === 0) {
-        importTransactions(aggregated.transactions);
-      }
-    }
-  }, [isMultiStateMode, multiState.stateData, getAggregatedData, importTransactions, transactions.length]);
+  // Note: Transactions are now imported explicitly via the "Apply & Load Data" button
+  // This allows users to upload all files first, then load data into the table
 
   // Handle journal file upload (single mode)
   const handleJournalUpload = async (file: File) => {
@@ -139,14 +132,12 @@ export function MISCalculator() {
     }
   };
 
-  // Multi-state file upload handlers
+  // Multi-state file upload handlers (parse only, don't auto-import)
   const handleStateJournalUpload = async (file: File) => {
     if (!multiState.activeState) return;
     try {
-      const parsedTransactions = await parseJournalForState(file, multiState.activeState);
-      // Aggregate and import all transactions
-      const aggregated = getAggregatedData();
-      importTransactions(aggregated.transactions);
+      await parseJournalForState(file, multiState.activeState);
+      // Data is parsed and stored, user will click Apply to import
     } catch (error) {
       console.error('Failed to parse journal for state:', error);
     }
@@ -174,13 +165,25 @@ export function MISCalculator() {
     if (!multiState.activeState) return;
     try {
       await parseSalesForState(file, multiState.activeState);
-      // Re-import all transactions including the new sales transactions
-      const aggregated = getAggregatedData();
-      importTransactions(aggregated.transactions);
+      // Data is parsed and stored, user will click Apply to import
     } catch (error) {
       console.error('Failed to parse sales register for state:', error);
     }
   };
+
+  // Apply button handler - imports all parsed data into the transaction table
+  const handleApplyData = useCallback(() => {
+    const aggregated = getAggregatedData();
+    if (aggregated.transactions.length > 0) {
+      importTransactions(aggregated.transactions);
+    }
+  }, [getAggregatedData, importTransactions]);
+
+  // Check if there's data ready to apply
+  const hasDataToApply = useMemo(() => {
+    const aggregated = getAggregatedData();
+    return aggregated.transactions.length > 0;
+  }, [getAggregatedData, multiState.stateData]);
 
   // Get current state data for file upload section
   const getCurrentStateData = () => {
@@ -343,8 +346,16 @@ export function MISCalculator() {
 
         {/* File Upload Section */}
         <div className="mt-4">
-          {isMultiStateMode && multiState.activeState ? (
-            // Multi-state mode - show file uploads for active state
+          {!multiState.selectedStates.includes('UP') ? (
+            // UP not selected - show message to select UP first
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center gap-2">
+              <svg className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span><strong>Select UP first</strong> to start uploading files. UP is mandatory for MIS calculation.</span>
+            </div>
+          ) : multiState.activeState ? (
+            // UP selected and active state chosen - show file uploads for active state
             <FileUploadSection
               onJournalUpload={handleStateJournalUpload}
               onBalanceSheetUpload={handleStateBalanceSheetUpload}
@@ -361,30 +372,31 @@ export function MISCalculator() {
               salesFile={currentStateData?.salesFile}
               stateLabel={activeStateName}
             />
-          ) : !isMultiStateMode ? (
-            // Single mode - show regular file uploads
-            <FileUploadSection
-              onJournalUpload={handleJournalUpload}
-              onBalanceSheetUpload={handleBalanceSheetUpload}
-              onPurchaseUpload={handlePurchaseUpload}
-              onSalesUpload={handleSalesUpload}
-              journalParsed={journalParsed}
-              balanceSheetParsed={balanceSheetParsed}
-              purchaseParsed={purchaseParsed}
-              salesParsed={salesParsed}
-              loading={loading}
-              journalFile={journalFile}
-              balanceSheetFile={balanceSheetFile}
-              purchaseFile={purchaseFile}
-              salesFile={salesFile}
-            />
           ) : (
-            // Multi-state mode but no active state selected
+            // UP selected but no active state tab selected
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
               Select a state tab above to upload files for that state.
             </div>
           )}
         </div>
+
+        {/* Apply Button */}
+        {multiState.selectedStates.includes('UP') && hasDataToApply && (
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              onClick={handleApplyData}
+              className="flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-sm"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Apply & Load Data
+            </button>
+            <span className="text-sm text-gray-500">
+              Click to load all uploaded data into the table below
+            </span>
+          </div>
+        )}
 
         {/* Error display */}
         {(error || multiState.error) && (
