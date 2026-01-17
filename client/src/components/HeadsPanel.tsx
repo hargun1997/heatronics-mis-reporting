@@ -6,7 +6,7 @@ import { formatCurrency } from '../utils/cogsCalculator';
 interface HeadsPanelProps {
   heads: Heads;
   transactions: Transaction[];
-  onAddHead: (name: string, type: 'credit' | 'debit' | 'calculated' | 'exclude' | 'ignore') => void;
+  onAddHead: (name: string, type: 'credit' | 'debit' | 'calculated' | 'exclude') => void;
   onAddSubhead: (head: string, subhead: string) => void;
   onHeadClick: (head: string | null) => void;
   activeHead: string | null;

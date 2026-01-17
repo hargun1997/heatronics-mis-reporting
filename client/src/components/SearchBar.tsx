@@ -2,28 +2,27 @@ import React from 'react';
 import { FilterState, Heads } from '../types';
 import { HEAD_ORDER } from '../data/defaultHeads';
 
+// Channel options for Revenue and Returns heads
+const CHANNEL_OPTIONS = ['Amazon', 'Website', 'Blinkit', 'Offline/OEM'];
+
 interface SearchBarProps {
   filter: FilterState;
   onFilterChange: (filter: FilterState) => void;
-  progress: number;
-  stats: {
-    total: number;
-    classified: number;
-    suggested: number;
-    unclassified: number;
-    ignored: number;
-    toClassify: number;
-  };
+  totalCount: number;
+  filteredCount: number;
   heads: Heads;
 }
 
 export function SearchBar({
   filter,
   onFilterChange,
-  progress,
-  stats,
+  totalCount,
+  filteredCount,
   heads
 }: SearchBarProps) {
+  // Check if current head is Revenue or Returns (show channel filter)
+  const showChannelFilter = filter.head === 'A. Revenue' || filter.head === 'B. Returns';
+
   return (
     <div className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex flex-wrap items-center gap-4">
@@ -63,83 +62,43 @@ export function SearchBar({
           </div>
         </div>
 
-        {/* Status filter */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Status:</label>
-          <select
-            value={filter.status}
-            onChange={(e) => onFilterChange({ ...filter, status: e.target.value as FilterState['status'] })}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">To Classify ({stats.toClassify})</option>
-            <option value="unclassified">Unclassified ({stats.unclassified})</option>
-            <option value="suggested">Suggested ({stats.suggested})</option>
-            <option value="classified">Classified ({stats.classified})</option>
-            <option value="ignored">Ignored ({stats.ignored})</option>
-          </select>
-        </div>
-
         {/* Head filter */}
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600">Head:</label>
           <select
             value={filter.head || ''}
-            onChange={(e) => onFilterChange({ ...filter, head: e.target.value || null })}
+            onChange={(e) => onFilterChange({ ...filter, head: e.target.value || null, subhead: null })}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Heads</option>
-            {HEAD_ORDER.filter(h => heads[h]).map(head => (
+            {HEAD_ORDER.filter(h => heads[h] && h !== 'Z. Ignore (Non-P&L)').map(head => (
               <option key={head} value={head}>{head}</option>
             ))}
           </select>
         </div>
 
-        {/* Type filter */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-600">Type:</label>
-          <select
-            value={filter.type}
-            onChange={(e) => onFilterChange({ ...filter, type: e.target.value as FilterState['type'] })}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All</option>
-            <option value="debit">Debits Only</option>
-            <option value="credit">Credits Only</option>
-          </select>
-        </div>
-
-        {/* Show Ignored toggle */}
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={filter.showIgnored}
-            onChange={(e) => onFilterChange({ ...filter, showIgnored: e.target.checked })}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-600">Show Ignored</span>
-          {stats.ignored > 0 && (
-            <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
-              {stats.ignored}
-            </span>
-          )}
-        </label>
-
-        {/* Progress bar */}
-        <div className="flex items-center gap-3 ml-auto">
-          <div className="text-sm text-gray-600">
-            Progress: <span className="font-semibold">{progress}%</span>
-            <span className="text-xs text-gray-400 ml-1">
-              ({stats.classified}/{stats.toClassify})
-            </span>
+        {/* Channel filter - only for Revenue and Returns */}
+        {showChannelFilter && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600">Channel:</label>
+            <select
+              value={filter.subhead || ''}
+              onChange={(e) => onFilterChange({ ...filter, subhead: e.target.value || null })}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Channels</option>
+              {CHANNEL_OPTIONS.map(channel => (
+                <option key={channel} value={channel}>{channel}</option>
+              ))}
+            </select>
           </div>
-          <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-300 ${
-                progress >= 100 ? 'bg-green-500' : progress >= 50 ? 'bg-blue-500' : 'bg-yellow-500'
-              }`}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+        )}
+
+        {/* Item count */}
+        <div className="flex items-center gap-2 ml-auto text-sm text-gray-600">
+          <span>
+            Showing <span className="font-semibold">{filteredCount}</span> of <span className="font-semibold">{totalCount}</span> items
+          </span>
         </div>
       </div>
     </div>

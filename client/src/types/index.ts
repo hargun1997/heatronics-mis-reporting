@@ -39,7 +39,7 @@ export interface Transaction {
 
 export interface HeadConfig {
   subheads: string[];
-  type: 'credit' | 'debit' | 'calculated' | 'exclude' | 'ignore';
+  type: 'credit' | 'debit' | 'calculated' | 'exclude';
 }
 
 export interface Heads {
@@ -153,10 +153,8 @@ export interface MISReport {
 
 export interface FilterState {
   search: string;
-  status: 'all' | 'unclassified' | 'suggested' | 'classified' | 'ignored';
   head: string | null;
-  type: 'all' | 'debit' | 'credit';
-  showIgnored: boolean;
+  subhead: string | null;  // Channel filter for Revenue/Returns
 }
 
 export interface AppState {

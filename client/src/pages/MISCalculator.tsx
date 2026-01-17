@@ -60,8 +60,6 @@ export function MISCalculator() {
     heads,
     selectedIds,
     filter,
-    progress,
-    stats,
     undoStack,
     setFilter,
     setSelectedIds,
@@ -422,8 +420,8 @@ export function MISCalculator() {
             <SearchBar
               filter={filter}
               onFilterChange={setFilter}
-              progress={progress}
-              stats={stats}
+              totalCount={transactions.length}
+              filteredCount={filteredTransactions.length}
               heads={heads}
             />
 
