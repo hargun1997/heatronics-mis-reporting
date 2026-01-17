@@ -4,7 +4,7 @@ import { TransactionTable } from '../components/TransactionTable';
 import { HeadsPanel } from '../components/HeadsPanel';
 import { SearchBar } from '../components/SearchBar';
 import { BulkActions } from '../components/BulkActions';
-import { MISPreview } from '../components/MISPreview';
+import { MISReportTable } from '../components/MISReportTable';
 import { ExportButton } from '../components/ExportButton';
 import { StateSelector, StateFileSummary } from '../components/StateSelector';
 import { SalesVerification } from '../components/SalesVerification';
@@ -536,13 +536,6 @@ export function MISCalculator() {
           </div>
         </div>
       )}
-
-      {/* MIS Preview Modal */}
-      <MISPreview
-        report={misReport}
-        isVisible={showMISReport}
-        onClose={() => setShowMISReport(false)}
-      />
 
       {/* Sales Verification Modal */}
       {showSalesVerification && (
