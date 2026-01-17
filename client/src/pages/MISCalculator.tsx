@@ -174,6 +174,9 @@ export function MISCalculator() {
     if (!multiState.activeState) return;
     try {
       await parseSalesForState(file, multiState.activeState);
+      // Re-import all transactions including the new sales transactions
+      const aggregated = getAggregatedData();
+      importTransactions(aggregated.transactions);
     } catch (error) {
       console.error('Failed to parse sales register for state:', error);
     }
