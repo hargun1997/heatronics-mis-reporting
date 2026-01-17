@@ -33,7 +33,7 @@ export function ExportButton({ transactions, misReport, heads, disabled }: Expor
       await exportToImage('mis-report-content', 'Heatronics_MIS_Report');
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export image. Make sure the MIS Report preview is open.');
+      alert('Failed to export image. Make sure you are in MIS Report view.');
     } finally {
       setIsExporting(false);
     }

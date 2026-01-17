@@ -4,12 +4,14 @@ import { TransactionTable } from '../components/TransactionTable';
 import { HeadsPanel } from '../components/HeadsPanel';
 import { SearchBar } from '../components/SearchBar';
 import { BulkActions } from '../components/BulkActions';
-import { MISPreview, MISMiniPreview } from '../components/MISPreview';
+import { MISReportTable } from '../components/MISReportTable';
 import { COGSDisplay } from '../components/COGSDisplay';
 import { ExportButton } from '../components/ExportButton';
 import { useFileParser } from '../hooks/useFileParser';
 import { useClassifications } from '../hooks/useClassifications';
 import { generateMISReport } from '../utils/misGenerator';
+
+type ViewMode = 'transactions' | 'report';
 
 export function MISCalculator() {
   // File parsing state
@@ -59,7 +61,7 @@ export function MISCalculator() {
 
   // UI state
   const [activeHead, setActiveHead] = useState<string | null>(null);
-  const [showMISPreview, setShowMISPreview] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('transactions');
   const [showSidebar, setShowSidebar] = useState(true);
 
   // Import transactions when journal is parsed
@@ -195,20 +197,34 @@ export function MISCalculator() {
               </svg>
               Save
             </button>
-            <button
-              onClick={() => setShowMISPreview(true)}
-              disabled={transactions.length === 0}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium ${
-                transactions.length === 0
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              View MIS Report
-            </button>
+            {/* View Mode Toggle */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('transactions')}
+                disabled={transactions.length === 0}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'transactions'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                } ${transactions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                Transactions
+              </button>
+              <button
+                onClick={() => setViewMode('report')}
+                disabled={transactions.length === 0}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'report'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                } ${transactions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <svg className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                MIS Report
+              </button>
+            </div>
             <ExportButton
               transactions={transactions}
               misReport={misReport}
@@ -285,40 +301,88 @@ export function MISCalculator() {
       {/* Main Content Area */}
       {transactions.length > 0 ? (
         <div className="flex-1 flex overflow-hidden">
-          {/* Left: Transaction Table */}
+          {/* Left: Transaction Table or MIS Report Table */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Search and Filter Bar */}
-            <SearchBar
-              filter={filter}
-              onFilterChange={setFilter}
-              progress={progress}
-              stats={stats}
-              heads={heads}
-            />
+            {viewMode === 'transactions' ? (
+              <>
+                {/* Search and Filter Bar */}
+                <SearchBar
+                  filter={filter}
+                  onFilterChange={setFilter}
+                  progress={progress}
+                  stats={stats}
+                  heads={heads}
+                />
 
-            {/* Bulk Actions Bar */}
-            <BulkActions
-              selectedCount={selectedIds.length}
-              onClassify={(head, subhead) => classifyMultiple(selectedIds, head, subhead)}
-              onClearSelection={() => setSelectedIds([])}
-              onApplyAllSuggestions={applyAllSuggestions}
-              heads={heads}
-              hasSelectedWithSuggestions={hasSelectedWithSuggestions}
-            />
+                {/* Bulk Actions Bar */}
+                <BulkActions
+                  selectedCount={selectedIds.length}
+                  onClassify={(head, subhead) => classifyMultiple(selectedIds, head, subhead)}
+                  onClearSelection={() => setSelectedIds([])}
+                  onApplyAllSuggestions={applyAllSuggestions}
+                  heads={heads}
+                  hasSelectedWithSuggestions={hasSelectedWithSuggestions}
+                />
 
-            {/* Transaction Table */}
-            <TransactionTable
-              transactions={filteredTransactions}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              onClassify={classifyTransaction}
-              onApplySuggestion={applySuggestion}
-              onApplyToSimilar={applyToSimilar}
-              heads={heads}
-            />
+                {/* Transaction Table */}
+                <TransactionTable
+                  transactions={filteredTransactions}
+                  selectedIds={selectedIds}
+                  onSelectionChange={setSelectedIds}
+                  onClassify={classifyTransaction}
+                  onApplySuggestion={applySuggestion}
+                  onApplyToSimilar={applyToSimilar}
+                  heads={heads}
+                />
+              </>
+            ) : (
+              <>
+                {/* MIS Report Header */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <div>
+                        <h2 className="text-lg font-semibold text-blue-900">MIS Report - Line Items</h2>
+                        <p className="text-xs text-blue-700">
+                          Review line items grouped by head. Click on Classification to reassign.
+                        </p>
+                      </div>
+                    </div>
+                    {activeHead && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-blue-700">Filtered by:</span>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
+                          {activeHead}
+                        </span>
+                        <button
+                          onClick={() => setActiveHead(null)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* MIS Report Table */}
+                <MISReportTable
+                  transactions={transactions}
+                  heads={heads}
+                  report={misReport}
+                  activeHead={activeHead}
+                  onReassignTransactions={(txnIds, head, subhead) => classifyMultiple(txnIds, head, subhead)}
+                />
+              </>
+            )}
           </div>
 
-          {/* Right: Heads Panel & MIS Preview */}
+          {/* Right: Heads Panel */}
           {showSidebar && (
             <div className="w-80 flex flex-col border-l border-gray-200 bg-white">
               {/* Heads Panel */}
@@ -333,9 +397,46 @@ export function MISCalculator() {
                 />
               </div>
 
-              {/* Mini MIS Preview */}
-              <div className="p-4 border-t border-gray-200">
-                <MISMiniPreview report={misReport} />
+              {/* Mini Summary - always visible */}
+              <div className="p-4 border-t border-gray-200 bg-gradient-to-b from-gray-50 to-white">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  P&L Summary
+                  {balanceSheetData && balanceSheetData.netSales > 0 && (
+                    <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">BS Data</span>
+                  )}
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Net Revenue</span>
+                    <span className="font-mono font-medium text-green-600">
+                      ₹{misReport.netRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">COGS</span>
+                    <span className="font-mono font-medium text-red-600">
+                      ₹{misReport.cogm.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-gray-600">Gross Margin</span>
+                    <span className="font-mono font-medium text-blue-600">
+                      ₹{misReport.grossMargin.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">EBITDA</span>
+                    <span className={`font-mono font-medium ${misReport.ebitda >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ₹{misReport.ebitda.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="text-gray-700 font-medium">Net Income</span>
+                    <span className={`font-mono font-semibold ${misReport.netIncome >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      ₹{misReport.netIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -381,13 +482,6 @@ export function MISCalculator() {
           </div>
         </div>
       )}
-
-      {/* MIS Preview Modal */}
-      <MISPreview
-        report={misReport}
-        isVisible={showMISPreview}
-        onClose={() => setShowMISPreview(false)}
-      />
     </div>
   );
 }
