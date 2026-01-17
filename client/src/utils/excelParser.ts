@@ -374,21 +374,9 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
             continue;
           }
 
-          // Get amount - prefer Total Amount (col 5) which includes tax
-          // Column layout: 5: Total Amount (with tax), 6: Sale Amount (without tax)
-          let amount = parseNumber(row[5]) || parseNumber(row[6]) || parseNumber(row[4]);
-
-          // Also check for amount in other common positions
-          if (amount === 0) {
-            for (let j = 3; j < row.length; j++) {
-              const val = parseNumber(row[j]);
-              if (val !== 0) {
-                amount = val;
-                break;
-              }
-            }
-          }
-
+          // Get amount from Total Amount (col 5) which includes tax
+          // Skip row if Total Amount is missing or 0
+          const amount = parseNumber(row[5]);
           if (amount === 0) continue;
 
           // Handle negative amounts (returns)
