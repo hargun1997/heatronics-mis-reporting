@@ -474,31 +474,31 @@ export function MISCalculator() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Net Revenue</span>
                     <span className="font-mono font-medium text-green-600">
-                      ₹{misReport.netRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{misReport.netRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">COGS</span>
                     <span className="font-mono font-medium text-red-600">
-                      ₹{misReport.cogm.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{misReport.cogm.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span className="text-gray-600">Gross Margin</span>
                     <span className="font-mono font-medium text-blue-600">
-                      ₹{misReport.grossMargin.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{misReport.grossMargin.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">EBITDA</span>
                     <span className={`font-mono font-medium ${misReport.ebitda >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ₹{misReport.ebitda.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{misReport.ebitda.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="flex justify-between border-t pt-2">
                     <span className="text-gray-700 font-medium">Net Income</span>
                     <span className={`font-mono font-semibold ${misReport.netIncome >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                      ₹{misReport.netIncome.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{misReport.netIncome.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
