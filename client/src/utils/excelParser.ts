@@ -261,21 +261,12 @@ export interface SalesParseResult {
   errors: string[];
 }
 
-// Patterns to identify inter-company transfers to other Heatronics entities
-const HEATRONICS_ENTITY_PATTERNS = [
-  /heatronics\s*(medical)?\s*(devices)?.*maharashtra/i,
-  /heatronics\s*(medical)?\s*(devices)?.*telangana/i,
-  /heatronics\s*(medical)?\s*(devices)?.*karnataka/i,
-  /heatronics\s*(medical)?\s*(devices)?.*haryana/i,
-  /heatronics\s*(medical)?\s*(devices)?.*hyderabad/i,
-  /heatronics\s*(medical)?\s*(devices)?.*bangalore/i,
-  /heatronics\s*(medical)?\s*(devices)?.*mumbai/i,
-  /heatronics\s*(medical)?\s*(devices)?.*pune/i,
-  /heatronics\s*(medical)?\s*(devices)?.*gurugram/i,
-  /heatronics\s*(medical)?\s*(devices)?.*gurgaon/i,
-];
+// Check if party name is an inter-company transfer (any Heatronics entity)
+function isInterCompanyTransfer(partyName: string): boolean {
+  return partyName.toLowerCase().includes('heatronics');
+}
 
-// Map to identify which state an inter-company transfer goes to
+// Map to identify which state an inter-company transfer goes to (optional)
 function detectInterCompanyState(partyName: string): IndianState | null {
   const name = partyName.toLowerCase();
   if (name.includes('maharashtra') || name.includes('mumbai') || name.includes('pune')) {
@@ -291,10 +282,6 @@ function detectInterCompanyState(partyName: string): IndianState | null {
     return 'Haryana';
   }
   return null;
-}
-
-function isInterCompanyTransfer(partyName: string): boolean {
-  return HEATRONICS_ENTITY_PATTERNS.some(pattern => pattern.test(partyName));
 }
 
 // Categorize party name into channel
