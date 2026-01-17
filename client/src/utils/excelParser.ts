@@ -362,6 +362,14 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
           // Skip if no party name
           if (!partyName) continue;
 
+          // Skip if party name looks like a number (likely a total row)
+          const partyNameLower = partyName.toLowerCase();
+          if (/^[\d,.\s]+$/.test(partyName) ||
+              partyNameLower.includes('total') ||
+              partyNameLower.includes('grand')) {
+            continue;
+          }
+
           // Get amount - prefer Sale Amount (col 6) or Total Amount (col 5)
           let amount = parseNumber(row[6]) || parseNumber(row[5]) || parseNumber(row[4]);
 
