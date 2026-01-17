@@ -9,15 +9,19 @@ export const DEFAULT_HEADS: Heads = {
     subheads: ["Amazon", "Website", "Blinkit", "Offline/OEM"],
     type: "debit"
   },
-  "C. Discounts": {
+  "C. Stock Transfer": {
+    subheads: ["Maharashtra", "Telangana", "Karnataka", "Haryana", "Other"],
+    type: "exclude"
+  },
+  "D. Discounts": {
     subheads: ["Channel Discounts", "Promotional Discounts"],
     type: "debit"
   },
-  "D. Taxes (GST)": {
+  "E. Taxes (GST)": {
     subheads: ["CGST", "SGST", "IGST"],
     type: "calculated"
   },
-  "E. COGM": {
+  "F. COGM": {
     subheads: [
       "Raw Materials & Inventory",
       "Manufacturing Wages",
@@ -29,19 +33,19 @@ export const DEFAULT_HEADS: Heads = {
     ],
     type: "debit"
   },
-  "F. Channel & Fulfillment": {
+  "G. Channel & Fulfillment": {
     subheads: ["Amazon Fees", "Blinkit Fees", "D2C Fees (Shiprocket/PG)"],
     type: "debit"
   },
-  "G. Sales & Marketing": {
+  "H. Sales & Marketing": {
     subheads: ["Facebook Ads", "Google Ads", "Amazon Ads", "Blinkit Ads", "Agency Fees"],
     type: "debit"
   },
-  "H. Platform Costs": {
+  "I. Platform Costs": {
     subheads: ["Shopify", "Wati", "Shopflo", "Other SaaS"],
     type: "debit"
   },
-  "I. Operating Expenses": {
+  "J. Operating Expenses": {
     subheads: [
       "Salaries (Admin)",
       "Miscellaneous",
@@ -51,7 +55,7 @@ export const DEFAULT_HEADS: Heads = {
     ],
     type: "debit"
   },
-  "J. Non-Operating": {
+  "K. Non-Operating": {
     subheads: ["Interest", "Depreciation", "Taxes"],
     type: "debit"
   },
@@ -64,27 +68,29 @@ export const DEFAULT_HEADS: Heads = {
 export const HEAD_ORDER = [
   "A. Revenue",
   "B. Returns",
-  "C. Discounts",
-  "D. Taxes (GST)",
-  "E. COGM",
-  "F. Channel & Fulfillment",
-  "G. Sales & Marketing",
-  "H. Platform Costs",
-  "I. Operating Expenses",
-  "J. Non-Operating",
+  "C. Stock Transfer",
+  "D. Discounts",
+  "E. Taxes (GST)",
+  "F. COGM",
+  "G. Channel & Fulfillment",
+  "H. Sales & Marketing",
+  "I. Platform Costs",
+  "J. Operating Expenses",
+  "K. Non-Operating",
   "X. Exclude (Personal)"
 ];
 
 export const HEAD_COLORS: { [key: string]: string } = {
   "A. Revenue": "bg-green-100 text-green-800",
   "B. Returns": "bg-red-100 text-red-800",
-  "C. Discounts": "bg-orange-100 text-orange-800",
-  "D. Taxes (GST)": "bg-purple-100 text-purple-800",
-  "E. COGM": "bg-blue-100 text-blue-800",
-  "F. Channel & Fulfillment": "bg-indigo-100 text-indigo-800",
-  "G. Sales & Marketing": "bg-pink-100 text-pink-800",
-  "H. Platform Costs": "bg-cyan-100 text-cyan-800",
-  "I. Operating Expenses": "bg-yellow-100 text-yellow-800",
-  "J. Non-Operating": "bg-gray-100 text-gray-800",
+  "C. Stock Transfer": "bg-amber-100 text-amber-800",
+  "D. Discounts": "bg-orange-100 text-orange-800",
+  "E. Taxes (GST)": "bg-purple-100 text-purple-800",
+  "F. COGM": "bg-blue-100 text-blue-800",
+  "G. Channel & Fulfillment": "bg-indigo-100 text-indigo-800",
+  "H. Sales & Marketing": "bg-pink-100 text-pink-800",
+  "I. Platform Costs": "bg-cyan-100 text-cyan-800",
+  "J. Operating Expenses": "bg-yellow-100 text-yellow-800",
+  "K. Non-Operating": "bg-gray-100 text-gray-800",
   "X. Exclude (Personal)": "bg-red-200 text-red-900"
 };

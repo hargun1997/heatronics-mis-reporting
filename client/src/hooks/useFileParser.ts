@@ -12,8 +12,22 @@ function generateId(): string {
 // Convert a SalesLineItem to a Transaction
 function salesLineItemToTransaction(item: SalesLineItem, stateCode: IndianState): Transaction {
   const isReturn = item.isReturn;
-  const head = isReturn ? 'B. Returns' : 'A. Revenue';
-  const subhead = item.channel; // Amazon, Website, Blinkit, Offline/OEM
+  const isInterCompany = item.isInterCompany;
+
+  // Determine head based on type
+  let head: string;
+  let subhead: string;
+
+  if (isInterCompany) {
+    head = 'C. Stock Transfer';
+    subhead = item.toState || 'Other';
+  } else if (isReturn) {
+    head = 'B. Returns';
+    subhead = item.channel;
+  } else {
+    head = 'A. Revenue';
+    subhead = item.channel;
+  }
 
   return {
     id: `sales-${item.id}`,
@@ -22,8 +36,8 @@ function salesLineItemToTransaction(item: SalesLineItem, stateCode: IndianState)
     gstNature: '',
     account: item.partyName,
     debit: isReturn ? item.amount : 0, // Returns are debits
-    credit: isReturn ? 0 : item.amount, // Sales are credits
-    notes: item.isInterCompany ? `Inter-company transfer to ${item.toState || 'other state'}` : '',
+    credit: isReturn ? 0 : item.amount, // Sales and stock transfers are credits
+    notes: isInterCompany ? `Inter-company transfer to ${item.toState || 'other entity'}` : '',
     head,
     subhead,
     status: 'classified',
@@ -393,12 +407,10 @@ export function useFileParser() {
       // Pass state code to detect inter-company transfers (especially for UP)
       const result = await parseSalesExcel(file, stateCode);
 
-      // Convert sales line items to transactions (excluding inter-company transfers)
+      // Convert sales line items to transactions (including inter-company as Stock Transfer)
       const salesTransactions: Transaction[] = [];
       if (result.salesData.lineItems) {
         for (const item of result.salesData.lineItems) {
-          // Skip inter-company transfers - they shouldn't appear as revenue
-          if (item.isInterCompany) continue;
           salesTransactions.push(salesLineItemToTransaction(item, stateCode));
         }
       }
