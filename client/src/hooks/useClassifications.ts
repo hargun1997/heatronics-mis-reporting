@@ -156,6 +156,11 @@ export function useClassifications() {
 
     // === STEP 2: Process all transactions ===
     const processedTransactions = newTransactions.map(txn => {
+      // If transaction is already classified (e.g., sales transactions), preserve it
+      if (txn.status === 'classified' && txn.head && txn.subhead) {
+        return txn;
+      }
+
       // Check if this is an Amazon Cash Sale entry
       if (amazonCashSaleIds.has(txn.id)) {
         return {

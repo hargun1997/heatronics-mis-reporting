@@ -1,8 +1,35 @@
 import { useState, useCallback } from 'react';
-import { Transaction, BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, AggregatedRevenueData } from '../types';
+import { Transaction, BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, AggregatedRevenueData, SalesLineItem } from '../types';
 import { parseJournalExcel, parsePurchaseExcel, parseBalanceSheetExcel, parseSalesExcel } from '../utils/excelParser';
 import { parseBalanceSheetPDF } from '../utils/pdfParser';
 import { calculateCOGS } from '../utils/cogsCalculator';
+
+// Generate unique ID for transactions
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
+// Convert a SalesLineItem to a Transaction
+function salesLineItemToTransaction(item: SalesLineItem, stateCode: IndianState): Transaction {
+  const isReturn = item.isReturn;
+  const head = isReturn ? 'B. Returns' : 'A. Revenue';
+  const subhead = item.channel; // Amazon, Website, Blinkit, Offline/OEM
+
+  return {
+    id: `sales-${item.id}`,
+    date: '', // Sales register may not have dates per line
+    vchBillNo: '',
+    gstNature: '',
+    account: item.partyName,
+    debit: isReturn ? item.amount : 0, // Returns are debits
+    credit: isReturn ? 0 : item.amount, // Sales are credits
+    notes: item.isInterCompany ? `Inter-company transfer to ${item.toState || 'other state'}` : '',
+    head,
+    subhead,
+    status: 'classified',
+    state: stateCode
+  };
+}
 
 export interface FileParseState {
   journalFile: File | null;
@@ -366,8 +393,25 @@ export function useFileParser() {
       // Pass state code to detect inter-company transfers (especially for UP)
       const result = await parseSalesExcel(file, stateCode);
 
+      // Convert sales line items to transactions (excluding inter-company transfers)
+      const salesTransactions: Transaction[] = [];
+      if (result.salesData.lineItems) {
+        for (const item of result.salesData.lineItems) {
+          // Skip inter-company transfers - they shouldn't appear as revenue
+          if (item.isInterCompany) continue;
+          salesTransactions.push(salesLineItemToTransaction(item, stateCode));
+        }
+      }
+
       setMultiState(prev => {
         const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
+        // Merge sales transactions with existing journal transactions
+        // Remove any existing sales transactions first (to allow re-upload)
+        const existingNonSalesTransactions = stateData.transactions.filter(
+          t => !t.id.startsWith('sales-')
+        );
+        const mergedTransactions = [...existingNonSalesTransactions, ...salesTransactions];
+
         return {
           ...prev,
           loading: false,
@@ -377,7 +421,8 @@ export function useFileParser() {
               ...stateData,
               salesFile: file,
               salesParsed: true,
-              salesData: result.salesData
+              salesData: result.salesData,
+              transactions: mergedTransactions
             }
           }
         };
@@ -555,6 +600,14 @@ export function useFileParser() {
         item.id === itemId ? { ...item, channel: newChannel } : item
       );
 
+      // Also update the corresponding transaction's subhead
+      const updatedTransactions = stateData.transactions.map(txn => {
+        if (txn.id === `sales-${itemId}`) {
+          return { ...txn, subhead: newChannel };
+        }
+        return txn;
+      });
+
       // Recalculate totals based on updated line items
       let grossSales = 0;
       let returns = 0;
@@ -588,7 +641,8 @@ export function useFileParser() {
           ...prev.stateData,
           [stateCode]: {
             ...stateData,
-            salesData: updatedSalesData
+            salesData: updatedSalesData,
+            transactions: updatedTransactions
           }
         }
       };

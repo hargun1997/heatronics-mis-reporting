@@ -2,11 +2,11 @@ import { Heads } from '../types';
 
 export const DEFAULT_HEADS: Heads = {
   "A. Revenue": {
-    subheads: ["Website/D2C", "Amazon", "Blinkit", "Offline/OEM"],
+    subheads: ["Amazon", "Website", "Blinkit", "Offline/OEM"],
     type: "credit"
   },
   "B. Returns": {
-    subheads: ["Website Returns", "Amazon Returns", "Blinkit Returns", "Offline Returns"],
+    subheads: ["Amazon", "Website", "Blinkit", "Offline/OEM"],
     type: "debit"
   },
   "C. Discounts": {

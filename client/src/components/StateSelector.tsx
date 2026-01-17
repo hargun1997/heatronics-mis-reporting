@@ -14,27 +14,54 @@ export function StateSelector({
   activeState,
   onActiveStateChange
 }: StateSelectorProps) {
+  // UP is mandatory - check if it's selected
+  const isUPSelected = selectedStates.includes('UP');
+
+  const handleStateToggle = (code: IndianState) => {
+    // Prevent deselecting UP if it's the only way to have multi-state mode
+    if (code === 'UP' && isUPSelected && selectedStates.length === 1) {
+      // Allow deselecting UP only if it will exit multi-state mode entirely
+      onStateToggle(code);
+      return;
+    }
+
+    // If selecting any state and UP is not selected, auto-select UP first
+    if (!isUPSelected && code !== 'UP') {
+      onStateToggle('UP');
+    }
+
+    onStateToggle(code);
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* State Selection */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select States (optional)
+          Select States <span className="text-gray-500">(UP is mandatory)</span>
         </label>
         <div className="flex flex-wrap gap-2">
           {INDIAN_STATES.map(({ code, name }) => {
             const isSelected = selectedStates.includes(code);
+            const isMandatory = code === 'UP';
+            const isDisabled = isMandatory && isUPSelected && selectedStates.length > 1;
+
             return (
               <button
                 key={code}
-                onClick={() => onStateToggle(code)}
+                onClick={() => handleStateToggle(code)}
+                disabled={isDisabled}
                 className={`
                   px-3 py-1.5 rounded-full text-sm font-medium transition-all
                   ${isSelected
-                    ? 'bg-blue-100 text-blue-800 border-2 border-blue-400'
+                    ? isMandatory
+                      ? 'bg-green-100 text-green-800 border-2 border-green-400'
+                      : 'bg-blue-100 text-blue-800 border-2 border-blue-400'
                     : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
                   }
+                  ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}
                 `}
+                title={isDisabled ? 'UP is mandatory and cannot be deselected' : undefined}
               >
                 {isSelected && (
                   <svg className="inline-block w-4 h-4 mr-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -42,6 +69,7 @@ export function StateSelector({
                   </svg>
                 )}
                 {name}
+                {isMandatory && <span className="ml-1 text-xs">(Required)</span>}
               </button>
             );
           })}
