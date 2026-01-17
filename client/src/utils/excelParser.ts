@@ -339,9 +339,11 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
         const errors: string[] = [];
 
         // Skip first few rows (headers)
+        // Expected columns based on Heatronics Sales Register format:
+        // 0: Date, 1: Vch/Bill No, 2: Account, 3: TIN/GSTIN No, 4: Type, 5: Total Amount, 6: Sale Amount, 7: Taxable Amt, 8: IGST
         for (let i = 3; i < jsonData.length; i++) {
           const row = jsonData[i];
-          if (!row || row.length < 2) continue;
+          if (!row || row.length < 3) continue;
 
           const firstCol = String(row[0] || '').trim().toLowerCase();
 
@@ -354,11 +356,14 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
 
           itemCount++;
 
-          // Get party/account name
-          const partyName = String(row[1] || row[0] || '').trim();
+          // Get party/account name from column 2 (Account column)
+          const partyName = String(row[2] || row[1] || row[0] || '').trim();
 
-          // Get amount - try multiple columns (credit column usually)
-          let amount = parseNumber(row[5]) || parseNumber(row[6]) || parseNumber(row[4]);
+          // Skip if no party name
+          if (!partyName) continue;
+
+          // Get amount - prefer Sale Amount (col 6) or Total Amount (col 5)
+          let amount = parseNumber(row[6]) || parseNumber(row[5]) || parseNumber(row[4]);
 
           // Also check for amount in other common positions
           if (amount === 0) {
