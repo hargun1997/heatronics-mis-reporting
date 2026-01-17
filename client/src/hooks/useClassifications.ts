@@ -38,7 +38,16 @@ export function useClassifications() {
     try {
       const storedHeads = localStorage.getItem(HEADS_STORAGE_KEY);
       if (storedHeads) {
-        setHeads(JSON.parse(storedHeads));
+        const parsedHeads = JSON.parse(storedHeads);
+        // Check if stored heads have the new structure (B. Stock Transfer)
+        // If not, reset to defaults to pick up new head structure
+        if (parsedHeads['B. Stock Transfer']) {
+          setHeads(parsedHeads);
+        } else {
+          console.log('Resetting heads to defaults due to structure change');
+          localStorage.removeItem(HEADS_STORAGE_KEY);
+          setHeads(DEFAULT_HEADS);
+        }
       }
 
       const storedPatterns = localStorage.getItem(PATTERNS_STORAGE_KEY);
