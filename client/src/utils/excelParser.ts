@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { Transaction } from '../types';
+import { Transaction, SalesRegisterData } from '../types';
 
 // Generate unique ID
 function generateId(): string {
@@ -244,6 +244,100 @@ export function parseBalanceSheetExcel(file: File): Promise<{
         resolve({ openingStock, closingStock, sales, netProfit, errors });
       } catch (error) {
         reject(new Error(`Failed to parse balance sheet: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+    };
+
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+export interface SalesParseResult {
+  salesData: SalesRegisterData;
+  errors: string[];
+}
+
+export function parseSalesExcel(file: File): Promise<SalesParseResult> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+          header: 1,
+          defval: '',
+          blankrows: false
+        }) as unknown[][];
+
+        let totalSales = 0;
+        let itemCount = 0;
+        const salesByChannel: { [key: string]: number } = {};
+        const errors: string[] = [];
+
+        // Skip first few rows (headers)
+        // Look for "Total" row to get total sales
+        for (let i = 3; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          if (!row || row.length < 2) continue;
+
+          const firstCol = String(row[0] || '').trim().toLowerCase();
+
+          if (firstCol === 'total' || firstCol === 'grand total') {
+            // Total row found - get the amount from appropriate column
+            for (let j = row.length - 1; j >= 0; j--) {
+              const val = parseNumber(row[j]);
+              if (val > 0) {
+                totalSales = val;
+                break;
+              }
+            }
+          } else if (firstCol && !firstCol.includes('particulars') && !firstCol.includes('date') && !firstCol.includes('invoice')) {
+            // Count items and try to categorize by channel
+            itemCount++;
+
+            // Try to extract channel from account/party name
+            const partyName = String(row[1] || row[0] || '').toLowerCase();
+            let channel = 'Other';
+
+            if (partyName.includes('amazon')) {
+              channel = 'Amazon';
+            } else if (partyName.includes('blinkit') || partyName.includes('grofers')) {
+              channel = 'Blinkit';
+            } else if (partyName.includes('flipkart')) {
+              channel = 'Flipkart';
+            } else if (partyName.includes('website') || partyName.includes('shopify') || partyName.includes('d2c')) {
+              channel = 'Website/D2C';
+            } else if (partyName.includes('offline') || partyName.includes('retail') || partyName.includes('oem')) {
+              channel = 'Offline/OEM';
+            }
+
+            // Sum up sales amounts from credit column (usually column 5 or 6)
+            const amount = parseNumber(row[5]) || parseNumber(row[6]) || parseNumber(row[4]);
+            if (amount > 0) {
+              salesByChannel[channel] = (salesByChannel[channel] || 0) + amount;
+              if (totalSales === 0) {
+                totalSales += amount;
+              }
+            }
+          }
+        }
+
+        resolve({
+          salesData: {
+            totalSales,
+            itemCount,
+            salesByChannel: Object.keys(salesByChannel).length > 0 ? salesByChannel : undefined
+          },
+          errors
+        });
+      } catch (error) {
+        reject(new Error(`Failed to parse sales file: ${error instanceof Error ? error.message : 'Unknown error'}`));
       }
     };
 

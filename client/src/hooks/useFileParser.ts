@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Transaction, BalanceSheetData, COGSData } from '../types';
-import { parseJournalExcel, parsePurchaseExcel, parseBalanceSheetExcel } from '../utils/excelParser';
+import { Transaction, BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, INDIAN_STATES } from '../types';
+import { parseJournalExcel, parsePurchaseExcel, parseBalanceSheetExcel, parseSalesExcel } from '../utils/excelParser';
 import { parseBalanceSheetPDF } from '../utils/pdfParser';
 import { calculateCOGS } from '../utils/cogsCalculator';
 
@@ -8,21 +8,43 @@ export interface FileParseState {
   journalFile: File | null;
   balanceSheetFile: File | null;
   purchaseFile: File | null;
+  salesFile: File | null;
   journalParsed: boolean;
   balanceSheetParsed: boolean;
   purchaseParsed: boolean;
+  salesParsed: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface MultiStateFileParseState {
+  selectedStates: IndianState[];
+  activeState: IndianState | null;
+  stateData: { [key in IndianState]?: StateFileData };
   loading: boolean;
   error: string | null;
 }
 
 export function useFileParser() {
+  // Single-mode state (backward compatible)
   const [state, setState] = useState<FileParseState>({
     journalFile: null,
     balanceSheetFile: null,
     purchaseFile: null,
+    salesFile: null,
     journalParsed: false,
     balanceSheetParsed: false,
     purchaseParsed: false,
+    salesParsed: false,
+    loading: false,
+    error: null
+  });
+
+  // Multi-state mode state
+  const [multiState, setMultiState] = useState<MultiStateFileParseState>({
+    selectedStates: [],
+    activeState: null,
+    stateData: {},
     loading: false,
     error: null
   });
@@ -31,7 +53,46 @@ export function useFileParser() {
   const [balanceSheetData, setBalanceSheetData] = useState<BalanceSheetData | null>(null);
   const [cogsData, setCOGSData] = useState<COGSData | null>(null);
   const [purchaseTotal, setPurchaseTotal] = useState<number>(0);
+  const [salesData, setSalesData] = useState<SalesRegisterData | null>(null);
 
+  // State management functions
+  const toggleState = useCallback((stateCode: IndianState) => {
+    setMultiState(prev => {
+      const isSelected = prev.selectedStates.includes(stateCode);
+      const newSelectedStates = isSelected
+        ? prev.selectedStates.filter(s => s !== stateCode)
+        : [...prev.selectedStates, stateCode];
+
+      // Update active state if needed
+      let newActiveState = prev.activeState;
+      if (isSelected && prev.activeState === stateCode) {
+        newActiveState = newSelectedStates.length > 0 ? newSelectedStates[0] : null;
+      } else if (!isSelected && !prev.activeState) {
+        newActiveState = stateCode;
+      }
+
+      // Initialize state data if newly selected
+      const newStateData = { ...prev.stateData };
+      if (!isSelected) {
+        newStateData[stateCode] = createEmptyStateFileData();
+      } else {
+        delete newStateData[stateCode];
+      }
+
+      return {
+        ...prev,
+        selectedStates: newSelectedStates,
+        activeState: newActiveState,
+        stateData: newStateData
+      };
+    });
+  }, []);
+
+  const setActiveState = useCallback((stateCode: IndianState | null) => {
+    setMultiState(prev => ({ ...prev, activeState: stateCode }));
+  }, []);
+
+  // Single-mode parsing functions
   const parseJournal = useCallback(async (file: File) => {
     setState(prev => ({ ...prev, journalFile: file, loading: true, error: null }));
 
@@ -143,8 +204,236 @@ export function useFileParser() {
     }
   }, [balanceSheetData]);
 
+  const parseSales = useCallback(async (file: File) => {
+    setState(prev => ({ ...prev, salesFile: file, loading: true, error: null }));
+
+    try {
+      const result = await parseSalesExcel(file);
+      setSalesData(result.salesData);
+      setState(prev => ({
+        ...prev,
+        salesParsed: true,
+        loading: false
+      }));
+
+      if (result.errors.length > 0) {
+        console.warn('Sales parse warnings:', result.errors);
+      }
+
+      return result.salesData;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to parse sales file';
+      setState(prev => ({ ...prev, loading: false, error: message }));
+      throw error;
+    }
+  }, []);
+
+  // Multi-state parsing functions
+  const parseJournalForState = useCallback(async (file: File, stateCode: IndianState) => {
+    setMultiState(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const result = await parseJournalExcel(file);
+      // Add state info to transactions
+      const transactionsWithState = result.transactions.map(t => ({ ...t, state: stateCode }));
+
+      setMultiState(prev => {
+        const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
+        return {
+          ...prev,
+          loading: false,
+          stateData: {
+            ...prev.stateData,
+            [stateCode]: {
+              ...stateData,
+              journalFile: file,
+              journalParsed: true,
+              transactions: transactionsWithState
+            }
+          }
+        };
+      });
+
+      return transactionsWithState;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to parse journal file';
+      setMultiState(prev => ({ ...prev, loading: false, error: message }));
+      throw error;
+    }
+  }, []);
+
+  const parseBalanceSheetForState = useCallback(async (file: File, stateCode: IndianState) => {
+    setMultiState(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      let result: BalanceSheetData;
+
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        const pdfResult = await parseBalanceSheetPDF(file);
+        result = {
+          openingStock: pdfResult.openingStock,
+          closingStock: pdfResult.closingStock,
+          grossSales: pdfResult.grossSales,
+          netSales: pdfResult.netSales,
+          revenueDiscounts: pdfResult.revenueDiscounts,
+          gstOnSales: pdfResult.gstOnSales,
+          netProfit: pdfResult.netProfit,
+          purchases: pdfResult.purchases,
+          extractedLines: pdfResult.extractedLines
+        };
+      } else {
+        const excelResult = await parseBalanceSheetExcel(file);
+        result = {
+          openingStock: excelResult.openingStock,
+          closingStock: excelResult.closingStock,
+          grossSales: excelResult.sales,
+          netSales: excelResult.sales,
+          revenueDiscounts: 0,
+          gstOnSales: 0,
+          netProfit: excelResult.netProfit,
+          purchases: 0
+        };
+      }
+
+      setMultiState(prev => {
+        const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
+        const purchases = result.purchases > 0 ? result.purchases : (stateData.purchaseTotal || 0);
+        const cogs = purchases > 0 ? calculateCOGS(result.openingStock, purchases, result.closingStock) : null;
+
+        return {
+          ...prev,
+          loading: false,
+          stateData: {
+            ...prev.stateData,
+            [stateCode]: {
+              ...stateData,
+              balanceSheetFile: file,
+              balanceSheetParsed: true,
+              balanceSheetData: result,
+              cogsData: cogs
+            }
+          }
+        };
+      });
+
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to parse balance sheet';
+      setMultiState(prev => ({ ...prev, loading: false, error: message }));
+      throw error;
+    }
+  }, []);
+
+  const parsePurchaseForState = useCallback(async (file: File, stateCode: IndianState) => {
+    setMultiState(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const result = await parsePurchaseExcel(file);
+
+      setMultiState(prev => {
+        const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
+        const bs = stateData.balanceSheetData;
+        const cogs = bs ? calculateCOGS(bs.openingStock, result.totalPurchases, bs.closingStock) : null;
+
+        return {
+          ...prev,
+          loading: false,
+          stateData: {
+            ...prev.stateData,
+            [stateCode]: {
+              ...stateData,
+              purchaseFile: file,
+              purchaseParsed: true,
+              purchaseTotal: result.totalPurchases,
+              cogsData: cogs || stateData.cogsData
+            }
+          }
+        };
+      });
+
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to parse purchase file';
+      setMultiState(prev => ({ ...prev, loading: false, error: message }));
+      throw error;
+    }
+  }, []);
+
+  const parseSalesForState = useCallback(async (file: File, stateCode: IndianState) => {
+    setMultiState(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const result = await parseSalesExcel(file);
+
+      setMultiState(prev => {
+        const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
+        return {
+          ...prev,
+          loading: false,
+          stateData: {
+            ...prev.stateData,
+            [stateCode]: {
+              ...stateData,
+              salesFile: file,
+              salesParsed: true,
+              salesData: result.salesData
+            }
+          }
+        };
+      });
+
+      return result.salesData;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to parse sales file';
+      setMultiState(prev => ({ ...prev, loading: false, error: message }));
+      throw error;
+    }
+  }, []);
+
+  // Get aggregated data from all states
+  const getAggregatedData = useCallback(() => {
+    const allTransactions: Transaction[] = [];
+    let totalPurchase = 0;
+    let totalSales = 0;
+    const salesByChannel: { [key: string]: number } = {};
+
+    Object.values(multiState.stateData).forEach(stateData => {
+      if (stateData) {
+        allTransactions.push(...stateData.transactions);
+        totalPurchase += stateData.purchaseTotal || 0;
+        if (stateData.salesData) {
+          totalSales += stateData.salesData.totalSales || 0;
+          if (stateData.salesData.salesByChannel) {
+            Object.entries(stateData.salesData.salesByChannel).forEach(([channel, amount]) => {
+              salesByChannel[channel] = (salesByChannel[channel] || 0) + amount;
+            });
+          }
+        }
+      }
+    });
+
+    return {
+      transactions: allTransactions,
+      totalPurchase,
+      totalSales,
+      salesByChannel
+    };
+  }, [multiState.stateData]);
+
+  // Get file status for a specific state
+  const getStateFileStatus = useCallback((stateCode: IndianState) => {
+    const data = multiState.stateData[stateCode];
+    return {
+      balanceSheet: data?.balanceSheetParsed || false,
+      journal: data?.journalParsed || false,
+      purchase: data?.purchaseParsed || false,
+      sales: data?.salesParsed || false
+    };
+  }, [multiState.stateData]);
+
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
+    setMultiState(prev => ({ ...prev, error: null }));
   }, []);
 
   const resetAll = useCallback(() => {
@@ -152,9 +441,18 @@ export function useFileParser() {
       journalFile: null,
       balanceSheetFile: null,
       purchaseFile: null,
+      salesFile: null,
       journalParsed: false,
       balanceSheetParsed: false,
       purchaseParsed: false,
+      salesParsed: false,
+      loading: false,
+      error: null
+    });
+    setMultiState({
+      selectedStates: [],
+      activeState: null,
+      stateData: {},
       loading: false,
       error: null
     });
@@ -162,6 +460,7 @@ export function useFileParser() {
     setBalanceSheetData(null);
     setCOGSData(null);
     setPurchaseTotal(0);
+    setSalesData(null);
   }, []);
 
   // Manual COGS override
@@ -203,17 +502,31 @@ export function useFileParser() {
   }, []);
 
   return {
+    // Single mode state
     ...state,
     transactions,
     balanceSheetData,
     cogsData,
     purchaseTotal,
+    salesData,
+    // Single mode functions
     parseJournal,
     parseBalanceSheet,
     parsePurchase,
+    parseSales,
     clearError,
     resetAll,
     setCOGSManually,
-    setNetSalesManually
+    setNetSalesManually,
+    // Multi-state mode
+    multiState,
+    toggleState,
+    setActiveState,
+    parseJournalForState,
+    parseBalanceSheetForState,
+    parsePurchaseForState,
+    parseSalesForState,
+    getAggregatedData,
+    getStateFileStatus
   };
 }

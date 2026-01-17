@@ -1,3 +1,24 @@
+// Available states for file uploads
+export type IndianState = 'UP' | 'Maharashtra' | 'Telangana' | 'Karnataka' | 'Haryana';
+
+export const INDIAN_STATES: { code: IndianState; name: string }[] = [
+  { code: 'UP', name: 'Uttar Pradesh' },
+  { code: 'Maharashtra', name: 'Maharashtra' },
+  { code: 'Telangana', name: 'Telangana' },
+  { code: 'Karnataka', name: 'Karnataka' },
+  { code: 'Haryana', name: 'Haryana' }
+];
+
+// File types for uploads
+export type FileType = 'balanceSheet' | 'journal' | 'purchase' | 'sales';
+
+export const FILE_TYPES: { type: FileType; label: string; accept: string }[] = [
+  { type: 'balanceSheet', label: 'Balance Sheet', accept: '.pdf,.xlsx,.xls' },
+  { type: 'journal', label: 'Journal Vouchers', accept: '.xlsx,.xls' },
+  { type: 'purchase', label: 'Purchase Ledger', accept: '.xlsx,.xls' },
+  { type: 'sales', label: 'Sales Register', accept: '.xlsx,.xls' }
+];
+
 export interface Transaction {
   id: string;
   date: string;
@@ -13,6 +34,7 @@ export interface Transaction {
   suggestedHead?: string;
   suggestedSubhead?: string;
   isAutoIgnored?: boolean;  // Auto-ignored based on patterns
+  state?: IndianState;  // State this transaction belongs to
 }
 
 export interface HeadConfig {
@@ -146,4 +168,53 @@ export interface AppState {
   selectedIds: string[];
   customPatterns: AccountPattern[];
   ignorePatterns: IgnorePattern[];
+}
+
+// Sales Register Data
+export interface SalesRegisterData {
+  totalSales: number;
+  itemCount: number;
+  salesByChannel?: { [key: string]: number };
+}
+
+// State-specific file uploads
+export interface StateFileData {
+  balanceSheetFile: File | null;
+  journalFile: File | null;
+  purchaseFile: File | null;
+  salesFile: File | null;
+  balanceSheetParsed: boolean;
+  journalParsed: boolean;
+  purchaseParsed: boolean;
+  salesParsed: boolean;
+  balanceSheetData: BalanceSheetData | null;
+  transactions: Transaction[];
+  purchaseTotal: number;
+  salesData: SalesRegisterData | null;
+  cogsData: COGSData | null;
+}
+
+// Multi-state data container
+export interface MultiStateData {
+  selectedStates: IndianState[];
+  stateData: { [key in IndianState]?: StateFileData };
+}
+
+// Helper to create empty state file data
+export function createEmptyStateFileData(): StateFileData {
+  return {
+    balanceSheetFile: null,
+    journalFile: null,
+    purchaseFile: null,
+    salesFile: null,
+    balanceSheetParsed: false,
+    journalParsed: false,
+    purchaseParsed: false,
+    salesParsed: false,
+    balanceSheetData: null,
+    transactions: [],
+    purchaseTotal: 0,
+    salesData: null,
+    cogsData: null
+  };
 }
