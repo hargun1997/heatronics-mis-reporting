@@ -261,8 +261,8 @@ export function useFileParser() {
 
     try {
       const result = await parseJournalExcel(file);
-      // Add state info to transactions
-      const transactionsWithState = result.transactions.map(t => ({ ...t, state: stateCode }));
+      // TODO: Journal transactions will be added to table in future
+      // For now, just mark file as parsed but don't add to transactions
 
       setMultiState(prev => {
         const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
@@ -274,14 +274,14 @@ export function useFileParser() {
             [stateCode]: {
               ...stateData,
               journalFile: file,
-              journalParsed: true,
-              transactions: transactionsWithState
+              journalParsed: true
+              // Not adding journal transactions to table for now
             }
           }
         };
       });
 
-      return transactionsWithState;
+      return result.transactions;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to parse journal file';
       setMultiState(prev => ({ ...prev, loading: false, error: message }));
