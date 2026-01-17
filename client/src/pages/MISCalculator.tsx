@@ -14,7 +14,6 @@ import { useClassifications } from '../hooks/useClassifications';
 import { generateMISReport } from '../utils/misGenerator';
 import { IndianState, INDIAN_STATES, SalesLineItem } from '../types';
 
-type ViewMode = 'transactions' | 'report';
 
 export function MISCalculator() {
   // File parsing state
@@ -81,7 +80,7 @@ export function MISCalculator() {
 
   // UI state
   const [activeHead, setActiveHead] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('transactions');
+  const [showMISReport, setShowMISReport] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showSalesVerification, setShowSalesVerification] = useState<IndianState | null>(null);
 
@@ -293,34 +292,21 @@ export function MISCalculator() {
               </svg>
               Save
             </button>
-            {/* View Mode Toggle */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('transactions')}
-                disabled={transactions.length === 0}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  viewMode === 'transactions'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                } ${transactions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                Transactions
-              </button>
-              <button
-                onClick={() => setViewMode('report')}
-                disabled={transactions.length === 0}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  viewMode === 'report'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                } ${transactions.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <svg className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                MIS Report
-              </button>
-            </div>
+            {/* View MIS Report Button */}
+            <button
+              onClick={() => setShowMISReport(true)}
+              disabled={transactions.length === 0}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
+                transactions.length === 0
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              View MIS Report
+            </button>
             <ExportButton
               transactions={transactions}
               misReport={misReport}
@@ -463,107 +449,6 @@ export function MISCalculator() {
           </div>
         )}
 
-        {/* Multi-State Revenue Summary */}
-        {isMultiStateMode && (() => {
-          const aggregated = getAggregatedData();
-          const { revenueData } = aggregated;
-          if (!revenueData || revenueData.totalGrossSales === 0) return null;
-
-          return (
-            <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-3">
-                <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <span className="text-indigo-900 font-medium">Consolidated Revenue Summary (All States)</span>
-              </div>
-
-              {/* Main Revenue Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-                <div className="bg-white p-3 rounded border border-indigo-100">
-                  <div className="text-xs text-indigo-600">Total Gross Sales</div>
-                  <div className="text-lg font-semibold text-indigo-900">₹{revenueData.totalGrossSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                </div>
-                {revenueData.totalInterCompanyTransfers > 0 && (
-                  <div className="bg-white p-3 rounded border border-orange-200">
-                    <div className="text-xs text-orange-600">Inter-Company (UP)</div>
-                    <div className="text-lg font-semibold text-orange-700">- ₹{revenueData.totalInterCompanyTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                    <div className="text-xs text-orange-500 mt-1">Excluded from gross</div>
-                  </div>
-                )}
-                <div className="bg-white p-3 rounded border border-red-200">
-                  <div className="text-xs text-red-600">Returns</div>
-                  <div className="text-lg font-semibold text-red-700">- ₹{revenueData.totalReturns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                </div>
-                <div className="bg-white p-3 rounded border border-purple-200">
-                  <div className="text-xs text-purple-600">Taxes</div>
-                  <div className="text-lg font-semibold text-purple-700">- ₹{revenueData.totalTaxes.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                  <div className="text-xs text-purple-400 mt-1">Coming soon</div>
-                </div>
-                <div className="bg-white p-3 rounded border border-pink-200">
-                  <div className="text-xs text-pink-600">Discounts</div>
-                  <div className="text-lg font-semibold text-pink-700">- ₹{revenueData.totalDiscounts.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                  <div className="text-xs text-pink-400 mt-1">Coming soon</div>
-                </div>
-                <div className="bg-white p-3 rounded border border-green-300 bg-green-50">
-                  <div className="text-xs text-green-600 font-medium">NET REVENUE</div>
-                  <div className="text-lg font-bold text-green-700">₹{revenueData.totalNetRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                  <div className="text-xs text-green-500 mt-1">Gross - Returns - Taxes - Discounts</div>
-                </div>
-              </div>
-
-              {/* State-wise Breakdown */}
-              <div className="border-t border-indigo-200 pt-3">
-                <div className="text-xs text-indigo-600 mb-2 font-medium">State-wise Sales (Click to verify)</div>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(revenueData.salesByState).map(([state, amount]) => {
-                    const stateCode = state as IndianState;
-                    const hasLineItems = getSalesLineItems(stateCode).length > 0;
-                    return (
-                      <button
-                        key={state}
-                        onClick={() => hasLineItems && setShowSalesVerification(stateCode)}
-                        disabled={!hasLineItems}
-                        className={`bg-white px-3 py-2 rounded border text-sm text-left transition-colors ${
-                          hasLineItems
-                            ? 'border-indigo-100 hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer'
-                            : 'border-gray-100 cursor-not-allowed opacity-60'
-                        }`}
-                      >
-                        <span className="text-indigo-700 font-medium">{state}:</span>
-                        <span className="text-indigo-900 ml-1">₹{(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                        {revenueData.returnsByState[stateCode] && revenueData.returnsByState[stateCode]! > 0 && (
-                          <span className="text-red-500 ml-2 text-xs">
-                            (Returns: ₹{revenueData.returnsByState[stateCode]!.toLocaleString('en-IN', { maximumFractionDigits: 0 })})
-                          </span>
-                        )}
-                        {hasLineItems && (
-                          <svg className="inline-block w-3 h-3 ml-2 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Channel Breakdown */}
-              {aggregated.salesByChannel && Object.keys(aggregated.salesByChannel).length > 0 && (
-                <div className="border-t border-indigo-200 pt-3 mt-3">
-                  <div className="text-xs text-indigo-600 mb-2 font-medium">Channel Breakdown</div>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(aggregated.salesByChannel).map(([channel, amount]) => (
-                      <span key={channel} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
-                        {channel}: ₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
 
         {/* Balance Sheet Net Sales indicator */}
         {balanceSheetData && balanceSheetData.netSales > 0 && !isMultiStateMode && (
@@ -590,85 +475,37 @@ export function MISCalculator() {
       {/* Main Content Area */}
       {transactions.length > 0 ? (
         <div className="flex-1 flex overflow-hidden">
-          {/* Left: Transaction Table or MIS Report Table */}
+          {/* Left: Transaction Table */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {viewMode === 'transactions' ? (
-              <>
-                {/* Search and Filter Bar */}
-                <SearchBar
-                  filter={filter}
-                  onFilterChange={setFilter}
-                  progress={progress}
-                  stats={stats}
-                  heads={heads}
-                />
+            {/* Search and Filter Bar */}
+            <SearchBar
+              filter={filter}
+              onFilterChange={setFilter}
+              progress={progress}
+              stats={stats}
+              heads={heads}
+            />
 
-                {/* Bulk Actions Bar */}
-                <BulkActions
-                  selectedCount={selectedIds.length}
-                  onClassify={(head, subhead) => classifyMultiple(selectedIds, head, subhead)}
-                  onClearSelection={() => setSelectedIds([])}
-                  onApplyAllSuggestions={applyAllSuggestions}
-                  heads={heads}
-                  hasSelectedWithSuggestions={hasSelectedWithSuggestions}
-                />
+            {/* Bulk Actions Bar */}
+            <BulkActions
+              selectedCount={selectedIds.length}
+              onClassify={(head, subhead) => classifyMultiple(selectedIds, head, subhead)}
+              onClearSelection={() => setSelectedIds([])}
+              onApplyAllSuggestions={applyAllSuggestions}
+              heads={heads}
+              hasSelectedWithSuggestions={hasSelectedWithSuggestions}
+            />
 
-                {/* Transaction Table */}
-                <TransactionTable
-                  transactions={filteredTransactions}
-                  selectedIds={selectedIds}
-                  onSelectionChange={setSelectedIds}
-                  onClassify={classifyTransaction}
-                  onApplySuggestion={applySuggestion}
-                  onApplyToSimilar={applyToSimilar}
-                  heads={heads}
-                />
-              </>
-            ) : (
-              <>
-                {/* MIS Report Header */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-blue-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <div>
-                        <h2 className="text-lg font-semibold text-blue-900">MIS Report - Line Items</h2>
-                        <p className="text-xs text-blue-700">
-                          Review line items grouped by head. Click on Classification to reassign.
-                        </p>
-                      </div>
-                    </div>
-                    {activeHead && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-blue-700">Filtered by:</span>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
-                          {activeHead}
-                        </span>
-                        <button
-                          onClick={() => setActiveHead(null)}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* MIS Report Table */}
-                <MISReportTable
-                  transactions={transactions}
-                  heads={heads}
-                  report={misReport}
-                  activeHead={activeHead}
-                  onReassignTransactions={(txnIds, head, subhead) => classifyMultiple(txnIds, head, subhead)}
-                />
-              </>
-            )}
+            {/* Transaction Table */}
+            <TransactionTable
+              transactions={filteredTransactions}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              onClassify={classifyTransaction}
+              onApplySuggestion={applySuggestion}
+              onApplyToSimilar={applyToSimilar}
+              heads={heads}
+            />
           </div>
 
           {/* Right: Heads Panel */}
@@ -782,6 +619,49 @@ export function MISCalculator() {
           onClose={() => setShowSalesVerification(null)}
           stateName={INDIAN_STATES.find(s => s.code === showSalesVerification)?.name}
         />
+      )}
+
+      {/* MIS Report Modal */}
+      {showMISReport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div>
+                  <h2 className="text-xl font-bold text-blue-900">MIS Report</h2>
+                  <p className="text-sm text-blue-700">Review line items and reassign classifications</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMISReport(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <MISReportTable
+                transactions={transactions}
+                heads={heads}
+                report={misReport}
+                activeHead={activeHead}
+                onReassignTransactions={(txnIds, head, subhead) => classifyMultiple(txnIds, head, subhead)}
+                revenueData={isMultiStateMode ? getAggregatedData().revenueData : undefined}
+                salesByChannel={isMultiStateMode ? getAggregatedData().salesByChannel : undefined}
+                onStateClick={(state) => setShowSalesVerification(state)}
+                getSalesLineItemsCount={(state) => getSalesLineItems(state).length}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
