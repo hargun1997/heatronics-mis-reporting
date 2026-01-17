@@ -308,32 +308,32 @@ export function MISReportTable({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
             <div className="bg-white p-3 rounded border border-indigo-100">
               <div className="text-xs text-indigo-600">Total Gross Sales</div>
-              <div className="text-lg font-semibold text-indigo-900">₹{revenueData.totalGrossSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-lg font-semibold text-indigo-900">₹{revenueData.totalGrossSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             {revenueData.totalInterCompanyTransfers > 0 && (
               <div className="bg-white p-3 rounded border border-orange-200">
                 <div className="text-xs text-orange-600">Inter-Company (UP)</div>
-                <div className="text-lg font-semibold text-orange-700">- ₹{revenueData.totalInterCompanyTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                <div className="text-lg font-semibold text-orange-700">- ₹{revenueData.totalInterCompanyTransfers.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <div className="text-xs text-orange-500 mt-1">Excluded from gross</div>
               </div>
             )}
             <div className="bg-white p-3 rounded border border-red-200">
               <div className="text-xs text-red-600">Returns</div>
-              <div className="text-lg font-semibold text-red-700">- ₹{revenueData.totalReturns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-lg font-semibold text-red-700">- ₹{revenueData.totalReturns.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div className="bg-white p-3 rounded border border-purple-200">
               <div className="text-xs text-purple-600">Taxes</div>
-              <div className="text-lg font-semibold text-purple-700">- ₹{revenueData.totalTaxes.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-lg font-semibold text-purple-700">- ₹{revenueData.totalTaxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="text-xs text-purple-400 mt-1">Coming soon</div>
             </div>
             <div className="bg-white p-3 rounded border border-pink-200">
               <div className="text-xs text-pink-600">Discounts</div>
-              <div className="text-lg font-semibold text-pink-700">- ₹{revenueData.totalDiscounts.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-lg font-semibold text-pink-700">- ₹{revenueData.totalDiscounts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="text-xs text-pink-400 mt-1">Coming soon</div>
             </div>
             <div className="bg-white p-3 rounded border border-green-300 bg-green-50">
               <div className="text-xs text-green-600 font-medium">NET REVENUE</div>
-              <div className="text-lg font-bold text-green-700">₹{revenueData.totalNetRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+              <div className="text-lg font-bold text-green-700">₹{revenueData.totalNetRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               <div className="text-xs text-green-500 mt-1">Gross - Returns - Taxes - Discounts</div>
             </div>
           </div>
@@ -357,10 +357,10 @@ export function MISReportTable({
                     }`}
                   >
                     <span className="text-indigo-700 font-medium">{state}:</span>
-                    <span className="text-indigo-900 ml-1">₹{(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                    <span className="text-indigo-900 ml-1">₹{(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     {revenueData.returnsByState[stateCode] && revenueData.returnsByState[stateCode]! > 0 && (
                       <span className="text-red-500 ml-2 text-xs">
-                        (Returns: ₹{revenueData.returnsByState[stateCode]!.toLocaleString('en-IN', { maximumFractionDigits: 0 })})
+                        (Returns: ₹{revenueData.returnsByState[stateCode]!.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                       </span>
                     )}
                     {hasLineItems && (
@@ -381,7 +381,7 @@ export function MISReportTable({
               <div className="flex flex-wrap gap-2">
                 {Object.entries(salesByChannel).map(([channel, amount]) => (
                   <span key={channel} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
-                    {channel}: ₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    {channel}: ₹{amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 ))}
               </div>

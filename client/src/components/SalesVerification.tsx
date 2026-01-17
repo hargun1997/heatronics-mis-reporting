@@ -76,7 +76,7 @@ export function SalesVerification({
   }, [lineItems]);
 
   const formatCurrency = (amount: number) => {
-    return '₹' + amount.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    return '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const getTabCount = (tab: TabType) => {

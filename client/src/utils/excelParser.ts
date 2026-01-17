@@ -7,16 +7,20 @@ function generateId(): string {
 }
 
 // Parse number from various formats
+// Round to 2 decimal places to avoid floating point precision issues
 function parseNumber(value: unknown): number {
   if (value === null || value === undefined || value === '') return 0;
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
+  let num = 0;
+  if (typeof value === 'number') {
+    num = value;
+  } else if (typeof value === 'string') {
     // Remove currency symbols, commas, and spaces
     const cleaned = value.replace(/[₹,\s]/g, '').trim();
-    const num = parseFloat(cleaned);
-    return isNaN(num) ? 0 : num;
+    num = parseFloat(cleaned);
+    if (isNaN(num)) return 0;
   }
-  return 0;
+  // Round to 2 decimal places to prevent floating point accumulation errors
+  return Math.round(num * 100) / 100;
 }
 
 // Parse date from Excel serial or string
