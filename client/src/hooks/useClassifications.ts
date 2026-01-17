@@ -33,21 +33,9 @@ export function useClassifications() {
   });
   const [undoStack, setUndoStack] = useState<Transaction[][]>([]);
 
-  // Load from localStorage on mount
+  // Load heads and patterns from localStorage on mount (but NOT transactions)
   useEffect(() => {
     try {
-      const storedSession = localStorage.getItem(SESSION_KEY);
-      const storedData = localStorage.getItem(STORAGE_KEY);
-
-      if (storedData && storedSession) {
-        const parsed: StoredState = JSON.parse(storedData);
-        // Only restore if session matches and data is valid
-        if (parsed.transactions && Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
-          setTransactions(parsed.transactions);
-          setSessionId(storedSession);
-        }
-      }
-
       const storedHeads = localStorage.getItem(HEADS_STORAGE_KEY);
       if (storedHeads) {
         setHeads(JSON.parse(storedHeads));
