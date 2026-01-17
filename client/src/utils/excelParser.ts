@@ -370,8 +370,9 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
             continue;
           }
 
-          // Get amount - prefer Sale Amount (col 6) or Total Amount (col 5)
-          let amount = parseNumber(row[6]) || parseNumber(row[5]) || parseNumber(row[4]);
+          // Get amount - prefer Total Amount (col 5) which includes tax
+          // Column layout: 5: Total Amount (with tax), 6: Sale Amount (without tax)
+          let amount = parseNumber(row[5]) || parseNumber(row[6]) || parseNumber(row[4]);
 
           // Also check for amount in other common positions
           if (amount === 0) {
