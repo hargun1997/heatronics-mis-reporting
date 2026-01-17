@@ -385,8 +385,8 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
             continue;
           }
 
-          // Check if this is an inter-company transfer (only for UP state)
-          if (sourceState === 'UP' && isInterCompanyTransfer(partyName)) {
+          // Check if this is an inter-company transfer (any state selling to another Heatronics entity)
+          if (isInterCompanyTransfer(partyName)) {
             interCompanyTransfers += amount;
             const toState = detectInterCompanyState(partyName);
             if (toState) {

@@ -472,10 +472,8 @@ export function useFileParser() {
           // Add gross sales (includes all positive amounts including stock transfers)
           totalGrossSales += stateData.salesData.grossSales || 0;
 
-          // Track stock transfers (inter-company transfers, only from UP state)
-          if (stateCode === 'UP') {
-            totalStockTransfer += stateData.salesData.interCompanyTransfers || 0;
-          }
+          // Track stock transfers (inter-company transfers from all states)
+          totalStockTransfer += stateData.salesData.interCompanyTransfers || 0;
 
           // Collect returns separately (all negative sales)
           totalReturns += stateData.salesData.returns || 0;
