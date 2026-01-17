@@ -463,7 +463,7 @@ export function MISCalculator() {
               </div>
 
               {/* Main Revenue Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
                 <div className="bg-white p-3 rounded border border-indigo-100">
                   <div className="text-xs text-indigo-600">Total Gross Sales</div>
                   <div className="text-lg font-semibold text-indigo-900">₹{revenueData.totalGrossSales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
@@ -472,17 +472,27 @@ export function MISCalculator() {
                   <div className="bg-white p-3 rounded border border-orange-200">
                     <div className="text-xs text-orange-600">Inter-Company (UP)</div>
                     <div className="text-lg font-semibold text-orange-700">- ₹{revenueData.totalInterCompanyTransfers.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                    <div className="text-xs text-orange-500 mt-1">Stock transfers to other states</div>
+                    <div className="text-xs text-orange-500 mt-1">Excluded from gross</div>
                   </div>
                 )}
                 <div className="bg-white p-3 rounded border border-red-200">
-                  <div className="text-xs text-red-600">Total Returns</div>
-                  <div className="text-lg font-semibold text-red-700">₹{revenueData.totalReturns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                  <div className="text-xs text-red-600">Returns</div>
+                  <div className="text-lg font-semibold text-red-700">- ₹{revenueData.totalReturns.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                </div>
+                <div className="bg-white p-3 rounded border border-purple-200">
+                  <div className="text-xs text-purple-600">Taxes</div>
+                  <div className="text-lg font-semibold text-purple-700">- ₹{revenueData.totalTaxes.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                  <div className="text-xs text-purple-400 mt-1">Coming soon</div>
+                </div>
+                <div className="bg-white p-3 rounded border border-pink-200">
+                  <div className="text-xs text-pink-600">Discounts</div>
+                  <div className="text-lg font-semibold text-pink-700">- ₹{revenueData.totalDiscounts.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                  <div className="text-xs text-pink-400 mt-1">Coming soon</div>
                 </div>
                 <div className="bg-white p-3 rounded border border-green-300 bg-green-50">
                   <div className="text-xs text-green-600 font-medium">NET REVENUE</div>
                   <div className="text-lg font-bold text-green-700">₹{revenueData.totalNetRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
-                  <div className="text-xs text-green-500 mt-1">Gross - Inter-company</div>
+                  <div className="text-xs text-green-500 mt-1">Gross - Returns - Taxes - Discounts</div>
                 </div>
               </div>
 

@@ -200,8 +200,10 @@ export interface SalesRegisterData {
 export interface AggregatedRevenueData {
   totalGrossSales: number;          // Sum of all states' gross sales
   totalInterCompanyTransfers: number; // Total UP to other states transfers
-  totalNetRevenue: number;          // totalGrossSales - totalInterCompanyTransfers
   totalReturns: number;             // Sum of all returns across states
+  totalTaxes: number;               // Sum of all taxes (placeholder for now)
+  totalDiscounts: number;           // Sum of all discounts (placeholder for now)
+  totalNetRevenue: number;          // totalGrossSales - totalReturns - totalTaxes - totalDiscounts
   salesByState: { [key in IndianState]?: number };
   returnsByState: { [key in IndianState]?: number };
 }

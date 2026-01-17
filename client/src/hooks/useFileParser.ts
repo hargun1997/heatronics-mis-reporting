@@ -401,6 +401,8 @@ export function useFileParser() {
     let totalGrossSales = 0;
     let totalInterCompanyTransfers = 0;
     let totalReturns = 0;
+    let totalTaxes = 0;       // Placeholder for future implementation
+    let totalDiscounts = 0;   // Placeholder for future implementation
     const salesByState: { [key in IndianState]?: number } = {};
     const returnsByState: { [key in IndianState]?: number } = {};
 
@@ -435,15 +437,17 @@ export function useFileParser() {
       }
     });
 
-    // Total Net Revenue = Sum of all gross sales
-    // (Inter-company transfers are already excluded from UP's gross sales in the parser)
-    const totalNetRevenue = totalGrossSales;
+    // Net Revenue = Total Gross Sales - Returns - Taxes - Discounts
+    // Note: Inter-company transfers are already excluded from UP's gross sales in the parser
+    const totalNetRevenue = totalGrossSales - totalReturns - totalTaxes - totalDiscounts;
 
     const revenueData: AggregatedRevenueData = {
       totalGrossSales,
       totalInterCompanyTransfers,
-      totalNetRevenue,
       totalReturns,
+      totalTaxes,
+      totalDiscounts,
+      totalNetRevenue,
       salesByState,
       returnsByState
     };
