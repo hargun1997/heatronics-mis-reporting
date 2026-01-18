@@ -131,24 +131,39 @@ class GoogleDriveService {
   }
 
   private parseFileName(fileName: string): { type: DriveFileInfo['type']; stateCode?: string } {
+    // Get the base name without extension
+    const baseName = fileName.replace(/\.[^/.]+$/, '').toUpperCase().trim();
     const upperName = fileName.toUpperCase();
 
-    // Determine file type
+    // Determine file type - support both short codes (BS, SR, PR, JR) and full names
     let type: DriveFileInfo['type'] = 'unknown';
-    if (upperName.startsWith('BS ') || upperName.includes('BALANCE')) {
+
+    // Short codes (exact match or starts with)
+    if (baseName === 'BS' || baseName.startsWith('BS ') || baseName.startsWith('BS_') || baseName.startsWith('BS-')) {
       type = 'balance_sheet';
-    } else if (upperName.includes('SALESREGISTER') || upperName.includes('SALES REGISTER')) {
+    } else if (baseName === 'SR' || baseName.startsWith('SR ') || baseName.startsWith('SR_') || baseName.startsWith('SR-')) {
       type = 'sales_register';
-    } else if (upperName.includes('PURCHASEREGISTER') || upperName.includes('PURCHASE REGISTER')) {
+    } else if (baseName === 'PR' || baseName.startsWith('PR ') || baseName.startsWith('PR_') || baseName.startsWith('PR-')) {
       type = 'purchase_register';
-    } else if (upperName.includes('JOURNALREGISTER') || upperName.includes('JOURNAL REGISTER')) {
+    } else if (baseName === 'JR' || baseName.startsWith('JR ') || baseName.startsWith('JR_') || baseName.startsWith('JR-')) {
+      type = 'journal_register';
+    }
+    // Full names (for backward compatibility)
+    else if (upperName.includes('BALANCE')) {
+      type = 'balance_sheet';
+    } else if (upperName.includes('SALESREGISTER') || upperName.includes('SALES REGISTER') || upperName.includes('SALES_REGISTER')) {
+      type = 'sales_register';
+    } else if (upperName.includes('PURCHASEREGISTER') || upperName.includes('PURCHASE REGISTER') || upperName.includes('PURCHASE_REGISTER')) {
+      type = 'purchase_register';
+    } else if (upperName.includes('JOURNALREGISTER') || upperName.includes('JOURNAL REGISTER') || upperName.includes('JOURNAL_REGISTER')) {
       type = 'journal_register';
     }
 
-    // Extract state code (look for KA, MH, HR, UP, TL in filename)
+    // Extract state code (look for KA, MH, HR, UP, TL in filename) - optional since folder provides this
     let stateCode: string | undefined;
     for (const code of Object.keys(STATE_NAMES)) {
-      if (upperName.includes(` ${code}.`) || upperName.includes(` ${code} `) || upperName.endsWith(` ${code}`)) {
+      if (upperName.includes(` ${code}.`) || upperName.includes(` ${code} `) || upperName.endsWith(` ${code}`) ||
+          upperName.includes(`_${code}.`) || upperName.includes(`_${code}_`) || upperName.includes(`-${code}.`)) {
         stateCode = code;
         break;
       }
