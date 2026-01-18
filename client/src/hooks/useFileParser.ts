@@ -412,15 +412,65 @@ export function useFileParser() {
       if (result.salesData.lineItems) {
         for (const item of result.salesData.lineItems) {
           salesTransactions.push(salesLineItemToTransaction(item, stateCode));
+
+          // Create separate tax transactions for each line item with taxes
+          if (item.igst && item.igst > 0) {
+            salesTransactions.push({
+              id: `tax-igst-${item.id}`,
+              date: '',
+              vchBillNo: '',
+              gstNature: 'IGST',
+              account: item.partyName,
+              debit: 0,
+              credit: item.igst,
+              notes: `IGST on sale to ${item.partyName}`,
+              head: 'E. Taxes (GST)',
+              subhead: 'IGST',
+              status: 'classified',
+              state: stateCode
+            });
+          }
+          if (item.cgst && item.cgst > 0) {
+            salesTransactions.push({
+              id: `tax-cgst-${item.id}`,
+              date: '',
+              vchBillNo: '',
+              gstNature: 'CGST',
+              account: item.partyName,
+              debit: 0,
+              credit: item.cgst,
+              notes: `CGST on sale to ${item.partyName}`,
+              head: 'E. Taxes (GST)',
+              subhead: 'CGST',
+              status: 'classified',
+              state: stateCode
+            });
+          }
+          if (item.sgst && item.sgst > 0) {
+            salesTransactions.push({
+              id: `tax-sgst-${item.id}`,
+              date: '',
+              vchBillNo: '',
+              gstNature: 'SGST',
+              account: item.partyName,
+              debit: 0,
+              credit: item.sgst,
+              notes: `SGST on sale to ${item.partyName}`,
+              head: 'E. Taxes (GST)',
+              subhead: 'SGST',
+              status: 'classified',
+              state: stateCode
+            });
+          }
         }
       }
 
       setMultiState(prev => {
         const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
         // Merge sales transactions with existing journal transactions
-        // Remove any existing sales transactions first (to allow re-upload)
+        // Remove any existing sales and tax transactions first (to allow re-upload)
         const existingNonSalesTransactions = stateData.transactions.filter(
-          t => !t.id.startsWith('sales-')
+          t => !t.id.startsWith('sales-') && !t.id.startsWith('tax-')
         );
         const mergedTransactions = [...existingNonSalesTransactions, ...salesTransactions];
 
@@ -458,7 +508,7 @@ export function useFileParser() {
     let totalGrossSales = 0;
     let totalStockTransfer = 0;
     let totalReturns = 0;
-    let totalTaxes = 0;       // Placeholder for future implementation
+    let totalTaxes = 0;       // Sum of IGST + CGST + SGST from sales register
     let totalDiscounts = 0;   // Placeholder for future implementation
     const salesByState: { [key in IndianState]?: number } = {};
     const returnsByState: { [key in IndianState]?: number } = {};
@@ -477,6 +527,9 @@ export function useFileParser() {
 
           // Collect returns separately (all negative sales)
           totalReturns += stateData.salesData.returns || 0;
+
+          // Collect taxes from sales register (IGST + CGST + SGST)
+          totalTaxes += stateData.salesData.totalTaxes || 0;
 
           // Track by state
           salesByState[stateCode as IndianState] = stateData.salesData.netSales || 0;
