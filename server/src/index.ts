@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import dictionaryRoutes from './routes/dictionary.js';
 import checklistRoutes from './routes/checklist.js';
 import misRoutes from './routes/mis.js';
+import driveRoutes from './routes/drive.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +30,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/api/dictionary', dictionaryRoutes);
 app.use('/api/checklist', checklistRoutes);
 app.use('/api/mis', misRoutes);
+app.use('/api/drive', driveRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -63,6 +65,7 @@ app.listen(PORT, () => {
 ║    - /api/dictionary  - Accounting Dictionary                 ║
 ║    - /api/checklist   - Accounts Checklist                    ║
 ║    - /api/mis         - MIS Calculator                        ║
+║    - /api/drive       - Google Drive Integration              ║
 ║    - /api/health      - Health check                          ║
 ╚═══════════════════════════════════════════════════════════════╝
   `);
