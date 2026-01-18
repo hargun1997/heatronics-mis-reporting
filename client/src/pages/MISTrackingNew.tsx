@@ -294,23 +294,84 @@ export function MISTrackingNew() {
   // HELPERS
   // ============================================
 
-  const getUploadStatus = (periodKey: string, state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): 'empty' | 'uploaded' | 'parsed' => {
+  // Map file types to Drive file type names
+  const FILE_TYPE_TO_DRIVE: Record<string, string> = {
+    'sales': 'sales_register',
+    'journal': 'journal_register',
+    'purchase': 'purchase_register',
+    'balanceSheet': 'balance_sheet'
+  };
+
+  // Check if a specific file exists in Drive for a state/month
+  const isFileInDrive = (year: number, month: number, state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): boolean => {
+    const driveMonth = getDriveMonthData(year, month);
+    if (!driveMonth) return false;
+
+    // Find the state in Drive data (need to reverse map)
+    const driveStateCode = Object.entries(DRIVE_STATE_MAP).find(([_, v]) => v === state)?.[0];
+    if (!driveStateCode) return false;
+
+    const stateData = driveMonth.states.find(s =>
+      DRIVE_STATE_MAP[s.code] === state || s.code === driveStateCode
+    );
+    if (!stateData) return false;
+
+    const driveFileType = FILE_TYPE_TO_DRIVE[fileType];
+    return stateData.files.some(f => f.type === driveFileType);
+  };
+
+  // Check if a state has any files in Drive for a month
+  const isStateInDrive = (year: number, month: number, state: IndianState): boolean => {
+    const driveMonth = getDriveMonthData(year, month);
+    if (!driveMonth) return false;
+
+    return driveMonth.states.some(s => DRIVE_STATE_MAP[s.code] === state);
+  };
+
+  const getUploadStatus = (periodKey: string, state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): 'empty' | 'uploaded' | 'parsed' | 'inDrive' | 'notInDrive' => {
     const monthData = monthsData[periodKey];
     if (!monthData) return 'empty';
 
     const data = monthData.uploadData[state];
-    if (!data) return 'empty';
 
-    switch (fileType) {
-      case 'sales':
-        return data.salesParsed ? 'parsed' : data.salesRegisterFile ? 'uploaded' : 'empty';
-      case 'journal':
-        return data.journalParsed ? 'parsed' : data.journalFile ? 'uploaded' : 'empty';
-      case 'purchase':
-        return data.purchaseParsed ? 'parsed' : data.purchaseRegisterFile ? 'uploaded' : 'empty';
-      case 'balanceSheet':
-        return data.balanceSheetParsed ? 'parsed' : data.balanceSheetFile ? 'uploaded' : 'empty';
+    // Check parsed/uploaded status first
+    if (data) {
+      switch (fileType) {
+        case 'sales':
+          if (data.salesParsed) return 'parsed';
+          if (data.salesRegisterFile) return 'uploaded';
+          break;
+        case 'journal':
+          if (data.journalParsed) return 'parsed';
+          if (data.journalFile) return 'uploaded';
+          break;
+        case 'purchase':
+          if (data.purchaseParsed) return 'parsed';
+          if (data.purchaseRegisterFile) return 'uploaded';
+          break;
+        case 'balanceSheet':
+          if (data.balanceSheetParsed) return 'parsed';
+          if (data.balanceSheetFile) return 'uploaded';
+          break;
+      }
     }
+
+    // Not parsed/uploaded - check if available in Drive
+    const { year, month } = monthData.period;
+    const stateInDrive = isStateInDrive(year, month, state);
+
+    if (!stateInDrive) {
+      // State not in Drive at all - show X
+      return 'notInDrive';
+    }
+
+    // State is in Drive - check if this specific file type is available
+    if (isFileInDrive(year, month, state, fileType)) {
+      return 'inDrive';
+    }
+
+    // State is in Drive but this file type is missing
+    return 'notInDrive';
   };
 
   const canGenerateMIS = (periodKey: string): boolean => {
@@ -332,27 +393,46 @@ export function MISTrackingNew() {
     const monthData = monthsData[periodKey];
     if (!monthData) return 'empty';
 
-    let hasAnyFile = false;
-    let statesWithData = 0;
+    const { year, month } = monthData.period;
+    const driveMonth = getDriveMonthData(year, month);
 
+    let hasAnyParsedFile = false;
+    let statesWithParsedData = 0;
+    let driveStatesCount = driveMonth?.states.length || 0;
+    let driveStatesLoaded = 0;
+
+    // Count loaded states and check which Drive states are loaded
     for (const state of selectedStates) {
       const data = monthData.uploadData[state];
       if (data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
-        hasAnyFile = true;
-        statesWithData++;
+        hasAnyParsedFile = true;
+        statesWithParsedData++;
+
+        // Check if this state was in Drive
+        if (driveMonth?.states.some(s => DRIVE_STATE_MAP[s.code] === state)) {
+          driveStatesLoaded++;
+        }
       }
     }
 
-    // If has uploaded/parsed data, show status based on that
-    if (hasAnyFile) {
-      // All selected states have data - ready to generate
-      if (statesWithData === selectedStates.length) return 'ready';
-      // Only some states have data
+    // If has MIS already generated, show complete
+    if (monthData.hasData) return 'complete';
+
+    // If has parsed/loaded data
+    if (hasAnyParsedFile) {
+      // If all Drive states are loaded, show ready
+      if (driveStatesCount > 0 && driveStatesLoaded >= driveStatesCount) {
+        return 'ready';
+      }
+      // Some data loaded but not all from Drive yet
       return 'partial';
     }
 
-    // No uploaded data in this session - check if has saved MIS from before
-    if (monthData.hasData) return 'complete';
+    // No parsed data - check if Drive has data for this month
+    if (driveMonth && driveMonth.states.length > 0) {
+      // Drive has data but nothing loaded yet - show as partial (needs sync)
+      return 'partial';
+    }
 
     return 'empty';
   };
@@ -667,6 +747,26 @@ export function MISTrackingNew() {
     }
   };
 
+  // Clear all cached upload data and force resync from Drive
+  const handleClearAndResync = async () => {
+    if (isAutoFetching || !driveStructure) return;
+
+    // Clear all upload data from monthsData
+    setMonthsData(prev => {
+      const cleared: Record<string, MonthData> = {};
+      for (const [key, data] of Object.entries(prev)) {
+        cleared[key] = {
+          ...data,
+          uploadData: {} as Record<IndianState, StateUploadData | undefined>
+        };
+      }
+      return cleared;
+    });
+
+    // Re-fetch from Drive
+    await autoFetchAllFromDrive();
+  };
+
   // Count months ready for MIS generation
   const monthsReadyCount = useMemo(() => {
     return Object.values(monthsData).filter(md => {
@@ -712,6 +812,20 @@ export function MISTrackingNew() {
                   : isDriveLoading ? 'Syncing...'
                   : driveStatus.connected ? 'Drive Connected' : 'Drive Offline'}
               </div>
+            )}
+
+            {/* Clear & Resync Button */}
+            {driveStatus?.connected && !isDriveLoading && !isAutoFetching && (
+              <button
+                onClick={handleClearAndResync}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors"
+                title="Clear cached files and resync from Drive"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Resync
+              </button>
             )}
           </div>
         </div>
@@ -1044,7 +1158,7 @@ interface MonthDetailPanelProps {
   monthData: MonthData;
   selectedStates: IndianState[];
   onFileUpload: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet', file: File) => void;
-  getUploadStatus: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet') => 'empty' | 'uploaded' | 'parsed';
+  getUploadStatus: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet') => 'empty' | 'uploaded' | 'parsed' | 'inDrive' | 'notInDrive';
   canGenerate: boolean;
   onGenerate: () => void;
   onViewMIS: () => void;
@@ -1193,6 +1307,42 @@ function MonthDetailPanel({
               </tbody>
             </table>
           </div>
+
+          {/* Legend */}
+          <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center">
+                <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              Loaded
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded bg-blue-500/20 flex items-center justify-center">
+                <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                </svg>
+              </span>
+              In Drive
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded bg-red-500/10 flex items-center justify-center">
+                <svg className="w-3 h-3 text-red-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </span>
+              Missing
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded bg-slate-700/50 flex items-center justify-center">
+                <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              </span>
+              Upload
+            </span>
+          </div>
         </div>
 
         {/* Actions */}
@@ -1293,7 +1443,7 @@ function MonthDetailPanel({
 // ============================================
 
 interface FileUploadButtonProps {
-  status: 'empty' | 'uploaded' | 'parsed';
+  status: 'empty' | 'uploaded' | 'parsed' | 'inDrive' | 'notInDrive';
   onUpload: (file: File) => void;
   isLoading: boolean;
 }
@@ -1316,6 +1466,54 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
+      </div>
+    );
+  }
+
+  // Not in Drive - show X mark (can still upload manually)
+  if (status === 'notInDrive') {
+    return (
+      <div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx,.xls,.pdf"
+          onChange={handleChange}
+          className="hidden"
+        />
+        <button
+          onClick={handleClick}
+          className="w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all bg-red-500/10 text-red-400/60 hover:bg-red-500/20 hover:text-red-400"
+          title="Not in Drive (click to upload manually)"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
+  // In Drive but not fetched - show cloud icon
+  if (status === 'inDrive') {
+    return (
+      <div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx,.xls,.pdf"
+          onChange={handleChange}
+          className="hidden"
+        />
+        <button
+          onClick={handleClick}
+          className="w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+          title="Available in Drive (click to upload different file)"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+          </svg>
+        </button>
       </div>
     );
   }
