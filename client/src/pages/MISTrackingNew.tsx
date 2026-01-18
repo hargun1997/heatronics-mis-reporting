@@ -89,6 +89,8 @@ export function MISTrackingNew() {
   const [driveStructure, setDriveStructure] = useState<DriveFolderStructure | null>(null);
   const [isDriveLoading, setIsDriveLoading] = useState(false);
   const [fetchingFromDrive, setFetchingFromDrive] = useState<string | null>(null);
+  const [isAutoFetching, setIsAutoFetching] = useState(false);
+  const [generatingAll, setGeneratingAll] = useState(false);
 
   // ============================================
   // EFFECTS
@@ -122,6 +124,13 @@ export function MISTrackingNew() {
   useEffect(() => {
     initializeMonthsForYear(selectedYear);
   }, [selectedYear, savedPeriods]);
+
+  // Auto-fetch from Drive when structure is loaded
+  useEffect(() => {
+    if (driveStructure && driveStructure.years.length > 0 && !isAutoFetching) {
+      autoFetchAllFromDrive();
+    }
+  }, [driveStructure]);
 
   // ============================================
   // DATA LOADING
@@ -449,6 +458,157 @@ export function MISTrackingNew() {
     }
   };
 
+  // Auto-fetch all data from Drive
+  const autoFetchAllFromDrive = async () => {
+    if (!driveStructure || isAutoFetching) return;
+
+    setIsAutoFetching(true);
+    setError(null);
+
+    try {
+      // Collect all states found in Drive
+      const allStatesInDrive = new Set<IndianState>();
+
+      // Build updated months data
+      let updatedMonthsData = { ...monthsData };
+
+      for (const yearData of driveStructure.years) {
+        for (const driveMonth of yearData.months) {
+          const periodKey = `${driveMonth.year}-${String(driveMonth.month).padStart(2, '0')}`;
+
+          // Initialize month data if not exists
+          if (!updatedMonthsData[periodKey]) {
+            const period: MISPeriod = { month: driveMonth.month, year: driveMonth.year };
+            const existingMIS = allMISData.find(m => m.periodKey === periodKey);
+            updatedMonthsData[periodKey] = {
+              period,
+              periodKey,
+              uploadData: {} as Record<IndianState, StateUploadData | undefined>,
+              hasData: !!existingMIS,
+              mis: existingMIS || null,
+              isExpanded: false
+            };
+          }
+
+          let monthUploadData = { ...updatedMonthsData[periodKey].uploadData };
+
+          for (const stateData of driveMonth.states) {
+            const indianState = DRIVE_STATE_MAP[stateData.code];
+            if (!indianState || !INDIAN_STATES.some(s => s.code === indianState)) continue;
+
+            allStatesInDrive.add(indianState);
+
+            let stateUpload = monthUploadData[indianState] || createEmptyStateUploadData(indianState);
+
+            // Fetch and parse each file
+            for (const fileInfo of stateData.files) {
+              try {
+                const content = await getFileContent(fileInfo.id);
+                if (!content) continue;
+
+                const file = base64ToFile(content, fileInfo.name, fileInfo.mimeType);
+
+                switch (fileInfo.type) {
+                  case 'sales_register':
+                    stateUpload.salesRegisterFile = file;
+                    const salesResult = await parseSalesRegister(file, indianState);
+                    stateUpload.salesData = salesResult.salesData;
+                    stateUpload.salesParsed = true;
+                    break;
+                  case 'journal_register':
+                    stateUpload.journalFile = file;
+                    const journalResult = await parseJournal(file, indianState);
+                    stateUpload.journalTransactions = journalResult.transactions;
+                    stateUpload.journalParsed = true;
+                    break;
+                  case 'purchase_register':
+                    stateUpload.purchaseRegisterFile = file;
+                    const purchaseResult = await parsePurchaseRegister(file);
+                    stateUpload.purchaseTotal = purchaseResult.totalPurchases;
+                    stateUpload.purchaseParsed = true;
+                    break;
+                  case 'balance_sheet':
+                    stateUpload.balanceSheetFile = file;
+                    const bsResult = await parseBalanceSheet(file);
+                    stateUpload.balanceSheetData = bsResult.data;
+                    stateUpload.balanceSheetParsed = true;
+                    break;
+                }
+              } catch (fileErr) {
+                console.error(`Error fetching file ${fileInfo.name}:`, fileErr);
+              }
+            }
+
+            monthUploadData[indianState] = stateUpload;
+          }
+
+          updatedMonthsData[periodKey] = {
+            ...updatedMonthsData[periodKey],
+            uploadData: monthUploadData
+          };
+        }
+      }
+
+      setMonthsData(updatedMonthsData);
+
+      // Auto-select all states found in Drive
+      if (allStatesInDrive.size > 0) {
+        setSelectedStates(Array.from(allStatesInDrive));
+      }
+
+    } catch (err) {
+      console.error('Error auto-fetching from Drive:', err);
+      setError(err instanceof Error ? err.message : 'Failed to auto-fetch from Drive');
+    } finally {
+      setIsAutoFetching(false);
+    }
+  };
+
+  // Generate MIS for all months that have data
+  const handleGenerateAllMIS = async () => {
+    setGeneratingAll(true);
+    setError(null);
+
+    try {
+      const monthsToGenerate = Object.values(monthsData).filter(md => {
+        // Only generate for months that have data but no MIS yet, or have updated data
+        const hasAnyData = selectedStates.some(state => {
+          const data = md.uploadData[state];
+          return data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed;
+        });
+        return hasAnyData;
+      });
+
+      for (const monthData of monthsToGenerate) {
+        try {
+          const mis = await calculateMIS(monthData.period, monthData.uploadData, selectedStates);
+          await saveMISRecord(mis);
+        } catch (err) {
+          console.error(`Error generating MIS for ${monthData.periodKey}:`, err);
+        }
+      }
+
+      // Reload all data
+      await loadSavedData();
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate MIS');
+    } finally {
+      setGeneratingAll(false);
+    }
+  };
+
+  // Count months ready for MIS generation
+  const monthsReadyCount = useMemo(() => {
+    return Object.values(monthsData).filter(md => {
+      const hasAnyData = selectedStates.some(state => {
+        const data = md.uploadData[state];
+        return data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed;
+      });
+      return hasAnyData && !md.hasData;
+    }).length;
+  }, [monthsData, selectedStates]);
+
   // ============================================
   // RENDER
   // ============================================
@@ -464,12 +624,21 @@ export function MISTrackingNew() {
             {/* Drive Status Indicator */}
             {driveStatus && (
               <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${
-                driveStatus.connected
+                isAutoFetching
+                  ? 'bg-blue-500/20 text-blue-400'
+                  : driveStatus.connected
                   ? 'bg-emerald-500/20 text-emerald-400'
                   : 'bg-slate-700 text-slate-400'
               }`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${driveStatus.connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                {isDriveLoading ? 'Syncing...' : driveStatus.connected ? 'Drive Connected' : 'Drive Offline'}
+                {isAutoFetching ? (
+                  <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <div className={`w-1.5 h-1.5 rounded-full ${driveStatus.connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                )}
+                {isAutoFetching ? 'Fetching from Drive...' : isDriveLoading ? 'Syncing...' : driveStatus.connected ? 'Drive Connected' : 'Drive Offline'}
               </div>
             )}
           </div>
@@ -587,6 +756,48 @@ export function MISTrackingNew() {
               </span>
             </div>
           </div>
+
+          {/* Generate All MIS Button */}
+          {(monthsReadyCount > 0 || Object.values(monthsData).some(m => m.hasData)) && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleGenerateAllMIS}
+                disabled={generatingAll || isAutoFetching || monthsReadyCount === 0}
+                className={`
+                  flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all
+                  ${generatingAll || isAutoFetching || monthsReadyCount === 0
+                    ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+                    : 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
+                  }
+                `}
+              >
+                {generatingAll ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Generating All MIS...
+                  </>
+                ) : isAutoFetching ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Loading from Drive...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Generate All MIS ({monthsReadyCount} months)
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* Month Cards Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
