@@ -72,7 +72,8 @@ export function MISTrackingNew() {
   // Month management
   const [monthsData, setMonthsData] = useState<Record<string, MonthData>>({});
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
-  const [selectedStates, setSelectedStates] = useState<IndianState[]>(['UP']);
+  // All 5 states are always selected
+  const selectedStates: IndianState[] = ['UP', 'Maharashtra', 'Telangana', 'Karnataka', 'Haryana'];
 
   // Viewing MIS
   const [viewingMIS, setViewingMIS] = useState<MISRecord | null>(null);
@@ -151,24 +152,28 @@ export function MISTrackingNew() {
   };
 
   const initializeMonthsForYear = (year: number) => {
-    const newMonthsData: Record<string, MonthData> = {};
+    // Use functional update to avoid race conditions with Drive fetch
+    setMonthsData(prev => {
+      const newMonthsData: Record<string, MonthData> = {};
 
-    for (let month = 1; month <= 12; month++) {
-      const period: MISPeriod = { month, year };
-      const periodKey = periodToKey(period);
-      const existingMIS = allMISData.find(m => m.periodKey === periodKey);
+      for (let month = 1; month <= 12; month++) {
+        const period: MISPeriod = { month, year };
+        const periodKey = periodToKey(period);
+        const existingMIS = allMISData.find(m => m.periodKey === periodKey);
 
-      newMonthsData[periodKey] = {
-        period,
-        periodKey,
-        uploadData: monthsData[periodKey]?.uploadData || ({} as Record<IndianState, StateUploadData | undefined>),
-        hasData: !!existingMIS,
-        mis: existingMIS || null,
-        isExpanded: expandedMonth === periodKey
-      };
-    }
+        newMonthsData[periodKey] = {
+          period,
+          periodKey,
+          // Preserve uploaded data from previous state (including Drive fetches)
+          uploadData: prev[periodKey]?.uploadData || ({} as Record<IndianState, StateUploadData | undefined>),
+          hasData: !!existingMIS,
+          mis: existingMIS || null,
+          isExpanded: expandedMonth === periodKey
+        };
+      }
 
-    setMonthsData(newMonthsData);
+      return newMonthsData;
+    });
   };
 
   // ============================================
@@ -221,16 +226,17 @@ export function MISTrackingNew() {
           break;
       }
 
-      setMonthsData({
-        ...monthsData,
+      // Use functional update to avoid race conditions
+      setMonthsData(prev => ({
+        ...prev,
         [periodKey]: {
-          ...monthData,
+          ...prev[periodKey],
           uploadData: {
-            ...monthData.uploadData,
+            ...prev[periodKey]?.uploadData,
             [state]: updatedStateData
           }
         }
-      });
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse file');
     } finally {
@@ -255,15 +261,15 @@ export function MISTrackingNew() {
       // Save to storage
       await saveMISRecord(mis);
 
-      // Update local state
-      setMonthsData({
-        ...monthsData,
+      // Update local state with functional update
+      setMonthsData(prev => ({
+        ...prev,
         [periodKey]: {
-          ...monthData,
+          ...prev[periodKey],
           hasData: true,
           mis
         }
-      });
+      }));
 
       // Reload all data
       await loadSavedData();
@@ -326,8 +332,6 @@ export function MISTrackingNew() {
     const monthData = monthsData[periodKey];
     if (!monthData) return 'empty';
 
-    if (monthData.hasData) return 'complete';
-
     let hasAnyFile = false;
     let statesWithData = 0;
 
@@ -339,9 +343,17 @@ export function MISTrackingNew() {
       }
     }
 
-    // Ready if all selected states have at least one file
-    if (hasAnyFile && statesWithData === selectedStates.length) return 'ready';
-    if (hasAnyFile) return 'partial';
+    // If has uploaded/parsed data, show status based on that
+    if (hasAnyFile) {
+      // All selected states have data - ready to generate
+      if (statesWithData === selectedStates.length) return 'ready';
+      // Only some states have data
+      return 'partial';
+    }
+
+    // No uploaded data in this session - check if has saved MIS from before
+    if (monthData.hasData) return 'complete';
+
     return 'empty';
   };
 
@@ -437,20 +449,16 @@ export function MISTrackingNew() {
         }
 
         updatedUploadData[indianState] = stateUpload;
-
-        // Auto-select this state if not already selected
-        if (!selectedStates.includes(indianState)) {
-          setSelectedStates(prev => [...prev, indianState]);
-        }
       }
 
-      setMonthsData({
-        ...monthsData,
+      // Use functional update to avoid race conditions
+      setMonthsData(prev => ({
+        ...prev,
         [periodKey]: {
-          ...monthData,
+          ...prev[periodKey],
           uploadData: updatedUploadData
         }
-      });
+      }));
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch from Drive');
@@ -500,9 +508,6 @@ export function MISTrackingNew() {
     setError(null);
 
     try {
-      // Collect all states found in Drive
-      const allStatesInDrive = new Set<IndianState>();
-
       // Count total months for progress
       const allMonths: { yearData: any; driveMonth: any }[] = [];
       for (const yearData of driveStructure.years) {
@@ -546,8 +551,6 @@ export function MISTrackingNew() {
         const statePromises = driveMonth.states.map(async (stateData: any) => {
           const indianState = DRIVE_STATE_MAP[stateData.code];
           if (!indianState || !INDIAN_STATES.some(s => s.code === indianState)) return null;
-
-          allStatesInDrive.add(indianState);
 
           // Check if this state already has data
           const existingStateData = monthUploadData[indianState];
@@ -618,11 +621,6 @@ export function MISTrackingNew() {
         }));
 
         processedMonths++;
-      }
-
-      // Auto-select all states found in Drive
-      if (allStatesInDrive.size > 0) {
-        setSelectedStates(Array.from(allStatesInDrive));
       }
 
       setFetchProgress(null);
@@ -781,35 +779,6 @@ export function MISTrackingNew() {
                     `}
                   >
                     {year}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="h-6 w-px bg-slate-700" />
-
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-400">States:</label>
-              <div className="flex gap-1">
-                {INDIAN_STATES.map(state => (
-                  <button
-                    key={state.code}
-                    onClick={() => {
-                      if (selectedStates.includes(state.code)) {
-                        setSelectedStates(selectedStates.filter(s => s !== state.code));
-                      } else {
-                        setSelectedStates([...selectedStates, state.code]);
-                      }
-                    }}
-                    className={`
-                      px-3 py-1.5 rounded-md text-sm font-medium transition-all
-                      ${selectedStates.includes(state.code)
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-                      }
-                    `}
-                  >
-                    {state.code}
                   </button>
                 ))}
               </div>
