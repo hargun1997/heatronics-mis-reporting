@@ -185,11 +185,12 @@ export function MISTrackingNew() {
   // Google Drive State
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
   const [driveStructure, setDriveStructure] = useState<DriveFolderStructure | null>(null);
-  const [isDriveLoading, setIsDriveLoading] = useState(false);
+  const [isCheckingDrive, setIsCheckingDrive] = useState(false); // Just checking connection
   const [fetchingFromDrive, setFetchingFromDrive] = useState<string | null>(null);
-  const [isAutoFetching, setIsAutoFetching] = useState(false);
+  const [isAutoFetching, setIsAutoFetching] = useState(false); // Actually fetching files
   const [generatingAll, setGeneratingAll] = useState(false);
   const [fetchProgress, setFetchProgress] = useState<{ current: number; total: number; currentMonth: string } | null>(null);
+  const [hasCachedData, setHasCachedData] = useState(false); // Track if we have cached data
 
   // ============================================
   // EFFECTS
@@ -197,21 +198,37 @@ export function MISTrackingNew() {
 
   // Load saved data and cached upload data on mount
   useEffect(() => {
-    loadSavedData();
-    checkDriveConnection();
-    loadCachedUploadData();
+    initializeData();
   }, []);
 
+  // Initialize all data in proper sequence
+  const initializeData = async () => {
+    // 1. First load saved MIS data from Google Sheets
+    const misData = await loadSavedDataInternal();
+
+    // 2. Load cached upload data from localStorage (doesn't depend on Drive)
+    loadCachedUploadData(misData);
+
+    // 3. Check Drive connection (just connection, no file fetching)
+    await checkDriveConnection();
+  };
+
   // Load cached upload data from localStorage
-  const loadCachedUploadData = () => {
+  const loadCachedUploadData = (misData: MISRecord[]) => {
     const cached = loadUploadDataFromStorage();
-    if (!cached || cached.length === 0) return;
+    if (!cached || cached.length === 0) {
+      setHasCachedData(false);
+      return;
+    }
+
+    setHasCachedData(true);
 
     setMonthsData(prev => {
       const updated = { ...prev };
 
       for (const cachedMonth of cached) {
-        const existingMIS = allMISData.find(m => m.periodKey === cachedMonth.periodKey);
+        // Use the passed misData, not state (which might be stale)
+        const existingMIS = misData.find(m => m.periodKey === cachedMonth.periodKey);
 
         // Convert serializable data back to StateUploadData
         const uploadData: Record<IndianState, StateUploadData | undefined> = {} as Record<IndianState, StateUploadData | undefined>;
@@ -250,9 +267,9 @@ export function MISTrackingNew() {
     });
   };
 
-  // Check Drive connection and load structure
+  // Check Drive connection and load structure (no file fetching)
   const checkDriveConnection = async () => {
-    setIsDriveLoading(true);
+    setIsCheckingDrive(true);
     try {
       const status = await checkDriveStatus();
       setDriveStatus(status);
@@ -264,7 +281,7 @@ export function MISTrackingNew() {
     } catch (err) {
       console.error('Error checking Drive status:', err);
     } finally {
-      setIsDriveLoading(false);
+      setIsCheckingDrive(false);
     }
   };
 
@@ -279,17 +296,25 @@ export function MISTrackingNew() {
   // DATA LOADING
   // ============================================
 
-  const loadSavedData = async () => {
+  // Internal function that returns data for use in initialization sequence
+  const loadSavedDataInternal = async (): Promise<MISRecord[]> => {
     setIsLoading(true);
     try {
       const data = await loadMISData();
       setSavedPeriods(data.periods.map(p => ({ periodKey: p.periodKey, period: p.period })));
       setAllMISData(data.periods);
+      return data.periods;
     } catch (err) {
       console.error('Error loading MIS data:', err);
+      return [];
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Public function for reloading data
+  const loadSavedData = async () => {
+    await loadSavedDataInternal();
   };
 
   const initializeMonthsForYear = (year: number) => {
@@ -943,6 +968,11 @@ export function MISTrackingNew() {
 
       setFetchProgress(null);
 
+      // Mark that we have cached data now
+      if (processedMonths > 0) {
+        setHasCachedData(true);
+      }
+
     } catch (err) {
       console.error('Error auto-fetching from Drive:', err);
       setError(err instanceof Error ? err.message : 'Failed to auto-fetch from Drive');
@@ -992,6 +1022,9 @@ export function MISTrackingNew() {
     // Clear localStorage first
     clearUploadDataStorage();
 
+    // Mark that we no longer have cached data
+    setHasCachedData(false);
+
     // Clear all upload data from monthsData
     setMonthsData(prev => {
       const cleared: Record<string, MonthData> = {};
@@ -1032,31 +1065,51 @@ export function MISTrackingNew() {
           <div className="flex items-center gap-3 mt-1">
             <p className="text-slate-400 text-sm">Upload documents for each month, generate P&L, and view trends</p>
             {/* Drive Status Indicator */}
-            {driveStatus && (
+            {(driveStatus || isCheckingDrive) && (
               <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${
-                isAutoFetching || isDriveLoading
+                isAutoFetching
                   ? 'bg-amber-500/20 text-amber-400'
-                  : driveStatus.connected
-                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : isCheckingDrive
+                  ? 'bg-slate-700 text-slate-400'
+                  : driveStatus?.connected
+                  ? hasCachedData
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-blue-500/20 text-blue-400'
                   : 'bg-slate-700 text-slate-400'
               }`}>
-                {isAutoFetching || isDriveLoading ? (
+                {isAutoFetching ? (
+                  <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : isCheckingDrive ? (
                   <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                 ) : (
-                  <div className={`w-1.5 h-1.5 rounded-full ${driveStatus.connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                  <div className={`w-1.5 h-1.5 rounded-full ${
+                    driveStatus?.connected
+                      ? hasCachedData ? 'bg-emerald-400' : 'bg-blue-400'
+                      : 'bg-slate-500'
+                  }`} />
                 )}
                 {isAutoFetching && fetchProgress
-                  ? `${fetchProgress.currentMonth} (${fetchProgress.current}/${fetchProgress.total})`
-                  : isDriveLoading ? 'Syncing...'
-                  : driveStatus.connected ? 'Drive Connected' : 'Drive Offline'}
+                  ? `Syncing: ${fetchProgress.currentMonth} (${fetchProgress.current}/${fetchProgress.total})`
+                  : isAutoFetching
+                  ? 'Syncing from Drive...'
+                  : isCheckingDrive
+                  ? 'Checking...'
+                  : driveStatus?.connected
+                  ? hasCachedData
+                    ? 'Data Ready'
+                    : 'Drive Connected'
+                  : 'Drive Offline'}
               </div>
             )}
 
             {/* Clear & Resync Button */}
-            {driveStatus?.connected && !isDriveLoading && !isAutoFetching && (
+            {driveStatus?.connected && !isCheckingDrive && !isAutoFetching && (
               <button
                 onClick={handleClearAndResync}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors"
@@ -1168,10 +1221,10 @@ export function MISTrackingNew() {
           <div className="flex justify-end">
             <button
               onClick={handleGenerateAllMIS}
-              disabled={generatingAll || isAutoFetching || isDriveLoading || monthsReadyCount === 0}
+              disabled={generatingAll || isAutoFetching || monthsReadyCount === 0}
               className={`
                 flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all
-                ${generatingAll || isAutoFetching || isDriveLoading || monthsReadyCount === 0
+                ${generatingAll || isAutoFetching || monthsReadyCount === 0
                   ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
                   : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
                 }
@@ -1185,7 +1238,7 @@ export function MISTrackingNew() {
                   </svg>
                   Generating All MIS...
                 </>
-              ) : isAutoFetching || isDriveLoading ? (
+              ) : isAutoFetching ? (
                 <>
                   <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -1198,7 +1251,7 @@ export function MISTrackingNew() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  No data - Click Resync first
+                  {hasCachedData ? 'All MIS Generated' : 'No data - Click Resync first'}
                 </>
               ) : (
                 <>
