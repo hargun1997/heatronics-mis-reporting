@@ -303,19 +303,19 @@ export function parseSalesRegister(file: File, sourceState: IndianState): Promis
             returns += absAmount;
             if (channel !== 'Stock Transfer') {
               returnsByChannel[channel] += absAmount;
-              // Returns also have taxes (negative), track them
-              taxesByChannel[channel] += lineTax;
+              // NOTE: Do NOT add taxes for returns - they are reversed/refunded
+              // The net taxes in MIS should be: sales taxes - return taxes
+              // We track return taxes separately if needed, but don't add to taxesByChannel
             }
           } else {
-            // Regular sale
+            // Regular sale - add both amount and taxes
             grossSales += absAmount;
             if (channel !== 'Stock Transfer') {
               salesByChannel[channel] += absAmount;
               taxesByChannel[channel] += lineTax;
             }
+            totalTaxes += lineTax;
           }
-
-          totalTaxes += lineTax;
         }
 
         console.log('Sales Register Parser - Results:', {
