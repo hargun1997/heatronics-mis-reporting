@@ -136,12 +136,7 @@ export function MISTrackingNew() {
     initializeMonthsForYear(selectedYear);
   }, [selectedYear, savedPeriods]);
 
-  // Auto-fetch from Drive when structure is loaded
-  useEffect(() => {
-    if (driveStructure && driveStructure.years.length > 0 && !isAutoFetching) {
-      autoFetchAllFromDrive();
-    }
-  }, [driveStructure]);
+  // Note: Auto-fetch removed - user must click Resync to fetch from Drive
 
   // ============================================
   // DATA LOADING
@@ -1020,46 +1015,51 @@ export function MISTrackingNew() {
           </div>
 
           {/* Generate All MIS Button */}
-          {(monthsReadyCount > 0 || Object.values(monthsData).some(m => m.hasData)) && (
-            <div className="flex justify-end">
-              <button
-                onClick={handleGenerateAllMIS}
-                disabled={generatingAll || isAutoFetching || monthsReadyCount === 0}
-                className={`
-                  flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all
-                  ${generatingAll || isAutoFetching || monthsReadyCount === 0
-                    ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                    : 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
-                  }
-                `}
-              >
-                {generatingAll ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Generating All MIS...
-                  </>
-                ) : isAutoFetching ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Loading from Drive...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Generate All MIS ({monthsReadyCount} months)
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+          <div className="flex justify-end">
+            <button
+              onClick={handleGenerateAllMIS}
+              disabled={generatingAll || isAutoFetching || isDriveLoading || monthsReadyCount === 0}
+              className={`
+                flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all
+                ${generatingAll || isAutoFetching || isDriveLoading || monthsReadyCount === 0
+                  ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                }
+              `}
+            >
+              {generatingAll ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Generating All MIS...
+                </>
+              ) : isAutoFetching || isDriveLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Syncing from Drive...
+                </>
+              ) : monthsReadyCount === 0 ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  No data - Click Resync first
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Generate All MIS ({monthsReadyCount} months)
+                </>
+              )}
+            </button>
+          </div>
 
           {/* Month Cards Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -1142,8 +1142,6 @@ export function MISTrackingNew() {
               selectedStates={selectedStates}
               onFileUpload={(state, fileType, file) => handleFileUpload(expandedMonth, state, fileType, file)}
               getUploadStatus={(state, fileType) => getUploadStatus(expandedMonth, state, fileType)}
-              canGenerate={canGenerateMIS(expandedMonth)}
-              onGenerate={() => handleGenerateMIS(expandedMonth)}
               onViewMIS={() => {
                 const mis = monthsData[expandedMonth].mis;
                 if (mis) {
@@ -1151,17 +1149,9 @@ export function MISTrackingNew() {
                   setActiveView('report');
                 }
               }}
-              isGenerating={generatingMonth === expandedMonth}
               isLoading={isLoading}
               onClose={() => setExpandedMonth(null)}
-              // Drive integration props
               driveData={getDriveMonthData(monthsData[expandedMonth].period.year, monthsData[expandedMonth].period.month)}
-              onFetchFromDrive={() => handleFetchFromDrive(
-                expandedMonth,
-                monthsData[expandedMonth].period.year,
-                monthsData[expandedMonth].period.month
-              )}
-              isFetchingFromDrive={fetchingFromDrive === expandedMonth}
             />
           )}
 
@@ -1283,16 +1273,11 @@ interface MonthDetailPanelProps {
   selectedStates: IndianState[];
   onFileUpload: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet', file: File) => void;
   getUploadStatus: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet') => 'empty' | 'uploaded' | 'parsed' | 'inDrive' | 'notInDrive';
-  canGenerate: boolean;
-  onGenerate: () => void;
   onViewMIS: () => void;
-  isGenerating: boolean;
   isLoading: boolean;
   onClose: () => void;
   // Drive integration
   driveData?: DriveMonthData | null;
-  onFetchFromDrive?: () => void;
-  isFetchingFromDrive?: boolean;
 }
 
 function MonthDetailPanel({
@@ -1300,15 +1285,10 @@ function MonthDetailPanel({
   selectedStates,
   onFileUpload,
   getUploadStatus,
-  canGenerate,
-  onGenerate,
   onViewMIS,
-  isGenerating,
   isLoading,
   onClose,
-  driveData,
-  onFetchFromDrive,
-  isFetchingFromDrive
+  driveData
 }: MonthDetailPanelProps) {
   const docTypes: { type: 'sales' | 'journal' | 'purchase' | 'balanceSheet'; label: string; required: boolean }[] = [
     { type: 'sales', label: 'Sales Register', required: true },
@@ -1324,50 +1304,17 @@ function MonthDetailPanel({
         <div>
           <h3 className="text-base font-semibold text-slate-100">{periodToString(monthData.period)}</h3>
           <p className="text-blue-400/70 text-sm">
-            {monthData.hasData ? 'MIS Generated' : 'Upload documents to generate MIS'}
+            {monthData.hasData ? 'MIS Generated' : 'Data will be synced via Resync button'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Fetch from Drive button */}
-          {driveData && onFetchFromDrive && (
-            <button
-              onClick={onFetchFromDrive}
-              disabled={isFetchingFromDrive}
-              className={`
-                flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                ${isFetchingFromDrive
-                  ? 'bg-blue-500/10 text-blue-400/50 cursor-wait'
-                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
-                }
-              `}
-            >
-              {isFetchingFromDrive ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Fetching...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M7.71 3.5L1.15 15l3.43 6h15.84l3.43-6L17.29 3.5H7.71zM15 14h-4v-2h4v2zm0-4h-4V8h4v2z"/>
-                  </svg>
-                  Fetch from Drive ({driveData.states.length} state{driveData.states.length > 1 ? 's' : ''})
-                </>
-              )}
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Drive States Preview */}
@@ -1395,8 +1342,8 @@ function MonthDetailPanel({
         {/* Document Upload Grid */}
         <div className="mb-5">
           <h4 className="text-xs font-medium text-slate-400 mb-3">
-            Upload Documents
-            <span className="text-slate-500 ml-2">(or use Fetch from Drive above)</span>
+            Documents
+            <span className="text-slate-500 ml-2">(synced via Resync or manually upload)</span>
           </h4>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -1472,63 +1419,16 @@ function MonthDetailPanel({
         {/* Actions */}
         <div className="flex items-center gap-3">
           {monthData.hasData ? (
-            <>
-              <button
-                onClick={onViewMIS}
-                className="flex-1 px-4 py-2.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors"
-              >
-                View Report
-              </button>
-              <button
-                onClick={onGenerate}
-                disabled={!canGenerate || isGenerating}
-                className={`
-                  flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
-                  ${canGenerate && !isGenerating
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
-                    : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                  }
-                `}
-              >
-                {isGenerating ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Regenerating...
-                  </span>
-                ) : (
-                  'Regenerate'
-                )}
-              </button>
-            </>
-          ) : (
             <button
-              onClick={onGenerate}
-              disabled={!canGenerate || isGenerating}
-              className={`
-                w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
-                ${canGenerate && !isGenerating
-                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
-                  : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                }
-              `}
+              onClick={onViewMIS}
+              className="w-full px-4 py-2.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors"
             >
-              {isGenerating ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Generating...
-                </span>
-              ) : canGenerate ? (
-                `Generate MIS`
-              ) : (
-                'Upload files to continue'
-              )}
+              View Report
             </button>
+          ) : (
+            <div className="w-full px-4 py-2.5 bg-slate-700/30 text-slate-400 rounded-lg text-sm text-center">
+              Use "Generate All MIS" button to generate reports
+            </div>
           )}
         </div>
 
