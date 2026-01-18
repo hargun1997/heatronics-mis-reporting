@@ -304,10 +304,11 @@ export function parseSalesRegister(file: File, sourceState: IndianState): Promis
             returns += absAmount;
             if (channel !== 'Stock Transfer') {
               returnsByChannel[channel] += absAmount;
-              // NOTE: Do NOT add taxes for returns - they are reversed/refunded
-              // The net taxes in MIS should be: sales taxes - return taxes
-              // We track return taxes separately if needed, but don't add to taxesByChannel
+              // Add taxes for returns too - they will be negative, effectively subtracting
+              // from the total. The sign in the data reflects the reversal.
+              taxesByChannel[channel] += lineTax;
             }
+            totalTaxes += lineTax;
           } else {
             // Regular sale - add both amount and taxes
             grossSales += absAmount;
