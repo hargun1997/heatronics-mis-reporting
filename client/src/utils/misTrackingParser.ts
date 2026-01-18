@@ -145,12 +145,13 @@ export function parseSalesRegister(file: File, sourceState: IndianState): Promis
 
         // Find header row and column indices
         let headerRowIndex = -1;
-        let partyColIndex = -1;
-        let amountColIndex = -1;
+        let accountColIndex = -1;  // "Account" column contains party name
+        let totalAmountColIndex = -1;  // "Total Amount" - the main amount to use
+        let saleAmountColIndex = -1;  // "Sale Amount" - alternative
         let igstColIndex = -1;
         let cgstColIndex = -1;
         let sgstColIndex = -1;
-        let invoiceColIndex = -1;
+        let vchBillColIndex = -1;
         let dateColIndex = -1;
 
         // Search for header row in first 10 rows
@@ -158,106 +159,133 @@ export function parseSalesRegister(file: File, sourceState: IndianState): Promis
           const row = jsonData[i];
           if (!row) continue;
 
+          let foundHeader = false;
           for (let j = 0; j < row.length; j++) {
             const cell = String(row[j] || '').toLowerCase().trim();
 
-            if (cell.includes('party') || cell.includes('customer') || cell.includes('particulars')) {
-              partyColIndex = j;
-              headerRowIndex = i;
+            // Account column (contains party names like "AMAZON SALE(CASH SALE) DELHI")
+            if (cell === 'account' || cell === 'party' || cell === 'particulars' || cell === 'customer') {
+              accountColIndex = j;
+              foundHeader = true;
             }
-            if (cell === 'igst' || cell.includes('igst amount')) {
+            // Total Amount column - primary amount
+            if (cell === 'total amount' || cell === 'total amt' || cell === 'total amt.') {
+              totalAmountColIndex = j;
+            }
+            // Sale Amount column - alternative
+            if (cell === 'sale amount' || cell === 'sale amt' || cell === 'sale amt.') {
+              saleAmountColIndex = j;
+            }
+            // Tax columns
+            if (cell === 'igst') {
               igstColIndex = j;
             }
-            if (cell === 'cgst' || cell.includes('cgst amount')) {
+            if (cell === 'cgst') {
               cgstColIndex = j;
             }
-            if (cell === 'sgst' || cell.includes('sgst amount')) {
+            if (cell === 'sgst') {
               sgstColIndex = j;
             }
-            if (cell.includes('total') || cell.includes('amount') || cell.includes('value')) {
-              // Take the last "total" or "amount" column as the main amount
-              amountColIndex = j;
+            // Invoice/Bill column
+            if (cell === 'vch/bill no' || cell === 'vch no' || cell === 'bill no' || cell === 'invoice') {
+              vchBillColIndex = j;
             }
-            if (cell.includes('invoice') || cell.includes('bill')) {
-              invoiceColIndex = j;
-            }
-            if (cell.includes('date')) {
+            // Date column
+            if (cell === 'date') {
               dateColIndex = j;
             }
           }
 
-          if (partyColIndex >= 0) break;
+          if (foundHeader) {
+            headerRowIndex = i;
+            break;
+          }
         }
 
-        // If we couldn't find party column, try default positions
-        if (partyColIndex < 0) {
-          partyColIndex = 1; // Usually second column
-          headerRowIndex = 2; // Usually after 2 header rows
+        // If we couldn't find headers, try default positions based on your format
+        if (headerRowIndex < 0) {
+          // Assume first row is header
+          headerRowIndex = 0;
+          dateColIndex = 0;
+          vchBillColIndex = 1;
+          accountColIndex = 2;
+          totalAmountColIndex = 5;
+          saleAmountColIndex = 6;
+          igstColIndex = 8;
+          cgstColIndex = 9;
+          sgstColIndex = 10;
         }
-        if (amountColIndex < 0) {
-          amountColIndex = 5; // Try common position
-        }
+
+        // Use Total Amount as primary, fall back to Sale Amount
+        const amountColIndex = totalAmountColIndex >= 0 ? totalAmountColIndex : saleAmountColIndex;
+
+        console.log('Sales Register Parser - Column indices:', {
+          headerRowIndex, accountColIndex, amountColIndex, igstColIndex, cgstColIndex, sgstColIndex
+        });
 
         // Process data rows
         for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
           const row = jsonData[i];
-          if (!row || row.length < 2) continue;
+          if (!row || row.length < 3) continue;
 
-          const firstCell = String(row[0] || '').trim().toLowerCase();
+          // Get the account/party name
+          const accountName = String(row[accountColIndex] || '').trim();
+          if (!accountName) continue;
 
-          // Skip header-like and total rows
-          if (firstCell === 'total' || firstCell === 'grand total' ||
-              firstCell.includes('particulars') || firstCell.includes('date') ||
-              !firstCell) {
+          // Skip cancelled entries
+          if (accountName.toLowerCase().includes('cancel')) {
             continue;
           }
 
-          // Get party name
-          const partyName = String(row[partyColIndex] || row[0] || '').trim();
-          if (!partyName) continue;
+          // Skip total/summary rows
+          const firstCell = String(row[0] || '').trim().toLowerCase();
+          if (firstCell === 'total' || firstCell === 'grand total' || firstCell.includes('total')) {
+            continue;
+          }
 
-          // Get amounts
-          let amount = parseNumber(row[amountColIndex]);
+          // Get the amount (Total Amount column)
+          let amount = amountColIndex >= 0 ? parseNumber(row[amountColIndex]) : 0;
 
-          // If amount is 0, search for non-zero value in later columns
+          // If amount is still 0, try searching for a non-zero numeric value
           if (amount === 0) {
-            for (let j = 3; j < row.length; j++) {
+            for (let j = 4; j < Math.min(row.length, 12); j++) {
               const val = parseNumber(row[j]);
-              if (Math.abs(val) > 0) {
+              if (Math.abs(val) > 100) { // Minimum threshold to avoid picking up small values
                 amount = val;
                 break;
               }
             }
           }
 
+          // Skip rows with no meaningful amount
           if (amount === 0) continue;
 
-          // Get tax amounts
+          // Get tax amounts (use absolute values, they follow the sign of amount)
           const igst = igstColIndex >= 0 ? parseNumber(row[igstColIndex]) : 0;
           const cgst = cgstColIndex >= 0 ? parseNumber(row[cgstColIndex]) : 0;
           const sgst = sgstColIndex >= 0 ? parseNumber(row[sgstColIndex]) : 0;
           const lineTax = Math.abs(igst) + Math.abs(cgst) + Math.abs(sgst);
 
           // Get other fields
-          const invoiceNo = invoiceColIndex >= 0 ? String(row[invoiceColIndex] || '') : '';
+          const invoiceNo = vchBillColIndex >= 0 ? String(row[vchBillColIndex] || '') : '';
           const date = dateColIndex >= 0 ? parseDate(row[dateColIndex]) : '';
 
-          // Determine if return (negative amount)
+          // Determine if this is a return (negative amount)
           const isReturn = amount < 0;
           const absAmount = Math.abs(amount);
 
-          // Determine if stock transfer
-          const isTransfer = isStockTransfer(partyName);
-          const toState = isTransfer ? detectTransferToState(partyName) : undefined;
+          // Determine if this is a stock transfer (any "HEATRONICS" in the account name)
+          const isTransfer = isStockTransfer(accountName);
+          const toState = isTransfer ? detectTransferToState(accountName) : undefined;
 
-          // Detect channel
-          const channel: SalesChannel | 'Stock Transfer' = isTransfer ? 'Stock Transfer' : detectChannel(partyName);
+          // Detect channel from account name
+          const channel: SalesChannel | 'Stock Transfer' = isTransfer ? 'Stock Transfer' : detectChannel(accountName);
 
           // Create line item
           const lineItem: SalesLineItemNew = {
             id: generateId(),
             date,
-            partyName,
+            partyName: accountName,
             invoiceNo,
             amount: absAmount,
             taxAmount: lineTax,
@@ -268,16 +296,18 @@ export function parseSalesRegister(file: File, sourceState: IndianState): Promis
           };
           lineItems.push(lineItem);
 
-          // Aggregate data
+          // Aggregate data based on type
           if (isTransfer) {
             stockTransfers += absAmount;
           } else if (isReturn) {
             returns += absAmount;
             if (channel !== 'Stock Transfer') {
               returnsByChannel[channel] += absAmount;
+              // Returns also have taxes (negative), track them
               taxesByChannel[channel] += lineTax;
             }
           } else {
+            // Regular sale
             grossSales += absAmount;
             if (channel !== 'Stock Transfer') {
               salesByChannel[channel] += absAmount;
@@ -287,6 +317,15 @@ export function parseSalesRegister(file: File, sourceState: IndianState): Promis
 
           totalTaxes += lineTax;
         }
+
+        console.log('Sales Register Parser - Results:', {
+          grossSales,
+          returns,
+          stockTransfers,
+          totalTaxes,
+          salesByChannel,
+          lineItemCount: lineItems.length
+        });
 
         resolve({
           salesData: {
