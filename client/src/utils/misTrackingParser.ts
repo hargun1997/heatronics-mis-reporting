@@ -260,11 +260,12 @@ export function parseSalesRegister(file: File, sourceState: IndianState): Promis
           // Skip rows with no meaningful amount
           if (amount === 0) continue;
 
-          // Get tax amounts (use absolute values, they follow the sign of amount)
+          // Get tax amounts - use actual signed values, don't use Math.abs()
+          // Some entries may have negative taxes (adjustments, credit notes)
           const igst = igstColIndex >= 0 ? parseNumber(row[igstColIndex]) : 0;
           const cgst = cgstColIndex >= 0 ? parseNumber(row[cgstColIndex]) : 0;
           const sgst = sgstColIndex >= 0 ? parseNumber(row[sgstColIndex]) : 0;
-          const lineTax = Math.abs(igst) + Math.abs(cgst) + Math.abs(sgst);
+          const lineTax = igst + cgst + sgst;  // Sum with actual signs
 
           // Get other fields
           const invoiceNo = vchBillColIndex >= 0 ? String(row[vchBillColIndex] || '') : '';
