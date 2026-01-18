@@ -10,6 +10,7 @@ interface MISMonthlyViewProps {
 
 export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MISMonthlyViewProps) {
   const [showChannelBreakdown, setShowChannelBreakdown] = useState(true);
+  const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
 
   if (!currentMIS) {
     return (
@@ -82,11 +83,23 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             Show channel breakdown
           </label>
 
+          <button
+            onClick={() => setShowAlgorithmGuide(true)}
+            className="px-4 py-2 text-sm text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-colors"
+          >
+            Algorithm Guide
+          </button>
+
           <button className="px-4 py-2 text-sm text-slate-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-slate-300 transition-colors">
             Export
           </button>
         </div>
       </div>
+
+      {/* Algorithm Guide Modal */}
+      {showAlgorithmGuide && (
+        <AlgorithmGuideModal onClose={() => setShowAlgorithmGuide(false)} />
+      )}
 
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-4 gap-4">
@@ -506,5 +519,245 @@ function MarginRow({
         <td key={channel} className="py-3 px-4 text-right text-slate-500 text-xs">-</td>
       ))}
     </tr>
+  );
+}
+
+// ============================================
+// ALGORITHM GUIDE MODAL
+// ============================================
+
+function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="bg-slate-700/50 px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-100">MIS Calculation Algorithm Guide</h2>
+            <p className="text-sm text-slate-400">How data flows from source files to the P&L report</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-600/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(85vh-80px)] space-y-6 text-sm">
+          {/* Data Sources */}
+          <Section title="1. Data Sources & Fetching" color="blue">
+            <p className="text-slate-400 mb-3">The system fetches 4 types of files from Google Drive for each state:</p>
+            <ul className="space-y-2 text-slate-300">
+              <li className="flex gap-2">
+                <span className="text-blue-400 font-mono">BS.pdf</span>
+                <span className="text-slate-500">→</span>
+                <span><strong>Balance Sheet</strong> - Authoritative source for Opening Stock, Closing Stock, Purchases, Net Sales</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-blue-400 font-mono">SR.xlsx</span>
+                <span className="text-slate-500">→</span>
+                <span><strong>Sales Register</strong> - Line-by-line sales with party names, amounts, GST (for channel classification)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-blue-400 font-mono">PR.xlsx</span>
+                <span className="text-slate-500">→</span>
+                <span><strong>Purchase Register</strong> - Purchase details (used for validation against BS)</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-blue-400 font-mono">JR.xlsx</span>
+                <span className="text-slate-500">→</span>
+                <span><strong>Journal Register</strong> - All expense transactions for classification into cost heads</span>
+              </li>
+            </ul>
+            <div className="mt-3 p-3 bg-slate-700/30 rounded-lg text-slate-400">
+              <strong className="text-slate-300">Note:</strong> All 4 files are optional. MIS can be generated with whatever files are available.
+            </div>
+          </Section>
+
+          {/* Revenue Calculation */}
+          <Section title="2. Revenue Calculation (from Sales Register)" color="emerald">
+            <div className="space-y-3">
+              <div className="p-3 bg-slate-700/30 rounded-lg">
+                <div className="font-mono text-emerald-400 mb-2">Net Revenue = Gross Sales - Returns - Stock Transfers - GST</div>
+              </div>
+              <p className="text-slate-400">Sales are classified into channels based on party name patterns:</p>
+              <ul className="space-y-1 text-slate-300 ml-4">
+                <li>• <strong>Amazon</strong>: "Amazon", "AMZN", "AMZ"</li>
+                <li>• <strong>Blinkit</strong>: "Blinkit", "Grofers"</li>
+                <li>• <strong>Website</strong>: "Shopify", "Website", direct D2C orders</li>
+                <li>• <strong>Offline/OEM</strong>: Distributors, B2B orders</li>
+                <li>• <strong>Other</strong>: Unclassified sales</li>
+              </ul>
+              <p className="text-slate-400 mt-2">
+                <strong>Stock Transfers</strong> (inter-company between states like UP→KA) are identified and excluded from net revenue.
+              </p>
+            </div>
+          </Section>
+
+          {/* COGS Calculation */}
+          <Section title="3. COGS (Cost of Goods Sold)" color="orange">
+            <div className="p-3 bg-slate-700/30 rounded-lg font-mono text-orange-400">
+              COGS = Opening Stock + Purchases - Closing Stock
+            </div>
+            <p className="text-slate-400 mt-3">
+              All values are sourced from the <strong>Balance Sheet (BS.pdf)</strong> which is considered the authoritative source.
+              The Purchase Register is used for validation to ensure purchases match.
+            </p>
+            <div className="mt-3 p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
+              <div className="font-mono text-orange-400">Gross Margin = Net Revenue - COGS</div>
+              <div className="text-slate-400 text-xs mt-1">Gross Margin % = (Gross Margin / Net Revenue) × 100</div>
+            </div>
+          </Section>
+
+          {/* Expense Classification */}
+          <Section title="4. Expense Classification (from Journal Register)" color="violet">
+            <p className="text-slate-400 mb-3">
+              Journal transactions are classified into expense heads based on account name patterns:
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <ExpenseCategory
+                title="Channel & Fulfillment"
+                color="blue"
+                items={["Shipping & Freight", "Packaging Materials", "Marketplace Fees", "Payment Gateway Charges", "Warehousing"]}
+              />
+              <ExpenseCategory
+                title="Sales & Marketing"
+                color="pink"
+                items={["Advertising (Amazon, FB, Google)", "Influencer Marketing", "Promotions & Discounts", "Brand Building"]}
+              />
+              <ExpenseCategory
+                title="Platform Costs"
+                color="cyan"
+                items={["Software Subscriptions", "IT Infrastructure", "ERP/Accounting Tools", "Hosting & Domains"]}
+              />
+              <ExpenseCategory
+                title="Operating Expenses"
+                color="yellow"
+                items={["Salaries & Wages", "Rent & Utilities", "Legal & Professional", "Travel & Conveyance", "Office Expenses"]}
+              />
+            </div>
+            <div className="mt-3 p-3 bg-slate-700/30 rounded-lg text-slate-400">
+              <strong className="text-slate-300">Unclassified:</strong> Transactions that don't match any pattern are flagged for manual review.
+              You can teach the system by classifying them - patterns are learned for future use.
+            </div>
+          </Section>
+
+          {/* Contribution Margins */}
+          <Section title="5. Contribution Margins (CM1, CM2, CM3)" color="indigo">
+            <div className="space-y-3">
+              <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                <div className="font-mono text-emerald-400">CM1 = Gross Margin - Channel & Fulfillment Costs</div>
+                <div className="text-slate-400 text-xs mt-1">
+                  Shows profitability after direct selling costs. Should be positive for viable unit economics.
+                </div>
+              </div>
+              <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <div className="font-mono text-blue-400">CM2 = CM1 - Sales & Marketing Costs</div>
+                <div className="text-slate-400 text-xs mt-1">
+                  Shows profitability after customer acquisition costs. Key metric for marketing efficiency.
+                </div>
+              </div>
+              <div className="p-3 bg-violet-500/10 rounded-lg border border-violet-500/20">
+                <div className="font-mono text-violet-400">CM3 = CM2 - Platform Costs</div>
+                <div className="text-slate-400 text-xs mt-1">
+                  Shows contribution before operating overhead. Useful for scaling decisions.
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          {/* EBITDA */}
+          <Section title="6. EBITDA Calculation" color="emerald">
+            <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+              <div className="font-mono text-emerald-400">EBITDA = CM3 - Operating Expenses</div>
+              <div className="text-slate-400 text-xs mt-1">
+                Earnings Before Interest, Taxes, Depreciation & Amortization
+              </div>
+            </div>
+            <p className="text-slate-400 mt-3">
+              EBITDA represents the operational profitability of the business, excluding financing and accounting decisions.
+              A positive EBITDA indicates the core business operations are profitable.
+            </p>
+          </Section>
+
+          {/* P&L Formula Summary */}
+          <Section title="7. Complete P&L Flow" color="slate">
+            <div className="font-mono text-xs bg-slate-900 p-4 rounded-lg space-y-1 text-slate-300">
+              <div><span className="text-blue-400">Gross Sales</span> (by channel from Sales Register)</div>
+              <div className="text-slate-500">  - Returns</div>
+              <div className="text-slate-500">  - Stock Transfers (inter-company)</div>
+              <div className="text-slate-500">  - GST on Sales</div>
+              <div>= <span className="text-emerald-400">Net Revenue</span></div>
+              <div className="text-slate-500">  - COGS (from Balance Sheet)</div>
+              <div>= <span className="text-emerald-400">Gross Margin</span></div>
+              <div className="text-slate-500">  - Channel & Fulfillment (from Journal)</div>
+              <div>= <span className="text-blue-400">CM1</span></div>
+              <div className="text-slate-500">  - Sales & Marketing (from Journal)</div>
+              <div>= <span className="text-blue-400">CM2</span></div>
+              <div className="text-slate-500">  - Platform Costs (from Journal)</div>
+              <div>= <span className="text-violet-400">CM3</span></div>
+              <div className="text-slate-500">  - Operating Expenses (from Journal)</div>
+              <div>= <span className="text-emerald-400 font-bold">EBITDA</span></div>
+            </div>
+          </Section>
+
+          {/* Multi-State Aggregation */}
+          <Section title="8. Multi-State Aggregation" color="purple">
+            <p className="text-slate-400">
+              When multiple states are selected (UP, Maharashtra, Karnataka, etc.), the system:
+            </p>
+            <ul className="mt-2 space-y-1 text-slate-300 ml-4">
+              <li>• Aggregates revenue from all states</li>
+              <li>• Sums COGS across all states (each state has its own opening/closing stock)</li>
+              <li>• Combines journal expenses from all states</li>
+              <li>• Removes inter-company stock transfers (e.g., UP→KA) from revenue</li>
+            </ul>
+          </Section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+  const borderColors: Record<string, string> = {
+    blue: 'border-l-blue-500',
+    emerald: 'border-l-emerald-500',
+    orange: 'border-l-orange-500',
+    violet: 'border-l-violet-500',
+    indigo: 'border-l-indigo-500',
+    purple: 'border-l-purple-500',
+    slate: 'border-l-slate-500'
+  };
+
+  return (
+    <div className={`border-l-2 ${borderColors[color] || borderColors.slate} pl-4`}>
+      <h3 className="text-base font-semibold text-slate-200 mb-2">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function ExpenseCategory({ title, color, items }: { title: string; color: string; items: string[] }) {
+  const bgColors: Record<string, string> = {
+    blue: 'bg-blue-500/10 border-blue-500/20',
+    pink: 'bg-pink-500/10 border-pink-500/20',
+    cyan: 'bg-cyan-500/10 border-cyan-500/20',
+    yellow: 'bg-yellow-500/10 border-yellow-500/20'
+  };
+
+  return (
+    <div className={`p-3 rounded-lg border ${bgColors[color] || bgColors.blue}`}>
+      <div className="font-medium text-slate-200 mb-2">{title}</div>
+      <ul className="text-xs text-slate-400 space-y-0.5">
+        {items.map((item, idx) => (
+          <li key={idx}>• {item}</li>
+        ))}
+      </ul>
+    </div>
   );
 }
