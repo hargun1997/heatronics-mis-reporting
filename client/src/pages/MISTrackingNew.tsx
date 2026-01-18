@@ -152,24 +152,28 @@ export function MISTrackingNew() {
   };
 
   const initializeMonthsForYear = (year: number) => {
-    const newMonthsData: Record<string, MonthData> = {};
+    // Use functional update to avoid race conditions with Drive fetch
+    setMonthsData(prev => {
+      const newMonthsData: Record<string, MonthData> = {};
 
-    for (let month = 1; month <= 12; month++) {
-      const period: MISPeriod = { month, year };
-      const periodKey = periodToKey(period);
-      const existingMIS = allMISData.find(m => m.periodKey === periodKey);
+      for (let month = 1; month <= 12; month++) {
+        const period: MISPeriod = { month, year };
+        const periodKey = periodToKey(period);
+        const existingMIS = allMISData.find(m => m.periodKey === periodKey);
 
-      newMonthsData[periodKey] = {
-        period,
-        periodKey,
-        uploadData: monthsData[periodKey]?.uploadData || ({} as Record<IndianState, StateUploadData | undefined>),
-        hasData: !!existingMIS,
-        mis: existingMIS || null,
-        isExpanded: expandedMonth === periodKey
-      };
-    }
+        newMonthsData[periodKey] = {
+          period,
+          periodKey,
+          // Preserve uploaded data from previous state (including Drive fetches)
+          uploadData: prev[periodKey]?.uploadData || ({} as Record<IndianState, StateUploadData | undefined>),
+          hasData: !!existingMIS,
+          mis: existingMIS || null,
+          isExpanded: expandedMonth === periodKey
+        };
+      }
 
-    setMonthsData(newMonthsData);
+      return newMonthsData;
+    });
   };
 
   // ============================================
@@ -222,16 +226,17 @@ export function MISTrackingNew() {
           break;
       }
 
-      setMonthsData({
-        ...monthsData,
+      // Use functional update to avoid race conditions
+      setMonthsData(prev => ({
+        ...prev,
         [periodKey]: {
-          ...monthData,
+          ...prev[periodKey],
           uploadData: {
-            ...monthData.uploadData,
+            ...prev[periodKey]?.uploadData,
             [state]: updatedStateData
           }
         }
-      });
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse file');
     } finally {
@@ -256,15 +261,15 @@ export function MISTrackingNew() {
       // Save to storage
       await saveMISRecord(mis);
 
-      // Update local state
-      setMonthsData({
-        ...monthsData,
+      // Update local state with functional update
+      setMonthsData(prev => ({
+        ...prev,
         [periodKey]: {
-          ...monthData,
+          ...prev[periodKey],
           hasData: true,
           mis
         }
-      });
+      }));
 
       // Reload all data
       await loadSavedData();
@@ -446,13 +451,14 @@ export function MISTrackingNew() {
         updatedUploadData[indianState] = stateUpload;
       }
 
-      setMonthsData({
-        ...monthsData,
+      // Use functional update to avoid race conditions
+      setMonthsData(prev => ({
+        ...prev,
         [periodKey]: {
-          ...monthData,
+          ...prev[periodKey],
           uploadData: updatedUploadData
         }
-      });
+      }));
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch from Drive');
