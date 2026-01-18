@@ -301,12 +301,15 @@ export function MISTrackingNew() {
     const monthData = monthsData[periodKey];
     if (!monthData) return false;
 
-    // Need at least sales register for each selected state
+    // Allow generation if at least one file is parsed for any selected state
+    // All file types are optional
     for (const state of selectedStates) {
       const data = monthData.uploadData[state];
-      if (!data?.salesParsed) return false;
+      if (data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
+        return true;
+      }
     }
-    return selectedStates.length > 0;
+    return false;
   };
 
   const getMonthCompletionStatus = (periodKey: string): 'empty' | 'partial' | 'ready' | 'complete' => {
@@ -316,19 +319,18 @@ export function MISTrackingNew() {
     if (monthData.hasData) return 'complete';
 
     let hasAnyFile = false;
-    let hasAllRequired = true;
+    let statesWithData = 0;
 
     for (const state of selectedStates) {
       const data = monthData.uploadData[state];
       if (data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
         hasAnyFile = true;
-      }
-      if (!data?.salesParsed) {
-        hasAllRequired = false;
+        statesWithData++;
       }
     }
 
-    if (hasAllRequired && hasAnyFile) return 'ready';
+    // Ready if all selected states have at least one file
+    if (hasAnyFile && statesWithData === selectedStates.length) return 'ready';
     if (hasAnyFile) return 'partial';
     return 'empty';
   };
@@ -996,7 +998,7 @@ function MonthDetailPanel({
               ) : canGenerate ? (
                 `Generate MIS`
               ) : (
-                'Upload Sales Register to continue'
+                'Upload files to continue'
               )}
             </button>
           )}
