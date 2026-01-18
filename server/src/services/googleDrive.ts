@@ -18,10 +18,20 @@ const STATE_NAMES: Record<string, string> = {
   'TL': 'Telangana',
 };
 
-// Month name mappings
+// Month name mappings - support various formats
 const MONTH_MAP: Record<string, number> = {
-  'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUNE': 6,
-  'JULY': 7, 'AUG': 8, 'SEPT': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12
+  'JAN': 1, 'JANUARY': 1,
+  'FEB': 2, 'FEBRUARY': 2,
+  'MAR': 3, 'MARCH': 3,
+  'APR': 4, 'APRIL': 4,
+  'MAY': 5,
+  'JUN': 6, 'JUNE': 6,
+  'JUL': 7, 'JULY': 7,
+  'AUG': 8, 'AUGUST': 8,
+  'SEP': 9, 'SEPT': 9, 'SEPTEMBER': 9,
+  'OCT': 10, 'OCTOBER': 10,
+  'NOV': 11, 'NOVEMBER': 11,
+  'DEC': 12, 'DECEMBER': 12
 };
 
 export interface DriveFileInfo {
@@ -200,7 +210,9 @@ class GoogleDriveService {
     };
 
     // Get year folders (2023-24, 2024-25, etc.)
+    console.log(`Scanning Drive folder: ${this.inputsFolderId}`);
     const yearFolders = await this.listFolders(this.inputsFolderId);
+    console.log(`Found ${yearFolders.length} year folders:`, yearFolders.map(f => f.name));
 
     for (const yearFolder of yearFolders) {
       const yearData = {
