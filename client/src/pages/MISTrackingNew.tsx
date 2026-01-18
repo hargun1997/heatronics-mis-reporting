@@ -12,8 +12,10 @@ import { loadMISData, saveMISRecord, getAllPeriods, getMISRecord } from '../util
 import { parseSalesRegister, parseJournal, parsePurchaseRegister, parseBalanceSheet } from '../utils/misTrackingParser';
 import { calculateMIS, formatCurrency, formatPercent } from '../utils/misCalculator';
 import { ClassificationReviewModal } from '../components/mis-tracking/ClassificationReviewModal';
+import { QuickClassifyModal } from '../components/mis-tracking/QuickClassifyModal';
 import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
+import { findUnclassifiedEntities, getRulesCached, clearAllCaches as clearClassificationCaches } from '../utils/classificationApi';
 import {
   checkDriveStatus,
   getDriveFolderStructure,
@@ -85,6 +87,12 @@ export function MISTrackingNew() {
   const [showClassificationModal, setShowClassificationModal] = useState(false);
   const [pendingMIS, setPendingMIS] = useState<MISRecord | null>(null);
   const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
+
+  // Quick Classify Modal State
+  const [showQuickClassify, setShowQuickClassify] = useState(false);
+  const [quickClassifyEntities, setQuickClassifyEntities] = useState<{ name: string; type: 'ledger' | 'party'; amount?: number; state?: string }[]>([]);
+  const [quickClassifyPeriod, setQuickClassifyPeriod] = useState('');
+  const [pendingGeneratePeriodKey, setPendingGeneratePeriodKey] = useState<string | null>(null);
 
   // Google Drive State
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
@@ -249,8 +257,81 @@ export function MISTrackingNew() {
   // MIS GENERATION
   // ============================================
 
-  const handleGenerateMIS = async (periodKey: string) => {
+  // Extract unique ledger/party names from journal transactions
+  const extractEntitiesFromUploadData = (uploadData: Record<IndianState, StateUploadData | undefined>): { name: string; type: 'ledger' | 'party'; amount?: number; state?: string }[] => {
+    const entities: { name: string; type: 'ledger' | 'party'; amount?: number; state?: string }[] = [];
+    const seenNames = new Set<string>();
+
+    for (const state of selectedStates) {
+      const stateData = uploadData[state];
+      if (!stateData?.journalTransactions) continue;
+
+      for (const tx of stateData.journalTransactions) {
+        const name = tx.account;
+        if (!name || seenNames.has(name.toLowerCase())) continue;
+        seenNames.add(name.toLowerCase());
+
+        entities.push({
+          name,
+          type: 'ledger',
+          amount: tx.debit || tx.credit,
+          state
+        });
+      }
+    }
+
+    return entities;
+  };
+
+  // Check for unclassified entities before MIS generation
+  const checkAndGenerateMIS = async (periodKey: string) => {
     setError(null);
+    setGeneratingMonth(periodKey);
+
+    try {
+      const monthData = monthsData[periodKey];
+      if (!monthData) return;
+
+      // Extract entities from journal data
+      const entities = extractEntitiesFromUploadData(monthData.uploadData);
+
+      if (entities.length > 0) {
+        // Check which entities are unclassified
+        const result = await findUnclassifiedEntities(
+          entities.map(e => ({ name: e.name, type: e.type }))
+        );
+
+        if (result.unclassified > 0) {
+          // Show quick classify modal for unclassified entities
+          const unclassifiedWithDetails = result.unclassifiedEntities.map(ue => {
+            const original = entities.find(e => e.name.toLowerCase() === ue.name.toLowerCase());
+            return {
+              name: ue.name,
+              type: ue.type,
+              amount: original?.amount,
+              state: original?.state
+            };
+          });
+
+          setQuickClassifyEntities(unclassifiedWithDetails);
+          setQuickClassifyPeriod(periodToString(monthData.period));
+          setPendingGeneratePeriodKey(periodKey);
+          setShowQuickClassify(true);
+          setGeneratingMonth(null);
+          return;
+        }
+      }
+
+      // No unclassified entities, proceed with generation
+      await doGenerateMIS(periodKey);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to check classifications');
+      setGeneratingMonth(null);
+    }
+  };
+
+  // Actually generate the MIS (called after classification check passes)
+  const doGenerateMIS = async (periodKey: string) => {
     setGeneratingMonth(periodKey);
 
     try {
@@ -290,6 +371,20 @@ export function MISTrackingNew() {
       setGeneratingMonth(null);
     }
   };
+
+  // Handle quick classify completion
+  const handleQuickClassifyComplete = async () => {
+    setShowQuickClassify(false);
+    clearClassificationCaches(); // Clear cache to get fresh rules
+
+    if (pendingGeneratePeriodKey) {
+      await doGenerateMIS(pendingGeneratePeriodKey);
+      setPendingGeneratePeriodKey(null);
+    }
+  };
+
+  // Legacy function name for compatibility
+  const handleGenerateMIS = checkAndGenerateMIS;
 
   // ============================================
   // HELPERS
@@ -1160,6 +1255,20 @@ export function MISTrackingNew() {
       {/* Algorithm Guide Modal */}
       {showAlgorithmGuide && (
         <AlgorithmGuideModal onClose={() => setShowAlgorithmGuide(false)} />
+      )}
+
+      {/* Quick Classify Modal */}
+      {showQuickClassify && quickClassifyEntities.length > 0 && (
+        <QuickClassifyModal
+          entities={quickClassifyEntities}
+          periodLabel={quickClassifyPeriod}
+          onClose={() => {
+            setShowQuickClassify(false);
+            setQuickClassifyEntities([]);
+            setPendingGeneratePeriodKey(null);
+          }}
+          onComplete={handleQuickClassifyComplete}
+        />
       )}
     </div>
   );
