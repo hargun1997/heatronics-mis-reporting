@@ -58,6 +58,94 @@ interface MonthData {
   isExpanded: boolean;
 }
 
+// Serializable version of upload data for localStorage (excludes File objects)
+interface SerializableStateUploadData {
+  state: IndianState;
+  salesData?: any;
+  salesParsed: boolean;
+  journalTransactions?: any[];
+  journalParsed: boolean;
+  purchaseTotal?: number;
+  purchaseParsed: boolean;
+  balanceSheetData?: any;
+  balanceSheetParsed: boolean;
+}
+
+interface SerializableMonthData {
+  periodKey: string;
+  period: MISPeriod;
+  uploadData: Record<string, SerializableStateUploadData | undefined>;
+}
+
+// localStorage key
+const STORAGE_KEY = 'mis-tracking-upload-data';
+
+// ============================================
+// LOCAL STORAGE HELPERS
+// ============================================
+
+function saveUploadDataToStorage(monthsData: Record<string, MonthData>) {
+  try {
+    const serializableData: SerializableMonthData[] = [];
+
+    for (const [key, data] of Object.entries(monthsData)) {
+      const serializedUpload: Record<string, SerializableStateUploadData | undefined> = {};
+
+      for (const [state, stateData] of Object.entries(data.uploadData)) {
+        if (stateData) {
+          serializedUpload[state] = {
+            state: stateData.state,
+            salesData: stateData.salesData,
+            salesParsed: stateData.salesParsed,
+            journalTransactions: stateData.journalTransactions,
+            journalParsed: stateData.journalParsed,
+            purchaseTotal: stateData.purchaseTotal,
+            purchaseParsed: stateData.purchaseParsed,
+            balanceSheetData: stateData.balanceSheetData,
+            balanceSheetParsed: stateData.balanceSheetParsed,
+          };
+        }
+      }
+
+      // Only save if there's actual parsed data
+      const hasParsedData = Object.values(serializedUpload).some(
+        s => s?.salesParsed || s?.journalParsed || s?.purchaseParsed || s?.balanceSheetParsed
+      );
+
+      if (hasParsedData) {
+        serializableData.push({
+          periodKey: key,
+          period: data.period,
+          uploadData: serializedUpload,
+        });
+      }
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializableData));
+  } catch (err) {
+    console.error('Error saving upload data to localStorage:', err);
+  }
+}
+
+function loadUploadDataFromStorage(): SerializableMonthData[] | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    return JSON.parse(stored);
+  } catch (err) {
+    console.error('Error loading upload data from localStorage:', err);
+    return null;
+  }
+}
+
+function clearUploadDataStorage() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (err) {
+    console.error('Error clearing localStorage:', err);
+  }
+}
+
 // ============================================
 // MAIN COMPONENT
 // ============================================
@@ -107,11 +195,60 @@ export function MISTrackingNew() {
   // EFFECTS
   // ============================================
 
-  // Load saved data on mount
+  // Load saved data and cached upload data on mount
   useEffect(() => {
     loadSavedData();
     checkDriveConnection();
+    loadCachedUploadData();
   }, []);
+
+  // Load cached upload data from localStorage
+  const loadCachedUploadData = () => {
+    const cached = loadUploadDataFromStorage();
+    if (!cached || cached.length === 0) return;
+
+    setMonthsData(prev => {
+      const updated = { ...prev };
+
+      for (const cachedMonth of cached) {
+        const existingMIS = allMISData.find(m => m.periodKey === cachedMonth.periodKey);
+
+        // Convert serializable data back to StateUploadData
+        const uploadData: Record<IndianState, StateUploadData | undefined> = {} as Record<IndianState, StateUploadData | undefined>;
+
+        for (const [state, serialized] of Object.entries(cachedMonth.uploadData)) {
+          if (serialized) {
+            uploadData[state as IndianState] = {
+              state: serialized.state,
+              salesRegisterFile: null, // File objects can't be serialized
+              salesData: serialized.salesData,
+              salesParsed: serialized.salesParsed,
+              journalFile: null,
+              journalTransactions: serialized.journalTransactions || [],
+              journalParsed: serialized.journalParsed,
+              purchaseRegisterFile: null,
+              purchaseTotal: serialized.purchaseTotal || 0,
+              purchaseParsed: serialized.purchaseParsed,
+              balanceSheetFile: null,
+              balanceSheetData: serialized.balanceSheetData,
+              balanceSheetParsed: serialized.balanceSheetParsed,
+            };
+          }
+        }
+
+        updated[cachedMonth.periodKey] = {
+          period: cachedMonth.period,
+          periodKey: cachedMonth.periodKey,
+          uploadData,
+          hasData: !!existingMIS,
+          mis: existingMIS || null,
+          isExpanded: false,
+        };
+      }
+
+      return updated;
+    });
+  };
 
   // Check Drive connection and load structure
   const checkDriveConnection = async () => {
@@ -231,16 +368,21 @@ export function MISTrackingNew() {
       }
 
       // Use functional update to avoid race conditions
-      setMonthsData(prev => ({
-        ...prev,
-        [periodKey]: {
-          ...prev[periodKey],
-          uploadData: {
-            ...prev[periodKey]?.uploadData,
-            [state]: updatedStateData
+      setMonthsData(prev => {
+        const updated = {
+          ...prev,
+          [periodKey]: {
+            ...prev[periodKey],
+            uploadData: {
+              ...prev[periodKey]?.uploadData,
+              [state]: updatedStateData
+            }
           }
-        }
-      }));
+        };
+        // Save to localStorage after file upload
+        saveUploadDataToStorage(updated);
+        return updated;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse file');
     } finally {
@@ -779,17 +921,22 @@ export function MISTrackingNew() {
         }
 
         // Update state immediately for this month (progressive update)
-        setMonthsData(prev => ({
-          ...prev,
-          [periodKey]: {
-            period,
-            periodKey,
-            uploadData: monthUploadData,
-            hasData: !!existingMIS,
-            mis: existingMIS || null,
-            isExpanded: false
-          }
-        }));
+        setMonthsData(prev => {
+          const updated = {
+            ...prev,
+            [periodKey]: {
+              period,
+              periodKey,
+              uploadData: monthUploadData,
+              hasData: !!existingMIS,
+              mis: existingMIS || null,
+              isExpanded: false
+            }
+          };
+          // Save to localStorage after each month is processed
+          saveUploadDataToStorage(updated);
+          return updated;
+        });
 
         processedMonths++;
       }
@@ -841,6 +988,9 @@ export function MISTrackingNew() {
   // Clear all cached upload data and force resync from Drive
   const handleClearAndResync = async () => {
     if (isAutoFetching || !driveStructure) return;
+
+    // Clear localStorage first
+    clearUploadDataStorage();
 
     // Clear all upload data from monthsData
     setMonthsData(prev => {
