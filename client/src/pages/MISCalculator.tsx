@@ -774,13 +774,6 @@ export function MISCalculator() {
         </div>
       )}
 
-      {/* MIS Preview Modal */}
-      <MISPreview
-        report={misReport}
-        isVisible={showMISPreview}
-        onClose={() => setShowMISPreview(false)}
-      />
-
       {/* Sales Verification Modal */}
       {showSalesVerification && (
         <SalesVerification
