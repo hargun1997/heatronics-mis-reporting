@@ -209,10 +209,21 @@ class GoogleDriveService {
       years: []
     };
 
-    // Get year folders (2023-24, 2024-25, etc.)
+    // Get initial folders
     console.log(`Scanning Drive folder: ${this.inputsFolderId}`);
-    const yearFolders = await this.listFolders(this.inputsFolderId);
-    console.log(`Found ${yearFolders.length} year folders:`, yearFolders.map(f => f.name));
+    let baseFolders = await this.listFolders(this.inputsFolderId);
+    console.log(`Found ${baseFolders.length} folders:`, baseFolders.map(f => f.name));
+
+    // Check if we need to go into "Inputs" folder first
+    const inputsFolder = baseFolders.find(f => f.name.toLowerCase() === 'inputs');
+    if (inputsFolder) {
+      console.log(`Found 'Inputs' folder, navigating into it...`);
+      baseFolders = await this.listFolders(inputsFolder.id);
+      console.log(`Found ${baseFolders.length} year folders:`, baseFolders.map(f => f.name));
+    }
+
+    // Now baseFolders should be year folders (2023-24, 2024-25, etc.)
+    const yearFolders = baseFolders;
 
     for (const yearFolder of yearFolders) {
       const yearData = {
