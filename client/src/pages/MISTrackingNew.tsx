@@ -91,6 +91,7 @@ export function MISTrackingNew() {
   const [fetchingFromDrive, setFetchingFromDrive] = useState<string | null>(null);
   const [isAutoFetching, setIsAutoFetching] = useState(false);
   const [generatingAll, setGeneratingAll] = useState(false);
+  const [fetchProgress, setFetchProgress] = useState<{ current: number; total: number; currentMonth: string } | null>(null);
 
   // ============================================
   // EFFECTS
@@ -458,7 +459,40 @@ export function MISTrackingNew() {
     }
   };
 
-  // Auto-fetch all data from Drive
+  // Helper to fetch and parse a single file
+  const fetchAndParseFile = async (
+    fileInfo: { id: string; name: string; mimeType: string; type: string },
+    indianState: IndianState
+  ): Promise<{ type: string; result: any } | null> => {
+    try {
+      const content = await getFileContent(fileInfo.id);
+      if (!content) return null;
+
+      const file = base64ToFile(content, fileInfo.name, fileInfo.mimeType);
+
+      switch (fileInfo.type) {
+        case 'sales_register':
+          const salesResult = await parseSalesRegister(file, indianState);
+          return { type: 'sales_register', result: { file, salesData: salesResult.salesData } };
+        case 'journal_register':
+          const journalResult = await parseJournal(file, indianState);
+          return { type: 'journal_register', result: { file, transactions: journalResult.transactions } };
+        case 'purchase_register':
+          const purchaseResult = await parsePurchaseRegister(file);
+          return { type: 'purchase_register', result: { file, totalPurchases: purchaseResult.totalPurchases } };
+        case 'balance_sheet':
+          const bsResult = await parseBalanceSheet(file);
+          return { type: 'balance_sheet', result: { file, data: bsResult.data } };
+        default:
+          return null;
+      }
+    } catch (err) {
+      console.error(`Error fetching file ${fileInfo.name}:`, err);
+      return null;
+    }
+  };
+
+  // Auto-fetch all data from Drive (optimized with parallel fetching)
   const autoFetchAllFromDrive = async () => {
     if (!driveStructure || isAutoFetching) return;
 
@@ -469,92 +503,129 @@ export function MISTrackingNew() {
       // Collect all states found in Drive
       const allStatesInDrive = new Set<IndianState>();
 
-      // Build updated months data
-      let updatedMonthsData = { ...monthsData };
-
+      // Count total months for progress
+      const allMonths: { yearData: any; driveMonth: any }[] = [];
       for (const yearData of driveStructure.years) {
         for (const driveMonth of yearData.months) {
-          const periodKey = `${driveMonth.year}-${String(driveMonth.month).padStart(2, '0')}`;
-
-          // Initialize month data if not exists
-          if (!updatedMonthsData[periodKey]) {
-            const period: MISPeriod = { month: driveMonth.month, year: driveMonth.year };
-            const existingMIS = allMISData.find(m => m.periodKey === periodKey);
-            updatedMonthsData[periodKey] = {
-              period,
-              periodKey,
-              uploadData: {} as Record<IndianState, StateUploadData | undefined>,
-              hasData: !!existingMIS,
-              mis: existingMIS || null,
-              isExpanded: false
-            };
-          }
-
-          let monthUploadData = { ...updatedMonthsData[periodKey].uploadData };
-
-          for (const stateData of driveMonth.states) {
-            const indianState = DRIVE_STATE_MAP[stateData.code];
-            if (!indianState || !INDIAN_STATES.some(s => s.code === indianState)) continue;
-
-            allStatesInDrive.add(indianState);
-
-            let stateUpload = monthUploadData[indianState] || createEmptyStateUploadData(indianState);
-
-            // Fetch and parse each file
-            for (const fileInfo of stateData.files) {
-              try {
-                const content = await getFileContent(fileInfo.id);
-                if (!content) continue;
-
-                const file = base64ToFile(content, fileInfo.name, fileInfo.mimeType);
-
-                switch (fileInfo.type) {
-                  case 'sales_register':
-                    stateUpload.salesRegisterFile = file;
-                    const salesResult = await parseSalesRegister(file, indianState);
-                    stateUpload.salesData = salesResult.salesData;
-                    stateUpload.salesParsed = true;
-                    break;
-                  case 'journal_register':
-                    stateUpload.journalFile = file;
-                    const journalResult = await parseJournal(file, indianState);
-                    stateUpload.journalTransactions = journalResult.transactions;
-                    stateUpload.journalParsed = true;
-                    break;
-                  case 'purchase_register':
-                    stateUpload.purchaseRegisterFile = file;
-                    const purchaseResult = await parsePurchaseRegister(file);
-                    stateUpload.purchaseTotal = purchaseResult.totalPurchases;
-                    stateUpload.purchaseParsed = true;
-                    break;
-                  case 'balance_sheet':
-                    stateUpload.balanceSheetFile = file;
-                    const bsResult = await parseBalanceSheet(file);
-                    stateUpload.balanceSheetData = bsResult.data;
-                    stateUpload.balanceSheetParsed = true;
-                    break;
-                }
-              } catch (fileErr) {
-                console.error(`Error fetching file ${fileInfo.name}:`, fileErr);
-              }
-            }
-
-            monthUploadData[indianState] = stateUpload;
-          }
-
-          updatedMonthsData[periodKey] = {
-            ...updatedMonthsData[periodKey],
-            uploadData: monthUploadData
-          };
+          allMonths.push({ yearData, driveMonth });
         }
       }
 
-      setMonthsData(updatedMonthsData);
+      // Process each month and update state progressively
+      let processedMonths = 0;
+
+      for (const { driveMonth } of allMonths) {
+        const periodKey = `${driveMonth.year}-${String(driveMonth.month).padStart(2, '0')}`;
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthLabel = `${monthNames[driveMonth.month - 1]} ${driveMonth.year}`;
+
+        setFetchProgress({ current: processedMonths + 1, total: allMonths.length, currentMonth: monthLabel });
+
+        // Check if month already has data - skip if so
+        const existingMonthData = monthsData[periodKey];
+        const hasAllData = existingMonthData && driveMonth.states.every((stateData: any) => {
+          const indianState = DRIVE_STATE_MAP[stateData.code];
+          if (!indianState) return true;
+          const data = existingMonthData.uploadData[indianState];
+          return data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed;
+        });
+
+        if (hasAllData) {
+          // Already have data for this month, skip
+          processedMonths++;
+          continue;
+        }
+
+        // Initialize month data
+        const period: MISPeriod = { month: driveMonth.month, year: driveMonth.year };
+        const existingMIS = allMISData.find(m => m.periodKey === periodKey);
+        let monthUploadData: Record<IndianState, StateUploadData | undefined> =
+          existingMonthData?.uploadData ? { ...existingMonthData.uploadData } : {} as Record<IndianState, StateUploadData | undefined>;
+
+        // Process all states and files for this month in parallel
+        const statePromises = driveMonth.states.map(async (stateData: any) => {
+          const indianState = DRIVE_STATE_MAP[stateData.code];
+          if (!indianState || !INDIAN_STATES.some(s => s.code === indianState)) return null;
+
+          allStatesInDrive.add(indianState);
+
+          // Check if this state already has data
+          const existingStateData = monthUploadData[indianState];
+          if (existingStateData?.salesParsed || existingStateData?.journalParsed ||
+              existingStateData?.purchaseParsed || existingStateData?.balanceSheetParsed) {
+            return { indianState, stateUpload: existingStateData };
+          }
+
+          let stateUpload = createEmptyStateUploadData(indianState);
+
+          // Fetch all files for this state in parallel
+          const fileResults = await Promise.all(
+            stateData.files.map((fileInfo: any) => fetchAndParseFile(fileInfo, indianState))
+          );
+
+          // Apply results
+          for (const result of fileResults) {
+            if (!result) continue;
+            switch (result.type) {
+              case 'sales_register':
+                stateUpload.salesRegisterFile = result.result.file;
+                stateUpload.salesData = result.result.salesData;
+                stateUpload.salesParsed = true;
+                break;
+              case 'journal_register':
+                stateUpload.journalFile = result.result.file;
+                stateUpload.journalTransactions = result.result.transactions;
+                stateUpload.journalParsed = true;
+                break;
+              case 'purchase_register':
+                stateUpload.purchaseRegisterFile = result.result.file;
+                stateUpload.purchaseTotal = result.result.totalPurchases;
+                stateUpload.purchaseParsed = true;
+                break;
+              case 'balance_sheet':
+                stateUpload.balanceSheetFile = result.result.file;
+                stateUpload.balanceSheetData = result.result.data;
+                stateUpload.balanceSheetParsed = true;
+                break;
+            }
+          }
+
+          return { indianState, stateUpload };
+        });
+
+        // Wait for all states in this month
+        const stateResults = await Promise.all(statePromises);
+
+        // Apply results to monthUploadData
+        for (const result of stateResults) {
+          if (result && result.indianState) {
+            const state = result.indianState as IndianState;
+            monthUploadData[state] = result.stateUpload;
+          }
+        }
+
+        // Update state immediately for this month (progressive update)
+        setMonthsData(prev => ({
+          ...prev,
+          [periodKey]: {
+            period,
+            periodKey,
+            uploadData: monthUploadData,
+            hasData: !!existingMIS,
+            mis: existingMIS || null,
+            isExpanded: false
+          }
+        }));
+
+        processedMonths++;
+      }
 
       // Auto-select all states found in Drive
       if (allStatesInDrive.size > 0) {
         setSelectedStates(Array.from(allStatesInDrive));
       }
+
+      setFetchProgress(null);
 
     } catch (err) {
       console.error('Error auto-fetching from Drive:', err);
@@ -638,7 +709,10 @@ export function MISTrackingNew() {
                 ) : (
                   <div className={`w-1.5 h-1.5 rounded-full ${driveStatus.connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
                 )}
-                {isAutoFetching ? 'Fetching from Drive...' : isDriveLoading ? 'Syncing...' : driveStatus.connected ? 'Drive Connected' : 'Drive Offline'}
+                {isAutoFetching && fetchProgress
+                  ? `${fetchProgress.currentMonth} (${fetchProgress.current}/${fetchProgress.total})`
+                  : isDriveLoading ? 'Syncing...'
+                  : driveStatus.connected ? 'Drive Connected' : 'Drive Offline'}
               </div>
             )}
           </div>
