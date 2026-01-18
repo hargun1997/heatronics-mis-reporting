@@ -12,6 +12,18 @@ interface ToolCard {
 
 const tools: ToolCard[] = [
   {
+    title: 'MIS Tracking',
+    description: 'Upload Sales Register, Journal, and Balance Sheet. Auto-classify transactions and generate professional MIS with trends.',
+    path: '/mis-tracking',
+    color: 'bg-blue-600',
+    stats: 'NEW',
+    icon: (
+      <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    )
+  },
+  {
     title: 'Accounting Dictionary',
     description: 'Reference guide for expense categories, booking instructions, and GST treatment for all business transactions.',
     path: '/dictionary',
@@ -32,18 +44,6 @@ const tools: ToolCard[] = [
     icon: (
       <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    )
-  },
-  {
-    title: 'MIS Calculator',
-    description: 'Generate P&L MIS reports from Balance Sheet and Journal entries. Auto-classify expenses and calculate margins.',
-    path: '/mis-calculator',
-    color: 'bg-blue-500',
-    stats: 'P&L Reports',
-    icon: (
-      <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
       </svg>
     )
   }
@@ -67,10 +67,10 @@ export function Dashboard() {
         </p>
         <div className="mt-4 flex gap-4">
           <Link
-            to="/mis-calculator"
+            to="/mis-tracking"
             className="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
           >
-            Start MIS Report
+            Start MIS Tracking
           </Link>
           <Link
             to="/checklist"
