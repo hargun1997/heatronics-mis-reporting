@@ -320,9 +320,9 @@ export function MISReportTable({
               <div className="text-lg font-semibold text-red-700">- ₹{revenueData.totalReturns.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div className="bg-white p-3 rounded border border-purple-200">
-              <div className="text-xs text-purple-600">Taxes</div>
+              <div className="text-xs text-purple-600">Taxes (GST)</div>
               <div className="text-lg font-semibold text-purple-700">- ₹{revenueData.totalTaxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className="text-xs text-purple-400 mt-1">Coming soon</div>
+              <div className="text-xs text-purple-500 mt-1">IGST + CGST + SGST</div>
             </div>
             <div className="bg-white p-3 rounded border border-pink-200">
               <div className="text-xs text-pink-600">Discounts</div>

@@ -323,11 +323,34 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
         let grossSales = 0;        // All positive sales
         let returns = 0;           // All negative sales (stored as positive)
         let interCompanyTransfers = 0;  // Sales to other Heatronics entities
+        let totalTaxes = 0;        // Sum of all IGST + CGST + SGST
         let itemCount = 0;
         const salesByChannel: { [key: string]: number } = {};
         const interCompanyDetails: { toState: IndianState; amount: number }[] = [];
         const lineItems: SalesLineItem[] = [];  // Track individual items for verification
         const errors: string[] = [];
+
+        // Scan header rows to find tax column indices
+        // Check first 3 rows for headers
+        let igstCol = -1;
+        let cgstCol = -1;
+        let sgstCol = -1;
+
+        for (let headerRow = 0; headerRow < Math.min(3, jsonData.length); headerRow++) {
+          const row = jsonData[headerRow];
+          if (!row) continue;
+
+          for (let col = 0; col < row.length; col++) {
+            const cellValue = String(row[col] || '').toLowerCase().trim();
+            if (cellValue.includes('igst') && !cellValue.includes('cgst') && !cellValue.includes('sgst')) {
+              igstCol = col;
+            } else if (cellValue.includes('cgst')) {
+              cgstCol = col;
+            } else if (cellValue.includes('sgst')) {
+              sgstCol = col;
+            }
+          }
+        }
 
         // Skip first few rows (headers)
         // Expected columns based on Heatronics Sales Register format:
@@ -366,11 +389,20 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
           const amount = parseNumber(row[5]);
           if (amount === 0) continue;
 
+          // Extract tax values for this row
+          const igst = igstCol >= 0 ? Math.abs(parseNumber(row[igstCol])) : 0;
+          const cgst = cgstCol >= 0 ? Math.abs(parseNumber(row[cgstCol])) : 0;
+          const sgst = sgstCol >= 0 ? Math.abs(parseNumber(row[sgstCol])) : 0;
+          const lineTax = igst + cgst + sgst;
+
           // Handle negative amounts (returns)
           if (amount < 0) {
             const absAmount = Math.abs(amount);
             returns += absAmount;
             const channel = categorizeChannel(partyName);
+
+            // For returns, taxes are also negative (credit), so we still track them
+            totalTaxes += lineTax;
 
             // Track return line item
             lineItems.push({
@@ -380,7 +412,11 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
               channel,
               isReturn: true,
               isInterCompany: false,
-              originalChannel: channel
+              originalChannel: channel,
+              igst,
+              cgst,
+              sgst,
+              totalTax: lineTax
             });
             continue;
           }
@@ -388,6 +424,7 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
           // Check if this is an inter-company transfer (any state selling to another Heatronics entity)
           if (isInterCompanyTransfer(partyName)) {
             interCompanyTransfers += amount;
+            totalTaxes += lineTax;
             const toState = detectInterCompanyState(partyName);
             if (toState) {
               // Check if we already have an entry for this state
@@ -408,7 +445,11 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
               isReturn: false,
               isInterCompany: true,
               toState: toState || undefined,
-              originalChannel: 'Inter-Company'
+              originalChannel: 'Inter-Company',
+              igst,
+              cgst,
+              sgst,
+              totalTax: lineTax
             });
             continue; // Don't add to regular sales
           }
@@ -416,8 +457,9 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
           // Categorize by channel using updated logic
           const channel = categorizeChannel(partyName);
 
-          // Add to gross sales
+          // Add to gross sales and taxes
           grossSales += amount;
+          totalTaxes += lineTax;
           salesByChannel[channel] = (salesByChannel[channel] || 0) + amount;
 
           // Track sales line item
@@ -428,7 +470,11 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
             channel,
             isReturn: false,
             isInterCompany: false,
-            originalChannel: channel
+            originalChannel: channel,
+            igst,
+            cgst,
+            sgst,
+            totalTax: lineTax
           });
         }
 
@@ -443,6 +489,7 @@ export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<
             interCompanyTransfers,
             netSales,
             itemCount,
+            totalTaxes,
             salesByChannel: Object.keys(salesByChannel).length > 0 ? salesByChannel : undefined,
             interCompanyDetails: interCompanyDetails.length > 0 ? interCompanyDetails : undefined,
             lineItems: lineItems.length > 0 ? lineItems : undefined

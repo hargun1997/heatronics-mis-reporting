@@ -178,6 +178,11 @@ export interface SalesLineItem {
   isInterCompany: boolean;  // True if inter-company transfer
   toState?: IndianState;    // If inter-company, which state
   originalChannel?: string; // Original auto-detected channel (before manual edit)
+  // Tax fields
+  igst?: number;
+  cgst?: number;
+  sgst?: number;
+  totalTax?: number;        // igst + cgst + sgst
 }
 
 export interface SalesRegisterData {
@@ -186,6 +191,7 @@ export interface SalesRegisterData {
   interCompanyTransfers: number; // Sales to other Heatronics entities (for UP state)
   netSales: number;             // grossSales - interCompanyTransfers (returns NOT subtracted here)
   itemCount: number;
+  totalTaxes: number;           // Total of all IGST + CGST + SGST
   salesByChannel?: { [key: string]: number };
   interCompanyDetails?: {       // Details of inter-company transfers
     toState: IndianState;
