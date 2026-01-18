@@ -7,21 +7,21 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/heatronics-accounting-dashboard:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/heatronics-mis-tool:$COMMIT_SHA'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/heatronics-accounting-dashboard:latest'
+      - 'gcr.io/$PROJECT_ID/heatronics-mis-tool:latest'
       - '.'
 
   # Push the Docker image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/heatronics-accounting-dashboard:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/heatronics-mis-tool:$COMMIT_SHA'
 
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/heatronics-accounting-dashboard:latest'
+      - 'gcr.io/$PROJECT_ID/heatronics-mis-tool:latest'
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -29,9 +29,9 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'heatronics-accounting-dashboard'
+      - 'heatronics-mis-tool'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/heatronics-accounting-dashboard:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/heatronics-mis-tool:$COMMIT_SHA'
       - '--region'
       - '${_REGION}'
       - '--platform'
@@ -50,12 +50,12 @@ steps:
 
 # Substitution variables (can be overridden)
 substitutions:
-  _REGION: 'asia-south1'  # Mumbai region, change as needed
+  _REGION: 'europe-west1'  # Europe region (matching current deployment)
 
 # Store images in Container Registry
 images:
-  - 'gcr.io/$PROJECT_ID/heatronics-accounting-dashboard:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/heatronics-accounting-dashboard:latest'
+  - 'gcr.io/$PROJECT_ID/heatronics-mis-tool:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/heatronics-mis-tool:latest'
 
 # Build timeout
 timeout: '1200s'
