@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { AccountingDictionary } from './pages/AccountingDictionary';
 import { AccountsChecklist } from './pages/AccountsChecklist';
 import { MISCalculator } from './pages/MISCalculator';
+import { MISTrackingNew } from './pages/MISTrackingNew';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="dictionary" element={<AccountingDictionary />} />
           <Route path="checklist" element={<AccountsChecklist />} />
           <Route path="mis-calculator" element={<MISCalculator />} />
+          <Route path="mis-tracking" element={<MISTrackingNew />} />
         </Route>
       </Routes>
     </BrowserRouter>
