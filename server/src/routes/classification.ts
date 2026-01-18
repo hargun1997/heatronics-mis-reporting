@@ -95,11 +95,7 @@ router.get('/status', async (req, res) => {
     if (!initialized) {
       const success = await googleSheetsService.initialize();
       if (!success) {
-        const initError = googleSheetsService.getInitError();
-        return res.json({
-          connected: false,
-          error: initError || 'Failed to initialize Google Sheets'
-        });
+        return res.json({ connected: false, error: 'Failed to initialize Google Sheets' });
       }
     }
     res.json({ connected: true });

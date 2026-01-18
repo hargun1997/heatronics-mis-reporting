@@ -56,7 +56,6 @@ const SHEET_NAMES = {
 class GoogleSheetsService {
   private sheets: sheets_v4.Sheets | null = null;
   private initialized: boolean = false;
-  private initError: string | null = null;
 
   private async getAuth() {
     // Use Application Default Credentials (ADC)
@@ -81,90 +80,16 @@ class GoogleSheetsService {
       const sheetTitles = response.data.sheets?.map(s => s.properties?.title) || [];
       console.log('Google Sheets connected. Available sheets:', sheetTitles);
 
-      // Check if required sheets exist, create them if not
-      const requiredSheets = [SHEET_NAMES.CATEGORIES, SHEET_NAMES.RULES, SHEET_NAMES.HISTORY];
-      const missingSheets = requiredSheets.filter(name => !sheetTitles.includes(name));
-
-      if (missingSheets.length > 0) {
-        console.log('Creating missing sheets:', missingSheets);
-        await this.createMissingSheets(missingSheets);
-      }
-
       this.initialized = true;
-      this.initError = null;
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Failed to initialize Google Sheets:', errorMessage);
-      this.initError = errorMessage;
+      console.error('Failed to initialize Google Sheets:', error);
       return false;
-    }
-  }
-
-  private async createMissingSheets(sheetNames: string[]): Promise<void> {
-    if (!this.sheets) return;
-
-    try {
-      // Create each missing sheet
-      const requests = sheetNames.map(title => ({
-        addSheet: {
-          properties: { title }
-        }
-      }));
-
-      await this.sheets.spreadsheets.batchUpdate({
-        spreadsheetId: SHEET_ID,
-        requestBody: { requests }
-      });
-
-      // Initialize headers for each sheet
-      for (const sheetName of sheetNames) {
-        await this.initializeSheetHeaders(sheetName);
-      }
-
-      console.log('Created sheets:', sheetNames);
-    } catch (error) {
-      console.error('Error creating sheets:', error);
-      // Don't throw - sheets might already exist
-    }
-  }
-
-  private async initializeSheetHeaders(sheetName: string): Promise<void> {
-    if (!this.sheets) return;
-
-    let headers: string[] = [];
-    switch (sheetName) {
-      case SHEET_NAMES.CATEGORIES:
-        headers = ['Head', 'Subhead', 'Type', 'P&L Line', 'Active', 'Notes'];
-        break;
-      case SHEET_NAMES.RULES:
-        headers = ['Rule ID', 'Entity Name', 'Entity Type', 'Head', 'Subhead', 'Keywords', 'Confidence', 'Source', 'Created Date', 'Times Used'];
-        break;
-      case SHEET_NAMES.HISTORY:
-        headers = ['Timestamp', 'Period', 'State', 'Entity', 'Amount', 'Head', 'Subhead', 'Classified By', 'Rule ID'];
-        break;
-    }
-
-    if (headers.length > 0) {
-      try {
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId: SHEET_ID,
-          range: `${sheetName}!A1`,
-          valueInputOption: 'RAW',
-          requestBody: { values: [headers] }
-        });
-      } catch (error) {
-        console.error(`Error initializing headers for ${sheetName}:`, error);
-      }
     }
   }
 
   isInitialized(): boolean {
     return this.initialized;
-  }
-
-  getInitError(): string | null {
-    return this.initError;
   }
 
   // ============================================
