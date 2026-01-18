@@ -14,6 +14,34 @@ import { calculateMIS, formatCurrency, formatPercent } from '../utils/misCalcula
 import { ClassificationReviewModal } from '../components/mis-tracking/ClassificationReviewModal';
 import { MISMonthlyView } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
+import {
+  checkDriveStatus,
+  getDriveFolderStructure,
+  getFileContent,
+  base64ToFile,
+  DriveStatus,
+  DriveFolderStructure,
+  DriveMonthData,
+  DriveStateData,
+  STATE_NAMES
+} from '../utils/driveApi';
+
+// ============================================
+// DRIVE STATE CODE MAPPING
+// ============================================
+
+// Map Drive state codes to IndianState type
+const DRIVE_STATE_MAP: Record<string, IndianState> = {
+  'KA': 'Karnataka',
+  'Karnataka': 'Karnataka',
+  'MH': 'Maharashtra',
+  'Maharashtra': 'Maharashtra',
+  'HR': 'Haryana',
+  'Haryana': 'Haryana',
+  'UP': 'UP',
+  'TL': 'Telangana',
+  'Telangana': 'Telangana'
+};
 
 // ============================================
 // TYPES
@@ -56,6 +84,12 @@ export function MISTrackingNew() {
   const [showClassificationModal, setShowClassificationModal] = useState(false);
   const [pendingMIS, setPendingMIS] = useState<MISRecord | null>(null);
 
+  // Google Drive State
+  const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
+  const [driveStructure, setDriveStructure] = useState<DriveFolderStructure | null>(null);
+  const [isDriveLoading, setIsDriveLoading] = useState(false);
+  const [fetchingFromDrive, setFetchingFromDrive] = useState<string | null>(null);
+
   // ============================================
   // EFFECTS
   // ============================================
@@ -63,7 +97,26 @@ export function MISTrackingNew() {
   // Load saved data on mount
   useEffect(() => {
     loadSavedData();
+    checkDriveConnection();
   }, []);
+
+  // Check Drive connection and load structure
+  const checkDriveConnection = async () => {
+    setIsDriveLoading(true);
+    try {
+      const status = await checkDriveStatus();
+      setDriveStatus(status);
+
+      if (status.connected) {
+        const structure = await getDriveFolderStructure();
+        setDriveStructure(structure);
+      }
+    } catch (err) {
+      console.error('Error checking Drive status:', err);
+    } finally {
+      setIsDriveLoading(false);
+    }
+  };
 
   // Initialize months for selected year
   useEffect(() => {
@@ -284,6 +337,117 @@ export function MISTrackingNew() {
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   // ============================================
+  // GOOGLE DRIVE HELPERS
+  // ============================================
+
+  // Get Drive data for a specific month/year
+  const getDriveMonthData = (year: number, month: number): DriveMonthData | null => {
+    if (!driveStructure) return null;
+
+    for (const yearData of driveStructure.years) {
+      for (const monthData of yearData.months) {
+        if (monthData.year === year && monthData.month === month) {
+          return monthData;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Check if a month has data in Drive
+  const hasDataInDrive = (year: number, month: number): boolean => {
+    return getDriveMonthData(year, month) !== null;
+  };
+
+  // Get states available in Drive for a month
+  const getDriveStatesForMonth = (year: number, month: number): DriveStateData[] => {
+    const monthData = getDriveMonthData(year, month);
+    return monthData?.states || [];
+  };
+
+  // Fetch all files from Drive for a month and parse them
+  const handleFetchFromDrive = async (periodKey: string, year: number, month: number) => {
+    const driveMonth = getDriveMonthData(year, month);
+    if (!driveMonth) return;
+
+    setFetchingFromDrive(periodKey);
+    setError(null);
+
+    try {
+      const monthData = monthsData[periodKey];
+      if (!monthData) return;
+
+      let updatedUploadData = { ...monthData.uploadData };
+
+      for (const stateData of driveMonth.states) {
+        // Map Drive state code to IndianState
+        const indianState = DRIVE_STATE_MAP[stateData.code];
+        if (!indianState || !INDIAN_STATES.some(s => s.code === indianState)) continue;
+
+        let stateUpload = updatedUploadData[indianState] || createEmptyStateUploadData(indianState);
+
+        // Process each file type
+        for (const fileInfo of stateData.files) {
+          const content = await getFileContent(fileInfo.id);
+          if (!content) continue;
+
+          const file = base64ToFile(content, fileInfo.name, fileInfo.mimeType);
+
+          switch (fileInfo.type) {
+            case 'sales_register':
+              stateUpload.salesRegisterFile = file;
+              const salesResult = await parseSalesRegister(file, indianState);
+              stateUpload.salesData = salesResult.salesData;
+              stateUpload.salesParsed = true;
+              break;
+
+            case 'journal_register':
+              stateUpload.journalFile = file;
+              const journalResult = await parseJournal(file, indianState);
+              stateUpload.journalTransactions = journalResult.transactions;
+              stateUpload.journalParsed = true;
+              break;
+
+            case 'purchase_register':
+              stateUpload.purchaseRegisterFile = file;
+              const purchaseResult = await parsePurchaseRegister(file);
+              stateUpload.purchaseTotal = purchaseResult.totalPurchases;
+              stateUpload.purchaseParsed = true;
+              break;
+
+            case 'balance_sheet':
+              stateUpload.balanceSheetFile = file;
+              const bsResult = await parseBalanceSheet(file);
+              stateUpload.balanceSheetData = bsResult.data;
+              stateUpload.balanceSheetParsed = true;
+              break;
+          }
+        }
+
+        updatedUploadData[indianState] = stateUpload;
+
+        // Auto-select this state if not already selected
+        if (!selectedStates.includes(indianState)) {
+          setSelectedStates(prev => [...prev, indianState]);
+        }
+      }
+
+      setMonthsData({
+        ...monthsData,
+        [periodKey]: {
+          ...monthData,
+          uploadData: updatedUploadData
+        }
+      });
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch from Drive');
+    } finally {
+      setFetchingFromDrive(null);
+    }
+  };
+
+  // ============================================
   // RENDER
   // ============================================
 
@@ -293,7 +457,20 @@ export function MISTrackingNew() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl font-semibold text-slate-100">MIS Reporting</h1>
-          <p className="text-slate-400 text-sm mt-1">Upload documents for each month, generate P&L, and view trends</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-slate-400 text-sm">Upload documents for each month, generate P&L, and view trends</p>
+            {/* Drive Status Indicator */}
+            {driveStatus && (
+              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${
+                driveStatus.connected
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'bg-slate-700 text-slate-400'
+              }`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${driveStatus.connected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                {isDriveLoading ? 'Syncing...' : driveStatus.connected ? 'Drive Connected' : 'Drive Offline'}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* View Switcher */}
@@ -418,6 +595,8 @@ export function MISTrackingNew() {
               const monthData = monthsData[periodKey];
               const isExpanded = expandedMonth === periodKey;
               const isFuture = new Date(selectedYear, index) > new Date();
+              const driveData = getDriveMonthData(selectedYear, index + 1);
+              const hasDriveData = !!driveData;
 
               return (
                 <div key={periodKey} className="relative">
@@ -441,7 +620,15 @@ export function MISTrackingNew() {
                     `}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-medium text-slate-200 text-sm">{monthName}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-slate-200 text-sm">{monthName}</span>
+                        {/* Drive indicator */}
+                        {hasDriveData && (
+                          <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M7.71 3.5L1.15 15l3.43 6h15.84l3.43-6L17.29 3.5H7.71zM15 14h-4v-2h4v2zm0-4h-4V8h4v2z"/>
+                          </svg>
+                        )}
+                      </div>
                       <span className={`
                         w-2 h-2 rounded-full
                         ${status === 'complete' ? 'bg-emerald-500' :
@@ -461,8 +648,10 @@ export function MISTrackingNew() {
 
                     {status !== 'complete' && !isFuture && (
                       <div className="text-xs text-slate-500">
-                        {status === 'ready' ? 'Ready' :
-                         status === 'partial' ? 'Pending' : 'Upload'}
+                        {hasDriveData
+                          ? `${driveData.states.length} state${driveData.states.length > 1 ? 's' : ''} in Drive`
+                          : status === 'ready' ? 'Ready' :
+                            status === 'partial' ? 'Pending' : 'Upload'}
                       </div>
                     )}
                   </button>
@@ -490,6 +679,14 @@ export function MISTrackingNew() {
               isGenerating={generatingMonth === expandedMonth}
               isLoading={isLoading}
               onClose={() => setExpandedMonth(null)}
+              // Drive integration props
+              driveData={getDriveMonthData(monthsData[expandedMonth].period.year, monthsData[expandedMonth].period.month)}
+              onFetchFromDrive={() => handleFetchFromDrive(
+                expandedMonth,
+                monthsData[expandedMonth].period.year,
+                monthsData[expandedMonth].period.month
+              )}
+              isFetchingFromDrive={fetchingFromDrive === expandedMonth}
             />
           )}
 
@@ -598,6 +795,10 @@ interface MonthDetailPanelProps {
   isGenerating: boolean;
   isLoading: boolean;
   onClose: () => void;
+  // Drive integration
+  driveData?: DriveMonthData | null;
+  onFetchFromDrive?: () => void;
+  isFetchingFromDrive?: boolean;
 }
 
 function MonthDetailPanel({
@@ -610,7 +811,10 @@ function MonthDetailPanel({
   onViewMIS,
   isGenerating,
   isLoading,
-  onClose
+  onClose,
+  driveData,
+  onFetchFromDrive,
+  isFetchingFromDrive
 }: MonthDetailPanelProps) {
   const docTypes: { type: 'sales' | 'journal' | 'purchase' | 'balanceSheet'; label: string; required: boolean }[] = [
     { type: 'sales', label: 'Sales Register', required: true },
@@ -629,21 +833,77 @@ function MonthDetailPanel({
             {monthData.hasData ? 'MIS Generated' : 'Upload documents to generate MIS'}
           </p>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Fetch from Drive button */}
+          {driveData && onFetchFromDrive && (
+            <button
+              onClick={onFetchFromDrive}
+              disabled={isFetchingFromDrive}
+              className={`
+                flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                ${isFetchingFromDrive
+                  ? 'bg-blue-500/10 text-blue-400/50 cursor-wait'
+                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
+                }
+              `}
+            >
+              {isFetchingFromDrive ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Fetching...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M7.71 3.5L1.15 15l3.43 6h15.84l3.43-6L17.29 3.5H7.71zM15 14h-4v-2h4v2zm0-4h-4V8h4v2z"/>
+                  </svg>
+                  Fetch from Drive ({driveData.states.length} state{driveData.states.length > 1 ? 's' : ''})
+                </>
+              )}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
+
+      {/* Drive States Preview */}
+      {driveData && driveData.states.length > 0 && (
+        <div className="px-5 py-3 bg-blue-500/10 border-b border-blue-500/20">
+          <div className="flex items-center gap-2 text-xs text-blue-400">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M7.71 3.5L1.15 15l3.43 6h15.84l3.43-6L17.29 3.5H7.71zM15 14h-4v-2h4v2zm0-4h-4V8h4v2z"/>
+            </svg>
+            <span>Available in Drive:</span>
+            {driveData.states.map((state, idx) => (
+              <span key={state.code} className="px-1.5 py-0.5 bg-blue-500/20 rounded text-blue-300">
+                {STATE_NAMES[state.code] || state.name}
+                <span className="text-blue-400/60 ml-1">
+                  ({state.files.length} files)
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="p-5">
         {/* Document Upload Grid */}
         <div className="mb-5">
-          <h4 className="text-xs font-medium text-slate-400 mb-3">Upload Documents</h4>
+          <h4 className="text-xs font-medium text-slate-400 mb-3">
+            Upload Documents
+            <span className="text-slate-500 ml-2">(or use Fetch from Drive above)</span>
+          </h4>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
