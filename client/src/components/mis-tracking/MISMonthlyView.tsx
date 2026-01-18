@@ -526,7 +526,7 @@ function MarginRow({
 // ALGORITHM GUIDE MODAL
 // ============================================
 
-function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
+export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl">

@@ -12,7 +12,7 @@ import { loadMISData, saveMISRecord, getAllPeriods, getMISRecord } from '../util
 import { parseSalesRegister, parseJournal, parsePurchaseRegister, parseBalanceSheet } from '../utils/misTrackingParser';
 import { calculateMIS, formatCurrency, formatPercent } from '../utils/misCalculator';
 import { ClassificationReviewModal } from '../components/mis-tracking/ClassificationReviewModal';
-import { MISMonthlyView } from '../components/mis-tracking/MISMonthlyView';
+import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
 import {
   checkDriveStatus,
@@ -84,6 +84,7 @@ export function MISTrackingNew() {
   const [error, setError] = useState<string | null>(null);
   const [showClassificationModal, setShowClassificationModal] = useState(false);
   const [pendingMIS, setPendingMIS] = useState<MISRecord | null>(null);
+  const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
 
   // Google Drive State
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
@@ -852,6 +853,15 @@ export function MISTrackingNew() {
               {view.label}
             </button>
           ))}
+
+          {/* Algorithm Guide Button */}
+          <button
+            onClick={() => setShowAlgorithmGuide(true)}
+            className="px-4 py-2 rounded-md text-sm font-medium transition-all text-violet-400 hover:bg-violet-500/10"
+          >
+            <span className="mr-1.5">📖</span>
+            MIS Guide
+          </button>
         </div>
       </div>
 
@@ -1145,6 +1155,11 @@ export function MISTrackingNew() {
             setPendingMIS(null);
           }}
         />
+      )}
+
+      {/* Algorithm Guide Modal */}
+      {showAlgorithmGuide && (
+        <AlgorithmGuideModal onClose={() => setShowAlgorithmGuide(false)} />
       )}
     </div>
   );
