@@ -292,12 +292,12 @@ export function MISTrackingNew() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">MIS Reporting</h1>
-          <p className="text-gray-600 mt-1">Upload documents for each month, generate P&L, and view trends</p>
+          <h1 className="text-xl font-semibold text-slate-100">MIS Reporting</h1>
+          <p className="text-slate-400 text-sm mt-1">Upload documents for each month, generate P&L, and view trends</p>
         </div>
 
         {/* View Switcher */}
-        <div className="flex bg-gray-100 rounded-lg p-1">
+        <div className="flex bg-slate-800 rounded-lg p-1">
           {[
             { id: 'timeline' as const, label: 'Timeline', icon: '📅' },
             { id: 'report' as const, label: 'View Report', icon: '📊' },
@@ -309,8 +309,8 @@ export function MISTrackingNew() {
               className={`
                 px-4 py-2 rounded-md text-sm font-medium transition-all
                 ${activeView === view.id
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-slate-700 text-blue-400'
+                  : 'text-slate-400 hover:text-slate-200'
                 }
               `}
             >
@@ -323,14 +323,14 @@ export function MISTrackingNew() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center justify-between">
           <div className="flex items-center">
             <svg className="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-red-700">{error}</span>
+            <span className="text-red-400">{error}</span>
           </div>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -342,19 +342,19 @@ export function MISTrackingNew() {
       {activeView === 'timeline' && (
         <div className="space-y-6">
           {/* Year Selector & State Selector */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap items-center gap-4">
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Year:</label>
+              <label className="text-sm font-medium text-slate-400">Year:</label>
               <div className="flex gap-1">
                 {years.map(year => (
                   <button
                     key={year}
                     onClick={() => setSelectedYear(year)}
                     className={`
-                      px-3 py-1.5 rounded-lg text-sm font-medium transition-all
+                      px-3 py-1.5 rounded-md text-sm font-medium transition-all
                       ${selectedYear === year
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
                       }
                     `}
                   >
@@ -364,10 +364,10 @@ export function MISTrackingNew() {
               </div>
             </div>
 
-            <div className="h-6 w-px bg-gray-200" />
+            <div className="h-6 w-px bg-slate-700" />
 
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">States:</label>
+              <label className="text-sm font-medium text-slate-400">States:</label>
               <div className="flex gap-1">
                 {INDIAN_STATES.map(state => (
                   <button
@@ -380,10 +380,10 @@ export function MISTrackingNew() {
                       }
                     }}
                     className={`
-                      px-3 py-1.5 rounded-lg text-sm font-medium transition-all
+                      px-3 py-1.5 rounded-md text-sm font-medium transition-all
                       ${selectedStates.includes(state.code)
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
                       }
                     `}
                   >
@@ -393,24 +393,24 @@ export function MISTrackingNew() {
               </div>
             </div>
 
-            <div className="ml-auto flex items-center gap-2 text-sm text-gray-500">
+            <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
               <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded-full bg-green-500"></span> Complete
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Complete
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded-full bg-blue-500"></span> Ready
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span> Ready
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded-full bg-yellow-500"></span> Partial
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span> Partial
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded-full bg-gray-300"></span> Empty
+                <span className="w-2 h-2 rounded-full bg-slate-600"></span> Empty
               </span>
             </div>
           </div>
 
           {/* Month Cards Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {months.map((monthName, index) => {
               const period: MISPeriod = { month: index + 1, year: selectedYear };
               const periodKey = periodToKey(period);
@@ -425,44 +425,44 @@ export function MISTrackingNew() {
                     onClick={() => setExpandedMonth(isExpanded ? null : periodKey)}
                     disabled={isFuture}
                     className={`
-                      w-full p-4 rounded-xl border-2 transition-all text-left
+                      w-full p-3 rounded-lg border transition-all text-left
                       ${isFuture
-                        ? 'bg-gray-50 border-gray-200 opacity-50 cursor-not-allowed'
+                        ? 'bg-slate-800/30 border-slate-700/50 opacity-40 cursor-not-allowed'
                         : isExpanded
-                        ? 'bg-blue-50 border-blue-500 shadow-lg'
+                        ? 'bg-blue-500/15 border-blue-500/50'
                         : status === 'complete'
-                        ? 'bg-green-50 border-green-300 hover:border-green-500'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/50'
                         : status === 'ready'
-                        ? 'bg-blue-50 border-blue-300 hover:border-blue-500'
+                        ? 'bg-blue-500/10 border-blue-500/30 hover:border-blue-500/50'
                         : status === 'partial'
-                        ? 'bg-yellow-50 border-yellow-300 hover:border-yellow-500'
-                        : 'bg-white border-gray-200 hover:border-gray-400'
+                        ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50'
+                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
                       }
                     `}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold text-gray-800">{monthName}</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-medium text-slate-200 text-sm">{monthName}</span>
                       <span className={`
-                        w-3 h-3 rounded-full
-                        ${status === 'complete' ? 'bg-green-500' :
+                        w-2 h-2 rounded-full
+                        ${status === 'complete' ? 'bg-emerald-500' :
                           status === 'ready' ? 'bg-blue-500' :
-                          status === 'partial' ? 'bg-yellow-500' : 'bg-gray-300'}
+                          status === 'partial' ? 'bg-amber-500' : 'bg-slate-600'}
                       `} />
                     </div>
 
                     {status === 'complete' && monthData?.mis && (
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <div className="truncate">Rev: {formatCurrency(monthData.mis.revenue.netRevenue)}</div>
-                        <div className={monthData.mis.ebitda >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          EBITDA: {formatPercent(monthData.mis.ebitdaPercent)}
+                      <div className="text-xs text-slate-400 space-y-0.5">
+                        <div className="truncate">{formatCurrency(monthData.mis.revenue.netRevenue)}</div>
+                        <div className={monthData.mis.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                          {formatPercent(monthData.mis.ebitdaPercent)}
                         </div>
                       </div>
                     )}
 
                     {status !== 'complete' && !isFuture && (
-                      <div className="text-xs text-gray-500">
-                        {status === 'ready' ? 'Ready to generate' :
-                         status === 'partial' ? 'Upload pending' : 'Click to upload'}
+                      <div className="text-xs text-slate-500">
+                        {status === 'ready' ? 'Ready' :
+                         status === 'partial' ? 'Pending' : 'Upload'}
                       </div>
                     )}
                   </button>
@@ -495,33 +495,33 @@ export function MISTrackingNew() {
 
           {/* Quick Stats - Show if we have any data */}
           {allMISData.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Overview for {selectedYear}</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-5">
+              <h3 className="text-sm font-medium text-slate-300 mb-4">Overview for {selectedYear}</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatCard
-                  label="Months with Data"
-                  value={`${allMISData.filter(m => m.period.year === selectedYear).length} / 12`}
+                  label="Months"
+                  value={`${allMISData.filter(m => m.period.year === selectedYear).length}/12`}
                   color="blue"
                 />
                 <StatCard
-                  label="Avg Net Revenue"
+                  label="Avg Revenue"
                   value={formatCurrency(
                     allMISData
                       .filter(m => m.period.year === selectedYear)
                       .reduce((sum, m) => sum + m.revenue.netRevenue, 0) /
                     Math.max(1, allMISData.filter(m => m.period.year === selectedYear).length)
                   )}
-                  color="green"
+                  color="emerald"
                 />
                 <StatCard
-                  label="Avg Gross Margin"
+                  label="Avg Margin"
                   value={formatPercent(
                     allMISData
                       .filter(m => m.period.year === selectedYear)
                       .reduce((sum, m) => sum + m.grossMarginPercent, 0) /
                     Math.max(1, allMISData.filter(m => m.period.year === selectedYear).length)
                   )}
-                  color="purple"
+                  color="violet"
                 />
                 <StatCard
                   label="Avg EBITDA"
@@ -531,7 +531,7 @@ export function MISTrackingNew() {
                       .reduce((sum, m) => sum + m.ebitdaPercent, 0) /
                     Math.max(1, allMISData.filter(m => m.period.year === selectedYear).length)
                   )}
-                  color={allMISData.filter(m => m.period.year === selectedYear).reduce((sum, m) => sum + m.ebitdaPercent, 0) >= 0 ? 'green' : 'red'}
+                  color={allMISData.filter(m => m.period.year === selectedYear).reduce((sum, m) => sum + m.ebitdaPercent, 0) >= 0 ? 'emerald' : 'red'}
                 />
               </div>
             </div>
@@ -620,18 +620,18 @@ function MonthDetailPanel({
   ];
 
   return (
-    <div className="bg-white rounded-xl border-2 border-blue-500 shadow-xl overflow-hidden">
+    <div className="bg-slate-800 rounded-xl border border-blue-500/50 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex items-center justify-between">
+      <div className="bg-blue-500/20 border-b border-blue-500/30 p-4 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold">{periodToString(monthData.period)}</h3>
-          <p className="text-blue-100 text-sm">
-            {monthData.hasData ? 'MIS Generated - Click to view or update' : 'Upload documents to generate MIS'}
+          <h3 className="text-base font-semibold text-slate-100">{periodToString(monthData.period)}</h3>
+          <p className="text-blue-400/70 text-sm">
+            {monthData.hasData ? 'MIS Generated' : 'Upload documents to generate MIS'}
           </p>
         </div>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+          className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -640,17 +640,17 @@ function MonthDetailPanel({
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-5">
         {/* Document Upload Grid */}
-        <div className="mb-6">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Upload Documents</h4>
+        <div className="mb-5">
+          <h4 className="text-xs font-medium text-slate-400 mb-3">Upload Documents</h4>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-3 text-sm font-medium text-gray-600">Document</th>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Document</th>
                   {selectedStates.map(state => (
-                    <th key={state} className="text-center py-2 px-3 text-sm font-medium text-gray-600">
+                    <th key={state} className="text-center py-2 px-3 text-xs font-medium text-slate-500">
                       {INDIAN_STATES.find(s => s.code === state)?.name || state}
                     </th>
                   ))}
@@ -658,13 +658,13 @@ function MonthDetailPanel({
               </thead>
               <tbody>
                 {docTypes.map(doc => (
-                  <tr key={doc.type} className="border-b border-gray-100">
-                    <td className="py-3 px-3">
-                      <span className="text-sm text-gray-700">{doc.label}</span>
-                      {doc.required && <span className="text-red-500 ml-1">*</span>}
+                  <tr key={doc.type} className="border-b border-slate-700/50">
+                    <td className="py-2.5 px-3">
+                      <span className="text-sm text-slate-300">{doc.label}</span>
+                      {doc.required && <span className="text-red-400 ml-1">*</span>}
                     </td>
                     {selectedStates.map(state => (
-                      <td key={state} className="py-3 px-3 text-center">
+                      <td key={state} className="py-2.5 px-3 text-center">
                         <FileUploadButton
                           status={getUploadStatus(state, doc.type)}
                           onUpload={(file) => onFileUpload(state, doc.type, file)}
@@ -680,36 +680,36 @@ function MonthDetailPanel({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {monthData.hasData ? (
             <>
               <button
                 onClick={onViewMIS}
-                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors"
               >
-                View MIS Report
+                View Report
               </button>
               <button
                 onClick={onGenerate}
                 disabled={!canGenerate || isGenerating}
                 className={`
-                  flex-1 px-6 py-3 rounded-lg font-semibold transition-colors
+                  flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
                   ${canGenerate && !isGenerating
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
+                    : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
                   }
                 `}
               >
                 {isGenerating ? (
                   <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
                     Regenerating...
                   </span>
                 ) : (
-                  'Regenerate MIS'
+                  'Regenerate'
                 )}
               </button>
             </>
@@ -718,25 +718,25 @@ function MonthDetailPanel({
               onClick={onGenerate}
               disabled={!canGenerate || isGenerating}
               className={`
-                w-full px-6 py-3 rounded-lg font-semibold transition-colors
+                w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
                 ${canGenerate && !isGenerating
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
+                  : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
                 }
               `}
             >
               {isGenerating ? (
                 <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Generating...
                 </span>
               ) : canGenerate ? (
-                `Generate MIS for ${periodToString(monthData.period)}`
+                `Generate MIS`
               ) : (
-                'Upload Sales Register for all states to continue'
+                'Upload Sales Register to continue'
               )}
             </button>
           )}
@@ -744,24 +744,23 @@ function MonthDetailPanel({
 
         {/* Existing MIS Summary */}
         {monthData.hasData && monthData.mis && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Current MIS Summary</h4>
+          <div className="mt-5 p-4 bg-slate-700/30 rounded-lg">
             <div className="grid grid-cols-4 gap-4 text-center">
               <div>
-                <div className="text-xs text-gray-500">Net Revenue</div>
-                <div className="font-semibold text-gray-800">{formatCurrency(monthData.mis.revenue.netRevenue)}</div>
+                <div className="text-xs text-slate-500">Revenue</div>
+                <div className="text-sm font-medium text-slate-200">{formatCurrency(monthData.mis.revenue.netRevenue)}</div>
               </div>
               <div>
-                <div className="text-xs text-gray-500">Gross Margin</div>
-                <div className="font-semibold text-green-600">{formatPercent(monthData.mis.grossMarginPercent)}</div>
+                <div className="text-xs text-slate-500">Margin</div>
+                <div className="text-sm font-medium text-emerald-400">{formatPercent(monthData.mis.grossMarginPercent)}</div>
               </div>
               <div>
-                <div className="text-xs text-gray-500">CM1</div>
-                <div className="font-semibold text-blue-600">{formatPercent(monthData.mis.cm1Percent)}</div>
+                <div className="text-xs text-slate-500">CM1</div>
+                <div className="text-sm font-medium text-blue-400">{formatPercent(monthData.mis.cm1Percent)}</div>
               </div>
               <div>
-                <div className="text-xs text-gray-500">EBITDA</div>
-                <div className={`font-semibold ${monthData.mis.ebitda >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div className="text-xs text-slate-500">EBITDA</div>
+                <div className={`text-sm font-medium ${monthData.mis.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {formatPercent(monthData.mis.ebitdaPercent)}
                 </div>
               </div>
@@ -797,7 +796,7 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
   if (isLoading) {
     return (
       <div className="w-10 h-10 mx-auto flex items-center justify-center">
-        <svg className="animate-spin h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24">
+        <svg className="animate-spin h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
@@ -819,10 +818,10 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
         className={`
           w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all
           ${status === 'parsed'
-            ? 'bg-green-100 text-green-600 hover:bg-green-200'
+            ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
             : status === 'uploaded'
-            ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
-            : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+            ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+            : 'bg-slate-700/50 text-slate-500 hover:bg-slate-700 hover:text-slate-400'
           }
         `}
         title={status === 'parsed' ? 'Parsed (click to replace)' : status === 'uploaded' ? 'Uploaded (click to replace)' : 'Click to upload'}
@@ -847,17 +846,17 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    green: 'bg-green-50 border-green-200 text-green-700',
-    purple: 'bg-purple-50 border-purple-200 text-purple-700',
-    red: 'bg-red-50 border-red-200 text-red-700',
-    orange: 'bg-orange-50 border-orange-200 text-orange-700'
+    blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+    emerald: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+    violet: 'bg-violet-500/10 border-violet-500/30 text-violet-400',
+    red: 'bg-red-500/10 border-red-500/30 text-red-400',
+    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400'
   };
 
   return (
-    <div className={`rounded-lg border p-4 ${colorClasses[color] || colorClasses.blue}`}>
-      <div className="text-sm opacity-80">{label}</div>
-      <div className="text-xl font-bold mt-1">{value}</div>
+    <div className={`rounded-lg border p-3 ${colorClasses[color] || colorClasses.blue}`}>
+      <div className="text-xs text-slate-400">{label}</div>
+      <div className="text-lg font-semibold mt-0.5">{value}</div>
     </div>
   );
 }

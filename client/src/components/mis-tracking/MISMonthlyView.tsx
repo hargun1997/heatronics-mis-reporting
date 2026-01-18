@@ -14,13 +14,13 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
   if (!currentMIS) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 mb-4">
+        <div className="text-slate-600 mb-4">
           <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-700 mb-2">No MIS Data</h3>
-        <p className="text-gray-500 mb-4">
+        <h3 className="text-lg font-medium text-slate-300 mb-2">No MIS Data</h3>
+        <p className="text-slate-500 mb-4">
           {savedPeriods.length > 0
             ? 'Select a period from the dropdown or upload new data'
             : 'Upload documents in the Upload tab to generate MIS'
@@ -30,7 +30,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
         {savedPeriods.length > 0 && (
           <select
             onChange={(e) => onPeriodChange(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg"
+            className="px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200"
           >
             <option value="">Select a period...</option>
             {savedPeriods.map(p => (
@@ -52,7 +52,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
       {/* Period Selector & Export */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold text-gray-800">
+          <h3 className="text-base font-semibold text-slate-200">
             MIS for {periodToString(currentMIS.period)}
           </h3>
 
@@ -60,7 +60,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <select
               value={currentMIS.periodKey}
               onChange={(e) => onPeriodChange(e.target.value)}
-              className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+              className="px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-sm text-slate-200"
             >
               {savedPeriods.map(p => (
                 <option key={p.periodKey} value={p.periodKey}>
@@ -71,18 +71,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="flex items-center text-sm text-gray-600">
+        <div className="flex items-center gap-3">
+          <label className="flex items-center text-sm text-slate-400">
             <input
               type="checkbox"
               checked={showChannelBreakdown}
               onChange={(e) => setShowChannelBreakdown(e.target.checked)}
-              className="mr-2"
+              className="mr-2 rounded bg-slate-700 border-slate-600"
             />
             Show channel breakdown
           </label>
 
-          <button className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+          <button className="px-4 py-2 text-sm text-slate-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-slate-300 transition-colors">
             Export
           </button>
         </div>
@@ -99,32 +99,32 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
           label="Gross Margin"
           value={formatPercent(currentMIS.grossMarginPercent)}
           subValue={formatCurrency(currentMIS.grossMargin)}
-          color="green"
+          color="emerald"
         />
         <MetricCard
           label="CM1"
           value={formatPercent(currentMIS.cm1Percent)}
           subValue={formatCurrency(currentMIS.cm1)}
-          color="purple"
+          color="violet"
         />
         <MetricCard
           label="EBITDA"
           value={formatPercent(currentMIS.ebitdaPercent)}
           subValue={formatCurrency(currentMIS.ebitda)}
-          color={currentMIS.ebitda >= 0 ? 'green' : 'red'}
+          color={currentMIS.ebitda >= 0 ? 'emerald' : 'red'}
         />
       </div>
 
       {/* P&L Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left py-3 px-4 font-semibold text-gray-700">P&L</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700">Amount (₹)</th>
-              <th className="text-right py-3 px-4 font-semibold text-gray-700">% of Net Rev</th>
+            <tr className="bg-slate-700/50 border-b border-slate-700">
+              <th className="text-left py-3 px-4 font-medium text-slate-300 text-sm">P&L</th>
+              <th className="text-right py-3 px-4 font-medium text-slate-300 text-sm">Amount</th>
+              <th className="text-right py-3 px-4 font-medium text-slate-300 text-sm">% of Net Rev</th>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <th key={channel} className="text-right py-3 px-4 font-semibold text-gray-700 text-sm">
+                <th key={channel} className="text-right py-3 px-4 font-medium text-slate-400 text-xs">
                   {channel}
                 </th>
               ))}
@@ -177,11 +177,11 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             {/* Stock Transfers (if any) */}
             {revenue.totalStockTransfers > 0 && (
               <>
-                <tr className="bg-purple-50">
+                <tr className="bg-purple-500/10">
                   <td colSpan={showChannelBreakdown ? 3 + SALES_CHANNELS.length : 3} className="py-2 px-4">
-                    <span className="font-medium text-purple-700">Stock Transfers (Excluded)</span>
-                    <span className="ml-4 text-purple-600">{formatCurrencyFull(revenue.totalStockTransfers)}</span>
-                    <span className="ml-4 text-sm text-purple-500">
+                    <span className="font-medium text-purple-400">Stock Transfers (Excluded)</span>
+                    <span className="ml-4 text-purple-400">{formatCurrencyFull(revenue.totalStockTransfers)}</span>
+                    <span className="ml-4 text-sm text-purple-400/70">
                       {revenue.stockTransfers.map(t => `${t.fromState}→${t.toState}: ${formatCurrency(t.amount)}`).join(' | ')}
                     </span>
                   </td>
@@ -190,15 +190,15 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             )}
 
             {/* Total Revenue Line */}
-            <tr className="bg-gray-100 font-semibold">
-              <td className="py-3 px-4 text-gray-800">
-                <span className="mr-2">7</span>
+            <tr className="bg-slate-700/30 font-semibold">
+              <td className="py-3 px-4 text-slate-200 text-sm">
+                <span className="mr-2 text-slate-500">7</span>
                 Total Revenue
               </td>
-              <td className="py-3 px-4 text-right text-gray-800">{formatCurrencyFull(revenue.totalRevenue)}</td>
-              <td className="py-3 px-4 text-right text-gray-600">-</td>
+              <td className="py-3 px-4 text-right text-slate-200 text-sm">{formatCurrencyFull(revenue.totalRevenue)}</td>
+              <td className="py-3 px-4 text-right text-slate-400 text-sm">-</td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <td key={channel} className="py-3 px-4 text-right text-gray-600 text-sm">-</td>
+                <td key={channel} className="py-3 px-4 text-right text-slate-500 text-xs">-</td>
               ))}
             </tr>
 
@@ -225,12 +225,12 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             />
 
             {/* NET REVENUE */}
-            <tr className="bg-orange-100 font-bold">
-              <td className="py-4 px-4 text-orange-800">NET REVENUE</td>
-              <td className="py-4 px-4 text-right text-orange-800">{formatCurrencyFull(netRevenue)}</td>
-              <td className="py-4 px-4 text-right text-orange-700">100%</td>
+            <tr className="bg-orange-500/20 font-bold">
+              <td className="py-4 px-4 text-orange-400 text-sm">NET REVENUE</td>
+              <td className="py-4 px-4 text-right text-orange-400 text-sm">{formatCurrencyFull(netRevenue)}</td>
+              <td className="py-4 px-4 text-right text-orange-400/80 text-sm">100%</td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <td key={channel} className="py-4 px-4 text-right text-orange-700 text-sm">-</td>
+                <td key={channel} className="py-4 px-4 text-right text-orange-400/50 text-xs">-</td>
               ))}
             </tr>
 
@@ -247,12 +247,12 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <SubtotalRow number={9} label="Total COGM" amount={cogm.totalCOGM} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="blue" />
 
             {/* GROSS MARGIN */}
-            <tr className="bg-green-100 font-bold">
-              <td className="py-4 px-4 text-green-800">GROSS MARGIN (NET REVENUE - COGS)</td>
-              <td className="py-4 px-4 text-right text-green-800">{formatCurrencyFull(currentMIS.grossMargin)}</td>
-              <td className="py-4 px-4 text-right text-green-700">{formatPercent(currentMIS.grossMarginPercent)}</td>
+            <tr className="bg-emerald-500/20 font-bold">
+              <td className="py-4 px-4 text-emerald-400 text-sm">GROSS MARGIN (NET REVENUE - COGS)</td>
+              <td className="py-4 px-4 text-right text-emerald-400 text-sm">{formatCurrencyFull(currentMIS.grossMargin)}</td>
+              <td className="py-4 px-4 text-right text-emerald-400/80 text-sm">{formatPercent(currentMIS.grossMarginPercent)}</td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <td key={channel} className="py-4 px-4 text-right text-green-700 text-sm">-</td>
+                <td key={channel} className="py-4 px-4 text-right text-emerald-400/50 text-xs">-</td>
               ))}
             </tr>
 
@@ -298,18 +298,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <SubtotalRow number={6} label="Total Operating Expense" amount={operatingExpenses.total} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="yellow" />
 
             {/* EBITDA */}
-            <tr className={`font-bold ${currentMIS.ebitda >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-              <td className={`py-4 px-4 ${currentMIS.ebitda >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+            <tr className={`font-bold ${currentMIS.ebitda >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+              <td className={`py-4 px-4 text-sm ${currentMIS.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 OPERATING PROFIT (EBITDA) (CM3 - Operating Expenses)
               </td>
-              <td className={`py-4 px-4 text-right ${currentMIS.ebitda >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${currentMIS.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {formatCurrencyFull(currentMIS.ebitda)}
               </td>
-              <td className={`py-4 px-4 text-right ${currentMIS.ebitda >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${currentMIS.ebitda >= 0 ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
                 {formatPercent(currentMIS.ebitdaPercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <td key={channel} className="py-4 px-4 text-right text-gray-500 text-sm">-</td>
+                <td key={channel} className="py-4 px-4 text-right text-slate-500 text-xs">-</td>
               ))}
             </tr>
 
@@ -321,18 +321,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <SubtotalRow number={4} label="Total I,D&A" amount={nonOperating.totalIDA} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="gray" />
 
             {/* EBT */}
-            <tr className={`font-bold ${currentMIS.ebt >= 0 ? 'bg-blue-100' : 'bg-red-100'}`}>
-              <td className={`py-4 px-4 ${currentMIS.ebt >= 0 ? 'text-blue-800' : 'text-red-800'}`}>
+            <tr className={`font-bold ${currentMIS.ebt >= 0 ? 'bg-blue-500/20' : 'bg-red-500/20'}`}>
+              <td className={`py-4 px-4 text-sm ${currentMIS.ebt >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
                 NET INCOME Before Tax (EBT)
               </td>
-              <td className={`py-4 px-4 text-right ${currentMIS.ebt >= 0 ? 'text-blue-800' : 'text-red-800'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${currentMIS.ebt >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
                 {formatCurrencyFull(currentMIS.ebt)}
               </td>
-              <td className={`py-4 px-4 text-right ${currentMIS.ebt >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${currentMIS.ebt >= 0 ? 'text-blue-400/80' : 'text-red-400/80'}`}>
                 {formatPercent(currentMIS.ebtPercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <td key={channel} className="py-4 px-4 text-right text-gray-500 text-sm">-</td>
+                <td key={channel} className="py-4 px-4 text-right text-slate-500 text-xs">-</td>
               ))}
             </tr>
 
@@ -340,18 +340,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <LineItem number={4} label="Less: Income Tax" amount={nonOperating.incomeTax} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
 
             {/* NET INCOME */}
-            <tr className={`font-bold ${currentMIS.netIncome >= 0 ? 'bg-green-200' : 'bg-red-200'}`}>
-              <td className={`py-4 px-4 ${currentMIS.netIncome >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+            <tr className={`font-bold ${currentMIS.netIncome >= 0 ? 'bg-emerald-500/30' : 'bg-red-500/30'}`}>
+              <td className={`py-4 px-4 text-sm ${currentMIS.netIncome >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                 NET INCOME (PROFIT / LOSS)
               </td>
-              <td className={`py-4 px-4 text-right ${currentMIS.netIncome >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${currentMIS.netIncome >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                 {formatCurrencyFull(currentMIS.netIncome)}
               </td>
-              <td className={`py-4 px-4 text-right ${currentMIS.netIncome >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${currentMIS.netIncome >= 0 ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
                 {formatPercent(currentMIS.netIncomePercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <td key={channel} className="py-4 px-4 text-right text-gray-500 text-sm">-</td>
+                <td key={channel} className="py-4 px-4 text-right text-slate-500 text-xs">-</td>
               ))}
             </tr>
           </tbody>
@@ -367,29 +367,29 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
 
 function MetricCard({ label, value, subValue, color }: { label: string; value: string; subValue?: string; color: string }) {
   const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-50 border-blue-200',
-    green: 'bg-green-50 border-green-200',
-    purple: 'bg-purple-50 border-purple-200',
-    red: 'bg-red-50 border-red-200',
-    orange: 'bg-orange-50 border-orange-200'
+    blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+    emerald: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+    violet: 'bg-violet-500/10 border-violet-500/30 text-violet-400',
+    red: 'bg-red-500/10 border-red-500/30 text-red-400',
+    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400'
   };
 
   return (
     <div className={`rounded-lg border p-4 ${colorClasses[color] || colorClasses.blue}`}>
-      <div className="text-sm text-gray-600">{label}</div>
-      <div className="text-2xl font-bold text-gray-800 mt-1">{value}</div>
-      {subValue && <div className="text-sm text-gray-500 mt-1">{subValue}</div>}
+      <div className="text-xs text-slate-400">{label}</div>
+      <div className="text-xl font-bold mt-1">{value}</div>
+      {subValue && <div className="text-xs text-slate-500 mt-1">{subValue}</div>}
     </div>
   );
 }
 
 function SectionHeader({ label, title, subtitle }: { label: string; title: string; subtitle?: string }) {
   return (
-    <tr className="bg-amber-50">
+    <tr className="bg-amber-500/15">
       <td colSpan={100} className="py-3 px-4">
-        <span className="font-bold text-amber-800">{label}</span>
-        <span className="ml-3 font-semibold text-amber-800">{title}</span>
-        {subtitle && <span className="ml-2 text-sm text-amber-600">{subtitle}</span>}
+        <span className="font-bold text-amber-400">{label}</span>
+        <span className="ml-3 font-semibold text-amber-400">{title}</span>
+        {subtitle && <span className="ml-2 text-sm text-amber-400/70">{subtitle}</span>}
       </td>
     </tr>
   );
@@ -415,16 +415,16 @@ function LineItem({
   const percent = netRevenue > 0 ? (amount / netRevenue) * 100 : 0;
 
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50">
-      <td className="py-2 px-4 text-gray-700">
-        <span className="text-gray-400 mr-2">{number}</span>
+    <tr className="border-b border-slate-700/50 hover:bg-slate-700/20">
+      <td className="py-2 px-4 text-slate-300 text-sm">
+        <span className="text-slate-500 mr-2">{number}</span>
         {label}
-        {note && <span className="ml-2 text-xs text-gray-400">{note}</span>}
+        {note && <span className="ml-2 text-xs text-slate-500">{note}</span>}
       </td>
-      <td className="py-2 px-4 text-right text-gray-700">{formatCurrencyFull(amount)}</td>
-      <td className="py-2 px-4 text-right text-gray-500">{amount > 0 ? formatPercent(percent) : '-'}</td>
+      <td className="py-2 px-4 text-right text-slate-300 text-sm">{formatCurrencyFull(amount)}</td>
+      <td className="py-2 px-4 text-right text-slate-500 text-sm">{amount > 0 ? formatPercent(percent) : '-'}</td>
       {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-        <td key={channel} className="py-2 px-4 text-right text-gray-500 text-sm">
+        <td key={channel} className="py-2 px-4 text-right text-slate-500 text-xs">
           {channelValues?.[channel] ? formatCurrency(channelValues[channel]!) : '-'}
         </td>
       ))}
@@ -450,26 +450,26 @@ function SubtotalRow({
   const percent = netRevenue > 0 ? (amount / netRevenue) * 100 : 0;
 
   const bgClasses: Record<string, string> = {
-    orange: 'bg-orange-50',
-    purple: 'bg-purple-50',
-    blue: 'bg-blue-50',
-    indigo: 'bg-indigo-50',
-    pink: 'bg-pink-50',
-    cyan: 'bg-cyan-50',
-    yellow: 'bg-yellow-50',
-    gray: 'bg-gray-100'
+    orange: 'bg-orange-500/10',
+    purple: 'bg-purple-500/10',
+    blue: 'bg-blue-500/10',
+    indigo: 'bg-indigo-500/10',
+    pink: 'bg-pink-500/10',
+    cyan: 'bg-cyan-500/10',
+    yellow: 'bg-yellow-500/10',
+    gray: 'bg-slate-700/30'
   };
 
   return (
-    <tr className={`font-semibold ${highlight ? bgClasses[highlight] : 'bg-gray-50'}`}>
-      <td className="py-3 px-4 text-gray-800">
-        <span className="text-gray-400 mr-2">{number}</span>
+    <tr className={`font-semibold ${highlight ? bgClasses[highlight] : 'bg-slate-700/20'}`}>
+      <td className="py-3 px-4 text-slate-200 text-sm">
+        <span className="text-slate-500 mr-2">{number}</span>
         {label}
       </td>
-      <td className="py-3 px-4 text-right text-gray-800">{formatCurrencyFull(amount)}</td>
-      <td className="py-3 px-4 text-right text-gray-600">{formatPercent(percent)}</td>
+      <td className="py-3 px-4 text-right text-slate-200 text-sm">{formatCurrencyFull(amount)}</td>
+      <td className="py-3 px-4 text-right text-slate-400 text-sm">{formatPercent(percent)}</td>
       {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-        <td key={channel} className="py-3 px-4 text-right text-gray-500 text-sm">-</td>
+        <td key={channel} className="py-3 px-4 text-right text-slate-500 text-xs">-</td>
       ))}
     </tr>
   );
@@ -491,19 +491,19 @@ function MarginRow({
   const isPositive = amount >= 0;
 
   return (
-    <tr className={isPositive ? 'bg-emerald-50' : 'bg-red-50'}>
-      <td className={`py-3 px-4 font-semibold ${isPositive ? 'text-emerald-800' : 'text-red-800'}`}>
+    <tr className={isPositive ? 'bg-emerald-500/15' : 'bg-red-500/15'}>
+      <td className={`py-3 px-4 font-semibold text-sm ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
         {label}
-        <div className="text-xs font-normal text-gray-500">{sublabel}</div>
+        <div className="text-xs font-normal text-slate-500">{sublabel}</div>
       </td>
-      <td className={`py-3 px-4 text-right font-semibold ${isPositive ? 'text-emerald-800' : 'text-red-800'}`}>
+      <td className={`py-3 px-4 text-right font-semibold text-sm ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
         {formatCurrencyFull(amount)}
       </td>
-      <td className={`py-3 px-4 text-right font-semibold ${isPositive ? 'text-emerald-700' : 'text-red-700'}`}>
+      <td className={`py-3 px-4 text-right font-semibold text-sm ${isPositive ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
         {formatPercent(percent)}
       </td>
       {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-        <td key={channel} className="py-3 px-4 text-right text-gray-500 text-sm">-</td>
+        <td key={channel} className="py-3 px-4 text-right text-slate-500 text-xs">-</td>
       ))}
     </tr>
   );
