@@ -1,20 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { IndianState, INDIAN_STATES } from '../types';
 import {
   MISPeriod,
   MISRecord,
-  MISTab,
   StateUploadData,
   createEmptyStateUploadData,
   periodToString,
   periodToKey
 } from '../types/misTracking';
-import { loadMISData, saveMISRecord, getAllPeriods } from '../utils/googleSheetsStorage';
+import { loadMISData, saveMISRecord, getAllPeriods, getMISRecord } from '../utils/googleSheetsStorage';
 import { parseSalesRegister, parseJournal, parsePurchaseRegister, parseBalanceSheet } from '../utils/misTrackingParser';
 import { calculateMIS, formatCurrency, formatPercent } from '../utils/misCalculator';
 import { ClassificationReviewModal } from '../components/mis-tracking/ClassificationReviewModal';
 import { MISMonthlyView } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
+
+// ============================================
+// TYPES
+// ============================================
+
+interface MonthData {
+  period: MISPeriod;
+  periodKey: string;
+  uploadData: Record<IndianState, StateUploadData | undefined>;
+  hasData: boolean;
+  mis: MISRecord | null;
+  isExpanded: boolean;
+}
 
 // ============================================
 // MAIN COMPONENT
@@ -24,60 +36,76 @@ export function MISTrackingNew() {
   // ============================================
   // STATE
   // ============================================
-  const [activeTab, setActiveTab] = useState<MISTab>('upload');
+  const [activeView, setActiveView] = useState<'timeline' | 'report' | 'trends'>('timeline');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [savedPeriods, setSavedPeriods] = useState<{ periodKey: string; period: MISPeriod }[]>([]);
+  const [allMISData, setAllMISData] = useState<MISRecord[]>([]);
 
-  // Period selection
-  const currentDate = new Date();
-  const [selectedPeriod, setSelectedPeriod] = useState<MISPeriod>({
-    month: currentDate.getMonth() + 1,
-    year: currentDate.getFullYear()
-  });
-
-  // State selection
+  // Month management
+  const [monthsData, setMonthsData] = useState<Record<string, MonthData>>({});
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
   const [selectedStates, setSelectedStates] = useState<IndianState[]>(['UP']);
 
-  // Upload data per state
-  const [uploadData, setUploadData] = useState<Record<IndianState, StateUploadData | undefined>>({} as Record<IndianState, StateUploadData | undefined>);
-
-  // Generated MIS
-  const [currentMIS, setCurrentMIS] = useState<MISRecord | null>(null);
-
-  // Saved periods
-  const [savedPeriods, setSavedPeriods] = useState<{ periodKey: string; period: MISPeriod }[]>([]);
+  // Viewing MIS
+  const [viewingMIS, setViewingMIS] = useState<MISRecord | null>(null);
 
   // UI State
   const [isLoading, setIsLoading] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingMonth, setGeneratingMonth] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showClassificationModal, setShowClassificationModal] = useState(false);
+  const [pendingMIS, setPendingMIS] = useState<MISRecord | null>(null);
 
   // ============================================
   // EFFECTS
   // ============================================
 
-  // Load saved periods on mount
+  // Load saved data on mount
   useEffect(() => {
-    loadSavedPeriods();
+    loadSavedData();
   }, []);
 
-  // Initialize upload data for selected states
+  // Initialize months for selected year
   useEffect(() => {
-    const newUploadData = { ...uploadData };
-    for (const state of selectedStates) {
-      if (!newUploadData[state]) {
-        newUploadData[state] = createEmptyStateUploadData(state);
-      }
-    }
-    setUploadData(newUploadData);
-  }, [selectedStates]);
+    initializeMonthsForYear(selectedYear);
+  }, [selectedYear, savedPeriods]);
 
   // ============================================
   // DATA LOADING
   // ============================================
 
-  const loadSavedPeriods = async () => {
-    const periods = await getAllPeriods();
-    setSavedPeriods(periods);
+  const loadSavedData = async () => {
+    setIsLoading(true);
+    try {
+      const data = await loadMISData();
+      setSavedPeriods(data.periods.map(p => ({ periodKey: p.periodKey, period: p.period })));
+      setAllMISData(data.periods);
+    } catch (err) {
+      console.error('Error loading MIS data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const initializeMonthsForYear = (year: number) => {
+    const newMonthsData: Record<string, MonthData> = {};
+
+    for (let month = 1; month <= 12; month++) {
+      const period: MISPeriod = { month, year };
+      const periodKey = periodToKey(period);
+      const existingMIS = allMISData.find(m => m.periodKey === periodKey);
+
+      newMonthsData[periodKey] = {
+        period,
+        periodKey,
+        uploadData: monthsData[periodKey]?.uploadData || ({} as Record<IndianState, StateUploadData | undefined>),
+        hasData: !!existingMIS,
+        mis: existingMIS || null,
+        isExpanded: expandedMonth === periodKey
+      };
+    }
+
+    setMonthsData(newMonthsData);
   };
 
   // ============================================
@@ -85,6 +113,7 @@ export function MISTrackingNew() {
   // ============================================
 
   const handleFileUpload = async (
+    periodKey: string,
     state: IndianState,
     fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet',
     file: File
@@ -93,40 +122,52 @@ export function MISTrackingNew() {
     setIsLoading(true);
 
     try {
-      const stateData = uploadData[state] || createEmptyStateUploadData(state);
-      let updatedData = { ...stateData };
+      const monthData = monthsData[periodKey];
+      if (!monthData) return;
+
+      const stateData = monthData.uploadData[state] || createEmptyStateUploadData(state);
+      let updatedStateData = { ...stateData };
 
       switch (fileType) {
         case 'sales':
-          updatedData.salesRegisterFile = file;
+          updatedStateData.salesRegisterFile = file;
           const salesResult = await parseSalesRegister(file, state);
-          updatedData.salesData = salesResult.salesData;
-          updatedData.salesParsed = true;
+          updatedStateData.salesData = salesResult.salesData;
+          updatedStateData.salesParsed = true;
           break;
 
         case 'journal':
-          updatedData.journalFile = file;
+          updatedStateData.journalFile = file;
           const journalResult = await parseJournal(file, state);
-          updatedData.journalTransactions = journalResult.transactions;
-          updatedData.journalParsed = true;
+          updatedStateData.journalTransactions = journalResult.transactions;
+          updatedStateData.journalParsed = true;
           break;
 
         case 'purchase':
-          updatedData.purchaseRegisterFile = file;
+          updatedStateData.purchaseRegisterFile = file;
           const purchaseResult = await parsePurchaseRegister(file);
-          updatedData.purchaseTotal = purchaseResult.totalPurchases;
-          updatedData.purchaseParsed = true;
+          updatedStateData.purchaseTotal = purchaseResult.totalPurchases;
+          updatedStateData.purchaseParsed = true;
           break;
 
         case 'balanceSheet':
-          updatedData.balanceSheetFile = file;
+          updatedStateData.balanceSheetFile = file;
           const bsResult = await parseBalanceSheet(file);
-          updatedData.balanceSheetData = bsResult.data;
-          updatedData.balanceSheetParsed = true;
+          updatedStateData.balanceSheetData = bsResult.data;
+          updatedStateData.balanceSheetParsed = true;
           break;
       }
 
-      setUploadData({ ...uploadData, [state]: updatedData });
+      setMonthsData({
+        ...monthsData,
+        [periodKey]: {
+          ...monthData,
+          uploadData: {
+            ...monthData.uploadData,
+            [state]: updatedStateData
+          }
+        }
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse file');
     } finally {
@@ -138,29 +179,45 @@ export function MISTrackingNew() {
   // MIS GENERATION
   // ============================================
 
-  const handleGenerateMIS = async () => {
+  const handleGenerateMIS = async (periodKey: string) => {
     setError(null);
-    setIsGenerating(true);
+    setGeneratingMonth(periodKey);
 
     try {
-      const mis = await calculateMIS(selectedPeriod, uploadData as Record<IndianState, StateUploadData | undefined>, selectedStates);
-      setCurrentMIS(mis);
+      const monthData = monthsData[periodKey];
+      if (!monthData) return;
+
+      const mis = await calculateMIS(monthData.period, monthData.uploadData, selectedStates);
 
       // Save to storage
       await saveMISRecord(mis);
-      await loadSavedPeriods();
+
+      // Update local state
+      setMonthsData({
+        ...monthsData,
+        [periodKey]: {
+          ...monthData,
+          hasData: true,
+          mis
+        }
+      });
+
+      // Reload all data
+      await loadSavedData();
 
       // If there are unclassified transactions, show the modal
       if (mis.unclassifiedCount > 0) {
+        setPendingMIS(mis);
         setShowClassificationModal(true);
       } else {
-        // Switch to monthly view
-        setActiveTab('monthly');
+        // Show the report
+        setViewingMIS(mis);
+        setActiveView('report');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate MIS');
     } finally {
-      setIsGenerating(false);
+      setGeneratingMonth(null);
     }
   };
 
@@ -168,8 +225,11 @@ export function MISTrackingNew() {
   // HELPERS
   // ============================================
 
-  const getUploadStatus = (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): 'empty' | 'uploaded' | 'parsed' => {
-    const data = uploadData[state];
+  const getUploadStatus = (periodKey: string, state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): 'empty' | 'uploaded' | 'parsed' => {
+    const monthData = monthsData[periodKey];
+    if (!monthData) return 'empty';
+
+    const data = monthData.uploadData[state];
     if (!data) return 'empty';
 
     switch (fileType) {
@@ -184,138 +244,338 @@ export function MISTrackingNew() {
     }
   };
 
-  const canGenerate = (): boolean => {
+  const canGenerateMIS = (periodKey: string): boolean => {
+    const monthData = monthsData[periodKey];
+    if (!monthData) return false;
+
     // Need at least sales register for each selected state
     for (const state of selectedStates) {
-      const data = uploadData[state];
+      const data = monthData.uploadData[state];
       if (!data?.salesParsed) return false;
     }
     return selectedStates.length > 0;
   };
 
-  const getParseStats = () => {
-    let totalSalesEntries = 0;
-    let totalJournalTransactions = 0;
+  const getMonthCompletionStatus = (periodKey: string): 'empty' | 'partial' | 'ready' | 'complete' => {
+    const monthData = monthsData[periodKey];
+    if (!monthData) return 'empty';
+
+    if (monthData.hasData) return 'complete';
+
+    let hasAnyFile = false;
+    let hasAllRequired = true;
 
     for (const state of selectedStates) {
-      const data = uploadData[state];
-      if (data?.salesData) {
-        totalSalesEntries += data.salesData.lineItems.length;
+      const data = monthData.uploadData[state];
+      if (data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
+        hasAnyFile = true;
       }
-      if (data?.journalTransactions) {
-        totalJournalTransactions += data.journalTransactions.length;
+      if (!data?.salesParsed) {
+        hasAllRequired = false;
       }
     }
 
-    return { totalSalesEntries, totalJournalTransactions };
+    if (hasAllRequired && hasAnyFile) return 'ready';
+    if (hasAnyFile) return 'partial';
+    return 'empty';
   };
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   // ============================================
   // RENDER
   // ============================================
 
   return (
-    <div className="p-6 h-full overflow-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">MIS Tracking</h1>
-        <p className="text-gray-600 mt-1">Upload documents, generate MIS, and track trends</p>
-      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-100">MIS Reporting</h1>
+          <p className="text-slate-400 text-sm mt-1">Upload documents for each month, generate P&L, and view trends</p>
+        </div>
 
-      {/* Tab Navigation */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="flex space-x-8">
+        {/* View Switcher */}
+        <div className="flex bg-slate-800 rounded-lg p-1">
           {[
-            { id: 'upload' as const, label: 'Upload & Generate', icon: '📤' },
-            { id: 'monthly' as const, label: 'Monthly View', icon: '📊' },
+            { id: 'timeline' as const, label: 'Timeline', icon: '📅' },
+            { id: 'report' as const, label: 'View Report', icon: '📊' },
             { id: 'trends' as const, label: 'Trends', icon: '📈' }
-          ].map(tab => (
+          ].map(view => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              key={view.id}
+              onClick={() => setActiveView(view.id)}
               className={`
-                py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                ${activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                px-4 py-2 rounded-md text-sm font-medium transition-all
+                ${activeView === view.id
+                  ? 'bg-slate-700 text-blue-400'
+                  : 'text-slate-400 hover:text-slate-200'
                 }
               `}
             >
-              <span className="mr-2">{tab.icon}</span>
-              {tab.label}
+              <span className="mr-1.5">{view.icon}</span>
+              {view.label}
             </button>
           ))}
-        </nav>
+        </div>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center justify-between">
           <div className="flex items-center">
             <svg className="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-red-700">{error}</span>
-            <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <span className="text-red-400">{error}</span>
           </div>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 
-      {/* Tab Content */}
-      {activeTab === 'upload' && (
-        <UploadTab
-          selectedPeriod={selectedPeriod}
-          setSelectedPeriod={setSelectedPeriod}
-          selectedStates={selectedStates}
-          setSelectedStates={setSelectedStates}
-          uploadData={uploadData}
-          handleFileUpload={handleFileUpload}
-          getUploadStatus={getUploadStatus}
-          canGenerate={canGenerate}
-          handleGenerateMIS={handleGenerateMIS}
-          isLoading={isLoading}
-          isGenerating={isGenerating}
-          getParseStats={getParseStats}
-          savedPeriods={savedPeriods}
-        />
+      {/* Timeline View */}
+      {activeView === 'timeline' && (
+        <div className="space-y-6">
+          {/* Year Selector & State Selector */}
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-400">Year:</label>
+              <div className="flex gap-1">
+                {years.map(year => (
+                  <button
+                    key={year}
+                    onClick={() => setSelectedYear(year)}
+                    className={`
+                      px-3 py-1.5 rounded-md text-sm font-medium transition-all
+                      ${selectedYear === year
+                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                      }
+                    `}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-6 w-px bg-slate-700" />
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-400">States:</label>
+              <div className="flex gap-1">
+                {INDIAN_STATES.map(state => (
+                  <button
+                    key={state.code}
+                    onClick={() => {
+                      if (selectedStates.includes(state.code)) {
+                        setSelectedStates(selectedStates.filter(s => s !== state.code));
+                      } else {
+                        setSelectedStates([...selectedStates, state.code]);
+                      }
+                    }}
+                    className={`
+                      px-3 py-1.5 rounded-md text-sm font-medium transition-all
+                      ${selectedStates.includes(state.code)
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                      }
+                    `}
+                  >
+                    {state.code}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Complete
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span> Ready
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span> Partial
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-slate-600"></span> Empty
+              </span>
+            </div>
+          </div>
+
+          {/* Month Cards Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {months.map((monthName, index) => {
+              const period: MISPeriod = { month: index + 1, year: selectedYear };
+              const periodKey = periodToKey(period);
+              const status = getMonthCompletionStatus(periodKey);
+              const monthData = monthsData[periodKey];
+              const isExpanded = expandedMonth === periodKey;
+              const isFuture = new Date(selectedYear, index) > new Date();
+
+              return (
+                <div key={periodKey} className="relative">
+                  <button
+                    onClick={() => setExpandedMonth(isExpanded ? null : periodKey)}
+                    disabled={isFuture}
+                    className={`
+                      w-full p-3 rounded-lg border transition-all text-left
+                      ${isFuture
+                        ? 'bg-slate-800/30 border-slate-700/50 opacity-40 cursor-not-allowed'
+                        : isExpanded
+                        ? 'bg-blue-500/15 border-blue-500/50'
+                        : status === 'complete'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/50'
+                        : status === 'ready'
+                        ? 'bg-blue-500/10 border-blue-500/30 hover:border-blue-500/50'
+                        : status === 'partial'
+                        ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50'
+                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-medium text-slate-200 text-sm">{monthName}</span>
+                      <span className={`
+                        w-2 h-2 rounded-full
+                        ${status === 'complete' ? 'bg-emerald-500' :
+                          status === 'ready' ? 'bg-blue-500' :
+                          status === 'partial' ? 'bg-amber-500' : 'bg-slate-600'}
+                      `} />
+                    </div>
+
+                    {status === 'complete' && monthData?.mis && (
+                      <div className="text-xs text-slate-400 space-y-0.5">
+                        <div className="truncate">{formatCurrency(monthData.mis.revenue.netRevenue)}</div>
+                        <div className={monthData.mis.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                          {formatPercent(monthData.mis.ebitdaPercent)}
+                        </div>
+                      </div>
+                    )}
+
+                    {status !== 'complete' && !isFuture && (
+                      <div className="text-xs text-slate-500">
+                        {status === 'ready' ? 'Ready' :
+                         status === 'partial' ? 'Pending' : 'Upload'}
+                      </div>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Expanded Month Detail Panel */}
+          {expandedMonth && monthsData[expandedMonth] && (
+            <MonthDetailPanel
+              monthData={monthsData[expandedMonth]}
+              selectedStates={selectedStates}
+              onFileUpload={(state, fileType, file) => handleFileUpload(expandedMonth, state, fileType, file)}
+              getUploadStatus={(state, fileType) => getUploadStatus(expandedMonth, state, fileType)}
+              canGenerate={canGenerateMIS(expandedMonth)}
+              onGenerate={() => handleGenerateMIS(expandedMonth)}
+              onViewMIS={() => {
+                const mis = monthsData[expandedMonth].mis;
+                if (mis) {
+                  setViewingMIS(mis);
+                  setActiveView('report');
+                }
+              }}
+              isGenerating={generatingMonth === expandedMonth}
+              isLoading={isLoading}
+              onClose={() => setExpandedMonth(null)}
+            />
+          )}
+
+          {/* Quick Stats - Show if we have any data */}
+          {allMISData.length > 0 && (
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-5">
+              <h3 className="text-sm font-medium text-slate-300 mb-4">Overview for {selectedYear}</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard
+                  label="Months"
+                  value={`${allMISData.filter(m => m.period.year === selectedYear).length}/12`}
+                  color="blue"
+                />
+                <StatCard
+                  label="Avg Revenue"
+                  value={formatCurrency(
+                    allMISData
+                      .filter(m => m.period.year === selectedYear)
+                      .reduce((sum, m) => sum + m.revenue.netRevenue, 0) /
+                    Math.max(1, allMISData.filter(m => m.period.year === selectedYear).length)
+                  )}
+                  color="emerald"
+                />
+                <StatCard
+                  label="Avg Margin"
+                  value={formatPercent(
+                    allMISData
+                      .filter(m => m.period.year === selectedYear)
+                      .reduce((sum, m) => sum + m.grossMarginPercent, 0) /
+                    Math.max(1, allMISData.filter(m => m.period.year === selectedYear).length)
+                  )}
+                  color="violet"
+                />
+                <StatCard
+                  label="Avg EBITDA"
+                  value={formatPercent(
+                    allMISData
+                      .filter(m => m.period.year === selectedYear)
+                      .reduce((sum, m) => sum + m.ebitdaPercent, 0) /
+                    Math.max(1, allMISData.filter(m => m.period.year === selectedYear).length)
+                  )}
+                  color={allMISData.filter(m => m.period.year === selectedYear).reduce((sum, m) => sum + m.ebitdaPercent, 0) >= 0 ? 'emerald' : 'red'}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      {activeTab === 'monthly' && (
+      {/* Report View */}
+      {activeView === 'report' && (
         <MISMonthlyView
-          currentMIS={currentMIS}
+          currentMIS={viewingMIS}
           savedPeriods={savedPeriods}
           onPeriodChange={async (periodKey) => {
             const data = await loadMISData();
             const mis = data.periods.find(p => p.periodKey === periodKey);
-            if (mis) setCurrentMIS(mis);
+            if (mis) setViewingMIS(mis);
           }}
         />
       )}
 
-      {activeTab === 'trends' && (
+      {/* Trends View */}
+      {activeView === 'trends' && (
         <MISTrendsView savedPeriods={savedPeriods} />
       )}
 
       {/* Classification Review Modal */}
-      {showClassificationModal && currentMIS && (
+      {showClassificationModal && pendingMIS && (
         <ClassificationReviewModal
-          transactions={currentMIS.classifiedTransactions}
-          unclassifiedCount={currentMIS.unclassifiedCount}
+          transactions={pendingMIS.classifiedTransactions}
+          unclassifiedCount={pendingMIS.unclassifiedCount}
           onClose={() => {
             setShowClassificationModal(false);
-            setActiveTab('monthly');
+            setViewingMIS(pendingMIS);
+            setActiveView('report');
+            setPendingMIS(null);
           }}
           onSave={async (updatedTransactions) => {
-            // Update MIS with new classifications
-            const updatedMIS = { ...currentMIS, classifiedTransactions: updatedTransactions };
-            setCurrentMIS(updatedMIS);
+            const updatedMIS = { ...pendingMIS, classifiedTransactions: updatedTransactions };
             await saveMISRecord(updatedMIS);
+            await loadSavedData();
             setShowClassificationModal(false);
-            setActiveTab('monthly');
+            setViewingMIS(updatedMIS);
+            setActiveView('report');
+            setPendingMIS(null);
           }}
         />
       )}
@@ -324,172 +584,90 @@ export function MISTrackingNew() {
 }
 
 // ============================================
-// UPLOAD TAB COMPONENT
+// MONTH DETAIL PANEL
 // ============================================
 
-interface UploadTabProps {
-  selectedPeriod: MISPeriod;
-  setSelectedPeriod: (period: MISPeriod) => void;
+interface MonthDetailPanelProps {
+  monthData: MonthData;
   selectedStates: IndianState[];
-  setSelectedStates: (states: IndianState[]) => void;
-  uploadData: Record<IndianState, StateUploadData | undefined>;
-  handleFileUpload: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet', file: File) => Promise<void>;
+  onFileUpload: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet', file: File) => void;
   getUploadStatus: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet') => 'empty' | 'uploaded' | 'parsed';
-  canGenerate: () => boolean;
-  handleGenerateMIS: () => Promise<void>;
-  isLoading: boolean;
+  canGenerate: boolean;
+  onGenerate: () => void;
+  onViewMIS: () => void;
   isGenerating: boolean;
-  getParseStats: () => { totalSalesEntries: number; totalJournalTransactions: number };
-  savedPeriods: { periodKey: string; period: MISPeriod }[];
+  isLoading: boolean;
+  onClose: () => void;
 }
 
-function UploadTab({
-  selectedPeriod,
-  setSelectedPeriod,
+function MonthDetailPanel({
+  monthData,
   selectedStates,
-  setSelectedStates,
-  uploadData,
-  handleFileUpload,
+  onFileUpload,
   getUploadStatus,
   canGenerate,
-  handleGenerateMIS,
-  isLoading,
+  onGenerate,
+  onViewMIS,
   isGenerating,
-  getParseStats,
-  savedPeriods
-}: UploadTabProps) {
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+  isLoading,
+  onClose
+}: MonthDetailPanelProps) {
+  const docTypes: { type: 'sales' | 'journal' | 'purchase' | 'balanceSheet'; label: string; required: boolean }[] = [
+    { type: 'sales', label: 'Sales Register', required: true },
+    { type: 'journal', label: 'Journal', required: false },
+    { type: 'purchase', label: 'Purchase Register', required: false },
+    { type: 'balanceSheet', label: 'Balance Sheet', required: false }
   ];
 
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
-
-  const stats = getParseStats();
-
-  // Check if period already has data
-  const periodExists = savedPeriods.some(p => p.periodKey === periodToKey(selectedPeriod));
-
   return (
-    <div className="space-y-6">
-      {/* Step 1: Select Period */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-          <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 text-sm font-bold">1</span>
-          Select Period
-        </h3>
-
-        <div className="flex items-center gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
-            <select
-              value={selectedPeriod.month}
-              onChange={(e) => setSelectedPeriod({ ...selectedPeriod, month: parseInt(e.target.value) })}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {months.map((month, index) => (
-                <option key={month} value={index + 1}>{month}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-            <select
-              value={selectedPeriod.year}
-              onChange={(e) => setSelectedPeriod({ ...selectedPeriod, year: parseInt(e.target.value) })}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {years.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
-          </div>
-
-          {periodExists && (
-            <div className="ml-4 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
-              Data exists for this period. Uploading will replace it.
-            </div>
-          )}
+    <div className="bg-slate-800 rounded-xl border border-blue-500/50 overflow-hidden">
+      {/* Header */}
+      <div className="bg-blue-500/20 border-b border-blue-500/30 p-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-slate-100">{periodToString(monthData.period)}</h3>
+          <p className="text-blue-400/70 text-sm">
+            {monthData.hasData ? 'MIS Generated' : 'Upload documents to generate MIS'}
+          </p>
         </div>
+        <button
+          onClick={onClose}
+          className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
-      {/* Step 2: Select States */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-          <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 text-sm font-bold">2</span>
-          Select Active States
-        </h3>
-
-        <div className="flex flex-wrap gap-3">
-          {INDIAN_STATES.map(state => (
-            <button
-              key={state.code}
-              onClick={() => {
-                if (selectedStates.includes(state.code)) {
-                  setSelectedStates(selectedStates.filter(s => s !== state.code));
-                } else {
-                  setSelectedStates([...selectedStates, state.code]);
-                }
-              }}
-              className={`
-                px-4 py-2 rounded-lg border-2 transition-all
-                ${selectedStates.includes(state.code)
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                }
-              `}
-            >
-              {selectedStates.includes(state.code) && (
-                <svg className="w-4 h-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-              {state.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 3: Upload Documents */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-          <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 text-sm font-bold">3</span>
-          Upload Documents
-        </h3>
-
-        {selectedStates.length === 0 ? (
-          <p className="text-gray-500">Please select at least one state to upload documents.</p>
-        ) : (
+      {/* Content */}
+      <div className="p-5">
+        {/* Document Upload Grid */}
+        <div className="mb-5">
+          <h4 className="text-xs font-medium text-slate-400 mb-3">Upload Documents</h4>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Document</th>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Document</th>
                   {selectedStates.map(state => (
-                    <th key={state} className="text-center py-3 px-4 font-medium text-gray-700">
+                    <th key={state} className="text-center py-2 px-3 text-xs font-medium text-slate-500">
                       {INDIAN_STATES.find(s => s.code === state)?.name || state}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { type: 'sales' as const, label: 'Sales Register', required: true },
-                  { type: 'journal' as const, label: 'Journal', required: false },
-                  { type: 'purchase' as const, label: 'Purchase Register', required: false },
-                  { type: 'balanceSheet' as const, label: 'Balance Sheet', required: false }
-                ].map(doc => (
-                  <tr key={doc.type} className="border-b border-gray-100">
-                    <td className="py-3 px-4">
-                      <span className="font-medium text-gray-700">{doc.label}</span>
-                      {doc.required && <span className="text-red-500 ml-1">*</span>}
+                {docTypes.map(doc => (
+                  <tr key={doc.type} className="border-b border-slate-700/50">
+                    <td className="py-2.5 px-3">
+                      <span className="text-sm text-slate-300">{doc.label}</span>
+                      {doc.required && <span className="text-red-400 ml-1">*</span>}
                     </td>
                     {selectedStates.map(state => (
-                      <td key={state} className="py-3 px-4 text-center">
-                        <FileUploadCell
+                      <td key={state} className="py-2.5 px-3 text-center">
+                        <FileUploadButton
                           status={getUploadStatus(state, doc.type)}
-                          onUpload={(file) => handleFileUpload(state, doc.type, file)}
+                          onUpload={(file) => onFileUpload(state, doc.type, file)}
                           isLoading={isLoading}
                         />
                       </td>
@@ -499,102 +677,128 @@ function UploadTab({
               </tbody>
             </table>
           </div>
-        )}
+        </div>
 
-        {/* Parse Stats */}
-        {(stats.totalSalesEntries > 0 || stats.totalJournalTransactions > 0) && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div className="flex gap-6 text-sm">
+        {/* Actions */}
+        <div className="flex items-center gap-3">
+          {monthData.hasData ? (
+            <>
+              <button
+                onClick={onViewMIS}
+                className="flex-1 px-4 py-2.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors"
+              >
+                View Report
+              </button>
+              <button
+                onClick={onGenerate}
+                disabled={!canGenerate || isGenerating}
+                className={`
+                  flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
+                  ${canGenerate && !isGenerating
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
+                    : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+                  }
+                `}
+              >
+                {isGenerating ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Regenerating...
+                  </span>
+                ) : (
+                  'Regenerate'
+                )}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={onGenerate}
+              disabled={!canGenerate || isGenerating}
+              className={`
+                w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
+                ${canGenerate && !isGenerating
+                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
+                  : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+                }
+              `}
+            >
+              {isGenerating ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Generating...
+                </span>
+              ) : canGenerate ? (
+                `Generate MIS`
+              ) : (
+                'Upload Sales Register to continue'
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Existing MIS Summary */}
+        {monthData.hasData && monthData.mis && (
+          <div className="mt-5 p-4 bg-slate-700/30 rounded-lg">
+            <div className="grid grid-cols-4 gap-4 text-center">
               <div>
-                <span className="text-gray-500">Sales Entries:</span>
-                <span className="ml-2 font-semibold text-gray-700">{stats.totalSalesEntries}</span>
+                <div className="text-xs text-slate-500">Revenue</div>
+                <div className="text-sm font-medium text-slate-200">{formatCurrency(monthData.mis.revenue.netRevenue)}</div>
               </div>
               <div>
-                <span className="text-gray-500">Journal Transactions:</span>
-                <span className="ml-2 font-semibold text-gray-700">{stats.totalJournalTransactions}</span>
+                <div className="text-xs text-slate-500">Margin</div>
+                <div className="text-sm font-medium text-emerald-400">{formatPercent(monthData.mis.grossMarginPercent)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">CM1</div>
+                <div className="text-sm font-medium text-blue-400">{formatPercent(monthData.mis.cm1Percent)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">EBITDA</div>
+                <div className={`text-sm font-medium ${monthData.mis.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {formatPercent(monthData.mis.ebitdaPercent)}
+                </div>
               </div>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Step 4: Generate */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-          <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 text-sm font-bold">4</span>
-          Generate MIS
-        </h3>
-
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleGenerateMIS}
-            disabled={!canGenerate() || isGenerating}
-            className={`
-              px-6 py-3 rounded-lg font-semibold text-white transition-all
-              ${canGenerate() && !isGenerating
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-400 cursor-not-allowed'
-              }
-            `}
-          >
-            {isGenerating ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Generating...
-              </span>
-            ) : (
-              <>
-                Generate MIS for {periodToString(selectedPeriod)}
-              </>
-            )}
-          </button>
-
-          {!canGenerate() && (
-            <span className="text-sm text-gray-500">
-              Upload Sales Register for all selected states to continue
-            </span>
-          )}
-        </div>
       </div>
     </div>
   );
 }
 
 // ============================================
-// FILE UPLOAD CELL COMPONENT
+// FILE UPLOAD BUTTON
 // ============================================
 
-interface FileUploadCellProps {
+interface FileUploadButtonProps {
   status: 'empty' | 'uploaded' | 'parsed';
   onUpload: (file: File) => void;
   isLoading: boolean;
 }
 
-function FileUploadCell({ status, onUpload, isLoading }: FileUploadCellProps) {
+function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleClick = () => {
-    inputRef.current?.click();
-  };
+  const handleClick = () => inputRef.current?.click();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      onUpload(file);
-    }
-    // Reset input
+    if (file) onUpload(file);
     e.target.value = '';
   };
 
   if (isLoading) {
     return (
       <div className="w-10 h-10 mx-auto flex items-center justify-center">
-        <svg className="animate-spin h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24">
+        <svg className="animate-spin h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
       </div>
     );
@@ -614,21 +818,17 @@ function FileUploadCell({ status, onUpload, isLoading }: FileUploadCellProps) {
         className={`
           w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all
           ${status === 'parsed'
-            ? 'bg-green-100 text-green-600 hover:bg-green-200'
+            ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
             : status === 'uploaded'
-            ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
-            : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+            ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+            : 'bg-slate-700/50 text-slate-500 hover:bg-slate-700 hover:text-slate-400'
           }
         `}
-        title={status === 'parsed' ? 'Parsed successfully (click to replace)' : status === 'uploaded' ? 'Uploaded (click to replace)' : 'Click to upload'}
+        title={status === 'parsed' ? 'Parsed (click to replace)' : status === 'uploaded' ? 'Uploaded (click to replace)' : 'Click to upload'}
       >
         {status === 'parsed' ? (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        ) : status === 'uploaded' ? (
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ) : (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -636,6 +836,27 @@ function FileUploadCell({ status, onUpload, isLoading }: FileUploadCellProps) {
           </svg>
         )}
       </button>
+    </div>
+  );
+}
+
+// ============================================
+// STAT CARD
+// ============================================
+
+function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+  const colorClasses: Record<string, string> = {
+    blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+    emerald: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+    violet: 'bg-violet-500/10 border-violet-500/30 text-violet-400',
+    red: 'bg-red-500/10 border-red-500/30 text-red-400',
+    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+  };
+
+  return (
+    <div className={`rounded-lg border p-3 ${colorClasses[color] || colorClasses.blue}`}>
+      <div className="text-xs text-slate-400">{label}</div>
+      <div className="text-lg font-semibold mt-0.5">{value}</div>
     </div>
   );
 }

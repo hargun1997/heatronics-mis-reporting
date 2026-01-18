@@ -38,8 +38,8 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
   if (isLoading) {
     return (
       <div className="text-center py-12">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-        <p className="text-gray-500 mt-4">Loading trend data...</p>
+        <div className="animate-spin h-8 w-8 border-4 border-blue-400 border-t-transparent rounded-full mx-auto"></div>
+        <p className="text-slate-400 mt-4">Loading trend data...</p>
       </div>
     );
   }
@@ -47,13 +47,13 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
   if (allMISData.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 mb-4">
+        <div className="text-slate-600 mb-4">
           <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-700 mb-2">No Trend Data Available</h3>
-        <p className="text-gray-500">
+        <h3 className="text-lg font-medium text-slate-300 mb-2">No Trend Data Available</h3>
+        <p className="text-slate-500">
           Upload data for multiple months to see trends
         </p>
       </div>
@@ -68,7 +68,7 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
     <div className="space-y-6">
       {/* Metric Selector */}
       <div className="flex items-center gap-4">
-        <span className="text-sm font-medium text-gray-700">View:</span>
+        <span className="text-sm font-medium text-slate-400">View:</span>
         <div className="flex gap-2">
           {[
             { id: 'revenue' as const, label: 'Revenue Trend' },
@@ -81,8 +81,8 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
               className={`
                 px-4 py-2 rounded-lg text-sm font-medium transition-all
                 ${selectedMetric === option.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-slate-700 text-blue-400'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
                 }
               `}
             >
@@ -94,8 +94,8 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
 
       {/* Revenue Trend Chart */}
       {selectedMetric === 'revenue' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-6">Net Revenue Trend</h3>
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+          <h3 className="text-base font-semibold text-slate-200 mb-6">Net Revenue Trend</h3>
 
           <div className="flex items-end gap-2 h-64">
             {allMISData.map((mis, index) => {
@@ -107,20 +107,20 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
                 <div key={mis.periodKey} className="flex-1 flex flex-col items-center">
                   {/* Bar */}
                   <div className="w-full flex flex-col items-center">
-                    <div className="text-xs text-gray-500 mb-1">
+                    <div className="text-xs text-slate-400 mb-1">
                       {formatCurrency(mis.revenue.netRevenue)}
                     </div>
                     <div
-                      className="w-full bg-blue-500 rounded-t-lg transition-all hover:bg-blue-600"
+                      className="w-full bg-blue-500 rounded-t-lg transition-all hover:bg-blue-400"
                       style={{ height: `${height}px` }}
                       title={`${periodToString(mis.period)}: ${formatCurrency(mis.revenue.netRevenue)}`}
                     />
                   </div>
                   {/* Label */}
-                  <div className="text-xs text-gray-600 mt-2 text-center">
+                  <div className="text-xs text-slate-400 mt-2 text-center">
                     {periodToString(mis.period).split(' ')[0]}
                     <br />
-                    <span className="text-gray-400">{mis.period.year}</span>
+                    <span className="text-slate-500">{mis.period.year}</span>
                   </div>
                 </div>
               );
@@ -131,34 +131,34 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
 
       {/* Margin Trends */}
       {selectedMetric === 'margins' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-6">Margin Trends</h3>
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+          <h3 className="text-base font-semibold text-slate-200 mb-6">Margin Trends</h3>
 
           <div className="space-y-8">
             {/* Legend */}
             <div className="flex gap-6 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-500 rounded"></div>
-                <span>Gross Margin</span>
+                <div className="w-4 h-4 bg-emerald-500 rounded"></div>
+                <span className="text-slate-400">Gross Margin</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                <span>CM1</span>
+                <span className="text-slate-400">CM1</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-purple-500 rounded"></div>
-                <span>CM2</span>
+                <span className="text-slate-400">CM2</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-orange-500 rounded"></div>
-                <span>EBITDA</span>
+                <span className="text-slate-400">EBITDA</span>
               </div>
             </div>
 
             {/* Chart */}
             <div className="relative h-64">
               {/* Y-axis labels */}
-              <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col justify-between text-xs text-gray-500">
+              <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col justify-between text-xs text-slate-500">
                 <span>60%</span>
                 <span>40%</span>
                 <span>20%</span>
@@ -172,12 +172,12 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
                   <div key={mis.periodKey} className="flex-1 h-full flex flex-col justify-end">
                     <div className="relative h-[calc(100%-2rem)] flex items-end gap-1">
                       {/* Bars */}
-                      <MarginBar value={mis.grossMarginPercent} color="bg-green-500" maxPercent={60} />
+                      <MarginBar value={mis.grossMarginPercent} color="bg-emerald-500" maxPercent={60} />
                       <MarginBar value={mis.cm1Percent} color="bg-blue-500" maxPercent={60} />
                       <MarginBar value={mis.cm2Percent} color="bg-purple-500" maxPercent={60} />
                       <MarginBar value={mis.ebitdaPercent} color="bg-orange-500" maxPercent={60} />
                     </div>
-                    <div className="text-xs text-gray-600 mt-2 text-center">
+                    <div className="text-xs text-slate-400 mt-2 text-center">
                       {periodToString(mis.period).split(' ')[0]}
                     </div>
                   </div>
@@ -190,27 +190,27 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
 
       {/* Channel Mix */}
       {selectedMetric === 'channels' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-6">Channel Mix Evolution</h3>
+        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+          <h3 className="text-base font-semibold text-slate-200 mb-6">Channel Mix Evolution</h3>
 
           <div className="space-y-4">
             {/* Legend */}
             <div className="flex gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-orange-500 rounded"></div>
-                <span>Amazon</span>
+                <span className="text-slate-400">Amazon</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-                <span>Blinkit</span>
+                <span className="text-slate-400">Blinkit</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                <span>Website</span>
+                <span className="text-slate-400">Website</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-500 rounded"></div>
-                <span>Offline & OEM</span>
+                <div className="w-4 h-4 bg-slate-500 rounded"></div>
+                <span className="text-slate-400">Offline & OEM</span>
               </div>
             </div>
 
@@ -225,7 +225,7 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
 
                 return (
                   <div key={mis.periodKey} className="flex items-center gap-4">
-                    <div className="w-20 text-sm text-gray-600">
+                    <div className="w-20 text-sm text-slate-400">
                       {periodToString(mis.period).split(' ')[0]} '{String(mis.period.year).slice(-2)}
                     </div>
                     <div className="flex-1 h-8 flex rounded-lg overflow-hidden">
@@ -251,14 +251,14 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
                         {websitePct > 10 && `${websitePct.toFixed(0)}%`}
                       </div>
                       <div
-                        className="bg-gray-500 flex items-center justify-center text-xs text-white"
+                        className="bg-slate-500 flex items-center justify-center text-xs text-white"
                         style={{ width: `${offlinePct}%` }}
                         title={`Offline: ${offlinePct.toFixed(1)}%`}
                       >
                         {offlinePct > 10 && `${offlinePct.toFixed(0)}%`}
                       </div>
                     </div>
-                    <div className="w-24 text-right text-sm text-gray-600">
+                    <div className="w-24 text-right text-sm text-slate-400">
                       {formatCurrency(mis.revenue.totalGrossRevenue)}
                     </div>
                   </div>
@@ -270,80 +270,80 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
       )}
 
       {/* Data Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">Monthly Comparison</h3>
+      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+        <div className="p-4 border-b border-slate-700">
+          <h3 className="text-base font-semibold text-slate-200">Monthly Comparison</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Metric</th>
+              <tr className="bg-slate-700/50">
+                <th className="text-left py-3 px-4 font-medium text-slate-300 text-sm">Metric</th>
                 {allMISData.map(mis => (
-                  <th key={mis.periodKey} className="text-right py-3 px-4 font-semibold text-gray-700">
+                  <th key={mis.periodKey} className="text-right py-3 px-4 font-medium text-slate-300 text-sm">
                     {periodToString(mis.period)}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-4 text-gray-700 font-medium">Net Revenue</td>
+              <tr className="border-b border-slate-700/50">
+                <td className="py-3 px-4 text-slate-300 text-sm">Net Revenue</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className="py-3 px-4 text-right text-gray-700">
+                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-300 text-sm">
                     {formatCurrency(mis.revenue.netRevenue)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-4 text-gray-700 font-medium">COGS %</td>
+              <tr className="border-b border-slate-700/50">
+                <td className="py-3 px-4 text-slate-300 text-sm">COGS %</td>
                 {allMISData.map(mis => {
                   const cogsPercent = mis.revenue.netRevenue > 0
                     ? (mis.cogm.totalCOGM / mis.revenue.netRevenue) * 100
                     : 0;
                   return (
-                    <td key={mis.periodKey} className="py-3 px-4 text-right text-gray-700">
+                    <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-300 text-sm">
                       {formatPercent(cogsPercent)}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-gray-100 bg-green-50">
-                <td className="py-3 px-4 text-green-700 font-medium">Gross Margin %</td>
+              <tr className="border-b border-slate-700/50 bg-emerald-500/10">
+                <td className="py-3 px-4 text-emerald-400 font-medium text-sm">Gross Margin %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className="py-3 px-4 text-right text-green-700 font-medium">
+                  <td key={mis.periodKey} className="py-3 px-4 text-right text-emerald-400 font-medium text-sm">
                     {formatPercent(mis.grossMarginPercent)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-4 text-gray-700 font-medium">CM1 %</td>
+              <tr className="border-b border-slate-700/50">
+                <td className="py-3 px-4 text-slate-300 text-sm">CM1 %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className="py-3 px-4 text-right text-gray-700">
+                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-300 text-sm">
                     {formatPercent(mis.cm1Percent)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-gray-100">
-                <td className="py-3 px-4 text-gray-700 font-medium">CM2 %</td>
+              <tr className="border-b border-slate-700/50">
+                <td className="py-3 px-4 text-slate-300 text-sm">CM2 %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className="py-3 px-4 text-right text-gray-700">
+                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-300 text-sm">
                     {formatPercent(mis.cm2Percent)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-gray-100 bg-blue-50">
-                <td className="py-3 px-4 text-blue-700 font-medium">EBITDA %</td>
+              <tr className="border-b border-slate-700/50 bg-blue-500/10">
+                <td className="py-3 px-4 text-blue-400 font-medium text-sm">EBITDA %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className={`py-3 px-4 text-right font-medium ${mis.ebitdaPercent >= 0 ? 'text-blue-700' : 'text-red-600'}`}>
+                  <td key={mis.periodKey} className={`py-3 px-4 text-right font-medium text-sm ${mis.ebitdaPercent >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
                     {formatPercent(mis.ebitdaPercent)}
                   </td>
                 ))}
               </tr>
-              <tr className="bg-gray-100">
-                <td className="py-3 px-4 text-gray-800 font-semibold">Net Income %</td>
+              <tr className="bg-slate-700/30">
+                <td className="py-3 px-4 text-slate-200 font-semibold text-sm">Net Income %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className={`py-3 px-4 text-right font-semibold ${mis.netIncomePercent >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  <td key={mis.periodKey} className={`py-3 px-4 text-right font-semibold text-sm ${mis.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {formatPercent(mis.netIncomePercent)}
                   </td>
                 ))}
