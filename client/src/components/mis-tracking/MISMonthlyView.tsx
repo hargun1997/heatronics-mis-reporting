@@ -717,6 +717,110 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
               <li>• Removes inter-company stock transfers (e.g., UP→KA) from revenue</li>
             </ul>
           </Section>
+
+          {/* Smart Classification System */}
+          <Section title="9. Smart Classification System" color="purple">
+            <p className="text-slate-400 mb-3">
+              The system uses a multi-layered classification approach for journal transactions:
+            </p>
+            <div className="space-y-3">
+              <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <div className="font-semibold text-blue-400 mb-1">1. Rule-Based Matching</div>
+                <div className="text-slate-400 text-xs">
+                  Exact match against saved classification rules. These rules are learned from previous classifications you've made.
+                </div>
+              </div>
+              <div className="p-3 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                <div className="font-semibold text-cyan-400 mb-1">2. Similarity Matching</div>
+                <div className="text-slate-400 text-xs">
+                  If no exact match, looks for similar entity names and keywords from existing rules.
+                </div>
+              </div>
+              <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                <div className="font-semibold text-purple-400 mb-1">3. AI Classification (Gemini)</div>
+                <div className="text-slate-400 text-xs">
+                  For new entities, AI analyzes the ledger/party name and suggests the appropriate MIS head and subhead.
+                </div>
+              </div>
+              <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                <div className="font-semibold text-amber-400 mb-1">4. Manual Review</div>
+                <div className="text-slate-400 text-xs">
+                  Low-confidence classifications are flagged for your review. Your choices are saved as rules for future use.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
+              <div className="text-slate-300 font-medium mb-2">Classification Storage</div>
+              <ul className="space-y-1 text-slate-400 text-xs">
+                <li>• <strong>MIS_Categories</strong>: All available heads/subheads (A. Revenue, B. Returns, etc.)</li>
+                <li>• <strong>MIS_Classification_Rules</strong>: Saved rules linking entities to categories</li>
+                <li>• <strong>MIS_Classification_History</strong>: Audit trail of all classifications</li>
+              </ul>
+            </div>
+
+            <div className="mt-3 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+              <div className="text-emerald-400 font-medium">Learning System</div>
+              <div className="text-slate-400 text-xs mt-1">
+                Every time you classify a transaction, the system saves it as a rule. Next time the same or similar
+                entity appears, it will be automatically classified - making the system smarter over time!
+              </div>
+            </div>
+          </Section>
+
+          {/* MIS Heads Reference */}
+          <Section title="10. MIS Heads Reference" color="slate">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2 bg-emerald-500/10 rounded border border-emerald-500/20">
+                <span className="text-emerald-400">A. Revenue</span>
+                <span className="text-slate-500 ml-2">Website, Amazon, Blinkit, Offline</span>
+              </div>
+              <div className="p-2 bg-red-500/10 rounded border border-red-500/20">
+                <span className="text-red-400">B. Returns</span>
+                <span className="text-slate-500 ml-2">By channel</span>
+              </div>
+              <div className="p-2 bg-red-500/10 rounded border border-red-500/20">
+                <span className="text-red-400">C. Discounts</span>
+                <span className="text-slate-500 ml-2">By channel</span>
+              </div>
+              <div className="p-2 bg-red-500/10 rounded border border-red-500/20">
+                <span className="text-red-400">D. Taxes</span>
+                <span className="text-slate-500 ml-2">GST on sales</span>
+              </div>
+              <div className="p-2 bg-orange-500/10 rounded border border-orange-500/20">
+                <span className="text-orange-400">E. COGM</span>
+                <span className="text-slate-500 ml-2">Raw materials, wages, factory costs</span>
+              </div>
+              <div className="p-2 bg-blue-500/10 rounded border border-blue-500/20">
+                <span className="text-blue-400">F. Channel</span>
+                <span className="text-slate-500 ml-2">Marketplace fees, fulfillment</span>
+              </div>
+              <div className="p-2 bg-pink-500/10 rounded border border-pink-500/20">
+                <span className="text-pink-400">G. Marketing</span>
+                <span className="text-slate-500 ml-2">Ads, agency fees</span>
+              </div>
+              <div className="p-2 bg-cyan-500/10 rounded border border-cyan-500/20">
+                <span className="text-cyan-400">H. Platform</span>
+                <span className="text-slate-500 ml-2">Software subscriptions</span>
+              </div>
+              <div className="p-2 bg-yellow-500/10 rounded border border-yellow-500/20">
+                <span className="text-yellow-400">I. OpEx</span>
+                <span className="text-slate-500 ml-2">Salaries, rent, admin</span>
+              </div>
+              <div className="p-2 bg-violet-500/10 rounded border border-violet-500/20">
+                <span className="text-violet-400">J. Non-Op</span>
+                <span className="text-slate-500 ml-2">Interest, depreciation, tax</span>
+              </div>
+              <div className="p-2 bg-slate-600 rounded">
+                <span className="text-slate-400">X. Exclude</span>
+                <span className="text-slate-500 ml-2">Personal expenses</span>
+              </div>
+              <div className="p-2 bg-slate-600 rounded">
+                <span className="text-slate-400">Z. Ignore</span>
+                <span className="text-slate-500 ml-2">GST adjustments, TDS, transfers</span>
+              </div>
+            </div>
+          </Section>
         </div>
       </div>
     </div>
