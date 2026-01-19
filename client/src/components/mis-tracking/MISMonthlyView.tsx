@@ -1417,7 +1417,7 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
       {/* Header */}
       <div className="bg-indigo-500/20 border-b border-indigo-500/30 px-5 py-3">
         <h3 className="text-sm font-semibold text-indigo-400">Balance Sheet Reconciliation</h3>
-        <p className="text-xs text-indigo-400/70 mt-0.5">Compare MIS calculated values against Balance Sheet data</p>
+        <p className="text-xs text-indigo-400/70 mt-0.5">Compare key figures: Net Sales, COGS, and Net Profit/Loss</p>
       </div>
 
       <div className="p-5">
@@ -1574,27 +1574,24 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
                 </td>
               </tr>
 
-              {/* Gross Profit */}
-              {balanceSheet.grossProfit > 0 && (
-                <tr className="border-t border-slate-700/50">
-                  <td className="py-3 px-3 text-sm text-slate-300">Gross Profit (from BS)</td>
-                  <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                  <td className="py-3 px-3 text-right text-sm text-emerald-400">{formatCurrencyFull(balanceSheet.grossProfit)}</td>
-                  <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                  <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                  <td className="py-3 px-3 text-center text-slate-500 text-xs">Reference</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
 
         {/* Note */}
-        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
+        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg space-y-2">
           <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">Note:</strong> Variances under 5% are considered acceptable.
-            Larger variances may indicate missing transactions, timing differences, or classification issues.
-            The Balance Sheet is considered the authoritative source for financial data.
+            <strong className="text-slate-300">Key Metrics:</strong> Only Net Sales, COGS, and Net Profit/Loss are compared
+            because MIS and Balance Sheet classify direct vs indirect expenses differently.
+          </p>
+          <p className="text-xs text-slate-400">
+            <strong className="text-slate-300">COGS Formula:</strong> Opening Stock ({formatCurrencyFull(balanceSheet.openingStock)})
+            + Purchases ({formatCurrencyFull(balanceSheet.purchases)})
+            - Closing Stock ({formatCurrencyFull(balanceSheet.closingStock)})
+            = {formatCurrencyFull(balanceSheet.calculatedCOGS)}
+          </p>
+          <p className="text-xs text-slate-400">
+            Variances under 5% are acceptable. Larger variances may indicate missing transactions or timing differences.
           </p>
         </div>
       </div>
