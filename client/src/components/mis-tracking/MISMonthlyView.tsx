@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { MISRecord, MISPeriod, periodToString, periodToKey, SalesChannel, SALES_CHANNELS, createEmptyChannelRevenue, createEmptyMISRecord, createEmptyCOGMData, AggregatedBalanceSheetData } from '../../types/misTracking';
 import { formatCurrency, formatCurrencyFull, formatPercent } from '../../utils/misCalculator';
+import { EnhancedMISReportView } from '../mis-report-enhanced';
+import { TableCellsIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
 
 // ============================================
 // RANGE TYPES
@@ -340,12 +342,15 @@ interface MISMonthlyViewProps {
   allMISRecords?: MISRecord[]; // All records for aggregation
 }
 
+type ViewMode = 'classic' | 'enhanced';
+
 export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMISRecords = [] }: MISMonthlyViewProps) {
   const [showChannelBreakdown, setShowChannelBreakdown] = useState(true);
   const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>('single');
   const [selectedPreset, setSelectedPreset] = useState<RangePreset | null>(null);
   const [customSelectedMonths, setCustomSelectedMonths] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<ViewMode>('enhanced'); // Default to enhanced view
 
   // Debug logging when MIS data changes
   React.useEffect(() => {
@@ -615,15 +620,45 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="flex items-center text-sm text-slate-400">
-            <input
-              type="checkbox"
-              checked={showChannelBreakdown}
-              onChange={(e) => setShowChannelBreakdown(e.target.checked)}
-              className="mr-2 rounded bg-slate-700 border-slate-600"
-            />
-            Show channel breakdown
-          </label>
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-slate-700/50 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('enhanced')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                viewMode === 'enhanced'
+                  ? 'bg-teal-500 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Enhanced View with drill-down"
+            >
+              <Squares2X2Icon className="h-4 w-4" />
+              Enhanced
+            </button>
+            <button
+              onClick={() => setViewMode('classic')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                viewMode === 'classic'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Classic table view"
+            >
+              <TableCellsIcon className="h-4 w-4" />
+              Classic
+            </button>
+          </div>
+
+          {viewMode === 'classic' && (
+            <label className="flex items-center text-sm text-slate-400">
+              <input
+                type="checkbox"
+                checked={showChannelBreakdown}
+                onChange={(e) => setShowChannelBreakdown(e.target.checked)}
+                className="mr-2 rounded bg-slate-700 border-slate-600"
+              />
+              Show channel breakdown
+            </label>
+          )}
 
           <button
             onClick={() => setShowAlgorithmGuide(true)}
@@ -665,8 +700,16 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
         </div>
       )}
 
-      {/* Key Metrics Cards */}
-      {displayMIS && (
+      {/* Enhanced View */}
+      {displayMIS && viewMode === 'enhanced' && (
+        <EnhancedMISReportView
+          misRecord={displayMIS}
+          onRecalculate={undefined}
+        />
+      )}
+
+      {/* Classic View - Key Metrics Cards */}
+      {displayMIS && viewMode === 'classic' && (
         <div className="grid grid-cols-4 gap-4">
           <MetricCard
             label="Net Revenue"
@@ -694,8 +737,8 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
         </div>
       )}
 
-      {/* P&L Table */}
-      {displayMIS && (
+      {/* Classic View - P&L Table */}
+      {displayMIS && viewMode === 'classic' && (
       <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
         <table className="w-full">
           <thead>

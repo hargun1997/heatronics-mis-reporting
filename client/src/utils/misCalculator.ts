@@ -20,7 +20,13 @@ import {
   createEmptyChannelRevenue,
   createEmptyRevenueData,
   createEmptyCOGMData,
-  periodToKey
+  periodToKey,
+  TransactionsByHead,
+  HeadWithTransactions,
+  SubheadWithTransactions,
+  TransactionRef,
+  UnclassifiedTransaction,
+  MISHead
 } from '../types/misTracking';
 import { classifyTransactions, aggregateByHead, extractMISAmounts } from './misClassifier';
 
@@ -255,7 +261,201 @@ export async function calculateMIS(
   // ============================================
   record.balanceSheet = bsData;
 
+  // ============================================
+  // STEP 12: Build Transaction Tracking for Drill-Down
+  // ============================================
+  const { transactionsByHead, unclassifiedTransactions, ignoredTotal, excludedTotal } =
+    buildTransactionsByHead(classified, unclassified, bsData);
+
+  record.transactionsByHead = transactionsByHead;
+  record.unclassifiedTransactions = unclassifiedTransactions;
+  record.ignoredTotal = ignoredTotal;
+  record.excludedTotal = excludedTotal;
+
   return record;
+}
+
+// ============================================
+// TRANSACTION TRACKING HELPER
+// ============================================
+
+function buildTransactionsByHead(
+  classified: ClassifiedTransaction[],
+  unclassified: import('../types').Transaction[],
+  bsData?: AggregatedBalanceSheetData
+): {
+  transactionsByHead: TransactionsByHead;
+  unclassifiedTransactions: UnclassifiedTransaction[];
+  ignoredTotal: number;
+  excludedTotal: number;
+} {
+  const transactionsByHead: TransactionsByHead = {};
+  let ignoredTotal = 0;
+  let excludedTotal = 0;
+
+  // Group classified transactions by head and subhead
+  for (const txn of classified) {
+    const head = txn.misHead;
+    const subhead = txn.misSubhead;
+    const amount = txn.debit || txn.credit || 0;
+
+    // Track ignored/excluded totals
+    if (head === 'Z. Ignore') {
+      ignoredTotal += amount;
+    } else if (head === 'X. Exclude') {
+      excludedTotal += amount;
+    }
+
+    // Initialize head if not exists
+    if (!transactionsByHead[head]) {
+      transactionsByHead[head] = {
+        head: head as MISHead,
+        total: 0,
+        transactionCount: 0,
+        subheads: []
+      };
+    }
+
+    // Find or create subhead
+    let subheadEntry = transactionsByHead[head].subheads.find(s => s.subhead === subhead);
+    if (!subheadEntry) {
+      subheadEntry = {
+        subhead,
+        amount: 0,
+        transactionCount: 0,
+        transactions: [],
+        source: 'journal'
+      };
+      transactionsByHead[head].subheads.push(subheadEntry);
+    }
+
+    // Create transaction reference
+    const txnRef: TransactionRef = {
+      id: txn.id,
+      date: txn.date,
+      account: txn.account,
+      amount: amount,
+      type: txn.debit ? 'debit' : 'credit',
+      source: 'journal',
+      notes: txn.notes,
+      originalHead: txn.misHead,
+      originalSubhead: txn.misSubhead
+    };
+
+    // Add to subhead
+    subheadEntry.transactions.push(txnRef);
+    subheadEntry.amount += amount;
+    subheadEntry.transactionCount += 1;
+
+    // Update head totals
+    transactionsByHead[head].total += amount;
+    transactionsByHead[head].transactionCount += 1;
+  }
+
+  // Add Balance Sheet derived data for COGM Raw Materials
+  if (bsData && bsData.openingStock > 0) {
+    const cogmHead = 'E. COGM';
+    if (!transactionsByHead[cogmHead]) {
+      transactionsByHead[cogmHead] = {
+        head: cogmHead,
+        total: 0,
+        transactionCount: 0,
+        subheads: []
+      };
+    }
+
+    // Find or update Raw Materials subhead to mark as BS sourced
+    let rawMatSubhead = transactionsByHead[cogmHead].subheads.find(
+      s => s.subhead === 'Raw Materials & Inventory'
+    );
+
+    if (rawMatSubhead) {
+      // Update source to balance_sheet
+      rawMatSubhead.source = 'balance_sheet';
+      // Clear journal transactions since we're using BS data
+      const bsAmount = bsData.openingStock + bsData.purchases - bsData.closingStock;
+      rawMatSubhead.amount = bsAmount;
+      rawMatSubhead.transactions = [
+        {
+          id: 'bs-opening-stock',
+          date: '',
+          account: 'Opening Stock (Balance Sheet)',
+          amount: bsData.openingStock,
+          type: 'debit',
+          source: 'balance_sheet'
+        },
+        {
+          id: 'bs-purchases',
+          date: '',
+          account: 'Add: Purchases (Balance Sheet)',
+          amount: bsData.purchases,
+          type: 'debit',
+          source: 'balance_sheet'
+        },
+        {
+          id: 'bs-closing-stock',
+          date: '',
+          account: 'Less: Closing Stock (Balance Sheet)',
+          amount: -bsData.closingStock,
+          type: 'credit',
+          source: 'balance_sheet'
+        }
+      ];
+      rawMatSubhead.transactionCount = 3;
+    } else {
+      // Create new Raw Materials subhead from BS
+      const bsAmount = bsData.openingStock + bsData.purchases - bsData.closingStock;
+      transactionsByHead[cogmHead].subheads.unshift({
+        subhead: 'Raw Materials & Inventory',
+        amount: bsAmount,
+        transactionCount: 3,
+        source: 'balance_sheet',
+        transactions: [
+          {
+            id: 'bs-opening-stock',
+            date: '',
+            account: 'Opening Stock (Balance Sheet)',
+            amount: bsData.openingStock,
+            type: 'debit',
+            source: 'balance_sheet'
+          },
+          {
+            id: 'bs-purchases',
+            date: '',
+            account: 'Add: Purchases (Balance Sheet)',
+            amount: bsData.purchases,
+            type: 'debit',
+            source: 'balance_sheet'
+          },
+          {
+            id: 'bs-closing-stock',
+            date: '',
+            account: 'Less: Closing Stock (Balance Sheet)',
+            amount: -bsData.closingStock,
+            type: 'credit',
+            source: 'balance_sheet'
+          }
+        ]
+      });
+    }
+  }
+
+  // Build unclassified transactions list
+  const unclassifiedTransactions: UnclassifiedTransaction[] = unclassified.map(txn => ({
+    id: txn.id,
+    date: txn.date,
+    account: txn.account,
+    amount: txn.debit || txn.credit || 0,
+    type: txn.debit ? 'debit' : 'credit',
+    source: 'journal' as const
+  }));
+
+  return {
+    transactionsByHead,
+    unclassifiedTransactions,
+    ignoredTotal,
+    excludedTotal
+  };
 }
 
 // ============================================
