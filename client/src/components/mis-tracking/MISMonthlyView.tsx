@@ -347,6 +347,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
   const [selectedPreset, setSelectedPreset] = useState<RangePreset | null>(null);
   const [customSelectedMonths, setCustomSelectedMonths] = useState<Set<string>>(new Set());
 
+  // Debug logging when MIS data changes
+  React.useEffect(() => {
+    if (currentMIS) {
+      console.log('=== MISMonthlyView Debug ===');
+      console.log('Current MIS periodKey:', currentMIS.periodKey);
+      console.log('Balance Sheet data:', currentMIS.balanceSheet);
+      console.log('COGM data:', currentMIS.cogm);
+      console.log('Raw Materials from COGM:', currentMIS.cogm.rawMaterialsInventory);
+      console.log('=== End MISMonthlyView Debug ===');
+    }
+  }, [currentMIS]);
+
   const rangePresets = useMemo(() => getRangePresets(), []);
 
   // Get the periods available for selection based on preset
