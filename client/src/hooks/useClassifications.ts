@@ -1,7 +1,22 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Transaction, Heads, FilterState, AccountPattern } from '../types';
 import { DEFAULT_HEADS } from '../data/defaultHeads';
-import { DEFAULT_PATTERNS, getRecommendation } from '../data/accountPatterns';
+
+// Get recommendation from patterns (moved from accountPatterns.ts to use dynamic patterns)
+function getRecommendation(accountName: string, patterns: AccountPattern[]): { head: string; subhead: string } | null {
+  for (const { pattern, head, subhead } of patterns) {
+    try {
+      const regex = new RegExp(pattern, 'i');
+      if (regex.test(accountName)) {
+        return { head, subhead };
+      }
+    } catch {
+      // Skip invalid regex patterns
+      continue;
+    }
+  }
+  return null;
+}
 
 const STORAGE_KEY = 'mis-classifications';
 const HEADS_STORAGE_KEY = 'mis-heads';
@@ -99,8 +114,9 @@ export function useClassifications() {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.setItem(SESSION_KEY, newSessionId);
 
-    // Apply auto-recommendations to new transactions
-    const allPatterns = [...DEFAULT_PATTERNS, ...customPatterns];
+    // Apply auto-recommendations using only patterns from Google Sheets (via customPatterns)
+    // No hardcoded patterns - all rules should be managed in Google Sheets
+    const allPatterns = customPatterns;
 
     const processedTransactions = newTransactions.map(txn => {
       // If transaction is already classified (e.g., sales transactions), preserve it
@@ -108,7 +124,7 @@ export function useClassifications() {
         return txn;
       }
 
-      // Check for classification recommendation
+      // Check for classification recommendation from Google Sheets rules
       const recommendation = getRecommendation(txn.account, allPatterns);
       if (recommendation) {
         return {
@@ -232,7 +248,8 @@ export function useClassifications() {
 
     setTransactions(prev => prev.map(txn => {
       if (txn.id === id) {
-        const recommendation = getRecommendation(txn.account, [...DEFAULT_PATTERNS, ...customPatterns]);
+        // Use only patterns from Google Sheets (no hardcoded defaults)
+        const recommendation = getRecommendation(txn.account, customPatterns);
 
         return {
           ...txn,

@@ -54,12 +54,12 @@ export async function loadMISData(): Promise<MISStorageData> {
       return data;
     }
 
-    // Return empty data structure
+    // Return empty data structure - patterns should come from Google Sheets API
     return {
       version: '1.0',
       lastUpdated: new Date().toISOString(),
       periods: [],
-      learnedPatterns: getDefaultPatterns()
+      learnedPatterns: []  // No hardcoded defaults - use Google Sheets only
     };
   } catch (error) {
     console.error('Error loading MIS data:', error);
@@ -67,7 +67,7 @@ export async function loadMISData(): Promise<MISStorageData> {
       version: '1.0',
       lastUpdated: new Date().toISOString(),
       periods: [],
-      learnedPatterns: getDefaultPatterns()
+      learnedPatterns: []  // No hardcoded defaults - use Google Sheets only
     };
   }
 }
@@ -309,8 +309,9 @@ export async function getLearnedPatterns(): Promise<LearnedPattern[]> {
       return data.learnedPatterns;
     }
 
-    // Ultimate fallback to hardcoded (should be removed after migration)
-    return getDefaultPatterns();
+    // No hardcoded defaults - return empty array (rules should be in Google Sheets)
+    console.warn('No rules found - please check Google Sheets MIS_Classification_Rules');
+    return [];
   } catch (error) {
     console.error('Error getting learned patterns:', error);
 
@@ -320,7 +321,8 @@ export async function getLearnedPatterns(): Promise<LearnedPattern[]> {
       return cached;
     }
 
-    return getDefaultPatterns();
+    // No hardcoded defaults - return empty array
+    return [];
   }
 }
 
@@ -401,9 +403,9 @@ export async function refreshRulesFromAPI(): Promise<LearnedPattern[]> {
   localStorage.removeItem(API_RULES_CACHE_KEY);
   localStorage.removeItem(API_RULES_CACHE_TIMESTAMP_KEY);
 
-  // Fetch fresh
+  // Fetch fresh - no hardcoded fallback
   const patterns = await fetchRulesFromAPI();
-  return patterns || getDefaultPatterns();
+  return patterns || [];
 }
 
 // Get migration status
@@ -509,88 +511,6 @@ export async function updateClassificationConfig(config: {
     console.error('Error updating config:', error);
     return false;
   }
-}
-
-// ============================================
-// DEFAULT PATTERNS
-// ============================================
-
-function getDefaultPatterns(): LearnedPattern[] {
-  const now = new Date().toISOString();
-
-  // Helper to create pattern with all required fields
-  const createPattern = (
-    id: string,
-    pattern: string,
-    head: LearnedPattern['head'],
-    subhead: string
-  ): LearnedPattern => ({
-    id,
-    pattern,
-    matchType: 'regex',
-    head,
-    subhead,
-    confidence: 0.8,
-    priority: 1, // system priority
-    active: true,
-    createdAt: now,
-    source: 'system'
-  });
-
-  return [
-    // Channel & Fulfillment
-    createPattern('p1', 'AMAZON.*LOGISTICS', 'F. Channel & Fulfillment', 'Amazon Fees'),
-    createPattern('p2', 'AMAZON SELLER SERVICES', 'F. Channel & Fulfillment', 'Amazon Fees'),
-    createPattern('p3', 'Storage Fee|SHIPPING FEE|Return Fee|Commission', 'F. Channel & Fulfillment', 'Amazon Fees'),
-    createPattern('p4', 'PLATFORM FEE', 'F. Channel & Fulfillment', 'Amazon Fees'),
-    createPattern('p5', 'BLINKIT.*FEE|BLINK COMMERCE.*FEE', 'F. Channel & Fulfillment', 'Blinkit Fees'),
-    createPattern('p6', 'SHIPROCKET', 'F. Channel & Fulfillment', 'D2C Fees'),
-    createPattern('p7', 'EASEBUZZ|RAZORPAY|PAYU|PAYMENT GATEWAY', 'F. Channel & Fulfillment', 'D2C Fees'),
-
-    // Sales & Marketing
-    createPattern('p10', 'FACEBOOK|META PLATFORMS', 'G. Sales & Marketing', 'Facebook Ads'),
-    createPattern('p11', 'GOOGLE INDIA|GOOGLE ADS|ADWORDS', 'G. Sales & Marketing', 'Google Ads'),
-    createPattern('p12', 'AMAZON.*ADS|AMAZON.*ADVERTISING|Advertisement.*Publicity', 'G. Sales & Marketing', 'Amazon Ads'),
-    createPattern('p13', 'BLINKIT.*ADS|BLINKIT.*ADVERTISING', 'G. Sales & Marketing', 'Blinkit Ads'),
-    createPattern('p14', 'SOCIAL MEDIA MARKETING|QUANTSCALE|AGENCY|Branding.*Packaging', 'G. Sales & Marketing', 'Agency Fees'),
-
-    // COGM (Cost of Goods Manufactured)
-    createPattern('p20', 'RAW MATERIAL|INVENTORY|STOCK', 'E. COGM', 'Raw Materials & Inventory'),
-    createPattern('p21', 'PAWAN SHARMA|OM PAL SINGH|RAGHUVEER|Ram Nivash|Ram Jatan|HIMANSHU PANDEY|RENU DEVI|PRITEE DEVI', 'E. COGM', 'Manufacturing Wages'),
-    createPattern('p22', 'JOB WORK|D\\.N\\. LED|KIRTI LIGHT', 'E. COGM', 'Job work'),
-    createPattern('p23', 'FREIGHT|JAGDAMBA|NITCO|PORTER|INBOUND.*TRANSPORT', 'E. COGM', 'Inbound Transport'),
-    createPattern('p24', 'FACTORY.*RENT|Office Rent.*FACTORY|NEXIA', 'E. COGM', 'Factory Rent'),
-    createPattern('p25', 'FACTORY.*ELECTRICITY|ELECTRICITY.*FACTORY|WATER.*ELECTRICITY', 'E. COGM', 'Factory Electricity'),
-    createPattern('p26', 'POWER BACKUP|FACTORY.*MAINTENANCE|MAINTENANCE.*FACTORY|CONSUMABLE', 'E. COGM', 'Factory Maintainence'),
-    createPattern('p27', 'CONTRACT.*WAGES|CONTRACT.*WORK.*MFG', 'E. COGM', 'Contract Wages (Mfg)'),
-
-    // Platform Costs
-    createPattern('p30', 'SHOPIFY', 'H. Platform Costs', 'Shopify Subscription'),
-    createPattern('p31', 'WATI', 'H. Platform Costs', 'Wati Subscription'),
-    createPattern('p32', 'SHOPFLO', 'H. Platform Costs', 'Shopflo subscription'),
-
-    // Operating Expenses
-    createPattern('p40', 'SALARY|ESI.*EMPLOYER|SHAILABH KUMAR|Satendra kumar|AVANISH KUMAR(?!.*EXP)|PRABHASH CHANDRA|VIVEKA NAND|ASHISH KUMAR QC|SHUBHI GUPTA|DANIYAL', 'I. Operating Expenses', 'Salaries (Admin, Mgmt)'),
-    createPattern('p41', 'TRAVEL|TRAVELLING|INSURANCE|MISCELLANEOUS|STAFF WELFARE|AVANISH KUMAR.*EXP', 'I. Operating Expenses', 'Miscellaneous (Travel, insurance)'),
-    createPattern('p42', 'LEGAL|PROFESSIONAL|ACCOUNTING|CA SAURABH|JITIN|Sahas', 'I. Operating Expenses', 'Legal & CA expenses'),
-    createPattern('p43', 'CRM|ZOHO|INVENTORY SOFTWARE|LEARNYM', 'I. Operating Expenses', 'Platform Costs (CRM, inventory softwares)'),
-    createPattern('p44', 'OFFICE.*EXPENSE|OFFICE.*RENT|UTILITIES|ADMIN|Printing.*Stationery|Bank Charge|COMMUNICATION|COURIER', 'I. Operating Expenses', 'Administrative Expenses (Office Rent, utilities, admin supplies)'),
-
-    // Non-Operating
-    createPattern('p50', 'INTEREST.*EXPENSE|INTEREST.*PAID|BANK.*INTEREST', 'J. Non-Operating', 'Less: Interest Expense'),
-    createPattern('p51', 'DEPRECIATION', 'J. Non-Operating', 'Less: Depreciation'),
-    createPattern('p52', 'AMORTIZATION', 'J. Non-Operating', 'Less: Amortization'),
-    createPattern('p53', 'INCOME TAX(?!.*TDS)|TAX.*PROVISION', 'J. Non-Operating', 'Less: Income Tax'),
-
-    // Ignore (Non-P&L)
-    createPattern('p60', 'GST.*INPUT|GST.*OUTPUT|CGST|SGST|IGST|TCS|DEFERRED', 'Z. Ignore', 'GST Input/Output'),
-    createPattern('p61', 'TDS(?!.*REFUND)', 'Z. Ignore', 'TDS'),
-    createPattern('p62', 'CENTRAL BANK|HDFC BANK|AXIS BANK|^Cash$|BANK TRANSFER', 'Z. Ignore', 'Bank Transfers'),
-    createPattern('p63', 'DIRECTOR LOAN|HARLEEN CHAWLA|INTER.*COMPANY', 'Z. Ignore', 'Inter-company'),
-
-    // Exclude (Personal)
-    createPattern('p70', 'DIWALI EXP|MLG SONS|PERSONAL', 'X. Exclude', 'Personal Expenses'),
-  ];
 }
 
 // ============================================
