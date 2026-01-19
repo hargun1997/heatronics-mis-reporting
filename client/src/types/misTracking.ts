@@ -206,6 +206,16 @@ export interface MISRecord {
   // Classification data (for review/correction)
   classifiedTransactions: ClassifiedTransaction[];
   unclassifiedCount: number;
+
+  // Enhanced: Transactions grouped by head/subhead for drill-down view
+  transactionsByHead?: TransactionsByHead;
+
+  // Unclassified transactions for display
+  unclassifiedTransactions?: UnclassifiedTransaction[];
+
+  // Ignored and excluded transaction counts/amounts
+  ignoredTotal?: number;
+  excludedTotal?: number;
 }
 
 // ============================================
@@ -217,6 +227,56 @@ export interface ClassifiedTransaction extends Transaction {
   misSubhead: string;
   isAutoClassified: boolean;
   confidence: 'high' | 'medium' | 'low';
+}
+
+// ============================================
+// TRANSACTION TRACKING BY SUBHEAD
+// ============================================
+
+// Reference to a transaction for drill-down view
+export interface TransactionRef {
+  id: string;
+  date: string;
+  account: string;
+  amount: number;
+  type: 'debit' | 'credit';
+  source: 'journal' | 'purchase_register' | 'sales_register' | 'balance_sheet';
+  notes?: string;
+  // Original classification for reclassification tracking
+  originalHead?: MISHead;
+  originalSubhead?: string;
+}
+
+// Subhead with transaction details for drill-down
+export interface SubheadWithTransactions {
+  subhead: string;
+  amount: number;
+  transactionCount: number;
+  transactions: TransactionRef[];
+  source: 'journal' | 'balance_sheet' | 'sales_register' | 'calculated';
+}
+
+// Head with all subheads and their transactions
+export interface HeadWithTransactions {
+  head: MISHead;
+  total: number;
+  transactionCount: number;
+  subheads: SubheadWithTransactions[];
+}
+
+// Enhanced MIS data with transaction tracking
+export interface TransactionsByHead {
+  [key: string]: HeadWithTransactions;  // key is MISHead
+}
+
+// Unclassified transaction for display
+export interface UnclassifiedTransaction {
+  id: string;
+  date: string;
+  account: string;
+  amount: number;
+  type: 'debit' | 'credit';
+  source: 'journal';
 }
 
 export type MISHead =
