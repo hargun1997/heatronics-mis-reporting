@@ -32,7 +32,7 @@ export interface GeminiConfig {
 // GEMINI API CONFIGURATION
 // ============================================
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAmUF52yuqjrY4HFzmwy59ejQMafXS17GY';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyALTi7C0IUl7m7gIeNoQpYhUmIr0i8AM3g';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-3-flash-preview';  // Latest Gemini model
 
