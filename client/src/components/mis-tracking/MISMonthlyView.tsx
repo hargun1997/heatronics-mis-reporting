@@ -347,6 +347,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
   const [selectedPreset, setSelectedPreset] = useState<RangePreset | null>(null);
   const [customSelectedMonths, setCustomSelectedMonths] = useState<Set<string>>(new Set());
 
+  // Debug logging when MIS data changes
+  React.useEffect(() => {
+    if (currentMIS) {
+      console.log('=== MISMonthlyView Debug ===');
+      console.log('Current MIS periodKey:', currentMIS.periodKey);
+      console.log('Balance Sheet data:', currentMIS.balanceSheet);
+      console.log('COGM data:', currentMIS.cogm);
+      console.log('Raw Materials from COGM:', currentMIS.cogm.rawMaterialsInventory);
+      console.log('=== End MISMonthlyView Debug ===');
+    }
+  }, [currentMIS]);
+
   const rangePresets = useMemo(() => getRangePresets(), []);
 
   // Get the periods available for selection based on preset
@@ -1445,15 +1457,16 @@ interface ReconciliationSectionProps {
 
 function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome }: ReconciliationSectionProps) {
   // Calculate variances
+  // When BS value is 0 but MIS has value, variance should be flagged for review
   const revenueVariance = misNetRevenue - balanceSheet.netSales;
   const revenueVariancePercent = balanceSheet.netSales !== 0
     ? ((misNetRevenue - balanceSheet.netSales) / balanceSheet.netSales) * 100
-    : 0;
+    : (misNetRevenue !== 0 ? 100 : 0); // 100% variance if BS=0 but MIS has value
 
   const cogsVariance = misCOGM - balanceSheet.calculatedCOGS;
   const cogsVariancePercent = balanceSheet.calculatedCOGS !== 0
     ? ((misCOGM - balanceSheet.calculatedCOGS) / balanceSheet.calculatedCOGS) * 100
-    : 0;
+    : (misCOGM !== 0 ? 100 : 0); // 100% variance if BS=0 but MIS has value
 
   return (
     <div className="mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">

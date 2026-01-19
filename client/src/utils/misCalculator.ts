@@ -109,9 +109,21 @@ export async function calculateMIS(
   // Raw Materials & Inventory comes from Balance Sheet formula
   // Other COGM items come from journal classifications
   const bsData = aggregateBalanceSheetData(stateData, selectedStates);
+
+  // Debug logging
+  console.log('BS Data for COGM:', {
+    bsData,
+    openingStock: bsData?.openingStock,
+    purchases: bsData?.purchases,
+    closingStock: bsData?.closingStock,
+    calculated: bsData ? (bsData.openingStock + bsData.purchases - bsData.closingStock) : 'N/A'
+  });
+
   const rawMaterialsFromBS = bsData
     ? (bsData.openingStock + bsData.purchases - bsData.closingStock)
     : extracted.cogm.rawMaterialsInventory; // Fallback to journal if no BS data
+
+  console.log('Raw Materials from BS:', rawMaterialsFromBS);
 
   record.cogm = {
     rawMaterialsInventory: rawMaterialsFromBS,
@@ -366,8 +378,18 @@ function aggregateBalanceSheetData(
     calculatedCOGS: 0
   };
 
+  console.log('=== aggregateBalanceSheetData Debug ===');
+  console.log('Selected states:', selectedStates);
+
   for (const state of selectedStates) {
     const data = stateData[state];
+    console.log(`State ${state}:`, {
+      hasData: !!data,
+      hasBSData: !!data?.balanceSheetData,
+      bsParsed: data?.balanceSheetParsed,
+      bsData: data?.balanceSheetData
+    });
+
     if (!data?.balanceSheetData) continue;
 
     hasAnyData = true;
@@ -378,12 +400,26 @@ function aggregateBalanceSheetData(
     aggregated.netSales += data.balanceSheetData.netSales || 0;
     aggregated.grossProfit += data.balanceSheetData.grossProfit || 0;
     aggregated.netProfitLoss += data.balanceSheetData.netProfitLoss || 0;
+
+    console.log(`State ${state} BS values:`, {
+      openingStock: data.balanceSheetData.openingStock,
+      closingStock: data.balanceSheetData.closingStock,
+      purchases: data.balanceSheetData.purchases
+    });
   }
 
-  if (!hasAnyData) return undefined;
+  console.log('hasAnyData:', hasAnyData);
+
+  if (!hasAnyData) {
+    console.log('No BS data found - returning undefined');
+    return undefined;
+  }
 
   // Calculate COGS from Balance Sheet formula: Opening Stock + Purchases - Closing Stock
   aggregated.calculatedCOGS = aggregated.openingStock + aggregated.purchases - aggregated.closingStock;
+
+  console.log('Aggregated BS result:', aggregated);
+  console.log('=== End aggregateBalanceSheetData Debug ===');
 
   return aggregated;
 }
