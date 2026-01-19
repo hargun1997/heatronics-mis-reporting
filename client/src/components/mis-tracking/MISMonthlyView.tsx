@@ -88,7 +88,17 @@ function aggregateMISRecords(records: MISRecord[]): MISRecord | null {
 
     classifiedTransactions: [],
     unclassifiedCount: 0,
+
+    // Balance sheet will be aggregated specially
+    balanceSheet: undefined,
   };
+
+  // For balance sheet aggregation - special handling:
+  // Opening Stock = first month's opening stock
+  // Closing Stock = last month's closing stock
+  // Purchases, Sales, Profit/Loss = summed across all months
+  let bsAggregated: AggregatedBalanceSheetData | undefined = undefined;
+  let hasAnyBSData = false;
 
   // Aggregate all records
   for (const record of records) {
@@ -166,6 +176,39 @@ function aggregateMISRecords(records: MISRecord[]): MISRecord | null {
     // Transactions
     aggregated.classifiedTransactions.push(...record.classifiedTransactions);
     aggregated.unclassifiedCount += record.unclassifiedCount;
+
+    // Balance Sheet aggregation - special handling
+    if (record.balanceSheet) {
+      hasAnyBSData = true;
+      if (!bsAggregated) {
+        // First record with BS data - initialize
+        bsAggregated = {
+          openingStock: record.balanceSheet.openingStock,
+          closingStock: record.balanceSheet.closingStock,
+          purchases: record.balanceSheet.purchases,
+          grossSales: record.balanceSheet.grossSales,
+          netSales: record.balanceSheet.netSales,
+          grossProfit: record.balanceSheet.grossProfit,
+          netProfitLoss: record.balanceSheet.netProfitLoss,
+          calculatedCOGS: 0, // Will recalculate at the end
+        };
+      } else {
+        // Subsequent records - sum most values, but keep updating closing stock
+        bsAggregated.closingStock = record.balanceSheet.closingStock; // Last month's closing
+        bsAggregated.purchases += record.balanceSheet.purchases;
+        bsAggregated.grossSales += record.balanceSheet.grossSales;
+        bsAggregated.netSales += record.balanceSheet.netSales;
+        bsAggregated.grossProfit += record.balanceSheet.grossProfit;
+        bsAggregated.netProfitLoss += record.balanceSheet.netProfitLoss;
+      }
+    }
+  }
+
+  // Finalize balance sheet aggregation
+  if (hasAnyBSData && bsAggregated) {
+    // Recalculate COGS: Opening (first month) + Total Purchases - Closing (last month)
+    bsAggregated.calculatedCOGS = bsAggregated.openingStock + bsAggregated.purchases - bsAggregated.closingStock;
+    aggregated.balanceSheet = bsAggregated;
   }
 
   // Recalculate percentages
