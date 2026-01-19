@@ -480,7 +480,7 @@ class GoogleSheetsService {
 
     const defaultConfig: MISConfig = {
       geminiPrompt: this.getDefaultGeminiPrompt(),
-      geminiModel: 'gemini-2.0-flash',  // Updated to more reliable model
+      geminiModel: 'gemini-3-flash-preview',  // Latest Gemini model
       geminiTemperature: 0.2,
       confidenceAutoAccept: 85,
       confidenceNeedsReview: 70,
@@ -583,7 +583,7 @@ class GoogleSheetsService {
     try {
       const defaultConfig: MISConfig = {
         geminiPrompt: this.getDefaultGeminiPrompt(),
-        geminiModel: 'gemini-2.0-flash',  // Updated to more reliable model
+        geminiModel: 'gemini-3-flash-preview',  // Latest Gemini model
         geminiTemperature: 0.2,
         confidenceAutoAccept: 85,
         confidenceNeedsReview: 70,
