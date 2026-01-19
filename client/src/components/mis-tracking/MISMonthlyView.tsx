@@ -1417,7 +1417,7 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
       {/* Header */}
       <div className="bg-indigo-500/20 border-b border-indigo-500/30 px-5 py-3">
         <h3 className="text-sm font-semibold text-indigo-400">Balance Sheet Reconciliation</h3>
-        <p className="text-xs text-indigo-400/70 mt-0.5">Compare MIS calculated values against Balance Sheet data</p>
+        <p className="text-xs text-indigo-400/70 mt-0.5">Compare key figures: Net Sales, COGS, and Net Profit/Loss</p>
       </div>
 
       <div className="p-5">
@@ -1525,29 +1525,73 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
                 </td>
               </tr>
 
-              {/* Net Income (for reference) */}
+              {/* Net Profit/Loss vs BS */}
               <tr>
-                <td className="py-3 px-3 text-sm text-slate-300">Net Profit/Loss</td>
+                <td className="py-3 px-3 text-sm text-slate-300">
+                  <div>Net Profit/Loss</div>
+                  <div className="text-xs text-slate-500">BS: {balanceSheet.netProfitLoss >= 0 ? 'Profit' : 'Loss'}</div>
+                </td>
                 <td className="py-3 px-3 text-right text-sm">
                   <span className={misNetIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                     {formatCurrencyFull(misNetIncome)}
                   </span>
                 </td>
-                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                <td className="py-3 px-3 text-center text-slate-500 text-xs">Calculated</td>
+                <td className="py-3 px-3 text-right text-sm">
+                  <span className={balanceSheet.netProfitLoss >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {formatCurrencyFull(balanceSheet.netProfitLoss)}
+                  </span>
+                </td>
+                <td className={`py-3 px-3 text-right text-sm ${
+                  Math.abs(misNetIncome - balanceSheet.netProfitLoss) < 1000 ? 'text-emerald-400' : 'text-amber-400'
+                }`}>
+                  {formatCurrencyFull(misNetIncome - balanceSheet.netProfitLoss)}
+                </td>
+                <td className={`py-3 px-3 text-right text-sm ${
+                  balanceSheet.netProfitLoss !== 0 && Math.abs(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100) < 5
+                    ? 'text-emerald-400' : 'text-amber-400'
+                }`}>
+                  {balanceSheet.netProfitLoss !== 0
+                    ? `${(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100).toFixed(2)}%`
+                    : '-'}
+                </td>
+                <td className="py-3 px-3 text-center">
+                  {balanceSheet.netProfitLoss !== 0 &&
+                  Math.abs(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100) < 5 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Match
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Review
+                    </span>
+                  )}
+                </td>
               </tr>
+
             </tbody>
           </table>
         </div>
 
         {/* Note */}
-        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
+        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg space-y-2">
           <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">Note:</strong> Variances under 5% are considered acceptable.
-            Larger variances may indicate missing transactions, timing differences, or classification issues.
-            The Balance Sheet is considered the authoritative source for financial data.
+            <strong className="text-slate-300">Key Metrics:</strong> Only Net Sales, COGS, and Net Profit/Loss are compared
+            because MIS and Balance Sheet classify direct vs indirect expenses differently.
+          </p>
+          <p className="text-xs text-slate-400">
+            <strong className="text-slate-300">COGS Formula:</strong> Opening Stock ({formatCurrencyFull(balanceSheet.openingStock)})
+            + Purchases ({formatCurrencyFull(balanceSheet.purchases)})
+            - Closing Stock ({formatCurrencyFull(balanceSheet.closingStock)})
+            = {formatCurrencyFull(balanceSheet.calculatedCOGS)}
+          </p>
+          <p className="text-xs text-slate-400">
+            Variances under 5% are acceptable. Larger variances may indicate missing transactions or timing differences.
           </p>
         </div>
       </div>

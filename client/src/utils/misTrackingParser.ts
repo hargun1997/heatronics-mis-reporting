@@ -11,6 +11,7 @@ import {
   ChannelRevenue,
   createEmptyChannelRevenue
 } from '../types/misTracking';
+import { parseBalanceSheetPDF } from './pdfParser';
 
 // ============================================
 // HELPERS
@@ -513,7 +514,40 @@ export interface BalanceSheetParseResult {
   errors: string[];
 }
 
-export function parseBalanceSheet(file: File): Promise<BalanceSheetParseResult> {
+export async function parseBalanceSheet(file: File): Promise<BalanceSheetParseResult> {
+  const fileName = file.name.toLowerCase();
+
+  // Use PDF parser for PDF files
+  if (fileName.endsWith('.pdf')) {
+    try {
+      const pdfResult = await parseBalanceSheetPDF(file);
+
+      // Calculate net profit/loss (positive for profit, negative for loss)
+      let netProfitLoss = 0;
+      if (pdfResult.netProfit > 0) {
+        netProfitLoss = pdfResult.netProfit;
+      } else if (pdfResult.netLoss > 0) {
+        netProfitLoss = -pdfResult.netLoss; // Make loss negative
+      }
+
+      return {
+        data: {
+          openingStock: pdfResult.openingStock,
+          closingStock: pdfResult.closingStock,
+          purchases: pdfResult.purchases,
+          grossSales: pdfResult.grossSales,
+          netSales: pdfResult.netSales,
+          grossProfit: pdfResult.grossProfit,
+          netProfitLoss
+        },
+        errors: pdfResult.errors
+      };
+    } catch (error) {
+      throw new Error(`Failed to parse PDF balance sheet: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Use Excel parser for Excel files
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -535,6 +569,9 @@ export function parseBalanceSheet(file: File): Promise<BalanceSheetParseResult> 
         let purchases = 0;
         let grossSales = 0;
         let netSales = 0;
+        let grossProfit = 0;
+        let netProfit = 0;
+        let netLoss = 0;
         const errors: string[] = [];
 
         // Search for key terms
@@ -543,10 +580,12 @@ export function parseBalanceSheet(file: File): Promise<BalanceSheetParseResult> 
 
           const text = String(row[0] || '').toLowerCase();
 
-          if (text.includes('opening stock') || text.includes('opening inventory')) {
-            openingStock = parseNumber(row[1]) || parseNumber(row[2]) || 0;
-          } else if (text.includes('closing stock') || text.includes('closing inventory')) {
-            closingStock = parseNumber(row[1]) || parseNumber(row[2]) || 0;
+          if (text.includes('opening stock') || text.includes('opening inventory') || text.includes('to opening stock')) {
+            const amt = parseNumber(row[1]) || parseNumber(row[2]) || 0;
+            if (amt > openingStock) openingStock = amt;
+          } else if (text.includes('closing stock') || text.includes('closing inventory') || text.includes('by closing stock')) {
+            const amt = parseNumber(row[1]) || parseNumber(row[2]) || 0;
+            if (amt > closingStock) closingStock = amt;
           } else if (text.includes('purchase') && !text.includes('return')) {
             const amt = parseNumber(row[1]) || parseNumber(row[2]) || 0;
             if (amt > purchases) purchases = amt;
@@ -556,14 +595,31 @@ export function parseBalanceSheet(file: File): Promise<BalanceSheetParseResult> 
           } else if (text.includes('net sales') || (text.includes('sales') && text.includes('net'))) {
             const amt = parseNumber(row[1]) || parseNumber(row[2]) || 0;
             if (amt > netSales) netSales = amt;
-          } else if (text.includes('sales') && !text.includes('return') && !text.includes('tax')) {
+          } else if (text.includes('by sale') || (text.includes('sales') && !text.includes('return') && !text.includes('tax'))) {
             const amt = parseNumber(row[1]) || parseNumber(row[2]) || 0;
             if (amt > grossSales) grossSales = amt;
+          } else if (text.includes('gross profit') || text.includes('to gross profit') || text.includes('by gross profit')) {
+            const amt = parseNumber(row[1]) || parseNumber(row[2]) || 0;
+            if (amt > grossProfit) grossProfit = amt;
+          } else if ((text.includes('net profit') || text.includes('by profit')) && !text.includes('loss')) {
+            const amt = parseNumber(row[1]) || parseNumber(row[2]) || 0;
+            if (amt > netProfit) netProfit = amt;
+          } else if (text.includes('net loss') || text.includes('nett loss') || text.includes('by nett loss') || text.includes('loss to be adjusted')) {
+            const amt = parseNumber(row[1]) || parseNumber(row[2]) || 0;
+            if (amt > netLoss) netLoss = amt;
           }
         }
 
         // If net sales not found, use gross sales
         if (netSales === 0) netSales = grossSales;
+
+        // Calculate net profit/loss (positive for profit, negative for loss)
+        let netProfitLoss = 0;
+        if (netProfit > 0) {
+          netProfitLoss = netProfit;
+        } else if (netLoss > 0) {
+          netProfitLoss = -netLoss; // Make loss negative
+        }
 
         resolve({
           data: {
@@ -571,7 +627,9 @@ export function parseBalanceSheet(file: File): Promise<BalanceSheetParseResult> 
             closingStock,
             purchases,
             grossSales,
-            netSales
+            netSales,
+            grossProfit,
+            netProfitLoss
           },
           errors
         });

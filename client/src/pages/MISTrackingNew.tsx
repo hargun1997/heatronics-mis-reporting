@@ -207,18 +207,22 @@ export function MISTrackingNew() {
     const misData = await loadSavedDataInternal();
 
     // 2. Load cached upload data from localStorage (doesn't depend on Drive)
-    loadCachedUploadData(misData);
+    const hasCache = loadCachedUploadData(misData);
 
-    // 3. Check Drive connection (just connection, no file fetching)
-    await checkDriveConnection();
+    // 3. Only check Drive connection if no cached data
+    // If we have cached data, user can click Resync to refresh
+    if (!hasCache) {
+      await checkDriveConnection();
+    }
   };
 
   // Load cached upload data from localStorage
-  const loadCachedUploadData = (misData: MISRecord[]) => {
+  // Returns true if cached data was found
+  const loadCachedUploadData = (misData: MISRecord[]): boolean => {
     const cached = loadUploadDataFromStorage();
     if (!cached || cached.length === 0) {
       setHasCachedData(false);
-      return;
+      return false;
     }
 
     setHasCachedData(true);
@@ -265,6 +269,8 @@ export function MISTrackingNew() {
 
       return updated;
     });
+
+    return true; // Cached data was found
   };
 
   // Check Drive connection and load structure (no file fetching)
@@ -1050,16 +1056,16 @@ export function MISTrackingNew() {
           <div className="flex items-center gap-3 mt-1">
             <p className="text-slate-400 text-sm">Upload documents for each month, generate P&L, and view trends</p>
             {/* Drive Status Indicator */}
-            {(driveStatus || isCheckingDrive) && (
+            {(driveStatus || isCheckingDrive || hasCachedData) && (
               <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${
                 isAutoFetching
                   ? 'bg-amber-500/20 text-amber-400'
                   : isCheckingDrive
                   ? 'bg-slate-700 text-slate-400'
+                  : hasCachedData
+                  ? 'bg-emerald-500/20 text-emerald-400'
                   : driveStatus?.connected
-                  ? hasCachedData
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'bg-blue-500/20 text-blue-400'
+                  ? 'bg-blue-500/20 text-blue-400'
                   : 'bg-slate-700 text-slate-400'
               }`}>
                 {isAutoFetching ? (
@@ -1074,8 +1080,10 @@ export function MISTrackingNew() {
                   </svg>
                 ) : (
                   <div className={`w-1.5 h-1.5 rounded-full ${
-                    driveStatus?.connected
-                      ? hasCachedData ? 'bg-emerald-400' : 'bg-blue-400'
+                    hasCachedData
+                      ? 'bg-emerald-400'
+                      : driveStatus?.connected
+                      ? 'bg-blue-400'
                       : 'bg-slate-500'
                   }`} />
                 )}
@@ -1085,16 +1093,16 @@ export function MISTrackingNew() {
                   ? 'Syncing from Drive...'
                   : isCheckingDrive
                   ? 'Checking...'
+                  : hasCachedData
+                  ? 'Data Ready'
                   : driveStatus?.connected
-                  ? hasCachedData
-                    ? 'Data Ready'
-                    : 'Drive Connected'
+                  ? 'Drive Connected'
                   : 'Drive Offline'}
               </div>
             )}
 
-            {/* Clear & Resync Button */}
-            {driveStatus?.connected && !isCheckingDrive && !isAutoFetching && (
+            {/* Clear & Resync Button - show if cached data or drive connected */}
+            {(hasCachedData || driveStatus?.connected) && !isCheckingDrive && !isAutoFetching && (
               <button
                 onClick={handleClearAndResync}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors"

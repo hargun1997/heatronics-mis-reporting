@@ -354,6 +354,8 @@ function aggregateBalanceSheetData(
     purchases: 0,
     grossSales: 0,
     netSales: 0,
+    grossProfit: 0,
+    netProfitLoss: 0,
     calculatedCOGS: 0
   };
 
@@ -367,6 +369,8 @@ function aggregateBalanceSheetData(
     aggregated.purchases += data.balanceSheetData.purchases || 0;
     aggregated.grossSales += data.balanceSheetData.grossSales || 0;
     aggregated.netSales += data.balanceSheetData.netSales || 0;
+    aggregated.grossProfit += data.balanceSheetData.grossProfit || 0;
+    aggregated.netProfitLoss += data.balanceSheetData.netProfitLoss || 0;
   }
 
   if (!hasAnyData) return undefined;
