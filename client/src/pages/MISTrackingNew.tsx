@@ -586,50 +586,27 @@ export function MISTrackingNew() {
     return driveMonth.states.some(s => DRIVE_STATE_MAP[s.code] === state);
   };
 
-  const getUploadStatus = (periodKey: string, state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): 'empty' | 'uploaded' | 'parsed' | 'inDrive' | 'notInDrive' => {
+  // Simplified file status - only show empty or parsed (no confusing Drive status icons)
+  const getUploadStatus = (periodKey: string, state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): 'empty' | 'parsed' => {
     const monthData = monthsData[periodKey];
     if (!monthData) return 'empty';
 
     const data = monthData.uploadData[state];
+    if (!data) return 'empty';
 
-    // Check parsed/uploaded status first
-    if (data) {
-      switch (fileType) {
-        case 'sales':
-          if (data.salesParsed) return 'parsed';
-          if (data.salesRegisterFile) return 'uploaded';
-          break;
-        case 'journal':
-          if (data.journalParsed) return 'parsed';
-          if (data.journalFile) return 'uploaded';
-          break;
-        case 'purchase':
-          if (data.purchaseParsed) return 'parsed';
-          if (data.purchaseRegisterFile) return 'uploaded';
-          break;
-        case 'balanceSheet':
-          if (data.balanceSheetParsed) return 'parsed';
-          if (data.balanceSheetFile) return 'uploaded';
-          break;
-      }
+    // Only check if data is parsed/loaded
+    switch (fileType) {
+      case 'sales':
+        return data.salesParsed ? 'parsed' : 'empty';
+      case 'journal':
+        return data.journalParsed ? 'parsed' : 'empty';
+      case 'purchase':
+        return data.purchaseParsed ? 'parsed' : 'empty';
+      case 'balanceSheet':
+        return data.balanceSheetParsed ? 'parsed' : 'empty';
+      default:
+        return 'empty';
     }
-
-    // Not parsed/uploaded - check if available in Drive
-    const { year, month } = monthData.period;
-    const stateInDrive = isStateInDrive(year, month, state);
-
-    if (!stateInDrive) {
-      // State not in Drive at all - show X
-      return 'notInDrive';
-    }
-
-    // State is in Drive - check if this specific file type is available
-    if (isFileInDrive(year, month, state, fileType)) {
-      return 'inDrive';
-    }
-
-    // State is in Drive but this file type is missing
-    return 'notInDrive';
   };
 
   const canGenerateMIS = (periodKey: string): boolean => {
@@ -1476,7 +1453,7 @@ interface MonthDetailPanelProps {
   monthData: MonthData;
   selectedStates: IndianState[];
   onFileUpload: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet', file: File) => void;
-  getUploadStatus: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet') => 'empty' | 'uploaded' | 'parsed' | 'inDrive' | 'notInDrive';
+  getUploadStatus: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet') => 'empty' | 'parsed';
   onViewMIS: () => void;
   isLoading: boolean;
   onClose: () => void;
@@ -1583,7 +1560,7 @@ function MonthDetailPanel({
             </table>
           </div>
 
-          {/* Legend */}
+          {/* Legend - Simplified: only loaded or empty */}
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
               <span className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center">
@@ -1594,28 +1571,12 @@ function MonthDetailPanel({
               Loaded
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded bg-blue-500/20 flex items-center justify-center">
-                <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-                </svg>
-              </span>
-              In Drive
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded bg-red-500/10 flex items-center justify-center">
-                <svg className="w-3 h-3 text-red-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </span>
-              Missing
-            </span>
-            <span className="flex items-center gap-1.5">
               <span className="w-5 h-5 rounded bg-slate-700/50 flex items-center justify-center">
                 <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
               </span>
-              Upload
+              Empty
             </span>
           </div>
         </div>
@@ -1667,11 +1628,11 @@ function MonthDetailPanel({
 }
 
 // ============================================
-// FILE UPLOAD BUTTON
+// FILE UPLOAD BUTTON - Simplified: only empty or parsed states
 // ============================================
 
 interface FileUploadButtonProps {
-  status: 'empty' | 'uploaded' | 'parsed' | 'inDrive' | 'notInDrive';
+  status: 'empty' | 'parsed';
   onUpload: (file: File) => void;
   isLoading: boolean;
 }
@@ -1698,54 +1659,6 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
     );
   }
 
-  // Not in Drive - show X mark (can still upload manually)
-  if (status === 'notInDrive') {
-    return (
-      <div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".xlsx,.xls,.pdf"
-          onChange={handleChange}
-          className="hidden"
-        />
-        <button
-          onClick={handleClick}
-          className="w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all bg-red-500/10 text-red-400/60 hover:bg-red-500/20 hover:text-red-400"
-          title="Not in Drive (click to upload manually)"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    );
-  }
-
-  // In Drive but not fetched - show cloud icon
-  if (status === 'inDrive') {
-    return (
-      <div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".xlsx,.xls,.pdf"
-          onChange={handleChange}
-          className="hidden"
-        />
-        <button
-          onClick={handleClick}
-          className="w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
-          title="Available in Drive (click to upload different file)"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-          </svg>
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div>
       <input
@@ -1761,12 +1674,10 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
           w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all
           ${status === 'parsed'
             ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-            : status === 'uploaded'
-            ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
             : 'bg-slate-700/50 text-slate-500 hover:bg-slate-700 hover:text-slate-400'
           }
         `}
-        title={status === 'parsed' ? 'Parsed (click to replace)' : status === 'uploaded' ? 'Uploaded (click to replace)' : 'Click to upload'}
+        title={status === 'parsed' ? 'Loaded (click to replace)' : 'Click to upload'}
       >
         {status === 'parsed' ? (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
