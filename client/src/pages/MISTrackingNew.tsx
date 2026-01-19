@@ -318,27 +318,39 @@ export function MISTrackingNew() {
   };
 
   const initializeMonthsForYear = (year: number) => {
-    // Use functional update to avoid race conditions with Drive fetch
+    // Use functional update - MERGE new months with existing data (preserve all years)
     setMonthsData(prev => {
-      const newMonthsData: Record<string, MonthData> = {};
+      // Start with a copy of ALL existing data (preserves other years)
+      const updatedMonthsData: Record<string, MonthData> = { ...prev };
 
+      // Update/add months for the selected year
       for (let month = 1; month <= 12; month++) {
         const period: MISPeriod = { month, year };
         const periodKey = periodToKey(period);
         const existingMIS = allMISData.find(m => m.periodKey === periodKey);
 
-        newMonthsData[periodKey] = {
-          period,
-          periodKey,
-          // Preserve uploaded data from previous state (including Drive fetches)
-          uploadData: prev[periodKey]?.uploadData || ({} as Record<IndianState, StateUploadData | undefined>),
-          hasData: !!existingMIS,
-          mis: existingMIS || null,
-          isExpanded: expandedMonth === periodKey
-        };
+        if (updatedMonthsData[periodKey]) {
+          // Month exists - update MIS info but preserve uploadData
+          updatedMonthsData[periodKey] = {
+            ...updatedMonthsData[periodKey],
+            hasData: !!existingMIS,
+            mis: existingMIS || null,
+            isExpanded: expandedMonth === periodKey
+          };
+        } else {
+          // Month doesn't exist - create new entry
+          updatedMonthsData[periodKey] = {
+            period,
+            periodKey,
+            uploadData: {} as Record<IndianState, StateUploadData | undefined>,
+            hasData: !!existingMIS,
+            mis: existingMIS || null,
+            isExpanded: false
+          };
+        }
       }
 
-      return newMonthsData;
+      return updatedMonthsData;
     });
   };
 
@@ -632,7 +644,6 @@ export function MISTrackingNew() {
     const driveMonth = getDriveMonthData(year, month);
 
     let hasAnyParsedFile = false;
-    let statesWithParsedData = 0;
     let driveStatesCount = driveMonth?.states.length || 0;
     let driveStatesLoaded = 0;
 
@@ -641,7 +652,6 @@ export function MISTrackingNew() {
       const data = monthData.uploadData[state];
       if (data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
         hasAnyParsedFile = true;
-        statesWithParsedData++;
 
         // Check if this state was in Drive
         if (driveMonth?.states.some(s => DRIVE_STATE_MAP[s.code] === state)) {
@@ -650,25 +660,23 @@ export function MISTrackingNew() {
       }
     }
 
-    // If has MIS already generated, show complete
+    // If has MIS already generated, show complete (green)
     if (monthData.hasData) return 'complete';
 
     // If has parsed/loaded data
     if (hasAnyParsedFile) {
-      // If all Drive states are loaded, show ready
+      // If all Drive states are loaded, show ready (blue)
       if (driveStatesCount > 0 && driveStatesLoaded >= driveStatesCount) {
         return 'ready';
       }
-      // Some data loaded but not all from Drive yet
+      // Some data loaded but not all - show partial (amber)
+      // Only show partial when we actually have SOME data loaded
       return 'partial';
     }
 
-    // No parsed data - check if Drive has data for this month
-    if (driveMonth && driveMonth.states.length > 0) {
-      // Drive has data but nothing loaded yet - show as partial (needs sync)
-      return 'partial';
-    }
-
+    // No parsed data at all - show empty (grey)
+    // Don't show 'partial' just because Drive has data - that's confusing
+    // User needs to click Resync to load data
     return 'empty';
   };
 
