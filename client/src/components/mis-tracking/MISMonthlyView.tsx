@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { MISRecord, MISPeriod, periodToString, periodToKey, SalesChannel, SALES_CHANNELS, createEmptyChannelRevenue, createEmptyMISRecord, createEmptyCOGMData } from '../../types/misTracking';
+import { MISRecord, MISPeriod, periodToString, periodToKey, SalesChannel, SALES_CHANNELS, createEmptyChannelRevenue, createEmptyMISRecord, createEmptyCOGMData, AggregatedBalanceSheetData } from '../../types/misTracking';
 import { formatCurrency, formatCurrencyFull, formatPercent } from '../../utils/misCalculator';
 
 // ============================================
@@ -883,6 +883,16 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
         </table>
       </div>
       )}
+
+      {/* Balance Sheet Reconciliation Section */}
+      {displayMIS && displayMIS.balanceSheet && (
+        <ReconciliationSection
+          balanceSheet={displayMIS.balanceSheet}
+          misNetRevenue={netRevenue}
+          misCOGM={cogm.totalCOGM}
+          misNetIncome={displayMIS.netIncome}
+        />
+      )}
     </div>
   );
 }
@@ -1375,6 +1385,172 @@ function ExpenseCategory({ title, color, items }: { title: string; color: string
           <li key={idx}>• {item}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// ============================================
+// BALANCE SHEET RECONCILIATION SECTION
+// ============================================
+
+interface ReconciliationSectionProps {
+  balanceSheet: AggregatedBalanceSheetData;
+  misNetRevenue: number;
+  misCOGM: number;
+  misNetIncome: number;
+}
+
+function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome }: ReconciliationSectionProps) {
+  // Calculate variances
+  const revenueVariance = misNetRevenue - balanceSheet.netSales;
+  const revenueVariancePercent = balanceSheet.netSales !== 0
+    ? ((misNetRevenue - balanceSheet.netSales) / balanceSheet.netSales) * 100
+    : 0;
+
+  const cogsVariance = misCOGM - balanceSheet.calculatedCOGS;
+  const cogsVariancePercent = balanceSheet.calculatedCOGS !== 0
+    ? ((misCOGM - balanceSheet.calculatedCOGS) / balanceSheet.calculatedCOGS) * 100
+    : 0;
+
+  return (
+    <div className="mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+      {/* Header */}
+      <div className="bg-indigo-500/20 border-b border-indigo-500/30 px-5 py-3">
+        <h3 className="text-sm font-semibold text-indigo-400">Balance Sheet Reconciliation</h3>
+        <p className="text-xs text-indigo-400/70 mt-0.5">Compare MIS calculated values against Balance Sheet data</p>
+      </div>
+
+      <div className="p-5">
+        {/* Balance Sheet Summary */}
+        <div className="mb-5">
+          <h4 className="text-xs font-medium text-slate-400 mb-3">Balance Sheet Data (Aggregated)</h4>
+          <div className="grid grid-cols-5 gap-3">
+            <div className="bg-slate-700/30 rounded-lg p-3">
+              <div className="text-xs text-slate-500">Opening Stock</div>
+              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.openingStock)}</div>
+            </div>
+            <div className="bg-slate-700/30 rounded-lg p-3">
+              <div className="text-xs text-slate-500">Purchases</div>
+              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.purchases)}</div>
+            </div>
+            <div className="bg-slate-700/30 rounded-lg p-3">
+              <div className="text-xs text-slate-500">Closing Stock</div>
+              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.closingStock)}</div>
+            </div>
+            <div className="bg-slate-700/30 rounded-lg p-3">
+              <div className="text-xs text-slate-500">Gross Sales</div>
+              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.grossSales)}</div>
+            </div>
+            <div className="bg-slate-700/30 rounded-lg p-3">
+              <div className="text-xs text-slate-500">Net Sales</div>
+              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.netSales)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Comparison Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-700">
+                <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Metric</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">MIS Calculated</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Balance Sheet</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Variance</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Variance %</th>
+                <th className="text-center py-2 px-3 text-xs font-medium text-slate-500">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Net Revenue vs Net Sales */}
+              <tr className="border-b border-slate-700/50">
+                <td className="py-3 px-3 text-sm text-slate-300">Net Revenue / Net Sales</td>
+                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(misNetRevenue)}</td>
+                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(balanceSheet.netSales)}</td>
+                <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariance) < 1000 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {formatCurrencyFull(revenueVariance)}
+                </td>
+                <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {revenueVariancePercent.toFixed(2)}%
+                </td>
+                <td className="py-3 px-3 text-center">
+                  {Math.abs(revenueVariancePercent) < 5 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Match
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Review
+                    </span>
+                  )}
+                </td>
+              </tr>
+
+              {/* COGM vs Calculated COGS */}
+              <tr className="border-b border-slate-700/50">
+                <td className="py-3 px-3 text-sm text-slate-300">
+                  <div>COGM / COGS</div>
+                  <div className="text-xs text-slate-500">BS Formula: Opening + Purchases - Closing</div>
+                </td>
+                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(misCOGM)}</td>
+                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(balanceSheet.calculatedCOGS)}</td>
+                <td className={`py-3 px-3 text-right text-sm ${Math.abs(cogsVariance) < 1000 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {formatCurrencyFull(cogsVariance)}
+                </td>
+                <td className={`py-3 px-3 text-right text-sm ${Math.abs(cogsVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {cogsVariancePercent.toFixed(2)}%
+                </td>
+                <td className="py-3 px-3 text-center">
+                  {Math.abs(cogsVariancePercent) < 5 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Match
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Review
+                    </span>
+                  )}
+                </td>
+              </tr>
+
+              {/* Net Income (for reference) */}
+              <tr>
+                <td className="py-3 px-3 text-sm text-slate-300">Net Profit/Loss</td>
+                <td className="py-3 px-3 text-right text-sm">
+                  <span className={misNetIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {formatCurrencyFull(misNetIncome)}
+                  </span>
+                </td>
+                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
+                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
+                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
+                <td className="py-3 px-3 text-center text-slate-500 text-xs">Calculated</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Note */}
+        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
+          <p className="text-xs text-slate-400">
+            <strong className="text-slate-300">Note:</strong> Variances under 5% are considered acceptable.
+            Larger variances may indicate missing transactions, timing differences, or classification issues.
+            The Balance Sheet is considered the authoritative source for financial data.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

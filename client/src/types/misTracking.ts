@@ -200,6 +200,9 @@ export interface MISRecord {
   netIncome: number;  // = EBT - Income Tax
   netIncomePercent: number;
 
+  // Balance Sheet data for reconciliation (aggregated from all states)
+  balanceSheet?: AggregatedBalanceSheetData;
+
   // Classification data (for review/correction)
   classifiedTransactions: ClassifiedTransaction[];
   unclassifiedCount: number;
@@ -295,6 +298,17 @@ export interface StateBalanceSheetData {
   purchases: number;
   grossSales: number;
   netSales: number;
+}
+
+// Aggregated Balance Sheet data for MIS reconciliation
+export interface AggregatedBalanceSheetData {
+  openingStock: number;
+  closingStock: number;
+  purchases: number;
+  grossSales: number;
+  netSales: number;
+  // Calculated COGS from BS: Opening Stock + Purchases - Closing Stock
+  calculatedCOGS: number;
 }
 
 // ============================================
