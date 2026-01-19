@@ -1,18 +1,375 @@
-import React, { useState } from 'react';
-import { MISRecord, MISPeriod, periodToString, SalesChannel, SALES_CHANNELS } from '../../types/misTracking';
+import React, { useState, useMemo } from 'react';
+import { MISRecord, MISPeriod, periodToString, periodToKey, SalesChannel, SALES_CHANNELS, createEmptyChannelRevenue, createEmptyMISRecord, createEmptyCOGMData } from '../../types/misTracking';
 import { formatCurrency, formatCurrencyFull, formatPercent } from '../../utils/misCalculator';
+
+// ============================================
+// RANGE TYPES
+// ============================================
+
+type SelectionMode = 'single' | 'range';
+type RangePreset = 'last3' | 'last6' | 'last12' | 'fy_current' | 'fy_previous' | 'ytd' | 'custom';
+
+interface RangeOption {
+  id: RangePreset;
+  label: string;
+  getMonths: (allPeriods: MISPeriod[]) => string[];
+}
+
+// ============================================
+// AGGREGATION HELPER
+// ============================================
+
+function aggregateMISRecords(records: MISRecord[]): MISRecord | null {
+  if (records.length === 0) return null;
+  if (records.length === 1) return records[0];
+
+  // Sort by period
+  const sorted = [...records].sort((a, b) => {
+    const keyA = a.periodKey;
+    const keyB = b.periodKey;
+    return keyA.localeCompare(keyB);
+  });
+
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  // Create aggregated record
+  const aggregated: MISRecord = {
+    period: first.period, // Use first period for display
+    periodKey: `${first.periodKey}_to_${last.periodKey}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    states: [...new Set(records.flatMap(r => r.states))],
+
+    // Initialize revenue
+    revenue: {
+      grossRevenue: createEmptyChannelRevenue(),
+      totalGrossRevenue: 0,
+      returns: createEmptyChannelRevenue(),
+      totalReturns: 0,
+      stockTransfers: [],
+      totalStockTransfers: 0,
+      discounts: createEmptyChannelRevenue(),
+      totalDiscounts: 0,
+      taxes: createEmptyChannelRevenue(),
+      totalTaxes: 0,
+      totalRevenue: 0,
+      netRevenue: 0,
+    },
+
+    // Initialize COGM
+    cogm: createEmptyCOGMData(),
+    grossMargin: 0,
+    grossMarginPercent: 0,
+
+    // Initialize expenses
+    channelFulfillment: { amazonFees: 0, blinkitFees: 0, d2cFees: 0, total: 0 },
+    cm1: 0,
+    cm1Percent: 0,
+
+    salesMarketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, total: 0 },
+    cm2: 0,
+    cm2Percent: 0,
+
+    platformCosts: { shopifySubscription: 0, watiSubscription: 0, shopfloSubscription: 0, total: 0 },
+    cm3: 0,
+    cm3Percent: 0,
+
+    operatingExpenses: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, total: 0 },
+    ebitda: 0,
+    ebitdaPercent: 0,
+
+    nonOperating: { interestExpense: 0, depreciation: 0, amortization: 0, totalIDA: 0, incomeTax: 0 },
+    ebt: 0,
+    ebtPercent: 0,
+
+    netIncome: 0,
+    netIncomePercent: 0,
+
+    classifiedTransactions: [],
+    unclassifiedCount: 0,
+  };
+
+  // Aggregate all records
+  for (const record of records) {
+    // Revenue
+    for (const channel of SALES_CHANNELS) {
+      aggregated.revenue.grossRevenue[channel] += record.revenue.grossRevenue[channel];
+      aggregated.revenue.returns[channel] += record.revenue.returns[channel];
+      aggregated.revenue.discounts[channel] += record.revenue.discounts[channel];
+      aggregated.revenue.taxes[channel] += record.revenue.taxes[channel];
+    }
+    aggregated.revenue.totalGrossRevenue += record.revenue.totalGrossRevenue;
+    aggregated.revenue.totalReturns += record.revenue.totalReturns;
+    aggregated.revenue.stockTransfers.push(...record.revenue.stockTransfers);
+    aggregated.revenue.totalStockTransfers += record.revenue.totalStockTransfers;
+    aggregated.revenue.totalDiscounts += record.revenue.totalDiscounts;
+    aggregated.revenue.totalTaxes += record.revenue.totalTaxes;
+    aggregated.revenue.totalRevenue += record.revenue.totalRevenue;
+    aggregated.revenue.netRevenue += record.revenue.netRevenue;
+
+    // COGM
+    aggregated.cogm.rawMaterialsInventory += record.cogm.rawMaterialsInventory;
+    aggregated.cogm.manufacturingWages += record.cogm.manufacturingWages;
+    aggregated.cogm.contractWagesMfg += record.cogm.contractWagesMfg;
+    aggregated.cogm.inboundTransport += record.cogm.inboundTransport;
+    aggregated.cogm.factoryRent += record.cogm.factoryRent;
+    aggregated.cogm.factoryElectricity += record.cogm.factoryElectricity;
+    aggregated.cogm.factoryMaintenance += record.cogm.factoryMaintenance;
+    aggregated.cogm.jobWork += record.cogm.jobWork;
+    aggregated.cogm.totalCOGM += record.cogm.totalCOGM;
+
+    // Margins
+    aggregated.grossMargin += record.grossMargin;
+
+    // Channel & Fulfillment
+    aggregated.channelFulfillment.amazonFees += record.channelFulfillment.amazonFees;
+    aggregated.channelFulfillment.blinkitFees += record.channelFulfillment.blinkitFees;
+    aggregated.channelFulfillment.d2cFees += record.channelFulfillment.d2cFees;
+    aggregated.channelFulfillment.total += record.channelFulfillment.total;
+    aggregated.cm1 += record.cm1;
+
+    // Sales & Marketing
+    aggregated.salesMarketing.facebookAds += record.salesMarketing.facebookAds;
+    aggregated.salesMarketing.googleAds += record.salesMarketing.googleAds;
+    aggregated.salesMarketing.amazonAds += record.salesMarketing.amazonAds;
+    aggregated.salesMarketing.blinkitAds += record.salesMarketing.blinkitAds;
+    aggregated.salesMarketing.agencyFees += record.salesMarketing.agencyFees;
+    aggregated.salesMarketing.total += record.salesMarketing.total;
+    aggregated.cm2 += record.cm2;
+
+    // Platform Costs
+    aggregated.platformCosts.shopifySubscription += record.platformCosts.shopifySubscription;
+    aggregated.platformCosts.watiSubscription += record.platformCosts.watiSubscription;
+    aggregated.platformCosts.shopfloSubscription += record.platformCosts.shopfloSubscription;
+    aggregated.platformCosts.total += record.platformCosts.total;
+    aggregated.cm3 += record.cm3;
+
+    // Operating Expenses
+    aggregated.operatingExpenses.salariesAdminMgmt += record.operatingExpenses.salariesAdminMgmt;
+    aggregated.operatingExpenses.miscellaneous += record.operatingExpenses.miscellaneous;
+    aggregated.operatingExpenses.legalCaExpenses += record.operatingExpenses.legalCaExpenses;
+    aggregated.operatingExpenses.platformCostsCRM += record.operatingExpenses.platformCostsCRM;
+    aggregated.operatingExpenses.administrativeExpenses += record.operatingExpenses.administrativeExpenses;
+    aggregated.operatingExpenses.total += record.operatingExpenses.total;
+    aggregated.ebitda += record.ebitda;
+
+    // Non-Operating
+    aggregated.nonOperating.interestExpense += record.nonOperating.interestExpense;
+    aggregated.nonOperating.depreciation += record.nonOperating.depreciation;
+    aggregated.nonOperating.amortization += record.nonOperating.amortization;
+    aggregated.nonOperating.totalIDA += record.nonOperating.totalIDA;
+    aggregated.nonOperating.incomeTax += record.nonOperating.incomeTax;
+    aggregated.ebt += record.ebt;
+    aggregated.netIncome += record.netIncome;
+
+    // Transactions
+    aggregated.classifiedTransactions.push(...record.classifiedTransactions);
+    aggregated.unclassifiedCount += record.unclassifiedCount;
+  }
+
+  // Recalculate percentages
+  const netRevenue = aggregated.revenue.netRevenue;
+  if (netRevenue > 0) {
+    aggregated.grossMarginPercent = (aggregated.grossMargin / netRevenue) * 100;
+    aggregated.cm1Percent = (aggregated.cm1 / netRevenue) * 100;
+    aggregated.cm2Percent = (aggregated.cm2 / netRevenue) * 100;
+    aggregated.cm3Percent = (aggregated.cm3 / netRevenue) * 100;
+    aggregated.ebitdaPercent = (aggregated.ebitda / netRevenue) * 100;
+    aggregated.ebtPercent = (aggregated.ebt / netRevenue) * 100;
+    aggregated.netIncomePercent = (aggregated.netIncome / netRevenue) * 100;
+  }
+
+  return aggregated;
+}
+
+// ============================================
+// RANGE PRESETS
+// ============================================
+
+function getRangePresets(): RangeOption[] {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  // FY in India runs April to March
+  const currentFYStart = currentMonth >= 4 ? currentYear : currentYear - 1;
+  const previousFYStart = currentFYStart - 1;
+
+  return [
+    {
+      id: 'last3',
+      label: 'Last 3 Months',
+      getMonths: (allPeriods) => {
+        const keys: string[] = [];
+        for (let i = 0; i < 3; i++) {
+          let month = currentMonth - i;
+          let year = currentYear;
+          if (month <= 0) { month += 12; year -= 1; }
+          keys.push(`${year}-${String(month).padStart(2, '0')}`);
+        }
+        return keys.filter(k => allPeriods.some(p => periodToKey(p) === k));
+      }
+    },
+    {
+      id: 'last6',
+      label: 'Last 6 Months',
+      getMonths: (allPeriods) => {
+        const keys: string[] = [];
+        for (let i = 0; i < 6; i++) {
+          let month = currentMonth - i;
+          let year = currentYear;
+          while (month <= 0) { month += 12; year -= 1; }
+          keys.push(`${year}-${String(month).padStart(2, '0')}`);
+        }
+        return keys.filter(k => allPeriods.some(p => periodToKey(p) === k));
+      }
+    },
+    {
+      id: 'last12',
+      label: 'Last 12 Months',
+      getMonths: (allPeriods) => {
+        const keys: string[] = [];
+        for (let i = 0; i < 12; i++) {
+          let month = currentMonth - i;
+          let year = currentYear;
+          while (month <= 0) { month += 12; year -= 1; }
+          keys.push(`${year}-${String(month).padStart(2, '0')}`);
+        }
+        return keys.filter(k => allPeriods.some(p => periodToKey(p) === k));
+      }
+    },
+    {
+      id: 'ytd',
+      label: 'Year to Date',
+      getMonths: (allPeriods) => {
+        const keys: string[] = [];
+        for (let month = 1; month <= currentMonth; month++) {
+          keys.push(`${currentYear}-${String(month).padStart(2, '0')}`);
+        }
+        return keys.filter(k => allPeriods.some(p => periodToKey(p) === k));
+      }
+    },
+    {
+      id: 'fy_current',
+      label: `FY ${currentFYStart}-${(currentFYStart + 1).toString().slice(2)}`,
+      getMonths: (allPeriods) => {
+        const keys: string[] = [];
+        // April to March
+        for (let month = 4; month <= 12; month++) {
+          keys.push(`${currentFYStart}-${String(month).padStart(2, '0')}`);
+        }
+        for (let month = 1; month <= 3; month++) {
+          keys.push(`${currentFYStart + 1}-${String(month).padStart(2, '0')}`);
+        }
+        return keys.filter(k => allPeriods.some(p => periodToKey(p) === k));
+      }
+    },
+    {
+      id: 'fy_previous',
+      label: `FY ${previousFYStart}-${(previousFYStart + 1).toString().slice(2)}`,
+      getMonths: (allPeriods) => {
+        const keys: string[] = [];
+        for (let month = 4; month <= 12; month++) {
+          keys.push(`${previousFYStart}-${String(month).padStart(2, '0')}`);
+        }
+        for (let month = 1; month <= 3; month++) {
+          keys.push(`${previousFYStart + 1}-${String(month).padStart(2, '0')}`);
+        }
+        return keys.filter(k => allPeriods.some(p => periodToKey(p) === k));
+      }
+    },
+    {
+      id: 'custom',
+      label: 'Custom Selection',
+      getMonths: () => []
+    }
+  ];
+}
+
+// ============================================
+// PROPS
+// ============================================
 
 interface MISMonthlyViewProps {
   currentMIS: MISRecord | null;
   savedPeriods: { periodKey: string; period: MISPeriod }[];
   onPeriodChange: (periodKey: string) => void;
+  allMISRecords?: MISRecord[]; // All records for aggregation
 }
 
-export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MISMonthlyViewProps) {
+export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMISRecords = [] }: MISMonthlyViewProps) {
   const [showChannelBreakdown, setShowChannelBreakdown] = useState(true);
   const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>('single');
+  const [selectedPreset, setSelectedPreset] = useState<RangePreset | null>(null);
+  const [customSelectedMonths, setCustomSelectedMonths] = useState<Set<string>>(new Set());
 
-  if (!currentMIS) {
+  const rangePresets = useMemo(() => getRangePresets(), []);
+
+  // Get the periods available for selection based on preset
+  const selectedPeriodKeys = useMemo(() => {
+    if (selectionMode === 'single') return currentMIS ? [currentMIS.periodKey] : [];
+
+    if (selectedPreset === 'custom') {
+      return Array.from(customSelectedMonths);
+    }
+
+    const preset = rangePresets.find(p => p.id === selectedPreset);
+    if (!preset) return [];
+
+    return preset.getMonths(savedPeriods.map(p => p.period));
+  }, [selectionMode, selectedPreset, customSelectedMonths, savedPeriods, currentMIS, rangePresets]);
+
+  // Get the MIS record(s) to display (aggregated if range)
+  const displayMIS = useMemo(() => {
+    if (selectionMode === 'single') return currentMIS;
+
+    const records = allMISRecords.filter(r => selectedPeriodKeys.includes(r.periodKey));
+    return aggregateMISRecords(records);
+  }, [selectionMode, selectedPeriodKeys, allMISRecords, currentMIS]);
+
+  // Get display title for range
+  const displayTitle = useMemo(() => {
+    if (selectionMode === 'single' && displayMIS) {
+      return periodToString(displayMIS.period);
+    }
+
+    if (selectedPeriodKeys.length === 0) return 'No periods selected';
+
+    const preset = rangePresets.find(p => p.id === selectedPreset);
+    if (preset && preset.id !== 'custom') {
+      return `${preset.label} (${selectedPeriodKeys.length} months)`;
+    }
+
+    // Custom selection - show range
+    const sorted = [...selectedPeriodKeys].sort();
+    if (sorted.length === 1) {
+      const p = savedPeriods.find(sp => sp.periodKey === sorted[0]);
+      return p ? periodToString(p.period) : sorted[0];
+    }
+
+    const firstPeriod = savedPeriods.find(sp => sp.periodKey === sorted[0]);
+    const lastPeriod = savedPeriods.find(sp => sp.periodKey === sorted[sorted.length - 1]);
+    if (firstPeriod && lastPeriod) {
+      return `${periodToString(firstPeriod.period)} - ${periodToString(lastPeriod.period)} (${sorted.length} months)`;
+    }
+
+    return `${sorted.length} months selected`;
+  }, [selectionMode, selectedPeriodKeys, savedPeriods, displayMIS, selectedPreset, rangePresets]);
+
+  const toggleCustomMonth = (periodKey: string) => {
+    setCustomSelectedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(periodKey)) {
+        next.delete(periodKey);
+      } else {
+        next.add(periodKey);
+      }
+      return next;
+    });
+  };
+
+  if (!displayMIS && savedPeriods.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-slate-600 mb-4">
@@ -22,53 +379,183 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
         </div>
         <h3 className="text-lg font-medium text-slate-300 mb-2">No MIS Data</h3>
         <p className="text-slate-500 mb-4">
-          {savedPeriods.length > 0
-            ? 'Select a period from the dropdown or upload new data'
-            : 'Upload documents in the Upload tab to generate MIS'
-          }
+          Upload documents in the Timeline tab to generate MIS
         </p>
-
-        {savedPeriods.length > 0 && (
-          <select
-            onChange={(e) => onPeriodChange(e.target.value)}
-            className="px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200"
-          >
-            <option value="">Select a period...</option>
-            {savedPeriods.map(p => (
-              <option key={p.periodKey} value={p.periodKey}>
-                {periodToString(p.period)}
-              </option>
-            ))}
-          </select>
-        )}
       </div>
     );
   }
 
-  const { revenue, cogm, channelFulfillment, salesMarketing, platformCosts, operatingExpenses, nonOperating } = currentMIS;
+  // These values are only used when displayMIS exists (the table is conditionally rendered)
+  // We use defaults to satisfy TypeScript, but they're never actually used when displayMIS is null
+  const revenue = displayMIS ? displayMIS.revenue : { grossRevenue: createEmptyChannelRevenue(), totalGrossRevenue: 0, returns: createEmptyChannelRevenue(), totalReturns: 0, stockTransfers: [], totalStockTransfers: 0, discounts: createEmptyChannelRevenue(), totalDiscounts: 0, taxes: createEmptyChannelRevenue(), totalTaxes: 0, totalRevenue: 0, netRevenue: 0 };
+  const cogm = displayMIS ? displayMIS.cogm : createEmptyCOGMData();
+  const channelFulfillment = displayMIS ? displayMIS.channelFulfillment : { amazonFees: 0, blinkitFees: 0, d2cFees: 0, total: 0 };
+  const salesMarketing = displayMIS ? displayMIS.salesMarketing : { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, total: 0 };
+  const platformCosts = displayMIS ? displayMIS.platformCosts : { shopifySubscription: 0, watiSubscription: 0, shopfloSubscription: 0, total: 0 };
+  const operatingExpenses = displayMIS ? displayMIS.operatingExpenses : { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, total: 0 };
+  const nonOperating = displayMIS ? displayMIS.nonOperating : { interestExpense: 0, depreciation: 0, amortization: 0, totalIDA: 0, incomeTax: 0 };
   const netRevenue = revenue.netRevenue;
 
   return (
     <div className="space-y-6">
-      {/* Period Selector & Export */}
+      {/* Period Selection Controls */}
+      <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+        <div className="flex flex-col gap-4">
+          {/* Mode Toggle */}
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-400">View Mode:</span>
+            <div className="flex items-center bg-slate-700/50 rounded-lg p-0.5">
+              <button
+                onClick={() => setSelectionMode('single')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  selectionMode === 'single'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Single Month
+              </button>
+              <button
+                onClick={() => {
+                  setSelectionMode('range');
+                  if (!selectedPreset) setSelectedPreset('last6');
+                }}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  selectionMode === 'range'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Aggregate Range
+              </button>
+            </div>
+          </div>
+
+          {/* Single Month Selection */}
+          {selectionMode === 'single' && (
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-400">Period:</span>
+              <select
+                value={currentMIS?.periodKey || ''}
+                onChange={(e) => onPeriodChange(e.target.value)}
+                className="px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-sm text-slate-200 min-w-[150px]"
+              >
+                <option value="">Select a period...</option>
+                {savedPeriods.map(p => (
+                  <option key={p.periodKey} value={p.periodKey}>
+                    {periodToString(p.period)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Range Selection */}
+          {selectionMode === 'range' && (
+            <div className="space-y-3">
+              {/* Preset Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-slate-400">Quick Select:</span>
+                {rangePresets.map(preset => {
+                  const monthCount = preset.id !== 'custom'
+                    ? preset.getMonths(savedPeriods.map(p => p.period)).length
+                    : customSelectedMonths.size;
+                  const isDisabled = preset.id !== 'custom' && monthCount === 0;
+
+                  return (
+                    <button
+                      key={preset.id}
+                      onClick={() => setSelectedPreset(preset.id)}
+                      disabled={isDisabled}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                        selectedPreset === preset.id
+                          ? 'bg-blue-500 text-white'
+                          : isDisabled
+                          ? 'bg-slate-700/30 text-slate-600 cursor-not-allowed'
+                          : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                      }`}
+                    >
+                      {preset.label}
+                      {preset.id !== 'custom' && monthCount > 0 && (
+                        <span className="ml-1 text-slate-400">({monthCount})</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom Month Selection */}
+              {selectedPreset === 'custom' && (
+                <div className="bg-slate-700/30 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-slate-300 font-medium">Select months to aggregate:</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setCustomSelectedMonths(new Set(savedPeriods.map(p => p.periodKey)))}
+                        className="text-xs text-blue-400 hover:text-blue-300"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={() => setCustomSelectedMonths(new Set())}
+                        className="text-xs text-slate-400 hover:text-slate-300"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                    {savedPeriods
+                      .sort((a, b) => b.periodKey.localeCompare(a.periodKey))
+                      .map(p => (
+                        <button
+                          key={p.periodKey}
+                          onClick={() => toggleCustomMonth(p.periodKey)}
+                          className={`px-2 py-1.5 text-xs rounded-md transition-all ${
+                            customSelectedMonths.has(p.periodKey)
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-slate-600/50 text-slate-300 hover:bg-slate-500/50'
+                          }`}
+                        >
+                          {periodToString(p.period)}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Selected Summary */}
+              {selectedPeriodKeys.length > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-emerald-400 font-medium">
+                    {selectedPeriodKeys.length} month{selectedPeriodKeys.length !== 1 ? 's' : ''} selected
+                  </span>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-400">
+                    {displayTitle}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Header with Title & Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h3 className="text-base font-semibold text-slate-200">
-            MIS for {periodToString(currentMIS.period)}
+            {selectionMode === 'single' && displayMIS
+              ? `MIS for ${periodToString(displayMIS.period)}`
+              : selectionMode === 'range' && displayMIS
+              ? `Aggregated MIS: ${displayTitle}`
+              : 'MIS Report'
+            }
           </h3>
-
-          {savedPeriods.length > 1 && (
-            <select
-              value={currentMIS.periodKey}
-              onChange={(e) => onPeriodChange(e.target.value)}
-              className="px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-sm text-slate-200"
-            >
-              {savedPeriods.map(p => (
-                <option key={p.periodKey} value={p.periodKey}>
-                  {periodToString(p.period)}
-                </option>
-              ))}
-            </select>
+          {selectionMode === 'range' && selectedPeriodKeys.length > 1 && (
+            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+              Aggregated
+            </span>
           )}
         </div>
 
@@ -101,34 +588,59 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
         <AlgorithmGuideModal onClose={() => setShowAlgorithmGuide(false)} />
       )}
 
+      {/* No Data State */}
+      {!displayMIS && (
+        <div className="text-center py-12 bg-slate-800/30 rounded-xl border border-slate-700">
+          <div className="text-slate-600 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-slate-300 mb-2">
+            {selectionMode === 'range' ? 'No Data for Selected Range' : 'No MIS Data'}
+          </h3>
+          <p className="text-slate-500">
+            {selectionMode === 'range'
+              ? 'Select months with generated MIS data or use a different range preset.'
+              : savedPeriods.length > 0
+              ? 'Select a period from the dropdown above.'
+              : 'Upload documents in the Timeline tab to generate MIS.'
+            }
+          </p>
+        </div>
+      )}
+
       {/* Key Metrics Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <MetricCard
-          label="Net Revenue"
-          value={formatCurrency(netRevenue)}
-          color="blue"
-        />
-        <MetricCard
-          label="Gross Margin"
-          value={formatPercent(currentMIS.grossMarginPercent)}
-          subValue={formatCurrency(currentMIS.grossMargin)}
-          color="emerald"
-        />
-        <MetricCard
-          label="CM1"
-          value={formatPercent(currentMIS.cm1Percent)}
-          subValue={formatCurrency(currentMIS.cm1)}
-          color="violet"
-        />
-        <MetricCard
-          label="EBITDA"
-          value={formatPercent(currentMIS.ebitdaPercent)}
-          subValue={formatCurrency(currentMIS.ebitda)}
-          color={currentMIS.ebitda >= 0 ? 'emerald' : 'red'}
-        />
-      </div>
+      {displayMIS && (
+        <div className="grid grid-cols-4 gap-4">
+          <MetricCard
+            label="Net Revenue"
+            value={formatCurrency(netRevenue)}
+            color="blue"
+          />
+          <MetricCard
+            label="Gross Margin"
+            value={formatPercent(displayMIS.grossMarginPercent)}
+            subValue={formatCurrency(displayMIS.grossMargin)}
+            color="emerald"
+          />
+          <MetricCard
+            label="CM1"
+            value={formatPercent(displayMIS.cm1Percent)}
+            subValue={formatCurrency(displayMIS.cm1)}
+            color="violet"
+          />
+          <MetricCard
+            label="EBITDA"
+            value={formatPercent(displayMIS.ebitdaPercent)}
+            subValue={formatCurrency(displayMIS.ebitda)}
+            color={displayMIS.ebitda >= 0 ? 'emerald' : 'red'}
+          />
+        </div>
+      )}
 
       {/* P&L Table */}
+      {displayMIS && (
       <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
         <table className="w-full">
           <thead>
@@ -262,8 +774,8 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             {/* GROSS MARGIN */}
             <tr className="bg-emerald-500/20 font-bold">
               <td className="py-4 px-4 text-emerald-400 text-sm">GROSS MARGIN (NET REVENUE - COGS)</td>
-              <td className="py-4 px-4 text-right text-emerald-400 text-sm">{formatCurrencyFull(currentMIS.grossMargin)}</td>
-              <td className="py-4 px-4 text-right text-emerald-400/80 text-sm">{formatPercent(currentMIS.grossMarginPercent)}</td>
+              <td className="py-4 px-4 text-right text-emerald-400 text-sm">{formatCurrencyFull(displayMIS.grossMargin)}</td>
+              <td className="py-4 px-4 text-right text-emerald-400/80 text-sm">{formatPercent(displayMIS.grossMarginPercent)}</td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
                 <td key={channel} className="py-4 px-4 text-right text-emerald-400/50 text-xs">-</td>
               ))}
@@ -277,7 +789,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <SubtotalRow number={7} label="Total Channel & Fulfillment" amount={channelFulfillment.total} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="indigo" />
 
             {/* CM1 */}
-            <MarginRow label="CM1 (CONTRIBUTION MARGIN)" sublabel="(NET REVENUE - (COGS + CHANNEL&FULFILLMENT COSTS))" amount={currentMIS.cm1} percent={currentMIS.cm1Percent} showChannelBreakdown={showChannelBreakdown} />
+            <MarginRow label="CM1 (CONTRIBUTION MARGIN)" sublabel="(NET REVENUE - (COGS + CHANNEL&FULFILLMENT COSTS))" amount={displayMIS.cm1} percent={displayMIS.cm1Percent} showChannelBreakdown={showChannelBreakdown} />
 
             {/* G. Sales & Marketing */}
             <SectionHeader label="G" title="SALES & MARKETING (S&M)" />
@@ -289,7 +801,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <SubtotalRow number={7} label="Total S&M" amount={salesMarketing.total} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="pink" />
 
             {/* CM2 */}
-            <MarginRow label="CM2 (AFTER MARKETING)" sublabel="(CM1 - MARKETING EXPENSES)" amount={currentMIS.cm2} percent={currentMIS.cm2Percent} showChannelBreakdown={showChannelBreakdown} />
+            <MarginRow label="CM2 (AFTER MARKETING)" sublabel="(CM1 - MARKETING EXPENSES)" amount={displayMIS.cm2} percent={displayMIS.cm2Percent} showChannelBreakdown={showChannelBreakdown} />
 
             {/* H. Platform Costs */}
             <SectionHeader label="H" title="CHANNEL/PLATFORM OPERATION COSTS" />
@@ -299,7 +811,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <SubtotalRow number={7} label="Total Channel and Platform Costs" amount={platformCosts.total} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="cyan" />
 
             {/* CM3 */}
-            <MarginRow label="CM3 (AFTER CHANNEL OPERATIONS)" sublabel="(CM2 - CHANNEL OPERATIONS)" amount={currentMIS.cm3} percent={currentMIS.cm3Percent} showChannelBreakdown={showChannelBreakdown} />
+            <MarginRow label="CM3 (AFTER CHANNEL OPERATIONS)" sublabel="(CM2 - CHANNEL OPERATIONS)" amount={displayMIS.cm3} percent={displayMIS.cm3Percent} showChannelBreakdown={showChannelBreakdown} />
 
             {/* I. Operating Expenses */}
             <SectionHeader label="I" title="OPERATING EXPENSES" />
@@ -311,15 +823,15 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <SubtotalRow number={6} label="Total Operating Expense" amount={operatingExpenses.total} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="yellow" />
 
             {/* EBITDA */}
-            <tr className={`font-bold ${currentMIS.ebitda >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-              <td className={`py-4 px-4 text-sm ${currentMIS.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <tr className={`font-bold ${displayMIS.ebitda >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+              <td className={`py-4 px-4 text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 OPERATING PROFIT (EBITDA) (CM3 - Operating Expenses)
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${currentMIS.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {formatCurrencyFull(currentMIS.ebitda)}
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {formatCurrencyFull(displayMIS.ebitda)}
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${currentMIS.ebitda >= 0 ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
-                {formatPercent(currentMIS.ebitdaPercent)}
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
+                {formatPercent(displayMIS.ebitdaPercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
                 <td key={channel} className="py-4 px-4 text-right text-slate-500 text-xs">-</td>
@@ -334,15 +846,15 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <SubtotalRow number={4} label="Total I,D&A" amount={nonOperating.totalIDA} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="gray" />
 
             {/* EBT */}
-            <tr className={`font-bold ${currentMIS.ebt >= 0 ? 'bg-blue-500/20' : 'bg-red-500/20'}`}>
-              <td className={`py-4 px-4 text-sm ${currentMIS.ebt >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+            <tr className={`font-bold ${displayMIS.ebt >= 0 ? 'bg-blue-500/20' : 'bg-red-500/20'}`}>
+              <td className={`py-4 px-4 text-sm ${displayMIS.ebt >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
                 NET INCOME Before Tax (EBT)
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${currentMIS.ebt >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                {formatCurrencyFull(currentMIS.ebt)}
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebt >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                {formatCurrencyFull(displayMIS.ebt)}
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${currentMIS.ebt >= 0 ? 'text-blue-400/80' : 'text-red-400/80'}`}>
-                {formatPercent(currentMIS.ebtPercent)}
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebt >= 0 ? 'text-blue-400/80' : 'text-red-400/80'}`}>
+                {formatPercent(displayMIS.ebtPercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
                 <td key={channel} className="py-4 px-4 text-right text-slate-500 text-xs">-</td>
@@ -353,15 +865,15 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
             <LineItem number={4} label="Less: Income Tax" amount={nonOperating.incomeTax} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
 
             {/* NET INCOME */}
-            <tr className={`font-bold ${currentMIS.netIncome >= 0 ? 'bg-emerald-500/30' : 'bg-red-500/30'}`}>
-              <td className={`py-4 px-4 text-sm ${currentMIS.netIncome >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+            <tr className={`font-bold ${displayMIS.netIncome >= 0 ? 'bg-emerald-500/30' : 'bg-red-500/30'}`}>
+              <td className={`py-4 px-4 text-sm ${displayMIS.netIncome >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                 NET INCOME (PROFIT / LOSS)
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${currentMIS.netIncome >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
-                {formatCurrencyFull(currentMIS.netIncome)}
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.netIncome >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                {formatCurrencyFull(displayMIS.netIncome)}
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${currentMIS.netIncome >= 0 ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
-                {formatPercent(currentMIS.netIncomePercent)}
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.netIncome >= 0 ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
+                {formatPercent(displayMIS.netIncomePercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
                 <td key={channel} className="py-4 px-4 text-right text-slate-500 text-xs">-</td>
@@ -370,6 +882,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange }: MIS
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

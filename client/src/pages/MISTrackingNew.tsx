@@ -1414,6 +1414,7 @@ export function MISTrackingNew() {
             const mis = data.periods.find(p => p.periodKey === periodKey);
             if (mis) setViewingMIS(mis);
           }}
+          allMISRecords={allMISData}
         />
       )}
 
