@@ -28,7 +28,7 @@ import {
   UnclassifiedTransaction,
   MISHead
 } from '../types/misTracking';
-import { classifyTransactions, aggregateByHead, extractMISAmounts } from './misClassifier';
+import { classifyTransactions, aggregateByHead, extractMISAmounts, MIS_HEADS_CONFIG } from './misClassifier';
 
 // ============================================
 // MAIN CALCULATION FUNCTION
@@ -297,13 +297,29 @@ function buildTransactionsByHead(
   for (const txn of classified) {
     const head = txn.misHead;
     const subhead = txn.misSubhead;
-    const amount = txn.debit || txn.credit || 0;
 
-    // Track ignored/excluded totals
+    // Get the head type to determine which side to count
+    const headConfig = MIS_HEADS_CONFIG[head];
+    const headType = headConfig?.type || 'expense';
+
+    // For expense heads: count DEBIT side only (money going out)
+    // For revenue heads: count CREDIT side only (money coming in)
+    // For ignore heads: count both (for transparency in the display)
+    let countableAmount = 0;
+    if (headType === 'expense') {
+      countableAmount = txn.debit || 0;
+    } else if (headType === 'revenue') {
+      countableAmount = txn.credit || 0;
+    } else {
+      // ignore type - count both for display purposes
+      countableAmount = txn.debit || txn.credit || 0;
+    }
+
+    // Track ignored/excluded totals (use countable amount)
     if (head === 'Z. Ignore') {
-      ignoredTotal += amount;
+      ignoredTotal += countableAmount;
     } else if (head === 'X. Exclude') {
-      excludedTotal += amount;
+      excludedTotal += countableAmount;
     }
 
     // Initialize head if not exists
@@ -329,12 +345,13 @@ function buildTransactionsByHead(
       transactionsByHead[head].subheads.push(subheadEntry);
     }
 
-    // Create transaction reference
+    // Create transaction reference - show the actual debit/credit for display
+    const displayAmount = txn.debit || txn.credit || 0;
     const txnRef: TransactionRef = {
       id: txn.id,
       date: txn.date,
       account: txn.account,
-      amount: amount,
+      amount: displayAmount,
       type: txn.debit ? 'debit' : 'credit',
       source: 'journal',
       notes: txn.notes,
@@ -342,13 +359,15 @@ function buildTransactionsByHead(
       originalSubhead: txn.misSubhead
     };
 
-    // Add to subhead
+    // Add transaction to the list for display
     subheadEntry.transactions.push(txnRef);
-    subheadEntry.amount += amount;
     subheadEntry.transactionCount += 1;
 
-    // Update head totals
-    transactionsByHead[head].total += amount;
+    // Only add to totals if there's an amount on the correct side
+    if (countableAmount > 0) {
+      subheadEntry.amount += countableAmount;
+      transactionsByHead[head].total += countableAmount;
+    }
     transactionsByHead[head].transactionCount += 1;
   }
 
