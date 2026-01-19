@@ -367,6 +367,8 @@ router.put('/rules/:ruleId', async (req, res) => {
     const { ruleId } = req.params;
     const updates = { ...req.body };
 
+    console.log(`Updating rule ${ruleId} with:`, JSON.stringify(req.body));
+
     // Map old field names to new field names for backward compatibility
     // The Edit modal may send entityName/keywords but Sheet uses pattern
     if (updates.entityName && !updates.pattern) {
@@ -389,6 +391,8 @@ router.put('/rules/:ruleId', async (req, res) => {
       updates.notes = updates.notes ? `${updates.notes} | ${entityTypeNote}` : entityTypeNote;
       delete updates.entityType;
     }
+
+    console.log(`Mapped updates for ${ruleId}:`, JSON.stringify(updates));
 
     const success = await googleSheetsService.updateRule(ruleId, updates);
     if (success) {

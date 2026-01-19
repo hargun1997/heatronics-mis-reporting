@@ -501,15 +501,29 @@ function RuleModal({
 
     setIsSaving(true);
 
+    let success = false;
     if (rule) {
-      await updateRule(rule.ruleId, { entityName, entityType, head, subhead, keywords });
+      success = await updateRule(rule.ruleId, { entityName, entityType, head, subhead, keywords });
+      if (success) {
+        alert('Rule updated successfully!');
+      } else {
+        alert('Failed to update rule. Please try again.');
+      }
     } else {
-      await addRule({ entityName, entityType, head, subhead, keywords, source: 'user' });
+      const result = await addRule({ entityName, entityType, head, subhead, keywords, source: 'user' });
+      success = !!result;
+      if (success) {
+        alert('Rule added successfully!');
+      } else {
+        alert('Failed to add rule. Please try again.');
+      }
     }
 
     setIsSaving(false);
-    onSave();
-    onClose();
+    if (success) {
+      onSave();
+      onClose();
+    }
   };
 
   return (
