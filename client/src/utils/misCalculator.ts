@@ -106,8 +106,15 @@ export async function calculateMIS(
   // ============================================
   // STEP 4: Populate COGM
   // ============================================
+  // Raw Materials & Inventory comes from Balance Sheet formula
+  // Other COGM items come from journal classifications
+  const bsData = aggregateBalanceSheetData(stateData, selectedStates);
+  const rawMaterialsFromBS = bsData
+    ? (bsData.openingStock + bsData.purchases - bsData.closingStock)
+    : extracted.cogm.rawMaterialsInventory; // Fallback to journal if no BS data
+
   record.cogm = {
-    rawMaterialsInventory: extracted.cogm.rawMaterialsInventory,
+    rawMaterialsInventory: rawMaterialsFromBS,
     manufacturingWages: extracted.cogm.manufacturingWages,
     contractWagesMfg: extracted.cogm.contractWagesMfg,
     inboundTransport: extracted.cogm.inboundTransport,
@@ -232,9 +239,9 @@ export async function calculateMIS(
   record.netIncomePercent = netRevenue > 0 ? (record.netIncome / netRevenue) * 100 : 0;
 
   // ============================================
-  // STEP 11: Aggregate Balance Sheet Data (for reconciliation)
+  // STEP 11: Store Balance Sheet Data (already calculated in Step 4)
   // ============================================
-  record.balanceSheet = aggregateBalanceSheetData(stateData, selectedStates);
+  record.balanceSheet = bsData;
 
   return record;
 }
