@@ -22,12 +22,19 @@ export interface ClassificationResult {
   needsReview?: boolean;
 }
 
+export interface GeminiConfig {
+  model?: string;
+  temperature?: number;
+  apiKey?: string;
+}
+
 // ============================================
 // GEMINI API CONFIGURATION
 // ============================================
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAmUF52yuqjrY4HFzmwy59ejQMafXS17GY';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const DEFAULT_MODEL = 'gemini-3-flash-preview';  // Latest Gemini model
 
 // ============================================
 // GEMINI CLASSIFIER SERVICE
@@ -35,9 +42,40 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 
 class GeminiClassifierService {
   private apiKey: string;
+  private model: string;
+  private temperature: number;
 
   constructor() {
     this.apiKey = GEMINI_API_KEY;
+    this.model = DEFAULT_MODEL;
+    this.temperature = 0.2;
+  }
+
+  // Set config from Google Sheets MIS_Config
+  setConfig(config: GeminiConfig): void {
+    if (config.apiKey) {
+      this.apiKey = config.apiKey;
+    }
+    if (config.model) {
+      // Normalize model name - handle various formats
+      let modelName = config.model.trim();
+      // If it's a full path, extract just the model name
+      if (modelName.includes('/')) {
+        modelName = modelName.split('/').pop() || modelName;
+      }
+      this.model = modelName;
+    }
+    if (config.temperature !== undefined) {
+      this.temperature = Math.max(0, Math.min(1, config.temperature));
+    }
+    console.log(`Gemini config set: model=${this.model}, temperature=${this.temperature}`);
+  }
+
+  getConfig(): GeminiConfig {
+    return {
+      model: this.model,
+      temperature: this.temperature
+    };
   }
 
   private buildPrompt(
@@ -232,7 +270,11 @@ Respond ONLY with the JSON array, no other text.`;
   }
 
   private async callGeminiAPI(prompt: string): Promise<any[]> {
-    const response = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
+    // Build URL dynamically based on model
+    const apiUrl = `${GEMINI_API_BASE}/${this.model}:generateContent`;
+    console.log(`Calling Gemini API: ${apiUrl} (temperature=${this.temperature})`);
+
+    const response = await fetch(`${apiUrl}?key=${this.apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -244,7 +286,7 @@ Respond ONLY with the JSON array, no other text.`;
           }]
         }],
         generationConfig: {
-          temperature: 0.2,
+          temperature: this.temperature,
           topP: 0.8,
           maxOutputTokens: 4096,
         }

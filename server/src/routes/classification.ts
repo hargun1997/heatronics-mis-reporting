@@ -365,7 +365,30 @@ router.put('/rules/:ruleId', async (req, res) => {
     }
 
     const { ruleId } = req.params;
-    const updates = req.body;
+    const updates = { ...req.body };
+
+    // Map old field names to new field names for backward compatibility
+    // The Edit modal may send entityName/keywords but Sheet uses pattern
+    if (updates.entityName && !updates.pattern) {
+      updates.pattern = updates.entityName;
+      delete updates.entityName;
+    }
+    // Keywords can be appended to notes or pattern depending on use case
+    if (updates.keywords) {
+      // Add keywords to notes for reference
+      if (updates.notes) {
+        updates.notes = `${updates.notes} | Keywords: ${updates.keywords}`;
+      } else {
+        updates.notes = `Keywords: ${updates.keywords}`;
+      }
+      delete updates.keywords;
+    }
+    // Map entityType to notes if present
+    if (updates.entityType) {
+      const entityTypeNote = `Type: ${updates.entityType}`;
+      updates.notes = updates.notes ? `${updates.notes} | ${entityTypeNote}` : entityTypeNote;
+      delete updates.entityType;
+    }
 
     const success = await googleSheetsService.updateRule(ruleId, updates);
     if (success) {
@@ -505,6 +528,13 @@ router.post('/classify', async (req, res) => {
     // Get existing rules for context
     const existingRules = await googleSheetsService.getRules();
 
+    // Load Gemini config from Google Sheets
+    const misConfig = await googleSheetsService.getConfig();
+    geminiClassifier.setConfig({
+      model: misConfig.geminiModel,
+      temperature: misConfig.geminiTemperature
+    });
+
     // Classify using Gemini
     const classifications = await geminiClassifier.classifyEntities(entities, cats, existingRules);
 
@@ -553,6 +583,13 @@ router.post('/classify-single', async (req, res) => {
     }
 
     // No existing rule, use Gemini
+    // Load Gemini config from Google Sheets
+    const misConfig = await googleSheetsService.getConfig();
+    geminiClassifier.setConfig({
+      model: misConfig.geminiModel,
+      temperature: misConfig.geminiTemperature
+    });
+
     const classifications = await geminiClassifier.classifyEntities(
       [{ name: entityName, type: entityType || 'ledger', amount, context }],
       categories,
