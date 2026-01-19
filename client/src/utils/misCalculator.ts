@@ -109,9 +109,21 @@ export async function calculateMIS(
   // Raw Materials & Inventory comes from Balance Sheet formula
   // Other COGM items come from journal classifications
   const bsData = aggregateBalanceSheetData(stateData, selectedStates);
+
+  // Debug logging
+  console.log('BS Data for COGM:', {
+    bsData,
+    openingStock: bsData?.openingStock,
+    purchases: bsData?.purchases,
+    closingStock: bsData?.closingStock,
+    calculated: bsData ? (bsData.openingStock + bsData.purchases - bsData.closingStock) : 'N/A'
+  });
+
   const rawMaterialsFromBS = bsData
     ? (bsData.openingStock + bsData.purchases - bsData.closingStock)
     : extracted.cogm.rawMaterialsInventory; // Fallback to journal if no BS data
+
+  console.log('Raw Materials from BS:', rawMaterialsFromBS);
 
   record.cogm = {
     rawMaterialsInventory: rawMaterialsFromBS,
