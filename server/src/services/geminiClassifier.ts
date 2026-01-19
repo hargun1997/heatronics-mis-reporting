@@ -54,7 +54,7 @@ class GeminiClassifierService {
     // Build example rules for context
     const ruleExamples = existingRules
       .slice(0, 20)
-      .map(r => `  - "${r.entityName}" -> Head: "${r.head}", Subhead: "${r.subhead}"`)
+      .map(r => `  - "${r.entityName || r.pattern}" -> Head: "${r.head}", Subhead: "${r.subhead}"`)
       .join('\n');
 
     // Build entities to classify
@@ -125,7 +125,7 @@ Respond ONLY with the JSON array, no other text.`;
 
     for (const entity of entities) {
       const matchingRule = existingRules.find(r =>
-        r.entityName.toLowerCase() === entity.name.toLowerCase()
+        (r.entityName || r.pattern).toLowerCase() === entity.name.toLowerCase()
       );
 
       if (matchingRule) {
@@ -148,7 +148,7 @@ Respond ONLY with the JSON array, no other text.`;
             confidence: Math.round(similarRule.similarity * 100),
             source: 'similarity',
             ruleId: similarRule.rule.ruleId,
-            reasoning: `Similar to "${similarRule.rule.entityName}"`
+            reasoning: `Similar to "${similarRule.rule.entityName || similarRule.rule.pattern}"`
           });
         } else {
           entitiesToClassify.push(entity);
@@ -290,7 +290,8 @@ Respond ONLY with the JSON array, no other text.`;
     const normalizedName = entityName.toLowerCase().trim();
 
     for (const rule of rules) {
-      const normalizedRuleName = rule.entityName.toLowerCase().trim();
+      const normalizedRuleName = (rule.entityName || rule.pattern || '').toLowerCase().trim();
+      if (!normalizedRuleName) continue;
 
       // Check for substring match
       if (normalizedName.includes(normalizedRuleName) || normalizedRuleName.includes(normalizedName)) {
@@ -301,9 +302,10 @@ Respond ONLY with the JSON array, no other text.`;
       }
 
       // Check keywords
-      if (rule.keywords) {
-        const keywords = rule.keywords.toLowerCase().split(',').map(k => k.trim());
-        for (const keyword of keywords) {
+      const keywords = rule.keywords || rule.pattern || '';
+      if (keywords) {
+        const keywordList = keywords.toLowerCase().split(',').map((k: string) => k.trim());
+        for (const keyword of keywordList) {
           if (keyword && normalizedName.includes(keyword)) {
             const similarity = 0.85; // High confidence for keyword match
             if (!bestMatch || similarity > bestMatch.similarity) {

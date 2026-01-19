@@ -14,15 +14,21 @@ export interface MISCategory {
 
 export interface ClassificationRule {
   ruleId: string;
-  entityName: string;
-  entityType: 'ledger' | 'party';
+  pattern: string;  // The pattern to match
+  matchType: 'exact' | 'contains' | 'regex';
   head: string;
   subhead: string;
-  keywords: string;
   confidence: number;
   source: 'user' | 'system' | 'gemini';
+  priority: number;  // 0 = user (highest), 1 = system, 2 = AI
+  active: boolean;
   createdDate: string;
   timesUsed: number;
+  notes: string;
+  // Backward compatibility fields
+  entityName?: string;  // Alias for pattern (for backward compatibility)
+  entityType?: 'ledger' | 'party';
+  keywords?: string;
 }
 
 export interface ClassificationHistoryEntry {
@@ -46,8 +52,23 @@ const SHEET_ID = process.env.GOOGLE_SHEET_ID || '1CgClltIfhvQMZ9kxQ2MqfcebyZzDoZ
 const SHEET_NAMES = {
   CATEGORIES: 'MIS_Categories',
   RULES: 'MIS_Classification_Rules',
-  HISTORY: 'MIS_Classification_History'
+  HISTORY: 'MIS_Classification_History',
+  CONFIG: 'MIS_Config'
 };
+
+// ============================================
+// CONFIG TYPES
+// ============================================
+
+export interface MISConfig {
+  geminiPrompt: string;
+  geminiModel: string;
+  geminiTemperature: number;
+  confidenceAutoAccept: number;
+  confidenceNeedsReview: number;
+  migrationCompleted: boolean;
+  lastMigrationDate: string;
+}
 
 // ============================================
 // GOOGLE SHEETS SERVICE
@@ -179,25 +200,35 @@ class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: `${SHEET_NAMES.RULES}!A:J`,
+        range: `${SHEET_NAMES.RULES}!A:L`,
       });
 
       const rows = response.data.values;
       if (!rows || rows.length <= 1) return [];
 
       // Skip header row
-      return rows.slice(1).map(row => ({
-        ruleId: row[0] || '',
-        entityName: row[1] || '',
-        entityType: (row[2] || 'ledger') as 'ledger' | 'party',
-        head: row[3] || '',
-        subhead: row[4] || '',
-        keywords: row[5] || '',
-        confidence: parseFloat(row[6]) || 100,
-        source: (row[7] || 'user') as 'user' | 'system' | 'gemini',
-        createdDate: row[8] || new Date().toISOString(),
-        timesUsed: parseInt(row[9]) || 0
-      })).filter(rule => rule.entityName && rule.head);
+      // Columns: Rule_ID, Pattern, Match_Type, Head, Subhead, Confidence, Source, Priority, Active, Created_Date, Times_Used, Notes
+      return rows.slice(1).map(row => {
+        const pattern = row[1] || '';
+        return {
+          ruleId: row[0] || '',
+          pattern,
+          matchType: (row[2] || 'contains') as 'exact' | 'contains' | 'regex',
+          head: row[3] || '',
+          subhead: row[4] || '',
+          confidence: parseFloat(row[5]) || 100,
+          source: (row[6] || 'system') as 'user' | 'system' | 'gemini',
+          priority: parseInt(row[7]) || 1,
+          active: row[8]?.toUpperCase() !== 'FALSE',
+          createdDate: row[9] || new Date().toISOString(),
+          timesUsed: parseInt(row[10]) || 0,
+          notes: row[11] || '',
+          // Backward compatibility
+          entityName: pattern,
+          entityType: 'ledger' as const,
+          keywords: pattern
+        };
+      }).filter(rule => rule.pattern && rule.head);
     } catch (error) {
       console.error('Error fetching rules:', error);
       return [];
@@ -208,8 +239,13 @@ class GoogleSheetsService {
     if (!this.sheets) throw new Error('Sheets not initialized');
 
     try {
+      // Handle both pattern and entityName (backward compatibility)
+      const actualPattern = rule.pattern || rule.entityName || '';
       const newRule: ClassificationRule = {
         ...rule,
+        pattern: actualPattern,
+        entityName: actualPattern,
+        keywords: rule.keywords || actualPattern,
         ruleId: `R${Date.now()}`,
         createdDate: new Date().toISOString(),
         timesUsed: 0
@@ -217,25 +253,27 @@ class GoogleSheetsService {
 
       await this.sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
-        range: `${SHEET_NAMES.RULES}!A:J`,
+        range: `${SHEET_NAMES.RULES}!A:L`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [[
             newRule.ruleId,
-            newRule.entityName,
-            newRule.entityType,
+            newRule.pattern,
+            newRule.matchType,
             newRule.head,
             newRule.subhead,
-            newRule.keywords,
             newRule.confidence,
             newRule.source,
+            newRule.priority,
+            newRule.active ? 'TRUE' : 'FALSE',
             newRule.createdDate,
-            newRule.timesUsed
+            newRule.timesUsed,
+            newRule.notes
           ]]
         }
       });
 
-      console.log(`Added rule: ${newRule.ruleId} for "${newRule.entityName}"`);
+      console.log(`Added rule: ${newRule.ruleId} for "${newRule.pattern}"`);
       return newRule;
     } catch (error) {
       console.error('Error adding rule:', error);
@@ -256,20 +294,22 @@ class GoogleSheetsService {
 
       const values = newRules.map(rule => [
         rule.ruleId,
-        rule.entityName,
-        rule.entityType,
+        rule.pattern,
+        rule.matchType,
         rule.head,
         rule.subhead,
-        rule.keywords,
         rule.confidence,
         rule.source,
+        rule.priority,
+        rule.active ? 'TRUE' : 'FALSE',
         rule.createdDate,
-        rule.timesUsed
+        rule.timesUsed,
+        rule.notes
       ]);
 
       await this.sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
-        range: `${SHEET_NAMES.RULES}!A:J`,
+        range: `${SHEET_NAMES.RULES}!A:L`,
         valueInputOption: 'RAW',
         requestBody: { values }
       });
@@ -301,20 +341,22 @@ class GoogleSheetsService {
       // Update the row (rowIndex + 2 because of header and 0-indexing)
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
-        range: `${SHEET_NAMES.RULES}!A${rowIndex + 2}:J${rowIndex + 2}`,
+        range: `${SHEET_NAMES.RULES}!A${rowIndex + 2}:L${rowIndex + 2}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [[
             updatedRule.ruleId,
-            updatedRule.entityName,
-            updatedRule.entityType,
+            updatedRule.pattern,
+            updatedRule.matchType,
             updatedRule.head,
             updatedRule.subhead,
-            updatedRule.keywords,
             updatedRule.confidence,
             updatedRule.source,
+            updatedRule.priority,
+            updatedRule.active ? 'TRUE' : 'FALSE',
             updatedRule.createdDate,
-            updatedRule.timesUsed
+            updatedRule.timesUsed,
+            updatedRule.notes
           ]]
         }
       });
@@ -399,10 +441,10 @@ class GoogleSheetsService {
     try {
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
-        range: `${SHEET_NAMES.RULES}!A1:J1`,
+        range: `${SHEET_NAMES.RULES}!A1:L1`,
         valueInputOption: 'RAW',
         requestBody: {
-          values: [['Rule_ID', 'Entity_Name', 'Entity_Type', 'Head', 'Subhead', 'Keywords', 'Confidence', 'Source', 'Created_Date', 'Times_Used']]
+          values: [['Rule_ID', 'Pattern', 'Match_Type', 'Head', 'Subhead', 'Confidence', 'Source', 'Priority', 'Active', 'Created_Date', 'Times_Used', 'Notes']]
         }
       });
       return true;
@@ -410,6 +452,193 @@ class GoogleSheetsService {
       console.error('Error initializing rules header:', error);
       return false;
     }
+  }
+
+  async clearAllRules(): Promise<boolean> {
+    if (!this.sheets) throw new Error('Sheets not initialized');
+
+    try {
+      // Clear all data except header
+      await this.sheets.spreadsheets.values.clear({
+        spreadsheetId: SHEET_ID,
+        range: `${SHEET_NAMES.RULES}!A2:L10000`,
+      });
+      console.log('Cleared all rules');
+      return true;
+    } catch (error) {
+      console.error('Error clearing rules:', error);
+      return false;
+    }
+  }
+
+  // ============================================
+  // CONFIG OPERATIONS
+  // ============================================
+
+  async getConfig(): Promise<MISConfig> {
+    if (!this.sheets) throw new Error('Sheets not initialized');
+
+    const defaultConfig: MISConfig = {
+      geminiPrompt: this.getDefaultGeminiPrompt(),
+      geminiModel: 'gemini-1.5-flash',
+      geminiTemperature: 0.2,
+      confidenceAutoAccept: 85,
+      confidenceNeedsReview: 70,
+      migrationCompleted: false,
+      lastMigrationDate: ''
+    };
+
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: `${SHEET_NAMES.CONFIG}!A:B`,
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) return defaultConfig;
+
+      // Parse key-value pairs
+      const config = { ...defaultConfig };
+      for (const row of rows.slice(1)) {
+        const key = row[0];
+        const value = row[1];
+        if (!key) continue;
+
+        switch (key) {
+          case 'gemini_prompt':
+            config.geminiPrompt = value || defaultConfig.geminiPrompt;
+            break;
+          case 'gemini_model':
+            config.geminiModel = value || defaultConfig.geminiModel;
+            break;
+          case 'gemini_temperature':
+            config.geminiTemperature = parseFloat(value) || defaultConfig.geminiTemperature;
+            break;
+          case 'confidence_auto_accept':
+            config.confidenceAutoAccept = parseInt(value) || defaultConfig.confidenceAutoAccept;
+            break;
+          case 'confidence_needs_review':
+            config.confidenceNeedsReview = parseInt(value) || defaultConfig.confidenceNeedsReview;
+            break;
+          case 'migration_completed':
+            config.migrationCompleted = value?.toUpperCase() === 'TRUE';
+            break;
+          case 'last_migration_date':
+            config.lastMigrationDate = value || '';
+            break;
+        }
+      }
+
+      return config;
+    } catch (error) {
+      console.error('Error fetching config:', error);
+      return defaultConfig;
+    }
+  }
+
+  async saveConfig(config: Partial<MISConfig>): Promise<boolean> {
+    if (!this.sheets) throw new Error('Sheets not initialized');
+
+    try {
+      // Get existing config
+      const existingConfig = await this.getConfig();
+      const mergedConfig = { ...existingConfig, ...config };
+
+      // Convert to key-value rows
+      const values = [
+        ['Key', 'Value'],
+        ['gemini_prompt', mergedConfig.geminiPrompt],
+        ['gemini_model', mergedConfig.geminiModel],
+        ['gemini_temperature', mergedConfig.geminiTemperature.toString()],
+        ['confidence_auto_accept', mergedConfig.confidenceAutoAccept.toString()],
+        ['confidence_needs_review', mergedConfig.confidenceNeedsReview.toString()],
+        ['migration_completed', mergedConfig.migrationCompleted ? 'TRUE' : 'FALSE'],
+        ['last_migration_date', mergedConfig.lastMigrationDate]
+      ];
+
+      // Clear and write
+      await this.sheets.spreadsheets.values.clear({
+        spreadsheetId: SHEET_ID,
+        range: `${SHEET_NAMES.CONFIG}!A:B`,
+      });
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `${SHEET_NAMES.CONFIG}!A1:B${values.length}`,
+        valueInputOption: 'RAW',
+        requestBody: { values }
+      });
+
+      console.log('Config saved successfully');
+      return true;
+    } catch (error) {
+      console.error('Error saving config:', error);
+      return false;
+    }
+  }
+
+  async initializeConfigSheet(): Promise<boolean> {
+    if (!this.sheets) throw new Error('Sheets not initialized');
+
+    try {
+      const defaultConfig: MISConfig = {
+        geminiPrompt: this.getDefaultGeminiPrompt(),
+        geminiModel: 'gemini-1.5-flash',
+        geminiTemperature: 0.2,
+        confidenceAutoAccept: 85,
+        confidenceNeedsReview: 70,
+        migrationCompleted: false,
+        lastMigrationDate: ''
+      };
+
+      await this.saveConfig(defaultConfig);
+      console.log('Config sheet initialized');
+      return true;
+    } catch (error) {
+      console.error('Error initializing config sheet:', error);
+      return false;
+    }
+  }
+
+  private getDefaultGeminiPrompt(): string {
+    return `You are a financial transaction classifier for Heatronics, a D2C consumer electronics company in India.
+
+Given a transaction entity name (ledger account or party name), classify it into the appropriate MIS Head and Subhead.
+
+Available Categories:
+- A. Revenue: Website, Amazon, Blinkit, Offline & OEM
+- B. Returns: Website, Amazon, Blinkit, Offline & OEM
+- C. Discounts: Website, Amazon, Blinkit, Offline & OEM
+- D. Taxes: Website, Amazon, Blinkit, Offline & OEM
+- E. COGM: Raw Materials & Inventory, Manufacturing Wages, Contract Wages (Mfg), Inbound Transport, Factory Rent, Factory Electricity, Factory Maintainence, Job work
+- F. Channel & Fulfillment: Amazon Fees, Blinkit Fees, D2C Fees
+- G. Sales & Marketing: Facebook Ads, Google Ads, Amazon Ads, Blinkit Ads, Agency Fees
+- H. Platform Costs: Shopify Subscription, Wati Subscription, Shopflo subscription
+- I. Operating Expenses: Salaries (Admin, Mgmt), Miscellaneous (Travel, insurance), Legal & CA expenses, Platform Costs (CRM, inventory softwares), Administrative Expenses (Office Rent, utilities, admin supplies)
+- J. Non-Operating: Less: Interest Expense, Less: Depreciation, Less: Amortization, Less: Income Tax
+- X. Exclude: Personal Expenses, Owner Withdrawals
+- Z. Ignore: GST Input/Output, TDS, Bank Transfers, Inter-company
+
+Guidelines:
+- Amazon/Blinkit platform fees and logistics → F. Channel & Fulfillment
+- Shiprocket, payment gateways → F. Channel & Fulfillment > D2C Fees
+- Facebook/Meta, Google ads → G. Sales & Marketing
+- Manufacturing employee names → E. COGM > Manufacturing Wages
+- Admin employee names → I. Operating Expenses > Salaries
+- GST entries (CGST, SGST, IGST) → Z. Ignore
+- Bank accounts, cash → Z. Ignore
+- TDS entries → Z. Ignore
+- Personal expenses → X. Exclude
+
+Return JSON format:
+{
+  "head": "selected head",
+  "subhead": "selected subhead",
+  "confidence": 0-100,
+  "reasoning": "brief explanation"
+}
+
+If unsure, set confidence below 70.`;
   }
 
   // ============================================
