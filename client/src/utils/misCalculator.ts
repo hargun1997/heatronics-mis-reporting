@@ -16,6 +16,7 @@ import {
   StockTransfer,
   ChannelRevenue,
   ClassifiedTransaction,
+  AggregatedBalanceSheetData,
   createEmptyChannelRevenue,
   createEmptyRevenueData,
   createEmptyCOGMData,
@@ -230,6 +231,11 @@ export async function calculateMIS(
   record.netIncome = record.ebt - record.nonOperating.incomeTax;
   record.netIncomePercent = netRevenue > 0 ? (record.netIncome / netRevenue) * 100 : 0;
 
+  // ============================================
+  // STEP 11: Aggregate Balance Sheet Data (for reconciliation)
+  // ============================================
+  record.balanceSheet = aggregateBalanceSheetData(stateData, selectedStates);
+
   return record;
 }
 
@@ -333,6 +339,42 @@ function calculateTotal(cogm: COGMData): number {
     cogm.factoryMaintenance +
     cogm.jobWork
   );
+}
+
+// Aggregate Balance Sheet data from all states for reconciliation
+function aggregateBalanceSheetData(
+  stateData: Record<IndianState, StateUploadData | undefined>,
+  selectedStates: IndianState[]
+): AggregatedBalanceSheetData | undefined {
+  let hasAnyData = false;
+
+  const aggregated: AggregatedBalanceSheetData = {
+    openingStock: 0,
+    closingStock: 0,
+    purchases: 0,
+    grossSales: 0,
+    netSales: 0,
+    calculatedCOGS: 0
+  };
+
+  for (const state of selectedStates) {
+    const data = stateData[state];
+    if (!data?.balanceSheetData) continue;
+
+    hasAnyData = true;
+    aggregated.openingStock += data.balanceSheetData.openingStock || 0;
+    aggregated.closingStock += data.balanceSheetData.closingStock || 0;
+    aggregated.purchases += data.balanceSheetData.purchases || 0;
+    aggregated.grossSales += data.balanceSheetData.grossSales || 0;
+    aggregated.netSales += data.balanceSheetData.netSales || 0;
+  }
+
+  if (!hasAnyData) return undefined;
+
+  // Calculate COGS from Balance Sheet formula: Opening Stock + Purchases - Closing Stock
+  aggregated.calculatedCOGS = aggregated.openingStock + aggregated.purchases - aggregated.closingStock;
+
+  return aggregated;
 }
 
 // ============================================
