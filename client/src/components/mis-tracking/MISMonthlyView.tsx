@@ -1525,19 +1525,66 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
                 </td>
               </tr>
 
-              {/* Net Income (for reference) */}
+              {/* Net Profit/Loss vs BS */}
               <tr>
-                <td className="py-3 px-3 text-sm text-slate-300">Net Profit/Loss</td>
+                <td className="py-3 px-3 text-sm text-slate-300">
+                  <div>Net Profit/Loss</div>
+                  <div className="text-xs text-slate-500">BS: {balanceSheet.netProfitLoss >= 0 ? 'Profit' : 'Loss'}</div>
+                </td>
                 <td className="py-3 px-3 text-right text-sm">
                   <span className={misNetIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>
                     {formatCurrencyFull(misNetIncome)}
                   </span>
                 </td>
-                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                <td className="py-3 px-3 text-center text-slate-500 text-xs">Calculated</td>
+                <td className="py-3 px-3 text-right text-sm">
+                  <span className={balanceSheet.netProfitLoss >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    {formatCurrencyFull(balanceSheet.netProfitLoss)}
+                  </span>
+                </td>
+                <td className={`py-3 px-3 text-right text-sm ${
+                  Math.abs(misNetIncome - balanceSheet.netProfitLoss) < 1000 ? 'text-emerald-400' : 'text-amber-400'
+                }`}>
+                  {formatCurrencyFull(misNetIncome - balanceSheet.netProfitLoss)}
+                </td>
+                <td className={`py-3 px-3 text-right text-sm ${
+                  balanceSheet.netProfitLoss !== 0 && Math.abs(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100) < 5
+                    ? 'text-emerald-400' : 'text-amber-400'
+                }`}>
+                  {balanceSheet.netProfitLoss !== 0
+                    ? `${(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100).toFixed(2)}%`
+                    : '-'}
+                </td>
+                <td className="py-3 px-3 text-center">
+                  {balanceSheet.netProfitLoss !== 0 &&
+                  Math.abs(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100) < 5 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Match
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Review
+                    </span>
+                  )}
+                </td>
               </tr>
+
+              {/* Gross Profit */}
+              {balanceSheet.grossProfit > 0 && (
+                <tr className="border-t border-slate-700/50">
+                  <td className="py-3 px-3 text-sm text-slate-300">Gross Profit (from BS)</td>
+                  <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
+                  <td className="py-3 px-3 text-right text-sm text-emerald-400">{formatCurrencyFull(balanceSheet.grossProfit)}</td>
+                  <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
+                  <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
+                  <td className="py-3 px-3 text-center text-slate-500 text-xs">Reference</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -298,6 +298,8 @@ export interface StateBalanceSheetData {
   purchases: number;
   grossSales: number;
   netSales: number;
+  grossProfit: number;
+  netProfitLoss: number;  // Positive = profit, Negative = loss
 }
 
 // Aggregated Balance Sheet data for MIS reconciliation
@@ -307,6 +309,8 @@ export interface AggregatedBalanceSheetData {
   purchases: number;
   grossSales: number;
   netSales: number;
+  grossProfit: number;
+  netProfitLoss: number;  // Positive = profit, Negative = loss
   // Calculated COGS from BS: Opening Stock + Purchases - Closing Stock
   calculatedCOGS: number;
 }

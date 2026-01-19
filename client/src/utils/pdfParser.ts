@@ -10,8 +10,10 @@ export interface BalanceSheetPDFResult {
   netSales: number;  // Net of discounts and GST
   revenueDiscounts: number;
   gstOnSales: number;
-  netProfit: number;
+  netProfit: number;  // Positive for profit
+  netLoss: number;    // Positive for loss
   purchases: number;
+  grossProfit: number;
   rawText: string;
   errors: string[];
   extractedLines: ExtractedLine[];  // For debugging/display
@@ -76,6 +78,8 @@ function searchPLItems(text: string): {
   closingStock: number;
   purchases: number;
   netProfit: number;
+  netLoss: number;
+  grossProfit: number;
   extractedLines: ExtractedLine[];
 } {
   const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0);
@@ -143,7 +147,26 @@ function searchPLItems(text: string): {
     'profit for the year',
     'profit after tax',
     'net income',
-    'profit \\(loss\\) for the period'
+    'profit \\(loss\\) for the period',
+    'by profit'
+  ]);
+
+  // Search for net loss (some Balance Sheets show loss separately)
+  const netLossResult = findValueNearPattern(lines, [
+    'net loss',
+    'nett loss',
+    'by nett loss',
+    'by net loss',
+    'loss for the year',
+    'loss for the period',
+    'loss to be adjusted'
+  ]);
+
+  // Search for gross profit
+  const grossProfitResult = findValueNearPattern(lines, [
+    'gross profit',
+    'to gross profit',
+    'by gross profit'
   ]);
 
   // Store extracted lines for debugging
@@ -171,6 +194,12 @@ function searchPLItems(text: string): {
   if (netProfitResult.value > 0) {
     extractedLines.push({ label: 'Net Profit', value: netProfitResult.value, source: netProfitResult.source });
   }
+  if (netLossResult.value > 0) {
+    extractedLines.push({ label: 'Net Loss', value: netLossResult.value, source: netLossResult.source });
+  }
+  if (grossProfitResult.value > 0) {
+    extractedLines.push({ label: 'Gross Profit', value: grossProfitResult.value, source: grossProfitResult.source });
+  }
 
   return {
     grossSales: grossSalesResult.value,
@@ -181,6 +210,8 @@ function searchPLItems(text: string): {
     closingStock: closingStockResult.value,
     purchases: purchasesResult.value,
     netProfit: netProfitResult.value,
+    netLoss: netLossResult.value,
+    grossProfit: grossProfitResult.value,
     extractedLines
   };
 }
@@ -243,7 +274,9 @@ export async function parseBalanceSheetPDF(file: File): Promise<BalanceSheetPDFR
           revenueDiscounts: plItems.revenueDiscounts,
           gstOnSales: plItems.gstOnSales,
           netProfit: plItems.netProfit,
+          netLoss: plItems.netLoss,
           purchases: plItems.purchases,
+          grossProfit: plItems.grossProfit,
           rawText: fullText,
           errors,
           extractedLines: plItems.extractedLines
