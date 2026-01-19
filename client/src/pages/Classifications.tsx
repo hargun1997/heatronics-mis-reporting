@@ -26,7 +26,7 @@ import {
 // TYPES
 // ============================================
 
-type TabType = 'dashboard' | 'rules' | 'categories' | 'history' | 'test';
+type TabType = 'dashboard' | 'rules' | 'categories' | 'history' | 'test' | 'settings';
 
 interface PendingClassification {
   entityName: string;
@@ -109,6 +109,8 @@ export function Classifications() {
         return <HistoryTab history={history} />;
       case 'test':
         return <TestClassifierTab categories={categories} rules={rules} />;
+      case 'settings':
+        return <SettingsTab onRulesChange={loadAllData} />;
       default:
         return null;
     }
@@ -169,7 +171,8 @@ export function Classifications() {
               { id: 'rules', label: 'Rules' },
               { id: 'categories', label: 'Categories' },
               { id: 'history', label: 'History' },
-              { id: 'test', label: 'Test Classifier' }
+              { id: 'test', label: 'Test Classifier' },
+              { id: 'settings', label: 'Settings' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -939,6 +942,377 @@ function TestResultItem({
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// SETTINGS TAB
+// ============================================
+
+interface MigrationStatus {
+  migrationCompleted: boolean;
+  lastMigrationDate: string;
+  currentRulesCount: number;
+  migrationRulesCount: number;
+}
+
+interface ClassificationConfig {
+  geminiPrompt: string;
+  geminiModel: string;
+  geminiTemperature: number;
+  confidenceAutoAccept: number;
+  confidenceNeedsReview: number;
+}
+
+function SettingsTab({ onRulesChange }: { onRulesChange: () => void }) {
+  const [migrationStatus, setMigrationStatus] = useState<MigrationStatus | null>(null);
+  const [config, setConfig] = useState<ClassificationConfig | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Editable config fields
+  const [editedPrompt, setEditedPrompt] = useState('');
+  const [editedModel, setEditedModel] = useState('');
+  const [editedTemperature, setEditedTemperature] = useState(0);
+  const [editedAutoAccept, setEditedAutoAccept] = useState(80);
+  const [editedNeedsReview, setEditedNeedsReview] = useState(50);
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch migration status
+      const statusRes = await fetch(`${API_BASE_URL}/api/classification/migration/status`);
+      if (statusRes.ok) {
+        const status = await statusRes.json();
+        setMigrationStatus(status);
+      }
+
+      // Fetch config
+      const configRes = await fetch(`${API_BASE_URL}/api/classification/config`);
+      if (configRes.ok) {
+        const cfg = await configRes.json();
+        setConfig(cfg);
+        setEditedPrompt(cfg.geminiPrompt || '');
+        setEditedModel(cfg.geminiModel || 'gemini-1.5-flash');
+        setEditedTemperature(cfg.geminiTemperature ?? 0.3);
+        setEditedAutoAccept(cfg.confidenceAutoAccept ?? 80);
+        setEditedNeedsReview(cfg.confidenceNeedsReview ?? 50);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+    setIsLoading(false);
+  };
+
+  const handleRunMigration = async (force: boolean = false) => {
+    setIsMigrating(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/classification/migration/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force })
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: result.message || `Successfully migrated ${result.rulesAdded} rules!` });
+        await loadSettings();
+        onRulesChange();
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Migration failed' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to run migration' });
+    }
+
+    setIsMigrating(false);
+  };
+
+  const handleResetMigration = async () => {
+    if (!confirm('Are you sure you want to reset the migration? This will clear ALL rules from Google Sheets.')) {
+      return;
+    }
+
+    setIsMigrating(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/classification/migration/reset`, {
+        method: 'POST'
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: result.message || 'Migration reset successfully' });
+        await loadSettings();
+        onRulesChange();
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Reset failed' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to reset migration' });
+    }
+
+    setIsMigrating(false);
+  };
+
+  const handleSaveConfig = async () => {
+    setIsSavingConfig(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/classification/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          geminiPrompt: editedPrompt,
+          geminiModel: editedModel,
+          geminiTemperature: editedTemperature,
+          confidenceAutoAccept: editedAutoAccept,
+          confidenceNeedsReview: editedNeedsReview
+        })
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Configuration saved successfully!' });
+        await loadSettings();
+      } else {
+        setMessage({ type: 'error', text: 'Failed to save configuration' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to save configuration' });
+    }
+
+    setIsSavingConfig(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Message */}
+      {message && (
+        <div className={`p-4 rounded-lg ${
+          message.type === 'success' ? 'bg-green-900/30 border border-green-800 text-green-400' :
+          'bg-red-900/30 border border-red-800 text-red-400'
+        }`}>
+          {message.text}
+        </div>
+      )}
+
+      {/* Migration Section */}
+      <div className="bg-slate-700/30 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Rules Migration</h3>
+        <p className="text-slate-400 text-sm mb-4">
+          Migrate hardcoded classification rules from the codebase to Google Sheets.
+          This allows you to view, edit, and manage all rules directly in Sheets.
+        </p>
+
+        {/* Migration Status */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-slate-800 rounded-lg p-3">
+            <div className="text-xl font-bold text-white">{migrationStatus?.currentRulesCount || 0}</div>
+            <div className="text-xs text-slate-400">Rules in Sheets</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-3">
+            <div className="text-xl font-bold text-blue-400">{migrationStatus?.migrationRulesCount || 0}</div>
+            <div className="text-xs text-slate-400">Rules to Migrate</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-3">
+            <div className={`text-xl font-bold ${migrationStatus?.migrationCompleted ? 'text-green-400' : 'text-yellow-400'}`}>
+              {migrationStatus?.migrationCompleted ? 'Yes' : 'No'}
+            </div>
+            <div className="text-xs text-slate-400">Migration Done</div>
+          </div>
+          <div className="bg-slate-800 rounded-lg p-3">
+            <div className="text-sm font-medium text-slate-300 truncate">
+              {migrationStatus?.lastMigrationDate
+                ? new Date(migrationStatus.lastMigrationDate).toLocaleDateString()
+                : 'Never'}
+            </div>
+            <div className="text-xs text-slate-400">Last Migration</div>
+          </div>
+        </div>
+
+        {/* Migration Actions */}
+        <div className="flex flex-wrap gap-3">
+          {!migrationStatus?.migrationCompleted ? (
+            <button
+              onClick={() => handleRunMigration(false)}
+              disabled={isMigrating}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-50"
+            >
+              {isMigrating ? 'Migrating...' : 'Run Migration'}
+            </button>
+          ) : (
+            <button
+              onClick={() => handleRunMigration(true)}
+              disabled={isMigrating}
+              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg disabled:opacity-50"
+            >
+              {isMigrating ? 'Migrating...' : 'Re-run Migration (Force)'}
+            </button>
+          )}
+          <button
+            onClick={handleResetMigration}
+            disabled={isMigrating}
+            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg disabled:opacity-50"
+          >
+            Reset Migration
+          </button>
+        </div>
+      </div>
+
+      {/* AI Configuration Section */}
+      <div className="bg-slate-700/30 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">AI Configuration</h3>
+        <p className="text-slate-400 text-sm mb-4">
+          Configure Gemini AI settings for automatic classification.
+          The prompt and parameters below control how the AI classifies transactions.
+        </p>
+
+        <div className="space-y-4">
+          {/* Model Selection */}
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Gemini Model</label>
+            <select
+              value={editedModel}
+              onChange={e => setEditedModel(e.target.value)}
+              className="w-full md:w-auto px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+            >
+              <option value="gemini-1.5-flash">gemini-1.5-flash (Fast)</option>
+              <option value="gemini-1.5-pro">gemini-1.5-pro (Better)</option>
+              <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp (Latest)</option>
+            </select>
+          </div>
+
+          {/* Temperature */}
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">
+              Temperature: {editedTemperature.toFixed(2)}
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={editedTemperature}
+              onChange={e => setEditedTemperature(parseFloat(e.target.value))}
+              className="w-full md:w-64"
+            />
+            <div className="text-xs text-slate-500 mt-1">
+              Lower = more consistent, Higher = more creative
+            </div>
+          </div>
+
+          {/* Confidence Thresholds */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">
+                Auto-Accept Threshold: {editedAutoAccept}%
+              </label>
+              <input
+                type="range"
+                min="50"
+                max="100"
+                step="5"
+                value={editedAutoAccept}
+                onChange={e => setEditedAutoAccept(parseInt(e.target.value))}
+                className="w-full"
+              />
+              <div className="text-xs text-slate-500 mt-1">
+                Classifications above this are auto-accepted
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">
+                Needs Review Threshold: {editedNeedsReview}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="80"
+                step="5"
+                value={editedNeedsReview}
+                onChange={e => setEditedNeedsReview(parseInt(e.target.value))}
+                className="w-full"
+              />
+              <div className="text-xs text-slate-500 mt-1">
+                Classifications below this need manual review
+              </div>
+            </div>
+          </div>
+
+          {/* Prompt */}
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Classification Prompt</label>
+            <textarea
+              value={editedPrompt}
+              onChange={e => setEditedPrompt(e.target.value)}
+              rows={10}
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 font-mono text-sm focus:outline-none focus:border-blue-500"
+              placeholder="Enter the prompt for Gemini AI classification..."
+            />
+            <div className="text-xs text-slate-500 mt-1">
+              This prompt is sent to Gemini when classifying unknown transactions.
+              Leave empty to use the default prompt.
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSaveConfig}
+              disabled={isSavingConfig}
+              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg disabled:opacity-50"
+            >
+              {isSavingConfig ? 'Saving...' : 'Save Configuration'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Google Sheets Link */}
+      <div className="bg-slate-700/30 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Google Sheets</h3>
+        <p className="text-slate-400 text-sm mb-4">
+          Access your classification data directly in Google Sheets. You can view and edit rules,
+          categories, and configuration from the spreadsheet.
+        </p>
+        <a
+          href="https://docs.google.com/spreadsheets/d/1CgClltIfhvQMZ9kxQ2MqfcebyZzDoZdg6i2evHAo3JI/edit"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <line x1="8" y1="13" x2="16" y2="13" stroke="currentColor" strokeWidth="2"/>
+            <line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          Open Google Sheets
+        </a>
       </div>
     </div>
   );

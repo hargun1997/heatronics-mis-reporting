@@ -236,10 +236,15 @@ export type MISHead =
 export interface LearnedPattern {
   id: string;
   pattern: string;  // The account name pattern to match
+  matchType: 'exact' | 'contains' | 'regex';
   head: MISHead;
   subhead: string;
+  confidence: number;
+  priority: number;  // 0 = user (highest), 1 = system, 2 = AI
+  active: boolean;
   createdAt: string;
-  source: 'user' | 'system';
+  source: 'user' | 'system' | 'gemini';
+  notes?: string;
 }
 
 // ============================================

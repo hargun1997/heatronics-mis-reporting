@@ -90,13 +90,29 @@ interface ClassificationResult {
   matchedPattern?: string;
 }
 
-function matchPattern(accountName: string, pattern: string): boolean {
-  try {
-    const regex = new RegExp(pattern, 'i');
-    return regex.test(accountName);
-  } catch {
-    // Fallback to simple includes
-    return accountName.toLowerCase().includes(pattern.toLowerCase());
+function matchPattern(
+  accountName: string,
+  pattern: string,
+  matchType: 'exact' | 'contains' | 'regex' = 'contains'
+): boolean {
+  const normalizedAccount = accountName.toLowerCase().trim();
+  const normalizedPattern = pattern.toLowerCase().trim();
+
+  switch (matchType) {
+    case 'exact':
+      return normalizedAccount === normalizedPattern;
+    case 'contains':
+      return normalizedAccount.includes(normalizedPattern);
+    case 'regex':
+      try {
+        const regex = new RegExp(pattern, 'i');
+        return regex.test(accountName);
+      } catch {
+        // Invalid regex, fallback to contains
+        return normalizedAccount.includes(normalizedPattern);
+      }
+    default:
+      return normalizedAccount.includes(normalizedPattern);
   }
 }
 
@@ -109,29 +125,31 @@ export async function classifyTransaction(
   // Load patterns
   const patterns = customPatterns || await getLearnedPatterns();
 
-  // Try to match against patterns (user patterns first, then system)
-  const userPatterns = patterns.filter(p => p.source === 'user');
-  const systemPatterns = patterns.filter(p => p.source === 'system');
+  // Filter for active patterns and sort by priority (lower = higher priority)
+  const activePatterns = patterns
+    .filter(p => p.active !== false) // Include patterns without active field for backwards compatibility
+    .sort((a, b) => (a.priority ?? 1) - (b.priority ?? 1));
 
-  // Check user patterns first (higher priority)
-  for (const pattern of userPatterns) {
-    if (matchPattern(accountName, pattern.pattern)) {
+  // Try to match against sorted patterns
+  for (const pattern of activePatterns) {
+    const matchType = pattern.matchType || 'contains'; // Default to contains for backwards compatibility
+    if (matchPattern(accountName, pattern.pattern, matchType)) {
+      // Determine confidence level from pattern or source
+      let confidenceLevel: 'high' | 'medium' | 'low';
+      if (pattern.confidence !== undefined) {
+        // Use numeric confidence to determine level
+        if (pattern.confidence >= 0.8) confidenceLevel = 'high';
+        else if (pattern.confidence >= 0.5) confidenceLevel = 'medium';
+        else confidenceLevel = 'low';
+      } else {
+        // Fallback based on source
+        confidenceLevel = pattern.source === 'user' ? 'high' : 'medium';
+      }
+
       return {
         head: pattern.head,
         subhead: pattern.subhead,
-        confidence: 'high',
-        matchedPattern: pattern.pattern
-      };
-    }
-  }
-
-  // Check system patterns
-  for (const pattern of systemPatterns) {
-    if (matchPattern(accountName, pattern.pattern)) {
-      return {
-        head: pattern.head,
-        subhead: pattern.subhead,
-        confidence: 'medium',
+        confidence: confidenceLevel,
         matchedPattern: pattern.pattern
       };
     }

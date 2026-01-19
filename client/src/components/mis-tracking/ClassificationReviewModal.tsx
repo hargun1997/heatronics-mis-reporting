@@ -72,8 +72,12 @@ export function ClassificationReviewModal({
         const pattern: LearnedPattern = {
           id: `user_${Date.now()}`,
           pattern: extractPattern(transaction.account),
+          matchType: 'contains',
           head,
           subhead,
+          confidence: 1,
+          priority: 0, // User rules have highest priority
+          active: true,
           createdAt: new Date().toISOString(),
           source: 'user'
         };
