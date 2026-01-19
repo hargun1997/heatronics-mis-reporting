@@ -242,7 +242,23 @@ export function aggregateByHead(
   for (const transaction of transactions) {
     const head = transaction.misHead;
     const subhead = transaction.misSubhead;
-    const amount = transaction.debit || transaction.credit || 0;
+
+    // Get the head type to determine which side to count
+    const headConfig = MIS_HEADS_CONFIG[head];
+    const headType = headConfig?.type || 'expense';
+
+    // For expense heads: count DEBIT side only (money going out)
+    // For revenue heads: count CREDIT side only (money coming in)
+    // For ignore heads: count both (for transparency)
+    let amount = 0;
+    if (headType === 'expense') {
+      amount = transaction.debit || 0;
+    } else if (headType === 'revenue') {
+      amount = transaction.credit || 0;
+    } else {
+      // ignore type - count both for display purposes
+      amount = transaction.debit || transaction.credit || 0;
+    }
 
     if (!result[head]) {
       result[head] = {
@@ -253,8 +269,11 @@ export function aggregateByHead(
       };
     }
 
-    result[head]!.subheadTotals[subhead] = (result[head]!.subheadTotals[subhead] || 0) + amount;
-    result[head]!.total += amount;
+    // Only add to totals if there's an amount on the correct side
+    if (amount > 0) {
+      result[head]!.subheadTotals[subhead] = (result[head]!.subheadTotals[subhead] || 0) + amount;
+      result[head]!.total += amount;
+    }
     result[head]!.transactionCount += 1;
   }
 
