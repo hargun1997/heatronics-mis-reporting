@@ -508,26 +508,64 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
 
           const entry: RawEntry = { date, vchBillNo, gstNature, account, debit, credit, notes };
 
-          // Group by voucher number + date (to handle entries without voucher numbers)
-          const groupKey = vchBillNo || `date-${date}`;
-          if (!entriesByVoucher.has(groupKey)) {
-            entriesByVoucher.set(groupKey, []);
+          // Group by voucher number
+          // For entries without voucher numbers, detect voucher boundaries:
+          // A new voucher starts when we see a DEBIT entry after CREDIT entries
+          if (vchBillNo) {
+            // Has voucher number - use it as group key
+            if (!entriesByVoucher.has(vchBillNo)) {
+              entriesByVoucher.set(vchBillNo, []);
+            }
+            entriesByVoucher.get(vchBillNo)!.push(entry);
+          } else {
+            // No voucher number - need to detect voucher boundaries
+            // Use a special tracking key for the current date
+            const trackKey = `__track__${date}`;
+            if (!entriesByVoucher.has(trackKey)) {
+              entriesByVoucher.set(trackKey, [{ _voucherIdx: 0, _lastWasCredit: false } as any]);
+            }
+            const tracker = entriesByVoucher.get(trackKey)![0] as any;
+
+            // New voucher starts when: debit entry appears after credit entry
+            if (debit > 0 && tracker._lastWasCredit) {
+              tracker._voucherIdx++;
+            }
+
+            // Update tracker
+            tracker._lastWasCredit = credit > 0;
+
+            // Add to the appropriate voucher group
+            const groupKey = `date-${date}-v${tracker._voucherIdx}`;
+            if (!entriesByVoucher.has(groupKey)) {
+              entriesByVoucher.set(groupKey, []);
+            }
+            entriesByVoucher.get(groupKey)!.push(entry);
           }
-          entriesByVoucher.get(groupKey)!.push(entry);
+        }
+
+        // Clean up tracking entries and prepare voucher groups
+        const voucherGroups: Map<string, RawEntry[]> = new Map();
+        for (const [groupKey, entries] of entriesByVoucher) {
+          // Skip tracker entries
+          if (groupKey.startsWith('__track__')) continue;
+          voucherGroups.set(groupKey, entries);
         }
 
         // Debug: Log voucher groupings
         console.log('=== Journal Parser Voucher Groupings ===');
-        for (const [groupKey, entries] of entriesByVoucher) {
-          console.log(`Voucher ${groupKey}:`, entries.map(e => ({
-            account: e.account,
-            debit: e.debit,
-            credit: e.credit
-          })));
+        console.log(`Total voucher groups: ${voucherGroups.size}`);
+        for (const [groupKey, entries] of voucherGroups) {
+          if (entries.length <= 4) { // Only log small vouchers to avoid spam
+            console.log(`Voucher ${groupKey}:`, entries.map(e => ({
+              account: e.account,
+              debit: e.debit,
+              credit: e.credit
+            })));
+          }
         }
 
         // Second pass: link debit entries with credit entries (party names)
-        for (const [groupKey, entries] of entriesByVoucher) {
+        for (const [groupKey, entries] of voucherGroups) {
           // Check if first entry is a credit - if so, this is likely a payment/receipt voucher
           // not an expense voucher, so skip party name linking
           const firstEntry = entries[0];
