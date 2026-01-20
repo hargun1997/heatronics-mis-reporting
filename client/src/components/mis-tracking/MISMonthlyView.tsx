@@ -989,6 +989,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
           misNetRevenue={netRevenue}
           misCOGM={cogm.totalCOGM}
           misNetIncome={displayMIS.netIncome}
+          stockTransfers={revenue.totalStockTransfers}
         />
       )}
     </div>
@@ -1496,12 +1497,12 @@ interface ReconciliationSectionProps {
   misNetRevenue: number;
   misCOGM: number;
   misNetIncome: number;
+  stockTransfers: number; // From Sales Register - entries to Heatronics entities
 }
 
-function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome }: ReconciliationSectionProps) {
+function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome, stockTransfers }: ReconciliationSectionProps) {
   // Stock transfers to other Heatronics entities should be excluded from revenue comparison
   // BS shows gross sales including inter-company, MIS shows net external revenue
-  const stockTransfers = balanceSheet.stockTransfers || 0;
   const bsExternalRevenue = balanceSheet.grossSales - stockTransfers;
 
   // Calculate variances
