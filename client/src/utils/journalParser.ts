@@ -22,18 +22,11 @@ const GST_PATTERN = /\b(cgst|sgst|igst)\s*(input|output)?\b/i;
 // TDS entries (Tax deductions)
 const TDS_PATTERN = /^tds\s*\(/i;
 
-// Bank and Cash accounts (Payment method, not expense)
-const BANK_PATTERN = /\b(central\s*bank|hdfc\s*bank|axis\s*bank|icici\s*bank|cash)\b/i;
-
 // Rounded Off (minor adjustments)
 const ROUNDED_OFF_PATTERN = /rounded\s*off/i;
 
-// Amazon B2B Cash Sales (Revenue settlements, not expenses)
-// These appear when Amazon settles payments to your bank
-const AMAZON_B2B_PATTERN = /amazon.*sale.*cash|amazon.*central|amazon.*maharashtra|amazon.*karnatak|amazon.*haryana|amazon.*telangana|amazone/i;
-
-// Suspense and Opening/Closing entries
-const SUSPENSE_PATTERN = /suspense|opening\s*balance|closing\s*balance/i;
+// NOTE: Bank/Cash, Amazon B2B, and Suspense are NO LONGER skipped
+// The new rule is: skip entire voucher if first row has credit > 0
 
 // ============================================
 // ROW INTERFACE
@@ -54,6 +47,8 @@ interface JournalRow {
 
 /**
  * Check if an account should be skipped entirely
+ * Only skip: GST, TDS, Rounded Off
+ * Do NOT skip: Bank/Cash, Amazon B2B, Suspense (handled by first-row-credit rule)
  */
 function shouldSkipAccount(accountName: string): boolean {
   if (!accountName) return true;
@@ -66,31 +61,26 @@ function shouldSkipAccount(accountName: string): boolean {
   // Skip TDS entries
   if (TDS_PATTERN.test(name)) return true;
 
-  // Skip Bank/Cash entries
-  if (BANK_PATTERN.test(name)) return true;
-
   // Skip Rounded Off
   if (ROUNDED_OFF_PATTERN.test(name)) return true;
-
-  // Skip Amazon B2B cash sales
-  if (AMAZON_B2B_PATTERN.test(name)) return true;
-
-  // Skip Suspense
-  if (SUSPENSE_PATTERN.test(name)) return true;
 
   return false;
 }
 
 /**
- * Check if entire voucher should be skipped (e.g., Amazon B2B)
+ * Check if entire voucher should be skipped
+ * NEW RULE: If first row has Credit > 0, skip entire voucher
+ * (Catches payment receipts, B2C settlements, revenue entries)
  */
 function shouldSkipVoucher(rows: JournalRow[]): boolean {
-  // If any row is Amazon B2B, skip entire voucher
-  for (const row of rows) {
-    if (AMAZON_B2B_PATTERN.test(row.accountName)) {
-      return true;
-    }
+  if (rows.length === 0) return true;
+
+  // If first row has credit > 0, skip entire voucher
+  const firstRow = rows[0];
+  if (firstRow.credit > 0) {
+    return true;
   }
+
   return false;
 }
 
@@ -135,11 +125,16 @@ function groupIntoVouchers(rows: JournalRow[]): JournalRow[][] {
 /**
  * Parse a single voucher into MIS entries
  * Returns array because a voucher can have multiple expenses
+ *
+ * NEW LOGIC:
+ * - Skip if first row has credit > 0
+ * - Party name = "{expenseAccount} - {creditPartyName}"
+ * - Classify using both expense account and credit party name
  */
 function parseVoucher(rows: JournalRow[]): ParsedJournalEntry[] {
   const entries: ParsedJournalEntry[] = [];
 
-  // Skip Amazon B2B vouchers entirely
+  // Skip voucher if first row has credit > 0
   if (shouldSkipVoucher(rows)) {
     return entries;
   }
@@ -150,34 +145,43 @@ function parseVoucher(rows: JournalRow[]): ParsedJournalEntry[] {
 
   // Find all expenses (debit entries that aren't skipped)
   const expenseRows: JournalRow[] = [];
-  let partyName = '';
+  let creditPartyName = '';
 
   for (const row of rows) {
     if (shouldSkipAccount(row.accountName)) {
       continue;
     }
 
-    // Debit = expense
+    // Debit = expense (must have debit > 0)
     if (row.debit > 0) {
       expenseRows.push(row);
     }
 
-    // Credit = party (take the first non-skipped credit)
-    if (row.credit > 0 && !partyName) {
-      partyName = row.accountName.trim();
+    // Credit = party (take the first non-skipped credit with amount > 0)
+    if (row.credit > 0 && !creditPartyName) {
+      creditPartyName = row.accountName.trim();
     }
   }
 
   // Create MIS entry for each expense
   for (const expenseRow of expenseRows) {
-    const classification = classifyTransactionSync(expenseRow.accountName, partyName);
+    const expenseAccount = expenseRow.accountName.trim();
+
+    // NEW: Combine expense account + credit party for party name
+    // Format: "EXPENSE ACCOUNT - CREDIT PARTY"
+    const combinedPartyName = creditPartyName
+      ? `${expenseAccount} - ${creditPartyName}`
+      : expenseAccount;
+
+    // Classify using both expense account and credit party name
+    const classification = classifyTransactionSync(expenseAccount, creditPartyName);
 
     entries.push({
       date,
       voucherNo,
-      expenseAccount: expenseRow.accountName.trim(),
+      expenseAccount,
       expenseAmount: expenseRow.debit,
-      partyName,
+      partyName: combinedPartyName,
       gstType,
       headCode: classification.headCode,
       subheadCode: classification.subheadCode,
