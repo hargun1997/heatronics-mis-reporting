@@ -458,6 +458,20 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         // Parse data rows starting after header
         // First pass: collect all entries grouped by voucher
         const startRow = headerRowIndex + 1;
+
+        // Debug: Log first few data rows to see what we're reading
+        console.log('Journal Parser - First 3 data rows (raw):');
+        for (let i = startRow; i < Math.min(startRow + 3, jsonData.length); i++) {
+          const row = jsonData[i];
+          if (row) {
+            console.log(`  Row ${i}:`, {
+              date: row[dateCol],
+              account: row[accountCol],
+              debit: row[debitCol],
+              credit: row[creditCol]
+            });
+          }
+        }
         let lastDate = '';
         let lastVchNo = '';
 
