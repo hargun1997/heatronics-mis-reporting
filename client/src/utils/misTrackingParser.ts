@@ -393,24 +393,28 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         let creditCol = -1;
         let notesCol = -1;
 
-        // Scan first 10 rows to find column headers (they may be after company info/title rows)
-        for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+        // Find header row: scan until first column is "Date"
+        for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i];
           if (!row) continue;
 
-          // Detect column positions from each row
-          for (let j = 0; j < row.length; j++) {
-            const header = String(row[j] || '').toLowerCase().trim();
+          const firstCol = String(row[0] || '').toLowerCase().trim();
+          if (firstCol === 'date') {
+            headerRowIndex = i;
+            dateCol = 0; // Date is always first column
 
-            if (header.includes('date') && dateCol < 0) { dateCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && voucherCol < 0) { voucherCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && gstCol < 0) { gstCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && accountCol < 0) { accountCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            // Match "debit", "dr", "dr." for debit column
-            if ((header.includes('debit') || header === 'dr' || header === 'dr.') && debitCol < 0) { debitCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            // Match "credit", "cr", "cr." for credit column
-            if ((header.includes('credit') || header === 'cr' || header === 'cr.') && creditCol < 0) { creditCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && notesCol < 0) { notesCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            // Now detect other columns from this header row
+            for (let j = 1; j < row.length; j++) {
+              const header = String(row[j] || '').toLowerCase().trim();
+
+              if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && voucherCol < 0) voucherCol = j;
+              if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && gstCol < 0) gstCol = j;
+              if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && accountCol < 0) accountCol = j;
+              if ((header.includes('debit') || header === 'dr' || header === 'dr.') && debitCol < 0) debitCol = j;
+              if ((header.includes('credit') || header === 'cr' || header === 'cr.') && creditCol < 0) creditCol = j;
+              if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && notesCol < 0) notesCol = j;
+            }
+            break; // Found header row, stop searching
           }
         }
 
