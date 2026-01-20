@@ -4,6 +4,7 @@ import { formatCurrency, formatCurrencyFull, formatPercent } from '../../utils/m
 import { EnhancedMISReportView } from '../mis-report-enhanced';
 import { TableCellsIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
 import { aggregateStatesToMonth } from '../../services/stateDataStore';
+import { exportToPDF } from '../../utils/exportUtils';
 
 // ============================================
 // RANGE TYPES
@@ -352,6 +353,21 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
   const [selectedPreset, setSelectedPreset] = useState<RangePreset | null>(null);
   const [customSelectedMonths, setCustomSelectedMonths] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>('enhanced'); // Default to enhanced view
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    setShowExportDropdown(false);
+    try {
+      await exportToPDF('mis-monthly-content', `MIS_Report_${displayTitle.replace(/\s+/g, '_')}`);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Debug logging when MIS data changes
   React.useEffect(() => {
@@ -693,9 +709,47 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             Algorithm Guide
           </button>
 
-          <button className="px-4 py-2 text-sm text-slate-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-slate-300 transition-colors">
-            Export
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              disabled={isExporting}
+              className="px-4 py-2 text-sm text-slate-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-slate-300 transition-colors flex items-center gap-2"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  Export
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </>
+              )}
+            </button>
+
+            {showExportDropdown && (
+              <>
+                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50">
+                  <button
+                    onClick={handleExportPDF}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 rounded-lg"
+                  >
+                    <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Export to PDF
+                  </button>
+                </div>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExportDropdown(false)} />
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -726,16 +780,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
         </div>
       )}
 
-      {/* Enhanced View */}
-      {displayMIS && viewMode === 'enhanced' && (
-        <EnhancedMISReportView
-          misRecord={displayMIS}
-          onRecalculate={undefined}
-        />
-      )}
+      {/* Content wrapper for PDF export */}
+      <div id="mis-monthly-content">
+        {/* Enhanced View */}
+        {displayMIS && viewMode === 'enhanced' && (
+          <EnhancedMISReportView
+            misRecord={displayMIS}
+            onRecalculate={undefined}
+          />
+        )}
 
-      {/* Classic View - Key Metrics Cards */}
-      {displayMIS && viewMode === 'classic' && (
+        {/* Classic View - Key Metrics Cards */}
+        {displayMIS && viewMode === 'classic' && (
         <div className="grid grid-cols-4 gap-4">
           <MetricCard
             label="Net Revenue"
@@ -825,17 +881,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
             {/* Stock Transfers (if any) */}
             {revenue.totalStockTransfers > 0 && (
-              <>
-                <tr className="bg-purple-500/10">
-                  <td colSpan={showChannelBreakdown ? 3 + SALES_CHANNELS.length : 3} className="py-2 px-4">
-                    <span className="font-medium text-purple-400">Stock Transfers (Excluded)</span>
-                    <span className="ml-4 text-purple-400">{formatCurrencyFull(revenue.totalStockTransfers)}</span>
-                    <span className="ml-4 text-sm text-purple-400/70">
-                      {revenue.stockTransfers.map(t => `${t.fromState}→${t.toState}: ${formatCurrency(t.amount)}`).join(' | ')}
-                    </span>
-                  </td>
-                </tr>
-              </>
+              <tr className="bg-purple-500/10">
+                <td className="py-2 px-4">
+                  <span className="font-medium text-purple-400">Stock Transfers (Excluded)</span>
+                </td>
+                <td className="py-2 px-4 text-right text-purple-400">{formatCurrencyFull(revenue.totalStockTransfers)}</td>
+                <td className="py-2 px-4 text-right text-purple-400/70 text-sm">
+                  {revenue.stockTransfers.length} transfer{revenue.stockTransfers.length !== 1 ? 's' : ''}
+                </td>
+                {showChannelBreakdown && SALES_CHANNELS.map(channel => (
+                  <td key={channel} className="py-2 px-4 text-right text-purple-400/50 text-xs">-</td>
+                ))}
+              </tr>
             )}
 
             {/* Total Revenue Line */}
@@ -1005,24 +1062,14 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             </tr>
           </tbody>
         </table>
-      </div>
-      )}
+        </div>
+        )}
 
-      {/* Tax Summary Section */}
-      {taxSummary && (
-        <TaxSummarySection taxSummary={taxSummary} />
-      )}
-
-      {/* Balance Sheet Reconciliation Section */}
-      {displayMIS && displayMIS.balanceSheet && (
-        <ReconciliationSection
-          balanceSheet={displayMIS.balanceSheet}
-          misNetRevenue={netRevenue}
-          misCOGM={cogm.totalCOGM}
-          misNetIncome={displayMIS.netIncome}
-          stockTransfers={revenue.totalStockTransfers}
-        />
-      )}
+        {/* Tax Summary Section */}
+        {taxSummary && (
+          <TaxSummarySection taxSummary={taxSummary} />
+        )}
+      </div> {/* End of mis-monthly-content */}
     </div>
   );
 }
@@ -1653,154 +1700,3 @@ function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
   );
 }
 
-// ============================================
-// BALANCE SHEET RECONCILIATION SECTION
-// ============================================
-
-interface ReconciliationSectionProps {
-  balanceSheet: AggregatedBalanceSheetData;
-  misNetRevenue: number;
-  misCOGM: number;
-  misNetIncome: number;
-  stockTransfers: number; // From Sales Register - entries to Heatronics entities
-}
-
-function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome, stockTransfers }: ReconciliationSectionProps) {
-  // Stock transfers to other Heatronics entities should be excluded from revenue comparison
-  // BS shows gross sales including inter-company, MIS shows net external revenue
-  const bsExternalRevenue = balanceSheet.grossSales - stockTransfers;
-
-  // Calculate variances
-  const revenueVariance = misNetRevenue - bsExternalRevenue;
-  const revenueVariancePercent = bsExternalRevenue !== 0
-    ? ((misNetRevenue - bsExternalRevenue) / bsExternalRevenue) * 100
-    : (misNetRevenue !== 0 ? 100 : 0);
-
-  const profitVariance = misNetIncome - balanceSheet.netProfitLoss;
-  const profitVariancePercent = balanceSheet.netProfitLoss !== 0
-    ? ((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100
-    : (misNetIncome !== 0 ? 100 : 0);
-
-  return (
-    <div className="mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
-      {/* Header */}
-      <div className="bg-indigo-500/20 border-b border-indigo-500/30 px-5 py-3">
-        <h3 className="text-sm font-semibold text-indigo-400">Balance Sheet Reconciliation</h3>
-        <p className="text-xs text-indigo-400/70 mt-0.5">Compare MIS vs Balance Sheet (sum of all states)</p>
-      </div>
-
-      <div className="p-5">
-        {/* Comparison Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-700">
-                <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Metric</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">MIS Calculated</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Balance Sheet (All States)</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Stock Transfers</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Variance</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Variance %</th>
-                <th className="text-center py-2 px-3 text-xs font-medium text-slate-500">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Net Revenue vs BS Gross Sales */}
-              <tr className="border-b border-slate-700/50">
-                <td className="py-3 px-3 text-sm text-slate-300">
-                  <div>Net Revenue</div>
-                  <div className="text-xs text-slate-500">MIS = BS - Stock Transfers to Heatronics</div>
-                </td>
-                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(misNetRevenue)}</td>
-                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(balanceSheet.grossSales)}</td>
-                <td className="py-3 px-3 text-right text-sm text-amber-400">
-                  {stockTransfers > 0 ? `-${formatCurrencyFull(stockTransfers)}` : '-'}
-                </td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {formatCurrencyFull(revenueVariance)}
-                </td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {revenueVariancePercent.toFixed(2)}%
-                </td>
-                <td className="py-3 px-3 text-center">
-                  {Math.abs(revenueVariancePercent) < 5 ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Match
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Review
-                    </span>
-                  )}
-                </td>
-              </tr>
-
-              {/* Net Profit/Loss vs BS */}
-              <tr>
-                <td className="py-3 px-3 text-sm text-slate-300">
-                  <div>Net Profit/Loss</div>
-                  <div className="text-xs text-slate-500">BS: {balanceSheet.netProfitLoss >= 0 ? 'Profit' : 'Loss'}</div>
-                </td>
-                <td className="py-3 px-3 text-right text-sm">
-                  <span className={misNetIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {formatCurrencyFull(misNetIncome)}
-                  </span>
-                </td>
-                <td className="py-3 px-3 text-right text-sm">
-                  <span className={balanceSheet.netProfitLoss >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {formatCurrencyFull(balanceSheet.netProfitLoss)}
-                  </span>
-                </td>
-                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(profitVariancePercent) < 10 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {formatCurrencyFull(profitVariance)}
-                </td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(profitVariancePercent) < 10 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {balanceSheet.netProfitLoss !== 0 ? `${profitVariancePercent.toFixed(2)}%` : '-'}
-                </td>
-                <td className="py-3 px-3 text-center">
-                  {Math.abs(profitVariancePercent) < 10 ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Match
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Review
-                    </span>
-                  )}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Note */}
-        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg space-y-2">
-          <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">Revenue Reconciliation:</strong> MIS Net Revenue should equal
-            BS Gross Sales minus inter-company stock transfers to other Heatronics entities.
-          </p>
-          <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">Profit/Loss:</strong> Variance expected due to different expense
-            classification between MIS (activity-based) and BS (account-based).
-          </p>
-          <p className="text-xs text-slate-400">
-            Variances under 5% for revenue and 10% for profit/loss are acceptable.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}

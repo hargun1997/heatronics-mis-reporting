@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { Transaction, MISReport, Heads } from '../types';
 import { formatCurrencyFull, formatPercentage } from './cogsCalculator';
 
@@ -255,6 +256,46 @@ export async function exportToImage(
       saveAs(blob, `${filename}_${new Date().toISOString().split('T')[0]}.png`);
     }
   }, 'image/png');
+}
+
+export async function exportToPDF(
+  elementId: string,
+  filename: string = 'MIS_Report'
+): Promise<void> {
+  const element = document.getElementById(elementId);
+  if (!element) {
+    throw new Error('Element not found for export');
+  }
+
+  // Capture the element as canvas
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    backgroundColor: '#1e293b', // Slate-800 background
+    logging: false,
+    useCORS: true
+  });
+
+  const imgData = canvas.toDataURL('image/png');
+  const imgWidth = canvas.width;
+  const imgHeight = canvas.height;
+
+  // Create PDF with appropriate dimensions
+  const pdfWidth = 210; // A4 width in mm
+  const pdfHeight = (imgHeight * pdfWidth) / imgWidth;
+
+  // Use 'p' for portrait, adjust if content is very wide
+  const orientation = pdfHeight > 297 ? 'p' : 'p';
+  const pdf = new jsPDF({
+    orientation,
+    unit: 'mm',
+    format: [pdfWidth, Math.max(pdfHeight, 297)] // At least A4 height
+  });
+
+  // Add image to PDF
+  pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+  // Save the PDF
+  pdf.save(`${filename}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
 export function exportMISAsText(report: MISReport): string {

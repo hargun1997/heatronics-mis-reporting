@@ -517,10 +517,21 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
 
         // Second pass: link debit entries with credit entries (party names)
         for (const [groupKey, entries] of entriesByVoucher) {
-          // Check if first entry is a credit - if so, this is a payment/receipt voucher
-          // not an expense voucher - SKIP ENTIRE VOUCHER
+          // Check if this is a payment/receipt voucher (not an expense voucher)
+          // Payment vouchers should be SKIPPED - they don't belong in expense reports
           const firstEntry = entries[0];
-          const isPaymentVoucher = firstEntry && firstEntry.credit > 0 && firstEntry.debit === 0;
+
+          // Case 1: First entry is credit (receipt voucher - money coming in)
+          const isReceiptVoucher = firstEntry && firstEntry.credit > 0 && firstEntry.debit === 0;
+
+          // Case 2: All credit entries are bank/cash accounts (payment voucher - paying off liability)
+          // e.g., Dr. Facebook India (vendor), Cr. Central Bank (payment)
+          const creditEntriesAll = entries.filter(e => e.credit > 0);
+          const allCreditsAreBank = creditEntriesAll.length > 0 && creditEntriesAll.every(e =>
+            /bank|od limit|overdraft|^cash$/i.test(e.account)
+          );
+
+          const isPaymentVoucher = isReceiptVoucher || allCreditsAreBank;
 
           if (isPaymentVoucher) {
             // Skip entire voucher - don't add any entries to transactions
