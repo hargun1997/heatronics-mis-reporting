@@ -29,6 +29,7 @@ import {
   MISHead
 } from '../types/misTracking';
 import { classifyTransactions, aggregateByHead, extractMISAmounts, MIS_HEADS_CONFIG } from './misClassifier';
+import { refreshRulesFromAPI } from './googleSheetsStorage';
 
 // ============================================
 // MAIN CALCULATION FUNCTION
@@ -97,6 +98,9 @@ export async function calculateMIS(
   // ============================================
   // STEP 2: Classify Journal Transactions
   // ============================================
+  // Force refresh rules from API to ensure latest rules are used
+  await refreshRulesFromAPI();
+
   const allTransactions = collectAllTransactions(stateData, selectedStates);
   const { classified, unclassified } = await classifyTransactions(allTransactions);
 
