@@ -118,37 +118,33 @@ export function IgnoredTransactionsSection({
         />
       )}
 
-      {/* Ignored Transactions (Z. Ignore) */}
-      {ignoredTransactions.length > 0 && (
-        <TransactionSection
-          title="Z. Ignored (Non-P&L Items)"
-          subtitle="GST Input/Output, TDS, Bank Transfers, Inter-company"
-          icon={<EyeSlashIcon className="h-5 w-5" />}
-          transactions={ignoredTransactions}
-          total={ignoredTotal}
-          count={ignoredTransactions.length}
-          isExpanded={showIgnored}
-          onToggle={() => setShowIgnored(!showIgnored)}
-          variant="default"
-          onReclassify={onReclassify}
-        />
-      )}
+      {/* Excluded Transactions (X. Exclude) - Always show */}
+      <TransactionSection
+        title="X. Excluded (Personal Expenses)"
+        subtitle="Personal expenses and owner withdrawals"
+        icon={<EyeSlashIcon className="h-5 w-5" />}
+        transactions={excludedTransactions}
+        total={excludedTotal}
+        count={excludedTransactions.length}
+        isExpanded={showExcluded}
+        onToggle={() => setShowExcluded(!showExcluded)}
+        variant="default"
+        onReclassify={onReclassify}
+      />
 
-      {/* Excluded Transactions (X. Exclude) */}
-      {excludedTransactions.length > 0 && (
-        <TransactionSection
-          title="X. Excluded (Personal Expenses)"
-          subtitle="Personal expenses and owner withdrawals"
-          icon={<EyeSlashIcon className="h-5 w-5" />}
-          transactions={excludedTransactions}
-          total={excludedTotal}
-          count={excludedTransactions.length}
-          isExpanded={showExcluded}
-          onToggle={() => setShowExcluded(!showExcluded)}
-          variant="default"
-          onReclassify={onReclassify}
-        />
-      )}
+      {/* Ignored Transactions (Z. Ignore) - Always show */}
+      <TransactionSection
+        title="Z. Ignored (Non-P&L Items)"
+        subtitle="GST Input/Output, TDS, Bank Transfers, Inter-company"
+        icon={<EyeSlashIcon className="h-5 w-5" />}
+        transactions={ignoredTransactions}
+        total={ignoredTotal}
+        count={ignoredTransactions.length}
+        isExpanded={showIgnored}
+        onToggle={() => setShowIgnored(!showIgnored)}
+        variant="default"
+        onReclassify={onReclassify}
+      />
     </div>
   );
 }
