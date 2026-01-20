@@ -550,14 +550,29 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
             ? creditEntries.reduce((max, e) => e.credit > max.credit ? e : max, creditEntries[0])
             : null;
 
+          // Find the main expense account (largest debit entry that's not GST/TDS)
+          const debitEntries = entries.filter(e =>
+            e.debit > 0 &&
+            !/sgst|cgst|igst|tds|round/i.test(e.account)
+          );
+          const mainExpense = debitEntries.length > 0
+            ? debitEntries.reduce((max, e) => e.debit > max.debit ? e : max, debitEntries[0])
+            : null;
+
           // Create transactions with party name linked
           for (const entry of entries) {
-            // For debit entries (expenses), link the party name from credit side
-            // Skip GST/TDS/round entries - they're just tax entries, not the main expense
-            let partyName: string | undefined;
             const isGstOrTaxEntry = /sgst|cgst|igst|tds|round/i.test(entry.account);
-            if (entry.debit > 0 && mainParty && !isGstOrTaxEntry) {
-              partyName = mainParty.account;
+            let partyName: string | undefined;
+
+            if (entry.debit > 0) {
+              if (isGstOrTaxEntry) {
+                // For GST/tax entries: link to main expense account so we know what it's for
+                // e.g., "CGST Input" shows "Freight Charges" as context
+                partyName = mainExpense?.account;
+              } else if (mainParty) {
+                // For regular expense entries: link to party (vendor/payee)
+                partyName = mainParty.account;
+              }
             }
 
             transactions.push({
