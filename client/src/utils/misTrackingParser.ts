@@ -518,21 +518,13 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
 
         // Second pass: link debit entries with credit entries (party names)
         for (const [, entries] of entriesByVoucher) {
-          // Find credit entries (potential party names)
-          // Exclude: GST/TDS entries, bank accounts, cash accounts
-          const creditEntries = entries.filter(e => {
-            if (e.credit <= 0) return false;
-            const acc = e.account.toLowerCase();
-            // Exclude tax/adjustment accounts
-            if (/sgst|cgst|igst|tds|round/i.test(acc)) return false;
-            // Exclude bank accounts (CENTRAL BANK, SBI, HDFC, etc.)
-            if (/bank|od limit|overdraft|savings|current a\/c/i.test(acc)) return false;
-            // Exclude cash accounts (but allow "CASH SALE" party names)
-            if (/^cash$|^cash\s*in\s*hand|petty\s*cash/i.test(acc)) return false;
-            return true;
-          });
+          // Find credit entries (potential party names) - exclude GST/TDS entries
+          const creditEntries = entries.filter(e =>
+            e.credit > 0 &&
+            !/sgst|cgst|igst|tds|round/i.test(e.account)
+          );
 
-          // Find the main party name (largest credit entry that's not a tax/bank/cash account)
+          // Find the main party name (largest credit entry that's not a tax/GST account)
           const mainParty = creditEntries.length > 0
             ? creditEntries.reduce((max, e) => e.credit > max.credit ? e : max, creditEntries[0])
             : null;
