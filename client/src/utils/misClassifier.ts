@@ -131,34 +131,41 @@ export async function classifyTransaction(
     .filter(p => p.active !== false) // Include patterns without active field for backwards compatibility
     .sort((a, b) => (a.priority ?? 1) - (b.priority ?? 1));
 
-  // Try to match against sorted patterns
-  // Check BOTH account name and party name - party name often has the actual vendor
-  for (const pattern of activePatterns) {
-    const matchType = pattern.matchType || 'contains'; // Default to contains for backwards compatibility
+  // Helper to create result from pattern
+  const createResult = (pattern: LearnedPattern): ClassificationResult => {
+    let confidenceLevel: 'high' | 'medium' | 'low';
+    if (pattern.confidence !== undefined) {
+      if (pattern.confidence >= 0.8) confidenceLevel = 'high';
+      else if (pattern.confidence >= 0.5) confidenceLevel = 'medium';
+      else confidenceLevel = 'low';
+    } else {
+      confidenceLevel = pattern.source === 'user' ? 'high' : 'medium';
+    }
+    return {
+      head: pattern.head,
+      subhead: pattern.subhead,
+      confidence: confidenceLevel,
+      matchedPattern: pattern.pattern
+    };
+  };
 
-    // Check account name first, then party name
-    const matchesAccount = matchPattern(accountName, pattern.pattern, matchType);
-    const matchesParty = partyName ? matchPattern(partyName, pattern.pattern, matchType) : false;
-
-    if (matchesAccount || matchesParty) {
-      // Determine confidence level from pattern or source
-      let confidenceLevel: 'high' | 'medium' | 'low';
-      if (pattern.confidence !== undefined) {
-        // Use numeric confidence to determine level
-        if (pattern.confidence >= 0.8) confidenceLevel = 'high';
-        else if (pattern.confidence >= 0.5) confidenceLevel = 'medium';
-        else confidenceLevel = 'low';
-      } else {
-        // Fallback based on source
-        confidenceLevel = pattern.source === 'user' ? 'high' : 'medium';
+  // PRIORITY 1: Check PARTY NAME first (more specific - actual vendor/payee)
+  // This ensures "FACEBOOK INDIA" in party name gets classified as Facebook Ads
+  // even when account name is generic "Advertisement & Publicity"
+  if (partyName) {
+    for (const pattern of activePatterns) {
+      const matchType = pattern.matchType || 'contains';
+      if (matchPattern(partyName, pattern.pattern, matchType)) {
+        return createResult(pattern);
       }
+    }
+  }
 
-      return {
-        head: pattern.head,
-        subhead: pattern.subhead,
-        confidence: confidenceLevel,
-        matchedPattern: pattern.pattern
-      };
+  // PRIORITY 2: Check ACCOUNT NAME (fallback when party name doesn't match)
+  for (const pattern of activePatterns) {
+    const matchType = pattern.matchType || 'contains';
+    if (matchPattern(accountName, pattern.pattern, matchType)) {
+      return createResult(pattern);
     }
   }
 
