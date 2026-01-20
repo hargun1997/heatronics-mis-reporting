@@ -378,6 +378,8 @@ export interface AggregatedBalanceSheetData {
   netProfitLoss: number;  // Positive = profit, Negative = loss
   // Calculated COGS from BS: Opening Stock + Purchases - Closing Stock
   calculatedCOGS: number;
+  // Inter-company stock transfers (to be excluded from revenue comparison)
+  stockTransfers?: number;
 }
 
 // ============================================
