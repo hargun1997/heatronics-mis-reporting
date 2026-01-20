@@ -237,35 +237,44 @@ function TransactionSection({
           </div>
 
           {/* Transaction Rows */}
-          {transactions.map((txn, index) => (
-            <div
-              key={txn.id || index}
-              className="grid grid-cols-12 gap-2 px-4 py-2 text-sm border-b border-slate-800/50 last:border-b-0 hover:bg-slate-800/30"
-            >
-              <div className="col-span-2 text-slate-400">
-                {txn.date || '-'}
+          {transactions.map((txn, index) => {
+            // Format: State - Account - Party (same as other sections)
+            const displayName = [
+              txn.state,
+              txn.account,
+              txn.partyName
+            ].filter(Boolean).join(' - ');
+
+            return (
+              <div
+                key={txn.id || index}
+                className="grid grid-cols-12 gap-2 px-4 py-2 text-sm border-b border-slate-800/50 last:border-b-0 hover:bg-slate-800/30"
+              >
+                <div className="col-span-2 text-slate-400">
+                  {txn.date || '-'}
+                </div>
+                <div className="col-span-6 text-slate-300 truncate" title={displayName}>
+                  {displayName}
+                </div>
+                <div className="col-span-2 text-right font-mono text-slate-300">
+                  {formatCurrencyFull(txn.amount)}
+                </div>
+                <div className="col-span-2 text-center">
+                  {onReclassify && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReclassify(txn.id);
+                      }}
+                      className="text-teal-400 hover:text-teal-300 transition-colors text-xs px-2 py-1 rounded hover:bg-slate-700"
+                    >
+                      Classify
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="col-span-6 text-slate-300 truncate" title={txn.account}>
-                {txn.account}
-              </div>
-              <div className="col-span-2 text-right font-mono text-slate-300">
-                {formatCurrencyFull(txn.amount)}
-              </div>
-              <div className="col-span-2 text-center">
-                {onReclassify && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onReclassify(txn.id);
-                    }}
-                    className="text-teal-400 hover:text-teal-300 transition-colors text-xs px-2 py-1 rounded hover:bg-slate-700"
-                  >
-                    Classify
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
