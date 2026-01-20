@@ -472,6 +472,7 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         }
 
         const entriesByVoucher: Map<string, RawEntry[]> = new Map();
+        let noVchCounter = 0; // Counter for vouchers without voucher numbers
 
         for (let i = startRow; i < jsonData.length; i++) {
           const row = jsonData[i];
@@ -508,40 +509,70 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
 
           const entry: RawEntry = { date, vchBillNo, gstNature, account, debit, credit, notes };
 
-          // Group by voucher number + date (to handle entries without voucher numbers)
-          const groupKey = vchBillNo || `date-${date}`;
-          if (!entriesByVoucher.has(groupKey)) {
-            entriesByVoucher.set(groupKey, []);
+          // Group by voucher number
+          // For entries without voucher numbers, detect voucher boundaries by DATE cell:
+          // - Row with DATE value = new voucher starts
+          // - Row with empty date = continuation of current voucher
+          if (vchBillNo) {
+            // Has voucher number - use it as group key
+            if (!entriesByVoucher.has(vchBillNo)) {
+              entriesByVoucher.set(vchBillNo, []);
+            }
+            entriesByVoucher.get(vchBillNo)!.push(entry);
+          } else {
+            // No voucher number - detect boundaries by dateVal (raw cell value)
+            // dateVal exists = new voucher, dateVal empty = continuation
+            if (dateVal) {
+              // New voucher starts (row has date in the cell)
+              noVchCounter++;
+            }
+
+            const groupKey = `noVch-${noVchCounter}`;
+            if (!entriesByVoucher.has(groupKey)) {
+              entriesByVoucher.set(groupKey, []);
+            }
+            entriesByVoucher.get(groupKey)!.push(entry);
           }
-          entriesByVoucher.get(groupKey)!.push(entry);
         }
 
         // Debug: Log voucher groupings
         console.log('=== Journal Parser Voucher Groupings ===');
+        console.log(`Total voucher groups: ${entriesByVoucher.size}`);
         for (const [groupKey, entries] of entriesByVoucher) {
-          console.log(`Voucher ${groupKey}:`, entries.map(e => ({
-            account: e.account,
-            debit: e.debit,
-            credit: e.credit
-          })));
+          if (entries.length <= 4) { // Only log small vouchers to avoid spam
+            console.log(`Voucher ${groupKey}:`, entries.map(e => ({
+              account: e.account,
+              debit: e.debit,
+              credit: e.credit
+            })));
+          }
         }
 
         // Second pass: link debit entries with credit entries (party names)
         for (const [groupKey, entries] of entriesByVoucher) {
-          // Find credit entries (potential party names) - exclude GST/TDS entries
+          // Check if first entry is a credit - if so, this is likely a payment/receipt voucher
+          // not an expense voucher, so skip party name linking
+          const firstEntry = entries[0];
+          const isPaymentVoucher = firstEntry && firstEntry.credit > 0 && firstEntry.debit === 0;
+
+          // Find credit entries (potential party names) - exclude GST/TDS entries and bank accounts
           const creditEntries = entries.filter(e =>
             e.credit > 0 &&
-            !/sgst|cgst|igst|tds|round/i.test(e.account)
+            !/sgst|cgst|igst|tds|round/i.test(e.account) &&
+            !/bank|od limit|overdraft|^cash$/i.test(e.account)
           );
 
-          // Find the main party name (largest credit entry that's not a tax/GST account)
-          const mainParty = creditEntries.length > 0
+          // Find the main party name (largest credit entry that's not a tax/bank account)
+          // But ONLY for expense vouchers (first entry is debit)
+          const mainParty = (!isPaymentVoucher && creditEntries.length > 0)
             ? creditEntries.reduce((max, e) => e.credit > max.credit ? e : max, creditEntries[0])
             : null;
 
           // Debug: Log party selection for vouchers with Advertisement entries
           if (entries.some(e => e.account.toLowerCase().includes('advertisement'))) {
             console.log(`[DEBUG] Voucher ${groupKey} has Advertisement entry:`);
+            console.log('  First entry:', { account: firstEntry?.account, debit: firstEntry?.debit, credit: firstEntry?.credit });
+            console.log('  Is payment voucher:', isPaymentVoucher);
             console.log('  Credit entries:', creditEntries.map(e => ({ account: e.account, credit: e.credit })));
             console.log('  Selected mainParty:', mainParty?.account);
           }
@@ -549,8 +580,9 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           // Create transactions with party name linked
           for (const entry of entries) {
             // For debit entries (expenses), link the party name from credit side
+            // But only for expense vouchers (not payment vouchers)
             let partyName: string | undefined;
-            if (entry.debit > 0 && mainParty) {
+            if (entry.debit > 0 && mainParty && !isPaymentVoucher) {
               partyName = mainParty.account;
             }
 
