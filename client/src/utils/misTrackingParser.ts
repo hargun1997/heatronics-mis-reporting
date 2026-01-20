@@ -516,8 +516,18 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           entriesByVoucher.get(groupKey)!.push(entry);
         }
 
+        // Debug: Log voucher groupings
+        console.log('=== Journal Parser Voucher Groupings ===');
+        for (const [groupKey, entries] of entriesByVoucher) {
+          console.log(`Voucher ${groupKey}:`, entries.map(e => ({
+            account: e.account,
+            debit: e.debit,
+            credit: e.credit
+          })));
+        }
+
         // Second pass: link debit entries with credit entries (party names)
-        for (const [, entries] of entriesByVoucher) {
+        for (const [groupKey, entries] of entriesByVoucher) {
           // Find credit entries (potential party names) - exclude GST/TDS entries
           const creditEntries = entries.filter(e =>
             e.credit > 0 &&
@@ -528,6 +538,13 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           const mainParty = creditEntries.length > 0
             ? creditEntries.reduce((max, e) => e.credit > max.credit ? e : max, creditEntries[0])
             : null;
+
+          // Debug: Log party selection for vouchers with Advertisement entries
+          if (entries.some(e => e.account.toLowerCase().includes('advertisement'))) {
+            console.log(`[DEBUG] Voucher ${groupKey} has Advertisement entry:`);
+            console.log('  Credit entries:', creditEntries.map(e => ({ account: e.account, credit: e.credit })));
+            console.log('  Selected mainParty:', mainParty?.account);
+          }
 
           // Create transactions with party name linked
           for (const entry of entries) {
