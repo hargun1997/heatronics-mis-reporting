@@ -315,6 +315,17 @@ function buildTransactionsByHead(
       countableAmount = txn.debit || txn.credit || 0;
     }
 
+    // IMPORTANT: Skip transactions that don't contribute to the head type
+    // For expense heads: skip credit-only entries (like payments received)
+    // For revenue heads: skip debit-only entries
+    // This prevents showing B2C payment receipts under expense heads
+    if (headType === 'expense' && (txn.debit || 0) === 0) {
+      continue; // Skip credit-only entries for expense heads
+    }
+    if (headType === 'revenue' && (txn.credit || 0) === 0) {
+      continue; // Skip debit-only entries for revenue heads
+    }
+
     // Track ignored/excluded totals (use countable amount)
     if (head === 'Z. Ignore') {
       ignoredTotal += countableAmount;
@@ -345,13 +356,12 @@ function buildTransactionsByHead(
       transactionsByHead[head].subheads.push(subheadEntry);
     }
 
-    // Create transaction reference - show the actual debit/credit for display
-    const displayAmount = txn.debit || txn.credit || 0;
+    // Create transaction reference - use the countable amount (not both debit/credit)
     const txnRef: TransactionRef = {
       id: txn.id,
       date: txn.date,
       account: txn.account,
-      amount: displayAmount,
+      amount: countableAmount,
       type: txn.debit ? 'debit' : 'credit',
       source: 'journal',
       notes: txn.notes,
@@ -363,7 +373,7 @@ function buildTransactionsByHead(
     subheadEntry.transactions.push(txnRef);
     subheadEntry.transactionCount += 1;
 
-    // Only add to totals if there's an amount on the correct side
+    // Add to totals
     if (countableAmount > 0) {
       subheadEntry.amount += countableAmount;
       transactionsByHead[head].total += countableAmount;

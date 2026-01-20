@@ -260,6 +260,17 @@ export function aggregateByHead(
       amount = transaction.debit || transaction.credit || 0;
     }
 
+    // IMPORTANT: Skip transactions that don't contribute to the head type
+    // For expense heads: skip credit-only entries (like payments received)
+    // For revenue heads: skip debit-only entries
+    // This prevents counting B2C payment receipts under expense heads
+    if (headType === 'expense' && (transaction.debit || 0) === 0) {
+      continue; // Skip credit-only entries for expense heads
+    }
+    if (headType === 'revenue' && (transaction.credit || 0) === 0) {
+      continue; // Skip debit-only entries for revenue heads
+    }
+
     if (!result[head]) {
       result[head] = {
         head,
@@ -269,7 +280,7 @@ export function aggregateByHead(
       };
     }
 
-    // Only add to totals if there's an amount on the correct side
+    // Add to totals
     if (amount > 0) {
       result[head]!.subheadTotals[subhead] = (result[head]!.subheadTotals[subhead] || 0) + amount;
       result[head]!.total += amount;
