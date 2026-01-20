@@ -393,8 +393,8 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         let creditCol = -1;
         let notesCol = -1;
 
-        // Scan ALL first 5 rows to find column headers (they may be split across rows)
-        for (let i = 0; i < Math.min(5, jsonData.length); i++) {
+        // Scan first 10 rows to find column headers (they may be after company info/title rows)
+        for (let i = 0; i < Math.min(10, jsonData.length); i++) {
           const row = jsonData[i];
           if (!row) continue;
 
@@ -417,7 +417,7 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         // If no header found, use default positions (standard Tally journal layout)
         // Standard: Date(0), Voucher(1), GST(2), Account(3), Debit(4), Credit(5)
         if (headerRowIndex < 0) {
-          headerRowIndex = 2; // Assume 3 header rows (0, 1, 2)
+          headerRowIndex = 5; // Assume 6 header/info rows (0-5) - common in Tally exports
           dateCol = 0;
           voucherCol = 1;
           gstCol = 2;
