@@ -382,8 +382,8 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         const transactions: Transaction[] = [];
         const errors: string[] = [];
 
-        // Dynamically detect column positions from header row
-        // Search first 5 rows for header row containing column names
+        // Dynamically detect column positions from header rows
+        // Tally exports often have multi-row headers, so scan first 5 rows and combine
         let headerRowIndex = -1;
         let dateCol = -1;
         let voucherCol = -1;
@@ -393,28 +393,28 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         let creditCol = -1;
         let notesCol = -1;
 
+        // Debug: Show first 5 raw rows to understand file structure
+        console.log('Journal Parser - First 5 raw rows:');
+        for (let i = 0; i < Math.min(5, jsonData.length); i++) {
+          console.log(`  Raw row ${i}:`, jsonData[i]?.slice(0, 8));
+        }
+
+        // Scan ALL first 5 rows to find column headers (they may be split across rows)
         for (let i = 0; i < Math.min(5, jsonData.length); i++) {
           const row = jsonData[i];
           if (!row) continue;
 
-          // Check if this row contains header keywords
-          const rowStr = row.map(cell => String(cell || '').toLowerCase()).join(' ');
-          if (rowStr.includes('debit') || rowStr.includes('credit') || rowStr.includes('account')) {
-            headerRowIndex = i;
+          // Detect column positions from each row
+          for (let j = 0; j < row.length; j++) {
+            const header = String(row[j] || '').toLowerCase().trim();
 
-            // Detect column positions
-            for (let j = 0; j < row.length; j++) {
-              const header = String(row[j] || '').toLowerCase().trim();
-
-              if (header.includes('date') && dateCol < 0) dateCol = j;
-              if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && voucherCol < 0) voucherCol = j;
-              if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && gstCol < 0) gstCol = j;
-              if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && accountCol < 0) accountCol = j;
-              if (header.includes('debit') && debitCol < 0) debitCol = j;
-              if (header.includes('credit') && creditCol < 0) creditCol = j;
-              if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && notesCol < 0) notesCol = j;
-            }
-            break;
+            if (header.includes('date') && dateCol < 0) { dateCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && voucherCol < 0) { voucherCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && gstCol < 0) { gstCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && accountCol < 0) { accountCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if (header.includes('debit') && debitCol < 0) { debitCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if (header.includes('credit') && creditCol < 0) { creditCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && notesCol < 0) { notesCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
           }
         }
 
@@ -488,20 +488,26 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         const entriesByVoucher: Map<string, RawEntry[]> = new Map();
         let voucherCounter = 0; // Internal voucher counter (increments when date cell has value)
 
+        // Debug counters for filtering
+        let debugStats = { totalRows: 0, shortRows: 0, emptyAccount: 0, numberAccount: 0, zeroAmounts: 0, validEntries: 0 };
+
         for (let i = startRow; i < jsonData.length; i++) {
           const row = jsonData[i];
-          if (!row || row.length < 3) continue;
+          debugStats.totalRows++;
+          if (!row || row.length < 3) { debugStats.shortRows++; continue; }
 
           // Get account name from detected column
           const account = String(row[accountCol] || '').trim();
 
           // Skip total rows and empty account names
           if (!account || account.toLowerCase() === 'total' || account.toLowerCase() === 'grand total') {
+            debugStats.emptyAccount++;
             continue;
           }
 
           // Skip rows where account looks like a number (likely misaligned data)
           if (/^[\d,.\s-]+$/.test(account)) {
+            debugStats.numberAccount++;
             continue;
           }
 
@@ -519,7 +525,9 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           const notes = notesCol >= 0 ? String(row[notesCol] || '').trim() : '';
 
           // Skip rows where both debit and credit are 0
-          if (debit === 0 && credit === 0) continue;
+          if (debit === 0 && credit === 0) { debugStats.zeroAmounts++; continue; }
+
+          debugStats.validEntries++;
 
           const entry: RawEntry = { date, vchBillNo, gstNature, account, debit, credit, notes };
 
@@ -537,6 +545,9 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           }
           entriesByVoucher.get(groupKey)!.push(entry);
         }
+
+        // Debug: Show filtering stats
+        console.log('Journal Parser - Row filtering stats:', debugStats);
 
         // Debug: Log voucher groupings
         console.log('=== Journal Parser Voucher Groupings ===');
