@@ -602,7 +602,17 @@ function aggregateBalanceSheetData(
 
   // COGM values ALWAYS come from UP only (main warehouse)
   const upData = stateData['UP'];
+  console.log('UP stateData:', upData);
+  console.log('UP balanceSheetData (RAW):', upData?.balanceSheetData);
+
   if (upData?.balanceSheetData) {
+    // Log the raw values BEFORE assignment to catch any issues
+    console.log('RAW UP BS field values:', {
+      'upData.balanceSheetData.openingStock': upData.balanceSheetData.openingStock,
+      'upData.balanceSheetData.purchases': upData.balanceSheetData.purchases,
+      'upData.balanceSheetData.closingStock': upData.balanceSheetData.closingStock,
+    });
+
     aggregated.openingStock = upData.balanceSheetData.openingStock || 0;
     aggregated.closingStock = upData.balanceSheetData.closingStock || 0;
     aggregated.purchases = upData.balanceSheetData.purchases || 0;
