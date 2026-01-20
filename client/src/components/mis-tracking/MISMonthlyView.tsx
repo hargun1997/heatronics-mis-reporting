@@ -3,6 +3,7 @@ import { MISRecord, MISPeriod, periodToString, periodToKey, SalesChannel, SALES_
 import { formatCurrency, formatCurrencyFull, formatPercent } from '../../utils/misCalculator';
 import { EnhancedMISReportView } from '../mis-report-enhanced';
 import { TableCellsIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
+import { aggregateStatesToMonth } from '../../services/stateDataStore';
 
 // ============================================
 // RANGE TYPES
@@ -455,6 +456,31 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
   const operatingExpenses = displayMIS ? displayMIS.operatingExpenses : { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, total: 0 };
   const nonOperating = displayMIS ? displayMIS.nonOperating : { interestExpense: 0, depreciation: 0, amortization: 0, totalIDA: 0, incomeTax: 0 };
   const netRevenue = revenue.netRevenue;
+
+  // Get tax summary from state data store (if available)
+  const taxSummary = useMemo(() => {
+    if (!displayMIS) return null;
+
+    // Get month key from period
+    const monthKey = displayMIS.periodKey;
+
+    // Try to get aggregated data from new state data store
+    const aggregatedData = aggregateStatesToMonth(monthKey);
+
+    if (aggregatedData) {
+      return aggregatedData.aggregated.taxSummary;
+    }
+
+    // Fallback: return empty tax summary
+    return {
+      outputGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
+      inputGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
+      expenseGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
+      netGST: 0,
+      tds: 0,
+      roundOffs: 0
+    };
+  }, [displayMIS]);
 
   return (
     <div className="space-y-6">
@@ -982,6 +1008,11 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
       </div>
       )}
 
+      {/* Tax Summary Section */}
+      {taxSummary && (
+        <TaxSummarySection taxSummary={taxSummary} />
+      )}
+
       {/* Balance Sheet Reconciliation Section */}
       {displayMIS && displayMIS.balanceSheet && (
         <ReconciliationSection
@@ -989,6 +1020,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
           misNetRevenue={netRevenue}
           misCOGM={cogm.totalCOGM}
           misNetIncome={displayMIS.netIncome}
+          stockTransfers={revenue.totalStockTransfers}
         />
       )}
     </div>
@@ -1488,6 +1520,140 @@ function ExpenseCategory({ title, color, items }: { title: string; color: string
 }
 
 // ============================================
+// TAX SUMMARY SECTION
+// ============================================
+
+interface TaxSummaryData {
+  outputGST: { sgst: number; cgst: number; igst: number; total: number };
+  inputGST: { sgst: number; cgst: number; igst: number; total: number };
+  expenseGST: { sgst: number; cgst: number; igst: number; total: number };
+  tds: number;
+  roundOffs: number;
+}
+
+interface TaxSummarySectionProps {
+  taxSummary: TaxSummaryData;
+}
+
+function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
+  const { outputGST, inputGST, expenseGST, tds, roundOffs } = taxSummary;
+
+  // Calculate net GST (Output - Input - Expense)
+  const netSGST = outputGST.sgst - inputGST.sgst - expenseGST.sgst;
+  const netCGST = outputGST.cgst - inputGST.cgst - expenseGST.cgst;
+  const netIGST = outputGST.igst - inputGST.igst - expenseGST.igst;
+  const netGST = outputGST.total - inputGST.total - expenseGST.total;
+
+  // Only show if we have any tax data
+  const hasTaxData = outputGST.total > 0 || inputGST.total > 0 || expenseGST.total > 0 || tds > 0;
+
+  if (!hasTaxData) return null;
+
+  return (
+    <div className="mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+      {/* Header */}
+      <div className="bg-teal-500/20 border-b border-teal-500/30 px-5 py-3">
+        <h3 className="text-sm font-semibold text-teal-400">Tax Summary</h3>
+        <p className="text-xs text-teal-400/70 mt-0.5">GST & TDS across all states</p>
+      </div>
+
+      <div className="p-5">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-700">
+                <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Tax Type</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Sales (Output)</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Purchases (Input)</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Expenses</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Net (Payable/Credit)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* SGST */}
+              <tr className="border-b border-slate-700/50">
+                <td className="py-2 px-3 text-sm text-slate-300">SGST</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(outputGST.sgst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(inputGST.sgst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(expenseGST.sgst)}</td>
+                <td className={`py-2 px-3 text-right text-sm ${netSGST >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  {formatCurrencyFull(netSGST)}
+                </td>
+              </tr>
+
+              {/* CGST */}
+              <tr className="border-b border-slate-700/50">
+                <td className="py-2 px-3 text-sm text-slate-300">CGST</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(outputGST.cgst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(inputGST.cgst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(expenseGST.cgst)}</td>
+                <td className={`py-2 px-3 text-right text-sm ${netCGST >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  {formatCurrencyFull(netCGST)}
+                </td>
+              </tr>
+
+              {/* IGST */}
+              <tr className="border-b border-slate-700/50">
+                <td className="py-2 px-3 text-sm text-slate-300">IGST</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(outputGST.igst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(inputGST.igst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(expenseGST.igst)}</td>
+                <td className={`py-2 px-3 text-right text-sm ${netIGST >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  {formatCurrencyFull(netIGST)}
+                </td>
+              </tr>
+
+              {/* Total GST */}
+              <tr className="border-b border-slate-700 bg-slate-700/30">
+                <td className="py-2 px-3 text-sm font-medium text-slate-200">Total GST</td>
+                <td className="py-2 px-3 text-right text-sm font-medium text-slate-200">{formatCurrencyFull(outputGST.total)}</td>
+                <td className="py-2 px-3 text-right text-sm font-medium text-slate-200">{formatCurrencyFull(inputGST.total)}</td>
+                <td className="py-2 px-3 text-right text-sm font-medium text-slate-200">{formatCurrencyFull(expenseGST.total)}</td>
+                <td className={`py-2 px-3 text-right text-sm font-bold ${netGST >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  {formatCurrencyFull(netGST)}
+                  <span className="text-xs ml-1 font-normal">({netGST >= 0 ? 'Payable' : 'Credit'})</span>
+                </td>
+              </tr>
+
+              {/* TDS */}
+              {tds > 0 && (
+                <tr className="border-b border-slate-700/50">
+                  <td className="py-2 px-3 text-sm text-slate-300">TDS on Expenses</td>
+                  <td className="py-2 px-3 text-right text-sm text-slate-400">-</td>
+                  <td className="py-2 px-3 text-right text-sm text-slate-400">-</td>
+                  <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(tds)}</td>
+                  <td className="py-2 px-3 text-right text-sm text-amber-400">
+                    {formatCurrencyFull(tds)}
+                    <span className="text-xs ml-1 font-normal">(Due)</span>
+                  </td>
+                </tr>
+              )}
+
+              {/* Round Offs */}
+              {roundOffs !== 0 && (
+                <tr>
+                  <td className="py-2 px-3 text-sm text-slate-300">Round Offs (Net)</td>
+                  <td className="py-2 px-3 text-right text-sm text-slate-400" colSpan={3}>SR - PR + JR</td>
+                  <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(roundOffs)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Note */}
+        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
+          <p className="text-xs text-slate-400">
+            <strong className="text-slate-300">Net GST:</strong> Positive = Payable to government, Negative = Credit/Refund due.
+            TDS = Tax deducted at source on expense payments.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // BALANCE SHEET RECONCILIATION SECTION
 // ============================================
 
@@ -1496,12 +1662,12 @@ interface ReconciliationSectionProps {
   misNetRevenue: number;
   misCOGM: number;
   misNetIncome: number;
+  stockTransfers: number; // From Sales Register - entries to Heatronics entities
 }
 
-function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome }: ReconciliationSectionProps) {
+function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome, stockTransfers }: ReconciliationSectionProps) {
   // Stock transfers to other Heatronics entities should be excluded from revenue comparison
   // BS shows gross sales including inter-company, MIS shows net external revenue
-  const stockTransfers = balanceSheet.stockTransfers || 0;
   const bsExternalRevenue = balanceSheet.grossSales - stockTransfers;
 
   // Calculate variances

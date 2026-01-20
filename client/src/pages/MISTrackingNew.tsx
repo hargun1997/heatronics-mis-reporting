@@ -27,6 +27,14 @@ import {
   DriveStateData,
   STATE_NAMES
 } from '../utils/driveApi';
+import { StateName } from '../types/stateData';
+import {
+  storeBalanceSheet as storeStateBSData,
+  storeSalesRegister as storeStateSRData,
+  storePurchaseRegister as storeStatePRData,
+  storeJournalRegister as storeStateJRData
+} from '../services/stateDataStore';
+import { StateBalanceSheet, StateSalesRegister, StatePurchaseRegister, StateJournalRegister } from '../types/stateData';
 
 // ============================================
 // DRIVE STATE CODE MAPPING
@@ -43,6 +51,15 @@ const DRIVE_STATE_MAP: Record<string, IndianState> = {
   'UP': 'UP',
   'TL': 'Telangana',
   'Telangana': 'Telangana'
+};
+
+// Map IndianState to StateName (abbreviation) for state data store
+const INDIAN_STATE_TO_ABBREV: Record<IndianState, StateName> = {
+  'UP': 'UP',
+  'Maharashtra': 'MH',
+  'Karnataka': 'KA',
+  'Haryana': 'HR',
+  'Telangana': 'TG'
 };
 
 // ============================================
@@ -373,6 +390,9 @@ export function MISTrackingNew() {
     setError(null);
     setIsLoading(true);
 
+    // Get state abbreviation for new data store
+    const stateAbbrev = INDIAN_STATE_TO_ABBREV[state];
+
     try {
       const monthData = monthsData[periodKey];
       if (!monthData) return;
@@ -386,6 +406,44 @@ export function MISTrackingNew() {
           const salesResult = await parseSalesRegister(file, state);
           updatedStateData.salesData = salesResult.salesData;
           updatedStateData.salesParsed = true;
+
+          // Also store in new state data store
+          if (stateAbbrev) {
+            // Convert ChannelRevenue to Record<string, number>
+            const revenueByChannel: Record<string, number> = {};
+            if (salesResult.salesData.salesByChannel) {
+              const channels = salesResult.salesData.salesByChannel;
+              if (channels.Website) revenueByChannel['Website'] = channels.Website;
+              if (channels.Amazon) revenueByChannel['Amazon'] = channels.Amazon;
+              if (channels.Blinkit) revenueByChannel['Blinkit'] = channels.Blinkit;
+              if (channels['Offline & OEM']) revenueByChannel['Offline & OEM'] = channels['Offline & OEM'];
+            }
+
+            const srData: StateSalesRegister = {
+              entries: salesResult.salesData.lineItems?.map(item => ({
+                date: item.date || '',
+                party: item.partyName,
+                channel: item.channel === 'Stock Transfer' ? 'Stock Transfer' : item.channel,
+                amount: item.amount,
+                sgst: 0, // TODO: Extract from line items if available
+                cgst: 0,
+                igst: 0,
+                isStockTransfer: item.isStockTransfer || false,
+                toEntity: item.toState
+              })) || [],
+              revenueByChannel,
+              totalRevenue: salesResult.salesData.grossSales - (salesResult.salesData.stockTransfers || 0),
+              stockTransfers: salesResult.salesData.lineItems
+                ?.filter(item => item.isStockTransfer)
+                .map(item => ({ toEntity: item.toState || 'Unknown', amount: item.amount })) || [],
+              totalStockTransfers: salesResult.salesData.stockTransfers || 0,
+              sgst: 0, // TODO: Parse GST columns properly
+              cgst: 0,
+              igst: 0,
+              roundOffs: 0
+            };
+            storeStateSRData(periodKey, stateAbbrev, srData);
+          }
           break;
 
         case 'journal':
@@ -393,6 +451,80 @@ export function MISTrackingNew() {
           const journalResult = await parseJournal(file, state);
           updatedStateData.journalTransactions = journalResult.transactions;
           updatedStateData.journalParsed = true;
+
+          // Also store in new state data store
+          if (stateAbbrev) {
+            // Process journal transactions to extract expenses, GST, TDS
+            const expensesByHead: Record<string, number> = {};
+            const expenseEntries: StateJournalRegister['expenseEntries'] = [];
+            let totalExpenses = 0;
+            let jrSgst = 0, jrCgst = 0, jrIgst = 0, jrTds = 0, jrRoundOffs = 0;
+
+            // Group transactions by voucher to find debit/credit pairs
+            for (const tx of journalResult.transactions) {
+              const account = tx.account.toLowerCase();
+
+              // Track GST separately
+              if (account.includes('sgst')) {
+                jrSgst += tx.debit || 0;
+                continue;
+              }
+              if (account.includes('cgst')) {
+                jrCgst += tx.debit || 0;
+                continue;
+              }
+              if (account.includes('igst')) {
+                jrIgst += tx.debit || 0;
+                continue;
+              }
+              if (account.includes('tds')) {
+                jrTds += tx.debit || 0;
+                continue;
+              }
+              if (account.includes('round')) {
+                jrRoundOffs += tx.debit || 0;
+                continue;
+              }
+
+              // Skip bank/cash entries
+              if (account.includes('bank') || account.includes('cash') || account.includes('icici') || account.includes('hdfc')) {
+                continue;
+              }
+
+              // Only count debit entries as expenses
+              if (tx.debit > 0) {
+                const misHead = tx.head || 'Other Expenses';
+                expensesByHead[misHead] = (expensesByHead[misHead] || 0) + tx.debit;
+                totalExpenses += tx.debit;
+
+                expenseEntries.push({
+                  date: tx.date,
+                  debitAmount: tx.debit,
+                  debitParticulars: tx.account,
+                  creditParty: '', // Would need to look up corresponding credit
+                  misHead,
+                  state: stateAbbrev,
+                  isGST: false,
+                  isTDS: false,
+                  isRoundOff: false,
+                  isSkipped: false
+                });
+              }
+            }
+
+            const jrData: StateJournalRegister = {
+              entries: [],
+              expenseEntries,
+              expensesByHead,
+              totalExpenses,
+              sgst: jrSgst,
+              cgst: jrCgst,
+              igst: jrIgst,
+              tds: jrTds,
+              roundOffs: jrRoundOffs
+            };
+            storeStateJRData(periodKey, stateAbbrev, jrData);
+          }
           break;
 
         case 'purchase':
@@ -400,6 +532,20 @@ export function MISTrackingNew() {
           const purchaseResult = await parsePurchaseRegister(file);
           updatedStateData.purchaseTotal = purchaseResult.totalPurchases;
           updatedStateData.purchaseParsed = true;
+
+          // Also store in new state data store
+          if (stateAbbrev) {
+            const prData: StatePurchaseRegister = {
+              entries: [],
+              purchasesByCategory: { 'General': purchaseResult.totalPurchases },
+              totalPurchases: purchaseResult.totalPurchases,
+              sgst: 0, // TODO: Extract from purchase register
+              cgst: 0,
+              igst: 0,
+              roundOffs: 0
+            };
+            storeStatePRData(periodKey, stateAbbrev, prData);
+          }
           break;
 
         case 'balanceSheet':
@@ -407,6 +553,20 @@ export function MISTrackingNew() {
           const bsResult = await parseBalanceSheet(file);
           updatedStateData.balanceSheetData = bsResult.data;
           updatedStateData.balanceSheetParsed = true;
+
+          // Also store in new state data store
+          if (stateAbbrev) {
+            const bsData: StateBalanceSheet = {
+              openingStock: bsResult.data.openingStock,
+              closingStock: bsResult.data.closingStock,
+              purchases: bsResult.data.purchases,
+              grossSales: bsResult.data.grossSales,
+              netProfit: bsResult.data.netProfitLoss > 0 ? bsResult.data.netProfitLoss : 0,
+              netLoss: bsResult.data.netProfitLoss < 0 ? Math.abs(bsResult.data.netProfitLoss) : 0,
+              netProfitLoss: bsResult.data.netProfitLoss
+            };
+            storeStateBSData(periodKey, stateAbbrev, bsData);
+          }
           break;
       }
 

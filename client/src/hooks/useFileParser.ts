@@ -3,6 +3,13 @@ import { Transaction, BalanceSheetData, COGSData, SalesRegisterData, IndianState
 import { parseJournalExcel, parsePurchaseExcel, parseBalanceSheetExcel, parseSalesExcel } from '../utils/excelParser';
 import { parseBalanceSheetPDF } from '../utils/pdfParser';
 import { calculateCOGS } from '../utils/cogsCalculator';
+import { StateName } from '../types/stateData';
+import {
+  parseAndStoreBalanceSheet,
+  parseAndStoreSalesRegister,
+  parseAndStorePurchaseRegister,
+  parseAndStoreJournalRegister
+} from '../utils/stateDataParsers';
 
 // Generate unique ID for transactions
 function generateId(): string {
