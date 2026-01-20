@@ -1499,54 +1499,31 @@ interface ReconciliationSectionProps {
 }
 
 function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome }: ReconciliationSectionProps) {
-  // Calculate variances
-  // When BS value is 0 but MIS has value, variance should be flagged for review
-  const revenueVariance = misNetRevenue - balanceSheet.netSales;
-  const revenueVariancePercent = balanceSheet.netSales !== 0
-    ? ((misNetRevenue - balanceSheet.netSales) / balanceSheet.netSales) * 100
-    : (misNetRevenue !== 0 ? 100 : 0); // 100% variance if BS=0 but MIS has value
+  // Stock transfers to other Heatronics entities should be excluded from revenue comparison
+  // BS shows gross sales including inter-company, MIS shows net external revenue
+  const stockTransfers = balanceSheet.stockTransfers || 0;
+  const bsExternalRevenue = balanceSheet.grossSales - stockTransfers;
 
-  const cogsVariance = misCOGM - balanceSheet.calculatedCOGS;
-  const cogsVariancePercent = balanceSheet.calculatedCOGS !== 0
-    ? ((misCOGM - balanceSheet.calculatedCOGS) / balanceSheet.calculatedCOGS) * 100
-    : (misCOGM !== 0 ? 100 : 0); // 100% variance if BS=0 but MIS has value
+  // Calculate variances
+  const revenueVariance = misNetRevenue - bsExternalRevenue;
+  const revenueVariancePercent = bsExternalRevenue !== 0
+    ? ((misNetRevenue - bsExternalRevenue) / bsExternalRevenue) * 100
+    : (misNetRevenue !== 0 ? 100 : 0);
+
+  const profitVariance = misNetIncome - balanceSheet.netProfitLoss;
+  const profitVariancePercent = balanceSheet.netProfitLoss !== 0
+    ? ((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100
+    : (misNetIncome !== 0 ? 100 : 0);
 
   return (
     <div className="mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
       {/* Header */}
       <div className="bg-indigo-500/20 border-b border-indigo-500/30 px-5 py-3">
         <h3 className="text-sm font-semibold text-indigo-400">Balance Sheet Reconciliation</h3>
-        <p className="text-xs text-indigo-400/70 mt-0.5">Compare key figures: Net Sales, COGS, and Net Profit/Loss</p>
+        <p className="text-xs text-indigo-400/70 mt-0.5">Compare MIS vs Balance Sheet (sum of all states)</p>
       </div>
 
       <div className="p-5">
-        {/* Balance Sheet Summary */}
-        <div className="mb-5">
-          <h4 className="text-xs font-medium text-slate-400 mb-3">Balance Sheet Data (Aggregated)</h4>
-          <div className="grid grid-cols-5 gap-3">
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <div className="text-xs text-slate-500">Opening Stock</div>
-              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.openingStock)}</div>
-            </div>
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <div className="text-xs text-slate-500">Purchases</div>
-              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.purchases)}</div>
-            </div>
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <div className="text-xs text-slate-500">Closing Stock</div>
-              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.closingStock)}</div>
-            </div>
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <div className="text-xs text-slate-500">Gross Sales</div>
-              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.grossSales)}</div>
-            </div>
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <div className="text-xs text-slate-500">Net Sales</div>
-              <div className="text-sm font-medium text-slate-200 mt-1">{formatCurrencyFull(balanceSheet.netSales)}</div>
-            </div>
-          </div>
-        </div>
-
         {/* Comparison Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -1554,19 +1531,26 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
               <tr className="border-b border-slate-700">
                 <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Metric</th>
                 <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">MIS Calculated</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Balance Sheet</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Balance Sheet (All States)</th>
+                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Stock Transfers</th>
                 <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Variance</th>
                 <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Variance %</th>
                 <th className="text-center py-2 px-3 text-xs font-medium text-slate-500">Status</th>
               </tr>
             </thead>
             <tbody>
-              {/* Net Revenue vs Net Sales */}
+              {/* Net Revenue vs BS Gross Sales */}
               <tr className="border-b border-slate-700/50">
-                <td className="py-3 px-3 text-sm text-slate-300">Net Revenue / Net Sales</td>
+                <td className="py-3 px-3 text-sm text-slate-300">
+                  <div>Net Revenue</div>
+                  <div className="text-xs text-slate-500">MIS = BS - Stock Transfers to Heatronics</div>
+                </td>
                 <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(misNetRevenue)}</td>
-                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(balanceSheet.netSales)}</td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariance) < 1000 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(balanceSheet.grossSales)}</td>
+                <td className="py-3 px-3 text-right text-sm text-amber-400">
+                  {stockTransfers > 0 ? `-${formatCurrencyFull(stockTransfers)}` : '-'}
+                </td>
+                <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {formatCurrencyFull(revenueVariance)}
                 </td>
                 <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
@@ -1574,39 +1558,6 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
                 </td>
                 <td className="py-3 px-3 text-center">
                   {Math.abs(revenueVariancePercent) < 5 ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Match
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Review
-                    </span>
-                  )}
-                </td>
-              </tr>
-
-              {/* COGM vs Calculated COGS */}
-              <tr className="border-b border-slate-700/50">
-                <td className="py-3 px-3 text-sm text-slate-300">
-                  <div>COGM / COGS</div>
-                  <div className="text-xs text-slate-500">BS Formula: Opening + Purchases - Closing</div>
-                </td>
-                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(misCOGM)}</td>
-                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(balanceSheet.calculatedCOGS)}</td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(cogsVariance) < 1000 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {formatCurrencyFull(cogsVariance)}
-                </td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(cogsVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {cogsVariancePercent.toFixed(2)}%
-                </td>
-                <td className="py-3 px-3 text-center">
-                  {Math.abs(cogsVariancePercent) < 5 ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -1640,22 +1591,15 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
                     {formatCurrencyFull(balanceSheet.netProfitLoss)}
                   </span>
                 </td>
-                <td className={`py-3 px-3 text-right text-sm ${
-                  Math.abs(misNetIncome - balanceSheet.netProfitLoss) < 1000 ? 'text-emerald-400' : 'text-amber-400'
-                }`}>
-                  {formatCurrencyFull(misNetIncome - balanceSheet.netProfitLoss)}
+                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
+                <td className={`py-3 px-3 text-right text-sm ${Math.abs(profitVariancePercent) < 10 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {formatCurrencyFull(profitVariance)}
                 </td>
-                <td className={`py-3 px-3 text-right text-sm ${
-                  balanceSheet.netProfitLoss !== 0 && Math.abs(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100) < 5
-                    ? 'text-emerald-400' : 'text-amber-400'
-                }`}>
-                  {balanceSheet.netProfitLoss !== 0
-                    ? `${(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100).toFixed(2)}%`
-                    : '-'}
+                <td className={`py-3 px-3 text-right text-sm ${Math.abs(profitVariancePercent) < 10 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {balanceSheet.netProfitLoss !== 0 ? `${profitVariancePercent.toFixed(2)}%` : '-'}
                 </td>
                 <td className="py-3 px-3 text-center">
-                  {balanceSheet.netProfitLoss !== 0 &&
-                  Math.abs(((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100) < 5 ? (
+                  {Math.abs(profitVariancePercent) < 10 ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -1672,7 +1616,6 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
                   )}
                 </td>
               </tr>
-
             </tbody>
           </table>
         </div>
@@ -1680,17 +1623,15 @@ function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetInc
         {/* Note */}
         <div className="mt-4 p-3 bg-slate-700/30 rounded-lg space-y-2">
           <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">Key Metrics:</strong> Only Net Sales, COGS, and Net Profit/Loss are compared
-            because MIS and Balance Sheet classify direct vs indirect expenses differently.
+            <strong className="text-slate-300">Revenue Reconciliation:</strong> MIS Net Revenue should equal
+            BS Gross Sales minus inter-company stock transfers to other Heatronics entities.
           </p>
           <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">COGS Formula:</strong> Opening Stock ({formatCurrencyFull(balanceSheet.openingStock)})
-            + Purchases ({formatCurrencyFull(balanceSheet.purchases)})
-            - Closing Stock ({formatCurrencyFull(balanceSheet.closingStock)})
-            = {formatCurrencyFull(balanceSheet.calculatedCOGS)}
+            <strong className="text-slate-300">Profit/Loss:</strong> Variance expected due to different expense
+            classification between MIS (activity-based) and BS (account-based).
           </p>
           <p className="text-xs text-slate-400">
-            Variances under 5% are acceptable. Larger variances may indicate missing transactions or timing differences.
+            Variances under 5% for revenue and 10% for profit/loss are acceptable.
           </p>
         </div>
       </div>
