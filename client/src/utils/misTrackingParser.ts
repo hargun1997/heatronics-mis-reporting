@@ -412,13 +412,16 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
             if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && voucherCol < 0) { voucherCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
             if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && gstCol < 0) { gstCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
             if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && accountCol < 0) { accountCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if (header.includes('debit') && debitCol < 0) { debitCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if (header.includes('credit') && creditCol < 0) { creditCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            // Match "debit", "dr", "dr." for debit column
+            if ((header.includes('debit') || header === 'dr' || header === 'dr.') && debitCol < 0) { debitCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            // Match "credit", "cr", "cr." for credit column
+            if ((header.includes('credit') || header === 'cr' || header === 'cr.') && creditCol < 0) { creditCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
             if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && notesCol < 0) { notesCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
           }
         }
 
-        // If no header found, use default positions (legacy behavior)
+        // If no header found, use default positions (standard Tally journal layout)
+        // Standard: Date(0), Voucher(1), GST(2), Account(3), Debit(4), Credit(5)
         if (headerRowIndex < 0) {
           headerRowIndex = 2; // Assume 3 header rows (0, 1, 2)
           dateCol = 0;
@@ -430,18 +433,19 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           notesCol = 6;
         }
 
-        // Validate critical columns were found
+        // Validate critical columns - use standard Tally layout as fallback
+        // User confirmed: first 5-6 columns are same across all state journals
         if (accountCol < 0) {
-          // Fallback: account is usually after gst or voucher column
-          accountCol = Math.max(gstCol, voucherCol, 0) + 1;
+          accountCol = 3; // Standard position
         }
         if (debitCol < 0) {
-          // Fallback: debit is usually after account
-          debitCol = accountCol + 1;
+          debitCol = 4; // Standard position
         }
         if (creditCol < 0) {
-          // Fallback: credit is usually after debit
-          creditCol = debitCol + 1;
+          creditCol = 5; // Standard position
+        }
+        if (dateCol < 0) {
+          dateCol = 0; // Standard position
         }
 
         console.log('Journal Parser - Detected columns:', {
