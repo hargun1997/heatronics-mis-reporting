@@ -825,17 +825,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
             {/* Stock Transfers (if any) */}
             {revenue.totalStockTransfers > 0 && (
-              <>
-                <tr className="bg-purple-500/10">
-                  <td colSpan={showChannelBreakdown ? 3 + SALES_CHANNELS.length : 3} className="py-2 px-4">
-                    <span className="font-medium text-purple-400">Stock Transfers (Excluded)</span>
-                    <span className="ml-4 text-purple-400">{formatCurrencyFull(revenue.totalStockTransfers)}</span>
-                    <span className="ml-4 text-sm text-purple-400/70">
-                      {revenue.stockTransfers.map(t => `${t.fromState}→${t.toState}: ${formatCurrency(t.amount)}`).join(' | ')}
-                    </span>
-                  </td>
-                </tr>
-              </>
+              <tr className="bg-purple-500/10">
+                <td className="py-2 px-4">
+                  <span className="font-medium text-purple-400">Stock Transfers (Excluded)</span>
+                </td>
+                <td className="py-2 px-4 text-right text-purple-400">{formatCurrencyFull(revenue.totalStockTransfers)}</td>
+                <td className="py-2 px-4 text-right text-purple-400/70 text-sm">
+                  {revenue.stockTransfers.length} transfer{revenue.stockTransfers.length !== 1 ? 's' : ''}
+                </td>
+                {showChannelBreakdown && SALES_CHANNELS.map(channel => (
+                  <td key={channel} className="py-2 px-4 text-right text-purple-400/50 text-xs">-</td>
+                ))}
+              </tr>
             )}
 
             {/* Total Revenue Line */}
@@ -1011,17 +1012,6 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
       {/* Tax Summary Section */}
       {taxSummary && (
         <TaxSummarySection taxSummary={taxSummary} />
-      )}
-
-      {/* Balance Sheet Reconciliation Section */}
-      {displayMIS && displayMIS.balanceSheet && (
-        <ReconciliationSection
-          balanceSheet={displayMIS.balanceSheet}
-          misNetRevenue={netRevenue}
-          misCOGM={cogm.totalCOGM}
-          misNetIncome={displayMIS.netIncome}
-          stockTransfers={revenue.totalStockTransfers}
-        />
       )}
     </div>
   );
@@ -1653,154 +1643,3 @@ function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
   );
 }
 
-// ============================================
-// BALANCE SHEET RECONCILIATION SECTION
-// ============================================
-
-interface ReconciliationSectionProps {
-  balanceSheet: AggregatedBalanceSheetData;
-  misNetRevenue: number;
-  misCOGM: number;
-  misNetIncome: number;
-  stockTransfers: number; // From Sales Register - entries to Heatronics entities
-}
-
-function ReconciliationSection({ balanceSheet, misNetRevenue, misCOGM, misNetIncome, stockTransfers }: ReconciliationSectionProps) {
-  // Stock transfers to other Heatronics entities should be excluded from revenue comparison
-  // BS shows gross sales including inter-company, MIS shows net external revenue
-  const bsExternalRevenue = balanceSheet.grossSales - stockTransfers;
-
-  // Calculate variances
-  const revenueVariance = misNetRevenue - bsExternalRevenue;
-  const revenueVariancePercent = bsExternalRevenue !== 0
-    ? ((misNetRevenue - bsExternalRevenue) / bsExternalRevenue) * 100
-    : (misNetRevenue !== 0 ? 100 : 0);
-
-  const profitVariance = misNetIncome - balanceSheet.netProfitLoss;
-  const profitVariancePercent = balanceSheet.netProfitLoss !== 0
-    ? ((misNetIncome - balanceSheet.netProfitLoss) / Math.abs(balanceSheet.netProfitLoss)) * 100
-    : (misNetIncome !== 0 ? 100 : 0);
-
-  return (
-    <div className="mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
-      {/* Header */}
-      <div className="bg-indigo-500/20 border-b border-indigo-500/30 px-5 py-3">
-        <h3 className="text-sm font-semibold text-indigo-400">Balance Sheet Reconciliation</h3>
-        <p className="text-xs text-indigo-400/70 mt-0.5">Compare MIS vs Balance Sheet (sum of all states)</p>
-      </div>
-
-      <div className="p-5">
-        {/* Comparison Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-700">
-                <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Metric</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">MIS Calculated</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Balance Sheet (All States)</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Stock Transfers</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Variance</th>
-                <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Variance %</th>
-                <th className="text-center py-2 px-3 text-xs font-medium text-slate-500">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Net Revenue vs BS Gross Sales */}
-              <tr className="border-b border-slate-700/50">
-                <td className="py-3 px-3 text-sm text-slate-300">
-                  <div>Net Revenue</div>
-                  <div className="text-xs text-slate-500">MIS = BS - Stock Transfers to Heatronics</div>
-                </td>
-                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(misNetRevenue)}</td>
-                <td className="py-3 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(balanceSheet.grossSales)}</td>
-                <td className="py-3 px-3 text-right text-sm text-amber-400">
-                  {stockTransfers > 0 ? `-${formatCurrencyFull(stockTransfers)}` : '-'}
-                </td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {formatCurrencyFull(revenueVariance)}
-                </td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(revenueVariancePercent) < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {revenueVariancePercent.toFixed(2)}%
-                </td>
-                <td className="py-3 px-3 text-center">
-                  {Math.abs(revenueVariancePercent) < 5 ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Match
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Review
-                    </span>
-                  )}
-                </td>
-              </tr>
-
-              {/* Net Profit/Loss vs BS */}
-              <tr>
-                <td className="py-3 px-3 text-sm text-slate-300">
-                  <div>Net Profit/Loss</div>
-                  <div className="text-xs text-slate-500">BS: {balanceSheet.netProfitLoss >= 0 ? 'Profit' : 'Loss'}</div>
-                </td>
-                <td className="py-3 px-3 text-right text-sm">
-                  <span className={misNetIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {formatCurrencyFull(misNetIncome)}
-                  </span>
-                </td>
-                <td className="py-3 px-3 text-right text-sm">
-                  <span className={balanceSheet.netProfitLoss >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                    {formatCurrencyFull(balanceSheet.netProfitLoss)}
-                  </span>
-                </td>
-                <td className="py-3 px-3 text-right text-sm text-slate-500">-</td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(profitVariancePercent) < 10 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {formatCurrencyFull(profitVariance)}
-                </td>
-                <td className={`py-3 px-3 text-right text-sm ${Math.abs(profitVariancePercent) < 10 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {balanceSheet.netProfitLoss !== 0 ? `${profitVariancePercent.toFixed(2)}%` : '-'}
-                </td>
-                <td className="py-3 px-3 text-center">
-                  {Math.abs(profitVariancePercent) < 10 ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Match
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      Review
-                    </span>
-                  )}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Note */}
-        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg space-y-2">
-          <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">Revenue Reconciliation:</strong> MIS Net Revenue should equal
-            BS Gross Sales minus inter-company stock transfers to other Heatronics entities.
-          </p>
-          <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">Profit/Loss:</strong> Variance expected due to different expense
-            classification between MIS (activity-based) and BS (account-based).
-          </p>
-          <p className="text-xs text-slate-400">
-            Variances under 5% for revenue and 10% for profit/loss are acceptable.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
