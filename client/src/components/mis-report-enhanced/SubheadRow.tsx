@@ -142,12 +142,14 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
 
       {/* Transaction Rows */}
       {transactions.map((txn, index) => {
-        // Format account display: State - Account - Party (if available)
-        const displayParts: string[] = [];
-        if (txn.state) displayParts.push(txn.state);
-        displayParts.push(txn.account);
-        if (txn.partyName && txn.partyName !== txn.account) displayParts.push(txn.partyName);
-        const displayAccount = displayParts.join(' - ');
+        // Format account display: "Account - Party" (matching journalParser.ts convention)
+        // With State prefix for multi-state context
+        const accountParty = txn.partyName && txn.partyName !== txn.account
+          ? `${txn.account} - ${txn.partyName}`
+          : txn.account;
+        const displayAccount = txn.state
+          ? `${txn.state} - ${accountParty}`
+          : accountParty;
 
         return (
         <div
