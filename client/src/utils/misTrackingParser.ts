@@ -393,12 +393,6 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         let creditCol = -1;
         let notesCol = -1;
 
-        // Debug: Show first 5 raw rows to understand file structure
-        console.log('Journal Parser - First 5 raw rows:');
-        for (let i = 0; i < Math.min(5, jsonData.length); i++) {
-          console.log(`  Raw row ${i}:`, jsonData[i]?.slice(0, 8));
-        }
-
         // Scan ALL first 5 rows to find column headers (they may be split across rows)
         for (let i = 0; i < Math.min(5, jsonData.length); i++) {
           const row = jsonData[i];
@@ -448,34 +442,9 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           dateCol = 0; // Standard position
         }
 
-        console.log('Journal Parser - Detected columns:', {
-          headerRowIndex,
-          dateCol,
-          voucherCol,
-          gstCol,
-          accountCol,
-          debitCol,
-          creditCol,
-          notesCol
-        });
-
         // Parse data rows starting after header
         // First pass: collect all entries grouped by voucher
         const startRow = headerRowIndex + 1;
-
-        // Debug: Log first few data rows to see what we're reading
-        console.log('Journal Parser - First 3 data rows (raw):');
-        for (let i = startRow; i < Math.min(startRow + 3, jsonData.length); i++) {
-          const row = jsonData[i];
-          if (row) {
-            console.log(`  Row ${i}:`, {
-              date: row[dateCol],
-              account: row[accountCol],
-              debit: row[debitCol],
-              credit: row[creditCol]
-            });
-          }
-        }
         let lastDate = '';
         let lastVchNo = '';
 
@@ -492,26 +461,20 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         const entriesByVoucher: Map<string, RawEntry[]> = new Map();
         let voucherCounter = 0; // Internal voucher counter (increments when date cell has value)
 
-        // Debug counters for filtering
-        let debugStats = { totalRows: 0, shortRows: 0, emptyAccount: 0, numberAccount: 0, zeroAmounts: 0, validEntries: 0 };
-
         for (let i = startRow; i < jsonData.length; i++) {
           const row = jsonData[i];
-          debugStats.totalRows++;
-          if (!row || row.length < 3) { debugStats.shortRows++; continue; }
+          if (!row || row.length < 3) continue;
 
           // Get account name from detected column
           const account = String(row[accountCol] || '').trim();
 
           // Skip total rows and empty account names
           if (!account || account.toLowerCase() === 'total' || account.toLowerCase() === 'grand total') {
-            debugStats.emptyAccount++;
             continue;
           }
 
           // Skip rows where account looks like a number (likely misaligned data)
           if (/^[\d,.\s-]+$/.test(account)) {
-            debugStats.numberAccount++;
             continue;
           }
 
@@ -529,9 +492,7 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           const notes = notesCol >= 0 ? String(row[notesCol] || '').trim() : '';
 
           // Skip rows where both debit and credit are 0
-          if (debit === 0 && credit === 0) { debugStats.zeroAmounts++; continue; }
-
-          debugStats.validEntries++;
+          if (debit === 0 && credit === 0) continue;
 
           const entry: RawEntry = { date, vchBillNo, gstNature, account, debit, credit, notes };
 
@@ -548,22 +509,6 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
             entriesByVoucher.set(groupKey, []);
           }
           entriesByVoucher.get(groupKey)!.push(entry);
-        }
-
-        // Debug: Show filtering stats
-        console.log('Journal Parser - Row filtering stats:', debugStats);
-
-        // Debug: Log voucher groupings
-        console.log('=== Journal Parser Voucher Groupings ===');
-        console.log(`Total voucher groups: ${entriesByVoucher.size}`);
-        for (const [groupKey, entries] of entriesByVoucher) {
-          if (entries.length <= 4) { // Only log small vouchers to avoid spam
-            console.log(`Voucher ${groupKey}:`, entries.map(e => ({
-              account: e.account,
-              debit: e.debit,
-              credit: e.credit
-            })));
-          }
         }
 
         // Second pass: link debit entries with credit entries (party names)
@@ -589,14 +534,6 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           const mainParty = creditEntries.length > 0
             ? creditEntries.reduce((max, e) => e.credit > max.credit ? e : max, creditEntries[0])
             : null;
-
-          // Debug: Log party selection for vouchers with Advertisement entries
-          if (entries.some(e => e.account.toLowerCase().includes('advertisement'))) {
-            console.log(`[DEBUG] Voucher ${groupKey} has Advertisement entry:`);
-            console.log('  First entry:', { account: firstEntry?.account, debit: firstEntry?.debit, credit: firstEntry?.credit });
-            console.log('  Credit entries:', creditEntries.map(e => ({ account: e.account, credit: e.credit })));
-            console.log('  Selected mainParty:', mainParty?.account);
-          }
 
           // Create transactions with party name linked
           for (const entry of entries) {
