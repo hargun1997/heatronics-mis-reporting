@@ -4,6 +4,7 @@ import { formatCurrency, formatCurrencyFull, formatPercent } from '../../utils/m
 import { EnhancedMISReportView } from '../mis-report-enhanced';
 import { TableCellsIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
 import { aggregateStatesToMonth } from '../../services/stateDataStore';
+import { exportToPDF } from '../../utils/exportUtils';
 
 // ============================================
 // RANGE TYPES
@@ -352,6 +353,21 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
   const [selectedPreset, setSelectedPreset] = useState<RangePreset | null>(null);
   const [customSelectedMonths, setCustomSelectedMonths] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>('enhanced'); // Default to enhanced view
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    setShowExportDropdown(false);
+    try {
+      await exportToPDF('mis-monthly-content', `MIS_Report_${displayTitle.replace(/\s+/g, '_')}`);
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Debug logging when MIS data changes
   React.useEffect(() => {
@@ -693,9 +709,47 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             Algorithm Guide
           </button>
 
-          <button className="px-4 py-2 text-sm text-slate-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-slate-300 transition-colors">
-            Export
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              disabled={isExporting}
+              className="px-4 py-2 text-sm text-slate-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-slate-300 transition-colors flex items-center gap-2"
+            >
+              {isExporting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  Export
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </>
+              )}
+            </button>
+
+            {showExportDropdown && (
+              <>
+                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50">
+                  <button
+                    onClick={handleExportPDF}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 rounded-lg"
+                  >
+                    <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Export to PDF
+                  </button>
+                </div>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExportDropdown(false)} />
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -726,16 +780,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
         </div>
       )}
 
-      {/* Enhanced View */}
-      {displayMIS && viewMode === 'enhanced' && (
-        <EnhancedMISReportView
-          misRecord={displayMIS}
-          onRecalculate={undefined}
-        />
-      )}
+      {/* Content wrapper for PDF export */}
+      <div id="mis-monthly-content">
+        {/* Enhanced View */}
+        {displayMIS && viewMode === 'enhanced' && (
+          <EnhancedMISReportView
+            misRecord={displayMIS}
+            onRecalculate={undefined}
+          />
+        )}
 
-      {/* Classic View - Key Metrics Cards */}
-      {displayMIS && viewMode === 'classic' && (
+        {/* Classic View - Key Metrics Cards */}
+        {displayMIS && viewMode === 'classic' && (
         <div className="grid grid-cols-4 gap-4">
           <MetricCard
             label="Net Revenue"
@@ -1006,13 +1062,14 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             </tr>
           </tbody>
         </table>
-      </div>
-      )}
+        </div>
+        )}
 
-      {/* Tax Summary Section */}
-      {taxSummary && (
-        <TaxSummarySection taxSummary={taxSummary} />
-      )}
+        {/* Tax Summary Section */}
+        {taxSummary && (
+          <TaxSummarySection taxSummary={taxSummary} />
+        )}
+      </div> {/* End of mis-monthly-content */}
     </div>
   );
 }
