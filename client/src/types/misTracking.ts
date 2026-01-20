@@ -45,7 +45,7 @@ export function createEmptyChannelRevenue(): ChannelRevenue {
 
 export interface StockTransfer {
   fromState: IndianState;
-  toState: IndianState;
+  toState: IndianState | 'Unknown';  // 'Unknown' when destination state cannot be detected
   amount: number;
 }
 
