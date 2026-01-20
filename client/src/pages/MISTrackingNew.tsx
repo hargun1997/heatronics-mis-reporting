@@ -551,6 +551,17 @@ export function MISTrackingNew() {
         case 'balanceSheet':
           updatedStateData.balanceSheetFile = file;
           const bsResult = await parseBalanceSheet(file);
+
+          // DEBUG: Log parsed BS data
+          console.log('=== BS PARSE RESULT ===');
+          console.log('File:', file.name);
+          console.log('State:', state);
+          console.log('bsResult.data:', bsResult.data);
+          console.log('bsResult.data.openingStock:', bsResult.data.openingStock);
+          console.log('bsResult.data.purchases:', bsResult.data.purchases);
+          console.log('bsResult.data.closingStock:', bsResult.data.closingStock);
+          console.log('=========================');
+
           updatedStateData.balanceSheetData = bsResult.data;
           updatedStateData.balanceSheetParsed = true;
 
@@ -565,6 +576,11 @@ export function MISTrackingNew() {
               netLoss: bsResult.data.netProfitLoss < 0 ? Math.abs(bsResult.data.netProfitLoss) : 0,
               netProfitLoss: bsResult.data.netProfitLoss
             };
+            console.log('=== STORING BS DATA ===');
+            console.log('periodKey:', periodKey);
+            console.log('stateAbbrev:', stateAbbrev);
+            console.log('bsData to store:', bsData);
+            console.log('=======================');
             storeStateBSData(periodKey, stateAbbrev, bsData);
           }
           break;
