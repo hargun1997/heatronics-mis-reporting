@@ -566,9 +566,10 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
 
             if (entry.debit > 0) {
               if (isGstOrTaxEntry) {
-                // For GST/tax entries: link to main expense account so we know what it's for
-                // e.g., "CGST Input" shows "Freight Charges" as context
-                partyName = mainExpense?.account;
+                // For GST/tax entries: show both expense account AND party
+                // e.g., "CGST Input" shows "Freight Charges - Transporter ABC"
+                const parts = [mainExpense?.account, mainParty?.account].filter(Boolean);
+                partyName = parts.length > 0 ? parts.join(' - ') : undefined;
               } else if (mainParty) {
                 // For regular expense entries: link to party (vendor/payee)
                 partyName = mainParty.account;
