@@ -132,29 +132,17 @@ export async function saveMISData(data: MISStorageData): Promise<boolean> {
 
 /**
  * Strip bulky data from MISRecord to reduce storage size
- * Keeps summary/aggregated data, removes individual transactions
+ * Keeps transactionsByHead (for expand functionality) but removes larger arrays
  */
 function stripBulkyData(record: MISRecord): MISRecord {
   return {
     ...record,
-    // Remove bulky transaction arrays - these can be regenerated
+    // Remove bulky classified transactions array - can be regenerated
     classifiedTransactions: [],
-    // Keep transactionsByHead but strip individual transactions (keep totals)
-    transactionsByHead: record.transactionsByHead
-      ? Object.fromEntries(
-          Object.entries(record.transactionsByHead).map(([head, data]) => [
-            head,
-            {
-              ...data,
-              subheads: data.subheads.map(sh => ({
-                ...sh,
-                transactions: [] // Remove individual transactions, keep summary
-              }))
-            }
-          ])
-        )
-      : undefined,
-    // Remove unclassified transactions list
+    // KEEP transactionsByHead WITH transactions for expand functionality
+    // TransactionRef objects are small (id, account, amount, date, type, source)
+    // transactionsByHead: record.transactionsByHead (keep as-is)
+    // Remove unclassified transactions list - can be regenerated
     unclassifiedTransactions: []
   };
 }
