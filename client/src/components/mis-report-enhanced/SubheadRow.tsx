@@ -134,9 +134,9 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
       {/* Header Row */}
       <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-semibold text-slate-500 border-b border-slate-800 pl-14">
         <div className="col-span-2">Date</div>
-        <div className="col-span-5">Account Name</div>
-        <div className="col-span-2 text-right">Debit</div>
-        <div className="col-span-2 text-right">Credit</div>
+        <div className="col-span-6">Account Name</div>
+        <div className="col-span-2 text-right">Amount</div>
+        <div className="col-span-1 text-center">Type</div>
         <div className="col-span-1 text-center">Action</div>
       </div>
 
@@ -159,14 +159,14 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
           <div className="col-span-2 text-slate-400">
             {txn.date || '-'}
           </div>
-          <div className="col-span-5 text-slate-300 truncate" title={displayAccount}>
+          <div className="col-span-6 text-slate-300" title={displayAccount}>
             {displayAccount}
           </div>
           <div className="col-span-2 text-right font-mono text-slate-300">
-            {txn.type === 'debit' && txn.amount > 0 ? formatCurrencyFull(Math.abs(txn.amount)) : '-'}
+            {formatCurrencyFull(Math.abs(txn.amount))}
           </div>
-          <div className="col-span-2 text-right font-mono text-slate-300">
-            {txn.type === 'credit' || txn.amount < 0 ? formatCurrencyFull(Math.abs(txn.amount)) : '-'}
+          <div className="col-span-1 text-center text-slate-400 text-xs">
+            {txn.type === 'debit' ? 'Dr' : 'Cr'}
           </div>
           <div className="col-span-1 text-center">
             {txn.source === 'journal' && onReclassify && (
@@ -189,23 +189,15 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
       {/* Total Row */}
       <div className="grid grid-cols-12 gap-2 px-4 py-2 text-sm font-semibold bg-slate-800/50 pl-14">
         <div className="col-span-2 text-slate-400">Total</div>
-        <div className="col-span-5 text-slate-400">
+        <div className="col-span-6 text-slate-400">
           {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
         </div>
         <div className="col-span-2 text-right font-mono text-slate-300">
           {formatCurrencyFull(
-            transactions
-              .filter(t => t.type === 'debit' && t.amount > 0)
-              .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+            transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
           )}
         </div>
-        <div className="col-span-2 text-right font-mono text-slate-300">
-          {formatCurrencyFull(
-            transactions
-              .filter(t => t.type === 'credit' || t.amount < 0)
-              .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-          )}
-        </div>
+        <div className="col-span-1"></div>
         <div className="col-span-1"></div>
       </div>
     </div>
