@@ -562,6 +562,15 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         }
 
         console.log(`Journal Parser - Parsed ${transactions.length} transactions from ${state}`);
+
+        // Debug: If 0 transactions, show what's in the file
+        if (transactions.length === 0) {
+          console.log(`[DEBUG ${state}] File has ${jsonData.length} rows`);
+          console.log(`[DEBUG ${state}] Detected columns:`, { headerRowIndex, dateCol, accountCol, debitCol, creditCol });
+          console.log(`[DEBUG ${state}] First 3 rows:`, jsonData.slice(0, 3).map(r => r?.slice(0, 7)));
+          console.log(`[DEBUG ${state}] Data rows (after header):`, jsonData.slice(headerRowIndex + 1, headerRowIndex + 4).map(r => r?.slice(0, 7)));
+        }
+
         resolve({ transactions, errors });
       } catch (error) {
         reject(new Error(`Failed to parse journal: ${error instanceof Error ? error.message : 'Unknown error'}`));
