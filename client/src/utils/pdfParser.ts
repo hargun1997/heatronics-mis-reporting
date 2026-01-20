@@ -189,7 +189,9 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
     // Purchases: "To Purchase" or "Purchase" (but not "Purchases of Fixed Assets")
     if ((/to\s*purchase\b/i.test(line) || /^\s*purchase\b/i.test(line)) &&
         !/fixed\s*asset/i.test(line) && !/purchase.*of/i.test(lineLower)) {
+      console.log(`[PURCHASE MATCH] Line ${i}: "${line.substring(0, 100)}"`);
       const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      console.log(`[PURCHASE AMOUNT] Extracted amount: ${amount} from "${sourceLine.substring(0, 100)}"`);
       if (amount > 0 && result.purchases === 0) { // Take first match only
         result.purchases = amount;
         result.extractedLines.push({
@@ -197,7 +199,9 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
           value: amount,
           source: `Trading A/c: ${sourceLine}`
         });
-        console.log(`Found Purchases: ${amount} from "${sourceLine}"`);
+        console.log(`[PURCHASE SET] Setting purchases = ${amount}`);
+      } else {
+        console.log(`[PURCHASE SKIP] Skipped - amount=${amount}, result.purchases=${result.purchases}`);
       }
     }
 
@@ -233,9 +237,12 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
 
     // Closing Stock: "By Closing Stock" - look for amount on same line OR next lines
     if (/by\s*closing\s*stock/i.test(line) || /closing\s*stock/i.test(line)) {
+      console.log(`[CLOSING MATCH] Line ${i}: "${line.substring(0, 100)}"`);
       const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      console.log(`[CLOSING AMOUNT] Extracted amount: ${amount} from "${sourceLine.substring(0, 100)}"`);
       if (amount > 0 && result.closingStock === 0) {
         result.closingStock = amount;
+        console.log(`[CLOSING SET] Setting closingStock = ${amount}`);
         result.extractedLines.push({
           label: 'Closing Stock',
           value: amount,
