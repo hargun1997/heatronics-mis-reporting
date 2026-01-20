@@ -121,6 +121,7 @@ export async function classifyTransaction(
   customPatterns?: LearnedPattern[]
 ): Promise<ClassificationResult | null> {
   const accountName = transaction.account;
+  const partyName = transaction.partyName;
 
   // Load patterns
   const patterns = customPatterns || await getLearnedPatterns();
@@ -131,9 +132,15 @@ export async function classifyTransaction(
     .sort((a, b) => (a.priority ?? 1) - (b.priority ?? 1));
 
   // Try to match against sorted patterns
+  // Check BOTH account name and party name - party name often has the actual vendor
   for (const pattern of activePatterns) {
     const matchType = pattern.matchType || 'contains'; // Default to contains for backwards compatibility
-    if (matchPattern(accountName, pattern.pattern, matchType)) {
+
+    // Check account name first, then party name
+    const matchesAccount = matchPattern(accountName, pattern.pattern, matchType);
+    const matchesParty = partyName ? matchPattern(partyName, pattern.pattern, matchType) : false;
+
+    if (matchesAccount || matchesParty) {
       // Determine confidence level from pattern or source
       let confidenceLevel: 'high' | 'medium' | 'low';
       if (pattern.confidence !== undefined) {
