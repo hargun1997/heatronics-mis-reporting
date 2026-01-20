@@ -472,7 +472,7 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         }
 
         const entriesByVoucher: Map<string, RawEntry[]> = new Map();
-        let noVchCounter = 0; // Counter for vouchers without voucher numbers
+        let voucherCounter = 0; // Internal voucher counter (increments when date cell has value)
 
         for (let i = startRow; i < jsonData.length; i++) {
           const row = jsonData[i];
@@ -509,30 +509,19 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
 
           const entry: RawEntry = { date, vchBillNo, gstNature, account, debit, credit, notes };
 
-          // Group by voucher number
-          // For entries without voucher numbers, detect voucher boundaries by DATE cell:
-          // - Row with DATE value = new voucher starts
-          // - Row with empty date = continuation of current voucher
-          if (vchBillNo) {
-            // Has voucher number - use it as group key
-            if (!entriesByVoucher.has(vchBillNo)) {
-              entriesByVoucher.set(vchBillNo, []);
-            }
-            entriesByVoucher.get(vchBillNo)!.push(entry);
-          } else {
-            // No voucher number - detect boundaries by dateVal (raw cell value)
-            // dateVal exists = new voucher, dateVal empty = continuation
-            if (dateVal) {
-              // New voucher starts (row has date in the cell)
-              noVchCounter++;
-            }
-
-            const groupKey = `noVch-${noVchCounter}`;
-            if (!entriesByVoucher.has(groupKey)) {
-              entriesByVoucher.set(groupKey, []);
-            }
-            entriesByVoucher.get(groupKey)!.push(entry);
+          // ALWAYS use date-based voucher detection (ignore voucher numbers)
+          // - Row with DATE value in cell = new voucher starts
+          // - Row with empty date cell = continuation of current voucher
+          if (dateVal) {
+            // New voucher starts (row has date in the cell)
+            voucherCounter++;
           }
+
+          const groupKey = `vch-${voucherCounter}`;
+          if (!entriesByVoucher.has(groupKey)) {
+            entriesByVoucher.set(groupKey, []);
+          }
+          entriesByVoucher.get(groupKey)!.push(entry);
         }
 
         // Debug: Log voucher groupings
@@ -581,8 +570,10 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           for (const entry of entries) {
             // For debit entries (expenses), link the party name from credit side
             // But only for expense vouchers (not payment vouchers)
+            // AND skip GST/TDS/round entries - they're just tax entries, not the main expense
             let partyName: string | undefined;
-            if (entry.debit > 0 && mainParty && !isPaymentVoucher) {
+            const isGstOrTaxEntry = /sgst|cgst|igst|tds|round/i.test(entry.account);
+            if (entry.debit > 0 && mainParty && !isPaymentVoucher && !isGstOrTaxEntry) {
               partyName = mainParty.account;
             }
 
