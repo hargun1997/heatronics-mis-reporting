@@ -382,8 +382,8 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         const transactions: Transaction[] = [];
         const errors: string[] = [];
 
-        // Dynamically detect column positions from header row
-        // Search first 5 rows for header row containing column names
+        // Dynamically detect column positions from header rows
+        // Tally exports often have multi-row headers, so scan first 5 rows and combine
         let headerRowIndex = -1;
         let dateCol = -1;
         let voucherCol = -1;
@@ -393,32 +393,29 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         let creditCol = -1;
         let notesCol = -1;
 
+        // Scan ALL first 5 rows to find column headers (they may be split across rows)
         for (let i = 0; i < Math.min(5, jsonData.length); i++) {
           const row = jsonData[i];
           if (!row) continue;
 
-          // Check if this row contains header keywords
-          const rowStr = row.map(cell => String(cell || '').toLowerCase()).join(' ');
-          if (rowStr.includes('debit') || rowStr.includes('credit') || rowStr.includes('account')) {
-            headerRowIndex = i;
+          // Detect column positions from each row
+          for (let j = 0; j < row.length; j++) {
+            const header = String(row[j] || '').toLowerCase().trim();
 
-            // Detect column positions
-            for (let j = 0; j < row.length; j++) {
-              const header = String(row[j] || '').toLowerCase().trim();
-
-              if (header.includes('date') && dateCol < 0) dateCol = j;
-              if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && voucherCol < 0) voucherCol = j;
-              if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && gstCol < 0) gstCol = j;
-              if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && accountCol < 0) accountCol = j;
-              if (header.includes('debit') && debitCol < 0) debitCol = j;
-              if (header.includes('credit') && creditCol < 0) creditCol = j;
-              if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && notesCol < 0) notesCol = j;
-            }
-            break;
+            if (header.includes('date') && dateCol < 0) { dateCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && voucherCol < 0) { voucherCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && gstCol < 0) { gstCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && accountCol < 0) { accountCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            // Match "debit", "dr", "dr." for debit column
+            if ((header.includes('debit') || header === 'dr' || header === 'dr.') && debitCol < 0) { debitCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            // Match "credit", "cr", "cr." for credit column
+            if ((header.includes('credit') || header === 'cr' || header === 'cr.') && creditCol < 0) { creditCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && notesCol < 0) { notesCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
           }
         }
 
-        // If no header found, use default positions (legacy behavior)
+        // If no header found, use default positions (standard Tally journal layout)
+        // Standard: Date(0), Voucher(1), GST(2), Account(3), Debit(4), Credit(5)
         if (headerRowIndex < 0) {
           headerRowIndex = 2; // Assume 3 header rows (0, 1, 2)
           dateCol = 0;
@@ -430,30 +427,20 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           notesCol = 6;
         }
 
-        // Validate critical columns were found
+        // Validate critical columns - use standard Tally layout as fallback
+        // User confirmed: first 5-6 columns are same across all state journals
         if (accountCol < 0) {
-          // Fallback: account is usually after gst or voucher column
-          accountCol = Math.max(gstCol, voucherCol, 0) + 1;
+          accountCol = 3; // Standard position
         }
         if (debitCol < 0) {
-          // Fallback: debit is usually after account
-          debitCol = accountCol + 1;
+          debitCol = 4; // Standard position
         }
         if (creditCol < 0) {
-          // Fallback: credit is usually after debit
-          creditCol = debitCol + 1;
+          creditCol = 5; // Standard position
         }
-
-        console.log('Journal Parser - Detected columns:', {
-          headerRowIndex,
-          dateCol,
-          voucherCol,
-          gstCol,
-          accountCol,
-          debitCol,
-          creditCol,
-          notesCol
-        });
+        if (dateCol < 0) {
+          dateCol = 0; // Standard position
+        }
 
         // Parse data rows starting after header
         // First pass: collect all entries grouped by voucher
@@ -524,19 +511,6 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           entriesByVoucher.get(groupKey)!.push(entry);
         }
 
-        // Debug: Log voucher groupings
-        console.log('=== Journal Parser Voucher Groupings ===');
-        console.log(`Total voucher groups: ${entriesByVoucher.size}`);
-        for (const [groupKey, entries] of entriesByVoucher) {
-          if (entries.length <= 4) { // Only log small vouchers to avoid spam
-            console.log(`Voucher ${groupKey}:`, entries.map(e => ({
-              account: e.account,
-              debit: e.debit,
-              credit: e.credit
-            })));
-          }
-        }
-
         // Second pass: link debit entries with credit entries (party names)
         for (const [groupKey, entries] of entriesByVoucher) {
           // Check if first entry is a credit - if so, this is a payment/receipt voucher
@@ -560,14 +534,6 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           const mainParty = creditEntries.length > 0
             ? creditEntries.reduce((max, e) => e.credit > max.credit ? e : max, creditEntries[0])
             : null;
-
-          // Debug: Log party selection for vouchers with Advertisement entries
-          if (entries.some(e => e.account.toLowerCase().includes('advertisement'))) {
-            console.log(`[DEBUG] Voucher ${groupKey} has Advertisement entry:`);
-            console.log('  First entry:', { account: firstEntry?.account, debit: firstEntry?.debit, credit: firstEntry?.credit });
-            console.log('  Credit entries:', creditEntries.map(e => ({ account: e.account, credit: e.credit })));
-            console.log('  Selected mainParty:', mainParty?.account);
-          }
 
           // Create transactions with party name linked
           for (const entry of entries) {
