@@ -578,8 +578,10 @@ function calculateTotal(cogm: COGMData): number {
   );
 }
 
-// Aggregate Balance Sheet data from all states for reconciliation
-// IMPORTANT: Opening/Closing Stock come from UP only, other values summed from all states
+// Aggregate Balance Sheet data from selected states for reconciliation
+// IMPORTANT LOGIC:
+// - Single state view: All values (Opening, Closing, Purchases) from that state only
+// - Multi-state consolidated view: Opening/Closing from UP only (main warehouse), Purchases from all states
 function aggregateBalanceSheetData(
   stateData: Record<IndianState, StateUploadData | undefined>,
   selectedStates: IndianState[]
@@ -600,42 +602,83 @@ function aggregateBalanceSheetData(
   console.log('=== aggregateBalanceSheetData Debug ===');
   console.log('Selected states:', selectedStates);
 
-  // First pass: Get UP's opening/closing stock (for COGM calculation)
-  const upData = stateData['UP'];
-  if (upData?.balanceSheetData) {
-    aggregated.openingStock = upData.balanceSheetData.openingStock || 0;
-    aggregated.closingStock = upData.balanceSheetData.closingStock || 0;
-    console.log('UP BS values (used for COGM):', {
-      openingStock: aggregated.openingStock,
-      closingStock: aggregated.closingStock
-    });
-  }
+  // Determine if this is a single-state view or multi-state consolidated view
+  const isSingleStateView = selectedStates.length === 1;
 
-  // Second pass: Sum purchases, grossSales, netProfitLoss from ALL states
-  for (const state of selectedStates) {
+  if (isSingleStateView) {
+    // Single state view: Use ALL values from that state only
+    const state = selectedStates[0];
     const data = stateData[state];
-    console.log(`State ${state}:`, {
+    console.log(`Single state view for ${state}:`, {
       hasData: !!data,
       hasBSData: !!data?.balanceSheetData,
       bsParsed: data?.balanceSheetParsed,
       bsData: data?.balanceSheetData
     });
 
-    if (!data?.balanceSheetData) continue;
+    if (!data?.balanceSheetData) {
+      console.log('No BS data found for single state - returning undefined');
+      return undefined;
+    }
 
     hasAnyData = true;
-    // Sum these values from ALL states
-    aggregated.purchases += data.balanceSheetData.purchases || 0;
-    aggregated.grossSales += data.balanceSheetData.grossSales || 0;
-    aggregated.netSales += data.balanceSheetData.netSales || 0;
-    aggregated.grossProfit += data.balanceSheetData.grossProfit || 0;
-    aggregated.netProfitLoss += data.balanceSheetData.netProfitLoss || 0;
+    aggregated.openingStock = data.balanceSheetData.openingStock || 0;
+    aggregated.closingStock = data.balanceSheetData.closingStock || 0;
+    aggregated.purchases = data.balanceSheetData.purchases || 0;
+    aggregated.grossSales = data.balanceSheetData.grossSales || 0;
+    aggregated.netSales = data.balanceSheetData.netSales || 0;
+    aggregated.grossProfit = data.balanceSheetData.grossProfit || 0;
+    aggregated.netProfitLoss = data.balanceSheetData.netProfitLoss || 0;
 
-    console.log(`State ${state} BS values (summed):`, {
-      purchases: data.balanceSheetData.purchases,
-      grossSales: data.balanceSheetData.grossSales,
-      netProfitLoss: data.balanceSheetData.netProfitLoss
+    console.log(`Single state ${state} BS values:`, {
+      openingStock: aggregated.openingStock,
+      closingStock: aggregated.closingStock,
+      purchases: aggregated.purchases,
+      grossSales: aggregated.grossSales,
+      netProfitLoss: aggregated.netProfitLoss
     });
+  } else {
+    // Multi-state consolidated view:
+    // - Opening/Closing from UP only (main warehouse)
+    // - Purchases summed from all states
+
+    // First pass: Get UP's opening/closing stock (for COGM calculation)
+    const upData = stateData['UP'];
+    if (upData?.balanceSheetData) {
+      aggregated.openingStock = upData.balanceSheetData.openingStock || 0;
+      aggregated.closingStock = upData.balanceSheetData.closingStock || 0;
+      console.log('UP BS values (used for COGM):', {
+        openingStock: aggregated.openingStock,
+        closingStock: aggregated.closingStock
+      });
+    }
+
+    // Second pass: Sum purchases, grossSales, netProfitLoss from ALL states
+    for (const state of selectedStates) {
+      const data = stateData[state];
+      console.log(`State ${state}:`, {
+        hasData: !!data,
+        hasBSData: !!data?.balanceSheetData,
+        bsParsed: data?.balanceSheetParsed,
+        bsData: data?.balanceSheetData
+      });
+
+      if (!data?.balanceSheetData) continue;
+
+      hasAnyData = true;
+      // Sum these values from ALL states
+      aggregated.purchases += data.balanceSheetData.purchases || 0;
+      aggregated.grossSales += data.balanceSheetData.grossSales || 0;
+      aggregated.netSales += data.balanceSheetData.netSales || 0;
+      aggregated.grossProfit += data.balanceSheetData.grossProfit || 0;
+      aggregated.netProfitLoss += data.balanceSheetData.netProfitLoss || 0;
+
+      console.log(`State ${state} BS values (summed):`, {
+        purchases: data.balanceSheetData.purchases,
+        grossSales: data.balanceSheetData.grossSales,
+        netProfitLoss: data.balanceSheetData.netProfitLoss
+      });
+    }
   }
 
   console.log('hasAnyData:', hasAnyData);
@@ -645,7 +688,7 @@ function aggregateBalanceSheetData(
     return undefined;
   }
 
-  // Calculate COGS from Balance Sheet formula: Opening Stock (UP) + Purchases (all) - Closing Stock (UP)
+  // Calculate COGS from Balance Sheet formula: Opening Stock + Purchases - Closing Stock
   aggregated.calculatedCOGS = aggregated.openingStock + aggregated.purchases - aggregated.closingStock;
 
   console.log('Aggregated BS result:', aggregated);
