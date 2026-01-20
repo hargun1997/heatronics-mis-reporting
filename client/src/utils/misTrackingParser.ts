@@ -393,24 +393,38 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         let creditCol = -1;
         let notesCol = -1;
 
-        // Scan first 10 rows to find column headers (they may be after company info/title rows)
+        // Scan first 10 rows to find the header row (may be after company info/title rows)
+        // Look for a single row that contains Date, Account, AND Debit/Credit columns
         for (let i = 0; i < Math.min(10, jsonData.length); i++) {
           const row = jsonData[i];
           if (!row) continue;
 
-          // Detect column positions from each row
+          // Check this row for header columns
+          let rowDateCol = -1, rowAccountCol = -1, rowDebitCol = -1, rowCreditCol = -1, rowVoucherCol = -1, rowGstCol = -1, rowNotesCol = -1;
+
           for (let j = 0; j < row.length; j++) {
             const header = String(row[j] || '').toLowerCase().trim();
 
-            if (header.includes('date') && dateCol < 0) { dateCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && voucherCol < 0) { voucherCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && gstCol < 0) { gstCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && accountCol < 0) { accountCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            // Match "debit", "dr", "dr." for debit column
-            if ((header.includes('debit') || header === 'dr' || header === 'dr.') && debitCol < 0) { debitCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            // Match "credit", "cr", "cr." for credit column
-            if ((header.includes('credit') || header === 'cr' || header === 'cr.') && creditCol < 0) { creditCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
-            if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && notesCol < 0) { notesCol = j; headerRowIndex = Math.max(headerRowIndex, i); }
+            if (header.includes('date') && rowDateCol < 0) rowDateCol = j;
+            if ((header.includes('voucher') || header.includes('vch') || header.includes('bill no')) && rowVoucherCol < 0) rowVoucherCol = j;
+            if (header.includes('gst') && !header.includes('cgst') && !header.includes('sgst') && !header.includes('igst') && rowGstCol < 0) rowGstCol = j;
+            if ((header.includes('particulars') || header.includes('account') || header.includes('ledger') || header === 'name') && rowAccountCol < 0) rowAccountCol = j;
+            if ((header.includes('debit') || header === 'dr' || header === 'dr.') && rowDebitCol < 0) rowDebitCol = j;
+            if ((header.includes('credit') || header === 'cr' || header === 'cr.') && rowCreditCol < 0) rowCreditCol = j;
+            if ((header.includes('notes') || header.includes('narration') || header.includes('remarks')) && rowNotesCol < 0) rowNotesCol = j;
+          }
+
+          // If this row has the essential columns (Date OR Account) AND (Debit AND Credit), use it as header
+          if ((rowDateCol >= 0 || rowAccountCol >= 0) && rowDebitCol >= 0 && rowCreditCol >= 0) {
+            headerRowIndex = i;
+            dateCol = rowDateCol;
+            voucherCol = rowVoucherCol;
+            gstCol = rowGstCol;
+            accountCol = rowAccountCol;
+            debitCol = rowDebitCol;
+            creditCol = rowCreditCol;
+            notesCol = rowNotesCol;
+            break; // Found complete header, stop searching
           }
         }
 
