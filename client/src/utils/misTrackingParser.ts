@@ -539,10 +539,15 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
 
         // Second pass: link debit entries with credit entries (party names)
         for (const [groupKey, entries] of entriesByVoucher) {
-          // Check if first entry is a credit - if so, this is likely a payment/receipt voucher
-          // not an expense voucher, so skip party name linking
+          // Check if first entry is a credit - if so, this is a payment/receipt voucher
+          // not an expense voucher - SKIP ENTIRE VOUCHER
           const firstEntry = entries[0];
           const isPaymentVoucher = firstEntry && firstEntry.credit > 0 && firstEntry.debit === 0;
+
+          if (isPaymentVoucher) {
+            // Skip entire voucher - don't add any entries to transactions
+            continue;
+          }
 
           // Find credit entries (potential party names) - exclude GST/TDS entries and bank accounts
           const creditEntries = entries.filter(e =>
@@ -552,8 +557,7 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           );
 
           // Find the main party name (largest credit entry that's not a tax/bank account)
-          // But ONLY for expense vouchers (first entry is debit)
-          const mainParty = (!isPaymentVoucher && creditEntries.length > 0)
+          const mainParty = creditEntries.length > 0
             ? creditEntries.reduce((max, e) => e.credit > max.credit ? e : max, creditEntries[0])
             : null;
 
@@ -561,7 +565,6 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           if (entries.some(e => e.account.toLowerCase().includes('advertisement'))) {
             console.log(`[DEBUG] Voucher ${groupKey} has Advertisement entry:`);
             console.log('  First entry:', { account: firstEntry?.account, debit: firstEntry?.debit, credit: firstEntry?.credit });
-            console.log('  Is payment voucher:', isPaymentVoucher);
             console.log('  Credit entries:', creditEntries.map(e => ({ account: e.account, credit: e.credit })));
             console.log('  Selected mainParty:', mainParty?.account);
           }
@@ -569,11 +572,10 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           // Create transactions with party name linked
           for (const entry of entries) {
             // For debit entries (expenses), link the party name from credit side
-            // But only for expense vouchers (not payment vouchers)
-            // AND skip GST/TDS/round entries - they're just tax entries, not the main expense
+            // Skip GST/TDS/round entries - they're just tax entries, not the main expense
             let partyName: string | undefined;
             const isGstOrTaxEntry = /sgst|cgst|igst|tds|round/i.test(entry.account);
-            if (entry.debit > 0 && mainParty && !isPaymentVoucher && !isGstOrTaxEntry) {
+            if (entry.debit > 0 && mainParty && !isGstOrTaxEntry) {
               partyName = mainParty.account;
             }
 
