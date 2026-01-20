@@ -2,6 +2,8 @@
 // Uses the public Google Sheets API (requires sheet to be "Anyone with link can edit")
 
 import { MISRecord, MISStorageData, LearnedPattern, periodToKey } from '../types/misTracking';
+import { misDataStore } from '../services/misDataStore';
+import { MonthlyBSData } from '../types/monthlyMIS';
 
 // Google Sheet ID from the URL
 const SHEET_ID = '1CgClltIfhvQMZ9kxQ2MqfcebyZzDoZdg6i2evHAo3JI';
@@ -51,6 +53,11 @@ export async function loadMISData(): Promise<MISStorageData> {
       if (patterns) {
         data.learnedPatterns = JSON.parse(patterns);
       }
+
+      // === SYNC TO MIS DATA STORE ===
+      // Populate misDataStore from loaded data for proper per-month handling
+      syncAllRecordsToMISDataStore(data.periods);
+
       return data;
     }
 
@@ -70,6 +77,18 @@ export async function loadMISData(): Promise<MISStorageData> {
       learnedPatterns: []  // No hardcoded defaults - use Google Sheets only
     };
   }
+}
+
+/**
+ * Sync all loaded records to misDataStore
+ * Called on app startup when loading from localStorage
+ */
+function syncAllRecordsToMISDataStore(records: MISRecord[]): void {
+  console.log(`[MIS Sync] Syncing ${records.length} records to MIS data store...`);
+  for (const record of records) {
+    syncRecordToMISDataStore(record);
+  }
+  console.log('[MIS Sync] Sync complete. Data store summary:', misDataStore.getDataSummary());
 }
 
 export async function saveMISData(data: MISStorageData): Promise<boolean> {
@@ -107,10 +126,57 @@ export async function saveMISRecord(record: MISRecord): Promise<boolean> {
       return b.period.month - a.period.month;
     });
 
+    // === SYNC WITH MIS DATA STORE ===
+    // Store balance sheet data per month for proper aggregation
+    syncRecordToMISDataStore(record);
+
     return await saveMISData(data);
   } catch (error) {
     console.error('Error saving MIS record:', error);
     return false;
+  }
+}
+
+/**
+ * Sync MISRecord to the monthly MIS data store
+ * This ensures proper per-month storage for correct aggregation
+ */
+function syncRecordToMISDataStore(record: MISRecord): void {
+  try {
+    // Convert periodKey to month format (e.g., "2025-12")
+    const monthKey = record.periodKey; // Assuming periodKey is already in YYYY-MM format
+
+    // Sync balance sheet data if present
+    if (record.balanceSheet) {
+      // Determine state from record (default to 'UP' as primary)
+      const primaryState = record.states?.[0] || 'UP';
+
+      const bsData: Omit<MonthlyBSData, 'month' | 'state'> = {
+        openingStock: record.balanceSheet.openingStock || 0,
+        purchases: record.balanceSheet.purchases || 0,
+        closingStock: record.balanceSheet.closingStock || 0,
+        grossSales: record.balanceSheet.grossSales || 0,
+        directExpenses: 0,
+        grossProfit: record.balanceSheet.grossProfit || 0,
+        netProfit: record.balanceSheet.netProfitLoss > 0 ? record.balanceSheet.netProfitLoss : 0,
+        netLoss: record.balanceSheet.netProfitLoss < 0 ? Math.abs(record.balanceSheet.netProfitLoss) : 0,
+        parsedAt: new Date(),
+        sourceFile: 'synced-from-localStorage',
+        extractedLines: [],
+      };
+
+      misDataStore.storeBSData(monthKey, primaryState, bsData);
+      console.log(`[MIS Sync] Stored BS data for ${monthKey}/${primaryState}:`, {
+        openingStock: bsData.openingStock,
+        purchases: bsData.purchases,
+        closingStock: bsData.closingStock,
+      });
+    }
+
+    // Note: Journal entries are already classified and stored in record.classifiedTransactions
+    // We could also sync those, but for now focusing on BS data which was the main issue
+  } catch (error) {
+    console.error('Error syncing to MIS data store:', error);
   }
 }
 

@@ -113,6 +113,31 @@ interface PLAccountData {
   extractedLines: ExtractedLine[];
 }
 
+// Helper: Look for amount on current line or next few lines
+function findAmountWithLookahead(lines: string[], currentIndex: number, maxLookahead: number = 3): { amount: number; sourceLine: string } {
+  // First try current line
+  const currentLine = lines[currentIndex];
+  let amount = extractAmountFromLine(currentLine);
+  if (amount > 0) {
+    return { amount, sourceLine: currentLine.trim() };
+  }
+
+  // Look ahead for amount on subsequent lines
+  for (let j = 1; j <= maxLookahead && (currentIndex + j) < lines.length; j++) {
+    const nextLine = lines[currentIndex + j];
+    // Stop if we hit another section header or "To"/"By" label
+    if (/^(to|by)\s+/i.test(nextLine.trim())) break;
+    if (/trading|profit.*loss|balance/i.test(nextLine)) break;
+
+    amount = extractAmountFromLine(nextLine);
+    if (amount > 0) {
+      return { amount, sourceLine: `${currentLine.trim()} -> ${nextLine.trim()}` };
+    }
+  }
+
+  return { amount: 0, sourceLine: currentLine.trim() };
+}
+
 // Parse Trading Account section from Busy PDF
 function parseTradingAccount(lines: string[]): TradingAccountData {
   const result: TradingAccountData = {
@@ -149,74 +174,74 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
 
     // Opening Stock: "To Opening Stock" followed by amount
     if (/to\s*opening\s*stock/i.test(line) || /opening\s*stock/i.test(line)) {
-      const amount = extractAmountFromLine(line);
-      if (amount > 0) {
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      if (amount > 0 && result.openingStock === 0) {
         result.openingStock = amount;
         result.extractedLines.push({
           label: 'Opening Stock',
           value: amount,
-          source: `Trading A/c: ${line.trim()}`
+          source: `Trading A/c: ${sourceLine}`
         });
-        console.log(`Found Opening Stock: ${amount} from "${line.trim()}"`);
+        console.log(`Found Opening Stock: ${amount} from "${sourceLine}"`);
       }
     }
 
     // Purchases: "To Purchase" or "Purchase" (but not "Purchases of Fixed Assets")
     if ((/to\s*purchase\b/i.test(line) || /^\s*purchase\b/i.test(line)) &&
         !/fixed\s*asset/i.test(line) && !/purchase.*of/i.test(lineLower)) {
-      const amount = extractAmountFromLine(line);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
       if (amount > 0 && result.purchases === 0) { // Take first match only
         result.purchases = amount;
         result.extractedLines.push({
           label: 'Purchases',
           value: amount,
-          source: `Trading A/c: ${line.trim()}`
+          source: `Trading A/c: ${sourceLine}`
         });
-        console.log(`Found Purchases: ${amount} from "${line.trim()}"`);
+        console.log(`Found Purchases: ${amount} from "${sourceLine}"`);
       }
     }
 
     // Gross Profit: "To Gross Profit"
     if (/to\s*gross\s*profit/i.test(line)) {
-      const amount = extractAmountFromLine(line);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
       if (amount > 0) {
         result.grossProfit = amount;
         result.extractedLines.push({
           label: 'Gross Profit (Trading)',
           value: amount,
-          source: `Trading A/c: ${line.trim()}`
+          source: `Trading A/c: ${sourceLine}`
         });
-        console.log(`Found Gross Profit (debit): ${amount} from "${line.trim()}"`);
+        console.log(`Found Gross Profit (debit): ${amount} from "${sourceLine}"`);
       }
     }
 
     // CREDIT SIDE (By Sale, By Closing Stock)
 
-    // Sales: "By Sale" or "Sales"
-    if (/by\s*sale\b/i.test(line) || /^\s*sales\b/i.test(line)) {
-      const amount = extractAmountFromLine(line);
-      if (amount > 0) {
+    // Sales: "By Sale" or "Sales" - look for amount on same line OR next lines
+    if (/by\s*sale\b/i.test(line) || /^\s*sales\s*$/i.test(line)) {
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      if (amount > 0 && result.grossSales === 0) {
         result.grossSales = amount;
         result.extractedLines.push({
           label: 'Gross Sales',
           value: amount,
-          source: `Trading A/c: ${line.trim()}`
+          source: `Trading A/c: ${sourceLine}`
         });
-        console.log(`Found Sales: ${amount} from "${line.trim()}"`);
+        console.log(`Found Sales: ${amount} from "${sourceLine}"`);
       }
     }
 
-    // Closing Stock: "By Closing Stock"
+    // Closing Stock: "By Closing Stock" - look for amount on same line OR next lines
     if (/by\s*closing\s*stock/i.test(line) || /closing\s*stock/i.test(line)) {
-      const amount = extractAmountFromLine(line);
-      if (amount > 0) {
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      if (amount > 0 && result.closingStock === 0) {
         result.closingStock = amount;
         result.extractedLines.push({
           label: 'Closing Stock',
           value: amount,
-          source: `Trading A/c: ${line.trim()}`
+          source: `Trading A/c: ${sourceLine}`
         });
-        console.log(`Found Closing Stock: ${amount} from "${line.trim()}"`);
+        console.log(`Found Closing Stock: ${amount} from "${sourceLine}"`);
       }
     }
   }
@@ -255,43 +280,43 @@ function parsePLAccount(lines: string[]): PLAccountData {
 
     // Gross Profit: "By Gross Profit"
     if (/by\s*gross\s*profit/i.test(line)) {
-      const amount = extractAmountFromLine(line);
-      if (amount > 0) {
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      if (amount > 0 && result.grossProfit === 0) {
         result.grossProfit = amount;
         result.extractedLines.push({
           label: 'Gross Profit (P&L)',
           value: amount,
-          source: `P&L A/c: ${line.trim()}`
+          source: `P&L A/c: ${sourceLine}`
         });
-        console.log(`Found Gross Profit (P&L): ${amount} from "${line.trim()}"`);
+        console.log(`Found Gross Profit (P&L): ${amount} from "${sourceLine}"`);
       }
     }
 
     // Net Loss: "By Nett Loss" or "By Net Loss"
     if (/by\s*nett?\s*loss/i.test(line) || /nett?\s*loss/i.test(line)) {
-      const amount = extractAmountFromLine(line);
-      if (amount > 0) {
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      if (amount > 0 && result.netLoss === 0) {
         result.netLoss = amount;
         result.extractedLines.push({
           label: 'Net Loss',
           value: amount,
-          source: `P&L A/c: ${line.trim()}`
+          source: `P&L A/c: ${sourceLine}`
         });
-        console.log(`Found Net Loss: ${amount} from "${line.trim()}"`);
+        console.log(`Found Net Loss: ${amount} from "${sourceLine}"`);
       }
     }
 
     // Net Profit: "By Nett Profit" or "By Net Profit"
     if (/by\s*nett?\s*profit/i.test(line) || /nett?\s*profit\b/i.test(line)) {
-      const amount = extractAmountFromLine(line);
-      if (amount > 0 && !/gross/i.test(line)) { // Exclude "Gross Profit"
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      if (amount > 0 && !/gross/i.test(line) && result.netProfit === 0) { // Exclude "Gross Profit"
         result.netProfit = amount;
         result.extractedLines.push({
           label: 'Net Profit',
           value: amount,
-          source: `P&L A/c: ${line.trim()}`
+          source: `P&L A/c: ${sourceLine}`
         });
-        console.log(`Found Net Profit: ${amount} from "${line.trim()}"`);
+        console.log(`Found Net Profit: ${amount} from "${sourceLine}"`);
       }
     }
   }
