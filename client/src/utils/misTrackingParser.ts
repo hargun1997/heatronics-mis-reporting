@@ -581,8 +581,10 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           for (const entry of entries) {
             // For debit entries (expenses), link the party name from credit side
             // But only for expense vouchers (not payment vouchers)
+            // AND skip GST/TDS/round entries - they're just tax entries, not the main expense
             let partyName: string | undefined;
-            if (entry.debit > 0 && mainParty && !isPaymentVoucher) {
+            const isGstOrTaxEntry = /sgst|cgst|igst|tds|round/i.test(entry.account);
+            if (entry.debit > 0 && mainParty && !isPaymentVoucher && !isGstOrTaxEntry) {
               partyName = mainParty.account;
             }
 
