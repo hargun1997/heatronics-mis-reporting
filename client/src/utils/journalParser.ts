@@ -30,7 +30,7 @@ const ROUNDED_OFF_PATTERN = /rounded\s*off/i;
 
 // Amazon B2B Cash Sales (Revenue settlements, not expenses)
 // These appear when Amazon settles payments to your bank
-const AMAZON_B2B_PATTERN = /amazon.*sale.*cash|amazon.*central|amazon.*maharashtra|amazon.*karnatak|amazone/i;
+const AMAZON_B2B_PATTERN = /amazon.*sale.*cash|amazon.*central|amazon.*maharashtra|amazon.*karnatak|amazon.*haryana|amazon.*telangana|amazone/i;
 
 // Suspense and Opening/Closing entries
 const SUSPENSE_PATTERN = /suspense|opening\s*balance|closing\s*balance/i;
