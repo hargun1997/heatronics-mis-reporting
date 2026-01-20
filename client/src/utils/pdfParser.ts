@@ -52,6 +52,31 @@ function extractAmountFromLine(line: string): number {
   return parseIndianNumber(numbers[numbers.length - 1]);
 }
 
+// Extract amount from a specific section of a line that matches a pattern
+// This handles Busy PDF lines that combine DEBIT and CREDIT columns with | separators
+// Example: "To Purchase | -> Purchase 37,33,682.15 | By Closing Stock 59,64,244.62"
+// When looking for "Purchase", we only want to look in the section containing "Purchase"
+function extractAmountFromSection(line: string, matchPattern: RegExp): number {
+  // If line has pipe separators, split and find the section that matches the pattern
+  if (line.includes('|')) {
+    const parts = line.split('|');
+    for (const part of parts) {
+      if (matchPattern.test(part)) {
+        const amount = extractAmountFromLine(part);
+        if (amount > 0) {
+          console.log(`[extractAmountFromSection] Pattern matched in section: "${part.trim()}", amount: ${amount}`);
+          return amount;
+        }
+      }
+    }
+    // If no section matched, fall back to the whole line
+    console.log(`[extractAmountFromSection] No section matched pattern, using full line`);
+  }
+
+  // For lines without separators, extract from the whole line
+  return extractAmountFromLine(line);
+}
+
 // Find a section in the text (Trading Account, P&L, etc.)
 function findSection(lines: string[], sectionPatterns: RegExp[]): { startIndex: number; endIndex: number } {
   let startIndex = -1;
@@ -114,10 +139,14 @@ interface PLAccountData {
 }
 
 // Helper: Look for amount on current line or next few lines
-function findAmountWithLookahead(lines: string[], currentIndex: number, maxLookahead: number = 3): { amount: number; sourceLine: string } {
+// matchPattern: The pattern we're looking for (e.g., /purchase/i) - used to extract amount from correct section
+function findAmountWithLookahead(lines: string[], currentIndex: number, matchPattern?: RegExp, maxLookahead: number = 3): { amount: number; sourceLine: string } {
   // First try current line
   const currentLine = lines[currentIndex];
-  let amount = extractAmountFromLine(currentLine);
+  // Use section extraction if pattern provided (handles pipe-separated lines)
+  let amount = matchPattern
+    ? extractAmountFromSection(currentLine, matchPattern)
+    : extractAmountFromLine(currentLine);
   if (amount > 0) {
     return { amount, sourceLine: currentLine.trim() };
   }
@@ -129,7 +158,9 @@ function findAmountWithLookahead(lines: string[], currentIndex: number, maxLooka
     if (/^(to|by)\s+/i.test(nextLine.trim())) break;
     if (/trading|profit.*loss|balance/i.test(nextLine)) break;
 
-    amount = extractAmountFromLine(nextLine);
+    amount = matchPattern
+      ? extractAmountFromSection(nextLine, matchPattern)
+      : extractAmountFromLine(nextLine);
     if (amount > 0) {
       return { amount, sourceLine: `${currentLine.trim()} -> ${nextLine.trim()}` };
     }
@@ -174,7 +205,7 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
 
     // Opening Stock: "To Opening Stock" followed by amount
     if (/to\s*opening\s*stock/i.test(line) || /opening\s*stock/i.test(line)) {
-      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i, /opening\s*stock/i);
       if (amount > 0 && result.openingStock === 0) {
         result.openingStock = amount;
         result.extractedLines.push({
@@ -190,7 +221,7 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
     if ((/to\s*purchase\b/i.test(line) || /^\s*purchase\b/i.test(line)) &&
         !/fixed\s*asset/i.test(line) && !/purchase.*of/i.test(lineLower)) {
       console.log(`[PURCHASE MATCH] Line ${i}: "${line.substring(0, 100)}"`);
-      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i, /purchase/i);
       console.log(`[PURCHASE AMOUNT] Extracted amount: ${amount} from "${sourceLine.substring(0, 100)}"`);
       if (amount > 0 && result.purchases === 0) { // Take first match only
         result.purchases = amount;
@@ -207,7 +238,7 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
 
     // Gross Profit: "To Gross Profit"
     if (/to\s*gross\s*profit/i.test(line)) {
-      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i, /gross\s*profit/i);
       if (amount > 0) {
         result.grossProfit = amount;
         result.extractedLines.push({
@@ -223,7 +254,7 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
 
     // Sales: "By Sale" or "Sales" - look for amount on same line OR next lines
     if (/by\s*sale\b/i.test(line) || /^\s*sales\s*$/i.test(line)) {
-      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i, /sale/i);
       if (amount > 0 && result.grossSales === 0) {
         result.grossSales = amount;
         result.extractedLines.push({
@@ -238,7 +269,7 @@ function parseTradingAccount(lines: string[]): TradingAccountData {
     // Closing Stock: "By Closing Stock" - look for amount on same line OR next lines
     if (/by\s*closing\s*stock/i.test(line) || /closing\s*stock/i.test(line)) {
       console.log(`[CLOSING MATCH] Line ${i}: "${line.substring(0, 100)}"`);
-      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i, /closing\s*stock/i);
       console.log(`[CLOSING AMOUNT] Extracted amount: ${amount} from "${sourceLine.substring(0, 100)}"`);
       if (amount > 0 && result.closingStock === 0) {
         result.closingStock = amount;
@@ -287,7 +318,7 @@ function parsePLAccount(lines: string[]): PLAccountData {
 
     // Gross Profit: "By Gross Profit"
     if (/by\s*gross\s*profit/i.test(line)) {
-      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i, /gross\s*profit/i);
       if (amount > 0 && result.grossProfit === 0) {
         result.grossProfit = amount;
         result.extractedLines.push({
@@ -301,7 +332,7 @@ function parsePLAccount(lines: string[]): PLAccountData {
 
     // Net Loss: "By Nett Loss" or "By Net Loss"
     if (/by\s*nett?\s*loss/i.test(line) || /nett?\s*loss/i.test(line)) {
-      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i, /nett?\s*loss/i);
       if (amount > 0 && result.netLoss === 0) {
         result.netLoss = amount;
         result.extractedLines.push({
@@ -315,7 +346,7 @@ function parsePLAccount(lines: string[]): PLAccountData {
 
     // Net Profit: "By Nett Profit" or "By Net Profit"
     if (/by\s*nett?\s*profit/i.test(line) || /nett?\s*profit\b/i.test(line)) {
-      const { amount, sourceLine } = findAmountWithLookahead(lines, i);
+      const { amount, sourceLine } = findAmountWithLookahead(lines, i, /nett?\s*profit/i);
       if (amount > 0 && !/gross/i.test(line) && result.netProfit === 0) { // Exclude "Gross Profit"
         result.netProfit = amount;
         result.extractedLines.push({
