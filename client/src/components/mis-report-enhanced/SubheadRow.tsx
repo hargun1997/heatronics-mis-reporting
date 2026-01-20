@@ -141,7 +141,15 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
       </div>
 
       {/* Transaction Rows */}
-      {transactions.map((txn, index) => (
+      {transactions.map((txn, index) => {
+        // Format account display: State - Account - Party (if available)
+        const displayParts: string[] = [];
+        if (txn.state) displayParts.push(txn.state);
+        displayParts.push(txn.account);
+        if (txn.partyName && txn.partyName !== txn.account) displayParts.push(txn.partyName);
+        const displayAccount = displayParts.join(' - ');
+
+        return (
         <div
           key={txn.id || index}
           className="grid grid-cols-12 gap-2 px-4 py-2 text-sm border-b border-slate-800/50 last:border-b-0 hover:bg-slate-800/30 pl-14"
@@ -149,8 +157,8 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
           <div className="col-span-2 text-slate-400">
             {txn.date || '-'}
           </div>
-          <div className="col-span-5 text-slate-300 truncate" title={txn.account}>
-            {txn.account}
+          <div className="col-span-5 text-slate-300 truncate" title={displayAccount}>
+            {displayAccount}
           </div>
           <div className="col-span-2 text-right font-mono text-slate-300">
             {txn.type === 'debit' && txn.amount > 0 ? formatCurrencyFull(Math.abs(txn.amount)) : '-'}
@@ -173,7 +181,8 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
             )}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Total Row */}
       <div className="grid grid-cols-12 gap-2 px-4 py-2 text-sm font-semibold bg-slate-800/50 pl-14">
