@@ -456,9 +456,22 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
         });
 
         // Parse data rows starting after header
+        // First pass: collect all entries grouped by voucher
         const startRow = headerRowIndex + 1;
         let lastDate = '';
         let lastVchNo = '';
+
+        interface RawEntry {
+          date: string;
+          vchBillNo: string;
+          gstNature: string;
+          account: string;
+          debit: number;
+          credit: number;
+          notes: string;
+        }
+
+        const entriesByVoucher: Map<string, RawEntry[]> = new Map();
 
         for (let i = startRow; i < jsonData.length; i++) {
           const row = jsonData[i];
@@ -493,18 +506,51 @@ export function parseJournal(file: File, state: IndianState): Promise<JournalPar
           // Skip rows where both debit and credit are 0
           if (debit === 0 && credit === 0) continue;
 
-          transactions.push({
-            id: generateId(),
-            date,
-            vchBillNo,
-            gstNature,
-            account,
-            debit,
-            credit,
-            notes,
-            status: 'unclassified',
-            state
-          });
+          const entry: RawEntry = { date, vchBillNo, gstNature, account, debit, credit, notes };
+
+          // Group by voucher number + date (to handle entries without voucher numbers)
+          const groupKey = vchBillNo || `date-${date}`;
+          if (!entriesByVoucher.has(groupKey)) {
+            entriesByVoucher.set(groupKey, []);
+          }
+          entriesByVoucher.get(groupKey)!.push(entry);
+        }
+
+        // Second pass: link debit entries with credit entries (party names)
+        for (const [, entries] of entriesByVoucher) {
+          // Find credit entries (potential party names) - exclude GST/TDS entries
+          const creditEntries = entries.filter(e =>
+            e.credit > 0 &&
+            !/sgst|cgst|igst|tds|round/i.test(e.account)
+          );
+
+          // Find the main party name (largest credit entry that's not a tax/GST account)
+          const mainParty = creditEntries.length > 0
+            ? creditEntries.reduce((max, e) => e.credit > max.credit ? e : max, creditEntries[0])
+            : null;
+
+          // Create transactions with party name linked
+          for (const entry of entries) {
+            // For debit entries (expenses), link the party name from credit side
+            let partyName: string | undefined;
+            if (entry.debit > 0 && mainParty) {
+              partyName = mainParty.account;
+            }
+
+            transactions.push({
+              id: generateId(),
+              date: entry.date,
+              vchBillNo: entry.vchBillNo,
+              gstNature: entry.gstNature,
+              account: entry.account,
+              debit: entry.debit,
+              credit: entry.credit,
+              notes: entry.notes,
+              status: 'unclassified',
+              state,
+              partyName
+            });
+          }
         }
 
         console.log(`Journal Parser - Parsed ${transactions.length} transactions from ${state}`);

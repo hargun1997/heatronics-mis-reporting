@@ -357,6 +357,7 @@ function buildTransactionsByHead(
     }
 
     // Create transaction reference - use the countable amount (not both debit/credit)
+    // Format: Include state and party name for better context
     const txnRef: TransactionRef = {
       id: txn.id,
       date: txn.date,
@@ -366,7 +367,9 @@ function buildTransactionsByHead(
       source: 'journal',
       notes: txn.notes,
       originalHead: txn.misHead,
-      originalSubhead: txn.misSubhead
+      originalSubhead: txn.misSubhead,
+      state: txn.state,
+      partyName: txn.partyName
     };
 
     // Add transaction to the list for display

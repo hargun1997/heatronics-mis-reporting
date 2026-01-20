@@ -245,6 +245,9 @@ export interface TransactionRef {
   // Original classification for reclassification tracking
   originalHead?: MISHead;
   originalSubhead?: string;
+  // Additional context for display
+  state?: string;  // State code (UP, Maharashtra, etc.)
+  partyName?: string;  // Counterparty name
 }
 
 // Subhead with transaction details for drill-down

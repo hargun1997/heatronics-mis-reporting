@@ -35,6 +35,7 @@ export interface Transaction {
   suggestedSubhead?: string;
   isAutoIgnored?: boolean;  // Auto-ignored based on patterns
   state?: IndianState;  // State this transaction belongs to
+  partyName?: string;  // Counterparty name (credit entry for debit transactions)
 }
 
 export interface HeadConfig {
