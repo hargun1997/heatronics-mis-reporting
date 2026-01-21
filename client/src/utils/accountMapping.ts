@@ -83,6 +83,8 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   // Factory Maintenance (includes electricity, water, power backup)
   'power backup & maitenance': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'power backup & maintenance': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
+  'power backup & maitenance d': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },  // Truncated in PDF
+  'power backup & maitenance dg': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'power backup & maitenance dg expense': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'power backup & maintenance dg expense': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'electricity & water expenses': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
