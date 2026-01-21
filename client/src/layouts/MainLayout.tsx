@@ -9,7 +9,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/', label: 'Home' },
   { path: '/mis-tracking', label: 'MIS Reporting' },
-  { path: '/classifications', label: 'Classifications' },
   { path: '/task-tracker', label: 'Task Tracker' },
   { path: '/business-guide', label: 'Business Guide' },
 ];

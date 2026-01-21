@@ -11,12 +11,10 @@ import {
   MonthlyMISRecord,
   MonthlyBSData,
   AggregatedMISRecord,
-  ParsedJournalEntry,
   getMonthKey,
   getMonthRange,
 } from '../types/monthlyMIS';
 import { parseBalanceSheetPDF } from '../utils/pdfParser';
-import { parseJournalRegister } from '../utils/journalParser';
 import * as XLSX from 'xlsx';
 
 interface UseMISMonthlyDataState {
@@ -101,50 +99,6 @@ export function useMISMonthlyData(initialMonth?: string) {
     }
   }, []);
 
-  // Upload Journal Register (will auto-group by month)
-  const uploadJournalRegister = useCallback(async (
-    file: File
-  ): Promise<{ entriesByMonth: Map<string, ParsedJournalEntry[]>; stats: { total: number; skipped: number } }> => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-    try {
-      // Read Excel file
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as unknown[][];
-
-      // Parse using new journal parser
-      const { entriesByMonth, totalVouchers, totalExpenses, skippedVouchers } = parseJournalRegister(data);
-
-      // Store each month's entries
-      for (const [month, entries] of entriesByMonth) {
-        if (month !== 'unknown') {
-          misDataStore.storeJournalEntries(month, entries, file.name);
-          console.log(`Stored ${entries.length} journal entries for ${month}`);
-        }
-      }
-
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        lastUpdated: new Date(),
-      }));
-
-      return {
-        entriesByMonth,
-        stats: {
-          total: totalVouchers,
-          skipped: skippedVouchers,
-        },
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to parse journal register';
-      setState(prev => ({ ...prev, isLoading: false, error: message }));
-      throw error;
-    }
-  }, []);
-
   // Get data for a single month
   const getMonthData = useCallback((month: string): MonthlyMISRecord | undefined => {
     return misDataStore.getMonth(month);
@@ -199,7 +153,6 @@ export function useMISMonthlyData(initialMonth?: string) {
     // Actions
     setCurrentMonth,
     uploadBalanceSheet,
-    uploadJournalRegister,
 
     // Data access
     getMonthData,

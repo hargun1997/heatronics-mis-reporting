@@ -1,5 +1,6 @@
 // MIS Tracking - Calculation Engine
 // Generates complete MIS from parsed data
+// Uses Balance Sheet (Trading + P&L) for expenses instead of Journal
 
 import { IndianState } from '../types';
 import {
@@ -8,14 +9,8 @@ import {
   StateUploadData,
   RevenueData,
   COGMData,
-  ChannelFulfillmentData,
-  SalesMarketingData,
-  PlatformCostsData,
-  OperatingExpensesData,
-  NonOperatingData,
   StockTransfer,
   ChannelRevenue,
-  ClassifiedTransaction,
   AggregatedBalanceSheetData,
   createEmptyChannelRevenue,
   createEmptyRevenueData,
@@ -25,11 +20,20 @@ import {
   HeadWithTransactions,
   SubheadWithTransactions,
   TransactionRef,
-  UnclassifiedTransaction,
   MISHead
 } from '../types/misTracking';
-import { classifyTransactions, aggregateByHead, extractMISAmounts, MIS_HEADS_CONFIG } from './misClassifier';
-import { refreshRulesFromAPI } from './googleSheetsStorage';
+import { EnhancedBalanceSheetData } from '../types/balanceSheet';
+import { MIS_HEADS_CONFIG } from './misClassifier';
+import {
+  parseBalanceSheetEnhanced,
+  extractCOGMFromBalanceSheet,
+  extractChannelFromBalanceSheet,
+  extractMarketingFromBalanceSheet,
+  extractPlatformFromBalanceSheet,
+  extractOperatingFromBalanceSheet,
+  extractNonOperatingFromBalanceSheet,
+  getIgnoredExcludedTotals
+} from './balanceSheetParser';
 
 // ============================================
 // MAIN CALCULATION FUNCTION
@@ -84,7 +88,7 @@ export async function calculateMIS(
     netIncome: 0,
     netIncomePercent: 0,
 
-    // Classification data
+    // Classification data (now from balance sheet)
     classifiedTransactions: [],
     unclassifiedCount: 0
   };
@@ -96,54 +100,45 @@ export async function calculateMIS(
   record.revenue = revenue;
 
   // ============================================
-  // STEP 2: Classify Journal Transactions
+  // STEP 2: Aggregate Balance Sheet Data for Key Figures
   // ============================================
-  // Force refresh rules from API to ensure latest rules are used
-  await refreshRulesFromAPI();
-
-  const allTransactions = collectAllTransactions(stateData, selectedStates);
-  const { classified, unclassified } = await classifyTransactions(allTransactions);
-
-  record.classifiedTransactions = classified;
-  record.unclassifiedCount = unclassified.length;
+  const bsData = aggregateBalanceSheetData(stateData, selectedStates);
+  record.balanceSheet = bsData;
 
   // ============================================
-  // STEP 3: Extract Expense Amounts from Classifications
+  // STEP 3: Extract Expenses from Balance Sheet
+  // Aggregate expenses from all states' balance sheets
   // ============================================
-  const aggregation = aggregateByHead(classified);
-  const extracted = extractMISAmounts(aggregation);
+  const aggregatedExpenses = aggregateExpensesFromBalanceSheets(stateData, selectedStates);
 
   // ============================================
   // STEP 4: Populate COGM
+  // Raw Materials from UP Balance Sheet (Opening + Purchases - Closing)
+  // Other COGM items from aggregated balance sheet expenses
   // ============================================
-  // Raw Materials & Inventory comes from Balance Sheet formula
-  // Other COGM items come from journal classifications
-  const bsData = aggregateBalanceSheetData(stateData, selectedStates);
 
-  // Debug logging
-  console.log('BS Data for COGM:', {
-    bsData,
+  // Raw materials ONLY from UP (main warehouse)
+  const rawMaterialsFromBS = bsData
+    ? (bsData.openingStock + bsData.purchases - bsData.closingStock)
+    : 0;
+
+  console.log('COGM Calculation:', {
     openingStock: bsData?.openingStock,
     purchases: bsData?.purchases,
     closingStock: bsData?.closingStock,
-    calculated: bsData ? (bsData.openingStock + bsData.purchases - bsData.closingStock) : 'N/A'
+    rawMaterialsFromBS,
+    otherCOGMFromBS: aggregatedExpenses.cogm
   });
-
-  const rawMaterialsFromBS = bsData
-    ? (bsData.openingStock + bsData.purchases - bsData.closingStock)
-    : extracted.cogm.rawMaterialsInventory; // Fallback to journal if no BS data
-
-  console.log('Raw Materials from BS:', rawMaterialsFromBS);
 
   record.cogm = {
     rawMaterialsInventory: rawMaterialsFromBS,
-    manufacturingWages: extracted.cogm.manufacturingWages,
-    contractWagesMfg: extracted.cogm.contractWagesMfg,
-    inboundTransport: extracted.cogm.inboundTransport,
-    factoryRent: extracted.cogm.factoryRent,
-    factoryElectricity: extracted.cogm.factoryElectricity,
-    factoryMaintenance: extracted.cogm.factoryMaintenance,
-    jobWork: extracted.cogm.jobWork,
+    manufacturingWages: aggregatedExpenses.cogm.manufacturingWages,
+    contractWagesMfg: aggregatedExpenses.cogm.contractWagesMfg,
+    inboundTransport: aggregatedExpenses.cogm.inboundTransport,
+    factoryRent: aggregatedExpenses.cogm.factoryRent,
+    factoryElectricity: aggregatedExpenses.cogm.factoryElectricity,
+    factoryMaintenance: aggregatedExpenses.cogm.factoryMaintenance,
+    jobWork: aggregatedExpenses.cogm.jobWork,
     totalCOGM: 0
   };
   record.cogm.totalCOGM = calculateTotal(record.cogm);
@@ -152,9 +147,9 @@ export async function calculateMIS(
   // STEP 5: Populate Channel & Fulfillment
   // ============================================
   record.channelFulfillment = {
-    amazonFees: extracted.channelFulfillment.amazonFees,
-    blinkitFees: extracted.channelFulfillment.blinkitFees,
-    d2cFees: extracted.channelFulfillment.d2cFees,
+    amazonFees: aggregatedExpenses.channel.amazonFees,
+    blinkitFees: aggregatedExpenses.channel.blinkitFees,
+    d2cFees: aggregatedExpenses.channel.d2cFees,
     total: 0
   };
   record.channelFulfillment.total =
@@ -166,11 +161,11 @@ export async function calculateMIS(
   // STEP 6: Populate Sales & Marketing
   // ============================================
   record.salesMarketing = {
-    facebookAds: extracted.salesMarketing.facebookAds,
-    googleAds: extracted.salesMarketing.googleAds,
-    amazonAds: extracted.salesMarketing.amazonAds,
-    blinkitAds: extracted.salesMarketing.blinkitAds,
-    agencyFees: extracted.salesMarketing.agencyFees,
+    facebookAds: aggregatedExpenses.marketing.facebookAds,
+    googleAds: aggregatedExpenses.marketing.googleAds,
+    amazonAds: aggregatedExpenses.marketing.amazonAds,
+    blinkitAds: aggregatedExpenses.marketing.blinkitAds,
+    agencyFees: aggregatedExpenses.marketing.agencyFees,
     total: 0
   };
   record.salesMarketing.total =
@@ -184,9 +179,9 @@ export async function calculateMIS(
   // STEP 7: Populate Platform Costs
   // ============================================
   record.platformCosts = {
-    shopifySubscription: extracted.platformCosts.shopifySubscription,
-    watiSubscription: extracted.platformCosts.watiSubscription,
-    shopfloSubscription: extracted.platformCosts.shopfloSubscription,
+    shopifySubscription: aggregatedExpenses.platform.shopifySubscription,
+    watiSubscription: aggregatedExpenses.platform.watiSubscription,
+    shopfloSubscription: aggregatedExpenses.platform.shopfloSubscription,
     total: 0
   };
   record.platformCosts.total =
@@ -198,11 +193,11 @@ export async function calculateMIS(
   // STEP 8: Populate Operating Expenses
   // ============================================
   record.operatingExpenses = {
-    salariesAdminMgmt: extracted.operatingExpenses.salariesAdminMgmt,
-    miscellaneous: extracted.operatingExpenses.miscellaneous,
-    legalCaExpenses: extracted.operatingExpenses.legalCaExpenses,
-    platformCostsCRM: extracted.operatingExpenses.platformCostsCRM,
-    administrativeExpenses: extracted.operatingExpenses.administrativeExpenses,
+    salariesAdminMgmt: aggregatedExpenses.operating.salariesAdminMgmt,
+    miscellaneous: aggregatedExpenses.operating.miscellaneous,
+    legalCaExpenses: aggregatedExpenses.operating.legalCaExpenses,
+    platformCostsCRM: aggregatedExpenses.operating.platformCostsCRM,
+    administrativeExpenses: aggregatedExpenses.operating.administrativeExpenses,
     total: 0
   };
   record.operatingExpenses.total =
@@ -216,11 +211,11 @@ export async function calculateMIS(
   // STEP 9: Populate Non-Operating
   // ============================================
   record.nonOperating = {
-    interestExpense: extracted.nonOperating.interestExpense,
-    depreciation: extracted.nonOperating.depreciation,
-    amortization: extracted.nonOperating.amortization,
+    interestExpense: aggregatedExpenses.nonOperating.interestExpense,
+    depreciation: aggregatedExpenses.nonOperating.depreciation,
+    amortization: aggregatedExpenses.nonOperating.amortization,
     totalIDA: 0,
-    incomeTax: extracted.nonOperating.incomeTax
+    incomeTax: aggregatedExpenses.nonOperating.incomeTax
   };
   record.nonOperating.totalIDA =
     record.nonOperating.interestExpense +
@@ -261,18 +256,12 @@ export async function calculateMIS(
   record.netIncomePercent = netRevenue > 0 ? (record.netIncome / netRevenue) * 100 : 0;
 
   // ============================================
-  // STEP 11: Store Balance Sheet Data (already calculated in Step 4)
+  // STEP 11: Build Transaction Tracking for Drill-Down
   // ============================================
-  record.balanceSheet = bsData;
-
-  // ============================================
-  // STEP 12: Build Transaction Tracking for Drill-Down
-  // ============================================
-  const { transactionsByHead, unclassifiedTransactions, ignoredTotal, excludedTotal } =
-    buildTransactionsByHead(classified, unclassified, bsData);
+  const { transactionsByHead, ignoredTotal, excludedTotal } =
+    buildTransactionsByHead(aggregatedExpenses, bsData);
 
   record.transactionsByHead = transactionsByHead;
-  record.unclassifiedTransactions = unclassifiedTransactions;
   record.ignoredTotal = ignoredTotal;
   record.excludedTotal = excludedTotal;
 
@@ -280,115 +269,224 @@ export async function calculateMIS(
 }
 
 // ============================================
+// AGGREGATE EXPENSES FROM BALANCE SHEETS
+// ============================================
+
+interface AggregatedExpenses {
+  cogm: {
+    rawMaterialsInventory: number;
+    manufacturingWages: number;
+    contractWagesMfg: number;
+    inboundTransport: number;
+    factoryRent: number;
+    factoryElectricity: number;
+    factoryMaintenance: number;
+    jobWork: number;
+  };
+  channel: {
+    amazonFees: number;
+    blinkitFees: number;
+    d2cFees: number;
+  };
+  marketing: {
+    facebookAds: number;
+    googleAds: number;
+    amazonAds: number;
+    blinkitAds: number;
+    agencyFees: number;
+  };
+  platform: {
+    shopifySubscription: number;
+    watiSubscription: number;
+    shopfloSubscription: number;
+  };
+  operating: {
+    salariesAdminMgmt: number;
+    miscellaneous: number;
+    legalCaExpenses: number;
+    platformCostsCRM: number;
+    administrativeExpenses: number;
+  };
+  nonOperating: {
+    interestExpense: number;
+    depreciation: number;
+    amortization: number;
+    incomeTax: number;
+  };
+  ignoredTotal: number;
+  excludedTotal: number;
+  enhancedBSData: EnhancedBalanceSheetData[];
+}
+
+function aggregateExpensesFromBalanceSheets(
+  stateData: Record<IndianState, StateUploadData | undefined>,
+  selectedStates: IndianState[]
+): AggregatedExpenses {
+  const result: AggregatedExpenses = {
+    cogm: {
+      rawMaterialsInventory: 0,
+      manufacturingWages: 0,
+      contractWagesMfg: 0,
+      inboundTransport: 0,
+      factoryRent: 0,
+      factoryElectricity: 0,
+      factoryMaintenance: 0,
+      jobWork: 0
+    },
+    channel: { amazonFees: 0, blinkitFees: 0, d2cFees: 0 },
+    marketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0 },
+    platform: { shopifySubscription: 0, watiSubscription: 0, shopfloSubscription: 0 },
+    operating: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0 },
+    nonOperating: { interestExpense: 0, depreciation: 0, amortization: 0, incomeTax: 0 },
+    ignoredTotal: 0,
+    excludedTotal: 0,
+    enhancedBSData: []
+  };
+
+  console.log('=== Aggregating Expenses from Balance Sheets ===');
+
+  for (const state of selectedStates) {
+    const data = stateData[state];
+    if (!data?.enhancedBalanceSheetData) {
+      console.log(`State ${state}: No enhanced balance sheet data`);
+      continue;
+    }
+
+    const bsData = data.enhancedBalanceSheetData;
+    result.enhancedBSData.push(bsData);
+
+    console.log(`State ${state}: Processing enhanced balance sheet with ${bsData.mappedItems.length} mapped items`);
+
+    // Extract and aggregate COGM (except raw materials which comes from UP only)
+    const cogm = extractCOGMFromBalanceSheet(bsData);
+    result.cogm.manufacturingWages += cogm.manufacturingWages;
+    result.cogm.contractWagesMfg += cogm.contractWagesMfg;
+    result.cogm.inboundTransport += cogm.inboundTransport;
+    result.cogm.factoryRent += cogm.factoryRent;
+    result.cogm.factoryElectricity += cogm.factoryElectricity;
+    result.cogm.factoryMaintenance += cogm.factoryMaintenance;
+    result.cogm.jobWork += cogm.jobWork;
+
+    // Extract and aggregate Channel & Fulfillment
+    const channel = extractChannelFromBalanceSheet(bsData);
+    result.channel.amazonFees += channel.amazonFees;
+    result.channel.blinkitFees += channel.blinkitFees;
+    result.channel.d2cFees += channel.d2cFees;
+
+    // Extract and aggregate Sales & Marketing
+    const marketing = extractMarketingFromBalanceSheet(bsData);
+    result.marketing.facebookAds += marketing.facebookAds;
+    result.marketing.googleAds += marketing.googleAds;
+    result.marketing.amazonAds += marketing.amazonAds;
+    result.marketing.blinkitAds += marketing.blinkitAds;
+    result.marketing.agencyFees += marketing.agencyFees;
+
+    // Extract and aggregate Platform Costs
+    const platform = extractPlatformFromBalanceSheet(bsData);
+    result.platform.shopifySubscription += platform.shopifySubscription;
+    result.platform.watiSubscription += platform.watiSubscription;
+    result.platform.shopfloSubscription += platform.shopfloSubscription;
+
+    // Extract and aggregate Operating Expenses
+    const operating = extractOperatingFromBalanceSheet(bsData);
+    result.operating.salariesAdminMgmt += operating.salariesAdminMgmt;
+    result.operating.miscellaneous += operating.miscellaneous;
+    result.operating.legalCaExpenses += operating.legalCaExpenses;
+    result.operating.platformCostsCRM += operating.platformCostsCRM;
+    result.operating.administrativeExpenses += operating.administrativeExpenses;
+
+    // Extract and aggregate Non-Operating
+    const nonOp = extractNonOperatingFromBalanceSheet(bsData);
+    result.nonOperating.interestExpense += nonOp.interestExpense;
+    result.nonOperating.depreciation += nonOp.depreciation;
+    result.nonOperating.amortization += nonOp.amortization;
+    result.nonOperating.incomeTax += nonOp.incomeTax;
+
+    // Get ignored/excluded totals
+    const { ignoredTotal, excludedTotal } = getIgnoredExcludedTotals(bsData);
+    result.ignoredTotal += ignoredTotal;
+    result.excludedTotal += excludedTotal;
+
+    console.log(`State ${state} expenses:`, {
+      channel: channel,
+      marketing: marketing,
+      operating: operating
+    });
+  }
+
+  console.log('=== Aggregated Expenses Total ===', result);
+
+  return result;
+}
+
+// ============================================
 // TRANSACTION TRACKING HELPER
 // ============================================
 
 function buildTransactionsByHead(
-  classified: ClassifiedTransaction[],
-  unclassified: import('../types').Transaction[],
+  aggregatedExpenses: AggregatedExpenses,
   bsData?: AggregatedBalanceSheetData
 ): {
   transactionsByHead: TransactionsByHead;
-  unclassifiedTransactions: UnclassifiedTransaction[];
   ignoredTotal: number;
   excludedTotal: number;
 } {
   const transactionsByHead: TransactionsByHead = {};
-  let ignoredTotal = 0;
-  let excludedTotal = 0;
 
-  // Group classified transactions by head and subhead
-  for (const txn of classified) {
-    const head = txn.misHead;
-    const subhead = txn.misSubhead;
+  // Build from enhanced balance sheet data
+  for (const bsEnhanced of aggregatedExpenses.enhancedBSData) {
+    for (const item of bsEnhanced.mappedItems) {
+      if (!item.head || !item.subhead) continue;
 
-    // Get the head type to determine which side to count
-    const headConfig = MIS_HEADS_CONFIG[head];
-    const headType = headConfig?.type || 'expense';
+      const head = item.head;
+      const subhead = item.subhead;
 
-    // For expense heads: count DEBIT side only (money going out)
-    // For revenue heads: count CREDIT side only (money coming in)
-    // For ignore heads: count both (for transparency in the display)
-    let countableAmount = 0;
-    if (headType === 'expense') {
-      countableAmount = txn.debit || 0;
-    } else if (headType === 'revenue') {
-      countableAmount = txn.credit || 0;
-    } else {
-      // ignore type - count both for display purposes
-      countableAmount = txn.debit || txn.credit || 0;
-    }
+      // Initialize head if not exists
+      if (!transactionsByHead[head]) {
+        transactionsByHead[head] = {
+          head: head as MISHead,
+          total: 0,
+          transactionCount: 0,
+          subheads: []
+        };
+      }
 
-    // IMPORTANT: Skip transactions that don't contribute to the head type
-    // For expense heads: skip credit-only entries (like payments received)
-    // For revenue heads: skip debit-only entries
-    // This prevents showing B2C payment receipts under expense heads
-    if (headType === 'expense' && (txn.debit || 0) === 0) {
-      continue; // Skip credit-only entries for expense heads
-    }
-    if (headType === 'revenue' && (txn.credit || 0) === 0) {
-      continue; // Skip debit-only entries for revenue heads
-    }
+      // Find or create subhead
+      let subheadEntry = transactionsByHead[head].subheads.find(s => s.subhead === subhead);
+      if (!subheadEntry) {
+        subheadEntry = {
+          subhead,
+          amount: 0,
+          transactionCount: 0,
+          transactions: [],
+          source: 'balance_sheet'
+        };
+        transactionsByHead[head].subheads.push(subheadEntry);
+      }
 
-    // Track ignored/excluded totals (use countable amount)
-    if (head === 'Z. Ignore') {
-      ignoredTotal += countableAmount;
-    } else if (head === 'X. Exclude') {
-      excludedTotal += countableAmount;
-    }
-
-    // Initialize head if not exists
-    if (!transactionsByHead[head]) {
-      transactionsByHead[head] = {
-        head: head as MISHead,
-        total: 0,
-        transactionCount: 0,
-        subheads: []
+      // Create transaction reference
+      const txnRef: TransactionRef = {
+        id: item.id,
+        date: '',
+        account: item.accountName,
+        amount: item.amount,
+        type: item.side === 'debit' ? 'debit' : 'credit',
+        source: 'balance_sheet',
+        notes: `${item.section} account`,
+        originalHead: item.head,
+        originalSubhead: item.subhead
       };
+
+      // Add transaction
+      subheadEntry.transactions.push(txnRef);
+      subheadEntry.transactionCount += 1;
+      subheadEntry.amount += item.amount;
+      transactionsByHead[head].total += item.amount;
+      transactionsByHead[head].transactionCount += 1;
     }
-
-    // Find or create subhead
-    let subheadEntry = transactionsByHead[head].subheads.find(s => s.subhead === subhead);
-    if (!subheadEntry) {
-      subheadEntry = {
-        subhead,
-        amount: 0,
-        transactionCount: 0,
-        transactions: [],
-        source: 'journal'
-      };
-      transactionsByHead[head].subheads.push(subheadEntry);
-    }
-
-    // Create transaction reference - use the countable amount (not both debit/credit)
-    // Format: Include state and party name for better context
-    const txnRef: TransactionRef = {
-      id: txn.id,
-      date: txn.date,
-      account: txn.account,
-      amount: countableAmount,
-      type: txn.debit ? 'debit' : 'credit',
-      source: 'journal',
-      notes: txn.notes,
-      originalHead: txn.misHead,
-      originalSubhead: txn.misSubhead,
-      state: txn.state,
-      partyName: txn.partyName
-    };
-
-    // Add transaction to the list for display
-    subheadEntry.transactions.push(txnRef);
-    subheadEntry.transactionCount += 1;
-
-    // Add to totals
-    if (countableAmount > 0) {
-      subheadEntry.amount += countableAmount;
-      transactionsByHead[head].total += countableAmount;
-    }
-    transactionsByHead[head].transactionCount += 1;
   }
 
-  // Add Balance Sheet derived data for COGM Raw Materials
+  // Add Balance Sheet COGM Raw Materials entry
   if (bsData && bsData.openingStock > 0) {
     const cogmHead = 'E. COGM';
     if (!transactionsByHead[cogmHead]) {
@@ -400,97 +498,60 @@ function buildTransactionsByHead(
       };
     }
 
-    // Find or update Raw Materials subhead to mark as BS sourced
+    const bsAmount = bsData.openingStock + bsData.purchases - bsData.closingStock;
+
+    // Add or update Raw Materials subhead
     let rawMatSubhead = transactionsByHead[cogmHead].subheads.find(
       s => s.subhead === 'Raw Materials & Inventory'
     );
 
-    if (rawMatSubhead) {
-      // Update source to balance_sheet
-      rawMatSubhead.source = 'balance_sheet';
-      // Clear journal transactions since we're using BS data
-      const bsAmount = bsData.openingStock + bsData.purchases - bsData.closingStock;
-      rawMatSubhead.amount = bsAmount;
-      rawMatSubhead.transactions = [
-        {
-          id: 'bs-opening-stock',
-          date: '',
-          account: 'Opening Stock (Balance Sheet)',
-          amount: bsData.openingStock,
-          type: 'debit',
-          source: 'balance_sheet'
-        },
-        {
-          id: 'bs-purchases',
-          date: '',
-          account: 'Add: Purchases (Balance Sheet)',
-          amount: bsData.purchases,
-          type: 'debit',
-          source: 'balance_sheet'
-        },
-        {
-          id: 'bs-closing-stock',
-          date: '',
-          account: 'Less: Closing Stock (Balance Sheet)',
-          amount: -bsData.closingStock,
-          type: 'credit',
-          source: 'balance_sheet'
-        }
-      ];
-      rawMatSubhead.transactionCount = 3;
-    } else {
-      // Create new Raw Materials subhead from BS
-      const bsAmount = bsData.openingStock + bsData.purchases - bsData.closingStock;
-      transactionsByHead[cogmHead].subheads.unshift({
+    if (!rawMatSubhead) {
+      rawMatSubhead = {
         subhead: 'Raw Materials & Inventory',
         amount: bsAmount,
         transactionCount: 3,
         source: 'balance_sheet',
-        transactions: [
-          {
-            id: 'bs-opening-stock',
-            date: '',
-            account: 'Opening Stock (Balance Sheet)',
-            amount: bsData.openingStock,
-            type: 'debit',
-            source: 'balance_sheet'
-          },
-          {
-            id: 'bs-purchases',
-            date: '',
-            account: 'Add: Purchases (Balance Sheet)',
-            amount: bsData.purchases,
-            type: 'debit',
-            source: 'balance_sheet'
-          },
-          {
-            id: 'bs-closing-stock',
-            date: '',
-            account: 'Less: Closing Stock (Balance Sheet)',
-            amount: -bsData.closingStock,
-            type: 'credit',
-            source: 'balance_sheet'
-          }
-        ]
-      });
+        transactions: []
+      };
+      transactionsByHead[cogmHead].subheads.unshift(rawMatSubhead);
     }
-  }
 
-  // Build unclassified transactions list
-  const unclassifiedTransactions: UnclassifiedTransaction[] = unclassified.map(txn => ({
-    id: txn.id,
-    date: txn.date,
-    account: txn.account,
-    amount: txn.debit || txn.credit || 0,
-    type: txn.debit ? 'debit' : 'credit',
-    source: 'journal' as const
-  }));
+    // Set balance sheet breakdown
+    rawMatSubhead.source = 'balance_sheet';
+    rawMatSubhead.amount = bsAmount;
+    rawMatSubhead.transactions = [
+      {
+        id: 'bs-opening-stock',
+        date: '',
+        account: 'Opening Stock (Balance Sheet)',
+        amount: bsData.openingStock,
+        type: 'debit',
+        source: 'balance_sheet'
+      },
+      {
+        id: 'bs-purchases',
+        date: '',
+        account: 'Add: Purchases (Balance Sheet)',
+        amount: bsData.purchases,
+        type: 'debit',
+        source: 'balance_sheet'
+      },
+      {
+        id: 'bs-closing-stock',
+        date: '',
+        account: 'Less: Closing Stock (Balance Sheet)',
+        amount: -bsData.closingStock,
+        type: 'credit',
+        source: 'balance_sheet'
+      }
+    ];
+    rawMatSubhead.transactionCount = 3;
+  }
 
   return {
     transactionsByHead,
-    unclassifiedTransactions,
-    ignoredTotal,
-    excludedTotal
+    ignoredTotal: aggregatedExpenses.ignoredTotal,
+    excludedTotal: aggregatedExpenses.excludedTotal
   };
 }
 
@@ -531,13 +592,11 @@ function aggregateSalesData(
 
     // Track stock transfers
     if (sales.stockTransfers > 0) {
-      // Get stock transfer details from line items
       const transferItems = sales.lineItems.filter(item => item.isStockTransfer);
       for (const item of transferItems) {
-        // Always count stock transfers, even if toState is unknown
         stockTransfers.push({
           fromState: state,
-          toState: item.toState || 'Unknown',  // Default to 'Unknown' if state not detected
+          toState: item.toState || 'Unknown',
           amount: item.amount
         });
       }
@@ -548,34 +607,15 @@ function aggregateSalesData(
   revenue.totalGrossRevenue = sumChannelRevenue(revenue.grossRevenue);
   revenue.totalReturns = sumChannelRevenue(revenue.returns);
   revenue.totalTaxes = sumChannelRevenue(revenue.taxes);
-  revenue.totalDiscounts = 0; // Ignored for now
+  revenue.totalDiscounts = 0;
   revenue.stockTransfers = stockTransfers;
   revenue.totalStockTransfers = stockTransfers.reduce((sum, t) => sum + t.amount, 0);
 
   // Calculate net values
-  // Total Revenue = Gross Revenue - Returns - Discounts (Stock transfers already excluded)
   revenue.totalRevenue = revenue.totalGrossRevenue - revenue.totalReturns - revenue.totalDiscounts;
-
-  // Net Revenue = Total Revenue - Taxes
   revenue.netRevenue = revenue.totalRevenue - revenue.totalTaxes;
 
   return revenue;
-}
-
-function collectAllTransactions(
-  stateData: Record<IndianState, StateUploadData | undefined>,
-  selectedStates: IndianState[]
-): import('../types').Transaction[] {
-  const transactions: import('../types').Transaction[] = [];
-
-  for (const state of selectedStates) {
-    const data = stateData[state];
-    if (!data?.journalTransactions) continue;
-
-    transactions.push(...data.journalTransactions);
-  }
-
-  return transactions;
 }
 
 function sumChannelRevenue(channel: ChannelRevenue): number {
@@ -597,8 +637,6 @@ function calculateTotal(cogm: COGMData): number {
 
 // Aggregate Balance Sheet data from selected states for reconciliation
 // IMPORTANT: COGM (Opening Stock, Purchases, Closing Stock) ALL come from UP only
-// as UP is the main warehouse/manufacturing facility. Other states receive stock via transfers.
-// grossSales and netProfitLoss are summed from all selected states for reporting.
 function aggregateBalanceSheetData(
   stateData: Record<IndianState, StateUploadData | undefined>,
   selectedStates: IndianState[]
@@ -615,21 +653,11 @@ function aggregateBalanceSheetData(
   };
 
   console.log('=== aggregateBalanceSheetData Debug ===');
-  console.log('Selected states:', selectedStates);
 
   // COGM values ALWAYS come from UP only (main warehouse)
   const upData = stateData['UP'];
-  console.log('UP stateData:', upData);
-  console.log('UP balanceSheetData (RAW):', upData?.balanceSheetData);
 
   if (upData?.balanceSheetData) {
-    // Log the raw values BEFORE assignment to catch any issues
-    console.log('RAW UP BS field values:', {
-      'upData.balanceSheetData.openingStock': upData.balanceSheetData.openingStock,
-      'upData.balanceSheetData.purchases': upData.balanceSheetData.purchases,
-      'upData.balanceSheetData.closingStock': upData.balanceSheetData.closingStock,
-    });
-
     aggregated.openingStock = upData.balanceSheetData.openingStock || 0;
     aggregated.closingStock = upData.balanceSheetData.closingStock || 0;
     aggregated.purchases = upData.balanceSheetData.purchases || 0;
@@ -640,7 +668,7 @@ function aggregateBalanceSheetData(
     });
   }
 
-  // Sum grossSales, netProfitLoss from selected states (for reporting)
+  // Sum grossSales, netProfitLoss from selected states
   let hasAnyData = false;
   for (const state of selectedStates) {
     const data = stateData[state];
@@ -651,28 +679,20 @@ function aggregateBalanceSheetData(
     aggregated.netSales += data.balanceSheetData.netSales || 0;
     aggregated.grossProfit += data.balanceSheetData.grossProfit || 0;
     aggregated.netProfitLoss += data.balanceSheetData.netProfitLoss || 0;
-
-    console.log(`State ${state} BS values:`, {
-      grossSales: data.balanceSheetData.grossSales,
-      netProfitLoss: data.balanceSheetData.netProfitLoss
-    });
   }
 
-  // If UP has data, we have COGM data even if no selected state has BS data
   if (upData?.balanceSheetData) {
     hasAnyData = true;
   }
 
   if (!hasAnyData) {
-    console.log('No BS data found - returning undefined');
     return undefined;
   }
 
-  // Calculate COGS from Balance Sheet formula: Opening Stock + Purchases - Closing Stock
+  // Calculate COGS from Balance Sheet
   aggregated.calculatedCOGS = aggregated.openingStock + aggregated.purchases - aggregated.closingStock;
 
   console.log('Aggregated BS result:', aggregated);
-  console.log('=== End aggregateBalanceSheetData Debug ===');
 
   return aggregated;
 }
@@ -686,13 +706,10 @@ export function formatCurrency(amount: number): string {
   const sign = amount < 0 ? '-' : '';
 
   if (absAmount >= 10000000) {
-    // Crores
     return `${sign}₹${(absAmount / 10000000).toFixed(2)} Cr`;
   } else if (absAmount >= 100000) {
-    // Lakhs
     return `${sign}₹${(absAmount / 100000).toFixed(2)} L`;
   } else if (absAmount >= 1000) {
-    // Thousands
     return `${sign}₹${(absAmount / 1000).toFixed(2)} K`;
   } else {
     return `${sign}₹${absAmount.toFixed(2)}`;
@@ -710,8 +727,7 @@ export function formatCurrencyFull(amount: number): string {
 }
 
 export function formatPercent(value: number): string {
-  const sign = value < 0 ? '' : '';
-  return `${sign}${value.toFixed(2)}%`;
+  return `${value.toFixed(2)}%`;
 }
 
 // ============================================

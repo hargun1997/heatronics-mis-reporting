@@ -9,13 +9,10 @@ import {
   periodToKey
 } from '../types/misTracking';
 import { loadMISData, saveMISRecord, getAllPeriods, getMISRecord } from '../utils/googleSheetsStorage';
-import { parseSalesRegister, parseJournal, parsePurchaseRegister, parseBalanceSheet } from '../utils/misTrackingParser';
+import { parseSalesRegister, parsePurchaseRegister, parseBalanceSheet } from '../utils/misTrackingParser';
 import { calculateMIS, formatCurrency, formatPercent } from '../utils/misCalculator';
-import { ClassificationReviewModal } from '../components/mis-tracking/ClassificationReviewModal';
-import { QuickClassifyModal } from '../components/mis-tracking/QuickClassifyModal';
 import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
-import { findUnclassifiedEntities, getRulesCached, clearAllCaches as clearClassificationCaches } from '../utils/classificationApi';
 import {
   checkDriveStatus,
   getDriveFolderStructure,
@@ -31,10 +28,9 @@ import { StateName } from '../types/stateData';
 import {
   storeBalanceSheet as storeStateBSData,
   storeSalesRegister as storeStateSRData,
-  storePurchaseRegister as storeStatePRData,
-  storeJournalRegister as storeStateJRData
+  storePurchaseRegister as storeStatePRData
 } from '../services/stateDataStore';
-import { StateBalanceSheet, StateSalesRegister, StatePurchaseRegister, StateJournalRegister } from '../types/stateData';
+import { StateBalanceSheet, StateSalesRegister, StatePurchaseRegister } from '../types/stateData';
 
 // ============================================
 // DRIVE STATE CODE MAPPING
@@ -80,8 +76,6 @@ interface SerializableStateUploadData {
   state: IndianState;
   salesData?: any;
   salesParsed: boolean;
-  journalTransactions?: any[];
-  journalParsed: boolean;
   purchaseTotal?: number;
   purchaseParsed: boolean;
   balanceSheetData?: any;
@@ -114,8 +108,6 @@ function saveUploadDataToStorage(monthsData: Record<string, MonthData>) {
             state: stateData.state,
             salesData: stateData.salesData,
             salesParsed: stateData.salesParsed,
-            journalTransactions: stateData.journalTransactions,
-            journalParsed: stateData.journalParsed,
             purchaseTotal: stateData.purchaseTotal,
             purchaseParsed: stateData.purchaseParsed,
             balanceSheetData: stateData.balanceSheetData,
@@ -126,7 +118,7 @@ function saveUploadDataToStorage(monthsData: Record<string, MonthData>) {
 
       // Only save if there's actual parsed data
       const hasParsedData = Object.values(serializedUpload).some(
-        s => s?.salesParsed || s?.journalParsed || s?.purchaseParsed || s?.balanceSheetParsed
+        s => s?.salesParsed || s?.purchaseParsed || s?.balanceSheetParsed
       );
 
       if (hasParsedData) {
@@ -189,15 +181,7 @@ export function MISTrackingNew() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatingMonth, setGeneratingMonth] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showClassificationModal, setShowClassificationModal] = useState(false);
-  const [pendingMIS, setPendingMIS] = useState<MISRecord | null>(null);
   const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
-
-  // Quick Classify Modal State
-  const [showQuickClassify, setShowQuickClassify] = useState(false);
-  const [quickClassifyEntities, setQuickClassifyEntities] = useState<{ name: string; type: 'ledger' | 'party'; amount?: number; state?: string }[]>([]);
-  const [quickClassifyPeriod, setQuickClassifyPeriod] = useState('');
-  const [pendingGeneratePeriodKey, setPendingGeneratePeriodKey] = useState<string | null>(null);
 
   // Google Drive State
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
@@ -261,9 +245,6 @@ export function MISTrackingNew() {
               salesRegisterFile: null, // File objects can't be serialized
               salesData: serialized.salesData,
               salesParsed: serialized.salesParsed,
-              journalFile: null,
-              journalTransactions: serialized.journalTransactions || [],
-              journalParsed: serialized.journalParsed,
               purchaseRegisterFile: null,
               purchaseTotal: serialized.purchaseTotal || 0,
               purchaseParsed: serialized.purchaseParsed,
@@ -384,7 +365,7 @@ export function MISTrackingNew() {
   const handleFileUpload = async (
     periodKey: string,
     state: IndianState,
-    fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet',
+    fileType: 'sales' | 'purchase' | 'balanceSheet',
     file: File
   ) => {
     setError(null);
@@ -443,87 +424,6 @@ export function MISTrackingNew() {
               roundOffs: 0
             };
             storeStateSRData(periodKey, stateAbbrev, srData);
-          }
-          break;
-
-        case 'journal':
-          updatedStateData.journalFile = file;
-          const journalResult = await parseJournal(file, state);
-          updatedStateData.journalTransactions = journalResult.transactions;
-          updatedStateData.journalParsed = true;
-
-          // Also store in new state data store
-          if (stateAbbrev) {
-            // Process journal transactions to extract expenses, GST, TDS
-            const expensesByHead: Record<string, number> = {};
-            const expenseEntries: StateJournalRegister['expenseEntries'] = [];
-            let totalExpenses = 0;
-            let jrSgst = 0, jrCgst = 0, jrIgst = 0, jrTds = 0, jrRoundOffs = 0;
-
-            // Group transactions by voucher to find debit/credit pairs
-            for (const tx of journalResult.transactions) {
-              const account = tx.account.toLowerCase();
-
-              // Track GST separately
-              if (account.includes('sgst')) {
-                jrSgst += tx.debit || 0;
-                continue;
-              }
-              if (account.includes('cgst')) {
-                jrCgst += tx.debit || 0;
-                continue;
-              }
-              if (account.includes('igst')) {
-                jrIgst += tx.debit || 0;
-                continue;
-              }
-              if (account.includes('tds')) {
-                jrTds += tx.debit || 0;
-                continue;
-              }
-              if (account.includes('round')) {
-                jrRoundOffs += tx.debit || 0;
-                continue;
-              }
-
-              // Skip bank/cash entries
-              if (account.includes('bank') || account.includes('cash') || account.includes('icici') || account.includes('hdfc')) {
-                continue;
-              }
-
-              // Only count debit entries as expenses
-              if (tx.debit > 0) {
-                const misHead = tx.head || 'Other Expenses';
-                expensesByHead[misHead] = (expensesByHead[misHead] || 0) + tx.debit;
-                totalExpenses += tx.debit;
-
-                expenseEntries.push({
-                  date: tx.date,
-                  debitAmount: tx.debit,
-                  debitParticulars: tx.account,
-                  creditParty: '', // Would need to look up corresponding credit
-                  misHead,
-                  state: stateAbbrev,
-                  isGST: false,
-                  isTDS: false,
-                  isRoundOff: false,
-                  isSkipped: false
-                });
-              }
-            }
-
-            const jrData: StateJournalRegister = {
-              entries: [],
-              expenseEntries,
-              expensesByHead,
-              totalExpenses,
-              sgst: jrSgst,
-              cgst: jrCgst,
-              igst: jrIgst,
-              tds: jrTds,
-              roundOffs: jrRoundOffs
-            };
-            storeStateJRData(periodKey, stateAbbrev, jrData);
           }
           break;
 
@@ -613,81 +513,8 @@ export function MISTrackingNew() {
   // MIS GENERATION
   // ============================================
 
-  // Extract unique ledger/party names from journal transactions
-  const extractEntitiesFromUploadData = (uploadData: Record<IndianState, StateUploadData | undefined>): { name: string; type: 'ledger' | 'party'; amount?: number; state?: string }[] => {
-    const entities: { name: string; type: 'ledger' | 'party'; amount?: number; state?: string }[] = [];
-    const seenNames = new Set<string>();
-
-    for (const state of selectedStates) {
-      const stateData = uploadData[state];
-      if (!stateData?.journalTransactions) continue;
-
-      for (const tx of stateData.journalTransactions) {
-        const name = tx.account;
-        if (!name || seenNames.has(name.toLowerCase())) continue;
-        seenNames.add(name.toLowerCase());
-
-        entities.push({
-          name,
-          type: 'ledger',
-          amount: tx.debit || tx.credit,
-          state
-        });
-      }
-    }
-
-    return entities;
-  };
-
-  // Check for unclassified entities before MIS generation
-  const checkAndGenerateMIS = async (periodKey: string) => {
-    setError(null);
-    setGeneratingMonth(periodKey);
-
-    try {
-      const monthData = monthsData[periodKey];
-      if (!monthData) return;
-
-      // Extract entities from journal data
-      const entities = extractEntitiesFromUploadData(monthData.uploadData);
-
-      if (entities.length > 0) {
-        // Check which entities are unclassified
-        const result = await findUnclassifiedEntities(
-          entities.map(e => ({ name: e.name, type: e.type }))
-        );
-
-        if (result.unclassified > 0) {
-          // Show quick classify modal for unclassified entities
-          const unclassifiedWithDetails = result.unclassifiedEntities.map(ue => {
-            const original = entities.find(e => e.name.toLowerCase() === ue.name.toLowerCase());
-            return {
-              name: ue.name,
-              type: ue.type,
-              amount: original?.amount,
-              state: original?.state
-            };
-          });
-
-          setQuickClassifyEntities(unclassifiedWithDetails);
-          setQuickClassifyPeriod(periodToString(monthData.period));
-          setPendingGeneratePeriodKey(periodKey);
-          setShowQuickClassify(true);
-          setGeneratingMonth(null);
-          return;
-        }
-      }
-
-      // No unclassified entities, proceed with generation
-      await doGenerateMIS(periodKey);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to check classifications');
-      setGeneratingMonth(null);
-    }
-  };
-
-  // Actually generate the MIS (called after classification check passes)
-  const doGenerateMIS = async (periodKey: string) => {
+  // Generate MIS for a period
+  const handleGenerateMIS = async (periodKey: string) => {
     setGeneratingMonth(periodKey);
 
     try {
@@ -712,35 +539,15 @@ export function MISTrackingNew() {
       // Reload all data
       await loadSavedData();
 
-      // If there are unclassified transactions, show the modal
-      if (mis.unclassifiedCount > 0) {
-        setPendingMIS(mis);
-        setShowClassificationModal(true);
-      } else {
-        // Show the report
-        setViewingMIS(mis);
-        setActiveView('report');
-      }
+      // Show the report
+      setViewingMIS(mis);
+      setActiveView('report');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate MIS');
     } finally {
       setGeneratingMonth(null);
     }
   };
-
-  // Handle quick classify completion
-  const handleQuickClassifyComplete = async () => {
-    setShowQuickClassify(false);
-    clearClassificationCaches(); // Clear cache to get fresh rules
-
-    if (pendingGeneratePeriodKey) {
-      await doGenerateMIS(pendingGeneratePeriodKey);
-      setPendingGeneratePeriodKey(null);
-    }
-  };
-
-  // Legacy function name for compatibility
-  const handleGenerateMIS = checkAndGenerateMIS;
 
   // ============================================
   // HELPERS
@@ -749,13 +556,12 @@ export function MISTrackingNew() {
   // Map file types to Drive file type names
   const FILE_TYPE_TO_DRIVE: Record<string, string> = {
     'sales': 'sales_register',
-    'journal': 'journal_register',
     'purchase': 'purchase_register',
     'balanceSheet': 'balance_sheet'
   };
 
   // Check if a specific file exists in Drive for a state/month
-  const isFileInDrive = (year: number, month: number, state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): boolean => {
+  const isFileInDrive = (year: number, month: number, state: IndianState, fileType: 'sales' | 'purchase' | 'balanceSheet'): boolean => {
     const driveMonth = getDriveMonthData(year, month);
     if (!driveMonth) return false;
 
@@ -781,7 +587,7 @@ export function MISTrackingNew() {
   };
 
   // Simplified file status - only show empty or parsed (no confusing Drive status icons)
-  const getUploadStatus = (periodKey: string, state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet'): 'empty' | 'parsed' => {
+  const getUploadStatus = (periodKey: string, state: IndianState, fileType: 'sales' | 'purchase' | 'balanceSheet'): 'empty' | 'parsed' => {
     const monthData = monthsData[periodKey];
     if (!monthData) return 'empty';
 
@@ -792,8 +598,6 @@ export function MISTrackingNew() {
     switch (fileType) {
       case 'sales':
         return data.salesParsed ? 'parsed' : 'empty';
-      case 'journal':
-        return data.journalParsed ? 'parsed' : 'empty';
       case 'purchase':
         return data.purchaseParsed ? 'parsed' : 'empty';
       case 'balanceSheet':
@@ -811,7 +615,7 @@ export function MISTrackingNew() {
     // All file types are optional
     for (const state of selectedStates) {
       const data = monthData.uploadData[state];
-      if (data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
+      if (data?.salesParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
         return true;
       }
     }
@@ -832,7 +636,7 @@ export function MISTrackingNew() {
     // Count loaded states and check which Drive states are loaded
     for (const state of selectedStates) {
       const data = monthData.uploadData[state];
-      if (data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
+      if (data?.salesParsed || data?.purchaseParsed || data?.balanceSheetParsed) {
         hasAnyParsedFile = true;
 
         // Check if this state was in Drive
@@ -930,13 +734,6 @@ export function MISTrackingNew() {
               stateUpload.salesParsed = true;
               break;
 
-            case 'journal_register':
-              stateUpload.journalFile = file;
-              const journalResult = await parseJournal(file, indianState);
-              stateUpload.journalTransactions = journalResult.transactions;
-              stateUpload.journalParsed = true;
-              break;
-
             case 'purchase_register':
               stateUpload.purchaseRegisterFile = file;
               const purchaseResult = await parsePurchaseRegister(file);
@@ -987,9 +784,6 @@ export function MISTrackingNew() {
         case 'sales_register':
           const salesResult = await parseSalesRegister(file, indianState);
           return { type: 'sales_register', result: { file, salesData: salesResult.salesData } };
-        case 'journal_register':
-          const journalResult = await parseJournal(file, indianState);
-          return { type: 'journal_register', result: { file, transactions: journalResult.transactions } };
         case 'purchase_register':
           const purchaseResult = await parsePurchaseRegister(file);
           return { type: 'purchase_register', result: { file, totalPurchases: purchaseResult.totalPurchases } };
@@ -1037,7 +831,7 @@ export function MISTrackingNew() {
           const indianState = DRIVE_STATE_MAP[stateData.code];
           if (!indianState) return true;
           const data = existingMonthData.uploadData[indianState];
-          return data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed;
+          return data?.salesParsed || data?.purchaseParsed || data?.balanceSheetParsed;
         });
 
         if (hasAllData) {
@@ -1059,8 +853,7 @@ export function MISTrackingNew() {
 
           // Check if this state already has data
           const existingStateData = monthUploadData[indianState];
-          if (existingStateData?.salesParsed || existingStateData?.journalParsed ||
-              existingStateData?.purchaseParsed || existingStateData?.balanceSheetParsed) {
+          if (existingStateData?.salesParsed || existingStateData?.purchaseParsed || existingStateData?.balanceSheetParsed) {
             return { indianState, stateUpload: existingStateData };
           }
 
@@ -1079,11 +872,6 @@ export function MISTrackingNew() {
                 stateUpload.salesRegisterFile = result.result.file;
                 stateUpload.salesData = result.result.salesData;
                 stateUpload.salesParsed = true;
-                break;
-              case 'journal_register':
-                stateUpload.journalFile = result.result.file;
-                stateUpload.journalTransactions = result.result.transactions;
-                stateUpload.journalParsed = true;
                 break;
               case 'purchase_register':
                 stateUpload.purchaseRegisterFile = result.result.file;
@@ -1158,7 +946,7 @@ export function MISTrackingNew() {
         // Only generate for months that have data but no MIS yet, or have updated data
         const hasAnyData = selectedStates.some(state => {
           const data = md.uploadData[state];
-          return data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed;
+          return data?.salesParsed || data?.purchaseParsed || data?.balanceSheetParsed;
         });
         return hasAnyData;
       });
@@ -1213,7 +1001,7 @@ export function MISTrackingNew() {
     return Object.values(monthsData).filter(md => {
       const hasAnyData = selectedStates.some(state => {
         const data = md.uploadData[state];
-        return data?.salesParsed || data?.journalParsed || data?.purchaseParsed || data?.balanceSheetParsed;
+        return data?.salesParsed || data?.purchaseParsed || data?.balanceSheetParsed;
       });
       return hasAnyData && !md.hasData;
     }).length;
@@ -1592,46 +1380,9 @@ export function MISTrackingNew() {
         <MISTrendsView savedPeriods={savedPeriods} />
       )}
 
-      {/* Classification Review Modal */}
-      {showClassificationModal && pendingMIS && (
-        <ClassificationReviewModal
-          transactions={pendingMIS.classifiedTransactions}
-          unclassifiedCount={pendingMIS.unclassifiedCount}
-          onClose={() => {
-            setShowClassificationModal(false);
-            setViewingMIS(pendingMIS);
-            setActiveView('report');
-            setPendingMIS(null);
-          }}
-          onSave={async (updatedTransactions) => {
-            const updatedMIS = { ...pendingMIS, classifiedTransactions: updatedTransactions };
-            await saveMISRecord(updatedMIS);
-            await loadSavedData();
-            setShowClassificationModal(false);
-            setViewingMIS(updatedMIS);
-            setActiveView('report');
-            setPendingMIS(null);
-          }}
-        />
-      )}
-
       {/* Algorithm Guide Modal */}
       {showAlgorithmGuide && (
         <AlgorithmGuideModal onClose={() => setShowAlgorithmGuide(false)} />
-      )}
-
-      {/* Quick Classify Modal */}
-      {showQuickClassify && quickClassifyEntities.length > 0 && (
-        <QuickClassifyModal
-          entities={quickClassifyEntities}
-          periodLabel={quickClassifyPeriod}
-          onClose={() => {
-            setShowQuickClassify(false);
-            setQuickClassifyEntities([]);
-            setPendingGeneratePeriodKey(null);
-          }}
-          onComplete={handleQuickClassifyComplete}
-        />
       )}
     </div>
   );
@@ -1644,8 +1395,8 @@ export function MISTrackingNew() {
 interface MonthDetailPanelProps {
   monthData: MonthData;
   selectedStates: IndianState[];
-  onFileUpload: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet', file: File) => void;
-  getUploadStatus: (state: IndianState, fileType: 'sales' | 'journal' | 'purchase' | 'balanceSheet') => 'empty' | 'parsed';
+  onFileUpload: (state: IndianState, fileType: 'sales' | 'purchase' | 'balanceSheet', file: File) => void;
+  getUploadStatus: (state: IndianState, fileType: 'sales' | 'purchase' | 'balanceSheet') => 'empty' | 'parsed';
   onViewMIS: () => void;
   isLoading: boolean;
   onClose: () => void;
@@ -1663,11 +1414,10 @@ function MonthDetailPanel({
   onClose,
   driveData
 }: MonthDetailPanelProps) {
-  const docTypes: { type: 'sales' | 'journal' | 'purchase' | 'balanceSheet'; label: string; required: boolean }[] = [
+  const docTypes: { type: 'sales' | 'purchase' | 'balanceSheet'; label: string; required: boolean }[] = [
     { type: 'sales', label: 'Sales Register', required: true },
-    { type: 'journal', label: 'Journal', required: false },
     { type: 'purchase', label: 'Purchase Register', required: false },
-    { type: 'balanceSheet', label: 'Balance Sheet', required: false }
+    { type: 'balanceSheet', label: 'Balance Sheet (Trading + P&L)', required: true }
   ];
 
   return (
