@@ -10,6 +10,7 @@ import {
 } from '../types/misTracking';
 import { loadMISData, saveMISRecord, getAllPeriods, getMISRecord } from '../utils/googleSheetsStorage';
 import { parseSalesRegister, parsePurchaseRegister, parseBalanceSheet } from '../utils/misTrackingParser';
+import { parseBalanceSheetEnhanced } from '../utils/balanceSheetParser';
 import { calculateMIS, formatCurrency, formatPercent } from '../utils/misCalculator';
 import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
@@ -452,6 +453,9 @@ export function MISTrackingNew() {
           updatedStateData.balanceSheetFile = file;
           const bsResult = await parseBalanceSheet(file);
 
+          // Also parse using enhanced parser for expense extraction
+          const enhancedResult = await parseBalanceSheetEnhanced(file);
+
           // DEBUG: Log parsed BS data
           console.log('=== BS PARSE RESULT ===');
           console.log('File:', file.name);
@@ -460,10 +464,23 @@ export function MISTrackingNew() {
           console.log('bsResult.data.openingStock:', bsResult.data.openingStock);
           console.log('bsResult.data.purchases:', bsResult.data.purchases);
           console.log('bsResult.data.closingStock:', bsResult.data.closingStock);
+          console.log('=== ENHANCED BS RESULT ===');
+          console.log('enhancedResult.success:', enhancedResult.success);
+          if (enhancedResult.data) {
+            console.log('enhancedResult lineItems:', enhancedResult.data.allLineItems?.length || 0);
+            console.log('enhancedResult mappedItems:', enhancedResult.data.mappedItems?.length || 0);
+            console.log('enhancedResult tradingAccount directExpenses:', enhancedResult.data.tradingAccount?.directExpenses?.length || 0);
+            console.log('enhancedResult plAccount indirectExpenses:', enhancedResult.data.plAccount?.indirectExpenses?.length || 0);
+          }
           console.log('=========================');
 
           updatedStateData.balanceSheetData = bsResult.data;
           updatedStateData.balanceSheetParsed = true;
+
+          // Store enhanced balance sheet data for expense extraction
+          if (enhancedResult.success && enhancedResult.data) {
+            updatedStateData.enhancedBalanceSheetData = enhancedResult.data;
+          }
 
           // Also store in new state data store
           if (stateAbbrev) {
@@ -746,6 +763,11 @@ export function MISTrackingNew() {
               const bsResult = await parseBalanceSheet(file);
               stateUpload.balanceSheetData = bsResult.data;
               stateUpload.balanceSheetParsed = true;
+              // Also parse enhanced for expense extraction
+              const enhancedBsResult = await parseBalanceSheetEnhanced(file);
+              if (enhancedBsResult.success && enhancedBsResult.data) {
+                stateUpload.enhancedBalanceSheetData = enhancedBsResult.data;
+              }
               break;
           }
         }
@@ -789,7 +811,16 @@ export function MISTrackingNew() {
           return { type: 'purchase_register', result: { file, totalPurchases: purchaseResult.totalPurchases } };
         case 'balance_sheet':
           const bsResult = await parseBalanceSheet(file);
-          return { type: 'balance_sheet', result: { file, data: bsResult.data } };
+          // Also parse enhanced for expense extraction
+          const enhancedBsResult = await parseBalanceSheetEnhanced(file);
+          return {
+            type: 'balance_sheet',
+            result: {
+              file,
+              data: bsResult.data,
+              enhancedData: enhancedBsResult.success ? enhancedBsResult.data : undefined
+            }
+          };
         default:
           return null;
       }
@@ -882,6 +913,9 @@ export function MISTrackingNew() {
                 stateUpload.balanceSheetFile = result.result.file;
                 stateUpload.balanceSheetData = result.result.data;
                 stateUpload.balanceSheetParsed = true;
+                if (result.result.enhancedData) {
+                  stateUpload.enhancedBalanceSheetData = result.result.enhancedData;
+                }
                 break;
             }
           }

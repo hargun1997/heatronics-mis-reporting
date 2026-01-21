@@ -96,12 +96,15 @@ type Side = 'debit' | 'credit' | 'unknown';
 
 function detectSection(line: string, currentSection: Section): Section {
   const lower = line.toLowerCase();
+  // Trading Account patterns - including "Trading A/c"
   if (/t\s*r\s*a\s*d\s*i\s*n\s*g\s*a\s*c\s*c\s*o\s*u\s*n\s*t/i.test(lower) ||
-      /trading\s*account/i.test(lower)) {
+      /trading\s*(account|a\/?c)/i.test(lower)) {
     return 'trading';
   }
+  // Profit & Loss Account patterns - including "Profit & Loss A/c", "P&L"
   if (/p\s*r\s*o\s*f\s*i\s*t\s*(&|and)?\s*l\s*o\s*s\s*s/i.test(lower) ||
-      /profit\s*(&|and)?\s*loss\s*account/i.test(lower)) {
+      /profit\s*(&|and)?\s*loss\s*(account|a\/?c)/i.test(lower) ||
+      /p\s*&?\s*l\s*(account|a\/?c)/i.test(lower)) {
     return 'pl';
   }
   return currentSection;
