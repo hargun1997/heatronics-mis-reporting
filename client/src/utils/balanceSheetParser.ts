@@ -341,6 +341,49 @@ export async function parseBalanceSheetExcelEnhanced(file: File): Promise<Balanc
 }
 
 // ============================================
+// HELPER FOR MULTI-LINE ENTRIES
+// ============================================
+
+function createLineItemFromParts(
+  accountName: string,
+  amount: number,
+  section: Section,
+  side: Side,
+  lineIndex: number
+): BalanceSheetLineItem | null {
+  if (section === 'unknown' || side === 'unknown') {
+    return null;
+  }
+
+  const normalized = normalizeAccountName(accountName);
+  const special = detectSpecialItem(accountName);
+
+  const item: BalanceSheetLineItem = {
+    id: generateId(),
+    accountName,
+    normalizedName: normalized,
+    amount,
+    section: section as 'trading' | 'pl',
+    side: side as 'debit' | 'credit',
+    isSpecial: special.isSpecial,
+    specialType: special.type
+  };
+
+  // Apply MIS mapping if not a special item
+  if (!special.isSpecial && !isSpecialAccount(accountName)) {
+    const mapping = mapAccountToMIS(accountName);
+    if (mapping) {
+      item.head = mapping.head;
+      item.subhead = mapping.subhead;
+      item.type = mapping.type;
+      item.plLine = mapping.plLine;
+    }
+  }
+
+  return item;
+}
+
+// ============================================
 // MAIN PARSING LOGIC
 // ============================================
 
@@ -358,6 +401,7 @@ function parseAllLineItems(
   let lastParentAccount = '';
   let sectionSwitchCount = 0;
   let linesProcessed = 0;
+  let pendingAccountName = ''; // For multi-line entries where name is on one line and amount on next
 
   console.log('[parseAllLineItems] Starting to parse', lines.length, 'lines');
 
@@ -382,19 +426,64 @@ function parseAllLineItems(
 
     linesProcessed++;
 
-    // Extract line item
-    const item = extractLineItem(line, currentSection, currentSide, i);
-    if (!item) {
-      // Debug: Log why extraction failed for first few non-items
-      if (linesProcessed < 10) {
-        const accountName = extractAccountName(line);
-        const amount = extractAmountFromLine(line);
-        console.log(`[parseAllLineItems] Skipped line ${i}: name="${accountName}" amount=${amount}`);
+    // Check if this line is just an amount (continuation of previous account name)
+    const lineAmount = extractAmountFromLine(line);
+    const lineAccountName = extractAccountName(line);
+
+    // If we have a pending account name and this line has an amount but little/no text
+    if (pendingAccountName && lineAmount > 0 && (!lineAccountName || lineAccountName.length < 3)) {
+      // This is a continuation line - create item with pending name and this amount
+      const multiLineItem = createLineItemFromParts(pendingAccountName, lineAmount, currentSection, currentSide, i);
+      pendingAccountName = '';
+
+      if (multiLineItem) {
+        console.log(`[parseAllLineItems] Multi-line item: "${multiLineItem.accountName}" = ${multiLineItem.amount}`);
+
+        // Add to appropriate section (same logic as regular items below)
+        if (!multiLineItem.isSpecial) {
+          if (currentSection === 'trading') {
+            tradingAccount.directExpenses.push(multiLineItem);
+            if (currentSide === 'debit') {
+              tradingAccount.debitTotal += multiLineItem.amount;
+            } else {
+              tradingAccount.creditTotal += multiLineItem.amount;
+            }
+          } else if (currentSection === 'pl') {
+            if (multiLineItem.type === 'other_income') {
+              plAccount.otherIncome.push(multiLineItem);
+            } else {
+              plAccount.indirectExpenses.push(multiLineItem);
+            }
+            if (currentSide === 'debit') {
+              plAccount.debitTotal += multiLineItem.amount;
+            } else {
+              plAccount.creditTotal += multiLineItem.amount;
+            }
+          }
+          result.allLineItems.push(multiLineItem);
+        }
       }
       continue;
     }
 
-    // Handle special items
+    // Extract line item normally
+    const item = extractLineItem(line, currentSection, currentSide, i);
+    if (!item) {
+      // Check if this line has an account name but no amount (might be multi-line)
+      if (lineAccountName && lineAccountName.length >= 3 && lineAmount === 0) {
+        // Check if it looks like an expense account (not a header)
+        if (!isSectionHeader(line) && !/^to\s+(opening|closing|purchase|gross|expenses)/i.test(trimmed)) {
+          pendingAccountName = lineAccountName;
+          console.log(`[parseAllLineItems] Pending multi-line account: "${pendingAccountName}"`);
+        }
+      }
+      continue;
+    }
+
+    // Clear pending if we got a valid item
+    pendingAccountName = '';
+
+    // Handle special items (Opening Stock, Closing Stock, etc.)
     if (item.isSpecial) {
       switch (item.specialType) {
         case 'opening_stock':
