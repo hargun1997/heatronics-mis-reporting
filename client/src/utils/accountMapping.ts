@@ -351,7 +351,18 @@ export function isSpecialAccount(accountName: string): boolean {
     'by expenses',
   ];
 
-  return specialAccounts.some(special => normalized.includes(special));
+  // Check if it's one of the special accounts
+  if (specialAccounts.some(special => normalized.includes(special))) {
+    return true;
+  }
+
+  // Also check if the account name is purely "sales" or "sale" (revenue, not expense)
+  const cleaned = normalized.replace(/[|;:]/g, '').trim();
+  if (cleaned === 'sale' || cleaned === 'sales') {
+    return true;
+  }
+
+  return false;
 }
 
 /**
