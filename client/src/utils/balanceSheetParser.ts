@@ -78,8 +78,16 @@ function extractFirstAmountFromLine(line: string): number {
 
 // Extract account name from a line (text before the numbers)
 function extractAccountName(line: string): string {
+  // First, handle PDF column bleeding - split on pipe and take first part only
+  // This handles cases like "AMAZON LOGISTICS EXP. | By Nett Loss"
+  let cleaned = line.split('|')[0].trim();
+
+  // Also remove any "By ..." suffix that indicates credit side bleeding through
+  // Match " By " followed by common credit-side items
+  cleaned = cleaned.replace(/\s+By\s+(Nett?\s*(Profit|Loss)|Gross\s*Profit|Sales?|Closing).*$/i, '').trim();
+
   // Remove "To " or "By " prefix
-  let cleaned = line.replace(/^(to|by)\s+/i, '').trim();
+  cleaned = cleaned.replace(/^(to|by)\s+/i, '').trim();
   // Normalize multiple spaces to single space BEFORE removing numbers
   cleaned = cleaned.replace(/\s+/g, ' ');
   // Remove numbers and keep only text
