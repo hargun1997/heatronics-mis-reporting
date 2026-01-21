@@ -80,12 +80,11 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   'transportation expenses': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
   'logistics exp': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },
 
-  // Factory Maintenance
+  // Factory Maintenance (includes electricity, water, power backup)
   'power backup & maitenance': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'power backup & maintenance': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
-
-  // Factory Electricity
-  'electricity & water expenses': { head: 'E. COGM', subhead: 'Factory Electricity', type: 'expense', plLine: 'COGS' },
+  'electricity & water expenses': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
+  'electricity & water': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
 
   // ============================================
   // F. CHANNEL & FULFILLMENT
