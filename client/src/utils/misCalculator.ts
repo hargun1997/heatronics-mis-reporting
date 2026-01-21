@@ -653,13 +653,16 @@ function sumChannelRevenue(channel: ChannelRevenue): number {
 function calculateTotal(cogm: COGMData): number {
   return (
     cogm.rawMaterialsInventory +
+    cogm.consumables +
     cogm.manufacturingWages +
     cogm.contractWagesMfg +
     cogm.inboundTransport +
     cogm.factoryRent +
     cogm.factoryElectricity +
     cogm.factoryMaintenance +
-    cogm.jobWork
+    cogm.jobWork +
+    cogm.qualityTesting +
+    cogm.otherDirectExpenses
   );
 }
 
