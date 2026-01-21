@@ -74,6 +74,7 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   // Inbound Transport
   'freight charges trading': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
   'freight charges': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
+  'freight chares': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },  // Typo in Busy
   'loading & unloading exp': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
   'loading & unloading exp p&l': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },
   'transpotation expenses': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
