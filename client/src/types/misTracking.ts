@@ -319,21 +319,21 @@ export interface StateUploadData {
 
   // Files
   salesRegisterFile: File | null;
-  journalFile: File | null;
   purchaseRegisterFile: File | null;
   balanceSheetFile: File | null;
 
   // Parse status
   salesParsed: boolean;
-  journalParsed: boolean;
   purchaseParsed: boolean;
   balanceSheetParsed: boolean;
 
   // Parsed data
   salesData: StateSalesData | null;
-  journalTransactions: Transaction[];
   purchaseTotal: number;
   balanceSheetData: StateBalanceSheetData | null;
+
+  // Enhanced balance sheet data (for expense extraction)
+  enhancedBalanceSheetData?: import('./balanceSheet').EnhancedBalanceSheetData;
 }
 
 export interface StateSalesData {
@@ -421,17 +421,15 @@ export function createEmptyStateUploadData(state: IndianState): StateUploadData 
   return {
     state,
     salesRegisterFile: null,
-    journalFile: null,
     purchaseRegisterFile: null,
     balanceSheetFile: null,
     salesParsed: false,
-    journalParsed: false,
     purchaseParsed: false,
     balanceSheetParsed: false,
     salesData: null,
-    journalTransactions: [],
     purchaseTotal: 0,
-    balanceSheetData: null
+    balanceSheetData: null,
+    enhancedBalanceSheetData: undefined
   };
 }
 

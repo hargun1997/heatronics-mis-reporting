@@ -1,63 +1,20 @@
 import { useState, useCallback } from 'react';
-import { Transaction, BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, AggregatedRevenueData, SalesLineItem } from '../types';
-import { parseJournalExcel, parsePurchaseExcel, parseBalanceSheetExcel, parseSalesExcel } from '../utils/excelParser';
+import { BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, AggregatedRevenueData, SalesLineItem } from '../types';
+import { parsePurchaseExcel, parseBalanceSheetExcel, parseSalesExcel } from '../utils/excelParser';
 import { parseBalanceSheetPDF } from '../utils/pdfParser';
+import { parseBalanceSheetEnhanced } from '../utils/balanceSheetParser';
 import { calculateCOGS } from '../utils/cogsCalculator';
-import { StateName } from '../types/stateData';
-import {
-  parseAndStoreBalanceSheet,
-  parseAndStoreSalesRegister,
-  parseAndStorePurchaseRegister,
-  parseAndStoreJournalRegister
-} from '../utils/stateDataParsers';
+import { EnhancedBalanceSheetData } from '../types/balanceSheet';
 
-// Generate unique ID for transactions
+// Generate unique ID
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-// Convert a SalesLineItem to a Transaction
-function salesLineItemToTransaction(item: SalesLineItem, stateCode: IndianState): Transaction {
-  const isReturn = item.isReturn;
-  const isInterCompany = item.isInterCompany;
-
-  // Determine head based on type
-  let head: string;
-  let subhead: string;
-
-  if (isInterCompany) {
-    head = 'B. Stock Transfer';
-    subhead = item.toState || 'Other';
-  } else if (isReturn) {
-    head = 'C. Returns';
-    subhead = item.channel;
-  } else {
-    head = 'A. Revenue';
-    subhead = item.channel;
-  }
-
-  return {
-    id: `sales-${item.id}`,
-    date: '', // Sales register may not have dates per line
-    vchBillNo: '',
-    gstNature: '',
-    account: item.partyName,
-    debit: (isReturn || isInterCompany) ? item.amount : 0, // Returns and Stock Transfers are debits
-    credit: (isReturn || isInterCompany) ? 0 : item.amount, // Only Revenue is credit
-    notes: isInterCompany ? `Inter-company transfer to ${item.toState || 'other entity'}` : '',
-    head,
-    subhead,
-    status: 'classified',
-    state: stateCode
-  };
-}
-
 export interface FileParseState {
-  journalFile: File | null;
   balanceSheetFile: File | null;
   purchaseFile: File | null;
   salesFile: File | null;
-  journalParsed: boolean;
   balanceSheetParsed: boolean;
   purchaseParsed: boolean;
   salesParsed: boolean;
@@ -74,13 +31,11 @@ export interface MultiStateFileParseState {
 }
 
 export function useFileParser() {
-  // Single-mode state (backward compatible)
+  // Single-mode state
   const [state, setState] = useState<FileParseState>({
-    journalFile: null,
     balanceSheetFile: null,
     purchaseFile: null,
     salesFile: null,
-    journalParsed: false,
     balanceSheetParsed: false,
     purchaseParsed: false,
     salesParsed: false,
@@ -97,7 +52,6 @@ export function useFileParser() {
     error: null
   });
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [balanceSheetData, setBalanceSheetData] = useState<BalanceSheetData | null>(null);
   const [cogsData, setCOGSData] = useState<COGSData | null>(null);
   const [purchaseTotal, setPurchaseTotal] = useState<number>(0);
@@ -111,7 +65,6 @@ export function useFileParser() {
         ? prev.selectedStates.filter(s => s !== stateCode)
         : [...prev.selectedStates, stateCode];
 
-      // Update active state if needed
       let newActiveState = prev.activeState;
       if (isSelected && prev.activeState === stateCode) {
         newActiveState = newSelectedStates.length > 0 ? newSelectedStates[0] : null;
@@ -119,7 +72,6 @@ export function useFileParser() {
         newActiveState = stateCode;
       }
 
-      // Initialize state data if newly selected
       const newStateData = { ...prev.stateData };
       if (!isSelected) {
         newStateData[stateCode] = createEmptyStateFileData();
@@ -141,30 +93,6 @@ export function useFileParser() {
   }, []);
 
   // Single-mode parsing functions
-  const parseJournal = useCallback(async (file: File) => {
-    setState(prev => ({ ...prev, journalFile: file, loading: true, error: null }));
-
-    try {
-      const result = await parseJournalExcel(file);
-      setTransactions(result.transactions);
-      setState(prev => ({
-        ...prev,
-        journalParsed: true,
-        loading: false
-      }));
-
-      if (result.errors.length > 0) {
-        console.warn('Journal parse warnings:', result.errors);
-      }
-
-      return result.transactions;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to parse journal file';
-      setState(prev => ({ ...prev, loading: false, error: message }));
-      throw error;
-    }
-  }, []);
-
   const parseBalanceSheet = useCallback(async (file: File) => {
     setState(prev => ({ ...prev, balanceSheetFile: file, loading: true, error: null }));
 
@@ -190,7 +118,7 @@ export function useFileParser() {
           openingStock: excelResult.openingStock,
           closingStock: excelResult.closingStock,
           grossSales: excelResult.sales,
-          netSales: excelResult.sales, // Excel parser doesn't separate gross/net
+          netSales: excelResult.sales,
           revenueDiscounts: 0,
           gstOnSales: 0,
           netProfit: excelResult.netProfit,
@@ -205,10 +133,7 @@ export function useFileParser() {
         loading: false
       }));
 
-      // Use purchases from PDF if available
       const purchases = result.purchases > 0 ? result.purchases : purchaseTotal;
-
-      // Recalculate COGS
       if (purchases > 0 || purchaseTotal > 0) {
         const cogs = calculateCOGS(result.openingStock, purchases || purchaseTotal, result.closingStock);
         setCOGSData(cogs);
@@ -234,7 +159,6 @@ export function useFileParser() {
         loading: false
       }));
 
-      // Recalculate COGS if we have balance sheet data
       if (balanceSheetData) {
         const cogs = calculateCOGS(
           balanceSheetData.openingStock,
@@ -277,48 +201,16 @@ export function useFileParser() {
   }, []);
 
   // Multi-state parsing functions
-  const parseJournalForState = useCallback(async (file: File, stateCode: IndianState) => {
-    setMultiState(prev => ({ ...prev, loading: true, error: null }));
-
-    try {
-      const result = await parseJournalExcel(file);
-      // TODO: Journal transactions will be added to table in future
-      // For now, just mark file as parsed but don't add to transactions
-
-      setMultiState(prev => {
-        const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
-        return {
-          ...prev,
-          loading: false,
-          stateData: {
-            ...prev.stateData,
-            [stateCode]: {
-              ...stateData,
-              journalFile: file,
-              journalParsed: true
-              // Not adding journal transactions to table for now
-            }
-          }
-        };
-      });
-
-      return result.transactions;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to parse journal file';
-      setMultiState(prev => ({ ...prev, loading: false, error: message }));
-      throw error;
-    }
-  }, []);
-
   const parseBalanceSheetForState = useCallback(async (file: File, stateCode: IndianState) => {
     setMultiState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      let result: BalanceSheetData;
+      // Parse basic balance sheet data (for COGM calculations)
+      let basicResult: BalanceSheetData;
 
       if (file.name.toLowerCase().endsWith('.pdf')) {
         const pdfResult = await parseBalanceSheetPDF(file);
-        result = {
+        basicResult = {
           openingStock: pdfResult.openingStock,
           closingStock: pdfResult.closingStock,
           grossSales: pdfResult.grossSales,
@@ -331,7 +223,7 @@ export function useFileParser() {
         };
       } else {
         const excelResult = await parseBalanceSheetExcel(file);
-        result = {
+        basicResult = {
           openingStock: excelResult.openingStock,
           closingStock: excelResult.closingStock,
           grossSales: excelResult.sales,
@@ -343,10 +235,41 @@ export function useFileParser() {
         };
       }
 
+      // Parse enhanced balance sheet data (for expense extraction)
+      const enhancedResult = await parseBalanceSheetEnhanced(file);
+      let enhancedData: EnhancedBalanceSheetData | undefined;
+
+      if (enhancedResult.success && enhancedResult.data) {
+        enhancedData = enhancedResult.data;
+        console.log(`[${stateCode}] Enhanced BS parsed:`, {
+          mappedItems: enhancedData.mappedItems.length,
+          unmappedItems: enhancedData.unmappedItems.length,
+          totalExpenses: enhancedData.totalExpenses
+        });
+
+        // Use enhanced data for key figures if basic parsing missed them
+        if (basicResult.openingStock === 0 && enhancedData.tradingAccount.openingStock > 0) {
+          basicResult.openingStock = enhancedData.tradingAccount.openingStock;
+        }
+        if (basicResult.closingStock === 0 && enhancedData.tradingAccount.closingStock > 0) {
+          basicResult.closingStock = enhancedData.tradingAccount.closingStock;
+        }
+        if (basicResult.purchases === 0 && enhancedData.tradingAccount.purchases > 0) {
+          basicResult.purchases = enhancedData.tradingAccount.purchases;
+        }
+        if (basicResult.grossSales === 0 && enhancedData.tradingAccount.sales > 0) {
+          basicResult.grossSales = enhancedData.tradingAccount.sales;
+          basicResult.netSales = enhancedData.tradingAccount.sales;
+        }
+        if (basicResult.netProfit === 0 && enhancedData.plAccount.netProfitLoss !== 0) {
+          basicResult.netProfit = enhancedData.plAccount.netProfitLoss;
+        }
+      }
+
       setMultiState(prev => {
         const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
-        const purchases = result.purchases > 0 ? result.purchases : (stateData.purchaseTotal || 0);
-        const cogs = purchases > 0 ? calculateCOGS(result.openingStock, purchases, result.closingStock) : null;
+        const purchases = basicResult.purchases > 0 ? basicResult.purchases : (stateData.purchaseTotal || 0);
+        const cogs = purchases > 0 ? calculateCOGS(basicResult.openingStock, purchases, basicResult.closingStock) : null;
 
         return {
           ...prev,
@@ -357,14 +280,15 @@ export function useFileParser() {
               ...stateData,
               balanceSheetFile: file,
               balanceSheetParsed: true,
-              balanceSheetData: result,
-              cogsData: cogs
+              balanceSheetData: basicResult,
+              cogsData: cogs,
+              enhancedBalanceSheetData: enhancedData
             }
           }
         };
       });
 
-      return result;
+      return basicResult;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to parse balance sheet';
       setMultiState(prev => ({ ...prev, loading: false, error: message }));
@@ -411,75 +335,10 @@ export function useFileParser() {
     setMultiState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Pass state code to detect inter-company transfers (especially for UP)
       const result = await parseSalesExcel(file, stateCode);
-
-      // Convert sales line items to transactions (including inter-company as Stock Transfer)
-      const salesTransactions: Transaction[] = [];
-      if (result.salesData.lineItems) {
-        for (const item of result.salesData.lineItems) {
-          salesTransactions.push(salesLineItemToTransaction(item, stateCode));
-
-          // Create separate tax transactions for each line item with taxes
-          if (item.igst && item.igst > 0) {
-            salesTransactions.push({
-              id: `tax-igst-${item.id}`,
-              date: '',
-              vchBillNo: '',
-              gstNature: 'IGST',
-              account: item.partyName,
-              debit: 0,
-              credit: item.igst,
-              notes: `IGST on sale to ${item.partyName}`,
-              head: 'E. Taxes (GST)',
-              subhead: 'IGST',
-              status: 'classified',
-              state: stateCode
-            });
-          }
-          if (item.cgst && item.cgst > 0) {
-            salesTransactions.push({
-              id: `tax-cgst-${item.id}`,
-              date: '',
-              vchBillNo: '',
-              gstNature: 'CGST',
-              account: item.partyName,
-              debit: 0,
-              credit: item.cgst,
-              notes: `CGST on sale to ${item.partyName}`,
-              head: 'E. Taxes (GST)',
-              subhead: 'CGST',
-              status: 'classified',
-              state: stateCode
-            });
-          }
-          if (item.sgst && item.sgst > 0) {
-            salesTransactions.push({
-              id: `tax-sgst-${item.id}`,
-              date: '',
-              vchBillNo: '',
-              gstNature: 'SGST',
-              account: item.partyName,
-              debit: 0,
-              credit: item.sgst,
-              notes: `SGST on sale to ${item.partyName}`,
-              head: 'E. Taxes (GST)',
-              subhead: 'SGST',
-              status: 'classified',
-              state: stateCode
-            });
-          }
-        }
-      }
 
       setMultiState(prev => {
         const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
-        // Merge sales transactions with existing journal transactions
-        // Remove any existing sales and tax transactions first (to allow re-upload)
-        const existingNonSalesTransactions = stateData.transactions.filter(
-          t => !t.id.startsWith('sales-') && !t.id.startsWith('tax-')
-        );
-        const mergedTransactions = [...existingNonSalesTransactions, ...salesTransactions];
 
         return {
           ...prev,
@@ -490,8 +349,7 @@ export function useFileParser() {
               ...stateData,
               salesFile: file,
               salesParsed: true,
-              salesData: result.salesData,
-              transactions: mergedTransactions
+              salesData: result.salesData
             }
           }
         };
@@ -507,42 +365,30 @@ export function useFileParser() {
 
   // Get aggregated data from all states
   const getAggregatedData = useCallback(() => {
-    const allTransactions: Transaction[] = [];
     let totalPurchase = 0;
     const salesByChannel: { [key: string]: number } = {};
 
-    // Revenue calculation variables
     let totalGrossSales = 0;
     let totalStockTransfer = 0;
     let totalReturns = 0;
-    let totalTaxes = 0;       // Sum of IGST + CGST + SGST from sales register
-    let totalDiscounts = 0;   // Placeholder for future implementation
+    let totalTaxes = 0;
+    let totalDiscounts = 0;
     const salesByState: { [key in IndianState]?: number } = {};
     const returnsByState: { [key in IndianState]?: number } = {};
 
     Object.entries(multiState.stateData).forEach(([stateCode, stateData]) => {
       if (stateData) {
-        allTransactions.push(...stateData.transactions);
         totalPurchase += stateData.purchaseTotal || 0;
 
         if (stateData.salesData) {
-          // Add gross sales (includes all positive amounts including stock transfers)
           totalGrossSales += stateData.salesData.grossSales || 0;
-
-          // Track stock transfers (inter-company transfers from all states)
           totalStockTransfer += stateData.salesData.interCompanyTransfers || 0;
-
-          // Collect returns separately (all negative sales)
           totalReturns += stateData.salesData.returns || 0;
-
-          // Collect taxes from sales register (IGST + CGST + SGST)
           totalTaxes += stateData.salesData.totalTaxes || 0;
 
-          // Track by state
           salesByState[stateCode as IndianState] = stateData.salesData.netSales || 0;
           returnsByState[stateCode as IndianState] = stateData.salesData.returns || 0;
 
-          // Aggregate channel breakdown
           if (stateData.salesData.salesByChannel) {
             Object.entries(stateData.salesData.salesByChannel).forEach(([channel, amount]) => {
               salesByChannel[channel] = (salesByChannel[channel] || 0) + amount;
@@ -552,7 +398,6 @@ export function useFileParser() {
       }
     });
 
-    // Net Revenue = Total Gross Sales - Stock Transfer - Returns - Taxes - Discounts
     const totalNetRevenue = totalGrossSales - totalStockTransfer - totalReturns - totalTaxes - totalDiscounts;
 
     const revenueData: AggregatedRevenueData = {
@@ -567,9 +412,9 @@ export function useFileParser() {
     };
 
     return {
-      transactions: allTransactions,
+      transactions: [], // No more journal transactions
       totalPurchase,
-      totalSales: totalNetRevenue,  // Backward compatible
+      totalSales: totalNetRevenue,
       salesByChannel,
       revenueData
     };
@@ -580,7 +425,6 @@ export function useFileParser() {
     const data = multiState.stateData[stateCode];
     return {
       balanceSheet: data?.balanceSheetParsed || false,
-      journal: data?.journalParsed || false,
       purchase: data?.purchaseParsed || false,
       sales: data?.salesParsed || false
     };
@@ -593,11 +437,9 @@ export function useFileParser() {
 
   const resetAll = useCallback(() => {
     setState({
-      journalFile: null,
       balanceSheetFile: null,
       purchaseFile: null,
       salesFile: null,
-      journalParsed: false,
       balanceSheetParsed: false,
       purchaseParsed: false,
       salesParsed: false,
@@ -611,7 +453,6 @@ export function useFileParser() {
       loading: false,
       error: null
     });
-    setTransactions([]);
     setBalanceSheetData(null);
     setCOGSData(null);
     setPurchaseTotal(0);
@@ -656,7 +497,7 @@ export function useFileParser() {
     });
   }, []);
 
-  // Update a sales line item's channel and recalculate totals
+  // Update a sales line item's channel
   const updateSalesLineItem = useCallback((stateCode: IndianState, itemId: string, newChannel: string) => {
     setMultiState(prev => {
       const stateData = prev.stateData[stateCode];
@@ -664,20 +505,10 @@ export function useFileParser() {
         return prev;
       }
 
-      // Update the line item
       const updatedLineItems = stateData.salesData.lineItems.map(item =>
         item.id === itemId ? { ...item, channel: newChannel } : item
       );
 
-      // Also update the corresponding transaction's subhead
-      const updatedTransactions = stateData.transactions.map(txn => {
-        if (txn.id === `sales-${itemId}`) {
-          return { ...txn, subhead: newChannel };
-        }
-        return txn;
-      });
-
-      // Recalculate totals based on updated line items
       let grossSales = 0;
       let returns = 0;
       let interCompanyTransfers = 0;
@@ -710,15 +541,14 @@ export function useFileParser() {
           ...prev.stateData,
           [stateCode]: {
             ...stateData,
-            salesData: updatedSalesData,
-            transactions: updatedTransactions
+            salesData: updatedSalesData
           }
         }
       };
     });
   }, []);
 
-  // Get all sales line items for a state (for verification)
+  // Get all sales line items for a state
   const getSalesLineItems = useCallback((stateCode: IndianState) => {
     const stateData = multiState.stateData[stateCode];
     return stateData?.salesData?.lineItems || [];
@@ -743,13 +573,11 @@ export function useFileParser() {
   return {
     // Single mode state
     ...state,
-    transactions,
     balanceSheetData,
     cogsData,
     purchaseTotal,
     salesData,
     // Single mode functions
-    parseJournal,
     parseBalanceSheet,
     parsePurchase,
     parseSales,
@@ -761,7 +589,6 @@ export function useFileParser() {
     multiState,
     toggleState,
     setActiveState,
-    parseJournalForState,
     parseBalanceSheetForState,
     parsePurchaseForState,
     parseSalesForState,

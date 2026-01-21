@@ -10,11 +10,10 @@ export const INDIAN_STATES: { code: IndianState; name: string }[] = [
 ];
 
 // File types for uploads
-export type FileType = 'balanceSheet' | 'journal' | 'purchase' | 'sales';
+export type FileType = 'balanceSheet' | 'purchase' | 'sales';
 
 export const FILE_TYPES: { type: FileType; label: string; accept: string }[] = [
-  { type: 'balanceSheet', label: 'Balance Sheet', accept: '.pdf,.xlsx,.xls' },
-  { type: 'journal', label: 'Journal Vouchers', accept: '.xlsx,.xls' },
+  { type: 'balanceSheet', label: 'Balance Sheet (Trading + P&L)', accept: '.pdf,.xlsx,.xls' },
   { type: 'purchase', label: 'Purchase Ledger', accept: '.xlsx,.xls' },
   { type: 'sales', label: 'Sales Register', accept: '.xlsx,.xls' }
 ];
@@ -216,18 +215,17 @@ export interface AggregatedRevenueData {
 // State-specific file uploads
 export interface StateFileData {
   balanceSheetFile: File | null;
-  journalFile: File | null;
   purchaseFile: File | null;
   salesFile: File | null;
   balanceSheetParsed: boolean;
-  journalParsed: boolean;
   purchaseParsed: boolean;
   salesParsed: boolean;
   balanceSheetData: BalanceSheetData | null;
-  transactions: Transaction[];
   purchaseTotal: number;
   salesData: SalesRegisterData | null;
   cogsData: COGSData | null;
+  // Enhanced balance sheet data for expense extraction
+  enhancedBalanceSheetData?: import('./balanceSheet').EnhancedBalanceSheetData;
 }
 
 // Multi-state data container
@@ -240,15 +238,12 @@ export interface MultiStateData {
 export function createEmptyStateFileData(): StateFileData {
   return {
     balanceSheetFile: null,
-    journalFile: null,
     purchaseFile: null,
     salesFile: null,
     balanceSheetParsed: false,
-    journalParsed: false,
     purchaseParsed: false,
     salesParsed: false,
     balanceSheetData: null,
-    transactions: [],
     purchaseTotal: 0,
     salesData: null,
     cogsData: null
