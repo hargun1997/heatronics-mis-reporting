@@ -78,6 +78,8 @@ function extractFirstAmountFromLine(line: string): number {
 function extractAccountName(line: string): string {
   // Remove "To " or "By " prefix
   let cleaned = line.replace(/^(to|by)\s+/i, '').trim();
+  // Normalize multiple spaces to single space BEFORE removing numbers
+  cleaned = cleaned.replace(/\s+/g, ' ');
   // Remove numbers and keep only text
   cleaned = cleaned.replace(/[\d,]+\.?\d*/g, '').trim();
   // Remove trailing special characters
@@ -228,6 +230,12 @@ function extractLineItem(
 
   // Skip "Total" lines
   if (/^total$/i.test(accountName.trim())) {
+    return null;
+  }
+
+  // Validation: "Rounded Off" should never be > 1000, if it is, it's a parsing error
+  if (/round.*off/i.test(accountName) && amount > 1000) {
+    console.log(`[extractLineItem] Skipping suspicious "Rounded Off" with large amount: ${amount}`);
     return null;
   }
 
@@ -383,6 +391,12 @@ function createLineItemFromParts(
   lineIndex: number
 ): BalanceSheetLineItem | null {
   if (section === 'unknown' || side === 'unknown') {
+    return null;
+  }
+
+  // Validation: "Rounded Off" should never be > 1000, if it is, it's a parsing error
+  if (/round.*off/i.test(accountName) && amount > 1000) {
+    console.log(`[createLineItemFromParts] Skipping suspicious "Rounded Off" with large amount: ${amount}`);
     return null;
   }
 
