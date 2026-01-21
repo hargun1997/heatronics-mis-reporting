@@ -58,6 +58,22 @@ function extractAmountFromLine(line: string): number {
   return numbers[numbers.length - 1];
 }
 
+// Extract the FIRST significant number from a line (for multi-line continuations)
+// This is needed because continuation lines often have: amount   subtotal
+// and we want the first amount, not the rightmost subtotal
+function extractFirstAmountFromLine(line: string): number {
+  const numbers = extractNumbersFromLine(line);
+  if (numbers.length === 0) return 0;
+
+  // Get the first significant number (ignore small numbers < 100)
+  for (let i = 0; i < numbers.length; i++) {
+    if (numbers[i] > 100) {
+      return numbers[i];
+    }
+  }
+  return numbers[0];
+}
+
 // Extract account name from a line (text before the numbers)
 function extractAccountName(line: string): string {
   // Remove "To " or "By " prefix
@@ -427,17 +443,26 @@ function parseAllLineItems(
     linesProcessed++;
 
     // Check if this line is just an amount (continuation of previous account name)
-    const lineAmount = extractAmountFromLine(line);
     const lineAccountName = extractAccountName(line);
+
+    // For continuation lines, use extractFirstAmountFromLine to get the item amount (not the subtotal)
+    // For regular lines, use extractAmountFromLine which gets the rightmost number
+    const lineAmount = pendingAccountName ? extractFirstAmountFromLine(line) : extractAmountFromLine(line);
 
     // If we have a pending account name and this line has an amount but little/no text
     if (pendingAccountName && lineAmount > 0 && (!lineAccountName || lineAccountName.length < 3)) {
-      // This is a continuation line - create item with pending name and this amount
+      // This is a continuation line - create item with pending name and FIRST amount (not subtotal)
+      console.log(`[parseAllLineItems] Multi-line continuation detected:`);
+      console.log(`  - Pending account: "${pendingAccountName}"`);
+      console.log(`  - Line content: "${trimmed.substring(0, 60)}..."`);
+      console.log(`  - All numbers in line: ${extractNumbersFromLine(line).join(', ')}`);
+      console.log(`  - First amount selected: ${lineAmount}`);
+
       const multiLineItem = createLineItemFromParts(pendingAccountName, lineAmount, currentSection, currentSide, i);
       pendingAccountName = '';
 
       if (multiLineItem) {
-        console.log(`[parseAllLineItems] Multi-line item: "${multiLineItem.accountName}" = ${multiLineItem.amount}`);
+        console.log(`[parseAllLineItems] Multi-line item created: "${multiLineItem.accountName}" = ${multiLineItem.amount}`);
 
         // Add to appropriate section (same logic as regular items below)
         if (!multiLineItem.isSpecial) {
