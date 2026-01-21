@@ -450,10 +450,30 @@ function parseAllLineItems(
 
   console.log('[parseAllLineItems] Starting to parse', lines.length, 'lines');
 
+  // DEBUG: Log ALL lines containing amazon or logistics
+  console.log('[DEBUG] ===== AMAZON/LOGISTICS LINE SCAN =====');
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase();
+    if (/amazon|logistics/i.test(lower)) {
+      console.log(`[DEBUG] Line ${i}: "${lines[i]}"`);
+      console.log(`[DEBUG]   - Account name: "${extractAccountName(lines[i])}"`);
+      console.log(`[DEBUG]   - Amount: ${extractAmountFromLine(lines[i])}`);
+      console.log(`[DEBUG]   - Numbers: ${extractNumbersFromLine(lines[i]).join(', ')}`);
+    }
+  }
+  console.log('[DEBUG] ===== END AMAZON/LOGISTICS SCAN =====');
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
     if (!trimmed) continue;
+
+    // DEBUG: Extra logging for amazon/logistics lines
+    if (/amazon|logistics/i.test(line.toLowerCase())) {
+      console.log(`[DEBUG-LOOP] Processing line ${i}: "${trimmed.substring(0, 80)}"`);
+      console.log(`[DEBUG-LOOP]   - Current section: ${currentSection}, side: ${currentSide}`);
+      console.log(`[DEBUG-LOOP]   - Pending account: "${pendingAccountName}"`);
+    }
 
     // Update section and side
     const prevSection: Section = currentSection;
@@ -536,6 +556,19 @@ function parseAllLineItems(
 
     // Extract line item normally
     const item = extractLineItem(line, currentSection, currentSide, i);
+
+    // DEBUG: Log what happened to amazon/logistics entries
+    if (/amazon|logistics/i.test(line.toLowerCase())) {
+      if (item) {
+        console.log(`[DEBUG-LOOP] ✓ Item created: "${item.accountName}" = ${item.amount}, head: ${item.head}`);
+      } else {
+        console.log(`[DEBUG-LOOP] ✗ No item created for amazon/logistics line`);
+        console.log(`[DEBUG-LOOP]   - lineAccountName: "${lineAccountName}" (length: ${lineAccountName.length})`);
+        console.log(`[DEBUG-LOOP]   - lineAmount: ${lineAmount}`);
+        console.log(`[DEBUG-LOOP]   - Will set pending: ${lineAccountName && lineAccountName.length >= 3 && lineAmount === 0}`);
+      }
+    }
+
     if (!item) {
       // Check if this line has an account name but no amount (might be multi-line)
       if (lineAccountName && lineAccountName.length >= 3 && lineAmount === 0) {
@@ -880,6 +913,7 @@ export function extractOperatingFromBalanceSheet(data: EnhancedBalanceSheetData)
   administrativeExpenses: number;
   staffWelfareEvents: number;
   banksFinanceCharges: number;
+  otherOperatingExpenses: number;
 } {
   const operating = data.aggregatedByHead['I. Operating Expenses'];
   if (!operating) {
@@ -890,7 +924,8 @@ export function extractOperatingFromBalanceSheet(data: EnhancedBalanceSheetData)
       platformCostsCRM: 0,
       administrativeExpenses: 0,
       staffWelfareEvents: 0,
-      banksFinanceCharges: 0
+      banksFinanceCharges: 0,
+      otherOperatingExpenses: 0
     };
   }
 
@@ -905,7 +940,8 @@ export function extractOperatingFromBalanceSheet(data: EnhancedBalanceSheetData)
                       (operating.subheads['CRM Admin expenses']?.total || 0),
     administrativeExpenses: operating.subheads['Administrative Expenses']?.total || 0,
     staffWelfareEvents: operating.subheads['Staff Welfare & Events']?.total || 0,
-    banksFinanceCharges: operating.subheads['Banks & Finance Charges']?.total || 0
+    banksFinanceCharges: operating.subheads['Banks & Finance Charges']?.total || 0,
+    otherOperatingExpenses: operating.subheads['Other Operating Expenses']?.total || 0
   };
 }
 

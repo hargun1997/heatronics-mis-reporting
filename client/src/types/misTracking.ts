@@ -143,6 +143,9 @@ export interface OperatingExpensesData {
   legalCaExpenses: number;
   platformCostsCRM: number;  // CRM, inventory softwares - Capex
   administrativeExpenses: number;  // Office Rent, utilities, admin supplies
+  staffWelfareEvents: number;  // Staff welfare, bonuses, events
+  banksFinanceCharges: number;  // Bank charges, processing fees
+  otherOperatingExpenses: number;  // Catch-all for misc operating items
   total: number;
 }
 
@@ -471,7 +474,7 @@ export function createEmptyMISRecord(period: MISPeriod): MISRecord {
     platformCosts: { shopifySubscription: 0, watiSubscription: 0, shopfloSubscription: 0, total: 0 },
     cm3: 0,
     cm3Percent: 0,
-    operatingExpenses: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, total: 0 },
+    operatingExpenses: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, staffWelfareEvents: 0, banksFinanceCharges: 0, otherOperatingExpenses: 0, total: 0 },
     ebitda: 0,
     ebitdaPercent: 0,
     nonOperating: { interestExpense: 0, depreciation: 0, amortization: 0, totalIDA: 0, incomeTax: 0 },

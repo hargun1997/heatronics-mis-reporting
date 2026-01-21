@@ -79,7 +79,7 @@ function aggregateMISRecords(records: MISRecord[]): MISRecord | null {
     cm3: 0,
     cm3Percent: 0,
 
-    operatingExpenses: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, total: 0 },
+    operatingExpenses: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, staffWelfareEvents: 0, banksFinanceCharges: 0, otherOperatingExpenses: 0, total: 0 },
     ebitda: 0,
     ebitdaPercent: 0,
 
@@ -165,6 +165,9 @@ function aggregateMISRecords(records: MISRecord[]): MISRecord | null {
     aggregated.operatingExpenses.legalCaExpenses += record.operatingExpenses.legalCaExpenses;
     aggregated.operatingExpenses.platformCostsCRM += record.operatingExpenses.platformCostsCRM;
     aggregated.operatingExpenses.administrativeExpenses += record.operatingExpenses.administrativeExpenses;
+    aggregated.operatingExpenses.staffWelfareEvents += record.operatingExpenses.staffWelfareEvents;
+    aggregated.operatingExpenses.banksFinanceCharges += record.operatingExpenses.banksFinanceCharges;
+    aggregated.operatingExpenses.otherOperatingExpenses += record.operatingExpenses.otherOperatingExpenses;
     aggregated.operatingExpenses.total += record.operatingExpenses.total;
     aggregated.ebitda += record.ebitda;
 
@@ -469,7 +472,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
   const channelFulfillment = displayMIS ? displayMIS.channelFulfillment : { amazonFees: 0, blinkitFees: 0, d2cFees: 0, total: 0 };
   const salesMarketing = displayMIS ? displayMIS.salesMarketing : { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, total: 0 };
   const platformCosts = displayMIS ? displayMIS.platformCosts : { shopifySubscription: 0, watiSubscription: 0, shopfloSubscription: 0, total: 0 };
-  const operatingExpenses = displayMIS ? displayMIS.operatingExpenses : { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, total: 0 };
+  const operatingExpenses = displayMIS ? displayMIS.operatingExpenses : { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, staffWelfareEvents: 0, banksFinanceCharges: 0, otherOperatingExpenses: 0, total: 0 };
   const nonOperating = displayMIS ? displayMIS.nonOperating : { interestExpense: 0, depreciation: 0, amortization: 0, totalIDA: 0, incomeTax: 0 };
   const netRevenue = revenue.netRevenue;
 
@@ -1001,7 +1004,10 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             <LineItem number={3} label="Legal & CA expenses" amount={operatingExpenses.legalCaExpenses} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
             <LineItem number={4} label="Platform Costs (CRM, inventory softwares)" amount={operatingExpenses.platformCostsCRM} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} note="Capex" />
             <LineItem number={5} label="Administrative Expenses (Office Rent, utilities, admin supplies)" amount={operatingExpenses.administrativeExpenses} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
-            <SubtotalRow number={6} label="Total Operating Expense" amount={operatingExpenses.total} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="yellow" />
+            <LineItem number={6} label="Staff Welfare & Events" amount={operatingExpenses.staffWelfareEvents} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={7} label="Banks & Finance Charges" amount={operatingExpenses.banksFinanceCharges} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={8} label="Other Operating Expenses" amount={operatingExpenses.otherOperatingExpenses} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <SubtotalRow number={9} label="Total Operating Expense" amount={operatingExpenses.total} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="yellow" />
 
             {/* EBITDA */}
             <tr className={`font-bold ${displayMIS.ebitda >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
