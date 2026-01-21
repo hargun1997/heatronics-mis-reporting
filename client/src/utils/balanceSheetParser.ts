@@ -356,20 +356,43 @@ function parseAllLineItems(
   let currentSection: Section = 'unknown';
   let currentSide: Side = 'unknown';
   let lastParentAccount = '';
+  let sectionSwitchCount = 0;
+  let linesProcessed = 0;
+
+  console.log('[parseAllLineItems] Starting to parse', lines.length, 'lines');
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) continue;
 
     // Update section and side
+    const prevSection: Section = currentSection;
     currentSection = detectSection(line, currentSection);
     currentSide = detectSide(line, currentSide);
+
+    if (currentSection !== prevSection) {
+      sectionSwitchCount++;
+      console.log(`[parseAllLineItems] Section changed at line ${i}: ${prevSection} -> ${currentSection}`);
+      console.log(`[parseAllLineItems] Line content: "${trimmed.substring(0, 80)}..."`);
+    }
 
     // Skip if we haven't found a section yet
     if (currentSection === 'unknown') continue;
 
+    linesProcessed++;
+
     // Extract line item
     const item = extractLineItem(line, currentSection, currentSide, i);
-    if (!item) continue;
+    if (!item) {
+      // Debug: Log why extraction failed for first few non-items
+      if (linesProcessed < 10) {
+        const accountName = extractAccountName(line);
+        const amount = extractAmountFromLine(line);
+        console.log(`[parseAllLineItems] Skipped line ${i}: name="${accountName}" amount=${amount}`);
+      }
+      continue;
+    }
 
     // Handle special items
     if (item.isSpecial) {
@@ -431,6 +454,17 @@ function parseAllLineItems(
   // Assign results
   result.tradingAccount = tradingAccount;
   result.plAccount = plAccount;
+
+  console.log('[parseAllLineItems] After parsing loop:');
+  console.log(`  - Section switches detected: ${sectionSwitchCount}`);
+  console.log(`  - Total line items extracted: ${result.allLineItems.length}`);
+  console.log(`  - Trading direct expenses: ${tradingAccount.directExpenses.length}`);
+  console.log(`  - P&L indirect expenses: ${plAccount.indirectExpenses.length}`);
+
+  // Log first 5 extracted items for debugging
+  for (const item of result.allLineItems.slice(0, 5)) {
+    console.log(`  - Item: "${item.accountName}" = ${item.amount} (section: ${item.section}, head: ${item.head || 'NONE'})`);
+  }
 
   // Separate mapped and unmapped items
   for (const item of result.allLineItems) {
