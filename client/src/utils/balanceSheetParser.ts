@@ -913,6 +913,7 @@ export function extractOperatingFromBalanceSheet(data: EnhancedBalanceSheetData)
   administrativeExpenses: number;
   staffWelfareEvents: number;
   banksFinanceCharges: number;
+  otherOperatingExpenses: number;
 } {
   const operating = data.aggregatedByHead['I. Operating Expenses'];
   if (!operating) {
@@ -923,7 +924,8 @@ export function extractOperatingFromBalanceSheet(data: EnhancedBalanceSheetData)
       platformCostsCRM: 0,
       administrativeExpenses: 0,
       staffWelfareEvents: 0,
-      banksFinanceCharges: 0
+      banksFinanceCharges: 0,
+      otherOperatingExpenses: 0
     };
   }
 
@@ -938,7 +940,8 @@ export function extractOperatingFromBalanceSheet(data: EnhancedBalanceSheetData)
                       (operating.subheads['CRM Admin expenses']?.total || 0),
     administrativeExpenses: operating.subheads['Administrative Expenses']?.total || 0,
     staffWelfareEvents: operating.subheads['Staff Welfare & Events']?.total || 0,
-    banksFinanceCharges: operating.subheads['Banks & Finance Charges']?.total || 0
+    banksFinanceCharges: operating.subheads['Banks & Finance Charges']?.total || 0,
+    otherOperatingExpenses: operating.subheads['Other Operating Expenses']?.total || 0
   };
 }
 

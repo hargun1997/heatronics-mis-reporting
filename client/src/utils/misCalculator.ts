@@ -76,7 +76,7 @@ export async function calculateMIS(
     cm3Percent: 0,
 
     // Operating Expenses
-    operatingExpenses: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, total: 0 },
+    operatingExpenses: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, staffWelfareEvents: 0, banksFinanceCharges: 0, otherOperatingExpenses: 0, total: 0 },
     ebitda: 0,
     ebitdaPercent: 0,
 
@@ -200,6 +200,9 @@ export async function calculateMIS(
     legalCaExpenses: aggregatedExpenses.operating.legalCaExpenses,
     platformCostsCRM: aggregatedExpenses.operating.platformCostsCRM,
     administrativeExpenses: aggregatedExpenses.operating.administrativeExpenses,
+    staffWelfareEvents: aggregatedExpenses.operating.staffWelfareEvents,
+    banksFinanceCharges: aggregatedExpenses.operating.banksFinanceCharges,
+    otherOperatingExpenses: aggregatedExpenses.operating.otherOperatingExpenses,
     total: 0
   };
   record.operatingExpenses.total =
@@ -207,7 +210,10 @@ export async function calculateMIS(
     record.operatingExpenses.miscellaneous +
     record.operatingExpenses.legalCaExpenses +
     record.operatingExpenses.platformCostsCRM +
-    record.operatingExpenses.administrativeExpenses;
+    record.operatingExpenses.administrativeExpenses +
+    record.operatingExpenses.staffWelfareEvents +
+    record.operatingExpenses.banksFinanceCharges +
+    record.operatingExpenses.otherOperatingExpenses;
 
   // ============================================
   // STEP 9: Populate Non-Operating
@@ -309,6 +315,9 @@ interface AggregatedExpenses {
     legalCaExpenses: number;
     platformCostsCRM: number;
     administrativeExpenses: number;
+    staffWelfareEvents: number;
+    banksFinanceCharges: number;
+    otherOperatingExpenses: number;
   };
   nonOperating: {
     interestExpense: number;
@@ -339,7 +348,7 @@ function aggregateExpensesFromBalanceSheets(
     channel: { amazonFees: 0, blinkitFees: 0, d2cFees: 0 },
     marketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, advertisingMarketing: 0 },
     platform: { shopifySubscription: 0, watiSubscription: 0, shopfloSubscription: 0 },
-    operating: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0 },
+    operating: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0, staffWelfareEvents: 0, banksFinanceCharges: 0, otherOperatingExpenses: 0 },
     nonOperating: { interestExpense: 0, depreciation: 0, amortization: 0, incomeTax: 0 },
     ignoredTotal: 0,
     excludedTotal: 0,
@@ -398,6 +407,9 @@ function aggregateExpensesFromBalanceSheets(
     result.operating.legalCaExpenses += operating.legalCaExpenses;
     result.operating.platformCostsCRM += operating.platformCostsCRM;
     result.operating.administrativeExpenses += operating.administrativeExpenses;
+    result.operating.staffWelfareEvents += operating.staffWelfareEvents;
+    result.operating.banksFinanceCharges += operating.banksFinanceCharges;
+    result.operating.otherOperatingExpenses += operating.otherOperatingExpenses;
 
     // Extract and aggregate Non-Operating
     const nonOp = extractNonOperatingFromBalanceSheet(bsData);
