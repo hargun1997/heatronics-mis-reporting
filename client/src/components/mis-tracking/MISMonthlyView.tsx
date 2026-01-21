@@ -124,6 +124,7 @@ function aggregateMISRecords(records: MISRecord[]): MISRecord | null {
 
     // COGM
     aggregated.cogm.rawMaterialsInventory += record.cogm.rawMaterialsInventory;
+    aggregated.cogm.consumables += record.cogm.consumables;
     aggregated.cogm.manufacturingWages += record.cogm.manufacturingWages;
     aggregated.cogm.contractWagesMfg += record.cogm.contractWagesMfg;
     aggregated.cogm.inboundTransport += record.cogm.inboundTransport;
@@ -131,6 +132,8 @@ function aggregateMISRecords(records: MISRecord[]): MISRecord | null {
     aggregated.cogm.factoryElectricity += record.cogm.factoryElectricity;
     aggregated.cogm.factoryMaintenance += record.cogm.factoryMaintenance;
     aggregated.cogm.jobWork += record.cogm.jobWork;
+    aggregated.cogm.qualityTesting += record.cogm.qualityTesting;
+    aggregated.cogm.otherDirectExpenses += record.cogm.otherDirectExpenses;
     aggregated.cogm.totalCOGM += record.cogm.totalCOGM;
 
     // Margins
@@ -946,14 +949,17 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             {/* E. COGM */}
             <SectionHeader label="E" title="COST OF GOODS MANUFACTURED (COGM)" />
             <LineItem number={1} label="Raw Materials & Inventory" amount={cogm.rawMaterialsInventory} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
-            <LineItem number={2} label="Manufacturing Wages" amount={cogm.manufacturingWages} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
-            <LineItem number={3} label="Contract Wages (Mfg)" amount={cogm.contractWagesMfg} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
-            <LineItem number={4} label="Inbound Transport" amount={cogm.inboundTransport} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
-            <LineItem number={5} label="Factory Rent" amount={cogm.factoryRent} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} note="TDS@10%" />
-            <LineItem number={6} label="Factory Electricity" amount={cogm.factoryElectricity} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
-            <LineItem number={7} label="Factory Maintainence" amount={cogm.factoryMaintenance} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} note="Power Backup" />
-            <LineItem number={8} label="Job work" amount={cogm.jobWork} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
-            <SubtotalRow number={9} label="Total COGM" amount={cogm.totalCOGM} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="blue" />
+            <LineItem number={2} label="Consumables" amount={cogm.consumables} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={3} label="Manufacturing Wages" amount={cogm.manufacturingWages} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={4} label="Contract Wages (Mfg)" amount={cogm.contractWagesMfg} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={5} label="Inbound Transport" amount={cogm.inboundTransport} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={6} label="Factory Rent" amount={cogm.factoryRent} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} note="TDS@10%" />
+            <LineItem number={7} label="Factory Electricity" amount={cogm.factoryElectricity} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={8} label="Factory Maintenance" amount={cogm.factoryMaintenance} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} note="Power Backup" />
+            <LineItem number={9} label="Job work" amount={cogm.jobWork} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={10} label="Quality Testing" amount={cogm.qualityTesting} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <LineItem number={11} label="Other Direct Expenses" amount={cogm.otherDirectExpenses} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} />
+            <SubtotalRow number={12} label="Total COGM" amount={cogm.totalCOGM} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="blue" />
 
             {/* GROSS MARGIN */}
             <tr className="bg-emerald-500/20 font-bold">

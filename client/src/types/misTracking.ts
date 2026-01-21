@@ -81,19 +81,23 @@ export interface RevenueData {
 
 export interface COGMData {
   rawMaterialsInventory: number;    // E.1
-  manufacturingWages: number;        // E.2
-  contractWagesMfg: number;          // E.3
-  inboundTransport: number;          // E.4
-  factoryRent: number;               // E.5
-  factoryElectricity: number;        // E.6
-  factoryMaintenance: number;        // E.7
-  jobWork: number;                   // E.8
+  consumables: number;               // E.2
+  manufacturingWages: number;        // E.3
+  contractWagesMfg: number;          // E.4
+  inboundTransport: number;          // E.5
+  factoryRent: number;               // E.6
+  factoryElectricity: number;        // E.7
+  factoryMaintenance: number;        // E.8
+  jobWork: number;                   // E.9
+  qualityTesting: number;            // E.10
+  otherDirectExpenses: number;       // E.11
   totalCOGM: number;
 }
 
 export function createEmptyCOGMData(): COGMData {
   return {
     rawMaterialsInventory: 0,
+    consumables: 0,
     manufacturingWages: 0,
     contractWagesMfg: 0,
     inboundTransport: 0,
@@ -101,6 +105,8 @@ export function createEmptyCOGMData(): COGMData {
     factoryElectricity: 0,
     factoryMaintenance: 0,
     jobWork: 0,
+    qualityTesting: 0,
+    otherDirectExpenses: 0,
     totalCOGM: 0
   };
 }
