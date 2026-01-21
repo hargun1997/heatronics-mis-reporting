@@ -44,18 +44,20 @@ function extractNumbersFromLine(line: string): number[] {
   return numbers.map(n => parseIndianNumber(n)).filter(n => n > 0);
 }
 
-// Extract the rightmost significant number from a line
+// Extract the FIRST significant number from a line
+// In Busy PDFs, lines often have: Account Name    Amount    Subtotal
+// We want the first number (actual amount), not the rightmost (subtotal)
 function extractAmountFromLine(line: string): number {
   const numbers = extractNumbersFromLine(line);
   if (numbers.length === 0) return 0;
 
-  // Get the rightmost significant number (ignore small numbers < 100)
-  for (let i = numbers.length - 1; i >= 0; i--) {
+  // Get the FIRST significant number (ignore small numbers < 100)
+  for (let i = 0; i < numbers.length; i++) {
     if (numbers[i] > 100) {
       return numbers[i];
     }
   }
-  return numbers[numbers.length - 1];
+  return numbers[0];
 }
 
 // Extract the FIRST significant number from a line (for multi-line continuations)
