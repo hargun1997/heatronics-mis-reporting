@@ -71,7 +71,7 @@ function aggregateMISRecords(records: MISRecord[]): MISRecord | null {
     cm1: 0,
     cm1Percent: 0,
 
-    salesMarketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, total: 0 },
+    salesMarketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, advertisingMarketing: 0, total: 0 },
     cm2: 0,
     cm2Percent: 0,
 
