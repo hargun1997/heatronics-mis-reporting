@@ -118,6 +118,7 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   // D2C Fees
   'selling & distribution exp': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },
   'courier & postage expense': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },
+  'freight charge': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },  // P&L freight (singular)
   'freight charges p&l': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },
   'freight & forwarding charges': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },
   'porter daily exp': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },
@@ -151,6 +152,7 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   'salary expenses director': { head: 'I. Operating Expenses', subhead: 'Salaries Director', type: 'expense', plLine: 'Operating Expenses' },
   'driver salary expense': { head: 'I. Operating Expenses', subhead: 'Salaries (Admin Mgmt)', type: 'expense', plLine: 'Operating Expenses' },
   'esi employer contribution e': { head: 'I. Operating Expenses', subhead: 'Salaries (Admin Mgmt)', type: 'expense', plLine: 'Operating Expenses' },
+  'esi employer contributtion e': { head: 'I. Operating Expenses', subhead: 'Salaries (Admin Mgmt)', type: 'expense', plLine: 'Operating Expenses' },  // Typo in Busy
   'staff welfare expenses': { head: 'I. Operating Expenses', subhead: 'Staff Welfare & Events', type: 'expense', plLine: 'Operating Expenses' },
   'uniform expenses': { head: 'I. Operating Expenses', subhead: 'Salaries (Admin Mgmt)', type: 'expense', plLine: 'Operating Expenses' },
   'diwali exp': { head: 'I. Operating Expenses', subhead: 'Staff Welfare & Events', type: 'expense', plLine: 'Operating Expenses' },
