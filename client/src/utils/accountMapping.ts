@@ -111,12 +111,9 @@ interface PLMapping {
 function classifyPLExpense(accountName: string): PLMapping {
   const lower = accountName.toLowerCase();
 
-  // ===== Z. IGNORE (GST, TDS, Rounding) =====
+  // ===== Z. IGNORE (Only GST, TDS - truly ignorable items) =====
   if (/^(cgst|sgst|igst|gst)/i.test(lower) || /tds/i.test(lower)) {
     return { head: 'Z. Ignore', subhead: 'GST/TDS' };
-  }
-  if (/round.*off/i.test(lower)) {
-    return { head: 'Z. Ignore', subhead: 'Rounding' };
   }
   if (/duties\s*&\s*taxes/i.test(lower)) {
     return { head: 'Z. Ignore', subhead: 'GST Input/Output' };
@@ -148,7 +145,7 @@ function classifyPLExpense(accountName: string): PLMapping {
   }
 
   // ===== F. CHANNEL & FULFILLMENT =====
-  // Amazon
+  // Amazon (handles double spaces via \s+)
   if (/amazon/i.test(lower)) {
     return { head: 'F. Channel & Fulfillment', subhead: 'Amazon Fees' };
   }
@@ -163,10 +160,6 @@ function classifyPLExpense(accountName: string): PLMapping {
   // Storage/Shipping/Commission fees (usually Amazon)
   if (/storage\s*fee|shipping\s*fee|commission\s*fee/i.test(lower)) {
     return { head: 'F. Channel & Fulfillment', subhead: 'Amazon Fees' };
-  }
-  // Return fee
-  if (/return\s*fee/i.test(lower)) {
-    return { head: 'B. Returns', subhead: 'Returns' };
   }
   // Selling & Distribution
   if (/selling.*distribution|installation.*service/i.test(lower)) {
@@ -224,14 +217,23 @@ function classifyPLExpense(accountName: string): PLMapping {
     return { head: 'I. Operating Expenses', subhead: 'Administrative Expenses' };
   }
 
-  // ===== C. DISCOUNTS =====
-  if (/cash\s*discount|rate\s*difference/i.test(lower)) {
-    return { head: 'C. Discounts', subhead: 'Discounts' };
+  // ===== ITEMS MOVED TO OTHER OPERATING EXPENSES =====
+  // These were previously in separate categories but user wants them in Other Operating Expenses
+  // Rounded Off, Return Fee, Cash Discount, Rate Difference, Commission Income
+  if (/round.*off/i.test(lower)) {
+    return { head: 'I. Operating Expenses', subhead: 'Other Operating Expenses' };
   }
-
-  // ===== OTHER INCOME =====
-  if (/income|receipt/i.test(lower) && !/tax/i.test(lower)) {
-    return { head: 'A. Revenue', subhead: 'Other Income' };
+  if (/return\s*fee/i.test(lower)) {
+    return { head: 'I. Operating Expenses', subhead: 'Other Operating Expenses' };
+  }
+  if (/cash\s*discount/i.test(lower)) {
+    return { head: 'I. Operating Expenses', subhead: 'Other Operating Expenses' };
+  }
+  if (/rate\s*difference/i.test(lower)) {
+    return { head: 'I. Operating Expenses', subhead: 'Other Operating Expenses' };
+  }
+  if (/commission\s*income/i.test(lower)) {
+    return { head: 'I. Operating Expenses', subhead: 'Other Operating Expenses' };
   }
 
   // Default for unclassified P&L items → Operating Expenses

@@ -85,7 +85,7 @@ function extractAccountName(line: string): string {
   return cleaned;
 }
 
-// Check if line is a section header
+// Check if line is a section header or PDF artifact to skip
 function isSectionHeader(line: string): boolean {
   const lower = line.toLowerCase();
   return /trading\s*account/i.test(lower) ||
@@ -94,7 +94,17 @@ function isSectionHeader(line: string): boolean {
          /d\s*e\s*b\s*i\s*t/i.test(lower) ||
          /c\s*r\s*e\s*d\s*i\s*t/i.test(lower) ||
          /total/i.test(lower) ||
-         /from\s+\d+-\d+-\d+/i.test(lower);
+         /from\s+\d+-\d+-\d+/i.test(lower) ||
+         // PDF page transition artifacts
+         /cont['']?d\.?\s*(on)?\s*page/i.test(lower) ||
+         /continued\s*(on)?\s*page/i.test(lower) ||
+         /^page\s*[;:]/i.test(lower) ||
+         // Spaced out headers like "P R O F I T & L O S S"
+         /p\s+r\s+o\s+f\s+i\s+t/i.test(lower) ||
+         /a\s+c\s+c\s+o\s+u\s+n\s+t/i.test(lower) ||
+         // Other page artifacts
+         /^\s*page\s*\d+/i.test(lower) ||
+         /^\s*-+\s*$/i.test(lower);  // Horizontal lines
 }
 
 // Check if this is a sub-item line (indented, part of a group)
