@@ -164,7 +164,9 @@ interface SpecialItemResult {
 }
 
 function detectSpecialItem(accountName: string): SpecialItemResult {
-  const lower = accountName.toLowerCase();
+  const lower = accountName.toLowerCase().trim();
+  // Also clean pipes and special chars for matching
+  const cleaned = lower.replace(/[|;:]/g, '').trim();
 
   if (/opening\s*stock/i.test(lower)) {
     return { isSpecial: true, type: 'opening_stock' };
@@ -181,10 +183,15 @@ function detectSpecialItem(accountName: string): SpecialItemResult {
   if (/nett?\s*loss/i.test(lower)) {
     return { isSpecial: true, type: 'net_loss' };
   }
-  if (/^sales?$/i.test(lower.trim())) {
+  // Sales - match "Sales", "Sale", "| Sales", etc. but NOT "Sales Return" or "Sales Tax"
+  if (/^[\s|;:]*sales?[\s|;:]*$/i.test(lower) || /^[\s|;:]*sales?[\s|;:]*$/i.test(cleaned)) {
     return { isSpecial: true, type: 'sales' };
   }
-  if (/^purchase$/i.test(lower.trim())) {
+  // Also catch "By Sale" or just account names that are purely "Sales"
+  if (cleaned === 'sale' || cleaned === 'sales') {
+    return { isSpecial: true, type: 'sales' };
+  }
+  if (/^purchase$/i.test(cleaned)) {
     return { isSpecial: true, type: 'purchase' };
   }
 
@@ -798,10 +805,11 @@ export function extractMarketingFromBalanceSheet(data: EnhancedBalanceSheetData)
   amazonAds: number;
   blinkitAds: number;
   agencyFees: number;
+  advertisingMarketing: number;
 } {
   const marketing = data.aggregatedByHead['G. Sales & Marketing'];
   if (!marketing) {
-    return { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0 };
+    return { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, advertisingMarketing: 0 };
   }
 
   return {
@@ -810,7 +818,10 @@ export function extractMarketingFromBalanceSheet(data: EnhancedBalanceSheetData)
     googleAds: marketing.subheads['Google Ads']?.total || 0,
     amazonAds: marketing.subheads['Amazon Ads']?.total || 0,
     blinkitAds: marketing.subheads['Blinkit Ads']?.total || 0,
-    agencyFees: marketing.subheads['Agency Fees']?.total || 0
+    agencyFees: marketing.subheads['Agency Fees']?.total || 0,
+    // Include general Advertising & Marketing and Social Media Ads
+    advertisingMarketing: (marketing.subheads['Advertising & Marketing']?.total || 0) +
+                          (marketing.subheads['Social Media Ads']?.total || 0)
   };
 }
 

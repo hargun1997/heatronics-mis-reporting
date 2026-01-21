@@ -124,6 +124,7 @@ export interface SalesMarketingData {
   amazonAds: number;
   blinkitAds: number;
   agencyFees: number;
+  advertisingMarketing: number;  // General advertising/publicity from BS
   total: number;
 }
 
@@ -464,7 +465,7 @@ export function createEmptyMISRecord(period: MISPeriod): MISRecord {
     channelFulfillment: { amazonFees: 0, blinkitFees: 0, d2cFees: 0, total: 0 },
     cm1: 0,
     cm1Percent: 0,
-    salesMarketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, total: 0 },
+    salesMarketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, advertisingMarketing: 0, total: 0 },
     cm2: 0,
     cm2Percent: 0,
     platformCosts: { shopifySubscription: 0, watiSubscription: 0, shopfloSubscription: 0, total: 0 },

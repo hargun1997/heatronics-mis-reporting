@@ -166,6 +166,7 @@ export async function calculateMIS(
     amazonAds: aggregatedExpenses.marketing.amazonAds,
     blinkitAds: aggregatedExpenses.marketing.blinkitAds,
     agencyFees: aggregatedExpenses.marketing.agencyFees,
+    advertisingMarketing: aggregatedExpenses.marketing.advertisingMarketing,
     total: 0
   };
   record.salesMarketing.total =
@@ -173,7 +174,8 @@ export async function calculateMIS(
     record.salesMarketing.googleAds +
     record.salesMarketing.amazonAds +
     record.salesMarketing.blinkitAds +
-    record.salesMarketing.agencyFees;
+    record.salesMarketing.agencyFees +
+    record.salesMarketing.advertisingMarketing;
 
   // ============================================
   // STEP 7: Populate Platform Costs
@@ -334,7 +336,7 @@ function aggregateExpensesFromBalanceSheets(
       jobWork: 0
     },
     channel: { amazonFees: 0, blinkitFees: 0, d2cFees: 0 },
-    marketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0 },
+    marketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, advertisingMarketing: 0 },
     platform: { shopifySubscription: 0, watiSubscription: 0, shopfloSubscription: 0 },
     operating: { salariesAdminMgmt: 0, miscellaneous: 0, legalCaExpenses: 0, platformCostsCRM: 0, administrativeExpenses: 0 },
     nonOperating: { interestExpense: 0, depreciation: 0, amortization: 0, incomeTax: 0 },
@@ -380,6 +382,7 @@ function aggregateExpensesFromBalanceSheets(
     result.marketing.amazonAds += marketing.amazonAds;
     result.marketing.blinkitAds += marketing.blinkitAds;
     result.marketing.agencyFees += marketing.agencyFees;
+    result.marketing.advertisingMarketing += marketing.advertisingMarketing;
 
     // Extract and aggregate Platform Costs
     const platform = extractPlatformFromBalanceSheet(bsData);
