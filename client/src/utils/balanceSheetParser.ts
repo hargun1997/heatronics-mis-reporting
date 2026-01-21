@@ -803,6 +803,7 @@ export async function parseBalanceSheetEnhanced(file: File): Promise<BalanceShee
  */
 export function extractCOGMFromBalanceSheet(data: EnhancedBalanceSheetData): {
   rawMaterialsInventory: number;
+  consumables: number;
   manufacturingWages: number;
   contractWagesMfg: number;
   inboundTransport: number;
@@ -810,18 +811,23 @@ export function extractCOGMFromBalanceSheet(data: EnhancedBalanceSheetData): {
   factoryElectricity: number;
   factoryMaintenance: number;
   jobWork: number;
+  qualityTesting: number;
+  otherDirectExpenses: number;
 } {
   const cogm = data.aggregatedByHead['E. COGM'];
   if (!cogm) {
     return {
       rawMaterialsInventory: 0,
+      consumables: 0,
       manufacturingWages: 0,
       contractWagesMfg: 0,
       inboundTransport: 0,
       factoryRent: 0,
       factoryElectricity: 0,
       factoryMaintenance: 0,
-      jobWork: 0
+      jobWork: 0,
+      qualityTesting: 0,
+      otherDirectExpenses: 0
     };
   }
 
@@ -831,13 +837,16 @@ export function extractCOGMFromBalanceSheet(data: EnhancedBalanceSheetData): {
 
   return {
     rawMaterialsInventory: getSubheadTotal('Raw Materials & Inventory'),
+    consumables: getSubheadTotal('Consumables'),
     manufacturingWages: getSubheadTotal('Manufacturing Wages'),
     contractWagesMfg: getSubheadTotal('Contract Wages (Mfg)'),
     inboundTransport: getSubheadTotal('Inbound Transport'),
     factoryRent: getSubheadTotal('Factory Rent'),
     factoryElectricity: getSubheadTotal('Factory Electricity'),
     factoryMaintenance: getSubheadTotal('Factory Maintenance'),
-    jobWork: getSubheadTotal('Job work')
+    jobWork: getSubheadTotal('Job work'),
+    qualityTesting: getSubheadTotal('Quality Testing'),
+    otherDirectExpenses: getSubheadTotal('Other Direct Expenses')
   };
 }
 

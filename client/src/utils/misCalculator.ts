@@ -132,6 +132,7 @@ export async function calculateMIS(
 
   record.cogm = {
     rawMaterialsInventory: rawMaterialsFromBS,
+    consumables: aggregatedExpenses.cogm.consumables,
     manufacturingWages: aggregatedExpenses.cogm.manufacturingWages,
     contractWagesMfg: aggregatedExpenses.cogm.contractWagesMfg,
     inboundTransport: aggregatedExpenses.cogm.inboundTransport,
@@ -139,6 +140,8 @@ export async function calculateMIS(
     factoryElectricity: aggregatedExpenses.cogm.factoryElectricity,
     factoryMaintenance: aggregatedExpenses.cogm.factoryMaintenance,
     jobWork: aggregatedExpenses.cogm.jobWork,
+    qualityTesting: aggregatedExpenses.cogm.qualityTesting,
+    otherDirectExpenses: aggregatedExpenses.cogm.otherDirectExpenses,
     totalCOGM: 0
   };
   record.cogm.totalCOGM = calculateTotal(record.cogm);
@@ -283,6 +286,7 @@ export async function calculateMIS(
 interface AggregatedExpenses {
   cogm: {
     rawMaterialsInventory: number;
+    consumables: number;
     manufacturingWages: number;
     contractWagesMfg: number;
     inboundTransport: number;
@@ -290,6 +294,8 @@ interface AggregatedExpenses {
     factoryElectricity: number;
     factoryMaintenance: number;
     jobWork: number;
+    qualityTesting: number;
+    otherDirectExpenses: number;
   };
   channel: {
     amazonFees: number;
@@ -337,13 +343,16 @@ function aggregateExpensesFromBalanceSheets(
   const result: AggregatedExpenses = {
     cogm: {
       rawMaterialsInventory: 0,
+      consumables: 0,
       manufacturingWages: 0,
       contractWagesMfg: 0,
       inboundTransport: 0,
       factoryRent: 0,
       factoryElectricity: 0,
       factoryMaintenance: 0,
-      jobWork: 0
+      jobWork: 0,
+      qualityTesting: 0,
+      otherDirectExpenses: 0
     },
     channel: { amazonFees: 0, blinkitFees: 0, d2cFees: 0 },
     marketing: { facebookAds: 0, googleAds: 0, amazonAds: 0, blinkitAds: 0, agencyFees: 0, advertisingMarketing: 0 },
@@ -371,6 +380,7 @@ function aggregateExpensesFromBalanceSheets(
 
     // Extract and aggregate COGM (except raw materials which comes from UP only)
     const cogm = extractCOGMFromBalanceSheet(bsData);
+    result.cogm.consumables += cogm.consumables;
     result.cogm.manufacturingWages += cogm.manufacturingWages;
     result.cogm.contractWagesMfg += cogm.contractWagesMfg;
     result.cogm.inboundTransport += cogm.inboundTransport;
@@ -378,6 +388,8 @@ function aggregateExpensesFromBalanceSheets(
     result.cogm.factoryElectricity += cogm.factoryElectricity;
     result.cogm.factoryMaintenance += cogm.factoryMaintenance;
     result.cogm.jobWork += cogm.jobWork;
+    result.cogm.qualityTesting += cogm.qualityTesting;
+    result.cogm.otherDirectExpenses += cogm.otherDirectExpenses;
 
     // Extract and aggregate Channel & Fulfillment
     const channel = extractChannelFromBalanceSheet(bsData);
