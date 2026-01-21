@@ -479,7 +479,15 @@ function parseAllLineItems(
     const lineAmount = pendingAccountName ? extractFirstAmountFromLine(line) : extractAmountFromLine(line);
 
     // If we have a pending account name and this line has an amount but little/no text
-    if (pendingAccountName && lineAmount > 0 && (!lineAccountName || lineAccountName.length < 3)) {
+    // Also be more lenient for important accounts (amazon, etc.) that often have parsing issues
+    const isImportantPending = pendingAccountName && /amazon|logistics|shipping|storage/i.test(pendingAccountName);
+    const isContinuationLine = pendingAccountName && lineAmount > 0 && (
+      !lineAccountName ||
+      lineAccountName.length < 3 ||
+      (isImportantPending && lineAccountName.length < 15)  // More lenient for important accounts
+    );
+
+    if (isContinuationLine) {
       // This is a continuation line - create item with pending name and FIRST amount (not subtotal)
       console.log(`[parseAllLineItems] Multi-line continuation detected:`);
       console.log(`  - Pending account: "${pendingAccountName}"`);
