@@ -461,13 +461,19 @@ function parseAllLineItems(
         console.log(`[parseAllLineItems] Multi-line item created: "${multiLineItem.accountName}" = ${multiLineItem.amount}`);
 
         // Add to appropriate section (same logic as regular items below)
+        // In Trading Account: only DEBIT side items are expenses (COGM)
+        // CREDIT side items are Sales/Revenue - skip them
         if (!multiLineItem.isSpecial) {
           if (currentSection === 'trading') {
-            tradingAccount.directExpenses.push(multiLineItem);
+            // Only add DEBIT side items to directExpenses (COGM)
             if (currentSide === 'debit') {
+              tradingAccount.directExpenses.push(multiLineItem);
               tradingAccount.debitTotal += multiLineItem.amount;
+              result.allLineItems.push(multiLineItem);
             } else {
+              // Credit side in Trading = Sales/Revenue, not expenses
               tradingAccount.creditTotal += multiLineItem.amount;
+              console.log(`[parseAllLineItems] Skipping credit-side Trading item (not an expense): "${multiLineItem.accountName}"`);
             }
           } else if (currentSection === 'pl') {
             if (multiLineItem.type === 'other_income') {
@@ -480,8 +486,8 @@ function parseAllLineItems(
             } else {
               plAccount.creditTotal += multiLineItem.amount;
             }
+            result.allLineItems.push(multiLineItem);
           }
-          result.allLineItems.push(multiLineItem);
         }
       }
       continue;
@@ -537,12 +543,18 @@ function parseAllLineItems(
     }
 
     // Add to appropriate section
+    // In Trading Account: only DEBIT side items are expenses (COGM)
+    // CREDIT side items are Sales/Revenue - skip them
     if (currentSection === 'trading') {
-      tradingAccount.directExpenses.push(item);
+      // Only add DEBIT side items to directExpenses (COGM)
       if (currentSide === 'debit') {
+        tradingAccount.directExpenses.push(item);
         tradingAccount.debitTotal += item.amount;
       } else {
+        // Credit side in Trading = Sales/Revenue, not expenses
         tradingAccount.creditTotal += item.amount;
+        console.log(`[parseAllLineItems] Skipping credit-side Trading item (not an expense): "${item.accountName}"`);
+        continue; // Don't add to allLineItems
       }
     } else if (currentSection === 'pl') {
       if (item.type === 'other_income') {
