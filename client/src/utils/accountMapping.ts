@@ -57,9 +57,10 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   'purchase maharashtra': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
   'purchase karnataka': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
   'purchase haryana': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
-  'consumable expenses': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
-  'consumables expenses': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
-  'consumables expense basic': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
+  // Consumables (separate from Raw Materials)
+  'consumable expenses': { head: 'E. COGM', subhead: 'Consumables', type: 'expense', plLine: 'COGS' },
+  'consumables expenses': { head: 'E. COGM', subhead: 'Consumables', type: 'expense', plLine: 'COGS' },
+  'consumables expense basic': { head: 'E. COGM', subhead: 'Consumables', type: 'expense', plLine: 'COGS' },
   'stancil charges': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
   'sample & modification expenses': { head: 'E. COGM', subhead: 'FBA/Expenses', type: 'expense', plLine: 'COGS' },
   'lab testing charges': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
@@ -301,7 +302,7 @@ const FUZZY_PATTERNS: { pattern: RegExp; mapping: AccountMapping }[] = [
   { pattern: /job\s*work/i, mapping: { head: 'E. COGM', subhead: 'Job work', type: 'expense', plLine: 'COGS' } },
 
   // Consumable
-  { pattern: /consumable/i, mapping: { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' } },
+  { pattern: /consumable/i, mapping: { head: 'E. COGM', subhead: 'Consumables', type: 'expense', plLine: 'COGS' } },
 
   // Legal patterns
   { pattern: /legal|professional.*exp/i, mapping: { head: 'I. Operating Expenses', subhead: 'Legal & CA expenses', type: 'expense', plLine: 'Operating Expenses' } },
