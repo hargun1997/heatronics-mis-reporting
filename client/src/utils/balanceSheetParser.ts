@@ -15,7 +15,7 @@ import {
   createEmptyEnhancedBalanceSheet
 } from '../types/balanceSheet';
 import { MISHead } from '../types/misTracking';
-import { mapAccountToMIS, normalizeAccountName, isSpecialAccount } from './accountMapping';
+import { mapAccountToMISBySection, normalizeAccountName, isSpecialAccount } from './accountMapping';
 
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
@@ -229,15 +229,13 @@ function extractLineItem(
     specialType: special.type
   };
 
-  // Apply MIS mapping if not a special item
+  // Apply MIS mapping if not a special item - USE SECTION-AWARE MAPPING
   if (!special.isSpecial && !isSpecialAccount(accountName)) {
-    const mapping = mapAccountToMIS(accountName);
-    if (mapping) {
-      item.head = mapping.head;
-      item.subhead = mapping.subhead;
-      item.type = mapping.type;
-      item.plLine = mapping.plLine;
-    }
+    const mapping = mapAccountToMISBySection(accountName, section as 'trading' | 'pl');
+    item.head = mapping.head;
+    item.subhead = mapping.subhead;
+    item.type = mapping.type;
+    item.plLine = mapping.plLine;
   }
 
   return item;
@@ -385,15 +383,13 @@ function createLineItemFromParts(
     specialType: special.type
   };
 
-  // Apply MIS mapping if not a special item
+  // Apply MIS mapping if not a special item - USE SECTION-AWARE MAPPING
   if (!special.isSpecial && !isSpecialAccount(accountName)) {
-    const mapping = mapAccountToMIS(accountName);
-    if (mapping) {
-      item.head = mapping.head;
-      item.subhead = mapping.subhead;
-      item.type = mapping.type;
-      item.plLine = mapping.plLine;
-    }
+    const mapping = mapAccountToMISBySection(accountName, section as 'trading' | 'pl');
+    item.head = mapping.head;
+    item.subhead = mapping.subhead;
+    item.type = mapping.type;
+    item.plLine = mapping.plLine;
   }
 
   return item;
