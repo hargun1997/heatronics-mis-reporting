@@ -57,9 +57,10 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   'purchase maharashtra': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
   'purchase karnataka': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
   'purchase haryana': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
-  'consumable expenses': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
-  'consumables expenses': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
-  'consumables expense basic': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
+  // Consumables (separate from Raw Materials)
+  'consumable expenses': { head: 'E. COGM', subhead: 'Consumables', type: 'expense', plLine: 'COGS' },
+  'consumables expenses': { head: 'E. COGM', subhead: 'Consumables', type: 'expense', plLine: 'COGS' },
+  'consumables expense basic': { head: 'E. COGM', subhead: 'Consumables', type: 'expense', plLine: 'COGS' },
   'stancil charges': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
   'sample & modification expenses': { head: 'E. COGM', subhead: 'FBA/Expenses', type: 'expense', plLine: 'COGS' },
   'lab testing charges': { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' },
@@ -74,6 +75,7 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   // Inbound Transport
   'freight charges trading': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
   'freight charges': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
+  'freight chares': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },  // Typo in Busy
   'loading & unloading exp': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
   'loading & unloading exp p&l': { head: 'F. Channel & Fulfillment', subhead: 'D2C Fees', type: 'expense', plLine: 'Channel Costs' },
   'transpotation expenses': { head: 'E. COGM', subhead: 'Inbound Transport', type: 'expense', plLine: 'COGS' },
@@ -83,6 +85,8 @@ const ACCOUNT_MAPPINGS: Record<string, AccountMapping> = {
   // Factory Maintenance (includes electricity, water, power backup)
   'power backup & maitenance': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'power backup & maintenance': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
+  'power backup & maitenance d': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },  // Truncated in PDF
+  'power backup & maitenance dg': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'power backup & maitenance dg expense': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'power backup & maintenance dg expense': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
   'electricity & water expenses': { head: 'E. COGM', subhead: 'Factory Maintenance', type: 'expense', plLine: 'COGS' },
@@ -298,7 +302,7 @@ const FUZZY_PATTERNS: { pattern: RegExp; mapping: AccountMapping }[] = [
   { pattern: /job\s*work/i, mapping: { head: 'E. COGM', subhead: 'Job work', type: 'expense', plLine: 'COGS' } },
 
   // Consumable
-  { pattern: /consumable/i, mapping: { head: 'E. COGM', subhead: 'Raw Materials & Inventory', type: 'expense', plLine: 'COGS' } },
+  { pattern: /consumable/i, mapping: { head: 'E. COGM', subhead: 'Consumables', type: 'expense', plLine: 'COGS' } },
 
   // Legal patterns
   { pattern: /legal|professional.*exp/i, mapping: { head: 'I. Operating Expenses', subhead: 'Legal & CA expenses', type: 'expense', plLine: 'Operating Expenses' } },
