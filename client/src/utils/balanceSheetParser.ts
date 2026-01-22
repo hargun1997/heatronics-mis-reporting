@@ -39,8 +39,12 @@ function parseIndianNumber(text: string): number {
 
 // Extract numbers from a line (including negative numbers)
 function extractNumbersFromLine(line: string): number[] {
+  // First, normalize the line to handle cases where pdf.js separates minus sign with space
+  // e.g., "- 6,489.00" should become "-6,489.00"
+  const normalizedLine = line.replace(/-\s+([\d,])/g, '-$1');
+
   // Match negative numbers like -6,489.00 and positive numbers like 1,23,456.78
-  const numbers = line.match(/-?[\d,]+\.?\d*/g);
+  const numbers = normalizedLine.match(/-?[\d,]+\.?\d*/g);
   if (!numbers) return [];
   return numbers.map(n => parseIndianNumber(n)).filter(n => n !== 0);
 }
@@ -460,27 +464,29 @@ function parseAllLineItems(
 
   console.log('[parseAllLineItems] Starting to parse', lines.length, 'lines');
 
-  // DEBUG: Log ALL lines containing amazon or logistics
-  console.log('[DEBUG] ===== AMAZON/LOGISTICS LINE SCAN =====');
+  // DEBUG: Log ALL lines containing important keywords for debugging
+  console.log('[DEBUG] ===== SPECIAL ENTRIES SCAN =====');
   for (let i = 0; i < lines.length; i++) {
     const lower = lines[i].toLowerCase();
-    if (/amazon|logistics/i.test(lower)) {
+    // Check for amazon, logistics, prabhash, avanish, or lines with negative numbers
+    if (/amazon|logistics|prabhash|avanish/i.test(lower) || /-[\d,]+\.?\d*/.test(lines[i])) {
       console.log(`[DEBUG] Line ${i}: "${lines[i]}"`);
       console.log(`[DEBUG]   - Account name: "${extractAccountName(lines[i])}"`);
       console.log(`[DEBUG]   - Amount: ${extractAmountFromLine(lines[i])}`);
-      console.log(`[DEBUG]   - Numbers: ${extractNumbersFromLine(lines[i]).join(', ')}`);
+      console.log(`[DEBUG]   - All numbers found: ${extractNumbersFromLine(lines[i]).join(', ')}`);
     }
   }
-  console.log('[DEBUG] ===== END AMAZON/LOGISTICS SCAN =====');
+  console.log('[DEBUG] ===== END SPECIAL ENTRIES SCAN =====');
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // DEBUG: Extra logging for amazon/logistics lines
-    if (/amazon|logistics/i.test(line.toLowerCase())) {
-      console.log(`[DEBUG-LOOP] Processing line ${i}: "${trimmed.substring(0, 80)}"`);
+    // DEBUG: Extra logging for special entries (amazon, logistics, prabhash, avanish, negative amounts)
+    const isDebugLine = /amazon|logistics|prabhash|avanish/i.test(line.toLowerCase()) || /-[\d,]+\.?\d*/.test(line);
+    if (isDebugLine) {
+      console.log(`[DEBUG-LOOP] Processing line ${i}: "${trimmed.substring(0, 100)}"`);
       console.log(`[DEBUG-LOOP]   - Current section: ${currentSection}, side: ${currentSide}`);
       console.log(`[DEBUG-LOOP]   - Pending account: "${pendingAccountName}"`);
     }
@@ -567,12 +573,12 @@ function parseAllLineItems(
     // Extract line item normally
     const item = extractLineItem(line, currentSection, currentSide, i);
 
-    // DEBUG: Log what happened to amazon/logistics entries
-    if (/amazon|logistics/i.test(line.toLowerCase())) {
+    // DEBUG: Log what happened to special entries
+    if (isDebugLine) {
       if (item) {
         console.log(`[DEBUG-LOOP] ✓ Item created: "${item.accountName}" = ${item.amount}, head: ${item.head}`);
       } else {
-        console.log(`[DEBUG-LOOP] ✗ No item created for amazon/logistics line`);
+        console.log(`[DEBUG-LOOP] ✗ No item created for this line`);
         console.log(`[DEBUG-LOOP]   - lineAccountName: "${lineAccountName}" (length: ${lineAccountName.length})`);
         console.log(`[DEBUG-LOOP]   - lineAmount: ${lineAmount}`);
         console.log(`[DEBUG-LOOP]   - Will set pending: ${lineAccountName && lineAccountName.length >= 3 && lineAmount === 0}`);
