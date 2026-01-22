@@ -551,33 +551,34 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             <div
               key={fy}
               ref={(el) => { if (el) fyRefs.current.set(fy, el); }}
-              className="w-[1100px] bg-slate-900 p-6"
+              className="bg-slate-900 p-8"
+              style={{ width: '1100px' }}
             >
-              <h2 className="text-xl font-bold text-slate-100 mb-2">{fy} - P&L Summary</h2>
-              <p className="text-sm text-slate-400 mb-4">April {fyStartYear} to March {fyStartYear + 1}</p>
+              <h2 className="text-2xl font-bold text-slate-100 mb-2">{fy} - P&L Summary</h2>
+              <p className="text-sm text-slate-400 mb-6">April {fyStartYear} to March {fyStartYear + 1}</p>
 
               <div className="bg-slate-800 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
                   <thead>
                     <tr className="bg-slate-700/50">
-                      <th className="text-left py-3 px-4 text-slate-300 font-semibold">Month</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">Net Revenue</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">Gross Margin</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM1</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM2</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM3</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">EBITDA</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">Net Profit</th>
+                      <th className="text-left py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '100px' }}>Month</th>
+                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '120px' }}>Net Revenue</th>
+                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '130px' }}>Gross Margin</th>
+                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM1</th>
+                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM2</th>
+                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM3</th>
+                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>EBITDA</th>
+                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>Net Profit</th>
                     </tr>
                   </thead>
                   <tbody>
                     {fyMonths.map(({ month, year, label, record }) => (
                       <tr key={`${year}-${month}`} className={`border-b border-slate-700/50 ${!record ? 'opacity-40' : ''}`}>
-                        <td className="py-3 px-4 text-slate-200">{label} {year}</td>
-                        <td className="py-3 px-4 text-right text-slate-200">
+                        <td className="py-2 px-3 text-slate-200 whitespace-nowrap">{label} {year}</td>
+                        <td className="py-2 px-3 text-right text-slate-200 whitespace-nowrap">
                           {record ? formatCurrency(record.revenue.netRevenue) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
                               <div className="text-slate-200">{formatCurrency(record.grossMargin)}</div>
@@ -587,7 +588,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                             </div>
                           ) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
                               <div className="text-slate-200">{formatCurrency(record.cm1)}</div>
@@ -597,7 +598,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                             </div>
                           ) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
                               <div className="text-slate-200">{formatCurrency(record.cm2)}</div>
@@ -607,7 +608,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                             </div>
                           ) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
                               <div className="text-slate-200">{formatCurrency(record.cm3)}</div>
@@ -617,7 +618,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                             </div>
                           ) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
                               <div className={record.ebitda >= 0 ? 'text-slate-200' : 'text-red-400'}>{formatCurrency(record.ebitda)}</div>
@@ -627,7 +628,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                             </div>
                           ) : '-'}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
                               <div className={record.netIncome >= 0 ? 'text-slate-200' : 'text-red-400'}>{formatCurrency(record.netIncome)}</div>
@@ -641,29 +642,29 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                     ))}
                     {/* Totals Row */}
                     <tr className="bg-slate-700/70 font-semibold">
-                      <td className="py-4 px-4 text-slate-100 font-bold">FY Total</td>
-                      <td className="py-4 px-4 text-right text-blue-400">{formatCurrency(fyTotals.netRevenue)}</td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-3 px-3 text-slate-100 font-bold whitespace-nowrap">FY Total</td>
+                      <td className="py-3 px-3 text-right text-blue-400 whitespace-nowrap">{formatCurrency(fyTotals.netRevenue)}</td>
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
                         <div className={fyTotals.grossMargin >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.grossMargin)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.grossMargin / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
                         <div className={fyTotals.cm1 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm1)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm1 / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
                         <div className={fyTotals.cm2 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm2)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm2 / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
                         <div className={fyTotals.cm3 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm3)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm3 / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
                         <div className={fyTotals.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.ebitda)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.ebitda / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
-                      <td className="py-4 px-4 text-right">
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
                         <div className={fyTotals.netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.netIncome)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.netIncome / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
