@@ -1,8 +1,6 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { MISRecord, MISPeriod } from '../../types/misTracking';
+import React, { useState, useMemo } from 'react';
+import { MISRecord } from '../../types/misTracking';
 import { formatCurrency, formatPercent } from '../../utils/misCalculator';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 interface MISFYViewProps {
   allMISRecords: MISRecord[];
@@ -54,9 +52,6 @@ function getYearForMonth(fyStartYear: number, month: number): number {
 }
 
 export function MISFYView({ allMISRecords }: MISFYViewProps) {
-  const tableRef = useRef<HTMLDivElement>(null);
-  const [isExporting, setIsExporting] = useState(false);
-
   // Get available FYs
   const availableFYs = useMemo(() => getAvailableFYs(allMISRecords), [allMISRecords]);
 
@@ -126,43 +121,6 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
     };
   }, [totals]);
 
-  // Export to PDF
-  const handleExportPDF = async () => {
-    if (!tableRef.current) return;
-
-    setIsExporting(true);
-
-    try {
-      const canvas = await html2canvas(tableRef.current, {
-        scale: 2,
-        backgroundColor: '#0f172a', // slate-900 background
-        logging: false
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 10;
-
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-      pdf.save(`MIS-${selectedFY.replace(' ', '-')}.pdf`);
-    } catch (error) {
-      console.error('Error exporting PDF:', error);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   // Format cell value with color
   const formatMetricCell = (value: number | undefined, isPercent: boolean = false) => {
     if (value === undefined) return '-';
@@ -182,57 +140,26 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header with FY Selector and Export */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-slate-400">Financial Year:</label>
-          <select
-            value={selectedFY}
-            onChange={(e) => setSelectedFY(e.target.value)}
-            className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-blue-500"
-          >
-            {availableFYs.length > 0 ? (
-              availableFYs.map(fy => (
-                <option key={fy} value={fy}>{fy}</option>
-              ))
-            ) : (
-              <option value={defaultFY}>{defaultFY}</option>
-            )}
-          </select>
-        </div>
-
-        <button
-          onClick={handleExportPDF}
-          disabled={isExporting || !totals}
-          className={`
-            flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
-            ${isExporting || !totals
-              ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-              : 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
-            }
-          `}
+      {/* Header with FY Selector */}
+      <div className="flex items-center gap-4">
+        <label className="text-sm font-medium text-slate-400">Financial Year:</label>
+        <select
+          value={selectedFY}
+          onChange={(e) => setSelectedFY(e.target.value)}
+          className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-blue-500"
         >
-          {isExporting ? (
-            <>
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Exporting...
-            </>
+          {availableFYs.length > 0 ? (
+            availableFYs.map(fy => (
+              <option key={fy} value={fy}>{fy}</option>
+            ))
           ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export PDF
-            </>
+            <option value={defaultFY}>{defaultFY}</option>
           )}
-        </button>
+        </select>
       </div>
 
       {/* FY Summary Table */}
-      <div ref={tableRef} className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
         <div className="p-4 border-b border-slate-700">
           <h2 className="text-lg font-semibold text-slate-100">
             {selectedFY} - P&L Summary
