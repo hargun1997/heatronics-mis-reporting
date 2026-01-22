@@ -131,7 +131,7 @@ export const MIS_FORMULAS: Record<MarginType, FormulaDefinition> = {
 // Subhead descriptions for info icons
 export const SUBHEAD_DESCRIPTIONS: Record<string, string> = {
   // COGM
-  'Raw Materials & Inventory': 'Cost of raw materials used in manufacturing. Calculated from Balance Sheet as: Opening Stock + Purchases - Closing Stock.',
+  'Raw Materials & Inventory': 'Cost of raw materials used in manufacturing. Calculated using annual proration: (Opening Stock at FY start + Sum of all Purchases - Closing Stock at last month) distributed across months based on revenue ratios.',
   'Manufacturing Wages': 'Wages paid to factory workers directly involved in manufacturing products.',
   'Contract Wages (Mfg)': 'Payments to contract workers for manufacturing tasks.',
   'Inbound Transport': 'Freight and logistics costs for bringing raw materials to the factory.',
