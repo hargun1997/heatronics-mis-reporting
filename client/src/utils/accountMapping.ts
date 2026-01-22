@@ -126,7 +126,8 @@ function classifyPLExpense(accountName: string): PLMapping {
   }
 
   // ===== X. EXCLUDE (Personal Expenses) =====
-  if (/awanish|prabhash|personal/i.test(lower)) {
+  // Only truly personal expenses that shouldn't appear in MIS
+  if (/personal\s*exp/i.test(lower)) {
     return { head: 'X. Exclude', subhead: 'Personal Expenses' };
   }
 
