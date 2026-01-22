@@ -21,6 +21,7 @@ import {
 import { ProratedRawMaterialsResult } from '../utils/cogsCalculator';
 import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
+import { MISFYView } from '../components/mis-tracking/MISFYView';
 import {
   checkDriveStatus,
   getDriveFolderStructure,
@@ -171,7 +172,7 @@ export function MISTrackingNew() {
   // ============================================
   // STATE
   // ============================================
-  const [activeView, setActiveView] = useState<'timeline' | 'report' | 'trends'>('timeline');
+  const [activeView, setActiveView] = useState<'timeline' | 'report' | 'trends' | 'fy'>('timeline');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [savedPeriods, setSavedPeriods] = useState<{ periodKey: string; period: MISPeriod }[]>([]);
   const [allMISData, setAllMISData] = useState<MISRecord[]>([]);
@@ -1222,6 +1223,7 @@ export function MISTrackingNew() {
           {[
             { id: 'timeline' as const, label: 'Timeline', icon: '📅' },
             { id: 'report' as const, label: 'View Report', icon: '📊' },
+            { id: 'fy' as const, label: 'FY View', icon: '📋' },
             { id: 'trends' as const, label: 'Trends', icon: '📈' }
           ].map(view => (
             <button
@@ -1514,6 +1516,11 @@ export function MISTrackingNew() {
       {/* Trends View */}
       {activeView === 'trends' && (
         <MISTrendsView savedPeriods={savedPeriods} />
+      )}
+
+      {/* FY View */}
+      {activeView === 'fy' && (
+        <MISFYView allMISRecords={allMISData} />
       )}
 
       {/* Algorithm Guide Modal */}
