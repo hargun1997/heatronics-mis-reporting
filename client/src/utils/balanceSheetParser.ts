@@ -29,7 +29,7 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-// Parse Indian number format (1,23,456.78 or 71,36,568.33)
+// Parse Indian number format (1,23,456.78 or 71,36,568.33 or -6,489.00)
 function parseIndianNumber(text: string): number {
   if (!text) return 0;
   const cleaned = text.replace(/[\s,]/g, '').trim();
@@ -37,11 +37,12 @@ function parseIndianNumber(text: string): number {
   return isNaN(num) ? 0 : Math.round(num * 100) / 100;
 }
 
-// Extract numbers from a line
+// Extract numbers from a line (including negative numbers)
 function extractNumbersFromLine(line: string): number[] {
-  const numbers = line.match(/[\d,]+\.?\d*/g);
+  // Match negative numbers like -6,489.00 and positive numbers like 1,23,456.78
+  const numbers = line.match(/-?[\d,]+\.?\d*/g);
   if (!numbers) return [];
-  return numbers.map(n => parseIndianNumber(n)).filter(n => n > 0);
+  return numbers.map(n => parseIndianNumber(n)).filter(n => n !== 0);
 }
 
 // Extract the FIRST significant number from a line
@@ -51,9 +52,9 @@ function extractAmountFromLine(line: string): number {
   const numbers = extractNumbersFromLine(line);
   if (numbers.length === 0) return 0;
 
-  // Get the FIRST significant number (ignore small numbers < 100)
+  // Get the FIRST significant number (ignore small absolute values < 100)
   for (let i = 0; i < numbers.length; i++) {
-    if (numbers[i] > 100) {
+    if (Math.abs(numbers[i]) > 100) {
       return numbers[i];
     }
   }
@@ -67,9 +68,9 @@ function extractFirstAmountFromLine(line: string): number {
   const numbers = extractNumbersFromLine(line);
   if (numbers.length === 0) return 0;
 
-  // Get the first significant number (ignore small numbers < 100)
+  // Get the first significant number (ignore small absolute values < 100)
   for (let i = 0; i < numbers.length; i++) {
-    if (numbers[i] > 100) {
+    if (Math.abs(numbers[i]) > 100) {
       return numbers[i];
     }
   }
@@ -233,8 +234,9 @@ function extractLineItem(
   const accountName = extractAccountName(line);
   const amount = extractAmountFromLine(line);
 
-  // Skip if no account name or amount
-  if (!accountName || accountName.length < 2 || amount <= 0) {
+  // Skip if no account name or amount is zero
+  // Note: Allow negative amounts as they represent reversals/credits
+  if (!accountName || accountName.length < 2 || amount === 0) {
     return null;
   }
 
@@ -509,7 +511,7 @@ function parseAllLineItems(
     // If we have a pending account name and this line has an amount but little/no text
     // Also be more lenient for important accounts (amazon, etc.) that often have parsing issues
     const isImportantPending = pendingAccountName && /amazon|logistics|shipping|storage/i.test(pendingAccountName);
-    const isContinuationLine = pendingAccountName && lineAmount > 0 && (
+    const isContinuationLine = pendingAccountName && lineAmount !== 0 && (
       !lineAccountName ||
       lineAccountName.length < 3 ||
       (isImportantPending && lineAccountName.length < 15)  // More lenient for important accounts
