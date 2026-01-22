@@ -272,8 +272,8 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
         {/* ========== COGM SECTION ========== */}
         <CollapsibleSection
           title="E. COST OF GOODS MANUFACTURED (COGM)"
-          total={misRecord.cogm.totalCOGM}
-          percentage={pct(misRecord.cogm.totalCOGM)}
+          total={transactionsByHead['E. COGM']?.total || misRecord.cogm.totalCOGM}
+          percentage={pct(transactionsByHead['E. COGM']?.total || misRecord.cogm.totalCOGM)}
           transactionCount={transactionsByHead['E. COGM']?.transactionCount}
           defaultExpanded={allExpanded}
           infoTooltip={HEAD_DESCRIPTIONS['E. COGM']}
@@ -309,8 +309,8 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
         {/* ========== CHANNEL & FULFILLMENT ========== */}
         <CollapsibleSection
           title="F. CHANNEL & FULFILLMENT"
-          total={misRecord.channelFulfillment.total}
-          percentage={pct(misRecord.channelFulfillment.total)}
+          total={transactionsByHead['F. Channel & Fulfillment']?.total || misRecord.channelFulfillment.total}
+          percentage={pct(transactionsByHead['F. Channel & Fulfillment']?.total || misRecord.channelFulfillment.total)}
           transactionCount={transactionsByHead['F. Channel & Fulfillment']?.transactionCount}
           defaultExpanded={allExpanded}
           infoTooltip={HEAD_DESCRIPTIONS['F. Channel & Fulfillment']}
@@ -343,8 +343,8 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
         {/* ========== SALES & MARKETING ========== */}
         <CollapsibleSection
           title="G. SALES & MARKETING"
-          total={misRecord.salesMarketing.total}
-          percentage={pct(misRecord.salesMarketing.total)}
+          total={transactionsByHead['G. Sales & Marketing']?.total || misRecord.salesMarketing.total}
+          percentage={pct(transactionsByHead['G. Sales & Marketing']?.total || misRecord.salesMarketing.total)}
           transactionCount={transactionsByHead['G. Sales & Marketing']?.transactionCount}
           defaultExpanded={allExpanded}
           infoTooltip={HEAD_DESCRIPTIONS['G. Sales & Marketing']}
@@ -377,8 +377,8 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
         {/* ========== PLATFORM COSTS ========== */}
         <CollapsibleSection
           title="H. PLATFORM COSTS"
-          total={misRecord.platformCosts.total}
-          percentage={pct(misRecord.platformCosts.total)}
+          total={transactionsByHead['H. Platform Costs']?.total || misRecord.platformCosts.total}
+          percentage={pct(transactionsByHead['H. Platform Costs']?.total || misRecord.platformCosts.total)}
           transactionCount={transactionsByHead['H. Platform Costs']?.transactionCount}
           defaultExpanded={allExpanded}
           infoTooltip={HEAD_DESCRIPTIONS['H. Platform Costs']}
@@ -411,8 +411,8 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
         {/* ========== OPERATING EXPENSES ========== */}
         <CollapsibleSection
           title="I. OPERATING EXPENSES"
-          total={misRecord.operatingExpenses.total}
-          percentage={pct(misRecord.operatingExpenses.total)}
+          total={transactionsByHead['I. Operating Expenses']?.total || misRecord.operatingExpenses.total}
+          percentage={pct(transactionsByHead['I. Operating Expenses']?.total || misRecord.operatingExpenses.total)}
           transactionCount={transactionsByHead['I. Operating Expenses']?.transactionCount}
           defaultExpanded={allExpanded}
           infoTooltip={HEAD_DESCRIPTIONS['I. Operating Expenses']}
@@ -445,8 +445,8 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
         {/* ========== NON-OPERATING ========== */}
         <CollapsibleSection
           title="J. NON-OPERATING"
-          total={misRecord.nonOperating.totalIDA + misRecord.nonOperating.incomeTax}
-          percentage={pct(misRecord.nonOperating.totalIDA + misRecord.nonOperating.incomeTax)}
+          total={transactionsByHead['J. Non-Operating']?.total || (misRecord.nonOperating.totalIDA + misRecord.nonOperating.incomeTax)}
+          percentage={pct(transactionsByHead['J. Non-Operating']?.total || (misRecord.nonOperating.totalIDA + misRecord.nonOperating.incomeTax))}
           transactionCount={transactionsByHead['J. Non-Operating']?.transactionCount}
           defaultExpanded={allExpanded}
           infoTooltip={HEAD_DESCRIPTIONS['J. Non-Operating']}
