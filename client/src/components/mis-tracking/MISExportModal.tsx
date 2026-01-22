@@ -147,9 +147,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
     setExportProgress('Preparing export...');
 
     try {
-      // Start with landscape for trends, will switch as needed
+      // Determine first page orientation
+      let firstOrientation: 'landscape' | 'portrait' = 'landscape';
+      if (!includeTrends && (includeFYSummary || includeIndividualMonths)) {
+        firstOrientation = 'portrait';
+      }
+
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: firstOrientation,
         unit: 'mm',
         format: 'a4'
       });
@@ -160,13 +165,6 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
       const addPage = async (element: HTMLElement, title: string, orientation: 'landscape' | 'portrait') => {
         if (!isFirstPage) {
           pdf.addPage('a4', orientation);
-        } else {
-          // First page - check if we need to change orientation
-          if (orientation === 'portrait') {
-            // Recreate PDF with portrait for first page
-            pdf.deletePage(1);
-            pdf.addPage('a4', 'portrait');
-          }
         }
         isFirstPage = false;
 
@@ -178,16 +176,29 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
           logging: false
         });
 
+        // Get current page dimensions (updates after addPage)
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
+
         const imgData = canvas.toDataURL('image/png');
         const imgWidth = canvas.width;
         const imgHeight = canvas.height;
-        const ratio = Math.min((pdfWidth - 20) / imgWidth, (pdfHeight - 20) / imgHeight);
-        const imgX = (pdfWidth - imgWidth * ratio) / 2;
-        const imgY = 10;
 
-        pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+        // Scale to fit page with margins
+        const marginX = 10;
+        const marginY = 10;
+        const maxWidth = pdfWidth - (marginX * 2);
+        const maxHeight = pdfHeight - (marginY * 2);
+
+        const ratio = Math.min(maxWidth / imgWidth, maxHeight / imgHeight);
+        const scaledWidth = imgWidth * ratio;
+        const scaledHeight = imgHeight * ratio;
+
+        // Center on page
+        const imgX = (pdfWidth - scaledWidth) / 2;
+        const imgY = marginY;
+
+        pdf.addImage(imgData, 'PNG', imgX, imgY, scaledWidth, scaledHeight);
       };
 
       // 1. Export Trends (landscape - wide content)
@@ -195,12 +206,12 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
         await addPage(trendsRef.current, 'Trends', 'landscape');
       }
 
-      // 2. Export FY Summaries (portrait - tall tables)
+      // 2. Export FY Summaries (landscape for wide tables)
       if (includeFYSummary && selectedFYs.length > 0) {
         for (const fy of selectedFYs) {
           const fyEl = fyRefs.current.get(fy);
           if (fyEl) {
-            await addPage(fyEl, fy, 'portrait');
+            await addPage(fyEl, fy, 'landscape');
           }
         }
       }
@@ -532,7 +543,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
           );
         })()}
 
-        {/* FY Summary Sections - one for each selected FY (portrait orientation) */}
+        {/* FY Summary Sections - one for each selected FY (landscape orientation) */}
         {includeFYSummary && selectedFYs.map(fy => {
           const { fyStartYear, fyMonths, fyTotals } = getFYData(fy);
 
@@ -540,7 +551,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             <div
               key={fy}
               ref={(el) => { if (el) fyRefs.current.set(fy, el); }}
-              className="w-[750px] bg-slate-900 p-6"
+              className="w-[1100px] bg-slate-900 p-6"
             >
               <h2 className="text-xl font-bold text-slate-100 mb-2">{fy} - P&L Summary</h2>
               <p className="text-sm text-slate-400 mb-4">April {fyStartYear} to March {fyStartYear + 1}</p>
