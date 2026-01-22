@@ -972,8 +972,11 @@ function calculateNetRevenueFromUploadData(
   return totalGross - totalReturns - totalTaxes;
 }
 
-// Re-export types for use by callers
+// Re-export types and functions for use by callers
 export type {
   MonthlyBSDataForProration,
   ProratedRawMaterialsResult
 };
+
+// Re-export the helper function
+export { getAllocatedRawMaterialsForMonth } from './cogsCalculator';
