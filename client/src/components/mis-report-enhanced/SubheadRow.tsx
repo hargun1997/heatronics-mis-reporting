@@ -162,8 +162,8 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
           <div className="col-span-6 text-slate-300" title={displayAccount}>
             {displayAccount}
           </div>
-          <div className="col-span-2 text-right font-mono text-slate-300">
-            {formatCurrencyFull(Math.abs(txn.amount))}
+          <div className={`col-span-2 text-right font-mono ${txn.amount < 0 ? 'text-red-400' : 'text-slate-300'}`}>
+            {formatCurrencyFull(txn.amount)}
           </div>
           <div className="col-span-1 text-center text-slate-400 text-xs">
             {txn.type === 'debit' ? 'Dr' : 'Cr'}
@@ -194,7 +194,7 @@ function TransactionList({ transactions, onReclassify }: TransactionListProps) {
         </div>
         <div className="col-span-2 text-right font-mono text-slate-300">
           {formatCurrencyFull(
-            transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0)
+            transactions.reduce((sum, t) => sum + t.amount, 0)
           )}
         </div>
         <div className="col-span-1"></div>
