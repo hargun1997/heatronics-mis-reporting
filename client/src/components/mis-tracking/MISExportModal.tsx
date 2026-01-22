@@ -54,26 +54,63 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
   const [includeFYSummary, setIncludeFYSummary] = useState(true);
   const [includeIndividualMonths, setIncludeIndividualMonths] = useState(false);
 
-  // FY selection
+  // FY selection (multi-select)
   const availableFYs = getAvailableFYs(allMISRecords);
-  const [selectedFY, setSelectedFY] = useState<string>(availableFYs[0] || '');
+  const [selectedFYs, setSelectedFYs] = useState<string[]>(availableFYs.length > 0 ? [availableFYs[0]] : []);
 
   // Individual months selection
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
 
   // Content refs for rendering
   const trendsRef = useRef<HTMLDivElement>(null);
-  const fyRef = useRef<HTMLDivElement>(null);
+  const fyRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const monthRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Get months for selected FY
-  const fyStartYear = parseFYLabel(selectedFY);
-  const fyMonths = FY_MONTHS.map(({ month, label }) => {
-    const year = getYearForMonth(fyStartYear, month);
-    const periodKey = `${year}-${String(month).padStart(2, '0')}`;
-    const record = allMISRecords.find(r => r.periodKey === periodKey);
-    return { month, year, label, periodKey, record };
-  });
+  // FY toggle functions
+  const toggleFY = (fy: string) => {
+    setSelectedFYs(prev =>
+      prev.includes(fy)
+        ? prev.filter(f => f !== fy)
+        : [...prev, fy]
+    );
+  };
+
+  const selectAllFYs = () => {
+    setSelectedFYs([...availableFYs]);
+  };
+
+  const clearAllFYs = () => {
+    setSelectedFYs([]);
+  };
+
+  // Helper to get FY data
+  const getFYData = (fyLabel: string) => {
+    const fyStartYear = parseFYLabel(fyLabel);
+    const fyMonths = FY_MONTHS.map(({ month, label }) => {
+      const year = getYearForMonth(fyStartYear, month);
+      const periodKey = `${year}-${String(month).padStart(2, '0')}`;
+      const record = allMISRecords.find(r => r.periodKey === periodKey);
+      return { month, year, label, periodKey, record };
+    });
+
+    const fyTotals = fyMonths.filter(m => m.record).reduce(
+      (acc, m) => {
+        if (!m.record) return acc;
+        return {
+          netRevenue: acc.netRevenue + m.record.revenue.netRevenue,
+          grossMargin: acc.grossMargin + m.record.grossMargin,
+          cm1: acc.cm1 + m.record.cm1,
+          cm2: acc.cm2 + m.record.cm2,
+          cm3: acc.cm3 + m.record.cm3,
+          ebitda: acc.ebitda + m.record.ebitda,
+          netIncome: acc.netIncome + m.record.netIncome
+        };
+      },
+      { netRevenue: 0, grossMargin: 0, cm1: 0, cm2: 0, cm3: 0, ebitda: 0, netIncome: 0 }
+    );
+
+    return { fyStartYear, fyMonths, fyTotals };
+  };
 
   // Get all available months for individual selection
   const allMonths = allMISRecords
@@ -150,9 +187,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
         await addPage(trendsRef.current, 'Trends');
       }
 
-      // 2. Export FY Summary
-      if (includeFYSummary && fyRef.current) {
-        await addPage(fyRef.current, 'FY Summary');
+      // 2. Export FY Summaries (one page per selected FY)
+      if (includeFYSummary && selectedFYs.length > 0) {
+        for (const fy of selectedFYs) {
+          const fyEl = fyRefs.current.get(fy);
+          if (fyEl) {
+            await addPage(fyEl, fy);
+          }
+        }
       }
 
       // 3. Export Individual Months
@@ -177,23 +219,6 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
       setExportProgress('');
     }
   };
-
-  // Calculate totals for FY
-  const fyTotals = fyMonths.filter(m => m.record).reduce(
-    (acc, m) => {
-      if (!m.record) return acc;
-      return {
-        netRevenue: acc.netRevenue + m.record.revenue.netRevenue,
-        grossMargin: acc.grossMargin + m.record.grossMargin,
-        cm1: acc.cm1 + m.record.cm1,
-        cm2: acc.cm2 + m.record.cm2,
-        cm3: acc.cm3 + m.record.cm3,
-        ebitda: acc.ebitda + m.record.ebitda,
-        netIncome: acc.netIncome + m.record.netIncome
-      };
-    },
-    { netRevenue: 0, grossMargin: 0, cm1: 0, cm2: 0, cm3: 0, ebitda: 0, netIncome: 0 }
-  );
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -232,29 +257,65 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             </label>
 
             {/* FY Summary Option */}
-            <label className="flex items-start gap-3 p-4 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700/70 transition-colors">
-              <input
-                type="checkbox"
-                checked={includeFYSummary}
-                onChange={(e) => setIncludeFYSummary(e.target.checked)}
-                className="mt-1 w-4 h-4 rounded border-slate-500 text-blue-500 focus:ring-blue-500"
-              />
-              <div className="flex-1">
-                <div className="font-medium text-slate-200">Financial Year Summary</div>
-                <div className="text-sm text-slate-400 mb-2">Monthly breakdown with all margins for selected FY</div>
-                {includeFYSummary && (
-                  <select
-                    value={selectedFY}
-                    onChange={(e) => setSelectedFY(e.target.value)}
-                    className="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-200"
-                  >
+            <div className="p-4 bg-slate-700/50 rounded-lg">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeFYSummary}
+                  onChange={(e) => setIncludeFYSummary(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-slate-500 text-blue-500 focus:ring-blue-500"
+                />
+                <div>
+                  <div className="font-medium text-slate-200">Financial Year Summary</div>
+                  <div className="text-sm text-slate-400">Monthly breakdown with all margins for selected FYs</div>
+                </div>
+              </label>
+
+              {includeFYSummary && (
+                <div className="mt-4 pl-7">
+                  <div className="flex items-center gap-2 mb-3">
+                    <button
+                      onClick={selectAllFYs}
+                      className="text-xs text-blue-400 hover:text-blue-300"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-slate-600">|</span>
+                    <button
+                      onClick={clearAllFYs}
+                      className="text-xs text-slate-400 hover:text-slate-300"
+                    >
+                      Clear All
+                    </button>
+                    <span className="text-xs text-slate-500 ml-2">
+                      ({selectedFYs.length} selected)
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {availableFYs.map(fy => (
-                      <option key={fy} value={fy}>{fy}</option>
+                      <label
+                        key={fy}
+                        className={`
+                          flex items-center gap-2 px-3 py-2 rounded text-sm cursor-pointer transition-colors
+                          ${selectedFYs.includes(fy)
+                            ? 'bg-blue-500/20 text-blue-300'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                          }
+                        `}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedFYs.includes(fy)}
+                          onChange={() => toggleFY(fy)}
+                          className="w-3 h-3 rounded border-slate-500 text-blue-500"
+                        />
+                        {fy}
+                      </label>
                     ))}
-                  </select>
-                )}
-              </div>
-            </label>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Individual Months Option */}
             <div className="p-4 bg-slate-700/50 rounded-lg">
@@ -453,129 +514,137 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
           </div>
         )}
 
-        {/* FY Summary Section */}
-        {includeFYSummary && (
-          <div ref={fyRef} className="w-[1200px] bg-slate-900 p-6">
-            <h2 className="text-xl font-bold text-slate-100 mb-2">{selectedFY} - P&L Summary</h2>
-            <p className="text-sm text-slate-400 mb-4">April {fyStartYear} to March {fyStartYear + 1}</p>
+        {/* FY Summary Sections - one for each selected FY */}
+        {includeFYSummary && selectedFYs.map(fy => {
+          const { fyStartYear, fyMonths, fyTotals } = getFYData(fy);
 
-            <div className="bg-slate-800 rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-700/50">
-                    <th className="text-left py-3 px-4 text-slate-300 font-semibold">Month</th>
-                    <th className="text-right py-3 px-4 text-slate-300 font-semibold">Net Revenue</th>
-                    <th className="text-right py-3 px-4 text-slate-300 font-semibold">Gross Margin</th>
-                    <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM1</th>
-                    <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM2</th>
-                    <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM3</th>
-                    <th className="text-right py-3 px-4 text-slate-300 font-semibold">EBITDA</th>
-                    <th className="text-right py-3 px-4 text-slate-300 font-semibold">Net Profit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {fyMonths.map(({ month, year, label, record }) => (
-                    <tr key={`${year}-${month}`} className={`border-b border-slate-700/50 ${!record ? 'opacity-40' : ''}`}>
-                      <td className="py-3 px-4 text-slate-200">{label} {year}</td>
-                      <td className="py-3 px-4 text-right text-slate-200">
-                        {record ? formatCurrency(record.revenue.netRevenue) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {record ? (
-                          <div>
-                            <div className="text-slate-200">{formatCurrency(record.grossMargin)}</div>
-                            <div className={`text-xs ${record.grossMarginPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {formatPercent(record.grossMarginPercent)}
+          return (
+            <div
+              key={fy}
+              ref={(el) => { if (el) fyRefs.current.set(fy, el); }}
+              className="w-[1200px] bg-slate-900 p-6"
+            >
+              <h2 className="text-xl font-bold text-slate-100 mb-2">{fy} - P&L Summary</h2>
+              <p className="text-sm text-slate-400 mb-4">April {fyStartYear} to March {fyStartYear + 1}</p>
+
+              <div className="bg-slate-800 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-700/50">
+                      <th className="text-left py-3 px-4 text-slate-300 font-semibold">Month</th>
+                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">Net Revenue</th>
+                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">Gross Margin</th>
+                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM1</th>
+                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM2</th>
+                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">CM3</th>
+                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">EBITDA</th>
+                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">Net Profit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fyMonths.map(({ month, year, label, record }) => (
+                      <tr key={`${year}-${month}`} className={`border-b border-slate-700/50 ${!record ? 'opacity-40' : ''}`}>
+                        <td className="py-3 px-4 text-slate-200">{label} {year}</td>
+                        <td className="py-3 px-4 text-right text-slate-200">
+                          {record ? formatCurrency(record.revenue.netRevenue) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {record ? (
+                            <div>
+                              <div className="text-slate-200">{formatCurrency(record.grossMargin)}</div>
+                              <div className={`text-xs ${record.grossMarginPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatPercent(record.grossMarginPercent)}
+                              </div>
                             </div>
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {record ? (
-                          <div>
-                            <div className="text-slate-200">{formatCurrency(record.cm1)}</div>
-                            <div className={`text-xs ${record.cm1Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {formatPercent(record.cm1Percent)}
+                          ) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {record ? (
+                            <div>
+                              <div className="text-slate-200">{formatCurrency(record.cm1)}</div>
+                              <div className={`text-xs ${record.cm1Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatPercent(record.cm1Percent)}
+                              </div>
                             </div>
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {record ? (
-                          <div>
-                            <div className="text-slate-200">{formatCurrency(record.cm2)}</div>
-                            <div className={`text-xs ${record.cm2Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {formatPercent(record.cm2Percent)}
+                          ) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {record ? (
+                            <div>
+                              <div className="text-slate-200">{formatCurrency(record.cm2)}</div>
+                              <div className={`text-xs ${record.cm2Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatPercent(record.cm2Percent)}
+                              </div>
                             </div>
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {record ? (
-                          <div>
-                            <div className="text-slate-200">{formatCurrency(record.cm3)}</div>
-                            <div className={`text-xs ${record.cm3Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {formatPercent(record.cm3Percent)}
+                          ) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {record ? (
+                            <div>
+                              <div className="text-slate-200">{formatCurrency(record.cm3)}</div>
+                              <div className={`text-xs ${record.cm3Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatPercent(record.cm3Percent)}
+                              </div>
                             </div>
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {record ? (
-                          <div>
-                            <div className={record.ebitda >= 0 ? 'text-slate-200' : 'text-red-400'}>{formatCurrency(record.ebitda)}</div>
-                            <div className={`text-xs ${record.ebitdaPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {formatPercent(record.ebitdaPercent)}
+                          ) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {record ? (
+                            <div>
+                              <div className={record.ebitda >= 0 ? 'text-slate-200' : 'text-red-400'}>{formatCurrency(record.ebitda)}</div>
+                              <div className={`text-xs ${record.ebitdaPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatPercent(record.ebitdaPercent)}
+                              </div>
                             </div>
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {record ? (
-                          <div>
-                            <div className={record.netIncome >= 0 ? 'text-slate-200' : 'text-red-400'}>{formatCurrency(record.netIncome)}</div>
-                            <div className={`text-xs ${record.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {formatPercent(record.netIncomePercent)}
+                          ) : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {record ? (
+                            <div>
+                              <div className={record.netIncome >= 0 ? 'text-slate-200' : 'text-red-400'}>{formatCurrency(record.netIncome)}</div>
+                              <div className={`text-xs ${record.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {formatPercent(record.netIncomePercent)}
+                              </div>
                             </div>
-                          </div>
-                        ) : '-'}
+                          ) : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Totals Row */}
+                    <tr className="bg-slate-700/70 font-semibold">
+                      <td className="py-4 px-4 text-slate-100 font-bold">FY Total</td>
+                      <td className="py-4 px-4 text-right text-blue-400">{formatCurrency(fyTotals.netRevenue)}</td>
+                      <td className="py-4 px-4 text-right">
+                        <div className={fyTotals.grossMargin >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.grossMargin)}</div>
+                        <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.grossMargin / fyTotals.netRevenue) * 100) : '-'}</div>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className={fyTotals.cm1 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm1)}</div>
+                        <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm1 / fyTotals.netRevenue) * 100) : '-'}</div>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className={fyTotals.cm2 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm2)}</div>
+                        <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm2 / fyTotals.netRevenue) * 100) : '-'}</div>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className={fyTotals.cm3 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm3)}</div>
+                        <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm3 / fyTotals.netRevenue) * 100) : '-'}</div>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className={fyTotals.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.ebitda)}</div>
+                        <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.ebitda / fyTotals.netRevenue) * 100) : '-'}</div>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className={fyTotals.netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.netIncome)}</div>
+                        <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.netIncome / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
                     </tr>
-                  ))}
-                  {/* Totals Row */}
-                  <tr className="bg-slate-700/70 font-semibold">
-                    <td className="py-4 px-4 text-slate-100 font-bold">FY Total</td>
-                    <td className="py-4 px-4 text-right text-blue-400">{formatCurrency(fyTotals.netRevenue)}</td>
-                    <td className="py-4 px-4 text-right">
-                      <div className={fyTotals.grossMargin >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.grossMargin)}</div>
-                      <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.grossMargin / fyTotals.netRevenue) * 100) : '-'}</div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className={fyTotals.cm1 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm1)}</div>
-                      <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm1 / fyTotals.netRevenue) * 100) : '-'}</div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className={fyTotals.cm2 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm2)}</div>
-                      <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm2 / fyTotals.netRevenue) * 100) : '-'}</div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className={fyTotals.cm3 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm3)}</div>
-                      <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm3 / fyTotals.netRevenue) * 100) : '-'}</div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className={fyTotals.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.ebitda)}</div>
-                      <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.ebitda / fyTotals.netRevenue) * 100) : '-'}</div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className={fyTotals.netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.netIncome)}</div>
-                      <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.netIncome / fyTotals.netRevenue) * 100) : '-'}</div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })}
 
         {/* Individual Month Sections */}
         {includeIndividualMonths && selectedMonths.map(periodKey => {
