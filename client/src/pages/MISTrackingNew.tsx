@@ -22,6 +22,7 @@ import { ProratedRawMaterialsResult } from '../utils/cogsCalculator';
 import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
 import { MISFYView } from '../components/mis-tracking/MISFYView';
+import { MISExportModal } from '../components/mis-tracking/MISExportModal';
 import {
   checkDriveStatus,
   getDriveFolderStructure,
@@ -191,6 +192,7 @@ export function MISTrackingNew() {
   const [generatingMonth, setGeneratingMonth] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Google Drive State
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
@@ -1250,6 +1252,22 @@ export function MISTrackingNew() {
             <span className="mr-1.5">📖</span>
             MIS Guide
           </button>
+
+          {/* Export PDF Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            disabled={allMISData.length === 0}
+            className={`
+              px-4 py-2 rounded-md text-sm font-medium transition-all
+              ${allMISData.length === 0
+                ? 'text-slate-500 cursor-not-allowed'
+                : 'text-red-400 hover:bg-red-500/10'
+              }
+            `}
+          >
+            <span className="mr-1.5">📄</span>
+            Export PDF
+          </button>
         </div>
       </div>
 
@@ -1526,6 +1544,14 @@ export function MISTrackingNew() {
       {/* Algorithm Guide Modal */}
       {showAlgorithmGuide && (
         <AlgorithmGuideModal onClose={() => setShowAlgorithmGuide(false)} />
+      )}
+
+      {/* Export PDF Modal */}
+      {showExportModal && (
+        <MISExportModal
+          allMISRecords={allMISData}
+          onClose={() => setShowExportModal(false)}
+        />
       )}
     </div>
   );
