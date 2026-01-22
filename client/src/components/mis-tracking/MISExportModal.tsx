@@ -147,20 +147,26 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
     setExportProgress('Preparing export...');
 
     try {
+      // Start with landscape for trends, will switch as needed
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
       let isFirstPage = true;
 
-      // Helper to add page
-      const addPage = async (element: HTMLElement, title: string) => {
+      // Helper to add page with specific orientation
+      const addPage = async (element: HTMLElement, title: string, orientation: 'landscape' | 'portrait') => {
         if (!isFirstPage) {
-          pdf.addPage();
+          pdf.addPage('a4', orientation);
+        } else {
+          // First page - check if we need to change orientation
+          if (orientation === 'portrait') {
+            // Recreate PDF with portrait for first page
+            pdf.deletePage(1);
+            pdf.addPage('a4', 'portrait');
+          }
         }
         isFirstPage = false;
 
@@ -172,6 +178,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
           logging: false
         });
 
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
         const imgData = canvas.toDataURL('image/png');
         const imgWidth = canvas.width;
         const imgHeight = canvas.height;
@@ -182,28 +190,28 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
         pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
       };
 
-      // 1. Export Trends
+      // 1. Export Trends (landscape - wide content)
       if (includeTrends && trendsRef.current) {
-        await addPage(trendsRef.current, 'Trends');
+        await addPage(trendsRef.current, 'Trends', 'landscape');
       }
 
-      // 2. Export FY Summaries (one page per selected FY)
+      // 2. Export FY Summaries (portrait - tall tables)
       if (includeFYSummary && selectedFYs.length > 0) {
         for (const fy of selectedFYs) {
           const fyEl = fyRefs.current.get(fy);
           if (fyEl) {
-            await addPage(fyEl, fy);
+            await addPage(fyEl, fy, 'portrait');
           }
         }
       }
 
-      // 3. Export Individual Months
+      // 3. Export Individual Months (portrait - tall P&L)
       if (includeIndividualMonths && selectedMonths.length > 0) {
         for (const periodKey of selectedMonths) {
           const monthEl = monthRefs.current.get(periodKey);
           if (monthEl) {
             const record = allMISRecords.find(r => r.periodKey === periodKey);
-            await addPage(monthEl, record ? periodToString(record.period) : periodKey);
+            await addPage(monthEl, record ? periodToString(record.period) : periodKey, 'portrait');
           }
         }
       }
@@ -427,94 +435,104 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
       {/* Hidden render area for PDF generation */}
       <div className="fixed left-[-9999px] top-0">
         {/* Trends Section */}
-        {includeTrends && (
-          <div ref={trendsRef} className="w-[1200px] bg-slate-900 p-6 space-y-6">
-            <h2 className="text-xl font-bold text-slate-100 mb-4">MIS Trends Overview</h2>
+        {includeTrends && (() => {
+          // Sort chronologically (oldest first) for the chart
+          const sortedRecords = [...allMISRecords].sort((a, b) => {
+            if (a.period.year !== b.period.year) return a.period.year - b.period.year;
+            return a.period.month - b.period.month;
+          });
+          const chartRecords = sortedRecords.slice(-24); // Last 24 months, oldest to newest
+          const tableRecords = sortedRecords.slice(-12); // Last 12 months for table
+          const maxRev = Math.max(...chartRecords.map(r => r.revenue.netRevenue));
 
-            {/* Revenue Chart */}
-            <div className="bg-slate-800 rounded-xl p-6">
-              <h3 className="text-base font-semibold text-slate-200 mb-4">Net Revenue Trend</h3>
-              <div className="flex items-end gap-1 h-48">
-                {allMISRecords.slice(0, 24).map((mis) => {
-                  const maxRev = Math.max(...allMISRecords.map(r => r.revenue.netRevenue));
-                  const height = maxRev > 0 ? (mis.revenue.netRevenue / maxRev) * 180 : 0;
-                  return (
-                    <div key={mis.periodKey} className="flex-1 flex flex-col items-center">
-                      <div className="text-[10px] text-slate-400 mb-1">{formatCurrency(mis.revenue.netRevenue)}</div>
-                      <div className="w-full bg-blue-500 rounded-t" style={{ height: `${height}px` }} />
-                      <div className="text-[10px] text-slate-500 mt-1">
-                        {periodToString(mis.period).split(' ')[0].slice(0, 3)}
+          return (
+            <div ref={trendsRef} className="w-[1200px] bg-slate-900 p-6 space-y-6">
+              <h2 className="text-xl font-bold text-slate-100 mb-4">MIS Trends Overview</h2>
+
+              {/* Revenue Chart */}
+              <div className="bg-slate-800 rounded-xl p-6">
+                <h3 className="text-base font-semibold text-slate-200 mb-4">Net Revenue Trend</h3>
+                <div className="flex items-end gap-1 h-48">
+                  {chartRecords.map((mis) => {
+                    const height = maxRev > 0 ? (mis.revenue.netRevenue / maxRev) * 180 : 0;
+                    return (
+                      <div key={mis.periodKey} className="flex-1 flex flex-col items-center">
+                        <div className="text-[10px] text-slate-400 mb-1">{formatCurrency(mis.revenue.netRevenue)}</div>
+                        <div className="w-full bg-blue-500 rounded-t" style={{ height: `${height}px` }} />
+                        <div className="text-[10px] text-slate-500 mt-1">
+                          {periodToString(mis.period).split(' ')[0].slice(0, 3)} '{String(mis.period.year).slice(-2)}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Comparison Table */}
+              <div className="bg-slate-800 rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-slate-700">
+                  <h3 className="text-base font-semibold text-slate-200">Monthly Comparison</h3>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-700/50">
+                      <th className="text-left py-2 px-3 text-slate-300 font-medium">Metric</th>
+                      {tableRecords.map(mis => (
+                        <th key={mis.periodKey} className="text-right py-2 px-2 text-slate-300 font-medium text-xs">
+                          {periodToString(mis.period).split(' ')[0].slice(0, 3)} '{String(mis.period.year).slice(-2)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-slate-700/50">
+                      <td className="py-2 px-3 text-slate-300">Net Revenue</td>
+                      {tableRecords.map(mis => (
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
+                          {formatCurrency(mis.revenue.netRevenue)}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-slate-700/50 bg-emerald-500/10">
+                      <td className="py-2 px-3 text-emerald-400 font-medium">Gross Margin %</td>
+                      {tableRecords.map(mis => (
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-emerald-400 text-xs">
+                          {formatPercent(mis.grossMarginPercent)}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-slate-700/50">
+                      <td className="py-2 px-3 text-slate-300">CM1 %</td>
+                      {tableRecords.map(mis => (
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
+                          {formatPercent(mis.cm1Percent)}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-slate-700/50 bg-blue-500/10">
+                      <td className="py-2 px-3 text-blue-400 font-medium">EBITDA %</td>
+                      {tableRecords.map(mis => (
+                        <td key={mis.periodKey} className={`py-2 px-2 text-right text-xs ${mis.ebitdaPercent >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                          {formatPercent(mis.ebitdaPercent)}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="bg-slate-700/30">
+                      <td className="py-2 px-3 text-slate-200 font-semibold">Net Income %</td>
+                      {tableRecords.map(mis => (
+                        <td key={mis.periodKey} className={`py-2 px-2 text-right text-xs font-semibold ${mis.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {formatPercent(mis.netIncomePercent)}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
+          );
+        })()}
 
-            {/* Comparison Table */}
-            <div className="bg-slate-800 rounded-xl overflow-hidden">
-              <div className="p-4 border-b border-slate-700">
-                <h3 className="text-base font-semibold text-slate-200">Monthly Comparison</h3>
-              </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-700/50">
-                    <th className="text-left py-2 px-3 text-slate-300 font-medium">Metric</th>
-                    {allMISRecords.slice(0, 12).map(mis => (
-                      <th key={mis.periodKey} className="text-right py-2 px-2 text-slate-300 font-medium text-xs">
-                        {periodToString(mis.period).split(' ')[0].slice(0, 3)} '{String(mis.period.year).slice(-2)}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-slate-700/50">
-                    <td className="py-2 px-3 text-slate-300">Net Revenue</td>
-                    {allMISRecords.slice(0, 12).map(mis => (
-                      <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
-                        {formatCurrency(mis.revenue.netRevenue)}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-slate-700/50 bg-emerald-500/10">
-                    <td className="py-2 px-3 text-emerald-400 font-medium">Gross Margin %</td>
-                    {allMISRecords.slice(0, 12).map(mis => (
-                      <td key={mis.periodKey} className="py-2 px-2 text-right text-emerald-400 text-xs">
-                        {formatPercent(mis.grossMarginPercent)}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-slate-700/50">
-                    <td className="py-2 px-3 text-slate-300">CM1 %</td>
-                    {allMISRecords.slice(0, 12).map(mis => (
-                      <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
-                        {formatPercent(mis.cm1Percent)}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-slate-700/50 bg-blue-500/10">
-                    <td className="py-2 px-3 text-blue-400 font-medium">EBITDA %</td>
-                    {allMISRecords.slice(0, 12).map(mis => (
-                      <td key={mis.periodKey} className={`py-2 px-2 text-right text-xs ${mis.ebitdaPercent >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                        {formatPercent(mis.ebitdaPercent)}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="bg-slate-700/30">
-                    <td className="py-2 px-3 text-slate-200 font-semibold">Net Income %</td>
-                    {allMISRecords.slice(0, 12).map(mis => (
-                      <td key={mis.periodKey} className={`py-2 px-2 text-right text-xs font-semibold ${mis.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {formatPercent(mis.netIncomePercent)}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* FY Summary Sections - one for each selected FY */}
+        {/* FY Summary Sections - one for each selected FY (portrait orientation) */}
         {includeFYSummary && selectedFYs.map(fy => {
           const { fyStartYear, fyMonths, fyTotals } = getFYData(fy);
 
@@ -522,7 +540,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             <div
               key={fy}
               ref={(el) => { if (el) fyRefs.current.set(fy, el); }}
-              className="w-[1200px] bg-slate-900 p-6"
+              className="w-[750px] bg-slate-900 p-6"
             >
               <h2 className="text-xl font-bold text-slate-100 mb-2">{fy} - P&L Summary</h2>
               <p className="text-sm text-slate-400 mb-4">April {fyStartYear} to March {fyStartYear + 1}</p>
@@ -646,7 +664,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
           );
         })}
 
-        {/* Individual Month Sections */}
+        {/* Individual Month Sections (portrait orientation) */}
         {includeIndividualMonths && selectedMonths.map(periodKey => {
           const record = allMISRecords.find(r => r.periodKey === periodKey);
           if (!record) return null;
@@ -655,7 +673,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             <div
               key={periodKey}
               ref={(el) => { if (el) monthRefs.current.set(periodKey, el); }}
-              className="w-[1200px] bg-slate-900 p-6"
+              className="w-[700px] bg-slate-900 p-6"
             >
               <h2 className="text-xl font-bold text-slate-100 mb-4">
                 {periodToString(record.period)} - P&L Report
