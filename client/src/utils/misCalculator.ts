@@ -886,10 +886,31 @@ export function prepareProratedRawMaterials(
 ): ProratedRawMaterialsResult {
   const monthlyBSData: MonthlyBSDataForProration[] = [];
 
+  console.log('=== prepareProratedRawMaterials DEBUG ===');
+  console.log('Number of months passed:', Object.keys(monthsData).length);
+  console.log('Month keys:', Object.keys(monthsData));
+
   for (const [periodKey, monthInfo] of Object.entries(monthsData)) {
+    console.log(`Processing month ${periodKey}:`);
+    console.log('  - uploadData keys:', Object.keys(monthInfo.uploadData));
+
     // Get UP balance sheet data (main warehouse for COGM)
     const upData = monthInfo.uploadData['UP'];
-    if (!upData?.balanceSheetData) continue;
+    console.log('  - UP data exists:', !!upData);
+    console.log('  - UP balanceSheetData exists:', !!upData?.balanceSheetData);
+
+    if (upData?.balanceSheetData) {
+      console.log('  - UP balanceSheetData:', {
+        openingStock: upData.balanceSheetData.openingStock,
+        purchases: upData.balanceSheetData.purchases,
+        closingStock: upData.balanceSheetData.closingStock
+      });
+    }
+
+    if (!upData?.balanceSheetData) {
+      console.log(`  - SKIPPING ${periodKey}: No UP balance sheet data`);
+      continue;
+    }
 
     // Calculate net revenue if not provided
     let netRevenue = monthInfo.netRevenue ?? 0;
@@ -897,6 +918,7 @@ export function prepareProratedRawMaterials(
       // Calculate from sales data
       netRevenue = calculateNetRevenueFromUploadData(monthInfo.uploadData, selectedStates);
     }
+    console.log(`  - Net revenue for ${periodKey}:`, netRevenue);
 
     monthlyBSData.push({
       periodKey,
@@ -909,7 +931,20 @@ export function prepareProratedRawMaterials(
     });
   }
 
-  return calculateProratedRawMaterials(monthlyBSData);
+  console.log('=== Monthly BS Data collected ===');
+  console.log('Total months with UP BS data:', monthlyBSData.length);
+  console.log('monthlyBSData:', monthlyBSData);
+
+  const result = calculateProratedRawMaterials(monthlyBSData);
+
+  console.log('=== Proration Result ===');
+  console.log('fyOpeningStock:', result.fyOpeningStock);
+  console.log('fyTotalPurchases:', result.fyTotalPurchases);
+  console.log('fyClosingStock:', result.fyClosingStock);
+  console.log('fyTotalRawMaterials:', result.fyTotalRawMaterials);
+  console.log('monthlyAllocations:', result.monthlyAllocations);
+
+  return result;
 }
 
 /**
