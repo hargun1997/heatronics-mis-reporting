@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MISRecord, MISPeriod, periodToString } from '../../types/misTracking';
 import { loadMISData } from '../../utils/googleSheetsStorage';
 import { formatCurrency, formatPercent } from '../../utils/misCalculator';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface MISTrendsViewProps {
   savedPeriods: { periodKey: string; period: MISPeriod }[];
 }
 
 export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
   const [allMISData, setAllMISData] = useState<MISRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<'revenue' | 'margins' | 'channels'>('revenue');
 
   useEffect(() => {
@@ -64,33 +68,105 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
   const maxRevenue = Math.max(...allMISData.map(d => d.revenue.netRevenue));
   const maxBarHeight = 200; // pixels
 
+  // Export to PDF
+  const handleExportPDF = async () => {
+    if (!contentRef.current) return;
+
+    setIsExporting(true);
+
+    try {
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        backgroundColor: '#0f172a', // slate-900 background
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 10;
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save(`MIS-Trends-${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Metric Selector */}
-      <div className="flex items-center gap-4">
-        <span className="text-sm font-medium text-slate-400">View:</span>
-        <div className="flex gap-2">
-          {[
-            { id: 'revenue' as const, label: 'Revenue Trend' },
-            { id: 'margins' as const, label: 'Margin Trends' },
-            { id: 'channels' as const, label: 'Channel Mix' }
-          ].map(option => (
-            <button
-              key={option.id}
-              onClick={() => setSelectedMetric(option.id)}
-              className={`
-                px-4 py-2 rounded-lg text-sm font-medium transition-all
-                ${selectedMetric === option.id
-                  ? 'bg-slate-700 text-blue-400'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
-                }
-              `}
-            >
-              {option.label}
-            </button>
-          ))}
+      {/* Header with Metric Selector and Export */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium text-slate-400">View:</span>
+          <div className="flex gap-2">
+            {[
+              { id: 'revenue' as const, label: 'Revenue Trend' },
+              { id: 'margins' as const, label: 'Margin Trends' },
+              { id: 'channels' as const, label: 'Channel Mix' }
+            ].map(option => (
+              <button
+                key={option.id}
+                onClick={() => setSelectedMetric(option.id)}
+                className={`
+                  px-4 py-2 rounded-lg text-sm font-medium transition-all
+                  ${selectedMetric === option.id
+                    ? 'bg-slate-700 text-blue-400'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+                  }
+                `}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Export Button */}
+        <button
+          onClick={handleExportPDF}
+          disabled={isExporting || allMISData.length === 0}
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
+            ${isExporting || allMISData.length === 0
+              ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+              : 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
+            }
+          `}
+        >
+          {isExporting ? (
+            <>
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Exporting...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export PDF
+            </>
+          )}
+        </button>
       </div>
+
+      {/* Content area for PDF export */}
+      <div ref={contentRef} className="space-y-6">
 
       {/* Revenue Trend Chart */}
       {selectedMetric === 'revenue' && (
@@ -352,6 +428,7 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
           </table>
         </div>
       </div>
+      </div> {/* End of contentRef div */}
     </div>
   );
 }
