@@ -146,6 +146,21 @@ type Side = 'debit' | 'credit' | 'unknown';
 
 function detectSection(line: string, currentSection: Section): Section {
   const lower = line.toLowerCase();
+
+  // Balance Sheet (Assets/Liabilities) - STOP processing, these are not expenses
+  // Reset to 'unknown' so these lines are skipped
+  if (/b\s*a\s*l\s*a\s*n\s*c\s*e\s*s\s*h\s*e\s*e\s*t/i.test(lower) ||
+      /balance\s*sheet/i.test(lower) ||
+      /l\s*i\s*a\s*b\s*i\s*l\s*i\s*t\s*i\s*e\s*s/i.test(lower) ||
+      /a\s*s\s*s\s*e\s*t\s*s/i.test(lower) ||
+      /capital\s*account/i.test(lower) ||
+      /current\s*liabilities/i.test(lower) ||
+      /current\s*assets/i.test(lower) ||
+      /fixed\s*assets/i.test(lower) ||
+      /loans\s*\(liability\)/i.test(lower)) {
+    return 'unknown';
+  }
+
   // Trading Account patterns - including "Trading A/c"
   if (/t\s*r\s*a\s*d\s*i\s*n\s*g\s*a\s*c\s*c\s*o\s*u\s*n\s*t/i.test(lower) ||
       /trading\s*(account|a\/?c)/i.test(lower)) {
