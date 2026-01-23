@@ -66,7 +66,7 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Metric Selector */}
+      {/* Header with Metric Selector */}
       <div className="flex items-center gap-4">
         <span className="text-sm font-medium text-slate-400">View:</span>
         <div className="flex gap-2">
@@ -91,6 +91,9 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
           ))}
         </div>
       </div>
+
+      {/* Content */}
+      <div className="space-y-6">
 
       {/* Revenue Trend Chart */}
       {selectedMetric === 'revenue' && (
@@ -351,6 +354,7 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -250,7 +250,7 @@ export interface TransactionRef {
   account: string;
   amount: number;
   type: 'debit' | 'credit';
-  source: 'journal' | 'purchase_register' | 'sales_register' | 'balance_sheet';
+  source: 'journal' | 'purchase_register' | 'sales_register' | 'balance_sheet' | 'calculated';
   notes?: string;
   // Original classification for reclassification tracking
   originalHead?: MISHead;

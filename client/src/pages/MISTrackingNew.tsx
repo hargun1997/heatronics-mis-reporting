@@ -11,9 +11,18 @@ import {
 import { loadMISData, saveMISRecord, getAllPeriods, getMISRecord } from '../utils/googleSheetsStorage';
 import { parseSalesRegister, parsePurchaseRegister, parseBalanceSheet } from '../utils/misTrackingParser';
 import { parseBalanceSheetEnhanced } from '../utils/balanceSheetParser';
-import { calculateMIS, formatCurrency, formatPercent } from '../utils/misCalculator';
+import {
+  calculateMIS,
+  formatCurrency,
+  formatPercent,
+  prepareProratedRawMaterials,
+  getAllocatedRawMaterialsForMonth
+} from '../utils/misCalculator';
+import { ProratedRawMaterialsResult } from '../utils/cogsCalculator';
 import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
+import { MISFYView } from '../components/mis-tracking/MISFYView';
+import { MISExportModal } from '../components/mis-tracking/MISExportModal';
 import {
   checkDriveStatus,
   getDriveFolderStructure,
@@ -164,7 +173,7 @@ export function MISTrackingNew() {
   // ============================================
   // STATE
   // ============================================
-  const [activeView, setActiveView] = useState<'timeline' | 'report' | 'trends'>('timeline');
+  const [activeView, setActiveView] = useState<'timeline' | 'report' | 'trends' | 'fy'>('timeline');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [savedPeriods, setSavedPeriods] = useState<{ periodKey: string; period: MISPeriod }[]>([]);
   const [allMISData, setAllMISData] = useState<MISRecord[]>([]);
@@ -183,6 +192,7 @@ export function MISTrackingNew() {
   const [generatingMonth, setGeneratingMonth] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Google Drive State
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
@@ -531,6 +541,7 @@ export function MISTrackingNew() {
   // ============================================
 
   // Generate MIS for a period
+  // Uses annual proration for raw materials based on all available months
   const handleGenerateMIS = async (periodKey: string) => {
     setGeneratingMonth(periodKey);
 
@@ -538,7 +549,51 @@ export function MISTrackingNew() {
       const monthData = monthsData[periodKey];
       if (!monthData) return;
 
-      const mis = await calculateMIS(monthData.period, monthData.uploadData, selectedStates);
+      // Gather all months with data for proration (not just this one)
+      const proratedData: Record<string, {
+        period: MISPeriod;
+        uploadData: Record<IndianState, StateUploadData | undefined>;
+      }> = {};
+
+      for (const [key, md] of Object.entries(monthsData)) {
+        const hasAnyData = selectedStates.some(state => {
+          const data = md.uploadData[state];
+          return data?.salesParsed || data?.purchaseParsed || data?.balanceSheetParsed;
+        });
+        if (hasAnyData) {
+          proratedData[key] = {
+            period: md.period,
+            uploadData: md.uploadData
+          };
+        }
+      }
+
+      // Calculate prorated raw materials
+      const proratedResult = prepareProratedRawMaterials(proratedData, selectedStates);
+
+      // Get the prorated amount for this specific month
+      const allocation = proratedResult.monthlyAllocations.find(
+        a => a.periodKey === periodKey
+      );
+      const proratedAmount = allocation?.allocatedRawMaterials ?? 0;
+
+      console.log(`Generating MIS for ${periodKey} with prorated raw materials: ${proratedAmount}`);
+
+      const mis = await calculateMIS(
+        monthData.period,
+        monthData.uploadData,
+        selectedStates,
+        {
+          proratedRawMaterialsAmount: proratedAmount,
+          prorationInfo: {
+            fyOpeningStock: proratedResult.fyOpeningStock,
+            fyTotalPurchases: proratedResult.fyTotalPurchases,
+            fyClosingStock: proratedResult.fyClosingStock,
+            fyTotalRawMaterials: proratedResult.fyTotalRawMaterials,
+            revenueRatio: allocation?.revenueRatio ?? 0
+          }
+        }
+      );
 
       // Save to storage
       await saveMISRecord(mis);
@@ -971,13 +1026,14 @@ export function MISTrackingNew() {
   };
 
   // Generate MIS for all months that have data
+  // Uses annual proration for raw materials & inventory
   const handleGenerateAllMIS = async () => {
     setGeneratingAll(true);
     setError(null);
 
     try {
-      const monthsToGenerate = Object.values(monthsData).filter(md => {
-        // Only generate for months that have data but no MIS yet, or have updated data
+      // Get all months with data (for proration calculation)
+      const monthsWithData = Object.entries(monthsData).filter(([_, md]) => {
         const hasAnyData = selectedStates.some(state => {
           const data = md.uploadData[state];
           return data?.salesParsed || data?.purchaseParsed || data?.balanceSheetParsed;
@@ -985,12 +1041,61 @@ export function MISTrackingNew() {
         return hasAnyData;
       });
 
-      for (const monthData of monthsToGenerate) {
+      // Prepare proration data from ALL months with data
+      // This ensures consistent raw materials allocation across the financial year
+      const proratedData: Record<string, {
+        period: MISPeriod;
+        uploadData: Record<IndianState, StateUploadData | undefined>;
+      }> = {};
+
+      for (const [periodKey, md] of monthsWithData) {
+        proratedData[periodKey] = {
+          period: md.period,
+          uploadData: md.uploadData
+        };
+      }
+
+      // Calculate prorated raw materials for all months
+      const proratedResult = prepareProratedRawMaterials(proratedData, selectedStates);
+
+      console.log('Proration calculation:', {
+        fyOpeningStock: proratedResult.fyOpeningStock,
+        fyTotalPurchases: proratedResult.fyTotalPurchases,
+        fyClosingStock: proratedResult.fyClosingStock,
+        fyTotalRawMaterials: proratedResult.fyTotalRawMaterials,
+        fyTotalRevenue: proratedResult.fyTotalRevenue,
+        monthlyAllocations: proratedResult.monthlyAllocations
+      });
+
+      // Generate MIS for each month with prorated raw materials
+      for (const [periodKey, monthData] of monthsWithData) {
         try {
-          const mis = await calculateMIS(monthData.period, monthData.uploadData, selectedStates);
+          // Get the prorated amount for this specific month
+          const allocation = proratedResult.monthlyAllocations.find(
+            a => a.periodKey === periodKey
+          );
+          const proratedAmount = allocation?.allocatedRawMaterials ?? 0;
+
+          console.log(`Generating MIS for ${periodKey} with prorated raw materials: ${proratedAmount}`);
+
+          const mis = await calculateMIS(
+            monthData.period,
+            monthData.uploadData,
+            selectedStates,
+            {
+              proratedRawMaterialsAmount: proratedAmount,
+              prorationInfo: {
+                fyOpeningStock: proratedResult.fyOpeningStock,
+                fyTotalPurchases: proratedResult.fyTotalPurchases,
+                fyClosingStock: proratedResult.fyClosingStock,
+                fyTotalRawMaterials: proratedResult.fyTotalRawMaterials,
+                revenueRatio: allocation?.revenueRatio ?? 0
+              }
+            }
+          );
           await saveMISRecord(mis);
         } catch (err) {
-          console.error(`Error generating MIS for ${monthData.periodKey}:`, err);
+          console.error(`Error generating MIS for ${periodKey}:`, err);
         }
       }
 
@@ -1120,6 +1225,7 @@ export function MISTrackingNew() {
           {[
             { id: 'timeline' as const, label: 'Timeline', icon: '📅' },
             { id: 'report' as const, label: 'View Report', icon: '📊' },
+            { id: 'fy' as const, label: 'FY View', icon: '📋' },
             { id: 'trends' as const, label: 'Trends', icon: '📈' }
           ].map(view => (
             <button
@@ -1145,6 +1251,22 @@ export function MISTrackingNew() {
           >
             <span className="mr-1.5">📖</span>
             MIS Guide
+          </button>
+
+          {/* Export PDF Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            disabled={allMISData.length === 0}
+            className={`
+              px-4 py-2 rounded-md text-sm font-medium transition-all
+              ${allMISData.length === 0
+                ? 'text-slate-500 cursor-not-allowed'
+                : 'text-red-400 hover:bg-red-500/10'
+              }
+            `}
+          >
+            <span className="mr-1.5">📄</span>
+            Export PDF
           </button>
         </div>
       </div>
@@ -1414,9 +1536,22 @@ export function MISTrackingNew() {
         <MISTrendsView savedPeriods={savedPeriods} />
       )}
 
+      {/* FY View */}
+      {activeView === 'fy' && (
+        <MISFYView allMISRecords={allMISData} />
+      )}
+
       {/* Algorithm Guide Modal */}
       {showAlgorithmGuide && (
         <AlgorithmGuideModal onClose={() => setShowAlgorithmGuide(false)} />
+      )}
+
+      {/* Export PDF Modal */}
+      {showExportModal && (
+        <MISExportModal
+          allMISRecords={allMISData}
+          onClose={() => setShowExportModal(false)}
+        />
       )}
     </div>
   );

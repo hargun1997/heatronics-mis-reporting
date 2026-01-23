@@ -1,6 +1,7 @@
 // MIS Tracking - Calculation Engine
 // Generates complete MIS from parsed data
 // Uses Balance Sheet (Trading + P&L) for expenses instead of Journal
+// Raw Materials & Inventory uses annual proration based on revenue ratios
 
 import { IndianState } from '../types';
 import {
@@ -34,15 +35,46 @@ import {
   extractNonOperatingFromBalanceSheet,
   getIgnoredExcludedTotals
 } from './balanceSheetParser';
+import {
+  MonthlyBSDataForProration,
+  ProratedRawMaterialsResult,
+  calculateProratedRawMaterials,
+  getAllocatedRawMaterialsForMonth
+} from './cogsCalculator';
 
 // ============================================
 // MAIN CALCULATION FUNCTION
 // ============================================
 
+/**
+ * Options for MIS calculation
+ */
+export interface CalculateMISOptions {
+  /**
+   * Prorated raw materials amount for this month.
+   * When provided, this value is used instead of calculating from monthly BS data.
+   * This enables annual proration: Opening Stock (FY start) + Sum(Purchases) - Closing Stock (last month)
+   * distributed across months based on revenue ratios.
+   */
+  proratedRawMaterialsAmount?: number;
+
+  /**
+   * Proration metadata for transaction display
+   */
+  prorationInfo?: {
+    fyOpeningStock: number;
+    fyTotalPurchases: number;
+    fyClosingStock: number;
+    fyTotalRawMaterials: number;
+    revenueRatio: number;
+  };
+}
+
 export async function calculateMIS(
   period: MISPeriod,
   stateData: Record<IndianState, StateUploadData | undefined>,
-  selectedStates: IndianState[]
+  selectedStates: IndianState[],
+  options?: CalculateMISOptions
 ): Promise<MISRecord> {
   // Initialize record
   const record: MISRecord = {
@@ -113,25 +145,40 @@ export async function calculateMIS(
 
   // ============================================
   // STEP 4: Populate COGM
-  // Raw Materials from UP Balance Sheet (Opening + Purchases - Closing)
+  // Raw Materials: Use prorated amount if provided (annual proration)
+  // Otherwise fall back to monthly BS data (legacy behavior)
   // Other COGM items from aggregated balance sheet expenses
   // ============================================
 
-  // Raw materials ONLY from UP (main warehouse)
-  const rawMaterialsFromBS = bsData
-    ? (bsData.openingStock + bsData.purchases - bsData.closingStock)
-    : 0;
+  // Determine raw materials value:
+  // - If prorated amount is provided (from annual calculation), use it
+  // - Otherwise, calculate from monthly BS data (legacy per-month method)
+  let rawMaterialsValue: number;
 
-  console.log('COGM Calculation:', {
-    openingStock: bsData?.openingStock,
-    purchases: bsData?.purchases,
-    closingStock: bsData?.closingStock,
-    rawMaterialsFromBS,
-    otherCOGMFromBS: aggregatedExpenses.cogm
-  });
+  if (options?.proratedRawMaterialsAmount !== undefined) {
+    // Use prorated amount (annual COGS distributed by revenue ratio)
+    rawMaterialsValue = options.proratedRawMaterialsAmount;
+    console.log('COGM Calculation (PRORATED):', {
+      periodKey: periodToKey(period),
+      proratedAmount: rawMaterialsValue,
+      prorationInfo: options.prorationInfo
+    });
+  } else {
+    // Legacy: Raw materials from UP Balance Sheet (Opening + Purchases - Closing)
+    rawMaterialsValue = bsData
+      ? (bsData.openingStock + bsData.purchases - bsData.closingStock)
+      : 0;
+    console.log('COGM Calculation (MONTHLY):', {
+      openingStock: bsData?.openingStock,
+      purchases: bsData?.purchases,
+      closingStock: bsData?.closingStock,
+      rawMaterialsFromBS: rawMaterialsValue,
+      otherCOGMFromBS: aggregatedExpenses.cogm
+    });
+  }
 
   record.cogm = {
-    rawMaterialsInventory: rawMaterialsFromBS,
+    rawMaterialsInventory: rawMaterialsValue,
     consumables: aggregatedExpenses.cogm.consumables,
     manufacturingWages: aggregatedExpenses.cogm.manufacturingWages,
     contractWagesMfg: aggregatedExpenses.cogm.contractWagesMfg,
@@ -270,7 +317,13 @@ export async function calculateMIS(
   // STEP 11: Build Transaction Tracking for Drill-Down
   // ============================================
   const { transactionsByHead, ignoredTotal, excludedTotal } =
-    buildTransactionsByHead(aggregatedExpenses, bsData);
+    buildTransactionsByHead(
+      aggregatedExpenses,
+      bsData,
+      options?.proratedRawMaterialsAmount !== undefined
+        ? { proratedAmount: rawMaterialsValue }
+        : undefined
+    );
 
   record.transactionsByHead = transactionsByHead;
   record.ignoredTotal = ignoredTotal;
@@ -453,7 +506,8 @@ function aggregateExpensesFromBalanceSheets(
 
 function buildTransactionsByHead(
   aggregatedExpenses: AggregatedExpenses,
-  bsData?: AggregatedBalanceSheetData
+  bsData?: AggregatedBalanceSheetData,
+  rawMaterialsProration?: { proratedAmount: number }
 ): {
   transactionsByHead: TransactionsByHead;
   ignoredTotal: number;
@@ -514,19 +568,51 @@ function buildTransactionsByHead(
     }
   }
 
-  // Add Balance Sheet COGM Raw Materials entry
-  // Use purchases > 0 as condition since openingStock might be 0 for first period
-  if (bsData && (bsData.openingStock > 0 || bsData.purchases > 0)) {
-    const cogmHead = 'E. COGM';
-    if (!transactionsByHead[cogmHead]) {
-      transactionsByHead[cogmHead] = {
-        head: cogmHead,
-        total: 0,
-        transactionCount: 0,
-        subheads: []
+  // Add COGM Raw Materials entry
+  // Uses either prorated annual amount or monthly BS breakdown
+  const cogmHead = 'E. COGM';
+  if (!transactionsByHead[cogmHead]) {
+    transactionsByHead[cogmHead] = {
+      head: cogmHead,
+      total: 0,
+      transactionCount: 0,
+      subheads: []
+    };
+  }
+
+  if (rawMaterialsProration) {
+    // Prorated calculation: Show single allocated amount
+    // User requested not to show the proration formula details
+    let rawMatSubhead = transactionsByHead[cogmHead].subheads.find(
+      s => s.subhead === 'Raw Materials & Inventory'
+    );
+
+    if (!rawMatSubhead) {
+      rawMatSubhead = {
+        subhead: 'Raw Materials & Inventory',
+        amount: rawMaterialsProration.proratedAmount,
+        transactionCount: 1,
+        source: 'calculated',
+        transactions: []
       };
+      transactionsByHead[cogmHead].subheads.unshift(rawMatSubhead);
     }
 
+    rawMatSubhead.source = 'calculated';
+    rawMatSubhead.amount = rawMaterialsProration.proratedAmount;
+    rawMatSubhead.transactions = [
+      {
+        id: 'prorated-raw-materials',
+        date: '',
+        account: 'Raw Materials (Prorated by Revenue)',
+        amount: rawMaterialsProration.proratedAmount,
+        type: 'debit',
+        source: 'calculated'
+      }
+    ];
+    rawMatSubhead.transactionCount = 1;
+  } else if (bsData && bsData.openingStock > 0) {
+    // Legacy: Monthly BS breakdown (Opening + Purchases - Closing)
     const bsAmount = bsData.openingStock + bsData.purchases - bsData.closingStock;
 
     // Check if Raw Materials subhead already exists (might have been created from mapped items)
@@ -786,3 +872,120 @@ export function calculateChange(current: number, previous: number): {
 
   return { absolute, percent, direction };
 }
+
+// ============================================
+// PRORATION HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Prepare proration data from multiple months of upload data.
+ * This extracts the necessary information for annual raw materials proration.
+ *
+ * @param monthsData Map of periodKey -> { uploadData, netRevenue }
+ * @param selectedStates States to aggregate
+ * @returns Proration result with monthly allocations
+ */
+export function prepareProratedRawMaterials(
+  monthsData: Record<string, {
+    period: MISPeriod;
+    uploadData: Record<IndianState, StateUploadData | undefined>;
+    netRevenue?: number; // Pre-calculated or will calculate from sales data
+  }>,
+  selectedStates: IndianState[]
+): ProratedRawMaterialsResult {
+  const monthlyBSData: MonthlyBSDataForProration[] = [];
+
+  console.log('=== prepareProratedRawMaterials DEBUG ===');
+  console.log('Number of months passed:', Object.keys(monthsData).length);
+  console.log('Month keys:', Object.keys(monthsData));
+
+  for (const [periodKey, monthInfo] of Object.entries(monthsData)) {
+    console.log(`Processing month ${periodKey}:`);
+    console.log('  - uploadData keys:', Object.keys(monthInfo.uploadData));
+
+    // Get UP balance sheet data (main warehouse for COGM)
+    const upData = monthInfo.uploadData['UP'];
+    console.log('  - UP data exists:', !!upData);
+    console.log('  - UP balanceSheetData exists:', !!upData?.balanceSheetData);
+
+    if (upData?.balanceSheetData) {
+      console.log('  - UP balanceSheetData:', {
+        openingStock: upData.balanceSheetData.openingStock,
+        purchases: upData.balanceSheetData.purchases,
+        closingStock: upData.balanceSheetData.closingStock
+      });
+    }
+
+    if (!upData?.balanceSheetData) {
+      console.log(`  - SKIPPING ${periodKey}: No UP balance sheet data`);
+      continue;
+    }
+
+    // Calculate net revenue if not provided
+    let netRevenue = monthInfo.netRevenue ?? 0;
+    if (netRevenue === 0) {
+      // Calculate from sales data
+      netRevenue = calculateNetRevenueFromUploadData(monthInfo.uploadData, selectedStates);
+    }
+    console.log(`  - Net revenue for ${periodKey}:`, netRevenue);
+
+    monthlyBSData.push({
+      periodKey,
+      month: monthInfo.period.month,
+      year: monthInfo.period.year,
+      openingStock: upData.balanceSheetData.openingStock || 0,
+      purchases: upData.balanceSheetData.purchases || 0,
+      closingStock: upData.balanceSheetData.closingStock || 0,
+      netRevenue
+    });
+  }
+
+  console.log('=== Monthly BS Data collected ===');
+  console.log('Total months with UP BS data:', monthlyBSData.length);
+  console.log('monthlyBSData:', monthlyBSData);
+
+  const result = calculateProratedRawMaterials(monthlyBSData);
+
+  console.log('=== Proration Result ===');
+  console.log('fyOpeningStock:', result.fyOpeningStock);
+  console.log('fyTotalPurchases:', result.fyTotalPurchases);
+  console.log('fyClosingStock:', result.fyClosingStock);
+  console.log('fyTotalRawMaterials:', result.fyTotalRawMaterials);
+  console.log('monthlyAllocations:', result.monthlyAllocations);
+
+  return result;
+}
+
+/**
+ * Calculate net revenue from upload data for a single month
+ */
+function calculateNetRevenueFromUploadData(
+  uploadData: Record<IndianState, StateUploadData | undefined>,
+  selectedStates: IndianState[]
+): number {
+  let totalGross = 0;
+  let totalReturns = 0;
+  let totalTaxes = 0;
+
+  for (const state of selectedStates) {
+    const data = uploadData[state];
+    if (!data?.salesData) continue;
+
+    const sales = data.salesData;
+    totalGross += sales.grossSales;
+    totalReturns += sales.returns;
+    totalTaxes += sales.totalTaxes || 0;
+  }
+
+  // Net Revenue = Gross - Returns - Taxes
+  return totalGross - totalReturns - totalTaxes;
+}
+
+// Re-export types and functions for use by callers
+export type {
+  MonthlyBSDataForProration,
+  ProratedRawMaterialsResult
+};
+
+// Re-export the helper function
+export { getAllocatedRawMaterialsForMonth } from './cogsCalculator';
