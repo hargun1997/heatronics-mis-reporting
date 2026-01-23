@@ -475,8 +475,8 @@ function parseAllLineItems(
   console.log('[DEBUG] ===== SPECIAL ENTRIES SCAN =====');
   for (let i = 0; i < lines.length; i++) {
     const lower = lines[i].toLowerCase();
-    // Check for amazon, logistics, prabhash, avanish, or lines with negative numbers
-    if (/amazon|logistics|prabhash|avanish/i.test(lower) || /-[\d,]+\.?\d*/.test(lines[i])) {
+    // Check for amazon, logistics, prabhash, avanish, salary, director, or lines with negative numbers
+    if (/amazon|logistics|prabhash|avanish|salary|director/i.test(lower) || /-[\d,]+\.?\d*/.test(lines[i])) {
       console.log(`[DEBUG] Line ${i}: "${lines[i]}"`);
       console.log(`[DEBUG]   - Account name: "${extractAccountName(lines[i])}"`);
       console.log(`[DEBUG]   - Amount: ${extractAmountFromLine(lines[i])}`);
@@ -490,8 +490,8 @@ function parseAllLineItems(
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // DEBUG: Extra logging for special entries (amazon, logistics, prabhash, avanish, negative amounts)
-    const isDebugLine = /amazon|logistics|prabhash|avanish/i.test(line.toLowerCase()) || /-[\d,]+\.?\d*/.test(line);
+    // DEBUG: Extra logging for special entries (amazon, logistics, prabhash, avanish, salary, director, negative amounts)
+    const isDebugLine = /amazon|logistics|prabhash|avanish|salary|director/i.test(line.toLowerCase()) || /-[\d,]+\.?\d*/.test(line);
     if (isDebugLine) {
       console.log(`[DEBUG-LOOP] Processing line ${i}: "${trimmed.substring(0, 100)}"`);
       console.log(`[DEBUG-LOOP]   - Current section: ${currentSection}, side: ${currentSide}`);
