@@ -11,6 +11,12 @@ const FY_COGS_OVERRIDES: Record<string, number> = {
   'FY 2024-25': 15985642.38,  // ₹1,59,85,642.38
 };
 
+// Hardcoded raw materials ratio overrides for specific FYs
+// Ratio = Raw Materials / Net Revenue
+const FY_RATIO_OVERRIDES: Record<string, number> = {
+  'FY25-26': 0.4504485697,  // Based on actual purchases/revenue data
+};
+
 /**
  * Get the FY label for a given month/year
  * FY runs April to March: April 2024 - March 2025 = FY 2024-25
@@ -220,13 +226,13 @@ export function calculateFYAwareRawMaterials(
 
   // Determine calculation method based on FY
   if (fy.fyKey === 'FY25-26') {
-    // FY 25-26: Use purchases directly (no stock adjustment)
-    // Ratio = Purchases / Revenue
+    // FY 25-26: Use hardcoded ratio override
     calculationMethod = 'FY25-26_PURCHASES_RATIO';
     fyOpeningStock = 0; // Not used in this method
     fyClosingStock = 0; // Not used in this method
-    fyTotalRawMaterials = fyTotalPurchases; // Purchases = Raw Materials Used
-    rawMaterialsRatio = fyTotalRevenue > 0 ? fyTotalPurchases / fyTotalRevenue : 0;
+    // Use hardcoded ratio if available, otherwise calculate from data
+    rawMaterialsRatio = FY_RATIO_OVERRIDES[fy.fyKey] ?? (fyTotalRevenue > 0 ? fyTotalPurchases / fyTotalRevenue : 0);
+    fyTotalRawMaterials = rawMaterialsRatio * fyTotalRevenue; // Derive from ratio × revenue
 
   } else if (fy.fyKey === 'FY24-25') {
     // FY 24-25: Audited year - use Opening (April) + Purchases - Closing (March)
