@@ -78,61 +78,67 @@ export interface ProratedRawMaterialsResult {
 }
 
 /**
- * Calculate prorated raw materials cost across months based on revenue ratios.
- *
- * Formula:
- * 1. Annual Raw Materials = Opening Stock (FY start) + Sum(All Purchases) - Closing Stock (last month)
- *    OR use FY-specific override if configured (e.g., FY 2024-25)
- * 2. Each month's allocation = Annual Raw Materials × (Month Revenue / Total Revenue)
- *
- * @param monthlyData Array of monthly BS data sorted by period (oldest first)
- * @returns Prorated raw materials breakdown
+ * Group months by Financial Year
  */
-export function calculateProratedRawMaterials(
-  monthlyData: MonthlyBSDataForProration[]
-): ProratedRawMaterialsResult {
-  if (monthlyData.length === 0) {
-    return {
-      fyOpeningStock: 0,
-      fyTotalPurchases: 0,
-      fyClosingStock: 0,
-      fyTotalRawMaterials: 0,
-      fyTotalRevenue: 0,
-      monthlyAllocations: []
-    };
+function groupMonthsByFY(monthlyData: MonthlyBSDataForProration[]): Record<string, MonthlyBSDataForProration[]> {
+  const fyGroups: Record<string, MonthlyBSDataForProration[]> = {};
+
+  for (const monthData of monthlyData) {
+    const fyLabel = getFYLabel(monthData.month, monthData.year);
+    if (!fyGroups[fyLabel]) {
+      fyGroups[fyLabel] = [];
+    }
+    fyGroups[fyLabel].push(monthData);
   }
 
+  return fyGroups;
+}
+
+/**
+ * Calculate prorated raw materials for a SINGLE FY
+ */
+function calculateProratedRawMaterialsForFY(
+  fyLabel: string,
+  fyMonthsData: MonthlyBSDataForProration[]
+): {
+  fyOpeningStock: number;
+  fyTotalPurchases: number;
+  fyClosingStock: number;
+  fyTotalRawMaterials: number;
+  fyTotalRevenue: number;
+  monthlyAllocations: {
+    periodKey: string;
+    month: number;
+    year: number;
+    revenueRatio: number;
+    allocatedRawMaterials: number;
+  }[];
+} {
   // Sort by period to ensure correct order (oldest first)
-  const sortedData = [...monthlyData].sort((a, b) => {
+  const sortedData = [...fyMonthsData].sort((a, b) => {
     if (a.year !== b.year) return a.year - b.year;
     return a.month - b.month;
   });
 
-  // Determine FY from the first month
-  const firstMonth = sortedData[0];
-  const fyLabel = getFYLabel(firstMonth.month, firstMonth.year);
-
-  console.log('[COGS DEBUG] First month:', firstMonth);
-  console.log('[COGS DEBUG] FY Label:', fyLabel);
-  console.log('[COGS DEBUG] Available overrides:', FY_COGS_OVERRIDES);
+  console.log(`[COGS DEBUG] Processing ${fyLabel} with ${sortedData.length} months`);
 
   // Check for FY-specific override
   const fyOverride = getFYCogsOverride(fyLabel);
-  console.log('[COGS DEBUG] FY Override found:', fyOverride);
+  console.log(`[COGS DEBUG] ${fyLabel} override:`, fyOverride);
 
-  // Get opening stock from the earliest month
+  // Get opening stock from the earliest month in this FY
   const earliestMonth = sortedData[0];
   const fyOpeningStock = earliestMonth.openingStock;
 
-  // Sum all purchases across the year
+  // Sum all purchases across this FY
   const fyTotalPurchases = sortedData.reduce((sum, m) => sum + m.purchases, 0);
 
-  // Get closing stock from the last submitted month
+  // Get closing stock from the last submitted month in this FY
   const latestMonth = sortedData[sortedData.length - 1];
   const fyClosingStock = latestMonth.closingStock;
 
-  // Calculate total raw materials COGS for the year
-  // Use override if available for this FY, otherwise calculate from balance sheet
+  // Calculate total raw materials COGS for this FY
+  // Use override if available, otherwise calculate from balance sheet
   let fyTotalRawMaterials: number;
   if (fyOverride !== null) {
     fyTotalRawMaterials = fyOverride;
@@ -142,7 +148,7 @@ export function calculateProratedRawMaterials(
     console.log(`[COGS] Calculated from balance sheet for ${fyLabel}: ₹${fyTotalRawMaterials.toLocaleString('en-IN')}`);
   }
 
-  // Calculate total revenue for proration
+  // Calculate total revenue for proration within this FY
   const fyTotalRevenue = sortedData.reduce((sum, m) => sum + m.netRevenue, 0);
 
   // Calculate monthly allocations based on revenue ratios
@@ -169,6 +175,74 @@ export function calculateProratedRawMaterials(
     fyTotalRawMaterials,
     fyTotalRevenue,
     monthlyAllocations
+  };
+}
+
+/**
+ * Calculate prorated raw materials cost across months based on revenue ratios.
+ * Now handles multiple FYs properly - each FY is calculated separately with its own override.
+ *
+ * Formula:
+ * 1. Annual Raw Materials = Opening Stock (FY start) + Sum(All Purchases) - Closing Stock (last month)
+ *    OR use FY-specific override if configured (e.g., FY 2024-25)
+ * 2. Each month's allocation = Annual Raw Materials × (Month Revenue / Total Revenue)
+ *
+ * @param monthlyData Array of monthly BS data (can span multiple FYs)
+ * @returns Prorated raw materials breakdown (combined from all FYs)
+ */
+export function calculateProratedRawMaterials(
+  monthlyData: MonthlyBSDataForProration[]
+): ProratedRawMaterialsResult {
+  if (monthlyData.length === 0) {
+    return {
+      fyOpeningStock: 0,
+      fyTotalPurchases: 0,
+      fyClosingStock: 0,
+      fyTotalRawMaterials: 0,
+      fyTotalRevenue: 0,
+      monthlyAllocations: []
+    };
+  }
+
+  // Group months by FY
+  const fyGroups = groupMonthsByFY(monthlyData);
+  const fyLabels = Object.keys(fyGroups).sort();
+
+  console.log('[COGS DEBUG] FY Groups found:', fyLabels);
+  console.log('[COGS DEBUG] Available overrides:', FY_COGS_OVERRIDES);
+
+  // Calculate proration for each FY separately
+  const allAllocations: ProratedRawMaterialsResult['monthlyAllocations'] = [];
+  let totalOpeningStock = 0;
+  let totalPurchases = 0;
+  let totalClosingStock = 0;
+  let totalRawMaterials = 0;
+  let totalRevenue = 0;
+
+  for (const fyLabel of fyLabels) {
+    const fyResult = calculateProratedRawMaterialsForFY(fyLabel, fyGroups[fyLabel]);
+
+    allAllocations.push(...fyResult.monthlyAllocations);
+    totalOpeningStock += fyResult.fyOpeningStock;
+    totalPurchases += fyResult.fyTotalPurchases;
+    totalClosingStock += fyResult.fyClosingStock;
+    totalRawMaterials += fyResult.fyTotalRawMaterials;
+    totalRevenue += fyResult.fyTotalRevenue;
+  }
+
+  // Sort allocations by period
+  allAllocations.sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.month - b.month;
+  });
+
+  return {
+    fyOpeningStock: totalOpeningStock,
+    fyTotalPurchases: totalPurchases,
+    fyClosingStock: totalClosingStock,
+    fyTotalRawMaterials: totalRawMaterials,
+    fyTotalRevenue: totalRevenue,
+    monthlyAllocations: allAllocations
   };
 }
 
