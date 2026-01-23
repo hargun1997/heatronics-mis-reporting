@@ -198,31 +198,8 @@ export function calculateFYAwareRawMaterials(
     };
   }
 
-  return fyGroups;
-}
-
-/**
- * Calculate prorated raw materials for a SINGLE FY
- */
-function calculateProratedRawMaterialsForFY(
-  fyLabel: string,
-  fyMonthsData: MonthlyBSDataForProration[]
-): {
-  fyOpeningStock: number;
-  fyTotalPurchases: number;
-  fyClosingStock: number;
-  fyTotalRawMaterials: number;
-  fyTotalRevenue: number;
-  monthlyAllocations: {
-    periodKey: string;
-    month: number;
-    year: number;
-    revenueRatio: number;
-    allocatedRawMaterials: number;
-  }[];
-} {
   // Sort by period to ensure correct order (oldest first)
-  const sortedData = [...fyMonthsData].sort((a, b) => {
+  const sortedData = [...monthlyData].sort((a, b) => {
     if (a.year !== b.year) return a.year - b.year;
     return a.month - b.month;
   });
