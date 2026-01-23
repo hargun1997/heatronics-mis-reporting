@@ -344,6 +344,8 @@ export function mapAccountToMIS(accountName: string): AccountMapping | null {
  */
 export function isSpecialAccount(accountName: string): boolean {
   const normalized = normalizeAccountName(accountName);
+
+  // These are exact or near-exact matches for special accounts
   const specialAccounts = [
     'opening stock',
     'closing stock',
@@ -355,14 +357,19 @@ export function isSpecialAccount(accountName: string): boolean {
     'nett profit',
     'total',
     'grand total',
-    'expenses direct',
-    'expenses indirect',
-    'to expenses',
-    'by expenses',
   ];
 
   // Check if it's one of the special accounts
   if (specialAccounts.some(special => normalized.includes(special))) {
+    return true;
+  }
+
+  // Section headers - match more precisely to avoid matching "SALARY EXPENSES (DIRECTOR)"
+  // These are section headers like "To Expenses (Direct/Mfg.)" or "Expenses (Indirect/Admn.)"
+  if (/^(to\s+)?expenses\s*(direct|indirect|\(direct|\(indirect)/i.test(normalized)) {
+    return true;
+  }
+  if (/^(to|by)\s+expenses$/i.test(normalized)) {
     return true;
   }
 
