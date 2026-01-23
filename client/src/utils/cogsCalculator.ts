@@ -14,6 +14,84 @@ export function calculateCOGS(
   };
 }
 
+// ============================================
+// FINANCIAL YEAR UTILITIES
+// ============================================
+
+/**
+ * Financial Year info
+ * Indian FY runs April to March
+ * e.g., FY 24-25 = April 2024 to March 2025
+ */
+export interface FinancialYear {
+  fyKey: string;      // e.g., "FY24-25"
+  fyStartYear: number; // e.g., 2024 for FY 24-25
+  fyEndYear: number;   // e.g., 2025 for FY 24-25
+  startMonth: number;  // Always 4 (April)
+  endMonth: number;    // Always 3 (March)
+}
+
+/**
+ * Determine which Financial Year a month/year belongs to
+ * Indian FY: April to March
+ * - April 2024 to March 2025 = FY 24-25
+ * - April 2025 to March 2026 = FY 25-26
+ */
+export function getFinancialYear(month: number, year: number): FinancialYear {
+  // If month is Jan-Mar, it belongs to FY that started previous year
+  // If month is Apr-Dec, it belongs to FY that started this year
+  const fyStartYear = month >= 4 ? year : year - 1;
+  const fyEndYear = fyStartYear + 1;
+
+  return {
+    fyKey: `FY${String(fyStartYear).slice(-2)}-${String(fyEndYear).slice(-2)}`,
+    fyStartYear,
+    fyEndYear,
+    startMonth: 4,  // April
+    endMonth: 3     // March
+  };
+}
+
+/**
+ * Get all months that belong to a financial year
+ */
+export function getFYMonths(fy: FinancialYear): { month: number; year: number }[] {
+  const months: { month: number; year: number }[] = [];
+
+  // April to December of start year
+  for (let m = 4; m <= 12; m++) {
+    months.push({ month: m, year: fy.fyStartYear });
+  }
+
+  // January to March of end year
+  for (let m = 1; m <= 3; m++) {
+    months.push({ month: m, year: fy.fyEndYear });
+  }
+
+  return months;
+}
+
+/**
+ * Check if a period is in a specific FY
+ */
+export function isPeriodInFY(month: number, year: number, fy: FinancialYear): boolean {
+  const periodFY = getFinancialYear(month, year);
+  return periodFY.fyKey === fy.fyKey;
+}
+
+// ============================================
+// FY-AWARE RAW MATERIALS CALCULATION
+// ============================================
+
+/**
+ * Calculation method used for raw materials
+ */
+export type RawMaterialsCalculationMethod =
+  | 'FY25-26_PURCHASES_RATIO'  // Purchases / Sales ratio (no stock adjustment)
+  | 'FY24-25_AUDITED'          // Opening (Apr) + Purchases - Closing (Mar)
+  | 'FY23-24_PARTIAL'          // Opening (Jan) + Purchases - Closing (Mar) - partial data
+  | 'LEGACY_MONTHLY';          // Old per-month calculation
+
 /**
  * Data structure for monthly balance sheet data used in proration
  */
@@ -31,6 +109,10 @@ export interface MonthlyBSDataForProration {
  * Result of prorated raw materials calculation
  */
 export interface ProratedRawMaterialsResult {
+  // FY info
+  fyKey: string;
+  calculationMethod: RawMaterialsCalculationMethod;
+
   // Annual totals
   fyOpeningStock: number;      // Opening stock from FY start (or earliest month)
   fyTotalPurchases: number;    // Sum of all purchases across the year
@@ -39,6 +121,9 @@ export interface ProratedRawMaterialsResult {
 
   // Revenue data for proration
   fyTotalRevenue: number;      // Total revenue across all months
+
+  // Ratio used for proration
+  rawMaterialsRatio: number;   // Raw materials / Revenue ratio
 
   // Per-month breakdown
   monthlyAllocations: {
@@ -51,25 +136,37 @@ export interface ProratedRawMaterialsResult {
 }
 
 /**
- * Calculate prorated raw materials cost across months based on revenue ratios.
+ * Calculate FY-aware prorated raw materials cost.
  *
- * Formula:
- * 1. Annual Raw Materials = Opening Stock (FY start) + Sum(All Purchases) - Closing Stock (last month)
- * 2. Each month's allocation = Annual Raw Materials × (Month Revenue / Total Revenue)
+ * Different calculation methods based on FY:
  *
- * @param monthlyData Array of monthly BS data sorted by period (oldest first)
- * @returns Prorated raw materials breakdown
+ * FY 25-26 (Unaudited):
+ *   Ratio = Sum of Purchases / Sum of Net Sales
+ *   Monthly Raw Materials = Ratio × Net Sales
+ *
+ * FY 24-25 (Audited):
+ *   Annual Raw Materials = Opening Stock (April) + Sum of Purchases - Closing Stock (March)
+ *   Ratio = Annual Raw Materials / Sum of Net Sales
+ *   Monthly Raw Materials = Ratio × Net Sales
+ *
+ * FY 23-24 (Partial - only Jan-Mar 2024):
+ *   Raw Materials = Opening Stock (January) + Sum of Purchases - Closing Stock (March)
+ *   Ratio = Raw Materials / Sum of Net Sales
+ *   Monthly Raw Materials = Ratio × Net Sales
  */
-export function calculateProratedRawMaterials(
+export function calculateFYAwareRawMaterials(
   monthlyData: MonthlyBSDataForProration[]
 ): ProratedRawMaterialsResult {
   if (monthlyData.length === 0) {
     return {
+      fyKey: 'UNKNOWN',
+      calculationMethod: 'LEGACY_MONTHLY',
       fyOpeningStock: 0,
       fyTotalPurchases: 0,
       fyClosingStock: 0,
       fyTotalRawMaterials: 0,
       fyTotalRevenue: 0,
+      rawMaterialsRatio: 0,
       monthlyAllocations: []
     };
   }
@@ -80,30 +177,79 @@ export function calculateProratedRawMaterials(
     return a.month - b.month;
   });
 
-  // Get opening stock from the earliest month
-  const earliestMonth = sortedData[0];
-  const fyOpeningStock = earliestMonth.openingStock;
+  // Determine which FY this data belongs to (use first month to determine)
+  const firstMonth = sortedData[0];
+  const fy = getFinancialYear(firstMonth.month, firstMonth.year);
 
-  // Sum all purchases across the year
+  // Sum all purchases and revenue across the data
   const fyTotalPurchases = sortedData.reduce((sum, m) => sum + m.purchases, 0);
-
-  // Get closing stock from the last submitted month
-  const latestMonth = sortedData[sortedData.length - 1];
-  const fyClosingStock = latestMonth.closingStock;
-
-  // Calculate total raw materials COGS for the year
-  const fyTotalRawMaterials = Math.max(0, fyOpeningStock + fyTotalPurchases - fyClosingStock);
-
-  // Calculate total revenue for proration
   const fyTotalRevenue = sortedData.reduce((sum, m) => sum + m.netRevenue, 0);
 
+  let fyOpeningStock = 0;
+  let fyClosingStock = 0;
+  let fyTotalRawMaterials = 0;
+  let calculationMethod: RawMaterialsCalculationMethod;
+  let rawMaterialsRatio = 0;
+
+  // Determine calculation method based on FY
+  if (fy.fyKey === 'FY25-26') {
+    // FY 25-26: Use purchases directly (no stock adjustment)
+    // Ratio = Purchases / Revenue
+    calculationMethod = 'FY25-26_PURCHASES_RATIO';
+    fyOpeningStock = 0; // Not used in this method
+    fyClosingStock = 0; // Not used in this method
+    fyTotalRawMaterials = fyTotalPurchases; // Purchases = Raw Materials Used
+    rawMaterialsRatio = fyTotalRevenue > 0 ? fyTotalPurchases / fyTotalRevenue : 0;
+
+  } else if (fy.fyKey === 'FY24-25') {
+    // FY 24-25: Audited year - use Opening (April) + Purchases - Closing (March)
+    calculationMethod = 'FY24-25_AUDITED';
+
+    // Find April data for opening stock
+    const aprilData = sortedData.find(m => m.month === 4 && m.year === fy.fyStartYear);
+    fyOpeningStock = aprilData?.openingStock ?? sortedData[0].openingStock;
+
+    // Find March data for closing stock
+    const marchData = sortedData.find(m => m.month === 3 && m.year === fy.fyEndYear);
+    fyClosingStock = marchData?.closingStock ?? sortedData[sortedData.length - 1].closingStock;
+
+    fyTotalRawMaterials = Math.max(0, fyOpeningStock + fyTotalPurchases - fyClosingStock);
+    rawMaterialsRatio = fyTotalRevenue > 0 ? fyTotalRawMaterials / fyTotalRevenue : 0;
+
+  } else if (fy.fyKey === 'FY23-24') {
+    // FY 23-24: Partial data (only Jan-Mar 2024 available)
+    // Use Opening (January) + Purchases - Closing (March)
+    calculationMethod = 'FY23-24_PARTIAL';
+
+    // Find January 2024 data for opening stock (earliest available)
+    const janData = sortedData.find(m => m.month === 1 && m.year === 2024);
+    fyOpeningStock = janData?.openingStock ?? sortedData[0].openingStock;
+
+    // Find March 2024 data for closing stock
+    const marchData = sortedData.find(m => m.month === 3 && m.year === 2024);
+    fyClosingStock = marchData?.closingStock ?? sortedData[sortedData.length - 1].closingStock;
+
+    fyTotalRawMaterials = Math.max(0, fyOpeningStock + fyTotalPurchases - fyClosingStock);
+    rawMaterialsRatio = fyTotalRevenue > 0 ? fyTotalRawMaterials / fyTotalRevenue : 0;
+
+  } else {
+    // Other FYs: Use same logic as FY 24-25 (audited method)
+    calculationMethod = 'LEGACY_MONTHLY';
+    fyOpeningStock = sortedData[0].openingStock;
+    fyClosingStock = sortedData[sortedData.length - 1].closingStock;
+    fyTotalRawMaterials = Math.max(0, fyOpeningStock + fyTotalPurchases - fyClosingStock);
+    rawMaterialsRatio = fyTotalRevenue > 0 ? fyTotalRawMaterials / fyTotalRevenue : 0;
+  }
+
   // Calculate monthly allocations based on revenue ratios
+  // Monthly Raw Materials = Ratio × Net Sales of that month
   const monthlyAllocations = sortedData.map(monthData => {
     const revenueRatio = fyTotalRevenue > 0
       ? monthData.netRevenue / fyTotalRevenue
-      : 1 / sortedData.length; // Equal distribution if no revenue
+      : 1 / sortedData.length;
 
-    const allocatedRawMaterials = fyTotalRawMaterials * revenueRatio;
+    // Apply ratio to this month's revenue
+    const allocatedRawMaterials = rawMaterialsRatio * monthData.netRevenue;
 
     return {
       periodKey: monthData.periodKey,
@@ -115,13 +261,34 @@ export function calculateProratedRawMaterials(
   });
 
   return {
+    fyKey: fy.fyKey,
+    calculationMethod,
     fyOpeningStock,
     fyTotalPurchases,
     fyClosingStock,
     fyTotalRawMaterials,
     fyTotalRevenue,
+    rawMaterialsRatio,
     monthlyAllocations
   };
+}
+
+/**
+ * Calculate prorated raw materials cost across months based on revenue ratios.
+ * @deprecated Use calculateFYAwareRawMaterials instead for FY-specific logic
+ *
+ * Formula:
+ * 1. Annual Raw Materials = Opening Stock (FY start) + Sum(All Purchases) - Closing Stock (last month)
+ * 2. Each month's allocation = Annual Raw Materials × (Month Revenue / Total Revenue)
+ *
+ * @param monthlyData Array of monthly BS data sorted by period (oldest first)
+ * @returns Prorated raw materials breakdown
+ */
+export function calculateProratedRawMaterials(
+  monthlyData: MonthlyBSDataForProration[]
+): ProratedRawMaterialsResult {
+  // Use the new FY-aware calculation
+  return calculateFYAwareRawMaterials(monthlyData);
 }
 
 /**
