@@ -14,7 +14,7 @@ const FY_COGS_OVERRIDES: Record<string, number> = {
 // Hardcoded raw materials ratio overrides for specific FYs
 // Ratio = Raw Materials / Net Revenue
 const FY_RATIO_OVERRIDES: Record<string, number> = {
-  'FY25-26': 0.4504485697,
+  'FY25-26': 0.3703567736,
   'FY24-25': 0.3096822168,
   'FY23-24': 0.561487163,
 };
