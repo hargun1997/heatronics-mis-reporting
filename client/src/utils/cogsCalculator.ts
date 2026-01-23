@@ -1,5 +1,32 @@
 import { COGSData } from '../types';
 
+// ============================================
+// FY-SPECIFIC COGS OVERRIDES
+// ============================================
+// For specific financial years, use these hardcoded values instead of
+// calculating from balance sheet data. The value is the total raw materials
+// COGS for the entire FY, which will be prorated across months by revenue ratio.
+
+const FY_COGS_OVERRIDES: Record<string, number> = {
+  'FY 2024-25': 15985642.38,  // ₹1,59,85,642.38
+};
+
+/**
+ * Get the FY label for a given month/year
+ * FY runs April to March: April 2024 - March 2025 = FY 2024-25
+ */
+export function getFYLabel(month: number, year: number): string {
+  const fyStartYear = month >= 4 ? year : year - 1;
+  return `FY ${fyStartYear}-${String(fyStartYear + 1).slice(-2)}`;
+}
+
+/**
+ * Check if an FY has a COGS override
+ */
+export function getFYCogsOverride(fyLabel: string): number | null {
+  return FY_COGS_OVERRIDES[fyLabel] ?? null;
+}
+
 export function calculateCOGS(
   openingStock: number,
   purchases: number,
@@ -55,6 +82,7 @@ export interface ProratedRawMaterialsResult {
  *
  * Formula:
  * 1. Annual Raw Materials = Opening Stock (FY start) + Sum(All Purchases) - Closing Stock (last month)
+ *    OR use FY-specific override if configured (e.g., FY 2024-25)
  * 2. Each month's allocation = Annual Raw Materials × (Month Revenue / Total Revenue)
  *
  * @param monthlyData Array of monthly BS data sorted by period (oldest first)
@@ -80,6 +108,13 @@ export function calculateProratedRawMaterials(
     return a.month - b.month;
   });
 
+  // Determine FY from the first month
+  const firstMonth = sortedData[0];
+  const fyLabel = getFYLabel(firstMonth.month, firstMonth.year);
+
+  // Check for FY-specific override
+  const fyOverride = getFYCogsOverride(fyLabel);
+
   // Get opening stock from the earliest month
   const earliestMonth = sortedData[0];
   const fyOpeningStock = earliestMonth.openingStock;
@@ -92,7 +127,15 @@ export function calculateProratedRawMaterials(
   const fyClosingStock = latestMonth.closingStock;
 
   // Calculate total raw materials COGS for the year
-  const fyTotalRawMaterials = Math.max(0, fyOpeningStock + fyTotalPurchases - fyClosingStock);
+  // Use override if available for this FY, otherwise calculate from balance sheet
+  let fyTotalRawMaterials: number;
+  if (fyOverride !== null) {
+    fyTotalRawMaterials = fyOverride;
+    console.log(`[COGS] Using FY override for ${fyLabel}: ₹${fyOverride.toLocaleString('en-IN')}`);
+  } else {
+    fyTotalRawMaterials = Math.max(0, fyOpeningStock + fyTotalPurchases - fyClosingStock);
+    console.log(`[COGS] Calculated from balance sheet for ${fyLabel}: ₹${fyTotalRawMaterials.toLocaleString('en-IN')}`);
+  }
 
   // Calculate total revenue for proration
   const fyTotalRevenue = sortedData.reduce((sum, m) => sum + m.netRevenue, 0);
