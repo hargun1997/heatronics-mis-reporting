@@ -111,8 +111,16 @@ interface PLMapping {
 function classifyPLExpense(accountName: string): PLMapping {
   const lower = accountName.toLowerCase();
 
-  // ===== Z. IGNORE (Only GST, TDS - truly ignorable items) =====
-  if (/^(cgst|sgst|igst|gst)/i.test(lower) || /tds/i.test(lower)) {
+  // ===== Z. IGNORE (Only GST tax accounts, TDS - truly ignorable items) =====
+  // Match CGST/SGST/IGST (always tax accounts) but NOT "GST EXPENSES" or "GST REGISTRATION"
+  if (/^(cgst|sgst|igst)\b/i.test(lower)) {
+    return { head: 'Z. Ignore', subhead: 'GST/TDS' };
+  }
+  // Match "GST INPUT", "GST OUTPUT", "GST PAYABLE" etc. but not "GST EXPENSES"
+  if (/^gst\s*(input|output|payable|receivable|credit|liability)/i.test(lower)) {
+    return { head: 'Z. Ignore', subhead: 'GST/TDS' };
+  }
+  if (/tds/i.test(lower)) {
     return { head: 'Z. Ignore', subhead: 'GST/TDS' };
   }
   if (/duties\s*&\s*taxes/i.test(lower)) {
@@ -198,8 +206,8 @@ function classifyPLExpense(accountName: string): PLMapping {
     return { head: 'I. Operating Expenses', subhead: 'Staff Welfare & Events' };
   }
 
-  // Legal & Professional
-  if (/legal|professional.*exp|accounti|consultancy|government\s*fee|registration|licence|barcode/i.test(lower)) {
+  // Legal & Professional (including GST compliance expenses)
+  if (/legal|professional.*exp|accounti|consultancy|government\s*fee|registration|licence|barcode|gst.*exp/i.test(lower)) {
     return { head: 'I. Operating Expenses', subhead: 'Legal & CA expenses' };
   }
 
