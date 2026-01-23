@@ -45,8 +45,9 @@ function extractNumbersFromLine(line: string): number[] {
 
   // Remove @XX% tax rate patterns BEFORE extracting numbers
   // This prevents picking up "18" from "@18%" or "@ 18%" as an amount
-  // Handles variations: @18%, @ 18%, @18, @ 18, @%, @ %
-  normalizedLine = normalizedLine.replace(/@\s*\d*\s*%?/g, '');
+  // IMPORTANT: Require % to be present to avoid stripping digits from amounts
+  // e.g., "EXPENSES@ 3,15,007" should NOT have the 3 stripped
+  normalizedLine = normalizedLine.replace(/@\s*\d+\s*%/g, '');
 
   // Match negative numbers like -6,489.00 and positive numbers like 1,23,456.78
   const numbers = normalizedLine.match(/-?[\d,]+\.?\d*/g);
