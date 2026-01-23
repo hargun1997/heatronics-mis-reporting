@@ -18,7 +18,7 @@ import {
   prepareProratedRawMaterials,
   getAllocatedRawMaterialsForMonth
 } from '../utils/misCalculator';
-import { ProratedRawMaterialsResult } from '../utils/cogsCalculator';
+import { ProratedRawMaterialsResult, getFinancialYear } from '../utils/cogsCalculator';
 import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/MISMonthlyView';
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
 import { MISFYView } from '../components/mis-tracking/MISFYView';
@@ -549,13 +549,22 @@ export function MISTrackingNew() {
       const monthData = monthsData[periodKey];
       if (!monthData) return;
 
-      // Gather all months with data for proration (not just this one)
+      // Gather all months with data for proration (only from the SAME FY as the target month)
       const proratedData: Record<string, {
         period: MISPeriod;
         uploadData: Record<IndianState, StateUploadData | undefined>;
       }> = {};
 
+      // Determine the FY for the target month
+      const targetFY = getFinancialYear(monthData.period.month, monthData.period.year);
+
       for (const [key, md] of Object.entries(monthsData)) {
+        // Filter: only include months from the SAME fiscal year as the target month
+        const monthFY = getFinancialYear(md.period.month, md.period.year);
+        if (monthFY.fyKey !== targetFY.fyKey) {
+          continue; // Skip months from different FYs
+        }
+
         const hasAnyData = selectedStates.some(state => {
           const data = md.uploadData[state];
           return data?.salesParsed || data?.purchaseParsed || data?.balanceSheetParsed;
@@ -1026,7 +1035,7 @@ export function MISTrackingNew() {
   };
 
   // Generate MIS for all months that have data
-  // Uses annual proration for raw materials & inventory
+  // Uses annual proration for raw materials & inventory (per FY)
   const handleGenerateAllMIS = async () => {
     setGeneratingAll(true);
     setError(null);
@@ -1041,42 +1050,57 @@ export function MISTrackingNew() {
         return hasAnyData;
       });
 
-      // Prepare proration data from ALL months with data
-      // This ensures consistent raw materials allocation across the financial year
-      const proratedData: Record<string, {
-        period: MISPeriod;
-        uploadData: Record<IndianState, StateUploadData | undefined>;
-      }> = {};
-
+      // Group months by FY to ensure correct ratio is applied per FY
+      const monthsByFY: Record<string, typeof monthsWithData> = {};
       for (const [periodKey, md] of monthsWithData) {
-        proratedData[periodKey] = {
-          period: md.period,
-          uploadData: md.uploadData
-        };
+        const fy = getFinancialYear(md.period.month, md.period.year);
+        if (!monthsByFY[fy.fyKey]) {
+          monthsByFY[fy.fyKey] = [];
+        }
+        monthsByFY[fy.fyKey].push([periodKey, md]);
       }
 
-      // Calculate prorated raw materials for all months
-      const proratedResult = prepareProratedRawMaterials(proratedData, selectedStates);
+      // Calculate proration results for each FY
+      const prorationByFY: Record<string, ProratedRawMaterialsResult> = {};
+      for (const [fyKey, fyMonths] of Object.entries(monthsByFY)) {
+        const proratedData: Record<string, {
+          period: MISPeriod;
+          uploadData: Record<IndianState, StateUploadData | undefined>;
+        }> = {};
 
-      console.log('Proration calculation:', {
-        fyOpeningStock: proratedResult.fyOpeningStock,
-        fyTotalPurchases: proratedResult.fyTotalPurchases,
-        fyClosingStock: proratedResult.fyClosingStock,
-        fyTotalRawMaterials: proratedResult.fyTotalRawMaterials,
-        fyTotalRevenue: proratedResult.fyTotalRevenue,
-        monthlyAllocations: proratedResult.monthlyAllocations
-      });
+        for (const [periodKey, md] of fyMonths) {
+          proratedData[periodKey] = {
+            period: md.period,
+            uploadData: md.uploadData
+          };
+        }
 
-      // Generate MIS for each month with prorated raw materials
+        const proratedResult = prepareProratedRawMaterials(proratedData, selectedStates);
+        prorationByFY[fyKey] = proratedResult;
+
+        console.log(`Proration calculation for ${fyKey}:`, {
+          fyKey: proratedResult.fyKey,
+          rawMaterialsRatio: proratedResult.rawMaterialsRatio,
+          fyTotalRawMaterials: proratedResult.fyTotalRawMaterials,
+          fyTotalRevenue: proratedResult.fyTotalRevenue,
+          monthlyAllocations: proratedResult.monthlyAllocations
+        });
+      }
+
+      // Generate MIS for each month with prorated raw materials (using correct FY's proration)
       for (const [periodKey, monthData] of monthsWithData) {
         try {
+          // Get the correct FY's proration result
+          const fy = getFinancialYear(monthData.period.month, monthData.period.year);
+          const proratedResult = prorationByFY[fy.fyKey];
+
           // Get the prorated amount for this specific month
-          const allocation = proratedResult.monthlyAllocations.find(
+          const allocation = proratedResult?.monthlyAllocations.find(
             a => a.periodKey === periodKey
           );
           const proratedAmount = allocation?.allocatedRawMaterials ?? 0;
 
-          console.log(`Generating MIS for ${periodKey} with prorated raw materials: ${proratedAmount}`);
+          console.log(`Generating MIS for ${periodKey} (${fy.fyKey}) with prorated raw materials: ${proratedAmount}`);
 
           const mis = await calculateMIS(
             monthData.period,
@@ -1085,10 +1109,10 @@ export function MISTrackingNew() {
             {
               proratedRawMaterialsAmount: proratedAmount,
               prorationInfo: {
-                fyOpeningStock: proratedResult.fyOpeningStock,
-                fyTotalPurchases: proratedResult.fyTotalPurchases,
-                fyClosingStock: proratedResult.fyClosingStock,
-                fyTotalRawMaterials: proratedResult.fyTotalRawMaterials,
+                fyOpeningStock: proratedResult?.fyOpeningStock ?? 0,
+                fyTotalPurchases: proratedResult?.fyTotalPurchases ?? 0,
+                fyClosingStock: proratedResult?.fyClosingStock ?? 0,
+                fyTotalRawMaterials: proratedResult?.fyTotalRawMaterials ?? 0,
                 revenueRatio: allocation?.revenueRatio ?? 0
               }
             }
