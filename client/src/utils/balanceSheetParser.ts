@@ -41,7 +41,11 @@ function parseIndianNumber(text: string): number {
 function extractNumbersFromLine(line: string): number[] {
   // First, normalize the line to handle cases where pdf.js separates minus sign with space
   // e.g., "- 6,489.00" should become "-6,489.00"
-  const normalizedLine = line.replace(/-\s+([\d,])/g, '-$1');
+  let normalizedLine = line.replace(/-\s+([\d,])/g, '-$1');
+
+  // Remove @XX% tax rate patterns BEFORE extracting numbers
+  // This prevents picking up "18" from "@18%" as an amount
+  normalizedLine = normalizedLine.replace(/@\d+%?/g, '');
 
   // Match negative numbers like -6,489.00 and positive numbers like 1,23,456.78
   const numbers = normalizedLine.match(/-?[\d,]+\.?\d*/g);
