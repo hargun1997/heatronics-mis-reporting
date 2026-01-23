@@ -270,10 +270,12 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
         />
 
         {/* ========== COGM SECTION ========== */}
+        {/* COGM uses misRecord.cogm.totalCOGM directly because Raw Materials is calculated
+            from Balance Sheet (Opening + Purchases - Closing) and added separately */}
         <CollapsibleSection
           title="E. COST OF GOODS MANUFACTURED (COGM)"
-          total={transactionsByHead['E. COGM']?.total || misRecord.cogm.totalCOGM}
-          percentage={pct(transactionsByHead['E. COGM']?.total || misRecord.cogm.totalCOGM)}
+          total={misRecord.cogm.totalCOGM}
+          percentage={pct(misRecord.cogm.totalCOGM)}
           transactionCount={transactionsByHead['E. COGM']?.transactionCount}
           defaultExpanded={allExpanded}
           infoTooltip={HEAD_DESCRIPTIONS['E. COGM']}
