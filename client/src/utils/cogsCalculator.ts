@@ -1,5 +1,32 @@
 import { COGSData } from '../types';
 
+// ============================================
+// FY-SPECIFIC COGS OVERRIDES
+// ============================================
+// For specific financial years, use these hardcoded values instead of
+// calculating from balance sheet data. The value is the total raw materials
+// COGS for the entire FY, which will be prorated across months by revenue ratio.
+
+const FY_COGS_OVERRIDES: Record<string, number> = {
+  'FY 2024-25': 15985642.38,  // ₹1,59,85,642.38
+};
+
+/**
+ * Get the FY label for a given month/year
+ * FY runs April to March: April 2024 - March 2025 = FY 2024-25
+ */
+export function getFYLabel(month: number, year: number): string {
+  const fyStartYear = month >= 4 ? year : year - 1;
+  return `FY ${fyStartYear}-${String(fyStartYear + 1).slice(-2)}`;
+}
+
+/**
+ * Check if an FY has a COGS override
+ */
+export function getFYCogsOverride(fyLabel: string): number | null {
+  return FY_COGS_OVERRIDES[fyLabel] ?? null;
+}
+
 export function calculateCOGS(
   openingStock: number,
   purchases: number,
@@ -171,8 +198,31 @@ export function calculateFYAwareRawMaterials(
     };
   }
 
+  return fyGroups;
+}
+
+/**
+ * Calculate prorated raw materials for a SINGLE FY
+ */
+function calculateProratedRawMaterialsForFY(
+  fyLabel: string,
+  fyMonthsData: MonthlyBSDataForProration[]
+): {
+  fyOpeningStock: number;
+  fyTotalPurchases: number;
+  fyClosingStock: number;
+  fyTotalRawMaterials: number;
+  fyTotalRevenue: number;
+  monthlyAllocations: {
+    periodKey: string;
+    month: number;
+    year: number;
+    revenueRatio: number;
+    allocatedRawMaterials: number;
+  }[];
+} {
   // Sort by period to ensure correct order (oldest first)
-  const sortedData = [...monthlyData].sort((a, b) => {
+  const sortedData = [...fyMonthsData].sort((a, b) => {
     if (a.year !== b.year) return a.year - b.year;
     return a.month - b.month;
   });
