@@ -126,8 +126,9 @@ function classifyPLExpense(accountName: string): PLMapping {
   if (/duties\s*&\s*taxes/i.test(lower)) {
     return { head: 'Z. Ignore', subhead: 'GST Input/Output' };
   }
+  // Prior period expenses are legitimate expenses - map to Operating Expenses
   if (/prior\s*period/i.test(lower)) {
-    return { head: 'Z. Ignore', subhead: 'Prior Period Adjustment' };
+    return { head: 'I. Operating Expenses', subhead: 'Other Operating Expenses' };
   }
   if (/provision.*tax|income.*tax/i.test(lower)) {
     return { head: 'Z. Ignore', subhead: 'TDS' };
