@@ -14,7 +14,9 @@ const FY_COGS_OVERRIDES: Record<string, number> = {
 // Hardcoded raw materials ratio overrides for specific FYs
 // Ratio = Raw Materials / Net Revenue
 const FY_RATIO_OVERRIDES: Record<string, number> = {
-  'FY25-26': 0.4504485697,  // Based on actual purchases/revenue data
+  'FY25-26': 0.4504485697,
+  'FY24-25': 0.3096822168,
+  'FY23-24': 0.561487163,
 };
 
 /**
@@ -235,35 +237,22 @@ export function calculateFYAwareRawMaterials(
     fyTotalRawMaterials = rawMaterialsRatio * fyTotalRevenue; // Derive from ratio × revenue
 
   } else if (fy.fyKey === 'FY24-25') {
-    // FY 24-25: Audited year - use Opening (April) + Purchases - Closing (March)
+    // FY 24-25: Use hardcoded ratio override
     calculationMethod = 'FY24-25_AUDITED';
-
-    // Find April data for opening stock
-    const aprilData = sortedData.find(m => m.month === 4 && m.year === fy.fyStartYear);
-    fyOpeningStock = aprilData?.openingStock ?? sortedData[0].openingStock;
-
-    // Find March data for closing stock
-    const marchData = sortedData.find(m => m.month === 3 && m.year === fy.fyEndYear);
-    fyClosingStock = marchData?.closingStock ?? sortedData[sortedData.length - 1].closingStock;
-
-    fyTotalRawMaterials = Math.max(0, fyOpeningStock + fyTotalPurchases - fyClosingStock);
-    rawMaterialsRatio = fyTotalRevenue > 0 ? fyTotalRawMaterials / fyTotalRevenue : 0;
+    fyOpeningStock = 0;
+    fyClosingStock = 0;
+    // Use hardcoded ratio if available, otherwise calculate from data
+    rawMaterialsRatio = FY_RATIO_OVERRIDES[fy.fyKey] ?? (fyTotalRevenue > 0 ? fyTotalPurchases / fyTotalRevenue : 0);
+    fyTotalRawMaterials = rawMaterialsRatio * fyTotalRevenue;
 
   } else if (fy.fyKey === 'FY23-24') {
-    // FY 23-24: Partial data (only Jan-Mar 2024 available)
-    // Use Opening (January) + Purchases - Closing (March)
+    // FY 23-24: Use hardcoded ratio override
     calculationMethod = 'FY23-24_PARTIAL';
-
-    // Find January 2024 data for opening stock (earliest available)
-    const janData = sortedData.find(m => m.month === 1 && m.year === 2024);
-    fyOpeningStock = janData?.openingStock ?? sortedData[0].openingStock;
-
-    // Find March 2024 data for closing stock
-    const marchData = sortedData.find(m => m.month === 3 && m.year === 2024);
-    fyClosingStock = marchData?.closingStock ?? sortedData[sortedData.length - 1].closingStock;
-
-    fyTotalRawMaterials = Math.max(0, fyOpeningStock + fyTotalPurchases - fyClosingStock);
-    rawMaterialsRatio = fyTotalRevenue > 0 ? fyTotalRawMaterials / fyTotalRevenue : 0;
+    fyOpeningStock = 0;
+    fyClosingStock = 0;
+    // Use hardcoded ratio if available, otherwise calculate from data
+    rawMaterialsRatio = FY_RATIO_OVERRIDES[fy.fyKey] ?? (fyTotalRevenue > 0 ? fyTotalPurchases / fyTotalRevenue : 0);
+    fyTotalRawMaterials = rawMaterialsRatio * fyTotalRevenue;
 
   } else {
     // Other FYs: Use same logic as FY 24-25 (audited method)
