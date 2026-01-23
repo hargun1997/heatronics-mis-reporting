@@ -56,9 +56,10 @@ function extractAmountFromLine(line: string): number {
   const numbers = extractNumbersFromLine(line);
   if (numbers.length === 0) return 0;
 
-  // Get the FIRST significant number (ignore small absolute values < 100)
+  // Get the FIRST significant number (ignore very small values like rounding < 1)
+  // Use low threshold to capture amounts like 100.00, 25.44, etc.
   for (let i = 0; i < numbers.length; i++) {
-    if (Math.abs(numbers[i]) > 100) {
+    if (Math.abs(numbers[i]) >= 1) {
       return numbers[i];
     }
   }
@@ -72,9 +73,9 @@ function extractFirstAmountFromLine(line: string): number {
   const numbers = extractNumbersFromLine(line);
   if (numbers.length === 0) return 0;
 
-  // Get the first significant number (ignore small absolute values < 100)
+  // Get the first significant number (ignore very small values like rounding < 1)
   for (let i = 0; i < numbers.length; i++) {
-    if (Math.abs(numbers[i]) > 100) {
+    if (Math.abs(numbers[i]) >= 1) {
       return numbers[i];
     }
   }

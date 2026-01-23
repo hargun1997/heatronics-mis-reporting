@@ -661,6 +661,10 @@ function buildTransactionsByHead(
       }
     ];
     rawMatSubhead.transactionCount = 3;
+
+    // Add raw materials amount to COGM head total
+    transactionsByHead[cogmHead].total += bsAmount;
+    transactionsByHead[cogmHead].transactionCount += 3;
   }
 
   return {
