@@ -112,8 +112,13 @@ export function calculateProratedRawMaterials(
   const firstMonth = sortedData[0];
   const fyLabel = getFYLabel(firstMonth.month, firstMonth.year);
 
+  console.log('[COGS DEBUG] First month:', firstMonth);
+  console.log('[COGS DEBUG] FY Label:', fyLabel);
+  console.log('[COGS DEBUG] Available overrides:', FY_COGS_OVERRIDES);
+
   // Check for FY-specific override
   const fyOverride = getFYCogsOverride(fyLabel);
+  console.log('[COGS DEBUG] FY Override found:', fyOverride);
 
   // Get opening stock from the earliest month
   const earliestMonth = sortedData[0];
