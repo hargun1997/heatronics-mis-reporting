@@ -515,7 +515,8 @@ function buildTransactionsByHead(
   }
 
   // Add Balance Sheet COGM Raw Materials entry
-  if (bsData && bsData.openingStock > 0) {
+  // Use purchases > 0 as condition since openingStock might be 0 for first period
+  if (bsData && (bsData.openingStock > 0 || bsData.purchases > 0)) {
     const cogmHead = 'E. COGM';
     if (!transactionsByHead[cogmHead]) {
       transactionsByHead[cogmHead] = {
@@ -528,24 +529,29 @@ function buildTransactionsByHead(
 
     const bsAmount = bsData.openingStock + bsData.purchases - bsData.closingStock;
 
-    // Add or update Raw Materials subhead
+    // Check if Raw Materials subhead already exists (might have been created from mapped items)
     let rawMatSubhead = transactionsByHead[cogmHead].subheads.find(
       s => s.subhead === 'Raw Materials & Inventory'
     );
 
-    if (!rawMatSubhead) {
+    // If subhead exists, we need to remove its old amount from the total first
+    // to avoid double-counting when we replace with the BS calculation
+    if (rawMatSubhead) {
+      transactionsByHead[cogmHead].total -= rawMatSubhead.amount;
+      transactionsByHead[cogmHead].transactionCount -= rawMatSubhead.transactionCount;
+    } else {
       rawMatSubhead = {
         subhead: 'Raw Materials & Inventory',
-        amount: bsAmount,
-        transactionCount: 3,
+        amount: 0,
+        transactionCount: 0,
         source: 'balance_sheet',
         transactions: []
       };
       transactionsByHead[cogmHead].subheads.unshift(rawMatSubhead);
     }
 
-    // Set balance sheet breakdown
-    rawMatSubhead.source = 'balance_sheet';
+    // Set the correct balance sheet breakdown
+    rawMatSubhead.source = 'calculated';
     rawMatSubhead.amount = bsAmount;
     rawMatSubhead.transactions = [
       {
