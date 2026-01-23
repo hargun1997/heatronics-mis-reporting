@@ -340,6 +340,7 @@ export function isSpecialAccount(accountName: string): boolean {
     'opening stock',
     'closing stock',
     'gross profit',
+    'gross loss',
     'net profit',
     'net loss',
     'nett loss',
