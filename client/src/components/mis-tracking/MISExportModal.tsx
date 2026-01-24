@@ -460,9 +460,20 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             <div ref={trendsRef} className="w-[1200px] bg-slate-900 p-6 space-y-6">
               <h2 className="text-xl font-bold text-slate-100 mb-4">MIS Trends Overview</h2>
 
+              {/* Revenue Formula Explanation */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <div className="text-sm text-blue-300 font-medium mb-1">Revenue Formula:</div>
+                <div className="text-xs text-blue-200">
+                  Net Revenue = Gross Revenue - Returns - Discounts - Taxes (GST)
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  All charts and tables below show Net Revenue from Sales Register data
+                </div>
+              </div>
+
               {/* Revenue Chart */}
               <div className="bg-slate-800 rounded-xl p-6">
-                <h3 className="text-base font-semibold text-slate-200 mb-4">Net Revenue Trend</h3>
+                <h3 className="text-base font-semibold text-slate-200 mb-4">Net Revenue Trend (After GST & Returns)</h3>
                 <div className="flex items-end gap-1 h-48">
                   {chartRecords.map((mis) => {
                     const height = maxRev > 0 ? (mis.revenue.netRevenue / maxRev) * 180 : 0;
@@ -504,6 +515,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         </td>
                       ))}
                     </tr>
+                    <tr className="border-b border-slate-700/50">
+                      <td className="py-2 px-3 text-slate-400">COGS %</td>
+                      {tableRecords.map(mis => (
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-400 text-xs">
+                          {mis.revenue.netRevenue > 0 ? formatPercent((mis.cogm.totalCOGM / mis.revenue.netRevenue) * 100) : '-'}
+                        </td>
+                      ))}
+                    </tr>
                     <tr className="border-b border-slate-700/50 bg-emerald-500/10">
                       <td className="py-2 px-3 text-emerald-400 font-medium">Gross Margin %</td>
                       {tableRecords.map(mis => (
@@ -517,6 +536,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                       {tableRecords.map(mis => (
                         <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
                           {formatPercent(mis.cm1Percent)}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-slate-700/50">
+                      <td className="py-2 px-3 text-slate-300">CM2 %</td>
+                      {tableRecords.map(mis => (
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
+                          {formatPercent(mis.cm2Percent)}
                         </td>
                       ))}
                     </tr>
@@ -555,7 +582,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
               style={{ width: '1100px' }}
             >
               <h2 className="text-2xl font-bold text-slate-100 mb-2">{fy} - P&L Summary</h2>
-              <p className="text-sm text-slate-400 mb-6">April {fyStartYear} to March {fyStartYear + 1}</p>
+              <p className="text-sm text-slate-400 mb-2">April {fyStartYear} to March {fyStartYear + 1}</p>
+
+              {/* Revenue Formula Explanation */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+                <div className="text-xs text-blue-200">
+                  <span className="font-medium text-blue-300">Net Revenue</span> = Gross Revenue - Returns - Taxes (GST) | All values from Sales Register
+                </div>
+              </div>
 
               <div className="bg-slate-800 rounded-xl overflow-hidden">
                 <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
@@ -687,9 +721,16 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
               ref={(el) => { if (el) monthRefs.current.set(periodKey, el); }}
               className="w-[700px] bg-slate-900 p-6"
             >
-              <h2 className="text-xl font-bold text-slate-100 mb-4">
+              <h2 className="text-xl font-bold text-slate-100 mb-2">
                 {periodToString(record.period)} - P&L Report
               </h2>
+
+              {/* Revenue Formula Explanation */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+                <div className="text-xs text-blue-200">
+                  <span className="font-medium text-blue-300">Net Revenue</span> = Gross Revenue - Returns - Taxes (GST)
+                </div>
+              </div>
 
               <div className="grid grid-cols-4 gap-4 mb-6">
                 <div className="bg-slate-800 rounded-lg p-4">
