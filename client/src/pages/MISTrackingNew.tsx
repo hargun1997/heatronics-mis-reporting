@@ -23,6 +23,7 @@ import { MISMonthlyView, AlgorithmGuideModal } from '../components/mis-tracking/
 import { MISTrendsView } from '../components/mis-tracking/MISTrendsView';
 import { MISFYView } from '../components/mis-tracking/MISFYView';
 import { MISExportModal } from '../components/mis-tracking/MISExportModal';
+import { MISExcelExportModal } from '../components/mis-tracking/MISExcelExportModal';
 import {
   checkDriveStatus,
   getDriveFolderStructure,
@@ -193,6 +194,7 @@ export function MISTrackingNew() {
   const [error, setError] = useState<string | null>(null);
   const [showAlgorithmGuide, setShowAlgorithmGuide] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showExcelExportModal, setShowExcelExportModal] = useState(false);
 
   // Google Drive State
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null);
@@ -1277,6 +1279,22 @@ export function MISTrackingNew() {
             MIS Guide
           </button>
 
+          {/* Export Excel Button */}
+          <button
+            onClick={() => setShowExcelExportModal(true)}
+            disabled={allMISData.length === 0}
+            className={`
+              px-4 py-2 rounded-md text-sm font-medium transition-all
+              ${allMISData.length === 0
+                ? 'text-slate-500 cursor-not-allowed'
+                : 'text-emerald-400 hover:bg-emerald-500/10'
+              }
+            `}
+          >
+            <span className="mr-1.5">📊</span>
+            Export Excel
+          </button>
+
           {/* Export PDF Button */}
           <button
             onClick={() => setShowExportModal(true)}
@@ -1575,6 +1593,14 @@ export function MISTrackingNew() {
         <MISExportModal
           allMISRecords={allMISData}
           onClose={() => setShowExportModal(false)}
+        />
+      )}
+
+      {/* Export Excel Modal */}
+      {showExcelExportModal && (
+        <MISExcelExportModal
+          allMISRecords={allMISData}
+          onClose={() => setShowExcelExportModal(false)}
         />
       )}
     </div>
