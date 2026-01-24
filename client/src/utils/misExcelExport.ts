@@ -1,14 +1,15 @@
 /**
- * Professional MIS Excel Export Utility
+ * Professional MIS Excel Export Utility with Styling
  *
- * Creates professionally formatted Excel workbooks with:
- * - Monthly P&L reports with ACTUAL subheads from transactionsByHead
- * - Fallback to direct MISRecord properties when transactionsByHead is empty
+ * Creates beautifully formatted Excel workbooks with:
+ * - Color-coded sections and margins
+ * - Bold headers and totals
+ * - Professional borders and formatting
+ * - Monthly P&L reports with subheads
  * - Annual/FY summaries with month-by-month comparison
- * - Revenue formula explanations
  */
 
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 import {
   MISRecord,
@@ -31,6 +32,204 @@ export interface ExcelExportOptions {
   selectedFYs: string[];
   selectedMonths: string[];
 }
+
+interface CellStyle {
+  font?: { bold?: boolean; italic?: boolean; color?: { rgb: string }; sz?: number; name?: string };
+  fill?: { fgColor: { rgb: string }; patternType?: string };
+  alignment?: { horizontal?: string; vertical?: string; wrapText?: boolean };
+  border?: {
+    top?: { style: string; color: { rgb: string } };
+    bottom?: { style: string; color: { rgb: string } };
+    left?: { style: string; color: { rgb: string } };
+    right?: { style: string; color: { rgb: string } };
+  };
+  numFmt?: string;
+}
+
+// ============================================
+// STYLE DEFINITIONS
+// ============================================
+
+const COLORS = {
+  // Headers
+  headerBg: '1E3A5F',        // Dark blue
+  headerText: 'FFFFFF',      // White
+
+  // Section headers
+  sectionBg: '2C5282',       // Medium blue
+  sectionText: 'FFFFFF',
+
+  // Margins (positive)
+  grossMarginBg: 'D4EDDA',   // Light green
+  grossMarginText: '155724',
+  cm1Bg: 'CCE5FF',           // Light blue
+  cm1Text: '004085',
+  cm2Bg: 'E2D6F8',           // Light purple
+  cm2Text: '4A148C',
+  cm3Bg: 'FFE5B4',           // Light orange
+  cm3Text: 'E65100',
+  ebitdaBg: 'B2EBF2',        // Light cyan
+  ebitdaText: '006064',
+  netIncomeBg: 'C8E6C9',     // Light green
+  netIncomeText: '1B5E20',
+
+  // Negative values
+  negativeBg: 'FFEBEE',      // Light red
+  negativeText: 'C62828',
+
+  // Alternating rows
+  altRowBg: 'F8F9FA',        // Very light gray
+
+  // Totals
+  totalBg: 'E9ECEF',         // Light gray
+  totalText: '212529',
+
+  // Subheads
+  subheadText: '6C757D',     // Gray
+
+  // Borders
+  border: 'DEE2E6',          // Light gray border
+  headerBorder: '1E3A5F',    // Dark blue border
+};
+
+const STYLES: Record<string, CellStyle> = {
+  title: {
+    font: { bold: true, sz: 16, color: { rgb: COLORS.headerText }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.headerBg }, patternType: 'solid' },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  },
+  subtitle: {
+    font: { bold: true, sz: 12, color: { rgb: COLORS.headerText }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.sectionBg }, patternType: 'solid' },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  },
+  header: {
+    font: { bold: true, sz: 11, color: { rgb: COLORS.headerText }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.headerBg }, patternType: 'solid' },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      bottom: { style: 'medium', color: { rgb: COLORS.headerBorder } },
+    },
+  },
+  sectionHeader: {
+    font: { bold: true, sz: 11, color: { rgb: COLORS.sectionText }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.sectionBg }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  },
+  normal: {
+    font: { sz: 10, name: 'Calibri' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      bottom: { style: 'thin', color: { rgb: COLORS.border } },
+    },
+  },
+  number: {
+    font: { sz: 10, name: 'Calibri' },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    border: {
+      bottom: { style: 'thin', color: { rgb: COLORS.border } },
+    },
+    numFmt: '#,##0.00',
+  },
+  percent: {
+    font: { sz: 10, name: 'Calibri' },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    border: {
+      bottom: { style: 'thin', color: { rgb: COLORS.border } },
+    },
+  },
+  subhead: {
+    font: { sz: 10, color: { rgb: COLORS.subheadText }, name: 'Calibri' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      bottom: { style: 'thin', color: { rgb: COLORS.border } },
+    },
+  },
+  total: {
+    font: { bold: true, sz: 10, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.totalBg }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: COLORS.border } },
+      bottom: { style: 'medium', color: { rgb: COLORS.border } },
+    },
+  },
+  totalNumber: {
+    font: { bold: true, sz: 10, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.totalBg }, patternType: 'solid' },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: COLORS.border } },
+      bottom: { style: 'medium', color: { rgb: COLORS.border } },
+    },
+    numFmt: '#,##0.00',
+  },
+  grossMargin: {
+    font: { bold: true, sz: 11, color: { rgb: COLORS.grossMarginText }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.grossMarginBg }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'medium', color: { rgb: '155724' } },
+      bottom: { style: 'medium', color: { rgb: '155724' } },
+    },
+  },
+  cm1: {
+    font: { bold: true, sz: 11, color: { rgb: COLORS.cm1Text }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.cm1Bg }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'medium', color: { rgb: '004085' } },
+      bottom: { style: 'medium', color: { rgb: '004085' } },
+    },
+  },
+  cm2: {
+    font: { bold: true, sz: 11, color: { rgb: COLORS.cm2Text }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.cm2Bg }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'medium', color: { rgb: '4A148C' } },
+      bottom: { style: 'medium', color: { rgb: '4A148C' } },
+    },
+  },
+  cm3: {
+    font: { bold: true, sz: 11, color: { rgb: COLORS.cm3Text }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.cm3Bg }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'medium', color: { rgb: 'E65100' } },
+      bottom: { style: 'medium', color: { rgb: 'E65100' } },
+    },
+  },
+  ebitda: {
+    font: { bold: true, sz: 11, color: { rgb: COLORS.ebitdaText }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.ebitdaBg }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'medium', color: { rgb: '006064' } },
+      bottom: { style: 'medium', color: { rgb: '006064' } },
+    },
+  },
+  netIncome: {
+    font: { bold: true, sz: 12, color: { rgb: COLORS.netIncomeText }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.netIncomeBg }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'double', color: { rgb: '1B5E20' } },
+      bottom: { style: 'double', color: { rgb: '1B5E20' } },
+    },
+  },
+  negative: {
+    font: { sz: 10, color: { rgb: COLORS.negativeText }, name: 'Calibri' },
+    fill: { fgColor: { rgb: COLORS.negativeBg }, patternType: 'solid' },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    numFmt: '#,##0.00',
+  },
+  formula: {
+    font: { italic: true, sz: 10, color: { rgb: '0066CC' }, name: 'Calibri' },
+    fill: { fgColor: { rgb: 'E3F2FD' }, patternType: 'solid' },
+    alignment: { horizontal: 'left', vertical: 'center' },
+  },
+};
 
 // ============================================
 // CONSTANTS
@@ -87,9 +286,31 @@ function setColumnWidths(ws: XLSX.WorkSheet, widths: number[]): void {
   ws['!cols'] = widths.map(w => ({ wch: w }));
 }
 
+function setRowHeights(ws: XLSX.WorkSheet, heights: { [row: number]: number }): void {
+  ws['!rows'] = ws['!rows'] || [];
+  Object.entries(heights).forEach(([row, height]) => {
+    ws['!rows']![parseInt(row)] = { hpt: height };
+  });
+}
+
+// Apply style to a cell
+function applyStyle(ws: XLSX.WorkSheet, cellRef: string, style: CellStyle): void {
+  if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+  ws[cellRef].s = style;
+}
+
+// Create a styled cell
+function createCell(value: string | number, style: CellStyle): XLSX.CellObject {
+  const cell: XLSX.CellObject = {
+    v: value,
+    t: typeof value === 'number' ? 'n' : 's',
+    s: style,
+  };
+  return cell;
+}
+
 // Get subheads for a head - from transactionsByHead or fallback to direct properties
 function getSubheadsForHead(record: MISRecord, headKey: MISHead): { subhead: string; amount: number; txnCount: number; source: string }[] {
-  // First try transactionsByHead
   const txnHead = record.transactionsByHead?.[headKey];
   if (txnHead && txnHead.subheads && txnHead.subheads.length > 0) {
     return txnHead.subheads.map(s => ({
@@ -100,7 +321,6 @@ function getSubheadsForHead(record: MISRecord, headKey: MISHead): { subhead: str
     }));
   }
 
-  // Fallback to direct properties
   const subheads: { subhead: string; amount: number; txnCount: number; source: string }[] = [];
 
   switch (headKey) {
@@ -139,9 +359,9 @@ function getSubheadsForHead(record: MISRecord, headKey: MISHead): { subhead: str
 
     case 'I. Operating Expenses':
       if (record.operatingExpenses.salariesAdminMgmt > 0)
-        subheads.push({ subhead: 'Salaries (Admin Mgmt)', amount: record.operatingExpenses.salariesAdminMgmt, txnCount: 0, source: 'balance_sheet' });
+        subheads.push({ subhead: 'Salaries (Admin/Mgmt)', amount: record.operatingExpenses.salariesAdminMgmt, txnCount: 0, source: 'balance_sheet' });
       if (record.operatingExpenses.miscellaneous > 0)
-        subheads.push({ subhead: 'Miscellaneous (Travel, Insurance)', amount: record.operatingExpenses.miscellaneous, txnCount: 0, source: 'balance_sheet' });
+        subheads.push({ subhead: 'Miscellaneous', amount: record.operatingExpenses.miscellaneous, txnCount: 0, source: 'balance_sheet' });
       if (record.operatingExpenses.legalCaExpenses > 0)
         subheads.push({ subhead: 'Legal & CA Expenses', amount: record.operatingExpenses.legalCaExpenses, txnCount: 0, source: 'balance_sheet' });
       if (record.operatingExpenses.platformCostsCRM > 0)
@@ -153,7 +373,7 @@ function getSubheadsForHead(record: MISRecord, headKey: MISHead): { subhead: str
       if (record.operatingExpenses.banksFinanceCharges > 0)
         subheads.push({ subhead: 'Banks & Finance Charges', amount: record.operatingExpenses.banksFinanceCharges, txnCount: 0, source: 'balance_sheet' });
       if (record.operatingExpenses.otherOperatingExpenses > 0)
-        subheads.push({ subhead: 'Other Operating Expenses', amount: record.operatingExpenses.otherOperatingExpenses, txnCount: 0, source: 'balance_sheet' });
+        subheads.push({ subhead: 'Other Operating', amount: record.operatingExpenses.otherOperatingExpenses, txnCount: 0, source: 'balance_sheet' });
       break;
 
     case 'J. Non-Operating':
@@ -196,7 +416,6 @@ function getSubheadsForHead(record: MISRecord, headKey: MISHead): { subhead: str
   return subheads;
 }
 
-// Get head total - from transactionsByHead or fallback
 function getHeadTotal(record: MISRecord, headKey: MISHead): number {
   const txnHead = record.transactionsByHead?.[headKey];
   if (txnHead && txnHead.total > 0) return txnHead.total;
@@ -213,211 +432,255 @@ function getHeadTotal(record: MISRecord, headKey: MISHead): number {
 }
 
 // ============================================
-// MONTHLY DETAILED P&L SHEET
+// MONTHLY DETAILED P&L SHEET (STYLED)
 // ============================================
 
 function generateMonthlyDetailedPLSheet(record: MISRecord): XLSX.WorkSheet {
-  const data: (string | number)[][] = [];
+  const ws: XLSX.WorkSheet = {};
   const netRevenue = record.revenue.netRevenue || 1;
+  let row = 1;
 
-  // Title
-  data.push([`${periodToString(record.period)} - DETAILED P&L STATEMENT`]);
-  data.push(['Heatronics Pvt Ltd']);
-  data.push([`Generated: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`]);
-  data.push([]);
+  // Merge helper
+  const merges: XLSX.Range[] = [];
 
-  // Revenue Formula Explanation
-  data.push(['REVENUE CALCULATION:']);
-  data.push(['Net Revenue = Gross Revenue - Returns - Discounts - Taxes (GST)']);
-  data.push(['All revenue figures below are from Sales Register']);
-  data.push([]);
+  // Title Section
+  ws[`A${row}`] = createCell(`${periodToString(record.period)} - PROFIT & LOSS STATEMENT`, STYLES.title);
+  ws[`B${row}`] = createCell('', STYLES.title);
+  ws[`C${row}`] = createCell('', STYLES.title);
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: 2 } });
+  row++;
+
+  ws[`A${row}`] = createCell('Heatronics Pvt Ltd', STYLES.subtitle);
+  ws[`B${row}`] = createCell('', STYLES.subtitle);
+  ws[`C${row}`] = createCell('', STYLES.subtitle);
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: 2 } });
+  row++;
+
+  ws[`A${row}`] = createCell(`Generated: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`, { ...STYLES.normal, alignment: { horizontal: 'center' } });
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: 2 } });
+  row++;
+
+  row++; // Empty row
+
+  // Revenue Formula
+  ws[`A${row}`] = createCell('Revenue Formula: Net Revenue = Gross Revenue - Returns - Discounts - Taxes (GST)', STYLES.formula);
+  ws[`B${row}`] = createCell('', STYLES.formula);
+  ws[`C${row}`] = createCell('', STYLES.formula);
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: 2 } });
+  row++;
+
+  row++; // Empty row
 
   // Headers
-  data.push(['Particulars', 'Amount (₹)', '% of Net Revenue']);
-  data.push([]);
+  ws[`A${row}`] = createCell('Particulars', STYLES.header);
+  ws[`B${row}`] = createCell('Amount (₹)', STYLES.header);
+  ws[`C${row}`] = createCell('% of Revenue', STYLES.header);
+  row++;
+
+  // Helper to add styled row
+  const addRow = (label: string, amount: number | string, percent: string, style: CellStyle, isNegative = false) => {
+    const numStyle = isNegative && typeof amount === 'number' && amount > 0
+      ? { ...STYLES.negative }
+      : { ...style, alignment: { horizontal: 'right' as const } };
+
+    ws[`A${row}`] = createCell(label, style);
+    ws[`B${row}`] = createCell(typeof amount === 'number' ? formatAmountFull(isNegative ? -amount : amount) : amount, numStyle);
+    ws[`C${row}`] = createCell(percent, { ...style, alignment: { horizontal: 'right' as const } });
+    row++;
+  };
 
   // ===== A. REVENUE =====
-  data.push(['A. GROSS REVENUE (from Sales Register)', '', '']);
+  ws[`A${row}`] = createCell('A. GROSS REVENUE (from Sales Register)', STYLES.sectionHeader);
+  ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+  ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+  row++;
+
   SALES_CHANNELS.forEach(channel => {
     const amount = record.revenue.grossRevenue[channel] || 0;
     if (amount > 0) {
-      data.push([`    ${channel}`, formatAmountFull(amount), formatPercentValue((amount / netRevenue) * 100)]);
+      addRow(`    ${channel}`, amount, formatPercentValue((amount / netRevenue) * 100), STYLES.normal);
     }
   });
-  data.push(['TOTAL GROSS REVENUE', formatAmountFull(record.revenue.totalGrossRevenue), '']);
-  data.push([]);
+  addRow('TOTAL GROSS REVENUE', record.revenue.totalGrossRevenue, '', STYLES.total);
 
   // ===== B. RETURNS =====
   if (record.revenue.totalReturns > 0) {
-    data.push(['B. RETURNS']);
+    row++; // spacing
+    ws[`A${row}`] = createCell('B. RETURNS', STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
+
     SALES_CHANNELS.forEach(channel => {
       const amount = record.revenue.returns[channel] || 0;
       if (amount > 0) {
-        data.push([`    ${channel} Returns`, formatAmountFull(-amount), formatPercentValue((amount / netRevenue) * 100)]);
+        addRow(`    ${channel} Returns`, amount, formatPercentValue((amount / netRevenue) * 100), STYLES.normal, true);
       }
     });
-    data.push(['TOTAL RETURNS', formatAmountFull(-record.revenue.totalReturns), formatPercentValue((record.revenue.totalReturns / netRevenue) * 100)]);
-    data.push([]);
+    addRow('TOTAL RETURNS', record.revenue.totalReturns, formatPercentValue((record.revenue.totalReturns / netRevenue) * 100), STYLES.total, true);
   }
 
   // ===== D. TAXES =====
   if (record.revenue.totalTaxes > 0) {
-    data.push(['D. TAXES (GST Collected)']);
-    SALES_CHANNELS.forEach(channel => {
-      const amount = record.revenue.taxes[channel] || 0;
-      if (amount > 0) {
-        data.push([`    ${channel} GST`, formatAmountFull(-amount), formatPercentValue((amount / netRevenue) * 100)]);
-      }
-    });
-    data.push(['TOTAL TAXES', formatAmountFull(-record.revenue.totalTaxes), formatPercentValue((record.revenue.totalTaxes / netRevenue) * 100)]);
-    data.push([]);
+    row++;
+    ws[`A${row}`] = createCell('D. TAXES (GST Collected)', STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
+    addRow('TOTAL TAXES', record.revenue.totalTaxes, formatPercentValue((record.revenue.totalTaxes / netRevenue) * 100), STYLES.total, true);
   }
 
   // NET REVENUE
-  data.push(['════════════════════════════════════════════════════════════════']);
-  data.push(['NET REVENUE (Gross - Returns - Taxes)', formatAmountFull(record.revenue.netRevenue), '100.00%']);
-  data.push(['════════════════════════════════════════════════════════════════']);
-  data.push([]);
+  row++;
+  const netRevStyle = { ...STYLES.grossMargin, font: { ...STYLES.grossMargin.font, sz: 12 } };
+  addRow('NET REVENUE', record.revenue.netRevenue, '100.00%', netRevStyle);
+  row++;
 
   // ===== E. COGM =====
   const cogmSubheads = getSubheadsForHead(record, 'E. COGM');
   const cogmTotal = getHeadTotal(record, 'E. COGM');
 
   if (cogmTotal > 0) {
-    data.push(['E. COST OF GOODS MANUFACTURED (COGM)']);
+    ws[`A${row}`] = createCell('E. COST OF GOODS MANUFACTURED (COGM)', STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
+
     cogmSubheads.forEach(sh => {
-      const txnLabel = sh.txnCount > 0 ? ` [${sh.txnCount}]` : '';
-      data.push([`    ${sh.subhead}${txnLabel}`, formatAmountFull(-sh.amount), formatPercentValue((sh.amount / netRevenue) * 100)]);
+      addRow(`    ${sh.subhead}`, sh.amount, formatPercentValue((sh.amount / netRevenue) * 100), STYLES.subhead, true);
     });
-    data.push(['TOTAL COGM', formatAmountFull(-cogmTotal), formatPercentValue((cogmTotal / netRevenue) * 100)]);
-    data.push([]);
+    addRow('TOTAL COGM', cogmTotal, formatPercentValue((cogmTotal / netRevenue) * 100), STYLES.total, true);
   }
 
   // GROSS MARGIN
-  data.push(['════════════════════════════════════════════════════════════════']);
-  data.push(['GROSS MARGIN (Net Revenue - COGM)', formatAmountFull(record.grossMargin), formatPercentValue(record.grossMarginPercent)]);
-  data.push(['════════════════════════════════════════════════════════════════']);
-  data.push([]);
+  row++;
+  addRow('GROSS MARGIN', record.grossMargin, formatPercentValue(record.grossMarginPercent), STYLES.grossMargin);
+  row++;
 
   // ===== F. CHANNEL & FULFILLMENT =====
   const channelSubheads = getSubheadsForHead(record, 'F. Channel & Fulfillment');
   const channelTotal = getHeadTotal(record, 'F. Channel & Fulfillment');
 
   if (channelTotal > 0) {
-    data.push(['F. CHANNEL & FULFILLMENT']);
+    ws[`A${row}`] = createCell('F. CHANNEL & FULFILLMENT', STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
+
     channelSubheads.forEach(sh => {
-      const txnLabel = sh.txnCount > 0 ? ` [${sh.txnCount}]` : '';
-      data.push([`    ${sh.subhead}${txnLabel}`, formatAmountFull(-sh.amount), formatPercentValue((sh.amount / netRevenue) * 100)]);
+      addRow(`    ${sh.subhead}`, sh.amount, formatPercentValue((sh.amount / netRevenue) * 100), STYLES.subhead, true);
     });
-    data.push(['TOTAL CHANNEL & FULFILLMENT', formatAmountFull(-channelTotal), formatPercentValue((channelTotal / netRevenue) * 100)]);
-    data.push([]);
+    addRow('TOTAL CHANNEL & FULFILLMENT', channelTotal, formatPercentValue((channelTotal / netRevenue) * 100), STYLES.total, true);
   }
 
   // CM1
-  data.push(['────────────────────────────────────────────────────────────────']);
-  data.push(['CM1 (Gross Margin - Channel Costs)', formatAmountFull(record.cm1), formatPercentValue(record.cm1Percent)]);
-  data.push(['────────────────────────────────────────────────────────────────']);
-  data.push([]);
+  row++;
+  addRow('CM1 (Contribution Margin 1)', record.cm1, formatPercentValue(record.cm1Percent), STYLES.cm1);
+  row++;
 
   // ===== G. SALES & MARKETING =====
   const marketingSubheads = getSubheadsForHead(record, 'G. Sales & Marketing');
   const marketingTotal = getHeadTotal(record, 'G. Sales & Marketing');
 
   if (marketingTotal > 0) {
-    data.push(['G. SALES & MARKETING']);
+    ws[`A${row}`] = createCell('G. SALES & MARKETING', STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
+
     marketingSubheads.forEach(sh => {
-      const txnLabel = sh.txnCount > 0 ? ` [${sh.txnCount}]` : '';
-      data.push([`    ${sh.subhead}${txnLabel}`, formatAmountFull(-sh.amount), formatPercentValue((sh.amount / netRevenue) * 100)]);
+      addRow(`    ${sh.subhead}`, sh.amount, formatPercentValue((sh.amount / netRevenue) * 100), STYLES.subhead, true);
     });
-    data.push(['TOTAL SALES & MARKETING', formatAmountFull(-marketingTotal), formatPercentValue((marketingTotal / netRevenue) * 100)]);
-    data.push([]);
+    addRow('TOTAL SALES & MARKETING', marketingTotal, formatPercentValue((marketingTotal / netRevenue) * 100), STYLES.total, true);
   }
 
   // CM2
-  data.push(['────────────────────────────────────────────────────────────────']);
-  data.push(['CM2 (CM1 - Marketing)', formatAmountFull(record.cm2), formatPercentValue(record.cm2Percent)]);
-  data.push(['────────────────────────────────────────────────────────────────']);
-  data.push([]);
+  row++;
+  addRow('CM2 (Contribution Margin 2)', record.cm2, formatPercentValue(record.cm2Percent), STYLES.cm2);
+  row++;
 
   // ===== H. PLATFORM COSTS =====
   const platformSubheads = getSubheadsForHead(record, 'H. Platform Costs');
   const platformTotal = getHeadTotal(record, 'H. Platform Costs');
 
   if (platformTotal > 0) {
-    data.push(['H. PLATFORM COSTS']);
+    ws[`A${row}`] = createCell('H. PLATFORM COSTS', STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
+
     platformSubheads.forEach(sh => {
-      const txnLabel = sh.txnCount > 0 ? ` [${sh.txnCount}]` : '';
-      data.push([`    ${sh.subhead}${txnLabel}`, formatAmountFull(-sh.amount), formatPercentValue((sh.amount / netRevenue) * 100)]);
+      addRow(`    ${sh.subhead}`, sh.amount, formatPercentValue((sh.amount / netRevenue) * 100), STYLES.subhead, true);
     });
-    data.push(['TOTAL PLATFORM COSTS', formatAmountFull(-platformTotal), formatPercentValue((platformTotal / netRevenue) * 100)]);
-    data.push([]);
+    addRow('TOTAL PLATFORM COSTS', platformTotal, formatPercentValue((platformTotal / netRevenue) * 100), STYLES.total, true);
   }
 
   // CM3
-  data.push(['────────────────────────────────────────────────────────────────']);
-  data.push(['CM3 (CM2 - Platform)', formatAmountFull(record.cm3), formatPercentValue(record.cm3Percent)]);
-  data.push(['────────────────────────────────────────────────────────────────']);
-  data.push([]);
+  row++;
+  addRow('CM3 (Contribution Margin 3)', record.cm3, formatPercentValue(record.cm3Percent), STYLES.cm3);
+  row++;
 
   // ===== I. OPERATING EXPENSES =====
   const opexSubheads = getSubheadsForHead(record, 'I. Operating Expenses');
   const opexTotal = getHeadTotal(record, 'I. Operating Expenses');
 
   if (opexTotal > 0) {
-    data.push(['I. OPERATING EXPENSES']);
+    ws[`A${row}`] = createCell('I. OPERATING EXPENSES', STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
+
     opexSubheads.forEach(sh => {
-      const txnLabel = sh.txnCount > 0 ? ` [${sh.txnCount}]` : '';
-      data.push([`    ${sh.subhead}${txnLabel}`, formatAmountFull(-sh.amount), formatPercentValue((sh.amount / netRevenue) * 100)]);
+      addRow(`    ${sh.subhead}`, sh.amount, formatPercentValue((sh.amount / netRevenue) * 100), STYLES.subhead, true);
     });
-    data.push(['TOTAL OPERATING EXPENSES', formatAmountFull(-opexTotal), formatPercentValue((opexTotal / netRevenue) * 100)]);
-    data.push([]);
+    addRow('TOTAL OPERATING EXPENSES', opexTotal, formatPercentValue((opexTotal / netRevenue) * 100), STYLES.total, true);
   }
 
   // EBITDA
-  data.push(['════════════════════════════════════════════════════════════════']);
-  data.push(['EBITDA (CM3 - Operating Expenses)', formatAmountFull(record.ebitda), formatPercentValue(record.ebitdaPercent)]);
-  data.push(['════════════════════════════════════════════════════════════════']);
-  data.push([]);
+  row++;
+  addRow('EBITDA', record.ebitda, formatPercentValue(record.ebitdaPercent), STYLES.ebitda);
+  row++;
 
   // ===== J. NON-OPERATING =====
   const nonOpSubheads = getSubheadsForHead(record, 'J. Non-Operating');
   const nonOpTotal = getHeadTotal(record, 'J. Non-Operating');
 
   if (nonOpTotal > 0) {
-    data.push(['J. NON-OPERATING (I+D+A+Tax)']);
+    ws[`A${row}`] = createCell('J. NON-OPERATING (I+D+A+Tax)', STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
+
     nonOpSubheads.forEach(sh => {
-      const txnLabel = sh.txnCount > 0 ? ` [${sh.txnCount}]` : '';
-      data.push([`    ${sh.subhead}${txnLabel}`, formatAmountFull(-sh.amount), formatPercentValue((sh.amount / netRevenue) * 100)]);
+      addRow(`    ${sh.subhead}`, sh.amount, formatPercentValue((sh.amount / netRevenue) * 100), STYLES.subhead, true);
     });
-    data.push(['TOTAL NON-OPERATING', formatAmountFull(-nonOpTotal), formatPercentValue((nonOpTotal / netRevenue) * 100)]);
-    data.push([]);
+    addRow('TOTAL NON-OPERATING', nonOpTotal, formatPercentValue((nonOpTotal / netRevenue) * 100), STYLES.total, true);
   }
 
   // NET INCOME
-  data.push(['════════════════════════════════════════════════════════════════']);
-  data.push(['NET INCOME (EBITDA - Non-Operating)', formatAmountFull(record.netIncome), formatPercentValue(record.netIncomePercent)]);
-  data.push(['════════════════════════════════════════════════════════════════']);
+  row++;
+  row++;
+  const netIncomeStyle = record.netIncome >= 0 ? STYLES.netIncome : { ...STYLES.netIncome, font: { ...STYLES.netIncome.font, color: { rgb: COLORS.negativeText } } };
+  addRow('NET INCOME', record.netIncome, formatPercentValue(record.netIncomePercent), netIncomeStyle);
 
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  setColumnWidths(ws, [55, 18, 18]);
+  // Set range
+  ws['!ref'] = `A1:C${row}`;
+  ws['!merges'] = merges;
+  setColumnWidths(ws, [45, 18, 15]);
 
   return ws;
 }
 
 // ============================================
-// FY DETAILED P&L SHEET
+// FY DETAILED P&L SHEET (STYLED)
 // ============================================
 
 function generateFYDetailedPLSheet(records: MISRecord[], fyLabel: string): XLSX.WorkSheet {
-  const data: (string | number)[][] = [];
+  const ws: XLSX.WorkSheet = {};
   const fyStartYear = parseFYLabel(fyLabel);
+  let row = 1;
 
-  // Title
-  data.push([`${fyLabel} - DETAILED P&L STATEMENT`]);
-  data.push(['Heatronics Pvt Ltd']);
-  data.push([`April ${fyStartYear} to March ${fyStartYear + 1}`]);
-  data.push([`Generated: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`]);
-  data.push([]);
+  const merges: XLSX.Range[] = [];
 
   // Build FY months data
   const fyMonthsData = FY_MONTHS.map(({ month, label }) => {
@@ -427,303 +690,414 @@ function generateFYDetailedPLSheet(records: MISRecord[], fyLabel: string): XLSX.
     return { month, year, label: `${label}'${String(year).slice(-2)}`, periodKey, record };
   });
 
+  const numCols = fyMonthsData.length + 3; // Particulars + months + FY Total + % Rev
+
   // Calculate FY totals
   const fyTotals = {
     netRevenue: fyMonthsData.reduce((sum, m) => sum + (m.record?.revenue.netRevenue || 0), 0),
-    grossRevenue: fyMonthsData.reduce((sum, m) => sum + (m.record?.revenue.totalGrossRevenue || 0), 0),
   };
+
+  // Title
+  ws[`A${row}`] = createCell(`${fyLabel} - PROFIT & LOSS STATEMENT`, STYLES.title);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.title);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  ws[`A${row}`] = createCell(`Heatronics Pvt Ltd | April ${fyStartYear} to March ${fyStartYear + 1}`, STYLES.subtitle);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.subtitle);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  row++; // Empty
+
+  // Revenue formula
+  ws[`A${row}`] = createCell('Net Revenue = Gross Revenue - Returns - Taxes (GST) | All values in INR', STYLES.formula);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.formula);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  row++; // Empty
 
   // Header row
-  data.push([
-    'Particulars',
-    ...fyMonthsData.map(m => m.label),
-    'FY Total',
-    '% Rev'
-  ]);
+  ws[`A${row}`] = createCell('Particulars', STYLES.header);
+  fyMonthsData.forEach((m, i) => {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(m.label, STYLES.header);
+  });
+  ws[XLSX.utils.encode_cell({ r: row - 1, c: fyMonthsData.length + 1 })] = createCell('FY Total', STYLES.header);
+  ws[XLSX.utils.encode_cell({ r: row - 1, c: fyMonthsData.length + 2 })] = createCell('% Rev', STYLES.header);
+  row++;
 
-  // Helper to add a row
-  const addRow = (label: string, getValue: (r: MISRecord | undefined) => number, isNegative = false) => {
-    const row: (string | number)[] = [label];
+  // Helper to add data row
+  const addDataRow = (label: string, getValue: (r: MISRecord | undefined) => number, style: CellStyle, isNegative = false) => {
+    ws[`A${row}`] = createCell(label, style);
     let total = 0;
-    fyMonthsData.forEach(m => {
+    fyMonthsData.forEach((m, i) => {
       const value = getValue(m.record);
       const displayValue = isNegative && value > 0 ? -value : value;
-      row.push(value !== 0 ? formatAmountFull(displayValue) : '-');
       total += value;
+      const numStyle = isNegative && value > 0 ? STYLES.negative : { ...style, alignment: { horizontal: 'right' as const } };
+      ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(value !== 0 ? formatAmountFull(displayValue) : '-', numStyle);
     });
     const displayTotal = isNegative && total > 0 ? -total : total;
-    row.push(formatAmountFull(displayTotal));
-    row.push(fyTotals.netRevenue > 0 ? formatPercentValue((Math.abs(total) / fyTotals.netRevenue) * 100) : '-');
-    return row;
+    const totalStyle = { ...STYLES.totalNumber, fill: style.fill };
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: fyMonthsData.length + 1 })] = createCell(formatAmountFull(displayTotal), totalStyle);
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: fyMonthsData.length + 2 })] = createCell(
+      fyTotals.netRevenue > 0 ? formatPercentValue((Math.abs(total) / fyTotals.netRevenue) * 100) : '-',
+      { ...style, alignment: { horizontal: 'right' as const } }
+    );
+    row++;
   };
 
-  // ===== A. REVENUE =====
-  data.push([]);
-  data.push(['A. GROSS REVENUE']);
-  SALES_CHANNELS.forEach(channel => {
-    const row = addRow(`    ${channel}`, r => r?.revenue.grossRevenue[channel] || 0);
-    const hasData = row.slice(1, -2).some(v => v !== '-' && v !== 0);
-    if (hasData) data.push(row);
-  });
-  data.push(addRow('TOTAL GROSS REVENUE', r => r?.revenue.totalGrossRevenue || 0));
-
-  // Returns
-  const totalReturns = fyMonthsData.reduce((sum, m) => sum + (m.record?.revenue.totalReturns || 0), 0);
-  if (totalReturns > 0) {
-    data.push([]);
-    data.push(['B. RETURNS']);
-    data.push(addRow('    Total Returns', r => r?.revenue.totalReturns || 0, true));
-  }
-
-  // Taxes
-  const totalTaxes = fyMonthsData.reduce((sum, m) => sum + (m.record?.revenue.totalTaxes || 0), 0);
-  if (totalTaxes > 0) {
-    data.push([]);
-    data.push(['D. TAXES (GST)']);
-    data.push(addRow('    Total Taxes', r => r?.revenue.totalTaxes || 0, true));
-  }
+  // Helper for margin rows
+  const addMarginRow = (label: string, getValue: (r: MISRecord) => number, style: CellStyle) => {
+    ws[`A${row}`] = createCell(label, style);
+    let total = 0;
+    fyMonthsData.forEach((m, i) => {
+      const value = m.record ? getValue(m.record) : 0;
+      total += value;
+      const numStyle = value < 0
+        ? { ...style, font: { ...style.font, color: { rgb: COLORS.negativeText } }, alignment: { horizontal: 'right' as const } }
+        : { ...style, alignment: { horizontal: 'right' as const } };
+      ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(value !== 0 ? formatAmountFull(value) : '-', numStyle);
+    });
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: fyMonthsData.length + 1 })] = createCell(formatAmountFull(total), { ...style, alignment: { horizontal: 'right' as const } });
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: fyMonthsData.length + 2 })] = createCell(
+      fyTotals.netRevenue > 0 ? formatPercentValue((total / fyTotals.netRevenue) * 100) : '-',
+      { ...style, alignment: { horizontal: 'right' as const } }
+    );
+    row++;
+  };
 
   // NET REVENUE
-  data.push([]);
-  data.push(['═══════════════════════════════════════════']);
-  data.push(addRow('NET REVENUE', r => r?.revenue.netRevenue || 0));
-  data.push(['═══════════════════════════════════════════']);
+  addMarginRow('NET REVENUE', r => r.revenue.netRevenue, { ...STYLES.grossMargin, font: { ...STYLES.grossMargin.font, sz: 11 } });
+  row++;
 
-  // Collect all unique subheads across all months for each expense head
-  const expenseHeads: MISHead[] = ['E. COGM', 'F. Channel & Fulfillment', 'G. Sales & Marketing',
-                                    'H. Platform Costs', 'I. Operating Expenses', 'J. Non-Operating'];
-
-  const margins: { head: MISHead; label: string; getValue: (r: MISRecord) => number; getPercent: (r: MISRecord) => number }[] = [
-    { head: 'E. COGM', label: 'GROSS MARGIN', getValue: r => r.grossMargin, getPercent: r => r.grossMarginPercent },
-    { head: 'F. Channel & Fulfillment', label: 'CM1', getValue: r => r.cm1, getPercent: r => r.cm1Percent },
-    { head: 'G. Sales & Marketing', label: 'CM2', getValue: r => r.cm2, getPercent: r => r.cm2Percent },
-    { head: 'H. Platform Costs', label: 'CM3', getValue: r => r.cm3, getPercent: r => r.cm3Percent },
-    { head: 'I. Operating Expenses', label: 'EBITDA', getValue: r => r.ebitda, getPercent: r => r.ebitdaPercent },
-    { head: 'J. Non-Operating', label: 'NET INCOME', getValue: r => r.netIncome, getPercent: r => r.netIncomePercent },
-  ];
-
-  for (const headKey of expenseHeads) {
-    // Get all unique subheads across all months
-    const allSubheads = new Map<string, boolean>();
-    fyMonthsData.forEach(m => {
-      if (m.record) {
-        const subheads = getSubheadsForHead(m.record, headKey);
-        subheads.forEach(sh => allSubheads.set(sh.subhead, true));
-      }
-    });
-
-    const subheadNames = Array.from(allSubheads.keys());
-    const headTotal = fyMonthsData.reduce((sum, m) => sum + (m.record ? getHeadTotal(m.record, headKey) : 0), 0);
-
-    if (headTotal > 0 || subheadNames.length > 0) {
-      data.push([]);
-      data.push([headKey]);
-
-      // Each subhead row
-      subheadNames.forEach(subheadName => {
-        const row: (string | number)[] = [`    ${subheadName}`];
-        let total = 0;
-        fyMonthsData.forEach(m => {
-          if (m.record) {
-            const subheads = getSubheadsForHead(m.record, headKey);
-            const sh = subheads.find(s => s.subhead === subheadName);
-            const amount = sh?.amount || 0;
-            row.push(amount > 0 ? formatAmountFull(-amount) : '-');
-            total += amount;
-          } else {
-            row.push('-');
-          }
-        });
-        row.push(formatAmountFull(-total));
-        row.push(fyTotals.netRevenue > 0 ? formatPercentValue((total / fyTotals.netRevenue) * 100) : '-');
-        data.push(row);
-      });
-
-      // Head total
-      const headTotalRow: (string | number)[] = [`TOTAL ${headKey.split('. ')[1]?.toUpperCase() || headKey}`];
-      let fyHeadTotal = 0;
-      fyMonthsData.forEach(m => {
-        const total = m.record ? getHeadTotal(m.record, headKey) : 0;
-        headTotalRow.push(total > 0 ? formatAmountFull(-total) : '-');
-        fyHeadTotal += total;
-      });
-      headTotalRow.push(formatAmountFull(-fyHeadTotal));
-      headTotalRow.push(fyTotals.netRevenue > 0 ? formatPercentValue((fyHeadTotal / fyTotals.netRevenue) * 100) : '-');
-      data.push(headTotalRow);
-    }
-
-    // Add margin after this head
-    const margin = margins.find(m => m.head === headKey);
-    if (margin) {
-      data.push([]);
-      data.push(['───────────────────────────────────────────']);
-      const marginRow: (string | number)[] = [margin.label];
-      let fyMarginTotal = 0;
-      fyMonthsData.forEach(m => {
-        const value = m.record ? margin.getValue(m.record) : 0;
-        marginRow.push(value !== 0 ? formatAmountFull(value) : '-');
-        fyMarginTotal += value;
-      });
-      marginRow.push(formatAmountFull(fyMarginTotal));
-      marginRow.push(fyTotals.netRevenue > 0 ? formatPercentValue((fyMarginTotal / fyTotals.netRevenue) * 100) : '-');
-      data.push(marginRow);
-      data.push(['───────────────────────────────────────────']);
-    }
+  // COGM
+  ws[`A${row}`] = createCell('E. COST OF GOODS MANUFACTURED', STYLES.sectionHeader);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.sectionHeader);
   }
+  row++;
+  addDataRow('    COGM Total', r => r?.cogm.totalCOGM || 0, STYLES.normal, true);
 
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  setColumnWidths(ws, [40, ...fyMonthsData.map(() => 10), 12, 8]);
+  // GROSS MARGIN
+  row++;
+  addMarginRow('GROSS MARGIN', r => r.grossMargin, STYLES.grossMargin);
+  row++;
+
+  // Channel & Fulfillment
+  ws[`A${row}`] = createCell('F. CHANNEL & FULFILLMENT', STYLES.sectionHeader);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.sectionHeader);
+  }
+  row++;
+  addDataRow('    Channel Total', r => r?.channelFulfillment.total || 0, STYLES.normal, true);
+
+  // CM1
+  row++;
+  addMarginRow('CM1', r => r.cm1, STYLES.cm1);
+  row++;
+
+  // Sales & Marketing
+  ws[`A${row}`] = createCell('G. SALES & MARKETING', STYLES.sectionHeader);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.sectionHeader);
+  }
+  row++;
+  addDataRow('    Marketing Total', r => r?.salesMarketing.total || 0, STYLES.normal, true);
+
+  // CM2
+  row++;
+  addMarginRow('CM2', r => r.cm2, STYLES.cm2);
+  row++;
+
+  // Platform Costs
+  ws[`A${row}`] = createCell('H. PLATFORM COSTS', STYLES.sectionHeader);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.sectionHeader);
+  }
+  row++;
+  addDataRow('    Platform Total', r => r?.platformCosts.total || 0, STYLES.normal, true);
+
+  // CM3
+  row++;
+  addMarginRow('CM3', r => r.cm3, STYLES.cm3);
+  row++;
+
+  // Operating Expenses
+  ws[`A${row}`] = createCell('I. OPERATING EXPENSES', STYLES.sectionHeader);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.sectionHeader);
+  }
+  row++;
+  addDataRow('    OpEx Total', r => r?.operatingExpenses.total || 0, STYLES.normal, true);
+
+  // EBITDA
+  row++;
+  addMarginRow('EBITDA', r => r.ebitda, STYLES.ebitda);
+  row++;
+
+  // Non-Operating
+  ws[`A${row}`] = createCell('J. NON-OPERATING', STYLES.sectionHeader);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.sectionHeader);
+  }
+  row++;
+  addDataRow('    Non-Op Total', r => (r?.nonOperating.totalIDA || 0) + (r?.nonOperating.incomeTax || 0), STYLES.normal, true);
+
+  // NET INCOME
+  row++;
+  row++;
+  addMarginRow('NET INCOME', r => r.netIncome, STYLES.netIncome);
+
+  // Set range and styles
+  ws['!ref'] = `A1:${XLSX.utils.encode_col(numCols - 1)}${row}`;
+  ws['!merges'] = merges;
+  setColumnWidths(ws, [35, ...fyMonthsData.map(() => 10), 12, 8]);
 
   return ws;
 }
 
 // ============================================
-// SUMMARY SHEET
+// SUMMARY SHEET (STYLED)
 // ============================================
 
 function generateSummarySheet(records: MISRecord[]): XLSX.WorkSheet {
-  const data: (string | number)[][] = [];
+  const ws: XLSX.WorkSheet = {};
+  let row = 1;
+  const merges: XLSX.Range[] = [];
 
-  data.push(['HEATRONICS - MIS SUMMARY REPORT']);
-  data.push(['Key Financial Metrics Overview']);
-  data.push([`Generated: ${new Date().toLocaleDateString('en-IN')}`]);
-  data.push([]);
-
-  // Sort records
   const sortedRecords = [...records].sort((a, b) => {
     if (a.period.year !== b.period.year) return a.period.year - b.period.year;
     return a.period.month - b.period.month;
   });
-
   const recentRecords = sortedRecords.slice(-12);
+  const numCols = recentRecords.length + 2;
+
+  // Title
+  ws[`A${row}`] = createCell('HEATRONICS - MIS SUMMARY REPORT', STYLES.title);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.title);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  ws[`A${row}`] = createCell(`Generated: ${new Date().toLocaleDateString('en-IN')}`, STYLES.subtitle);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.subtitle);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  row++; // Empty
 
   // Header
-  data.push(['Metric', ...recentRecords.map(r => periodToString(r.period)), 'Total']);
+  ws[`A${row}`] = createCell('Metric', STYLES.header);
+  recentRecords.forEach((r, i) => {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(periodToString(r.period), STYLES.header);
+  });
+  ws[XLSX.utils.encode_cell({ r: row - 1, c: recentRecords.length + 1 })] = createCell('Total', STYLES.header);
+  row++;
 
-  // Revenue
-  data.push([]);
-  const addMetricRow = (label: string, getValue: (r: MISRecord) => number) => {
-    const row: (string | number)[] = [label];
+  // Data rows
+  const addMetricRow = (label: string, getValue: (r: MISRecord) => number, style: CellStyle) => {
+    ws[`A${row}`] = createCell(label, style);
     let total = 0;
-    recentRecords.forEach(r => {
+    recentRecords.forEach((r, i) => {
       const value = getValue(r);
-      row.push(formatAmountFull(value));
       total += value;
+      ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(formatAmountFull(value), { ...style, alignment: { horizontal: 'right' } });
     });
-    row.push(formatAmountFull(total));
-    data.push(row);
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: recentRecords.length + 1 })] = createCell(formatAmountFull(total), { ...STYLES.totalNumber, fill: style.fill });
+    row++;
   };
 
-  const addPercentRow = (label: string, getPercent: (r: MISRecord) => number) => {
-    const row: (string | number)[] = [label];
-    recentRecords.forEach(r => row.push(formatPercentValue(getPercent(r))));
-    row.push('');
-    data.push(row);
+  const addPercentRow = (label: string, getPercent: (r: MISRecord) => number, style: CellStyle) => {
+    ws[`A${row}`] = createCell(label, style);
+    recentRecords.forEach((r, i) => {
+      const value = getPercent(r);
+      const pctStyle = value < 0 ? { ...style, font: { ...style.font, color: { rgb: COLORS.negativeText } }, alignment: { horizontal: 'right' as const } } : { ...style, alignment: { horizontal: 'right' as const } };
+      ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(formatPercentValue(value), pctStyle);
+    });
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: recentRecords.length + 1 })] = createCell('', style);
+    row++;
   };
 
-  addMetricRow('Net Revenue', r => r.revenue.netRevenue);
-  addMetricRow('COGM', r => r.cogm.totalCOGM);
-  addPercentRow('COGS %', r => r.revenue.netRevenue > 0 ? (r.cogm.totalCOGM / r.revenue.netRevenue) * 100 : 0);
-  addMetricRow('Gross Margin', r => r.grossMargin);
-  addPercentRow('Gross Margin %', r => r.grossMarginPercent);
-  addPercentRow('CM1 %', r => r.cm1Percent);
-  addPercentRow('CM2 %', r => r.cm2Percent);
-  addPercentRow('EBITDA %', r => r.ebitdaPercent);
-  addPercentRow('Net Income %', r => r.netIncomePercent);
+  addMetricRow('Net Revenue', r => r.revenue.netRevenue, STYLES.normal);
+  addMetricRow('COGM', r => r.cogm.totalCOGM, STYLES.normal);
+  addPercentRow('COGS %', r => r.revenue.netRevenue > 0 ? (r.cogm.totalCOGM / r.revenue.netRevenue) * 100 : 0, STYLES.normal);
+  addMetricRow('Gross Margin', r => r.grossMargin, STYLES.grossMargin);
+  addPercentRow('Gross Margin %', r => r.grossMarginPercent, STYLES.grossMargin);
+  addPercentRow('CM1 %', r => r.cm1Percent, STYLES.cm1);
+  addPercentRow('CM2 %', r => r.cm2Percent, STYLES.cm2);
+  addPercentRow('EBITDA %', r => r.ebitdaPercent, STYLES.ebitda);
+  addPercentRow('Net Income %', r => r.netIncomePercent, STYLES.netIncome);
 
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  setColumnWidths(ws, [20, ...recentRecords.map(() => 12), 14]);
+  ws['!ref'] = `A1:${XLSX.utils.encode_col(numCols - 1)}${row}`;
+  ws['!merges'] = merges;
+  setColumnWidths(ws, [18, ...recentRecords.map(() => 11), 12]);
 
   return ws;
 }
 
 // ============================================
-// TRENDS SHEET (Monthly Comparison Table)
+// TRENDS SHEET (STYLED)
 // ============================================
 
 function generateTrendsSheet(records: MISRecord[]): XLSX.WorkSheet {
-  const data: (string | number)[][] = [];
+  const ws: XLSX.WorkSheet = {};
+  let row = 1;
+  const merges: XLSX.Range[] = [];
 
-  data.push(['MIS TRENDS - MONTHLY COMPARISON']);
-  data.push(['Revenue = Net Revenue (Gross - Returns - Taxes)']);
-  data.push([`Generated: ${new Date().toLocaleDateString('en-IN')}`]);
-  data.push([]);
-
-  // Sort chronologically
   const sortedRecords = [...records].sort((a, b) => {
     if (a.period.year !== b.period.year) return a.period.year - b.period.year;
     return a.period.month - b.period.month;
   });
 
+  const numCols = sortedRecords.length + 1;
+
+  // Title
+  ws[`A${row}`] = createCell('MIS TRENDS - MONTHLY COMPARISON', STYLES.title);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.title);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  ws[`A${row}`] = createCell('Net Revenue = Gross Revenue - Returns - Taxes (GST)', STYLES.formula);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.formula);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  row++; // Empty
+
   // Header
-  data.push(['Metric', ...sortedRecords.map(r => periodToString(r.period))]);
+  ws[`A${row}`] = createCell('Metric', STYLES.header);
+  sortedRecords.forEach((r, i) => {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(periodToString(r.period), STYLES.header);
+  });
+  row++;
 
   // Data rows
-  const metrics = [
-    { label: 'Net Revenue', getValue: (r: MISRecord) => formatAmountFull(r.revenue.netRevenue) },
-    { label: 'COGS %', getValue: (r: MISRecord) => formatPercentValue(r.revenue.netRevenue > 0 ? (r.cogm.totalCOGM / r.revenue.netRevenue) * 100 : 0) },
-    { label: 'Gross Margin %', getValue: (r: MISRecord) => formatPercentValue(r.grossMarginPercent) },
-    { label: 'CM1 %', getValue: (r: MISRecord) => formatPercentValue(r.cm1Percent) },
-    { label: 'CM2 %', getValue: (r: MISRecord) => formatPercentValue(r.cm2Percent) },
-    { label: 'EBITDA %', getValue: (r: MISRecord) => formatPercentValue(r.ebitdaPercent) },
-    { label: 'Net Income %', getValue: (r: MISRecord) => formatPercentValue(r.netIncomePercent) },
+  const metrics: { label: string; getValue: (r: MISRecord) => string | number; style: CellStyle }[] = [
+    { label: 'Net Revenue', getValue: r => formatAmountFull(r.revenue.netRevenue), style: STYLES.normal },
+    { label: 'COGS %', getValue: r => formatPercentValue(r.revenue.netRevenue > 0 ? (r.cogm.totalCOGM / r.revenue.netRevenue) * 100 : 0), style: STYLES.normal },
+    { label: 'Gross Margin %', getValue: r => formatPercentValue(r.grossMarginPercent), style: STYLES.grossMargin },
+    { label: 'CM1 %', getValue: r => formatPercentValue(r.cm1Percent), style: STYLES.cm1 },
+    { label: 'CM2 %', getValue: r => formatPercentValue(r.cm2Percent), style: STYLES.cm2 },
+    { label: 'EBITDA %', getValue: r => formatPercentValue(r.ebitdaPercent), style: STYLES.ebitda },
+    { label: 'Net Income %', getValue: r => formatPercentValue(r.netIncomePercent), style: STYLES.netIncome },
   ];
 
   metrics.forEach(metric => {
-    const row: (string | number)[] = [metric.label];
-    sortedRecords.forEach(r => row.push(metric.getValue(r)));
-    data.push(row);
+    ws[`A${row}`] = createCell(metric.label, metric.style);
+    sortedRecords.forEach((r, i) => {
+      const value = metric.getValue(r);
+      const isNegative = typeof value === 'string' && value.startsWith('-');
+      const cellStyle = isNegative
+        ? { ...metric.style, font: { ...metric.style.font, color: { rgb: COLORS.negativeText } }, alignment: { horizontal: 'right' as const } }
+        : { ...metric.style, alignment: { horizontal: 'right' as const } };
+      ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(value, cellStyle);
+    });
+    row++;
   });
 
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  setColumnWidths(ws, [20, ...sortedRecords.map(() => 12)]);
+  ws['!ref'] = `A1:${XLSX.utils.encode_col(numCols - 1)}${row}`;
+  ws['!merges'] = merges;
+  setColumnWidths(ws, [18, ...sortedRecords.map(() => 11)]);
 
   return ws;
 }
 
 // ============================================
-// TRANSACTIONS SHEET
+// TRANSACTIONS SHEET (STYLED)
 // ============================================
 
 function generateTransactionsSheet(record: MISRecord): XLSX.WorkSheet {
-  const data: (string | number)[][] = [];
+  const ws: XLSX.WorkSheet = {};
+  let row = 1;
+  const merges: XLSX.Range[] = [];
 
-  data.push([`${periodToString(record.period)} - TRANSACTION DETAILS`]);
-  data.push(['Classified Transactions by Head and Subhead']);
-  data.push([]);
+  // Title
+  ws[`A${row}`] = createCell(`${periodToString(record.period)} - TRANSACTION DETAILS`, STYLES.title);
+  for (let c = 1; c < 7; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.title);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: 6 } });
+  row++;
+
+  row++; // Empty
 
   if (!record.transactionsByHead) {
-    data.push(['No transaction data available']);
-    return XLSX.utils.aoa_to_sheet(data);
+    ws[`A${row}`] = createCell('No transaction data available', STYLES.normal);
+    ws['!ref'] = `A1:G${row}`;
+    ws['!merges'] = merges;
+    return ws;
   }
 
-  data.push(['Head', 'Subhead', 'Date', 'Account', 'Amount (₹)', 'Type', 'Source']);
-  data.push([]);
+  // Header
+  const headers = ['Head', 'Subhead', 'Date', 'Account', 'Amount (₹)', 'Type', 'Source'];
+  headers.forEach((h, i) => {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: i })] = createCell(h, STYLES.header);
+  });
+  row++;
 
   const heads: MISHead[] = ['E. COGM', 'F. Channel & Fulfillment', 'G. Sales & Marketing',
-                            'H. Platform Costs', 'I. Operating Expenses', 'J. Non-Operating',
-                            'X. Exclude', 'Z. Ignore'];
+    'H. Platform Costs', 'I. Operating Expenses', 'J. Non-Operating'];
 
   heads.forEach(headKey => {
     const headData = record.transactionsByHead![headKey];
     if (!headData || headData.transactionCount === 0) return;
 
-    data.push([headKey, '', '', '', formatAmountFull(headData.total), `${headData.transactionCount} txns`, '']);
+    // Head row
+    ws[`A${row}`] = createCell(headKey, STYLES.sectionHeader);
+    ws[`B${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`C${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`D${row}`] = createCell('', STYLES.sectionHeader);
+    ws[`E${row}`] = createCell(formatAmountFull(headData.total), { ...STYLES.sectionHeader, alignment: { horizontal: 'right' } });
+    ws[`F${row}`] = createCell(`${headData.transactionCount} txns`, STYLES.sectionHeader);
+    ws[`G${row}`] = createCell('', STYLES.sectionHeader);
+    row++;
 
     headData.subheads.forEach(subhead => {
       if (subhead.transactions.length === 0) return;
 
-      data.push(['', subhead.subhead, '', '', formatAmountFull(subhead.amount), `${subhead.transactionCount} txns`, subhead.source]);
+      // Subhead row
+      ws[`A${row}`] = createCell('', STYLES.subhead);
+      ws[`B${row}`] = createCell(subhead.subhead, { ...STYLES.subhead, font: { ...STYLES.subhead.font, bold: true } });
+      ws[`C${row}`] = createCell('', STYLES.subhead);
+      ws[`D${row}`] = createCell('', STYLES.subhead);
+      ws[`E${row}`] = createCell(formatAmountFull(subhead.amount), { ...STYLES.subhead, alignment: { horizontal: 'right' } });
+      ws[`F${row}`] = createCell(`${subhead.transactionCount} txns`, STYLES.subhead);
+      ws[`G${row}`] = createCell(subhead.source, STYLES.subhead);
+      row++;
 
+      // Transaction rows
       subhead.transactions.forEach(txn => {
-        data.push(['', '', txn.date, txn.account, formatAmountFull(txn.amount), txn.type, txn.source]);
+        ws[`A${row}`] = createCell('', STYLES.normal);
+        ws[`B${row}`] = createCell('', STYLES.normal);
+        ws[`C${row}`] = createCell(txn.date, STYLES.normal);
+        ws[`D${row}`] = createCell(txn.account, STYLES.normal);
+        ws[`E${row}`] = createCell(formatAmountFull(txn.amount), { ...STYLES.number });
+        ws[`F${row}`] = createCell(txn.type, STYLES.normal);
+        ws[`G${row}`] = createCell(txn.source, STYLES.normal);
+        row++;
       });
     });
 
-    data.push([]);
+    row++; // Spacing between heads
   });
 
-  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!ref'] = `A1:G${row}`;
+  ws['!merges'] = merges;
   setColumnWidths(ws, [25, 30, 12, 45, 15, 10, 15]);
 
   return ws;
@@ -746,7 +1120,6 @@ export async function exportMISToExcel(
     XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
     sheetCount++;
 
-    // Also add Trends sheet
     const trendsSheet = generateTrendsSheet(allRecords);
     XLSX.utils.book_append_sheet(workbook, trendsSheet, 'Trends');
     sheetCount++;
@@ -832,7 +1205,6 @@ export async function exportFYMISToExcel(allRecords: MISRecord[], fyLabel: strin
   const fySheet = generateFYDetailedPLSheet(allRecords, fyLabel);
   XLSX.utils.book_append_sheet(workbook, fySheet, 'P&L Statement');
 
-  // Add trends for this FY
   const fyStartYear = parseFYLabel(fyLabel);
   const fyRecords = allRecords.filter(r => {
     const recFYStart = r.period.month >= 4 ? r.period.year : r.period.year - 1;
