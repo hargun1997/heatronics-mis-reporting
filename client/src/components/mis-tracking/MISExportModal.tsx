@@ -45,6 +45,76 @@ function getYearForMonth(fyStartYear: number, month: number): number {
   return month >= 4 ? fyStartYear : fyStartYear + 1;
 }
 
+// Helper to get subheads for a head category from MISRecord
+function getSubheadsForHead(record: MISRecord, headKey: string): { name: string; amount: number }[] {
+  const subheads: { name: string; amount: number }[] = [];
+
+  switch (headKey) {
+    case 'channelFulfillment':
+      if (record.channelFulfillment.amazonFees > 0) subheads.push({ name: 'Amazon Fees', amount: record.channelFulfillment.amazonFees });
+      if (record.channelFulfillment.blinkitFees > 0) subheads.push({ name: 'Blinkit Fees', amount: record.channelFulfillment.blinkitFees });
+      if (record.channelFulfillment.d2cFees > 0) subheads.push({ name: 'D2C Fees (Shiprocket, PG)', amount: record.channelFulfillment.d2cFees });
+      break;
+    case 'salesMarketing':
+      if (record.salesMarketing.facebookAds > 0) subheads.push({ name: 'Facebook Ads', amount: record.salesMarketing.facebookAds });
+      if (record.salesMarketing.googleAds > 0) subheads.push({ name: 'Google Ads', amount: record.salesMarketing.googleAds });
+      if (record.salesMarketing.amazonAds > 0) subheads.push({ name: 'Amazon Ads', amount: record.salesMarketing.amazonAds });
+      if (record.salesMarketing.blinkitAds > 0) subheads.push({ name: 'Blinkit Ads', amount: record.salesMarketing.blinkitAds });
+      if (record.salesMarketing.agencyFees > 0) subheads.push({ name: 'Agency Fees', amount: record.salesMarketing.agencyFees });
+      if (record.salesMarketing.advertisingMarketing > 0) subheads.push({ name: 'Advertising & Marketing', amount: record.salesMarketing.advertisingMarketing });
+      break;
+    case 'platformCosts':
+      if (record.platformCosts.shopifySubscription > 0) subheads.push({ name: 'Shopify Subscription', amount: record.platformCosts.shopifySubscription });
+      if (record.platformCosts.watiSubscription > 0) subheads.push({ name: 'Wati Subscription', amount: record.platformCosts.watiSubscription });
+      if (record.platformCosts.shopfloSubscription > 0) subheads.push({ name: 'Shopflo Subscription', amount: record.platformCosts.shopfloSubscription });
+      break;
+    case 'operatingExpenses':
+      if (record.operatingExpenses.salariesAdminMgmt > 0) subheads.push({ name: 'Salaries (Admin/Mgmt)', amount: record.operatingExpenses.salariesAdminMgmt });
+      if (record.operatingExpenses.administrativeExpenses > 0) subheads.push({ name: 'Administrative Expenses', amount: record.operatingExpenses.administrativeExpenses });
+      if (record.operatingExpenses.legalCaExpenses > 0) subheads.push({ name: 'Legal & CA Expenses', amount: record.operatingExpenses.legalCaExpenses });
+      if (record.operatingExpenses.platformCostsCRM > 0) subheads.push({ name: 'Platform Costs (CRM)', amount: record.operatingExpenses.platformCostsCRM });
+      if (record.operatingExpenses.staffWelfareEvents > 0) subheads.push({ name: 'Staff Welfare & Events', amount: record.operatingExpenses.staffWelfareEvents });
+      if (record.operatingExpenses.banksFinanceCharges > 0) subheads.push({ name: 'Bank & Finance Charges', amount: record.operatingExpenses.banksFinanceCharges });
+      if (record.operatingExpenses.miscellaneous > 0) subheads.push({ name: 'Miscellaneous', amount: record.operatingExpenses.miscellaneous });
+      if (record.operatingExpenses.otherOperatingExpenses > 0) subheads.push({ name: 'Other Operating', amount: record.operatingExpenses.otherOperatingExpenses });
+      break;
+    case 'nonOperating':
+      if (record.nonOperating.interestExpense > 0) subheads.push({ name: 'Interest Expense', amount: record.nonOperating.interestExpense });
+      if (record.nonOperating.depreciation > 0) subheads.push({ name: 'Depreciation', amount: record.nonOperating.depreciation });
+      if (record.nonOperating.amortization > 0) subheads.push({ name: 'Amortization', amount: record.nonOperating.amortization });
+      break;
+    case 'cogm':
+      if (record.cogm.rawMaterialsInventory > 0) subheads.push({ name: 'Raw Materials Inventory', amount: record.cogm.rawMaterialsInventory });
+      if (record.cogm.consumables > 0) subheads.push({ name: 'Consumables', amount: record.cogm.consumables });
+      if (record.cogm.manufacturingWages > 0) subheads.push({ name: 'Manufacturing Wages', amount: record.cogm.manufacturingWages });
+      if (record.cogm.contractWagesMfg > 0) subheads.push({ name: 'Contract Wages (Mfg)', amount: record.cogm.contractWagesMfg });
+      if (record.cogm.inboundTransport > 0) subheads.push({ name: 'Inbound Transport', amount: record.cogm.inboundTransport });
+      if (record.cogm.factoryRent > 0) subheads.push({ name: 'Factory Rent', amount: record.cogm.factoryRent });
+      if (record.cogm.factoryElectricity > 0) subheads.push({ name: 'Factory Electricity', amount: record.cogm.factoryElectricity });
+      if (record.cogm.factoryMaintenance > 0) subheads.push({ name: 'Factory Maintenance', amount: record.cogm.factoryMaintenance });
+      if (record.cogm.jobWork > 0) subheads.push({ name: 'Job Work', amount: record.cogm.jobWork });
+      if (record.cogm.qualityTesting > 0) subheads.push({ name: 'Quality Testing', amount: record.cogm.qualityTesting });
+      if (record.cogm.otherDirectExpenses > 0) subheads.push({ name: 'Other Direct Expenses', amount: record.cogm.otherDirectExpenses });
+      break;
+  }
+
+  return subheads;
+}
+
+// Render subhead rows for PDF table
+function renderSubheadRows(record: MISRecord, headKey: string, netRevenue: number) {
+  const subheads = getSubheadsForHead(record, headKey);
+  if (subheads.length === 0) return null;
+
+  return subheads.map((sub, idx) => (
+    <tr key={`${headKey}-${idx}`} className="border-b border-slate-700/30">
+      <td className="py-1 px-4 text-slate-400 pl-12 text-xs">• {sub.name}</td>
+      <td className="py-1 px-4 text-right text-slate-400 text-xs">{formatCurrency(sub.amount)}</td>
+      <td className="py-1 px-4 text-right text-slate-500 text-xs">{netRevenue > 0 ? formatPercent((sub.amount / netRevenue) * 100) : '-'}</td>
+    </tr>
+  ));
+}
+
 export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<string>('');
@@ -777,6 +847,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                       <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.cogm.totalCOGM)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.cogm.totalCOGM / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
+                    {renderSubheadRows(record, 'cogm', record.revenue.netRevenue)}
                     <tr className="border-b border-slate-700/50 bg-emerald-500/10">
                       <td className="py-3 px-4 text-emerald-400 font-medium">Gross Margin</td>
                       <td className="py-3 px-4 text-right text-emerald-400">{formatCurrency(record.grossMargin)}</td>
@@ -787,6 +858,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                       <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.channelFulfillment.total)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.channelFulfillment.total / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
+                    {renderSubheadRows(record, 'channelFulfillment', record.revenue.netRevenue)}
                     <tr className="border-b border-slate-700/50 bg-blue-500/10">
                       <td className="py-3 px-4 text-blue-400 font-medium">CM1</td>
                       <td className="py-3 px-4 text-right text-blue-400">{formatCurrency(record.cm1)}</td>
@@ -797,6 +869,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                       <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.salesMarketing.total)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.salesMarketing.total / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
+                    {renderSubheadRows(record, 'salesMarketing', record.revenue.netRevenue)}
                     <tr className="border-b border-slate-700/50 bg-purple-500/10">
                       <td className="py-3 px-4 text-purple-400 font-medium">CM2</td>
                       <td className="py-3 px-4 text-right text-purple-400">{formatCurrency(record.cm2)}</td>
@@ -807,6 +880,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                       <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.platformCosts.total)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.platformCosts.total / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
+                    {renderSubheadRows(record, 'platformCosts', record.revenue.netRevenue)}
                     <tr className="border-b border-slate-700/50 bg-orange-500/10">
                       <td className="py-3 px-4 text-orange-400 font-medium">CM3</td>
                       <td className="py-3 px-4 text-right text-orange-400">{formatCurrency(record.cm3)}</td>
@@ -817,6 +891,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                       <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.operatingExpenses.total)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.operatingExpenses.total / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
+                    {renderSubheadRows(record, 'operatingExpenses', record.revenue.netRevenue)}
                     <tr className="border-b border-slate-700/50 bg-cyan-500/10">
                       <td className="py-3 px-4 text-cyan-400 font-medium">EBITDA</td>
                       <td className="py-3 px-4 text-right text-cyan-400">{formatCurrency(record.ebitda)}</td>
@@ -827,6 +902,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                       <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.nonOperating.totalIDA)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.nonOperating.totalIDA / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
+                    {renderSubheadRows(record, 'nonOperating', record.revenue.netRevenue)}
                     <tr className="border-b border-slate-700/50">
                       <td className="py-3 px-4 text-slate-300 pl-8">Less: Income Tax</td>
                       <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.nonOperating.incomeTax)})</td>
