@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { MISTrackingNew } from './pages/MISTrackingNew';
 import { TaskTracker } from './pages/TaskTracker';
 import { BusinessGuide } from './pages/BusinessGuide';
+import { Tools } from './pages/Tools';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="mis-tracking" element={<MISTrackingNew />} />
           <Route path="task-tracker" element={<TaskTracker />} />
           <Route path="business-guide" element={<BusinessGuide />} />
+          <Route path="tools" element={<Tools />} />
         </Route>
       </Routes>
     </BrowserRouter>

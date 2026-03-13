@@ -45,6 +45,20 @@ const flowCards: FlowCard[] = [
   }
 ];
 
+interface ToolItem {
+  id: string;
+  name: string;
+  description: string;
+}
+
+const toolItems: ToolItem[] = [
+  {
+    id: 'amazon-to-tranzact',
+    name: 'Amazon Inventory → Tranzact',
+    description: 'Convert Amazon FBA Inventory Report into a Tranzact Bulk Manual Adjustment file',
+  },
+];
+
 const colorClasses: Record<string, { bg: string; border: string; icon: string; text: string; hover: string }> = {
   blue: {
     bg: 'bg-blue-500/10',
@@ -118,6 +132,43 @@ export function Dashboard() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Tools Section */}
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-slate-100 mb-1">Tools</h2>
+        <p className="text-sm text-slate-400 mb-4">Data transformation and conversion utilities</p>
+
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+          <label htmlFor="tool-dropdown" className="block text-sm font-medium text-slate-300 mb-2">
+            Select a tool
+          </label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select
+              id="tool-dropdown"
+              className="flex-1 sm:max-w-xs bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
+              defaultValue="amazon-to-tranzact"
+            >
+              {toolItems.map((tool) => (
+                <option key={tool.id} value={tool.id}>
+                  {tool.name}
+                </option>
+              ))}
+            </select>
+            <Link
+              to="/tools"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+              </svg>
+              Open Tool
+            </Link>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            {toolItems[0].description}
+          </p>
+        </div>
       </div>
     </div>
   );
