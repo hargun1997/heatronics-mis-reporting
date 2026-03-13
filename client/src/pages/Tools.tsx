@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import * as XLSX from 'xlsx';
 import {
   transformAmazonToTranzact,
   generateTranzactExcel,
@@ -69,7 +68,6 @@ export function Tools() {
 
 function AmazonToTranzactTool() {
   const [amazonFile, setAmazonFile] = useState<File | null>(null);
-  const [fgMasterFile, setFgMasterFile] = useState<File | null>(null);
   const [result, setResult] = useState<TransformResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -80,36 +78,23 @@ function AmazonToTranzactTool() {
     setError(null);
   }, []);
 
-  const handleFgMasterFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setFgMasterFile(e.target.files?.[0] || null);
-    setResult(null);
-    setError(null);
-  }, []);
-
   const handleTransform = useCallback(async () => {
-    if (!amazonFile || !fgMasterFile) return;
+    if (!amazonFile) return;
 
     setProcessing(true);
     setError(null);
     setResult(null);
 
     try {
-      // Read Amazon TSV
       const amazonText = await amazonFile.text();
-
-      // Read FG Master Excel
-      const fgBuffer = await fgMasterFile.arrayBuffer();
-      const fgWorkbook = XLSX.read(fgBuffer, { type: 'array' });
-
-      // Transform
-      const transformResult = transformAmazonToTranzact(amazonText, fgWorkbook);
+      const transformResult = transformAmazonToTranzact(amazonText);
       setResult(transformResult);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setProcessing(false);
     }
-  }, [amazonFile, fgMasterFile]);
+  }, [amazonFile]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
@@ -131,42 +116,45 @@ function AmazonToTranzactTool() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-400">
           <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold mt-0.5">1</span>
-            <span>Upload Amazon FBA Inventory Report (.txt) and FG Master from Tranzact (.xlsx)</span>
+            <span>Upload your Amazon FBA Inventory Report (.txt file)</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold mt-0.5">2</span>
-            <span>Maps Amazon SKUs to Tranzact FG Item IDs, sums quantities for multi-SKU items</span>
+            <span>SKUs are auto-mapped to FG Item IDs using built-in product data</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold mt-0.5">3</span>
-            <span>Download the Tranzact-ready Excel file and upload to Tranzact directly</span>
+            <span>Download the Tranzact-ready Excel and upload to Tranzact directly</span>
           </div>
         </div>
       </div>
 
-      {/* File Uploads */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <FileUploadBox
-          label="Amazon FBA Inventory Report"
-          accept=".txt,.tsv"
-          hint="Tab-separated .txt file from Amazon"
-          file={amazonFile}
-          onChange={handleAmazonFile}
-        />
-        <FileUploadBox
-          label="FG Master from Tranzact"
-          accept=".xlsx,.xls"
-          hint="All_FG_Items_in_Tranzact.xlsx"
-          file={fgMasterFile}
-          onChange={handleFgMasterFile}
-        />
+      {/* File Upload */}
+      <div className="max-w-md">
+        <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-4">
+          <label className="block text-sm font-medium text-slate-200 mb-2">
+            Amazon FBA Inventory Report
+          </label>
+          <input
+            type="file"
+            accept=".txt,.tsv"
+            onChange={handleAmazonFile}
+            className="block w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600 file:cursor-pointer cursor-pointer"
+          />
+          <p className="mt-1.5 text-[11px] text-slate-500">Tab-separated .txt file from Amazon Seller Central</p>
+          {amazonFile && (
+            <p className="mt-1.5 text-[11px] text-emerald-400">
+              Selected: {amazonFile.name}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Transform Button */}
       <div>
         <button
           onClick={handleTransform}
-          disabled={!amazonFile || !fgMasterFile || processing}
+          disabled={!amazonFile || processing}
           className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium rounded-lg transition-colors"
         >
           {processing ? 'Processing...' : 'Transform'}
@@ -265,38 +253,6 @@ function AmazonToTranzactTool() {
 }
 
 // ─── Shared UI Components ────────────────────────────────────────────────────
-
-function FileUploadBox({
-  label,
-  accept,
-  hint,
-  file,
-  onChange,
-}: {
-  label: string;
-  accept: string;
-  hint: string;
-  file: File | null;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-4">
-      <label className="block text-sm font-medium text-slate-200 mb-2">{label}</label>
-      <input
-        type="file"
-        accept={accept}
-        onChange={onChange}
-        className="block w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600 file:cursor-pointer cursor-pointer"
-      />
-      <p className="mt-1.5 text-[11px] text-slate-500">{hint}</p>
-      {file && (
-        <p className="mt-1.5 text-[11px] text-emerald-400">
-          Selected: {file.name}
-        </p>
-      )}
-    </div>
-  );
-}
 
 function SummaryCard({
   label,
