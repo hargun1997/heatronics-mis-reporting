@@ -11,6 +11,7 @@ const navItems: NavItem[] = [
   { path: '/mis-tracking', label: 'MIS Reporting' },
   { path: '/task-tracker', label: 'Task Tracker' },
   { path: '/business-guide', label: 'Business Guide' },
+  { path: '/tools', label: 'Tools' },
 ];
 
 export function MainLayout() {

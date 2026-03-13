@@ -1,0 +1,25 @@
+// Amazon SKU → Tranzact FG Item ID mapping
+// Update this when new products are added
+export const skuToFgMapping: Record<string, string> = {
+  "HB-QQ6J-D6E0": "FG-0001",
+  "Q6-0JD4-RPXK": "FG-0002",
+  "OW-MZO9-R7TJ": "FG-0003",
+  "GT-91UJ-JD7N": "FG-0004",
+  "21-MXC5-BLLT": "FG-0004",
+  "QC-WTL4-DIWU": "FG-0005",
+  "VW-H1GL-KTOZ": "FG-0006",
+  "KO-0KH0-SWWZ": "FG-0007",
+  "NR-1Z7Q-AC90": "FG-0008",
+  "RR-L1T5-8M45": "FG-0009",
+  "JC-TKTL-00CB": "FG-0010",
+  "S0-BWU5-P5EH": "FG-0011",
+  "S9-IVOI-793Z": "FG-0012",
+  "9W-MOKF-AXXY": "FG-0013",
+  "AE-LLV7-K2VT": "FG-0014",
+  "P0-PY23-1G7S": "FG-0015",
+  "6E-YH09-2IIY": "FG-0016",
+  "6A-IV4L-H3XQ": "FG-0017",
+  "RG-EZA6-YAQW": "FG-0020",
+  "TB-X7QH-YGPF": "FG-0021",
+  "U9-MBQV-1HFX": "FG-0023",
+};
