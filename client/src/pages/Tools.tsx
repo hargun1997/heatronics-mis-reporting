@@ -113,18 +113,53 @@ function AmazonToTranzactTool() {
       {/* How it works */}
       <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-5">
         <h3 className="text-sm font-medium text-slate-200 mb-3">How it works</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-400">
-          <div className="flex items-start gap-2">
-            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold mt-0.5">1</span>
-            <span>Upload your Amazon FBA Inventory Report (.txt file)</span>
+        <div className="space-y-4">
+          {/* Step 1: Download from Amazon */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold">1</span>
+              <span className="text-xs font-medium text-slate-200">Download from Amazon Seller Central</span>
+            </div>
+            <div className="ml-7 space-y-1 text-xs text-slate-400">
+              <p>Go to{' '}
+                <a href="https://sellercentral.amazon.in/listing/reports/ref=xx_invreport_dnav_xx" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 underline underline-offset-2">
+                  Inventory Reports
+                </a>
+              </p>
+              <p>Select <span className="text-slate-300 font-medium">"Inventory Report"</span> from the dropdown and click Request Report</p>
+              <p>Once generated, download the <span className="text-slate-300 font-medium">.txt</span> file</p>
+            </div>
           </div>
-          <div className="flex items-start gap-2">
-            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold mt-0.5">2</span>
-            <span>SKUs are auto-mapped to FG Item IDs using built-in product data</span>
+
+          {/* Step 2: Upload & Transform */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold">2</span>
+              <span className="text-xs font-medium text-slate-200">Upload & Transform here</span>
+            </div>
+            <div className="ml-7 space-y-1 text-xs text-slate-400">
+              <p>Upload the .txt file below — SKUs are auto-mapped to FG Items</p>
+              <p>Review the output preview, then click <span className="text-slate-300 font-medium">Download Excel</span></p>
+            </div>
           </div>
-          <div className="flex items-start gap-2">
-            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold mt-0.5">3</span>
-            <span>Download the Tranzact-ready Excel and upload to Tranzact directly</span>
+
+          {/* Step 3: Upload to Tranzact */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold">3</span>
+              <span className="text-xs font-medium text-slate-200">Upload to Tranzact</span>
+            </div>
+            <div className="ml-7 space-y-1 text-xs text-slate-400">
+              <p>Go to{' '}
+                <a href="https://app.letstranzact.com/v3/inventory/?section=item_master" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 underline underline-offset-2">
+                  Inventory → Item Master
+                </a>
+                {' '}→ Actions → <span className="text-slate-300 font-medium">Update Product Stock</span>
+              </p>
+              <p>Select store: <span className="text-slate-300 font-medium">Amazon (Pan-India)</span></p>
+              <p>Click <span className="text-slate-300 font-medium">Upload Template</span> and select the downloaded Excel file</p>
+              <p>Click <span className="text-slate-300 font-medium">Save</span></p>
+            </div>
           </div>
         </div>
       </div>
@@ -225,7 +260,7 @@ function AmazonToTranzactTool() {
                       <th className="text-left px-4 py-2 font-medium">Item ID</th>
                       <th className="text-left px-4 py-2 font-medium">Item Name</th>
                       <th className="text-left px-4 py-2 font-medium">Unit</th>
-                      <th className="text-right px-4 py-2 font-medium">Change By Qty</th>
+                      <th className="text-right px-4 py-2 font-medium">Revised Stock</th>
                       <th className="text-right px-4 py-2 font-medium">Price</th>
                       <th className="text-left px-4 py-2 font-medium">Type</th>
                     </tr>
@@ -236,7 +271,7 @@ function AmazonToTranzactTool() {
                         <td className="px-4 py-2 text-slate-300 font-mono">{row.itemId}</td>
                         <td className="px-4 py-2 text-slate-300">{row.itemName}</td>
                         <td className="px-4 py-2 text-slate-400">{row.unit}</td>
-                        <td className="px-4 py-2 text-right text-slate-100 font-medium">{row.changeByQty}</td>
+                        <td className="px-4 py-2 text-right text-slate-100 font-medium">{row.finalQty}</td>
                         <td className="px-4 py-2 text-right text-slate-400">{row.price.toFixed(2)}</td>
                         <td className="px-4 py-2 text-slate-400">{row.adjustmentType}</td>
                       </tr>
