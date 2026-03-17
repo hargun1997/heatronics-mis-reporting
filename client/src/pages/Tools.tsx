@@ -154,11 +154,10 @@ function AmazonToTranzactTool() {
                 <a href="https://app.letstranzact.com/v3/inventory/?section=item_master" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300 underline underline-offset-2">
                   Inventory → Item Master
                 </a>
-                {' '}→ Actions → <span className="text-slate-300 font-medium">Update Product Stock</span>
+                {' '}→ Actions → <span className="text-slate-300 font-medium">Physical Stock Reconciliation</span>
               </p>
-              <p>Select store: <span className="text-slate-300 font-medium">Amazon (Pan-India)</span></p>
-              <p>Click <span className="text-slate-300 font-medium">Upload Template</span> and select the downloaded Excel file</p>
-              <p>Click <span className="text-slate-300 font-medium">Save</span></p>
+              <p>Select Item Category: <span className="text-slate-300 font-medium">Finished Goods</span>, Store: <span className="text-slate-300 font-medium">Amazon (Pan-India)</span></p>
+              <p>Drag & drop the downloaded Excel file and click <span className="text-slate-300 font-medium">Submit</span></p>
             </div>
           </div>
         </div>
@@ -259,10 +258,9 @@ function AmazonToTranzactTool() {
                     <tr className="text-slate-400 border-b border-slate-700">
                       <th className="text-left px-4 py-2 font-medium">Item ID</th>
                       <th className="text-left px-4 py-2 font-medium">Item Name</th>
-                      <th className="text-left px-4 py-2 font-medium">Unit</th>
-                      <th className="text-right px-4 py-2 font-medium">Revised Stock</th>
-                      <th className="text-right px-4 py-2 font-medium">Price</th>
-                      <th className="text-left px-4 py-2 font-medium">Type</th>
+                      <th className="text-left px-4 py-2 font-medium">UOM</th>
+                      <th className="text-right px-4 py-2 font-medium">Physical Stock</th>
+                      <th className="text-left px-4 py-2 font-medium">Comment</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -270,10 +268,9 @@ function AmazonToTranzactTool() {
                       <tr key={row.itemId} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                         <td className="px-4 py-2 text-slate-300 font-mono">{row.itemId}</td>
                         <td className="px-4 py-2 text-slate-300">{row.itemName}</td>
-                        <td className="px-4 py-2 text-slate-400">{row.unit}</td>
-                        <td className="px-4 py-2 text-right text-slate-100 font-medium">{row.finalQty}</td>
-                        <td className="px-4 py-2 text-right text-slate-400">{row.price.toFixed(2)}</td>
-                        <td className="px-4 py-2 text-slate-400">{row.adjustmentType}</td>
+                        <td className="px-4 py-2 text-slate-400">{row.uom}</td>
+                        <td className="px-4 py-2 text-right text-slate-100 font-medium">{row.physicalStock}</td>
+                        <td className="px-4 py-2 text-slate-400 text-[11px]">{row.comment}</td>
                       </tr>
                     ))}
                   </tbody>

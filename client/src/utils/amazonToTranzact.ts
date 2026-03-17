@@ -12,14 +12,14 @@ export interface TransformResult {
   skippedFbm: number;
 }
 
+// Matches Tranzact Physical Stock Reconciliation template
 export interface OutputRow {
   itemId: string;
   itemName: string;
-  unit: string;
-  changeByQty: string;
-  finalQty: number;
-  price: number;
-  adjustmentType: string;
+  uom: string;
+  physicalStock: number;
+  difference: string; // left empty — Tranzact calculates this
+  price: string; // left empty — Tranzact fills from master
   comment: string;
 }
 
@@ -76,7 +76,7 @@ function parseAmazonReport(tsvContent: string): {
   return { rows, totalUnsellable, skippedFbm };
 }
 
-// STEP 4: Match & Consolidate
+// STEP 2: Match & Consolidate
 function matchAndConsolidate(
   amazonRows: { sku: string; qty: number }[],
   skuMap: Record<string, string>
@@ -101,7 +101,7 @@ function matchAndConsolidate(
   return { fgStock, unmatchedSkus };
 }
 
-// STEP 5: Build output rows using built-in FG master
+// STEP 3: Build output rows for Physical Stock Reconciliation
 function buildOutputRows(
   fgStock: Record<string, FgStock>,
   master: Record<string, FgMasterEntry>
@@ -121,11 +121,10 @@ function buildOutputRows(
     outputRows.push({
       itemId: fgId,
       itemName: masterItem.itemName,
-      unit: masterItem.unit,
-      changeByQty: '',
-      finalQty: stock.qty,
-      price: masterItem.defaultPrice,
-      adjustmentType: 'Other',
+      uom: masterItem.unit,
+      physicalStock: stock.qty,
+      difference: '',
+      price: '',
       comment: `Amazon FBA Stock | SKU(s): ${stock.skus.join(', ')} | Date: ${today}`,
     });
   }
@@ -133,18 +132,17 @@ function buildOutputRows(
   return { outputRows, missingFgItems };
 }
 
-// STEP 6: Generate Excel output
+// STEP 4: Generate Excel matching Tranzact Physical Stock Reconciliation template
 export function generateTranzactExcel(rows: OutputRow[]): Blob {
   const wsData = [
-    ['Item ID', 'Item Name', 'Unit', 'Change By Qty', 'Final Qty', 'Price', 'Adjustment Type', 'Comment'],
+    ['Item ID', 'Item Name', 'UOM', 'Physical Stock', 'Difference', 'Price', 'Comment'],
     ...rows.map(r => [
       r.itemId,
       r.itemName,
-      r.unit,
-      r.changeByQty,
-      r.finalQty,
+      r.uom,
+      r.physicalStock,
+      r.difference,
       r.price,
-      r.adjustmentType,
       r.comment,
     ]),
   ];
@@ -155,11 +153,10 @@ export function generateTranzactExcel(rows: OutputRow[]): Blob {
   ws['!cols'] = [
     { wch: 12 },
     { wch: 35 },
-    { wch: 10 },
+    { wch: 8 },
     { wch: 14 },
+    { wch: 12 },
     { wch: 10 },
-    { wch: 10 },
-    { wch: 16 },
     { wch: 60 },
   ];
 
@@ -168,7 +165,7 @@ export function generateTranzactExcel(rows: OutputRow[]): Blob {
   return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 
-// Main transform function — only needs the Amazon report now
+// Main transform — only needs the Amazon report
 export function transformAmazonToTranzact(
   amazonTsvContent: string,
   customSkuMap?: Record<string, string>
@@ -181,7 +178,7 @@ export function transformAmazonToTranzact(
 
   const { outputRows, missingFgItems } = buildOutputRows(fgStock, fgMaster);
 
-  const totalUnitsMapped = outputRows.reduce((sum, r) => sum + r.finalQty, 0);
+  const totalUnitsMapped = outputRows.reduce((sum, r) => sum + r.physicalStock, 0);
 
   return {
     outputRows,
