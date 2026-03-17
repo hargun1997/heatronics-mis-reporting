@@ -19,7 +19,7 @@ export interface OutputRow {
   uom: string;
   physicalStock: number;
   difference: string; // left empty — Tranzact calculates this
-  price: string; // left empty — Tranzact fills from master
+  price: number; // 0 — Tranzact fills from master
   comment: string;
 }
 
@@ -124,7 +124,7 @@ function buildOutputRows(
       uom: masterItem.unit,
       physicalStock: stock.qty,
       difference: '',
-      price: '',
+      price: 0,
       comment: `Amazon FBA Stock | SKU(s): ${stock.skus.join(', ')} | Date: ${today}`,
     });
   }
