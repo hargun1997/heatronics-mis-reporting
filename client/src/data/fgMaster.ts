@@ -33,4 +33,7 @@ export const fgMaster: Record<string, FgMasterEntry> = {
   "FG-0023": { itemId: "FG-0023", itemName: "HTR-Tummy_Trimmer", unit: "pcs", defaultPrice: 500 },
   "FG-0024": { itemId: "FG-0024", itemName: "Fedora-HP-R-A (Light Grey)", unit: "pcs", defaultPrice: 325 },
   "FG-0025": { itemId: "FG-0025", itemName: "Coronation-PVC-HP-R-Beige", unit: "pcs", defaultPrice: 325 },
+  "FG-0026": { itemId: "FG-0026", itemName: "Infi-Regular-Analog-Blue", unit: "pcs", defaultPrice: 0 },
+  "FG-0027": { itemId: "FG-0027", itemName: "HTR-HP-XL-D (Light Grey)", unit: "pcs", defaultPrice: 0 },
+  "FG-0028": { itemId: "FG-0028", itemName: "Dipnish-HP-R-A (Light Grey)", unit: "pcs", defaultPrice: 0 },
 };
