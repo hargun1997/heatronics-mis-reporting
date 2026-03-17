@@ -16,8 +16,8 @@ export interface OutputRow {
   itemId: string;
   itemName: string;
   unit: string;
-  changeByQty: number;
-  finalQty: string;
+  changeByQty: string;
+  finalQty: number;
   price: number;
   adjustmentType: string;
   comment: string;
@@ -122,8 +122,8 @@ function buildOutputRows(
       itemId: fgId,
       itemName: masterItem.itemName,
       unit: masterItem.unit,
-      changeByQty: stock.qty,
-      finalQty: '',
+      changeByQty: '',
+      finalQty: stock.qty,
       price: masterItem.defaultPrice,
       adjustmentType: 'Other',
       comment: `Amazon FBA Stock | SKU(s): ${stock.skus.join(', ')} | Date: ${today}`,
@@ -181,7 +181,7 @@ export function transformAmazonToTranzact(
 
   const { outputRows, missingFgItems } = buildOutputRows(fgStock, fgMaster);
 
-  const totalUnitsMapped = outputRows.reduce((sum, r) => sum + r.changeByQty, 0);
+  const totalUnitsMapped = outputRows.reduce((sum, r) => sum + r.finalQty, 0);
 
   return {
     outputRows,

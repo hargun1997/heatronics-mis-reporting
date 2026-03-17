@@ -260,7 +260,7 @@ function AmazonToTranzactTool() {
                       <th className="text-left px-4 py-2 font-medium">Item ID</th>
                       <th className="text-left px-4 py-2 font-medium">Item Name</th>
                       <th className="text-left px-4 py-2 font-medium">Unit</th>
-                      <th className="text-right px-4 py-2 font-medium">Change By Qty</th>
+                      <th className="text-right px-4 py-2 font-medium">Revised Stock</th>
                       <th className="text-right px-4 py-2 font-medium">Price</th>
                       <th className="text-left px-4 py-2 font-medium">Type</th>
                     </tr>
@@ -271,7 +271,7 @@ function AmazonToTranzactTool() {
                         <td className="px-4 py-2 text-slate-300 font-mono">{row.itemId}</td>
                         <td className="px-4 py-2 text-slate-300">{row.itemName}</td>
                         <td className="px-4 py-2 text-slate-400">{row.unit}</td>
-                        <td className="px-4 py-2 text-right text-slate-100 font-medium">{row.changeByQty}</td>
+                        <td className="px-4 py-2 text-right text-slate-100 font-medium">{row.finalQty}</td>
                         <td className="px-4 py-2 text-right text-slate-400">{row.price.toFixed(2)}</td>
                         <td className="px-4 py-2 text-slate-400">{row.adjustmentType}</td>
                       </tr>
