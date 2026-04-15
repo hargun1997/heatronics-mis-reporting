@@ -1,0 +1,90 @@
+{
+  "category": "investors",
+  "name": "Investors",
+  "description": "Investor reporting, board updates, cap-table hygiene and funding-round milestones.",
+  "version": 1,
+  "updatedAt": "2026-04-15",
+  "items": [
+    {
+      "id": "inv-monthly-update",
+      "title": "Monthly investor update",
+      "description": "Share KPIs, revenue, burn, runway, wins and asks with existing investors.",
+      "frequency": "monthly",
+      "dueDay": 10,
+      "owner": "Founder / CFO",
+      "notes": "Standard template — metrics, highlights, lowlights, asks, cash position."
+    },
+    {
+      "id": "inv-quarterly-board",
+      "title": "Quarterly board deck",
+      "description": "Consolidated financials, product roadmap, hiring plan and material risks.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 20,
+      "owner": "CFO / Founder"
+    },
+    {
+      "id": "inv-cap-table",
+      "title": "Cap table reconciliation",
+      "description": "Reconcile cap table with ROC records and ESOP grants issued.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 10,
+      "owner": "CFO / CS"
+    },
+    {
+      "id": "inv-audited-financials",
+      "title": "Share audited financials",
+      "description": "Share audited financial statements and auditor's report with investors.",
+      "frequency": "yearly",
+      "dueMonth": 11,
+      "dueDay": 15,
+      "owner": "CFO"
+    },
+    {
+      "id": "inv-sha-compliance",
+      "title": "SHA compliance review",
+      "description": "Review SHA — info rights, reserved matters, drag/tag, anti-dilution triggers.",
+      "frequency": "yearly",
+      "dueMonth": 4,
+      "dueDay": 30,
+      "owner": "CFO / Legal"
+    },
+    {
+      "id": "inv-esop-pool",
+      "title": "ESOP pool review",
+      "description": "Track ESOPs granted vs. available pool, vesting schedules and exercises.",
+      "frequency": "half-yearly",
+      "months": [4, 10],
+      "dueDay": 30,
+      "owner": "CFO / HR"
+    },
+    {
+      "id": "inv-valuation-369",
+      "title": "Valuation report (for primary / secondary)",
+      "description": "Rule 11UA valuation for fresh issue or transfer — needed only for rounds.",
+      "frequency": "one-time",
+      "owner": "CFO"
+    },
+    {
+      "id": "inv-fla-return",
+      "title": "FLA Return (FEMA)",
+      "description": "Annual return on foreign liabilities & assets to RBI if any foreign investor exists.",
+      "form": "FLA",
+      "frequency": "yearly",
+      "dueMonth": 7,
+      "dueDay": 15,
+      "owner": "CFO",
+      "authority": "RBI"
+    },
+    {
+      "id": "inv-fc-gpr",
+      "title": "FC-GPR filing (FEMA)",
+      "description": "Report fresh share allotment to non-resident investor within 30 days.",
+      "form": "Form FC-GPR",
+      "frequency": "one-time",
+      "owner": "CFO / CS",
+      "authority": "RBI"
+    }
+  ]
+}

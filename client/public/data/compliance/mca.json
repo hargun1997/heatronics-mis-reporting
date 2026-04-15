@@ -1,0 +1,107 @@
+{
+  "category": "mca",
+  "name": "MCA / ROC",
+  "description": "Companies Act compliances — Board Meetings, ROC filings, statutory registers and director-related disclosures.",
+  "version": 1,
+  "updatedAt": "2026-04-15",
+  "items": [
+    {
+      "id": "mca-board-mtg",
+      "title": "Board Meeting",
+      "description": "Minimum 4 board meetings in a calendar year, gap not exceeding 120 days between consecutive meetings.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 30,
+      "owner": "Company Secretary",
+      "authority": "MCA",
+      "notes": "Keep minutes and attendance register updated within 30 days of the meeting."
+    },
+    {
+      "id": "mca-agm",
+      "title": "Annual General Meeting (AGM)",
+      "description": "Hold AGM within 6 months of FY end (30 September).",
+      "frequency": "yearly",
+      "dueMonth": 9,
+      "dueDay": 30,
+      "owner": "Company Secretary",
+      "authority": "MCA",
+      "penalty": "Rs.1,00,000 + Rs.5,000/day u/s 99"
+    },
+    {
+      "id": "mca-aoc4",
+      "title": "File AOC-4 (Financials)",
+      "description": "File audited financial statements with ROC within 30 days of AGM.",
+      "form": "AOC-4",
+      "frequency": "yearly",
+      "dueMonth": 10,
+      "dueDay": 29,
+      "owner": "Company Secretary",
+      "authority": "MCA",
+      "penalty": "Rs.100/day with no upper limit"
+    },
+    {
+      "id": "mca-mgt7",
+      "title": "File MGT-7 / MGT-7A (Annual Return)",
+      "description": "Annual return with ROC within 60 days of AGM. MGT-7A for small companies and OPCs.",
+      "form": "MGT-7 / MGT-7A",
+      "frequency": "yearly",
+      "dueMonth": 11,
+      "dueDay": 28,
+      "owner": "Company Secretary",
+      "authority": "MCA"
+    },
+    {
+      "id": "mca-dir3-kyc",
+      "title": "DIR-3 KYC (Directors)",
+      "description": "Annual KYC by every director holding DIN.",
+      "form": "DIR-3 KYC",
+      "frequency": "yearly",
+      "dueMonth": 9,
+      "dueDay": 30,
+      "owner": "Company Secretary",
+      "authority": "MCA",
+      "penalty": "Rs.5,000 for late filing + DIN deactivation"
+    },
+    {
+      "id": "mca-dpt3",
+      "title": "Return of Deposits (DPT-3)",
+      "description": "Annual return of outstanding loans / deposits / non-deposit money received.",
+      "form": "DPT-3",
+      "frequency": "yearly",
+      "dueMonth": 6,
+      "dueDay": 30,
+      "owner": "Company Secretary",
+      "authority": "MCA"
+    },
+    {
+      "id": "mca-msme-1",
+      "title": "MSME Form I — delayed payments",
+      "description": "Half-yearly return of payments to MSME vendors outstanding beyond 45 days.",
+      "form": "Form MSME-1",
+      "frequency": "half-yearly",
+      "months": [4, 10],
+      "dueDay": 30,
+      "owner": "Accounts / CS",
+      "authority": "MCA"
+    },
+    {
+      "id": "mca-disclosure-mbp1",
+      "title": "Director interest disclosure (MBP-1)",
+      "description": "Fresh MBP-1 from every director at the first board meeting of each FY.",
+      "form": "MBP-1",
+      "frequency": "yearly",
+      "dueMonth": 4,
+      "dueDay": 30,
+      "owner": "Company Secretary"
+    },
+    {
+      "id": "mca-statutory-registers",
+      "title": "Update statutory registers",
+      "description": "Registers of members, directors, charges, contracts, related party — reviewed and updated.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 15,
+      "owner": "Company Secretary"
+    }
+  ]
+}

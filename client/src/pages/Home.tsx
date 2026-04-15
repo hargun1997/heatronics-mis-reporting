@@ -7,9 +7,9 @@ const iconReporting = (
   </svg>
 );
 
-const iconTracker = (
+const iconCompliance = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
   </svg>
 );
 
@@ -46,11 +46,11 @@ export function Home() {
           accent="brand"
         />
         <NavCard
-          to="/tracker"
-          title="Tracker"
-          description="Stay on top of daily, weekly and monthly accounting tasks, filings, and reconciliations."
-          icon={iconTracker}
-          accent="emerald"
+          to="/compliance"
+          title="Compliance Calendar"
+          description="Track monthly, quarterly and yearly compliance across Accounts, Legal, MCA, ISO, HR, Investors and Admin."
+          icon={iconCompliance}
+          accent="amber"
         />
         <NavCard
           to="/guide"
@@ -63,8 +63,8 @@ export function Home() {
 
       {/* Quick shortcuts */}
       <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <QuickLink to="/guide/architecture" label="System Architecture" tag="Guide" />
-        <QuickLink to="/guide/sop" label="Accounting SOPs" tag="Guide" />
+        <QuickLink to="/compliance/accounts" label="Accounts Compliance" tag="Compliance" />
+        <QuickLink to="/compliance/mca" label="MCA / ROC" tag="Compliance" />
         <QuickLink to="/guide/tools/invoice-booking" label="Invoice Booking Suggester" tag="Tool" />
         <QuickLink to="/guide/ledgers" label="Ledger & Voucher Tree" tag="Reference" />
       </div>
