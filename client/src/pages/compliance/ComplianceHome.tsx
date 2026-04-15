@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { NavCard } from '../../components/ui/Card';
 import { PageHeader } from '../../components/ui/PageHeader';
-import {
-  ALL_CATEGORIES,
-  CATEGORY_META,
+import type {
   ComplianceCategory,
   ComplianceCategoryKey,
 } from '../../data/compliance/types';
+import { ALL_CATEGORIES, CATEGORY_META } from '../../data/compliance/types';
 import {
   currentYearMonth,
   getAllProgress,
@@ -14,6 +13,7 @@ import {
   loadCategory,
   parseYearMonth,
 } from '../../data/compliance/storage';
+import { CategoryTabs } from './CategoryTabs';
 
 const iconCalendar = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -73,32 +73,27 @@ export function ComplianceHome() {
     <>
       <PageHeader
         title="Compliance Calendar"
-        description="Monthly, quarterly and yearly compliance for Accounts, Legal, MCA, ISO, HR, Investors and Admin — in one place."
+        description="Monthly, quarterly and yearly compliance across Accounts, Legal, MCA, ISO, HR, Investors and Admin."
         accent="amber"
         icon={iconCalendar}
       />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Current month banner */}
-        <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-amber-50 to-white p-4 flex flex-wrap items-center justify-between gap-3">
+      <CategoryTabs />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+        <div className="rounded-xl border border-slate-200 bg-white px-5 py-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
               Current period
             </div>
-            <div className="text-lg font-semibold text-slate-900">{monthLabel}</div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Each category card below shows how many items are due this month and how many are
-              already ticked off.
-            </p>
+            <div className="text-base font-semibold text-slate-900">{monthLabel}</div>
           </div>
           <TotalsBadge stats={stats} />
         </div>
 
-        {/* Category cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {ALL_CATEGORIES.map((cat) => {
             const meta = CATEGORY_META[cat];
             const s = stats[cat];
-            const badge = s ? `${s.doneThisMonth}/${s.dueThisMonth} this month` : undefined;
+            const badge = s ? `${s.doneThisMonth}/${s.dueThisMonth}` : undefined;
             return (
               <NavCard
                 key={cat}
@@ -111,44 +106,6 @@ export function ComplianceHome() {
               />
             );
           })}
-        </div>
-
-        {/* How it works */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">How the calendar works</h3>
-          <ul className="mt-3 space-y-2 text-sm text-slate-700">
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
-              <span>
-                Each category is seeded from a JSON template in{' '}
-                <code className="text-[11px] bg-slate-100 px-1 rounded">
-                  public/data/compliance/
-                </code>
-                . The backend can overwrite these files to roll out new items for everyone.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-              <span>
-                You can add / edit / delete items directly in the UI. Your local changes are saved
-                in the browser so you can experiment before a central update.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
-              <span>
-                Monthly check-marks track progress per item × month. You can scroll back to any
-                month to see what was completed.
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" />
-              <span>
-                Export your current list as JSON (for review) or import a JSON you&rsquo;ve edited
-                offline.
-              </span>
-            </li>
-          </ul>
         </div>
       </div>
     </>

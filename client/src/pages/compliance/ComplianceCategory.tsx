@@ -25,6 +25,8 @@ import {
   setProgress,
   yearMonth,
 } from '../../data/compliance/storage';
+import { CategoryTabs } from './CategoryTabs';
+import { MonthStrip } from './MonthStrip';
 
 const iconCal = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -181,6 +183,7 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
     return (
       <>
         <PageHeader title={meta.name} accent={meta.accent} icon={iconCal} />
+        <CategoryTabs />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 text-center text-sm text-slate-500">
           Loading compliance items&hellip;
         </div>
@@ -192,6 +195,7 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
     return (
       <>
         <PageHeader title={meta.name} accent={meta.accent} icon={iconCal} />
+        <CategoryTabs />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
             {error || 'Unable to load compliance data.'}
@@ -223,39 +227,44 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
               onClick={handleExport}
               className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-lg transition-colors"
             >
-              Export JSON
+              Export
             </button>
             <label className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-lg transition-colors cursor-pointer">
-              Import JSON
+              Import
               <input type="file" accept=".json" onChange={handleImport} className="hidden" />
             </label>
           </div>
         }
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        {/* Month picker + progress */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 flex flex-wrap items-center justify-between gap-3">
-          <MonthPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">Progress</div>
-              <div className="text-sm font-semibold text-slate-900">
-                {doneCount} / {dueItems.length} done
-              </div>
-            </div>
-            <div className="w-32 h-2.5 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
-            </div>
+      <CategoryTabs />
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 space-y-4">
+        <MonthStrip
+          year={year}
+          month={month}
+          items={data.items}
+          onChange={(y, m) => { setYear(y); setMonth(m); }}
+        />
+
+        {/* Progress bar */}
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="text-sm text-slate-700">
+            <span className="font-semibold text-slate-900">{doneCount}</span>
+            <span className="text-slate-500"> of {dueItems.length} done in </span>
+            <span className="font-medium text-slate-900">
+              {new Date(year, month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+            </span>
+          </div>
+          <div className="w-40 h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
         </div>
 
         {/* Overridden banner */}
         {overridden && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800 flex items-center justify-between gap-3">
-            <span>
-              You are viewing locally-edited items. The template JSON in the repo is unchanged.
-            </span>
+            <span>Local edits are active. Template JSON in the repo is unchanged.</span>
             <button
               onClick={handleResetToTemplate}
               className="px-2.5 py-1 bg-white border border-amber-200 hover:bg-amber-100 text-amber-800 text-[11px] font-medium rounded-md"
@@ -268,7 +277,7 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
         {/* Due items */}
         <ItemsTable
           key={`due-${progressTick}`}
-          title={`Due in ${new Date(year, month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`}
+          title={`Due this month (${dueItems.length})`}
           items={dueItems}
           year={year}
           month={month}
@@ -279,19 +288,22 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
           emptyLabel="Nothing due in this month."
         />
 
-        {/* Not due this month */}
+        {/* Not due — collapsed by default */}
         {nonDueItems.length > 0 && (
-          <ItemsTable
-            title="Not due this month"
-            items={nonDueItems}
-            year={year}
-            month={month}
-            progress={progress}
-            onToggle={handleToggle}
-            onEdit={(i) => { setEditingItem(i); setEditorOpen(true); }}
-            onDelete={handleDelete}
-            muted
-          />
+          <CollapsibleSection title={`Not due this month (${nonDueItems.length})`}>
+            <ItemsTable
+              title=""
+              items={nonDueItems}
+              year={year}
+              month={month}
+              progress={progress}
+              onToggle={handleToggle}
+              onEdit={(i) => { setEditingItem(i); setEditorOpen(true); }}
+              onDelete={handleDelete}
+              muted
+              headless
+            />
+          </CollapsibleSection>
         )}
       </div>
 
@@ -307,51 +319,25 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
   );
 }
 
-// ---------------- MonthPicker ----------------
+// ---------------- CollapsibleSection ----------------
 
-function MonthPicker({
-  year,
-  month,
-  onChange,
-}: {
-  year: number;
-  month: number;
-  onChange: (year: number, month: number) => void;
-}) {
-  const shift = (delta: number) => {
-    const d = new Date(year, month - 1 + delta, 1);
-    onChange(d.getFullYear(), d.getMonth() + 1);
-  };
-  const today = new Date();
-  const monthNames = [
-    'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec',
-  ];
+function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="flex items-center gap-2">
+    <div className="rounded-xl border border-slate-200 bg-white">
       <button
-        onClick={() => shift(-1)}
-        className="w-7 h-7 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center"
-        aria-label="Previous month"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-5 py-3 text-left"
       >
-        &lsaquo;
+        <span className="text-sm font-medium text-slate-700">{title}</span>
+        <svg
+          className={`h-4 w-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
-      <div className="min-w-[8rem] text-center">
-        <div className="text-[11px] uppercase tracking-wider text-slate-500">Viewing</div>
-        <div className="text-sm font-semibold text-slate-900">{monthNames[month - 1]} {year}</div>
-      </div>
-      <button
-        onClick={() => shift(1)}
-        className="w-7 h-7 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center"
-        aria-label="Next month"
-      >
-        &rsaquo;
-      </button>
-      <button
-        onClick={() => onChange(today.getFullYear(), today.getMonth() + 1)}
-        className="ml-1 px-2 py-1 text-[11px] font-medium rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-      >
-        Today
-      </button>
+      {open && <div className="border-t border-slate-100">{children}</div>}
     </div>
   );
 }
@@ -369,6 +355,7 @@ function ItemsTable({
   onDelete,
   emptyLabel,
   muted,
+  headless,
 }: {
   title: string;
   items: ComplianceItem[];
@@ -380,14 +367,17 @@ function ItemsTable({
   onDelete: (id: string) => void;
   emptyLabel?: string;
   muted?: boolean;
+  headless?: boolean;
 }) {
   const ym = yearMonth(year, month);
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white ${muted ? 'opacity-90' : ''}`}>
-      <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-        <span className="text-[11px] uppercase tracking-wider text-slate-400">{items.length} items</span>
-      </div>
+    <div className={`${headless ? '' : 'rounded-xl border border-slate-200'} bg-white ${muted ? 'opacity-90' : ''}`}>
+      {!headless && (
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          <span className="text-[11px] uppercase tracking-wider text-slate-400">{items.length} items</span>
+        </div>
+      )}
       {items.length === 0 ? (
         <div className="px-5 py-6 text-center text-xs text-slate-500">{emptyLabel || '—'}</div>
       ) : (
