@@ -1,0 +1,103 @@
+{
+  "category": "admin",
+  "name": "Admin",
+  "description": "Office, facilities, IT, insurance, utilities and day-to-day administration.",
+  "version": 1,
+  "updatedAt": "2026-04-15",
+  "items": [
+    {
+      "id": "adm-rent-payment",
+      "title": "Office & warehouse rent",
+      "description": "Pay rent, share TDS computation with landlord.",
+      "frequency": "monthly",
+      "dueDay": 5,
+      "owner": "Admin"
+    },
+    {
+      "id": "adm-utility-bills",
+      "title": "Utility bills (electricity, water, internet)",
+      "description": "Collect, book and pay utility bills.",
+      "frequency": "monthly",
+      "dueDay": 10,
+      "owner": "Admin"
+    },
+    {
+      "id": "adm-insurance-renew",
+      "title": "Insurance renewals (fire, stock, liability)",
+      "description": "Review and renew general insurance policies before expiry.",
+      "frequency": "yearly",
+      "dueMonth": 3,
+      "dueDay": 31,
+      "owner": "Admin / CFO"
+    },
+    {
+      "id": "adm-group-mediclaim",
+      "title": "Group mediclaim renewal",
+      "description": "Renew employee group mediclaim; update list of covered employees and dependants.",
+      "frequency": "yearly",
+      "dueMonth": 3,
+      "dueDay": 31,
+      "owner": "HR / Admin"
+    },
+    {
+      "id": "adm-ewaybill-check",
+      "title": "E-way bill compliance check",
+      "description": "Review outbound and inbound e-way bills — cancellations, expiries, mismatches.",
+      "frequency": "weekly",
+      "dueDay": 1,
+      "owner": "Logistics / Admin"
+    },
+    {
+      "id": "adm-fire-drill",
+      "title": "Fire drill / safety walk",
+      "description": "Conduct fire drill, inspect extinguishers and emergency exits.",
+      "frequency": "quarterly",
+      "months": [3, 6, 9, 12],
+      "dueDay": 25,
+      "owner": "Admin / HSE"
+    },
+    {
+      "id": "adm-vehicle-renew",
+      "title": "Company vehicle — PUC / insurance / FC",
+      "description": "Track Pollution Certificate, insurance and fitness renewals.",
+      "frequency": "yearly",
+      "dueMonth": 4,
+      "dueDay": 30,
+      "owner": "Admin"
+    },
+    {
+      "id": "adm-amc-review",
+      "title": "AMC review (AC, lifts, pest control, CCTV)",
+      "description": "Verify service frequency under AMCs, raise POs for renewals.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 15,
+      "owner": "Admin"
+    },
+    {
+      "id": "adm-asset-physical",
+      "title": "Fixed asset physical verification",
+      "description": "Physical verification of high-value assets against the fixed asset register.",
+      "frequency": "yearly",
+      "dueMonth": 3,
+      "dueDay": 31,
+      "owner": "Admin / Accounts"
+    },
+    {
+      "id": "adm-it-backups",
+      "title": "Data backup integrity check",
+      "description": "Verify Tally, Tranzact and shared-drive backups are running and restorable.",
+      "frequency": "monthly",
+      "dueDay": 25,
+      "owner": "IT / Admin"
+    },
+    {
+      "id": "adm-courier-recon",
+      "title": "Courier charges reconciliation",
+      "description": "Match Shiprocket / DTDC / Bluedart invoices with dispatch register and book expense.",
+      "frequency": "monthly",
+      "dueDay": 12,
+      "owner": "Admin / Accounts"
+    }
+  ]
+}

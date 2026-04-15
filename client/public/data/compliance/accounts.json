@@ -1,0 +1,142 @@
+{
+  "category": "accounts",
+  "name": "Accounts",
+  "description": "GST, TDS, Income Tax, TCS and day-to-day book-closure compliance owned by the Finance team.",
+  "version": 1,
+  "updatedAt": "2026-04-15",
+  "items": [
+    {
+      "id": "acc-gstr1",
+      "title": "File GSTR-1",
+      "description": "Outward supplies return — upload sales invoices for the preceding month.",
+      "form": "GSTR-1",
+      "frequency": "monthly",
+      "dueDay": 11,
+      "owner": "Accounts Manager",
+      "authority": "GSTN",
+      "penalty": "Rs.50/day (Rs.20/day for nil) late fee + 18% p.a. interest",
+      "notes": "Reconcile with Tally sales register and channel settlements (Amazon, Shopify, Blinkit) before filing."
+    },
+    {
+      "id": "acc-gstr3b",
+      "title": "File GSTR-3B",
+      "description": "Summary return with tax payment — net output tax less input tax credit.",
+      "form": "GSTR-3B",
+      "frequency": "monthly",
+      "dueDay": 20,
+      "owner": "Accounts Manager",
+      "authority": "GSTN",
+      "penalty": "Rs.50/day late fee + interest at 18% p.a. on tax dues",
+      "notes": "Reconcile with GSTR-2B before claiming ITC. Pay GST via Challan PMT-06 if cash ledger insufficient."
+    },
+    {
+      "id": "acc-gstr2b-recon",
+      "title": "GSTR-2B vs Purchase Register reconciliation",
+      "description": "Match vendor-side uploaded invoices with our booked purchases. Follow up on missing invoices.",
+      "frequency": "monthly",
+      "dueDay": 14,
+      "owner": "Accounts Executive",
+      "notes": "ITC can only be claimed for invoices appearing in GSTR-2B per Section 16(2)(aa)."
+    },
+    {
+      "id": "acc-tds-payment",
+      "title": "Deposit TDS",
+      "description": "Pay TDS deducted in the preceding month via Challan ITNS-281.",
+      "form": "ITNS-281",
+      "frequency": "monthly",
+      "dueDay": 7,
+      "owner": "Accounts Manager",
+      "authority": "Income Tax",
+      "penalty": "1% p.m. for non-deduction, 1.5% p.m. for non-deposit, u/s 201",
+      "notes": "March TDS has an extended due date of 30 April."
+    },
+    {
+      "id": "acc-tcs-payment",
+      "title": "Deposit TCS",
+      "description": "Pay TCS collected (e.g., on scrap sales) via Challan ITNS-281.",
+      "form": "ITNS-281",
+      "frequency": "monthly",
+      "dueDay": 7,
+      "owner": "Accounts Manager",
+      "authority": "Income Tax"
+    },
+    {
+      "id": "acc-tds-return-q",
+      "title": "File quarterly TDS return (24Q / 26Q / 27Q)",
+      "description": "Quarterly statement of TDS — salaries (24Q), non-salary residents (26Q), non-residents (27Q).",
+      "form": "Form 24Q / 26Q / 27Q",
+      "frequency": "quarterly",
+      "months": [7, 10, 1, 5],
+      "dueDay": 31,
+      "owner": "Accounts Manager",
+      "authority": "Income Tax",
+      "penalty": "Rs.200/day u/s 234E + Rs.10,000 to Rs.1,00,000 u/s 271H",
+      "notes": "Issue Form 16A to deductees within 15 days of filing."
+    },
+    {
+      "id": "acc-advance-tax",
+      "title": "Pay advance tax instalment",
+      "description": "15% / 45% / 75% / 100% of estimated income tax liability.",
+      "frequency": "quarterly",
+      "months": [6, 9, 12, 3],
+      "dueDay": 15,
+      "owner": "CFO / Accounts Manager",
+      "authority": "Income Tax",
+      "penalty": "Interest u/s 234B and 234C for shortfall"
+    },
+    {
+      "id": "acc-professional-tax",
+      "title": "Pay Professional Tax (PT)",
+      "description": "State professional tax for employees and enrolment.",
+      "frequency": "monthly",
+      "dueDay": 15,
+      "owner": "Accounts Executive",
+      "authority": "State Commercial Tax",
+      "notes": "Check applicable state — Maharashtra, Karnataka, West Bengal etc. have different slabs and due dates."
+    },
+    {
+      "id": "acc-itr-filing",
+      "title": "File Income Tax Return (ITR-6)",
+      "description": "Annual return of income for the company.",
+      "form": "ITR-6",
+      "frequency": "yearly",
+      "dueMonth": 10,
+      "dueDay": 31,
+      "owner": "CFO",
+      "authority": "Income Tax",
+      "notes": "Extended to 31 Oct for cases subject to tax audit."
+    },
+    {
+      "id": "acc-tax-audit",
+      "title": "Tax Audit (Form 3CA/3CB/3CD)",
+      "description": "Tax audit report by chartered accountant if turnover exceeds the threshold.",
+      "form": "Form 3CD",
+      "frequency": "yearly",
+      "dueMonth": 9,
+      "dueDay": 30,
+      "owner": "CFO / Statutory Auditor",
+      "authority": "Income Tax"
+    },
+    {
+      "id": "acc-gstr9",
+      "title": "File GSTR-9 (Annual return)",
+      "description": "Consolidated annual return of outward supplies, ITC claimed and tax paid.",
+      "form": "GSTR-9 / 9C",
+      "frequency": "yearly",
+      "dueMonth": 12,
+      "dueDay": 31,
+      "owner": "Accounts Manager",
+      "authority": "GSTN",
+      "notes": "GSTR-9C reconciliation statement required if turnover exceeds Rs.5 cr."
+    },
+    {
+      "id": "acc-mis-close",
+      "title": "Monthly MIS close",
+      "description": "Generate monthly MIS — P&L, channel-wise contribution, cash flow — in the Reporting section.",
+      "frequency": "monthly",
+      "dueDay": 5,
+      "owner": "CFO",
+      "notes": "Depends on bank & channel recons being completed first."
+    }
+  ]
+}

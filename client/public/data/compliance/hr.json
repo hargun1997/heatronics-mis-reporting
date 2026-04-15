@@ -1,0 +1,111 @@
+{
+  "category": "hr",
+  "name": "HR & Payroll",
+  "description": "Payroll, PF, ESI, gratuity, performance, recruitment and employee lifecycle compliance.",
+  "version": 1,
+  "updatedAt": "2026-04-15",
+  "items": [
+    {
+      "id": "hr-payroll-run",
+      "title": "Run monthly payroll",
+      "description": "Compute salaries, attendance, leaves, overtime, and release payslips.",
+      "frequency": "monthly",
+      "dueDay": 1,
+      "owner": "HR / Payroll",
+      "notes": "Cut-off is 25th of the previous month."
+    },
+    {
+      "id": "hr-salary-disbursement",
+      "title": "Salary disbursement",
+      "description": "Transfer salaries to employee accounts via bank upload.",
+      "frequency": "monthly",
+      "dueDay": 5,
+      "owner": "Accounts"
+    },
+    {
+      "id": "hr-pf-challan",
+      "title": "PF deposit (ECR)",
+      "description": "Deposit Provident Fund via EPFO ECR portal.",
+      "form": "ECR",
+      "frequency": "monthly",
+      "dueDay": 15,
+      "owner": "HR / Payroll",
+      "authority": "EPFO",
+      "penalty": "Interest @12% p.a. + damages 5%-25%"
+    },
+    {
+      "id": "hr-esi-challan",
+      "title": "ESI deposit",
+      "description": "Deposit Employees' State Insurance contribution.",
+      "frequency": "monthly",
+      "dueDay": 15,
+      "owner": "HR / Payroll",
+      "authority": "ESIC"
+    },
+    {
+      "id": "hr-tds-salary",
+      "title": "TDS on salaries — 24Q filing",
+      "description": "Quarterly TDS return for salary payments.",
+      "form": "Form 24Q",
+      "frequency": "quarterly",
+      "months": [7, 10, 1, 5],
+      "dueDay": 31,
+      "owner": "HR / Accounts"
+    },
+    {
+      "id": "hr-form16",
+      "title": "Issue Form 16",
+      "description": "Issue Form 16 to employees summarising salary & TDS for the financial year.",
+      "form": "Form 16",
+      "frequency": "yearly",
+      "dueMonth": 6,
+      "dueDay": 15,
+      "owner": "HR / Accounts"
+    },
+    {
+      "id": "hr-appraisal",
+      "title": "Performance appraisal cycle",
+      "description": "Annual performance review — self-assessment, manager review, compensation revisions.",
+      "frequency": "yearly",
+      "dueMonth": 4,
+      "dueDay": 30,
+      "owner": "HR"
+    },
+    {
+      "id": "hr-attendance-recon",
+      "title": "Attendance reconciliation",
+      "description": "Reconcile biometric/app attendance with leave register before payroll cut-off.",
+      "frequency": "monthly",
+      "dueDay": 27,
+      "owner": "HR"
+    },
+    {
+      "id": "hr-policy-refresh",
+      "title": "HR policy refresh",
+      "description": "Review leave policy, travel policy, POSH and code of conduct annually.",
+      "frequency": "yearly",
+      "dueMonth": 4,
+      "dueDay": 15,
+      "owner": "HR"
+    },
+    {
+      "id": "hr-posh-report",
+      "title": "POSH annual report",
+      "description": "Annual report of Internal Complaints Committee to the District Officer.",
+      "frequency": "yearly",
+      "dueMonth": 1,
+      "dueDay": 31,
+      "owner": "HR / ICC",
+      "authority": "District Officer"
+    },
+    {
+      "id": "hr-training-plan",
+      "title": "Annual training calendar",
+      "description": "Publish training calendar for the year based on skill matrix and appraisals.",
+      "frequency": "yearly",
+      "dueMonth": 5,
+      "dueDay": 15,
+      "owner": "HR"
+    }
+  ]
+}

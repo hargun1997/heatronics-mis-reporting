@@ -4,7 +4,8 @@ import { MainLayout } from './layouts/MainLayout';
 // Top-level pages
 import { Home } from './pages/Home';
 import { Reporting } from './pages/Reporting';
-import { Tracker } from './pages/Tracker';
+import { ComplianceHome } from './pages/compliance/ComplianceHome';
+import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
 // Legacy feature pages (kept alive under new routes)
 import { MISTrackingNew } from './pages/MISTrackingNew';
@@ -35,7 +36,8 @@ function App() {
 
           {/* Top-level sections */}
           <Route path="reporting" element={<Reporting />} />
-          <Route path="tracker" element={<Tracker />} />
+          <Route path="compliance" element={<ComplianceHome />} />
+          <Route path="compliance/:category" element={<ComplianceCategory />} />
 
           {/* Legacy feature routes — still reachable */}
           <Route path="mis-tracking" element={<MISTrackingNew />} />
@@ -63,6 +65,9 @@ function App() {
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />
           <Route path="tools" element={<Navigate to="/guide/tools" replace />} />
+          <Route path="tracker" element={<Navigate to="/compliance" replace />} />
+          <Route path="tracker/compliance" element={<Navigate to="/compliance" replace />} />
+          <Route path="tracker/*" element={<Navigate to="/compliance" replace />} />
 
           {/* Catch-all → home */}
           <Route path="*" element={<Navigate to="/" replace />} />
