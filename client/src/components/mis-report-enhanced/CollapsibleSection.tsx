@@ -50,7 +50,7 @@ export function CollapsibleSection({
   const toggleExpand = () => setIsExpanded(!isExpanded);
 
   const sourceLabels = {
-    journal: { text: 'Journal', color: 'bg-slate-600 text-slate-200' },
+    journal: { text: 'Journal', color: 'bg-slate-300 text-slate-800' },
     balance_sheet: { text: 'BS', color: 'bg-green-700 text-green-100' },
     sales_register: { text: 'Sales', color: 'bg-blue-700 text-blue-100' },
     calculated: { text: 'Calc', color: 'bg-purple-700 text-purple-100' }
@@ -64,7 +64,7 @@ export function CollapsibleSection({
           flex items-center justify-between py-3 px-4 cursor-pointer
           ${isHighlight
             ? `${highlightColors[highlightColor]} hover:bg-opacity-70`
-            : 'bg-slate-800 hover:bg-slate-700'}
+            : 'bg-white hover:bg-slate-100'}
           transition-colors duration-150
         `}
         onClick={toggleExpand}
@@ -80,7 +80,7 @@ export function CollapsibleSection({
           </span>
 
           {/* Title */}
-          <span className={`font-semibold ${isHighlight ? headerColors[highlightColor] : 'text-slate-200'}`}>
+          <span className={`font-semibold ${isHighlight ? headerColors[highlightColor] : 'text-slate-800'}`}>
             {title}
           </span>
 
@@ -98,7 +98,7 @@ export function CollapsibleSection({
                 e.stopPropagation();
                 onInfoClick?.();
               }}
-              className="text-slate-400 hover:text-slate-200 transition-colors"
+              className="text-slate-400 hover:text-slate-800 transition-colors"
               title={infoTooltip}
             >
               <InformationCircleIcon className="h-4 w-4" />
@@ -116,7 +116,7 @@ export function CollapsibleSection({
         {/* Amount and Percentage */}
         <div className="flex items-center gap-4">
           <span className={`font-mono font-semibold ${
-            isHighlight ? headerColors[highlightColor] : 'text-slate-200'
+            isHighlight ? headerColors[highlightColor] : 'text-slate-800'
           }`}>
             {formatCurrencyFull(total)}
           </span>
@@ -130,7 +130,7 @@ export function CollapsibleSection({
 
       {/* Collapsible Content */}
       {isExpanded && (
-        <div className="bg-slate-900/50">
+        <div className="bg-white/50">
           {children}
         </div>
       )}
@@ -161,7 +161,7 @@ export function MarginRow({
   variant = 'default'
 }: MarginRowProps) {
   const variantStyles = {
-    default: 'bg-slate-700 text-slate-200',
+    default: 'bg-slate-100 text-slate-800',
     positive: 'bg-green-900/50 text-green-300 border-l-4 border-green-500',
     negative: 'bg-red-900/50 text-red-300 border-l-4 border-red-500',
     highlight: 'bg-teal-900/60 text-teal-200 border-l-4 border-teal-400'
@@ -176,7 +176,7 @@ export function MarginRow({
         {formulaInfo && (
           <button
             onClick={onInfoClick}
-            className="text-slate-400 hover:text-slate-200 transition-colors"
+            className="text-slate-400 hover:text-slate-800 transition-colors"
             title={formulaInfo.description}
           >
             <InformationCircleIcon className="h-4 w-4" />
@@ -184,11 +184,11 @@ export function MarginRow({
         )}
       </div>
       <div className="flex items-center gap-4">
-        <span className={`font-mono font-bold ${amount < 0 ? 'text-red-400' : ''}`}>
+        <span className={`font-mono font-bold ${amount < 0 ? 'text-rose-600' : ''}`}>
           {formatCurrencyFull(amount)}
         </span>
         {percentage !== undefined && (
-          <span className={`text-sm w-16 text-right ${amount < 0 ? 'text-red-400' : 'text-slate-400'}`}>
+          <span className={`text-sm w-16 text-right ${amount < 0 ? 'text-rose-600' : 'text-slate-400'}`}>
             {percentage.toFixed(2)}%
           </span>
         )}

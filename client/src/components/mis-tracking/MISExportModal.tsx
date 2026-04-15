@@ -107,7 +107,7 @@ function renderSubheadRows(record: MISRecord, headKey: string, netRevenue: numbe
   if (subheads.length === 0) return null;
 
   return subheads.map((sub, idx) => (
-    <tr key={`${headKey}-${idx}`} className="border-b border-slate-700/30">
+    <tr key={`${headKey}-${idx}`} className="border-b border-slate-200/30">
       <td className="py-1 px-4 text-slate-400 pl-12 text-xs">• {sub.name}</td>
       <td className="py-1 px-4 text-right text-slate-400 text-xs">{formatCurrency(sub.amount)}</td>
       <td className="py-1 px-4 text-right text-slate-500 text-xs">{netRevenue > 0 ? formatPercent((sub.amount / netRevenue) * 100) : '-'}</td>
@@ -310,14 +310,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-white/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl border border-slate-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-100">Export MIS Report to PDF</h2>
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">Export MIS Report to PDF</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400"
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -329,10 +329,10 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Section Selection */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Select Sections to Export</h3>
+            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Select Sections to Export</h3>
 
             {/* Trends Option */}
-            <label className="flex items-start gap-3 p-4 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700/70 transition-colors">
+            <label className="flex items-start gap-3 p-4 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-100/70 transition-colors">
               <input
                 type="checkbox"
                 checked={includeTrends}
@@ -340,13 +340,13 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                 className="mt-1 w-4 h-4 rounded border-slate-500 text-blue-500 focus:ring-blue-500"
               />
               <div>
-                <div className="font-medium text-slate-200">Trends Overview</div>
+                <div className="font-medium text-slate-800">Trends Overview</div>
                 <div className="text-sm text-slate-400">Revenue trend chart and monthly comparison table</div>
               </div>
             </label>
 
             {/* FY Summary Option */}
-            <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="p-4 bg-slate-100 rounded-lg">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -355,7 +355,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                   className="mt-1 w-4 h-4 rounded border-slate-500 text-blue-500 focus:ring-blue-500"
                 />
                 <div>
-                  <div className="font-medium text-slate-200">Financial Year Summary</div>
+                  <div className="font-medium text-slate-800">Financial Year Summary</div>
                   <div className="text-sm text-slate-400">Monthly breakdown with all margins for selected FYs</div>
                 </div>
               </label>
@@ -365,14 +365,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                   <div className="flex items-center gap-2 mb-3">
                     <button
                       onClick={selectAllFYs}
-                      className="text-xs text-blue-400 hover:text-blue-300"
+                      className="text-xs text-blue-600 hover:text-blue-300"
                     >
                       Select All
                     </button>
                     <span className="text-slate-600">|</span>
                     <button
                       onClick={clearAllFYs}
-                      className="text-xs text-slate-400 hover:text-slate-300"
+                      className="text-xs text-slate-400 hover:text-slate-700"
                     >
                       Clear All
                     </button>
@@ -387,8 +387,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         className={`
                           flex items-center gap-2 px-3 py-2 rounded text-sm cursor-pointer transition-colors
                           ${selectedFYs.includes(fy)
-                            ? 'bg-blue-500/20 text-blue-300'
-                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            ? 'bg-blue-50 text-blue-300'
+                            : 'bg-white text-slate-400 hover:bg-slate-100'
                           }
                         `}
                       >
@@ -407,7 +407,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             </div>
 
             {/* Individual Months Option */}
-            <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="p-4 bg-slate-100 rounded-lg">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -416,7 +416,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                   className="mt-1 w-4 h-4 rounded border-slate-500 text-blue-500 focus:ring-blue-500"
                 />
                 <div>
-                  <div className="font-medium text-slate-200">Individual Month Reports</div>
+                  <div className="font-medium text-slate-800">Individual Month Reports</div>
                   <div className="text-sm text-slate-400">Detailed P&L for each selected month</div>
                 </div>
               </label>
@@ -426,14 +426,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                   <div className="flex items-center gap-2 mb-3">
                     <button
                       onClick={selectAllMonths}
-                      className="text-xs text-blue-400 hover:text-blue-300"
+                      className="text-xs text-blue-600 hover:text-blue-300"
                     >
                       Select All
                     </button>
                     <span className="text-slate-600">|</span>
                     <button
                       onClick={clearAllMonths}
-                      className="text-xs text-slate-400 hover:text-slate-300"
+                      className="text-xs text-slate-400 hover:text-slate-700"
                     >
                       Clear All
                     </button>
@@ -448,8 +448,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         className={`
                           flex items-center gap-2 px-3 py-2 rounded text-sm cursor-pointer transition-colors
                           ${selectedMonths.includes(periodKey)
-                            ? 'bg-blue-500/20 text-blue-300'
-                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            ? 'bg-blue-50 text-blue-300'
+                            : 'bg-white text-slate-400 hover:bg-slate-100'
                           }
                         `}
                       >
@@ -470,14 +470,14 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-700 flex items-center justify-between">
+        <div className="p-4 border-t border-slate-200 flex items-center justify-between">
           <div className="text-sm text-slate-400">
             {exportProgress || 'PDF will be generated in landscape A4 format'}
           </div>
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-800 transition-colors"
             >
               Cancel
             </button>
@@ -487,7 +487,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
               className={`
                 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all
                 ${isExporting || (!includeTrends && !includeFYSummary && !includeIndividualMonths)
-                  ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
                   : 'bg-red-500 text-white hover:bg-red-600'
                 }
               `}
@@ -527,11 +527,11 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
           const maxRev = Math.max(...chartRecords.map(r => r.revenue.netRevenue));
 
           return (
-            <div ref={trendsRef} className="w-[1200px] bg-slate-900 p-6 space-y-6">
-              <h2 className="text-xl font-bold text-slate-100 mb-4">MIS Trends Overview</h2>
+            <div ref={trendsRef} className="w-[1200px] bg-white p-6 space-y-6">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">MIS Trends Overview</h2>
 
               {/* Revenue Formula Explanation */}
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="text-sm text-blue-300 font-medium mb-1">Revenue Formula:</div>
                 <div className="text-xs text-blue-200">
                   Net Revenue = Gross Revenue - Returns - Discounts - Taxes (GST)
@@ -542,8 +542,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
               </div>
 
               {/* Revenue Chart */}
-              <div className="bg-slate-800 rounded-xl p-6">
-                <h3 className="text-base font-semibold text-slate-200 mb-4">Net Revenue Trend (After GST & Returns)</h3>
+              <div className="bg-white rounded-xl p-6">
+                <h3 className="text-base font-semibold text-slate-800 mb-4">Net Revenue Trend (After GST & Returns)</h3>
                 <div className="flex items-end gap-1 h-48">
                   {chartRecords.map((mis) => {
                     const height = maxRev > 0 ? (mis.revenue.netRevenue / maxRev) * 180 : 0;
@@ -561,31 +561,31 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
               </div>
 
               {/* Comparison Table */}
-              <div className="bg-slate-800 rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-slate-700">
-                  <h3 className="text-base font-semibold text-slate-200">Monthly Comparison</h3>
+              <div className="bg-white rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-slate-200">
+                  <h3 className="text-base font-semibold text-slate-800">Monthly Comparison</h3>
                 </div>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-700/50">
-                      <th className="text-left py-2 px-3 text-slate-300 font-medium">Metric</th>
+                    <tr className="bg-slate-100">
+                      <th className="text-left py-2 px-3 text-slate-700 font-medium">Metric</th>
                       {tableRecords.map(mis => (
-                        <th key={mis.periodKey} className="text-right py-2 px-2 text-slate-300 font-medium text-xs">
+                        <th key={mis.periodKey} className="text-right py-2 px-2 text-slate-700 font-medium text-xs">
                           {periodToString(mis.period).split(' ')[0].slice(0, 3)} '{String(mis.period.year).slice(-2)}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-2 px-3 text-slate-300">Net Revenue</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-2 px-3 text-slate-700">Net Revenue</td>
                       {tableRecords.map(mis => (
-                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-700 text-xs">
                           {formatCurrency(mis.revenue.netRevenue)}
                         </td>
                       ))}
                     </tr>
-                    <tr className="border-b border-slate-700/50">
+                    <tr className="border-b border-slate-200/50">
                       <td className="py-2 px-3 text-slate-400">COGS %</td>
                       {tableRecords.map(mis => (
                         <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-400 text-xs">
@@ -593,42 +593,42 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         </td>
                       ))}
                     </tr>
-                    <tr className="border-b border-slate-700/50 bg-emerald-500/10">
-                      <td className="py-2 px-3 text-emerald-400 font-medium">Gross Margin %</td>
+                    <tr className="border-b border-slate-200/50 bg-emerald-50">
+                      <td className="py-2 px-3 text-emerald-600 font-medium">Gross Margin %</td>
                       {tableRecords.map(mis => (
-                        <td key={mis.periodKey} className="py-2 px-2 text-right text-emerald-400 text-xs">
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-emerald-600 text-xs">
                           {formatPercent(mis.grossMarginPercent)}
                         </td>
                       ))}
                     </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-2 px-3 text-slate-300">CM1 %</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-2 px-3 text-slate-700">CM1 %</td>
                       {tableRecords.map(mis => (
-                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-700 text-xs">
                           {formatPercent(mis.cm1Percent)}
                         </td>
                       ))}
                     </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-2 px-3 text-slate-300">CM2 %</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-2 px-3 text-slate-700">CM2 %</td>
                       {tableRecords.map(mis => (
-                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-300 text-xs">
+                        <td key={mis.periodKey} className="py-2 px-2 text-right text-slate-700 text-xs">
                           {formatPercent(mis.cm2Percent)}
                         </td>
                       ))}
                     </tr>
-                    <tr className="border-b border-slate-700/50 bg-blue-500/10">
-                      <td className="py-2 px-3 text-blue-400 font-medium">EBITDA %</td>
+                    <tr className="border-b border-slate-200/50 bg-blue-50">
+                      <td className="py-2 px-3 text-blue-600 font-medium">EBITDA %</td>
                       {tableRecords.map(mis => (
-                        <td key={mis.periodKey} className={`py-2 px-2 text-right text-xs ${mis.ebitdaPercent >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                        <td key={mis.periodKey} className={`py-2 px-2 text-right text-xs ${mis.ebitdaPercent >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
                           {formatPercent(mis.ebitdaPercent)}
                         </td>
                       ))}
                     </tr>
-                    <tr className="bg-slate-700/30">
-                      <td className="py-2 px-3 text-slate-200 font-semibold">Net Income %</td>
+                    <tr className="bg-slate-50">
+                      <td className="py-2 px-3 text-slate-800 font-semibold">Net Income %</td>
                       {tableRecords.map(mis => (
-                        <td key={mis.periodKey} className={`py-2 px-2 text-right text-xs font-semibold ${mis.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <td key={mis.periodKey} className={`py-2 px-2 text-right text-xs font-semibold ${mis.netIncomePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {formatPercent(mis.netIncomePercent)}
                         </td>
                       ))}
@@ -648,45 +648,45 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             <div
               key={fy}
               ref={(el) => { if (el) fyRefs.current.set(fy, el); }}
-              className="bg-slate-900 p-8"
+              className="bg-white p-8"
               style={{ width: '1100px' }}
             >
-              <h2 className="text-2xl font-bold text-slate-100 mb-2">{fy} - P&L Summary</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">{fy} - P&L Summary</h2>
               <p className="text-sm text-slate-400 mb-2">April {fyStartYear} to March {fyStartYear + 1}</p>
 
               {/* Revenue Formula Explanation */}
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <div className="text-xs text-blue-200">
                   <span className="font-medium text-blue-300">Net Revenue</span> = Gross Revenue - Returns - Taxes (GST) | All values from Sales Register
                 </div>
               </div>
 
-              <div className="bg-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-white rounded-xl overflow-hidden">
                 <table className="w-full text-sm border-collapse" style={{ tableLayout: 'fixed' }}>
                   <thead>
-                    <tr className="bg-slate-700/50">
-                      <th className="text-left py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '100px' }}>Month</th>
-                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '120px' }}>Net Revenue</th>
-                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '130px' }}>Gross Margin</th>
-                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM1</th>
-                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM2</th>
-                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM3</th>
-                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>EBITDA</th>
-                      <th className="text-right py-3 px-3 text-slate-300 font-semibold whitespace-nowrap" style={{ width: '110px' }}>Net Profit</th>
+                    <tr className="bg-slate-100">
+                      <th className="text-left py-3 px-3 text-slate-700 font-semibold whitespace-nowrap" style={{ width: '100px' }}>Month</th>
+                      <th className="text-right py-3 px-3 text-slate-700 font-semibold whitespace-nowrap" style={{ width: '120px' }}>Net Revenue</th>
+                      <th className="text-right py-3 px-3 text-slate-700 font-semibold whitespace-nowrap" style={{ width: '130px' }}>Gross Margin</th>
+                      <th className="text-right py-3 px-3 text-slate-700 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM1</th>
+                      <th className="text-right py-3 px-3 text-slate-700 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM2</th>
+                      <th className="text-right py-3 px-3 text-slate-700 font-semibold whitespace-nowrap" style={{ width: '110px' }}>CM3</th>
+                      <th className="text-right py-3 px-3 text-slate-700 font-semibold whitespace-nowrap" style={{ width: '110px' }}>EBITDA</th>
+                      <th className="text-right py-3 px-3 text-slate-700 font-semibold whitespace-nowrap" style={{ width: '110px' }}>Net Profit</th>
                     </tr>
                   </thead>
                   <tbody>
                     {fyMonths.map(({ month, year, label, record }) => (
-                      <tr key={`${year}-${month}`} className={`border-b border-slate-700/50 ${!record ? 'opacity-40' : ''}`}>
-                        <td className="py-2 px-3 text-slate-200 whitespace-nowrap">{label} {year}</td>
-                        <td className="py-2 px-3 text-right text-slate-200 whitespace-nowrap">
+                      <tr key={`${year}-${month}`} className={`border-b border-slate-200/50 ${!record ? 'opacity-40' : ''}`}>
+                        <td className="py-2 px-3 text-slate-800 whitespace-nowrap">{label} {year}</td>
+                        <td className="py-2 px-3 text-right text-slate-800 whitespace-nowrap">
                           {record ? formatCurrency(record.revenue.netRevenue) : '-'}
                         </td>
                         <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
-                              <div className="text-slate-200">{formatCurrency(record.grossMargin)}</div>
-                              <div className={`text-xs ${record.grossMarginPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <div className="text-slate-800">{formatCurrency(record.grossMargin)}</div>
+                              <div className={`text-xs ${record.grossMarginPercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 {formatPercent(record.grossMarginPercent)}
                               </div>
                             </div>
@@ -695,8 +695,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
-                              <div className="text-slate-200">{formatCurrency(record.cm1)}</div>
-                              <div className={`text-xs ${record.cm1Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <div className="text-slate-800">{formatCurrency(record.cm1)}</div>
+                              <div className={`text-xs ${record.cm1Percent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 {formatPercent(record.cm1Percent)}
                               </div>
                             </div>
@@ -705,8 +705,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
-                              <div className="text-slate-200">{formatCurrency(record.cm2)}</div>
-                              <div className={`text-xs ${record.cm2Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <div className="text-slate-800">{formatCurrency(record.cm2)}</div>
+                              <div className={`text-xs ${record.cm2Percent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 {formatPercent(record.cm2Percent)}
                               </div>
                             </div>
@@ -715,8 +715,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
-                              <div className="text-slate-200">{formatCurrency(record.cm3)}</div>
-                              <div className={`text-xs ${record.cm3Percent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <div className="text-slate-800">{formatCurrency(record.cm3)}</div>
+                              <div className={`text-xs ${record.cm3Percent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 {formatPercent(record.cm3Percent)}
                               </div>
                             </div>
@@ -725,8 +725,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
-                              <div className={record.ebitda >= 0 ? 'text-slate-200' : 'text-red-400'}>{formatCurrency(record.ebitda)}</div>
-                              <div className={`text-xs ${record.ebitdaPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <div className={record.ebitda >= 0 ? 'text-slate-800' : 'text-rose-600'}>{formatCurrency(record.ebitda)}</div>
+                              <div className={`text-xs ${record.ebitdaPercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 {formatPercent(record.ebitdaPercent)}
                               </div>
                             </div>
@@ -735,8 +735,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                         <td className="py-2 px-3 text-right whitespace-nowrap">
                           {record ? (
                             <div>
-                              <div className={record.netIncome >= 0 ? 'text-slate-200' : 'text-red-400'}>{formatCurrency(record.netIncome)}</div>
-                              <div className={`text-xs ${record.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <div className={record.netIncome >= 0 ? 'text-slate-800' : 'text-rose-600'}>{formatCurrency(record.netIncome)}</div>
+                              <div className={`text-xs ${record.netIncomePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                 {formatPercent(record.netIncomePercent)}
                               </div>
                             </div>
@@ -745,31 +745,31 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                       </tr>
                     ))}
                     {/* Totals Row */}
-                    <tr className="bg-slate-700/70 font-semibold">
-                      <td className="py-3 px-3 text-slate-100 font-bold whitespace-nowrap">FY Total</td>
-                      <td className="py-3 px-3 text-right text-blue-400 whitespace-nowrap">{formatCurrency(fyTotals.netRevenue)}</td>
+                    <tr className="bg-slate-100/70 font-semibold">
+                      <td className="py-3 px-3 text-slate-900 font-bold whitespace-nowrap">FY Total</td>
+                      <td className="py-3 px-3 text-right text-blue-600 whitespace-nowrap">{formatCurrency(fyTotals.netRevenue)}</td>
                       <td className="py-3 px-3 text-right whitespace-nowrap">
-                        <div className={fyTotals.grossMargin >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.grossMargin)}</div>
+                        <div className={fyTotals.grossMargin >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(fyTotals.grossMargin)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.grossMargin / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
                       <td className="py-3 px-3 text-right whitespace-nowrap">
-                        <div className={fyTotals.cm1 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm1)}</div>
+                        <div className={fyTotals.cm1 >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(fyTotals.cm1)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm1 / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
                       <td className="py-3 px-3 text-right whitespace-nowrap">
-                        <div className={fyTotals.cm2 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm2)}</div>
+                        <div className={fyTotals.cm2 >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(fyTotals.cm2)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm2 / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
                       <td className="py-3 px-3 text-right whitespace-nowrap">
-                        <div className={fyTotals.cm3 >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.cm3)}</div>
+                        <div className={fyTotals.cm3 >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(fyTotals.cm3)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.cm3 / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
                       <td className="py-3 px-3 text-right whitespace-nowrap">
-                        <div className={fyTotals.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.ebitda)}</div>
+                        <div className={fyTotals.ebitda >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(fyTotals.ebitda)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.ebitda / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
                       <td className="py-3 px-3 text-right whitespace-nowrap">
-                        <div className={fyTotals.netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>{formatCurrency(fyTotals.netIncome)}</div>
+                        <div className={fyTotals.netIncome >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(fyTotals.netIncome)}</div>
                         <div className="text-xs">{fyTotals.netRevenue > 0 ? formatPercent((fyTotals.netIncome / fyTotals.netRevenue) * 100) : '-'}</div>
                       </td>
                     </tr>
@@ -789,131 +789,131 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             <div
               key={periodKey}
               ref={(el) => { if (el) monthRefs.current.set(periodKey, el); }}
-              className="w-[700px] bg-slate-900 p-6"
+              className="w-[700px] bg-white p-6"
             >
-              <h2 className="text-xl font-bold text-slate-100 mb-2">
+              <h2 className="text-xl font-bold text-slate-900 mb-2">
                 {periodToString(record.period)} - P&L Report
               </h2>
 
               {/* Revenue Formula Explanation */}
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <div className="text-xs text-blue-200">
                   <span className="font-medium text-blue-300">Net Revenue</span> = Gross Revenue - Returns - Taxes (GST)
                 </div>
               </div>
 
               <div className="grid grid-cols-4 gap-4 mb-6">
-                <div className="bg-slate-800 rounded-lg p-4">
+                <div className="bg-white rounded-lg p-4">
                   <div className="text-sm text-slate-400">Net Revenue</div>
-                  <div className="text-xl font-semibold text-blue-400">{formatCurrency(record.revenue.netRevenue)}</div>
+                  <div className="text-xl font-semibold text-blue-600">{formatCurrency(record.revenue.netRevenue)}</div>
                 </div>
-                <div className="bg-slate-800 rounded-lg p-4">
+                <div className="bg-white rounded-lg p-4">
                   <div className="text-sm text-slate-400">Gross Margin</div>
-                  <div className={`text-xl font-semibold ${record.grossMargin >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <div className={`text-xl font-semibold ${record.grossMargin >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {formatPercent(record.grossMarginPercent)}
                   </div>
                 </div>
-                <div className="bg-slate-800 rounded-lg p-4">
+                <div className="bg-white rounded-lg p-4">
                   <div className="text-sm text-slate-400">EBITDA</div>
-                  <div className={`text-xl font-semibold ${record.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <div className={`text-xl font-semibold ${record.ebitda >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {formatPercent(record.ebitdaPercent)}
                   </div>
                 </div>
-                <div className="bg-slate-800 rounded-lg p-4">
+                <div className="bg-white rounded-lg p-4">
                   <div className="text-sm text-slate-400">Net Income</div>
-                  <div className={`text-xl font-semibold ${record.netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <div className={`text-xl font-semibold ${record.netIncome >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {formatPercent(record.netIncomePercent)}
                   </div>
                 </div>
               </div>
 
-              <div className="bg-slate-800 rounded-xl overflow-hidden">
+              <div className="bg-white rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-700/50">
-                      <th className="text-left py-3 px-4 text-slate-300 font-semibold">Category</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">Amount</th>
-                      <th className="text-right py-3 px-4 text-slate-300 font-semibold">% of Revenue</th>
+                    <tr className="bg-slate-100">
+                      <th className="text-left py-3 px-4 text-slate-700 font-semibold">Category</th>
+                      <th className="text-right py-3 px-4 text-slate-700 font-semibold">Amount</th>
+                      <th className="text-right py-3 px-4 text-slate-700 font-semibold">% of Revenue</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-3 px-4 text-slate-200 font-medium">Net Revenue</td>
-                      <td className="py-3 px-4 text-right text-blue-400">{formatCurrency(record.revenue.netRevenue)}</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-3 px-4 text-slate-800 font-medium">Net Revenue</td>
+                      <td className="py-3 px-4 text-right text-blue-600">{formatCurrency(record.revenue.netRevenue)}</td>
                       <td className="py-3 px-4 text-right text-slate-400">100%</td>
                     </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-3 px-4 text-slate-300 pl-8">Less: COGM</td>
-                      <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.cogm.totalCOGM)})</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-3 px-4 text-slate-700 pl-8">Less: COGM</td>
+                      <td className="py-3 px-4 text-right text-rose-600">({formatCurrency(record.cogm.totalCOGM)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.cogm.totalCOGM / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
                     {renderSubheadRows(record, 'cogm', record.revenue.netRevenue)}
-                    <tr className="border-b border-slate-700/50 bg-emerald-500/10">
-                      <td className="py-3 px-4 text-emerald-400 font-medium">Gross Margin</td>
-                      <td className="py-3 px-4 text-right text-emerald-400">{formatCurrency(record.grossMargin)}</td>
-                      <td className="py-3 px-4 text-right text-emerald-400">{formatPercent(record.grossMarginPercent)}</td>
+                    <tr className="border-b border-slate-200/50 bg-emerald-50">
+                      <td className="py-3 px-4 text-emerald-600 font-medium">Gross Margin</td>
+                      <td className="py-3 px-4 text-right text-emerald-600">{formatCurrency(record.grossMargin)}</td>
+                      <td className="py-3 px-4 text-right text-emerald-600">{formatPercent(record.grossMarginPercent)}</td>
                     </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-3 px-4 text-slate-300 pl-8">Less: Channel & Fulfillment</td>
-                      <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.channelFulfillment.total)})</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-3 px-4 text-slate-700 pl-8">Less: Channel & Fulfillment</td>
+                      <td className="py-3 px-4 text-right text-rose-600">({formatCurrency(record.channelFulfillment.total)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.channelFulfillment.total / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
                     {renderSubheadRows(record, 'channelFulfillment', record.revenue.netRevenue)}
-                    <tr className="border-b border-slate-700/50 bg-blue-500/10">
-                      <td className="py-3 px-4 text-blue-400 font-medium">CM1</td>
-                      <td className="py-3 px-4 text-right text-blue-400">{formatCurrency(record.cm1)}</td>
-                      <td className="py-3 px-4 text-right text-blue-400">{formatPercent(record.cm1Percent)}</td>
+                    <tr className="border-b border-slate-200/50 bg-blue-50">
+                      <td className="py-3 px-4 text-blue-600 font-medium">CM1</td>
+                      <td className="py-3 px-4 text-right text-blue-600">{formatCurrency(record.cm1)}</td>
+                      <td className="py-3 px-4 text-right text-blue-600">{formatPercent(record.cm1Percent)}</td>
                     </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-3 px-4 text-slate-300 pl-8">Less: Sales & Marketing</td>
-                      <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.salesMarketing.total)})</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-3 px-4 text-slate-700 pl-8">Less: Sales & Marketing</td>
+                      <td className="py-3 px-4 text-right text-rose-600">({formatCurrency(record.salesMarketing.total)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.salesMarketing.total / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
                     {renderSubheadRows(record, 'salesMarketing', record.revenue.netRevenue)}
-                    <tr className="border-b border-slate-700/50 bg-purple-500/10">
-                      <td className="py-3 px-4 text-purple-400 font-medium">CM2</td>
-                      <td className="py-3 px-4 text-right text-purple-400">{formatCurrency(record.cm2)}</td>
-                      <td className="py-3 px-4 text-right text-purple-400">{formatPercent(record.cm2Percent)}</td>
+                    <tr className="border-b border-slate-200/50 bg-purple-50">
+                      <td className="py-3 px-4 text-purple-600 font-medium">CM2</td>
+                      <td className="py-3 px-4 text-right text-purple-600">{formatCurrency(record.cm2)}</td>
+                      <td className="py-3 px-4 text-right text-purple-600">{formatPercent(record.cm2Percent)}</td>
                     </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-3 px-4 text-slate-300 pl-8">Less: Platform Costs</td>
-                      <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.platformCosts.total)})</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-3 px-4 text-slate-700 pl-8">Less: Platform Costs</td>
+                      <td className="py-3 px-4 text-right text-rose-600">({formatCurrency(record.platformCosts.total)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.platformCosts.total / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
                     {renderSubheadRows(record, 'platformCosts', record.revenue.netRevenue)}
-                    <tr className="border-b border-slate-700/50 bg-orange-500/10">
-                      <td className="py-3 px-4 text-orange-400 font-medium">CM3</td>
-                      <td className="py-3 px-4 text-right text-orange-400">{formatCurrency(record.cm3)}</td>
-                      <td className="py-3 px-4 text-right text-orange-400">{formatPercent(record.cm3Percent)}</td>
+                    <tr className="border-b border-slate-200/50 bg-orange-50">
+                      <td className="py-3 px-4 text-orange-600 font-medium">CM3</td>
+                      <td className="py-3 px-4 text-right text-orange-600">{formatCurrency(record.cm3)}</td>
+                      <td className="py-3 px-4 text-right text-orange-600">{formatPercent(record.cm3Percent)}</td>
                     </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-3 px-4 text-slate-300 pl-8">Less: Operating Expenses</td>
-                      <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.operatingExpenses.total)})</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-3 px-4 text-slate-700 pl-8">Less: Operating Expenses</td>
+                      <td className="py-3 px-4 text-right text-rose-600">({formatCurrency(record.operatingExpenses.total)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.operatingExpenses.total / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
                     {renderSubheadRows(record, 'operatingExpenses', record.revenue.netRevenue)}
-                    <tr className="border-b border-slate-700/50 bg-cyan-500/10">
+                    <tr className="border-b border-slate-200/50 bg-cyan-500/10">
                       <td className="py-3 px-4 text-cyan-400 font-medium">EBITDA</td>
                       <td className="py-3 px-4 text-right text-cyan-400">{formatCurrency(record.ebitda)}</td>
                       <td className="py-3 px-4 text-right text-cyan-400">{formatPercent(record.ebitdaPercent)}</td>
                     </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-3 px-4 text-slate-300 pl-8">Less: Non-Operating (I+D+A)</td>
-                      <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.nonOperating.totalIDA)})</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-3 px-4 text-slate-700 pl-8">Less: Non-Operating (I+D+A)</td>
+                      <td className="py-3 px-4 text-right text-rose-600">({formatCurrency(record.nonOperating.totalIDA)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.nonOperating.totalIDA / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
                     {renderSubheadRows(record, 'nonOperating', record.revenue.netRevenue)}
-                    <tr className="border-b border-slate-700/50">
-                      <td className="py-3 px-4 text-slate-300 pl-8">Less: Income Tax</td>
-                      <td className="py-3 px-4 text-right text-red-400">({formatCurrency(record.nonOperating.incomeTax)})</td>
+                    <tr className="border-b border-slate-200/50">
+                      <td className="py-3 px-4 text-slate-700 pl-8">Less: Income Tax</td>
+                      <td className="py-3 px-4 text-right text-rose-600">({formatCurrency(record.nonOperating.incomeTax)})</td>
                       <td className="py-3 px-4 text-right text-slate-400">{formatPercent(record.revenue.netRevenue > 0 ? (record.nonOperating.incomeTax / record.revenue.netRevenue) * 100 : 0)}</td>
                     </tr>
-                    <tr className="bg-slate-700/50">
-                      <td className="py-4 px-4 text-slate-100 font-bold">Net Income</td>
-                      <td className={`py-4 px-4 text-right font-bold ${record.netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <tr className="bg-slate-100">
+                      <td className="py-4 px-4 text-slate-900 font-bold">Net Income</td>
+                      <td className={`py-4 px-4 text-right font-bold ${record.netIncome >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                         {formatCurrency(record.netIncome)}
                       </td>
-                      <td className={`py-4 px-4 text-right font-bold ${record.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <td className={`py-4 px-4 text-right font-bold ${record.netIncomePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                         {formatPercent(record.netIncomePercent)}
                       </td>
                     </tr>

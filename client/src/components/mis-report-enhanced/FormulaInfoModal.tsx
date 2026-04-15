@@ -37,7 +37,7 @@ export function FormulaInfoModal({
 
   const sourceColors: Record<string, string> = {
     calculated: 'bg-purple-700/30 text-purple-300 border-purple-500',
-    journal: 'bg-slate-700/50 text-slate-300 border-slate-500',
+    journal: 'bg-slate-100 text-slate-700 border-slate-500',
     sales_register: 'bg-blue-700/30 text-blue-300 border-blue-500',
     balance_sheet: 'bg-green-700/30 text-green-300 border-green-500'
   };
@@ -51,21 +51,21 @@ export function FormulaInfoModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-800 rounded-lg shadow-xl max-w-lg w-full border border-slate-700">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full border border-slate-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-teal-900/50 rounded-lg">
-              <CalculatorIcon className="h-5 w-5 text-teal-400" />
+              <CalculatorIcon className="h-5 w-5 text-teal-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-100">{formula.name}</h2>
+              <h2 className="text-lg font-bold text-slate-900">{formula.name}</h2>
               <p className="text-xs text-slate-400">Formula Breakdown</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded-full transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -75,11 +75,11 @@ export function FormulaInfoModal({
         <div className="p-6 space-y-5">
           {/* Description */}
           <div>
-            <p className="text-sm text-slate-300 leading-relaxed">{formula.description}</p>
+            <p className="text-sm text-slate-700 leading-relaxed">{formula.description}</p>
           </div>
 
           {/* Formula Box */}
-          <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+          <div className="bg-white/50 rounded-lg p-4 border border-slate-200">
             <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Formula</p>
             <p className="font-mono text-teal-300">{formula.formula}</p>
           </div>
@@ -96,17 +96,17 @@ export function FormulaInfoModal({
                     className={`flex items-center justify-between py-2 px-3 rounded-lg border ${sourceColors[component.source]}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`text-lg font-bold ${component.sign === '+' ? 'text-green-400' : 'text-red-400'}`}>
+                      <span className={`text-lg font-bold ${component.sign === '+' ? 'text-green-400' : 'text-rose-600'}`}>
                         {component.sign}
                       </span>
                       <div>
-                        <span className="text-slate-200">{component.label}</span>
+                        <span className="text-slate-800">{component.label}</span>
                         <span className="text-xs text-slate-500 ml-2">
                           [{sourceLabels[component.source]}]
                         </span>
                       </div>
                     </div>
-                    <span className="font-mono text-slate-200">
+                    <span className="font-mono text-slate-800">
                       {formatCurrencyFull(value)}
                     </span>
                   </div>
@@ -119,7 +119,7 @@ export function FormulaInfoModal({
           <div className="bg-teal-900/30 rounded-lg p-4 border border-teal-600">
             <div className="flex items-center justify-between">
               <span className="font-bold text-teal-300">= {formula.name}</span>
-              <span className={`font-mono font-bold text-lg ${resultValue < 0 ? 'text-red-400' : 'text-teal-300'}`}>
+              <span className={`font-mono font-bold text-lg ${resultValue < 0 ? 'text-rose-600' : 'text-teal-300'}`}>
                 {formatCurrencyFull(resultValue)}
               </span>
             </div>
@@ -127,10 +127,10 @@ export function FormulaInfoModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-700 bg-slate-900/30">
+        <div className="px-6 py-4 border-t border-slate-200 bg-white/30">
           <button
             onClick={onClose}
-            className="w-full py-2 px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors"
+            className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg transition-colors"
           >
             Close
           </button>
@@ -154,14 +154,14 @@ export function InfoTooltip({ title, description, isOpen, onClose }: InfoTooltip
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-slate-800 rounded-lg shadow-xl max-w-sm w-full border border-slate-700 p-4"
+        className="bg-white rounded-lg shadow-xl max-w-sm w-full border border-slate-200 p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-3">
-          <h3 className="font-semibold text-slate-200">{title}</h3>
+          <h3 className="font-semibold text-slate-800">{title}</h3>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200"
+            className="text-slate-400 hover:text-slate-800"
           >
             <XMarkIcon className="h-4 w-4" />
           </button>

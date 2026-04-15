@@ -134,12 +134,12 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
   const totalTransactions = misRecord.classifiedTransactions.length + (misRecord.unclassifiedTransactions?.length || 0);
 
   return (
-    <div className="bg-slate-900 min-h-screen">
+    <div className="bg-white min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-700 px-6 py-4">
+      <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-100">
+            <h1 className="text-xl font-bold text-slate-900">
               P&L MIS Report - {periodToString(misRecord.period)}
             </h1>
             <p className="text-sm text-slate-400 mt-1">
@@ -150,7 +150,7 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
             {/* Expand/Collapse All */}
             <button
               onClick={() => setAllExpanded(!allExpanded)}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-slate-100 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 rounded-lg transition-colors"
             >
               {allExpanded ? (
                 <>
@@ -165,7 +165,7 @@ export function EnhancedMISReportView({ misRecord, onRecalculate }: EnhancedMISR
               )}
             </button>
             {/* Export */}
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-slate-100 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+            <button className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 rounded-lg transition-colors">
               <ArrowDownTrayIcon className="h-4 w-4" />
               Export
             </button>

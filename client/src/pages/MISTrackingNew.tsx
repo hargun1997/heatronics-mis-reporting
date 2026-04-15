@@ -1181,21 +1181,21 @@ export function MISTrackingNew() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-slate-100">MIS Reporting</h1>
+          <h1 className="text-xl font-semibold text-slate-900">MIS Reporting</h1>
           <div className="flex items-center gap-3 mt-1">
             <p className="text-slate-400 text-sm">Upload documents for each month, generate P&L, and view trends</p>
             {/* Drive Status Indicator */}
             {(driveStatus || isCheckingDrive || hasCachedData) && (
               <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${
                 isAutoFetching
-                  ? 'bg-amber-500/20 text-amber-400'
+                  ? 'bg-amber-50 text-amber-600'
                   : isCheckingDrive
-                  ? 'bg-slate-700 text-slate-400'
+                  ? 'bg-slate-100 text-slate-400'
                   : hasCachedData
-                  ? 'bg-emerald-500/20 text-emerald-400'
+                  ? 'bg-emerald-50 text-emerald-600'
                   : driveStatus?.connected
-                  ? 'bg-blue-500/20 text-blue-400'
-                  : 'bg-slate-700 text-slate-400'
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'bg-slate-100 text-slate-400'
               }`}>
                 {isAutoFetching ? (
                   <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
@@ -1234,7 +1234,7 @@ export function MISTrackingNew() {
             {(hasCachedData || driveStatus?.connected) && !isCheckingDrive && !isAutoFetching && (
               <button
                 onClick={handleClearAndResync}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors"
                 title="Clear cached files and resync from Drive"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1247,7 +1247,7 @@ export function MISTrackingNew() {
         </div>
 
         {/* View Switcher */}
-        <div className="flex bg-slate-800 rounded-lg p-1">
+        <div className="flex bg-white rounded-lg p-1">
           {[
             { id: 'timeline' as const, label: 'Timeline', icon: '📅' },
             { id: 'report' as const, label: 'View Report', icon: '📊' },
@@ -1260,8 +1260,8 @@ export function MISTrackingNew() {
               className={`
                 px-4 py-2 rounded-md text-sm font-medium transition-all
                 ${activeView === view.id
-                  ? 'bg-slate-700 text-blue-400'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-slate-100 text-blue-600'
+                  : 'text-slate-400 hover:text-slate-800'
                 }
               `}
             >
@@ -1273,7 +1273,7 @@ export function MISTrackingNew() {
           {/* Algorithm Guide Button */}
           <button
             onClick={() => setShowAlgorithmGuide(true)}
-            className="px-4 py-2 rounded-md text-sm font-medium transition-all text-violet-400 hover:bg-violet-500/10"
+            className="px-4 py-2 rounded-md text-sm font-medium transition-all text-violet-600 hover:bg-violet-50"
           >
             <span className="mr-1.5">📖</span>
             MIS Guide
@@ -1287,7 +1287,7 @@ export function MISTrackingNew() {
               px-4 py-2 rounded-md text-sm font-medium transition-all
               ${allMISData.length === 0
                 ? 'text-slate-500 cursor-not-allowed'
-                : 'text-emerald-400 hover:bg-emerald-500/10'
+                : 'text-emerald-600 hover:bg-emerald-50'
               }
             `}
           >
@@ -1303,7 +1303,7 @@ export function MISTrackingNew() {
               px-4 py-2 rounded-md text-sm font-medium transition-all
               ${allMISData.length === 0
                 ? 'text-slate-500 cursor-not-allowed'
-                : 'text-red-400 hover:bg-red-500/10'
+                : 'text-rose-600 hover:bg-rose-50'
               }
             `}
           >
@@ -1315,14 +1315,14 @@ export function MISTrackingNew() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center justify-between">
+        <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-lg flex items-center justify-between">
           <div className="flex items-center">
-            <svg className="h-5 w-5 text-red-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5 text-rose-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-red-400">{error}</span>
+            <span className="text-rose-600">{error}</span>
           </div>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
+          <button onClick={() => setError(null)} className="text-rose-600 hover:text-red-300">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -1334,7 +1334,7 @@ export function MISTrackingNew() {
       {activeView === 'timeline' && (
         <div className="space-y-6">
           {/* Year Selector & State Selector */}
-          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 flex flex-wrap items-center gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-slate-400">Year:</label>
               <div className="flex gap-1">
@@ -1345,8 +1345,8 @@ export function MISTrackingNew() {
                     className={`
                       px-3 py-1.5 rounded-md text-sm font-medium transition-all
                       ${selectedYear === year
-                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                        ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-800'
                       }
                     `}
                   >
@@ -1367,7 +1367,7 @@ export function MISTrackingNew() {
                 <span className="w-2 h-2 rounded-full bg-amber-500"></span> Partial
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-slate-600"></span> Empty
+                <span className="w-2 h-2 rounded-full bg-slate-300"></span> Empty
               </span>
             </div>
           </div>
@@ -1380,8 +1380,8 @@ export function MISTrackingNew() {
               className={`
                 flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all
                 ${generatingAll || isAutoFetching || monthsReadyCount === 0
-                  ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                  ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                  : 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
                 }
               `}
             >
@@ -1439,25 +1439,25 @@ export function MISTrackingNew() {
                     className={`
                       w-full p-3 rounded-lg border transition-all text-left
                       ${isFuture
-                        ? 'bg-slate-800/30 border-slate-700/50 opacity-40 cursor-not-allowed'
+                        ? 'bg-slate-50 border-slate-200/50 opacity-40 cursor-not-allowed'
                         : isExpanded
-                        ? 'bg-blue-500/15 border-blue-500/50'
+                        ? 'bg-blue-50 border-blue-500/50'
                         : status === 'complete'
-                        ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/50'
+                        ? 'bg-emerald-50 border-emerald-200 hover:border-emerald-500/50'
                         : status === 'ready'
-                        ? 'bg-blue-500/10 border-blue-500/30 hover:border-blue-500/50'
+                        ? 'bg-blue-50 border-blue-200 hover:border-blue-500/50'
                         : status === 'partial'
-                        ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50'
-                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                        ? 'bg-amber-50 border-amber-200 hover:border-amber-500/50'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
                       }
                     `}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-slate-200 text-sm">{monthName}</span>
+                        <span className="font-medium text-slate-800 text-sm">{monthName}</span>
                         {/* Drive indicator */}
                         {hasDriveData && (
-                          <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M7.71 3.5L1.15 15l3.43 6h15.84l3.43-6L17.29 3.5H7.71zM15 14h-4v-2h4v2zm0-4h-4V8h4v2z"/>
                           </svg>
                         )}
@@ -1466,14 +1466,14 @@ export function MISTrackingNew() {
                         w-2 h-2 rounded-full
                         ${status === 'complete' ? 'bg-emerald-500' :
                           status === 'ready' ? 'bg-blue-500' :
-                          status === 'partial' ? 'bg-amber-500' : 'bg-slate-600'}
+                          status === 'partial' ? 'bg-amber-500' : 'bg-slate-300'}
                       `} />
                     </div>
 
                     {status === 'complete' && monthData?.mis && (
                       <div className="text-xs text-slate-400 space-y-0.5">
                         <div className="truncate">{formatCurrency(monthData.mis.revenue.netRevenue)}</div>
-                        <div className={monthData.mis.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                        <div className={monthData.mis.ebitda >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                           {formatPercent(monthData.mis.ebitdaPercent)}
                         </div>
                       </div>
@@ -1515,8 +1515,8 @@ export function MISTrackingNew() {
 
           {/* Quick Stats - Show if we have any data */}
           {allMISData.length > 0 && (
-            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-5">
-              <h3 className="text-sm font-medium text-slate-300 mb-4">Overview for {selectedYear}</h3>
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h3 className="text-sm font-medium text-slate-700 mb-4">Overview for {selectedYear}</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatCard
                   label="Months"
@@ -1640,18 +1640,18 @@ function MonthDetailPanel({
   ];
 
   return (
-    <div className="bg-slate-800 rounded-xl border border-blue-500/50 overflow-hidden">
+    <div className="bg-white rounded-xl border border-blue-500/50 overflow-hidden">
       {/* Header */}
-      <div className="bg-blue-500/20 border-b border-blue-500/30 p-4 flex items-center justify-between">
+      <div className="bg-blue-50 border-b border-blue-200 p-4 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-semibold text-slate-100">{periodToString(monthData.period)}</h3>
-          <p className="text-blue-400/70 text-sm">
+          <h3 className="text-base font-semibold text-slate-900">{periodToString(monthData.period)}</h3>
+          <p className="text-blue-600/70 text-sm">
             {monthData.hasData ? 'MIS Generated' : 'Data will be synced via Resync button'}
           </p>
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
+          className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-800"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1661,16 +1661,16 @@ function MonthDetailPanel({
 
       {/* Drive States Preview */}
       {driveData && driveData.states.length > 0 && (
-        <div className="px-5 py-3 bg-blue-500/10 border-b border-blue-500/20">
-          <div className="flex items-center gap-2 text-xs text-blue-400">
+        <div className="px-5 py-3 bg-blue-50 border-b border-blue-100">
+          <div className="flex items-center gap-2 text-xs text-blue-600">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M7.71 3.5L1.15 15l3.43 6h15.84l3.43-6L17.29 3.5H7.71zM15 14h-4v-2h4v2zm0-4h-4V8h4v2z"/>
             </svg>
             <span>Available in Drive:</span>
             {driveData.states.map((state, idx) => (
-              <span key={state.code} className="px-1.5 py-0.5 bg-blue-500/20 rounded text-blue-300">
+              <span key={state.code} className="px-1.5 py-0.5 bg-blue-50 rounded text-blue-300">
                 {STATE_NAMES[state.code] || state.name}
-                <span className="text-blue-400/60 ml-1">
+                <span className="text-blue-600/60 ml-1">
                   ({state.files.length} files)
                 </span>
               </span>
@@ -1690,7 +1690,7 @@ function MonthDetailPanel({
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-700">
+                <tr className="border-b border-slate-200">
                   <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Document</th>
                   {selectedStates.map(state => (
                     <th key={state} className="text-center py-2 px-3 text-xs font-medium text-slate-500">
@@ -1701,10 +1701,10 @@ function MonthDetailPanel({
               </thead>
               <tbody>
                 {docTypes.map(doc => (
-                  <tr key={doc.type} className="border-b border-slate-700/50">
+                  <tr key={doc.type} className="border-b border-slate-200/50">
                     <td className="py-2.5 px-3">
-                      <span className="text-sm text-slate-300">{doc.label}</span>
-                      {doc.required && <span className="text-red-400 ml-1">*</span>}
+                      <span className="text-sm text-slate-700">{doc.label}</span>
+                      {doc.required && <span className="text-rose-600 ml-1">*</span>}
                     </td>
                     {selectedStates.map(state => (
                       <td key={state} className="py-2.5 px-3 text-center">
@@ -1724,15 +1724,15 @@ function MonthDetailPanel({
           {/* Legend - Simplified: only loaded or empty */}
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center">
-                <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <span className="w-5 h-5 rounded bg-emerald-50 flex items-center justify-center">
+                <svg className="w-3 h-3 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </span>
               Loaded
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded bg-slate-700/50 flex items-center justify-center">
+              <span className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center">
                 <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
@@ -1747,12 +1747,12 @@ function MonthDetailPanel({
           {monthData.hasData ? (
             <button
               onClick={onViewMIS}
-              className="w-full px-4 py-2.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-medium hover:bg-emerald-500/30 transition-colors"
+              className="w-full px-4 py-2.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-sm font-medium hover:bg-emerald-100 transition-colors"
             >
               View Report
             </button>
           ) : (
-            <div className="w-full px-4 py-2.5 bg-slate-700/30 text-slate-400 rounded-lg text-sm text-center">
+            <div className="w-full px-4 py-2.5 bg-slate-50 text-slate-400 rounded-lg text-sm text-center">
               Use "Generate All MIS" button to generate reports
             </div>
           )}
@@ -1760,23 +1760,23 @@ function MonthDetailPanel({
 
         {/* Existing MIS Summary */}
         {monthData.hasData && monthData.mis && (
-          <div className="mt-5 p-4 bg-slate-700/30 rounded-lg">
+          <div className="mt-5 p-4 bg-slate-50 rounded-lg">
             <div className="grid grid-cols-4 gap-4 text-center">
               <div>
                 <div className="text-xs text-slate-500">Revenue</div>
-                <div className="text-sm font-medium text-slate-200">{formatCurrency(monthData.mis.revenue.netRevenue)}</div>
+                <div className="text-sm font-medium text-slate-800">{formatCurrency(monthData.mis.revenue.netRevenue)}</div>
               </div>
               <div>
                 <div className="text-xs text-slate-500">Margin</div>
-                <div className="text-sm font-medium text-emerald-400">{formatPercent(monthData.mis.grossMarginPercent)}</div>
+                <div className="text-sm font-medium text-emerald-600">{formatPercent(monthData.mis.grossMarginPercent)}</div>
               </div>
               <div>
                 <div className="text-xs text-slate-500">CM1</div>
-                <div className="text-sm font-medium text-blue-400">{formatPercent(monthData.mis.cm1Percent)}</div>
+                <div className="text-sm font-medium text-blue-600">{formatPercent(monthData.mis.cm1Percent)}</div>
               </div>
               <div>
                 <div className="text-xs text-slate-500">EBITDA</div>
-                <div className={`text-sm font-medium ${monthData.mis.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <div className={`text-sm font-medium ${monthData.mis.ebitda >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {formatPercent(monthData.mis.ebitdaPercent)}
                 </div>
               </div>
@@ -1812,7 +1812,7 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
   if (isLoading) {
     return (
       <div className="w-10 h-10 mx-auto flex items-center justify-center">
-        <svg className="animate-spin h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24">
+        <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
@@ -1834,8 +1834,8 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
         className={`
           w-10 h-10 mx-auto rounded-lg flex items-center justify-center transition-all
           ${status === 'parsed'
-            ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-            : 'bg-slate-700/50 text-slate-500 hover:bg-slate-700 hover:text-slate-400'
+            ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+            : 'bg-slate-100 text-slate-500 hover:bg-slate-100 hover:text-slate-400'
           }
         `}
         title={status === 'parsed' ? 'Loaded (click to replace)' : 'Click to upload'}
@@ -1860,11 +1860,11 @@ function FileUploadButton({ status, onUpload, isLoading }: FileUploadButtonProps
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
-    emerald: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
-    violet: 'bg-violet-500/10 border-violet-500/30 text-violet-400',
-    red: 'bg-red-500/10 border-red-500/30 text-red-400',
-    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+    blue: 'bg-blue-50 border-blue-200 text-blue-600',
+    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-600',
+    violet: 'bg-violet-50 border-violet-200 text-violet-600',
+    red: 'bg-rose-50 border-rose-200 text-rose-600',
+    orange: 'bg-orange-50 border-orange-200 text-orange-600'
   };
 
   return (

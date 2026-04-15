@@ -101,13 +101,13 @@ export function ReclassifyModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-800 rounded-lg shadow-xl max-w-xl w-full border border-slate-700">
+      <div className="bg-white rounded-lg shadow-xl max-w-xl w-full border border-slate-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-          <h2 className="text-lg font-bold text-slate-100">Reclassify Transaction</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h2 className="text-lg font-bold text-slate-900">Reclassify Transaction</h2>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded-full transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors"
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -116,39 +116,39 @@ export function ReclassifyModal({
         {/* Content */}
         <div className="p-6 space-y-5">
           {/* Transaction Info */}
-          <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+          <div className="bg-white/50 rounded-lg p-4 border border-slate-200">
             <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Transaction</p>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-slate-400">Account:</span>
-                <span className="text-slate-200 font-mono text-sm">{transaction.account}</span>
+                <span className="text-slate-800 font-mono text-sm">{transaction.account}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Amount:</span>
-                <span className="text-slate-200 font-mono">{formatCurrencyFull(transaction.amount)}</span>
+                <span className="text-slate-800 font-mono">{formatCurrencyFull(transaction.amount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Date:</span>
-                <span className="text-slate-200">{transaction.date || 'N/A'}</span>
+                <span className="text-slate-800">{transaction.date || 'N/A'}</span>
               </div>
             </div>
           </div>
 
           {/* Classification Change */}
-          <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+          <div className="bg-white/50 rounded-lg p-4 border border-slate-200">
             <p className="text-xs text-slate-500 uppercase tracking-wide mb-3">Change Classification</p>
 
             {/* From -> To Display */}
             <div className="flex items-center gap-3 mb-4 text-sm">
               <div className="flex-1 p-2 bg-red-900/30 rounded border border-red-700">
-                <p className="text-red-400 text-xs">From</p>
-                <p className="text-slate-200 font-medium">{currentHead}</p>
+                <p className="text-rose-600 text-xs">From</p>
+                <p className="text-slate-800 font-medium">{currentHead}</p>
                 <p className="text-slate-400 text-xs">{currentSubhead}</p>
               </div>
               <ArrowRightIcon className="h-5 w-5 text-slate-500 flex-shrink-0" />
               <div className="flex-1 p-2 bg-green-900/30 rounded border border-green-700">
                 <p className="text-green-400 text-xs">To</p>
-                <p className="text-slate-200 font-medium">{selectedHead}</p>
+                <p className="text-slate-800 font-medium">{selectedHead}</p>
                 <p className="text-slate-400 text-xs">{selectedSubhead || '(select subhead)'}</p>
               </div>
             </div>
@@ -159,7 +159,7 @@ export function ReclassifyModal({
               <select
                 value={selectedHead}
                 onChange={(e) => handleHeadChange(e.target.value as MISHead)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-teal-500"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-teal-500"
               >
                 {headOptions.map(({ head, type }) => (
                   <option key={head} value={head}>
@@ -175,7 +175,7 @@ export function ReclassifyModal({
               <select
                 value={selectedSubhead}
                 onChange={(e) => setSelectedSubhead(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-teal-500"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-teal-500"
               >
                 <option value="">Select subhead...</option>
                 {availableSubheads.map((subhead) => (
@@ -188,15 +188,15 @@ export function ReclassifyModal({
           </div>
 
           {/* Create Rule Option */}
-          <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+          <div className="bg-white/50 rounded-lg p-4 border border-slate-200">
             <label className="flex items-center gap-3 cursor-pointer mb-4">
               <input
                 type="checkbox"
                 checked={createRule}
                 onChange={(e) => setCreateRule(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-teal-500 focus:ring-teal-500"
+                className="h-4 w-4 rounded border-slate-300 bg-white text-teal-500 focus:ring-teal-500"
               />
-              <span className="text-slate-200">Create rule for similar transactions</span>
+              <span className="text-slate-800">Create rule for similar transactions</span>
             </label>
 
             {createRule && (
@@ -208,7 +208,7 @@ export function ReclassifyModal({
                     value={pattern}
                     onChange={(e) => setPattern(e.target.value)}
                     placeholder="Enter pattern..."
-                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-teal-500"
+                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:border-teal-500"
                   />
                   <p className="text-xs text-slate-500 mt-1">
                     Future transactions matching this pattern will be auto-classified
@@ -226,9 +226,9 @@ export function ReclassifyModal({
                           value={type}
                           checked={matchType === type}
                           onChange={() => setMatchType(type)}
-                          className="h-4 w-4 border-slate-600 bg-slate-900 text-teal-500 focus:ring-teal-500"
+                          className="h-4 w-4 border-slate-300 bg-white text-teal-500 focus:ring-teal-500"
                         />
-                        <span className="text-sm text-slate-300 capitalize">{type}</span>
+                        <span className="text-sm text-slate-700 capitalize">{type}</span>
                       </label>
                     ))}
                   </div>
@@ -243,7 +243,7 @@ export function ReclassifyModal({
               <ExclamationTriangleIcon className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="text-amber-200 font-medium">This will create a new classification rule</p>
-                <p className="text-amber-400/80 text-xs mt-1">
+                <p className="text-amber-600/80 text-xs mt-1">
                   The rule will affect future MIS calculations. You can manage rules on the Rules page.
                 </p>
               </div>
@@ -259,10 +259,10 @@ export function ReclassifyModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-700 bg-slate-900/30">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-white/30">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-slate-300 hover:text-slate-100 hover:bg-slate-700 rounded-lg transition-colors"
+            className="px-4 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
           >
             Cancel
           </button>
@@ -273,7 +273,7 @@ export function ReclassifyModal({
               px-4 py-2 rounded-lg flex items-center gap-2 transition-colors
               ${isChanged && selectedSubhead
                 ? 'bg-teal-600 hover:bg-teal-500 text-white'
-                : 'bg-slate-700 text-slate-500 cursor-not-allowed'}
+                : 'bg-slate-100 text-slate-500 cursor-not-allowed'}
             `}
           >
             {isSubmitting ? (

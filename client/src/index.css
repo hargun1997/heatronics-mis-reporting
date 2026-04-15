@@ -4,36 +4,40 @@
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #f3f4f6;
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar (light) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f1f5f9;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #cbd5e1;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: #94a3b8;
 }
 
 /* Table row animations */
@@ -42,16 +46,16 @@ body {
 }
 
 .transaction-row:hover {
-  background-color: #f9fafb;
+  background-color: #f8fafc;
 }
 
-/* Classification status colors */
+/* Classification status colors (light palette) */
 .status-classified {
-  background-color: #d1fae5;
+  background-color: #ecfdf5; /* emerald-50 */
 }
 
 .status-suggested {
-  background-color: #fef3c7;
+  background-color: #fffbeb; /* amber-50 */
 }
 
 .status-unclassified {
@@ -60,7 +64,7 @@ body {
 
 /* Custom dropdown styling */
 .classification-dropdown {
-  @apply border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  @apply border border-slate-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white;
 }
 
 /* Print styles for MIS report */
@@ -89,10 +93,22 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Hide scrollbar for horizontal mobile nav */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Card hover lift */
+.card-lift { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.card-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -8px rgba(15, 23, 42, 0.15); }
+
+/* Soft dashed divider */
+.divider-dashed {
+  background-image: linear-gradient(to right, #cbd5e1 50%, transparent 50%);
+  background-size: 8px 1px;
+  background-repeat: repeat-x;
+  height: 1px;
 }

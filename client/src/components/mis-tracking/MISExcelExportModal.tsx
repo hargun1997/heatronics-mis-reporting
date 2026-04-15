@@ -167,17 +167,17 @@ export function MISExcelExportModal({
   })();
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-white/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl border border-slate-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-100">Export MIS Report to Excel</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Export MIS Report to Excel</h2>
             <p className="text-sm text-slate-400 mt-1">Professional multi-sheet Excel workbook with detailed analysis</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-400"
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -188,15 +188,15 @@ export function MISExcelExportModal({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Quick Export Section */}
-          <div className="bg-slate-700/30 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Quick Export</h3>
+          <div className="bg-slate-50 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3">Quick Export</h3>
             <div className="flex flex-wrap gap-3">
               {availableFYs.slice(0, 3).map(fy => (
                 <button
                   key={fy}
                   onClick={() => handleQuickExportFY(fy)}
                   disabled={isExporting}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-colors text-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors text-sm"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -208,7 +208,7 @@ export function MISExcelExportModal({
                 <button
                   onClick={() => handleQuickExportMonth(allMonths[0].periodKey)}
                   disabled={isExporting}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors text-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -221,10 +221,10 @@ export function MISExcelExportModal({
 
           {/* Section Selection */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Custom Export - Select Sheets</h3>
+            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Custom Export - Select Sheets</h3>
 
             {/* Summary Option */}
-            <label className="flex items-start gap-3 p-4 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700/70 transition-colors">
+            <label className="flex items-start gap-3 p-4 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-100/70 transition-colors">
               <input
                 type="checkbox"
                 checked={includeSummary}
@@ -232,14 +232,14 @@ export function MISExcelExportModal({
                 className="mt-1 w-4 h-4 rounded border-slate-500 text-emerald-500 focus:ring-emerald-500"
               />
               <div className="flex-1">
-                <div className="font-medium text-slate-200">Summary Sheet</div>
+                <div className="font-medium text-slate-800">Summary Sheet</div>
                 <div className="text-sm text-slate-400">Key metrics overview with 12-month comparison</div>
               </div>
-              <div className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded">1 sheet</div>
+              <div className="text-xs text-slate-500 bg-white px-2 py-1 rounded">1 sheet</div>
             </label>
 
             {/* FY Summary Option */}
-            <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="p-4 bg-slate-100 rounded-lg">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -248,10 +248,10 @@ export function MISExcelExportModal({
                   className="mt-1 w-4 h-4 rounded border-slate-500 text-emerald-500 focus:ring-emerald-500"
                 />
                 <div className="flex-1">
-                  <div className="font-medium text-slate-200">Financial Year P&L Sheets</div>
+                  <div className="font-medium text-slate-800">Financial Year P&L Sheets</div>
                   <div className="text-sm text-slate-400">Month-by-month P&L statement for each selected FY</div>
                 </div>
-                <div className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded">
+                <div className="text-xs text-slate-500 bg-white px-2 py-1 rounded">
                   {selectedFYs.length} sheet{selectedFYs.length !== 1 ? 's' : ''}
                 </div>
               </label>
@@ -259,11 +259,11 @@ export function MISExcelExportModal({
               {includeFYSheets && (
                 <div className="mt-4 pl-7">
                   <div className="flex items-center gap-2 mb-3">
-                    <button onClick={selectAllFYs} className="text-xs text-emerald-400 hover:text-emerald-300">
+                    <button onClick={selectAllFYs} className="text-xs text-emerald-600 hover:text-emerald-300">
                       Select All
                     </button>
                     <span className="text-slate-600">|</span>
-                    <button onClick={clearAllFYs} className="text-xs text-slate-400 hover:text-slate-300">
+                    <button onClick={clearAllFYs} className="text-xs text-slate-400 hover:text-slate-700">
                       Clear All
                     </button>
                   </div>
@@ -274,8 +274,8 @@ export function MISExcelExportModal({
                         className={`
                           flex items-center gap-2 px-3 py-2 rounded text-sm cursor-pointer transition-colors
                           ${selectedFYs.includes(fy)
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 border border-transparent'
+                            ? 'bg-emerald-50 text-emerald-300 border border-emerald-200'
+                            : 'bg-white text-slate-400 hover:bg-slate-100 border border-transparent'
                           }
                         `}
                       >
@@ -294,7 +294,7 @@ export function MISExcelExportModal({
             </div>
 
             {/* Monthly P&L Option */}
-            <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="p-4 bg-slate-100 rounded-lg">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -303,10 +303,10 @@ export function MISExcelExportModal({
                   className="mt-1 w-4 h-4 rounded border-slate-500 text-emerald-500 focus:ring-emerald-500"
                 />
                 <div className="flex-1">
-                  <div className="font-medium text-slate-200">Monthly P&L Sheets</div>
+                  <div className="font-medium text-slate-800">Monthly P&L Sheets</div>
                   <div className="text-sm text-slate-400">Detailed P&L with full breakdown for each selected month</div>
                 </div>
-                <div className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded">
+                <div className="text-xs text-slate-500 bg-white px-2 py-1 rounded">
                   {selectedMonths.length} sheet{selectedMonths.length !== 1 ? 's' : ''}
                 </div>
               </label>
@@ -314,11 +314,11 @@ export function MISExcelExportModal({
               {includeMonthlySheets && (
                 <div className="mt-4 pl-7">
                   <div className="flex items-center gap-2 mb-3">
-                    <button onClick={selectAllMonths} className="text-xs text-emerald-400 hover:text-emerald-300">
+                    <button onClick={selectAllMonths} className="text-xs text-emerald-600 hover:text-emerald-300">
                       Select All
                     </button>
                     <span className="text-slate-600">|</span>
-                    <button onClick={clearAllMonths} className="text-xs text-slate-400 hover:text-slate-300">
+                    <button onClick={clearAllMonths} className="text-xs text-slate-400 hover:text-slate-700">
                       Clear All
                     </button>
                     <span className="text-xs text-slate-500 ml-2">({selectedMonths.length} selected)</span>
@@ -330,8 +330,8 @@ export function MISExcelExportModal({
                         className={`
                           flex items-center gap-2 px-3 py-2 rounded text-sm cursor-pointer transition-colors
                           ${selectedMonths.includes(periodKey)
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                            ? 'bg-emerald-50 text-emerald-300'
+                            : 'bg-white text-slate-400 hover:bg-slate-100'
                           }
                         `}
                       >
@@ -351,7 +351,7 @@ export function MISExcelExportModal({
 
             {/* Analysis Sheets */}
             <div className="grid grid-cols-2 gap-4">
-              <label className="flex items-start gap-3 p-4 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700/70 transition-colors">
+              <label className="flex items-start gap-3 p-4 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-100/70 transition-colors">
                 <input
                   type="checkbox"
                   checked={includeRevenueAnalysis}
@@ -359,12 +359,12 @@ export function MISExcelExportModal({
                   className="mt-1 w-4 h-4 rounded border-slate-500 text-emerald-500 focus:ring-emerald-500"
                 />
                 <div>
-                  <div className="font-medium text-slate-200">Revenue Analysis</div>
+                  <div className="font-medium text-slate-800">Revenue Analysis</div>
                   <div className="text-sm text-slate-400">Channel-wise revenue breakdown</div>
                 </div>
               </label>
 
-              <label className="flex items-start gap-3 p-4 bg-slate-700/50 rounded-lg cursor-pointer hover:bg-slate-700/70 transition-colors">
+              <label className="flex items-start gap-3 p-4 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-100/70 transition-colors">
                 <input
                   type="checkbox"
                   checked={includeExpenseAnalysis}
@@ -372,14 +372,14 @@ export function MISExcelExportModal({
                   className="mt-1 w-4 h-4 rounded border-slate-500 text-emerald-500 focus:ring-emerald-500"
                 />
                 <div>
-                  <div className="font-medium text-slate-200">Expense Analysis</div>
+                  <div className="font-medium text-slate-800">Expense Analysis</div>
                   <div className="text-sm text-slate-400">Detailed expense category breakdown</div>
                 </div>
               </label>
             </div>
 
             {/* Transactions Option */}
-            <div className="p-4 bg-slate-700/50 rounded-lg">
+            <div className="p-4 bg-slate-100 rounded-lg">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -388,13 +388,13 @@ export function MISExcelExportModal({
                   className="mt-1 w-4 h-4 rounded border-slate-500 text-emerald-500 focus:ring-emerald-500"
                 />
                 <div className="flex-1">
-                  <div className="font-medium text-slate-200">Transaction Details</div>
+                  <div className="font-medium text-slate-800">Transaction Details</div>
                   <div className="text-sm text-slate-400">Detailed transaction listing for selected months (requires Monthly Sheets)</div>
                 </div>
               </label>
 
               {includeTransactions && selectedMonths.length === 0 && (
-                <div className="mt-3 pl-7 text-xs text-amber-400 flex items-center gap-2">
+                <div className="mt-3 pl-7 text-xs text-amber-600 flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
@@ -406,7 +406,7 @@ export function MISExcelExportModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-700 flex items-center justify-between">
+        <div className="p-4 border-t border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="text-sm text-slate-400">
               {exportProgress || (
@@ -419,7 +419,7 @@ export function MISExcelExportModal({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-800 transition-colors"
             >
               Cancel
             </button>
@@ -429,7 +429,7 @@ export function MISExcelExportModal({
               className={`
                 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all
                 ${isExporting || estimatedSheets === 0
-                  ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
                   : 'bg-emerald-500 text-white hover:bg-emerald-600'
                 }
               `}
