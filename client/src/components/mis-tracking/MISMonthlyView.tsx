@@ -460,7 +460,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-slate-300 mb-2">No MIS Data</h3>
+        <h3 className="text-lg font-medium text-slate-700 mb-2">No MIS Data</h3>
         <p className="text-slate-500 mb-4">
           Upload documents in the Timeline tab to generate MIS
         </p>
@@ -507,18 +507,18 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
   return (
     <div className="space-y-6">
       {/* Period Selection Controls */}
-      <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+      <div className="bg-white rounded-xl border border-slate-200 p-4">
         <div className="flex flex-col gap-4">
           {/* Mode Toggle */}
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-400">View Mode:</span>
-            <div className="flex items-center bg-slate-700/50 rounded-lg p-0.5">
+            <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
               <button
                 onClick={() => setSelectionMode('single')}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                   selectionMode === 'single'
                     ? 'bg-blue-500 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-400 hover:text-slate-800'
                 }`}
               >
                 Single Month
@@ -531,7 +531,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                   selectionMode === 'range'
                     ? 'bg-blue-500 text-white'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-400 hover:text-slate-800'
                 }`}
               >
                 Aggregate Range
@@ -546,7 +546,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
               <select
                 value={currentMIS?.periodKey || ''}
                 onChange={(e) => onPeriodChange(e.target.value)}
-                className="px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-sm text-slate-200 min-w-[150px]"
+                className="px-3 py-1.5 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-800 min-w-[150px]"
               >
                 <option value="">Select a period...</option>
                 {savedPeriods.map(p => (
@@ -579,8 +579,8 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
                         selectedPreset === preset.id
                           ? 'bg-blue-500 text-white'
                           : isDisabled
-                          ? 'bg-slate-700/30 text-slate-600 cursor-not-allowed'
-                          : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                          ? 'bg-slate-50 text-slate-600 cursor-not-allowed'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200/50'
                       }`}
                     >
                       {preset.label}
@@ -594,19 +594,19 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
               {/* Custom Month Selection */}
               {selectedPreset === 'custom' && (
-                <div className="bg-slate-700/30 rounded-lg p-3">
+                <div className="bg-slate-50 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-300 font-medium">Select months to aggregate:</span>
+                    <span className="text-sm text-slate-700 font-medium">Select months to aggregate:</span>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setCustomSelectedMonths(new Set(savedPeriods.map(p => p.periodKey)))}
-                        className="text-xs text-blue-400 hover:text-blue-300"
+                        className="text-xs text-blue-600 hover:text-blue-300"
                       >
                         Select All
                       </button>
                       <button
                         onClick={() => setCustomSelectedMonths(new Set())}
-                        className="text-xs text-slate-400 hover:text-slate-300"
+                        className="text-xs text-slate-400 hover:text-slate-700"
                       >
                         Clear
                       </button>
@@ -622,7 +622,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
                           className={`px-2 py-1.5 text-xs rounded-md transition-all ${
                             customSelectedMonths.has(p.periodKey)
                               ? 'bg-blue-500 text-white'
-                              : 'bg-slate-600/50 text-slate-300 hover:bg-slate-500/50'
+                              : 'bg-slate-300/50 text-slate-700 hover:bg-slate-500/50'
                           }`}
                         >
                           {periodToString(p.period)}
@@ -635,7 +635,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
               {/* Selected Summary */}
               {selectedPeriodKeys.length > 0 && (
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-emerald-400 font-medium">
+                  <span className="text-emerald-600 font-medium">
                     {selectedPeriodKeys.length} month{selectedPeriodKeys.length !== 1 ? 's' : ''} selected
                   </span>
                   <span className="text-slate-500">|</span>
@@ -652,7 +652,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
       {/* Header with Title & Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h3 className="text-base font-semibold text-slate-200">
+          <h3 className="text-base font-semibold text-slate-800">
             {selectionMode === 'single' && displayMIS
               ? `MIS for ${periodToString(displayMIS.period)}`
               : selectionMode === 'range' && displayMIS
@@ -661,7 +661,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             }
           </h3>
           {selectionMode === 'range' && selectedPeriodKeys.length > 1 && (
-            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full">
               Aggregated
             </span>
           )}
@@ -669,13 +669,13 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
         <div className="flex items-center gap-3">
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-slate-700/50 rounded-lg p-0.5">
+          <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode('enhanced')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 viewMode === 'enhanced'
                   ? 'bg-teal-500 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-400 hover:text-slate-800'
               }`}
               title="Enhanced View with drill-down"
             >
@@ -687,7 +687,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
                 viewMode === 'classic'
                   ? 'bg-blue-500 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-400 hover:text-slate-800'
               }`}
               title="Classic table view"
             >
@@ -702,7 +702,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
                 type="checkbox"
                 checked={showChannelBreakdown}
                 onChange={(e) => setShowChannelBreakdown(e.target.checked)}
-                className="mr-2 rounded bg-slate-700 border-slate-600"
+                className="mr-2 rounded bg-slate-100 border-slate-300"
               />
               Show channel breakdown
             </label>
@@ -710,7 +710,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
           <button
             onClick={() => setShowAlgorithmGuide(true)}
-            className="px-4 py-2 text-sm text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 transition-colors"
+            className="px-4 py-2 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
           >
             Algorithm Guide
           </button>
@@ -719,7 +719,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             <button
               onClick={() => setShowExportDropdown(!showExportDropdown)}
               disabled={isExporting}
-              className="px-4 py-2 text-sm text-slate-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-slate-300 transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-sm text-slate-400 border border-slate-300 rounded-lg hover:bg-slate-100 hover:text-slate-700 transition-colors flex items-center gap-2"
             >
               {isExporting ? (
                 <>
@@ -741,12 +741,12 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
             {showExportDropdown && (
               <>
-                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-50">
                   <button
                     onClick={handleExportPDF}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-300 hover:bg-slate-700 rounded-lg"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-100 rounded-lg"
                   >
-                    <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-5 w-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                     Export to PDF
@@ -766,13 +766,13 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
       {/* No Data State */}
       {!displayMIS && (
-        <div className="text-center py-12 bg-slate-800/30 rounded-xl border border-slate-700">
+        <div className="text-center py-12 bg-slate-50 rounded-xl border border-slate-200">
           <div className="text-slate-600 mb-4">
             <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-slate-300 mb-2">
+          <h3 className="text-lg font-medium text-slate-700 mb-2">
             {selectionMode === 'range' ? 'No Data for Selected Range' : 'No MIS Data'}
           </h3>
           <p className="text-slate-500">
@@ -827,13 +827,13 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
       {/* Classic View - P&L Table */}
       {displayMIS && viewMode === 'classic' && (
-      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-slate-700/50 border-b border-slate-700">
-              <th className="text-left py-3 px-4 font-medium text-slate-300 text-sm">P&L</th>
-              <th className="text-right py-3 px-4 font-medium text-slate-300 text-sm">Amount</th>
-              <th className="text-right py-3 px-4 font-medium text-slate-300 text-sm">% of Net Rev</th>
+            <tr className="bg-slate-100 border-b border-slate-200">
+              <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">P&L</th>
+              <th className="text-right py-3 px-4 font-medium text-slate-700 text-sm">Amount</th>
+              <th className="text-right py-3 px-4 font-medium text-slate-700 text-sm">% of Net Rev</th>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
                 <th key={channel} className="text-right py-3 px-4 font-medium text-slate-400 text-xs">
                   {channel}
@@ -887,27 +887,27 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
             {/* Stock Transfers (if any) */}
             {revenue.totalStockTransfers > 0 && (
-              <tr className="bg-purple-500/10">
+              <tr className="bg-purple-50">
                 <td className="py-2 px-4">
-                  <span className="font-medium text-purple-400">Stock Transfers (Excluded)</span>
+                  <span className="font-medium text-purple-600">Stock Transfers (Excluded)</span>
                 </td>
-                <td className="py-2 px-4 text-right text-purple-400">{formatCurrencyFull(revenue.totalStockTransfers)}</td>
-                <td className="py-2 px-4 text-right text-purple-400/70 text-sm">
+                <td className="py-2 px-4 text-right text-purple-600">{formatCurrencyFull(revenue.totalStockTransfers)}</td>
+                <td className="py-2 px-4 text-right text-purple-600/70 text-sm">
                   {revenue.stockTransfers.length} transfer{revenue.stockTransfers.length !== 1 ? 's' : ''}
                 </td>
                 {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                  <td key={channel} className="py-2 px-4 text-right text-purple-400/50 text-xs">-</td>
+                  <td key={channel} className="py-2 px-4 text-right text-purple-600/50 text-xs">-</td>
                 ))}
               </tr>
             )}
 
             {/* Total Revenue Line */}
-            <tr className="bg-slate-700/30 font-semibold">
-              <td className="py-3 px-4 text-slate-200 text-sm">
+            <tr className="bg-slate-50 font-semibold">
+              <td className="py-3 px-4 text-slate-800 text-sm">
                 <span className="mr-2 text-slate-500">7</span>
                 Total Revenue
               </td>
-              <td className="py-3 px-4 text-right text-slate-200 text-sm">{formatCurrencyFull(revenue.totalRevenue)}</td>
+              <td className="py-3 px-4 text-right text-slate-800 text-sm">{formatCurrencyFull(revenue.totalRevenue)}</td>
               <td className="py-3 px-4 text-right text-slate-400 text-sm">-</td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
                 <td key={channel} className="py-3 px-4 text-right text-slate-500 text-xs">-</td>
@@ -937,12 +937,12 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             />
 
             {/* NET REVENUE */}
-            <tr className="bg-orange-500/20 font-bold">
-              <td className="py-4 px-4 text-orange-400 text-sm">NET REVENUE</td>
-              <td className="py-4 px-4 text-right text-orange-400 text-sm">{formatCurrencyFull(netRevenue)}</td>
-              <td className="py-4 px-4 text-right text-orange-400/80 text-sm">100%</td>
+            <tr className="bg-orange-50 font-bold">
+              <td className="py-4 px-4 text-orange-600 text-sm">NET REVENUE</td>
+              <td className="py-4 px-4 text-right text-orange-600 text-sm">{formatCurrencyFull(netRevenue)}</td>
+              <td className="py-4 px-4 text-right text-orange-600/80 text-sm">100%</td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <td key={channel} className="py-4 px-4 text-right text-orange-400/50 text-xs">-</td>
+                <td key={channel} className="py-4 px-4 text-right text-orange-600/50 text-xs">-</td>
               ))}
             </tr>
 
@@ -962,12 +962,12 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             <SubtotalRow number={12} label="Total COGM" amount={cogm.totalCOGM} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="blue" />
 
             {/* GROSS MARGIN */}
-            <tr className="bg-emerald-500/20 font-bold">
-              <td className="py-4 px-4 text-emerald-400 text-sm">GROSS MARGIN (NET REVENUE - COGS)</td>
-              <td className="py-4 px-4 text-right text-emerald-400 text-sm">{formatCurrencyFull(displayMIS.grossMargin)}</td>
-              <td className="py-4 px-4 text-right text-emerald-400/80 text-sm">{formatPercent(displayMIS.grossMarginPercent)}</td>
+            <tr className="bg-emerald-50 font-bold">
+              <td className="py-4 px-4 text-emerald-600 text-sm">GROSS MARGIN (NET REVENUE - COGS)</td>
+              <td className="py-4 px-4 text-right text-emerald-600 text-sm">{formatCurrencyFull(displayMIS.grossMargin)}</td>
+              <td className="py-4 px-4 text-right text-emerald-600/80 text-sm">{formatPercent(displayMIS.grossMarginPercent)}</td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
-                <td key={channel} className="py-4 px-4 text-right text-emerald-400/50 text-xs">-</td>
+                <td key={channel} className="py-4 px-4 text-right text-emerald-600/50 text-xs">-</td>
               ))}
             </tr>
 
@@ -1016,14 +1016,14 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             <SubtotalRow number={9} label="Total Operating Expense" amount={operatingExpenses.total} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="yellow" />
 
             {/* EBITDA */}
-            <tr className={`font-bold ${displayMIS.ebitda >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-              <td className={`py-4 px-4 text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <tr className={`font-bold ${displayMIS.ebitda >= 0 ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+              <td className={`py-4 px-4 text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 OPERATING PROFIT (EBITDA) (CM3 - Operating Expenses)
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {formatCurrencyFull(displayMIS.ebitda)}
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebitda >= 0 ? 'text-emerald-600/80' : 'text-rose-600/80'}`}>
                 {formatPercent(displayMIS.ebitdaPercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
@@ -1039,14 +1039,14 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
             <SubtotalRow number={4} label="Total I,D&A" amount={nonOperating.totalIDA} netRevenue={netRevenue} showChannelBreakdown={showChannelBreakdown} highlight="gray" />
 
             {/* EBT */}
-            <tr className={`font-bold ${displayMIS.ebt >= 0 ? 'bg-blue-500/20' : 'bg-red-500/20'}`}>
-              <td className={`py-4 px-4 text-sm ${displayMIS.ebt >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+            <tr className={`font-bold ${displayMIS.ebt >= 0 ? 'bg-blue-50' : 'bg-rose-50'}`}>
+              <td className={`py-4 px-4 text-sm ${displayMIS.ebt >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
                 NET INCOME Before Tax (EBT)
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebt >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebt >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
                 {formatCurrencyFull(displayMIS.ebt)}
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebt >= 0 ? 'text-blue-400/80' : 'text-red-400/80'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.ebt >= 0 ? 'text-blue-600/80' : 'text-rose-600/80'}`}>
                 {formatPercent(displayMIS.ebtPercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
@@ -1065,7 +1065,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
               <td className={`py-4 px-4 text-right text-sm ${displayMIS.netIncome >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
                 {formatCurrencyFull(displayMIS.netIncome)}
               </td>
-              <td className={`py-4 px-4 text-right text-sm ${displayMIS.netIncome >= 0 ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
+              <td className={`py-4 px-4 text-right text-sm ${displayMIS.netIncome >= 0 ? 'text-emerald-600/80' : 'text-rose-600/80'}`}>
                 {formatPercent(displayMIS.netIncomePercent)}
               </td>
               {showChannelBreakdown && SALES_CHANNELS.map(channel => (
@@ -1092,11 +1092,11 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
 
 function MetricCard({ label, value, subValue, color }: { label: string; value: string; subValue?: string; color: string }) {
   const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
-    emerald: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
-    violet: 'bg-violet-500/10 border-violet-500/30 text-violet-400',
-    red: 'bg-red-500/10 border-red-500/30 text-red-400',
-    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+    blue: 'bg-blue-50 border-blue-200 text-blue-600',
+    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-600',
+    violet: 'bg-violet-50 border-violet-200 text-violet-600',
+    red: 'bg-rose-50 border-rose-200 text-rose-600',
+    orange: 'bg-orange-50 border-orange-200 text-orange-600'
   };
 
   return (
@@ -1110,11 +1110,11 @@ function MetricCard({ label, value, subValue, color }: { label: string; value: s
 
 function SectionHeader({ label, title, subtitle }: { label: string; title: string; subtitle?: string }) {
   return (
-    <tr className="bg-amber-500/15">
+    <tr className="bg-amber-50">
       <td colSpan={100} className="py-3 px-4">
-        <span className="font-bold text-amber-400">{label}</span>
-        <span className="ml-3 font-semibold text-amber-400">{title}</span>
-        {subtitle && <span className="ml-2 text-sm text-amber-400/70">{subtitle}</span>}
+        <span className="font-bold text-amber-600">{label}</span>
+        <span className="ml-3 font-semibold text-amber-600">{title}</span>
+        {subtitle && <span className="ml-2 text-sm text-amber-600/70">{subtitle}</span>}
       </td>
     </tr>
   );
@@ -1140,13 +1140,13 @@ function LineItem({
   const percent = netRevenue > 0 ? (amount / netRevenue) * 100 : 0;
 
   return (
-    <tr className="border-b border-slate-700/50 hover:bg-slate-700/20">
-      <td className="py-2 px-4 text-slate-300 text-sm">
+    <tr className="border-b border-slate-200/50 hover:bg-slate-100/20">
+      <td className="py-2 px-4 text-slate-700 text-sm">
         <span className="text-slate-500 mr-2">{number}</span>
         {label}
         {note && <span className="ml-2 text-xs text-slate-500">{note}</span>}
       </td>
-      <td className="py-2 px-4 text-right text-slate-300 text-sm">{formatCurrencyFull(amount)}</td>
+      <td className="py-2 px-4 text-right text-slate-700 text-sm">{formatCurrencyFull(amount)}</td>
       <td className="py-2 px-4 text-right text-slate-500 text-sm">{amount > 0 ? formatPercent(percent) : '-'}</td>
       {showChannelBreakdown && SALES_CHANNELS.map(channel => (
         <td key={channel} className="py-2 px-4 text-right text-slate-500 text-xs">
@@ -1175,23 +1175,23 @@ function SubtotalRow({
   const percent = netRevenue > 0 ? (amount / netRevenue) * 100 : 0;
 
   const bgClasses: Record<string, string> = {
-    orange: 'bg-orange-500/10',
-    purple: 'bg-purple-500/10',
-    blue: 'bg-blue-500/10',
-    indigo: 'bg-indigo-500/10',
-    pink: 'bg-pink-500/10',
+    orange: 'bg-orange-50',
+    purple: 'bg-purple-50',
+    blue: 'bg-blue-50',
+    indigo: 'bg-indigo-50',
+    pink: 'bg-pink-50',
     cyan: 'bg-cyan-500/10',
-    yellow: 'bg-yellow-500/10',
-    gray: 'bg-slate-700/30'
+    yellow: 'bg-yellow-50',
+    gray: 'bg-slate-50'
   };
 
   return (
-    <tr className={`font-semibold ${highlight ? bgClasses[highlight] : 'bg-slate-700/20'}`}>
-      <td className="py-3 px-4 text-slate-200 text-sm">
+    <tr className={`font-semibold ${highlight ? bgClasses[highlight] : 'bg-slate-100/20'}`}>
+      <td className="py-3 px-4 text-slate-800 text-sm">
         <span className="text-slate-500 mr-2">{number}</span>
         {label}
       </td>
-      <td className="py-3 px-4 text-right text-slate-200 text-sm">{formatCurrencyFull(amount)}</td>
+      <td className="py-3 px-4 text-right text-slate-800 text-sm">{formatCurrencyFull(amount)}</td>
       <td className="py-3 px-4 text-right text-slate-400 text-sm">{formatPercent(percent)}</td>
       {showChannelBreakdown && SALES_CHANNELS.map(channel => (
         <td key={channel} className="py-3 px-4 text-right text-slate-500 text-xs">-</td>
@@ -1216,15 +1216,15 @@ function MarginRow({
   const isPositive = amount >= 0;
 
   return (
-    <tr className={isPositive ? 'bg-emerald-500/15' : 'bg-red-500/15'}>
-      <td className={`py-3 px-4 font-semibold text-sm ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+    <tr className={isPositive ? 'bg-emerald-50' : 'bg-red-500/15'}>
+      <td className={`py-3 px-4 font-semibold text-sm ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
         {label}
         <div className="text-xs font-normal text-slate-500">{sublabel}</div>
       </td>
-      <td className={`py-3 px-4 text-right font-semibold text-sm ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+      <td className={`py-3 px-4 text-right font-semibold text-sm ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
         {formatCurrencyFull(amount)}
       </td>
-      <td className={`py-3 px-4 text-right font-semibold text-sm ${isPositive ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
+      <td className={`py-3 px-4 text-right font-semibold text-sm ${isPositive ? 'text-emerald-600/80' : 'text-rose-600/80'}`}>
         {formatPercent(percent)}
       </td>
       {showChannelBreakdown && SALES_CHANNELS.map(channel => (
@@ -1241,16 +1241,16 @@ function MarginRow({
 export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-800 rounded-xl border border-slate-700 max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl">
+      <div className="bg-white rounded-xl border border-slate-200 max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="bg-slate-700/50 px-6 py-4 border-b border-slate-700 flex items-center justify-between">
+        <div className="bg-slate-100 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-100">MIS Calculation Algorithm Guide</h2>
+            <h2 className="text-lg font-semibold text-slate-900">MIS Calculation Algorithm Guide</h2>
             <p className="text-sm text-slate-400">How data flows from source files to the P&L report</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-600/50 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
+            className="p-2 hover:bg-slate-200/50 rounded-lg transition-colors text-slate-400 hover:text-slate-800"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1263,41 +1263,41 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
           {/* Data Sources */}
           <Section title="1. Data Sources & Fetching" color="blue">
             <p className="text-slate-400 mb-3">The system fetches 4 types of files from Google Drive for each state:</p>
-            <ul className="space-y-2 text-slate-300">
+            <ul className="space-y-2 text-slate-700">
               <li className="flex gap-2">
-                <span className="text-blue-400 font-mono">BS.pdf</span>
+                <span className="text-blue-600 font-mono">BS.pdf</span>
                 <span className="text-slate-500">→</span>
                 <span><strong>Balance Sheet</strong> - Authoritative source for Opening Stock, Closing Stock, Purchases, Net Sales</span>
               </li>
               <li className="flex gap-2">
-                <span className="text-blue-400 font-mono">SR.xlsx</span>
+                <span className="text-blue-600 font-mono">SR.xlsx</span>
                 <span className="text-slate-500">→</span>
                 <span><strong>Sales Register</strong> - Line-by-line sales with party names, amounts, GST (for channel classification)</span>
               </li>
               <li className="flex gap-2">
-                <span className="text-blue-400 font-mono">PR.xlsx</span>
+                <span className="text-blue-600 font-mono">PR.xlsx</span>
                 <span className="text-slate-500">→</span>
                 <span><strong>Purchase Register</strong> - Purchase details (used for validation against BS)</span>
               </li>
               <li className="flex gap-2">
-                <span className="text-blue-400 font-mono">JR.xlsx</span>
+                <span className="text-blue-600 font-mono">JR.xlsx</span>
                 <span className="text-slate-500">→</span>
                 <span><strong>Journal Register</strong> - All expense transactions for classification into cost heads</span>
               </li>
             </ul>
-            <div className="mt-3 p-3 bg-slate-700/30 rounded-lg text-slate-400">
-              <strong className="text-slate-300">Note:</strong> All 4 files are optional. MIS can be generated with whatever files are available.
+            <div className="mt-3 p-3 bg-slate-50 rounded-lg text-slate-400">
+              <strong className="text-slate-700">Note:</strong> All 4 files are optional. MIS can be generated with whatever files are available.
             </div>
           </Section>
 
           {/* Revenue Calculation */}
           <Section title="2. Revenue Calculation (from Sales Register)" color="emerald">
             <div className="space-y-3">
-              <div className="p-3 bg-slate-700/30 rounded-lg">
-                <div className="font-mono text-emerald-400 mb-2">Net Revenue = Gross Sales - Returns - Stock Transfers - GST</div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <div className="font-mono text-emerald-600 mb-2">Net Revenue = Gross Sales - Returns - Stock Transfers - GST</div>
               </div>
               <p className="text-slate-400">Sales are classified into channels based on party name patterns:</p>
-              <ul className="space-y-1 text-slate-300 ml-4">
+              <ul className="space-y-1 text-slate-700 ml-4">
                 <li>• <strong>Amazon</strong>: "Amazon", "AMZN", "AMZ"</li>
                 <li>• <strong>Blinkit</strong>: "Blinkit", "Grofers"</li>
                 <li>• <strong>Website</strong>: "Shopify", "Website", direct D2C orders</li>
@@ -1312,15 +1312,15 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
 
           {/* COGS Calculation */}
           <Section title="3. COGS (Cost of Goods Sold)" color="orange">
-            <div className="p-3 bg-slate-700/30 rounded-lg font-mono text-orange-400">
+            <div className="p-3 bg-slate-50 rounded-lg font-mono text-orange-600">
               COGS = Opening Stock + Purchases - Closing Stock
             </div>
             <p className="text-slate-400 mt-3">
               All values are sourced from the <strong>Balance Sheet (BS.pdf)</strong> which is considered the authoritative source.
               The Purchase Register is used for validation to ensure purchases match.
             </p>
-            <div className="mt-3 p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
-              <div className="font-mono text-orange-400">Gross Margin = Net Revenue - COGS</div>
+            <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
+              <div className="font-mono text-orange-600">Gross Margin = Net Revenue - COGS</div>
               <div className="text-slate-400 text-xs mt-1">Gross Margin % = (Gross Margin / Net Revenue) × 100</div>
             </div>
           </Section>
@@ -1352,8 +1352,8 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
                 items={["Salaries & Wages", "Rent & Utilities", "Legal & Professional", "Travel & Conveyance", "Office Expenses"]}
               />
             </div>
-            <div className="mt-3 p-3 bg-slate-700/30 rounded-lg text-slate-400">
-              <strong className="text-slate-300">Unclassified:</strong> Transactions that don't match any pattern are flagged for manual review.
+            <div className="mt-3 p-3 bg-slate-50 rounded-lg text-slate-400">
+              <strong className="text-slate-700">Unclassified:</strong> Transactions that don't match any pattern are flagged for manual review.
               You can teach the system by classifying them - patterns are learned for future use.
             </div>
           </Section>
@@ -1361,20 +1361,20 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
           {/* Contribution Margins */}
           <Section title="5. Contribution Margins (CM1, CM2, CM3)" color="indigo">
             <div className="space-y-3">
-              <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                <div className="font-mono text-emerald-400">CM1 = Gross Margin - Channel & Fulfillment Costs</div>
+              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div className="font-mono text-emerald-600">CM1 = Gross Margin - Channel & Fulfillment Costs</div>
                 <div className="text-slate-400 text-xs mt-1">
                   Shows profitability after direct selling costs. Should be positive for viable unit economics.
                 </div>
               </div>
-              <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                <div className="font-mono text-blue-400">CM2 = CM1 - Sales & Marketing Costs</div>
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="font-mono text-blue-600">CM2 = CM1 - Sales & Marketing Costs</div>
                 <div className="text-slate-400 text-xs mt-1">
                   Shows profitability after customer acquisition costs. Key metric for marketing efficiency.
                 </div>
               </div>
-              <div className="p-3 bg-violet-500/10 rounded-lg border border-violet-500/20">
-                <div className="font-mono text-violet-400">CM3 = CM2 - Platform Costs</div>
+              <div className="p-3 bg-violet-50 rounded-lg border border-violet-100">
+                <div className="font-mono text-violet-600">CM3 = CM2 - Platform Costs</div>
                 <div className="text-slate-400 text-xs mt-1">
                   Shows contribution before operating overhead. Useful for scaling decisions.
                 </div>
@@ -1384,8 +1384,8 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
 
           {/* EBITDA */}
           <Section title="6. EBITDA Calculation" color="emerald">
-            <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-              <div className="font-mono text-emerald-400">EBITDA = CM3 - Operating Expenses</div>
+            <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+              <div className="font-mono text-emerald-600">EBITDA = CM3 - Operating Expenses</div>
               <div className="text-slate-400 text-xs mt-1">
                 Earnings Before Interest, Taxes, Depreciation & Amortization
               </div>
@@ -1398,22 +1398,22 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
 
           {/* P&L Formula Summary */}
           <Section title="7. Complete P&L Flow" color="slate">
-            <div className="font-mono text-xs bg-slate-900 p-4 rounded-lg space-y-1 text-slate-300">
-              <div><span className="text-blue-400">Gross Sales</span> (by channel from Sales Register)</div>
+            <div className="font-mono text-xs bg-white p-4 rounded-lg space-y-1 text-slate-700">
+              <div><span className="text-blue-600">Gross Sales</span> (by channel from Sales Register)</div>
               <div className="text-slate-500">  - Returns</div>
               <div className="text-slate-500">  - Stock Transfers (inter-company)</div>
               <div className="text-slate-500">  - GST on Sales</div>
-              <div>= <span className="text-emerald-400">Net Revenue</span></div>
+              <div>= <span className="text-emerald-600">Net Revenue</span></div>
               <div className="text-slate-500">  - COGS (from Balance Sheet)</div>
-              <div>= <span className="text-emerald-400">Gross Margin</span></div>
+              <div>= <span className="text-emerald-600">Gross Margin</span></div>
               <div className="text-slate-500">  - Channel & Fulfillment (from Journal)</div>
-              <div>= <span className="text-blue-400">CM1</span></div>
+              <div>= <span className="text-blue-600">CM1</span></div>
               <div className="text-slate-500">  - Sales & Marketing (from Journal)</div>
-              <div>= <span className="text-blue-400">CM2</span></div>
+              <div>= <span className="text-blue-600">CM2</span></div>
               <div className="text-slate-500">  - Platform Costs (from Journal)</div>
-              <div>= <span className="text-violet-400">CM3</span></div>
+              <div>= <span className="text-violet-600">CM3</span></div>
               <div className="text-slate-500">  - Operating Expenses (from Journal)</div>
-              <div>= <span className="text-emerald-400 font-bold">EBITDA</span></div>
+              <div>= <span className="text-emerald-600 font-bold">EBITDA</span></div>
             </div>
           </Section>
 
@@ -1422,7 +1422,7 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
             <p className="text-slate-400">
               When multiple states are selected (UP, Maharashtra, Karnataka, etc.), the system:
             </p>
-            <ul className="mt-2 space-y-1 text-slate-300 ml-4">
+            <ul className="mt-2 space-y-1 text-slate-700 ml-4">
               <li>• Aggregates revenue from all states</li>
               <li>• Sums COGS across all states (each state has its own opening/closing stock)</li>
               <li>• Combines journal expenses from all states</li>
@@ -1436,8 +1436,8 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
               The system uses a multi-layered classification approach for journal transactions:
             </p>
             <div className="space-y-3">
-              <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                <div className="font-semibold text-blue-400 mb-1">1. Rule-Based Matching</div>
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="font-semibold text-blue-600 mb-1">1. Rule-Based Matching</div>
                 <div className="text-slate-400 text-xs">
                   Exact match against saved classification rules. These rules are learned from previous classifications you've made.
                 </div>
@@ -1448,22 +1448,22 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
                   If no exact match, looks for similar entity names and keywords from existing rules.
                 </div>
               </div>
-              <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                <div className="font-semibold text-purple-400 mb-1">3. AI Classification (Gemini)</div>
+              <div className="p-3 bg-purple-50 rounded-lg border border-purple-500/20">
+                <div className="font-semibold text-purple-600 mb-1">3. AI Classification (Gemini)</div>
                 <div className="text-slate-400 text-xs">
                   For new entities, AI analyzes the ledger/party name and suggests the appropriate MIS head and subhead.
                 </div>
               </div>
-              <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                <div className="font-semibold text-amber-400 mb-1">4. Manual Review</div>
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <div className="font-semibold text-amber-600 mb-1">4. Manual Review</div>
                 <div className="text-slate-400 text-xs">
                   Low-confidence classifications are flagged for your review. Your choices are saved as rules for future use.
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
-              <div className="text-slate-300 font-medium mb-2">Classification Storage</div>
+            <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+              <div className="text-slate-700 font-medium mb-2">Classification Storage</div>
               <ul className="space-y-1 text-slate-400 text-xs">
                 <li>• <strong>MIS_Categories</strong>: All available heads/subheads (A. Revenue, B. Returns, etc.)</li>
                 <li>• <strong>MIS_Classification_Rules</strong>: Saved rules linking entities to categories</li>
@@ -1471,8 +1471,8 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
               </ul>
             </div>
 
-            <div className="mt-3 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-              <div className="text-emerald-400 font-medium">Learning System</div>
+            <div className="mt-3 p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+              <div className="text-emerald-600 font-medium">Learning System</div>
               <div className="text-slate-400 text-xs mt-1">
                 Every time you classify a transaction, the system saves it as a rule. Next time the same or similar
                 entity appears, it will be automatically classified - making the system smarter over time!
@@ -1483,51 +1483,51 @@ export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
           {/* MIS Heads Reference */}
           <Section title="10. MIS Heads Reference" color="slate">
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 bg-emerald-500/10 rounded border border-emerald-500/20">
-                <span className="text-emerald-400">A. Revenue</span>
+              <div className="p-2 bg-emerald-50 rounded border border-emerald-100">
+                <span className="text-emerald-600">A. Revenue</span>
                 <span className="text-slate-500 ml-2">Website, Amazon, Blinkit, Offline</span>
               </div>
-              <div className="p-2 bg-red-500/10 rounded border border-red-500/20">
-                <span className="text-red-400">B. Returns</span>
+              <div className="p-2 bg-rose-50 rounded border border-rose-100">
+                <span className="text-rose-600">B. Returns</span>
                 <span className="text-slate-500 ml-2">By channel</span>
               </div>
-              <div className="p-2 bg-red-500/10 rounded border border-red-500/20">
-                <span className="text-red-400">C. Discounts</span>
+              <div className="p-2 bg-rose-50 rounded border border-rose-100">
+                <span className="text-rose-600">C. Discounts</span>
                 <span className="text-slate-500 ml-2">By channel</span>
               </div>
-              <div className="p-2 bg-red-500/10 rounded border border-red-500/20">
-                <span className="text-red-400">D. Taxes</span>
+              <div className="p-2 bg-rose-50 rounded border border-rose-100">
+                <span className="text-rose-600">D. Taxes</span>
                 <span className="text-slate-500 ml-2">GST on sales</span>
               </div>
-              <div className="p-2 bg-orange-500/10 rounded border border-orange-500/20">
-                <span className="text-orange-400">E. COGM</span>
+              <div className="p-2 bg-orange-50 rounded border border-orange-100">
+                <span className="text-orange-600">E. COGM</span>
                 <span className="text-slate-500 ml-2">Raw materials, wages, factory costs</span>
               </div>
-              <div className="p-2 bg-blue-500/10 rounded border border-blue-500/20">
-                <span className="text-blue-400">F. Channel</span>
+              <div className="p-2 bg-blue-50 rounded border border-blue-100">
+                <span className="text-blue-600">F. Channel</span>
                 <span className="text-slate-500 ml-2">Marketplace fees, fulfillment</span>
               </div>
-              <div className="p-2 bg-pink-500/10 rounded border border-pink-500/20">
-                <span className="text-pink-400">G. Marketing</span>
+              <div className="p-2 bg-pink-50 rounded border border-pink-500/20">
+                <span className="text-pink-600">G. Marketing</span>
                 <span className="text-slate-500 ml-2">Ads, agency fees</span>
               </div>
               <div className="p-2 bg-cyan-500/10 rounded border border-cyan-500/20">
                 <span className="text-cyan-400">H. Platform</span>
                 <span className="text-slate-500 ml-2">Software subscriptions</span>
               </div>
-              <div className="p-2 bg-yellow-500/10 rounded border border-yellow-500/20">
-                <span className="text-yellow-400">I. OpEx</span>
+              <div className="p-2 bg-yellow-50 rounded border border-yellow-100">
+                <span className="text-yellow-600">I. OpEx</span>
                 <span className="text-slate-500 ml-2">Salaries, rent, admin</span>
               </div>
-              <div className="p-2 bg-violet-500/10 rounded border border-violet-500/20">
-                <span className="text-violet-400">J. Non-Op</span>
+              <div className="p-2 bg-violet-50 rounded border border-violet-100">
+                <span className="text-violet-600">J. Non-Op</span>
                 <span className="text-slate-500 ml-2">Interest, depreciation, tax</span>
               </div>
-              <div className="p-2 bg-slate-600 rounded">
+              <div className="p-2 bg-slate-300 rounded">
                 <span className="text-slate-400">X. Exclude</span>
                 <span className="text-slate-500 ml-2">Personal expenses</span>
               </div>
-              <div className="p-2 bg-slate-600 rounded">
+              <div className="p-2 bg-slate-300 rounded">
                 <span className="text-slate-400">Z. Ignore</span>
                 <span className="text-slate-500 ml-2">GST adjustments, TDS, transfers</span>
               </div>
@@ -1552,7 +1552,7 @@ function Section({ title, color, children }: { title: string; color: string; chi
 
   return (
     <div className={`border-l-2 ${borderColors[color] || borderColors.slate} pl-4`}>
-      <h3 className="text-base font-semibold text-slate-200 mb-2">{title}</h3>
+      <h3 className="text-base font-semibold text-slate-800 mb-2">{title}</h3>
       {children}
     </div>
   );
@@ -1560,15 +1560,15 @@ function Section({ title, color, children }: { title: string; color: string; chi
 
 function ExpenseCategory({ title, color, items }: { title: string; color: string; items: string[] }) {
   const bgColors: Record<string, string> = {
-    blue: 'bg-blue-500/10 border-blue-500/20',
-    pink: 'bg-pink-500/10 border-pink-500/20',
+    blue: 'bg-blue-50 border-blue-100',
+    pink: 'bg-pink-50 border-pink-500/20',
     cyan: 'bg-cyan-500/10 border-cyan-500/20',
-    yellow: 'bg-yellow-500/10 border-yellow-500/20'
+    yellow: 'bg-yellow-50 border-yellow-100'
   };
 
   return (
     <div className={`p-3 rounded-lg border ${bgColors[color] || bgColors.blue}`}>
-      <div className="font-medium text-slate-200 mb-2">{title}</div>
+      <div className="font-medium text-slate-800 mb-2">{title}</div>
       <ul className="text-xs text-slate-400 space-y-0.5">
         {items.map((item, idx) => (
           <li key={idx}>• {item}</li>
@@ -1609,18 +1609,18 @@ function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
   if (!hasTaxData) return null;
 
   return (
-    <div className="mt-6 bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+    <div className="mt-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* Header */}
-      <div className="bg-teal-500/20 border-b border-teal-500/30 px-5 py-3">
-        <h3 className="text-sm font-semibold text-teal-400">Tax Summary</h3>
-        <p className="text-xs text-teal-400/70 mt-0.5">GST & TDS across all states</p>
+      <div className="bg-teal-50 border-b border-teal-200 px-5 py-3">
+        <h3 className="text-sm font-semibold text-teal-600">Tax Summary</h3>
+        <p className="text-xs text-teal-600/70 mt-0.5">GST & TDS across all states</p>
       </div>
 
       <div className="p-5">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-700">
+              <tr className="border-b border-slate-200">
                 <th className="text-left py-2 px-3 text-xs font-medium text-slate-500">Tax Type</th>
                 <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Sales (Output)</th>
                 <th className="text-right py-2 px-3 text-xs font-medium text-slate-500">Purchases (Input)</th>
@@ -1630,45 +1630,45 @@ function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
             </thead>
             <tbody>
               {/* SGST */}
-              <tr className="border-b border-slate-700/50">
-                <td className="py-2 px-3 text-sm text-slate-300">SGST</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(outputGST.sgst)}</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(inputGST.sgst)}</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(expenseGST.sgst)}</td>
-                <td className={`py-2 px-3 text-right text-sm ${netSGST >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              <tr className="border-b border-slate-200/50">
+                <td className="py-2 px-3 text-sm text-slate-700">SGST</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(outputGST.sgst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(inputGST.sgst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(expenseGST.sgst)}</td>
+                <td className={`py-2 px-3 text-right text-sm ${netSGST >= 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
                   {formatCurrencyFull(netSGST)}
                 </td>
               </tr>
 
               {/* CGST */}
-              <tr className="border-b border-slate-700/50">
-                <td className="py-2 px-3 text-sm text-slate-300">CGST</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(outputGST.cgst)}</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(inputGST.cgst)}</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(expenseGST.cgst)}</td>
-                <td className={`py-2 px-3 text-right text-sm ${netCGST >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              <tr className="border-b border-slate-200/50">
+                <td className="py-2 px-3 text-sm text-slate-700">CGST</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(outputGST.cgst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(inputGST.cgst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(expenseGST.cgst)}</td>
+                <td className={`py-2 px-3 text-right text-sm ${netCGST >= 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
                   {formatCurrencyFull(netCGST)}
                 </td>
               </tr>
 
               {/* IGST */}
-              <tr className="border-b border-slate-700/50">
-                <td className="py-2 px-3 text-sm text-slate-300">IGST</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(outputGST.igst)}</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(inputGST.igst)}</td>
-                <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(expenseGST.igst)}</td>
-                <td className={`py-2 px-3 text-right text-sm ${netIGST >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              <tr className="border-b border-slate-200/50">
+                <td className="py-2 px-3 text-sm text-slate-700">IGST</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(outputGST.igst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(inputGST.igst)}</td>
+                <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(expenseGST.igst)}</td>
+                <td className={`py-2 px-3 text-right text-sm ${netIGST >= 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
                   {formatCurrencyFull(netIGST)}
                 </td>
               </tr>
 
               {/* Total GST */}
-              <tr className="border-b border-slate-700 bg-slate-700/30">
-                <td className="py-2 px-3 text-sm font-medium text-slate-200">Total GST</td>
-                <td className="py-2 px-3 text-right text-sm font-medium text-slate-200">{formatCurrencyFull(outputGST.total)}</td>
-                <td className="py-2 px-3 text-right text-sm font-medium text-slate-200">{formatCurrencyFull(inputGST.total)}</td>
-                <td className="py-2 px-3 text-right text-sm font-medium text-slate-200">{formatCurrencyFull(expenseGST.total)}</td>
-                <td className={`py-2 px-3 text-right text-sm font-bold ${netGST >= 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <td className="py-2 px-3 text-sm font-medium text-slate-800">Total GST</td>
+                <td className="py-2 px-3 text-right text-sm font-medium text-slate-800">{formatCurrencyFull(outputGST.total)}</td>
+                <td className="py-2 px-3 text-right text-sm font-medium text-slate-800">{formatCurrencyFull(inputGST.total)}</td>
+                <td className="py-2 px-3 text-right text-sm font-medium text-slate-800">{formatCurrencyFull(expenseGST.total)}</td>
+                <td className={`py-2 px-3 text-right text-sm font-bold ${netGST >= 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
                   {formatCurrencyFull(netGST)}
                   <span className="text-xs ml-1 font-normal">({netGST >= 0 ? 'Payable' : 'Credit'})</span>
                 </td>
@@ -1676,12 +1676,12 @@ function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
 
               {/* TDS */}
               {tds > 0 && (
-                <tr className="border-b border-slate-700/50">
-                  <td className="py-2 px-3 text-sm text-slate-300">TDS on Expenses</td>
+                <tr className="border-b border-slate-200/50">
+                  <td className="py-2 px-3 text-sm text-slate-700">TDS on Expenses</td>
                   <td className="py-2 px-3 text-right text-sm text-slate-400">-</td>
                   <td className="py-2 px-3 text-right text-sm text-slate-400">-</td>
-                  <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(tds)}</td>
-                  <td className="py-2 px-3 text-right text-sm text-amber-400">
+                  <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(tds)}</td>
+                  <td className="py-2 px-3 text-right text-sm text-amber-600">
                     {formatCurrencyFull(tds)}
                     <span className="text-xs ml-1 font-normal">(Due)</span>
                   </td>
@@ -1691,9 +1691,9 @@ function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
               {/* Round Offs */}
               {roundOffs !== 0 && (
                 <tr>
-                  <td className="py-2 px-3 text-sm text-slate-300">Round Offs (Net)</td>
+                  <td className="py-2 px-3 text-sm text-slate-700">Round Offs (Net)</td>
                   <td className="py-2 px-3 text-right text-sm text-slate-400" colSpan={3}>SR - PR + JR</td>
-                  <td className="py-2 px-3 text-right text-sm text-slate-200">{formatCurrencyFull(roundOffs)}</td>
+                  <td className="py-2 px-3 text-right text-sm text-slate-800">{formatCurrencyFull(roundOffs)}</td>
                 </tr>
               )}
             </tbody>
@@ -1701,9 +1701,9 @@ function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
         </div>
 
         {/* Note */}
-        <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
+        <div className="mt-4 p-3 bg-slate-50 rounded-lg">
           <p className="text-xs text-slate-400">
-            <strong className="text-slate-300">Net GST:</strong> Positive = Payable to government, Negative = Credit/Refund due.
+            <strong className="text-slate-700">Net GST:</strong> Positive = Payable to government, Negative = Credit/Refund due.
             TDS = Tax deducted at source on expense payments.
           </p>
         </div>

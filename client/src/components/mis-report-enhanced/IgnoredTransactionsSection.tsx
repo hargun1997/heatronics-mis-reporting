@@ -40,12 +40,12 @@ export function IgnoredTransactionsSection({
   const excludedTransactions = excludedHead?.subheads.flatMap(s => s.transactions) || [];
 
   return (
-    <div className="mt-6 border-t border-slate-700 pt-6">
+    <div className="mt-6 border-t border-slate-200 pt-6">
       {/* Section Header */}
       <div className="flex items-center justify-between mb-4 px-4">
         <div className="flex items-center gap-3">
           <EyeSlashIcon className="h-5 w-5 text-slate-400" />
-          <h3 className="text-lg font-semibold text-slate-200">Transactions Not in P&L Calculations</h3>
+          <h3 className="text-lg font-semibold text-slate-800">Transactions Not in P&L Calculations</h3>
         </div>
 
         {/* Status Badge */}
@@ -70,27 +70,27 @@ export function IgnoredTransactionsSection({
 
       {/* Summary Stats */}
       <div className="grid grid-cols-4 gap-4 mb-4 px-4">
-        <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-          <p className="text-2xl font-bold text-slate-200">{totalTransactions}</p>
+        <div className="bg-white rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-slate-800">{totalTransactions}</p>
           <p className="text-xs text-slate-400">Total Transactions</p>
         </div>
         <div className="bg-green-900/20 rounded-lg p-3 text-center border border-green-800/50">
           <p className="text-2xl font-bold text-green-300">{classifiedCount}</p>
           <p className="text-xs text-green-400">Classified to P&L</p>
         </div>
-        <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-          <p className="text-2xl font-bold text-slate-300">{ignoredCount + excludedCount}</p>
+        <div className="bg-white rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-slate-700">{ignoredCount + excludedCount}</p>
           <p className="text-xs text-slate-400">Ignored/Excluded</p>
         </div>
         <div className={`rounded-lg p-3 text-center ${
           unclassifiedCount > 0
             ? 'bg-amber-900/20 border border-amber-800/50'
-            : 'bg-slate-800/50'
+            : 'bg-white'
         }`}>
-          <p className={`text-2xl font-bold ${unclassifiedCount > 0 ? 'text-amber-300' : 'text-slate-300'}`}>
+          <p className={`text-2xl font-bold ${unclassifiedCount > 0 ? 'text-amber-300' : 'text-slate-700'}`}>
             {unclassifiedCount}
           </p>
-          <p className={`text-xs ${unclassifiedCount > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+          <p className={`text-xs ${unclassifiedCount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
             Unclassified
           </p>
         </div>
@@ -177,9 +177,9 @@ function TransactionSection({
 }: TransactionSectionProps) {
   const variantStyles = {
     default: {
-      header: 'bg-slate-800 hover:bg-slate-700',
-      headerText: 'text-slate-300',
-      badge: 'bg-slate-700 text-slate-300'
+      header: 'bg-white hover:bg-slate-100',
+      headerText: 'text-slate-700',
+      badge: 'bg-slate-100 text-slate-700'
     },
     warning: {
       header: 'bg-amber-900/30 hover:bg-amber-900/40 border-l-4 border-amber-500',
@@ -223,7 +223,7 @@ function TransactionSection({
 
       {/* Transaction List */}
       {isExpanded && (
-        <div className="bg-slate-900/70 border-t border-slate-700 rounded-b-lg">
+        <div className="bg-white/70 border-t border-slate-200 rounded-b-lg">
           {/* Header Row */}
           <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-semibold text-slate-500 border-b border-slate-800">
             <div className="col-span-2">Date</div>
@@ -244,15 +244,15 @@ function TransactionSection({
             return (
               <div
                 key={txn.id || index}
-                className="grid grid-cols-12 gap-2 px-4 py-2 text-sm border-b border-slate-800/50 last:border-b-0 hover:bg-slate-800/30"
+                className="grid grid-cols-12 gap-2 px-4 py-2 text-sm border-b border-slate-800/50 last:border-b-0 hover:bg-slate-50"
               >
                 <div className="col-span-2 text-slate-400">
                   {txn.date || '-'}
                 </div>
-                <div className="col-span-6 text-slate-300 truncate" title={displayName}>
+                <div className="col-span-6 text-slate-700 truncate" title={displayName}>
                   {displayName}
                 </div>
-                <div className="col-span-2 text-right font-mono text-slate-300">
+                <div className="col-span-2 text-right font-mono text-slate-700">
                   {formatCurrencyFull(txn.amount)}
                 </div>
                 <div className="col-span-2 text-center">
@@ -262,7 +262,7 @@ function TransactionSection({
                         e.stopPropagation();
                         onReclassify(txn.id);
                       }}
-                      className="text-teal-400 hover:text-teal-300 transition-colors text-xs px-2 py-1 rounded hover:bg-slate-700"
+                      className="text-teal-600 hover:text-teal-300 transition-colors text-xs px-2 py-1 rounded hover:bg-slate-100"
                     >
                       Classify
                     </button>

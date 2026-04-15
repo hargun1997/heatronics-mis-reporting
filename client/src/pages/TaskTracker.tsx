@@ -29,23 +29,23 @@ const frequencyLabels: Record<TaskFrequency, string> = {
 };
 
 const frequencyColors: Record<TaskFrequency, string> = {
-  daily: 'bg-blue-500/20 text-blue-400',
-  weekly: 'bg-purple-500/20 text-purple-400',
-  monthly: 'bg-emerald-500/20 text-emerald-400',
-  adhoc: 'bg-orange-500/20 text-orange-400'
+  daily: 'bg-blue-50 text-blue-600',
+  weekly: 'bg-purple-50 text-purple-600',
+  monthly: 'bg-emerald-50 text-emerald-600',
+  adhoc: 'bg-orange-50 text-orange-600'
 };
 
 const categoryColors: Record<string, string> = {
-  GST: 'bg-red-500/10 border-red-500/30',
-  TDS: 'bg-purple-500/10 border-purple-500/30',
-  Payroll: 'bg-emerald-500/10 border-emerald-500/30',
-  Accounting: 'bg-blue-500/10 border-blue-500/30',
-  Reporting: 'bg-yellow-500/10 border-yellow-500/30',
-  Payments: 'bg-orange-500/10 border-orange-500/30',
-  Receivables: 'bg-teal-500/10 border-teal-500/30',
-  Banking: 'bg-indigo-500/10 border-indigo-500/30',
-  Invoicing: 'bg-pink-500/10 border-pink-500/30',
-  default: 'bg-slate-800/50 border-slate-700'
+  GST: 'bg-rose-50 border-rose-200',
+  TDS: 'bg-purple-50 border-purple-200',
+  Payroll: 'bg-emerald-50 border-emerald-200',
+  Accounting: 'bg-blue-50 border-blue-200',
+  Reporting: 'bg-yellow-50 border-yellow-200',
+  Payments: 'bg-orange-50 border-orange-200',
+  Receivables: 'bg-teal-50 border-teal-200',
+  Banking: 'bg-indigo-50 border-indigo-200',
+  Invoicing: 'bg-pink-50 border-pink-200',
+  default: 'bg-white border-slate-200'
 };
 
 export function TaskTracker() {
@@ -143,11 +143,11 @@ export function TaskTracker() {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-slate-700 rounded w-1/4"></div>
-          <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+          <div className="h-8 bg-slate-100 rounded w-1/4"></div>
+          <div className="h-4 bg-slate-100 rounded w-1/2"></div>
           <div className="grid grid-cols-3 gap-4 mt-8">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-24 bg-slate-800 rounded-xl"></div>
+              <div key={i} className="h-24 bg-white rounded-xl"></div>
             ))}
           </div>
         </div>
@@ -160,7 +160,7 @@ export function TaskTracker() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-slate-100">Task Tracker</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Task Tracker</h1>
           <p className="text-slate-400 text-sm mt-1">Manage your accounting tasks and deadlines</p>
         </div>
         <div className="flex items-center gap-3">
@@ -168,7 +168,7 @@ export function TaskTracker() {
             href={getTasksSheetUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-400 bg-emerald-500/20 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -177,7 +177,7 @@ export function TaskTracker() {
           </a>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-400 bg-blue-500/20 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -189,17 +189,17 @@ export function TaskTracker() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-3">
+        <div className="bg-white rounded-lg border border-slate-200 p-3">
           <div className="text-xs text-slate-400">Total Tasks</div>
-          <div className="text-xl font-semibold text-slate-200 mt-0.5">{stats.total}</div>
+          <div className="text-xl font-semibold text-slate-800 mt-0.5">{stats.total}</div>
         </div>
-        <div className="bg-emerald-500/10 rounded-lg border border-emerald-500/30 p-3">
+        <div className="bg-emerald-50 rounded-lg border border-emerald-200 p-3">
           <div className="text-xs text-slate-400">Completed</div>
-          <div className="text-xl font-semibold text-emerald-400 mt-0.5">{stats.completed}</div>
+          <div className="text-xl font-semibold text-emerald-600 mt-0.5">{stats.completed}</div>
         </div>
-        <div className="bg-amber-500/10 rounded-lg border border-amber-500/30 p-3">
+        <div className="bg-amber-50 rounded-lg border border-amber-200 p-3">
           <div className="text-xs text-slate-400">Pending</div>
-          <div className="text-xl font-semibold text-amber-400 mt-0.5">{stats.pending}</div>
+          <div className="text-xl font-semibold text-amber-600 mt-0.5">{stats.pending}</div>
         </div>
       </div>
 
@@ -215,8 +215,8 @@ export function TaskTracker() {
             className={`
               px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
               ${viewMode === mode
-                ? 'bg-slate-700 text-blue-400'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+                ? 'bg-slate-100 text-blue-600'
+                : 'text-slate-400 hover:bg-white hover:text-slate-700'
               }
             `}
           >
@@ -230,11 +230,11 @@ export function TaskTracker() {
         <div className="mb-5">
           <div className="flex items-center justify-between text-sm mb-2">
             <span className="text-slate-400">Progress</span>
-            <span className="font-medium text-slate-300">
+            <span className="font-medium text-slate-700">
               {stats.completed} / {stats.total} completed
             </span>
           </div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-500 rounded-full transition-all duration-300"
               style={{ width: `${(stats.completed / stats.total) * 100}%` }}
@@ -246,14 +246,14 @@ export function TaskTracker() {
       {/* Task List */}
       <div className="space-y-2">
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-12 bg-slate-800/50 rounded-xl border border-slate-700">
+          <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
             <svg className="h-12 w-12 text-slate-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <p className="text-slate-400">No tasks found</p>
             <button
               onClick={() => setShowAddModal(true)}
-              className="mt-4 text-blue-400 font-medium hover:text-blue-300"
+              className="mt-4 text-blue-600 font-medium hover:text-blue-300"
             >
               Add your first task
             </button>
@@ -269,7 +269,7 @@ export function TaskTracker() {
                 key={task.id}
                 className={`
                   rounded-lg border p-3 transition-all
-                  ${isCompleted ? 'bg-emerald-500/10 border-emerald-500/30' : categoryColor}
+                  ${isCompleted ? 'bg-emerald-50 border-emerald-200' : categoryColor}
                 `}
               >
                 <div className="flex items-start gap-3">
@@ -295,7 +295,7 @@ export function TaskTracker() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className={`text-sm font-medium ${isCompleted ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                        <h3 className={`text-sm font-medium ${isCompleted ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
                           {task.title}
                         </h3>
                         {task.description && (
@@ -307,7 +307,7 @@ export function TaskTracker() {
                           {frequencyLabels[task.frequency]}
                         </span>
                         {task.isRepeatable && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-400">
                             Repeatable
                           </span>
                         )}
@@ -333,7 +333,7 @@ export function TaskTracker() {
                         </span>
                       )}
                       {isCompleted && completion?.completedAt && (
-                        <span className="text-emerald-400">
+                        <span className="text-emerald-600">
                           Completed {new Date(completion.completedAt).toLocaleDateString()}
                         </span>
                       )}
@@ -344,7 +344,7 @@ export function TaskTracker() {
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => setEditingTask(task)}
-                      className="p-1.5 text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors"
+                      className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                       title="Edit task"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -353,7 +353,7 @@ export function TaskTracker() {
                     </button>
                     <button
                       onClick={() => handleDeleteTask(task.id)}
-                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                       title="Delete task"
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -439,11 +439,11 @@ function TaskModal({ task, onClose, onSave }: TaskModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-700">
+    <div className="fixed inset-0 bg-white/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-slate-200">
         <form onSubmit={handleSubmit}>
-          <div className="p-5 border-b border-slate-700">
-            <h2 className="text-lg font-semibold text-slate-100">
+          <div className="p-5 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-900">
               {task ? 'Edit Task' : 'Add New Task'}
             </h2>
           </div>
@@ -451,14 +451,14 @@ function TaskModal({ task, onClose, onSave }: TaskModalProps) {
           <div className="p-5 space-y-4">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Task Title *
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="e.g., GSTR-1 Filing"
                 required
               />
@@ -466,13 +466,13 @@ function TaskModal({ task, onClose, onSave }: TaskModalProps) {
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Description
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Optional description..."
                 rows={2}
               />
@@ -480,13 +480,13 @@ function TaskModal({ task, onClose, onSave }: TaskModalProps) {
 
             {/* Frequency */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Frequency
               </label>
               <select
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value as TaskFrequency)}
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
@@ -498,14 +498,14 @@ function TaskModal({ task, onClose, onSave }: TaskModalProps) {
             {/* Due Day (for monthly tasks) */}
             {frequency === 'monthly' && (
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Due Day of Month
                 </label>
                 <input
                   type="number"
                   value={dueDay}
                   onChange={(e) => setDueDay(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g., 20 (for 20th of each month)"
                   min="1"
                   max="31"
@@ -515,13 +515,13 @@ function TaskModal({ task, onClose, onSave }: TaskModalProps) {
 
             {/* Category */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Category
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select category...</option>
                 <option value="GST">GST</option>
@@ -544,7 +544,7 @@ function TaskModal({ task, onClose, onSave }: TaskModalProps) {
                 id="isRepeatable"
                 checked={isRepeatable}
                 onChange={(e) => setIsRepeatable(e.target.checked)}
-                className="h-4 w-4 text-blue-500 focus:ring-blue-500 bg-slate-700 border-slate-600 rounded"
+                className="h-4 w-4 text-blue-500 focus:ring-blue-500 bg-slate-100 border-slate-300 rounded"
               />
               <label htmlFor="isRepeatable" className="text-sm text-slate-400">
                 This task repeats every {frequency === 'adhoc' ? 'time' : frequency.replace('ly', '')}
@@ -552,17 +552,17 @@ function TaskModal({ task, onClose, onSave }: TaskModalProps) {
             </div>
           </div>
 
-          <div className="p-5 border-t border-slate-700 flex justify-end gap-3">
+          <div className="p-5 border-t border-slate-200 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-300 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-blue-400 bg-blue-500/20 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
             >
               {task ? 'Save Changes' : 'Add Task'}
             </button>

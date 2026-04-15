@@ -52,7 +52,7 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-slate-300 mb-2">No Trend Data Available</h3>
+        <h3 className="text-lg font-medium text-slate-700 mb-2">No Trend Data Available</h3>
         <p className="text-slate-500">
           Upload data for multiple months to see trends
         </p>
@@ -81,8 +81,8 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
               className={`
                 px-4 py-2 rounded-lg text-sm font-medium transition-all
                 ${selectedMetric === option.id
-                  ? 'bg-slate-700 text-blue-400'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+                  ? 'bg-slate-100 text-blue-600'
+                  : 'text-slate-400 hover:bg-white hover:text-slate-700'
                 }
               `}
             >
@@ -97,8 +97,8 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
 
       {/* Revenue Trend Chart */}
       {selectedMetric === 'revenue' && (
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
-          <h3 className="text-base font-semibold text-slate-200 mb-6">Net Revenue Trend</h3>
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="text-base font-semibold text-slate-800 mb-6">Net Revenue Trend</h3>
 
           <div className="flex items-end gap-2 h-64">
             {allMISData.map((mis, index) => {
@@ -134,8 +134,8 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
 
       {/* Margin Trends */}
       {selectedMetric === 'margins' && (
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
-          <h3 className="text-base font-semibold text-slate-200 mb-6">Margin Trends</h3>
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="text-base font-semibold text-slate-800 mb-6">Margin Trends</h3>
 
           <div className="space-y-8">
             {/* Legend */}
@@ -193,8 +193,8 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
 
       {/* Channel Mix */}
       {selectedMetric === 'channels' && (
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
-          <h3 className="text-base font-semibold text-slate-200 mb-6">Channel Mix Evolution</h3>
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="text-base font-semibold text-slate-800 mb-6">Channel Mix Evolution</h3>
 
           <div className="space-y-4">
             {/* Legend */}
@@ -273,80 +273,80 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
       )}
 
       {/* Data Table */}
-      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
-        <div className="p-4 border-b border-slate-700">
-          <h3 className="text-base font-semibold text-slate-200">Monthly Comparison</h3>
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="p-4 border-b border-slate-200">
+          <h3 className="text-base font-semibold text-slate-800">Monthly Comparison</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-slate-700/50">
-                <th className="text-left py-3 px-4 font-medium text-slate-300 text-sm">Metric</th>
+              <tr className="bg-slate-100">
+                <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">Metric</th>
                 {allMISData.map(mis => (
-                  <th key={mis.periodKey} className="text-right py-3 px-4 font-medium text-slate-300 text-sm">
+                  <th key={mis.periodKey} className="text-right py-3 px-4 font-medium text-slate-700 text-sm">
                     {periodToString(mis.period)}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-slate-700/50">
-                <td className="py-3 px-4 text-slate-300 text-sm">Net Revenue</td>
+              <tr className="border-b border-slate-200/50">
+                <td className="py-3 px-4 text-slate-700 text-sm">Net Revenue</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-300 text-sm">
+                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-700 text-sm">
                     {formatCurrency(mis.revenue.netRevenue)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-slate-700/50">
-                <td className="py-3 px-4 text-slate-300 text-sm">COGS %</td>
+              <tr className="border-b border-slate-200/50">
+                <td className="py-3 px-4 text-slate-700 text-sm">COGS %</td>
                 {allMISData.map(mis => {
                   const cogsPercent = mis.revenue.netRevenue > 0
                     ? (mis.cogm.totalCOGM / mis.revenue.netRevenue) * 100
                     : 0;
                   return (
-                    <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-300 text-sm">
+                    <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-700 text-sm">
                       {formatPercent(cogsPercent)}
                     </td>
                   );
                 })}
               </tr>
-              <tr className="border-b border-slate-700/50 bg-emerald-500/10">
-                <td className="py-3 px-4 text-emerald-400 font-medium text-sm">Gross Margin %</td>
+              <tr className="border-b border-slate-200/50 bg-emerald-50">
+                <td className="py-3 px-4 text-emerald-600 font-medium text-sm">Gross Margin %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className="py-3 px-4 text-right text-emerald-400 font-medium text-sm">
+                  <td key={mis.periodKey} className="py-3 px-4 text-right text-emerald-600 font-medium text-sm">
                     {formatPercent(mis.grossMarginPercent)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-slate-700/50">
-                <td className="py-3 px-4 text-slate-300 text-sm">CM1 %</td>
+              <tr className="border-b border-slate-200/50">
+                <td className="py-3 px-4 text-slate-700 text-sm">CM1 %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-300 text-sm">
+                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-700 text-sm">
                     {formatPercent(mis.cm1Percent)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-slate-700/50">
-                <td className="py-3 px-4 text-slate-300 text-sm">CM2 %</td>
+              <tr className="border-b border-slate-200/50">
+                <td className="py-3 px-4 text-slate-700 text-sm">CM2 %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-300 text-sm">
+                  <td key={mis.periodKey} className="py-3 px-4 text-right text-slate-700 text-sm">
                     {formatPercent(mis.cm2Percent)}
                   </td>
                 ))}
               </tr>
-              <tr className="border-b border-slate-700/50 bg-blue-500/10">
-                <td className="py-3 px-4 text-blue-400 font-medium text-sm">EBITDA %</td>
+              <tr className="border-b border-slate-200/50 bg-blue-50">
+                <td className="py-3 px-4 text-blue-600 font-medium text-sm">EBITDA %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className={`py-3 px-4 text-right font-medium text-sm ${mis.ebitdaPercent >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                  <td key={mis.periodKey} className={`py-3 px-4 text-right font-medium text-sm ${mis.ebitdaPercent >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
                     {formatPercent(mis.ebitdaPercent)}
                   </td>
                 ))}
               </tr>
-              <tr className="bg-slate-700/30">
-                <td className="py-3 px-4 text-slate-200 font-semibold text-sm">Net Income %</td>
+              <tr className="bg-slate-50">
+                <td className="py-3 px-4 text-slate-800 font-semibold text-sm">Net Income %</td>
                 {allMISData.map(mis => (
-                  <td key={mis.periodKey} className={`py-3 px-4 text-right font-semibold text-sm ${mis.netIncomePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                  <td key={mis.periodKey} className={`py-3 px-4 text-right font-semibold text-sm ${mis.netIncomePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {formatPercent(mis.netIncomePercent)}
                   </td>
                 ))}

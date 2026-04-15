@@ -126,7 +126,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
     if (value === undefined) return '-';
 
     const formatted = isPercent ? formatPercent(value) : formatCurrency(value);
-    const colorClass = value >= 0 ? 'text-slate-200' : 'text-red-400';
+    const colorClass = value >= 0 ? 'text-slate-800' : 'text-rose-600';
 
     return <span className={colorClass}>{formatted}</span>;
   };
@@ -134,7 +134,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
   const formatPercentCell = (value: number | undefined) => {
     if (value === undefined) return '-';
 
-    const colorClass = value >= 0 ? 'text-emerald-400' : 'text-red-400';
+    const colorClass = value >= 0 ? 'text-emerald-600' : 'text-rose-600';
     return <span className={colorClass}>{formatPercent(value)}</span>;
   };
 
@@ -146,7 +146,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
         <select
           value={selectedFY}
           onChange={(e) => setSelectedFY(e.target.value)}
-          className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+          className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800 text-sm focus:outline-none focus:border-blue-500"
         >
           {availableFYs.length > 0 ? (
             availableFYs.map(fy => (
@@ -159,9 +159,9 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
       </div>
 
       {/* FY Summary Table */}
-      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
-        <div className="p-4 border-b border-slate-700">
-          <h2 className="text-lg font-semibold text-slate-100">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="p-4 border-b border-slate-200">
+          <h2 className="text-lg font-semibold text-slate-900">
             {selectedFY} - P&L Summary
           </h2>
           <p className="text-sm text-slate-400 mt-1">
@@ -172,7 +172,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-slate-700/50">
+              <tr className="bg-slate-100">
                 <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   Month
                 </th>
@@ -199,18 +199,18 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/50">
+            <tbody className="divide-y divide-slate-200/50">
               {fyData.map(({ month, year, label, record, hasData }) => (
                 <tr
                   key={`${year}-${month}`}
                   className={`
                     transition-colors
-                    ${hasData ? 'hover:bg-slate-700/30' : 'opacity-50'}
+                    ${hasData ? 'hover:bg-slate-50' : 'opacity-50'}
                   `}
                 >
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-200">{label}</span>
+                      <span className="text-sm font-medium text-slate-800">{label}</span>
                       <span className="text-xs text-slate-500">{year}</span>
                       {!hasData && (
                         <span className="text-xs text-slate-600 italic">No data</span>
@@ -273,16 +273,16 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
 
               {/* Totals Row */}
               {totals && (
-                <tr className="bg-slate-700/70 font-semibold">
+                <tr className="bg-slate-100/70 font-semibold">
                   <td className="py-4 px-4">
-                    <span className="text-sm font-bold text-slate-100">FY Total</span>
+                    <span className="text-sm font-bold text-slate-900">FY Total</span>
                   </td>
                   <td className="py-4 px-4 text-right text-sm">
-                    <span className="text-blue-400">{formatCurrency(totals.netRevenue)}</span>
+                    <span className="text-blue-600">{formatCurrency(totals.netRevenue)}</span>
                   </td>
                   <td className="py-4 px-4 text-right text-sm">
                     <div className="flex flex-col items-end">
-                      <span className={totals.grossMargin >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      <span className={totals.grossMargin >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                         {formatCurrency(totals.grossMargin)}
                       </span>
                       {totalPercentages && (
@@ -292,7 +292,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
                   </td>
                   <td className="py-4 px-4 text-right text-sm">
                     <div className="flex flex-col items-end">
-                      <span className={totals.cm1 >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      <span className={totals.cm1 >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                         {formatCurrency(totals.cm1)}
                       </span>
                       {totalPercentages && (
@@ -302,7 +302,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
                   </td>
                   <td className="py-4 px-4 text-right text-sm">
                     <div className="flex flex-col items-end">
-                      <span className={totals.cm2 >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      <span className={totals.cm2 >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                         {formatCurrency(totals.cm2)}
                       </span>
                       {totalPercentages && (
@@ -312,7 +312,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
                   </td>
                   <td className="py-4 px-4 text-right text-sm">
                     <div className="flex flex-col items-end">
-                      <span className={totals.cm3 >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      <span className={totals.cm3 >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                         {formatCurrency(totals.cm3)}
                       </span>
                       {totalPercentages && (
@@ -322,7 +322,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
                   </td>
                   <td className="py-4 px-4 text-right text-sm">
                     <div className="flex flex-col items-end">
-                      <span className={totals.ebitda >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      <span className={totals.ebitda >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                         {formatCurrency(totals.ebitda)}
                       </span>
                       {totalPercentages && (
@@ -332,7 +332,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
                   </td>
                   <td className="py-4 px-4 text-right text-sm">
                     <div className="flex flex-col items-end">
-                      <span className={totals.netIncome >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      <span className={totals.netIncome >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                         {formatCurrency(totals.netIncome)}
                       </span>
                       {totalPercentages && (
