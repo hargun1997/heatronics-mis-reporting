@@ -9,12 +9,12 @@ export type ComplianceFrequency =
 
 export type ComplianceCategoryKey =
   | 'accounts'
-  | 'legal'
-  | 'mca'
-  | 'iso'
+  | 'admin'
+  | 'banking'
   | 'hr'
   | 'investors'
-  | 'admin';
+  | 'qc'
+  | 'roc';
 
 export interface ComplianceItem {
   /** Stable identifier. Kept stable across edits so progress tracking survives renames. */
@@ -49,8 +49,16 @@ export interface ComplianceCategory {
   items: ComplianceItem[];
 }
 
-/** "2026-04" style key used for monthly progress buckets. */
-export type YearMonth = string;
+/**
+ * Progress keys distinguish granularity:
+ *   Monthly: "YYYY-MM"              (e.g. "2026-04")
+ *   Weekly : "YYYY-MM-W<1-5>"      (e.g. "2026-04-W2")
+ *   Daily  : "YYYY-MM-DD"           (e.g. "2026-04-15")
+ */
+export type PeriodKey = string;
+
+/** Legacy alias retained for compatibility. */
+export type YearMonth = PeriodKey;
 
 export interface ProgressEntry {
   completed: boolean;
@@ -58,8 +66,8 @@ export interface ProgressEntry {
   note?: string;
 }
 
-/** progress[itemId][yearMonth] = entry */
-export type ProgressMap = Record<string, Record<YearMonth, ProgressEntry>>;
+/** progress[itemId][periodKey] = entry */
+export type ProgressMap = Record<string, Record<PeriodKey, ProgressEntry>>;
 
 export const CATEGORY_META: Record<
   ComplianceCategoryKey,
@@ -68,46 +76,46 @@ export const CATEGORY_META: Record<
   accounts: {
     name: 'Accounts',
     accent: 'brand',
-    blurb: 'GST, TDS, income tax, TCS — the finance team\u2019s statutory to-do.',
-  },
-  legal: {
-    name: 'Legal',
-    accent: 'rose',
-    blurb: 'Licenses, contracts, trademarks, litigation.',
-  },
-  mca: {
-    name: 'MCA / ROC',
-    accent: 'violet',
-    blurb: 'Companies Act filings, board meetings, statutory registers.',
-  },
-  iso: {
-    name: 'ISO / QMS',
-    accent: 'sky',
-    blurb: 'Internal audits, MRM, document control, calibration.',
-  },
-  hr: {
-    name: 'HR & Payroll',
-    accent: 'emerald',
-    blurb: 'Payroll, PF/ESI, appraisals, policy refresh.',
-  },
-  investors: {
-    name: 'Investors',
-    accent: 'amber',
-    blurb: 'Monthly updates, board decks, cap table, FEMA.',
+    blurb: 'GST, TDS, income tax, TCS \u2014 the finance team\u2019s statutory to-do.',
   },
   admin: {
     name: 'Admin',
-    accent: 'brand',
+    accent: 'amber',
     blurb: 'Office, insurance, utilities, vehicles, backups.',
+  },
+  banking: {
+    name: 'Banking',
+    accent: 'sky',
+    blurb: 'Bank reconciliations, FD renewals, signatories, OD/LC.',
+  },
+  hr: {
+    name: 'HR',
+    accent: 'emerald',
+    blurb: 'Payroll, PF/ESI, appraisals, policy refresh, POSH.',
+  },
+  investors: {
+    name: 'Investors',
+    accent: 'violet',
+    blurb: 'Monthly updates, board decks, cap table, FEMA.',
+  },
+  qc: {
+    name: 'QC',
+    accent: 'rose',
+    blurb: 'Inspection, calibration, NC/CAR, audits, supplier quality.',
+  },
+  roc: {
+    name: 'ROC',
+    accent: 'violet',
+    blurb: 'Companies Act filings, board meetings, statutory registers.',
   },
 };
 
 export const ALL_CATEGORIES: ComplianceCategoryKey[] = [
   'accounts',
-  'legal',
-  'mca',
-  'iso',
+  'admin',
+  'banking',
   'hr',
   'investors',
-  'admin',
+  'qc',
+  'roc',
 ];

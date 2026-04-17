@@ -1,0 +1,116 @@
+{
+  "category": "qc",
+  "name": "Quality Control",
+  "description": "Inspection, calibration, non-conformance / CAR, internal audits, supplier quality and ISO / QMS cadence.",
+  "version": 1,
+  "updatedAt": "2026-04-15",
+  "items": [
+    {
+      "id": "qc-daily-in-process",
+      "title": "In-process inspection",
+      "description": "Shop-floor inspection at defined hold points; record deviations.",
+      "frequency": "daily",
+      "owner": "QC Inspector"
+    },
+    {
+      "id": "qc-daily-line-clearance",
+      "title": "Line clearance & first-piece approval",
+      "description": "First-piece approval for each setup / batch change.",
+      "frequency": "daily",
+      "owner": "QC Inspector"
+    },
+    {
+      "id": "qc-weekly-ncr-review",
+      "title": "Weekly NCR / CAR review",
+      "description": "Review open non-conformance reports and corrective-action requests; set closure targets.",
+      "frequency": "weekly",
+      "owner": "QA Manager"
+    },
+    {
+      "id": "qc-weekly-rejection-mis",
+      "title": "Weekly rejection MIS",
+      "description": "Publish in-process, final and supplier rejection PPM vs targets.",
+      "frequency": "weekly",
+      "owner": "QA Manager"
+    },
+    {
+      "id": "qc-calibration",
+      "title": "Instrument calibration tracker",
+      "description": "Track calibration due dates for gauges, meters, testing equipment; raise PO for external calibration.",
+      "frequency": "monthly",
+      "dueDay": 5,
+      "owner": "QA Manager"
+    },
+    {
+      "id": "qc-supplier-quality",
+      "title": "Supplier quality rating",
+      "description": "Publish monthly supplier rating (PPM, OTIF, response on NCR) and share with purchase.",
+      "frequency": "monthly",
+      "dueDay": 10,
+      "owner": "QA Manager"
+    },
+    {
+      "id": "qc-cost-of-quality",
+      "title": "Cost of Quality report",
+      "description": "Rework, scrap, customer claims and warranty cost summary.",
+      "frequency": "monthly",
+      "dueDay": 10,
+      "owner": "QA Manager"
+    },
+    {
+      "id": "qc-internal-audit",
+      "title": "Internal QMS audit",
+      "description": "Planned internal audit against ISO 9001 clauses; log observations in audit tracker.",
+      "frequency": "quarterly",
+      "months": [5, 8, 11, 2],
+      "dueDay": 20,
+      "owner": "Lead Auditor"
+    },
+    {
+      "id": "qc-mrm",
+      "title": "Management Review Meeting (MRM)",
+      "description": "Quarterly MRM covering quality objectives, audits, customer feedback, risks & opportunities.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 25,
+      "owner": "Management Rep."
+    },
+    {
+      "id": "qc-supplier-audit",
+      "title": "Supplier audit cycle",
+      "description": "On-site audits of critical suppliers per the approved audit plan.",
+      "frequency": "half-yearly",
+      "months": [5, 11],
+      "dueDay": 30,
+      "owner": "QA Manager"
+    },
+    {
+      "id": "qc-surveillance-audit",
+      "title": "ISO 9001 surveillance / recertification audit",
+      "description": "External certification body audit \u2014 logistics, CAPA readiness, document control evidence.",
+      "frequency": "yearly",
+      "dueMonth": 10,
+      "dueDay": 31,
+      "owner": "Management Rep.",
+      "authority": "Certification Body"
+    },
+    {
+      "id": "qc-customer-survey",
+      "title": "Customer satisfaction survey",
+      "description": "Annual CSAT survey \u2014 aggregate scores, analyse complaints, feed into MRM.",
+      "frequency": "yearly",
+      "dueMonth": 3,
+      "dueDay": 31,
+      "owner": "QA Manager"
+    },
+    {
+      "id": "qc-doc-control",
+      "title": "QMS document review",
+      "description": "Annual review of SOPs, work instructions, quality manual; archive obsolete versions.",
+      "frequency": "yearly",
+      "dueMonth": 3,
+      "dueDay": 31,
+      "owner": "Document Controller"
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "category": "banking",
+  "name": "Banking",
+  "description": "Bank reconciliations, FD renewals, signatory maintenance, OD / LC / BG tracking and FEMA-related bank filings.",
+  "version": 1,
+  "updatedAt": "2026-04-15",
+  "items": [
+    {
+      "id": "bank-daily-recon",
+      "title": "Daily bank balance check",
+      "description": "Pull closing balances across all current accounts, flag any unexpected debits or returns.",
+      "frequency": "daily",
+      "owner": "Accounts Executive",
+      "notes": "Reconcile against Tally bank ledgers during EOD."
+    },
+    {
+      "id": "bank-weekly-recon",
+      "title": "Weekly bank reconciliation",
+      "description": "Reconcile all current accounts with bank statements; investigate un-presented cheques and uncleared entries.",
+      "frequency": "weekly",
+      "owner": "Accounts Executive",
+      "notes": "Cut-off: Friday EOD."
+    },
+    {
+      "id": "bank-month-recon-sign",
+      "title": "Month-end bank reconciliation sign-off",
+      "description": "Formal BRS for every bank account, signed off by Accounts Manager.",
+      "frequency": "monthly",
+      "dueDay": 3,
+      "owner": "Accounts Manager"
+    },
+    {
+      "id": "bank-charges-review",
+      "title": "Bank charges & interest review",
+      "description": "Review bank charges, forex conversion fees and OD interest; dispute errors with RM.",
+      "frequency": "monthly",
+      "dueDay": 7,
+      "owner": "Accounts Manager"
+    },
+    {
+      "id": "bank-fd-renewals",
+      "title": "FD maturity / renewal tracker",
+      "description": "Review FDs maturing in the next 30 days; decide on renewal, laddering or liquidation.",
+      "frequency": "monthly",
+      "dueDay": 10,
+      "owner": "CFO"
+    },
+    {
+      "id": "bank-od-cc-review",
+      "title": "OD / CC limit utilisation review",
+      "description": "Review working-capital limit utilisation, drawing power, stock statement filings.",
+      "frequency": "monthly",
+      "dueDay": 10,
+      "owner": "CFO",
+      "notes": "Stock statements generally due by the 10th of the following month."
+    },
+    {
+      "id": "bank-stock-statement",
+      "title": "Submit stock & debtor statement to bank",
+      "description": "Monthly stock and debtor statement for working capital drawing power calculation.",
+      "frequency": "monthly",
+      "dueDay": 10,
+      "owner": "Accounts Manager",
+      "authority": "Consortium Bank"
+    },
+    {
+      "id": "bank-signatory-audit",
+      "title": "Signatory mandate review",
+      "description": "Verify authorised signatories, limits and DSC validity across all banks.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 15,
+      "owner": "Company Secretary / CFO"
+    },
+    {
+      "id": "bank-bg-lc-review",
+      "title": "Bank Guarantee / LC register",
+      "description": "Update BG and LC register \u2014 issue date, expiry, margin, beneficiary, claim status.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 20,
+      "owner": "Accounts Manager"
+    },
+    {
+      "id": "bank-unreconciled-writeoff",
+      "title": "Clear aged unreconciled entries",
+      "description": "Investigate and close bank entries pending reconciliation for > 90 days.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 25,
+      "owner": "Accounts Manager"
+    },
+    {
+      "id": "bank-fla-return",
+      "title": "FLA return (RBI)",
+      "description": "Annual Foreign Liabilities & Assets return for companies with FDI / ODI.",
+      "form": "FLA",
+      "frequency": "yearly",
+      "dueMonth": 7,
+      "dueDay": 15,
+      "owner": "CFO",
+      "authority": "RBI"
+    },
+    {
+      "id": "bank-cc-renewal",
+      "title": "Working capital facility renewal",
+      "description": "Annual renewal of CC / OD limits with consortium bank \u2014 prepare CMA data.",
+      "frequency": "yearly",
+      "dueMonth": 9,
+      "dueDay": 30,
+      "owner": "CFO"
+    },
+    {
+      "id": "bank-kyc-refresh",
+      "title": "Bank KYC refresh",
+      "description": "Periodic KYC updation for company and directors as required by banks.",
+      "frequency": "yearly",
+      "dueMonth": 3,
+      "dueDay": 31,
+      "owner": "Company Secretary"
+    }
+  ]
+}

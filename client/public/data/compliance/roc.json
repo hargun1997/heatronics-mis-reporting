@@ -1,0 +1,138 @@
+{
+  "category": "roc",
+  "name": "ROC / Companies Act",
+  "description": "Companies Act 2013 filings \u2014 Board Meetings, AGM, annual returns, director disclosures, statutory registers.",
+  "version": 1,
+  "updatedAt": "2026-04-15",
+  "items": [
+    {
+      "id": "roc-board-mtg",
+      "title": "Board Meeting",
+      "description": "Minimum 4 board meetings in a calendar year; gap not exceeding 120 days between consecutive meetings.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 30,
+      "owner": "Company Secretary",
+      "authority": "MCA",
+      "notes": "Keep minutes and attendance register updated within 30 days of the meeting."
+    },
+    {
+      "id": "roc-statutory-registers",
+      "title": "Update statutory registers",
+      "description": "Registers of members, directors, charges, contracts and related-party transactions \u2014 reviewed and updated.",
+      "frequency": "quarterly",
+      "months": [4, 7, 10, 1],
+      "dueDay": 15,
+      "owner": "Company Secretary"
+    },
+    {
+      "id": "roc-disclosure-mbp1",
+      "title": "Director interest disclosure (MBP-1)",
+      "description": "Fresh MBP-1 from every director at the first board meeting of each FY.",
+      "form": "MBP-1",
+      "frequency": "yearly",
+      "dueMonth": 4,
+      "dueDay": 30,
+      "owner": "Company Secretary"
+    },
+    {
+      "id": "roc-di8",
+      "title": "Director non-disqualification (DIR-8)",
+      "description": "Annual declaration from every director that they are not disqualified u/s 164.",
+      "form": "DIR-8",
+      "frequency": "yearly",
+      "dueMonth": 4,
+      "dueDay": 30,
+      "owner": "Company Secretary"
+    },
+    {
+      "id": "roc-msme-1",
+      "title": "MSME Form I",
+      "description": "Half-yearly return of MSME vendor payments outstanding beyond 45 days. Filed in April (Oct-Mar period) and October (Apr-Sep period).",
+      "form": "Form MSME-1",
+      "frequency": "half-yearly",
+      "months": [4, 10],
+      "dueDay": 30,
+      "owner": "Accounts / CS",
+      "authority": "MCA"
+    },
+    {
+      "id": "roc-dpt3",
+      "title": "Return of Deposits (DPT-3)",
+      "description": "Annual return of outstanding loans / deposits / non-deposit money received.",
+      "form": "DPT-3",
+      "frequency": "yearly",
+      "dueMonth": 6,
+      "dueDay": 30,
+      "owner": "Company Secretary",
+      "authority": "MCA"
+    },
+    {
+      "id": "roc-agm",
+      "title": "Annual General Meeting (AGM)",
+      "description": "Hold AGM within 6 months of FY end (30 September).",
+      "frequency": "yearly",
+      "dueMonth": 9,
+      "dueDay": 30,
+      "owner": "Company Secretary",
+      "authority": "MCA",
+      "penalty": "Rs.1,00,000 + Rs.5,000/day u/s 99"
+    },
+    {
+      "id": "roc-dir3-kyc",
+      "title": "DIR-3 KYC (Directors)",
+      "description": "Annual KYC by every director holding DIN.",
+      "form": "DIR-3 KYC",
+      "frequency": "yearly",
+      "dueMonth": 9,
+      "dueDay": 30,
+      "owner": "Company Secretary",
+      "authority": "MCA",
+      "penalty": "Rs.5,000 for late filing + DIN deactivation"
+    },
+    {
+      "id": "roc-aoc4",
+      "title": "File AOC-4 (Financials)",
+      "description": "File audited financial statements with ROC within 30 days of AGM.",
+      "form": "AOC-4",
+      "frequency": "yearly",
+      "dueMonth": 10,
+      "dueDay": 29,
+      "owner": "Company Secretary",
+      "authority": "MCA",
+      "penalty": "Rs.100/day with no upper limit"
+    },
+    {
+      "id": "roc-mgt7",
+      "title": "File MGT-7 / MGT-7A (Annual Return)",
+      "description": "Annual return with ROC within 60 days of AGM. MGT-7A for small companies and OPCs.",
+      "form": "MGT-7 / MGT-7A",
+      "frequency": "yearly",
+      "dueMonth": 11,
+      "dueDay": 28,
+      "owner": "Company Secretary",
+      "authority": "MCA"
+    },
+    {
+      "id": "roc-csr-2",
+      "title": "CSR-2 filing (if applicable)",
+      "description": "Report on CSR activities as an addendum to AOC-4, for companies covered u/s 135.",
+      "form": "CSR-2",
+      "frequency": "yearly",
+      "dueMonth": 12,
+      "dueDay": 31,
+      "owner": "Company Secretary"
+    },
+    {
+      "id": "roc-adt-1",
+      "title": "File ADT-1 (Auditor appointment)",
+      "description": "File intimation of auditor appointment / re-appointment within 15 days of AGM.",
+      "form": "ADT-1",
+      "frequency": "yearly",
+      "dueMonth": 10,
+      "dueDay": 14,
+      "owner": "Company Secretary",
+      "authority": "MCA"
+    }
+  ]
+}
