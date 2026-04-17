@@ -5,6 +5,7 @@ import { MISTrackingNew } from './pages/MISTrackingNew';
 import { TaskTracker } from './pages/TaskTracker';
 import { BusinessGuide } from './pages/BusinessGuide';
 import { Tools } from './pages/Tools';
+import { WarrantyManagement } from './pages/WarrantyManagement';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="task-tracker" element={<TaskTracker />} />
           <Route path="business-guide" element={<BusinessGuide />} />
           <Route path="tools" element={<Tools />} />
+          <Route path="warranty" element={<WarrantyManagement />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -10,6 +10,7 @@ const navItems: NavItem[] = [
   { path: '/', label: 'Home' },
   { path: '/mis-tracking', label: 'MIS Reporting' },
   { path: '/task-tracker', label: 'Task Tracker' },
+  { path: '/warranty', label: 'Warranty' },
   { path: '/business-guide', label: 'Business Guide' },
   { path: '/tools', label: 'Tools' },
 ];
