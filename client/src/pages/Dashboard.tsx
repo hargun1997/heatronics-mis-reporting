@@ -33,17 +33,6 @@ const flowCards: FlowCard[] = [
     )
   },
   {
-    title: 'Warranty Management',
-    description: 'Track warranty cases, manage duplicates, and monitor shipments.',
-    path: '/warranty',
-    color: 'orange',
-    icon: (
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-      </svg>
-    )
-  },
-  {
     title: 'Business Guide',
     description: 'Reference guide for expense categories and accounting practices.',
     path: '/business-guide',
@@ -91,13 +80,6 @@ const colorClasses: Record<string, { bg: string; border: string; icon: string; t
     icon: 'bg-violet-500/20 text-violet-400',
     text: 'text-violet-400',
     hover: 'hover:border-violet-500/40 hover:bg-violet-500/15'
-  },
-  orange: {
-    bg: 'bg-orange-500/10',
-    border: 'border-orange-500/20',
-    icon: 'bg-orange-500/20 text-orange-400',
-    text: 'text-orange-400',
-    hover: 'hover:border-orange-500/40 hover:bg-orange-500/15'
   }
 };
 
@@ -113,7 +95,7 @@ export function Dashboard() {
       </div>
 
       {/* Flow Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {flowCards.map((card) => {
           const colors = colorClasses[card.color];
 
