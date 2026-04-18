@@ -16,7 +16,6 @@ import {
   findAllDuplicateGroups,
 } from '../utils/warrantyDuplicateDetector';
 import { CaseModal } from '../components/warranty/CaseModal';
-import { DuplicatePanel } from '../components/warranty/DuplicatePanel';
 
 type ChartView = 'active' | 'closed' | 'both';
 
@@ -280,11 +279,14 @@ export function WarrantyManagement() {
         );
       })()}
       {showDuplicatePanel && (
-        <DuplicatePanel
-          groups={duplicateGroups}
-          onClose={() => setShowDuplicatePanel(false)}
-          onChanged={refresh}
-        />
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+          onClick={() => setShowDuplicatePanel(false)}
+        >
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-slate-300">
+            Duplicate management panel coming in Part 2.
+          </div>
+        </div>
       )}
     </div>
   );
