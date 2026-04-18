@@ -14,8 +14,8 @@ import {
 } from '../utils/warrantyStorage';
 import {
   findAllDuplicateGroups,
+  findExactDuplicates,
 } from '../utils/warrantyDuplicateDetector';
-import { CaseModal } from '../components/warranty/CaseModal';
 
 type ChartView = 'active' | 'closed' | 'both';
 
@@ -256,28 +256,17 @@ export function WarrantyManagement() {
         </div>
       )}
 
-      {/* Case create/edit modal */}
-      {creatingCase && (
-        <CaseModal
-          mode="create"
-          allCases={cases}
-          onClose={() => setCreatingCase(false)}
-          onSaved={refresh}
-        />
+      {/* TODO Part 2: Case Modal + Duplicate Management Panel */}
+      {(editingCaseId || creatingCase) && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+          onClick={() => { setEditingCaseId(null); setCreatingCase(false); }}
+        >
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 text-slate-300">
+            Case editing coming in Part 2.
+          </div>
+        </div>
       )}
-      {editingCaseId && (() => {
-        const target = cases.find(c => c.id === editingCaseId);
-        if (!target) return null;
-        return (
-          <CaseModal
-            mode="edit"
-            existingCase={target}
-            allCases={cases}
-            onClose={() => setEditingCaseId(null)}
-            onSaved={refresh}
-          />
-        );
-      })()}
       {showDuplicatePanel && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
