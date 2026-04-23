@@ -10,37 +10,37 @@ const ic = (
 export function SopHome() {
   const sops = [
     {
-      to: '/guide/sop/sales',
+      to: '/guides/sop/sales',
       title: 'Sales SOP',
       description: 'Amazon, Shopify, Blinkit and B2B distributor flows — voucher types, clearing ledgers and settlement journals.',
       accent: 'brand' as const,
     },
     {
-      to: '/guide/sop/purchase',
+      to: '/guides/sop/purchase',
       title: 'Purchase SOP',
       description: 'Raw material and packing purchases in Tranzact, with ITC treatment and party master setup.',
       accent: 'emerald' as const,
     },
     {
-      to: '/guide/sop/expense',
+      to: '/guides/sop/expense',
       title: 'Expense SOP',
       description: 'Booking operating expenses directly in Tally — rent, utilities, freight, advertising, professional fees.',
       accent: 'amber' as const,
     },
     {
-      to: '/guide/sop/banking',
+      to: '/guides/sop/banking',
       title: 'Banking SOP',
       description: 'Daily bank entries across ICICI, Central and HDFC — live feed vs manual import — plus BRS workflow.',
       accent: 'sky' as const,
     },
     {
-      to: '/guide/sop/capital-goods',
+      to: '/guides/sop/capital-goods',
       title: 'Capital Goods SOP',
       description: 'Capitalisation of plant, computers and furniture — ITC rules and monthly depreciation journal.',
       accent: 'violet' as const,
     },
     {
-      to: '/guide/sop/job-work',
+      to: '/guides/sop/job-work',
       title: 'Job Work SOP',
       description: 'Material Out / Material In challans, processing charge booking, and ITC-04 tracking.',
       accent: 'rose' as const,

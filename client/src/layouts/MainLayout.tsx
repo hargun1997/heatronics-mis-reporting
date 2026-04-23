@@ -13,19 +13,25 @@ const navItems: NavItem[] = [
     matcher: (p) => p.startsWith('/reporting') || p.startsWith('/mis-tracking'),
   },
   {
-    path: '/compliance',
-    label: 'Compliance Calendar',
+    path: '/calendar',
+    label: 'Calendar',
     matcher: (p) =>
+      p.startsWith('/calendar') ||
       p.startsWith('/compliance') ||
       p.startsWith('/tracker') ||
       p.startsWith('/task-tracker'),
   },
   {
-    path: '/guide',
-    label: 'Guide & Tools',
+    path: '/tools',
+    label: 'Tools',
+    matcher: (p) => p.startsWith('/tools'),
+  },
+  {
+    path: '/guides',
+    label: 'Guides',
     matcher: (p) =>
+      p.startsWith('/guides') ||
       p.startsWith('/guide') ||
-      p.startsWith('/tools') ||
       p.startsWith('/business-guide'),
   },
 ];
@@ -38,11 +44,9 @@ export function MainLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Top Navigation Bar */}
       <header className="bg-white/80 backdrop-blur border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-14">
-            {/* Logo / Home Button */}
             <Link
               to="/"
               className="flex items-center gap-2 text-slate-900 hover:text-brand-600 transition-colors"
@@ -55,7 +59,6 @@ export function MainLayout() {
               <span className="font-semibold text-base hidden sm:block tracking-tight">Heatronics</span>
             </Link>
 
-            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => (
                 <NavLink
@@ -74,12 +77,10 @@ export function MainLayout() {
               ))}
             </nav>
 
-            {/* Right side quick links (desktop) */}
             <div className="hidden md:flex items-center gap-1 text-xs">
               <span className="text-slate-400">MIS v2.1</span>
             </div>
 
-            {/* Mobile label */}
             <div className="flex items-center gap-2 md:hidden">
               <span className="text-sm font-medium text-slate-700">
                 {navItems.find((n) => isActive(n))?.label || 'Home'}
@@ -88,7 +89,6 @@ export function MainLayout() {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
         <div className="md:hidden border-t border-slate-200">
           <nav className="flex overflow-x-auto px-2 py-2 gap-1 no-scrollbar">
             {navItems.map((item) => (
@@ -110,16 +110,14 @@ export function MainLayout() {
         </div>
       </header>
 
-      {/* Page content */}
       <main className="flex-1">
         <Outlet />
       </main>
 
-      {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-4 mt-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <p className="text-center text-xs text-slate-500">
-            Heatronics Accounting Dashboard · Built for the Finance team
+            Heatronics Accounting Dashboard &middot; Built for the Finance team
           </p>
         </div>
       </footer>

@@ -11,7 +11,7 @@ export function CategoryTabs() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <nav className="flex overflow-x-auto gap-1 py-2 no-scrollbar">
           <NavLink
-            to="/compliance"
+            to="/calendar"
             end
             className={({ isActive }) =>
               `px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
@@ -26,7 +26,7 @@ export function CategoryTabs() {
           {ALL_CATEGORIES.map((cat) => (
             <NavLink
               key={cat}
-              to={`/compliance/${cat}`}
+              to={`/calendar/${cat}`}
               className={({ isActive }) =>
                 `px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
                   isActive

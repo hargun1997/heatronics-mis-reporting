@@ -97,7 +97,7 @@ export function ComplianceHome() {
             return (
               <NavCard
                 key={cat}
-                to={`/compliance/${cat}`}
+                to={`/calendar/${cat}`}
                 title={meta.name}
                 description={meta.blurb}
                 icon={iconCalendar}

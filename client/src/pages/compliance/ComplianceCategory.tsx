@@ -15,18 +15,28 @@ import {
 import {
   clearOverride,
   clearProgress,
+  dayKey,
   formatDueDate,
   frequencyLabel,
   getAllProgress,
   hasOverride,
   isDueInMonth,
+  isDueInWeek,
+  isDueOnDate,
   loadCategory,
+  monthKey,
   saveOverride,
   setProgress,
+  weekBucket,
+  weekKey,
   yearMonth,
 } from '../../data/compliance/storage';
 import { CategoryTabs } from './CategoryTabs';
 import { MonthStrip } from './MonthStrip';
+import { DateStrip } from './DateStrip';
+import { WeekStrip } from './WeekStrip';
+import { ViewModeTabs } from './ViewModeTabs';
+import type { ViewMode } from './ViewModeTabs';
 
 const iconCal = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -48,7 +58,7 @@ export function ComplianceCategory() {
   const { category } = useParams<{ category: string }>();
 
   if (!category || !(ALL_CATEGORIES as string[]).includes(category)) {
-    return <Navigate to="/compliance" replace />;
+    return <Navigate to="/calendar" replace />;
   }
 
   return <CategoryView categoryKey={category as ComplianceCategoryKey} />;
@@ -64,8 +74,11 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
+  const [viewMode, setViewMode] = useState<ViewMode>('monthly');
+  const [selectedDay, setSelectedDay] = useState(now.getDate());
+  const [selectedWeek, setSelectedWeek] = useState(weekBucket(now.getDate()));
 
-  const [progressTick, setProgressTick] = useState(0); // force re-render when toggling checks
+  const [progressTick, setProgressTick] = useState(0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ComplianceItem | null>(null);
 
@@ -87,12 +100,26 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
     reload();
   }, [reload]);
 
-  const ym = yearMonth(year, month);
+  useEffect(() => {
+    const onFocus = () => { reload(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [reload]);
+
+  const periodKey = useMemo(() => {
+    if (viewMode === 'daily') return dayKey(year, month, selectedDay);
+    if (viewMode === 'weekly') return weekKey(year, month, selectedWeek);
+    return monthKey(year, month);
+  }, [viewMode, year, month, selectedDay, selectedWeek]);
 
   const dueItems = useMemo(() => {
     if (!data) return [];
+    if (viewMode === 'daily')
+      return data.items.filter((i) => isDueOnDate(i, year, month, selectedDay));
+    if (viewMode === 'weekly')
+      return data.items.filter((i) => isDueInWeek(i, year, month, selectedWeek));
     return data.items.filter((i) => isDueInMonth(i, year, month));
-  }, [data, year, month]);
+  }, [data, year, month, viewMode, selectedDay, selectedWeek]);
 
   const nonDueItems = useMemo(() => {
     if (!data) return [];
@@ -100,7 +127,7 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
   }, [data, year, month]);
 
   const progress = getAllProgress();
-  const doneCount = dueItems.filter((i) => progress[i.id]?.[ym]?.completed).length;
+  const doneCount = dueItems.filter((i) => progress[i.id]?.[periodKey]?.completed).length;
   const pct = dueItems.length === 0 ? 0 : Math.round((doneCount / dueItems.length) * 100);
 
   // --- handlers ---
@@ -113,11 +140,11 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
   };
 
   const handleToggle = (item: ComplianceItem) => {
-    const existing = progress[item.id]?.[ym];
+    const existing = progress[item.id]?.[periodKey];
     if (existing?.completed) {
-      clearProgress(item.id, ym);
+      clearProgress(item.id, periodKey);
     } else {
-      setProgress(item.id, ym, {
+      setProgress(item.id, periodKey, {
         completed: true,
         completedAt: new Date().toISOString(),
       });
@@ -240,6 +267,14 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
       <CategoryTabs />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <ViewModeTabs mode={viewMode} onChange={setViewMode} />
+          <div className="text-sm text-slate-700">
+            <span className="font-semibold text-slate-900">{doneCount}</span>
+            <span className="text-slate-500"> / {dueItems.length} done</span>
+          </div>
+        </div>
+
         <MonthStrip
           year={year}
           month={month}
@@ -247,18 +282,28 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
           onChange={(y, m) => { setYear(y); setMonth(m); }}
         />
 
-        {/* Progress bar */}
-        <div className="flex items-center justify-between gap-3 px-1">
-          <div className="text-sm text-slate-700">
-            <span className="font-semibold text-slate-900">{doneCount}</span>
-            <span className="text-slate-500"> of {dueItems.length} done in </span>
-            <span className="font-medium text-slate-900">
-              {new Date(year, month - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-            </span>
-          </div>
-          <div className="w-40 h-2 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
-          </div>
+        {viewMode === 'daily' && (
+          <DateStrip
+            year={year}
+            month={month}
+            selectedDay={selectedDay}
+            items={data.items.filter((i) => isDueInMonth(i, year, month))}
+            onChange={setSelectedDay}
+          />
+        )}
+
+        {viewMode === 'weekly' && (
+          <WeekStrip
+            year={year}
+            month={month}
+            selectedWeek={selectedWeek}
+            items={data.items.filter((i) => isDueInMonth(i, year, month))}
+            onChange={setSelectedWeek}
+          />
+        )}
+
+        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
 
         {/* Overridden banner */}
@@ -277,15 +322,16 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
         {/* Due items */}
         <ItemsTable
           key={`due-${progressTick}`}
-          title={`Due this month (${dueItems.length})`}
+          title={`Due ${viewMode === 'daily' ? 'today' : viewMode === 'weekly' ? 'this week' : 'this month'} (${dueItems.length})`}
           items={dueItems}
           year={year}
           month={month}
+          periodKey={periodKey}
           progress={progress}
           onToggle={handleToggle}
           onEdit={(i) => { setEditingItem(i); setEditorOpen(true); }}
           onDelete={handleDelete}
-          emptyLabel="Nothing due in this month."
+          emptyLabel={`Nothing due ${viewMode === 'daily' ? 'on this date' : viewMode === 'weekly' ? 'this week' : 'this month'}.`}
         />
 
         {/* Not due — collapsed by default */}
@@ -296,6 +342,7 @@ function CategoryView({ categoryKey }: { categoryKey: ComplianceCategoryKey }) {
               items={nonDueItems}
               year={year}
               month={month}
+              periodKey={monthKey(year, month)}
               progress={progress}
               onToggle={handleToggle}
               onEdit={(i) => { setEditingItem(i); setEditorOpen(true); }}
@@ -349,6 +396,7 @@ function ItemsTable({
   items,
   year,
   month,
+  periodKey: pk,
   progress,
   onToggle,
   onEdit,
@@ -361,6 +409,7 @@ function ItemsTable({
   items: ComplianceItem[];
   year: number;
   month: number;
+  periodKey: string;
   progress: ReturnType<typeof getAllProgress>;
   onToggle: (item: ComplianceItem) => void;
   onEdit: (item: ComplianceItem) => void;
@@ -369,7 +418,6 @@ function ItemsTable({
   muted?: boolean;
   headless?: boolean;
 }) {
-  const ym = yearMonth(year, month);
   return (
     <div className={`${headless ? '' : 'rounded-xl border border-slate-200'} bg-white ${muted ? 'opacity-90' : ''}`}>
       {!headless && (
@@ -383,7 +431,7 @@ function ItemsTable({
       ) : (
         <div className="divide-y divide-slate-100">
           {items.map((item) => {
-            const done = !!progress[item.id]?.[ym]?.completed;
+            const done = !!progress[item.id]?.[pk]?.completed;
             const dueText = formatDueDate(item, year, month);
             return (
               <div key={item.id} className="px-5 py-3 flex items-start gap-3 group">
