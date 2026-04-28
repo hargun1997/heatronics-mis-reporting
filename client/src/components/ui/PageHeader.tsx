@@ -83,7 +83,7 @@ function deriveCrumbs(pathname: string): Crumb[] {
   const labels: Record<string, string> = {
     reporting: 'Reporting',
     tracker: 'Tracker',
-    compliance: 'Compliance Calendar',
+    compliance: 'Compliance',
     accounts: 'Accounts',
     legal: 'Legal',
     mca: 'MCA / ROC',
@@ -91,7 +91,7 @@ function deriveCrumbs(pathname: string): Crumb[] {
     hr: 'HR & Payroll',
     investors: 'Investors',
     admin: 'Admin',
-    guide: 'Guide & Tools',
+    guide: 'Guide',
     sop: 'Accounting SOP',
     tools: 'Tools',
     sales: 'Sales SOP',
@@ -106,7 +106,7 @@ function deriveCrumbs(pathname: string): Crumb[] {
     'amazon-to-tranzact': 'Amazon → Tranzact',
     'mis-tracking': 'MIS Reporting',
     'task-tracker': 'Task Tracker',
-    'business-guide': 'Guide & Tools',
+    'business-guide': 'Guide',
   };
   const crumbs: Crumb[] = [];
   let acc = '';

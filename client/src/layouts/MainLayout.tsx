@@ -14,7 +14,7 @@ const navItems: NavItem[] = [
   },
   {
     path: '/compliance',
-    label: 'Compliance Calendar',
+    label: 'Compliance',
     matcher: (p) =>
       p.startsWith('/compliance') ||
       p.startsWith('/tracker') ||
@@ -22,11 +22,13 @@ const navItems: NavItem[] = [
   },
   {
     path: '/guide',
-    label: 'Guide & Tools',
-    matcher: (p) =>
-      p.startsWith('/guide') ||
-      p.startsWith('/tools') ||
-      p.startsWith('/business-guide'),
+    label: 'Guide',
+    matcher: (p) => p.startsWith('/guide') || p.startsWith('/business-guide'),
+  },
+  {
+    path: '/tools',
+    label: 'Tools',
+    matcher: (p) => p.startsWith('/tools'),
   },
 ];
 

@@ -48,29 +48,12 @@ export function SopHome() {
   ];
   return (
     <>
-      <PageHeader
-        title="Accounting SOPs"
-        description="Standard operating procedures for every accounting stream. Each SOP shows you where to operate (Tally vs Tranzact), what voucher type to use, and how the ledgers move."
-        accent="violet"
-        icon={ic}
-      />
+      <PageHeader title="Accounting SOPs" accent="violet" icon={ic} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sops.map((s) => (
             <NavCard key={s.to} to={s.to} title={s.title} description={s.description} icon={ic} accent={s.accent} />
           ))}
-        </div>
-
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">How to read an SOP</h3>
-          <p className="mt-1 text-xs text-slate-500">Every SOP is structured the same way so the team can flip between them easily.</p>
-          <ol className="mt-4 space-y-2 text-sm text-slate-700 list-decimal list-inside">
-            <li><span className="font-medium">Where to operate</span> — Tally or Tranzact, plus the bill series.</li>
-            <li><span className="font-medium">Voucher type &amp; ledger mapping</span> — exactly which masters get used.</li>
-            <li><span className="font-medium">Step-by-step</span> — the operator checklist.</li>
-            <li><span className="font-medium">Example with real data</span> — expandable journal entry.</li>
-            <li><span className="font-medium">Clearing &amp; reconciliation</span> — how and when the ledger gets knocked-off.</li>
-          </ol>
         </div>
       </div>
     </>

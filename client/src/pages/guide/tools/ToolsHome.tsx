@@ -16,24 +16,18 @@ const iconConvert = (
 export function ToolsHome() {
   return (
     <>
-      <PageHeader
-        title="Tools"
-        description="Interactive utilities the accounting team uses every day — from booking suggestions to data format conversions."
-        accent="amber"
-        icon={iconConvert}
-      />
+      <PageHeader title="Tools" accent="amber" icon={iconConvert} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NavCard
-            to="/guide/tools/invoice-booking"
+            to="/tools/invoice-booking"
             title="Invoice Booking Suggester"
-            description="Answer a few questions — Sales / Purchase, B2B / B2C, Channel, Party, HSN — and get the exact voucher type, ledger mapping, bill series and journal entry to book."
+            description="Pick Sales / Purchase, channel, party and HSN — get the voucher type, ledger mapping and journal entry to book."
             icon={iconBooking}
             accent="brand"
-            badge="New"
           />
           <NavCard
-            to="/guide/tools/amazon-to-tranzact"
+            to="/tools/amazon-to-tranzact"
             title="Amazon → Tranzact"
             description="Convert the Amazon FBA Inventory Report into a Tranzact Bulk Manual Adjustment Excel file."
             icon={iconConvert}
