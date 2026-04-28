@@ -13,12 +13,26 @@ const iconConvert = (
   </svg>
 );
 
+const iconExpense = (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h2m4 0h6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+  </svg>
+);
+
 export function ToolsHome() {
   return (
     <>
       <PageHeader title="Tools" accent="amber" icon={iconConvert} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <NavCard
+            to="/tools/expense-booking"
+            title="Expense Booking (AI)"
+            description="Snap an invoice photo, answer a few quick questions, and the AI returns the exact voucher, ledgers and cost centre — grounded in your Tally master."
+            icon={iconExpense}
+            accent="emerald"
+            badge="New"
+          />
           <NavCard
             to="/tools/invoice-booking"
             title="Invoice Booking Suggester"
