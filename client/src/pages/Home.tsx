@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom';
-import { NavCard, Pill } from '../components/ui/Card';
+import { NavCard } from '../components/ui/Card';
 
 const iconReporting = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -19,94 +18,50 @@ const iconGuide = (
   </svg>
 );
 
+const iconTools = (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+  </svg>
+);
+
 export function Home() {
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      {/* Welcome */}
-      <div className="mb-10 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-medium mb-3 border border-brand-100">
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-          Heatronics · Finance & Accounting
-        </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          Your accounting command center
-        </h1>
-        <p className="mt-2 text-slate-600 text-sm max-w-xl mx-auto">
-          Report the numbers, track your monthly close, and follow clear SOPs for every booking — all in one place.
-        </p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+      <div className="mb-10">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Heatronics</h1>
+        <p className="mt-1 text-sm text-slate-500">Finance &amp; Accounting</p>
       </div>
 
-      {/* Three Primary Sections */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <NavCard
           to="/reporting"
           title="Reporting"
-          description="Generate monthly MIS, compare trends, and produce P&L and balance sheet snapshots."
+          description="Generate the monthly MIS and review P&L trends."
           icon={iconReporting}
           accent="brand"
         />
         <NavCard
           to="/compliance"
-          title="Compliance Calendar"
-          description="Track monthly, quarterly and yearly compliance across Accounts, Legal, MCA, ISO, HR, Investors and Admin."
+          title="Compliance"
+          description="Track monthly, quarterly and yearly compliance items."
           icon={iconCompliance}
           accent="amber"
         />
         <NavCard
           to="/guide"
-          title="Guide & Tools"
-          description="System architecture, SOPs, ledger trees, and booking assistants for Tally & Tranzact."
+          title="Guide"
+          description="System architecture, SOPs and ledger reference."
           icon={iconGuide}
           accent="violet"
         />
-      </div>
-
-      {/* Quick shortcuts */}
-      <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <QuickLink to="/compliance/accounts" label="Accounts Compliance" tag="Compliance" />
-        <QuickLink to="/compliance/mca" label="MCA / ROC" tag="Compliance" />
-        <QuickLink to="/guide/tools/invoice-booking" label="Invoice Booking Suggester" tag="Tool" />
-        <QuickLink to="/guide/ledgers" label="Ledger & Voucher Tree" tag="Reference" />
-      </div>
-
-      {/* Footer info row */}
-      <div className="mt-10 rounded-xl border border-slate-200 bg-white p-5">
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          <Pill color="brand">Tranzact — B2B &amp; Inventory</Pill>
-          <Pill color="emerald">Tally — Books of Account</Pill>
-          <Pill color="violet">Tally Plugin — UPSERT</Pill>
-          <Pill color="amber">Channels — Amazon, Shopify, Easebuzz, Snapmint, Shiprocket, Blinkit</Pill>
-          <Pill color="sky">Banks — ICICI, Central, HDFC</Pill>
-        </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Ledger and voucher mappings are controlled centrally. See the{' '}
-          <Link to="/guide/architecture" className="text-brand-600 hover:text-brand-700 underline underline-offset-2">
-            system architecture
-          </Link>{' '}
-          and{' '}
-          <Link to="/guide/ledgers" className="text-brand-600 hover:text-brand-700 underline underline-offset-2">
-            ledger reference
-          </Link>{' '}
-          for how each transaction flows.
-        </p>
+        <NavCard
+          to="/tools"
+          title="Tools"
+          description="Booking suggester and data conversion utilities."
+          icon={iconTools}
+          accent="emerald"
+        />
       </div>
     </div>
-  );
-}
-
-function QuickLink({ to, label, tag }: { to: string; label: string; tag: string }) {
-  return (
-    <Link
-      to={to}
-      className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-    >
-      <div>
-        <div className="text-sm font-medium text-slate-900">{label}</div>
-        <div className="text-[10px] uppercase tracking-wider text-slate-400 mt-0.5">{tag}</div>
-      </div>
-      <svg className="h-4 w-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
-    </Link>
   );
 }

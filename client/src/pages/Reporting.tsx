@@ -20,12 +20,7 @@ const iconBS = (
 export function Reporting() {
   return (
     <>
-      <PageHeader
-        title="Reporting"
-        description="Generate monthly MIS, compare trends across months, and export clean decks for management review."
-        accent="brand"
-        icon={iconMIS}
-      />
+      <PageHeader title="Reporting" accent="brand" icon={iconMIS} />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <NavCard
@@ -34,7 +29,6 @@ export function Reporting() {
             description="Upload sales register, balance sheet, P&L and purchase data — generate a classified monthly MIS."
             icon={iconMIS}
             accent="brand"
-            badge="Core"
           />
           <NavCard
             to="/mis-tracking?view=trends"
@@ -50,31 +44,6 @@ export function Reporting() {
             icon={iconBS}
             accent="violet"
           />
-        </div>
-
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">What goes into the MIS?</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            The monthly report pulls together transactions from Tally + Tranzact and classifies them into heads defined by the finance team.
-          </p>
-          <ul className="mt-4 space-y-2 text-sm text-slate-700">
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
-              <span><span className="font-medium">Sales register</span> — channel-wise sales from Amazon, Shopify, Blinkit, B2B.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-              <span><span className="font-medium">Purchase / Job Work</span> — RM purchases and job work entries from Tranzact.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-500 flex-shrink-0" />
-              <span><span className="font-medium">Balance Sheet</span> — opening/closing inventory, debtors, creditors and cash balances.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
-              <span><span className="font-medium">P&L</span> — direct and indirect expenses booked in Tally.</span>
-            </li>
-          </ul>
         </div>
       </div>
     </>
