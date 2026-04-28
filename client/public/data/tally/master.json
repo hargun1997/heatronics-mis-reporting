@@ -1,0 +1,76 @@
+{
+  "_note": "Replace this placeholder with the real Tally master export. The Expense Booking tool fetches this file at runtime and sends it to Gemini as grounding context. Keep the keys below; add/remove items freely.",
+  "company": "Heatronics",
+  "voucherTypes": [
+    { "name": "Payment", "use": "Cash/Bank-out expense booked at the time of payment" },
+    { "name": "Purchase", "use": "Expense booked on credit against a vendor invoice (creates payable)" },
+    { "name": "Journal", "use": "Adjustments, accruals, prepaid amortisation, advance settlement" },
+    { "name": "Receipt", "use": "Money received (refunds, vendor credit notes received)" },
+    { "name": "Contra", "use": "Bank-to-bank or cash-to-bank movements" }
+  ],
+  "ledgerGroups": [
+    "Indirect Expenses",
+    "Direct Expenses",
+    "Sundry Creditors",
+    "Sundry Debtors",
+    "Loans & Advances (Asset)",
+    "Current Liabilities",
+    "Duties & Taxes",
+    "Bank Accounts",
+    "Cash-in-hand",
+    "Fixed Assets"
+  ],
+  "ledgers": [
+    { "name": "Rent A/c", "group": "Indirect Expenses", "tdsApplicable": true, "section": "194I" },
+    { "name": "Electricity Charges", "group": "Indirect Expenses" },
+    { "name": "Internet & Telephone", "group": "Indirect Expenses" },
+    { "name": "Printing & Stationery", "group": "Indirect Expenses" },
+    { "name": "Travelling Expenses", "group": "Indirect Expenses" },
+    { "name": "Conveyance", "group": "Indirect Expenses" },
+    { "name": "Repairs & Maintenance", "group": "Indirect Expenses" },
+    { "name": "Professional Fees", "group": "Indirect Expenses", "tdsApplicable": true, "section": "194J" },
+    { "name": "Legal Charges", "group": "Indirect Expenses", "tdsApplicable": true, "section": "194J" },
+    { "name": "Bank Charges", "group": "Indirect Expenses" },
+    { "name": "Freight Outward", "group": "Indirect Expenses" },
+    { "name": "Freight Inward", "group": "Direct Expenses" },
+    { "name": "Advertising Expenses", "group": "Indirect Expenses" },
+    { "name": "Salary & Wages", "group": "Indirect Expenses" },
+    { "name": "Foreign Exchange Gain/Loss", "group": "Indirect Expenses" },
+    { "name": "Prepaid Expenses", "group": "Loans & Advances (Asset)" },
+    { "name": "Advance to Vendors", "group": "Loans & Advances (Asset)" },
+    { "name": "Outstanding Expenses", "group": "Current Liabilities" },
+    { "name": "TDS Payable - 194I", "group": "Duties & Taxes" },
+    { "name": "TDS Payable - 194J", "group": "Duties & Taxes" },
+    { "name": "Input CGST", "group": "Duties & Taxes" },
+    { "name": "Input SGST", "group": "Duties & Taxes" },
+    { "name": "Input IGST", "group": "Duties & Taxes" },
+    { "name": "RCM Payable - CGST", "group": "Duties & Taxes" },
+    { "name": "RCM Payable - SGST", "group": "Duties & Taxes" },
+    { "name": "RCM Payable - IGST", "group": "Duties & Taxes" },
+    { "name": "ICICI Bank A/c", "group": "Bank Accounts" },
+    { "name": "Central Bank A/c", "group": "Bank Accounts" },
+    { "name": "HDFC Bank A/c", "group": "Bank Accounts" },
+    { "name": "Petty Cash", "group": "Cash-in-hand" }
+  ],
+  "costCentres": [
+    "Head Office",
+    "Factory - Daman",
+    "Warehouse - Bhiwandi",
+    "Sales & Marketing",
+    "R&D",
+    "Admin"
+  ],
+  "billSeries": [
+    { "name": "EXP/", "use": "Expense voucher series" },
+    { "name": "ADV/", "use": "Vendor advance series" },
+    { "name": "PRE/", "use": "Prepaid amortisation journals" }
+  ],
+  "policies": {
+    "indianVendor": "Charge GST as Input CGST/SGST (intra-state) or Input IGST (inter-state). Deduct TDS where applicable.",
+    "foreignVendor": "No Input GST. If service from outside India → reverse charge under RCM. Forex booked at invoice rate; gain/loss on payment.",
+    "advance": "Advance posted to 'Advance to Vendors' (Loans & Advances). On invoice receipt, knock off via Journal: Dr Expense / Cr Advance to Vendors.",
+    "prepaid": "Booked to 'Prepaid Expenses' (Asset). Amortise monthly via Journal: Dr Expense / Cr Prepaid Expenses with PRE/ series.",
+    "onCredit": "Use Purchase voucher with vendor as Sundry Creditor. Pay later via Payment voucher knocking off the bill reference.",
+    "rcm": "Self-invoice; show output liability under RCM Payable, claim Input GST in next month's GSTR-3B."
+  }
+}

@@ -27,6 +27,7 @@ import { JobWorkSop } from './pages/guide/sop/JobWorkSop';
 import { ToolsHome } from './pages/guide/tools/ToolsHome';
 import { InvoiceBookingSuggester } from './pages/guide/tools/InvoiceBookingSuggester';
 import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
+import { ExpenseBooking } from './pages/tools/ExpenseBooking';
 
 function App() {
   return (
@@ -63,6 +64,7 @@ function App() {
           <Route path="tools" element={<ToolsHome />} />
           <Route path="tools/invoice-booking" element={<InvoiceBookingSuggester />} />
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
+          <Route path="tools/expense-booking" element={<ExpenseBooking />} />
 
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />

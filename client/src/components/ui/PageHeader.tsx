@@ -104,6 +104,7 @@ function deriveCrumbs(pathname: string): Crumb[] {
     ledgers: 'Ledgers & Vouchers',
     'invoice-booking': 'Invoice Booking Suggester',
     'amazon-to-tranzact': 'Amazon → Tranzact',
+    'expense-booking': 'Expense Booking',
     'mis-tracking': 'MIS Reporting',
     'task-tracker': 'Task Tracker',
     'business-guide': 'Guide',
