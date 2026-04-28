@@ -1,4 +1,4 @@
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyBaqqtLYGfHuRBbEO7G8Mp181NBWnjYHaM';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
@@ -119,6 +119,9 @@ interface GeminiPart {
 }
 
 async function callGemini(parts: GeminiPart[]): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY environment variable is not set on the server');
+  }
   const url = `${GEMINI_API_BASE}/${DEFAULT_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
   const response = await fetch(url, {
     method: 'POST',

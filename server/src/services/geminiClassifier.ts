@@ -32,7 +32,7 @@ export interface GeminiConfig {
 // GEMINI API CONFIGURATION
 // ============================================
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyBaqqtLYGfHuRBbEO7G8Mp181NBWnjYHaM';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-3-flash-preview';  // Latest Gemini model
 
@@ -270,6 +270,9 @@ Respond ONLY with the JSON array, no other text.`;
   }
 
   private async callGeminiAPI(prompt: string): Promise<any[]> {
+    if (!this.apiKey) {
+      throw new Error('GEMINI_API_KEY environment variable is not set on the server');
+    }
     // Build URL dynamically based on model
     const apiUrl = `${GEMINI_API_BASE}/${this.model}:generateContent`;
     console.log(`Calling Gemini API: ${apiUrl} (temperature=${this.temperature})`);
