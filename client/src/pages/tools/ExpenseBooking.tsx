@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useTallyMaster } from '../../data/tally/useTallyMaster';
+import type { TallyMaster } from '../../data/tally/useTallyMaster';
+import { buildTallyXml } from '../../data/tally/buildTallyXml';
+import type { ExportSummary } from '../../data/tally/buildTallyXml';
 import { MasterPanel } from './MasterPanel';
 
 const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v1';
@@ -302,6 +305,7 @@ export function ExpenseBooking() {
         {queue.length > 0 && (
           <QueueCard
             queue={queue}
+            master={master}
             onRemove={removeFromQueue}
             onClearAll={() => setQueue([])}
           />
@@ -612,10 +616,12 @@ function Banner({
 
 function QueueCard({
   queue,
+  master,
   onRemove,
   onClearAll,
 }: {
   queue: QueueItem[];
+  master: TallyMaster | null;
   onRemove: (id: string) => void;
   onClearAll: () => void;
 }) {
@@ -720,7 +726,180 @@ function QueueCard({
           );
         })}
       </ul>
+      {master && <ExportFooter queue={queue} master={master} />}
     </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Export footer — generates the Tally Prime XML and offers it as a download,
+// alongside the import-instructions card.
+// --------------------------------------------------------------------------
+
+function ExportFooter({ queue, master }: { queue: QueueItem[]; master: TallyMaster }) {
+  const [summary, setSummary] = useState<ExportSummary | null>(null);
+
+  function generateAndDownload() {
+    const result = buildTallyXml(
+      queue.map((q) => ({ id: q.id, answers: q.answers, advice: q.advice })),
+      master,
+      { companyName: master.company || 'Heatronics', defaultCostCentre: 'HO' }
+    );
+    setSummary(result);
+    if (result.vouchersExported === 0) return;
+
+    const blob = new Blob([result.xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `tally-import-${today}.xml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function previewOnly() {
+    const result = buildTallyXml(
+      queue.map((q) => ({ id: q.id, answers: q.answers, advice: q.advice })),
+      master,
+      { companyName: master.company || 'Heatronics', defaultCostCentre: 'HO' }
+    );
+    setSummary(result);
+  }
+
+  return (
+    <div className="border-t border-slate-100 p-4 sm:p-5 space-y-3 bg-slate-50/50">
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={previewOnly}
+          className="rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2 text-sm"
+        >
+          Preview export
+        </button>
+        <button
+          type="button"
+          onClick={generateAndDownload}
+          className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 text-sm"
+        >
+          Download Tally XML
+        </button>
+      </div>
+
+      {summary && <ExportSummaryView summary={summary} />}
+      <ImportInstructions />
+    </div>
+  );
+}
+
+function ExportSummaryView({ summary }: { summary: ExportSummary }) {
+  const hasErrors = summary.itemsSkipped.length > 0;
+  const hasSkippedStages = summary.stagesSkipped.length > 0;
+  const hasWarnings = summary.warnings.length > 0;
+  return (
+    <div className="space-y-2 text-xs">
+      <div
+        className={`rounded-lg border px-3 py-2 ${
+          summary.vouchersExported > 0
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+            : 'border-rose-200 bg-rose-50 text-rose-900'
+        }`}
+      >
+        <span className="font-semibold">{summary.vouchersExported}</span> voucher
+        {summary.vouchersExported === 1 ? '' : 's'} ready
+        {hasErrors && (
+          <>
+            ; <span className="font-semibold">{summary.itemsSkipped.length}</span> skipped
+          </>
+        )}
+        .
+      </div>
+      {hasErrors && (
+        <details className="rounded-lg border border-rose-200 bg-rose-50">
+          <summary className="px-3 py-1.5 cursor-pointer text-rose-900 font-medium">
+            Skipped invoices ({summary.itemsSkipped.length})
+          </summary>
+          <ul className="px-3 py-2 space-y-0.5 text-rose-900 list-disc list-inside">
+            {summary.itemsSkipped.map((e, i) => (
+              <li key={i}>
+                <span className="font-medium">{e.vendor || e.itemId}</span>: {e.reason}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {hasSkippedStages && (
+        <details className="rounded-lg border border-amber-200 bg-amber-50">
+          <summary className="px-3 py-1.5 cursor-pointer text-amber-900 font-medium">
+            Manual stages flagged ({summary.stagesSkipped.length})
+          </summary>
+          <p className="px-3 py-2 text-amber-900">
+            Subsequent stages (typically prepaid amortisation Journals) are out
+            of scope for this export and need to be booked manually:
+          </p>
+          <ul className="px-3 pb-2 space-y-0.5 text-amber-900 list-disc list-inside">
+            {summary.stagesSkipped.map((s, i) => (
+              <li key={i}>
+                Item {s.itemId}: stage {s.step} ({s.voucherType})
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {hasWarnings && (
+        <details className="rounded-lg border border-amber-200 bg-amber-50">
+          <summary className="px-3 py-1.5 cursor-pointer text-amber-900 font-medium">
+            Warnings ({summary.warnings.length})
+          </summary>
+          <ul className="px-3 py-2 space-y-0.5 text-amber-900 list-disc list-inside">
+            {summary.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ImportInstructions() {
+  return (
+    <details className="rounded-lg border border-slate-200 bg-white">
+      <summary className="px-3 py-2 cursor-pointer text-sm font-medium text-slate-800">
+        How to import this file into Tally Prime
+      </summary>
+      <ol className="px-4 py-3 space-y-1.5 text-xs text-slate-700 list-decimal list-inside">
+        <li>
+          Open Tally Prime and select the <strong>Heatronics</strong> company.
+        </li>
+        <li>
+          From the home screen press <kbd className="bg-slate-100 px-1 rounded">O</kbd> (Import) →
+          <strong> Vouchers</strong>.
+        </li>
+        <li>
+          For <strong>File path</strong> point to the folder where this XML was downloaded.
+        </li>
+        <li>
+          For <strong>File name</strong> enter the file name shown above (e.g.{' '}
+          <code className="bg-slate-100 px-1 rounded">tally-import-2026-04-29.xml</code>).
+        </li>
+        <li>
+          <strong>Behaviour of import:</strong> set to{' '}
+          <em>Add new vouchers, ignore duplicates</em>. Do <em>not</em> select &ldquo;Modify&rdquo; —
+          this batch is meant to add fresh entries.
+        </li>
+        <li>
+          Press <kbd className="bg-slate-100 px-1 rounded">Enter</kbd> through the prompts. Tally
+          will report &ldquo;Created: N&rdquo; if everything matched.
+        </li>
+        <li>
+          Verify each voucher under <em>Day Book</em> for the import date. Bill references match the
+          vendor's invoice number; voucher numbers were auto-assigned by the series.
+        </li>
+      </ol>
+    </details>
   );
 }
 
