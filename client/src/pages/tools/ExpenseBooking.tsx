@@ -62,9 +62,16 @@ export function ExpenseBooking() {
   const [paidFrom, setPaidFrom] = useState('');
   const [notes, setNotes] = useState('');
 
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
-  const [imageMime, setImageMime] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  interface Attachment {
+    id: string;
+    data: string;
+    mime: string;
+    previewUrl: string;
+    fileName: string;
+    isPdf: boolean;
+  }
+
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [advice, setAdvice] = useState<ExpenseAdvice | null>(null);
@@ -81,16 +88,32 @@ export function ExpenseBooking() {
       .catch((e) => setMasterErr(e.message || 'Failed to load Tally master'));
   }, []);
 
-  function onPickImage(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.split(',')[1] || '';
-      setImageBase64(base64);
-      setImageMime(file.type || 'image/jpeg');
-      setImagePreview(result);
-    };
-    reader.readAsDataURL(file);
+  function onPickFiles(files: FileList) {
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1] || '';
+        const mime = file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        const isPdf = mime === 'application/pdf';
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            data: base64,
+            mime,
+            previewUrl: result,
+            fileName: file.name || (isPdf ? 'document.pdf' : 'photo.jpg'),
+            isPdf,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   }
 
   async function onSubmit() {
@@ -116,8 +139,7 @@ export function ExpenseBooking() {
             paidFrom: paidFrom || undefined,
             notes: notes || undefined,
           },
-          imageBase64: imageBase64 || undefined,
-          imageMime: imageMime || undefined,
+          attachments: attachments.map((a) => ({ data: a.data, mime: a.mime })),
         }),
       });
       if (!res.ok) {
@@ -141,44 +163,66 @@ export function ExpenseBooking() {
           <Banner tone="rose">Tally master could not be loaded: {masterErr}</Banner>
         )}
 
-        {/* 1. Invoice photo */}
-        <Section title="1. Invoice photo" subtitle="Optional — but the AI extracts vendor, GSTIN and amounts from it.">
+        {/* 1. Invoice attachments */}
+        <Section
+          title="1. Invoice"
+          subtitle="Optional. Add multiple pages or a PDF — the AI reads them as one document."
+        >
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
+            multiple
             capture="environment"
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onPickImage(f);
+              if (e.target.files && e.target.files.length > 0) {
+                onPickFiles(e.target.files);
+                e.target.value = '';
+              }
             }}
           />
           <div className="flex flex-col gap-3">
-            {imagePreview ? (
-              <div className="relative rounded-lg overflow-hidden border border-slate-200">
-                <img src={imagePreview} alt="invoice" className="w-full max-h-72 object-contain bg-slate-50" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImageBase64(null);
-                    setImageMime(null);
-                    setImagePreview(null);
-                  }}
-                  className="absolute top-2 right-2 text-xs px-2 py-1 rounded bg-white/90 border border-slate-200 hover:bg-white"
-                >
-                  Remove
-                </button>
+            {attachments.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {attachments.map((a, i) => (
+                  <div
+                    key={a.id}
+                    className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50"
+                  >
+                    {a.isPdf ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 px-2">
+                        <svg className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className="text-[10px] font-medium uppercase tracking-wider">PDF</span>
+                        <span className="text-[10px] truncate w-full text-center px-1">{a.fileName}</span>
+                      </div>
+                    ) : (
+                      <img src={a.previewUrl} alt={`page ${i + 1}`} className="w-full h-full object-cover" />
+                    )}
+                    <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-white/90 rounded px-1.5 py-0.5 text-slate-700">
+                      {i + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(a.id)}
+                      aria-label="Remove attachment"
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 border border-slate-200 hover:bg-white text-slate-700 flex items-center justify-center text-xs"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white py-8 text-sm text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-              >
-                Take photo / pick image
-              </button>
             )}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white py-4 text-sm text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+            >
+              {attachments.length === 0 ? 'Take photo / pick image or PDF' : 'Add another page'}
+            </button>
           </div>
         </Section>
 

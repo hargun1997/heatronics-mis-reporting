@@ -5,7 +5,7 @@ const router = Router();
 
 router.post('/suggest', async (req, res) => {
   try {
-    const { tallyMaster, answers, imageBase64, imageMime } = req.body || {};
+    const { tallyMaster, answers, attachments } = req.body || {};
 
     if (!tallyMaster || typeof tallyMaster !== 'object') {
       return res.status(400).json({ error: 'tallyMaster (JSON object) is required' });
@@ -14,11 +14,16 @@ router.post('/suggest', async (req, res) => {
       return res.status(400).json({ error: 'answers object is required' });
     }
 
+    const cleanedAttachments = Array.isArray(attachments)
+      ? attachments
+          .filter((a) => a && typeof a.data === 'string' && typeof a.mime === 'string')
+          .map((a) => ({ data: a.data, mime: a.mime }))
+      : [];
+
     const advice = await getExpenseBookingAdvice({
       tallyMaster,
       answers,
-      imageBase64,
-      imageMime,
+      attachments: cleanedAttachments,
     });
     res.json(advice);
   } catch (err) {

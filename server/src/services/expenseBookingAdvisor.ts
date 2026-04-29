@@ -12,11 +12,15 @@ export interface ExpenseScenarioAnswers {
   notes?: string;
 }
 
+export interface InvoiceAttachment {
+  data: string;
+  mime: string;
+}
+
 export interface ExpenseAdviceRequest {
   tallyMaster: unknown;
   answers: ExpenseScenarioAnswers;
-  imageBase64?: string;
-  imageMime?: string;
+  attachments?: InvoiceAttachment[];
 }
 
 export interface BookingLine {
@@ -52,13 +56,20 @@ export interface ExpenseAdvice {
   };
 }
 
-function buildPrompt(master: unknown, answers: ExpenseScenarioAnswers): string {
+function buildPrompt(master: unknown, answers: ExpenseScenarioAnswers, attachmentCount: number): string {
+  const attachmentsClause =
+    attachmentCount === 0
+      ? '3. No invoice attached — work from the scenario alone.'
+      : attachmentCount === 1
+        ? '3. One invoice attachment (image or PDF) — extract vendor, GSTIN, invoice number, date, total, GST amount, currency.'
+        : `3. ${attachmentCount} attachments — these are sequential pages of the SAME invoice (or scans of one packet). Read them as one document and extract: vendor, GSTIN, invoice number, date, total, GST amount, currency.`;
+
   return `You are a senior accountant guiding the Heatronics finance team on how to book an expense in Tally.
 
 You will be given:
 1. The Heatronics Tally master (JSON) — voucher types, ledger groups, ledgers, cost centres, bill series and policies.
 2. A scenario the operator has answered.
-3. Optionally an invoice photo — extract vendor, GSTIN, invoice number, date, total, GST amount, currency.
+${attachmentsClause}
 
 Your job: produce ONE crisp, actionable booking instruction grounded ONLY in ledgers / voucher types / cost centres present in the master. If the right ledger does not exist in the master, say so in "warnings" and pick the closest match.
 
@@ -109,7 +120,8 @@ Respond ONLY with a JSON object — no prose, no markdown fences. Schema:
   }
 }
 
-If no image is provided, omit "invoiceExtract" or set it to null.
+If no attachment is provided, omit "invoiceExtract" or set it to null.
+If multiple attachments were provided, treat them as one invoice across pages — do not produce a separate booking per page.
 Use null for amounts you cannot determine. Never invent ledgers or cost centres that aren't in the master.`;
 }
 
@@ -158,10 +170,13 @@ function parseJsonFromText(text: string): ExpenseAdvice {
 export async function getExpenseBookingAdvice(
   req: ExpenseAdviceRequest
 ): Promise<ExpenseAdvice> {
-  const prompt = buildPrompt(req.tallyMaster, req.answers);
+  const attachments = req.attachments || [];
+  const prompt = buildPrompt(req.tallyMaster, req.answers, attachments.length);
   const parts: GeminiPart[] = [{ text: prompt }];
-  if (req.imageBase64 && req.imageMime) {
-    parts.push({ inline_data: { mime_type: req.imageMime, data: req.imageBase64 } });
+  for (const a of attachments) {
+    if (a.data && a.mime) {
+      parts.push({ inline_data: { mime_type: a.mime, data: a.data } });
+    }
   }
   const raw = await callGemini(parts);
   return parseJsonFromText(raw);
