@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { useTallyMaster } from '../../data/tally/useTallyMaster';
 
 type VendorOrigin = 'Indian' | 'Foreign' | 'Unknown';
 type PaymentTiming = 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
@@ -13,20 +14,21 @@ interface BookingLine {
   notes?: string;
 }
 
+interface BookingStage {
+  step: number;
+  title: string;
+  when: string;
+  voucherType: string;
+  costCentre?: string | null;
+  lines: BookingLine[];
+  notes?: string | null;
+}
+
 interface ExpenseAdvice {
   summary: string;
-  voucherType: string;
-  billSeries?: string | null;
-  lines: BookingLine[];
-  costCentre?: string;
+  stages: BookingStage[];
   gstTreatment?: string;
   tdsTreatment?: string;
-  followUp?: {
-    when: string;
-    voucherType: string;
-    lines: BookingLine[];
-    notes?: string;
-  } | null;
   warnings?: string[];
   invoiceExtract?: {
     vendor?: string;
@@ -39,9 +41,13 @@ interface ExpenseAdvice {
   } | null;
 }
 
-interface TallyMaster {
-  costCentres?: string[];
-  ledgers?: { name: string; group?: string }[];
+interface Attachment {
+  id: string;
+  data: string;
+  mime: string;
+  previewUrl: string;
+  fileName: string;
+  isPdf: boolean;
 }
 
 const iconExpense = (
@@ -51,8 +57,8 @@ const iconExpense = (
 );
 
 export function ExpenseBooking() {
-  const [master, setMaster] = useState<TallyMaster | null>(null);
-  const [masterErr, setMasterErr] = useState<string | null>(null);
+  const masterState = useTallyMaster();
+  const master = masterState.master;
 
   const [vendorOrigin, setVendorOrigin] = useState<VendorOrigin>('Unknown');
   const [paymentTiming, setPaymentTiming] = useState<PaymentTiming>('Unknown');
@@ -62,15 +68,6 @@ export function ExpenseBooking() {
   const [paidFrom, setPaidFrom] = useState('');
   const [notes, setNotes] = useState('');
 
-  interface Attachment {
-    id: string;
-    data: string;
-    mime: string;
-    previewUrl: string;
-    fileName: string;
-    isPdf: boolean;
-  }
-
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -78,23 +75,15 @@ export function ExpenseBooking() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    fetch('/data/tally/master.json')
-      .then((r) => {
-        if (!r.ok) throw new Error(`Master fetch failed (${r.status})`);
-        return r.json();
-      })
-      .then(setMaster)
-      .catch((e) => setMasterErr(e.message || 'Failed to load Tally master'));
-  }, []);
-
   function onPickFiles(files: FileList) {
     Array.from(files).forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
         const base64 = result.split(',')[1] || '';
-        const mime = file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        const mime =
+          file.type ||
+          (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
         const isPdf = mime === 'application/pdf';
         setAttachments((prev) => [
           ...prev,
@@ -155,12 +144,19 @@ export function ExpenseBooking() {
     }
   }
 
+  // Build the bank/cash ledger options for the "paid from" select.
+  const bankCashLedgers =
+    master?.ledgers?.filter((l) => {
+      const g = (l.group || '').toLowerCase();
+      return g.includes('bank') || g.includes('cash');
+    }) || [];
+
   return (
     <>
       <PageHeader title="Expense Booking" accent="emerald" icon={iconExpense} />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        {masterErr && (
-          <Banner tone="rose">Tally master could not be loaded: {masterErr}</Banner>
+        {masterState.error && (
+          <Banner tone="rose">Tally master could not be loaded: {masterState.error}</Banner>
         )}
 
         {/* 1. Invoice attachments */}
@@ -193,7 +189,12 @@ export function ExpenseBooking() {
                     {a.isPdf ? (
                       <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 px-2">
                         <svg className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
                         </svg>
                         <span className="text-[10px] font-medium uppercase tracking-wider">PDF</span>
                         <span className="text-[10px] truncate w-full text-center px-1">{a.fileName}</span>
@@ -283,7 +284,10 @@ export function ExpenseBooking() {
             >
               <option value="">— let AI decide —</option>
               {(master?.costCentres || []).map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                  {c.category ? ` · ${c.category}` : ''}
+                </option>
               ))}
             </select>
           </Field>
@@ -294,11 +298,9 @@ export function ExpenseBooking() {
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
             >
               <option value="">— let AI decide —</option>
-              {(master?.ledgers || [])
-                .filter((l) => l.group === 'Bank Accounts' || l.group === 'Cash-in-hand')
-                .map((l) => (
-                  <option key={l.name} value={l.name}>{l.name}</option>
-                ))}
+              {bankCashLedgers.map((l) => (
+                <option key={l.name} value={l.name}>{l.name}</option>
+              ))}
             </select>
           </Field>
           <Field label="Notes">
@@ -321,11 +323,15 @@ export function ExpenseBooking() {
         </button>
 
         {error && <Banner tone="rose">{error}</Banner>}
-        {advice && <AdviceCard advice={advice} />}
+        {advice && <AdviceView advice={advice} />}
       </div>
     </>
   );
 }
+
+// --------------------------------------------------------------------------
+// Building blocks
+// --------------------------------------------------------------------------
 
 function Section({
   title,
@@ -393,7 +399,13 @@ function ChipRow({
   );
 }
 
-function Banner({ tone, children }: { tone: 'rose' | 'amber' | 'emerald'; children: React.ReactNode }) {
+function Banner({
+  tone,
+  children,
+}: {
+  tone: 'rose' | 'amber' | 'emerald';
+  children: React.ReactNode;
+}) {
   const map: Record<string, string> = {
     rose: 'bg-rose-50 border-rose-200 text-rose-800',
     amber: 'bg-amber-50 border-amber-200 text-amber-800',
@@ -402,43 +414,30 @@ function Banner({ tone, children }: { tone: 'rose' | 'amber' | 'emerald'; childr
   return <div className={`rounded-lg border px-3 py-2 text-sm ${map[tone]}`}>{children}</div>;
 }
 
-function AdviceCard({ advice }: { advice: ExpenseAdvice }) {
+// --------------------------------------------------------------------------
+// Advice view — structured boxes per booking stage
+// --------------------------------------------------------------------------
+
+function AdviceView({ advice }: { advice: ExpenseAdvice }) {
   return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 sm:p-5 space-y-4">
-      <div>
+    <div className="space-y-4">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 sm:p-5">
         <div className="text-[10px] uppercase tracking-wider text-emerald-700 font-semibold">
-          Booking instruction
+          Booking summary
         </div>
         <div className="text-sm font-medium text-slate-900 mt-0.5">{advice.summary}</div>
+        {(advice.gstTreatment || advice.tdsTreatment) && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            {advice.gstTreatment && <Note label="GST">{advice.gstTreatment}</Note>}
+            {advice.tdsTreatment && <Note label="TDS">{advice.tdsTreatment}</Note>}
+          </div>
+        )}
       </div>
 
-      <KV label="Voucher type" value={advice.voucherType} />
-      {advice.billSeries && <KV label="Bill series" value={advice.billSeries} />}
-      {advice.costCentre && <KV label="Cost centre" value={advice.costCentre} />}
-
-      <LinesTable lines={advice.lines} />
-
-      {advice.gstTreatment && <Note label="GST">{advice.gstTreatment}</Note>}
-      {advice.tdsTreatment && <Note label="TDS">{advice.tdsTreatment}</Note>}
-
-      {advice.followUp && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <div className="text-[10px] uppercase tracking-wider text-amber-800 font-semibold">
-            Follow-up entry
-          </div>
-          <div className="text-xs text-amber-900 mt-0.5">{advice.followUp.when}</div>
-          <div className="mt-2">
-            <KV label="Voucher" value={advice.followUp.voucherType} />
-            <LinesTable lines={advice.followUp.lines} />
-            {advice.followUp.notes && (
-              <div className="text-xs text-slate-700 mt-2">{advice.followUp.notes}</div>
-            )}
-          </div>
-        </div>
-      )}
+      {advice.stages?.map((s) => <StageCard key={s.step} stage={s} />)}
 
       {advice.warnings && advice.warnings.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
           <div className="text-[10px] uppercase tracking-wider text-amber-800 font-semibold">
             Check before posting
           </div>
@@ -451,7 +450,7 @@ function AdviceCard({ advice }: { advice: ExpenseAdvice }) {
       )}
 
       {advice.invoiceExtract && (
-        <details className="rounded-lg border border-slate-200 bg-white p-3">
+        <details className="rounded-xl border border-slate-200 bg-white p-4">
           <summary className="text-xs font-medium text-slate-700 cursor-pointer">
             Extracted from invoice
           </summary>
@@ -471,15 +470,110 @@ function AdviceCard({ advice }: { advice: ExpenseAdvice }) {
   );
 }
 
-function KV({ label, value }: { label: string; value: string }) {
+function StageCard({ stage }: { stage: BookingStage }) {
+  const tone = voucherTone(stage.voucherType);
   return (
-    <div className="flex items-baseline gap-2 text-sm">
-      <span className="text-xs uppercase tracking-wider text-slate-500 w-24 flex-shrink-0">
-        {label}
-      </span>
-      <span className="font-medium text-slate-900">{value}</span>
+    <div className={`rounded-xl border ${tone.border} bg-white overflow-hidden`}>
+      <div className={`flex items-start gap-3 px-4 py-3 ${tone.bg}`}>
+        <div
+          className={`w-7 h-7 flex-shrink-0 rounded-full ${tone.badgeBg} ${tone.badgeText} flex items-center justify-center text-xs font-bold`}
+        >
+          {stage.step}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${tone.chipBg} ${tone.chipText}`}
+            >
+              {stage.voucherType}
+            </span>
+            {stage.costCentre && (
+              <span className="text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                {stage.costCentre}
+              </span>
+            )}
+          </div>
+          <div className="text-sm font-semibold text-slate-900 mt-1">{stage.title}</div>
+          <div className="text-xs text-slate-600 mt-0.5">{stage.when}</div>
+        </div>
+      </div>
+      <LinesTable lines={stage.lines} />
+      {stage.notes && (
+        <div className="px-4 py-2 text-xs text-slate-700 border-t border-slate-100 bg-slate-50">
+          {stage.notes}
+        </div>
+      )}
     </div>
   );
+}
+
+function voucherTone(voucher: string): {
+  border: string;
+  bg: string;
+  badgeBg: string;
+  badgeText: string;
+  chipBg: string;
+  chipText: string;
+} {
+  const v = voucher.toLowerCase();
+  if (v.startsWith('payment')) {
+    return {
+      border: 'border-sky-200',
+      bg: 'bg-sky-50',
+      badgeBg: 'bg-sky-600',
+      badgeText: 'text-white',
+      chipBg: 'bg-sky-100',
+      chipText: 'text-sky-800',
+    };
+  }
+  if (v.startsWith('purchase')) {
+    return {
+      border: 'border-emerald-200',
+      bg: 'bg-emerald-50',
+      badgeBg: 'bg-emerald-600',
+      badgeText: 'text-white',
+      chipBg: 'bg-emerald-100',
+      chipText: 'text-emerald-800',
+    };
+  }
+  if (v.startsWith('journal')) {
+    return {
+      border: 'border-violet-200',
+      bg: 'bg-violet-50',
+      badgeBg: 'bg-violet-600',
+      badgeText: 'text-white',
+      chipBg: 'bg-violet-100',
+      chipText: 'text-violet-800',
+    };
+  }
+  if (v.startsWith('receipt')) {
+    return {
+      border: 'border-amber-200',
+      bg: 'bg-amber-50',
+      badgeBg: 'bg-amber-600',
+      badgeText: 'text-white',
+      chipBg: 'bg-amber-100',
+      chipText: 'text-amber-800',
+    };
+  }
+  if (v.startsWith('contra')) {
+    return {
+      border: 'border-rose-200',
+      bg: 'bg-rose-50',
+      badgeBg: 'bg-rose-600',
+      badgeText: 'text-white',
+      chipBg: 'bg-rose-100',
+      chipText: 'text-rose-800',
+    };
+  }
+  return {
+    border: 'border-slate-200',
+    bg: 'bg-slate-50',
+    badgeBg: 'bg-slate-700',
+    badgeText: 'text-white',
+    chipBg: 'bg-slate-100',
+    chipText: 'text-slate-800',
+  };
 }
 
 function Note({ label, children }: { label: string; children: React.ReactNode }) {
@@ -493,21 +587,21 @@ function Note({ label, children }: { label: string; children: React.ReactNode })
 
 function LinesTable({ lines }: { lines: BookingLine[] }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+    <div className="overflow-x-auto">
       <table className="w-full text-xs">
-        <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px]">
+        <thead className="bg-white text-slate-500 uppercase tracking-wider text-[10px] border-b border-slate-100">
           <tr>
-            <th className="text-left px-2 py-1.5 w-10">Dr/Cr</th>
-            <th className="text-left px-2 py-1.5">Ledger</th>
-            <th className="text-right px-2 py-1.5 w-24">Amount</th>
+            <th className="text-left px-3 py-2 w-10">Dr/Cr</th>
+            <th className="text-left px-3 py-2">Ledger</th>
+            <th className="text-right px-3 py-2 w-28">Amount</th>
           </tr>
         </thead>
         <tbody>
           {lines.map((l, i) => (
             <tr key={i} className="border-t border-slate-100">
-              <td className="px-2 py-1.5">
+              <td className="px-3 py-2">
                 <span
-                  className={`inline-block w-6 text-center font-semibold rounded ${
+                  className={`inline-block w-7 text-center font-semibold rounded text-[10px] py-0.5 ${
                     l.dr_or_cr === 'Dr'
                       ? 'bg-emerald-100 text-emerald-800'
                       : 'bg-rose-100 text-rose-800'
@@ -516,11 +610,11 @@ function LinesTable({ lines }: { lines: BookingLine[] }) {
                   {l.dr_or_cr}
                 </span>
               </td>
-              <td className="px-2 py-1.5 text-slate-900">
+              <td className="px-3 py-2 text-slate-900">
                 {l.ledger}
                 {l.notes && <span className="block text-[10px] text-slate-500">{l.notes}</span>}
               </td>
-              <td className="px-2 py-1.5 text-right tabular-nums text-slate-900">
+              <td className="px-3 py-2 text-right tabular-nums text-slate-900">
                 {l.amount == null ? '—' : l.amount.toLocaleString('en-IN')}
               </td>
             </tr>
