@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { reduceTallyExport, readFileAsText, ReduceStats } from './reduceTallyExport';
 
 export interface TallyGroup {
   name: string;
@@ -36,82 +37,115 @@ export interface TallyMaster {
   currencies?: string[];
 }
 
-export type MasterSource = 'bundled' | 'override';
-
 export interface MasterState {
   master: TallyMaster | null;
-  source: MasterSource;
-  error: string | null;
   loading: boolean;
-  setOverride: (m: TallyMaster) => void;
-  clearOverride: () => void;
+  error: string | null;
+  /** Best-effort label for where the loaded master came from. */
+  sourceLabel: string | null;
+  /** Read a raw Tally export (or already-reduced master) from a File and store it. */
+  loadFromFile: (file: File) => Promise<ReduceStats>;
+  /** Apply a JSON string the user pasted in. */
+  loadFromText: (text: string, label?: string) => ReduceStats;
+  /** Drop the saved master from localStorage. */
+  clear: () => void;
 }
 
-const LS_KEY = 'heatronics.tally.master.override';
-const DEFAULT_URL = '/data/tally/master.json';
+const LS_KEY = 'heatronics.tally.master.v2';
+const LS_SOURCE_KEY = 'heatronics.tally.master.v2.source';
 
-function readOverride(): TallyMaster | null {
+function readSaved(): { master: TallyMaster | null; label: string | null } {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return null;
+    if (!raw) return { master: null, label: null };
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') return parsed as TallyMaster;
-    return null;
+    if (parsed && typeof parsed === 'object') {
+      return {
+        master: parsed as TallyMaster,
+        label: localStorage.getItem(LS_SOURCE_KEY),
+      };
+    }
+    return { master: null, label: null };
   } catch {
-    return null;
+    return { master: null, label: null };
   }
+}
+
+function save(master: TallyMaster, label: string) {
+  localStorage.setItem(LS_KEY, JSON.stringify(master));
+  localStorage.setItem(LS_SOURCE_KEY, label);
 }
 
 export function useTallyMaster(): MasterState {
   const [master, setMaster] = useState<TallyMaster | null>(null);
-  const [source, setSource] = useState<MasterSource>('bundled');
-  const [error, setError] = useState<string | null>(null);
+  const [sourceLabel, setSourceLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const override = readOverride();
-    if (override) {
-      setMaster(override);
-      setSource('override');
-      setLoading(false);
-      return;
-    }
-    fetch(DEFAULT_URL)
-      .then((r) => {
-        if (!r.ok) throw new Error(`Master fetch failed (${r.status})`);
-        return r.json();
-      })
-      .then((m) => {
-        setMaster(m);
-        setSource('bundled');
-      })
-      .catch((e) => setError(e.message || 'Failed to load Tally master'))
-      .finally(() => setLoading(false));
+    const saved = readSaved();
+    setMaster(saved.master);
+    setSourceLabel(saved.label);
+    setLoading(false);
   }, []);
 
-  function setOverride(m: TallyMaster) {
-    localStorage.setItem(LS_KEY, JSON.stringify(m));
-    setMaster(m);
-    setSource('override');
+  function loadFromText(text: string, label?: string): ReduceStats {
+    setError(null);
+    try {
+      const parsed = JSON.parse(text);
+      const result = reduceTallyExport(parsed);
+      const finalLabel =
+        label ||
+        (result.source === 'raw-tally'
+          ? `Reduced from Tally export · ${new Date().toLocaleString()}`
+          : `Imported slim master · ${new Date().toLocaleString()}`);
+      save(result.master, finalLabel);
+      setMaster(result.master);
+      setSourceLabel(finalLabel);
+      return result.stats;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to parse JSON';
+      setError(msg);
+      throw e;
+    }
+  }
+
+  async function loadFromFile(file: File): Promise<ReduceStats> {
+    setError(null);
+    try {
+      const text = await readFileAsText(file);
+      const parsed = JSON.parse(text);
+      const result = reduceTallyExport(parsed);
+      const label =
+        result.source === 'raw-tally'
+          ? `Reduced from ${file.name} · ${new Date().toLocaleString()}`
+          : `Loaded ${file.name} · ${new Date().toLocaleString()}`;
+      save(result.master, label);
+      setMaster(result.master);
+      setSourceLabel(label);
+      return result.stats;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to read file';
+      setError(msg);
+      throw e;
+    }
+  }
+
+  function clear() {
+    localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_SOURCE_KEY);
+    setMaster(null);
+    setSourceLabel(null);
     setError(null);
   }
 
-  function clearOverride() {
-    localStorage.removeItem(LS_KEY);
-    setLoading(true);
-    fetch(DEFAULT_URL)
-      .then((r) => {
-        if (!r.ok) throw new Error(`Master fetch failed (${r.status})`);
-        return r.json();
-      })
-      .then((m) => {
-        setMaster(m);
-        setSource('bundled');
-        setError(null);
-      })
-      .catch((e) => setError(e.message || 'Failed to load Tally master'))
-      .finally(() => setLoading(false));
-  }
-
-  return { master, source, error, loading, setOverride, clearOverride };
+  return {
+    master,
+    loading,
+    error,
+    sourceLabel,
+    loadFromFile,
+    loadFromText,
+    clear,
+  };
 }

@@ -1,46 +1,25 @@
 import { useRef, useState } from 'react';
 import type { MasterState } from '../../data/tally/useTallyMaster';
+import type { ReduceStats } from '../../data/tally/reduceTallyExport';
 
-type Tab = 'active' | 'upload' | 'reset';
+type Tab = 'active' | 'replace' | 'reset';
 
 export function MasterPanel({ state }: { state: MasterState }) {
-  const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<Tab>('active');
-  const [pasteText, setPasteText] = useState('');
-  const [pasteError, setPasteError] = useState<string | null>(null);
-  const [savedFlash, setSavedFlash] = useState(false);
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  const hasMaster = !!state.master;
+  const [open, setOpen] = useState(!hasMaster);
+  const [tab, setTab] = useState<Tab>(hasMaster ? 'active' : 'replace');
+  const [savedFlash, setSavedFlash] = useState<ReduceStats | null>(null);
 
   const m = state.master;
   const ledgerCount = m?.ledgers?.length || 0;
   const voucherCount = m?.voucherTypes?.length || 0;
-  const groupCount = m?.groups?.length || 0;
   const ccCount = m?.costCentres?.length || 0;
 
-  function applyJson(text: string) {
-    try {
-      const parsed = JSON.parse(text);
-      if (!parsed || typeof parsed !== 'object') {
-        throw new Error('Top-level value must be a JSON object');
-      }
-      if (!Array.isArray(parsed.ledgers) || !Array.isArray(parsed.voucherTypes)) {
-        throw new Error('Master must contain "ledgers" and "voucherTypes" arrays');
-      }
-      state.setOverride(parsed);
-      setPasteError(null);
-      setPasteText('');
-      setSavedFlash(true);
-      setTimeout(() => setSavedFlash(false), 1800);
-      setTab('active');
-    } catch (e) {
-      setPasteError(e instanceof Error ? e.message : 'Invalid JSON');
-    }
-  }
-
-  function onFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => applyJson(String(reader.result || ''));
-    reader.readAsText(file);
+  function flash(stats: ReduceStats) {
+    setSavedFlash(stats);
+    setTimeout(() => setSavedFlash(null), 2400);
+    setTab('active');
+    setOpen(true);
   }
 
   return (
@@ -50,30 +29,23 @@ export function MasterPanel({ state }: { state: MasterState }) {
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between px-4 sm:px-5 py-3 text-left"
       >
-        <div>
+        <div className="min-w-0">
           <div className="text-sm font-semibold text-slate-900">Tally master</div>
-          <div className="text-xs text-slate-500 mt-0.5">
+          <div className="text-xs text-slate-500 mt-0.5 truncate">
             {state.loading
               ? 'Loading…'
-              : `${ledgerCount} ledgers · ${voucherCount} voucher types · ${ccCount} cost centres`}
-            <span
-              className={`ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${
-                state.source === 'override'
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {state.source === 'override' ? 'Overridden' : 'Bundled'}
-            </span>
+              : hasMaster
+                ? `${ledgerCount} ledgers · ${voucherCount} voucher types · ${ccCount} cost centres`
+                : 'Not loaded — upload your Tally master to get started'}
             {savedFlash && (
               <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                Saved
+                Loaded · {savedFlash.ledgers} ledgers
               </span>
             )}
           </div>
         </div>
         <svg
-          className={`h-4 w-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 text-slate-400 transition-transform flex-shrink-0 ml-2 ${open ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -85,67 +57,56 @@ export function MasterPanel({ state }: { state: MasterState }) {
       {open && (
         <div className="border-t border-slate-100">
           <div className="flex gap-1 px-2 sm:px-3 pt-2 pb-0">
-            {(['active', 'upload', 'reset'] as Tab[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  tab === t
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {t === 'active' ? 'Active' : t === 'upload' ? 'Upload override' : 'Reset'}
-              </button>
-            ))}
+            {(['active', 'replace', 'reset'] as Tab[]).map((t) => {
+              const disabled = !hasMaster && t !== 'replace';
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setTab(t)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    tab === t
+                      ? 'bg-slate-900 text-white'
+                      : disabled
+                        ? 'text-slate-300 cursor-not-allowed'
+                        : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {t === 'active' ? 'Active' : t === 'replace' ? 'Upload / Replace' : 'Reset'}
+                </button>
+              );
+            })}
           </div>
 
           <div className="p-4 sm:p-5">
-            {tab === 'active' && <ActiveTab state={state} />}
-            {tab === 'upload' && (
-              <UploadTab
-                pasteText={pasteText}
-                setPasteText={setPasteText}
-                pasteError={pasteError}
-                onApply={() => applyJson(pasteText)}
-                fileRef={fileRef}
-                onFile={onFile}
-              />
-            )}
-            {tab === 'reset' && (
+            {tab === 'active' && hasMaster && <ActiveTab state={state} />}
+            {tab === 'replace' && <ReplaceTab state={state} onLoaded={flash} />}
+            {tab === 'reset' && hasMaster && (
               <ResetTab
-                source={state.source}
                 onReset={() => {
-                  state.clearOverride();
-                  setTab('active');
+                  state.clear();
+                  setTab('replace');
                 }}
               />
             )}
           </div>
-
-          {!state.loading && groupCount === 0 && ledgerCount === 0 && (
-            <div className="px-4 sm:px-5 pb-4">
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                The active master has no ledgers or groups. The AI cannot ground
-                its suggestions until a real master is loaded.
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 }
 
+// --------------------------------------------------------------------------
+
 function ActiveTab({ state }: { state: MasterState }) {
   const m = state.master;
-  if (!m) return <div className="text-xs text-slate-500">No master loaded.</div>;
+  if (!m) return null;
   return (
     <div className="space-y-3 text-xs">
-      <KV k="Source" v={state.source === 'override' ? 'Browser override (localStorage)' : 'Bundled with the app'} />
+      {state.sourceLabel && <KV k="Source" v={state.sourceLabel} />}
       {m.company && <KV k="Company" v={m.company} />}
-      {m.generatedAt && <KV k="Generated" v={new Date(m.generatedAt).toLocaleString()} />}
+      {m.generatedAt && <KV k="Reduced" v={new Date(m.generatedAt).toLocaleString()} />}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Stat label="Groups" n={m.groups?.length || 0} />
         <Stat label="Ledgers" n={m.ledgers?.length || 0} />
@@ -189,101 +150,118 @@ function ActiveTab({ state }: { state: MasterState }) {
   );
 }
 
-function UploadTab({
-  pasteText,
-  setPasteText,
-  pasteError,
-  onApply,
-  fileRef,
-  onFile,
+// --------------------------------------------------------------------------
+
+function ReplaceTab({
+  state,
+  onLoaded,
 }: {
-  pasteText: string;
-  setPasteText: (s: string) => void;
-  pasteError: string | null;
-  onApply: () => void;
-  fileRef: React.RefObject<HTMLInputElement | null>;
-  onFile: (f: File) => void;
+  state: MasterState;
+  onLoaded: (stats: ReduceStats) => void;
 }) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [pasteText, setPasteText] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function handleFile(file: File) {
+    setBusy(true);
+    try {
+      const stats = await state.loadFromFile(file);
+      onLoaded(stats);
+    } catch {
+      // error is set on state.error, surfaced inline
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handlePaste() {
+    if (!pasteText.trim()) return;
+    setBusy(true);
+    try {
+      const stats = state.loadFromText(pasteText);
+      onLoaded(stats);
+      setPasteText('');
+    } catch {
+      // error is set on state.error
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-3 text-xs">
       <p className="text-slate-600">
-        Override the bundled master with your own JSON. The override is saved
-        in this browser only (localStorage) — it never leaves your device.
-        Schema: <code className="bg-slate-100 px-1 rounded">{`{ groups, ledgers, voucherTypes, costCentres, ... }`}</code>.
+        Pick the JSON your Tally Prime exports (Gateway → Display More Reports →
+        Masters → JSON Export). The file may be UTF-16 — that's fine. Reduction
+        runs in this browser; the master is saved to <code className="bg-slate-100 px-1 rounded">localStorage</code> and
+        never leaves your device.
       </p>
       <input
         ref={fileRef}
         type="file"
-        accept="application/json"
+        accept="application/json,.json,.txt"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) onFile(f);
+          if (f) handleFile(f);
           e.target.value = '';
         }}
       />
       <button
         type="button"
+        disabled={busy}
         onClick={() => fileRef.current?.click()}
-        className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white py-3 text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+        className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white py-4 text-slate-600 hover:border-emerald-400 hover:text-emerald-700 disabled:opacity-50"
       >
-        Pick a JSON file
+        {busy ? 'Reducing…' : 'Pick a Tally export JSON'}
       </button>
       <div className="text-center text-[10px] uppercase tracking-wider text-slate-400">or paste</div>
       <textarea
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
-        placeholder='{ "groups": [...], "ledgers": [...], "voucherTypes": [...], "costCentres": [...] }'
-        rows={6}
+        placeholder='Paste raw Tally export {"tallymessage":[…]} or a slim master JSON'
+        rows={5}
         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-[11px]"
       />
-      {pasteError && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-800">
-          {pasteError}
-        </div>
-      )}
       <button
         type="button"
-        disabled={!pasteText.trim()}
-        onClick={onApply}
+        disabled={busy || !pasteText.trim()}
+        onClick={handlePaste}
         className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-medium py-2"
       >
-        Apply override
+        Reduce and load
       </button>
+      {state.error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-800">
+          {state.error}
+        </div>
+      )}
     </div>
   );
 }
 
-function ResetTab({
-  source,
-  onReset,
-}: {
-  source: 'bundled' | 'override';
-  onReset: () => void;
-}) {
-  if (source === 'bundled') {
-    return (
-      <div className="text-xs text-slate-600">
-        No override is active. The bundled master is in use.
-      </div>
-    );
-  }
+// --------------------------------------------------------------------------
+
+function ResetTab({ onReset }: { onReset: () => void }) {
   return (
     <div className="space-y-3 text-xs">
       <p className="text-slate-600">
-        Drop the local override and go back to the bundled master that ships
-        with the app. Your data isn't sent anywhere.
+        Drop the saved master from this browser. You'll need to re-upload before
+        booking the next expense.
       </p>
       <button
         type="button"
         onClick={onReset}
         className="w-full rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium py-2"
       >
-        Clear override and use bundled master
+        Clear master from this browser
       </button>
     </div>
   );
 }
+
+// --------------------------------------------------------------------------
 
 function KV({ k, v }: { k: string; v: string }) {
   return (
