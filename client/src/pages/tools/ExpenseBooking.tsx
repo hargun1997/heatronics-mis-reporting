@@ -1,12 +1,36 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useTallyMaster } from '../../data/tally/useTallyMaster';
 import { MasterPanel } from './MasterPanel';
+
+const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v1';
+
+function readPersistedQueue(): QueueItem[] {
+  try {
+    const raw = localStorage.getItem(QUEUE_LS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed as QueueItem[];
+  } catch {
+    return [];
+  }
+}
+
+function persistQueue(q: QueueItem[]) {
+  try {
+    localStorage.setItem(QUEUE_LS_KEY, JSON.stringify(q));
+  } catch {
+    // Quota exceeded (each invoice carries base64-encoded attachments).
+    // Surface silently — the queue still works in memory until refresh.
+  }
+}
 
 type VendorOrigin = 'Indian' | 'Foreign' | 'Unknown';
 type PaymentTiming = 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
 type YesNoRcm = 'Yes' | 'No' | 'RCM' | 'Unknown';
 type YesNo = 'Yes' | 'No' | 'Unknown';
+type ExpenseType = 'Service' | 'Capital';
 
 interface BookingLine {
   dr_or_cr: 'Dr' | 'Cr';
@@ -51,6 +75,26 @@ interface Attachment {
   isPdf: boolean;
 }
 
+interface ScenarioAnswers {
+  vendorOrigin: VendorOrigin;
+  paymentTiming: PaymentTiming;
+  gstApplicable: YesNoRcm;
+  tdsApplicable: YesNo;
+  expenseType: ExpenseType;
+  party: string;
+  costCentre: string;
+  paidFrom: string;
+  notes: string;
+}
+
+interface QueueItem {
+  id: string;
+  savedAt: string;
+  attachments: Attachment[];
+  answers: ScenarioAnswers;
+  advice: ExpenseAdvice;
+}
+
 const iconExpense = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h2m4 0h6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
@@ -65,6 +109,8 @@ export function ExpenseBooking() {
   const [paymentTiming, setPaymentTiming] = useState<PaymentTiming>('Unknown');
   const [gstApplicable, setGstApplicable] = useState<YesNoRcm>('Unknown');
   const [tdsApplicable, setTdsApplicable] = useState<YesNo>('Unknown');
+  const [expenseType, setExpenseType] = useState<ExpenseType>('Service');
+  const [party, setParty] = useState('');
   const [costCentre, setCostCentre] = useState('');
   const [paidFrom, setPaidFrom] = useState('');
   const [notes, setNotes] = useState('');
@@ -75,6 +121,56 @@ export function ExpenseBooking() {
   const [advice, setAdvice] = useState<ExpenseAdvice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [queue, setQueue] = useState<QueueItem[]>(() => readPersistedQueue());
+
+  useEffect(() => {
+    persistQueue(queue);
+  }, [queue]);
+
+  function resetForm() {
+    setVendorOrigin('Unknown');
+    setPaymentTiming('Unknown');
+    setGstApplicable('Unknown');
+    setTdsApplicable('Unknown');
+    setExpenseType('Service');
+    setParty('');
+    setCostCentre('');
+    setPaidFrom('');
+    setNotes('');
+    setAttachments([]);
+    setAdvice(null);
+    setError(null);
+  }
+
+  function saveCurrentToQueue() {
+    if (!advice) return;
+    setQueue((prev) => [
+      ...prev,
+      {
+        id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        savedAt: new Date().toISOString(),
+        attachments,
+        answers: {
+          vendorOrigin,
+          paymentTiming,
+          gstApplicable,
+          tdsApplicable,
+          expenseType,
+          party,
+          costCentre,
+          paidFrom,
+          notes,
+        },
+        advice,
+      },
+    ]);
+    resetForm();
+  }
+
+  function removeFromQueue(id: string) {
+    setQueue((prev) => prev.filter((q) => q.id !== id));
+  }
 
   function onPickFiles(files: FileList) {
     Array.from(files).forEach((file) => {
@@ -125,6 +221,8 @@ export function ExpenseBooking() {
             paymentTiming,
             gstApplicable,
             tdsApplicable,
+            expenseType,
+            party: party || undefined,
             costCentre: costCentre || undefined,
             paidFrom: paidFrom || undefined,
             notes: notes || undefined,
@@ -158,6 +256,29 @@ export function ExpenseBooking() {
   const channelCostCentres =
     master?.costCentres?.filter((c) => (c.category || '').toLowerCase() === 'channel') || [];
 
+  // Party dropdown — vendors live under "Sundry Creditors" or "Loans &
+  // Advances". We walk the group hierarchy so a leaf group like
+  // "Service Vendors" under "Sundry Creditors" still qualifies.
+  const partyLedgers = (() => {
+    if (!master?.ledgers || !master?.groups) return [];
+    const groupByName = new Map(master.groups.map((g) => [g.name, g]));
+    const isPartyGroup = (groupName: string | null): boolean => {
+      let cursor: string | null = groupName;
+      const seen = new Set<string>();
+      while (cursor && !seen.has(cursor)) {
+        seen.add(cursor);
+        const lower = cursor.toLowerCase();
+        if (lower.includes('sundry creditor') || lower.includes('loans & advances')) {
+          return true;
+        }
+        const parent = groupByName.get(cursor)?.parent || null;
+        cursor = parent;
+      }
+      return false;
+    };
+    return master.ledgers.filter((l) => isPartyGroup(l.group));
+  })();
+
   return (
     <>
       <PageHeader title="Expense Booking" accent="emerald" icon={iconExpense} />
@@ -177,6 +298,14 @@ export function ExpenseBooking() {
 
         {master && (
           <>
+
+        {queue.length > 0 && (
+          <QueueCard
+            queue={queue}
+            onRemove={removeFromQueue}
+            onClearAll={() => setQueue([])}
+          />
+        )}
 
         {/* 1. Invoice attachments */}
         <Section
@@ -248,6 +377,27 @@ export function ExpenseBooking() {
 
         {/* 2. Scenario */}
         <Section title="2. Scenario">
+          <Field label="Party (vendor)">
+            <select
+              value={party}
+              onChange={(e) => setParty(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">— let AI pick from master —</option>
+              {partyLedgers.map((l) => (
+                <option key={l.name} value={l.name}>{l.name}</option>
+              ))}
+            </select>
+          </Field>
+          <ChipRow
+            label="Expense type"
+            value={expenseType}
+            options={[
+              ['Service', 'Service'],
+              ['Capital', 'Capital'],
+            ]}
+            onChange={(v) => setExpenseType(v as ExpenseType)}
+          />
           <ChipRow
             label="Vendor origin"
             value={vendorOrigin}
@@ -341,7 +491,25 @@ export function ExpenseBooking() {
         </button>
 
         {error && <Banner tone="rose">{error}</Banner>}
-        {advice && <AdviceView advice={advice} />}
+        {advice && (
+          <div className="space-y-3">
+            <AdviceView advice={advice} />
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={saveCurrentToQueue}
+                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 text-sm"
+              >
+                Save to queue ({queue.length + 1})
+              </button>
+              <button
+                onClick={resetForm}
+                className="rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2.5 text-sm"
+              >
+                Discard &amp; start next
+              </button>
+            </div>
+          </div>
+        )}
           </>
         )}
       </div>
@@ -437,6 +605,124 @@ function Banner({
 // --------------------------------------------------------------------------
 // Advice view — structured boxes per booking stage
 // --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// Queue card — list of invoices saved in the current session
+// --------------------------------------------------------------------------
+
+function QueueCard({
+  queue,
+  onRemove,
+  onClearAll,
+}: {
+  queue: QueueItem[];
+  onRemove: (id: string) => void;
+  onClearAll: () => void;
+}) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  return (
+    <div className="rounded-xl border border-emerald-300 bg-white">
+      <div className="px-4 sm:px-5 py-3 border-b border-slate-100 flex items-baseline justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">Queue</div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            {queue.length} invoice{queue.length === 1 ? '' : 's'} · saved in this browser
+          </div>
+        </div>
+        {!confirmClear ? (
+          <button
+            type="button"
+            onClick={() => setConfirmClear(true)}
+            className="text-xs text-slate-500 hover:text-rose-700"
+          >
+            Clear all
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onClearAll();
+                setConfirmClear(false);
+              }}
+              className="text-xs font-semibold text-rose-700 hover:text-rose-800"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmClear(false)}
+              className="text-xs text-slate-500 hover:text-slate-700"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {queue.map((q, i) => {
+          const open = openId === q.id;
+          const stage = q.advice.stages?.[0];
+          const total = stage?.lines
+            ?.filter((l) => l.dr_or_cr === 'Cr')
+            .reduce((s, l) => s + (l.amount || 0), 0);
+          return (
+            <li key={q.id}>
+              <button
+                type="button"
+                onClick={() => setOpenId(open ? null : q.id)}
+                className="w-full text-left px-4 sm:px-5 py-3 hover:bg-slate-50 flex items-center gap-3"
+              >
+                <span className="text-[10px] uppercase tracking-wider w-6 flex-shrink-0 font-bold text-slate-400">
+                  #{i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-slate-900 truncate">
+                    {q.advice.invoiceExtract?.vendor || q.answers.party || 'Unnamed vendor'}
+                  </div>
+                  <div className="text-xs text-slate-500 truncate">
+                    {stage?.voucherType || 'No voucher'} ·{' '}
+                    {q.answers.expenseType} ·{' '}
+                    {q.answers.costCentre || stage?.costCentre || 'HO'}
+                    {q.advice.invoiceExtract?.invoiceNumber
+                      ? ` · ${q.advice.invoiceExtract.invoiceNumber}`
+                      : ''}
+                  </div>
+                </div>
+                {total != null && total > 0 && (
+                  <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                    {total.toLocaleString('en-IN')}
+                  </span>
+                )}
+                <svg
+                  className={`h-4 w-4 text-slate-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {open && (
+                <div className="px-4 sm:px-5 pb-4 pt-1 space-y-3 bg-slate-50">
+                  <AdviceView advice={q.advice} />
+                  <button
+                    type="button"
+                    onClick={() => onRemove(q.id)}
+                    className="text-xs text-rose-700 hover:text-rose-800 underline underline-offset-2"
+                  >
+                    Remove from queue
+                  </button>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 function AdviceView({ advice }: { advice: ExpenseAdvice }) {
   return (
