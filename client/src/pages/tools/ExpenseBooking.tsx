@@ -1,7 +1,30 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useTallyMaster } from '../../data/tally/useTallyMaster';
 import { MasterPanel } from './MasterPanel';
+
+const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v1';
+
+function readPersistedQueue(): QueueItem[] {
+  try {
+    const raw = localStorage.getItem(QUEUE_LS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed as QueueItem[];
+  } catch {
+    return [];
+  }
+}
+
+function persistQueue(q: QueueItem[]) {
+  try {
+    localStorage.setItem(QUEUE_LS_KEY, JSON.stringify(q));
+  } catch {
+    // Quota exceeded (each invoice carries base64-encoded attachments).
+    // Surface silently — the queue still works in memory until refresh.
+  }
+}
 
 type VendorOrigin = 'Indian' | 'Foreign' | 'Unknown';
 type PaymentTiming = 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
@@ -99,7 +122,11 @@ export function ExpenseBooking() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>(() => readPersistedQueue());
+
+  useEffect(() => {
+    persistQueue(queue);
+  }, [queue]);
 
   function resetForm() {
     setVendorOrigin('Unknown');
@@ -272,7 +299,13 @@ export function ExpenseBooking() {
         {master && (
           <>
 
-        {queue.length > 0 && <QueueCard queue={queue} onRemove={removeFromQueue} />}
+        {queue.length > 0 && (
+          <QueueCard
+            queue={queue}
+            onRemove={removeFromQueue}
+            onClearAll={() => setQueue([])}
+          />
+        )}
 
         {/* 1. Invoice attachments */}
         <Section
@@ -580,20 +613,52 @@ function Banner({
 function QueueCard({
   queue,
   onRemove,
+  onClearAll,
 }: {
   queue: QueueItem[];
   onRemove: (id: string) => void;
+  onClearAll: () => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   return (
     <div className="rounded-xl border border-emerald-300 bg-white">
-      <div className="px-4 sm:px-5 py-3 border-b border-slate-100 flex items-baseline justify-between">
+      <div className="px-4 sm:px-5 py-3 border-b border-slate-100 flex items-baseline justify-between gap-2">
         <div>
           <div className="text-sm font-semibold text-slate-900">Queue</div>
           <div className="text-xs text-slate-500 mt-0.5">
-            {queue.length} invoice{queue.length === 1 ? '' : 's'} saved this session
+            {queue.length} invoice{queue.length === 1 ? '' : 's'} · saved in this browser
           </div>
         </div>
+        {!confirmClear ? (
+          <button
+            type="button"
+            onClick={() => setConfirmClear(true)}
+            className="text-xs text-slate-500 hover:text-rose-700"
+          >
+            Clear all
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onClearAll();
+                setConfirmClear(false);
+              }}
+              className="text-xs font-semibold text-rose-700 hover:text-rose-800"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmClear(false)}
+              className="text-xs text-slate-500 hover:text-slate-700"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
       <ul className="divide-y divide-slate-100">
         {queue.map((q, i) => {
