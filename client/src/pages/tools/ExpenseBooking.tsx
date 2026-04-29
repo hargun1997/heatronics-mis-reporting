@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useTallyMaster } from '../../data/tally/useTallyMaster';
+import { MasterPanel } from './MasterPanel';
 
 type VendorOrigin = 'Indian' | 'Foreign' | 'Unknown';
 type PaymentTiming = 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
@@ -158,6 +159,8 @@ export function ExpenseBooking() {
         {masterState.error && (
           <Banner tone="rose">Tally master could not be loaded: {masterState.error}</Banner>
         )}
+
+        <MasterPanel state={masterState} />
 
         {/* 1. Invoice attachments */}
         <Section
