@@ -2,6 +2,10 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export interface ExpenseScenarioAnswers {
   vendorOrigin?: 'Indian' | 'Foreign' | 'Unknown';
   paymentTiming?: 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
@@ -17,8 +21,17 @@ export interface InvoiceAttachment {
   mime: string;
 }
 
+interface NormalizedTallyMaster {
+  groups?: { name: string; parent: string | null; isRevenue?: boolean }[];
+  ledgers?: { name: string; group: string | null; gst?: boolean; tds?: boolean }[];
+  voucherTypes?: { name: string; parent: string | null }[];
+  costCentres?: { name: string; category: string | null; parent?: string | null }[];
+  costCategories?: string[];
+  currencies?: string[];
+}
+
 export interface ExpenseAdviceRequest {
-  tallyMaster: unknown;
+  tallyMaster: NormalizedTallyMaster;
   answers: ExpenseScenarioAnswers;
   attachments?: InvoiceAttachment[];
 }
@@ -30,20 +43,21 @@ export interface BookingLine {
   notes?: string;
 }
 
+export interface BookingStage {
+  step: number;
+  title: string;
+  when: string;
+  voucherType: string;
+  lines: BookingLine[];
+  costCentre?: string | null;
+  notes?: string | null;
+}
+
 export interface ExpenseAdvice {
   summary: string;
-  voucherType: string;
-  billSeries?: string;
-  lines: BookingLine[];
-  costCentre?: string;
+  stages: BookingStage[];
   gstTreatment?: string;
   tdsTreatment?: string;
-  followUp?: {
-    when: string;
-    voucherType: string;
-    lines: BookingLine[];
-    notes?: string;
-  } | null;
   warnings?: string[];
   invoiceExtract?: {
     vendor?: string;
@@ -53,25 +67,39 @@ export interface ExpenseAdvice {
     amount?: number;
     gstAmount?: number;
     currency?: string;
-  };
+  } | null;
 }
 
-function buildPrompt(master: unknown, answers: ExpenseScenarioAnswers, attachmentCount: number): string {
-  const attachmentsClause =
+// ---------------------------------------------------------------------------
+// Prompt
+// ---------------------------------------------------------------------------
+
+function buildPrompt(
+  master: NormalizedTallyMaster,
+  answers: ExpenseScenarioAnswers,
+  attachmentCount: number
+): string {
+  const attachmentClause =
     attachmentCount === 0
       ? '3. No invoice attached — work from the scenario alone.'
       : attachmentCount === 1
-        ? '3. One invoice attachment (image or PDF) — extract vendor, GSTIN, invoice number, date, total, GST amount, currency.'
-        : `3. ${attachmentCount} attachments — these are sequential pages of the SAME invoice (or scans of one packet). Read them as one document and extract: vendor, GSTIN, invoice number, date, total, GST amount, currency.`;
+        ? '3. One invoice attachment (image or PDF). Extract: vendor, GSTIN, invoice number, date, total, GST amount, currency.'
+        : `3. ${attachmentCount} attachments — these are sequential pages of the SAME invoice. Read them as one document.`;
 
   return `You are a senior accountant guiding the Heatronics finance team on how to book an expense in Tally.
 
 You will be given:
-1. The Heatronics Tally master (JSON) — voucher types, ledger groups, ledgers, cost centres, bill series and policies.
-2. A scenario the operator has answered.
-${attachmentsClause}
+1. The Heatronics Tally master (JSON) — the FULL list of groups, ledgers, voucher types and cost centres that exist in the books today.
+2. A scenario the operator answered.
+${attachmentClause}
 
-Your job: produce ONE crisp, actionable booking instruction grounded ONLY in ledgers / voucher types / cost centres present in the master. If the right ledger does not exist in the master, say so in "warnings" and pick the closest match.
+YOUR JOB: produce the COMPLETE lifecycle of vouchers needed to book this expense end-to-end. Not just the first entry. If money is paid as an advance and an invoice arrives later, give BOTH the payment voucher AND the journal that knocks it off. If payment will happen later, give BOTH the purchase voucher AND the future payment voucher. Walk the operator through every step until the books are clean.
+
+GROUNDING RULES (strict):
+- Use ONLY ledger names, voucher type names, and cost centre names that appear EXACTLY in the master. Match case/punctuation exactly.
+- If you can't find an exact match, pick the closest existing entry and ADD a sentence to "warnings" explaining the substitution.
+- DO NOT invent a "bill series", "EXP/", "PRE/" or any prefix. The voucher type itself IS the series in this Tally setup.
+- Cost centres in this master belong to a category. Pick a cost centre that fits the expense channel (D2C, ECOM, OEM, OFFLINE, QCOM, HO).
 
 ## Tally master
 \`\`\`json
@@ -87,43 +115,46 @@ ${JSON.stringify(master)}
 - Paid from (operator hint): ${answers.paidFrom || '(not specified)'}
 - Notes: ${answers.notes || '(none)'}
 
-## Decision rules
-- Foreign vendor → no Input CGST/SGST/IGST. If imported service, apply RCM via the master's RCM ledgers.
-- Advance → Payment voucher; debit "Advance to Vendors". Follow-up Journal on invoice: Dr Expense / Cr Advance to Vendors.
-- Prepaid → Payment/Journal to "Prepaid Expenses" asset. Follow-up monthly amortisation journal with PRE/ series.
-- On credit → Purchase voucher; vendor as Sundry Creditor. Follow-up Payment voucher knocks off the bill.
-- Paid now (cash/bank, no advance) → Payment voucher; debit expense, credit bank/cash directly.
-- TDS applicable → split credit: vendor net + TDS Payable ledger from the master.
+## Lifecycle by scenario (use these as the spine for "stages")
+- PaidNow: Stage 1 = Payment voucher (Dr Expense, Dr Input GST if any, Cr Bank/Cash). Done. No follow-up.
+- Advance: Stage 1 = Payment (Dr Advance to Suppliers, Cr Bank). Stage 2 (on invoice receipt) = Journal (Dr Expense + GST, Cr Advance to Suppliers, Cr TDS if any).
+- Prepaid: Stage 1 = Payment (Dr Prepaid Expenses, Cr Bank). Stage 2..N = monthly Journal (Dr Expense, Cr Prepaid Expenses) for the prepaid period.
+- OnCredit: Stage 1 = Purchase voucher (Dr Expense + GST, Cr Vendor (Sundry Creditor), Cr TDS if any). Stage 2 (when actually paid) = Payment voucher knocking off the bill (Dr Vendor, Cr Bank).
+- Foreign + service: add an RCM stage where the company self-charges output GST and claims it as input in the next return.
 
-## Response format
-Respond ONLY with a JSON object — no prose, no markdown fences. Schema:
+## Response format — JSON ONLY, no prose, no markdown fences
+
 {
   "summary": "one-line description of what to book",
-  "voucherType": "exact voucherType.name from master",
-  "billSeries": "billSeries.name from master if relevant, else null",
-  "lines": [
-    { "dr_or_cr": "Dr" | "Cr", "ledger": "exact ledger name from master", "amount": number | null, "notes": "optional" }
+  "stages": [
+    {
+      "step": 1,
+      "title": "short label, e.g. 'Pay vendor advance'",
+      "when": "trigger event in plain English, e.g. 'Today, on payment' or 'Each month for 12 months'",
+      "voucherType": "EXACT name from master.voucherTypes",
+      "costCentre": "EXACT name from master.costCentres or null if not relevant",
+      "lines": [
+        { "dr_or_cr": "Dr"|"Cr", "ledger": "EXACT name from master.ledgers", "amount": number | null, "notes": "optional" }
+      ],
+      "notes": "extra guidance for this specific stage, or null"
+    }
   ],
-  "costCentre": "exact cost centre from master",
-  "gstTreatment": "short description of GST handling",
-  "tdsTreatment": "short description of TDS handling, or 'Not applicable'",
-  "followUp": {
-    "when": "trigger event, e.g. 'On receipt of invoice' or 'End of every month for X months'",
-    "voucherType": "exact voucherType.name from master",
-    "lines": [ { "dr_or_cr": "Dr|Cr", "ledger": "...", "amount": number|null } ],
-    "notes": "optional"
-  } OR null if nothing is hanging,
-  "warnings": [ "anything the operator should double-check, e.g. missing GSTIN, foreign currency conversion, etc." ],
+  "gstTreatment": "one short line on GST handling",
+  "tdsTreatment": "one short line on TDS, or 'Not applicable'",
+  "warnings": [ "things the operator must double-check (missing GSTIN, forex rate, ledger substitutions, etc.)" ],
   "invoiceExtract": {
     "vendor": "...", "gstin": "...", "invoiceNumber": "...", "invoiceDate": "YYYY-MM-DD",
     "amount": number, "gstAmount": number, "currency": "INR|USD|..."
   }
 }
 
-If no attachment is provided, omit "invoiceExtract" or set it to null.
-If multiple attachments were provided, treat them as one invoice across pages — do not produce a separate booking per page.
-Use null for amounts you cannot determine. Never invent ledgers or cost centres that aren't in the master.`;
+If no attachment was provided, set "invoiceExtract" to null.
+Use null for amounts you cannot determine from the inputs. Stages must be in chronological order. There must be at least one stage.`;
 }
+
+// ---------------------------------------------------------------------------
+// Gemini call
+// ---------------------------------------------------------------------------
 
 interface GeminiPart {
   text?: string;
@@ -167,6 +198,42 @@ function parseJsonFromText(text: string): ExpenseAdvice {
   return JSON.parse(jsonText.trim()) as ExpenseAdvice;
 }
 
+// ---------------------------------------------------------------------------
+// Validation against master — flag any AI references that don't exist
+// ---------------------------------------------------------------------------
+
+function validateAgainstMaster(advice: ExpenseAdvice, master: NormalizedTallyMaster): ExpenseAdvice {
+  const ledgerNames = new Set((master.ledgers || []).map((l) => l.name));
+  const voucherNames = new Set((master.voucherTypes || []).map((v) => v.name));
+  const costCentreNames = new Set((master.costCentres || []).map((c) => c.name));
+  const warnings: string[] = [...(advice.warnings || [])];
+
+  const NOT_IN_MASTER = ' (NOT IN MASTER)';
+
+  for (const stage of advice.stages || []) {
+    if (stage.voucherType && !voucherNames.has(stage.voucherType)) {
+      warnings.push(`Stage ${stage.step}: voucher type "${stage.voucherType}" is not in the loaded master`);
+      stage.voucherType = stage.voucherType + NOT_IN_MASTER;
+    }
+    if (stage.costCentre && !costCentreNames.has(stage.costCentre)) {
+      warnings.push(`Stage ${stage.step}: cost centre "${stage.costCentre}" is not in the loaded master`);
+      stage.costCentre = stage.costCentre + NOT_IN_MASTER;
+    }
+    for (const line of stage.lines || []) {
+      if (line.ledger && !ledgerNames.has(line.ledger)) {
+        warnings.push(`Stage ${stage.step}: ledger "${line.ledger}" is not in the loaded master`);
+        line.ledger = line.ledger + NOT_IN_MASTER;
+      }
+    }
+  }
+
+  return { ...advice, warnings };
+}
+
+// ---------------------------------------------------------------------------
+// Public entrypoint
+// ---------------------------------------------------------------------------
+
 export async function getExpenseBookingAdvice(
   req: ExpenseAdviceRequest
 ): Promise<ExpenseAdvice> {
@@ -179,5 +246,6 @@ export async function getExpenseBookingAdvice(
     }
   }
   const raw = await callGemini(parts);
-  return parseJsonFromText(raw);
+  const advice = parseJsonFromText(raw);
+  return validateAgainstMaster(advice, req.tallyMaster);
 }
