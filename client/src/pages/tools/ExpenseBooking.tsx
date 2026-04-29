@@ -152,15 +152,31 @@ export function ExpenseBooking() {
       return g.includes('bank') || g.includes('cash');
     }) || [];
 
+  // Cost-centre dropdown shows only Channel-category centres
+  // (HO, D2C, ECOM, OEM, OFFLINE, QCOM). Sales-Person centres are hidden
+  // from the expense flow.
+  const channelCostCentres =
+    master?.costCentres?.filter((c) => (c.category || '').toLowerCase() === 'channel') || [];
+
   return (
     <>
       <PageHeader title="Expense Booking" accent="emerald" icon={iconExpense} />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        {masterState.error && (
-          <Banner tone="rose">Tally master could not be loaded: {masterState.error}</Banner>
+        <MasterPanel state={masterState} />
+
+        {!master && !masterState.loading && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="font-semibold">Upload your Tally master to begin</div>
+            <p className="text-xs mt-1">
+              Open the Tally master panel above and pick the JSON your Tally Prime
+              exports. The reduction runs entirely in your browser; nothing is
+              uploaded.
+            </p>
+          </div>
         )}
 
-        <MasterPanel state={masterState} />
+        {master && (
+          <>
 
         {/* 1. Invoice attachments */}
         <Section
@@ -286,10 +302,9 @@ export function ExpenseBooking() {
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
             >
               <option value="">— let AI decide —</option>
-              {(master?.costCentres || []).map((c) => (
+              {channelCostCentres.map((c) => (
                 <option key={c.name} value={c.name}>
                   {c.name}
-                  {c.category ? ` · ${c.category}` : ''}
                 </option>
               ))}
             </select>
@@ -327,6 +342,8 @@ export function ExpenseBooking() {
 
         {error && <Banner tone="rose">{error}</Banner>}
         {advice && <AdviceView advice={advice} />}
+          </>
+        )}
       </div>
     </>
   );
