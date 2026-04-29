@@ -11,6 +11,8 @@ export interface ExpenseScenarioAnswers {
   paymentTiming?: 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
   gstApplicable?: 'Yes' | 'No' | 'RCM' | 'Unknown';
   tdsApplicable?: 'Yes' | 'No' | 'Unknown';
+  party?: string;
+  expenseType?: 'Service' | 'Capital';
   costCentre?: string;
   paidFrom?: string;
   notes?: string;
@@ -86,20 +88,32 @@ function buildPrompt(
         ? '3. One invoice attachment (image or PDF). Extract: vendor, GSTIN, invoice number, date, total, GST amount, currency.'
         : `3. ${attachmentCount} attachments — these are sequential pages of the SAME invoice. Read them as one document.`;
 
-  return `You are a senior accountant guiding the Heatronics finance team on how to book an expense in Tally.
+  return `You are a senior accountant booking an expense in Tally Prime for Heatronics.
 
 You will be given:
-1. The Heatronics Tally master (JSON) — the FULL list of groups, ledgers, voucher types and cost centres that exist in the books today.
+1. The Heatronics Tally master (JSON) — every group, ledger, voucher type and cost centre that exists in the books.
 2. A scenario the operator answered.
 ${attachmentClause}
 
-YOUR JOB: produce the COMPLETE lifecycle of vouchers needed to book this expense end-to-end. Not just the first entry. If money is paid as an advance and an invoice arrives later, give BOTH the payment voucher AND the journal that knocks it off. If payment will happen later, give BOTH the purchase voucher AND the future payment voucher. Walk the operator through every step until the books are clean.
+## Heatronics company facts (HARD CONSTRAINTS)
+- GST registration: Uttar Pradesh (UP). Use Input CGST + Input SGST when the vendor's GSTIN starts with "09" (UP) or vendor state is UP. Use Input IGST otherwise. Pick the matching ledger names from the master's "GST Input" group.
+- Voucher types you may use for expense booking: ONLY "Purchase-Services" (default for any operating expense / service / subscription) and "Purchase-Capital" (for capital goods — computers, machinery, furniture, fixed assets). Do NOT use Payment, Journal, Receipt, Contra. Bank-side payment is booked separately during bank reconciliation and is OUT OF SCOPE for this tool.
+- Cost centres: pick from the master's Channel-category cost centres only (HO, D2C, ECOM, OEM, OFFLINE, QCOM). If the expense doesn't fit a specific channel, default to HO.
+- Voucher number: leave it to Tally's auto-numbering (your output should NOT include a voucher number).
 
-GROUNDING RULES (strict):
-- Use ONLY ledger names, voucher type names, and cost centre names that appear EXACTLY in the master. Match case/punctuation exactly.
-- If you can't find an exact match, pick the closest existing entry and ADD a sentence to "warnings" explaining the substitution.
-- DO NOT invent a "bill series", "EXP/", "PRE/" or any prefix. The voucher type itself IS the series in this Tally setup.
-- Cost centres in this master belong to a category. Pick a cost centre that fits the expense channel (D2C, ECOM, OEM, OFFLINE, QCOM, HO).
+## Booking approach (IMPORTANT — single-stage)
+Because we don't settle against the bank in this tool, every booking is exactly ONE stage = ONE Purchase voucher that creates a creditor for the vendor. Lines:
+- Dr each expense ledger that fits the line items (e.g. "Bank Charges", "Repairs & Maintenance", "Professional Fees - Legal")
+- Dr Input CGST + Input SGST (intra-UP) OR Dr Input IGST (inter-state)
+- Cr the party ledger (Sundry Creditors / Loans & Advances party). If the operator selected a party, use that exact ledger; otherwise pick the closest existing party from the master.
+- Cr TDS Payable ledger if TDS applies
+The total of Dr lines must equal the total of Cr lines.
+
+## Multi-stage exceptions
+Use a second stage ONLY for prepaid expenses spread over months (Service expenses paid for a future period). In that case:
+- Stage 1 = Purchase voucher debiting "Prepaid Expenses" instead of the actual expense ledger.
+- Stage 2 = monthly Journal (Dr actual expense, Cr Prepaid Expenses) repeated for the prepaid duration.
+For everything else, return exactly one stage.
 
 ## Tally master
 \`\`\`json
@@ -107,20 +121,20 @@ ${JSON.stringify(master)}
 \`\`\`
 
 ## Scenario answers
+- Party (vendor): ${answers.party || '(let AI pick from master)'}
+- Expense type: ${answers.expenseType || 'Service (default)'}
 - Vendor origin: ${answers.vendorOrigin || 'Unknown'}
 - Payment timing: ${answers.paymentTiming || 'Unknown'}
 - GST applicable: ${answers.gstApplicable || 'Unknown'}
 - TDS applicable: ${answers.tdsApplicable || 'Unknown'}
-- Cost centre (operator hint): ${answers.costCentre || '(not specified)'}
-- Paid from (operator hint): ${answers.paidFrom || '(not specified)'}
+- Cost centre (operator hint): ${answers.costCentre || '(default to HO if no specific channel applies)'}
 - Notes: ${answers.notes || '(none)'}
 
-## Lifecycle by scenario (use these as the spine for "stages")
-- PaidNow: Stage 1 = Payment voucher (Dr Expense, Dr Input GST if any, Cr Bank/Cash). Done. No follow-up.
-- Advance: Stage 1 = Payment (Dr Advance to Suppliers, Cr Bank). Stage 2 (on invoice receipt) = Journal (Dr Expense + GST, Cr Advance to Suppliers, Cr TDS if any).
-- Prepaid: Stage 1 = Payment (Dr Prepaid Expenses, Cr Bank). Stage 2..N = monthly Journal (Dr Expense, Cr Prepaid Expenses) for the prepaid period.
-- OnCredit: Stage 1 = Purchase voucher (Dr Expense + GST, Cr Vendor (Sundry Creditor), Cr TDS if any). Stage 2 (when actually paid) = Payment voucher knocking off the bill (Dr Vendor, Cr Bank).
-- Foreign + service: add an RCM stage where the company self-charges output GST and claims it as input in the next return.
+## Grounding rules (STRICT)
+- Use ONLY ledger names, voucher type names and cost centre names that appear EXACTLY in the master. Match case and punctuation.
+- If a perfect match doesn't exist, pick the closest entry and add a sentence to "warnings" describing the substitution.
+- Voucher type MUST be "Purchase-Services" (Service expense type) or "Purchase-Capital" (Capital expense type). No other voucher types.
+- DO NOT invent any bill series, prefix, or voucher number. Tally Prime auto-numbers.
 
 ## Response format — JSON ONLY, no prose, no markdown fences
 

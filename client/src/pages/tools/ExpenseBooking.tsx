@@ -7,6 +7,7 @@ type VendorOrigin = 'Indian' | 'Foreign' | 'Unknown';
 type PaymentTiming = 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
 type YesNoRcm = 'Yes' | 'No' | 'RCM' | 'Unknown';
 type YesNo = 'Yes' | 'No' | 'Unknown';
+type ExpenseType = 'Service' | 'Capital';
 
 interface BookingLine {
   dr_or_cr: 'Dr' | 'Cr';
@@ -65,6 +66,8 @@ export function ExpenseBooking() {
   const [paymentTiming, setPaymentTiming] = useState<PaymentTiming>('Unknown');
   const [gstApplicable, setGstApplicable] = useState<YesNoRcm>('Unknown');
   const [tdsApplicable, setTdsApplicable] = useState<YesNo>('Unknown');
+  const [expenseType, setExpenseType] = useState<ExpenseType>('Service');
+  const [party, setParty] = useState('');
   const [costCentre, setCostCentre] = useState('');
   const [paidFrom, setPaidFrom] = useState('');
   const [notes, setNotes] = useState('');
@@ -125,6 +128,8 @@ export function ExpenseBooking() {
             paymentTiming,
             gstApplicable,
             tdsApplicable,
+            expenseType,
+            party: party || undefined,
             costCentre: costCentre || undefined,
             paidFrom: paidFrom || undefined,
             notes: notes || undefined,
@@ -157,6 +162,29 @@ export function ExpenseBooking() {
   // from the expense flow.
   const channelCostCentres =
     master?.costCentres?.filter((c) => (c.category || '').toLowerCase() === 'channel') || [];
+
+  // Party dropdown — vendors live under "Sundry Creditors" or "Loans &
+  // Advances". We walk the group hierarchy so a leaf group like
+  // "Service Vendors" under "Sundry Creditors" still qualifies.
+  const partyLedgers = (() => {
+    if (!master?.ledgers || !master?.groups) return [];
+    const groupByName = new Map(master.groups.map((g) => [g.name, g]));
+    const isPartyGroup = (groupName: string | null): boolean => {
+      let cursor: string | null = groupName;
+      const seen = new Set<string>();
+      while (cursor && !seen.has(cursor)) {
+        seen.add(cursor);
+        const lower = cursor.toLowerCase();
+        if (lower.includes('sundry creditor') || lower.includes('loans & advances')) {
+          return true;
+        }
+        const parent = groupByName.get(cursor)?.parent || null;
+        cursor = parent;
+      }
+      return false;
+    };
+    return master.ledgers.filter((l) => isPartyGroup(l.group));
+  })();
 
   return (
     <>
@@ -248,6 +276,27 @@ export function ExpenseBooking() {
 
         {/* 2. Scenario */}
         <Section title="2. Scenario">
+          <Field label="Party (vendor)">
+            <select
+              value={party}
+              onChange={(e) => setParty(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="">— let AI pick from master —</option>
+              {partyLedgers.map((l) => (
+                <option key={l.name} value={l.name}>{l.name}</option>
+              ))}
+            </select>
+          </Field>
+          <ChipRow
+            label="Expense type"
+            value={expenseType}
+            options={[
+              ['Service', 'Service'],
+              ['Capital', 'Capital'],
+            ]}
+            onChange={(v) => setExpenseType(v as ExpenseType)}
+          />
           <ChipRow
             label="Vendor origin"
             value={vendorOrigin}
