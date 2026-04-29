@@ -289,12 +289,13 @@ export function ExpenseBooking() {
         <MasterPanel state={masterState} />
 
         {!master && !masterState.loading && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <div className="font-semibold">Upload your Tally master to begin</div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+            <div className="font-semibold">Tally master could not be loaded</div>
             <p className="text-xs mt-1">
-              Open the Tally master panel above and pick the JSON your Tally Prime
-              exports. The reduction runs entirely in your browser; nothing is
-              uploaded.
+              {masterState.error
+                ? `Bundled master fetch failed: ${masterState.error}.`
+                : 'No master available.'}{' '}
+              Use the Tally master panel above to upload an override.
             </p>
           </div>
         )}
