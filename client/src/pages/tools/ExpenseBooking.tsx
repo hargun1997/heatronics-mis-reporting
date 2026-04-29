@@ -52,6 +52,26 @@ interface Attachment {
   isPdf: boolean;
 }
 
+interface ScenarioAnswers {
+  vendorOrigin: VendorOrigin;
+  paymentTiming: PaymentTiming;
+  gstApplicable: YesNoRcm;
+  tdsApplicable: YesNo;
+  expenseType: ExpenseType;
+  party: string;
+  costCentre: string;
+  paidFrom: string;
+  notes: string;
+}
+
+interface QueueItem {
+  id: string;
+  savedAt: string;
+  attachments: Attachment[];
+  answers: ScenarioAnswers;
+  advice: ExpenseAdvice;
+}
+
 const iconExpense = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h2m4 0h6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
@@ -78,6 +98,52 @@ export function ExpenseBooking() {
   const [advice, setAdvice] = useState<ExpenseAdvice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+
+  function resetForm() {
+    setVendorOrigin('Unknown');
+    setPaymentTiming('Unknown');
+    setGstApplicable('Unknown');
+    setTdsApplicable('Unknown');
+    setExpenseType('Service');
+    setParty('');
+    setCostCentre('');
+    setPaidFrom('');
+    setNotes('');
+    setAttachments([]);
+    setAdvice(null);
+    setError(null);
+  }
+
+  function saveCurrentToQueue() {
+    if (!advice) return;
+    setQueue((prev) => [
+      ...prev,
+      {
+        id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        savedAt: new Date().toISOString(),
+        attachments,
+        answers: {
+          vendorOrigin,
+          paymentTiming,
+          gstApplicable,
+          tdsApplicable,
+          expenseType,
+          party,
+          costCentre,
+          paidFrom,
+          notes,
+        },
+        advice,
+      },
+    ]);
+    resetForm();
+  }
+
+  function removeFromQueue(id: string) {
+    setQueue((prev) => prev.filter((q) => q.id !== id));
+  }
 
   function onPickFiles(files: FileList) {
     Array.from(files).forEach((file) => {
@@ -205,6 +271,8 @@ export function ExpenseBooking() {
 
         {master && (
           <>
+
+        {queue.length > 0 && <QueueCard queue={queue} onRemove={removeFromQueue} />}
 
         {/* 1. Invoice attachments */}
         <Section
@@ -390,7 +458,25 @@ export function ExpenseBooking() {
         </button>
 
         {error && <Banner tone="rose">{error}</Banner>}
-        {advice && <AdviceView advice={advice} />}
+        {advice && (
+          <div className="space-y-3">
+            <AdviceView advice={advice} />
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={saveCurrentToQueue}
+                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 text-sm"
+              >
+                Save to queue ({queue.length + 1})
+              </button>
+              <button
+                onClick={resetForm}
+                className="rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2.5 text-sm"
+              >
+                Discard &amp; start next
+              </button>
+            </div>
+          </div>
+        )}
           </>
         )}
       </div>
@@ -486,6 +572,92 @@ function Banner({
 // --------------------------------------------------------------------------
 // Advice view — structured boxes per booking stage
 // --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// Queue card — list of invoices saved in the current session
+// --------------------------------------------------------------------------
+
+function QueueCard({
+  queue,
+  onRemove,
+}: {
+  queue: QueueItem[];
+  onRemove: (id: string) => void;
+}) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  return (
+    <div className="rounded-xl border border-emerald-300 bg-white">
+      <div className="px-4 sm:px-5 py-3 border-b border-slate-100 flex items-baseline justify-between">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">Queue</div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            {queue.length} invoice{queue.length === 1 ? '' : 's'} saved this session
+          </div>
+        </div>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {queue.map((q, i) => {
+          const open = openId === q.id;
+          const stage = q.advice.stages?.[0];
+          const total = stage?.lines
+            ?.filter((l) => l.dr_or_cr === 'Cr')
+            .reduce((s, l) => s + (l.amount || 0), 0);
+          return (
+            <li key={q.id}>
+              <button
+                type="button"
+                onClick={() => setOpenId(open ? null : q.id)}
+                className="w-full text-left px-4 sm:px-5 py-3 hover:bg-slate-50 flex items-center gap-3"
+              >
+                <span className="text-[10px] uppercase tracking-wider w-6 flex-shrink-0 font-bold text-slate-400">
+                  #{i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-slate-900 truncate">
+                    {q.advice.invoiceExtract?.vendor || q.answers.party || 'Unnamed vendor'}
+                  </div>
+                  <div className="text-xs text-slate-500 truncate">
+                    {stage?.voucherType || 'No voucher'} ·{' '}
+                    {q.answers.expenseType} ·{' '}
+                    {q.answers.costCentre || stage?.costCentre || 'HO'}
+                    {q.advice.invoiceExtract?.invoiceNumber
+                      ? ` · ${q.advice.invoiceExtract.invoiceNumber}`
+                      : ''}
+                  </div>
+                </div>
+                {total != null && total > 0 && (
+                  <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                    {total.toLocaleString('en-IN')}
+                  </span>
+                )}
+                <svg
+                  className={`h-4 w-4 text-slate-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {open && (
+                <div className="px-4 sm:px-5 pb-4 pt-1 space-y-3 bg-slate-50">
+                  <AdviceView advice={q.advice} />
+                  <button
+                    type="button"
+                    onClick={() => onRemove(q.id)}
+                    className="text-xs text-rose-700 hover:text-rose-800 underline underline-offset-2"
+                  >
+                    Remove from queue
+                  </button>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 function AdviceView({ advice }: { advice: ExpenseAdvice }) {
   return (
