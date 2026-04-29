@@ -6,14 +6,15 @@ type Tab = 'active' | 'replace' | 'reset';
 
 export function MasterPanel({ state }: { state: MasterState }) {
   const hasMaster = !!state.master;
-  const [open, setOpen] = useState(!hasMaster);
-  const [tab, setTab] = useState<Tab>(hasMaster ? 'active' : 'replace');
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>('active');
   const [savedFlash, setSavedFlash] = useState<ReduceStats | null>(null);
 
   const m = state.master;
   const ledgerCount = m?.ledgers?.length || 0;
   const voucherCount = m?.voucherTypes?.length || 0;
   const ccCount = m?.costCentres?.length || 0;
+  const isOverride = state.source === 'override';
 
   function flash(stats: ReduceStats) {
     setSavedFlash(stats);
@@ -30,7 +31,18 @@ export function MasterPanel({ state }: { state: MasterState }) {
         className="w-full flex items-center justify-between px-4 sm:px-5 py-3 text-left"
       >
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-slate-900">Tally master</div>
+          <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            Tally master
+            {!state.loading && hasMaster && (
+              <span
+                className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${
+                  isOverride ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {isOverride ? 'Overridden' : 'Bundled'}
+              </span>
+            )}
+          </div>
           <div className="text-xs text-slate-500 mt-0.5 truncate">
             {state.loading
               ? 'Loading…'
@@ -39,7 +51,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
                 : 'Not loaded — upload your Tally master to get started'}
             {savedFlash && (
               <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                Loaded · {savedFlash.ledgers} ledgers
+                Override loaded · {savedFlash.ledgers} ledgers
               </span>
             )}
           </div>
@@ -58,7 +70,8 @@ export function MasterPanel({ state }: { state: MasterState }) {
         <div className="border-t border-slate-100">
           <div className="flex gap-1 px-2 sm:px-3 pt-2 pb-0">
             {(['active', 'replace', 'reset'] as Tab[]).map((t) => {
-              const disabled = !hasMaster && t !== 'replace';
+              const disabled =
+                (!hasMaster && t !== 'replace') || (t === 'reset' && !isOverride);
               return (
                 <button
                   key={t}
@@ -73,7 +86,13 @@ export function MasterPanel({ state }: { state: MasterState }) {
                         : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  {t === 'active' ? 'Active' : t === 'replace' ? 'Upload / Replace' : 'Reset'}
+                  {t === 'active'
+                    ? 'Active'
+                    : t === 'replace'
+                      ? isOverride
+                        ? 'Replace override'
+                        : 'Override'
+                      : 'Revert to bundled'}
                 </button>
               );
             })}
@@ -192,10 +211,13 @@ function ReplaceTab({
   return (
     <div className="space-y-3 text-xs">
       <p className="text-slate-600">
-        Pick the JSON your Tally Prime exports (Gateway → Display More Reports →
-        Masters → JSON Export). The file may be UTF-16 — that's fine. Reduction
-        runs in this browser; the master is saved to <code className="bg-slate-100 px-1 rounded">localStorage</code> and
-        never leaves your device.
+        Override the bundled master with your own export. Pick the JSON your
+        Tally Prime exports (Gateway → Display More Reports → Masters → JSON
+        Export). The file may be UTF-16 — that's fine. Reduction runs in this
+        browser; the override is saved to{' '}
+        <code className="bg-slate-100 px-1 rounded">localStorage</code> and never
+        leaves your device. Click <em>Revert to bundled</em> any time to drop
+        the override.
       </p>
       <input
         ref={fileRef}
@@ -247,15 +269,16 @@ function ResetTab({ onReset }: { onReset: () => void }) {
   return (
     <div className="space-y-3 text-xs">
       <p className="text-slate-600">
-        Drop the saved master from this browser. You'll need to re-upload before
-        booking the next expense.
+        Drop the local override and go back to the master that ships with the
+        app. The override JSON is removed from this browser; nothing is sent
+        anywhere.
       </p>
       <button
         type="button"
         onClick={onReset}
         className="w-full rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium py-2"
       >
-        Clear master from this browser
+        Revert to bundled master
       </button>
     </div>
   );

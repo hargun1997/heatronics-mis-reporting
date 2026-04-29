@@ -37,24 +37,30 @@ export interface TallyMaster {
   currencies?: string[];
 }
 
+export type MasterSource = 'bundled' | 'override';
+
 export interface MasterState {
   master: TallyMaster | null;
   loading: boolean;
   error: string | null;
-  /** Best-effort label for where the loaded master came from. */
+  /** Where the currently loaded master came from. */
+  source: MasterSource;
+  /** Best-effort human label, e.g. "Reduced from MasterApr29.json · 5:35pm". */
   sourceLabel: string | null;
   /** Read a raw Tally export (or already-reduced master) from a File and store it. */
   loadFromFile: (file: File) => Promise<ReduceStats>;
   /** Apply a JSON string the user pasted in. */
   loadFromText: (text: string, label?: string) => ReduceStats;
-  /** Drop the saved master from localStorage. */
+  /** Drop the override and revert to the bundled master. */
   clear: () => void;
 }
 
 const LS_KEY = 'heatronics.tally.master.v2';
 const LS_SOURCE_KEY = 'heatronics.tally.master.v2.source';
+const BUNDLED_URL = '/data/tally/master.json';
+const BUNDLED_LABEL = 'Bundled with the app';
 
-function readSaved(): { master: TallyMaster | null; label: string | null } {
+function readOverride(): { master: TallyMaster | null; label: string | null } {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return { master: null, label: null };
@@ -71,22 +77,53 @@ function readSaved(): { master: TallyMaster | null; label: string | null } {
   }
 }
 
-function save(master: TallyMaster, label: string) {
+function saveOverride(master: TallyMaster, label: string) {
   localStorage.setItem(LS_KEY, JSON.stringify(master));
   localStorage.setItem(LS_SOURCE_KEY, label);
 }
 
+async function fetchBundled(): Promise<TallyMaster> {
+  const r = await fetch(BUNDLED_URL);
+  if (!r.ok) throw new Error(`Bundled master fetch failed (${r.status})`);
+  return (await r.json()) as TallyMaster;
+}
+
 export function useTallyMaster(): MasterState {
   const [master, setMaster] = useState<TallyMaster | null>(null);
+  const [source, setSource] = useState<MasterSource>('bundled');
   const [sourceLabel, setSourceLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = readSaved();
-    setMaster(saved.master);
-    setSourceLabel(saved.label);
-    setLoading(false);
+    let cancelled = false;
+    const override = readOverride();
+    if (override.master) {
+      setMaster(override.master);
+      setSource('override');
+      setSourceLabel(override.label);
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    fetchBundled()
+      .then((m) => {
+        if (cancelled) return;
+        setMaster(m);
+        setSource('bundled');
+        setSourceLabel(BUNDLED_LABEL);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e.message || 'Failed to load bundled Tally master');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function loadFromText(text: string, label?: string): ReduceStats {
@@ -99,8 +136,9 @@ export function useTallyMaster(): MasterState {
         (result.source === 'raw-tally'
           ? `Reduced from Tally export · ${new Date().toLocaleString()}`
           : `Imported slim master · ${new Date().toLocaleString()}`);
-      save(result.master, finalLabel);
+      saveOverride(result.master, finalLabel);
       setMaster(result.master);
+      setSource('override');
       setSourceLabel(finalLabel);
       return result.stats;
     } catch (e) {
@@ -120,8 +158,9 @@ export function useTallyMaster(): MasterState {
         result.source === 'raw-tally'
           ? `Reduced from ${file.name} · ${new Date().toLocaleString()}`
           : `Loaded ${file.name} · ${new Date().toLocaleString()}`;
-      save(result.master, label);
+      saveOverride(result.master, label);
       setMaster(result.master);
+      setSource('override');
       setSourceLabel(label);
       return result.stats;
     } catch (e) {
@@ -134,15 +173,23 @@ export function useTallyMaster(): MasterState {
   function clear() {
     localStorage.removeItem(LS_KEY);
     localStorage.removeItem(LS_SOURCE_KEY);
-    setMaster(null);
-    setSourceLabel(null);
+    setLoading(true);
     setError(null);
+    fetchBundled()
+      .then((m) => {
+        setMaster(m);
+        setSource('bundled');
+        setSourceLabel(BUNDLED_LABEL);
+      })
+      .catch((e) => setError(e.message || 'Failed to load bundled Tally master'))
+      .finally(() => setLoading(false));
   }
 
   return {
     master,
     loading,
     error,
+    source,
     sourceLabel,
     loadFromFile,
     loadFromText,
