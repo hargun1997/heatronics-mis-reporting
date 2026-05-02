@@ -185,7 +185,16 @@ async function callGemini(parts: GeminiPart[]): Promise<string> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts }],
-      generationConfig: { temperature: 0.2, topP: 0.8, maxOutputTokens: 4096 },
+      generationConfig: {
+        temperature: 0.2,
+        topP: 0.8,
+        // Booking advice carries the full master in context plus a multi-line
+        // JSON output. 4 KB is too tight; truncated outputs surfaced as
+        // "Unterminated string in JSON" errors. 16 KB gives plenty of room
+        // and stays well under Gemini 2.5 Flash's 64 KB output cap.
+        maxOutputTokens: 16384,
+        responseMimeType: 'application/json',
+      },
     }),
   });
 
@@ -195,10 +204,21 @@ async function callGemini(parts: GeminiPart[]): Promise<string> {
   }
 
   const data = (await response.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    candidates?: {
+      content?: { parts?: { text?: string }[] };
+      finishReason?: string;
+    }[];
   };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Empty response from Gemini');
+  if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+    // MAX_TOKENS, SAFETY, RECITATION, OTHER — flag clearly instead of letting
+    // the JSON parser stumble on a truncated payload.
+    throw new Error(
+      `Gemini response was incomplete (finishReason=${candidate.finishReason}). The booking is likely too detailed to fit. Try splitting the invoice into smaller items or remove very long notes.`
+    );
+  }
   return text;
 }
 
@@ -209,7 +229,25 @@ function parseJsonFromText(text: string): ExpenseAdvice {
   } else if (jsonText.includes('```')) {
     jsonText = jsonText.replace(/```\n?/g, '');
   }
-  return JSON.parse(jsonText.trim()) as ExpenseAdvice;
+  jsonText = jsonText.trim();
+  try {
+    return JSON.parse(jsonText) as ExpenseAdvice;
+  } catch (e) {
+    // Log the raw response and a window around the failure point so we can
+    // diagnose without the user having to repro.
+    const message = e instanceof Error ? e.message : String(e);
+    const posMatch = /position\s+(\d+)/.exec(message);
+    const pos = posMatch ? parseInt(posMatch[1], 10) : -1;
+    const snippet =
+      pos >= 0
+        ? jsonText.slice(Math.max(0, pos - 80), Math.min(jsonText.length, pos + 80))
+        : jsonText.slice(0, 240);
+    console.error('Gemini JSON parse failed:', message);
+    console.error('Length:', jsonText.length, 'Snippet around failure:', JSON.stringify(snippet));
+    throw new Error(
+      `AI returned malformed JSON (${message}). Length ${jsonText.length}. The response was likely truncated or contains an unescaped character.`
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
