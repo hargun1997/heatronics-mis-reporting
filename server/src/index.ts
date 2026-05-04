@@ -10,6 +10,7 @@ import dictionaryRoutes from './routes/dictionary.js';
 import checklistRoutes from './routes/checklist.js';
 import misRoutes from './routes/mis.js';
 import driveRoutes from './routes/drive.js';
+import expenseBookingRoutes from './routes/expenseBooking.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,7 @@ app.use('/api/dictionary', dictionaryRoutes);
 app.use('/api/checklist', checklistRoutes);
 app.use('/api/mis', misRoutes);
 app.use('/api/drive', driveRoutes);
+app.use('/api/expense-booking', expenseBookingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -66,6 +68,7 @@ app.listen(PORT, () => {
 ║    - /api/checklist       - Accounts Checklist                ║
 ║    - /api/mis             - MIS Calculator                    ║
 ║    - /api/drive           - Google Drive Integration          ║
+║    - /api/expense-booking - AI Expense Booking Advisor        ║
 ║    - /api/health          - Health check                      ║
 ╚═══════════════════════════════════════════════════════════════╝
   `);

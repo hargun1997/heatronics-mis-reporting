@@ -26,11 +26,12 @@ export function ToolsHome() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NavCard
-            to="/tools/ledger-lookup"
-            title="Ledger Lookup"
-            description="Type an expense, vendor or party — get the matching ledgers from the Tally master. No AI, no booking — just a fast search."
+            to="/tools/expense-booking"
+            title="Expense Booking (AI)"
+            description="Snap an invoice photo, answer a few quick questions, and the AI returns the exact voucher, ledgers and cost centre — grounded in your Tally master."
             icon={iconExpense}
             accent="emerald"
+            badge="New"
           />
           <NavCard
             to="/tools/invoice-booking"
