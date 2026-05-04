@@ -20,7 +20,6 @@ export interface ExpenseScenarioAnswers {
 
 export interface ManualExpenseEntry {
   description: string;
-  suggestedLedger?: string;
   invoiceNumber?: string;
   invoiceDate?: string;
   totalAmount?: number;
@@ -98,11 +97,10 @@ function buildPrompt(
     const total = manualEntry.totalAmount;
     const gst = manualEntry.gstAmount;
     const base = total != null && gst != null ? +(total - gst).toFixed(2) : null;
-    inputClause = `3. The operator entered the expense MANUALLY (no invoice scan). Use these inputs verbatim — do NOT invent vendor names, amounts or invoice numbers. If a value is missing, leave the corresponding line amount as null.
+    inputClause = `3. The operator entered the expense MANUALLY (no invoice scan). Use these inputs verbatim — do NOT invent vendor names, amounts or invoice numbers. If a value is missing, leave the corresponding line amount as null. The operator did not pre-select a ledger; you must pick the right expense ledger yourself based on the description, party and scenario.
 
 Operator inputs:
 - Description: ${manualEntry.description || '(none)'}
-- Operator-picked ledger hint: ${manualEntry.suggestedLedger || '(none — choose the closest expense ledger from master)'}
 - Invoice number: ${manualEntry.invoiceNumber || '(missing)'}
 - Invoice date: ${manualEntry.invoiceDate || '(missing — leave date for the operator to set in Tally)'}
 - Total amount (incl. GST): ${total != null ? total : '(missing)'}
@@ -137,7 +135,7 @@ ${inputClause}
 
 ## Booking approach (IMPORTANT — single-stage)
 Because we don't settle against the bank in this tool, every booking is exactly ONE stage = ONE Purchase voucher that creates a creditor for the vendor. Lines:
-- Dr the expense ledger. If the operator picked a "ledger hint", use that EXACT ledger name unless it's clearly the wrong category — if you override, add a "warnings" entry explaining why.
+- Dr the expense ledger you select from the master. Pick the closest match by reading the description, party and scenario; the operator does NOT pre-select a ledger.
 - Dr Input CGST + Input SGST (intra-UP) OR Dr Input IGST (inter-state). Split GST equally between CGST and SGST.
 - Cr the party ledger (Sundry Creditors / Loans & Advances party). If the operator selected a party, use that exact ledger; otherwise pick the closest existing party from the master.
 - Cr TDS Payable ledger if TDS applies

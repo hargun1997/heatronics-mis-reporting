@@ -24,7 +24,6 @@ router.post('/suggest', async (req, res) => {
       manualEntry && typeof manualEntry === 'object'
         ? {
             description: typeof manualEntry.description === 'string' ? manualEntry.description.trim() : '',
-            suggestedLedger: manualEntry.suggestedLedger ? String(manualEntry.suggestedLedger) : undefined,
             invoiceNumber: manualEntry.invoiceNumber ? String(manualEntry.invoiceNumber) : undefined,
             invoiceDate: manualEntry.invoiceDate ? String(manualEntry.invoiceDate) : undefined,
             totalAmount: typeof manualEntry.totalAmount === 'number' ? manualEntry.totalAmount : undefined,

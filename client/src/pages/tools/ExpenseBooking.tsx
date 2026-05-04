@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useTallyMaster } from '../../data/tally/useTallyMaster';
-import type { TallyMaster, TallyLedger } from '../../data/tally/useTallyMaster';
+import type { TallyMaster } from '../../data/tally/useTallyMaster';
 import { buildTallyXml } from '../../data/tally/buildTallyXml';
 import type { ExportSummary } from '../../data/tally/buildTallyXml';
 import { MasterPanel } from './MasterPanel';
 
-const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v3';
+const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v4';
 
 function readPersistedQueue(): QueueItem[] {
   try {
@@ -72,7 +72,6 @@ type EntryMode = 'manual' | 'image';
 
 interface ManualEntry {
   description: string;
-  suggestedLedger: string;
   invoiceNumber: string;
   invoiceDate: string;
   totalAmount: string;
@@ -117,87 +116,6 @@ const iconExpense = (
   </svg>
 );
 
-// ---------------------------------------------------------------------------
-// Ledger suggestion engine
-//
-// Filter the master's ledgers down to expense-side accounts (Indirect /
-// Direct Expenses, plus Fixed Assets when capitalising), then rank by
-// substring match against the user's free-text description and party
-// name. We surface the top matches so the operator can pick the right
-// expense ledger before asking the AI.
-// ---------------------------------------------------------------------------
-
-const EXPENSE_ROOTS = ['Indirect Expenses', 'Direct Expenses'];
-const CAPITAL_ROOTS = ['Fixed Assets'];
-
-interface RankedLedger {
-  ledger: TallyLedger;
-  score: number;
-}
-
-function rootGroupOf(
-  groupName: string | null | undefined,
-  groupByName: Map<string, { name: string; parent: string | null }>
-): string | null {
-  let cursor = groupName || null;
-  const seen = new Set<string>();
-  let last: string | null = cursor;
-  while (cursor && !seen.has(cursor)) {
-    seen.add(cursor);
-    last = cursor;
-    cursor = groupByName.get(cursor)?.parent || null;
-  }
-  return last;
-}
-
-function tokenize(s: string): string[] {
-  return s
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 2);
-}
-
-function suggestLedgers(
-  master: TallyMaster | null,
-  expenseType: ExpenseType,
-  description: string,
-  partyHint: string
-): RankedLedger[] {
-  if (!master?.ledgers || !master?.groups) return [];
-  const groupByName = new Map(master.groups.map((g) => [g.name, g]));
-  const allowedRoots = expenseType === 'Capital' ? CAPITAL_ROOTS : EXPENSE_ROOTS;
-  const expenseLedgers = master.ledgers.filter((l) => {
-    const root = rootGroupOf(l.group, groupByName);
-    return root != null && allowedRoots.includes(root);
-  });
-
-  const tokens = [...tokenize(description), ...tokenize(partyHint)].filter(
-    (t, i, a) => a.indexOf(t) === i
-  );
-
-  if (tokens.length === 0) {
-    // No description yet — show a neutral A→Z slice so the operator can browse.
-    return expenseLedgers.slice(0, 12).map((l) => ({ ledger: l, score: 0 }));
-  }
-
-  const scored: RankedLedger[] = [];
-  for (const ledger of expenseLedgers) {
-    const ledgerLower = ledger.name.toLowerCase();
-    const groupLower = (ledger.group || '').toLowerCase();
-    const parent = groupByName.get(ledger.group || '')?.parent || '';
-    const parentLower = parent.toLowerCase();
-    let score = 0;
-    for (const t of tokens) {
-      if (ledgerLower.includes(t)) score += 3;
-      if (groupLower.includes(t)) score += 2;
-      if (parentLower.includes(t)) score += 1;
-    }
-    if (score > 0) scored.push({ ledger, score });
-  }
-  scored.sort((a, b) => b.score - a.score || a.ledger.name.localeCompare(b.ledger.name));
-  return scored.slice(0, 12);
-}
-
 export function ExpenseBooking() {
   const masterState = useTallyMaster();
   const master = masterState.master;
@@ -215,7 +133,6 @@ export function ExpenseBooking() {
   const [mode, setMode] = useState<EntryMode>('manual');
 
   const [description, setDescription] = useState('');
-  const [suggestedLedger, setSuggestedLedger] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState('');
   const [totalAmount, setTotalAmount] = useState('');
@@ -235,12 +152,6 @@ export function ExpenseBooking() {
     persistQueue(queue);
   }, [queue]);
 
-  // Live ledger suggestions update as the user types or changes expenseType.
-  const ledgerSuggestions = useMemo(
-    () => suggestLedgers(master, expenseType, description, party),
-    [master, expenseType, description, party]
-  );
-
   function resetForm() {
     setVendorOrigin('Unknown');
     setPaymentTiming('Unknown');
@@ -252,7 +163,6 @@ export function ExpenseBooking() {
     setPaidFrom('');
     setNotes('');
     setDescription('');
-    setSuggestedLedger('');
     setInvoiceNumber('');
     setInvoiceDate('');
     setTotalAmount('');
@@ -273,7 +183,6 @@ export function ExpenseBooking() {
         mode,
         manualEntry: {
           description,
-          suggestedLedger,
           invoiceNumber,
           invoiceDate,
           totalAmount,
@@ -366,7 +275,6 @@ export function ExpenseBooking() {
       if (mode === 'manual') {
         body.manualEntry = {
           description: description.trim(),
-          suggestedLedger: suggestedLedger || undefined,
           invoiceNumber: invoiceNumber || undefined,
           invoiceDate: invoiceDate || undefined,
           totalAmount: totalAmount ? Number(totalAmount) : undefined,
@@ -476,13 +384,6 @@ export function ExpenseBooking() {
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
               </Field>
-
-              <LedgerSuggestions
-                suggestions={ledgerSuggestions}
-                selected={suggestedLedger}
-                onPick={setSuggestedLedger}
-                placeholderHint={!description.trim()}
-              />
 
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Invoice number">
@@ -885,86 +786,6 @@ function ImageEntry({
         </button>
       </div>
     </>
-  );
-}
-
-// --------------------------------------------------------------------------
-// Ledger suggestion list
-// --------------------------------------------------------------------------
-
-function LedgerSuggestions({
-  suggestions,
-  selected,
-  onPick,
-  placeholderHint,
-}: {
-  suggestions: RankedLedger[];
-  selected: string;
-  onPick: (name: string) => void;
-  placeholderHint: boolean;
-}) {
-  return (
-    <div>
-      <div className="flex items-baseline justify-between mb-1.5">
-        <div className="text-xs font-medium text-slate-600">Possible ledgers</div>
-        {selected && (
-          <button
-            type="button"
-            onClick={() => onPick('')}
-            className="text-[10px] text-slate-500 hover:text-slate-700 underline underline-offset-2"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-      {placeholderHint && (
-        <p className="text-[11px] text-slate-500 mb-2">
-          Browsing first 12 expense ledgers. Type above to narrow down.
-        </p>
-      )}
-      {suggestions.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-500">
-          No ledger matches. Try different keywords or pick a party — the AI can still propose one.
-        </div>
-      ) : (
-        <ul className="grid gap-1.5">
-          {suggestions.map(({ ledger, score }) => {
-            const active = selected === ledger.name;
-            return (
-              <li key={ledger.name}>
-                <button
-                  type="button"
-                  onClick={() => onPick(active ? '' : ledger.name)}
-                  className={`w-full text-left rounded-lg border px-3 py-2 transition-colors ${
-                    active
-                      ? 'bg-emerald-50 border-emerald-400'
-                      : 'bg-white border-slate-200 hover:border-slate-400'
-                  }`}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span
-                      className={`text-sm font-medium ${
-                        active ? 'text-emerald-900' : 'text-slate-900'
-                      } truncate`}
-                    >
-                      {ledger.name}
-                    </span>
-                    {score > 0 && (
-                      <span className="text-[10px] uppercase tracking-wider text-slate-400">
-                        match
-                      </span>
-                    )}
-                  </div>
-                  {ledger.group && (
-                    <div className="text-[11px] text-slate-500 truncate">{ledger.group}</div>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
   );
 }
 
