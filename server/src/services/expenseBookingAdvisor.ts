@@ -28,6 +28,11 @@ export interface ManualExpenseEntry {
   currency?: string;
 }
 
+export interface InvoiceAttachment {
+  data: string;
+  mime: string;
+}
+
 interface NormalizedTallyMaster {
   groups?: { name: string; parent: string | null; isRevenue?: boolean }[];
   ledgers?: { name: string; group: string | null; gst?: boolean; tds?: boolean }[];
@@ -40,7 +45,8 @@ interface NormalizedTallyMaster {
 export interface ExpenseAdviceRequest {
   tallyMaster: NormalizedTallyMaster;
   answers: ExpenseScenarioAnswers;
-  manualEntry: ManualExpenseEntry;
+  manualEntry?: ManualExpenseEntry;
+  attachments?: InvoiceAttachment[];
 }
 
 export interface BookingLine {
@@ -84,15 +90,18 @@ export interface ExpenseAdvice {
 function buildPrompt(
   master: NormalizedTallyMaster,
   answers: ExpenseScenarioAnswers,
-  manualEntry: ManualExpenseEntry
+  manualEntry: ManualExpenseEntry | undefined,
+  attachmentCount: number
 ): string {
-  const total = manualEntry.totalAmount;
-  const gst = manualEntry.gstAmount;
-  const base = total != null && gst != null ? +(total - gst).toFixed(2) : null;
-  const manualClause = `3. The operator entered the expense manually (no invoice scan). Use these inputs verbatim — do NOT invent vendor names, amounts or invoice numbers. If a value is missing, leave the corresponding line amount as null.
+  let inputClause: string;
+  if (manualEntry) {
+    const total = manualEntry.totalAmount;
+    const gst = manualEntry.gstAmount;
+    const base = total != null && gst != null ? +(total - gst).toFixed(2) : null;
+    inputClause = `3. The operator entered the expense MANUALLY (no invoice scan). Use these inputs verbatim — do NOT invent vendor names, amounts or invoice numbers. If a value is missing, leave the corresponding line amount as null.
 
 Operator inputs:
-- Description: ${manualEntry.description}
+- Description: ${manualEntry.description || '(none)'}
 - Operator-picked ledger hint: ${manualEntry.suggestedLedger || '(none — choose the closest expense ledger from master)'}
 - Invoice number: ${manualEntry.invoiceNumber || '(missing)'}
 - Invoice date: ${manualEntry.invoiceDate || '(missing — leave date for the operator to set in Tally)'}
@@ -100,16 +109,28 @@ Operator inputs:
 - GST amount: ${gst != null ? gst : '(missing)'}
 - Implied taxable base (total - GST): ${base != null ? base : '(cannot compute)'}
 - Currency: ${manualEntry.currency || 'INR'}`;
+  } else if (attachmentCount === 1) {
+    inputClause = `3. ONE invoice attachment (image or PDF). Extract verbatim: vendor name, vendor GSTIN, invoice number, invoice date, taxable base, GST amount, total, currency. Echo all of these into "invoiceExtract". Use the extracted base / GST / total to fill in the booking line amounts.`;
+  } else {
+    inputClause = `3. ${attachmentCount} invoice attachments — these are sequential pages of the SAME invoice. Read them as one document and extract: vendor name, vendor GSTIN, invoice number, invoice date, taxable base, GST amount, total, currency. Echo all of these into "invoiceExtract".`;
+  }
 
   return `You are a senior accountant booking an expense in Tally Prime for Heatronics.
 
 You will be given:
 1. The Heatronics Tally master (JSON) — every group, ledger, voucher type and cost centre that exists in the books.
 2. A scenario the operator answered.
-${manualClause}
+${inputClause}
 
 ## Heatronics company facts (HARD CONSTRAINTS)
-- GST registration: Uttar Pradesh (UP). Use Input CGST + Input SGST when the vendor's GSTIN starts with "09" (UP) or vendor state is UP. Use Input IGST otherwise. Pick the matching ledger names from the master's "GST Input" group.
+- Heatronics is registered for GST in Uttar Pradesh (state code 09). DEFAULT to intra-state CGST + SGST (split the GST amount equally between Input CGST and Input SGST). Switch to Input IGST ONLY when the vendor's GSTIN starts with anything other than "09", or the vendor's billing state on the invoice is clearly outside UP, or the vendor is foreign (origin = Foreign). When in doubt, assume intra-UP CGST+SGST and add a one-line warning asking the operator to confirm vendor state. Pick the exact GST ledger names from the master (group "Duties & Taxes" / "GST Input" — match case and punctuation).
+- TDS: when the operator says TDS = Yes, you MUST add a Cr line for the appropriate TDS Payable ledger from the master. Choose the section based on the expense:
+    · 194C  → Contractor / freight / job-work / courier / printing
+    · 194J  → Professional fees / consultancy / technical services / legal / CA / CS
+    · 194-I → Rent (building, plant, equipment)
+    · 194H  → Brokerage / commission
+    · 194-O → E-commerce operator (where applicable)
+  Match the closest existing TDS ledger name in the master. If TDS = No, add NO TDS line. If TDS = Unknown, add a warning so the operator picks.
 - Voucher types you may use for expense booking: ONLY "Purchase-Services" (default for any operating expense / service / subscription) and "Purchase-Capital" (for capital goods — computers, machinery, furniture, fixed assets). Do NOT use Payment, Journal, Receipt, Contra. Bank-side payment is booked separately during bank reconciliation and is OUT OF SCOPE for this tool.
 - Cost centres: pick from the master's Channel-category cost centres only (HO, D2C, ECOM, OEM, OFFLINE, QCOM). If the expense doesn't fit a specific channel, default to HO.
 - Voucher number: leave it to Tally's auto-numbering (your output should NOT include a voucher number).
@@ -175,7 +196,10 @@ ${JSON.stringify(master)}
   }
 }
 
-For invoiceExtract: echo back the operator's manual inputs verbatim. Use the selected party (if any) for "vendor", the operator's invoice number/date for those fields, the operator's totalAmount for "amount", gstAmount for "gstAmount", and currency. Use null for any value the operator left blank. The Tally XML export uses these fields directly — do not change them.
+For invoiceExtract:
+- In MANUAL mode: echo back the operator's inputs verbatim — selected party for "vendor", operator's invoice number/date/total/gstAmount/currency. Use null for any value the operator left blank.
+- In IMAGE mode: extract the fields by reading the invoice image(s) / PDF. Be thorough; populate every field you can read.
+The Tally XML export uses these fields directly — do not invent values.
 Use null for line amounts you cannot determine. Stages must be in chronological order. There must be at least one stage.`;
 }
 
@@ -302,8 +326,17 @@ function validateAgainstMaster(advice: ExpenseAdvice, master: NormalizedTallyMas
 export async function getExpenseBookingAdvice(
   req: ExpenseAdviceRequest
 ): Promise<ExpenseAdvice> {
-  const prompt = buildPrompt(req.tallyMaster, req.answers, req.manualEntry);
+  const attachments = req.attachments || [];
+  if (!req.manualEntry && attachments.length === 0) {
+    throw new Error('Either manualEntry or attachments must be provided');
+  }
+  const prompt = buildPrompt(req.tallyMaster, req.answers, req.manualEntry, attachments.length);
   const parts: GeminiPart[] = [{ text: prompt }];
+  for (const a of attachments) {
+    if (a.data && a.mime) {
+      parts.push({ inline_data: { mime_type: a.mime, data: a.data } });
+    }
+  }
   const raw = await callGemini(parts);
   const advice = parseJsonFromText(raw);
   return validateAgainstMaster(advice, req.tallyMaster);

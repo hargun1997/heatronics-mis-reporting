@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useTallyMaster } from '../../data/tally/useTallyMaster';
 import type { TallyMaster, TallyLedger } from '../../data/tally/useTallyMaster';
@@ -6,7 +6,7 @@ import { buildTallyXml } from '../../data/tally/buildTallyXml';
 import type { ExportSummary } from '../../data/tally/buildTallyXml';
 import { MasterPanel } from './MasterPanel';
 
-const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v2';
+const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v3';
 
 function readPersistedQueue(): QueueItem[] {
   try {
@@ -68,6 +68,8 @@ interface ExpenseAdvice {
   } | null;
 }
 
+type EntryMode = 'manual' | 'image';
+
 interface ManualEntry {
   description: string;
   suggestedLedger: string;
@@ -76,6 +78,15 @@ interface ManualEntry {
   totalAmount: string;
   gstAmount: string;
   currency: string;
+}
+
+interface Attachment {
+  id: string;
+  data: string;
+  mime: string;
+  previewUrl: string;
+  fileName: string;
+  isPdf: boolean;
 }
 
 interface ScenarioAnswers {
@@ -93,7 +104,9 @@ interface ScenarioAnswers {
 interface QueueItem {
   id: string;
   savedAt: string;
+  mode: EntryMode;
   manualEntry: ManualEntry;
+  attachments: Attachment[];
   answers: ScenarioAnswers;
   advice: ExpenseAdvice;
 }
@@ -199,6 +212,8 @@ export function ExpenseBooking() {
   const [paidFrom, setPaidFrom] = useState('');
   const [notes, setNotes] = useState('');
 
+  const [mode, setMode] = useState<EntryMode>('manual');
+
   const [description, setDescription] = useState('');
   const [suggestedLedger, setSuggestedLedger] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -206,6 +221,9 @@ export function ExpenseBooking() {
   const [totalAmount, setTotalAmount] = useState('');
   const [gstAmount, setGstAmount] = useState('');
   const [currency, setCurrency] = useState('INR');
+
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [advice, setAdvice] = useState<ExpenseAdvice | null>(null);
@@ -240,6 +258,7 @@ export function ExpenseBooking() {
     setTotalAmount('');
     setGstAmount('');
     setCurrency('INR');
+    setAttachments([]);
     setAdvice(null);
     setError(null);
   }
@@ -251,6 +270,7 @@ export function ExpenseBooking() {
       {
         id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         savedAt: new Date().toISOString(),
+        mode,
         manualEntry: {
           description,
           suggestedLedger,
@@ -260,6 +280,7 @@ export function ExpenseBooking() {
           gstAmount,
           currency,
         },
+        attachments,
         answers: {
           vendorOrigin,
           paymentTiming,
@@ -281,49 +302,88 @@ export function ExpenseBooking() {
     setQueue((prev) => prev.filter((q) => q.id !== id));
   }
 
+  function onPickFiles(files: FileList) {
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1] || '';
+        const mime =
+          file.type ||
+          (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        const isPdf = mime === 'application/pdf';
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            data: base64,
+            mime,
+            previewUrl: result,
+            fileName: file.name || (isPdf ? 'document.pdf' : 'photo.jpg'),
+            isPdf,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  }
+
   async function onSubmit() {
     if (!master) {
       setError('Tally master not loaded yet.');
       return;
     }
-    if (!description.trim()) {
-      setError('Please describe the expense (a short note like "AWS subscription" or "courier charges").');
+    if (mode === 'manual' && !description.trim() && !party) {
+      setError('Describe the expense or pick a party so the AI knows what to book.');
+      return;
+    }
+    if (mode === 'image' && attachments.length === 0) {
+      setError('Add at least one invoice photo or PDF, or switch to manual entry.');
       return;
     }
     setLoading(true);
     setError(null);
     setAdvice(null);
     try {
+      const body: Record<string, unknown> = {
+        tallyMaster: master,
+        answers: {
+          vendorOrigin,
+          paymentTiming,
+          gstApplicable,
+          tdsApplicable,
+          expenseType,
+          party: party || undefined,
+          costCentre: costCentre || undefined,
+          paidFrom: paidFrom || undefined,
+          notes: notes || undefined,
+        },
+      };
+      if (mode === 'manual') {
+        body.manualEntry = {
+          description: description.trim(),
+          suggestedLedger: suggestedLedger || undefined,
+          invoiceNumber: invoiceNumber || undefined,
+          invoiceDate: invoiceDate || undefined,
+          totalAmount: totalAmount ? Number(totalAmount) : undefined,
+          gstAmount: gstAmount ? Number(gstAmount) : undefined,
+          currency: currency || undefined,
+        };
+      } else {
+        body.attachments = attachments.map((a) => ({ data: a.data, mime: a.mime }));
+      }
       const res = await fetch('/api/expense-booking/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tallyMaster: master,
-          answers: {
-            vendorOrigin,
-            paymentTiming,
-            gstApplicable,
-            tdsApplicable,
-            expenseType,
-            party: party || undefined,
-            costCentre: costCentre || undefined,
-            paidFrom: paidFrom || undefined,
-            notes: notes || undefined,
-          },
-          manualEntry: {
-            description: description.trim(),
-            suggestedLedger: suggestedLedger || undefined,
-            invoiceNumber: invoiceNumber || undefined,
-            invoiceDate: invoiceDate || undefined,
-            totalAmount: totalAmount ? Number(totalAmount) : undefined,
-            gstAmount: gstAmount ? Number(gstAmount) : undefined,
-            currency: currency || undefined,
-          },
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Request failed (${res.status})`);
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Request failed (${res.status})`);
       }
       const data: ExpenseAdvice = await res.json();
       setAdvice(data);
@@ -398,81 +458,94 @@ export function ExpenseBooking() {
           />
         )}
 
-        {/* 1. Describe the expense + suggested ledgers */}
+        {/* 1. Capture the invoice — manual entry OR photo */}
         <Section
-          title="1. Describe the expense"
-          subtitle="Type a few words and pick the ledger from the suggestions below."
+          title="1. Capture the invoice"
+          subtitle="Type the party and billing details, or snap the invoice. Either way the AI picks the right ledger, GST and TDS treatment."
         >
-          <Field label="Expense description">
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder='e.g. "AWS subscription", "courier charges", "office rent"'
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+          <ModeToggle mode={mode} onChange={setMode} />
+
+          {mode === 'manual' ? (
+            <>
+              <Field label="Expense description">
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder='e.g. "AWS subscription", "courier charges", "office rent"'
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+              </Field>
+
+              <LedgerSuggestions
+                suggestions={ledgerSuggestions}
+                selected={suggestedLedger}
+                onPick={setSuggestedLedger}
+                placeholderHint={!description.trim()}
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Invoice number">
+                  <input
+                    type="text"
+                    value={invoiceNumber}
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                    placeholder="e.g. INV-2026-04-0123"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </Field>
+                <Field label="Invoice date">
+                  <input
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </Field>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Field label="Total amount">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={totalAmount}
+                    onChange={(e) => setTotalAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </Field>
+                <Field label="GST amount">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={gstAmount}
+                    onChange={(e) => setGstAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  />
+                </Field>
+                <Field label="Currency">
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="INR">INR</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                  </select>
+                </Field>
+              </div>
+            </>
+          ) : (
+            <ImageEntry
+              attachments={attachments}
+              fileInputRef={fileInputRef}
+              onPickFiles={onPickFiles}
+              onRemove={removeAttachment}
             />
-          </Field>
-
-          <LedgerSuggestions
-            suggestions={ledgerSuggestions}
-            selected={suggestedLedger}
-            onPick={setSuggestedLedger}
-            placeholderHint={!description.trim()}
-          />
-
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Invoice number">
-              <input
-                type="text"
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="e.g. INV-2026-04-0123"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-              />
-            </Field>
-            <Field label="Invoice date">
-              <input
-                type="date"
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <Field label="Total amount">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={totalAmount}
-                onChange={(e) => setTotalAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-              />
-            </Field>
-            <Field label="GST amount">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={gstAmount}
-                onChange={(e) => setGstAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-              />
-            </Field>
-            <Field label="Currency">
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-              >
-                <option value="INR">INR</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-              </select>
-            </Field>
-          </div>
+          )}
         </Section>
 
         {/* 2. Scenario */}
@@ -700,6 +773,119 @@ function Banner({
     emerald: 'bg-emerald-50 border-emerald-200 text-emerald-800',
   };
   return <div className={`rounded-lg border px-3 py-2 text-sm ${map[tone]}`}>{children}</div>;
+}
+
+// --------------------------------------------------------------------------
+// Mode toggle: manual entry vs invoice photo
+// --------------------------------------------------------------------------
+
+function ModeToggle({ mode, onChange }: { mode: EntryMode; onChange: (m: EntryMode) => void }) {
+  return (
+    <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs font-medium">
+      {(
+        [
+          ['manual', 'Manual entry'],
+          ['image', 'Invoice photo / PDF'],
+        ] as [EntryMode, string][]
+      ).map(([v, lbl]) => {
+        const active = mode === v;
+        return (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            className={`px-3 py-1.5 rounded-md transition-colors ${
+              active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            {lbl}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Invoice photo / PDF entry
+// --------------------------------------------------------------------------
+
+function ImageEntry({
+  attachments,
+  fileInputRef,
+  onPickFiles,
+  onRemove,
+}: {
+  attachments: Attachment[];
+  fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
+  onPickFiles: (files: FileList) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        multiple
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            onPickFiles(e.target.files);
+            e.target.value = '';
+          }
+        }}
+      />
+      <div className="flex flex-col gap-3">
+        {attachments.length > 0 && (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {attachments.map((a, i) => (
+              <div
+                key={a.id}
+                className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50"
+              >
+                {a.isPdf ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 px-2">
+                    <svg className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    <span className="text-[10px] font-medium uppercase tracking-wider">PDF</span>
+                    <span className="text-[10px] truncate w-full text-center px-1">{a.fileName}</span>
+                  </div>
+                ) : (
+                  <img src={a.previewUrl} alt={`page ${i + 1}`} className="w-full h-full object-cover" />
+                )}
+                <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-white/90 rounded px-1.5 py-0.5 text-slate-700">
+                  {i + 1}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemove(a.id)}
+                  aria-label="Remove attachment"
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 border border-slate-200 hover:bg-white text-slate-700 flex items-center justify-center text-xs"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white py-4 text-sm text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
+        >
+          {attachments.length === 0 ? 'Take photo / pick image or PDF' : 'Add another page'}
+        </button>
+      </div>
+    </>
+  );
 }
 
 // --------------------------------------------------------------------------
