@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-04-29T13:09:19.368Z",
+  "generatedAt": "2026-05-04T13:27:24.818Z",
   "company": "Heatronics",
   "groups": [
     {
       "name": "Admin & General Expenses",
       "parent": "Indirect Expenses",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Advance from Parties",
@@ -20,7 +20,7 @@
     {
       "name": "After-Sales & Warranty",
       "parent": "Indirect Expenses",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Amazon Channel Fees",
@@ -28,14 +28,9 @@
       "isRevenue": false
     },
     {
-      "name": "Amazon FBA Sales",
+      "name": "Amazon Sales",
       "parent": "Ecommerce Sales",
-      "isRevenue": false
-    },
-    {
-      "name": "Amazon FBM Sales",
-      "parent": "Ecommerce Sales",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Bank Accounts",
@@ -65,7 +60,7 @@
     {
       "name": "Brand & Content Marketing",
       "parent": "Sales & Marketing",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Capital Account",
@@ -115,12 +110,12 @@
     {
       "name": "D2C Logistics",
       "parent": "D2C Fees",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "D2C Marketing",
       "parent": "Sales & Marketing",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "D2C Payment Gateway",
@@ -130,11 +125,6 @@
     {
       "name": "D2C Platform Subscriptions",
       "parent": "Indirect Expenses",
-      "isRevenue": false
-    },
-    {
-      "name": "D2C Receivables",
-      "parent": "Sundry Debtors",
       "isRevenue": false
     },
     {
@@ -168,11 +158,6 @@
       "isRevenue": false
     },
     {
-      "name": "Ecommerce Receivables",
-      "parent": "Sundry Debtors",
-      "isRevenue": false
-    },
-    {
       "name": "Ecommerce Sales",
       "parent": "Sales Accounts",
       "isRevenue": false
@@ -190,7 +175,7 @@
     {
       "name": "Factory Overheads",
       "parent": "Direct Expenses",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Finance Costs",
@@ -245,7 +230,7 @@
     {
       "name": "Inward Freight",
       "parent": "Direct Expenses",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Labour Statutory",
@@ -255,7 +240,7 @@
     {
       "name": "Legal Fees",
       "parent": "Professional Fees",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Loans (Liability)",
@@ -290,12 +275,7 @@
     {
       "name": "OEM Marketing",
       "parent": "Sales & Marketing",
-      "isRevenue": false
-    },
-    {
-      "name": "OEM Receivables",
-      "parent": "Sundry Debtors",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "OEM Sales",
@@ -305,17 +285,12 @@
     {
       "name": "Offline Channel Fees",
       "parent": "Channel Fees & Commissions",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Offline Marketing",
       "parent": "Sales & Marketing",
-      "isRevenue": false
-    },
-    {
-      "name": "Offline Receivables",
-      "parent": "Sundry Debtors",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Offline Sales",
@@ -340,12 +315,12 @@
     {
       "name": "Professional Fees - CA",
       "parent": "Professional Fees",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Professional Fees - CS",
       "parent": "Professional Fees",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Provisions",
@@ -360,21 +335,11 @@
     {
       "name": "Quick Commerce Marketing",
       "parent": "Sales & Marketing",
-      "isRevenue": false
-    },
-    {
-      "name": "Quick Commerce Receivables",
-      "parent": "Sundry Debtors",
-      "isRevenue": false
+      "isRevenue": true
     },
     {
       "name": "Quick Commerce Sales",
       "parent": "Sales Accounts",
-      "isRevenue": false
-    },
-    {
-      "name": "Raw Material Creditors",
-      "parent": "Sundry Creditors",
       "isRevenue": false
     },
     {
@@ -443,12 +408,23 @@
       "isRevenue": false
     },
     {
+      "name": "TDS Receivable",
+      "parent": "Tax Assets",
+      "isRevenue": false
+    },
+    {
       "name": "Unsecured Loans",
       "parent": "Loans (Liability)",
       "isRevenue": false
     }
   ],
   "ledgers": [
+    {
+      "name": "Actartly Technology Private Limited",
+      "group": "Service Creditors",
+      "gst": false,
+      "tds": true
+    },
     {
       "name": "Additional Charges - Purchase",
       "group": "Manufacturing Costs",
@@ -471,18 +447,6 @@
       "supplyType": "Goods"
     },
     {
-      "name": "Advance from Dealers",
-      "group": "Advance from Parties",
-      "gst": false,
-      "tds": false
-    },
-    {
-      "name": "Advance from OEM Customers",
-      "group": "Advance from Parties",
-      "gst": false,
-      "tds": false
-    },
-    {
       "name": "Advance Tax Paid",
       "group": "Tax Assets",
       "gst": false,
@@ -498,7 +462,7 @@
       "name": "Advisory & Consultancy - CA",
       "group": "Professional Fees - CA",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -509,92 +473,30 @@
       "supplyType": "Services"
     },
     {
-      "name": "Amazon B2B Party Receivables",
-      "group": "Ecommerce Receivables",
+      "name": "AMAR SURGICAL INDUSTRIES",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Amazon FBA Stock",
+      "group": "Stock-in-Hand",
       "gst": false,
       "tds": false
     },
     {
-      "name": "Amazon Deals & Coupons Fee",
-      "group": "Ecommerce Marketing",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Amazon Display Ads",
-      "group": "Ecommerce Marketing",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Amazon FBA Sales - B2B",
-      "group": "Amazon FBA Sales",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Goods"
-    },
-    {
-      "name": "Amazon FBA Sales - B2C",
-      "group": "Amazon FBA Sales",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Goods"
-    },
-    {
-      "name": "Amazon FBM Sales - B2B",
-      "group": "Amazon FBM Sales",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Goods"
-    },
-    {
-      "name": "Amazon FBM Sales - B2C",
-      "group": "Amazon FBM Sales",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Goods"
-    },
-    {
-      "name": "Amazon Labelling Fee",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Amazon Prep Service Fee",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Amazon Settlement Receivable",
-      "group": "Ecommerce Receivables",
+      "name": "ANIYA INTERNATIONAL",
+      "group": "Sundry Creditors",
       "gst": false,
-      "tds": false
-    },
-    {
-      "name": "Amazon Sponsored Brands",
-      "group": "Ecommerce Marketing",
-      "gst": true,
       "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Amazon Sponsored Products",
-      "group": "Ecommerce Marketing",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
+      "supplyType": "Goods"
     },
     {
       "name": "Annual ROC Filing - CS",
       "group": "Professional Fees - CS",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -605,21 +507,28 @@
       "supplyType": "Services"
     },
     {
+      "name": "APOLLO PRINTECH SYSTEMS",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Audit Fees",
       "group": "Professional Fees - CA",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
-      "name": "Auto Loan - [Bank/NBFC]",
+      "name": "Auto Loan - [Axis Bank]",
       "group": "Secured Loans",
       "gst": false,
       "tds": false
     },
     {
-      "name": "Avanish Porter Exp. A/C",
-      "group": "Indirect Expenses",
+      "name": "Baba Sewing Machine Co.",
+      "group": "Service Creditors",
       "gst": false,
       "tds": false,
       "supplyType": "Services"
@@ -635,27 +544,34 @@
       "name": "BIS / IS Certification",
       "group": "Compliance & Certification",
       "gst": false,
-      "tds": false
+      "tds": true
     },
     {
       "name": "Bitespeed Subscription",
       "group": "D2C Platform Subscriptions",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
+    },
+    {
+      "name": "BK ELECTRONICS",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "Blinkit Advertising",
       "group": "Quick Commerce Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Blinkit Banners & Visibility Fee",
       "group": "Quick Commerce Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -664,12 +580,6 @@
       "gst": true,
       "tds": false,
       "supplyType": "Goods"
-    },
-    {
-      "name": "Blinkit Settlement Receivable",
-      "group": "Quick Commerce Receivables",
-      "gst": false,
-      "tds": false
     },
     {
       "name": "BNPL Processing Fee - Snapmint",
@@ -682,7 +592,7 @@
       "name": "Board Meeting & AGM Expenses",
       "group": "Compliance & Certification",
       "gst": false,
-      "tds": false
+      "tds": true
     },
     {
       "name": "Bonus Payable",
@@ -694,21 +604,21 @@
       "name": "Brand Boost - Shiprocket",
       "group": "D2C Logistics",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
+    },
+    {
+      "name": "Brandbuddies Marketing Solution Private Limited",
+      "group": "Service Creditors",
+      "gst": false,
+      "tds": true
     },
     {
       "name": "Business Development Expenses",
       "group": "Admin & General Expenses",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
-    },
-    {
-      "name": "Capital Raise - Dedicated Bank A/C",
-      "group": "Bank Accounts",
-      "gst": false,
-      "tds": false
     },
     {
       "name": "Cash",
@@ -717,7 +627,7 @@
       "tds": false
     },
     {
-      "name": "Cash Credit Limit - [Bank]",
+      "name": "Cash Credit Limit - [Central Bank]",
       "group": "Bank OD A/c",
       "gst": false,
       "tds": false
@@ -744,13 +654,7 @@
       "name": "CDSCO Licence & Renewal",
       "group": "Compliance & Certification",
       "gst": false,
-      "tds": false
-    },
-    {
-      "name": "Central Bank of India - Operating A/C",
-      "group": "Bank Accounts",
-      "gst": false,
-      "tds": false
+      "tds": true
     },
     {
       "name": "CGST Input - 0.125%",
@@ -828,28 +732,27 @@
       "name": "Checkout Fee - Shopflo",
       "group": "D2C Checkout",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
-      "name": "Closing Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
+      "name": "Cityline Telecommunications Private Limited",
+      "group": "Service Creditors",
+      "gst": false,
+      "tds": true
     },
     {
       "name": "COD Handling Charge - Shiprocket",
       "group": "D2C Logistics",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Commission - Blinkit",
       "group": "Blinkit Channel Fees",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -862,7 +765,7 @@
       "name": "Content Creation - Agency",
       "group": "Brand & Content Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -882,14 +785,14 @@
       "name": "Delivery Boost - Shiprocket",
       "group": "D2C Logistics",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Demo & Sampling - Offline",
       "group": "Offline Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -897,6 +800,12 @@
       "group": "Admin & General Expenses",
       "gst": false,
       "tds": false
+    },
+    {
+      "name": "Digistex4u",
+      "group": "Service Creditors",
+      "gst": false,
+      "tds": true
     },
     {
       "name": "Director Loan - Unsecured",
@@ -920,21 +829,28 @@
       "name": "Dispute / Litigation Fees",
       "group": "Legal Fees",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Early COD Remittance Fee - Shiprocket",
       "group": "D2C Logistics",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
-      "name": "Easebuzz Collection A/c",
+      "name": "Easebuzz Wire A/C",
       "group": "Bank Accounts",
       "gst": false,
       "tds": false
+    },
+    {
+      "name": "EIGHT FOLD ENTERPRISES",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "EPF Contribution - Employer",
@@ -961,6 +877,13 @@
       "tds": false
     },
     {
+      "name": "ESCORTS SURGICALS",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "ESI Contribution - Employer",
       "group": "Employee Costs",
       "gst": false,
@@ -985,6 +908,13 @@
       "tds": false
     },
     {
+      "name": "ETERNAL CARE THERMOELECTRIC",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Factory Consumables",
       "group": "Factory Overheads",
       "gst": true,
@@ -1001,55 +931,27 @@
       "name": "Factory Licence & State Compliances",
       "group": "Compliance & Certification",
       "gst": false,
-      "tds": false
+      "tds": true
     },
     {
       "name": "Factory Rent",
       "group": "Factory Overheads",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
-      "name": "FBA Fulfillment Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
+      "name": "FAMILY CARE REHABILITATION",
+      "group": "Sundry Debtors",
+      "gst": false,
       "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "FBA Long-Term Storage Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "FBA Monthly Storage Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "FBA Weight Handling Shipping Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "FBM Easy Ship Charges - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
+      "supplyType": "Goods"
     },
     {
       "name": "FCGPR / FDI Compliance",
       "group": "Professional Fees - CS",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1059,17 +961,24 @@
       "tds": false
     },
     {
+      "name": "FIVE DEGREE",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Forward Delivery - Shiprocket",
       "group": "D2C Logistics",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
-      "name": "Freight Inward - RM & Packing",
+      "name": "Freight Inward - Porter/Transport",
       "group": "Inward Freight",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1082,7 +991,7 @@
       "name": "Google Ads (Direct)",
       "group": "D2C Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1113,26 +1022,34 @@
       "supplyType": "Goods"
     },
     {
-      "name": "GT Party Receivables",
-      "group": "Offline Receivables",
-      "gst": false,
-      "tds": false
-    },
-    {
       "name": "GT/MT Trade Promotions",
       "group": "Offline Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
-      "name": "HDFC Bank - Secondary A/C",
+      "name": "HDFC Bank  A/C",
       "group": "Bank Accounts",
       "gst": false,
       "tds": false
     },
     {
-      "name": "ICICI Bank - Secondary A/C",
+      "name": "HEAVEN ENTERPRISES",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Hotway Thermal Technology",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "ICICI Bank  A/C",
       "group": "Bank Accounts",
       "gst": false,
       "tds": false
@@ -1210,36 +1127,44 @@
       "tds": false
     },
     {
+      "name": "IMPACT VISION",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Income Tax Payable",
       "group": "Labour Statutory",
       "gst": false,
       "tds": false
     },
     {
-      "name": "Income Tax Refund Due",
+      "name": "Income Tax Refund",
       "group": "Tax Assets",
       "gst": false,
       "tds": false
     },
     {
+      "name": "INDOTREX ELECTRONICS INDIA PVT. LTD.",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Influencer / Affiliate Marketing",
       "group": "Brand & Content Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Influencer Marketing - D2C",
       "group": "D2C Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
-    },
-    {
-      "name": "Intangible - Software",
-      "group": "Misc. Expenses (ASSET)",
-      "gst": false,
-      "tds": false
     },
     {
       "name": "Interest Income",
@@ -1264,8 +1189,29 @@
       "name": "ISO 13485 Certification",
       "group": "Compliance & Certification",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
+    },
+    {
+      "name": "Jagwati Enterprises",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "JAI DURGA TEXTILE ( JAI MAA TEXTILE)",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "JANAK PACKERS",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "Job Work Charges",
@@ -1273,6 +1219,34 @@
       "gst": true,
       "tds": true,
       "supplyType": "Services"
+    },
+    {
+      "name": "KHANNA BOND SOLDER MANUFACTURERS PRIVATE LIMITED",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "KIRTI LIGHTINGS",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "KVR TRADING COMPANY",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "LAXMI MEDICOSE (MUZZAFFARNAGAR)",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "Leave Encashment Payable",
@@ -1284,14 +1258,7 @@
       "name": "Legal Retainer / Advisory",
       "group": "Legal Fees",
       "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Lightning Deal Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1305,14 +1272,8 @@
       "name": "Logistics / Handling Fee - Blinkit",
       "group": "Blinkit Channel Fees",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
-    },
-    {
-      "name": "Logistics Vendor Creditors",
-      "group": "Service Creditors",
-      "gst": false,
-      "tds": false
     },
     {
       "name": "Lost/Damage Credit Received - Shiprocket",
@@ -1334,21 +1295,8 @@
       "tds": false
     },
     {
-      "name": "Maintenance Services",
-      "group": "Indirect Expenses",
-      "gst": false,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
       "name": "Manufacturing Wages",
       "group": "Manufacturing Costs",
-      "gst": false,
-      "tds": false
-    },
-    {
-      "name": "Materiovigilance (MvPI) Compliance",
-      "group": "Compliance & Certification",
       "gst": false,
       "tds": false
     },
@@ -1356,14 +1304,21 @@
       "name": "Media Buying Agency - Google/FB",
       "group": "D2C Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
+    },
+    {
+      "name": "MEDINATAL HEALTHCARE PVT LTD (JAIPUR)",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "Meta Ads (Direct)",
       "group": "D2C Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1380,12 +1335,6 @@
       "supplyType": "Services"
     },
     {
-      "name": "MT Party Receivables",
-      "group": "Offline Receivables",
-      "gst": false,
-      "tds": false
-    },
-    {
       "name": "MT Sales",
       "group": "Modern Trade (MT) Sales",
       "gst": true,
@@ -1393,23 +1342,31 @@
       "supplyType": "Goods"
     },
     {
+      "name": "N KRISHNA PHARMACEUTICAL & RESEARCH CO",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "NANAK SURGICAL ENTERPRISES",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "OEM Client Acquisition",
       "group": "OEM Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
-    },
-    {
-      "name": "OEM Customer Receivables",
-      "group": "OEM Receivables",
-      "gst": false,
-      "tds": false
     },
     {
       "name": "OEM Outward Logistics",
       "group": "OEM Channel Fees",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1423,7 +1380,7 @@
       "name": "OEM Samples & Demo Cost",
       "group": "OEM Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1436,15 +1393,22 @@
       "name": "Office Rent",
       "group": "Admin & General Expenses",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Other SaaS (Domestic)",
       "group": "Operations Platform Subscriptions",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
+    },
+    {
+      "name": "P RAVI & CO. (AGENCIES)",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "PG Transaction Fee - Easebuzz",
@@ -1457,14 +1421,14 @@
       "name": "Physio Affiliate Commission",
       "group": "Offline Channel Fees",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Physio Channel Marketing",
       "group": "Offline Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1475,10 +1439,11 @@
       "supplyType": "Goods"
     },
     {
-      "name": "Physio Clinic Receivables",
-      "group": "Offline Receivables",
+      "name": "PINNACLE GLOBAL TRADE",
+      "group": "Sundry Debtors",
       "gst": false,
-      "tds": false
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "Plant & Machinery",
@@ -1487,8 +1452,21 @@
       "tds": false
     },
     {
+      "name": "PRABHA THREAD & ACCESSORIES",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Price Difference / Rate Revision",
       "group": "After-Sales & Warranty",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Prime Solutions",
+      "group": "Service Creditors",
       "gst": false,
       "tds": false
     },
@@ -1503,14 +1481,7 @@
       "name": "Product Testing & Lab Charges",
       "group": "Compliance & Certification",
       "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Professional Exp.",
-      "group": "Indirect Expenses",
-      "gst": false,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1538,17 +1509,24 @@
       "tds": false
     },
     {
+      "name": "RAJDHANI SYNTEX PRIVATE LIMITED",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "RAVI TELEINFOMATICS",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Raw Materials Stock",
       "group": "Stock-in-Hand",
       "gst": false,
       "tds": false
-    },
-    {
-      "name": "Referral Commission - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
     },
     {
       "name": "Refund Processing Fee - Easebuzz",
@@ -1564,17 +1542,10 @@
       "tds": false
     },
     {
-      "name": "Removal / Disposal Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
       "name": "Repairs & Maintenance",
       "group": "Admin & General Expenses",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1587,21 +1558,14 @@
       "name": "Retargeting / Remarketing Ads",
       "group": "D2C Marketing",
       "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Returns Processing Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Returns Processing Fee - Blinkit",
       "group": "Blinkit Channel Fees",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1619,16 +1583,10 @@
       "supplyType": "Goods"
     },
     {
-      "name": "RM Supplier Creditors",
-      "group": "Raw Material Creditors",
-      "gst": false,
-      "tds": false
-    },
-    {
       "name": "ROC Govt Filing Fees",
       "group": "Compliance & Certification",
       "gst": false,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1647,27 +1605,55 @@
       "name": "RTO Charge - Shiprocket",
       "group": "D2C Logistics",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "RTO Score - Shiprocket",
       "group": "D2C Logistics",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
+    },
+    {
+      "name": "S S MEDICAL EQUIPMENTS (BAREILLY)",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "SAI IMPEX INC",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "Salary & Wages",
       "group": "Employee Costs",
       "gst": false,
-      "tds": false
+      "tds": true
     },
     {
       "name": "Salary Payable",
       "group": "Employee Liabilities",
       "gst": false,
       "tds": false
+    },
+    {
+      "name": "SATISH DUBEY",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "SB ENERGY SOLUTION",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
       "name": "Scrap Sales",
@@ -1677,10 +1663,17 @@
       "supplyType": "Goods"
     },
     {
+      "name": "SDM PACKAGING SOLUTIONS",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Secretarial Compliance",
       "group": "Professional Fees - CS",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1692,12 +1685,6 @@
     {
       "name": "Security Deposits",
       "group": "Deposits (Asset)",
-      "gst": false,
-      "tds": false
-    },
-    {
-      "name": "Service Vendor Creditors",
-      "group": "Service Creditors",
       "gst": false,
       "tds": false
     },
@@ -1774,29 +1761,10 @@
       "tds": false
     },
     {
-      "name": "Share Application Money Pending Allotment",
-      "group": "Capital Raising",
+      "name": "Shiprocket Limited",
+      "group": "Service Creditors",
       "gst": false,
-      "tds": false
-    },
-    {
-      "name": "Share Issue Expenses",
-      "group": "Misc. Expenses (ASSET)",
-      "gst": false,
-      "tds": false
-    },
-    {
-      "name": "Shipping Chargeback Fee - Amazon",
-      "group": "Amazon Channel Fees",
-      "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "Shiprocket Collection A/c",
-      "group": "Bank Accounts",
-      "gst": false,
-      "tds": false
+      "tds": true
     },
     {
       "name": "SHIPROCKET PRIVATE LIMITED",
@@ -1809,12 +1777,18 @@
       "name": "Shopflo Annual Plan",
       "group": "D2C Platform Subscriptions",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
+      "name": "SHOPFLO TECHNOLOGIES PVT LTD",
+      "group": "Service Creditors",
+      "gst": false,
+      "tds": true
+    },
+    {
       "name": "Shopify COD Receivable",
-      "group": "D2C Receivables",
+      "group": "Sundry Debtors",
       "gst": false,
       "tds": false
     },
@@ -1826,8 +1800,8 @@
       "supplyType": "Goods"
     },
     {
-      "name": "Shopify Prepaid Receivable",
-      "group": "D2C Receivables",
+      "name": "Shopify Prepaid Debtors",
+      "group": "Sundry Debtors",
       "gst": false,
       "tds": false
     },
@@ -1842,21 +1816,22 @@
       "name": "Shopify Subscription",
       "group": "D2C Platform Subscriptions",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
-      "name": "Snapmint Collection A/c",
-      "group": "Bank Accounts",
+      "name": "SONIA PLAST CRAFT",
+      "group": "Sundry Creditors",
       "gst": false,
-      "tds": false
+      "tds": false,
+      "supplyType": "Goods"
     },
     {
-      "name": "Snapmint Platform Fee",
-      "group": "D2C Platform Subscriptions",
-      "gst": true,
+      "name": "SR ENTERPRISES (RANJEET KUSHWAHA)",
+      "group": "Sundry Creditors",
+      "gst": false,
       "tds": false,
-      "supplyType": "Services"
+      "supplyType": "Goods"
     },
     {
       "name": "Staff Welfare",
@@ -1866,16 +1841,10 @@
       "supplyType": "Services"
     },
     {
-      "name": "Stamp Duty - Share Issuance",
-      "group": "Capital Raising",
-      "gst": false,
-      "tds": false
-    },
-    {
       "name": "Storage Fee - Blinkit",
       "group": "Blinkit Channel Fees",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -1885,37 +1854,32 @@
       "tds": false
     },
     {
+      "name": "SUPREME CIRCUITS",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Tally Plugin - Tech Account",
       "group": "Operations Platform Subscriptions",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Tally Prime Subscription",
       "group": "Operations Platform Subscriptions",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Tax Filing Fees - CA",
       "group": "Professional Fees - CA",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
-    },
-    {
-      "name": "TCS Credit",
-      "group": "Tax Assets",
-      "gst": false,
-      "tds": false
-    },
-    {
-      "name": "TCS Credit Receivable",
-      "group": "Tax Assets",
-      "gst": false,
-      "tds": false
     },
     {
       "name": "TDS Payable - 192 (Salary)",
@@ -1966,14 +1930,32 @@
       "tds": false
     },
     {
-      "name": "TDS Receivable",
-      "group": "Tax Assets",
+      "name": "TDS Payable - Interest 194A",
+      "group": "TDS Payable",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "TDS Payable - Rent 194I(B)",
+      "group": "TDS Payable",
       "gst": false,
       "tds": false
     },
     {
       "name": "TDS Receivable - 194A (Bank Interest)",
-      "group": "Tax Assets",
+      "group": "TDS Receivable",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "TDS Receivable - 194C (Ads)",
+      "group": "TDS Receivable",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "TDS Receivable - 194O (ECom)",
+      "group": "TDS Receivable",
       "gst": false,
       "tds": false
     },
@@ -1993,21 +1975,21 @@
       "name": "Trade Marketing Materials",
       "group": "Brand & Content Marketing",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Trademark Registration & Renewal",
       "group": "Compliance & Certification",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Tranzact ERP Subscription",
       "group": "Operations Platform Subscriptions",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -2036,6 +2018,13 @@
       "tds": false
     },
     {
+      "name": "VERIDICUS HEALTH CARE PRIVATE LIMITED",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
       "name": "Warranty Replacement - Product Cost",
       "group": "After-Sales & Warranty",
       "gst": true,
@@ -2043,24 +2032,17 @@
       "supplyType": "Goods"
     },
     {
-      "name": "Warranty Shipping - Shiprocket",
+      "name": "Warranty Shipping - DelhiveryOne",
       "group": "After-Sales & Warranty",
       "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
       "name": "Weight Discrepancy - Shiprocket",
       "group": "D2C Logistics",
       "gst": true,
-      "tds": false,
-      "supplyType": "Services"
-    },
-    {
-      "name": "WhatsApp Notifications - Shiprocket",
-      "group": "D2C Logistics",
-      "gst": true,
-      "tds": false,
+      "tds": true,
       "supplyType": "Services"
     },
     {
@@ -2147,7 +2129,15 @@
       "parent": "Purchase"
     },
     {
+      "name": "Purchase-Expense",
+      "parent": "Purchase"
+    },
+    {
       "name": "Purchase-Job Work",
+      "parent": "Purchase"
+    },
+    {
+      "name": "Purchase-RM",
       "parent": "Purchase"
     },
     {
@@ -2181,22 +2171,6 @@
     {
       "name": "Sales Order",
       "parent": "Sales Order"
-    },
-    {
-      "name": "Sales-Amazon FBA B2B",
-      "parent": "Sales"
-    },
-    {
-      "name": "Sales-Amazon FBA B2C",
-      "parent": "Sales"
-    },
-    {
-      "name": "Sales-Amazon FBM B2B",
-      "parent": "Sales"
-    },
-    {
-      "name": "Sales-Amazon FBM B2C",
-      "parent": "Sales"
     },
     {
       "name": "Sales-Blinkit",

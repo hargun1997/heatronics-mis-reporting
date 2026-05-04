@@ -1,31 +1,47 @@
 #!/usr/bin/env node
 /**
- * Normalize the verbose Tally export at repo-root `Master.json` into a slim
- * JSON the AI Expense Booking tool ships into Gemini's prompt.
+ * Normalize the verbose Tally export at repo-root into a slim JSON the
+ * Expense Booking tool ships into Gemini's prompt.
  *
  * Run from the repo root:
  *   node scripts/normalize-tally-master.mjs
  *
- * Reads:  Master.json  (UTF-16 LE — that's how Tally exports)
+ * Source resolution: picks the newest file matching `Master*.json` in the
+ * repo root (so `Master (9).json`, `Master (10).json` etc. are picked up
+ * automatically as the bookkeeper exports new copies from Tally Prime).
+ *
  * Writes: client/public/data/tally/master.json  (UTF-8, slim)
  *
  * Mirrors the in-browser reducer at
  * client/src/data/tally/reduceTallyExport.ts so the bundled file and a
  * freshly-uploaded one produce identical output.
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
-const SRC = resolve(REPO_ROOT, 'Master.json');
 const DST = resolve(REPO_ROOT, 'client/public/data/tally/master.json');
 
-if (!existsSync(SRC)) {
-  console.error(`Source file not found: ${SRC}`);
+function pickLatestMaster() {
+  const candidates = readdirSync(REPO_ROOT)
+    .filter((f) => /^Master.*\.json$/i.test(f))
+    .map((f) => {
+      const p = join(REPO_ROOT, f);
+      return { path: p, mtimeMs: statSync(p).mtimeMs };
+    });
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return candidates[0].path;
+}
+
+const SRC = pickLatestMaster();
+if (!SRC || !existsSync(SRC)) {
+  console.error(`No Master*.json found in repo root: ${REPO_ROOT}`);
   process.exit(1);
 }
+console.log(`Reading: ${SRC}`);
 
 const buf = readFileSync(SRC);
 let text;

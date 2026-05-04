@@ -18,9 +18,14 @@ export interface ExpenseScenarioAnswers {
   notes?: string;
 }
 
-export interface InvoiceAttachment {
-  data: string;
-  mime: string;
+export interface ManualExpenseEntry {
+  description: string;
+  suggestedLedger?: string;
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  totalAmount?: number;
+  gstAmount?: number;
+  currency?: string;
 }
 
 interface NormalizedTallyMaster {
@@ -35,7 +40,7 @@ interface NormalizedTallyMaster {
 export interface ExpenseAdviceRequest {
   tallyMaster: NormalizedTallyMaster;
   answers: ExpenseScenarioAnswers;
-  attachments?: InvoiceAttachment[];
+  manualEntry: ManualExpenseEntry;
 }
 
 export interface BookingLine {
@@ -79,21 +84,29 @@ export interface ExpenseAdvice {
 function buildPrompt(
   master: NormalizedTallyMaster,
   answers: ExpenseScenarioAnswers,
-  attachmentCount: number
+  manualEntry: ManualExpenseEntry
 ): string {
-  const attachmentClause =
-    attachmentCount === 0
-      ? '3. No invoice attached — work from the scenario alone.'
-      : attachmentCount === 1
-        ? '3. One invoice attachment (image or PDF). Extract: vendor, GSTIN, invoice number, date, total, GST amount, currency.'
-        : `3. ${attachmentCount} attachments — these are sequential pages of the SAME invoice. Read them as one document.`;
+  const total = manualEntry.totalAmount;
+  const gst = manualEntry.gstAmount;
+  const base = total != null && gst != null ? +(total - gst).toFixed(2) : null;
+  const manualClause = `3. The operator entered the expense manually (no invoice scan). Use these inputs verbatim — do NOT invent vendor names, amounts or invoice numbers. If a value is missing, leave the corresponding line amount as null.
+
+Operator inputs:
+- Description: ${manualEntry.description}
+- Operator-picked ledger hint: ${manualEntry.suggestedLedger || '(none — choose the closest expense ledger from master)'}
+- Invoice number: ${manualEntry.invoiceNumber || '(missing)'}
+- Invoice date: ${manualEntry.invoiceDate || '(missing — leave date for the operator to set in Tally)'}
+- Total amount (incl. GST): ${total != null ? total : '(missing)'}
+- GST amount: ${gst != null ? gst : '(missing)'}
+- Implied taxable base (total - GST): ${base != null ? base : '(cannot compute)'}
+- Currency: ${manualEntry.currency || 'INR'}`;
 
   return `You are a senior accountant booking an expense in Tally Prime for Heatronics.
 
 You will be given:
 1. The Heatronics Tally master (JSON) — every group, ledger, voucher type and cost centre that exists in the books.
 2. A scenario the operator answered.
-${attachmentClause}
+${manualClause}
 
 ## Heatronics company facts (HARD CONSTRAINTS)
 - GST registration: Uttar Pradesh (UP). Use Input CGST + Input SGST when the vendor's GSTIN starts with "09" (UP) or vendor state is UP. Use Input IGST otherwise. Pick the matching ledger names from the master's "GST Input" group.
@@ -103,11 +116,11 @@ ${attachmentClause}
 
 ## Booking approach (IMPORTANT — single-stage)
 Because we don't settle against the bank in this tool, every booking is exactly ONE stage = ONE Purchase voucher that creates a creditor for the vendor. Lines:
-- Dr each expense ledger that fits the line items (e.g. "Bank Charges", "Repairs & Maintenance", "Professional Fees - Legal")
-- Dr Input CGST + Input SGST (intra-UP) OR Dr Input IGST (inter-state)
+- Dr the expense ledger. If the operator picked a "ledger hint", use that EXACT ledger name unless it's clearly the wrong category — if you override, add a "warnings" entry explaining why.
+- Dr Input CGST + Input SGST (intra-UP) OR Dr Input IGST (inter-state). Split GST equally between CGST and SGST.
 - Cr the party ledger (Sundry Creditors / Loans & Advances party). If the operator selected a party, use that exact ledger; otherwise pick the closest existing party from the master.
 - Cr TDS Payable ledger if TDS applies
-The total of Dr lines must equal the total of Cr lines.
+The total of Dr lines must equal the total of Cr lines. Use the implied taxable base for the expense Dr line, the operator's GST amount for the GST Dr line(s), and the operator's total for the party Cr line.
 
 ## Multi-stage exceptions
 Use a second stage ONLY for prepaid expenses spread over months (Service expenses paid for a future period). In that case:
@@ -162,8 +175,8 @@ ${JSON.stringify(master)}
   }
 }
 
-If no attachment was provided, set "invoiceExtract" to null.
-Use null for amounts you cannot determine from the inputs. Stages must be in chronological order. There must be at least one stage.`;
+For invoiceExtract: echo back the operator's manual inputs verbatim. Use the selected party (if any) for "vendor", the operator's invoice number/date for those fields, the operator's totalAmount for "amount", gstAmount for "gstAmount", and currency. Use null for any value the operator left blank. The Tally XML export uses these fields directly — do not change them.
+Use null for line amounts you cannot determine. Stages must be in chronological order. There must be at least one stage.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -289,14 +302,8 @@ function validateAgainstMaster(advice: ExpenseAdvice, master: NormalizedTallyMas
 export async function getExpenseBookingAdvice(
   req: ExpenseAdviceRequest
 ): Promise<ExpenseAdvice> {
-  const attachments = req.attachments || [];
-  const prompt = buildPrompt(req.tallyMaster, req.answers, attachments.length);
+  const prompt = buildPrompt(req.tallyMaster, req.answers, req.manualEntry);
   const parts: GeminiPart[] = [{ text: prompt }];
-  for (const a of attachments) {
-    if (a.data && a.mime) {
-      parts.push({ inline_data: { mime_type: a.mime, data: a.data } });
-    }
-  }
   const raw = await callGemini(parts);
   const advice = parseJsonFromText(raw);
   return validateAgainstMaster(advice, req.tallyMaster);
