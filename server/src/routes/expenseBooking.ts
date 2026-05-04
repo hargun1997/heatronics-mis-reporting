@@ -5,7 +5,7 @@ const router = Router();
 
 router.post('/suggest', async (req, res) => {
   try {
-    const { tallyMaster, answers, attachments } = req.body || {};
+    const { tallyMaster, answers, manualEntry } = req.body || {};
 
     if (!tallyMaster || typeof tallyMaster !== 'object') {
       return res.status(400).json({ error: 'tallyMaster (JSON object) is required' });
@@ -13,17 +13,22 @@ router.post('/suggest', async (req, res) => {
     if (!answers || typeof answers !== 'object') {
       return res.status(400).json({ error: 'answers object is required' });
     }
-
-    const cleanedAttachments = Array.isArray(attachments)
-      ? attachments
-          .filter((a) => a && typeof a.data === 'string' && typeof a.mime === 'string')
-          .map((a) => ({ data: a.data, mime: a.mime }))
-      : [];
+    if (!manualEntry || typeof manualEntry !== 'object' || typeof manualEntry.description !== 'string' || !manualEntry.description.trim()) {
+      return res.status(400).json({ error: 'manualEntry.description is required' });
+    }
 
     const advice = await getExpenseBookingAdvice({
       tallyMaster,
       answers,
-      attachments: cleanedAttachments,
+      manualEntry: {
+        description: String(manualEntry.description).trim(),
+        suggestedLedger: manualEntry.suggestedLedger ? String(manualEntry.suggestedLedger) : undefined,
+        invoiceNumber: manualEntry.invoiceNumber ? String(manualEntry.invoiceNumber) : undefined,
+        invoiceDate: manualEntry.invoiceDate ? String(manualEntry.invoiceDate) : undefined,
+        totalAmount: typeof manualEntry.totalAmount === 'number' ? manualEntry.totalAmount : undefined,
+        gstAmount: typeof manualEntry.gstAmount === 'number' ? manualEntry.gstAmount : undefined,
+        currency: manualEntry.currency ? String(manualEntry.currency) : undefined,
+      },
     });
     res.json(advice);
   } catch (err) {

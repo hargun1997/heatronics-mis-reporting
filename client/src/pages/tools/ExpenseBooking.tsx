@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useTallyMaster } from '../../data/tally/useTallyMaster';
-import type { TallyMaster } from '../../data/tally/useTallyMaster';
+import type { TallyMaster, TallyLedger } from '../../data/tally/useTallyMaster';
 import { buildTallyXml } from '../../data/tally/buildTallyXml';
 import type { ExportSummary } from '../../data/tally/buildTallyXml';
 import { MasterPanel } from './MasterPanel';
 
-const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v1';
+const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v2';
 
 function readPersistedQueue(): QueueItem[] {
   try {
@@ -24,8 +24,7 @@ function persistQueue(q: QueueItem[]) {
   try {
     localStorage.setItem(QUEUE_LS_KEY, JSON.stringify(q));
   } catch {
-    // Quota exceeded (each invoice carries base64-encoded attachments).
-    // Surface silently — the queue still works in memory until refresh.
+    // Quota exceeded — queue still works in memory until refresh.
   }
 }
 
@@ -69,13 +68,14 @@ interface ExpenseAdvice {
   } | null;
 }
 
-interface Attachment {
-  id: string;
-  data: string;
-  mime: string;
-  previewUrl: string;
-  fileName: string;
-  isPdf: boolean;
+interface ManualEntry {
+  description: string;
+  suggestedLedger: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  totalAmount: string;
+  gstAmount: string;
+  currency: string;
 }
 
 interface ScenarioAnswers {
@@ -93,7 +93,7 @@ interface ScenarioAnswers {
 interface QueueItem {
   id: string;
   savedAt: string;
-  attachments: Attachment[];
+  manualEntry: ManualEntry;
   answers: ScenarioAnswers;
   advice: ExpenseAdvice;
 }
@@ -103,6 +103,87 @@ const iconExpense = (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h2m4 0h6M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
   </svg>
 );
+
+// ---------------------------------------------------------------------------
+// Ledger suggestion engine
+//
+// Filter the master's ledgers down to expense-side accounts (Indirect /
+// Direct Expenses, plus Fixed Assets when capitalising), then rank by
+// substring match against the user's free-text description and party
+// name. We surface the top matches so the operator can pick the right
+// expense ledger before asking the AI.
+// ---------------------------------------------------------------------------
+
+const EXPENSE_ROOTS = ['Indirect Expenses', 'Direct Expenses'];
+const CAPITAL_ROOTS = ['Fixed Assets'];
+
+interface RankedLedger {
+  ledger: TallyLedger;
+  score: number;
+}
+
+function rootGroupOf(
+  groupName: string | null | undefined,
+  groupByName: Map<string, { name: string; parent: string | null }>
+): string | null {
+  let cursor = groupName || null;
+  const seen = new Set<string>();
+  let last: string | null = cursor;
+  while (cursor && !seen.has(cursor)) {
+    seen.add(cursor);
+    last = cursor;
+    cursor = groupByName.get(cursor)?.parent || null;
+  }
+  return last;
+}
+
+function tokenize(s: string): string[] {
+  return s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 2);
+}
+
+function suggestLedgers(
+  master: TallyMaster | null,
+  expenseType: ExpenseType,
+  description: string,
+  partyHint: string
+): RankedLedger[] {
+  if (!master?.ledgers || !master?.groups) return [];
+  const groupByName = new Map(master.groups.map((g) => [g.name, g]));
+  const allowedRoots = expenseType === 'Capital' ? CAPITAL_ROOTS : EXPENSE_ROOTS;
+  const expenseLedgers = master.ledgers.filter((l) => {
+    const root = rootGroupOf(l.group, groupByName);
+    return root != null && allowedRoots.includes(root);
+  });
+
+  const tokens = [...tokenize(description), ...tokenize(partyHint)].filter(
+    (t, i, a) => a.indexOf(t) === i
+  );
+
+  if (tokens.length === 0) {
+    // No description yet — show a neutral A→Z slice so the operator can browse.
+    return expenseLedgers.slice(0, 12).map((l) => ({ ledger: l, score: 0 }));
+  }
+
+  const scored: RankedLedger[] = [];
+  for (const ledger of expenseLedgers) {
+    const ledgerLower = ledger.name.toLowerCase();
+    const groupLower = (ledger.group || '').toLowerCase();
+    const parent = groupByName.get(ledger.group || '')?.parent || '';
+    const parentLower = parent.toLowerCase();
+    let score = 0;
+    for (const t of tokens) {
+      if (ledgerLower.includes(t)) score += 3;
+      if (groupLower.includes(t)) score += 2;
+      if (parentLower.includes(t)) score += 1;
+    }
+    if (score > 0) scored.push({ ledger, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.ledger.name.localeCompare(b.ledger.name));
+  return scored.slice(0, 12);
+}
 
 export function ExpenseBooking() {
   const masterState = useTallyMaster();
@@ -118,18 +199,29 @@ export function ExpenseBooking() {
   const [paidFrom, setPaidFrom] = useState('');
   const [notes, setNotes] = useState('');
 
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [description, setDescription] = useState('');
+  const [suggestedLedger, setSuggestedLedger] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState('');
+  const [totalAmount, setTotalAmount] = useState('');
+  const [gstAmount, setGstAmount] = useState('');
+  const [currency, setCurrency] = useState('INR');
 
   const [loading, setLoading] = useState(false);
   const [advice, setAdvice] = useState<ExpenseAdvice | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [queue, setQueue] = useState<QueueItem[]>(() => readPersistedQueue());
 
   useEffect(() => {
     persistQueue(queue);
   }, [queue]);
+
+  // Live ledger suggestions update as the user types or changes expenseType.
+  const ledgerSuggestions = useMemo(
+    () => suggestLedgers(master, expenseType, description, party),
+    [master, expenseType, description, party]
+  );
 
   function resetForm() {
     setVendorOrigin('Unknown');
@@ -141,7 +233,13 @@ export function ExpenseBooking() {
     setCostCentre('');
     setPaidFrom('');
     setNotes('');
-    setAttachments([]);
+    setDescription('');
+    setSuggestedLedger('');
+    setInvoiceNumber('');
+    setInvoiceDate('');
+    setTotalAmount('');
+    setGstAmount('');
+    setCurrency('INR');
     setAdvice(null);
     setError(null);
   }
@@ -153,7 +251,15 @@ export function ExpenseBooking() {
       {
         id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         savedAt: new Date().toISOString(),
-        attachments,
+        manualEntry: {
+          description,
+          suggestedLedger,
+          invoiceNumber,
+          invoiceDate,
+          totalAmount,
+          gstAmount,
+          currency,
+        },
         answers: {
           vendorOrigin,
           paymentTiming,
@@ -175,39 +281,13 @@ export function ExpenseBooking() {
     setQueue((prev) => prev.filter((q) => q.id !== id));
   }
 
-  function onPickFiles(files: FileList) {
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1] || '';
-        const mime =
-          file.type ||
-          (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-        const isPdf = mime === 'application/pdf';
-        setAttachments((prev) => [
-          ...prev,
-          {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            data: base64,
-            mime,
-            previewUrl: result,
-            fileName: file.name || (isPdf ? 'document.pdf' : 'photo.jpg'),
-            isPdf,
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function removeAttachment(id: string) {
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
-  }
-
   async function onSubmit() {
     if (!master) {
       setError('Tally master not loaded yet.');
+      return;
+    }
+    if (!description.trim()) {
+      setError('Please describe the expense (a short note like "AWS subscription" or "courier charges").');
       return;
     }
     setLoading(true);
@@ -230,7 +310,15 @@ export function ExpenseBooking() {
             paidFrom: paidFrom || undefined,
             notes: notes || undefined,
           },
-          attachments: attachments.map((a) => ({ data: a.data, mime: a.mime })),
+          manualEntry: {
+            description: description.trim(),
+            suggestedLedger: suggestedLedger || undefined,
+            invoiceNumber: invoiceNumber || undefined,
+            invoiceDate: invoiceDate || undefined,
+            totalAmount: totalAmount ? Number(totalAmount) : undefined,
+            gstAmount: gstAmount ? Number(gstAmount) : undefined,
+            currency: currency || undefined,
+          },
         }),
       });
       if (!res.ok) {
@@ -253,14 +341,12 @@ export function ExpenseBooking() {
       return g.includes('bank') || g.includes('cash');
     }) || [];
 
-  // Cost-centre dropdown shows only Channel-category centres
-  // (HO, D2C, ECOM, OEM, OFFLINE, QCOM). Sales-Person centres are hidden
-  // from the expense flow.
+  // Cost-centre dropdown shows only Channel-category centres.
   const channelCostCentres =
     master?.costCentres?.filter((c) => (c.category || '').toLowerCase() === 'channel') || [];
 
-  // Party dropdown — vendors live under "Sundry Creditors" or "Loans &
-  // Advances". We walk the group hierarchy so a leaf group like
+  // Party dropdown — vendors live under "Sundry Creditors" or
+  // "Loans & Advances". We walk the group hierarchy so a leaf group like
   // "Service Vendors" under "Sundry Creditors" still qualifies.
   const partyLedgers = (() => {
     if (!master?.ledgers || !master?.groups) return [];
@@ -312,71 +398,80 @@ export function ExpenseBooking() {
           />
         )}
 
-        {/* 1. Invoice attachments */}
+        {/* 1. Describe the expense + suggested ledgers */}
         <Section
-          title="1. Invoice"
-          subtitle="Optional. Add multiple pages or a PDF — the AI reads them as one document."
+          title="1. Describe the expense"
+          subtitle="Type a few words and pick the ledger from the suggestions below."
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,application/pdf"
-            multiple
-            capture="environment"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                onPickFiles(e.target.files);
-                e.target.value = '';
-              }
-            }}
+          <Field label="Expense description">
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder='e.g. "AWS subscription", "courier charges", "office rent"'
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+            />
+          </Field>
+
+          <LedgerSuggestions
+            suggestions={ledgerSuggestions}
+            selected={suggestedLedger}
+            onPick={setSuggestedLedger}
+            placeholderHint={!description.trim()}
           />
-          <div className="flex flex-col gap-3">
-            {attachments.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {attachments.map((a, i) => (
-                  <div
-                    key={a.id}
-                    className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-50"
-                  >
-                    {a.isPdf ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 px-2">
-                        <svg className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="text-[10px] font-medium uppercase tracking-wider">PDF</span>
-                        <span className="text-[10px] truncate w-full text-center px-1">{a.fileName}</span>
-                      </div>
-                    ) : (
-                      <img src={a.previewUrl} alt={`page ${i + 1}`} className="w-full h-full object-cover" />
-                    )}
-                    <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-white/90 rounded px-1.5 py-0.5 text-slate-700">
-                      {i + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(a.id)}
-                      aria-label="Remove attachment"
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-white/90 border border-slate-200 hover:bg-white text-slate-700 flex items-center justify-center text-xs"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full rounded-lg border-2 border-dashed border-slate-300 bg-white py-4 text-sm text-slate-600 hover:border-emerald-400 hover:text-emerald-700"
-            >
-              {attachments.length === 0 ? 'Take photo / pick image or PDF' : 'Add another page'}
-            </button>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Invoice number">
+              <input
+                type="text"
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                placeholder="e.g. INV-2026-04-0123"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+              />
+            </Field>
+            <Field label="Invoice date">
+              <input
+                type="date"
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Total amount">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+              />
+            </Field>
+            <Field label="GST amount">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={gstAmount}
+                onChange={(e) => setGstAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+              />
+            </Field>
+            <Field label="Currency">
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+              >
+                <option value="INR">INR</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+              </select>
+            </Field>
           </div>
         </Section>
 
@@ -481,7 +576,7 @@ export function ExpenseBooking() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="Anything not visible on the invoice"
+              placeholder="Anything not visible above"
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
             />
           </Field>
@@ -608,11 +703,87 @@ function Banner({
 }
 
 // --------------------------------------------------------------------------
-// Advice view — structured boxes per booking stage
+// Ledger suggestion list
 // --------------------------------------------------------------------------
 
+function LedgerSuggestions({
+  suggestions,
+  selected,
+  onPick,
+  placeholderHint,
+}: {
+  suggestions: RankedLedger[];
+  selected: string;
+  onPick: (name: string) => void;
+  placeholderHint: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1.5">
+        <div className="text-xs font-medium text-slate-600">Possible ledgers</div>
+        {selected && (
+          <button
+            type="button"
+            onClick={() => onPick('')}
+            className="text-[10px] text-slate-500 hover:text-slate-700 underline underline-offset-2"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      {placeholderHint && (
+        <p className="text-[11px] text-slate-500 mb-2">
+          Browsing first 12 expense ledgers. Type above to narrow down.
+        </p>
+      )}
+      {suggestions.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-500">
+          No ledger matches. Try different keywords or pick a party — the AI can still propose one.
+        </div>
+      ) : (
+        <ul className="grid gap-1.5">
+          {suggestions.map(({ ledger, score }) => {
+            const active = selected === ledger.name;
+            return (
+              <li key={ledger.name}>
+                <button
+                  type="button"
+                  onClick={() => onPick(active ? '' : ledger.name)}
+                  className={`w-full text-left rounded-lg border px-3 py-2 transition-colors ${
+                    active
+                      ? 'bg-emerald-50 border-emerald-400'
+                      : 'bg-white border-slate-200 hover:border-slate-400'
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span
+                      className={`text-sm font-medium ${
+                        active ? 'text-emerald-900' : 'text-slate-900'
+                      } truncate`}
+                    >
+                      {ledger.name}
+                    </span>
+                    {score > 0 && (
+                      <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                        match
+                      </span>
+                    )}
+                  </div>
+                  {ledger.group && (
+                    <div className="text-[11px] text-slate-500 truncate">{ledger.group}</div>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // --------------------------------------------------------------------------
-// Queue card — list of invoices saved in the current session
+// Queue card — list of bookings saved in the current session
 // --------------------------------------------------------------------------
 
 function QueueCard({
@@ -634,7 +805,7 @@ function QueueCard({
         <div>
           <div className="text-sm font-semibold text-slate-900">Queue</div>
           <div className="text-xs text-slate-500 mt-0.5">
-            {queue.length} invoice{queue.length === 1 ? '' : 's'} · saved in this browser
+            {queue.length} booking{queue.length === 1 ? '' : 's'} · saved in this browser
           </div>
         </div>
         {!confirmClear ? (
@@ -674,6 +845,11 @@ function QueueCard({
           const total = stage?.lines
             ?.filter((l) => l.dr_or_cr === 'Cr')
             .reduce((s, l) => s + (l.amount || 0), 0);
+          const titleLine =
+            q.advice.invoiceExtract?.vendor ||
+            q.answers.party ||
+            q.manualEntry?.description ||
+            'Unnamed expense';
           return (
             <li key={q.id}>
               <button
@@ -685,15 +861,15 @@ function QueueCard({
                   #{i + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-slate-900 truncate">
-                    {q.advice.invoiceExtract?.vendor || q.answers.party || 'Unnamed vendor'}
-                  </div>
+                  <div className="text-sm font-medium text-slate-900 truncate">{titleLine}</div>
                   <div className="text-xs text-slate-500 truncate">
                     {stage?.voucherType || 'No voucher'} ·{' '}
                     {q.answers.expenseType} ·{' '}
                     {q.answers.costCentre || stage?.costCentre || 'HO'}
                     {q.advice.invoiceExtract?.invoiceNumber
                       ? ` · ${q.advice.invoiceExtract.invoiceNumber}`
+                      : q.manualEntry?.invoiceNumber
+                      ? ` · ${q.manualEntry.invoiceNumber}`
                       : ''}
                   </div>
                 </div>
@@ -938,7 +1114,7 @@ function AdviceView({ advice }: { advice: ExpenseAdvice }) {
       {advice.invoiceExtract && (
         <details className="rounded-xl border border-slate-200 bg-white p-4">
           <summary className="text-xs font-medium text-slate-700 cursor-pointer">
-            Extracted from invoice
+            Invoice details
           </summary>
           <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
             {Object.entries(advice.invoiceExtract).map(([k, v]) =>
