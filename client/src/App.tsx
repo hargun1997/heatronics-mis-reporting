@@ -17,6 +17,10 @@ import { SystemArchitecture } from './pages/guide/SystemArchitecture';
 import { LedgerReference } from './pages/guide/LedgerReference';
 import { SopHome } from './pages/guide/sop/SopHome';
 import { SalesSop } from './pages/guide/sop/SalesSop';
+import { SalesAmazonSop } from './pages/guide/sop/SalesAmazonSop';
+import { SalesShopifySop } from './pages/guide/sop/SalesShopifySop';
+import { SalesBlinkitSop } from './pages/guide/sop/SalesBlinkitSop';
+import { SalesB2BSop } from './pages/guide/sop/SalesB2BSop';
 import { PurchaseSop } from './pages/guide/sop/PurchaseSop';
 import { ExpenseSop } from './pages/guide/sop/ExpenseSop';
 import { BankingSop } from './pages/guide/sop/BankingSop';
@@ -58,6 +62,10 @@ function App() {
           {/* SOPs */}
           <Route path="guide/sop" element={<SopHome />} />
           <Route path="guide/sop/sales" element={<SalesSop />} />
+          <Route path="guide/sop/sales/amazon" element={<SalesAmazonSop />} />
+          <Route path="guide/sop/sales/shopify" element={<SalesShopifySop />} />
+          <Route path="guide/sop/sales/blinkit" element={<SalesBlinkitSop />} />
+          <Route path="guide/sop/sales/b2b" element={<SalesB2BSop />} />
           <Route path="guide/sop/purchase" element={<PurchaseSop />} />
           <Route path="guide/sop/expense" element={<ExpenseSop />} />
           <Route path="guide/sop/banking" element={<BankingSop />} />
