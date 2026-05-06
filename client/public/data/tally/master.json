@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-04T13:27:24.818Z",
+  "generatedAt": "2026-05-06T03:56:48.843Z",
   "company": "Heatronics",
   "groups": [
     {
@@ -88,6 +88,11 @@
       "isRevenue": false
     },
     {
+      "name": "Computer and IT Equipment",
+      "parent": "Fixed Assets",
+      "isRevenue": false
+    },
+    {
       "name": "Current Assets",
       "parent": null,
       "isRevenue": false
@@ -99,6 +104,11 @@
     },
     {
       "name": "D2C Checkout",
+      "parent": "D2C Fees",
+      "isRevenue": false
+    },
+    {
+      "name": "D2C Communication Fees",
       "parent": "D2C Fees",
       "isRevenue": false
     },
@@ -193,6 +203,16 @@
       "isRevenue": false
     },
     {
+      "name": "Furniture and Fixtures",
+      "parent": null,
+      "isRevenue": false
+    },
+    {
+      "name": "Furniture and Furnishings",
+      "parent": "Fixed Assets",
+      "isRevenue": false
+    },
+    {
       "name": "General Trade (GT) Sales",
       "parent": "Offline Sales",
       "isRevenue": false
@@ -283,6 +303,16 @@
       "isRevenue": false
     },
     {
+      "name": "Office Equipment",
+      "parent": null,
+      "isRevenue": false
+    },
+    {
+      "name": "Office Equipments",
+      "parent": "Fixed Assets",
+      "isRevenue": false
+    },
+    {
       "name": "Offline Channel Fees",
       "parent": "Channel Fees & Commissions",
       "isRevenue": true
@@ -305,6 +335,11 @@
     {
       "name": "Other Income",
       "parent": "Indirect Incomes",
+      "isRevenue": false
+    },
+    {
+      "name": "Plant and Machinery",
+      "parent": "Fixed Assets",
       "isRevenue": false
     },
     {
@@ -416,6 +451,11 @@
       "name": "Unsecured Loans",
       "parent": "Loans (Liability)",
       "isRevenue": false
+    },
+    {
+      "name": "Vehicles and Transport",
+      "parent": "Fixed Assets",
+      "isRevenue": false
     }
   ],
   "ledgers": [
@@ -480,8 +520,32 @@
       "supplyType": "Goods"
     },
     {
+      "name": "Amazon Collection A/c",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false
+    },
+    {
       "name": "Amazon FBA Stock",
       "group": "Stock-in-Hand",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Amazon Sales",
+      "group": "Sales Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Amazon Stock Transfer",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Amrit Star",
+      "group": "Sundry Creditors",
       "gst": false,
       "tds": false
     },
@@ -510,6 +574,153 @@
       "name": "APOLLO PRINTECH SYSTEMS",
       "group": "Sundry Creditors",
       "gst": false,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Air Conditioning and Cooling",
+      "group": "Office Equipments",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - CCTV and Networking",
+      "group": "Computer and IT Equipment",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Computers and Laptops",
+      "group": "Computer and IT Equipment",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Cutting Machines",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Electronics and Appliances",
+      "group": "Office Equipments",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Hand Tools and Power Tools",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Hot Air and Heating Equipment",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Lab and Testing Equipment",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Material Handling",
+      "group": "Furniture and Furnishings",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Office Equipment (Misc)",
+      "group": "Office Equipment",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Office Equipments Misc",
+      "group": "Office Equipments",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Office Furniture",
+      "group": "Furniture and Furnishings",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Plant and Machinery Misc",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Power Backup and Stabilizers",
+      "group": "Office Equipments",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Printers and Peripherals",
+      "group": "Computer and IT Equipment",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Printing and Marking Equipment",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Sealing Machines",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Snap and Button Machines",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Software and Intangibles",
+      "group": "Fixed Assets",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Services"
+    },
+    {
+      "name": "Asset - Stitching Machines",
+      "group": "Plant and Machinery",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Asset - Vehicles and Transport",
+      "group": "Vehicles and Transport",
+      "gst": true,
       "tds": false,
       "supplyType": "Goods"
     },
@@ -545,6 +756,13 @@
       "group": "Compliance & Certification",
       "gst": false,
       "tds": true
+    },
+    {
+      "name": "Bitespeed Communication Charges",
+      "group": "D2C Communication Fees",
+      "gst": true,
+      "tds": true,
+      "supplyType": "Services"
     },
     {
       "name": "Bitespeed Subscription",
@@ -614,6 +832,12 @@
       "tds": true
     },
     {
+      "name": "Brandbuddies Marketing Solution Pvt Ltd (NOT IN MASTER)",
+      "group": "Capital Account",
+      "gst": false,
+      "tds": false
+    },
+    {
       "name": "Business Development Expenses",
       "group": "Admin & General Expenses",
       "gst": true,
@@ -655,6 +879,12 @@
       "group": "Compliance & Certification",
       "gst": false,
       "tds": true
+    },
+    {
+      "name": "CGST 2.500%",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
     },
     {
       "name": "CGST Input - 0.125%",
@@ -729,6 +959,36 @@
       "tds": false
     },
     {
+      "name": "CGST Output-HARYANA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "CGST Output-KARNATAKA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "CGST Output-MAHARASHTRA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "CGST Output-TELANGANA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "CGST Output-UTTAR PRADESH",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
       "name": "Checkout Fee - Shopflo",
       "group": "D2C Checkout",
       "gst": true,
@@ -754,12 +1014,6 @@
       "gst": true,
       "tds": true,
       "supplyType": "Services"
-    },
-    {
-      "name": "Computer & IT Equipment",
-      "group": "Fixed Assets",
-      "gst": false,
-      "tds": false
     },
     {
       "name": "Content Creation - Agency",
@@ -934,6 +1188,12 @@
       "tds": true
     },
     {
+      "name": "Factory Maintenance Services (Vaibhav)",
+      "group": "Direct Expenses",
+      "gst": false,
+      "tds": true
+    },
+    {
       "name": "Factory Rent",
       "group": "Factory Overheads",
       "gst": true,
@@ -975,6 +1235,12 @@
       "supplyType": "Services"
     },
     {
+      "name": "Freight Charges (Shiprocket)",
+      "group": "Channel Fees & Commissions",
+      "gst": false,
+      "tds": true
+    },
+    {
       "name": "Freight Inward - Porter/Transport",
       "group": "Inward Freight",
       "gst": true,
@@ -982,8 +1248,8 @@
       "supplyType": "Services"
     },
     {
-      "name": "Furniture & Fixtures",
-      "group": "Fixed Assets",
+      "name": "Gamma Furniture Industries (NOT IN MASTER)",
+      "group": "Capital Account",
       "gst": false,
       "tds": false
     },
@@ -1051,6 +1317,12 @@
     {
       "name": "ICICI Bank  A/C",
       "group": "Bank Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "IGST 5.00%",
+      "group": "Duties & Taxes",
       "gst": false,
       "tds": false
     },
@@ -1123,6 +1395,36 @@
     {
       "name": "IGST Output - 5%",
       "group": "GST Output",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "IGST Output-HARYANA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "IGST Output-KARNATAKA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "IGST Output-MAHARASHTRA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "IGST Output-TELANGANA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "IGST Output-UTTAR PRADESH",
+      "group": "Duties & Taxes",
       "gst": false,
       "tds": false
     },
@@ -1283,6 +1585,12 @@
       "supplyType": "Services"
     },
     {
+      "name": "M/s  Computer Parivar",
+      "group": "Sundry Creditors",
+      "gst": false,
+      "tds": false
+    },
+    {
       "name": "Machinery Loan - [Bank]",
       "group": "Secured Loans",
       "gst": false,
@@ -1384,12 +1692,6 @@
       "supplyType": "Services"
     },
     {
-      "name": "Office Equipment",
-      "group": "Fixed Assets",
-      "gst": false,
-      "tds": false
-    },
-    {
       "name": "Office Rent",
       "group": "Admin & General Expenses",
       "gst": true,
@@ -1446,12 +1748,6 @@
       "supplyType": "Goods"
     },
     {
-      "name": "Plant & Machinery",
-      "group": "Fixed Assets",
-      "gst": false,
-      "tds": false
-    },
-    {
       "name": "PRABHA THREAD & ACCESSORIES",
       "group": "Sundry Creditors",
       "gst": false,
@@ -1503,6 +1799,36 @@
       "tds": false
     },
     {
+      "name": "Purchase-STR-HARYANA",
+      "group": "Purchase Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Purchase-STR-KARNATAKA",
+      "group": "Purchase Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Purchase-STR-MAHARASHTRA",
+      "group": "Purchase Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Purchase-STR-TELANGANA",
+      "group": "Purchase Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Purchase-STR-UTTAR PRADESH",
+      "group": "Purchase Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
       "name": "QMS HEALTH MART (ALIGARH)",
       "group": "Sundry Debtors",
       "gst": false,
@@ -1525,6 +1851,18 @@
     {
       "name": "Raw Materials Stock",
       "group": "Stock-in-Hand",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Refund discrepancy",
+      "group": "Sales Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Refund discrepancy tax",
+      "group": "Duties & Taxes",
       "gst": false,
       "tds": false
     },
@@ -1642,6 +1980,36 @@
       "tds": false
     },
     {
+      "name": "Sales-STR-HARYANA",
+      "group": "Sales Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Sales-STR-KARNATAKA",
+      "group": "Sales Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Sales-STR-MAHARASHTRA",
+      "group": "Sales Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Sales-STR-TELANGANA",
+      "group": "Sales Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Sales-STR-UTTAR PRADESH",
+      "group": "Sales Accounts",
+      "gst": false,
+      "tds": false
+    },
+    {
       "name": "SATISH DUBEY",
       "group": "Sundry Debtors",
       "gst": false,
@@ -1685,6 +2053,12 @@
     {
       "name": "Security Deposits",
       "group": "Deposits (Asset)",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "SGST 2.500%",
+      "group": "Duties & Taxes",
       "gst": false,
       "tds": false
     },
@@ -1761,6 +2135,78 @@
       "tds": false
     },
     {
+      "name": "SGST Output-HARYANA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "SGST Output-KARNATAKA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "SGST Output-MAHARASHTRA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "SGST Output-TELANGANA",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "SGST Output-UTTAR PRADESH",
+      "group": "Duties & Taxes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Shipping",
+      "group": "Indirect Incomes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Shipping Charges",
+      "group": "Indirect Expenses",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Shipping-Amazon-HARYANA",
+      "group": "Indirect Incomes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Shipping-Amazon-KARNATAKA",
+      "group": "Indirect Incomes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Shipping-Amazon-MAHARASHTRA",
+      "group": "Indirect Incomes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Shipping-Amazon-TELANGANA",
+      "group": "Indirect Incomes",
+      "gst": false,
+      "tds": false
+    },
+    {
+      "name": "Shipping-Amazon-UTTAR PRADESH",
+      "group": "Indirect Incomes",
+      "gst": false,
+      "tds": false
+    },
+    {
       "name": "Shiprocket Limited",
       "group": "Service Creditors",
       "gst": false,
@@ -1806,11 +2252,23 @@
       "tds": false
     },
     {
+      "name": "Shopify Prepaid Receivable",
+      "group": "Sundry Debtors",
+      "gst": false,
+      "tds": false
+    },
+    {
       "name": "Shopify Prepaid Sales",
       "group": "Shopify Sales",
       "gst": true,
       "tds": false,
       "supplyType": "Goods"
+    },
+    {
+      "name": "Shopify Sales",
+      "group": "Sales Accounts",
+      "gst": false,
+      "tds": false
     },
     {
       "name": "Shopify Subscription",
@@ -2000,22 +2458,24 @@
       "supplyType": "Services"
     },
     {
-      "name": "Ultrasonic Cutting Machine",
-      "group": "Fixed Assets",
-      "gst": false,
-      "tds": false
-    },
-    {
       "name": "Vaibhav Shree Paper & Craft LLP",
       "group": "Sundry Creditors",
       "gst": false,
       "tds": true
     },
     {
-      "name": "Vehicles",
-      "group": "Fixed Assets",
-      "gst": false,
-      "tds": false
+      "name": "Vehicle Fuel",
+      "group": "Admin & General Expenses",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Goods"
+    },
+    {
+      "name": "Vehicle Maintenance and Repairs",
+      "group": "Admin & General Expenses",
+      "gst": true,
+      "tds": false,
+      "supplyType": "Services"
     },
     {
       "name": "VERIDICUS HEALTH CARE PRIVATE LIMITED",
@@ -2070,6 +2530,26 @@
     },
     {
       "name": "Credit Note",
+      "parent": "Credit Note"
+    },
+    {
+      "name": "Credit Note-Amazon-HARYANA",
+      "parent": "Credit Note"
+    },
+    {
+      "name": "Credit Note-Amazon-KARNATAKA",
+      "parent": "Credit Note"
+    },
+    {
+      "name": "Credit Note-Amazon-MAHARASHTRA",
+      "parent": "Credit Note"
+    },
+    {
+      "name": "Credit Note-Amazon-TELANGANA",
+      "parent": "Credit Note"
+    },
+    {
+      "name": "Credit Note-Amazon-UTTAR PRADESH",
       "parent": "Credit Note"
     },
     {
@@ -2145,6 +2625,26 @@
       "parent": "Purchase"
     },
     {
+      "name": "Purchase-STR-HARYANA",
+      "parent": "Purchase"
+    },
+    {
+      "name": "Purchase-STR-KARNATAKA",
+      "parent": "Purchase"
+    },
+    {
+      "name": "Purchase-STR-MAHARASHTRA",
+      "parent": "Purchase"
+    },
+    {
+      "name": "Purchase-STR-TELANGANA",
+      "parent": "Purchase"
+    },
+    {
+      "name": "Purchase-STR-UTTAR PRADESH",
+      "parent": "Purchase"
+    },
+    {
       "name": "Receipt",
       "parent": "Receipt"
     },
@@ -2171,6 +2671,26 @@
     {
       "name": "Sales Order",
       "parent": "Sales Order"
+    },
+    {
+      "name": "Sales-Amazon-HARYANA",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-Amazon-KARNATAKA",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-Amazon-MAHARASHTRA",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-Amazon-TELANGANA",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-Amazon-UTTAR PRADESH",
+      "parent": "Sales"
     },
     {
       "name": "Sales-Blinkit",
@@ -2214,6 +2734,34 @@
     },
     {
       "name": "Sales-Shopify Prepaid",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-STR-HARYANA",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-STR-KARNATAKA",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-STR-MAHARASHTRA",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-STR-TELANGANA",
+      "parent": "Sales"
+    },
+    {
+      "name": "Sales-STR-UTTAR PRADESH",
+      "parent": "Sales"
+    },
+    {
+      "name": "Shopify Credit Note",
+      "parent": "Credit Note"
+    },
+    {
+      "name": "Shopify Sales",
       "parent": "Sales"
     },
     {

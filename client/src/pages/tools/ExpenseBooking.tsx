@@ -6,7 +6,10 @@ import { buildTallyXml } from '../../data/tally/buildTallyXml';
 import type { ExportSummary } from '../../data/tally/buildTallyXml';
 import { MasterPanel } from './MasterPanel';
 
-const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v4';
+// Bumped from v4 → v5 because the saved scenario shape changed
+// (`expenseType` was replaced by a 3-way `category`, and `paymentTiming` /
+// `paidFrom` were dropped). Old queues get discarded automatically.
+const QUEUE_LS_KEY = 'heatronics.expense-booking.queue.v5';
 
 function readPersistedQueue(): QueueItem[] {
   try {
@@ -28,11 +31,14 @@ function persistQueue(q: QueueItem[]) {
   }
 }
 
-type VendorOrigin = 'Indian' | 'Foreign' | 'Unknown';
-type PaymentTiming = 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
-type YesNoRcm = 'Yes' | 'No' | 'RCM' | 'Unknown';
-type YesNo = 'Yes' | 'No' | 'Unknown';
-type ExpenseType = 'Service' | 'Capital';
+type VendorOrigin = 'Indian' | 'Foreign';
+type YesNoRcm = 'Yes' | 'No' | 'RCM';
+type YesNo = 'Yes' | 'No';
+// Three-way classification — drives voucher type and TDS default:
+//   Capital  → Journal voucher
+//   Goods    → Purchase-Expense  (accounting-invoice mode)
+//   Services → Purchase-Services (accounting-invoice mode, TDS by default)
+type Category = 'Capital' | 'Goods' | 'Services';
 
 interface BookingLine {
   dr_or_cr: 'Dr' | 'Cr';
@@ -89,14 +95,12 @@ interface Attachment {
 }
 
 interface ScenarioAnswers {
+  category: Category;
   vendorOrigin: VendorOrigin;
-  paymentTiming: PaymentTiming;
   gstApplicable: YesNoRcm;
   tdsApplicable: YesNo;
-  expenseType: ExpenseType;
   party: string;
   costCentre: string;
-  paidFrom: string;
   notes: string;
 }
 
@@ -120,14 +124,15 @@ export function ExpenseBooking() {
   const masterState = useTallyMaster();
   const master = masterState.master;
 
-  const [vendorOrigin, setVendorOrigin] = useState<VendorOrigin>('Unknown');
-  const [paymentTiming, setPaymentTiming] = useState<PaymentTiming>('Unknown');
-  const [gstApplicable, setGstApplicable] = useState<YesNoRcm>('Unknown');
-  const [tdsApplicable, setTdsApplicable] = useState<YesNo>('Unknown');
-  const [expenseType, setExpenseType] = useState<ExpenseType>('Service');
+  const [category, setCategory] = useState<Category>('Services');
+  const [vendorOrigin, setVendorOrigin] = useState<VendorOrigin>('Indian');
+  const [gstApplicable, setGstApplicable] = useState<YesNoRcm>('Yes');
+  // TDS default tracks category — Services on, others off — but the operator
+  // can override after picking the category.
+  const [tdsApplicable, setTdsApplicable] = useState<YesNo>('Yes');
+  const [tdsTouched, setTdsTouched] = useState(false);
   const [party, setParty] = useState('');
   const [costCentre, setCostCentre] = useState('');
-  const [paidFrom, setPaidFrom] = useState('');
   const [notes, setNotes] = useState('');
 
   const [mode, setMode] = useState<EntryMode>('manual');
@@ -153,14 +158,13 @@ export function ExpenseBooking() {
   }, [queue]);
 
   function resetForm() {
-    setVendorOrigin('Unknown');
-    setPaymentTiming('Unknown');
-    setGstApplicable('Unknown');
-    setTdsApplicable('Unknown');
-    setExpenseType('Service');
+    setCategory('Services');
+    setVendorOrigin('Indian');
+    setGstApplicable('Yes');
+    setTdsApplicable('Yes');
+    setTdsTouched(false);
     setParty('');
     setCostCentre('');
-    setPaidFrom('');
     setNotes('');
     setDescription('');
     setInvoiceNumber('');
@@ -171,6 +175,21 @@ export function ExpenseBooking() {
     setAttachments([]);
     setAdvice(null);
     setError(null);
+  }
+
+  // When the operator changes category, sync the TDS default unless they've
+  // already overridden it. Services almost always have TDS; goods/capital
+  // almost never do.
+  function changeCategory(next: Category) {
+    setCategory(next);
+    if (!tdsTouched) {
+      setTdsApplicable(next === 'Services' ? 'Yes' : 'No');
+    }
+  }
+
+  function changeTds(next: YesNo) {
+    setTdsApplicable(next);
+    setTdsTouched(true);
   }
 
   function saveCurrentToQueue() {
@@ -191,14 +210,12 @@ export function ExpenseBooking() {
         },
         attachments,
         answers: {
+          category,
           vendorOrigin,
-          paymentTiming,
           gstApplicable,
           tdsApplicable,
-          expenseType,
           party,
           costCentre,
-          paidFrom,
           notes,
         },
         advice,
@@ -261,14 +278,12 @@ export function ExpenseBooking() {
       const body: Record<string, unknown> = {
         tallyMaster: master,
         answers: {
+          category,
           vendorOrigin,
-          paymentTiming,
           gstApplicable,
           tdsApplicable,
-          expenseType,
           party: party || undefined,
           costCentre: costCentre || undefined,
-          paidFrom: paidFrom || undefined,
           notes: notes || undefined,
         },
       };
@@ -302,38 +317,61 @@ export function ExpenseBooking() {
     }
   }
 
-  // Build the bank/cash ledger options for the "paid from" select.
-  const bankCashLedgers =
-    master?.ledgers?.filter((l) => {
-      const g = (l.group || '').toLowerCase();
-      return g.includes('bank') || g.includes('cash');
-    }) || [];
-
-  // Cost-centre dropdown shows only Channel-category centres.
+  // Cost-centre dropdown shows only Channel-category centres. The master
+  // sometimes carries trailing whitespace on the category, so trim it.
   const channelCostCentres =
-    master?.costCentres?.filter((c) => (c.category || '').toLowerCase() === 'channel') || [];
+    master?.costCentres?.filter(
+      (c) => (c.category || '').trim().toLowerCase() === 'channel'
+    ) || [];
 
-  // Party dropdown — vendors live under "Sundry Creditors" or
-  // "Loans & Advances". We walk the group hierarchy so a leaf group like
-  // "Service Vendors" under "Sundry Creditors" still qualifies.
+  // Party dropdown is filtered to creditor-type groups when the operator has
+  // picked a category (services → service creditors first, capital/goods →
+  // sundry creditors first). The list shows the most relevant first then
+  // falls back to all party ledgers so the operator can still find anyone.
+  function partyGroupRank(groupName: string | null): number {
+    const g = (groupName || '').toLowerCase();
+    if (category === 'Services' && g.includes('service creditor')) return 0;
+    if (category !== 'Services' && g.includes('sundry creditor')) return 0;
+    if (g.includes('service creditor') || g.includes('sundry creditor')) return 1;
+    if (g.includes('loans & advances')) return 2;
+    return 3;
+  }
+
+  // Party dropdown — vendors live under "Sundry Creditors", "Service
+  // Creditors" or "Loans & Advances". We walk the group hierarchy so a leaf
+  // group nested under any of these still qualifies. Then we sort so the
+  // creditor type matching the chosen category bubbles to the top.
   const partyLedgers = (() => {
     if (!master?.ledgers || !master?.groups) return [];
     const groupByName = new Map(master.groups.map((g) => [g.name, g]));
-    const isPartyGroup = (groupName: string | null): boolean => {
+    const partyRoot = (groupName: string | null): string | null => {
       let cursor: string | null = groupName;
       const seen = new Set<string>();
       while (cursor && !seen.has(cursor)) {
         seen.add(cursor);
         const lower = cursor.toLowerCase();
-        if (lower.includes('sundry creditor') || lower.includes('loans & advances')) {
-          return true;
+        if (
+          lower.includes('sundry creditor') ||
+          lower.includes('service creditor') ||
+          lower.includes('loans & advances')
+        ) {
+          return cursor;
         }
         const parent = groupByName.get(cursor)?.parent || null;
         cursor = parent;
       }
-      return false;
+      return null;
     };
-    return master.ledgers.filter((l) => isPartyGroup(l.group));
+    const candidates = master.ledgers
+      .map((l) => ({ ledger: l, root: partyRoot(l.group) }))
+      .filter((x) => x.root != null) as { ledger: typeof master.ledgers[number]; root: string }[];
+    candidates.sort((a, b) => {
+      const ra = partyGroupRank(a.root);
+      const rb = partyGroupRank(b.root);
+      if (ra !== rb) return ra - rb;
+      return a.ledger.name.localeCompare(b.ledger.name);
+    });
+    return candidates.map((x) => x.ledger);
   })();
 
   return (
@@ -366,10 +404,18 @@ export function ExpenseBooking() {
           />
         )}
 
-        {/* 1. Capture the invoice — manual entry OR photo */}
+        {/* 1. Classify — drives everything else */}
         <Section
-          title="1. Capture the invoice"
-          subtitle="Type the party and billing details, or snap the invoice. Either way the AI picks the right ledger, GST and TDS treatment."
+          title="1. What kind of expense is this?"
+          subtitle="Capital → Journal voucher. Goods/Services → Purchase voucher (accounting-invoice). Services default to TDS."
+        >
+          <CategoryPicker value={category} onChange={changeCategory} />
+        </Section>
+
+        {/* 2. Capture the invoice — manual entry OR photo */}
+        <Section
+          title="2. Capture the invoice"
+          subtitle="Type the billing details, or snap the invoice."
         >
           <ModeToggle mode={mode} onChange={setMode} />
 
@@ -380,7 +426,13 @@ export function ExpenseBooking() {
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder='e.g. "AWS subscription", "courier charges", "office rent"'
+                  placeholder={
+                    category === 'Capital'
+                      ? 'e.g. "Heating gun for testing", "office laptop"'
+                      : category === 'Goods'
+                      ? 'e.g. "courier charges", "printing material"'
+                      : 'e.g. "AWS subscription", "CA fees", "office rent"'
+                  }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
               </Field>
@@ -391,7 +443,7 @@ export function ExpenseBooking() {
                     type="text"
                     value={invoiceNumber}
                     onChange={(e) => setInvoiceNumber(e.target.value)}
-                    placeholder="e.g. INV-2026-04-0123"
+                    placeholder="INV-2026-…"
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                   />
                 </Field>
@@ -404,8 +456,8 @@ export function ExpenseBooking() {
                   />
                 </Field>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <Field label="Total amount">
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Total amount (incl. GST)">
                   <input
                     type="number"
                     inputMode="decimal"
@@ -425,18 +477,6 @@ export function ExpenseBooking() {
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                   />
                 </Field>
-                <Field label="Currency">
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="INR">INR</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                  </select>
-                </Field>
               </div>
             </>
           ) : (
@@ -449,8 +489,8 @@ export function ExpenseBooking() {
           )}
         </Section>
 
-        {/* 2. Scenario */}
-        <Section title="2. Scenario">
+        {/* 3. Party & overrides */}
+        <Section title="3. Party & overrides">
           <Field label="Party (vendor)">
             <select
               value={party}
@@ -463,69 +503,13 @@ export function ExpenseBooking() {
               ))}
             </select>
           </Field>
-          <ChipRow
-            label="Expense type"
-            value={expenseType}
-            options={[
-              ['Service', 'Service'],
-              ['Capital', 'Capital'],
-            ]}
-            onChange={(v) => setExpenseType(v as ExpenseType)}
-          />
-          <ChipRow
-            label="Vendor origin"
-            value={vendorOrigin}
-            options={[
-              ['Indian', 'Indian'],
-              ['Foreign', 'Foreign'],
-              ['Unknown', '?'],
-            ]}
-            onChange={(v) => setVendorOrigin(v as VendorOrigin)}
-          />
-          <ChipRow
-            label="Payment timing"
-            value={paymentTiming}
-            options={[
-              ['PaidNow', 'Paid now'],
-              ['Advance', 'Advance'],
-              ['Prepaid', 'Prepaid'],
-              ['OnCredit', 'On credit'],
-              ['Unknown', '?'],
-            ]}
-            onChange={(v) => setPaymentTiming(v as PaymentTiming)}
-          />
-          <ChipRow
-            label="GST"
-            value={gstApplicable}
-            options={[
-              ['Yes', 'Yes'],
-              ['No', 'No'],
-              ['RCM', 'RCM'],
-              ['Unknown', '?'],
-            ]}
-            onChange={(v) => setGstApplicable(v as YesNoRcm)}
-          />
-          <ChipRow
-            label="TDS"
-            value={tdsApplicable}
-            options={[
-              ['Yes', 'Yes'],
-              ['No', 'No'],
-              ['Unknown', '?'],
-            ]}
-            onChange={(v) => setTdsApplicable(v as YesNo)}
-          />
-        </Section>
-
-        {/* 3. Hints */}
-        <Section title="3. Hints (optional)">
           <Field label="Cost centre">
             <select
               value={costCentre}
               onChange={(e) => setCostCentre(e.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
             >
-              <option value="">— let AI decide —</option>
+              <option value="">HO (default)</option>
               {channelCostCentres.map((c) => (
                 <option key={c.name} value={c.name}>
                   {c.name}
@@ -533,27 +517,64 @@ export function ExpenseBooking() {
               ))}
             </select>
           </Field>
-          <Field label="Paid from">
-            <select
-              value={paidFrom}
-              onChange={(e) => setPaidFrom(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-            >
-              <option value="">— let AI decide —</option>
-              {bankCashLedgers.map((l) => (
-                <option key={l.name} value={l.name}>{l.name}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Notes">
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Anything not visible above"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-            />
-          </Field>
+          <ChipRow
+            label="GST"
+            value={gstApplicable}
+            options={[
+              ['Yes', 'Yes'],
+              ['No', 'No'],
+              ['RCM', 'RCM'],
+            ]}
+            onChange={(v) => setGstApplicable(v as YesNoRcm)}
+          />
+          <ChipRow
+            label={`TDS${tdsTouched ? '' : ` (auto: ${category === 'Services' ? 'Yes' : 'No'})`}`}
+            value={tdsApplicable}
+            options={[
+              ['Yes', 'Yes'],
+              ['No', 'No'],
+            ]}
+            onChange={(v) => changeTds(v as YesNo)}
+          />
+          <details className="rounded-lg border border-slate-200 bg-slate-50/60">
+            <summary className="px-3 py-2 cursor-pointer text-xs font-medium text-slate-600">
+              More (foreign vendor, currency, notes)
+            </summary>
+            <div className="p-3 space-y-3">
+              <ChipRow
+                label="Vendor origin"
+                value={vendorOrigin}
+                options={[
+                  ['Indian', 'Indian'],
+                  ['Foreign', 'Foreign'],
+                ]}
+                onChange={(v) => setVendorOrigin(v as VendorOrigin)}
+              />
+              {mode === 'manual' && (
+                <Field label="Currency">
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="INR">INR</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                  </select>
+                </Field>
+              )}
+              <Field label="Notes">
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Anything not visible above"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+              </Field>
+            </div>
+          </details>
         </Section>
 
         <button
@@ -621,6 +642,51 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <div className="text-xs font-medium text-slate-600 mb-1">{label}</div>
       {children}
     </label>
+  );
+}
+
+// Three big tappable cards with a one-line "what this means" caption so the
+// operator picks the right voucher route without thinking about Tally
+// terminology.
+function CategoryPicker({
+  value,
+  onChange,
+}: {
+  value: Category;
+  onChange: (v: Category) => void;
+}) {
+  const options: { v: Category; label: string; caption: string }[] = [
+    { v: 'Capital', label: 'Capital', caption: 'Asset · Journal voucher' },
+    { v: 'Goods', label: 'Goods', caption: 'Expense · Purchase, no TDS' },
+    { v: 'Services', label: 'Services', caption: 'Expense · Purchase, with TDS' },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {options.map((o) => {
+        const active = value === o.v;
+        return (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => onChange(o.v)}
+            className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
+              active
+                ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600'
+                : 'border-slate-200 bg-white hover:border-slate-400'
+            }`}
+          >
+            <div
+              className={`text-sm font-semibold ${
+                active ? 'text-emerald-800' : 'text-slate-900'
+              }`}
+            >
+              {o.label}
+            </div>
+            <div className="text-[10px] text-slate-500 mt-0.5">{o.caption}</div>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -871,7 +937,7 @@ function QueueCard({
                   <div className="text-sm font-medium text-slate-900 truncate">{titleLine}</div>
                   <div className="text-xs text-slate-500 truncate">
                     {stage?.voucherType || 'No voucher'} ·{' '}
-                    {q.answers.expenseType} ·{' '}
+                    {q.answers.category} ·{' '}
                     {q.answers.costCentre || stage?.costCentre || 'HO'}
                     {q.advice.invoiceExtract?.invoiceNumber
                       ? ` · ${q.advice.invoiceExtract.invoiceNumber}`

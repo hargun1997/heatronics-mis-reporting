@@ -7,15 +7,22 @@ const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 // ---------------------------------------------------------------------------
 
 export interface ExpenseScenarioAnswers {
+  // Three-way classification — drives voucher type and TDS default.
+  //   Capital   → Journal voucher       (Dr asset, Dr GST Input, Cr party)
+  //   Goods     → Purchase-Expense      (accounting-invoice mode, no TDS)
+  //   Services  → Purchase-Services     (accounting-invoice mode, TDS by default)
+  category?: 'Capital' | 'Goods' | 'Services';
   vendorOrigin?: 'Indian' | 'Foreign' | 'Unknown';
-  paymentTiming?: 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
   gstApplicable?: 'Yes' | 'No' | 'RCM' | 'Unknown';
   tdsApplicable?: 'Yes' | 'No' | 'Unknown';
   party?: string;
-  expenseType?: 'Service' | 'Capital';
   costCentre?: string;
-  paidFrom?: string;
   notes?: string;
+  // Legacy field kept so older clients keep working — ignored if `category`
+  // is set.
+  expenseType?: 'Service' | 'Capital';
+  paymentTiming?: 'Advance' | 'Prepaid' | 'OnCredit' | 'PaidNow' | 'Unknown';
+  paidFrom?: string;
 }
 
 export interface ManualExpenseEntry {
@@ -113,6 +120,13 @@ Operator inputs:
     inputClause = `3. ${attachmentCount} invoice attachments — these are sequential pages of the SAME invoice. Read them as one document and extract: vendor name, vendor GSTIN, invoice number, invoice date, taxable base, GST amount, total, currency. Echo all of these into "invoiceExtract".`;
   }
 
+  // Resolve the effective category — prefer the new "category" field; fall
+  // back to the legacy "expenseType" so older clients still produce something
+  // sensible.
+  const category =
+    answers.category ||
+    (answers.expenseType === 'Capital' ? 'Capital' : 'Services');
+
   return `You are a senior accountant booking an expense in Tally Prime for Heatronics.
 
 You will be given:
@@ -121,31 +135,54 @@ You will be given:
 ${inputClause}
 
 ## Heatronics company facts (HARD CONSTRAINTS)
-- Heatronics is registered for GST in Uttar Pradesh (state code 09). DEFAULT to intra-state CGST + SGST (split the GST amount equally between Input CGST and Input SGST). Switch to Input IGST ONLY when the vendor's GSTIN starts with anything other than "09", or the vendor's billing state on the invoice is clearly outside UP, or the vendor is foreign (origin = Foreign). When in doubt, assume intra-UP CGST+SGST and add a one-line warning asking the operator to confirm vendor state. Pick the exact GST ledger names from the master (group "Duties & Taxes" / "GST Input" — match case and punctuation).
-- TDS: when the operator says TDS = Yes, you MUST add a Cr line for the appropriate TDS Payable ledger from the master. Choose the section based on the expense:
-    · 194C  → Contractor / freight / job-work / courier / printing
-    · 194J  → Professional fees / consultancy / technical services / legal / CA / CS
+- Heatronics is registered for GST in Uttar Pradesh (state code 09). DEFAULT to intra-state CGST + SGST (split the GST amount equally between Input CGST and Input SGST). Switch to Input IGST ONLY when the vendor's GSTIN starts with anything other than "09", or the vendor's billing state on the invoice is clearly outside UP, or the vendor is foreign (origin = Foreign). When in doubt, assume intra-UP CGST+SGST and add a one-line warning asking the operator to confirm vendor state. Pick the exact GST ledger names from the master (group "GST Input" — match case and punctuation).
+- TDS: when TDS applies, you MUST add a Cr line for the appropriate TDS Payable ledger from the master. Pick the section by reading the expense description / nature:
+    · 194C  → Contractor / freight / job-work / courier / printing / packaging service
+    · 194J  → Professional fees / consultancy / technical services / legal / CA / CS / IT services / SaaS-as-service
     · 194-I → Rent (building, plant, equipment)
-    · 194H  → Brokerage / commission
-    · 194-O → E-commerce operator (where applicable)
-  Match the closest existing TDS ledger name in the master. If TDS = No, add NO TDS line. If TDS = Unknown, add a warning so the operator picks.
-- Voucher types you may use for expense booking: ONLY "Purchase-Services" (default for any operating expense / service / subscription) and "Purchase-Capital" (for capital goods — computers, machinery, furniture, fixed assets). Do NOT use Payment, Journal, Receipt, Contra. Bank-side payment is booked separately during bank reconciliation and is OUT OF SCOPE for this tool.
+    · 194H  → Brokerage / commission / channel-fee commissions
+    · 194Q  → Large goods purchase (only when explicitly flagged)
+    · 194R  → Benefits / perquisites
+  Match the closest TDS Payable ledger name in the master.
 - Cost centres: pick from the master's Channel-category cost centres only (HO, D2C, ECOM, OEM, OFFLINE, QCOM). If the expense doesn't fit a specific channel, default to HO.
 - Voucher number: leave it to Tally's auto-numbering (your output should NOT include a voucher number).
 
-## Booking approach (IMPORTANT — single-stage)
-Because we don't settle against the bank in this tool, every booking is exactly ONE stage = ONE Purchase voucher that creates a creditor for the vendor. Lines:
-- Dr the expense ledger you select from the master. Pick the closest match by reading the description, party and scenario; the operator does NOT pre-select a ledger.
-- Dr Input CGST + Input SGST (intra-UP) OR Dr Input IGST (inter-state). Split GST equally between CGST and SGST.
-- Cr the party ledger (Sundry Creditors / Loans & Advances party). If the operator selected a party, use that exact ledger; otherwise pick the closest existing party from the master.
-- Cr TDS Payable ledger if TDS applies
-The total of Dr lines must equal the total of Cr lines. Use the implied taxable base for the expense Dr line, the operator's GST amount for the GST Dr line(s), and the operator's total for the party Cr line.
+## Routing — pick voucher type strictly from the operator's category
+The operator has classified this expense as: **${category}**.
 
-## Multi-stage exceptions
-Use a second stage ONLY for prepaid expenses spread over months (Service expenses paid for a future period). In that case:
-- Stage 1 = Purchase voucher debiting "Prepaid Expenses" instead of the actual expense ledger.
-- Stage 2 = monthly Journal (Dr actual expense, Cr Prepaid Expenses) repeated for the prepaid duration.
-For everything else, return exactly one stage.
+| Category  | Voucher type to use      | Mode in Tally           | TDS default   |
+| --------- | ------------------------ | ----------------------- | ------------- |
+| Capital   | Journal                  | Journal                 | No (rare)     |
+| Goods     | Purchase-Expense         | Accounting Invoice      | No            |
+| Services  | Purchase-Services        | Accounting Invoice      | Yes (section by nature) |
+
+Apply the rule for the chosen category — do not switch voucher types based on TDS or GST. The voucher type name MUST match the master exactly.
+
+## Booking approach (IMPORTANT — single-stage)
+Every booking is exactly ONE stage that creates a creditor for the vendor. Bank-side settlement is booked separately during reconciliation and is OUT OF SCOPE for this tool.
+
+### Capital (Journal voucher)
+- Dr the fixed-asset ledger you pick from the master. Asset ledgers live under groups starting with "Asset -" inside parents like "Plant and Machinery", "Computer and IT Equipment", "Furniture and Furnishings", "Office Equipment", "Office Equipments", "Vehicles and Transport", "Fixed Assets". Pick the closest one by reading the description.
+- Dr Input CGST + Input SGST (intra-UP) OR Dr Input IGST (inter-state). Split GST equally between CGST and SGST.
+- Cr the party ledger (vendor under "Sundry Creditors" / "Service Creditors" / "Loans & Advances"). If the operator selected a party, use that exact ledger.
+- Cr TDS Payable ledger ONLY if TDS = Yes (rare for capital — typically 194Q for ≥ ₹50L purchase from a single vendor in a financial year, or 194-I for plant rented vs purchased).
+- Use voucher type "Journal".
+
+### Goods (Purchase-Expense, accounting-invoice mode)
+- Dr the expense ledger from the closest expense group (e.g. "Admin & General Expenses", "Factory Overheads", "After-Sales & Warranty", "Compliance & Certification", "Inward Freight", "Manufacturing Costs", "Direct Expenses"). Do NOT use a stock/inventory ledger — this voucher is the accounting-invoice flavour.
+- Dr Input CGST + Input SGST (intra-UP) OR Dr Input IGST.
+- Cr the party ledger (Sundry Creditors / Service Creditors).
+- TDS = No by default; only add a TDS Cr line if the operator explicitly set TDS = Yes.
+- Use voucher type "Purchase-Expense".
+
+### Services (Purchase-Services, accounting-invoice mode)
+- Dr the expense ledger from the closest service group (e.g. "Professional Fees - CA", "Professional Fees - CS", "Legal Fees", "Operations Platform Subscriptions", "D2C Logistics", "D2C Communication Fees", "Brand & Content Marketing", "Channel Fees & Commissions", "After-Sales & Warranty", "Compliance & Certification").
+- Dr Input CGST + Input SGST (intra-UP) OR Dr Input IGST.
+- Cr the party ledger (Service Creditors / Sundry Creditors).
+- Cr TDS Payable - 194? ledger by default (services almost always attract TDS for Heatronics). The TDS amount is the section's rate × the taxable base; if you cannot infer the rate, leave the amount as null and add a warning telling the operator to fill it. Reduce the party Cr line by the same TDS amount so the voucher balances.
+- Use voucher type "Purchase-Services".
+
+The total of Dr lines must equal the total of Cr lines. Use the implied taxable base for the expense Dr line, the operator's GST amount for the GST Dr line(s), and (total − TDS) for the party Cr line.
 
 ## Tally master
 \`\`\`json
@@ -153,19 +190,18 @@ ${JSON.stringify(master)}
 \`\`\`
 
 ## Scenario answers
+- Category: ${category}
 - Party (vendor): ${answers.party || '(let AI pick from master)'}
-- Expense type: ${answers.expenseType || 'Service (default)'}
-- Vendor origin: ${answers.vendorOrigin || 'Unknown'}
-- Payment timing: ${answers.paymentTiming || 'Unknown'}
-- GST applicable: ${answers.gstApplicable || 'Unknown'}
-- TDS applicable: ${answers.tdsApplicable || 'Unknown'}
+- Vendor origin: ${answers.vendorOrigin || 'Indian (default)'}
+- GST applicable: ${answers.gstApplicable || 'Yes (default)'}
+- TDS applicable: ${answers.tdsApplicable || (category === 'Services' ? 'Yes (default for Services)' : 'No (default)')}
 - Cost centre (operator hint): ${answers.costCentre || '(default to HO if no specific channel applies)'}
 - Notes: ${answers.notes || '(none)'}
 
 ## Grounding rules (STRICT)
 - Use ONLY ledger names, voucher type names and cost centre names that appear EXACTLY in the master. Match case and punctuation.
 - If a perfect match doesn't exist, pick the closest entry and add a sentence to "warnings" describing the substitution.
-- Voucher type MUST be "Purchase-Services" (Service expense type) or "Purchase-Capital" (Capital expense type). No other voucher types.
+- Voucher type is determined SOLELY by category: Capital → "Journal", Goods → "Purchase-Expense", Services → "Purchase-Services". No other voucher types.
 - DO NOT invent any bill series, prefix, or voucher number. Tally Prime auto-numbers.
 
 ## Response format — JSON ONLY, no prose, no markdown fences

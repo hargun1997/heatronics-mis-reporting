@@ -83,8 +83,18 @@ export interface ExportSummary {
   warnings: string[];
 }
 
-const ALLOWED_VOUCHER_TYPES = new Set(['Purchase-Services', 'Purchase-Capital']);
-const TAX_GROUPS_LOWER = ['duties & taxes', 'duties and taxes'];
+// The advisor routes by category:
+//   Capital  → Journal
+//   Goods    → Purchase-Expense
+//   Services → Purchase-Services
+// Purchase-Capital is kept for backwards-compat with previously-saved queues.
+const ALLOWED_VOUCHER_TYPES = new Set([
+  'Journal',
+  'Purchase-Expense',
+  'Purchase-Services',
+  'Purchase-Capital',
+]);
+const TAX_GROUPS_LOWER = ['duties & taxes', 'duties and taxes', 'gst input', 'gst output', 'tds payable'];
 
 // Standard XML special-character escape.
 function xmlEscape(s: string): string {
@@ -227,11 +237,17 @@ function buildVoucher(
     );
   }
 
+  // Journal vouchers don't carry a PARTYLEDGERNAME header in Tally Prime —
+  // they balance through individual ledger entries. Purchase vouchers do.
+  const isPurchase = stage.voucherType.startsWith('Purchase');
+  const partyHeader = isPurchase
+    ? `\n          <PARTYLEDGERNAME>${xmlEscape(partyLine.ledger)}</PARTYLEDGERNAME>`
+    : '';
+
   const xml = `        <VOUCHER VCHTYPE="${xmlEscape(stage.voucherType)}" ACTION="Create">
           <DATE>${date}</DATE>
           <NARRATION>${xmlEscape(narration)}</NARRATION>
-          <VOUCHERTYPENAME>${xmlEscape(stage.voucherType)}</VOUCHERTYPENAME>
-          <PARTYLEDGERNAME>${xmlEscape(partyLine.ledger)}</PARTYLEDGERNAME>
+          <VOUCHERTYPENAME>${xmlEscape(stage.voucherType)}</VOUCHERTYPENAME>${partyHeader}
 ${ledgerEntries.join('\n')}
         </VOUCHER>`;
 
