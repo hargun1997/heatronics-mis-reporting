@@ -20,6 +20,10 @@ import { SalesSop } from './pages/guide/sop/SalesSop';
 import { PurchaseSop } from './pages/guide/sop/PurchaseSop';
 import { ExpenseSop } from './pages/guide/sop/ExpenseSop';
 import { BankingSop } from './pages/guide/sop/BankingSop';
+import { BankingEasebuzzWireSop } from './pages/guide/sop/BankingEasebuzzWireSop';
+import { BankingHdfcSop } from './pages/guide/sop/BankingHdfcSop';
+import { BankingIciciSop } from './pages/guide/sop/BankingIciciSop';
+import { BankingCentralCcSop } from './pages/guide/sop/BankingCentralCcSop';
 import { CapitalGoodsSop } from './pages/guide/sop/CapitalGoodsSop';
 import { JobWorkSop } from './pages/guide/sop/JobWorkSop';
 
@@ -57,6 +61,10 @@ function App() {
           <Route path="guide/sop/purchase" element={<PurchaseSop />} />
           <Route path="guide/sop/expense" element={<ExpenseSop />} />
           <Route path="guide/sop/banking" element={<BankingSop />} />
+          <Route path="guide/sop/banking/easebuzz-wire" element={<BankingEasebuzzWireSop />} />
+          <Route path="guide/sop/banking/hdfc" element={<BankingHdfcSop />} />
+          <Route path="guide/sop/banking/icici" element={<BankingIciciSop />} />
+          <Route path="guide/sop/banking/central-cc" element={<BankingCentralCcSop />} />
           <Route path="guide/sop/capital-goods" element={<CapitalGoodsSop />} />
           <Route path="guide/sop/job-work" element={<JobWorkSop />} />
 
