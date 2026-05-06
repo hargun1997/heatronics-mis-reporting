@@ -1,7 +1,7 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
 const spec: SopSpec = {
-  title: 'Job Work SOP',
+  title: 'Job Work SOP (Tranzact)',
   description:
     'Outsourcing a manufacturing step to a job worker. Material goes out on a delivery challan, comes back after processing, and only the processing fee is booked as an expense. ITC-04 is filed quarterly.',
   accent: 'rose',

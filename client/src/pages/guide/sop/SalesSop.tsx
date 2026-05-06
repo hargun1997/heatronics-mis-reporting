@@ -37,7 +37,7 @@ export function SalesSop() {
   return (
     <>
       <PageHeader
-        title="Sales SOP"
+        title="Sales SOP (Tranzact)"
         description="One sub-SOP per sales channel. All four run on Tranzact and push to Tally via the plugin — the channel-specific bits are the bill series, sales ledger, clearing ledger and settlement bank."
         accent="brand"
         icon={ic}

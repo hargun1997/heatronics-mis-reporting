@@ -1,7 +1,7 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
 const spec: SopSpec = {
-  title: 'Purchase SOP',
+  title: 'Purchase SOP (Tranzact)',
   description:
     'Booking inventory-related purchases — raw material and packing material — via Tranzact, with input GST tracked correctly for the monthly GSTR-2B match.',
   accent: 'emerald',

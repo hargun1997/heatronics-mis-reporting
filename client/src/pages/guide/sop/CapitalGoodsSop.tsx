@@ -1,7 +1,7 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
 const spec: SopSpec = {
-  title: 'Capital Goods SOP',
+  title: 'Capital Goods SOP (Tally)',
   description:
     'Booking and depreciating capital assets — plant & machinery, computers, furniture. Handled directly in Tally (not Tranzact). ITC on capital goods follows Rule 43.',
   accent: 'violet',

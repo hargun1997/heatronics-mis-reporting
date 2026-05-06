@@ -1,7 +1,7 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
 const spec: SopSpec = {
-  title: 'Expense SOP',
+  title: 'Expense SOP (Tally)',
   description:
     'Booking operating expenses directly in Tally — these do not route through Tranzact. Covers rent, utilities, freight, advertising, professional fees and payment-gateway charges.',
   accent: 'amber',

@@ -37,7 +37,7 @@ export function BankingSop() {
   return (
     <>
       <PageHeader
-        title="Banking SOP"
+        title="Banking SOP (Tally)"
         description="One sub-SOP per bank. Each spells out how that account is fed in Tally, the voucher types used, and the typical journal entries."
         accent="sky"
         icon={ic}
