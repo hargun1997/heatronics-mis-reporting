@@ -1,7 +1,7 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
 const spec: SopSpec = {
-  title: 'Purchase SOP',
+  title: 'Purchase SOP (Tranzact)',
   description:
     'Booking inventory-related purchases — raw material and packing material — via Tranzact, with input GST tracked correctly for the monthly GSTR-2B match.',
   accent: 'emerald',
@@ -50,6 +50,11 @@ const spec: SopSpec = {
     'Purchases of services (freight, professional fees) do NOT come here — they are booked directly in Tally. See Expense SOP.',
     'If the vendor raises a debit/credit note later, post it as a separate voucher — never edit the original invoice after sync.',
     'Capital goods are handled in the Capital Goods SOP, not here — different voucher and ITC treatment.',
+  ],
+  visuals: [
+    { key: 'purchase.grn', label: 'Goods Received Note in Tranzact linked to the PO' },
+    { key: 'purchase.invoice', label: 'Purchase Invoice with HSN + GST class confirmation' },
+    { key: 'purchase.gstr2b-match', label: 'GSTR-2B match screen on the 14th' },
   ],
 };
 

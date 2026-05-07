@@ -1,7 +1,7 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
 const spec: SopSpec = {
-  title: 'Capital Goods SOP',
+  title: 'Capital Goods SOP (Tally)',
   description:
     'Booking and depreciating capital assets — plant & machinery, computers, furniture. Handled directly in Tally (not Tranzact). ITC on capital goods follows Rule 43.',
   accent: 'violet',
@@ -59,6 +59,10 @@ const spec: SopSpec = {
     'Do NOT route capital goods through Tranzact — the plugin is not configured to post to Fixed Asset ledgers.',
     'If the asset is used partly for exempt supplies, compute common-credit reversal as per Rule 43 monthly.',
     'Disposals and scrap need a separate journal — not a credit note.',
+  ],
+  visuals: [
+    { key: 'capgoods.purchase-voucher', label: 'Purchase-Capital voucher in Tally with Fixed Asset Dr line' },
+    { key: 'capgoods.depreciation-journal', label: 'Monthly depreciation Journal' },
   ],
 };
 

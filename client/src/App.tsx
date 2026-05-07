@@ -17,9 +17,17 @@ import { SystemArchitecture } from './pages/guide/SystemArchitecture';
 import { LedgerReference } from './pages/guide/LedgerReference';
 import { SopHome } from './pages/guide/sop/SopHome';
 import { SalesSop } from './pages/guide/sop/SalesSop';
+import { SalesAmazonSop } from './pages/guide/sop/SalesAmazonSop';
+import { SalesShopifySop } from './pages/guide/sop/SalesShopifySop';
+import { SalesBlinkitSop } from './pages/guide/sop/SalesBlinkitSop';
+import { SalesB2BSop } from './pages/guide/sop/SalesB2BSop';
 import { PurchaseSop } from './pages/guide/sop/PurchaseSop';
 import { ExpenseSop } from './pages/guide/sop/ExpenseSop';
 import { BankingSop } from './pages/guide/sop/BankingSop';
+import { BankingEasebuzzWireSop } from './pages/guide/sop/BankingEasebuzzWireSop';
+import { BankingHdfcSop } from './pages/guide/sop/BankingHdfcSop';
+import { BankingIciciSop } from './pages/guide/sop/BankingIciciSop';
+import { BankingCentralCcSop } from './pages/guide/sop/BankingCentralCcSop';
 import { CapitalGoodsSop } from './pages/guide/sop/CapitalGoodsSop';
 import { JobWorkSop } from './pages/guide/sop/JobWorkSop';
 
@@ -54,9 +62,17 @@ function App() {
           {/* SOPs */}
           <Route path="guide/sop" element={<SopHome />} />
           <Route path="guide/sop/sales" element={<SalesSop />} />
+          <Route path="guide/sop/sales/amazon" element={<SalesAmazonSop />} />
+          <Route path="guide/sop/sales/shopify" element={<SalesShopifySop />} />
+          <Route path="guide/sop/sales/blinkit" element={<SalesBlinkitSop />} />
+          <Route path="guide/sop/sales/b2b" element={<SalesB2BSop />} />
           <Route path="guide/sop/purchase" element={<PurchaseSop />} />
           <Route path="guide/sop/expense" element={<ExpenseSop />} />
           <Route path="guide/sop/banking" element={<BankingSop />} />
+          <Route path="guide/sop/banking/easebuzz-wire" element={<BankingEasebuzzWireSop />} />
+          <Route path="guide/sop/banking/hdfc" element={<BankingHdfcSop />} />
+          <Route path="guide/sop/banking/icici" element={<BankingIciciSop />} />
+          <Route path="guide/sop/banking/central-cc" element={<BankingCentralCcSop />} />
           <Route path="guide/sop/capital-goods" element={<CapitalGoodsSop />} />
           <Route path="guide/sop/job-work" element={<JobWorkSop />} />
 

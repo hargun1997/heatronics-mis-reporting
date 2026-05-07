@@ -1,7 +1,7 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
 const spec: SopSpec = {
-  title: 'Expense SOP',
+  title: 'Expense SOP (Tally)',
   description:
     'Booking operating expenses directly in Tally — these do not route through Tranzact. Covers rent, utilities, freight, advertising, professional fees and payment-gateway charges.',
   accent: 'amber',
@@ -63,6 +63,10 @@ const spec: SopSpec = {
     'Expenses booked via Tranzact will NOT appear in the right P&L head — always book directly in Tally.',
     'Personal expenses or owner-paid bills must be routed through a director/owner ledger, never directly into a bank account.',
     'GST ITC is not available on some categories (motor-car, food & beverages, employee welfare) — tag them as "Ineligible ITC" in the narration.',
+  ],
+  visuals: [
+    { key: 'expense.purchase-services', label: 'Purchase (Services) voucher in Tally with expense + GST + party Cr' },
+    { key: 'expense.tds-line', label: 'TDS Payable Cr line on the same voucher (when applicable)' },
   ],
 };
 

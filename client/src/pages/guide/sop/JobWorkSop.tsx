@@ -1,7 +1,7 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
 const spec: SopSpec = {
-  title: 'Job Work SOP',
+  title: 'Job Work SOP (Tranzact)',
   description:
     'Outsourcing a manufacturing step to a job worker. Material goes out on a delivery challan, comes back after processing, and only the processing fee is booked as an expense. ITC-04 is filed quarterly.',
   accent: 'rose',
@@ -42,6 +42,10 @@ const spec: SopSpec = {
     'If material is not received back within 180 days (1 year for capital goods), it is deemed a supply — GST becomes payable.',
     'Scrap generated at the job worker must either come back or be sold by the job worker on behalf of Heatronics with invoice.',
     'Never book the raw material cost inside the job work invoice — it double-counts inventory.',
+  ],
+  visuals: [
+    { key: 'jobwork.material-out', label: 'Material Out challan in Tranzact' },
+    { key: 'jobwork.material-in', label: 'Material In challan with quantity + scrap reconciliation' },
   ],
 };
 
