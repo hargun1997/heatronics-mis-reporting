@@ -72,6 +72,10 @@ const spec: SopSpec = {
     'B2B vs B2C series mismatch is the #1 cause of GSTR-1 corrections — always verify before save.',
     'Watch promotional SKUs — the GST rate may be different from the master rate.',
   ],
+  visuals: [
+    { key: 'sales.amazon.bill-series', label: 'Picking the AMZ-B2C / AMZ-B2B series in Tranzact' },
+    { key: 'sales.amazon.tally-result', label: 'Resulting voucher pushed by the Tally plugin' },
+  ],
 };
 
 export function SalesAmazonSop() {

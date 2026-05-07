@@ -64,6 +64,10 @@ const spec: SopSpec = {
     'Personal expenses or owner-paid bills must be routed through a director/owner ledger, never directly into a bank account.',
     'GST ITC is not available on some categories (motor-car, food & beverages, employee welfare) — tag them as "Ineligible ITC" in the narration.',
   ],
+  visuals: [
+    { key: 'expense.purchase-services', label: 'Purchase (Services) voucher in Tally with expense + GST + party Cr' },
+    { key: 'expense.tds-line', label: 'TDS Payable Cr line on the same voucher (when applicable)' },
+  ],
 };
 
 export function ExpenseSop() {

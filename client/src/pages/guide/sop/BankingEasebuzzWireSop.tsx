@@ -60,6 +60,10 @@ const spec: SopSpec = {
     'Never post Shopify sales directly to Central Bank — they always route via Easebuzz Clearing first.',
     'Daily reconciliation is mandatory; weekly batches lose visibility into individual gateway disputes.',
   ],
+  visuals: [
+    { key: 'banking.easebuzz.payout-csv', label: 'Easebuzz payout CSV — the columns to read' },
+    { key: 'banking.easebuzz.voucher-pair', label: 'Receipt + fee Journal pair in Tally' },
+  ],
 };
 
 export function BankingEasebuzzWireSop() {

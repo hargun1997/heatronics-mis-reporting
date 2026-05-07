@@ -43,6 +43,10 @@ const spec: SopSpec = {
     'Scrap generated at the job worker must either come back or be sold by the job worker on behalf of Heatronics with invoice.',
     'Never book the raw material cost inside the job work invoice — it double-counts inventory.',
   ],
+  visuals: [
+    { key: 'jobwork.material-out', label: 'Material Out challan in Tranzact' },
+    { key: 'jobwork.material-in', label: 'Material In challan with quantity + scrap reconciliation' },
+  ],
 };
 
 export function JobWorkSop() {

@@ -51,6 +51,11 @@ const spec: SopSpec = {
     'If the vendor raises a debit/credit note later, post it as a separate voucher — never edit the original invoice after sync.',
     'Capital goods are handled in the Capital Goods SOP, not here — different voucher and ITC treatment.',
   ],
+  visuals: [
+    { key: 'purchase.grn', label: 'Goods Received Note in Tranzact linked to the PO' },
+    { key: 'purchase.invoice', label: 'Purchase Invoice with HSN + GST class confirmation' },
+    { key: 'purchase.gstr2b-match', label: 'GSTR-2B match screen on the 14th' },
+  ],
 };
 
 export function PurchaseSop() {

@@ -71,6 +71,10 @@ const spec: SopSpec = {
     'TCS and Section-194-O TDS deductions must be posted to the right receivables — they’re refundable in the IT return.',
     'Never net the Settlement Journal against the wrong clearing ledger; reconciliation will silently break.',
   ],
+  visuals: [
+    { key: 'banking.hdfc.statement-import', label: 'HDFC escrow statement import screen in Tally' },
+    { key: 'banking.hdfc.settlement-journal', label: 'Posted Amazon Settlement Journal' },
+  ],
 };
 
 export function BankingHdfcSop() {

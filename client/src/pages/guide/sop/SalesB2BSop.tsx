@@ -69,6 +69,10 @@ const spec: SopSpec = {
     'Track the credit period; any invoice past due needs an AR follow-up before month-end.',
     'For partial payments, knock off the matching Bill Refs — never lump partials onto a single ref.',
   ],
+  visuals: [
+    { key: 'sales.b2b.party-master', label: 'Distributor party master in Tranzact (with GSTIN + credit terms)' },
+    { key: 'sales.b2b.receipt-bill-ref', label: 'Receipt voucher in Tally with Bill Ref against the open invoice' },
+  ],
 };
 
 export function SalesB2BSop() {

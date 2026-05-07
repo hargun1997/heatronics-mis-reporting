@@ -66,6 +66,10 @@ const spec: SopSpec = {
     'Tally BRS for ICICI still needs human review — the feed occasionally labels counter-parties wrong.',
     'High-value entries should NOT be routed through ICICI; that bank is for petty only. Use Central for vendor payments.',
   ],
+  visuals: [
+    { key: 'banking.icici.bank-feed', label: 'ICICI bank-feed screen in Tally with pending entries' },
+    { key: 'banking.icici.review-tag', label: 'Tagging the counter-party ledger before save' },
+  ],
 };
 
 export function BankingIciciSop() {

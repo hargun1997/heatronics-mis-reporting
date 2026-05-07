@@ -60,6 +60,10 @@ const spec: SopSpec = {
     'If the asset is used partly for exempt supplies, compute common-credit reversal as per Rule 43 monthly.',
     'Disposals and scrap need a separate journal — not a credit note.',
   ],
+  visuals: [
+    { key: 'capgoods.purchase-voucher', label: 'Purchase-Capital voucher in Tally with Fixed Asset Dr line' },
+    { key: 'capgoods.depreciation-journal', label: 'Monthly depreciation Journal' },
+  ],
 };
 
 export function CapitalGoodsSop() {

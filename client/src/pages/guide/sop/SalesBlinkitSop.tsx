@@ -69,6 +69,10 @@ const spec: SopSpec = {
     'Inter-state vs intra-state depends on destination warehouse, not Blinkit’s HQ.',
     'Disputed POs delay settlement; flag any invoice older than 45 days for AR follow-up.',
   ],
+  visuals: [
+    { key: 'sales.blinkit.po-grn-match', label: 'PO + GRN match screen in Tranzact before invoice save' },
+    { key: 'sales.blinkit.tally-result', label: 'Posted invoice in Tally with Blinkit Receivable' },
+  ],
 };
 
 export function SalesBlinkitSop() {

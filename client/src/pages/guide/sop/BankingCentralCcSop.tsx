@@ -76,6 +76,10 @@ const spec: SopSpec = {
     'Always tag the correct Bill Ref on vendor payments so creditor outstanding stays clean.',
     'CC interest debits (monthly) are an expense — book to Bank Charges / Finance Costs, not as a sweep.',
   ],
+  visuals: [
+    { key: 'banking.central.statement-import', label: 'Central Bank statement import screen in Tally' },
+    { key: 'banking.central.vendor-payment', label: 'Posted vendor Payment voucher with Bill Ref' },
+  ],
 };
 
 export function BankingCentralCcSop() {

@@ -85,6 +85,10 @@ const spec: SopSpec = {
     'COD orders that fail (RTO) need a Credit Note that knocks the receivable off Shiprocket COD Remittance.',
     'Watch for Shopify combo / discount orders — the GST base may need a manual adjustment before save.',
   ],
+  visuals: [
+    { key: 'sales.shopify.payment-mode', label: 'Identifying COD vs Prepaid in the Shopify export' },
+    { key: 'sales.shopify.tally-result', label: 'Voucher in Tally after plugin sync' },
+  ],
 };
 
 export function SalesShopifySop() {

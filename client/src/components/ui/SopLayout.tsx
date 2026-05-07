@@ -2,6 +2,7 @@ import React from 'react';
 import { PageHeader } from './PageHeader';
 import { Pill } from './Card';
 import { Disclosure } from './Disclosure';
+import { SopVisual } from './SopVisual';
 
 export interface SopStep {
   title: string;
@@ -16,6 +17,13 @@ export interface SopExample {
   note?: string;
 }
 
+export interface SopVisualPlaceholder {
+  /** Stable key — same value across uploads so the visual gets overwritten. */
+  key: string;
+  /** Caption shown under the visual. */
+  label: string;
+}
+
 export interface SopSpec {
   title: string;
   description: string;
@@ -28,6 +36,8 @@ export interface SopSpec {
   clearing?: string;
   gotchas?: string[];
   icon?: React.ReactNode;
+  /** Reference visuals: photos / GIFs of the actual screens used in the SOP. */
+  visuals?: SopVisualPlaceholder[];
 }
 
 export function SopLayout({ spec }: { spec: SopSpec }) {
@@ -95,6 +105,22 @@ export function SopLayout({ spec }: { spec: SopSpec }) {
             ))}
           </ol>
         </div>
+
+        {/* Visuals */}
+        {spec.visuals && spec.visuals.length > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h3 className="text-sm font-semibold text-slate-900">Reference visuals</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Screenshots and clips uploaded by the team. Hover an image to replace it; empty
+              slots accept any PNG / JPG / GIF.
+            </p>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {spec.visuals.map((v) => (
+                <SopVisual key={v.key} placeholderKey={v.key} label={v.label} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Examples */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">
