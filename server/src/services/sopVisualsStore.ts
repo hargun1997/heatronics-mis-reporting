@@ -1,4 +1,5 @@
 import { google, drive_v3, sheets_v4 } from 'googleapis';
+import { Readable } from 'stream';
 
 // ---------------------------------------------------------------------------
 // SOP Visuals Store
@@ -147,6 +148,124 @@ class SopVisualsStore {
 
   getFolderId(): string | null {
     return this.folderId;
+  }
+
+  /**
+   * Upload a visual against `key`. If a registry row already exists for
+   * the key, replace the bytes of the existing Drive file in-place
+   * (keeps the fileId stable so embed URLs don't break). Otherwise create
+   * a fresh file in the SOP visuals folder and append a new row.
+   */
+  async uploadVisual(input: {
+    key: string;
+    sopPath: string;
+    fileName: string;
+    mimeType: string;
+    dataBase64: string;
+    uploadedBy?: string;
+  }): Promise<SopVisualEntry> {
+    await this.initialize();
+    if (!this.drive || !this.sheets) throw new Error('Drive/Sheets not initialised');
+    if (!this.folderId) throw new Error('Visuals folder not initialised');
+
+    const buffer = Buffer.from(input.dataBase64, 'base64');
+    if (buffer.length === 0) throw new Error('Empty file payload');
+
+    // Look up the existing row (if any) so we can decide update vs create.
+    const existing = await this.findRow(input.key);
+    const lastUpdated = new Date().toISOString();
+    const uploadedBy = input.uploadedBy || 'anonymous';
+
+    let driveFileId: string;
+    if (existing) {
+      // Replace the bytes of the existing file. fileId stays the same.
+      driveFileId = existing.entry.driveFileId;
+      await this.drive.files.update({
+        fileId: driveFileId,
+        requestBody: { name: input.fileName, mimeType: input.mimeType },
+        media: { mimeType: input.mimeType, body: Readable.from(buffer) },
+        fields: 'id',
+      });
+    } else {
+      const created = await this.drive.files.create({
+        requestBody: {
+          name: input.fileName,
+          mimeType: input.mimeType,
+          parents: [this.folderId],
+        },
+        media: { mimeType: input.mimeType, body: Readable.from(buffer) },
+        fields: 'id',
+      });
+      if (!created.data.id) throw new Error('Drive returned no fileId');
+      driveFileId = created.data.id;
+    }
+
+    const row = [
+      input.key,
+      input.sopPath,
+      driveFileId,
+      input.mimeType,
+      input.fileName,
+      lastUpdated,
+      uploadedBy,
+    ];
+    if (existing) {
+      // rowIndex is the 1-based row in the spreadsheet (header is row 1).
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `${REGISTRY_TAB}!A${existing.rowIndex}:G${existing.rowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [row] },
+      });
+    } else {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId: SHEET_ID,
+        range: `${REGISTRY_TAB}!A:G`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [row] },
+      });
+    }
+
+    return {
+      key: input.key,
+      sopPath: input.sopPath,
+      driveFileId,
+      mimeType: input.mimeType,
+      fileName: input.fileName,
+      lastUpdated,
+      uploadedBy,
+    };
+  }
+
+  /**
+   * Find a registry row by key. Returns the entry plus the spreadsheet
+   * row number (1-based) so callers can update in place.
+   */
+  private async findRow(key: string): Promise<{ entry: SopVisualEntry; rowIndex: number } | null> {
+    if (!this.sheets) throw new Error('Sheets client not initialised');
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${REGISTRY_TAB}!A:G`,
+    });
+    const rows = response.data.values || [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row[0] === key && row[2]) {
+        return {
+          rowIndex: i + 1,
+          entry: {
+            key: row[0],
+            sopPath: row[1] || '',
+            driveFileId: row[2],
+            mimeType: row[3] || '',
+            fileName: row[4] || '',
+            lastUpdated: row[5] || '',
+            uploadedBy: row[6] || '',
+          },
+        };
+      }
+    }
+    return null;
   }
 }
 
