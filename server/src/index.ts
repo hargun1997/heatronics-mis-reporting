@@ -11,6 +11,7 @@ import checklistRoutes from './routes/checklist.js';
 import misRoutes from './routes/mis.js';
 import driveRoutes from './routes/drive.js';
 import expenseBookingRoutes from './routes/expenseBooking.js';
+import sopVisualsRoutes from './routes/sopVisuals.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +34,7 @@ app.use('/api/checklist', checklistRoutes);
 app.use('/api/mis', misRoutes);
 app.use('/api/drive', driveRoutes);
 app.use('/api/expense-booking', expenseBookingRoutes);
+app.use('/api/sop-visuals', sopVisualsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -69,6 +71,7 @@ app.listen(PORT, () => {
 ║    - /api/mis             - MIS Calculator                    ║
 ║    - /api/drive           - Google Drive Integration          ║
 ║    - /api/expense-booking - AI Expense Booking Advisor        ║
+║    - /api/sop-visuals     - SOP Visuals Registry              ║
 ║    - /api/health          - Health check                      ║
 ╚═══════════════════════════════════════════════════════════════╝
   `);
