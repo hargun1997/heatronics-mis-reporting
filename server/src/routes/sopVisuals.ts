@@ -49,4 +49,25 @@ router.post('/upload', async (req, res) => {
   }
 });
 
+router.get('/:key/content', async (req, res) => {
+  try {
+    const { key } = req.params;
+    if (!key) return res.status(400).json({ error: 'key is required' });
+    const result = await sopVisualsStore.getFileContent(key);
+    if (!result) return res.status(404).json({ error: 'Not found' });
+    res.setHeader('Content-Type', result.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${result.fileName.replace(/"/g, '')}"`);
+    // Re-uploads keep the same fileId but lastUpdated changes; clients
+    // bust cache by appending ?v=<lastUpdated>. We allow a short cache
+    // for the case where they don't.
+    res.setHeader('Cache-Control', 'private, max-age=60, must-revalidate');
+    if (result.lastUpdated) res.setHeader('Last-Modified', new Date(result.lastUpdated).toUTCString());
+    res.send(result.buffer);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('sop-visuals content failed:', message);
+    res.status(500).json({ error: message });
+  }
+});
+
 export default router;

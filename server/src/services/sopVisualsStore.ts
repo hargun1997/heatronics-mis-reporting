@@ -267,6 +267,30 @@ class SopVisualsStore {
     }
     return null;
   }
+
+  /**
+   * Fetch the file bytes for a given key. Returns null if no registry
+   * entry exists. We proxy through Drive because the files are owned by
+   * this service (drive.file scope) — they aren't publicly fetchable.
+   */
+  async getFileContent(
+    key: string
+  ): Promise<{ buffer: Buffer; mimeType: string; fileName: string; lastUpdated: string } | null> {
+    await this.initialize();
+    if (!this.drive) throw new Error('Drive client not initialised');
+    const found = await this.findRow(key);
+    if (!found) return null;
+    const response = await this.drive.files.get(
+      { fileId: found.entry.driveFileId, alt: 'media' },
+      { responseType: 'arraybuffer' }
+    );
+    return {
+      buffer: Buffer.from(response.data as ArrayBuffer),
+      mimeType: found.entry.mimeType || 'application/octet-stream',
+      fileName: found.entry.fileName,
+      lastUpdated: found.entry.lastUpdated,
+    };
+  }
 }
 
 export const sopVisualsStore = new SopVisualsStore();
