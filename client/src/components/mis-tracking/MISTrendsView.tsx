@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { MISRecord, MISPeriod, periodToString } from '../../types/misTracking';
 import { loadMISData } from '../../utils/googleSheetsStorage';
 import { formatCurrency, formatPercent } from '../../utils/misCalculator';
+import { exportChannelSplitToExcel } from '../../utils/misExcelExport';
 
 interface MISTrendsViewProps {
   savedPeriods: { periodKey: string; period: MISPeriod }[];
@@ -11,6 +14,46 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
   const [allMISData, setAllMISData] = useState<MISRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMetric, setSelectedMetric] = useState<'revenue' | 'margins' | 'channels'>('revenue');
+  const [isExporting, setIsExporting] = useState(false);
+  const channelChartRef = useRef<HTMLDivElement>(null);
+
+  const handleExportChannelExcel = async () => {
+    try {
+      setIsExporting(true);
+      await exportChannelSplitToExcel(allMISData);
+    } catch (error) {
+      console.error('Error exporting channel split to Excel:', error);
+      alert('Failed to export channel split. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportChannelPDF = async () => {
+    if (!channelChartRef.current) return;
+    try {
+      setIsExporting(true);
+      const canvas = await html2canvas(channelChartRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('landscape', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 10;
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.setFontSize(14);
+      pdf.text('Heatronics MIS - Channel Mix Evolution', margin, margin + 4);
+      pdf.addImage(imgData, 'PNG', margin, margin + 8, imgWidth, imgHeight);
+      pdf.save(`Heatronics_Channel_Split_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      console.error('Error exporting channel split to PDF:', error);
+      alert('Failed to export channel split as PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     loadAllData();
@@ -194,9 +237,35 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
       {/* Channel Mix */}
       {selectedMetric === 'channels' && (
         <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h3 className="text-base font-semibold text-slate-800 mb-6">Channel Mix Evolution</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-base font-semibold text-slate-800">Channel Mix Evolution</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportChannelExcel}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Download channel split as Excel"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Excel
+              </button>
+              <button
+                onClick={handleExportChannelPDF}
+                disabled={isExporting}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Download channel split as PDF"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                PDF
+              </button>
+            </div>
+          </div>
 
-          <div className="space-y-4">
+          <div ref={channelChartRef} className="space-y-4">
             {/* Legend */}
             <div className="flex gap-6 text-sm">
               <div className="flex items-center gap-2">
