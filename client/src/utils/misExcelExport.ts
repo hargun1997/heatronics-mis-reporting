@@ -1018,6 +1018,136 @@ function generateTrendsSheet(records: MISRecord[]): XLSX.WorkSheet {
 }
 
 // ============================================
+// CHANNEL SPLIT SHEET (STYLED)
+// ============================================
+
+function generateChannelSplitSheet(records: MISRecord[]): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  let row = 1;
+  const merges: XLSX.Range[] = [];
+
+  const sortedRecords = [...records].sort((a, b) => {
+    if (a.period.year !== b.period.year) return a.period.year - b.period.year;
+    return a.period.month - b.period.month;
+  });
+
+  const numCols = sortedRecords.length + 2; // Channel label + months + Total
+
+  // Title
+  ws[`A${row}`] = createCell('CHANNEL SPLIT - GROSS REVENUE BY CHANNEL', STYLES.title);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.title);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  ws[`A${row}`] = createCell('Channel mix based on Gross Revenue (incl. GST) per sales channel', STYLES.formula);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.formula);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  row++; // Empty
+
+  // ---- AMOUNTS BLOCK ----
+  ws[`A${row}`] = createCell('Gross Revenue (₹)', STYLES.subtitle);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.subtitle);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  // Header
+  ws[`A${row}`] = createCell('Channel', STYLES.header);
+  sortedRecords.forEach((r, i) => {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(periodToString(r.period), STYLES.header);
+  });
+  ws[XLSX.utils.encode_cell({ r: row - 1, c: numCols - 1 })] = createCell('Total', STYLES.header);
+  row++;
+
+  const rightNumber = { ...STYLES.number, alignment: { horizontal: 'right' as const, vertical: 'center' as const } };
+
+  SALES_CHANNELS.forEach(channel => {
+    ws[`A${row}`] = createCell(channel, STYLES.normal);
+    let channelTotal = 0;
+    sortedRecords.forEach((r, i) => {
+      const value = r.revenue.grossRevenue[channel] || 0;
+      channelTotal += value;
+      ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(formatAmountFull(value), rightNumber);
+    });
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: numCols - 1 })] = createCell(formatAmountFull(channelTotal), { ...STYLES.totalNumber });
+    row++;
+  });
+
+  // Total Gross Revenue row
+  ws[`A${row}`] = createCell('Total Gross Revenue', STYLES.total);
+  let grandTotal = 0;
+  sortedRecords.forEach((r, i) => {
+    const value = r.revenue.totalGrossRevenue || 0;
+    grandTotal += value;
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(formatAmountFull(value), STYLES.totalNumber);
+  });
+  ws[XLSX.utils.encode_cell({ r: row - 1, c: numCols - 1 })] = createCell(formatAmountFull(grandTotal), STYLES.totalNumber);
+  row++;
+
+  row++; // Empty
+
+  // ---- PERCENTAGE BLOCK ----
+  ws[`A${row}`] = createCell('Channel Mix (% of Gross Revenue)', STYLES.subtitle);
+  for (let c = 1; c < numCols; c++) {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c })] = createCell('', STYLES.subtitle);
+  }
+  merges.push({ s: { r: row - 1, c: 0 }, e: { r: row - 1, c: numCols - 1 } });
+  row++;
+
+  // Header
+  ws[`A${row}`] = createCell('Channel', STYLES.header);
+  sortedRecords.forEach((r, i) => {
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(periodToString(r.period), STYLES.header);
+  });
+  ws[XLSX.utils.encode_cell({ r: row - 1, c: numCols - 1 })] = createCell('Total', STYLES.header);
+  row++;
+
+  const rightPercent = { ...STYLES.percent, alignment: { horizontal: 'right' as const, vertical: 'center' as const } };
+
+  SALES_CHANNELS.forEach(channel => {
+    ws[`A${row}`] = createCell(channel, STYLES.normal);
+    let channelTotal = 0;
+    sortedRecords.forEach((r, i) => {
+      const total = r.revenue.totalGrossRevenue || 0;
+      const value = r.revenue.grossRevenue[channel] || 0;
+      channelTotal += value;
+      const pct = total > 0 ? (value / total) * 100 : 0;
+      ws[XLSX.utils.encode_cell({ r: row - 1, c: i + 1 })] = createCell(formatPercentValue(pct), rightPercent);
+    });
+    const overallPct = grandTotal > 0 ? (channelTotal / grandTotal) * 100 : 0;
+    ws[XLSX.utils.encode_cell({ r: row - 1, c: numCols - 1 })] = createCell(formatPercentValue(overallPct), { ...STYLES.totalNumber, numFmt: undefined });
+    row++;
+  });
+
+  ws['!ref'] = `A1:${XLSX.utils.encode_col(numCols - 1)}${row}`;
+  ws['!merges'] = merges;
+  setColumnWidths(ws, [18, ...sortedRecords.map(() => 14), 14]);
+
+  return ws;
+}
+
+export async function exportChannelSplitToExcel(records: MISRecord[]): Promise<void> {
+  const workbook = XLSX.utils.book_new();
+  const sheet = generateChannelSplitSheet(records);
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Channel Split');
+
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+
+  const filename = `Heatronics_Channel_Split_${new Date().toISOString().split('T')[0]}.xlsx`;
+  saveAs(blob, filename);
+}
+
+// ============================================
 // TRANSACTIONS SHEET (STYLED)
 // ============================================
 
