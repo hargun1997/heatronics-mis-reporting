@@ -522,8 +522,8 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
             if (a.period.year !== b.period.year) return a.period.year - b.period.year;
             return a.period.month - b.period.month;
           });
-          const chartRecords = sortedRecords.slice(-24); // Last 24 months, oldest to newest
-          const tableRecords = sortedRecords.slice(-12); // Last 12 months for table
+          const chartRecords = sortedRecords; // All months from the starting date, oldest to newest
+          const tableRecords = sortedRecords; // All months from the starting date
           const maxRev = Math.max(...chartRecords.map(r => r.revenue.netRevenue));
 
           return (
