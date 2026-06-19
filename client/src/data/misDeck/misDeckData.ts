@@ -61,6 +61,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Dec 2023",
     "month": 12,
     "year": 2023,
+    "netByChannel": {
+      "Amazon": 77908,
+      "OEM": 3635681,
+      "Offline": 1236373
+    },
     "grossByChannel": {
       "Amazon": 77908,
       "OEM": 3635681,
@@ -99,11 +104,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Salaries Director": -88000,
       "TOTAL OPERATING EXPENSES": -714179.71
     },
-    "netByChannel": {
-      "Amazon": 77908,
-      "OEM": 3635681,
-      "Offline": 1236373
-    },
     "cogm": 3184747.56,
     "channelFulfillment": 12077,
     "salesMarketing": 93219.44,
@@ -116,6 +116,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Jan 2024",
     "month": 1,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 73008.5,
+      "OEM": 3744150.5,
+      "Offline": 440590
+    },
     "grossByChannel": {
       "Amazon": 73008.5,
       "OEM": 3852932.5,
@@ -156,11 +161,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -2230,
       "TOTAL OPERATING EXPENSES": -807183.7
     },
-    "netByChannel": {
-      "Amazon": 73008.5,
-      "OEM": 3744150.5,
-      "Offline": 440590
-    },
     "cogm": 2693172.38,
     "channelFulfillment": 1320,
     "salesMarketing": 112723.81,
@@ -173,6 +173,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Feb 2024",
     "month": 2,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 265411.4,
+      "OEM": 2943969,
+      "Offline": 44206.2
+    },
     "grossByChannel": {
       "Amazon": 278944.4,
       "OEM": 2943969,
@@ -213,11 +218,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -16214,
       "TOTAL OPERATING EXPENSES": -664441.33
     },
-    "netByChannel": {
-      "Amazon": 265411.4,
-      "OEM": 2943969,
-      "Offline": 44206.2
-    },
     "cogm": 2081397.15,
     "channelFulfillment": 19954,
     "salesMarketing": 184630.58,
@@ -230,6 +230,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Mar 2024",
     "month": 3,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 639299,
+      "OEM": 977132,
+      "Offline": 36944
+    },
     "grossByChannel": {
       "Amazon": 639299,
       "OEM": 999081,
@@ -270,11 +275,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -4871.27,
       "TOTAL OPERATING EXPENSES": -489798.61
     },
-    "netByChannel": {
-      "Amazon": 639299,
-      "OEM": 977132,
-      "Offline": 36944
-    },
     "cogm": 1355158.85,
     "channelFulfillment": 865,
     "salesMarketing": 283513.35,
@@ -287,6 +287,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Apr 2024",
     "month": 4,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 797709,
+      "OEM": 94814,
+      "Offline": 28330
+    },
     "grossByChannel": {
       "Amazon": 834242,
       "OEM": 159075,
@@ -323,11 +328,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -7197,
       "TOTAL OPERATING EXPENSES": -667754.99
     },
-    "netByChannel": {
-      "Amazon": 797709,
-      "OEM": 94814,
-      "Offline": 28330
-    },
     "cogm": 453735.24,
     "channelFulfillment": 8405,
     "salesMarketing": 340507.7,
@@ -340,6 +340,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "May 2024",
     "month": 5,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 1007102,
+      "OEM": 395930,
+      "Offline": 59469
+    },
     "grossByChannel": {
       "Amazon": 1065173,
       "OEM": 397505,
@@ -378,11 +383,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -45739,
       "TOTAL OPERATING EXPENSES": -685339.49
     },
-    "netByChannel": {
-      "Amazon": 1007102,
-      "OEM": 395930,
-      "Offline": 59469
-    },
     "cogm": 573129.81,
     "channelFulfillment": 15375,
     "salesMarketing": 476482.31,
@@ -395,6 +395,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Jun 2024",
     "month": 6,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 1333719,
+      "OEM": 359625,
+      "Offline": 388876
+    },
     "grossByChannel": {
       "Amazon": 1377296,
       "OEM": 359625,
@@ -433,11 +438,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -8010,
       "TOTAL OPERATING EXPENSES": -601194.56
     },
-    "netByChannel": {
-      "Amazon": 1333719,
-      "OEM": 359625,
-      "Offline": 388876
-    },
     "cogm": 847199.47,
     "channelFulfillment": 8535,
     "salesMarketing": 539595.83,
@@ -450,6 +450,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Jul 2024",
     "month": 7,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 1505791,
+      "OEM": 641424,
+      "Offline": 90315
+    },
     "grossByChannel": {
       "Amazon": 1599824,
       "OEM": 656250,
@@ -490,11 +495,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -9316,
       "TOTAL OPERATING EXPENSES": -521086.58
     },
-    "netByChannel": {
-      "Amazon": 1505791,
-      "OEM": 641424,
-      "Offline": 90315
-    },
     "cogm": 816276.27,
     "channelFulfillment": -366,
     "salesMarketing": 727793.8,
@@ -507,6 +507,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Aug 2024",
     "month": 8,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 1737774,
+      "OEM": 707469,
+      "Offline": 395727
+    },
     "grossByChannel": {
       "Amazon": 1810228,
       "OEM": 795375,
@@ -547,11 +552,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Miscellaneous (Travel, insurance)": -7068,
       "TOTAL OPERATING EXPENSES": -564941.3
     },
-    "netByChannel": {
-      "Amazon": 1737774,
-      "OEM": 707469,
-      "Offline": 395727
-    },
     "cogm": 960000.76,
     "channelFulfillment": 6221,
     "salesMarketing": 780988.06,
@@ -564,6 +564,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Sep 2024",
     "month": 9,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 2626819,
+      "OEM": 713466,
+      "Offline": 678640
+    },
     "grossByChannel": {
       "Amazon": 3185126,
       "OEM": 714096,
@@ -605,11 +610,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -3452,
       "TOTAL OPERATING EXPENSES": -856986.22
     },
-    "netByChannel": {
-      "Amazon": 2626819,
-      "OEM": 713466,
-      "Offline": 678640
-    },
     "cogm": 1319582.36,
     "channelFulfillment": 8099,
     "salesMarketing": 1095349.58,
@@ -622,6 +622,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Oct 2024",
     "month": 10,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 2569738,
+      "OEM": 653197,
+      "Offline": 788165
+    },
     "grossByChannel": {
       "Amazon": 3097554,
       "OEM": 760902,
@@ -663,11 +668,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Administrative Expenses": -179392,
       "TOTAL OPERATING EXPENSES": -825608.92
     },
-    "netByChannel": {
-      "Amazon": 2569738,
-      "OEM": 653197,
-      "Offline": 788165
-    },
     "cogm": 1371050.54,
     "channelFulfillment": 558027.96,
     "salesMarketing": 659583.59,
@@ -680,6 +680,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Nov 2024",
     "month": 11,
     "year": 2024,
+    "netByChannel": {
+      "Amazon": 3649254.76,
+      "OEM": 474338,
+      "Offline": 924240
+    },
     "grossByChannel": {
       "Amazon": 4301583,
       "OEM": 474338,
@@ -720,11 +725,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -4766,
       "TOTAL OPERATING EXPENSES": -884913.51
     },
-    "netByChannel": {
-      "Amazon": 3649254.76,
-      "OEM": 474338,
-      "Offline": 924240
-    },
     "cogm": 1598135.8,
     "channelFulfillment": 886741.24,
     "salesMarketing": 797601.22,
@@ -737,6 +737,12 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Dec 2024",
     "month": 12,
     "year": 2024,
+    "netByChannel": {
+      "D2C": 51165.05,
+      "Amazon": 4894333,
+      "OEM": 698911,
+      "Offline": 1590143
+    },
     "grossByChannel": {
       "D2C": 51165.05,
       "Amazon": 5696766,
@@ -779,12 +785,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Miscellaneous (Travel, insurance)": -80054,
       "TOTAL OPERATING EXPENSES": -1030173.25
     },
-    "netByChannel": {
-      "D2C": 51165.05,
-      "Amazon": 4894333,
-      "OEM": 698911,
-      "Offline": 1590143
-    },
     "cogm": 2383391.76,
     "channelFulfillment": 1051210.27,
     "salesMarketing": 1185447.01,
@@ -797,6 +797,12 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Jan 2025",
     "month": 1,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 59384.23,
+      "Amazon": 4033197,
+      "OEM": 216941,
+      "Offline": 936585
+    },
     "grossByChannel": {
       "D2C": 62274.23,
       "Amazon": 4968587,
@@ -839,12 +845,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -4042,
       "TOTAL OPERATING EXPENSES": -626700.09
     },
-    "netByChannel": {
-      "D2C": 59384.23,
-      "Amazon": 4033197,
-      "OEM": 216941,
-      "Offline": 936585
-    },
     "cogm": 1760676.63,
     "channelFulfillment": 868659.69,
     "salesMarketing": 1471299.14,
@@ -857,6 +857,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Feb 2025",
     "month": 2,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 93009.22,
+      "Amazon": 985914,
+      "Blinkit": 28971,
+      "OEM": 306794,
+      "Offline": 817487
+    },
     "grossByChannel": {
       "D2C": 94259.22,
       "Amazon": 1174729,
@@ -901,13 +908,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -1060,
       "TOTAL OPERATING EXPENSES": -651531.12
     },
-    "netByChannel": {
-      "D2C": 93009.22,
-      "Amazon": 985914,
-      "Blinkit": 28971,
-      "OEM": 306794,
-      "Offline": 817487
-    },
     "cogm": 835500.55,
     "channelFulfillment": 262732.75,
     "salesMarketing": 362483.68,
@@ -920,6 +920,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Mar 2025",
     "month": 3,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 69038.59,
+      "Amazon": 945378,
+      "Blinkit": 168445,
+      "OEM": 55854,
+      "Offline": 1295708
+    },
     "grossByChannel": {
       "D2C": 69038.59,
       "Amazon": 1080217,
@@ -963,13 +970,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -2900,
       "TOTAL OPERATING EXPENSES": -674097.48
     },
-    "netByChannel": {
-      "D2C": 69038.59,
-      "Amazon": 945378,
-      "Blinkit": 168445,
-      "OEM": 55854,
-      "Offline": 1295708
-    },
     "cogm": 914025.12,
     "channelFulfillment": 302995.15,
     "salesMarketing": 382285.53,
@@ -982,6 +982,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Apr 2025",
     "month": 4,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 7020.7,
+      "Amazon": 994655,
+      "Blinkit": 395989,
+      "OEM": 494288,
+      "Offline": 47300
+    },
     "grossByChannel": {
       "D2C": 7020.7,
       "Amazon": 1095299,
@@ -1021,13 +1028,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Miscellaneous (Travel, insurance)": -28389,
       "TOTAL OPERATING EXPENSES": -752348.15
     },
-    "netByChannel": {
-      "D2C": 7020.7,
-      "Amazon": 994655,
-      "Blinkit": 395989,
-      "OEM": 494288,
-      "Offline": 47300
-    },
     "cogm": 771337.18,
     "channelFulfillment": 436068.37,
     "salesMarketing": 308361.75,
@@ -1040,6 +1040,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "May 2025",
     "month": 5,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 4476.9,
+      "Amazon": 1577343.28,
+      "Blinkit": 290096,
+      "OEM": 148223,
+      "Offline": 136931
+    },
     "grossByChannel": {
       "D2C": 4476.9,
       "Amazon": 1749235.47,
@@ -1083,13 +1090,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -2798,
       "TOTAL OPERATING EXPENSES": -622381.5
     },
-    "netByChannel": {
-      "D2C": 4476.9,
-      "Amazon": 1577343.28,
-      "Blinkit": 290096,
-      "OEM": 148223,
-      "Offline": 136931
-    },
     "cogm": 878649.89,
     "channelFulfillment": 576932.23,
     "salesMarketing": 400593.27,
@@ -1102,6 +1102,12 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Jun 2025",
     "month": 6,
     "year": 2025,
+    "netByChannel": {
+      "Amazon": 1816526.58,
+      "Blinkit": 289060,
+      "OEM": 559448,
+      "Offline": 305027
+    },
     "grossByChannel": {
       "Amazon": 1985134.48,
       "Blinkit": 295489,
@@ -1143,12 +1149,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -1490,
       "TOTAL OPERATING EXPENSES": -676512.06
     },
-    "netByChannel": {
-      "Amazon": 1816526.58,
-      "Blinkit": 289060,
-      "OEM": 559448,
-      "Offline": 305027
-    },
     "cogm": 1152712.46,
     "channelFulfillment": 648003.64,
     "salesMarketing": 488527.37,
@@ -1161,6 +1161,12 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Jul 2025",
     "month": 7,
     "year": 2025,
+    "netByChannel": {
+      "Amazon": 2901090.4,
+      "Blinkit": 493808,
+      "OEM": 906570,
+      "Offline": 233019
+    },
     "grossByChannel": {
       "Amazon": 3190013.04,
       "Blinkit": 507546,
@@ -1201,12 +1207,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Miscellaneous (Travel, insurance)": -13562,
       "TOTAL OPERATING EXPENSES": -850808.85
     },
-    "netByChannel": {
-      "Amazon": 2901090.4,
-      "Blinkit": 493808,
-      "OEM": 906570,
-      "Offline": 233019
-    },
     "cogm": 1739610.5,
     "channelFulfillment": 779524.93,
     "salesMarketing": 798072.33,
@@ -1219,6 +1219,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Aug 2025",
     "month": 8,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 62330.03,
+      "Amazon": 2068213.89,
+      "Blinkit": 331197,
+      "OEM": 616429,
+      "Offline": 217412
+    },
     "grossByChannel": {
       "D2C": 62330.03,
       "Amazon": 2291375.08,
@@ -1261,13 +1268,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -8898,
       "TOTAL OPERATING EXPENSES": -762086.89
     },
-    "netByChannel": {
-      "D2C": 62330.03,
-      "Amazon": 2068213.89,
-      "Blinkit": 331197,
-      "OEM": 616429,
-      "Offline": 217412
-    },
     "cogm": 1287748.48,
     "channelFulfillment": 589374.75,
     "salesMarketing": 617050.79,
@@ -1280,6 +1280,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Sep 2025",
     "month": 9,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 840103.48,
+      "Amazon": 2660072.3,
+      "Blinkit": 953626,
+      "OEM": 2539114,
+      "Offline": 729063.36
+    },
     "grossByChannel": {
       "D2C": 840103.48,
       "Amazon": 2952296.44,
@@ -1320,13 +1327,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Staff Welfare & Events": -6438.83,
       "TOTAL OPERATING EXPENSES": -854117.53
     },
-    "netByChannel": {
-      "D2C": 840103.48,
-      "Amazon": 2660072.3,
-      "Blinkit": 953626,
-      "OEM": 2539114,
-      "Offline": 729063.36
-    },
     "cogm": 2913814.4,
     "channelFulfillment": 706997.54,
     "salesMarketing": 1114137.57,
@@ -1339,6 +1339,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Oct 2025",
     "month": 10,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 2191261,
+      "Amazon": 2619468.32,
+      "Blinkit": 39493,
+      "OEM": 320696,
+      "Offline": 303282.95
+    },
     "grossByChannel": {
       "D2C": 2191261,
       "Amazon": 2938665.87,
@@ -1381,13 +1388,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Miscellaneous (Travel, insurance)": -16179.48,
       "TOTAL OPERATING EXPENSES": -897999.85
     },
-    "netByChannel": {
-      "D2C": 2191261,
-      "Amazon": 2619468.32,
-      "Blinkit": 39493,
-      "OEM": 320696,
-      "Offline": 303282.95
-    },
     "cogm": 2130055.15,
     "channelFulfillment": 688845.33,
     "salesMarketing": 1844765.5,
@@ -1400,6 +1400,12 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Nov 2025",
     "month": 11,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 4735385,
+      "Amazon": 2255134.01,
+      "OEM": 354243,
+      "Offline": 576241.54
+    },
     "grossByChannel": {
       "D2C": 4735385,
       "Amazon": 2579894.56,
@@ -1439,12 +1445,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Miscellaneous (Travel, insurance)": -12535,
       "TOTAL OPERATING EXPENSES": -1092674.66
     },
-    "netByChannel": {
-      "D2C": 4735385,
-      "Amazon": 2255134.01,
-      "OEM": 354243,
-      "Offline": 576241.54
-    },
     "cogm": 3130085.66,
     "channelFulfillment": 669409.38,
     "salesMarketing": 1890185.84,
@@ -1457,6 +1457,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Dec 2025",
     "month": 12,
     "year": 2025,
+    "netByChannel": {
+      "D2C": 5812674,
+      "Amazon": 1495789.59,
+      "Blinkit": 277948,
+      "OEM": 113321,
+      "Offline": 1101898.55
+    },
     "grossByChannel": {
       "D2C": 5812674,
       "Amazon": 1750438.79,
@@ -1499,13 +1506,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Legal & CA expenses": -73300,
       "TOTAL OPERATING EXPENSES": -1260413.41
     },
-    "netByChannel": {
-      "D2C": 5812674,
-      "Amazon": 1495789.59,
-      "Blinkit": 277948,
-      "OEM": 113321,
-      "Offline": 1101898.55
-    },
     "cogm": 3660233.87,
     "channelFulfillment": 516526.7,
     "salesMarketing": 2067204.97,
@@ -1518,6 +1518,14 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Jan 2026",
     "month": 1,
     "year": 2026,
+    "netByChannel": {
+      "D2C": 5145028,
+      "Amazon": 380557.99,
+      "Blinkit": -100674,
+      "OEM": 678300,
+      "Offline": 559798,
+      "Export": 21300
+    },
     "grossByChannel": {
       "D2C": 5145028,
       "Amazon": 514396.99,
@@ -1559,14 +1567,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Legal & CA expenses": -107500,
       "TOTAL OPERATING EXPENSES": -567289.44
     },
-    "netByChannel": {
-      "D2C": 5145028,
-      "Amazon": 380557.99,
-      "Blinkit": -100674,
-      "OEM": 678300,
-      "Offline": 559798,
-      "Export": 21300
-    },
     "cogm": 6545778.53,
     "channelFulfillment": 48010.14,
     "salesMarketing": 80122.72,
@@ -1579,6 +1579,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Feb 2026",
     "month": 2,
     "year": 2026,
+    "netByChannel": {
+      "D2C": 3298145,
+      "Amazon": 295588.33,
+      "Blinkit": -29120,
+      "OEM": 962581,
+      "Offline": 188331.54
+    },
     "grossByChannel": {
       "D2C": 3298145,
       "Amazon": 341288.73,
@@ -1620,13 +1627,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Legal & CA expenses": -212242,
       "TOTAL OPERATING EXPENSES": -1683425.77
     },
-    "netByChannel": {
-      "D2C": 3298145,
-      "Amazon": 295588.33,
-      "Blinkit": -29120,
-      "OEM": 962581,
-      "Offline": 188331.54
-    },
     "cogm": 1239592.43,
     "channelFulfillment": 125818.93,
     "salesMarketing": 109919.32,
@@ -1639,6 +1639,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Mar 2026",
     "month": 3,
     "year": 2026,
+    "netByChannel": {
+      "D2C": 2094288,
+      "Amazon": 1120048.38,
+      "Blinkit": 346709,
+      "OEM": 390626,
+      "Offline": 91687
+    },
     "grossByChannel": {
       "D2C": 2094288,
       "Amazon": 1265752.38,
@@ -1679,13 +1686,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Legal & CA expenses": -206310,
       "TOTAL OPERATING EXPENSES": -1670024.91
     },
-    "netByChannel": {
-      "D2C": 2094288,
-      "Amazon": 1120048.38,
-      "Blinkit": 346709,
-      "OEM": 390626,
-      "Offline": 91687
-    },
     "cogm": 4431306.12,
     "channelFulfillment": 307615.24,
     "salesMarketing": 2038965.65,
@@ -1698,6 +1698,12 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "Apr 2026",
     "month": 4,
     "year": 2026,
+    "netByChannel": {
+      "D2C": 1860000,
+      "Amazon": 1800000,
+      "OEM": 316000,
+      "Offline": 210000
+    },
     "grossByChannel": {},
     "returnsByChannel": {},
     "totalGrossRevenue": 0,
@@ -1713,8 +1719,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "ebitda": -2732000,
     "netIncome": -2881000,
     "cogmLines": {},
-    "opexLines": {},
-    "netByChannel": {},
+    "opexLines": {
+      "Salary Cost": -235000,
+      "Corporate Overheads": -72000,
+      "TOTAL OPERATING EXPENSES": -307000
+    },
     "cogm": 3392000,
     "channelFulfillment": 901000,
     "salesMarketing": 2301000,
@@ -1727,6 +1736,12 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "label": "May 2026",
     "month": 5,
     "year": 2026,
+    "netByChannel": {
+      "D2C": 1417000,
+      "Amazon": 2384000,
+      "OEM": 2634000,
+      "Offline": 277000
+    },
     "grossByChannel": {},
     "returnsByChannel": {},
     "totalGrossRevenue": 0,
@@ -1742,8 +1757,11 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "ebitda": 3069000,
     "netIncome": 239000,
     "cogmLines": {},
-    "opexLines": {},
-    "netByChannel": {},
+    "opexLines": {
+      "Salary Cost": -208000,
+      "Corporate Overheads": -77000,
+      "TOTAL OPERATING EXPENSES": -285000
+    },
     "cogm": 1057000,
     "channelFulfillment": 377000,
     "salesMarketing": 1926000,

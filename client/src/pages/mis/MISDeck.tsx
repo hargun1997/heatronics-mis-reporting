@@ -8,7 +8,7 @@ import {
 } from '../../components/mis-deck/charts';
 import {
   seriesFor, monthlySeries, quarterlySeries, yearlySeries,
-  periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts,
+  periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts, arrProjection,
   SALES_CHANNELS, FY_SUMMARY,
   type Granularity, type PeriodMIS,
 } from '../../data/misDeck/analytics';
@@ -83,11 +83,10 @@ export function MISDeck() {
 
 function KpiCard({ label, value, sub, tone = 'slate' }: {
   label: string; value: string; sub?: React.ReactNode;
-  tone?: 'slate' | 'emerald' | 'rose' | 'brand' | 'amber';
+  tone?: 'slate' | 'brand' | 'amber';
 }) {
   const toneMap = {
-    slate: 'text-slate-900', emerald: 'text-emerald-600', rose: 'text-rose-600',
-    brand: 'text-brand-700', amber: 'text-amber-600',
+    slate: 'text-slate-900', brand: 'text-brand-700', amber: 'text-amber-600',
   };
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-soft p-4">
@@ -98,11 +97,12 @@ function KpiCard({ label, value, sub, tone = 'slate' }: {
   );
 }
 
+// Direction is conveyed by the arrow, not by colour (no red/green).
 function Delta({ value, suffix }: { value: number | null; suffix?: string }) {
   if (value === null || !isFinite(value)) return <span className="text-slate-400">–</span>;
   const up = value >= 0;
   return (
-    <span className={`inline-flex items-center gap-0.5 font-medium ${up ? 'text-emerald-600' : 'text-rose-600'}`}>
+    <span className={`inline-flex items-center gap-0.5 font-medium ${up ? 'text-brand-700' : 'text-slate-500'}`}>
       {up ? '▲' : '▼'} {pctSigned(value)}{suffix}
     </span>
   );
@@ -164,15 +164,15 @@ function OverviewTab({ facts }: { facts: ReturnType<typeof deckFacts> }) {
         <KpiCard label="TTM Net Revenue" value={inr(facts.ttmRevenue)}
           sub={<>vs prior 12m <Delta value={facts.ttmGrowth} /></>} />
         <KpiCard label="Gross Margin" value={pctStr(m.grossMarginPct)}
-          sub={`EBITDA ${pctStr(m.ebitdaPct)} · CM2 ${pctStr(m.cm2Pct)}`} tone="emerald" />
+          sub={`EBITDA ${pctStr(m.ebitdaPct)} · CM2 ${pctStr(m.cm2Pct)}`} tone="brand" />
         <KpiCard label={`Revenue CAGR (${facts.cagrYears}y FY)`} value={facts.revenueCagrFY !== null ? pctStr(facts.revenueCagrFY) : '–'}
           sub={`${facts.fyFirst.longLabel} → ${facts.fyLast.longLabel}`} tone="brand" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="EBITDA · latest" value={inr(facts.latest.ebitda)} tone={facts.latest.ebitda >= 0 ? 'emerald' : 'rose'}
+        <KpiCard label="EBITDA · latest" value={inr(facts.latest.ebitda)} tone={facts.latest.ebitda >= 0 ? 'brand' : 'slate'}
           sub={pctStr(m.ebitdaPct) + ' of revenue'} />
-        <KpiCard label="Net Income · latest" value={inr(facts.latest.netIncome)} tone={facts.latest.netIncome >= 0 ? 'emerald' : 'rose'}
+        <KpiCard label="Net Income · latest" value={inr(facts.latest.netIncome)} tone={facts.latest.netIncome >= 0 ? 'brand' : 'slate'}
           sub={pctStr(m.netIncomePct) + ' of revenue'} />
         <KpiCard label="Largest Channel" value={facts.bestChannelLatest.channel}
           sub={pctStr(facts.bestChannelLatest.share) + ' of net revenue'} tone="amber" />
@@ -237,6 +237,73 @@ function OverviewTab({ facts }: { facts: ReturnType<typeof deckFacts> }) {
 // Revenue & Growth
 // ----------------------------------------------------------------------------
 
+function ArrProjectionSection() {
+  const [basis, setBasis] = useState<3 | 6>(6);
+  const proj = useMemo(() => arrProjection(basis), [basis]);
+
+  const labels = proj.points.map((p) => p.label);
+  const splitIdx = proj.points.findIndex((p) => p.projected);
+  const actualValues = proj.points.map((p) => (p.projected ? null : p.value));
+  const projectedValues = proj.points.map((p, i) =>
+    p.projected ? p.value : i === splitIdx - 1 ? p.value : null,
+  );
+
+  return (
+    <SectionCard
+      title="ARR & forward revenue projection"
+      description={`Compounds the latest month at the average MoM growth of the trailing ${basis} months for 12 months`}
+      actions={
+        <div className="inline-flex bg-slate-100 rounded-lg p-0.5">
+          {([3, 6] as const).map((b) => (
+            <button
+              key={b}
+              onClick={() => setBasis(b)}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                basis === b ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {b}-mo basis
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+        <KpiCard label="Forward ARR (projected)" value={inr(proj.forwardArr)} tone="brand"
+          sub={`next 12 months @ ${pctSigned(proj.avgMoM)} MoM`} />
+        <KpiCard label="Exit run-rate ARR" value={inr(proj.projectedExitArr)} tone="brand"
+          sub={`month +12 × 12 (${inr(proj.projectedExitRevenue)}/mo)`} />
+        <KpiCard label="Current run-rate ARR" value={inr(proj.runRateArr)}
+          sub={`${proj.lastMonthLabel} × 12`} />
+        <KpiCard label="TTM Revenue (actual)" value={inr(proj.ttmRevenue)}
+          sub="trailing 12 months" />
+        <KpiCard label={`Avg MoM · ${basis}m`} value={proj.avgMoM !== null ? pctSigned(proj.avgMoM) : '–'} tone="amber"
+          sub={proj.yoyLatest !== null ? `latest YoY ${pctSigned(proj.yoyLatest)}` : undefined} />
+      </div>
+
+      <LineChart
+        labels={labels}
+        series={[
+          { name: 'Actual', color: SERIES_COLORS[0], values: actualValues },
+          { name: 'Projected', color: SERIES_COLORS[2], values: projectedValues },
+        ]}
+        height={260}
+      />
+      <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+        <Legend items={[
+          { label: 'Actual (last 12m)', color: SERIES_COLORS[0] },
+          { label: 'Projected (next 12m)', color: SERIES_COLORS[2] },
+        ]} />
+      </div>
+      <p className="text-xs text-slate-400 mt-3">
+        Illustrative projection. Forward ARR is the sum of the projected next 12 months; exit run-rate ARR annualises the
+        12th projected month. Growth is the geometric-mean month-over-month change across the chosen trailing window, held
+        constant — actual results will vary, and the most recent months may include management estimates from the source MIS.
+      </p>
+    </SectionCard>
+  );
+}
+
 function GrowthTab() {
   const [g, setG] = useState<Granularity>('month');
   const series = useMemo(() => seriesFor(g), [g]);
@@ -249,6 +316,8 @@ function GrowthTab() {
 
   return (
     <div className="space-y-6">
+      <ArrProjectionSection />
+
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-700">Revenue trajectory & growth</h2>
         <GranularityToggle value={g} onChange={setG} />
@@ -297,7 +366,7 @@ function GrowthTab() {
                     <td className="py-2 px-3 text-right"><Delta value={pop[i]} /></td>
                     <td className="py-2 px-3 text-right"><Delta value={yoy[i]} /></td>
                     <td className="py-2 px-3 text-right text-slate-600">{pctStr(mar.grossMarginPct)}</td>
-                    <td className={`py-2 px-3 text-right ${p.ebitda >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{inr(p.ebitda)}</td>
+                    <td className="py-2 px-3 text-right text-slate-700">{inr(p.ebitda)}</td>
                     <td className="py-2 pl-3 text-right text-slate-600">{pctStr(mar.ebitdaPct)}</td>
                   </tr>
                 );
@@ -500,8 +569,8 @@ function ProfitabilityTab() {
                     <td className="py-2 px-3 text-right text-slate-600">{pctStr(p.salesMarketing / rev)}</td>
                     <td className="py-2 px-3 text-right text-slate-600">{pctStr(p.platformCosts / rev)}</td>
                     <td className="py-2 px-3 text-right text-slate-600">{pctStr(p.opex / rev)}</td>
-                    <td className={`py-2 px-3 text-right font-medium ${m.ebitdaPct >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{pctStr(m.ebitdaPct)}</td>
-                    <td className={`py-2 px-3 text-right ${m.netIncomePct >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{pctStr(m.netIncomePct)}</td>
+                    <td className="py-2 px-3 text-right font-medium text-slate-800">{pctStr(m.ebitdaPct)}</td>
+                    <td className="py-2 px-3 text-right text-slate-700">{pctStr(m.netIncomePct)}</td>
                   </tr>
                 );
               })}
@@ -564,9 +633,8 @@ function PnlTab() {
                     {series.map((p) => {
                       const raw = p[row.key] as number;
                       const val = row.kind === 'cost' ? -raw : raw;
-                      const neg = val < 0;
                       return (
-                        <td key={p.key} className={`py-2 px-3 text-right tabular-nums ${neg ? 'text-rose-600' : isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
+                        <td key={p.key} className={`py-2 px-3 text-right tabular-nums ${isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
                           {inr(val)}
                         </td>
                       );
