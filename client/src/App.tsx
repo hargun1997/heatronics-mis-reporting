@@ -4,11 +4,11 @@ import { MainLayout } from './layouts/MainLayout';
 // Top-level pages
 import { Home } from './pages/Home';
 import { Reporting } from './pages/Reporting';
+import { MISDeck } from './pages/mis/MISDeck';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
 // Legacy feature pages (kept alive under new routes)
-import { MISTrackingNew } from './pages/MISTrackingNew';
 import { TaskTracker } from './pages/TaskTracker';
 
 // Guide
@@ -47,12 +47,16 @@ function App() {
 
           {/* Top-level sections */}
           <Route path="reporting" element={<Reporting />} />
+          <Route path="reporting/mis" element={<MISDeck />} />
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
-          {/* Legacy feature routes — still reachable */}
-          <Route path="mis-tracking" element={<MISTrackingNew />} />
+          {/* Legacy feature routes */}
           <Route path="task-tracker" element={<TaskTracker />} />
+
+          {/* Old MIS Reporting view is retired — superseded by the new MIS Reporting deck */}
+          <Route path="mis-tracking" element={<Navigate to="/reporting/mis" replace />} />
+          <Route path="mis-tracking/*" element={<Navigate to="/reporting/mis" replace />} />
 
           {/* Guide hub */}
           <Route path="guide" element={<GuideHome />} />
