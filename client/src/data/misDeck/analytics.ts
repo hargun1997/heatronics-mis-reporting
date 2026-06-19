@@ -11,6 +11,10 @@ import {
 
 export type Granularity = 'month' | 'quarter' | 'year';
 
+// Local string formatters (kept here so this data module has no UI dependency).
+function pctStr(v: number, digits = 1): string { return `${(v * 100).toFixed(digits)}%`; }
+function pctSigned(v: number, digits = 1): string { return `${v > 0 ? '+' : ''}${(v * 100).toFixed(digits)}%`; }
+
 export interface PeriodMIS {
   key: string;          // e.g. "2025-12", "FY26 Q3", "FY 2025-26"
   label: string;        // short display label
@@ -31,6 +35,13 @@ export interface PeriodMIS {
   opex: number;
   nonOperating: number;
   monthsCount: number;  // how many months rolled into this period
+  firstMonthShort: string; // e.g. "Dec '23" — first month covered
+  lastMonthShort: string;  // e.g. "Mar '24" — last month covered
+}
+
+/** "Dec 2023" → "Dec '23" */
+export function shortMonth(label: string): string {
+  return label.replace(/ 20(\d\d)$/, " '$1");
 }
 
 // ----------------------------------------------------------------------------
@@ -62,6 +73,8 @@ function aggregate(records: MonthlyMIS[], key: string, label: string, longLabel:
     netRevenue: 0, grossMargin: 0, cm1: 0, cm2: 0, cm3: 0, ebitda: 0, netIncome: 0,
     cogm: 0, channelFulfillment: 0, salesMarketing: 0, platformCosts: 0, opex: 0, nonOperating: 0,
     monthsCount: records.length,
+    firstMonthShort: records.length ? shortMonth(records[0].label) : '',
+    lastMonthShort: records.length ? shortMonth(records[records.length - 1].label) : '',
   };
   for (const r of records) {
     for (const c of SALES_CHANNELS) p.netByChannel[c] += r.netByChannel[c] ?? 0;
@@ -194,6 +207,185 @@ export function channelMix(p: PeriodMIS): Record<SalesChannel, number> {
     acc[c] = total > 0 ? Math.max(0, p.netByChannel[c]) / total : 0;
     return acc;
   }, {} as Record<SalesChannel, number>);
+}
+
+// ----------------------------------------------------------------------------
+// Channel-level analytics
+// ----------------------------------------------------------------------------
+
+/** Herfindahl–Hirschman Index of channel concentration, 0–10,000 (higher = more concentrated). */
+export function channelHHI(p: PeriodMIS): number {
+  const mix = channelMix(p);
+  return Math.round(SALES_CHANNELS.reduce((s, c) => s + Math.pow(mix[c] * 100, 2), 0));
+}
+
+export function topChannel(p: PeriodMIS): { channel: SalesChannel; share: number } {
+  const mix = channelMix(p);
+  return SALES_CHANNELS.reduce(
+    (best, c) => (mix[c] > best.share ? { channel: c, share: mix[c] } : best),
+    { channel: SALES_CHANNELS[0] as SalesChannel, share: -1 },
+  );
+}
+
+/** Number of channels contributing more than `threshold` (fraction) of net revenue. */
+export function channelsAbove(p: PeriodMIS, threshold = 0.05): number {
+  const mix = channelMix(p);
+  return SALES_CHANNELS.filter((c) => mix[c] > threshold).length;
+}
+
+export interface ChannelShift {
+  channel: SalesChannel;
+  earlyShare: number;
+  lateShare: number;
+  deltaPts: number;       // late − early, in share points (fraction)
+  earlyRev: number;
+  lateRev: number;
+  growth: number | null;  // late vs early revenue growth
+}
+
+/** Compares the first vs the last quarter that carry channel data. */
+export function channelShifts(): { early: PeriodMIS; late: PeriodMIS; shifts: ChannelShift[] } | null {
+  const q = quarterlySeries().filter((p) => SALES_CHANNELS.some((c) => p.netByChannel[c] > 0));
+  if (q.length < 2) return null;
+  const early = q[0], late = q[q.length - 1];
+  const em = channelMix(early), lm = channelMix(late);
+  const shifts: ChannelShift[] = SALES_CHANNELS.map((c) => ({
+    channel: c,
+    earlyShare: em[c],
+    lateShare: lm[c],
+    deltaPts: lm[c] - em[c],
+    earlyRev: early.netByChannel[c],
+    lateRev: late.netByChannel[c],
+    growth: early.netByChannel[c] > 0 ? (late.netByChannel[c] - early.netByChannel[c]) / early.netByChannel[c] : null,
+  }));
+  return { early, late, shifts };
+}
+
+/** Auto-generated, data-driven channel observations. */
+export function channelObservations(): string[] {
+  const out: string[] = [];
+  const data = channelShifts();
+  if (!data) return out;
+  const { early, late, shifts } = data;
+
+  const sorted = [...shifts].sort((a, b) => b.deltaPts - a.deltaPts);
+  const gainer = sorted[0];
+  const loser = sorted[sorted.length - 1];
+  const top = topChannel(late);
+
+  // Mix rotation headline
+  if (gainer.deltaPts > 0.03 && loser.deltaPts < -0.03) {
+    out.push(
+      `Channel mix has rotated from ${loser.channel} (${pctStr(loser.earlyShare, 0)} → ${pctStr(loser.lateShare, 0)}) toward ` +
+      `${gainer.channel} (${pctStr(gainer.earlyShare, 0)} → ${pctStr(gainer.lateShare, 0)}) between ${early.label} and ${late.label}.`,
+    );
+  }
+
+  // Biggest gainer detail
+  if (gainer.deltaPts > 0.02) {
+    out.push(
+      `${gainer.channel} is the fastest-growing channel by share, +${Math.round(gainer.deltaPts * 100)} pts` +
+      (gainer.growth !== null ? ` (revenue ${pctSigned(gainer.growth)} vs ${early.label})` : '') + `.`,
+    );
+  }
+
+  // Emerging channel (≈0 → material)
+  const emerging = shifts.find((s) => s.earlyShare < 0.01 && s.lateShare >= 0.05);
+  if (emerging && emerging.channel !== gainer.channel) {
+    out.push(`${emerging.channel} emerged from ~0% to ${pctStr(emerging.lateShare, 0)} of net revenue.`);
+  }
+
+  // Declining channel
+  if (loser.deltaPts < -0.03) {
+    out.push(
+      `${loser.channel} has de-concentrated, −${Math.round(Math.abs(loser.deltaPts) * 100)} pts of share` +
+      ` (now ${pctStr(loser.lateShare, 0)}).`,
+    );
+  }
+
+  // Concentration / diversification
+  const hhiLate = channelHHI(late), hhiEarly = channelHHI(early);
+  const conc = hhiLate > 3000 ? 'highly concentrated' : hhiLate > 1800 ? 'moderately concentrated' : 'well diversified';
+  out.push(
+    `Revenue is ${conc} in ${late.label} (HHI ${hhiLate}, ${hhiEarly > hhiLate ? 'down' : 'up'} from ${hhiEarly}); ` +
+    `top channel ${top.channel} is ${pctStr(top.share, 0)}, and ${channelsAbove(late)} channels each exceed 5% of revenue.`,
+  );
+
+  return out;
+}
+
+// ----------------------------------------------------------------------------
+// Like-for-like (YoY same-frame) channel comparison
+// ----------------------------------------------------------------------------
+
+const monthByKey = new Map(monthsAsc.map((m) => [m.key, m]));
+
+/** The underlying monthly records that compose a given period in granularity `g`. */
+function membersOf(g: Granularity, period: PeriodMIS): MonthlyMIS[] {
+  if (g === 'month') return monthsAsc.filter((m) => m.key === period.key);
+  if (g === 'year') return monthsAsc.filter((m) => fiscalYear(m.month, m.year).key === period.key);
+  return monthsAsc.filter((m) => `${fiscalYear(m.month, m.year).key} ${fiscalQuarter(m.month).label}` === period.key);
+}
+
+function scopeOf(records: MonthlyMIS[]): string {
+  if (!records.length) return '—';
+  return records.length > 1
+    ? `${shortMonth(records[0].label)}–${shortMonth(records[records.length - 1].label)}`
+    : shortMonth(records[0].label);
+}
+
+export interface ChannelLfLRow { channel: SalesChannel; prior: number; cur: number; growth: number | null }
+
+export interface ChannelLfL {
+  current: PeriodMIS;
+  curScope: string;       // e.g. "Apr '26–May '26"
+  priorScope: string;     // e.g. "Apr '25–May '25"
+  priorComplete: boolean; // whether every current month has a prior-year match
+  curRevenue: number;
+  priorRevenue: number;
+  revenueGrowth: number | null;
+  rows: ChannelLfLRow[];
+  frameNote: string;
+}
+
+/**
+ * Compares the latest period against the SAME calendar frame one year earlier
+ * (e.g. a 2-month FY-to-date vs the same 2 months of the prior FY) — a fair,
+ * like-for-like YoY comparison rather than current-vs-immediately-prior period.
+ */
+export function likeForLikeChannel(g: Granularity): ChannelLfL {
+  const series = seriesFor(g);
+  const current = series[series.length - 1];
+  const curMembers = membersOf(g, current);
+  const priorMembers = curMembers
+    .map((m) => monthByKey.get(`${m.year - 1}-${String(m.month).padStart(2, '0')}`))
+    .filter((m): m is MonthlyMIS => !!m);
+
+  const cur = aggregate(curMembers, 'cur', 'cur', 'cur', 0);
+  const prior = aggregate(priorMembers, 'prior', 'prior', 'prior', 0);
+
+  const rows: ChannelLfLRow[] = SALES_CHANNELS.map((c) => {
+    const p = prior.netByChannel[c] || 0, n = cur.netByChannel[c] || 0;
+    return { channel: c, prior: p, cur: n, growth: p > 0 ? (n - p) / p : null };
+  });
+
+  const frameNote = g === 'month'
+    ? 'vs the same month last year'
+    : g === 'quarter'
+      ? 'vs the same quarter last FY'
+      : 'FY-to-date vs the same months last FY';
+
+  return {
+    current,
+    curScope: scopeOf(curMembers),
+    priorScope: scopeOf(priorMembers),
+    priorComplete: priorMembers.length === curMembers.length,
+    curRevenue: cur.netRevenue,
+    priorRevenue: prior.netRevenue,
+    revenueGrowth: prior.netRevenue > 0 ? (cur.netRevenue - prior.netRevenue) / prior.netRevenue : null,
+    rows,
+    frameNote,
+  };
 }
 
 // ----------------------------------------------------------------------------
