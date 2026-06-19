@@ -140,21 +140,6 @@ function OverviewTab({ facts }: { facts: ReturnType<typeof deckFacts> }) {
   const last24 = months.slice(-24);
   const m = facts.latestMargins;
 
-  const insights: string[] = [];
-  insights.push(
-    `${facts.latest.longLabel} net revenue was ${inr(facts.latest.netRevenue)}, ${
-      facts.momRevGrowth !== null ? `${pctSigned(facts.momRevGrowth)} MoM` : 'MoM n/a'
-    }${facts.yoyRevGrowth !== null ? ` and ${pctSigned(facts.yoyRevGrowth)} YoY` : ''}.`,
-  );
-  if (facts.ttmGrowth !== null)
-    insights.push(`Trailing-12-month revenue is ${inr(facts.ttmRevenue)}, growing ${pctSigned(facts.ttmGrowth)} vs the prior 12 months.`);
-  if (facts.revenueCagrFY !== null)
-    insights.push(`Revenue compounded at ${pctStr(facts.revenueCagrFY)} CAGR from ${facts.fyFirst.longLabel} (${inr(facts.fyFirst.netRevenue)}) to ${facts.fyLast.longLabel} (${inr(facts.fyLast.netRevenue)}).`);
-  insights.push(`${facts.bestChannelLatest.channel} is the largest channel at ${pctStr(facts.bestChannelLatest.share)} of net revenue this month.`);
-  if (facts.fastestChannel)
-    insights.push(`${facts.fastestChannel.channel} is the fastest-growing channel, ${pctSigned(facts.fastestChannel.growth)} over the last 3 months vs the prior 3.`);
-  insights.push(`Latest gross margin ${pctStr(m.grossMarginPct)}, EBITDA margin ${pctStr(m.ebitdaPct)}.`);
-
   return (
     <div className="space-y-6">
       {/* KPI grid */}
@@ -174,23 +159,9 @@ function OverviewTab({ facts }: { facts: ReturnType<typeof deckFacts> }) {
           sub={pctStr(m.ebitdaPct) + ' of revenue'} />
         <KpiCard label="Net Income · latest" value={inr(facts.latest.netIncome)} tone={facts.latest.netIncome >= 0 ? 'brand' : 'slate'}
           sub={pctStr(m.netIncomePct) + ' of revenue'} />
-        <KpiCard label="Largest Channel" value={facts.bestChannelLatest.channel}
-          sub={pctStr(facts.bestChannelLatest.share) + ' of net revenue'} tone="amber" />
         <KpiCard label="Data Coverage" value={`${facts.monthsOfData} months`}
           sub={`${months[0].longLabel} → ${facts.latest.longLabel}`} />
       </div>
-
-      {/* Insights */}
-      <SectionCard title="What a VC would notice" description="Auto-generated from the latest data">
-        <ul className="space-y-2">
-          {insights.map((t, i) => (
-            <li key={i} className="flex gap-2 text-sm text-slate-700">
-              <span className="text-brand-500 mt-0.5">▸</span>
-              <span>{t}</span>
-            </li>
-          ))}
-        </ul>
-      </SectionCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <SectionCard title="Net Revenue & EBITDA" description="Last 24 months" className="lg:col-span-2">
