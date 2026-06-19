@@ -224,11 +224,9 @@ function ArrProjectionSection() {
       title="ARR & forward revenue projection"
       description="Blends annualised MoM (last 3 months) with YoY growth, then grows the trailing 12 months for the next 12"
     >
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
         <KpiCard label="Forward ARR (projected)" value={inr(proj.forwardArr)} tone="brand"
           sub={`next 12 months @ ${pctSigned(proj.blendedAnnual)} blended`} />
-        <KpiCard label="Exit run-rate ARR" value={inr(proj.projectedExitArr)} tone="brand"
-          sub={`${proj.lastMonthLabel} +1yr × 12 (${inr(proj.projectedExitRevenue)}/mo)`} />
         <KpiCard label="Current run-rate ARR" value={inr(proj.runRateArr)}
           sub={`${proj.lastMonthLabel} × 12`} />
         <KpiCard label="TTM Revenue (actual)" value={inr(proj.ttmRevenue)}
@@ -654,8 +652,14 @@ function PnlTab() {
 
       <p className="text-xs text-slate-400">
         Net Revenue = external sales net of returns &amp; GST (excludes inter-branch transfers). COGM is derived so the
-        Net Revenue → Net Income bridge reconciles exactly. Depreciation is excluded from the EBITDA/Net-income basis,
-        consistent with the source MIS.
+        Net Revenue → Net Income bridge reconciles exactly. Depreciation is generally excluded from the EBITDA/Net-income
+        basis, consistent with the source MIS.
+      </p>
+      <p className="text-xs text-slate-400">
+        <span className="font-medium text-slate-500">FY 2025-26 restated:</span> tied to the company's provisional P&amp;L
+        as on 31-03-2026 — COGM ₹2.35 Cr (gross margin 59.7%), EBITDA ≈ −₹0.97 L (breakeven), with depreciation
+        (₹12.91 L) and interest (₹9.00 L) below EBITDA for a net loss of −₹22.88 L. The Jan–Mar 2026 months were smoothed
+        to remove the volatile actual-consumption COGM that had overstated full-year cost of goods.
       </p>
     </div>
   );
