@@ -9,6 +9,7 @@ import {
 import {
   seriesFor, monthlySeries, quarterlySeries, yearlySeries,
   periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts, arrProjection,
+  channelObservations, channelHHI, topChannel, channelsAbove, likeForLikeChannel,
   SALES_CHANNELS, FY_SUMMARY,
   type Granularity, type PeriodMIS,
 } from '../../data/misDeck/analytics';
@@ -359,17 +360,14 @@ function ChannelsTab() {
   });
 
   // per-channel absolute net revenue lines
-  const channelLines = SALES_CHANNELS.map((c, i) => ({
+  const channelLines = SALES_CHANNELS.map((c) => ({
     name: c, color: CHANNEL_COLORS[c], values: series.map((p) => p.netByChannel[c]),
   }));
 
-  // growth per channel: last period vs prior
-  const lastIdx = series.length - 1;
-  const channelGrowth = SALES_CHANNELS.map((c) => {
-    const cur = series[lastIdx]?.netByChannel[c] ?? 0;
-    const prev = series[lastIdx - 1]?.netByChannel[c] ?? 0;
-    return { channel: c, cur, prev, growth: prev ? (cur - prev) / Math.abs(prev) : null };
-  });
+  // Fair, like-for-like YoY comparison (same calendar frame, one year earlier)
+  const lfl = useMemo(() => likeForLikeChannel(g), [g]);
+  const lflMix = channelMix(lfl.current);
+  const observations = useMemo(() => channelObservations(), []);
 
   return (
     <div className="space-y-6">
@@ -394,33 +392,60 @@ function ChannelsTab() {
         <div className="mt-3"><Legend items={SALES_CHANNELS.map((c) => ({ label: c, color: CHANNEL_COLORS[c] }))} /></div>
       </SectionCard>
 
-      <SectionCard title={`Channel growth · latest ${g}`} description={`${series[lastIdx]?.longLabel} vs ${series[lastIdx - 1]?.longLabel ?? 'prior'}`}>
+      {/* Channel observations */}
+      {observations.length > 0 && (
+        <SectionCard title="Channel observations" description="Trend read across the full history (first quarter with data → latest quarter)">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <KpiCard label="Top channel" value={topChannel(lfl.current).channel}
+              sub={pctStr(topChannel(lfl.current).share, 0) + ' of net revenue'} tone="amber" />
+            <KpiCard label="Channels > 5%" value={`${channelsAbove(lfl.current)} of ${SALES_CHANNELS.length}`}
+              sub="diversification" />
+            <KpiCard label="Concentration (HHI)" value={`${channelHHI(lfl.current)}`}
+              sub={channelHHI(lfl.current) > 3000 ? 'high' : channelHHI(lfl.current) > 1800 ? 'moderate' : 'low'} />
+            <KpiCard label="Active channels" value={`${SALES_CHANNELS.filter((c) => lfl.current.netByChannel[c] > 0).length}`}
+              sub="with revenue this period" />
+          </div>
+          <ul className="space-y-2">
+            {observations.map((t, i) => (
+              <li key={i} className="flex gap-2 text-sm text-slate-700">
+                <span className="text-brand-500 mt-0.5">▸</span>
+                <span>{t}</span>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      )}
+
+      <SectionCard
+        title={`Channel growth · like-for-like ${g === 'year' ? 'FY-to-date' : g}`}
+        description={`${lfl.curScope} vs ${lfl.priorScope} — ${lfl.frameNote}${lfl.priorComplete ? '' : ' (prior frame partly unavailable)'}`}
+      >
+        <div className="mb-3 text-sm text-slate-600">
+          Total net revenue {inr(lfl.curRevenue)} vs {inr(lfl.priorRevenue)} · <Delta value={lfl.revenueGrowth} />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-400 border-b border-slate-200">
                 <th className="py-2 pr-4 font-medium">Channel</th>
-                <th className="py-2 px-3 text-right font-medium">Prior</th>
-                <th className="py-2 px-3 text-right font-medium">Latest</th>
-                <th className="py-2 px-3 text-right font-medium">Growth</th>
+                <th className="py-2 px-3 text-right font-medium">{lfl.priorScope}</th>
+                <th className="py-2 px-3 text-right font-medium">{lfl.curScope}</th>
+                <th className="py-2 px-3 text-right font-medium">YoY growth</th>
                 <th className="py-2 pl-3 text-right font-medium">Mix now</th>
               </tr>
             </thead>
             <tbody>
-              {channelGrowth.map((r) => {
-                const mix = channelMix(series[lastIdx]);
-                return (
-                  <tr key={r.channel} className="border-b border-slate-50">
-                    <td className="py-2 pr-4 font-medium text-slate-700 flex items-center gap-2">
-                      <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: CHANNEL_COLORS[r.channel] }} />{r.channel}
-                    </td>
-                    <td className="py-2 px-3 text-right text-slate-600">{inr(r.prev)}</td>
-                    <td className="py-2 px-3 text-right text-slate-700">{inr(r.cur)}</td>
-                    <td className="py-2 px-3 text-right"><Delta value={r.growth} /></td>
-                    <td className="py-2 pl-3 text-right text-slate-600">{pctStr(mix[r.channel])}</td>
-                  </tr>
-                );
-              })}
+              {lfl.rows.map((r) => (
+                <tr key={r.channel} className="border-b border-slate-50">
+                  <td className="py-2 pr-4 font-medium text-slate-700 flex items-center gap-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: CHANNEL_COLORS[r.channel] }} />{r.channel}
+                  </td>
+                  <td className="py-2 px-3 text-right text-slate-600">{inr(r.prior)}</td>
+                  <td className="py-2 px-3 text-right text-slate-700">{inr(r.cur)}</td>
+                  <td className="py-2 px-3 text-right"><Delta value={r.growth} /></td>
+                  <td className="py-2 pl-3 text-right text-slate-600">{pctStr(lflMix[r.channel])}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -578,15 +603,30 @@ function PnlTab() {
         <GranularityToggle value={g} onChange={setG} />
       </div>
 
-      <SectionCard title={`P&L · ${capitalizeGran(g)}`} description="All figures in ₹. Costs shown as negatives.">
+      <SectionCard title={`P&L · ${capitalizeGran(g)}`} description="All figures in ₹. Costs shown as negatives. Column scope shown under each heading — partial periods are annotated.">
         <div className="overflow-x-auto">
           <table className="w-full text-sm whitespace-nowrap">
             <thead>
               <tr className="text-xs text-slate-400 border-b border-slate-200">
-                <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white">Particulars</th>
-                {series.map((p) => (
-                  <th key={p.key} className="py-2 px-3 text-right font-medium">{p.label}</th>
-                ))}
+                <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white align-bottom">Particulars</th>
+                {series.map((p) => {
+                  const partial = g === 'year' && p.monthsCount < 12;
+                  const scope = g === 'month'
+                    ? null
+                    : p.monthsCount > 1
+                      ? `${p.firstMonthShort}–${p.lastMonthShort}`
+                      : p.firstMonthShort;
+                  return (
+                    <th key={p.key} className="py-2 px-3 text-right font-medium align-bottom">
+                      <div className="text-slate-600 font-semibold">{p.label}</div>
+                      {scope && (
+                        <div className="text-[10px] font-normal text-slate-400 mt-0.5">
+                          {scope} · {p.monthsCount}m{partial ? ' (partial)' : ''}
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
