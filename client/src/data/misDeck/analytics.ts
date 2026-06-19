@@ -290,74 +290,89 @@ function futureLabel(sortKey: number, k: number): string {
 export interface ArrProjectionPoint { label: string; value: number; projected: boolean }
 
 export interface ArrProjection {
-  basisMonths: number;
-  /** Geometric-mean MoM growth over the basis window (fraction), or null. */
-  avgMoM: number | null;
-  /** YoY growth of the latest month (fraction), or null. */
-  yoyLatest: number | null;
+  /** Geometric-mean MoM growth over the last 3 months (monthly fraction). */
+  momGrowth3m: number | null;
+  /** The 3-month MoM growth annualised: (1+mom)^12 - 1. */
+  momAnnualised: number | null;
+  /** YoY growth of trailing-12-month revenue vs the prior 12 months. */
+  yoyGrowth: number | null;
+  /** Blended annual growth = average of annualised MoM(3m) and YoY. */
+  blendedAnnual: number | null;
   lastMonthLabel: string;
   lastMonthRevenue: number;
   /** Trailing-12-month revenue (actual). */
   ttmRevenue: number;
+  /** The 12 months before the trailing 12 (actual). */
+  priorTtmRevenue: number;
   /** Simple run-rate ARR: latest month annualised. */
   runRateArr: number;
-  /** Projected revenue 12 months out (the exit month). */
+  /** Forward ARR = trailing 12 months grown by the blended annual rate. */
+  forwardArr: number;
+  /** Projected revenue for the latest month one year out. */
   projectedExitRevenue: number;
   /** Projected exit month annualised (exit run-rate ARR). */
   projectedExitArr: number;
-  /** Forward ARR = sum of the projected next 12 months. */
-  forwardArr: number;
   /** 12 months of actual + 12 months of projected revenue, for charting. */
   points: ArrProjectionPoint[];
 }
 
 /**
- * Project ARR by taking the average MoM growth over the trailing `basisMonths`
- * months and compounding the latest month forward for 12 months.
+ * Project ARR from a blend of momentum signals:
+ *  - MoM: geometric-mean month-over-month growth over the last 3 months (annualised), and
+ *  - YoY: trailing-12-month revenue vs the prior 12 months.
+ * The two are averaged into a single blended annual growth rate, which is then applied
+ * on top of each of the last 12 actual months to project the next 12 (preserving seasonality).
+ * Forward ARR is the sum of that projected next-12-month revenue.
  */
-export function arrProjection(basisMonths = 6): ArrProjection {
+export function arrProjection(): ArrProjection {
   const months = monthlySeries();
   const last = months[months.length - 1];
 
-  // Geometric-mean MoM growth over the basis window.
-  const slice = months.slice(-(basisMonths + 1)); // basisMonths+1 points → basisMonths ratios
+  // --- MoM: geometric mean over the last 3 months (needs 4 points → 3 ratios) ---
+  const slice = months.slice(-4);
   let prod = 1, count = 0;
   for (let i = 1; i < slice.length; i++) {
     const prev = slice[i - 1].netRevenue, cur = slice[i].netRevenue;
     if (prev > 0 && cur > 0) { prod *= cur / prev; count++; }
   }
-  const avgMoM = count > 0 ? Math.pow(prod, 1 / count) - 1 : null;
-  const g = avgMoM ?? 0;
+  const momGrowth3m = count > 0 ? Math.pow(prod, 1 / count) - 1 : null;
+  const momAnnualised = momGrowth3m !== null ? Math.pow(1 + momGrowth3m, 12) - 1 : null;
 
-  // Compound the latest month forward 12 months.
-  const projectedVals: number[] = [];
-  let rev = last.netRevenue;
-  for (let k = 1; k <= 12; k++) { rev = rev * (1 + g); projectedVals.push(rev); }
-
-  const forwardArr = projectedVals.reduce((a, b) => a + b, 0);
-  const projectedExitRevenue = projectedVals[11];
-
-  const yoyLatest = months.length > 12 && months[months.length - 13].netRevenue > 0
-    ? (last.netRevenue - months[months.length - 13].netRevenue) / months[months.length - 13].netRevenue
-    : null;
-
+  // --- YoY: trailing 12 months vs the prior 12 months ---
   const actualTail = months.slice(-12);
+  const prior = months.slice(-24, -12);
+  const ttmRevenue = actualTail.reduce((s, p) => s + p.netRevenue, 0);
+  const priorTtmRevenue = prior.reduce((s, p) => s + p.netRevenue, 0);
+  const yoyGrowth = priorTtmRevenue > 0 ? (ttmRevenue - priorTtmRevenue) / priorTtmRevenue : null;
+
+  // --- Blend the two annual rates ---
+  const parts = [momAnnualised, yoyGrowth].filter((v): v is number => v !== null && isFinite(v));
+  const blendedAnnual = parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
+  const g = blendedAnnual ?? 0;
+
+  // --- Project: grow each of the last 12 months by the blended annual rate ---
+  const projectedVals = actualTail.map((p) => p.netRevenue * (1 + g));
+  const forwardArr = projectedVals.reduce((a, b) => a + b, 0);
+  const projectedExitRevenue = projectedVals[projectedVals.length - 1]; // latest month, one year out
+
   const points: ArrProjectionPoint[] = [
     ...actualTail.map((p) => ({ label: p.label, value: p.netRevenue, projected: false })),
     ...projectedVals.map((v, k) => ({ label: futureLabel(last.sortKey, k + 1), value: v, projected: true })),
   ];
 
   return {
-    basisMonths,
-    avgMoM,
-    yoyLatest,
+    momGrowth3m,
+    momAnnualised,
+    yoyGrowth,
+    blendedAnnual,
     lastMonthLabel: last.longLabel,
     lastMonthRevenue: last.netRevenue,
-    ttmRevenue: actualTail.reduce((s, p) => s + p.netRevenue, 0),
+    ttmRevenue,
+    priorTtmRevenue,
     runRateArr: last.netRevenue * 12,
+    forwardArr,
     projectedExitRevenue,
     projectedExitArr: projectedExitRevenue * 12,
-    forwardArr,
     points,
   };
 }
