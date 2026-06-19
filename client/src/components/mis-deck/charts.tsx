@@ -38,15 +38,20 @@ export function pctSigned(value: number | null | undefined, digits = 1): string 
 // ============================================================================
 
 export const CHANNEL_COLORS: Record<string, string> = {
-  D2C: '#4f46e5',     // brand indigo
+  D2C: '#4f46e5',     // indigo
   Amazon: '#f59e0b',  // amber
   Blinkit: '#eab308', // yellow
   OEM: '#0ea5e9',     // sky
-  Offline: '#10b981', // emerald
+  Offline: '#8b5cf6', // violet
   Export: '#ec4899',  // pink
 };
 
-export const SERIES_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#0ea5e9', '#ec4899', '#8b5cf6'];
+// Neutral, categorical palette — deliberately avoids red/green value signalling.
+export const SERIES_COLORS = ['#4f46e5', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
+
+// Directional accents for +/- bars — indigo for up, muted slate for down (no red/green).
+export const POS_COLOR = '#4f46e5';
+export const NEG_COLOR = '#94a3b8';
 
 // ============================================================================
 // Measurement hook
@@ -357,7 +362,7 @@ export function GrowthBarChart({
                   y={v >= 0 ? yOf(v) : yOf(0)}
                   width={barW}
                   height={Math.max(1, Math.abs(yOf(v) - yOf(0)))}
-                  fill={v >= 0 ? '#10b981' : '#ef4444'}
+                  fill={v >= 0 ? POS_COLOR : NEG_COLOR}
                   rx={1}
                 />
               )}
@@ -463,7 +468,7 @@ export function WaterfallChart({ steps, height = 280 }: { steps: WaterfallStep[]
         {bars.map((b, i) => {
           const yTop = yOf(Math.max(b.start, b.end));
           const h = Math.max(1, Math.abs(yOf(b.start) - yOf(b.end)));
-          const color = b.type === 'total' ? '#4f46e5' : b.value < 0 ? '#ef4444' : '#10b981';
+          const color = b.type === 'total' ? '#4f46e5' : b.value < 0 ? '#94a3b8' : '#a5b4fc';
           const words = b.label.split(' ');
           return (
             <g key={i}

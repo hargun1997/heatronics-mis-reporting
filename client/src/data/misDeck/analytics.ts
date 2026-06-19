@@ -273,5 +273,94 @@ export function deckFacts(): DeckFacts {
   };
 }
 
+// ----------------------------------------------------------------------------
+// ARR / forward revenue projection
+// ----------------------------------------------------------------------------
+
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function futureLabel(sortKey: number, k: number): string {
+  const y = Math.floor(sortKey / 100);
+  const m0 = (sortKey % 100) - 1 + k;
+  const ny = y + Math.floor(m0 / 12);
+  const nm = ((m0 % 12) + 12) % 12;
+  return `${MON[nm]} '${String(ny % 100).padStart(2, '0')}`;
+}
+
+export interface ArrProjectionPoint { label: string; value: number; projected: boolean }
+
+export interface ArrProjection {
+  basisMonths: number;
+  /** Geometric-mean MoM growth over the basis window (fraction), or null. */
+  avgMoM: number | null;
+  /** YoY growth of the latest month (fraction), or null. */
+  yoyLatest: number | null;
+  lastMonthLabel: string;
+  lastMonthRevenue: number;
+  /** Trailing-12-month revenue (actual). */
+  ttmRevenue: number;
+  /** Simple run-rate ARR: latest month annualised. */
+  runRateArr: number;
+  /** Projected revenue 12 months out (the exit month). */
+  projectedExitRevenue: number;
+  /** Projected exit month annualised (exit run-rate ARR). */
+  projectedExitArr: number;
+  /** Forward ARR = sum of the projected next 12 months. */
+  forwardArr: number;
+  /** 12 months of actual + 12 months of projected revenue, for charting. */
+  points: ArrProjectionPoint[];
+}
+
+/**
+ * Project ARR by taking the average MoM growth over the trailing `basisMonths`
+ * months and compounding the latest month forward for 12 months.
+ */
+export function arrProjection(basisMonths = 6): ArrProjection {
+  const months = monthlySeries();
+  const last = months[months.length - 1];
+
+  // Geometric-mean MoM growth over the basis window.
+  const slice = months.slice(-(basisMonths + 1)); // basisMonths+1 points → basisMonths ratios
+  let prod = 1, count = 0;
+  for (let i = 1; i < slice.length; i++) {
+    const prev = slice[i - 1].netRevenue, cur = slice[i].netRevenue;
+    if (prev > 0 && cur > 0) { prod *= cur / prev; count++; }
+  }
+  const avgMoM = count > 0 ? Math.pow(prod, 1 / count) - 1 : null;
+  const g = avgMoM ?? 0;
+
+  // Compound the latest month forward 12 months.
+  const projectedVals: number[] = [];
+  let rev = last.netRevenue;
+  for (let k = 1; k <= 12; k++) { rev = rev * (1 + g); projectedVals.push(rev); }
+
+  const forwardArr = projectedVals.reduce((a, b) => a + b, 0);
+  const projectedExitRevenue = projectedVals[11];
+
+  const yoyLatest = months.length > 12 && months[months.length - 13].netRevenue > 0
+    ? (last.netRevenue - months[months.length - 13].netRevenue) / months[months.length - 13].netRevenue
+    : null;
+
+  const actualTail = months.slice(-12);
+  const points: ArrProjectionPoint[] = [
+    ...actualTail.map((p) => ({ label: p.label, value: p.netRevenue, projected: false })),
+    ...projectedVals.map((v, k) => ({ label: futureLabel(last.sortKey, k + 1), value: v, projected: true })),
+  ];
+
+  return {
+    basisMonths,
+    avgMoM,
+    yoyLatest,
+    lastMonthLabel: last.longLabel,
+    lastMonthRevenue: last.netRevenue,
+    ttmRevenue: actualTail.reduce((s, p) => s + p.netRevenue, 0),
+    runRateArr: last.netRevenue * 12,
+    projectedExitRevenue,
+    projectedExitArr: projectedExitRevenue * 12,
+    forwardArr,
+    points,
+  };
+}
+
 export { SALES_CHANNELS, FY_SUMMARY };
 export type { SalesChannel };
