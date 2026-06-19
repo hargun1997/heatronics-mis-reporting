@@ -209,8 +209,7 @@ function OverviewTab({ facts }: { facts: ReturnType<typeof deckFacts> }) {
 // ----------------------------------------------------------------------------
 
 function ArrProjectionSection() {
-  const [basis, setBasis] = useState<3 | 6>(6);
-  const proj = useMemo(() => arrProjection(basis), [basis]);
+  const proj = useMemo(() => arrProjection(), []);
 
   const labels = proj.points.map((p) => p.label);
   const splitIdx = proj.points.findIndex((p) => p.projected);
@@ -222,34 +221,28 @@ function ArrProjectionSection() {
   return (
     <SectionCard
       title="ARR & forward revenue projection"
-      description={`Compounds the latest month at the average MoM growth of the trailing ${basis} months for 12 months`}
-      actions={
-        <div className="inline-flex bg-slate-100 rounded-lg p-0.5">
-          {([3, 6] as const).map((b) => (
-            <button
-              key={b}
-              onClick={() => setBasis(b)}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                basis === b ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {b}-mo basis
-            </button>
-          ))}
-        </div>
-      }
+      description="Blends annualised MoM (last 3 months) with YoY growth, then grows the trailing 12 months for the next 12"
     >
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         <KpiCard label="Forward ARR (projected)" value={inr(proj.forwardArr)} tone="brand"
-          sub={`next 12 months @ ${pctSigned(proj.avgMoM)} MoM`} />
+          sub={`next 12 months @ ${pctSigned(proj.blendedAnnual)} blended`} />
         <KpiCard label="Exit run-rate ARR" value={inr(proj.projectedExitArr)} tone="brand"
-          sub={`month +12 × 12 (${inr(proj.projectedExitRevenue)}/mo)`} />
+          sub={`${proj.lastMonthLabel} +1yr × 12 (${inr(proj.projectedExitRevenue)}/mo)`} />
         <KpiCard label="Current run-rate ARR" value={inr(proj.runRateArr)}
           sub={`${proj.lastMonthLabel} × 12`} />
         <KpiCard label="TTM Revenue (actual)" value={inr(proj.ttmRevenue)}
           sub="trailing 12 months" />
-        <KpiCard label={`Avg MoM · ${basis}m`} value={proj.avgMoM !== null ? pctSigned(proj.avgMoM) : '–'} tone="amber"
-          sub={proj.yoyLatest !== null ? `latest YoY ${pctSigned(proj.yoyLatest)}` : undefined} />
+      </div>
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <KpiCard label="MoM growth · 3m (annualised)"
+          value={proj.momAnnualised !== null ? pctSigned(proj.momAnnualised) : '–'} tone="amber"
+          sub={proj.momGrowth3m !== null ? `${pctSigned(proj.momGrowth3m)} per month` : undefined} />
+        <KpiCard label="YoY growth (TTM)"
+          value={proj.yoyGrowth !== null ? pctSigned(proj.yoyGrowth) : '–'} tone="amber"
+          sub="vs prior 12 months" />
+        <KpiCard label="Blended annual growth"
+          value={proj.blendedAnnual !== null ? pctSigned(proj.blendedAnnual) : '–'} tone="brand"
+          sub="avg of MoM(annualised) & YoY" />
       </div>
 
       <LineChart
@@ -267,9 +260,10 @@ function ArrProjectionSection() {
         ]} />
       </div>
       <p className="text-xs text-slate-400 mt-3">
-        Illustrative projection. Forward ARR is the sum of the projected next 12 months; exit run-rate ARR annualises the
-        12th projected month. Growth is the geometric-mean month-over-month change across the chosen trailing window, held
-        constant — actual results will vary, and the most recent months may include management estimates from the source MIS.
+        Illustrative projection. Blended annual growth = the average of (a) the last 3 months' geometric-mean MoM growth,
+        annualised, and (b) trailing-12-month YoY growth. That single rate is applied to each of the last 12 actual months
+        to project the next 12 (so seasonality is preserved); Forward ARR is the sum of those projected months. Actual
+        results will vary, and the most recent months may include management estimates from the source MIS.
       </p>
     </SectionCard>
   );
