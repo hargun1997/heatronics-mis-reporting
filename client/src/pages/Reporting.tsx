@@ -24,23 +24,24 @@ export function Reporting() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <NavCard
-            to="/mis-tracking"
+            to="/reporting/mis"
             title="MIS Reporting"
-            description="Upload sales register, balance sheet, P&L and purchase data — generate a classified monthly MIS."
+            description="Investor-grade deck — channel mix, growth (MoM / QoQ / YoY / CAGR) and margin trends across month, quarter and fiscal year."
             icon={iconMIS}
             accent="brand"
+            badge="New"
           />
           <NavCard
-            to="/mis-tracking?view=trends"
-            title="Monthly Trends"
-            description="Compare month-over-month movement across revenue, COGS, expenses and cash flow."
+            to="/reporting/mis"
+            title="Channel Mix & Trends"
+            description="How D2C, Amazon, Blinkit, OEM and Offline revenue shares shift month-wise, quarterly and yearly."
             icon={iconTrends}
             accent="sky"
           />
           <NavCard
-            to="/mis-tracking?view=fy"
-            title="Financial Year View"
-            description="Full-year aggregated P&L with drill-down into channel and state splits."
+            to="/reporting/mis"
+            title="Profitability & P&L"
+            description="Gross margin → CM1/CM2/CM3 → EBITDA → Net income, with a net-revenue-to-net-income bridge."
             icon={iconBS}
             accent="violet"
           />
