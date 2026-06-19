@@ -1,52 +1,52 @@
 // AUTO-GENERATED from MIS-Sheet_FINAL_channels.xlsx (extracted 2026-06-19).
 // Do not edit by hand. Regenerate via the extraction script if the source workbook changes.
 // All monetary values are in INR (₹). Margin percentages are fractions (0.59 = 59%).
+//
+// NOTE: FY 2025-26 is restated to tie to the company's provisional Profit & Loss A/c as on
+// 31-03-2026 (Heatronics Medical Devices Pvt Ltd). The Jan/Feb/Mar 2026 months — which used
+// volatile actual-consumption COGM — are smoothed so the full year reconciles: COGM ₹2.35 Cr
+// (GM 59.7%), EBITDA ≈ -₹0.97 L (breakeven), depreciation (₹12.91 L) + interest (₹9.00 L)
+// below EBITDA, Net Loss -₹22.88 L. Apr-Dec 2025 are unchanged.
 
 export const SALES_CHANNELS = ['D2C', 'Amazon', 'Blinkit', 'OEM', 'Offline', 'Export'] as const;
 export type SalesChannel = (typeof SALES_CHANNELS)[number];
 
 export interface MonthlyMIS {
-  /** Period key, e.g. "2025-12" */
   key: string;
-  /** Display label, e.g. "Dec 2025" */
   label: string;
-  month: number; // 1-12
+  month: number;
   year: number;
-  /** Net revenue by channel (gross less returns), INR */
   netByChannel: Partial<Record<SalesChannel, number>>;
-  /** Gross revenue by channel (before returns/taxes), INR */
   grossByChannel: Partial<Record<SalesChannel, number>>;
-  /** Returns by channel (negative), INR */
   returnsByChannel: Partial<Record<SalesChannel, number>>;
   totalGrossRevenue: number;
-  totalReturns: number;   // negative
-  totalTaxes: number;     // negative
-  netRevenue: number;     // external net revenue
+  totalReturns: number;
+  totalTaxes: number;
+  netRevenue: number;
   interBranch: number;
   turnover: number;
-  // Margin chain (INR)
   grossMargin: number;
   cm1: number;
   cm2: number;
   cm3: number;
   ebitda: number;
   netIncome: number;
-  // Cost blocks (positive magnitudes, derived from the margin chain so the waterfall reconciles)
   cogm: number;
   channelFulfillment: number;
   salesMarketing: number;
   platformCosts: number;
   opex: number;
   nonOperating: number;
-  // Detailed line items (as captured; values are negative expenses)
   cogmLines: Record<string, number>;
   opexLines: Record<string, number>;
+  /** Present when the month was restated to tie to an external statement. */
+  restated?: string;
 }
 
 export interface FYSummary {
   name: string;
   netRevenue: number;
-  mix: Record<SalesChannel, number>; // channel mix as fractions
+  mix: Record<SalesChannel, number>;
   grossMarginPct: number;
   ebitdaPct: number;
   netIncomePct: number;
@@ -1519,37 +1519,37 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "month": 1,
     "year": 2026,
     "netByChannel": {
-      "D2C": 5145028,
-      "Amazon": 380557.99,
-      "Blinkit": -100674,
-      "OEM": 678300,
-      "Offline": 559798,
-      "Export": 21300
+      "D2C": 5483911.46,
+      "Amazon": 405623.9,
+      "Blinkit": -107305.01,
+      "OEM": 722977.05,
+      "Offline": 596669.77,
+      "Export": 22702.95
     },
     "grossByChannel": {
-      "D2C": 5145028,
-      "Amazon": 514396.99,
-      "OEM": 678300,
-      "Offline": 627844,
-      "Export": 21300
+      "D2C": 5483911.46,
+      "Amazon": 548278.37,
+      "OEM": 722977.05,
+      "Offline": 669197.7,
+      "Export": 22702.95
     },
     "returnsByChannel": {
-      "Amazon": -133839,
-      "Blinkit": -100674,
-      "Offline": -68046
+      "Amazon": -142654.47,
+      "Blinkit": -107305.01,
+      "Offline": -72527.93
     },
     "totalGrossRevenue": 6986868.99,
     "totalReturns": -302559,
     "totalTaxes": -317286.27,
-    "netRevenue": 6367023.72,
+    "netRevenue": 6786395.4,
     "interBranch": 78000,
     "turnover": 6445023.72,
-    "grossMargin": -178754.81,
-    "cm1": -226764.95,
-    "cm2": -306887.67,
-    "cm3": -308082.77,
-    "ebitda": -875372.21,
-    "netIncome": -916873.21,
+    "grossMargin": 4245801.91,
+    "cm1": 3755193.77,
+    "cm2": 1213605.38,
+    "cm3": 1213605.38,
+    "ebitda": -831741.98,
+    "netIncome": -1560039.99,
     "cogmLines": {
       "Raw Materials & Inventory": -6452228.28,
       "Factory Maintenance": -32728,
@@ -1567,12 +1567,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Legal & CA expenses": -107500,
       "TOTAL OPERATING EXPENSES": -567289.44
     },
-    "cogm": 6545778.53,
-    "channelFulfillment": 48010.14,
-    "salesMarketing": 80122.72,
-    "platformCosts": 1195.1,
-    "opex": 567289.44,
-    "nonOperating": 41501
+    "cogm": 2540593.49,
+    "channelFulfillment": 490608.14,
+    "salesMarketing": 2541588.39,
+    "platformCosts": 0,
+    "opex": 2045347.36,
+    "nonOperating": 728298.01,
+    "restated": "FY2025-26 anchored to provisional P&L (31-03-2026)"
   },
   {
     "key": "2026-02",
@@ -1580,37 +1581,37 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "month": 2,
     "year": 2026,
     "netByChannel": {
-      "D2C": 3298145,
-      "Amazon": 295588.33,
-      "Blinkit": -29120,
-      "OEM": 962581,
-      "Offline": 188331.54
+      "D2C": 3515381.29,
+      "Amazon": 315057.61,
+      "Blinkit": -31038.02,
+      "OEM": 1025982.56,
+      "Offline": 200736.22
     },
     "grossByChannel": {
-      "D2C": 3298145,
-      "Amazon": 341288.73,
-      "Blinkit": 130680,
-      "OEM": 981250,
-      "Offline": 250707.54
+      "D2C": 3515381.29,
+      "Amazon": 363768.12,
+      "Blinkit": 139287.4,
+      "OEM": 1045881.21,
+      "Offline": 267220.69
     },
     "returnsByChannel": {
-      "Amazon": -45700.4,
-      "Blinkit": -159800,
-      "OEM": -18669,
-      "Offline": -62376
+      "Amazon": -48710.51,
+      "Blinkit": -170325.42,
+      "OEM": -19898.66,
+      "Offline": -66484.47
     },
     "totalGrossRevenue": 5002071.27,
     "totalReturns": -286545.4,
     "totalTaxes": -224548.97,
-    "netRevenue": 4490976.9,
+    "netRevenue": 4786780.5,
     "interBranch": 277240,
     "turnover": 4768216.9,
-    "grossMargin": 3251384.47,
-    "cm1": 3125565.54,
-    "cm2": 3015646.22,
-    "cm3": 2937491.22,
-    "ebitda": 1254065.45,
-    "netIncome": 1176508.45,
+    "grossMargin": 2994774.19,
+    "cm1": 2648723.99,
+    "cm2": 856015.93,
+    "cm3": 856015.93,
+    "ebitda": -586668.77,
+    "netIncome": -1100373.39,
     "cogmLines": {
       "Raw Materials & Inventory": -1146878.43,
       "Factory Maintenance": -36364,
@@ -1627,12 +1628,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Legal & CA expenses": -212242,
       "TOTAL OPERATING EXPENSES": -1683425.77
     },
-    "cogm": 1239592.43,
-    "channelFulfillment": 125818.93,
-    "salesMarketing": 109919.32,
-    "platformCosts": 78155,
-    "opex": 1683425.77,
-    "nonOperating": 77557
+    "cogm": 1792006.31,
+    "channelFulfillment": 346050.2,
+    "salesMarketing": 1792708.06,
+    "platformCosts": 0,
+    "opex": 1442684.7,
+    "nonOperating": 513704.62,
+    "restated": "FY2025-26 anchored to provisional P&L (31-03-2026)"
   },
   {
     "key": "2026-03",
@@ -1640,35 +1642,35 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "month": 3,
     "year": 2026,
     "netByChannel": {
-      "D2C": 2094288,
-      "Amazon": 1120048.38,
-      "Blinkit": 346709,
-      "OEM": 390626,
-      "Offline": 91687
+      "D2C": 2232230.8,
+      "Amazon": 1193821.71,
+      "Blinkit": 369545.41,
+      "OEM": 416355.05,
+      "Offline": 97726.07
     },
     "grossByChannel": {
-      "D2C": 2094288,
-      "Amazon": 1265752.38,
-      "Blinkit": 346709,
-      "OEM": 390626,
-      "Offline": 199345
+      "D2C": 2232230.8,
+      "Amazon": 1349122.68,
+      "Blinkit": 369545.41,
+      "OEM": 416355.05,
+      "Offline": 212475.1
     },
     "returnsByChannel": {
-      "Amazon": -145704,
-      "Offline": -107658
+      "Amazon": -155300.97,
+      "Offline": -114749.02
     },
     "totalGrossRevenue": 4296720.38,
     "totalReturns": -253362,
     "totalTaxes": -192541.04,
-    "netRevenue": 3850817.34,
+    "netRevenue": 4104456.06,
     "interBranch": 541687,
     "turnover": 4392504.34,
-    "grossMargin": -580488.78,
-    "cm1": -888104.02,
-    "cm2": -2927069.67,
-    "cm3": -2951858.94,
-    "ebitda": -4621883.85,
-    "netIncome": -4709875.85,
+    "grossMargin": 2567888.6,
+    "cm1": 2271165.61,
+    "cm2": 733996.43,
+    "cm3": 733996.43,
+    "ebitda": -503042.95,
+    "netIncome": -943522.32,
     "cogmLines": {
       "Raw Materials & Inventory": -3725983.15,
       "Factory Maintenance": -53944,
@@ -1686,12 +1688,13 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Legal & CA expenses": -206310,
       "TOTAL OPERATING EXPENSES": -1670024.91
     },
-    "cogm": 4431306.12,
-    "channelFulfillment": 307615.24,
-    "salesMarketing": 2038965.65,
-    "platformCosts": 24789.27,
-    "opex": 1670024.91,
-    "nonOperating": 87992
+    "cogm": 1536567.46,
+    "channelFulfillment": 296722.99,
+    "salesMarketing": 1537169.18,
+    "platformCosts": 0,
+    "opex": 1237039.38,
+    "nonOperating": 440479.37,
+    "restated": "FY2025-26 anchored to provisional P&L (31-03-2026)"
   },
   {
     "key": "2026-04",
@@ -1804,7 +1807,7 @@ export const FY_SUMMARY: FYSummary[] = [
   },
   {
     "name": "FY 2025-26",
-    "netRevenue": 57370000,
+    "netRevenue": 58339080.42,
     "mix": {
       "D2C": 0.402,
       "Amazon": 0.335,
@@ -1813,9 +1816,9 @@ export const FY_SUMMARY: FYSummary[] = [
       "Offline": 0.074,
       "Export": 0
     },
-    "grossMarginPct": 0.479,
-    "ebitdaPct": -0.042,
-    "netIncomePct": -0.055
+    "grossMarginPct": 0.6,
+    "ebitdaPct": 0,
+    "netIncomePct": -0.04
   },
   {
     "name": "FY 2026-27",
