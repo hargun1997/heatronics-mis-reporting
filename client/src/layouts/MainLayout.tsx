@@ -3,40 +3,60 @@ import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 interface NavItem {
   path: string;
   label: string;
+  external?: boolean;
   matcher?: (pathname: string) => boolean;
 }
 
+const DATA_INSIGHTS_URL = 'https://digistex4u.github.io/heatronics_dashbaord/';
+
 const navItems: NavItem[] = [
   {
-    path: '/reporting',
-    label: 'Reporting',
+    path: '/reporting/mis',
+    label: 'MIS',
     matcher: (p) => p.startsWith('/reporting') || p.startsWith('/mis'),
-  },
-  {
-    path: '/compliance',
-    label: 'Compliance',
-    matcher: (p) =>
-      p.startsWith('/compliance') ||
-      p.startsWith('/tracker') ||
-      p.startsWith('/task-tracker'),
-  },
-  {
-    path: '/guide',
-    label: 'Guide',
-    matcher: (p) => p.startsWith('/guide') || p.startsWith('/business-guide'),
   },
   {
     path: '/tools',
     label: 'Tools',
     matcher: (p) => p.startsWith('/tools'),
   },
+  {
+    path: DATA_INSIGHTS_URL,
+    label: 'Data / Insights',
+    external: true,
+  },
 ];
+
+const baseNavClass = 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors';
+
+const externalIcon = (
+  <svg className="inline-block h-3 w-3 ml-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+  </svg>
+);
 
 export function MainLayout() {
   const location = useLocation();
 
   const isActive = (item: NavItem) =>
-    item.matcher ? item.matcher(location.pathname) : location.pathname.startsWith(item.path);
+    !item.external && (item.matcher ? item.matcher(location.pathname) : location.pathname.startsWith(item.path));
+
+  const renderItem = (item: NavItem, extra = '') => {
+    const cls = (active: boolean) =>
+      `${baseNavClass} ${extra} ${active ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`;
+    if (item.external) {
+      return (
+        <a key={item.path} href={item.path} target="_blank" rel="noreferrer" className={cls(false)}>
+          {item.label}{externalIcon}
+        </a>
+      );
+    }
+    return (
+      <NavLink key={item.path} to={item.path} className={cls(isActive(item))}>
+        {item.label}
+      </NavLink>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -59,21 +79,7 @@ export function MainLayout() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    px-3 py-1.5 rounded-md text-sm font-medium transition-colors
-                    ${isActive(item)
-                      ? 'bg-brand-50 text-brand-700'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                    }
-                  `}
-                >
-                  {item.label}
-                </NavLink>
-              ))}
+              {navItems.map((item) => renderItem(item))}
             </nav>
 
             {/* Right side quick links (desktop) */}
@@ -93,21 +99,7 @@ export function MainLayout() {
         {/* Mobile Navigation */}
         <div className="md:hidden border-t border-slate-200">
           <nav className="flex overflow-x-auto px-2 py-2 gap-1 no-scrollbar">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={`
-                  px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0
-                  ${isActive(item)
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-slate-600 hover:bg-slate-100'
-                  }
-                `}
-              >
-                {item.label}
-              </NavLink>
-            ))}
+            {navItems.map((item) => renderItem(item, 'whitespace-nowrap flex-shrink-0'))}
           </nav>
         </div>
       </header>
