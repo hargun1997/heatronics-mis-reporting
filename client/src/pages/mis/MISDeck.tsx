@@ -367,21 +367,31 @@ function ChannelsTab() {
   const lflMix = channelMix(lfl.current);
   const observations = useMemo(() => channelObservations(), []);
 
-  // Channel-wise YoY growth over time (only compare equal-length frames so partial periods don't distort)
-  const yoyOffset = g === 'month' ? 12 : g === 'quarter' ? 4 : 1;
-  const channelYoYLines = SALES_CHANNELS.map((c) => ({
+  // Channel-wise growth over time — MoM / QoQ / YoY (own basis, independent of the tab granularity).
+  // Only equal-length frames are compared so partial periods don't distort the trend.
+  const [growthBasis, setGrowthBasis] = useState<'MoM' | 'QoQ' | 'YoY'>('YoY');
+  const growthSeries = useMemo(
+    () => (growthBasis === 'QoQ' ? quarterlySeries() : monthlySeries()),
+    [growthBasis],
+  );
+  const growthOffset = growthBasis === 'YoY' ? 12 : 1; // YoY: monthly vs 12m ago; MoM/QoQ: sequential
+  const channelGrowthLines = SALES_CHANNELS.map((c) => ({
     name: c,
     color: CHANNEL_COLORS[c],
-    values: series.map((p, i) => {
-      const j = i - yoyOffset;
+    values: growthSeries.map((p, i) => {
+      const j = i - growthOffset;
       if (j < 0) return null;
-      const prev = series[j];
+      const prev = growthSeries[j];
       if (p.monthsCount !== prev.monthsCount) return null; // fair frames only
       const a = prev.netByChannel[c];
       return a > 0 ? (p.netByChannel[c] - a) / a : null;
     }),
   }));
-  const hasYoY = channelYoYLines.some((l) => l.values.some((v) => v !== null));
+  const hasGrowth = channelGrowthLines.some((l) => l.values.some((v) => v !== null));
+  const growthDesc =
+    growthBasis === 'MoM' ? 'Month-over-month growth per channel'
+    : growthBasis === 'QoQ' ? 'Quarter-over-quarter growth per channel'
+    : 'Year-over-year growth per channel (monthly)';
 
   return (
     <div className="space-y-6">
@@ -406,14 +416,29 @@ function ChannelsTab() {
         <div className="mt-3"><Legend items={SALES_CHANNELS.map((c) => ({ label: c, color: CHANNEL_COLORS[c] }))} /></div>
       </SectionCard>
 
-      {hasYoY && (
+      {hasGrowth && (
         <SectionCard
-          title="Channel growth over time (YoY)"
-          description={`Year-over-year growth per channel, ${g} — only equal-length frames are compared (partial periods omitted)`}
+          title="Channel growth over time"
+          description={`${growthDesc} — only equal-length frames are compared (partial periods omitted)`}
+          actions={
+            <div className="inline-flex bg-slate-100 rounded-lg p-0.5">
+              {(['MoM', 'QoQ', 'YoY'] as const).map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setGrowthBasis(b)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    growthBasis === b ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+          }
         >
           <LineChart
-            labels={series.map((p) => p.label)}
-            series={channelYoYLines}
+            labels={growthSeries.map((p) => p.label)}
+            series={channelGrowthLines}
             percent
             valueFormat={(v) => pctSigned(v)}
             yFormat={(v) => `${Math.round(v * 100)}%`}
