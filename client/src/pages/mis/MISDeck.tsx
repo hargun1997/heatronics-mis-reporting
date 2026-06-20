@@ -367,6 +367,22 @@ function ChannelsTab() {
   const lflMix = channelMix(lfl.current);
   const observations = useMemo(() => channelObservations(), []);
 
+  // Channel-wise YoY growth over time (only compare equal-length frames so partial periods don't distort)
+  const yoyOffset = g === 'month' ? 12 : g === 'quarter' ? 4 : 1;
+  const channelYoYLines = SALES_CHANNELS.map((c) => ({
+    name: c,
+    color: CHANNEL_COLORS[c],
+    values: series.map((p, i) => {
+      const j = i - yoyOffset;
+      if (j < 0) return null;
+      const prev = series[j];
+      if (p.monthsCount !== prev.monthsCount) return null; // fair frames only
+      const a = prev.netByChannel[c];
+      return a > 0 ? (p.netByChannel[c] - a) / a : null;
+    }),
+  }));
+  const hasYoY = channelYoYLines.some((l) => l.values.some((v) => v !== null));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -389,6 +405,22 @@ function ChannelsTab() {
         <LineChart labels={series.map((p) => p.label)} series={channelLines} />
         <div className="mt-3"><Legend items={SALES_CHANNELS.map((c) => ({ label: c, color: CHANNEL_COLORS[c] }))} /></div>
       </SectionCard>
+
+      {hasYoY && (
+        <SectionCard
+          title="Channel growth over time (YoY)"
+          description={`Year-over-year growth per channel, ${g} — only equal-length frames are compared (partial periods omitted)`}
+        >
+          <LineChart
+            labels={series.map((p) => p.label)}
+            series={channelYoYLines}
+            percent
+            valueFormat={(v) => pctSigned(v)}
+            yFormat={(v) => `${Math.round(v * 100)}%`}
+          />
+          <div className="mt-3"><Legend items={SALES_CHANNELS.map((c) => ({ label: c, color: CHANNEL_COLORS[c] }))} /></div>
+        </SectionCard>
+      )}
 
       {/* Channel observations */}
       {observations.length > 0 && (
