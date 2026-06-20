@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
 import {
@@ -35,7 +35,6 @@ const TABS: { id: TabId; label: string }[] = [
 
 export function MISDeck() {
   const [tab, setTab] = useState<TabId>('overview');
-  const facts = useMemo(() => deckFacts(), []);
 
   return (
     <>
@@ -68,7 +67,7 @@ export function MISDeck() {
           ))}
         </div>
 
-        {tab === 'overview' && <OverviewTab facts={facts} />}
+        {tab === 'overview' && <OverviewTab />}
         {tab === 'growth' && <GrowthTab />}
         {tab === 'channels' && <ChannelsTab />}
         {tab === 'profitability' && <ProfitabilityTab />}
@@ -136,41 +135,91 @@ function GranularityToggle({ value, onChange }: { value: Granularity; onChange: 
 // Overview
 // ----------------------------------------------------------------------------
 
-function OverviewTab({ facts }: { facts: ReturnType<typeof deckFacts> }) {
-  const months = useMemo(() => monthlySeries(), []);
-  const last24 = months.slice(-24);
-  const m = facts.latestMargins;
+function OverviewTab() {
+  const [g, setG] = useState<Granularity>('month');
+  const series = useMemo(() => seriesFor(g), [g]);
+  const [idx, setIdx] = useState(series.length - 1);
+
+  // Keep the selection valid (default to the latest period) whenever granularity changes.
+  useEffect(() => { setIdx(seriesFor(g).length - 1); }, [g]);
+  const safeIdx = Math.min(idx, series.length - 1);
+  const p = series[safeIdx];
+
+  const m = marginsOf(p);
+  const seqLabel = g === 'month' ? 'MoM' : g === 'quarter' ? 'QoQ' : 'YoY';
+  const yoyOffset = g === 'month' ? 12 : g === 'quarter' ? 4 : 1;
+
+  // Comparable-frame guard so partial periods don't produce misleading growth.
+  const fairGrowth = (other?: PeriodMIS) =>
+    other && other.monthsCount === p.monthsCount && other.netRevenue > 0
+      ? (p.netRevenue - other.netRevenue) / other.netRevenue
+      : null;
+  const seqGrowth = fairGrowth(series[safeIdx - 1]);
+  const yoyG = fairGrowth(series[safeIdx - yoyOffset]);
+
+  const scope = p.monthsCount > 1 ? `${p.firstMonthShort}–${p.lastMonthShort} · ${p.monthsCount}m` : p.firstMonthShort;
+  const top = topChannel(p);
+  const mix = channelMix(p);
+
+  // Trend window: last 24 months, else the whole series.
+  const trend = g === 'month' ? series.slice(-24) : series;
 
   return (
     <div className="space-y-6">
-      {/* KPI grid */}
+      {/* Period controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700">Snapshot for a period</h2>
+          <p className="text-xs text-slate-400">Pick a month, quarter or fiscal year to see its key numbers.</p>
+        </div>
+        <div className="sm:ml-auto flex items-center gap-2">
+          <GranularityToggle value={g} onChange={setG} />
+          <select
+            value={safeIdx}
+            onChange={(e) => setIdx(Number(e.target.value))}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200"
+          >
+            {series.map((s, i) => (
+              <option key={s.key} value={i}>{s.longLabel}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* KPI grid — all scoped to the selected period */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label={`Net Revenue · ${facts.latest.label}`} value={inr(facts.latest.netRevenue)}
-          sub={<>MoM <Delta value={facts.momRevGrowth} /> · YoY <Delta value={facts.yoyRevGrowth} /></>} tone="brand" />
-        <KpiCard label="TTM Net Revenue" value={inr(facts.ttmRevenue)}
-          sub={<>vs prior 12m <Delta value={facts.ttmGrowth} /></>} />
-        <KpiCard label="Gross Margin" value={pctStr(m.grossMarginPct)}
-          sub={`EBITDA ${pctStr(m.ebitdaPct)} · CM2 ${pctStr(m.cm2Pct)}`} tone="brand" />
-        <KpiCard label={`Revenue CAGR (${facts.cagrYears}y FY)`} value={facts.revenueCagrFY !== null ? pctStr(facts.revenueCagrFY) : '–'}
-          sub={`${facts.fyFirst.longLabel} → ${facts.fyLast.longLabel}`} tone="brand" />
+        <KpiCard label={`Net Revenue · ${p.label}`} value={inr(p.netRevenue)} tone="brand"
+          sub={<>{seqLabel} <Delta value={seqGrowth} />{g !== 'year' && <> · YoY <Delta value={yoyG} /></>}</>} />
+        <KpiCard label="Gross Margin" value={pctStr(m.grossMarginPct)} tone="brand"
+          sub={`Gross profit ${inr(p.grossMargin)}`} />
+        <KpiCard label="EBITDA" value={inr(p.ebitda)} tone={p.ebitda >= 0 ? 'brand' : 'slate'}
+          sub={`${pctStr(m.ebitdaPct)} of revenue`} />
+        <KpiCard label="Net Income" value={inr(p.netIncome)} tone={p.netIncome >= 0 ? 'brand' : 'slate'}
+          sub={`${pctStr(m.netIncomePct)} of revenue`} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="EBITDA · latest" value={inr(facts.latest.ebitda)} tone={facts.latest.ebitda >= 0 ? 'brand' : 'slate'}
-          sub={pctStr(m.ebitdaPct) + ' of revenue'} />
-        <KpiCard label="Net Income · latest" value={inr(facts.latest.netIncome)} tone={facts.latest.netIncome >= 0 ? 'brand' : 'slate'}
-          sub={pctStr(m.netIncomePct) + ' of revenue'} />
-        <KpiCard label="Data Coverage" value={`${facts.monthsOfData} months`}
-          sub={`${months[0].longLabel} → ${facts.latest.longLabel}`} />
+        <KpiCard label="Contribution Margin (CM2)" value={pctStr(m.cm2Pct)}
+          sub={`${inr(p.cm2)} after channel & marketing`} />
+        <KpiCard label="Top channel" value={top.channel} tone="amber"
+          sub={`${pctStr(top.share, 0)} of net revenue`} />
+        <KpiCard label="Period covers" value={g === 'month' ? '1 month' : `${p.monthsCount} months`}
+          sub={scope} />
+        <KpiCard label="Costs" value={inr(p.cogm + p.channelFulfillment + p.salesMarketing + p.platformCosts + p.opex)}
+          sub="COGM + opex (pre-interest)" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <SectionCard title="Net Revenue & EBITDA" description="Last 24 months" className="lg:col-span-2">
+        <SectionCard
+          title="Net Revenue & EBITDA"
+          description={g === 'month' ? 'Last 24 months' : g === 'quarter' ? 'By fiscal quarter' : 'By fiscal year'}
+          className="lg:col-span-2"
+        >
           <LineChart
-            labels={last24.map((p) => p.label)}
+            labels={trend.map((t) => t.label)}
             series={[
-              { name: 'Net Revenue', color: SERIES_COLORS[0], values: last24.map((p) => p.netRevenue) },
-              { name: 'EBITDA', color: SERIES_COLORS[1], values: last24.map((p) => p.ebitda) },
+              { name: 'Net Revenue', color: SERIES_COLORS[0], values: trend.map((t) => t.netRevenue) },
+              { name: 'EBITDA', color: SERIES_COLORS[1], values: trend.map((t) => t.ebitda) },
             ]}
           />
           <div className="mt-3"><Legend items={[
@@ -179,28 +228,31 @@ function OverviewTab({ facts }: { facts: ReturnType<typeof deckFacts> }) {
           ]} /></div>
         </SectionCard>
 
-        <SectionCard title="Channel Mix" description={facts.latest.longLabel}>
+        <SectionCard title="Channel Mix" description={p.longLabel}>
           <div className="flex flex-col items-center">
             <DonutChart
-              data={SALES_CHANNELS.map((c) => ({ key: c, value: facts.latest.netByChannel[c] }))}
+              data={SALES_CHANNELS.map((c) => ({ key: c, value: p.netByChannel[c] }))}
               colors={CHANNEL_COLORS}
             />
             <div className="mt-4 w-full space-y-1.5">
-              {SALES_CHANNELS.filter((c) => facts.latest.netByChannel[c] > 0).map((c) => {
-                const mix = channelMix(facts.latest);
-                return (
-                  <div key={c} className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-1.5 text-slate-600">
-                      <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: CHANNEL_COLORS[c] }} />{c}
-                    </span>
-                    <span className="text-slate-500">{inr(facts.latest.netByChannel[c])} · <span className="font-medium text-slate-700">{pctStr(mix[c])}</span></span>
-                  </div>
-                );
-              })}
+              {SALES_CHANNELS.filter((c) => p.netByChannel[c] > 0).map((c) => (
+                <div key={c} className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: CHANNEL_COLORS[c] }} />{c}
+                  </span>
+                  <span className="text-slate-500">{inr(p.netByChannel[c])} · <span className="font-medium text-slate-700">{pctStr(mix[c])}</span></span>
+                </div>
+              ))}
             </div>
           </div>
         </SectionCard>
       </div>
+
+      <p className="text-xs text-slate-400">
+        All figures are for the selected period ({p.longLabel}). {seqLabel} compares with the previous {g}; YoY compares
+        with the same {g} a year earlier. Growth is only shown when the two periods cover the same number of months, so
+        partial periods (e.g. a fiscal year still in progress) aren't compared unfairly.
+      </p>
     </div>
   );
 }
