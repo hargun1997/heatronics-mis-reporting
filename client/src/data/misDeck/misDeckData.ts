@@ -7,6 +7,13 @@
 // volatile actual-consumption COGM — are smoothed so the full year reconciles: COGM ₹2.35 Cr
 // (GM 59.7%), EBITDA ≈ -₹0.97 L (breakeven), depreciation (₹12.91 L) + interest (₹9.00 L)
 // below EBITDA, Net Loss -₹22.88 L. Apr-Dec 2025 are unchanged.
+//
+// NOTE: May 2026 — the ₹28.30 L "One-Time (Business Development)" charge was reclassified
+// from Non-Operating into Operating Expenses. It is an operating cost (none of Interest/
+// Tax/Depreciation/Amortization), so it belongs above the EBITDA line per the strict EBITDA
+// definition. EBITDA is therefore ₹2.39 L (= Net Income pre-dep), not ₹30.69 L. Net Income
+// is unchanged. Apr 2026's below-EBITDA item is genuine Interest Expense and stays put.
+// The upstream workbook sheets ("May 2026", "FY 2026-27") still show the old placement.
 
 export const SALES_CHANNELS = ['D2C', 'Amazon', 'Blinkit', 'OEM', 'Offline', 'Export'] as const;
 export type SalesChannel = (typeof SALES_CHANNELS)[number];
@@ -1757,20 +1764,21 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "cm1": 5282000,
     "cm2": 3356000,
     "cm3": 3354000,
-    "ebitda": 3069000,
+    "ebitda": 239000,
     "netIncome": 239000,
     "cogmLines": {},
     "opexLines": {
       "Salary Cost": -208000,
       "Corporate Overheads": -77000,
-      "TOTAL OPERATING EXPENSES": -285000
+      "One-Time Business Development": -2830000,
+      "TOTAL OPERATING EXPENSES": -3115000
     },
     "cogm": 1057000,
     "channelFulfillment": 377000,
     "salesMarketing": 1926000,
     "platformCosts": 2000,
-    "opex": 285000,
-    "nonOperating": 2830000
+    "opex": 3115000,
+    "nonOperating": 0
   }
 ];
 
@@ -1832,7 +1840,7 @@ export const FY_SUMMARY: FYSummary[] = [
       "Export": 0
     },
     "grossMarginPct": 0.592,
-    "ebitdaPct": 0.031,
+    "ebitdaPct": -0.229,
     "netIncomePct": -0.242
   }
 ];
