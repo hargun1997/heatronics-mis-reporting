@@ -14,6 +14,7 @@ import {
   type Granularity, type PeriodMIS,
 } from '../../data/misDeck/analytics';
 import { MIS_GENERATED_AT, MIS_SOURCE_FILE } from '../../data/misDeck/misDeckData';
+import { DeckExportModal } from '../../components/mis-deck/DeckExportModal';
 
 const iconDeck = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -35,6 +36,7 @@ const TABS: { id: TabId; label: string }[] = [
 
 export function MISDeck() {
   const [tab, setTab] = useState<TabId>('overview');
+  const [showExport, setShowExport] = useState(false);
 
   return (
     <>
@@ -45,11 +47,24 @@ export function MISDeck() {
         description="Investor-grade financial deck — channel-mix, growth and margin trends across month, quarter and fiscal year."
         crumbs={[{ label: 'Reporting', to: '/reporting' }, { label: 'MIS Reporting' }]}
         actions={
-          <span className="text-[11px] text-slate-400 hidden sm:block">
-            Source: {MIS_SOURCE_FILE} · {MIS_GENERATED_AT}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-slate-400 hidden sm:block">
+              Source: {MIS_SOURCE_FILE} · {MIS_GENERATED_AT}
+            </span>
+            <button
+              onClick={() => setShowExport(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export Excel
+            </button>
+          </div>
         }
       />
+
+      {showExport && <DeckExportModal onClose={() => setShowExport(false)} />}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Tabs */}
