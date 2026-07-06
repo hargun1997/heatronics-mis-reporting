@@ -95,16 +95,18 @@ function aggregate(records: MonthlyMIS[], key: string, label: string, longLabel:
 
 const monthsAsc = [...MONTHLY_MIS].sort((a, b) => a.year - b.year || a.month - b.month);
 
-export function monthlySeries(): PeriodMIS[] {
-  return monthsAsc.map((r) =>
+// The series builders take an explicit source array so the same aggregation can
+// be reused for the actual months (default) and for the blended-GM months.
+export function monthlySeries(src: MonthlyMIS[] = monthsAsc): PeriodMIS[] {
+  return src.map((r) =>
     aggregate([r], r.key, r.label.replace(/ 20/, " '"), r.label, r.year * 100 + r.month),
   );
 }
 
-export function quarterlySeries(): PeriodMIS[] {
+export function quarterlySeries(src: MonthlyMIS[] = monthsAsc): PeriodMIS[] {
   const groups = new Map<string, MonthlyMIS[]>();
   const meta = new Map<string, { sortKey: number; label: string; longLabel: string }>();
-  for (const r of monthsAsc) {
+  for (const r of src) {
     const fy = fiscalYear(r.month, r.year);
     const q = fiscalQuarter(r.month);
     const key = `${fy.key} ${q.label}`;
@@ -121,9 +123,9 @@ export function quarterlySeries(): PeriodMIS[] {
     .sort((a, b) => a.sortKey - b.sortKey);
 }
 
-export function yearlySeries(): PeriodMIS[] {
+export function yearlySeries(src: MonthlyMIS[] = monthsAsc): PeriodMIS[] {
   const groups = new Map<string, MonthlyMIS[]>();
-  for (const r of monthsAsc) {
+  for (const r of src) {
     const fy = fiscalYear(r.month, r.year);
     if (!groups.has(fy.key)) groups.set(fy.key, []);
     groups.get(fy.key)!.push(r);
@@ -136,8 +138,61 @@ export function yearlySeries(): PeriodMIS[] {
     .sort((a, b) => a.sortKey - b.sortKey);
 }
 
-export function seriesFor(g: Granularity): PeriodMIS[] {
-  return g === 'month' ? monthlySeries() : g === 'quarter' ? quarterlySeries() : yearlySeries();
+export function seriesFor(g: Granularity, src: MonthlyMIS[] = monthsAsc): PeriodMIS[] {
+  return g === 'month' ? monthlySeries(src) : g === 'quarter' ? quarterlySeries(src) : yearlySeries(src);
+}
+
+// ----------------------------------------------------------------------------
+// Blended gross margin
+// ----------------------------------------------------------------------------
+//
+// The company books COGM on purchase/consumption timing rather than matched to
+// each month's sales, so the *actual* monthly GM% swings wildly (~14%–84%).
+// The "blended" view replaces each month's noisy COGM with one implied by a
+// revenue-weighted GM% for that month's fiscal year, applied in proportion to
+// the month's net revenue. Everything below GM (CM1/2/3, EBITDA, Net Income)
+// shifts by the same delta; channel/marketing/opex/non-operating stay actual.
+// By construction, a full fiscal year is unchanged — only sub-annual noise is
+// smoothed.
+
+/** Revenue-weighted gross-margin fraction per fiscal year. */
+export function fyBlendedGMRates(): Map<string, number> {
+  const acc = new Map<string, { gm: number; nr: number }>();
+  for (const r of monthsAsc) {
+    const key = fiscalYear(r.month, r.year).key;
+    const cur = acc.get(key) ?? { gm: 0, nr: 0 };
+    cur.gm += r.grossMargin;
+    cur.nr += r.netRevenue;
+    acc.set(key, cur);
+  }
+  const rates = new Map<string, number>();
+  for (const [key, v] of acc) rates.set(key, v.nr ? v.gm / v.nr : 0);
+  return rates;
+}
+
+/** Months restated so each carries its fiscal year's blended GM% (in proportion to revenue). */
+export function blendedMonths(): MonthlyMIS[] {
+  const rates = fyBlendedGMRates();
+  return monthsAsc.map((r) => {
+    const rate = rates.get(fiscalYear(r.month, r.year).key) ?? (r.netRevenue ? r.grossMargin / r.netRevenue : 0);
+    const blendedGM = r.netRevenue * rate;
+    const delta = blendedGM - r.grossMargin; // >0 if the blend lifts this month's GM
+    return {
+      ...r,
+      cogm: r.cogm - delta,
+      grossMargin: blendedGM,
+      cm1: r.cm1 + delta,
+      cm2: r.cm2 + delta,
+      cm3: r.cm3 + delta,
+      ebitda: r.ebitda + delta,
+      netIncome: r.netIncome + delta,
+    };
+  });
+}
+
+/** Period series with the blended-GM restatement applied. Yearly ≈ actual by construction. */
+export function seriesForBlended(g: Granularity): PeriodMIS[] {
+  return seriesFor(g, blendedMonths());
 }
 
 // ----------------------------------------------------------------------------

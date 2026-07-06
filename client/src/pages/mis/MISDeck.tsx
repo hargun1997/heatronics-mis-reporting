@@ -7,7 +7,7 @@ import {
   type WaterfallStep,
 } from '../../components/mis-deck/charts';
 import {
-  seriesFor, monthlySeries, quarterlySeries, yearlySeries,
+  seriesFor, seriesForBlended, fyBlendedGMRates, monthlySeries, quarterlySeries, yearlySeries,
   periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts, arrProjection,
   channelObservations, channelHHI, topChannel, channelsAbove, likeForLikeChannel,
   SALES_CHANNELS, FY_SUMMARY,
@@ -134,6 +134,28 @@ function GranularityToggle({ value, onChange }: { value: Granularity; onChange: 
       {opts.map((o) => (
         <button
           key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+            value === o.id ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BlendToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  const opts: { id: boolean; label: string }[] = [
+    { id: false, label: 'Actual' },
+    { id: true, label: 'Blended' },
+  ];
+  return (
+    <div className="inline-flex bg-slate-100 rounded-lg p-0.5">
+      {opts.map((o) => (
+        <button
+          key={String(o.id)}
           onClick={() => onChange(o.id)}
           className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
             value === o.id ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'
@@ -608,10 +630,18 @@ function ChannelsTab() {
 
 function ProfitabilityTab() {
   const [g, setG] = useState<Granularity>('month');
-  const series = useMemo(() => seriesFor(g), [g]);
+  const [blended, setBlended] = useState(false);
+  const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
   const last = series[series.length - 1];
 
   const marginSeries = series.map((p) => marginsOf(p));
+
+  // Per-FY blended GM rates, for the explanatory note.
+  const fyRates = useMemo(() => fyBlendedGMRates(), []);
+  const blendNote = Array.from(fyRates.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([fy, r]) => `${fy.replace('FY ', 'FY')} ${Math.round(r * 100)}%`)
+    .join(' · ');
 
   const waterfall: WaterfallStep[] = last ? [
     { label: 'Net Revenue', value: last.netRevenue, type: 'total' },
@@ -626,10 +656,23 @@ function ProfitabilityTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-sm font-semibold text-slate-700">Margins & unit economics</h2>
-        <GranularityToggle value={g} onChange={setG} />
+        <div className="flex items-center gap-2">
+          <BlendToggle value={blended} onChange={setBlended} />
+          <GranularityToggle value={g} onChange={setG} />
+        </div>
       </div>
+
+      {blended && (
+        <div className="rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-xs text-slate-600">
+          <span className="font-medium text-brand-700">Blended GM.</span> Actual COGM is booked on purchase/consumption
+          timing, so monthly gross margin is noisy. This view restates each month's COGM to its fiscal year's
+          revenue-weighted GM% (applied in proportion to that month's revenue) and cascades the change through CM1–EBITDA;
+          channel, marketing, platform &amp; opex stay as booked. Full fiscal years are unchanged.
+          <span className="block mt-1 text-slate-500">Blended GM% by FY: {blendNote}</span>
+        </div>
+      )}
 
       <SectionCard title="Margin ladder over time" description="Gross margin → CM1 → CM2 → EBITDA → Net income (% of net revenue)">
         <LineChart
