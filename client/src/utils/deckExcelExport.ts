@@ -187,7 +187,7 @@ function signed(value: number, base: Style): Style {
 
 interface PLLine {
   label: string;
-  /** Period value for this line. Expenses are returned as negative. */
+  /** Period value for this line. Expenses are positive magnitudes ("Less:" label conveys the deduction). */
   value: (p: PeriodMIS) => number;
   styles: { label: Style; num: Style };
   /** Margin lines also get a "% of net revenue" row. */
@@ -223,7 +223,10 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
   put(row, nCols - 1, 'Total', S.header);
   row++;
 
-  const expense = (fn: (p: PeriodMIS) => number) => (p: PeriodMIS) => -fn(p);
+  // Expenses are shown as positive magnitudes — the "Less:" row label carries
+  // the deduction sense. Margin lines below use real signed values, so genuine
+  // losses still render negative (red).
+  const expense = (fn: (p: PeriodMIS) => number) => fn;
 
   const lines: (PLLine | 'spacer')[] = [
     {
@@ -429,7 +432,7 @@ function generateLineDetailSheet(
   for (let c = 1; c < nCols; c++) put(row, c, '', S.title);
   merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
   row++;
-  put(row, 0, 'Values are expenses (shown negative). Months without a line item show blank.', S.subtitle);
+  put(row, 0, 'Expenses shown as positive magnitudes; a negative value denotes a credit/reversal. Months without a line item show blank.', S.subtitle);
   for (let c = 1; c < nCols; c++) put(row, c, '', S.subtitle);
   merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
   row++;
@@ -449,7 +452,9 @@ function generateLineDetailSheet(
       if (raw === undefined) {
         put(row, i + 1, '', S.num);
       } else {
-        const v = round2(raw);
+        // Source stores expenses as negatives; flip to positive magnitudes so a
+        // residual negative correctly flags a credit/reversal.
+        const v = round2(-raw);
         rowTotal += v;
         colTotals[i] += v;
         put(row, i + 1, v, signed(v, S.num));
