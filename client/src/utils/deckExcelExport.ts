@@ -23,6 +23,8 @@ import {
 } from '../data/misDeck/misDeckData';
 import {
   seriesFor,
+  seriesForBlended,
+  fyBlendedGMRates,
   monthlySeries,
   marginsOf,
   channelMix,
@@ -44,6 +46,12 @@ export interface DeckExportOptions {
   includeOpexDetail: boolean;
   /** Flat one-row-per-month dump of every field — easy to pivot/filter. */
   includeRawData: boolean;
+  /**
+   * Blend COGM to each fiscal year's revenue-weighted rate on the P&L cascade
+   * sheets (smooths the month-to-month COGM booking-timing noise). The COGM
+   * Detail and All Data sheets always stay on actual figures.
+   */
+  blendCogm: boolean;
 }
 
 /** Everything on, every granularity — the "Export Everything" preset. */
@@ -54,6 +62,7 @@ export const EXPORT_EVERYTHING: DeckExportOptions = {
   includeCogmDetail: true,
   includeOpexDetail: true,
   includeRawData: true,
+  blendCogm: true,
 };
 
 // ============================================
@@ -409,6 +418,7 @@ function generateLineDetailSheet(
   months: MonthlyMIS[],
   linesKey: 'cogmLines' | 'opexLines',
   title: string,
+  subtitleExtra = '',
 ): XLSX.WorkSheet {
   const ws: XLSX.WorkSheet = {};
   const merges: XLSX.Range[] = [];
@@ -432,7 +442,7 @@ function generateLineDetailSheet(
   for (let c = 1; c < nCols; c++) put(row, c, '', S.title);
   merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
   row++;
-  put(row, 0, 'Expenses shown as positive magnitudes; a negative value denotes a credit/reversal. Months without a line item show blank.', S.subtitle);
+  put(row, 0, `Actual line items, positive magnitudes; a negative value denotes a credit/reversal. Months without a line item show blank.${subtitleExtra}`, S.subtitle);
   for (let c = 1; c < nCols; c++) put(row, c, '', S.subtitle);
   merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
   row++;
@@ -635,19 +645,28 @@ const GRAN_TITLE: Record<Granularity, { sheet: string; title: string }> = {
 const PL_SUBTITLE =
   'Net Revenue → COGM → Gross Margin → CM1 → CM2 → CM3 → EBITDA → Net Income · all values in ₹';
 
+function blendedFyNote(): string {
+  const rates = Array.from(fyBlendedGMRates().entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([fy, r]) => `${fy.replace('FY ', 'FY')} ${Math.round(r * 100)}%`)
+    .join(' · ');
+  return `COGM blended to each fiscal year's revenue-weighted rate (GM% by FY: ${rates}) · all values in ₹`;
+}
+
 export async function exportDeckToExcel(options: DeckExportOptions): Promise<void> {
   const wb = XLSX.utils.book_new();
   const monthsAsc = [...MONTHLY_MIS].sort((a, b) => a.year - b.year || a.month - b.month);
+  const plSubtitle = options.blendCogm ? blendedFyNote() : PL_SUBTITLE;
 
   if (options.includeSummary) {
     XLSX.utils.book_append_sheet(wb, generateSummarySheet(), 'Summary');
   }
 
   for (const g of options.granularities) {
-    const series = seriesFor(g);
+    const series = options.blendCogm ? seriesForBlended(g) : seriesFor(g);
     if (series.length === 0) continue;
     const meta = GRAN_TITLE[g];
-    XLSX.utils.book_append_sheet(wb, generatePLSheet(series, meta.title, PL_SUBTITLE), meta.sheet);
+    XLSX.utils.book_append_sheet(wb, generatePLSheet(series, meta.title, plSubtitle), meta.sheet);
   }
 
   if (options.includeChannelRevenue) {
@@ -655,9 +674,12 @@ export async function exportDeckToExcel(options: DeckExportOptions): Promise<voi
   }
 
   if (options.includeCogmDetail) {
+    const extra = options.blendCogm
+      ? ' NOTE: the P&L sheets use FY-blended COGM, so these actual line-item totals will not tie to the P&L COGM month by month.'
+      : '';
     XLSX.utils.book_append_sheet(
       wb,
-      generateLineDetailSheet(monthsAsc, 'cogmLines', 'COGM DETAIL — Cost of Goods Manufactured'),
+      generateLineDetailSheet(monthsAsc, 'cogmLines', 'COGM DETAIL — Cost of Goods Manufactured', extra),
       'COGM Detail',
     );
   }

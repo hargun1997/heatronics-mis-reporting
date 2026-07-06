@@ -37,6 +37,8 @@ const TABS: { id: TabId; label: string }[] = [
 export function MISDeck() {
   const [tab, setTab] = useState<TabId>('overview');
   const [showExport, setShowExport] = useState(false);
+  // Shared across the margin-bearing tabs so the Actual|Blended choice is consistent.
+  const [blended, setBlended] = useState(true);
 
   return (
     <>
@@ -82,11 +84,11 @@ export function MISDeck() {
           ))}
         </div>
 
-        {tab === 'overview' && <OverviewTab />}
+        {tab === 'overview' && <OverviewTab blended={blended} setBlended={setBlended} />}
         {tab === 'growth' && <GrowthTab />}
         {tab === 'channels' && <ChannelsTab />}
-        {tab === 'profitability' && <ProfitabilityTab />}
-        {tab === 'pnl' && <PnlTab />}
+        {tab === 'profitability' && <ProfitabilityTab blended={blended} setBlended={setBlended} />}
+        {tab === 'pnl' && <PnlTab blended={blended} setBlended={setBlended} />}
       </div>
     </>
   );
@@ -146,6 +148,8 @@ function GranularityToggle({ value, onChange }: { value: Granularity; onChange: 
   );
 }
 
+type BlendProps = { blended: boolean; setBlended: (v: boolean) => void };
+
 function BlendToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   const opts: { id: boolean; label: string }[] = [
     { id: false, label: 'Actual' },
@@ -168,16 +172,34 @@ function BlendToggle({ value, onChange }: { value: boolean; onChange: (v: boolea
   );
 }
 
+/** Explains the Blended view and lists the per-FY blended GM% rates. Shown when Blended is on. */
+function BlendNote() {
+  const note = Array.from(fyBlendedGMRates().entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([fy, r]) => `${fy.replace('FY ', 'FY')} ${Math.round(r * 100)}%`)
+    .join(' · ');
+  return (
+    <div className="rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-xs text-slate-600">
+      <span className="font-medium text-brand-700">Blended COGM (FY-level).</span> Actual COGM is booked on
+      purchase/consumption timing, so monthly gross margin is noisy (e.g. Apr'26 19% vs May'26 84%). This view restates
+      each month's COGM to its fiscal year's revenue-weighted GM% (applied in proportion to that month's revenue) and
+      cascades the change through CM1–EBITDA; channel, marketing, platform &amp; opex stay as booked. Full fiscal years
+      are unchanged. <span className="block mt-1 text-slate-500">Blended GM% by FY: {note}</span>
+    </div>
+  );
+}
+
 // ----------------------------------------------------------------------------
 // Overview
 // ----------------------------------------------------------------------------
 
-function OverviewTab() {
+function OverviewTab({ blended, setBlended }: BlendProps) {
   const [g, setG] = useState<Granularity>('month');
-  const series = useMemo(() => seriesFor(g), [g]);
+  const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
   const [idx, setIdx] = useState(series.length - 1);
 
   // Keep the selection valid (default to the latest period) whenever granularity changes.
+  // (Blending never changes the period count or order, so this only needs to react to `g`.)
   useEffect(() => { setIdx(seriesFor(g).length - 1); }, [g]);
   const safeIdx = Math.min(idx, series.length - 1);
   const p = series[safeIdx];
@@ -210,6 +232,7 @@ function OverviewTab() {
           <p className="text-xs text-slate-400">Pick a month, quarter or fiscal year to see its key numbers.</p>
         </div>
         <div className="sm:ml-auto flex items-center gap-2">
+          <BlendToggle value={blended} onChange={setBlended} />
           <GranularityToggle value={g} onChange={setG} />
           <select
             value={safeIdx}
@@ -222,6 +245,8 @@ function OverviewTab() {
           </select>
         </div>
       </div>
+
+      {blended && <BlendNote />}
 
       {/* KPI grid — all scoped to the selected period */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -628,20 +653,12 @@ function ChannelsTab() {
 // Profitability
 // ----------------------------------------------------------------------------
 
-function ProfitabilityTab() {
+function ProfitabilityTab({ blended, setBlended }: BlendProps) {
   const [g, setG] = useState<Granularity>('month');
-  const [blended, setBlended] = useState(true);
   const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
   const last = series[series.length - 1];
 
   const marginSeries = series.map((p) => marginsOf(p));
-
-  // Per-FY blended GM rates, for the explanatory note.
-  const fyRates = useMemo(() => fyBlendedGMRates(), []);
-  const blendNote = Array.from(fyRates.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([fy, r]) => `${fy.replace('FY ', 'FY')} ${Math.round(r * 100)}%`)
-    .join(' · ');
 
   const waterfall: WaterfallStep[] = last ? [
     { label: 'Net Revenue', value: last.netRevenue, type: 'total' },
@@ -664,15 +681,7 @@ function ProfitabilityTab() {
         </div>
       </div>
 
-      {blended && (
-        <div className="rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-xs text-slate-600">
-          <span className="font-medium text-brand-700">Blended GM.</span> Actual COGM is booked on purchase/consumption
-          timing, so monthly gross margin is noisy. This view restates each month's COGM to its fiscal year's
-          revenue-weighted GM% (applied in proportion to that month's revenue) and cascades the change through CM1–EBITDA;
-          channel, marketing, platform &amp; opex stay as booked. Full fiscal years are unchanged.
-          <span className="block mt-1 text-slate-500">Blended GM% by FY: {blendNote}</span>
-        </div>
-      )}
+      {blended && <BlendNote />}
 
       <SectionCard title="Margin ladder over time" description="Gross margin → CM1 → CM2 → EBITDA → Net income (% of net revenue)">
         <LineChart
@@ -757,16 +766,21 @@ const PNL_ROWS: { label: string; key: keyof PeriodMIS; kind: 'rev' | 'cost' | 'm
   { label: 'Net Income', key: 'netIncome', kind: 'margin' },
 ];
 
-function PnlTab() {
+function PnlTab({ blended, setBlended }: BlendProps) {
   const [g, setG] = useState<Granularity>('year');
-  const series = useMemo(() => seriesFor(g), [g]);
+  const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-sm font-semibold text-slate-700">Profit &amp; Loss statement</h2>
-        <GranularityToggle value={g} onChange={setG} />
+        <div className="flex items-center gap-2">
+          <BlendToggle value={blended} onChange={setBlended} />
+          <GranularityToggle value={g} onChange={setG} />
+        </div>
       </div>
+
+      {blended && <BlendNote />}
 
       <SectionCard title={`P&L · ${capitalizeGran(g)}`} description="All figures in ₹. Costs shown as negatives. Column scope shown under each heading — partial periods are annotated.">
         <div className="overflow-x-auto">
