@@ -45,6 +45,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
     includeCogmDetail: true,
     includeOpexDetail: true,
     includeRawData: true,
+    blendCogm: true,
   });
 
   const toggleSheet = (key: Toggle['key']) =>
@@ -143,6 +144,23 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
                 );
               })}
             </div>
+
+            {/* COGM basis */}
+            <label className="mt-3 flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={opts.blendCogm}
+                onChange={() => setOpts((o) => ({ ...o, blendCogm: !o.blendCogm }))}
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-slate-800">Blend COGM to FY rate</span>
+                <span className="block text-slate-500">
+                  Smooths month-to-month COGM booking noise (e.g. Apr'26 19% / May'26 84% → the FY rate). Off = actual
+                  as-booked. COGM Detail &amp; All Data always stay actual.
+                </span>
+              </span>
+            </label>
           </div>
 
           {/* Sheet toggles */}
