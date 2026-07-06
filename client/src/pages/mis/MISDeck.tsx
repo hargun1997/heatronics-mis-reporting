@@ -630,7 +630,7 @@ function ChannelsTab() {
 
 function ProfitabilityTab() {
   const [g, setG] = useState<Granularity>('month');
-  const [blended, setBlended] = useState(false);
+  const [blended, setBlended] = useState(true);
   const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
   const last = series[series.length - 1];
 
