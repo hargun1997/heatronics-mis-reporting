@@ -26,8 +26,6 @@ const SHEET_TOGGLES: Toggle[] = [
   { key: 'includeSummary', title: 'Summary', desc: 'Headline KPIs and a financial-year summary table' },
   { key: 'includeChannelRevenue', title: 'Channel Revenue', desc: 'Net revenue and mix % per sales channel, by month' },
   { key: 'includeCogmDetail', title: 'COGM Detail', desc: 'Cost-of-goods-manufactured line items, month by month' },
-  { key: 'includeOpexDetail', title: 'OpEx Detail', desc: 'Operating-expense line items, month by month' },
-  { key: 'includeRawData', title: 'All Data (raw)', desc: 'Flat one-row-per-month dump of every field — easy to pivot/filter' },
 ];
 
 const GRANULARITIES: { id: Granularity; label: string }[] = [
@@ -43,8 +41,6 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
     granularities: ['month', 'quarter', 'year'],
     includeChannelRevenue: true,
     includeCogmDetail: true,
-    includeOpexDetail: true,
-    includeRawData: true,
     blendCogm: true,
   });
 
@@ -63,9 +59,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
     (opts.includeSummary ? 1 : 0) +
     opts.granularities.length +
     (opts.includeChannelRevenue ? 1 : 0) +
-    (opts.includeCogmDetail ? 1 : 0) +
-    (opts.includeOpexDetail ? 1 : 0) +
-    (opts.includeRawData ? 1 : 0);
+    (opts.includeCogmDetail ? 1 : 0);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -109,7 +103,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
             <span className="flex-1">
               <span className="block font-semibold">Export Everything</span>
               <span className="block text-sm text-emerald-50">
-                The entire dataset — every month, quarter and FY, all channels, COGM &amp; OpEx detail, plus a raw data sheet
+                The entire dataset — every month, quarter and FY, all channels, plus COGM detail
               </span>
             </span>
           </button>
@@ -157,7 +151,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
                 <span className="font-medium text-slate-800">Blend COGM to FY rate</span>
                 <span className="block text-slate-500">
                   Smooths month-to-month COGM booking noise (e.g. Apr'26 19% / May'26 84% → the FY rate). Off = actual
-                  as-booked. COGM Detail &amp; All Data always stay actual.
+                  as-booked. COGM Detail always stays actual.
                 </span>
               </span>
             </label>

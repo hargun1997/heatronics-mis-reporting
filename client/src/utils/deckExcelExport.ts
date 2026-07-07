@@ -43,13 +43,10 @@ export interface DeckExportOptions {
   granularities: Granularity[];
   includeChannelRevenue: boolean;
   includeCogmDetail: boolean;
-  includeOpexDetail: boolean;
-  /** Flat one-row-per-month dump of every field — easy to pivot/filter. */
-  includeRawData: boolean;
   /**
    * Blend COGM to each fiscal year's revenue-weighted rate on the P&L cascade
    * sheets (smooths the month-to-month COGM booking-timing noise). The COGM
-   * Detail and All Data sheets always stay on actual figures.
+   * Detail sheet always stays on actual figures.
    */
   blendCogm: boolean;
 }
@@ -60,8 +57,6 @@ export const EXPORT_EVERYTHING: DeckExportOptions = {
   granularities: ['month', 'quarter', 'year'],
   includeChannelRevenue: true,
   includeCogmDetail: true,
-  includeOpexDetail: true,
-  includeRawData: true,
   blendCogm: true,
 };
 
@@ -234,8 +229,10 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
 
   // Expenses are shown as positive magnitudes — the "Less:" row label carries
   // the deduction sense. Margin lines below use real signed values, so genuine
-  // losses still render negative (red).
+  // losses still render negative (red). Every line (revenue, expenses and
+  // margins) also carries a "% of net revenue" row, matching the on-screen P&L.
   const expense = (fn: (p: PeriodMIS) => number) => fn;
+  const shareOf = (fn: (p: PeriodMIS) => number) => (p: PeriodMIS) => (p.netRevenue ? fn(p) / p.netRevenue : 0);
 
   const lines: (PLLine | 'spacer')[] = [
     {
@@ -245,7 +242,13 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
       marginPct: () => 1,
       pctStyle: MARGIN.net.pct,
     },
-    { label: 'Less: COGM', value: expense((p) => p.cogm), styles: { label: S.label, num: S.num } },
+    {
+      label: 'Less: COGM',
+      value: expense((p) => p.cogm),
+      styles: { label: S.label, num: S.num },
+      marginPct: shareOf((p) => p.cogm),
+      pctStyle: S.pct,
+    },
     {
       label: 'GROSS MARGIN',
       value: (p) => p.grossMargin,
@@ -254,7 +257,13 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
       pctStyle: MARGIN.gross.pct,
     },
     'spacer',
-    { label: 'Less: Channel & Fulfillment', value: expense((p) => p.channelFulfillment), styles: { label: S.label, num: S.num } },
+    {
+      label: 'Less: Channel & Fulfillment',
+      value: expense((p) => p.channelFulfillment),
+      styles: { label: S.label, num: S.num },
+      marginPct: shareOf((p) => p.channelFulfillment),
+      pctStyle: S.pct,
+    },
     {
       label: 'CM1 (Contribution Margin 1)',
       value: (p) => p.cm1,
@@ -263,7 +272,13 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
       pctStyle: MARGIN.cm1.pct,
     },
     'spacer',
-    { label: 'Less: Sales & Marketing', value: expense((p) => p.salesMarketing), styles: { label: S.label, num: S.num } },
+    {
+      label: 'Less: Sales & Marketing',
+      value: expense((p) => p.salesMarketing),
+      styles: { label: S.label, num: S.num },
+      marginPct: shareOf((p) => p.salesMarketing),
+      pctStyle: S.pct,
+    },
     {
       label: 'CM2 (Contribution Margin 2)',
       value: (p) => p.cm2,
@@ -272,7 +287,13 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
       pctStyle: MARGIN.cm2.pct,
     },
     'spacer',
-    { label: 'Less: Platform Costs', value: expense((p) => p.platformCosts), styles: { label: S.label, num: S.num } },
+    {
+      label: 'Less: Platform Costs',
+      value: expense((p) => p.platformCosts),
+      styles: { label: S.label, num: S.num },
+      marginPct: shareOf((p) => p.platformCosts),
+      pctStyle: S.pct,
+    },
     {
       label: 'CM3 (Contribution Margin 3)',
       value: (p) => p.cm3,
@@ -281,7 +302,13 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
       pctStyle: MARGIN.cm3.pct,
     },
     'spacer',
-    { label: 'Less: Operating Expenses', value: expense((p) => p.opex), styles: { label: S.label, num: S.num } },
+    {
+      label: 'Less: Operating Expenses',
+      value: expense((p) => p.opex),
+      styles: { label: S.label, num: S.num },
+      marginPct: shareOf((p) => p.opex),
+      pctStyle: S.pct,
+    },
     {
       label: 'EBITDA',
       value: (p) => p.ebitda,
@@ -290,7 +317,13 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
       pctStyle: MARGIN.ebitda.pct,
     },
     'spacer',
-    { label: 'Less: Non-Operating (Int/Dep/Amort/Tax)', value: expense((p) => p.nonOperating), styles: { label: S.label, num: S.num } },
+    {
+      label: 'Less: Non-Operating (Int/Dep/Amort/Tax)',
+      value: expense((p) => p.nonOperating),
+      styles: { label: S.label, num: S.num },
+      marginPct: shareOf((p) => p.nonOperating),
+      pctStyle: S.pct,
+    },
     {
       label: 'NET INCOME',
       value: (p) => p.netIncome,
@@ -318,7 +351,9 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
     row++;
 
     if (line.marginPct && line.pctStyle) {
-      put(row, 0, `   ${line.label.replace(/^(NET REVENUE|GROSS MARGIN|EBITDA|NET INCOME|CM\d).*/, '$1')} % of Net Revenue`, { ...S.label, font: { ...(S.label.font || {}), italic: true } });
+      // Short name for the % row: drop the "Less:" prefix and any parenthetical.
+      const shortName = line.label.replace(/^Less:\s*/, '').replace(/\s*\(.*\)$/, '').trim();
+      put(row, 0, `   ${shortName} % of Net Revenue`, { ...S.label, font: { ...(S.label.font || {}), italic: true } });
       series.forEach((p, i) => put(row, i + 1, round2(line.marginPct!(p) * 1000) / 1000, line.pctStyle!));
       // Total %: recompute from totals for cascade lines (sum of value / sum of net rev).
       const totalPct = line.label === 'NET REVENUE' ? 1 : total / totalNet;
@@ -565,74 +600,6 @@ function generateSummarySheet(): XLSX.WorkSheet {
 }
 
 // ============================================
-// RAW DATA SHEET (flat, one row per month)
-// ============================================
-
-function generateRawDataSheet(months: MonthlyMIS[]): XLSX.WorkSheet {
-  const headers = [
-    'Key', 'Month Label', 'Month', 'Year',
-    ...SALES_CHANNELS.map((c) => `Net ${c}`),
-    ...SALES_CHANNELS.map((c) => `Gross ${c}`),
-    ...SALES_CHANNELS.map((c) => `Returns ${c}`),
-    'Total Gross Revenue', 'Total Returns', 'Total Taxes', 'Net Revenue',
-    'Inter-Branch', 'Turnover',
-    'COGM', 'Gross Margin',
-    'Channel & Fulfillment', 'CM1',
-    'Sales & Marketing', 'CM2',
-    'Platform Costs', 'CM3',
-    'Operating Expenses', 'EBITDA',
-    'Non-Operating', 'Net Income',
-    'Gross Margin %', 'EBITDA %', 'Net Income %',
-    'Restated Note',
-  ];
-
-  const rows = months.map((m) => {
-    const nr = m.netRevenue || 1;
-    return [
-      m.key, m.label, m.month, m.year,
-      ...SALES_CHANNELS.map((c) => round2(m.netByChannel[c] || 0)),
-      ...SALES_CHANNELS.map((c) => round2(m.grossByChannel[c] || 0)),
-      ...SALES_CHANNELS.map((c) => round2(m.returnsByChannel[c] || 0)),
-      round2(m.totalGrossRevenue), round2(m.totalReturns), round2(m.totalTaxes), round2(m.netRevenue),
-      round2(m.interBranch), round2(m.turnover),
-      round2(m.cogm), round2(m.grossMargin),
-      round2(m.channelFulfillment), round2(m.cm1),
-      round2(m.salesMarketing), round2(m.cm2),
-      round2(m.platformCosts), round2(m.cm3),
-      round2(m.opex), round2(m.ebitda),
-      round2(m.nonOperating), round2(m.netIncome),
-      round2((m.grossMargin / nr) * 1000) / 1000,
-      round2((m.ebitda / nr) * 1000) / 1000,
-      round2((m.netIncome / nr) * 1000) / 1000,
-      m.restated || '',
-    ];
-  });
-
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  const lastCol = headers.length - 1;
-  const lastRow = rows.length + 1;
-
-  // Style header row.
-  for (let c = 0; c <= lastCol; c++) {
-    const ref = XLSX.utils.encode_cell({ r: 0, c });
-    if (ws[ref]) ws[ref].s = S.header;
-  }
-  // Number/percent formats for the body.
-  const pctCols = new Set([lastCol - 3, lastCol - 2, lastCol - 1]); // the three % columns
-  for (let r = 1; r <= lastRow - 1; r++) {
-    for (let c = 4; c <= lastCol; c++) {
-      const ref = XLSX.utils.encode_cell({ r, c });
-      const cellObj = ws[ref];
-      if (cellObj && typeof cellObj.v === 'number') {
-        cellObj.s = pctCols.has(c) ? S.pct : S.num;
-      }
-    }
-  }
-  ws['!cols'] = headers.map((h, i) => ({ wch: i < 2 ? 14 : Math.max(10, h.length + 1) }));
-  return ws;
-}
-
-// ============================================
 // MAIN EXPORT
 // ============================================
 
@@ -682,18 +649,6 @@ export async function exportDeckToExcel(options: DeckExportOptions): Promise<voi
       generateLineDetailSheet(monthsAsc, 'cogmLines', 'COGM DETAIL — Cost of Goods Manufactured', extra),
       'COGM Detail',
     );
-  }
-
-  if (options.includeOpexDetail) {
-    XLSX.utils.book_append_sheet(
-      wb,
-      generateLineDetailSheet(monthsAsc, 'opexLines', 'OPERATING EXPENSES DETAIL'),
-      'OpEx Detail',
-    );
-  }
-
-  if (options.includeRawData) {
-    XLSX.utils.book_append_sheet(wb, generateRawDataSheet(monthsAsc), 'All Data');
   }
 
   if (wb.SheetNames.length === 0) {
