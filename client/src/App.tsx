@@ -42,8 +42,10 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainLayout />}>
-          {/* Home */}
-          <Route index element={<Home />} />
+          {/* Landing page → MIS Reporting deck */}
+          <Route index element={<Navigate to="/reporting/mis" replace />} />
+          {/* Original home dashboard, still reachable directly */}
+          <Route path="home" element={<Home />} />
 
           {/* Top-level sections */}
           <Route path="reporting" element={<Reporting />} />
