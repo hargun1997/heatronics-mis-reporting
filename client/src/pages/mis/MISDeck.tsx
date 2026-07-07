@@ -750,7 +750,9 @@ function ProfitabilityTab({ blended, setBlended }: BlendProps) {
 // P&L
 // ----------------------------------------------------------------------------
 
-const PNL_ROWS: { label: string; key: keyof PeriodMIS; kind: 'rev' | 'cost' | 'margin' }[] = [
+type PnlMetricKind = 'rev' | 'cost' | 'margin';
+
+const PNL_ROWS: { label: string; key: keyof PeriodMIS; kind: PnlMetricKind }[] = [
   { label: 'Net Revenue', key: 'netRevenue', kind: 'rev' },
   { label: '  COGM', key: 'cogm', kind: 'cost' },
   { label: 'Gross Margin', key: 'grossMargin', kind: 'margin' },
@@ -766,9 +768,172 @@ const PNL_ROWS: { label: string; key: keyof PeriodMIS; kind: 'rev' | 'cost' | 'm
   { label: 'Net Income', key: 'netIncome', kind: 'margin' },
 ];
 
+// Signed display amount for a row within a period (costs shown negative, like the statement).
+function pnlAmount(p: PeriodMIS, key: keyof PeriodMIS, kind: PnlMetricKind): number {
+  const raw = p[key] as number;
+  return kind === 'cost' ? -raw : raw;
+}
+
+// Share of the period's net revenue (fraction). Net Revenue is 100%; costs are negative.
+function pnlShare(p: PeriodMIS, key: keyof PeriodMIS, kind: PnlMetricKind): number | null {
+  if (!p.netRevenue) return null;
+  return pnlAmount(p, key, kind) / p.netRevenue;
+}
+
+// ----------------------------------------------------------------------------
+// P&L metric-trends chart (overlay any P&L lines across month/quarter/year)
+// ----------------------------------------------------------------------------
+
+// Distinct categorical hues (deliberately no red/green value signalling), one per P&L line.
+const METRIC_COLORS = [
+  '#4f46e5', '#94a3b8', '#0ea5e9', '#cbd5e1', '#06b6d4', '#f59e0b', '#8b5cf6',
+  '#eab308', '#ec4899', '#f97316', '#6366f1', '#64748b', '#0284c7',
+];
+
+const TREND_METRICS = PNL_ROWS.map((r, i) => ({
+  key: r.key,
+  kind: r.kind,
+  label: r.label.trim(),
+  color: METRIC_COLORS[i % METRIC_COLORS.length],
+}));
+
+type MetricBasis = 'amount' | 'percent';
+
+function BasisToggle({ value, onChange }: { value: MetricBasis; onChange: (v: MetricBasis) => void }) {
+  const opts: { id: MetricBasis; label: string }[] = [
+    { id: 'amount', label: '₹ Value' },
+    { id: 'percent', label: '% of Revenue' },
+  ];
+  return (
+    <div className="inline-flex bg-slate-100 rounded-lg p-0.5">
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+            value === o.id ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MetricTrendsSection({ blended }: { blended: boolean }) {
+  const [g, setG] = useState<Granularity>('month');
+  const [basis, setBasis] = useState<MetricBasis>('amount');
+  const [selected, setSelected] = useState<(keyof PeriodMIS)[]>(['netRevenue', 'grossMargin', 'ebitda']);
+
+  const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
+
+  const toggle = (key: keyof PeriodMIS) =>
+    setSelected((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
+
+  const chosen = TREND_METRICS.filter((m) => selected.includes(m.key));
+  const chartSeries = chosen.map((m) => ({
+    name: m.label,
+    color: m.color,
+    values: series.map((p) =>
+      basis === 'percent' ? pnlShare(p, m.key, m.kind) : pnlAmount(p, m.key, m.kind),
+    ),
+  }));
+
+  return (
+    <SectionCard
+      title="Metric trends"
+      description={
+        basis === 'percent'
+          ? `Each selected line as a % of net revenue, by ${g}. Costs read as negative share.`
+          : `Track any P&L line over time, by ${g}. Costs shown as negatives.`
+      }
+      actions={
+        <div className="flex items-center gap-2">
+          <BasisToggle value={basis} onChange={setBasis} />
+          <GranularityToggle value={g} onChange={setG} />
+        </div>
+      }
+    >
+      {/* Metric picker */}
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {TREND_METRICS.map((m) => {
+          const on = selected.includes(m.key);
+          return (
+            <button
+              key={m.key}
+              onClick={() => toggle(m.key)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${
+                on ? 'border-slate-300 bg-slate-50 text-slate-800' : 'border-slate-200 text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: on ? m.color : '#cbd5e1' }} />
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {chosen.length === 0 ? (
+        <div className="h-[260px] flex items-center justify-center text-sm text-slate-400">
+          Select one or more metrics above to plot their trend.
+        </div>
+      ) : (
+        <>
+          <LineChart
+            labels={series.map((p) => p.label)}
+            series={chartSeries}
+            height={300}
+            percent={basis === 'percent'}
+            valueFormat={basis === 'percent' ? (v) => pctStr(v) : (v) => inr(v)}
+          />
+          <div className="mt-3">
+            <Legend items={chosen.map((m) => ({ label: m.label, color: m.color }))} />
+          </div>
+        </>
+      )}
+    </SectionCard>
+  );
+}
+
+// ----------------------------------------------------------------------------
+
+type PnlDisplay = 'amount' | 'percent' | 'both';
+
+function PnlDisplayToggle({ value, onChange }: { value: PnlDisplay; onChange: (v: PnlDisplay) => void }) {
+  const opts: { id: PnlDisplay; label: string }[] = [
+    { id: 'amount', label: '₹' },
+    { id: 'percent', label: '% Rev' },
+    { id: 'both', label: '₹ + %' },
+  ];
+  return (
+    <div className="inline-flex bg-slate-100 rounded-lg p-0.5">
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+            value === o.id ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PnlTab({ blended, setBlended }: BlendProps) {
   const [g, setG] = useState<Granularity>('year');
+  const [display, setDisplay] = useState<PnlDisplay>('both');
   const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
+
+  const desc =
+    display === 'percent'
+      ? 'Each line as a % of net revenue (common-size). Costs shown as negatives; column scope under each heading.'
+      : display === 'both'
+        ? 'Figures in ₹ with each line’s % of net revenue beneath. Costs shown as negatives; column scope under each heading.'
+        : 'All figures in ₹. Costs shown as negatives. Column scope shown under each heading — partial periods are annotated.';
 
   return (
     <div className="space-y-6">
@@ -782,7 +947,11 @@ function PnlTab({ blended, setBlended }: BlendProps) {
 
       {blended && <BlendNote />}
 
-      <SectionCard title={`P&L · ${capitalizeGran(g)}`} description="All figures in ₹. Costs shown as negatives. Column scope shown under each heading — partial periods are annotated.">
+      <SectionCard
+        title={`P&L · ${capitalizeGran(g)}`}
+        description={desc}
+        actions={<PnlDisplayToggle value={display} onChange={setDisplay} />}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm whitespace-nowrap">
             <thead>
@@ -815,11 +984,16 @@ function PnlTab({ blended, setBlended }: BlendProps) {
                   <tr key={row.label} className={`border-b border-slate-50 ${isMargin ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
                     <td className={`py-2 pr-4 text-left sticky left-0 bg-white ${row.label.startsWith('  ') ? 'pl-4' : ''}`}>{row.label.trim()}</td>
                     {series.map((p) => {
-                      const raw = p[row.key] as number;
-                      const val = row.kind === 'cost' ? -raw : raw;
+                      const val = pnlAmount(p, row.key, row.kind);
+                      const share = pnlShare(p, row.key, row.kind);
                       return (
                         <td key={p.key} className={`py-2 px-3 text-right tabular-nums ${isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
-                          {inr(val)}
+                          {display !== 'percent' && <div>{inr(val)}</div>}
+                          {display !== 'amount' && (
+                            <div className={display === 'both' ? 'text-[10px] font-normal text-slate-400 mt-0.5' : ''}>
+                              {pctStr(share)}
+                            </div>
+                          )}
                         </td>
                       );
                     })}
@@ -831,10 +1005,12 @@ function PnlTab({ blended, setBlended }: BlendProps) {
         </div>
       </SectionCard>
 
+      <MetricTrendsSection blended={blended} />
+
       <p className="text-xs text-slate-400">
         Net Revenue = external sales net of returns &amp; GST (excludes inter-branch transfers). COGM is derived so the
         Net Revenue → Net Income bridge reconciles exactly. Depreciation is generally excluded from the EBITDA/Net-income
-        basis, consistent with the source MIS.
+        basis, consistent with the source MIS. Percentages are each line’s share of that period’s net revenue.
       </p>
       <p className="text-xs text-slate-400">
         <span className="font-medium text-slate-500">FY 2025-26 restated:</span> tied to the company's provisional P&amp;L
