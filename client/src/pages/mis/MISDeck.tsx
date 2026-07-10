@@ -18,6 +18,7 @@ import {
   MIS_GENERATED_AT, MIS_SOURCE_FILE, DISCOUNT_DATA, D2C_REPEATS, AMAZON_REPEATS,
 } from '../../data/misDeck/misDeckData';
 import { DeckExportModal } from '../../components/mis-deck/DeckExportModal';
+import { MisSheetTab } from '../../components/mis-deck/MisSheetTab';
 
 const iconDeck = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -25,7 +26,7 @@ const iconDeck = (
   </svg>
 );
 
-type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelpnl';
+type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelpnl' | 'missheet';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -35,6 +36,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'profitability', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
   { id: 'channelpnl', label: 'Channel P&L' },
+  { id: 'missheet', label: 'MIS Sheet' },
 ];
 
 // ----------------------------------------------------------------------------
@@ -96,6 +98,7 @@ export function MISDeck() {
         {tab === 'profitability' && <ProfitabilityTab blended={blended} setBlended={setBlended} />}
         {tab === 'pnl' && <PnlTab blended={blended} setBlended={setBlended} />}
         {tab === 'channelpnl' && <ChannelPnlTab blended={blended} setBlended={setBlended} />}
+        {tab === 'missheet' && <MisSheetTab />}
       </div>
     </>
   );
