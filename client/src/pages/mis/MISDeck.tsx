@@ -1135,6 +1135,9 @@ function ChannelPnlTab({ blended, setBlended }: BlendProps) {
   const smAmazon = byCh.get('Amazon')!.salesMarketing;
   const smBlinkit = byCh.get('Blinkit')!.salesMarketing;
   const adOverBooked = reportedAd > p.salesMarketing + 0.5;
+  const leftover = Math.max(0, p.salesMarketing - reportedAd);
+  // Blinkit had no sales but there's residual S&M → it was spread across channels.
+  const leftoverSpread = !adOverBooked && leftover > 0.5 && (p.netByChannel.Blinkit || 0) <= 0;
   // Show a channel if it has revenue or carries attributed marketing (so Blinkit's
   // leftover S&M is visible and the columns still reconcile to the Total).
   const activeChannels = SALES_CHANNELS.filter(
@@ -1168,9 +1171,10 @@ function ChannelPnlTab({ blended, setBlended }: BlendProps) {
         <span className="font-medium text-amber-700">Marketing by ad spend; other costs allocated.</span> Sales &amp;
         Marketing is attributed to channels from the actual ad-spend feeds — <span className="font-medium">Shopify</span> =
         Meta + Google, <span className="font-medium">Amazon</span> = Amazon Ads, and the leftover booked S&amp;M goes to
-        <span className="font-medium"> Blinkit</span>. The booked S&amp;M in the system is the ceiling, so no channel's
-        marketing is ever negative. COGM, platform, opex &amp; non-operating remain company totals split by each channel's
-        net revenue. All lines still reconcile to the company total.
+        <span className="font-medium"> Blinkit</span> when it has sales (otherwise the residual is spread across the
+        selling channels). The booked S&amp;M in the system is the ceiling, so no channel's marketing is ever negative.
+        COGM, platform, opex &amp; non-operating remain company totals split by each channel's net revenue. All lines
+        still reconcile to the company total.
         {adOverBooked && (
           <span className="block mt-1 text-amber-700">
             Note: in {p.longLabel}, reported ad spend (Shopify + Amazon = {inr(reportedAd)}) exceeds booked S&amp;M
@@ -1178,15 +1182,25 @@ function ChannelPnlTab({ blended, setBlended }: BlendProps) {
             ({inr(smShopify)} + {inr(smAmazon)}) and Blinkit's leftover is held at ₹0.
           </span>
         )}
+        {leftoverSpread && (
+          <span className="block mt-1 text-amber-700">
+            Note: Blinkit had no sales in {p.longLabel}, so the {inr(leftover)} residual booked S&amp;M (beyond Shopify +
+            Amazon ad spend) is spread across the selling channels by net-revenue share — not shown as a Blinkit loss
+            against zero revenue.
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         <KpiCard label="Shopify marketing" value={inr(smShopify)} tone="brand"
-          sub={adOverBooked ? `Meta + Google, scaled (reported ${inr(marketing.d2c)})` : 'Meta + Google'} />
+          sub={adOverBooked ? `Meta + Google, scaled (reported ${inr(marketing.d2c)})`
+            : leftoverSpread ? 'Meta + Google + share of residual' : 'Meta + Google'} />
         <KpiCard label="Amazon marketing" value={inr(smAmazon)} tone="amber"
-          sub={adOverBooked ? `Amazon Ads, scaled (reported ${inr(marketing.amazon)})` : 'Amazon Ads'} />
+          sub={adOverBooked ? `Amazon Ads, scaled (reported ${inr(marketing.amazon)})`
+            : leftoverSpread ? 'Amazon Ads + share of residual' : 'Amazon Ads'} />
         <KpiCard label="Blinkit (leftover S&M)" value={inr(smBlinkit)}
-          sub={adOverBooked ? 'held at ₹0 (ads ≥ booked S&M)' : `booked S&M ${inr(p.salesMarketing)} − ads`} />
+          sub={adOverBooked ? 'held at ₹0 (ads ≥ booked S&M)'
+            : leftoverSpread ? 'no sales — residual spread' : `booked S&M ${inr(p.salesMarketing)} − ads`} />
       </div>
 
       {blended && <BlendNote />}
