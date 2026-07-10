@@ -7,18 +7,13 @@ interface NavItem {
   matcher?: (pathname: string) => boolean;
 }
 
-const DATA_INSIGHTS_URL = 'https://digistex4u.github.io/heatronics_dashbaord/';
+const DATA_INSIGHTS_URL = 'https://heatronics-dashboard-portfolio.vercel.app/';
 
 const navItems: NavItem[] = [
   {
     path: '/reporting/mis',
     label: 'MIS',
     matcher: (p) => p.startsWith('/reporting') || p.startsWith('/mis'),
-  },
-  {
-    path: '/tools',
-    label: 'Tools',
-    matcher: (p) => p.startsWith('/tools'),
   },
   {
     path: DATA_INSIGHTS_URL,
@@ -82,8 +77,16 @@ export function MainLayout() {
               {navItems.map((item) => renderItem(item))}
             </nav>
 
-            {/* Right side quick links (desktop) */}
-            <div className="hidden md:flex items-center gap-1 text-xs">
+            {/* Right side quick links (desktop). Tools is intentionally low-key here. */}
+            <div className="hidden md:flex items-center gap-3 text-xs">
+              <NavLink
+                to="/tools"
+                className={({ isActive }) =>
+                  `text-[11px] transition-colors ${isActive ? 'text-slate-500' : 'text-slate-300 hover:text-slate-500'}`
+                }
+              >
+                Tools
+              </NavLink>
               <span className="text-slate-400">MIS v2.1</span>
             </div>
 
