@@ -1844,3 +1844,27 @@ export const FY_SUMMARY: FYSummary[] = [
     "netIncomePct": -0.242
   }
 ];
+
+// ----------------------------------------------------------------------------
+// Repeat-purchase data (channel × month) — powers the Repeats tab.
+//
+// The MIS itself has no order/customer-level data, so this is a separate feed.
+// Populate REPEAT_DATA with one row per channel per month:
+//   { key: "2026-05", channel: "D2C", orders: 812, repeatOrders: 143 }
+// where `orders` is that channel's total orders in the month and `repeatOrders`
+// is the subset placed by returning customers. Repeat rate is derived
+// (repeatOrders / orders). Leave the array empty until the dataset is supplied;
+// the Repeats tab shows a "waiting for data" state while it is empty.
+// ----------------------------------------------------------------------------
+
+export interface ChannelRepeatMonth {
+  /** Month key, e.g. "2026-05". */
+  key: string;
+  channel: SalesChannel;
+  /** Total orders for this channel in the month. */
+  orders: number;
+  /** Orders placed by returning customers (subset of `orders`). */
+  repeatOrders: number;
+}
+
+export const REPEAT_DATA: ChannelRepeatMonth[] = [];
