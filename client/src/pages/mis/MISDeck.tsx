@@ -15,7 +15,7 @@ import {
   type Granularity, type PeriodMIS, type ChannelPnlRow,
 } from '../../data/misDeck/analytics';
 import {
-  MIS_GENERATED_AT, MIS_SOURCE_FILE, REPEAT_DATA,
+  MIS_GENERATED_AT, MIS_SOURCE_FILE, REPEAT_DATA, DISCOUNT_DATA,
   type ChannelRepeatMonth,
 } from '../../data/misDeck/misDeckData';
 import { DeckExportModal } from '../../components/mis-deck/DeckExportModal';
@@ -390,6 +390,61 @@ function ArrProjectionSection() {
   );
 }
 
+function DiscountOverTimeSection() {
+  const [basis, setBasis] = useState<'amount' | 'rate'>('amount');
+  const data = DISCOUNT_DATA;
+
+  const totalDiscount = data.reduce((s, d) => s + d.discount, 0);
+  const totalSales = data.reduce((s, d) => s + d.totalSales, 0);
+  const blendedRate = totalSales > 0 ? totalDiscount / totalSales : null;
+
+  const values = data.map((d) =>
+    basis === 'amount' ? d.discount : d.totalSales > 0 ? d.discount / d.totalSales : null,
+  );
+  const first = data[0];
+  const last = data[data.length - 1];
+
+  return (
+    <SectionCard
+      title="Discount over time"
+      description={`Monthly discounts from the storefront sales report · ${first.label}–${last.label} (first & last months partial)`}
+      actions={
+        <div className="inline-flex bg-slate-100 rounded-lg p-0.5">
+          {([['amount', '₹ Discount'], ['rate', '% of Sales']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setBasis(id)}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                basis === id ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <KpiCard label="Total discounts" value={inr(totalDiscount)} tone="amber" sub={`over ${data.length} months`} />
+        <KpiCard label="Blended discount rate" value={pctStr(blendedRate)} tone="amber" sub="discounts ÷ total sales" />
+        <KpiCard label="Total sales" value={inr(totalSales)} sub="gross, per the report" />
+      </div>
+      <LineChart
+        labels={data.map((d) => d.label)}
+        series={[{ name: basis === 'amount' ? 'Discount' : 'Discount rate', color: SERIES_COLORS[2], values }]}
+        percent={basis === 'rate'}
+        valueFormat={basis === 'rate' ? (v) => pctStr(v) : (v) => inr(v)}
+      />
+      <p className="text-xs text-slate-400 mt-3">
+        {basis === 'amount'
+          ? 'Discount ₹ given each month (shown as a positive magnitude).'
+          : 'Discount as a percentage of that month’s total sales.'}{' '}
+        The report window is Jul 10, 2025 – Jul 10, 2026, so the first and last months are partial.
+      </p>
+    </SectionCard>
+  );
+}
+
 function GrowthTab() {
   const [g, setG] = useState<Granularity>('month');
   const series = useMemo(() => seriesFor(g), [g]);
@@ -403,6 +458,8 @@ function GrowthTab() {
   return (
     <div className="space-y-6">
       <ArrProjectionSection />
+
+      <DiscountOverTimeSection />
 
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-700">Revenue trajectory & growth</h2>
