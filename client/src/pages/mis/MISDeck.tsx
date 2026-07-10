@@ -10,7 +10,7 @@ import {
   seriesFor, seriesForBlended, fyBlendedGMRates, monthlySeries, quarterlySeries, yearlySeries,
   periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts, arrProjection,
   channelObservations, channelHHI, topChannel, channelsAbove, likeForLikeChannel,
-  ordersByChannel, channelLabel, channelPnl, CHANNEL_AOV,
+  ordersByChannel, channelLabel, channelPnl, adSpendForPeriod, CHANNEL_AOV,
   SALES_CHANNELS, FY_SUMMARY,
   type Granularity, type PeriodMIS, type ChannelPnlRow,
 } from '../../data/misDeck/analytics';
@@ -1125,9 +1125,15 @@ function ChannelPnlTab({ blended, setBlended }: BlendProps) {
   const safeIdx = Math.min(idx, series.length - 1);
   const p = series[safeIdx];
 
-  const rows = channelPnl(p);
+  const marketing = adSpendForPeriod(g, p);
+  const blinkitLeftover = p.salesMarketing - marketing.d2c - marketing.amazon;
+  const rows = channelPnl(p, marketing);
   const byCh = new Map(rows.map((r) => [r.channel, r]));
-  const activeChannels = SALES_CHANNELS.filter((c) => (p.netByChannel[c] || 0) > 0);
+  // Show a channel if it has revenue or carries attributed marketing (so Blinkit's
+  // leftover S&M is visible and the columns still reconcile to the Total).
+  const activeChannels = SALES_CHANNELS.filter(
+    (c) => (p.netByChannel[c] || 0) > 0 || Math.abs(byCh.get(c)!.salesMarketing) > 0.5,
+  );
   const shareOf = (c: SalesChannelKey) => (p.netRevenue ? Math.max(0, p.netByChannel[c] || 0) / p.netRevenue : 0);
 
   return (
@@ -1135,7 +1141,7 @@ function ChannelPnlTab({ blended, setBlended }: BlendProps) {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-slate-700">Channel-level P&amp;L</h2>
-          <p className="text-xs text-slate-400">Every shared cost allocated to channels in proportion to net revenue.</p>
+          <p className="text-xs text-slate-400">Marketing follows actual ad spend; other shared costs split by net revenue.</p>
         </div>
         <div className="flex items-center gap-2">
           <BlendToggle value={blended} onChange={setBlended} />
@@ -1153,17 +1159,32 @@ function ChannelPnlTab({ blended, setBlended }: BlendProps) {
       </div>
 
       <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-slate-600">
-        <span className="font-medium text-amber-700">Allocated, not booked-by-channel.</span> Only revenue is recorded per
-        channel; COGM, marketing, platform, opex &amp; non-operating are company totals split here in proportion to each
-        channel's net revenue. Because the split is purely revenue-weighted, every channel shows the same margin % — the
-        value is the <span className="font-medium">₹ contribution</span> each channel makes to every P&amp;L line.
+        <span className="font-medium text-amber-700">Marketing by ad spend; other costs allocated.</span> Sales &amp;
+        Marketing is attributed to channels from the actual ad-spend feeds — <span className="font-medium">Shopify</span> =
+        Meta + Google, <span className="font-medium">Amazon</span> = Amazon Ads, and the leftover booked S&amp;M goes to
+        <span className="font-medium"> Blinkit</span>. COGM, platform, opex &amp; non-operating remain company totals split
+        by each channel's net revenue. All lines still reconcile to the company total.
+        {blinkitLeftover < 0 && (
+          <span className="block mt-1 text-amber-700">
+            Note: in {p.longLabel}, reported ad spend (Shopify + Amazon = {inr(marketing.d2c + marketing.amazon)}) exceeds
+            booked S&amp;M ({inr(p.salesMarketing)}), so Blinkit's leftover is negative ({inr(-blinkitLeftover)} over-spend)
+            — a timing/booking difference between the ad platforms and the accounts.
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <KpiCard label="Shopify ad spend" value={inr(marketing.d2c)} tone="brand" sub="Meta + Google" />
+        <KpiCard label="Amazon ad spend" value={inr(marketing.amazon)} tone="amber" sub="Amazon Ads" />
+        <KpiCard label="Blinkit (leftover S&M)" value={inr(blinkitLeftover)}
+          sub={`booked S&M ${inr(p.salesMarketing)} − ads`} />
       </div>
 
       {blended && <BlendNote />}
 
       <SectionCard
         title={`Channel P&L · ${p.longLabel}`}
-        description="All figures in ₹. Costs shown as negatives. Each channel = its net-revenue share of the company total."
+        description="All figures in ₹. Costs shown as negatives. Sales & Marketing follows ad spend (Shopify/Amazon/Blinkit); other costs by net-revenue share."
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm whitespace-nowrap">

@@ -5,6 +5,8 @@ import {
   MONTHLY_MIS,
   FY_SUMMARY,
   SALES_CHANNELS,
+  D2C_AD_SPEND,
+  AMAZON_AD_SPEND,
   type MonthlyMIS,
   type SalesChannel,
 } from './misDeckData';
@@ -692,27 +694,69 @@ export interface ChannelPnlRow {
   netIncome: number;
 }
 
-export function channelPnl(p: PeriodMIS): ChannelPnlRow[] {
+/** Channel-attributed marketing for a period (from ad-spend feeds). */
+export interface ChannelMarketing {
+  /** D2C (Shopify) = Meta + Google spend. */
+  d2c: number;
+  /** Amazon Ads total cost. */
+  amazon: number;
+}
+
+/**
+ * Sum the ad-spend feeds over the months that compose a given period, so
+ * marketing can be attributed to channels in the Channel P&L.
+ */
+export function adSpendForPeriod(g: Granularity, period: PeriodMIS): ChannelMarketing {
+  const months = membersOf(g, period);
+  const d2c = months.reduce((s, m) => s + (D2C_AD_SPEND[m.key] || 0), 0);
+  const amazon = months.reduce((s, m) => s + (AMAZON_AD_SPEND[m.key] || 0), 0);
+  return { d2c, amazon };
+}
+
+/**
+ * Channel-level P&L. Every shared cost is allocated by net-revenue share,
+ * EXCEPT Sales & Marketing when `marketing` is supplied: D2C carries its
+ * Meta+Google spend, Amazon its Amazon Ads spend, and Blinkit the leftover
+ * (booked S&M − D2C − Amazon). The below-S&M cascade (CM2 → Net Income) is
+ * recomputed per channel so the marketing attribution flows through, and every
+ * line still reconciles to the company total. Without `marketing`, S&M falls
+ * back to revenue-share like the other lines.
+ */
+export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelPnlRow[] {
   const totalPositive = SALES_CHANNELS.reduce((s, c) => s + Math.max(0, p.netByChannel[c] || 0), 0);
+  const shareOf = (c: SalesChannel) => (totalPositive > 0 ? Math.max(0, p.netByChannel[c] || 0) / totalPositive : 0);
+
+  // Sales & Marketing per channel.
+  const smByChannel = emptyChannels();
+  if (marketing) {
+    smByChannel.D2C = marketing.d2c;
+    smByChannel.Amazon = marketing.amazon;
+    smByChannel.Blinkit = p.salesMarketing - marketing.d2c - marketing.amazon; // leftover
+    // OEM / Offline / Export carry no attributed marketing.
+  } else {
+    for (const c of SALES_CHANNELS) smByChannel[c] = p.salesMarketing * shareOf(c);
+  }
+
   return SALES_CHANNELS.map((c) => {
-    const nr = Math.max(0, p.netByChannel[c] || 0);
-    const share = totalPositive > 0 ? nr / totalPositive : 0;
+    const share = shareOf(c);
+    const netRevenue = Math.max(0, p.netByChannel[c] || 0);
+    const cogm = p.cogm * share;
+    const grossMargin = netRevenue - cogm;
+    const channelFulfillment = p.channelFulfillment * share;
+    const cm1 = grossMargin - channelFulfillment;
+    const salesMarketing = smByChannel[c];
+    const cm2 = cm1 - salesMarketing;
+    const platformCosts = p.platformCosts * share;
+    const cm3 = cm2 - platformCosts;
+    const opex = p.opex * share;
+    const ebitda = cm3 - opex;
+    const nonOperating = p.nonOperating * share;
+    const netIncome = ebitda - nonOperating;
     return {
-      channel: c,
-      share,
-      netRevenue: nr,
-      cogm: p.cogm * share,
-      grossMargin: p.grossMargin * share,
-      channelFulfillment: p.channelFulfillment * share,
-      cm1: p.cm1 * share,
-      salesMarketing: p.salesMarketing * share,
-      cm2: p.cm2 * share,
-      platformCosts: p.platformCosts * share,
-      cm3: p.cm3 * share,
-      opex: p.opex * share,
-      ebitda: p.ebitda * share,
-      nonOperating: p.nonOperating * share,
-      netIncome: p.netIncome * share,
+      channel: c, share, netRevenue,
+      cogm, grossMargin, channelFulfillment, cm1,
+      salesMarketing, cm2, platformCosts, cm3,
+      opex, ebitda, nonOperating, netIncome,
     };
   });
 }
