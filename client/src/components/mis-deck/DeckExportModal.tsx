@@ -25,6 +25,10 @@ interface Toggle {
 const SHEET_TOGGLES: Toggle[] = [
   { key: 'includeSummary', title: 'Summary', desc: 'Headline KPIs and a financial-year summary table' },
   { key: 'includeChannelRevenue', title: 'Channel Revenue', desc: 'Net revenue and mix % per sales channel, by month' },
+  { key: 'includeChannelPnl', title: 'Channel P&L', desc: 'Per-channel P&L by fiscal year, marketing attributed by ad spend' },
+  { key: 'includeOrders', title: 'Channel Orders', desc: 'Estimated orders per channel per month (net revenue ÷ AOV)' },
+  { key: 'includeRepeats', title: 'Repeats', desc: 'Repeat-purchase behaviour — Shopify (D2C) & Amazon' },
+  { key: 'includeDiscounts', title: 'Discounts', desc: 'Monthly discounts and total sales (storefront)' },
   { key: 'includeCogmDetail', title: 'COGM Detail', desc: 'Cost-of-goods-manufactured line items, month by month' },
 ];
 
@@ -40,6 +44,10 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
     includeSummary: true,
     granularities: ['month', 'quarter', 'year'],
     includeChannelRevenue: true,
+    includeChannelPnl: true,
+    includeOrders: true,
+    includeRepeats: true,
+    includeDiscounts: true,
     includeCogmDetail: true,
     blendCogm: true,
   });
@@ -59,6 +67,10 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
     (opts.includeSummary ? 1 : 0) +
     opts.granularities.length +
     (opts.includeChannelRevenue ? 1 : 0) +
+    (opts.includeChannelPnl ? 1 : 0) +
+    (opts.includeOrders ? 1 : 0) +
+    (opts.includeRepeats ? 1 : 0) +
+    (opts.includeDiscounts ? 1 : 0) +
     (opts.includeCogmDetail ? 1 : 0);
 
   const run = async (fn: () => Promise<void>) => {
@@ -103,7 +115,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
             <span className="flex-1">
               <span className="block font-semibold">Export Everything</span>
               <span className="block text-sm text-emerald-50">
-                The entire dataset — every month, quarter and FY, all channels, plus COGM detail
+                Every month, quarter and FY, channel P&L, orders, repeats, discounts and COGM detail
               </span>
             </span>
           </button>

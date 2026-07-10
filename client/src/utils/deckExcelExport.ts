@@ -19,6 +19,9 @@ import {
   SALES_CHANNELS,
   MIS_SOURCE_FILE,
   MIS_GENERATED_AT,
+  D2C_REPEATS,
+  AMAZON_REPEATS,
+  DISCOUNT_DATA,
   type MonthlyMIS,
 } from '../data/misDeck/misDeckData';
 import {
@@ -26,11 +29,18 @@ import {
   seriesForBlended,
   fyBlendedGMRates,
   monthlySeries,
+  yearlySeries,
   marginsOf,
   channelMix,
+  channelPnl,
+  adSpendForPeriod,
+  ordersByChannel,
+  channelLabel,
+  CHANNEL_AOV,
   deckFacts,
   type PeriodMIS,
   type Granularity,
+  type ChannelPnlRow,
 } from '../data/misDeck/analytics';
 
 // ============================================
@@ -42,6 +52,14 @@ export interface DeckExportOptions {
   /** P&L cascade sheets, one per chosen granularity. */
   granularities: Granularity[];
   includeChannelRevenue: boolean;
+  /** Channel-level P&L per fiscal year (marketing attributed by ad spend). */
+  includeChannelPnl: boolean;
+  /** Estimated orders per channel per month (net revenue ÷ AOV). */
+  includeOrders: boolean;
+  /** Repeat-purchase behaviour — Shopify (D2C) & Amazon. */
+  includeRepeats: boolean;
+  /** Monthly discounts & total sales (storefront). */
+  includeDiscounts: boolean;
   includeCogmDetail: boolean;
   /**
    * Blend COGM to each fiscal year's revenue-weighted rate on the P&L cascade
@@ -56,6 +74,10 @@ export const EXPORT_EVERYTHING: DeckExportOptions = {
   includeSummary: true,
   granularities: ['month', 'quarter', 'year'],
   includeChannelRevenue: true,
+  includeChannelPnl: true,
+  includeOrders: true,
+  includeRepeats: true,
+  includeDiscounts: true,
   includeCogmDetail: true,
   blendCogm: true,
 };
@@ -600,6 +622,274 @@ function generateSummarySheet(): XLSX.WorkSheet {
 }
 
 // ============================================
+// CHANNEL P&L SHEET (channels as columns, per fiscal year)
+// ============================================
+
+const MONTHS3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "2025-08" → "Aug '25". */
+function keyToLabel(key: string): string {
+  const [y, m] = key.split('-').map(Number);
+  return `${MONTHS3[(m || 1) - 1]} '${String((y || 0) % 100).padStart(2, '0')}`;
+}
+
+const CH_PL_LINES: { label: string; key: keyof ChannelPnlRow; kind: 'rev' | 'cost' | 'margin'; m?: keyof typeof MARGIN }[] = [
+  { label: 'NET REVENUE', key: 'netRevenue', kind: 'rev', m: 'net' },
+  { label: 'Less: COGM', key: 'cogm', kind: 'cost' },
+  { label: 'GROSS MARGIN', key: 'grossMargin', kind: 'margin', m: 'gross' },
+  { label: 'Less: Channel & Fulfillment', key: 'channelFulfillment', kind: 'cost' },
+  { label: 'CM1 (Contribution Margin 1)', key: 'cm1', kind: 'margin', m: 'cm1' },
+  { label: 'Less: Sales & Marketing', key: 'salesMarketing', kind: 'cost' },
+  { label: 'CM2 (Contribution Margin 2)', key: 'cm2', kind: 'margin', m: 'cm2' },
+  { label: 'Less: Platform Costs', key: 'platformCosts', kind: 'cost' },
+  { label: 'CM3 (Contribution Margin 3)', key: 'cm3', kind: 'margin', m: 'cm3' },
+  { label: 'Less: Operating Expenses', key: 'opex', kind: 'cost' },
+  { label: 'EBITDA', key: 'ebitda', kind: 'margin', m: 'ebitda' },
+  { label: 'Less: Non-Operating (Int/Dep/Amort/Tax)', key: 'nonOperating', kind: 'cost' },
+  { label: 'NET INCOME', key: 'netIncome', kind: 'margin', m: 'netIncome' },
+];
+
+function generateChannelPnlSheet(blend: boolean): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const merges: XLSX.Range[] = [];
+  const nCols = SALES_CHANNELS.length + 2; // Particulars + channels + Total
+  let row = 0;
+  const put = (r: number, c: number, v: string | number, s: Style) => {
+    ws[XLSX.utils.encode_cell({ r, c })] = cell(v, s);
+  };
+  const band = (text: string, s: Style) => {
+    put(row, 0, text, s);
+    for (let c = 1; c < nCols; c++) put(row, c, '', s);
+    merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
+    row++;
+  };
+
+  band('CHANNEL-LEVEL P&L (marketing attributed by ad spend)', S.title);
+  band(
+    'Shopify = Meta + Google, Amazon = Amazon Ads, leftover booked S&M → Blinkit (never negative; ads scaled to fit booked S&M). Other costs allocated by net-revenue share. All in ₹.',
+    S.subtitle,
+  );
+  row++;
+
+  const years = blend ? seriesForBlended('year') : yearlySeries();
+  years.forEach((p) => {
+    band(p.longLabel, S.header);
+    put(row, 0, 'Particulars', S.header);
+    SALES_CHANNELS.forEach((c, i) => put(row, i + 1, channelLabel(c), S.header));
+    put(row, nCols - 1, 'Total', S.header);
+    row++;
+
+    const rows = channelPnl(p, adSpendForPeriod('year', p));
+    const byCh = new Map(rows.map((r) => [r.channel, r]));
+
+    for (const line of CH_PL_LINES) {
+      const isMargin = line.kind !== 'cost';
+      const lblStyle = isMargin && line.m ? MARGIN[line.m].label : S.label;
+      put(row, 0, isMargin ? line.label : `   ${line.label}`, lblStyle);
+      let total = 0;
+      SALES_CHANNELS.forEach((c, i) => {
+        const r = byCh.get(c)!;
+        const raw = r[line.key] as number;
+        const v = round2(line.kind === 'cost' ? -raw : raw);
+        total += v;
+        const numStyle = isMargin && line.m ? MARGIN[line.m].num : S.num;
+        put(row, i + 1, v, signed(v, numStyle));
+      });
+      const totStyle = isMargin && line.m
+        ? { ...MARGIN[line.m].num }
+        : { ...S.num, fill: S.total.fill, font: { ...(S.num.font || {}), bold: true } };
+      put(row, nCols - 1, round2(total), signed(round2(total), totStyle));
+      row++;
+    }
+    row++; // spacer between FY blocks
+  });
+
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: nCols - 1 })}`;
+  ws['!merges'] = merges;
+  setCols(ws, [34, ...SALES_CHANNELS.map(() => 13), 14]);
+  return ws;
+}
+
+// ============================================
+// CHANNEL ORDERS SHEET (estimated orders per channel per month)
+// ============================================
+
+function generateOrdersSheet(months: PeriodMIS[]): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const merges: XLSX.Range[] = [];
+  const nCols = months.length + 3; // Channel + AOV + months + Total
+  let row = 0;
+  const put = (r: number, c: number, v: string | number, s: Style) => {
+    ws[XLSX.utils.encode_cell({ r, c })] = cell(v, s);
+  };
+  const band = (text: string, s: Style) => {
+    put(row, 0, text, s);
+    for (let c = 1; c < nCols; c++) put(row, c, '', s);
+    merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
+    row++;
+  };
+
+  band('CHANNEL ORDERS (estimated)', S.title);
+  band('Order volume = each channel’s net revenue ÷ its assumed average order value (AOV). D2C = Shopify.', S.subtitle);
+  row++;
+
+  put(row, 0, 'Channel', S.header);
+  put(row, 1, 'AOV (₹)', S.header);
+  months.forEach((p, i) => put(row, i + 2, p.label, S.header));
+  put(row, nCols - 1, 'Total', S.header);
+  row++;
+
+  const orders = months.map((p) => ordersByChannel(p));
+  const colTotals = new Array(months.length).fill(0);
+  SALES_CHANNELS.forEach((c) => {
+    put(row, 0, channelLabel(c), S.label);
+    put(row, 1, CHANNEL_AOV[c], S.num);
+    let rowTotal = 0;
+    months.forEach((_, i) => {
+      const v = Math.round(orders[i][c]);
+      rowTotal += v;
+      colTotals[i] += v;
+      put(row, i + 2, v, S.num);
+    });
+    put(row, nCols - 1, rowTotal, S.total);
+    row++;
+  });
+
+  put(row, 0, 'Total orders', S.totalLabel);
+  put(row, 1, '', S.total);
+  let grand = 0;
+  months.forEach((_, i) => {
+    grand += colTotals[i];
+    put(row, i + 2, colTotals[i], S.total);
+  });
+  put(row, nCols - 1, grand, S.total);
+  row++;
+
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: nCols - 1 })}`;
+  ws['!merges'] = merges;
+  setCols(ws, [22, 10, ...months.map(() => 10), 12]);
+  return ws;
+}
+
+// ============================================
+// REPEATS SHEET (Shopify D2C + Amazon)
+// ============================================
+
+function generateRepeatsSheet(): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const merges: XLSX.Range[] = [];
+  const nCols = 9;
+  let row = 0;
+  const num2: Style = { ...S.num, numFmt: '0.00' };
+  const put = (r: number, c: number, v: string | number, s: Style) => {
+    ws[XLSX.utils.encode_cell({ r, c })] = cell(v, s);
+  };
+  const band = (text: string, s: Style) => {
+    put(row, 0, text, s);
+    for (let c = 1; c < nCols; c++) put(row, c, '', s);
+    merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
+    row++;
+  };
+  const headerRow = (cols: string[]) => {
+    cols.forEach((h, i) => put(row, i, h, S.header));
+    for (let c = cols.length; c < nCols; c++) put(row, c, '', S.header);
+    row++;
+  };
+
+  band('REPEAT PURCHASES', S.title);
+  band('Shopify (D2C) and Amazon each from their own repeat-purchase feed. Shares are fractions of customers/sales. * = partial month.', S.subtitle);
+  row++;
+
+  band('Shopify (D2C) — cohort repeat behaviour', S.header);
+  headerRow(['Month', 'Buyers', 'Orders', 'AOV (₹)', 'Freq', 'Repeat %', 'Hist LTV (₹)', 'Avg products', 'Avg units']);
+  D2C_REPEATS.forEach((r) => {
+    put(row, 0, keyToLabel(r.key) + (r.partial ? ' *' : ''), S.label);
+    put(row, 1, r.buyers, S.num);
+    put(row, 2, r.orders, S.num);
+    put(row, 3, r.aov, S.num);
+    put(row, 4, round2(r.freq), num2);
+    put(row, 5, round2(r.repeatRate * 1000) / 1000, S.pct);
+    put(row, 6, r.histLtv, S.num);
+    put(row, 7, round2(r.avgProducts), num2);
+    put(row, 8, round2(r.avgUnits), num2);
+    row++;
+  });
+  row++;
+
+  band('Amazon — repeat-purchase behaviour', S.header);
+  headerRow(['Month', 'Orders', 'Customers', 'Repeat cust.', 'Repeat cust. %', 'Repeat sales (₹)', 'Repeat sales %', '', '']);
+  AMAZON_REPEATS.forEach((r) => {
+    put(row, 0, keyToLabel(r.key) + (r.partial ? ' *' : ''), S.label);
+    put(row, 1, r.orders, S.num);
+    put(row, 2, r.customers, S.num);
+    put(row, 3, r.repeatCustomers, S.num);
+    put(row, 4, round2(r.repeatCustomerShare * 1000) / 1000, S.pct);
+    put(row, 5, round2(r.repeatSales), S.num);
+    put(row, 6, round2(r.repeatSalesShare * 1000) / 1000, S.pct);
+    row++;
+  });
+
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: nCols - 1 })}`;
+  ws['!merges'] = merges;
+  setCols(ws, [12, 12, 12, 14, 14, 16, 14, 14, 12]);
+  return ws;
+}
+
+// ============================================
+// DISCOUNTS SHEET (monthly discounts & total sales)
+// ============================================
+
+function generateDiscountSheet(): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const merges: XLSX.Range[] = [];
+  const nCols = 4;
+  let row = 0;
+  const put = (r: number, c: number, v: string | number, s: Style) => {
+    ws[XLSX.utils.encode_cell({ r, c })] = cell(v, s);
+  };
+  const band = (text: string, s: Style) => {
+    put(row, 0, text, s);
+    for (let c = 1; c < nCols; c++) put(row, c, '', s);
+    merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
+    row++;
+  };
+
+  band('DISCOUNT OVER TIME', S.title);
+  band('Monthly discounts (shown negative) and total sales from the storefront report. * = partial month.', S.subtitle);
+  row++;
+
+  put(row, 0, 'Month', S.header);
+  put(row, 1, 'Discount (₹)', S.header);
+  put(row, 2, 'Total Sales (₹)', S.header);
+  put(row, 3, '% of Sales', S.header);
+  row++;
+
+  let totDisc = 0;
+  let totSales = 0;
+  DISCOUNT_DATA.forEach((d) => {
+    totDisc += d.discount;
+    totSales += d.totalSales;
+    const rate = d.totalSales > 0 ? d.discount / d.totalSales : 0;
+    put(row, 0, d.label + (d.partial ? ' *' : ''), S.label);
+    put(row, 1, round2(-d.discount), signed(-d.discount, S.num));
+    put(row, 2, round2(d.totalSales), S.num);
+    put(row, 3, round2(rate * 1000) / 1000, S.pct);
+    row++;
+  });
+
+  put(row, 0, 'Total', S.totalLabel);
+  put(row, 1, round2(-totDisc), signed(-totDisc, S.total));
+  put(row, 2, round2(totSales), S.total);
+  put(row, 3, round2((totSales > 0 ? totDisc / totSales : 0) * 1000) / 1000, { ...S.pct, ...S.total, numFmt: PCT_FMT });
+  row++;
+
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: nCols - 1 })}`;
+  ws['!merges'] = merges;
+  setCols(ws, [12, 16, 16, 12]);
+  return ws;
+}
+
+// ============================================
 // MAIN EXPORT
 // ============================================
 
@@ -638,6 +928,22 @@ export async function exportDeckToExcel(options: DeckExportOptions): Promise<voi
 
   if (options.includeChannelRevenue) {
     XLSX.utils.book_append_sheet(wb, generateChannelSheet(monthlySeries()), 'Channel Revenue');
+  }
+
+  if (options.includeChannelPnl) {
+    XLSX.utils.book_append_sheet(wb, generateChannelPnlSheet(options.blendCogm), 'Channel P&L');
+  }
+
+  if (options.includeOrders) {
+    XLSX.utils.book_append_sheet(wb, generateOrdersSheet(monthlySeries()), 'Channel Orders');
+  }
+
+  if (options.includeRepeats) {
+    XLSX.utils.book_append_sheet(wb, generateRepeatsSheet(), 'Repeats');
+  }
+
+  if (options.includeDiscounts) {
+    XLSX.utils.book_append_sheet(wb, generateDiscountSheet(), 'Discounts');
   }
 
   if (options.includeCogmDetail) {
