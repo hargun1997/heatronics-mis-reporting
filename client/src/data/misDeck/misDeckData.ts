@@ -1868,3 +1868,36 @@ export interface ChannelRepeatMonth {
 }
 
 export const REPEAT_DATA: ChannelRepeatMonth[] = [];
+
+// ----------------------------------------------------------------------------
+// Discounts & total sales by month (from the storefront sales report).
+// `discount` is stored as a positive magnitude (the deduction). The first and
+// last months are partial (report window Jul 10 2025 – Jul 10 2026).
+// ----------------------------------------------------------------------------
+
+export interface DiscountMonth {
+  key: string;
+  label: string;
+  /** Discount given in the month, as a positive ₹ magnitude. */
+  discount: number;
+  /** Total (gross) sales in the month, in ₹. */
+  totalSales: number;
+  /** True when the month is only partially covered by the report window. */
+  partial?: boolean;
+}
+
+export const DISCOUNT_DATA: DiscountMonth[] = [
+  { key: '2025-07', label: "Jul '25", discount: 0, totalSales: 0, partial: true },
+  { key: '2025-08', label: "Aug '25", discount: 16961.11, totalSales: 93514.97 },
+  { key: '2025-09', label: "Sep '25", discount: 8626.12, totalSales: 840725.93 },
+  { key: '2025-10', label: "Oct '25", discount: 52715.97, totalSales: 2630897.35 },
+  { key: '2025-11', label: "Nov '25", discount: 235204.85, totalSales: 4221668.31 },
+  { key: '2025-12', label: "Dec '25", discount: 243830.29, totalSales: 5837115.91 },
+  { key: '2026-01', label: "Jan '26", discount: 228695.13, totalSales: 5145028.14 },
+  { key: '2026-02', label: "Feb '26", discount: 167552.52, totalSales: 3296431.02 },
+  { key: '2026-03', label: "Mar '26", discount: 174511.95, totalSales: 2071718.19 },
+  { key: '2026-04', label: "Apr '26", discount: 81490.26, totalSales: 1842828.84 },
+  { key: '2026-05', label: "May '26", discount: 108218.30, totalSales: 1513053.81 },
+  { key: '2026-06', label: "Jun '26", discount: 168887.07, totalSales: 952700.59 },
+  { key: '2026-07', label: "Jul '26", discount: 49132.34, totalSales: 311735.97, partial: true },
+];
