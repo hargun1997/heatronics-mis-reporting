@@ -727,6 +727,11 @@ export function adSpendForPeriod(g: Granularity, period: PeriodMIS): ChannelMark
  * (D2C + Amazon) exceeds booked S&M for a period, the ad channels are scaled
  * down proportionally to fit the system total and Blinkit's leftover is held at
  * 0 — a channel's attributed marketing is therefore never negative.
+ *
+ * The leftover only lands on Blinkit when Blinkit actually sold in the period.
+ * If Blinkit had no revenue, the residual isn't its cost, so it is spread across
+ * the selling channels by net-revenue share (general marketing) rather than
+ * shown as a Blinkit loss against zero sales.
  */
 export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelPnlRow[] {
   const totalPositive = SALES_CHANNELS.reduce((s, c) => s + Math.max(0, p.netByChannel[c] || 0), 0);
@@ -747,9 +752,15 @@ export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelP
     } else {
       smByChannel.D2C = marketing.d2c;
       smByChannel.Amazon = marketing.amazon;
-      smByChannel.Blinkit = booked - adTotal; // leftover, ≥ 0 here
+      const leftover = booked - adTotal; // ≥ 0 here
+      if ((p.netByChannel.Blinkit || 0) > 0) {
+        smByChannel.Blinkit = leftover; // Blinkit sold — leftover is its marketing
+      } else {
+        // Blinkit had no sales — spread the residual across selling channels.
+        for (const c of SALES_CHANNELS) smByChannel[c] += leftover * shareOf(c);
+      }
     }
-    // OEM / Offline / Export carry no attributed marketing.
+    // OEM / Offline / Export carry no attributed marketing (unless the spread above applies).
   } else {
     for (const c of SALES_CHANNELS) smByChannel[c] = p.salesMarketing * shareOf(c);
   }
