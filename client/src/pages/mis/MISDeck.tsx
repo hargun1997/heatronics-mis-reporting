@@ -1255,9 +1255,6 @@ const AMZ_COLOR = CHANNEL_COLORS.Amazon;   // amber — Amazon
 const fmt2 = (v: number) => v.toFixed(2);
 
 function RepeatsTab() {
-  const d2cLast = D2C_REPEATS[D2C_REPEATS.length - 1];
-  const amzLast = AMAZON_REPEATS[AMAZON_REPEATS.length - 1];
-
   // Shared timeline for the cross-channel comparison.
   const allKeys = [...new Set([...D2C_REPEATS.map((r) => r.key), ...AMAZON_REPEATS.map((r) => r.key)])].sort();
   const cmpLabels = allKeys.map(repeatMonthLabel);
@@ -1276,17 +1273,6 @@ function RepeatsTab() {
       <div>
         <h2 className="text-sm font-semibold text-slate-700">Repeat purchases</h2>
         <p className="text-xs text-slate-400">Shopify (D2C) and Amazon each from their own repeat-purchase feed.</p>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label={`Shopify repeat rate · ${repeatMonthLabel(d2cLast.key)}`} value={pctStr(d2cLast.repeatRate)} tone="brand"
-          sub="of the month's cohort" />
-        <KpiCard label={`Amazon repeat rate · ${repeatMonthLabel(amzLast.key)}`} value={pctStr(amzLast.repeatCustomerShare)} tone="amber"
-          sub="of active customers" />
-        <KpiCard label="Shopify purchase frequency" value={fmt2(d2cLast.freq)}
-          sub={`orders/buyer · ${repeatMonthLabel(d2cLast.key)}`} />
-        <KpiCard label="Amazon repeat sales share" value={pctStr(amzLast.repeatSalesShare)}
-          sub={`of total sales · ${repeatMonthLabel(amzLast.key)}`} />
       </div>
 
       <SectionCard
