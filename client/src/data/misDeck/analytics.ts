@@ -721,6 +721,12 @@ export function adSpendForPeriod(g: Granularity, period: PeriodMIS): ChannelMark
  * recomputed per channel so the marketing attribution flows through, and every
  * line still reconciles to the company total. Without `marketing`, S&M falls
  * back to revenue-share like the other lines.
+ *
+ * The booked S&M in the system is authoritative: the ad-spend feeds can never
+ * attribute more marketing than was actually booked. When the reported ad spend
+ * (D2C + Amazon) exceeds booked S&M for a period, the ad channels are scaled
+ * down proportionally to fit the system total and Blinkit's leftover is held at
+ * 0 — a channel's attributed marketing is therefore never negative.
  */
 export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelPnlRow[] {
   const totalPositive = SALES_CHANNELS.reduce((s, c) => s + Math.max(0, p.netByChannel[c] || 0), 0);
@@ -729,9 +735,20 @@ export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelP
   // Sales & Marketing per channel.
   const smByChannel = emptyChannels();
   if (marketing) {
-    smByChannel.D2C = marketing.d2c;
-    smByChannel.Amazon = marketing.amazon;
-    smByChannel.Blinkit = p.salesMarketing - marketing.d2c - marketing.amazon; // leftover
+    const booked = p.salesMarketing;
+    const adTotal = marketing.d2c + marketing.amazon;
+    if (adTotal > booked && adTotal > 0) {
+      // Reported ad spend exceeds booked S&M — trust the system total, scale the
+      // ad channels to fit, and hold Blinkit's leftover at 0 (never negative).
+      const scale = booked / adTotal;
+      smByChannel.D2C = marketing.d2c * scale;
+      smByChannel.Amazon = marketing.amazon * scale;
+      smByChannel.Blinkit = 0;
+    } else {
+      smByChannel.D2C = marketing.d2c;
+      smByChannel.Amazon = marketing.amazon;
+      smByChannel.Blinkit = booked - adTotal; // leftover, ≥ 0 here
+    }
     // OEM / Offline / Export carry no attributed marketing.
   } else {
     for (const c of SALES_CHANNELS) smByChannel[c] = p.salesMarketing * shareOf(c);
