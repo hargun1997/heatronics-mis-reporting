@@ -15,8 +15,7 @@ import {
   type Granularity, type PeriodMIS, type ChannelPnlRow,
 } from '../../data/misDeck/analytics';
 import {
-  MIS_GENERATED_AT, MIS_SOURCE_FILE, REPEAT_DATA, DISCOUNT_DATA,
-  type ChannelRepeatMonth,
+  MIS_GENERATED_AT, MIS_SOURCE_FILE, DISCOUNT_DATA, D2C_REPEATS, AMAZON_REPEATS,
 } from '../../data/misDeck/misDeckData';
 import { DeckExportModal } from '../../components/mis-deck/DeckExportModal';
 
@@ -1231,7 +1230,7 @@ function ChannelPnlTab({ blended, setBlended }: BlendProps) {
 }
 
 // ----------------------------------------------------------------------------
-// Repeats (repeat-purchase behaviour by channel — fed by REPEAT_DATA)
+// Repeats (repeat-purchase behaviour — Shopify/D2C + Amazon feeds)
 // ----------------------------------------------------------------------------
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1241,89 +1240,162 @@ function repeatMonthLabel(key: string): string {
   return `${MONTHS_SHORT[(m || 1) - 1]} '${String((y || 0) % 100).padStart(2, '0')}`;
 }
 
+const D2C_COLOR = CHANNEL_COLORS.D2C;      // indigo — Shopify
+const AMZ_COLOR = CHANNEL_COLORS.Amazon;   // amber — Amazon
+const fmt2 = (v: number) => v.toFixed(2);
+
 function RepeatsTab() {
-  if (REPEAT_DATA.length === 0) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-sm font-semibold text-slate-700">Repeat purchases</h2>
-        <SectionCard title="Repeats — waiting for data" description="This tab activates once a repeat-purchase dataset is supplied.">
-          <div className="text-sm text-slate-600 space-y-3">
-            <p>
-              The MIS has no order- or customer-level data, so repeat behaviour comes from a separate feed. Provide one row
-              per channel per month in <code className="px-1 py-0.5 rounded bg-slate-100 text-slate-700">REPEAT_DATA</code>:
-            </p>
-            <pre className="text-xs bg-slate-900 text-slate-100 rounded-lg p-3 overflow-x-auto">{`{ key: "2026-05", channel: "D2C", orders: 812, repeatOrders: 143 }`}</pre>
-            <p className="text-slate-500">
-              <span className="font-medium">key</span> = month (YYYY-MM) · <span className="font-medium">channel</span> = one
-              of {SALES_CHANNELS.join(', ')} (D2C = Shopify) · <span className="font-medium">orders</span> = total orders ·
-              <span className="font-medium"> repeatOrders</span> = orders from returning customers. Repeat rate is derived.
-              Once populated, this tab charts repeat rate by channel and new-vs-repeat order volume over time.
-            </p>
-          </div>
-        </SectionCard>
-      </div>
-    );
-  }
+  const d2cLast = D2C_REPEATS[D2C_REPEATS.length - 1];
+  const amzLast = AMAZON_REPEATS[AMAZON_REPEATS.length - 1];
 
-  const keys = [...new Set(REPEAT_DATA.map((r) => r.key))].sort();
-  const labels = keys.map(repeatMonthLabel);
-  const byKeyCh = new Map<string, ChannelRepeatMonth>();
-  REPEAT_DATA.forEach((r) => byKeyCh.set(`${r.key}|${r.channel}`, r));
-  const presentChannels = SALES_CHANNELS.filter((c) => REPEAT_DATA.some((r) => r.channel === c && r.orders > 0));
+  // Shared timeline for the cross-channel comparison.
+  const allKeys = [...new Set([...D2C_REPEATS.map((r) => r.key), ...AMAZON_REPEATS.map((r) => r.key)])].sort();
+  const cmpLabels = allKeys.map(repeatMonthLabel);
+  const d2cByKey = new Map(D2C_REPEATS.map((r) => [r.key, r]));
+  const amzByKey = new Map(AMAZON_REPEATS.map((r) => [r.key, r]));
+  const cmpSeries = [
+    { name: 'Shopify (D2C)', color: D2C_COLOR, values: allKeys.map((k) => d2cByKey.get(k)?.repeatRate ?? null) },
+    { name: 'Amazon', color: AMZ_COLOR, values: allKeys.map((k) => amzByKey.get(k)?.repeatCustomerShare ?? null) },
+  ];
 
-  const rateLines = presentChannels.map((c) => ({
-    name: channelLabel(c),
-    color: CHANNEL_COLORS[c],
-    values: keys.map((k) => {
-      const r = byKeyCh.get(`${k}|${c}`);
-      return r && r.orders > 0 ? r.repeatOrders / r.orders : null;
-    }),
-  }));
-
-  const overall = keys.map((k) => {
-    const rowsK = REPEAT_DATA.filter((r) => r.key === k);
-    const o = rowsK.reduce((s, r) => s + r.orders, 0);
-    const rp = rowsK.reduce((s, r) => s + r.repeatOrders, 0);
-    return o > 0 ? rp / o : null;
-  });
-  const newVsRepeat = keys.map((k) => {
-    const rowsK = REPEAT_DATA.filter((r) => r.key === k);
-    const o = rowsK.reduce((s, r) => s + r.orders, 0);
-    const rp = rowsK.reduce((s, r) => s + r.repeatOrders, 0);
-    return { Repeat: rp, New: Math.max(0, o - rp) };
-  });
-  const latestOverall = [...overall].reverse().find((v) => v !== null) ?? null;
+  const d2cLabels = D2C_REPEATS.map((r) => repeatMonthLabel(r.key));
+  const amzLabels = AMAZON_REPEATS.map((r) => repeatMonthLabel(r.key));
 
   return (
     <div className="space-y-6">
-      <h2 className="text-sm font-semibold text-slate-700">Repeat purchases</h2>
-
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <KpiCard label="Latest repeat rate" value={pctStr(latestOverall)} tone="brand"
-          sub={labels[labels.length - 1]} />
-        <KpiCard label="Repeat orders (latest)" value={fmtCountFull(newVsRepeat[newVsRepeat.length - 1].Repeat)}
-          sub="returning customers" />
-        <KpiCard label="Total orders (latest)"
-          value={fmtCountFull(newVsRepeat[newVsRepeat.length - 1].New + newVsRepeat[newVsRepeat.length - 1].Repeat)}
-          sub={labels[labels.length - 1]} />
+      <div>
+        <h2 className="text-sm font-semibold text-slate-700">Repeat purchases</h2>
+        <p className="text-xs text-slate-400">Shopify (D2C) and Amazon each from their own repeat-purchase feed.</p>
       </div>
 
-      <SectionCard title="Repeat rate by channel" description="Repeat orders ÷ total orders, per channel">
-        <LineChart labels={labels} series={rateLines} percent valueFormat={(v) => pctStr(v)} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard label={`Shopify repeat rate · ${repeatMonthLabel(d2cLast.key)}`} value={pctStr(d2cLast.repeatRate)} tone="brand"
+          sub="of the month's cohort" />
+        <KpiCard label={`Amazon repeat rate · ${repeatMonthLabel(amzLast.key)}`} value={pctStr(amzLast.repeatCustomerShare)} tone="amber"
+          sub="of active customers" />
+        <KpiCard label="Shopify purchase frequency" value={fmt2(d2cLast.freq)}
+          sub={`orders/buyer · ${repeatMonthLabel(d2cLast.key)}`} />
+        <KpiCard label="Amazon repeat sales share" value={pctStr(amzLast.repeatSalesShare)}
+          sub={`of total sales · ${repeatMonthLabel(amzLast.key)}`} />
+      </div>
+
+      <SectionCard
+        title="Repeat rate — Shopify vs Amazon"
+        description="Share of customers who are repeat buyers, per channel, month by month"
+      >
+        <LineChart labels={cmpLabels} series={cmpSeries} percent valueFormat={(v) => pctStr(v)} height={280} />
         <div className="mt-3">
-          <Legend items={presentChannels.map((c) => ({ label: channelLabel(c), color: CHANNEL_COLORS[c] }))} />
+          <Legend items={[{ label: 'Shopify (D2C)', color: D2C_COLOR }, { label: 'Amazon', color: AMZ_COLOR }]} />
+        </div>
+        <p className="text-xs text-slate-400 mt-3">
+          Definitions differ slightly by source: Shopify's rate is the share of a month's <span className="font-medium">new
+          cohort</span> that later reordered (so recent months read low — less elapsed time), while Amazon's is the share of
+          that month's <span className="font-medium">active customers</span> who were repeat buyers. Compare trends, not exact levels.
+        </p>
+      </SectionCard>
+
+      {/* Shopify / D2C detail */}
+      <div className="flex items-center gap-2">
+        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: D2C_COLOR }} />
+        <h3 className="text-sm font-semibold text-slate-700">Shopify (D2C)</h3>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SectionCard title="Repeat rate" description="Share of each month's cohort that reordered">
+          <LineChart labels={d2cLabels} series={[{ name: 'Repeat rate', color: D2C_COLOR, values: D2C_REPEATS.map((r) => r.repeatRate) }]}
+            percent valueFormat={(v) => pctStr(v)} />
+        </SectionCard>
+        <SectionCard title="Purchase frequency" description="Orders per buyer">
+          <LineChart labels={d2cLabels} series={[{ name: 'Frequency', color: SERIES_COLORS[1], values: D2C_REPEATS.map((r) => r.freq) }]}
+            valueFormat={fmt2} yFormat={fmt2} />
+        </SectionCard>
+      </div>
+      <SectionCard title="Products & units per customer" description="Average distinct products and units in a customer's basket">
+        <LineChart
+          labels={d2cLabels}
+          series={[
+            { name: 'Avg products/customer', color: SERIES_COLORS[0], values: D2C_REPEATS.map((r) => r.avgProducts) },
+            { name: 'Avg units/customer', color: SERIES_COLORS[2], values: D2C_REPEATS.map((r) => r.avgUnits) },
+          ]}
+          valueFormat={fmt2}
+          yFormat={fmt2}
+        />
+        <div className="mt-3">
+          <Legend items={[{ label: 'Avg products/customer', color: SERIES_COLORS[0] }, { label: 'Avg units/customer', color: SERIES_COLORS[2] }]} />
+        </div>
+      </SectionCard>
+      <SectionCard title="Shopify monthly detail" description="Buyers, orders, AOV, frequency & repeat rate (Aug '25 & May '26 partial)">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-400 border-b border-slate-200">
+                <th className="py-2 pr-4 font-medium">Month</th>
+                <th className="py-2 px-3 text-right font-medium">Buyers</th>
+                <th className="py-2 px-3 text-right font-medium">Orders</th>
+                <th className="py-2 px-3 text-right font-medium">AOV</th>
+                <th className="py-2 px-3 text-right font-medium">Freq</th>
+                <th className="py-2 px-3 text-right font-medium">Repeat %</th>
+                <th className="py-2 pl-3 text-right font-medium">Avg products</th>
+              </tr>
+            </thead>
+            <tbody>
+              {D2C_REPEATS.map((r) => (
+                <tr key={r.key} className="border-b border-slate-50 hover:bg-slate-50">
+                  <td className="py-2 pr-4 font-medium text-slate-700">{repeatMonthLabel(r.key)}{r.partial ? ' *' : ''}</td>
+                  <td className="py-2 px-3 text-right text-slate-600">{fmtCountFull(r.buyers)}</td>
+                  <td className="py-2 px-3 text-right text-slate-600">{fmtCountFull(r.orders)}</td>
+                  <td className="py-2 px-3 text-right text-slate-600">{inr(r.aov)}</td>
+                  <td className="py-2 px-3 text-right text-slate-600">{fmt2(r.freq)}</td>
+                  <td className="py-2 px-3 text-right font-medium text-slate-800">{pctStr(r.repeatRate)}</td>
+                  <td className="py-2 pl-3 text-right text-slate-600">{fmt2(r.avgProducts)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </SectionCard>
 
-      <SectionCard title="New vs repeat orders" description="Total order volume split into new and returning customers">
-        <StackedBarChart
-          labels={labels}
-          keys={['New', 'Repeat']}
-          colors={{ New: SERIES_COLORS[1], Repeat: SERIES_COLORS[0] }}
-          data={newVsRepeat}
-        />
-        <div className="mt-3">
-          <Legend items={[{ label: 'New', color: SERIES_COLORS[1] }, { label: 'Repeat', color: SERIES_COLORS[0] }]} />
+      {/* Amazon detail */}
+      <div className="flex items-center gap-2">
+        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: AMZ_COLOR }} />
+        <h3 className="text-sm font-semibold text-slate-700">Amazon</h3>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SectionCard title="Repeat customer share" description="Repeat customers ÷ total customers, per month">
+          <LineChart labels={amzLabels} series={[{ name: 'Repeat customer share', color: AMZ_COLOR, values: AMAZON_REPEATS.map((r) => r.repeatCustomerShare) }]}
+            percent valueFormat={(v) => pctStr(v)} />
+        </SectionCard>
+        <SectionCard title="Repeat order sales" description="₹ sales from repeat orders (with % of total sales)">
+          <LineChart labels={amzLabels} series={[{ name: 'Repeat sales', color: SERIES_COLORS[3], values: AMAZON_REPEATS.map((r) => r.repeatSales) }]} />
+        </SectionCard>
+      </div>
+      <SectionCard title="Amazon monthly detail" description="Orders, customers & repeat metrics (Jun '26 partial)">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-400 border-b border-slate-200">
+                <th className="py-2 pr-4 font-medium">Month</th>
+                <th className="py-2 px-3 text-right font-medium">Orders</th>
+                <th className="py-2 px-3 text-right font-medium">Customers</th>
+                <th className="py-2 px-3 text-right font-medium">Repeat cust.</th>
+                <th className="py-2 px-3 text-right font-medium">Repeat cust. %</th>
+                <th className="py-2 px-3 text-right font-medium">Repeat sales</th>
+                <th className="py-2 pl-3 text-right font-medium">Repeat sales %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {AMAZON_REPEATS.map((r) => (
+                <tr key={r.key} className="border-b border-slate-50 hover:bg-slate-50">
+                  <td className="py-2 pr-4 font-medium text-slate-700">{repeatMonthLabel(r.key)}{r.partial ? ' *' : ''}</td>
+                  <td className="py-2 px-3 text-right text-slate-600">{fmtCountFull(r.orders)}</td>
+                  <td className="py-2 px-3 text-right text-slate-600">{fmtCountFull(r.customers)}</td>
+                  <td className="py-2 px-3 text-right text-slate-600">{fmtCountFull(r.repeatCustomers)}</td>
+                  <td className="py-2 px-3 text-right font-medium text-slate-800">{pctStr(r.repeatCustomerShare)}</td>
+                  <td className="py-2 px-3 text-right text-slate-600">{inr(r.repeatSales)}</td>
+                  <td className="py-2 pl-3 text-right text-slate-600">{pctStr(r.repeatSalesShare)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </SectionCard>
     </div>

@@ -1846,28 +1846,77 @@ export const FY_SUMMARY: FYSummary[] = [
 ];
 
 // ----------------------------------------------------------------------------
-// Repeat-purchase data (channel × month) — powers the Repeats tab.
-//
-// The MIS itself has no order/customer-level data, so this is a separate feed.
-// Populate REPEAT_DATA with one row per channel per month:
-//   { key: "2026-05", channel: "D2C", orders: 812, repeatOrders: 143 }
-// where `orders` is that channel's total orders in the month and `repeatOrders`
-// is the subset placed by returning customers. Repeat rate is derived
-// (repeatOrders / orders). Leave the array empty until the dataset is supplied;
-// the Repeats tab shows a "waiting for data" state while it is empty.
+// Repeat-purchase data — powers the Repeats tab. Two separate feeds:
+//   • D2C (Shopify) — from the Digistex customer-LTV export (identity = phone/
+//     email). `repeatRate` is the share of that month's acquisition cohort who
+//     placed another order; buyers are bucketed by first-order month.
+//   • Amazon — from the Amazon "Repeat Purchase Behaviour" report. Shares are
+//     of that month's active customers/sales (not cohort-based).
+// The two definitions differ slightly, so they are kept as separate arrays and
+// compared with that caveat noted. All share fields are fractions (0.19 = 19%).
 // ----------------------------------------------------------------------------
 
-export interface ChannelRepeatMonth {
-  /** Month key, e.g. "2026-05". */
+export interface D2CRepeatMonth {
   key: string;
-  channel: SalesChannel;
-  /** Total orders for this channel in the month. */
+  buyers: number;
   orders: number;
-  /** Orders placed by returning customers (subset of `orders`). */
-  repeatOrders: number;
+  /** Average order value (₹). */
+  aov: number;
+  /** Purchase frequency = orders per buyer. */
+  freq: number;
+  /** Share of the month's cohort who repeated (fraction). */
+  repeatRate: number;
+  /** Historical LTV per buyer (₹). */
+  histLtv: number;
+  avgProducts: number;
+  avgUnits: number;
+  partial?: boolean;
 }
 
-export const REPEAT_DATA: ChannelRepeatMonth[] = [];
+export interface AmazonRepeatMonth {
+  key: string;
+  orders: number;
+  customers: number;
+  repeatCustomers: number;
+  /** Repeat customers ÷ total customers (fraction). */
+  repeatCustomerShare: number;
+  /** ₹ sales from repeat orders. */
+  repeatSales: number;
+  /** Repeat sales ÷ total sales (fraction). */
+  repeatSalesShare: number;
+  partial?: boolean;
+}
+
+/** D2C (Shopify) repeat behaviour, Aug 2025 – May 2026 (Aug & May partial). */
+export const D2C_REPEATS: D2CRepeatMonth[] = [
+  { key: '2025-08', buyers: 51, orders: 65, aov: 1353, freq: 1.275, repeatRate: 0.196, histLtv: 1724, avgProducts: 1.094, avgUnits: 1.132, partial: true },
+  { key: '2025-09', buyers: 529, orders: 661, aov: 1229, freq: 1.25, repeatRate: 0.172, histLtv: 1536, avgProducts: 1.08, avgUnits: 1.103 },
+  { key: '2025-10', buyers: 1386, orders: 1755, aov: 1451, freq: 1.266, repeatRate: 0.19, histLtv: 1838, avgProducts: 1.131, avgUnits: 1.179 },
+  { key: '2025-11', buyers: 2482, orders: 3082, aov: 1578, freq: 1.242, repeatRate: 0.184, histLtv: 1960, avgProducts: 1.145, avgUnits: 1.201 },
+  { key: '2025-12', buyers: 2905, orders: 3466, aov: 1667, freq: 1.193, repeatRate: 0.152, histLtv: 1989, avgProducts: 1.16, avgUnits: 1.226 },
+  { key: '2026-01', buyers: 2679, orders: 3019, aov: 1608, freq: 1.127, repeatRate: 0.11, histLtv: 1812, avgProducts: 1.114, avgUnits: 1.169 },
+  { key: '2026-02', buyers: 1917, orders: 2102, aov: 1526, freq: 1.097, repeatRate: 0.08, histLtv: 1673, avgProducts: 1.113, avgUnits: 1.138 },
+  { key: '2026-03', buyers: 1283, orders: 1387, aov: 1556, freq: 1.081, repeatRate: 0.069, histLtv: 1682, avgProducts: 1.117, avgUnits: 1.143 },
+  { key: '2026-04', buyers: 1090, orders: 1162, aov: 1560, freq: 1.066, repeatRate: 0.058, histLtv: 1664, avgProducts: 1.089, avgUnits: 1.11 },
+  { key: '2026-05', buyers: 330, orders: 339, aov: 1498, freq: 1.027, repeatRate: 0.024, histLtv: 1539, avgProducts: 1.071, avgUnits: 1.088, partial: true },
+];
+
+/** Amazon repeat-purchase behaviour, Jun 2025 – Jun 2026 (Jun 2026 partial). */
+export const AMAZON_REPEATS: AmazonRepeatMonth[] = [
+  { key: '2025-06', orders: 2318, customers: 2172, repeatCustomers: 137, repeatCustomerShare: 0.0631, repeatSales: 61295.79, repeatSalesShare: 0.0314 },
+  { key: '2025-07', orders: 3222, customers: 2962, repeatCustomers: 240, repeatCustomerShare: 0.081, repeatSales: 176734.84, repeatSalesShare: 0.0595 },
+  { key: '2025-08', orders: 2394, customers: 2217, repeatCustomers: 167, repeatCustomerShare: 0.0753, repeatSales: 97552.91, repeatSalesShare: 0.0426 },
+  { key: '2025-09', orders: 3353, customers: 3127, repeatCustomers: 208, repeatCustomerShare: 0.0665, repeatSales: 126189.08, repeatSalesShare: 0.0437 },
+  { key: '2025-10', orders: 2597, customers: 2421, repeatCustomers: 163, repeatCustomerShare: 0.0673, repeatSales: 132070.47, repeatSalesShare: 0.0461 },
+  { key: '2025-11', orders: 1821, customers: 1714, repeatCustomers: 98, repeatCustomerShare: 0.0572, repeatSales: 106416.28, repeatSalesShare: 0.0427 },
+  { key: '2025-12', orders: 1277, customers: 1184, repeatCustomers: 88, repeatCustomerShare: 0.0743, repeatSales: 85934.83, repeatSalesShare: 0.0513 },
+  { key: '2026-01', orders: 431, customers: 383, repeatCustomers: 44, repeatCustomerShare: 0.1149, repeatSales: 17091.96, repeatSalesShare: 0.035 },
+  { key: '2026-02', orders: 339, customers: 319, repeatCustomers: 19, repeatCustomerShare: 0.0596, repeatSales: 7427.63, repeatSalesShare: 0.0222 },
+  { key: '2026-03', orders: 826, customers: 761, repeatCustomers: 61, repeatCustomerShare: 0.0802, repeatSales: 36675.8, repeatSalesShare: 0.0351 },
+  { key: '2026-04', orders: 1404, customers: 1323, repeatCustomers: 79, repeatCustomerShare: 0.0597, repeatSales: 67026.25, repeatSalesShare: 0.0334 },
+  { key: '2026-05', orders: 2049, customers: 1890, repeatCustomers: 142, repeatCustomerShare: 0.0751, repeatSales: 140472.95, repeatSalesShare: 0.051 },
+  { key: '2026-06', orders: 1164, customers: 1083, repeatCustomers: 77, repeatCustomerShare: 0.0711, repeatSales: 68280.04, repeatSalesShare: 0.0412, partial: true },
+];
 
 // ----------------------------------------------------------------------------
 // Discounts & total sales by month (from the storefront sales report).
