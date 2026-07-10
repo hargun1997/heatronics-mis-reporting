@@ -10,10 +10,14 @@ import {
   seriesFor, seriesForBlended, fyBlendedGMRates, monthlySeries, quarterlySeries, yearlySeries,
   periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts, arrProjection,
   channelObservations, channelHHI, topChannel, channelsAbove, likeForLikeChannel,
+  ordersByChannel, channelLabel, channelPnl, CHANNEL_AOV,
   SALES_CHANNELS, FY_SUMMARY,
-  type Granularity, type PeriodMIS,
+  type Granularity, type PeriodMIS, type ChannelPnlRow,
 } from '../../data/misDeck/analytics';
-import { MIS_GENERATED_AT, MIS_SOURCE_FILE } from '../../data/misDeck/misDeckData';
+import {
+  MIS_GENERATED_AT, MIS_SOURCE_FILE, REPEAT_DATA,
+  type ChannelRepeatMonth,
+} from '../../data/misDeck/misDeckData';
 import { DeckExportModal } from '../../components/mis-deck/DeckExportModal';
 
 const iconDeck = (
@@ -22,14 +26,16 @@ const iconDeck = (
   </svg>
 );
 
-type TabId = 'overview' | 'growth' | 'channels' | 'profitability' | 'pnl';
+type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelpnl';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'growth', label: 'Revenue & Growth' },
   { id: 'channels', label: 'Channel Mix' },
+  { id: 'repeats', label: 'Repeats' },
   { id: 'profitability', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
+  { id: 'channelpnl', label: 'Channel P&L' },
 ];
 
 // ----------------------------------------------------------------------------
@@ -87,8 +93,10 @@ export function MISDeck() {
         {tab === 'overview' && <OverviewTab blended={blended} setBlended={setBlended} />}
         {tab === 'growth' && <GrowthTab />}
         {tab === 'channels' && <ChannelsTab />}
+        {tab === 'repeats' && <RepeatsTab />}
         {tab === 'profitability' && <ProfitabilityTab blended={blended} setBlended={setBlended} />}
         {tab === 'pnl' && <PnlTab blended={blended} setBlended={setBlended} />}
+        {tab === 'channelpnl' && <ChannelPnlTab blended={blended} setBlended={setBlended} />}
       </div>
     </>
   );
@@ -476,6 +484,13 @@ function ChannelsTab() {
     name: c, color: CHANNEL_COLORS[c], values: series.map((p) => p.netByChannel[c]),
   }));
 
+  // per-channel estimated order-count lines (net revenue ÷ AOV). D2C = Shopify.
+  const orderData = series.map((p) => ordersByChannel(p));
+  const orderChannels = SALES_CHANNELS.filter((c) => series.some((p) => (p.netByChannel[c] || 0) > 0));
+  const orderLines = orderChannels.map((c) => ({
+    name: channelLabel(c), color: CHANNEL_COLORS[c], values: orderData.map((o) => o[c]),
+  }));
+
   // Fair, like-for-like YoY comparison (same calendar frame, one year earlier)
   const lfl = useMemo(() => likeForLikeChannel(g), [g]);
   const lflMix = channelMix(lfl.current);
@@ -528,6 +543,25 @@ function ChannelsTab() {
       <SectionCard title="Channel Net Revenue" description="Absolute ₹ by channel over time">
         <LineChart labels={series.map((p) => p.label)} series={channelLines} />
         <div className="mt-3"><Legend items={SALES_CHANNELS.map((c) => ({ label: c, color: CHANNEL_COLORS[c] }))} /></div>
+      </SectionCard>
+
+      <SectionCard
+        title="Channel Orders (estimated)"
+        description={`Order volume by channel, ${g} — estimated as each channel's net revenue ÷ its average order value`}
+      >
+        <LineChart
+          labels={series.map((p) => p.label)}
+          series={orderLines}
+          valueFormat={fmtCountFull}
+          yFormat={fmtCount}
+        />
+        <div className="mt-3">
+          <Legend items={orderChannels.map((c) => ({ label: channelLabel(c), color: CHANNEL_COLORS[c] }))} />
+        </div>
+        <p className="text-xs text-slate-400 mt-3">
+          Orders are estimated from a fixed average order value (AOV) per channel, so each channel's order trend tracks
+          its revenue trend. AOV assumed: {orderChannels.map((c) => `${channelLabel(c)} ₹${CHANNEL_AOV[c].toLocaleString('en-IN')}`).join(' · ')}.
+        </p>
       </SectionCard>
 
       {hasGrowth && (
@@ -1023,6 +1057,216 @@ function PnlTab({ blended, setBlended }: BlendProps) {
 }
 
 // ----------------------------------------------------------------------------
+// Channel P&L (shared costs allocated by net-revenue share)
+// ----------------------------------------------------------------------------
+
+function ChannelPnlTab({ blended, setBlended }: BlendProps) {
+  const [g, setG] = useState<Granularity>('year');
+  const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
+  const [idx, setIdx] = useState(series.length - 1);
+  useEffect(() => { setIdx(seriesFor(g).length - 1); }, [g]);
+  const safeIdx = Math.min(idx, series.length - 1);
+  const p = series[safeIdx];
+
+  const rows = channelPnl(p);
+  const byCh = new Map(rows.map((r) => [r.channel, r]));
+  const activeChannels = SALES_CHANNELS.filter((c) => (p.netByChannel[c] || 0) > 0);
+  const shareOf = (c: SalesChannelKey) => (p.netRevenue ? Math.max(0, p.netByChannel[c] || 0) / p.netRevenue : 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700">Channel-level P&amp;L</h2>
+          <p className="text-xs text-slate-400">Every shared cost allocated to channels in proportion to net revenue.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <BlendToggle value={blended} onChange={setBlended} />
+          <GranularityToggle value={g} onChange={setG} />
+          <select
+            value={safeIdx}
+            onChange={(e) => setIdx(Number(e.target.value))}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200"
+          >
+            {series.map((s, i) => (
+              <option key={s.key} value={i}>{s.longLabel}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-slate-600">
+        <span className="font-medium text-amber-700">Allocated, not booked-by-channel.</span> Only revenue is recorded per
+        channel; COGM, marketing, platform, opex &amp; non-operating are company totals split here in proportion to each
+        channel's net revenue. Because the split is purely revenue-weighted, every channel shows the same margin % — the
+        value is the <span className="font-medium">₹ contribution</span> each channel makes to every P&amp;L line.
+      </div>
+
+      {blended && <BlendNote />}
+
+      <SectionCard
+        title={`Channel P&L · ${p.longLabel}`}
+        description="All figures in ₹. Costs shown as negatives. Each channel = its net-revenue share of the company total."
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm whitespace-nowrap">
+            <thead>
+              <tr className="text-xs text-slate-400 border-b border-slate-200">
+                <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white align-bottom">Particulars</th>
+                {activeChannels.map((c) => (
+                  <th key={c} className="py-2 px-3 text-right font-medium align-bottom">
+                    <div className="text-slate-600 font-semibold">{channelLabel(c)}</div>
+                    <div className="text-[10px] font-normal text-slate-400 mt-0.5">{pctStr(shareOf(c), 0)} of rev</div>
+                  </th>
+                ))}
+                <th className="py-2 pl-3 text-right font-medium align-bottom text-slate-600">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PNL_ROWS.map((row) => {
+                const isMargin = row.kind === 'margin' || row.kind === 'rev';
+                return (
+                  <tr key={row.label} className={`border-b border-slate-50 ${isMargin ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
+                    <td className={`py-2 pr-4 text-left sticky left-0 bg-white ${row.label.startsWith('  ') ? 'pl-4' : ''}`}>{row.label.trim()}</td>
+                    {activeChannels.map((c) => {
+                      const r = byCh.get(c)!;
+                      const raw = r[row.key as keyof ChannelPnlRow] as number;
+                      const val = row.kind === 'cost' ? -raw : raw;
+                      return (
+                        <td key={c} className={`py-2 px-3 text-right tabular-nums ${isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
+                          {inr(val)}
+                        </td>
+                      );
+                    })}
+                    <td className="py-2 pl-3 text-right tabular-nums font-medium text-slate-800">
+                      {inr(pnlAmount(p, row.key, row.kind))}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Repeats (repeat-purchase behaviour by channel — fed by REPEAT_DATA)
+// ----------------------------------------------------------------------------
+
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function repeatMonthLabel(key: string): string {
+  const [y, m] = key.split('-').map(Number);
+  return `${MONTHS_SHORT[(m || 1) - 1]} '${String((y || 0) % 100).padStart(2, '0')}`;
+}
+
+function RepeatsTab() {
+  if (REPEAT_DATA.length === 0) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-sm font-semibold text-slate-700">Repeat purchases</h2>
+        <SectionCard title="Repeats — waiting for data" description="This tab activates once a repeat-purchase dataset is supplied.">
+          <div className="text-sm text-slate-600 space-y-3">
+            <p>
+              The MIS has no order- or customer-level data, so repeat behaviour comes from a separate feed. Provide one row
+              per channel per month in <code className="px-1 py-0.5 rounded bg-slate-100 text-slate-700">REPEAT_DATA</code>:
+            </p>
+            <pre className="text-xs bg-slate-900 text-slate-100 rounded-lg p-3 overflow-x-auto">{`{ key: "2026-05", channel: "D2C", orders: 812, repeatOrders: 143 }`}</pre>
+            <p className="text-slate-500">
+              <span className="font-medium">key</span> = month (YYYY-MM) · <span className="font-medium">channel</span> = one
+              of {SALES_CHANNELS.join(', ')} (D2C = Shopify) · <span className="font-medium">orders</span> = total orders ·
+              <span className="font-medium"> repeatOrders</span> = orders from returning customers. Repeat rate is derived.
+              Once populated, this tab charts repeat rate by channel and new-vs-repeat order volume over time.
+            </p>
+          </div>
+        </SectionCard>
+      </div>
+    );
+  }
+
+  const keys = [...new Set(REPEAT_DATA.map((r) => r.key))].sort();
+  const labels = keys.map(repeatMonthLabel);
+  const byKeyCh = new Map<string, ChannelRepeatMonth>();
+  REPEAT_DATA.forEach((r) => byKeyCh.set(`${r.key}|${r.channel}`, r));
+  const presentChannels = SALES_CHANNELS.filter((c) => REPEAT_DATA.some((r) => r.channel === c && r.orders > 0));
+
+  const rateLines = presentChannels.map((c) => ({
+    name: channelLabel(c),
+    color: CHANNEL_COLORS[c],
+    values: keys.map((k) => {
+      const r = byKeyCh.get(`${k}|${c}`);
+      return r && r.orders > 0 ? r.repeatOrders / r.orders : null;
+    }),
+  }));
+
+  const overall = keys.map((k) => {
+    const rowsK = REPEAT_DATA.filter((r) => r.key === k);
+    const o = rowsK.reduce((s, r) => s + r.orders, 0);
+    const rp = rowsK.reduce((s, r) => s + r.repeatOrders, 0);
+    return o > 0 ? rp / o : null;
+  });
+  const newVsRepeat = keys.map((k) => {
+    const rowsK = REPEAT_DATA.filter((r) => r.key === k);
+    const o = rowsK.reduce((s, r) => s + r.orders, 0);
+    const rp = rowsK.reduce((s, r) => s + r.repeatOrders, 0);
+    return { Repeat: rp, New: Math.max(0, o - rp) };
+  });
+  const latestOverall = [...overall].reverse().find((v) => v !== null) ?? null;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-sm font-semibold text-slate-700">Repeat purchases</h2>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <KpiCard label="Latest repeat rate" value={pctStr(latestOverall)} tone="brand"
+          sub={labels[labels.length - 1]} />
+        <KpiCard label="Repeat orders (latest)" value={fmtCountFull(newVsRepeat[newVsRepeat.length - 1].Repeat)}
+          sub="returning customers" />
+        <KpiCard label="Total orders (latest)"
+          value={fmtCountFull(newVsRepeat[newVsRepeat.length - 1].New + newVsRepeat[newVsRepeat.length - 1].Repeat)}
+          sub={labels[labels.length - 1]} />
+      </div>
+
+      <SectionCard title="Repeat rate by channel" description="Repeat orders ÷ total orders, per channel">
+        <LineChart labels={labels} series={rateLines} percent valueFormat={(v) => pctStr(v)} />
+        <div className="mt-3">
+          <Legend items={presentChannels.map((c) => ({ label: channelLabel(c), color: CHANNEL_COLORS[c] }))} />
+        </div>
+      </SectionCard>
+
+      <SectionCard title="New vs repeat orders" description="Total order volume split into new and returning customers">
+        <StackedBarChart
+          labels={labels}
+          keys={['New', 'Repeat']}
+          colors={{ New: SERIES_COLORS[1], Repeat: SERIES_COLORS[0] }}
+          data={newVsRepeat}
+        />
+        <div className="mt-3">
+          <Legend items={[{ label: 'New', color: SERIES_COLORS[1] }, { label: 'Repeat', color: SERIES_COLORS[0] }]} />
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+
+type SalesChannelKey = (typeof SALES_CHANNELS)[number];
+
+/** Compact order-count formatter for axis ticks (e.g. 1.2k). */
+function fmtCount(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 1000) return `${(v / 1000).toFixed(1)}k`;
+  return `${Math.round(v)}`;
+}
+
+/** Full order-count formatter for tooltips (e.g. 1,234). */
+function fmtCountFull(v: number): string {
+  return Math.round(v).toLocaleString('en-IN');
+}
 
 function capitalizeGran(g: Granularity): string {
   return g === 'month' ? 'Monthly' : g === 'quarter' ? 'Quarterly' : 'Yearly';

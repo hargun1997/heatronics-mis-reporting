@@ -624,5 +624,98 @@ export function arrProjection(): ArrProjection {
   };
 }
 
+// ----------------------------------------------------------------------------
+// Orders (derived from channel net revenue ÷ AOV)
+// ----------------------------------------------------------------------------
+//
+// The MIS books revenue, not order counts, so order volume is estimated by
+// dividing each channel's net revenue by its assumed average order value (AOV).
+// AOV is treated as constant, so a channel's order-count trend mirrors its
+// revenue trend — the value here is the absolute order *volume* per channel.
+
+/** Assumed average order value (₹) per channel. D2C is the Shopify storefront. */
+export const CHANNEL_AOV: Record<SalesChannel, number> = {
+  D2C: 1700,
+  Amazon: 1400,
+  Blinkit: 900,
+  OEM: 325,
+  Offline: 500,
+  Export: 500,
+};
+
+/** Display name for a channel — the D2C channel surfaces as "Shopify". */
+export function channelLabel(c: SalesChannel): string {
+  return c === 'D2C' ? 'Shopify' : c;
+}
+
+/** Estimated order count per channel for a period = net revenue ÷ AOV. */
+export function ordersByChannel(p: PeriodMIS): Record<SalesChannel, number> {
+  return SALES_CHANNELS.reduce((acc, c) => {
+    const aov = CHANNEL_AOV[c];
+    acc[c] = aov > 0 ? Math.max(0, p.netByChannel[c] || 0) / aov : 0;
+    return acc;
+  }, {} as Record<SalesChannel, number>);
+}
+
+/** Total estimated orders across all channels for a period. */
+export function totalOrders(p: PeriodMIS): number {
+  const o = ordersByChannel(p);
+  return SALES_CHANNELS.reduce((s, c) => s + o[c], 0);
+}
+
+// ----------------------------------------------------------------------------
+// Channel-level P&L (shared costs allocated by net-revenue share)
+// ----------------------------------------------------------------------------
+//
+// Only revenue is booked by channel; every cost below is a company total. Here
+// each shared line is allocated to a channel in proportion to that channel's
+// net revenue. A consequence of pure revenue-share allocation is that every
+// channel carries the SAME margin % — only the ₹ amounts differ — so this view
+// shows each channel's contribution to each P&L line, not channel-specific
+// profitability.
+
+export interface ChannelPnlRow {
+  channel: SalesChannel;
+  share: number; // net-revenue share (0–1)
+  netRevenue: number;
+  cogm: number;
+  grossMargin: number;
+  channelFulfillment: number;
+  cm1: number;
+  salesMarketing: number;
+  cm2: number;
+  platformCosts: number;
+  cm3: number;
+  opex: number;
+  ebitda: number;
+  nonOperating: number;
+  netIncome: number;
+}
+
+export function channelPnl(p: PeriodMIS): ChannelPnlRow[] {
+  const totalPositive = SALES_CHANNELS.reduce((s, c) => s + Math.max(0, p.netByChannel[c] || 0), 0);
+  return SALES_CHANNELS.map((c) => {
+    const nr = Math.max(0, p.netByChannel[c] || 0);
+    const share = totalPositive > 0 ? nr / totalPositive : 0;
+    return {
+      channel: c,
+      share,
+      netRevenue: nr,
+      cogm: p.cogm * share,
+      grossMargin: p.grossMargin * share,
+      channelFulfillment: p.channelFulfillment * share,
+      cm1: p.cm1 * share,
+      salesMarketing: p.salesMarketing * share,
+      cm2: p.cm2 * share,
+      platformCosts: p.platformCosts * share,
+      cm3: p.cm3 * share,
+      opex: p.opex * share,
+      ebitda: p.ebitda * share,
+      nonOperating: p.nonOperating * share,
+      netIncome: p.netIncome * share,
+    };
+  });
+}
+
 export { SALES_CHANNELS, FY_SUMMARY };
 export type { SalesChannel };
