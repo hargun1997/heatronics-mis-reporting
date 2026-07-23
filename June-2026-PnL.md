@@ -4,6 +4,14 @@
 **Basis:** Stock-transfer (STR) ledgers removed from both Sales and Purchases (internal branch transfers eliminated).
 **Format:** Contribution-margin P&L (Gross Revenue → CM1/CM2/CM3 → EBITDA → Net Loss), values in ₹ and ₹ Lac.
 
+> **v2 update:** Closing Stock revised from ₹1,39,53,460 to **₹1,44,57,824** (stock updated in Tally). This cuts COGS by ₹5,04,364 and narrows the loss. Brand Investment and Cost of Fundraising are now shown on their own lines.
+
+---
+
+## Final Revenue
+
+**External Revenue (June 2026) = ₹49,47,773** (₹49.48 Lac) — Sales of ₹78,92,633 less ₹29,44,860 of internal Stock Transfers.
+
 ---
 
 ## P&L Statement
@@ -11,51 +19,49 @@
 | Line | ₹ | ₹ Lac | % of Rev |
 |---|---:|---:|---:|
 | **Gross / Net Revenue** (external) | 49,47,773 | 49.48 | 100% |
-| COGS (Op. Stock + RM Purchases + Direct Exp − Cl. Stock) | (31,96,186) | (31.96) | |
-| **Gross Margin** | **17,51,587** | **17.52** | **35.4%** |
+| COGS (Op. Stock + RM Purchases + Direct Exp − Cl. Stock) | (26,91,822) | (26.92) | |
+| **Gross Margin** | **22,55,951** | **22.56** | **45.6%** |
 | Logistics & Channel (Channel fees, FBA, freight out, − damage refunds) | (9,22,055) | (9.22) | |
-| **CM1** | **8,29,533** | **8.30** | **16.8%** |
-| Marketing (S&M ₹17.32L + Cost of Advertising ₹4.48L) | (21,80,718) | (21.81) | |
-| **CM2** | **(13,51,185)** | **(13.51)** | **−27.3%** |
-| Branding / Platform | 0 | – | |
-| **CM3** | **(13,51,185)** | **(13.51)** | |
+| **CM1** | **13,33,896** | **13.34** | **27.0%** |
+| Marketing — performance ads (Amazon/Google/Meta + Cost of Advertising) | (15,27,218) | (15.27) | |
+| **CM2** | **(1,93,321)** | **(1.93)** | **−3.9%** |
+| Brand Investment (Content Creation – Agency) | (6,53,500) | (6.54) | |
+| **CM3** | **(8,46,821)** | **(8.47)** | **−17.1%** |
 | Payroll (Employee Cost – Indirect, net of ₹1.04L credit) | (3,88,162) | (3.88) | |
 | Professional Fees | (3,19,400) | (3.19) | |
-| Other Expenses (Admin, Bank, Compliance, Insurance, Staff, Govt, After-sales, Fin. adj) | (3,67,570) | (3.68) | |
+| Other Expenses (Admin, Bank, Compliance, Insurance, Staff, Govt, After-sales, Fin. adj) | (3,67,500) | (3.68) | |
 | Other Income (Indirect Income) | 6,088 | 0.06 | |
-| **EBITDA** | **(24,20,230)** | **(24.20)** | **−48.9%** |
+| **EBITDA** | **(19,15,796)** | **(19.16)** | **−38.7%** |
 | Finance Costs | (70,800) | (0.71) | |
+| Cost of Fundraising (Business Development Expenses) | (70) | (0.00) | |
 | Depreciation | — | — | |
-| **Net Loss (PBT = PAT)** | **(24,91,030)** | **(24.91)** | |
+| **Net Loss (PBT = PAT)** | **(19,86,666)** | **(19.87)** | |
 
 ---
 
 ## Revenue detail (external sales, STR removed)
 
-| Ledger | ₹ |
+| Channel (Tally group) | ₹ |
 |---|---:|
-| Amazon Sales | 13,85,913 |
 | OEM Sales | 22,07,804 |
-| Shopify Sales | 10,17,887 |
-| GT – Dealer Sales | 2,65,620 |
-| GT – Retailer Sales | 57,188 |
-| Physio Channel Sales | 16,320 |
-| B2C Offline Sales | 2,375 |
-| Blinkit Sales (debit / contra) | (5,333) |
+| Ecommerce Sales (Amazon) | 13,85,913 |
+| D2C Sales (Shopify / website) | 10,17,887 |
+| Offline Sales (B2C, GT dealer/retailer, Physio) | 3,41,503 |
+| Quick Commerce (Blinkit — debit/contra) | (5,333) |
 | **External Sales** | **49,47,773** |
-| *Removed — Sales-STR (HR, KA, MH, TG, UP)* | *29,44,860* |
+| *Removed — Stock Transfers* | *29,44,860* |
 
 ## COGS build-up (Trading Account)
 
 | Component | ₹ |
 |---|---:|
 | Opening Stock | 1,22,98,000 |
-| RM Purchases (STR purchases removed) | 33,78,130 |
+| RM Purchases (Stock Transfer purchases removed) | 33,78,130 |
 | Direct Expenses | 14,73,516 |
-| Less: Closing Stock | (1,39,53,460) |
-| **COGS** | **31,96,186** |
+| Less: Closing Stock (updated) | (1,44,57,824) |
+| **COGS** | **26,91,822** |
 
-*Removed — Purchase-STR (HR, MH, TG, UP): ₹28,80,696*
+*Removed — Purchase Stock Transfer: ₹28,80,696*
 
 ### Direct Expenses detail
 
@@ -74,11 +80,13 @@
 | MIS bucket | Ledgers | ₹ |
 |---|---|---:|
 | Logistics & Channel | Channel Fees & Commissions 8,69,682; FBA Inbound Pickup 52,951; FBA Storage Fee 34,170; Freight Outward 3,939; less Amazon Damage Refunds (38,687) | 9,22,055 |
-| Marketing | Sales & Marketing group 17,32,414 (Amazon Ads 3,84,009 + Content Creation – Agency 6,53,500 + Google Ads 2,18,179 + Meta Ads 4,76,727); Cost of Advertising 4,48,304 | 21,80,718 |
+| Marketing (performance) | Amazon Ads 3,84,009 + Google Ads 2,18,179 + Meta Ads 4,76,727 + Cost of Advertising 4,48,304 | 15,27,218 |
+| Brand Investment | Content Creation – Agency | 6,53,500 |
 | Payroll | Employee Cost – Indirect (4,92,470 − 1,04,308 credit) | 3,88,162 |
 | Professional Fees | Professional Fees | 3,19,400 |
-| Other Expenses | Bank Charges 1,10,658; Compliance & Certification 98,800; Insurance 59,171; Admin & General 52,379; After-Sales & Warranty 37,846; Staff Welfare 8,434; Govt Fee 400; Financial Adjustments 6; less Other (124) | 3,67,570 |
+| Other Expenses | Bank Charges 1,10,658; Compliance & Certification 98,800; Insurance 59,171; Admin & General 52,379; After-Sales & Warranty 37,846; Staff Welfare 8,434; Govt Fee 400; Financial Adjustments 6; less Other (124); less Cost of Fundraising (70) | 3,67,500 |
 | Finance Costs | Finance Costs | 70,800 |
+| Cost of Fundraising | Business Development Expenses | 70 |
 | **Total Indirect Expenses** | | **42,48,705** |
 
 Indirect Income (Other Income): ₹6,088
@@ -87,10 +95,13 @@ Indirect Income (Other Income): ₹6,088
 
 ## Notes
 
-1. **STR removed both sides.** Tally's on-screen Nett Loss is ₹24,26,866 *with* STR included. STR sales (₹29,44,860) exceeded STR purchases (₹28,80,696) by ₹64,163 — an internal transfer/valuation gain. Removing STR from both legs (as instructed) widens the loss to **₹24,91,030**, which is the correct external-only P&L.
-2. **Depreciation** — no depreciation line appears in Indirect Expenses. Treated as nil for June; confirm whether it is unbooked or recorded elsewhere.
-3. **Stock basis** — Opening ₹1,22,98,000 and Closing ₹1,39,53,460 are assumed consolidated across all state branches (consistent with STR elimination).
-4. **Finance Costs** shown below EBITDA (treated as interest). No income tax — the period is a loss, so PBT = PAT.
+1. **STR removed both sides.** Tally's on-screen Nett Loss is ₹19,22,502 *with* STR included. STR sales (₹29,44,860) exceeded STR purchases (₹28,80,696) by ₹64,163 — an internal transfer/valuation gain. Removing STR from both legs widens the loss to **₹19,86,666**, the correct external-only P&L.
+2. **Stock correction.** Closing Stock updated to ₹1,44,57,824 (from ₹1,39,53,460) improves Gross Margin by ₹5,04,364 vs. the earlier draft — GM moves from 35.4% to **45.6%**.
+3. **Brand Investment separated.** The ₹6,53,500 agency/content spend is carved out of Marketing and shown between CM2 and CM3, so performance-ad efficiency (CM2) and brand-building (CM3) read cleanly.
+4. **Cost of Fundraising separated.** Business Development Expenses is shown below EBITDA. June's charge is only ₹70 (the bulk — ₹33.32L — was booked in May); the line is set up so future fundraising cost stays out of operating results.
+5. **Depreciation** — no depreciation line appears in Indirect Expenses. Treated as nil for June; confirm whether unbooked or recorded elsewhere.
+6. **Finance Costs** shown below EBITDA (treated as interest). No income tax — the period is a loss, so PBT = PAT.
 
 ### Full reconciliation
-Net Revenue 49,47,773 − COGS 31,96,186 − Indirect Expenses 42,48,705 + Indirect Income 6,088 = **−24,91,030** ✓
+Net Revenue 49,47,773 − COGS 26,91,822 − Indirect Expenses 42,48,705 + Indirect Income 6,088 = **−19,86,666** ✓
+Reclassifying Brand Investment and Cost of Fundraising moves amounts within the ₹42,48,705 total — it does not change the net loss.
