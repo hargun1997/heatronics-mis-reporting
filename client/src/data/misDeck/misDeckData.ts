@@ -8,12 +8,14 @@
 // (GM 59.7%), EBITDA ≈ -₹0.97 L (breakeven), depreciation (₹12.91 L) + interest (₹9.00 L)
 // below EBITDA, Net Loss -₹22.88 L. Apr-Dec 2025 are unchanged.
 //
-// NOTE: May 2026 — the ₹28.30 L "One-Time (Business Development)" charge was reclassified
-// from Non-Operating into Operating Expenses. It is an operating cost (none of Interest/
-// Tax/Depreciation/Amortization), so it belongs above the EBITDA line per the strict EBITDA
-// definition. EBITDA is therefore ₹2.39 L (= Net Income pre-dep), not ₹30.69 L. Net Income
-// is unchanged. Apr 2026's below-EBITDA item is genuine Interest Expense and stays put.
-// The upstream workbook sheets ("May 2026", "FY 2026-27") still show the old placement.
+// NOTE: Apr–Jun 2026 — Brand Investment and Cost of Fundraising are bifurcated onto their own
+// lines per the Tally ledgers. Brand Investment (Content Creation – Agency) is carved out of
+// Sales & Marketing onto the Branding (CM2→CM3) line: Apr ₹1.08 L, May ₹14.08 L, Jun ₹6.53 L.
+// Cost of Fundraising (Business Development Expenses) is treated as a one-time item BELOW EBITDA
+// in Non-Operating: Apr ₹2,350, May ₹28.30 L (as booked), Jun ₹70. Moving May's fundraising below
+// EBITDA lifts May EBITDA to ₹30.69 L; because the booked ₹28.30 L is kept (not the larger ₹33.32 L
+// ledger movement), this is a pure reclassification and Apr & May Net Income are both unchanged
+// (Apr -₹28.81 L, May +₹2.39 L). The upstream workbook sheets still show the old placement.
 //
 // NOTE: Jun 2026 — added from the June Tally Trading & P&L. Stock Transfers are removed from
 // both Sales and Purchases (external-only). Closing Stock was updated to ₹1,44,57,824, giving
@@ -1730,22 +1732,24 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "turnover": 0,
     "grossMargin": 795000,
     "cm1": -106000,
-    "cm2": -2407000,
+    "cm2": -2299000,
     "cm3": -2425000,
-    "ebitda": -2732000,
+    "ebitda": -2729650,
     "netIncome": -2881000,
     "cogmLines": {},
     "opexLines": {
       "Salary Cost": -235000,
       "Corporate Overheads": -72000,
-      "TOTAL OPERATING EXPENSES": -307000
+      "Cost of Fundraising (to Non-Op)": 2350,
+      "TOTAL OPERATING EXPENSES": -304650
     },
     "cogm": 3392000,
     "channelFulfillment": 901000,
-    "salesMarketing": 2301000,
-    "platformCosts": 18000,
-    "opex": 307000,
-    "nonOperating": 149000
+    "salesMarketing": 2193000,
+    "platformCosts": 126000,
+    "opex": 304650,
+    "nonOperating": 151350,
+    "restated": "Apr-2026 expenses bifurcated per ledger: Brand Investment 1.08 L moved from Sales & Marketing to the Branding (CM3) line; Cost of Fundraising 2,350 moved below EBITDA into Non-Operating (alongside genuine interest 1.49 L). Net Income unchanged at -28.81 L; only the split changes."
   },
   {
     "key": "2026-05",
@@ -1768,23 +1772,23 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "turnover": 0,
     "grossMargin": 5659000,
     "cm1": 5282000,
-    "cm2": 3356000,
+    "cm2": 4764100,
     "cm3": 3354000,
-    "ebitda": 239000,
+    "ebitda": 3069000,
     "netIncome": 239000,
     "cogmLines": {},
     "opexLines": {
       "Salary Cost": -208000,
       "Corporate Overheads": -77000,
-      "One-Time Business Development": -2830000,
-      "TOTAL OPERATING EXPENSES": -3115000
+      "TOTAL OPERATING EXPENSES": -285000
     },
     "cogm": 1057000,
     "channelFulfillment": 377000,
-    "salesMarketing": 1926000,
-    "platformCosts": 2000,
-    "opex": 3115000,
-    "nonOperating": 0
+    "salesMarketing": 517900,
+    "platformCosts": 1410100,
+    "opex": 285000,
+    "nonOperating": 2830000,
+    "restated": "May-2026 expenses reclassified: Brand Investment 14.08 L moved from Sales & Marketing to the Branding (CM3) line; Cost of Fundraising 28.30 L (as booked) moved below EBITDA into Non-Operating from Opex. Pure reclassification — EBITDA 30.69 L, Net Income unchanged at +2.39 L."
   },
   {
     "key": "2026-06",

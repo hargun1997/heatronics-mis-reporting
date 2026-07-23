@@ -310,7 +310,7 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
     },
     'spacer',
     {
-      label: 'Less: Platform Costs',
+      label: 'Less: Branding',
       value: expense((p) => p.platformCosts),
       styles: { label: S.label, num: S.num },
       marginPct: shareOf((p) => p.platformCosts),
@@ -641,7 +641,7 @@ const CH_PL_LINES: { label: string; key: keyof ChannelPnlRow; kind: 'rev' | 'cos
   { label: 'CM1 (Contribution Margin 1)', key: 'cm1', kind: 'margin', m: 'cm1' },
   { label: 'Less: Sales & Marketing', key: 'salesMarketing', kind: 'cost' },
   { label: 'CM2 (Contribution Margin 2)', key: 'cm2', kind: 'margin', m: 'cm2' },
-  { label: 'Less: Platform Costs', key: 'platformCosts', kind: 'cost' },
+  { label: 'Less: Branding', key: 'platformCosts', kind: 'cost' },
   { label: 'CM3 (Contribution Margin 3)', key: 'cm3', kind: 'margin', m: 'cm3' },
   { label: 'Less: Operating Expenses', key: 'opex', kind: 'cost' },
   { label: 'EBITDA', key: 'ebitda', kind: 'margin', m: 'ebitda' },
