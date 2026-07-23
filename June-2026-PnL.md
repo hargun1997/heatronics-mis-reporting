@@ -25,7 +25,7 @@
 | **CM1** | **13,33,896** | **13.34** | **27.0%** |
 | Marketing — performance ads (Amazon/Google/Meta + Cost of Advertising) | (15,27,218) | (15.27) | |
 | **CM2** | **(1,93,321)** | **(1.93)** | **−3.9%** |
-| Brand Investment (Content Creation – Agency) | (6,53,500) | (6.54) | |
+| Brand Investment (Content Creation – Agency) — *see monthly breakup* | (6,53,500) | (6.54) | |
 | **CM3** | **(8,46,821)** | **(8.47)** | **−17.1%** |
 | Payroll (Employee Cost – Indirect, net of ₹1.04L credit) | (3,88,162) | (3.88) | |
 | Professional Fees | (3,19,400) | (3.19) | |
@@ -33,7 +33,7 @@
 | Other Income (Indirect Income) | 6,088 | 0.06 | |
 | **EBITDA** | **(19,15,796)** | **(19.16)** | **−38.7%** |
 | Finance Costs | (70,800) | (0.71) | |
-| Cost of Fundraising (Business Development Expenses) | (70) | (0.00) | |
+| Cost of Fundraising (Business Development Expenses) — *see monthly breakup* | (70) | (0.00) | |
 | Depreciation | — | — | |
 | **Net Loss (PBT = PAT)** | **(19,86,666)** | **(19.87)** | |
 
@@ -90,6 +90,23 @@
 | **Total Indirect Expenses** | | **42,48,705** |
 
 Indirect Income (Other Income): ₹6,088
+
+---
+
+## Brand Investment & Cost of Fundraising — monthly breakup (Q1 FY 2026-27)
+
+Both items are tracked on their own lines (out of operating marketing/opex). Figures are the Tally ledger monthly movements; totals tie to the closing balances as on 30-Jun-26.
+
+| Month | Brand Building Investment<br>(Content Creation – Agency) | Cost of Fundraising<br>(Business Development Expenses) |
+|---|---:|---:|
+| Apr 2026 | 1,08,000 | 2,350 |
+| May 2026 | 14,08,100 | 33,32,450 |
+| **Jun 2026** *(in this P&L)* | **6,53,500** | **70** |
+| **Total (Apr–Jun)** | **21,69,600** | **33,34,870** |
+
+- **Brand Building Investment** — long-term brand spend (agency/content), shown **between CM2 and CM3**, separate from performance-marketing CM2.
+- **Cost of Fundraising** — one-time capital-raising cost, kept **separate below EBITDA**, out of operating results.
+- Apr/May are the confirmed ledger breakup to carry into those months' full P&Ls when built. **May cost of fundraising = ₹33,32,450** (ledger) is authoritative, superseding the app's earlier ₹28.30 L figure.
 
 ---
 
