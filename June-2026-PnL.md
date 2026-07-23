@@ -100,13 +100,13 @@ Both items are tracked on their own lines (out of operating marketing/opex). Fig
 | Month | Brand Building Investment<br>(Content Creation – Agency) | Cost of Fundraising<br>(Business Development Expenses) |
 |---|---:|---:|
 | Apr 2026 | 1,08,000 | 2,350 |
-| May 2026 | 14,08,100 | 33,32,450 |
+| May 2026 | 14,08,100 | 33,32,450 *(P&L books 28,30,000)* |
 | **Jun 2026** *(in this P&L)* | **6,53,500** | **70** |
 | **Total (Apr–Jun)** | **21,69,600** | **33,34,870** |
 
 - **Brand Building Investment** — long-term brand spend (agency/content), shown **between CM2 and CM3**, separate from performance-marketing CM2.
 - **Cost of Fundraising** — one-time capital-raising cost, kept **separate below EBITDA**, out of operating results.
-- Apr/May are the confirmed ledger breakup to carry into those months' full P&Ls when built. **May cost of fundraising = ₹33,32,450** (ledger) is authoritative, superseding the app's earlier ₹28.30 L figure.
+- The table shows the raw Tally ledger movements (totals tie to the closing balances). **In the P&L, May's cost of fundraising is kept at the earlier booked ₹28,30,000**, not the full ₹33,32,450 ledger movement — so May's Net Income is unchanged (+₹2.39 L). April and June book their full ledger amounts.
 
 ---
 

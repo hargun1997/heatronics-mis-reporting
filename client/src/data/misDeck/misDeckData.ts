@@ -12,10 +12,10 @@
 // lines per the Tally ledgers. Brand Investment (Content Creation – Agency) is carved out of
 // Sales & Marketing onto the Branding (CM2→CM3) line: Apr ₹1.08 L, May ₹14.08 L, Jun ₹6.53 L.
 // Cost of Fundraising (Business Development Expenses) is treated as a one-time item BELOW EBITDA
-// in Non-Operating: Apr ₹2,350, May ₹33.32 L (ledger — supersedes the earlier ₹28.30 L booked in
-// Opex), Jun ₹70. Moving May's fundraising below EBITDA lifts May EBITDA to ₹30.69 L; adopting the
-// ledger ₹33.32 L (vs ₹28.30 L) moves May Net Income from +₹2.39 L to -₹2.63 L. Apr Net Income is
-// unchanged (pure reclassification). The upstream workbook sheets still show the old placement.
+// in Non-Operating: Apr ₹2,350, May ₹28.30 L (as booked), Jun ₹70. Moving May's fundraising below
+// EBITDA lifts May EBITDA to ₹30.69 L; because the booked ₹28.30 L is kept (not the larger ₹33.32 L
+// ledger movement), this is a pure reclassification and Apr & May Net Income are both unchanged
+// (Apr -₹28.81 L, May +₹2.39 L). The upstream workbook sheets still show the old placement.
 //
 // NOTE: Jun 2026 — added from the June Tally Trading & P&L. Stock Transfers are removed from
 // both Sales and Purchases (external-only). Closing Stock was updated to ₹1,44,57,824, giving
@@ -1775,7 +1775,7 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "cm2": 4764100,
     "cm3": 3354000,
     "ebitda": 3069000,
-    "netIncome": -263450,
+    "netIncome": 239000,
     "cogmLines": {},
     "opexLines": {
       "Salary Cost": -208000,
@@ -1787,8 +1787,8 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "salesMarketing": 517900,
     "platformCosts": 1410100,
     "opex": 285000,
-    "nonOperating": 3332450,
-    "restated": "May-2026 expenses bifurcated per ledger: Brand Investment 14.08 L moved from Sales & Marketing to the Branding (CM3) line; Cost of Fundraising set to the ledger 33.32 L and moved below EBITDA into Non-Operating (was 28.30 L booked in Opex). EBITDA rises to 30.69 L; Net Income moves from +2.39 L to -2.63 L because ledger fundraising 33.32 L exceeds the 28.30 L previously booked."
+    "nonOperating": 2830000,
+    "restated": "May-2026 expenses reclassified: Brand Investment 14.08 L moved from Sales & Marketing to the Branding (CM3) line; Cost of Fundraising 28.30 L (as booked) moved below EBITDA into Non-Operating from Opex. Pure reclassification — EBITDA 30.69 L, Net Income unchanged at +2.39 L."
   },
   {
     "key": "2026-06",
