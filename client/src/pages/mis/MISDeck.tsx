@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
 import {
@@ -758,7 +758,7 @@ function ProfitabilityTab({ blended, setBlended }: BlendProps) {
     { label: 'COGM', value: -last.cogm, type: 'cost' },
     { label: 'Channel & Fulfil', value: -last.channelFulfillment, type: 'cost' },
     { label: 'Sales & Mktg', value: -last.salesMarketing, type: 'cost' },
-    { label: 'Branding', value: -last.platformCosts, type: 'cost' },
+    { label: 'Brand Investment', value: -last.platformCosts, type: 'cost' },
     { label: 'OpEx', value: -last.opex, type: 'cost' },
     { label: 'Non-Op', value: -last.nonOperating, type: 'cost' },
     { label: 'Net Income', value: last.netIncome, type: 'total' },
@@ -853,13 +853,28 @@ const PNL_ROWS: { label: string; key: keyof PeriodMIS; kind: PnlMetricKind }[] =
   { label: 'CM1', key: 'cm1', kind: 'margin' },
   { label: '  Sales & Marketing', key: 'salesMarketing', kind: 'cost' },
   { label: 'CM2', key: 'cm2', kind: 'margin' },
-  { label: '  Branding', key: 'platformCosts', kind: 'cost' },
+  { label: '  Brand Investment', key: 'platformCosts', kind: 'cost' },
   { label: 'CM3', key: 'cm3', kind: 'margin' },
   { label: '  Operating Expenses', key: 'opex', kind: 'cost' },
   { label: 'EBITDA', key: 'ebitda', kind: 'margin' },
   { label: '  Non-Operating', key: 'nonOperating', kind: 'cost' },
   { label: 'Net Income', key: 'netIncome', kind: 'margin' },
 ];
+
+// Company P&L rows: like PNL_ROWS but Non-Operating is split into Cost of Fundraising
+// (a one-time item) and the remaining interest/dep/tax. These extra keys exist on PeriodMIS.
+const COMPANY_PNL_ROWS: { label: string; key: keyof PeriodMIS; kind: PnlMetricKind }[] = [
+  ...PNL_ROWS.slice(0, -2),
+  { label: '  Cost of Fundraising', key: 'costOfFundraising', kind: 'cost' },
+  { label: '  Non-Operating', key: 'nonOpOther', kind: 'cost' },
+  { label: 'Net Income', key: 'netIncome', kind: 'margin' },
+];
+
+// P&L cost lines whose ledger breakup can be expanded → the PeriodMIS field holding it.
+const PNL_BREAKUP: Partial<Record<string, 'opexLines' | 'cogmLines'>> = {
+  opex: 'opexLines',
+  cogm: 'cogmLines',
+};
 
 // Signed display amount for a row within a period (costs shown negative, like the statement).
 function pnlAmount(p: PeriodMIS, key: keyof PeriodMIS, kind: PnlMetricKind): number {
@@ -883,7 +898,7 @@ const METRIC_COLORS = [
   '#eab308', '#ec4899', '#f97316', '#6366f1', '#64748b', '#0284c7',
 ];
 
-const TREND_METRICS = PNL_ROWS.map((r, i) => ({
+const TREND_METRICS = COMPANY_PNL_ROWS.map((r, i) => ({
   key: r.key,
   kind: r.kind,
   label: r.label.trim(),
@@ -1020,6 +1035,16 @@ function PnlTab({ blended, setBlended }: BlendProps) {
   const [g, setG] = useState<Granularity>('year');
   const [display, setDisplay] = useState<PnlDisplay>('both');
   const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const breakupKeys = (field: 'opexLines' | 'cogmLines'): string[] => {
+    const seen: string[] = [];
+    for (const p of series) for (const k of Object.keys(p[field])) {
+      if (!/^total/i.test(k) && !seen.includes(k)) seen.push(k);
+    }
+    return seen;
+  };
+  const toggle = (key: string) =>
+    setOpen((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
   const desc =
     display === 'percent'
@@ -1071,26 +1096,58 @@ function PnlTab({ blended, setBlended }: BlendProps) {
               </tr>
             </thead>
             <tbody>
-              {PNL_ROWS.map((row) => {
+              {COMPANY_PNL_ROWS.map((row) => {
                 const isMargin = row.kind === 'margin' || row.kind === 'rev';
+                const field = PNL_BREAKUP[row.key];
+                const subKeys = field ? breakupKeys(field) : [];
+                const canExpand = subKeys.length > 0;
+                const isOpen = open.has(row.key);
                 return (
-                  <tr key={row.label} className={`border-b border-slate-50 ${isMargin ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
-                    <td className={`py-2 pr-4 text-left sticky left-0 bg-white ${row.label.startsWith('  ') ? 'pl-4' : ''}`}>{row.label.trim()}</td>
-                    {series.map((p) => {
-                      const val = pnlAmount(p, row.key, row.kind);
-                      const share = pnlShare(p, row.key, row.kind);
-                      return (
-                        <td key={p.key} className={`py-2 px-3 text-right tabular-nums ${isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
-                          {display !== 'percent' && <div>{inr(val)}</div>}
-                          {display !== 'amount' && (
-                            <div className={display === 'both' ? 'text-[10px] font-normal text-slate-400 mt-0.5' : ''}>
-                              {pctStr(share)}
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
+                  <Fragment key={row.label}>
+                    <tr className={`border-b border-slate-50 ${isMargin ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
+                      <td className={`py-2 pr-4 text-left sticky left-0 bg-white ${row.label.startsWith('  ') ? 'pl-4' : ''}`}>
+                        {canExpand ? (
+                          <button onClick={() => toggle(row.key)} className="inline-flex items-center gap-1 hover:text-brand-700">
+                            <span className="text-[10px] text-slate-400 w-2">{isOpen ? '▾' : '▸'}</span>
+                            {row.label.trim()}
+                          </button>
+                        ) : row.label.trim()}
+                      </td>
+                      {series.map((p) => {
+                        const val = pnlAmount(p, row.key, row.kind);
+                        const share = pnlShare(p, row.key, row.kind);
+                        return (
+                          <td key={p.key} className={`py-2 px-3 text-right tabular-nums ${isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
+                            {display !== 'percent' && <div>{inr(val)}</div>}
+                            {display !== 'amount' && (
+                              <div className={display === 'both' ? 'text-[10px] font-normal text-slate-400 mt-0.5' : ''}>
+                                {pctStr(share)}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {isOpen && field && subKeys.map((sk) => (
+                      <tr key={`${row.key}:${sk}`} className="border-b border-slate-50 text-slate-500">
+                        <td className="py-1.5 pr-4 pl-8 text-left sticky left-0 bg-white text-xs">{sk}</td>
+                        {series.map((p) => {
+                          const raw = p[field][sk] ?? 0;
+                          const share = p.netRevenue ? raw / p.netRevenue : null;
+                          return (
+                            <td key={p.key} className="py-1.5 px-3 text-right tabular-nums text-xs">
+                              {display !== 'percent' && <div>{inr(raw)}</div>}
+                              {display !== 'amount' && (
+                                <div className={display === 'both' ? 'text-[10px] text-slate-400 mt-0.5' : ''}>
+                                  {pctStr(share)}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </Fragment>
                 );
               })}
             </tbody>

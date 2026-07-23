@@ -36,6 +36,10 @@ export interface PeriodMIS {
   platformCosts: number;
   opex: number;
   nonOperating: number;
+  costOfFundraising: number;   // one-time capital-raising cost (component of nonOperating)
+  nonOpOther: number;          // nonOperating minus costOfFundraising (interest/dep/tax)
+  opexLines: Record<string, number>;   // aggregated opex ledger breakup (for drill-down)
+  cogmLines: Record<string, number>;   // aggregated COGM ledger breakup (for drill-down)
   monthsCount: number;  // how many months rolled into this period
   firstMonthShort: string; // e.g. "Dec '23" — first month covered
   lastMonthShort: string;  // e.g. "Mar '24" — last month covered
@@ -74,6 +78,7 @@ function aggregate(records: MonthlyMIS[], key: string, label: string, longLabel:
     netByChannel: emptyChannels(),
     netRevenue: 0, grossMargin: 0, cm1: 0, cm2: 0, cm3: 0, ebitda: 0, netIncome: 0,
     cogm: 0, channelFulfillment: 0, salesMarketing: 0, platformCosts: 0, opex: 0, nonOperating: 0,
+    costOfFundraising: 0, nonOpOther: 0, opexLines: {}, cogmLines: {},
     monthsCount: records.length,
     firstMonthShort: records.length ? shortMonth(records[0].label) : '',
     lastMonthShort: records.length ? shortMonth(records[records.length - 1].label) : '',
@@ -87,7 +92,11 @@ function aggregate(records: MonthlyMIS[], key: string, label: string, longLabel:
     p.cogm += r.cogm; p.channelFulfillment += r.channelFulfillment;
     p.salesMarketing += r.salesMarketing; p.platformCosts += r.platformCosts;
     p.opex += r.opex; p.nonOperating += r.nonOperating;
+    p.costOfFundraising += r.costOfFundraising ?? 0;
+    for (const [k, v] of Object.entries(r.opexLines)) p.opexLines[k] = (p.opexLines[k] ?? 0) + v;
+    for (const [k, v] of Object.entries(r.cogmLines)) p.cogmLines[k] = (p.cogmLines[k] ?? 0) + v;
   }
+  p.nonOpOther = p.nonOperating - p.costOfFundraising;
   return p;
 }
 

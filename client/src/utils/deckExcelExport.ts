@@ -310,7 +310,7 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
     },
     'spacer',
     {
-      label: 'Less: Branding',
+      label: 'Less: Brand Investment',
       value: expense((p) => p.platformCosts),
       styles: { label: S.label, num: S.num },
       marginPct: shareOf((p) => p.platformCosts),
@@ -340,10 +340,17 @@ function generatePLSheet(series: PeriodMIS[], title: string, subtitle: string): 
     },
     'spacer',
     {
-      label: 'Less: Non-Operating (Int/Dep/Amort/Tax)',
-      value: expense((p) => p.nonOperating),
+      label: 'Less: Cost of Fundraising',
+      value: expense((p) => p.costOfFundraising),
       styles: { label: S.label, num: S.num },
-      marginPct: shareOf((p) => p.nonOperating),
+      marginPct: shareOf((p) => p.costOfFundraising),
+      pctStyle: S.pct,
+    },
+    {
+      label: 'Less: Non-Operating (Int/Dep/Amort/Tax)',
+      value: expense((p) => p.nonOpOther),
+      styles: { label: S.label, num: S.num },
+      marginPct: shareOf((p) => p.nonOpOther),
       pctStyle: S.pct,
     },
     {
@@ -641,7 +648,7 @@ const CH_PL_LINES: { label: string; key: keyof ChannelPnlRow; kind: 'rev' | 'cos
   { label: 'CM1 (Contribution Margin 1)', key: 'cm1', kind: 'margin', m: 'cm1' },
   { label: 'Less: Sales & Marketing', key: 'salesMarketing', kind: 'cost' },
   { label: 'CM2 (Contribution Margin 2)', key: 'cm2', kind: 'margin', m: 'cm2' },
-  { label: 'Less: Branding', key: 'platformCosts', kind: 'cost' },
+  { label: 'Less: Brand Investment', key: 'platformCosts', kind: 'cost' },
   { label: 'CM3 (Contribution Margin 3)', key: 'cm3', kind: 'margin', m: 'cm3' },
   { label: 'Less: Operating Expenses', key: 'opex', kind: 'cost' },
   { label: 'EBITDA', key: 'ebitda', kind: 'margin', m: 'ebitda' },

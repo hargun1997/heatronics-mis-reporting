@@ -52,6 +52,8 @@ export interface MonthlyMIS {
   platformCosts: number;
   opex: number;
   nonOperating: number;
+  /** One-time capital-raising cost carved out of Non-Operating for display (optional; defaults to 0). */
+  costOfFundraising?: number;
   cogmLines: Record<string, number>;
   opexLines: Record<string, number>;
   /** Present when the month was restated to tie to an external statement. */
@@ -1749,6 +1751,7 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "platformCosts": 126000,
     "opex": 304650,
     "nonOperating": 151350,
+    "costOfFundraising": 2350,
     "restated": "Apr-2026 expenses bifurcated per ledger: Brand Investment 1.08 L moved from Sales & Marketing to the Branding (CM3) line; Cost of Fundraising 2,350 moved below EBITDA into Non-Operating (alongside genuine interest 1.49 L). Net Income unchanged at -28.81 L; only the split changes."
   },
   {
@@ -1788,6 +1791,7 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "platformCosts": 1410100,
     "opex": 285000,
     "nonOperating": 2830000,
+    "costOfFundraising": 2830000,
     "restated": "May-2026 expenses reclassified: Brand Investment 14.08 L moved from Sales & Marketing to the Branding (CM3) line; Cost of Fundraising 28.30 L (as booked) moved below EBITDA into Non-Operating from Opex. Pure reclassification — EBITDA 30.69 L, Net Income unchanged at +2.39 L."
   },
   {
@@ -1830,6 +1834,7 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "platformCosts": 653500,
     "opex": 1068974,
     "nonOperating": 70870,
+    "costOfFundraising": 70,
     "restated": "Built from the Jun-2026 Tally Trading & P&L; Stock Transfers removed from both Sales and Purchases. Closing Stock 1,44,57,824 → COGM 26.92 L (GM 45.6%). Brand Investment 6.53 L sits in the Platform Costs (CM3) line; Cost of Fundraising 70 sits in Non-Operating with Finance Costs. Net Loss 19.87 L."
   }
 ];
