@@ -14,6 +14,12 @@
 // definition. EBITDA is therefore ₹2.39 L (= Net Income pre-dep), not ₹30.69 L. Net Income
 // is unchanged. Apr 2026's below-EBITDA item is genuine Interest Expense and stays put.
 // The upstream workbook sheets ("May 2026", "FY 2026-27") still show the old placement.
+//
+// NOTE: Jun 2026 — added from the June Tally Trading & P&L. Stock Transfers are removed from
+// both Sales and Purchases (external-only). Closing Stock was updated to ₹1,44,57,824, giving
+// COGM ₹26.92 L (GM 45.6%). Brand Investment (₹6.53 L, Content Creation – Agency) is placed on
+// the Platform Costs → CM3 line, and Cost of Fundraising (Business Development Expenses, ₹70)
+// sits below EBITDA in Non-Operating alongside Finance Costs. Net Loss ₹19.87 L.
 
 export const SALES_CHANNELS = ['D2C', 'Amazon', 'Blinkit', 'OEM', 'Offline', 'Export'] as const;
 export type SalesChannel = (typeof SALES_CHANNELS)[number];
@@ -1779,6 +1785,48 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "platformCosts": 2000,
     "opex": 3115000,
     "nonOperating": 0
+  },
+  {
+    "key": "2026-06",
+    "label": "Jun 2026",
+    "month": 6,
+    "year": 2026,
+    "netByChannel": {
+      "D2C": 1017887,
+      "Amazon": 1385913,
+      "OEM": 2207804,
+      "Offline": 341503,
+      "Blinkit": -5334
+    },
+    "grossByChannel": {},
+    "returnsByChannel": {},
+    "totalGrossRevenue": 0,
+    "totalReturns": 0,
+    "totalTaxes": 0,
+    "netRevenue": 4947773,
+    "interBranch": 0,
+    "turnover": 0,
+    "grossMargin": 2255951,
+    "cm1": 1333896,
+    "cm2": -193322,
+    "cm3": -846822,
+    "ebitda": -1915796,
+    "netIncome": -1986666,
+    "cogmLines": {},
+    "opexLines": {
+      "Payroll": -388162,
+      "Professional Fees": -319400,
+      "Other Expenses": -367500,
+      "Other Income": 6088,
+      "TOTAL OPERATING EXPENSES": -1068974
+    },
+    "cogm": 2691822,
+    "channelFulfillment": 922055,
+    "salesMarketing": 1527218,
+    "platformCosts": 653500,
+    "opex": 1068974,
+    "nonOperating": 70870,
+    "restated": "Built from the Jun-2026 Tally Trading & P&L; Stock Transfers removed from both Sales and Purchases. Closing Stock 1,44,57,824 → COGM 26.92 L (GM 45.6%). Brand Investment 6.53 L sits in the Platform Costs (CM3) line; Cost of Fundraising 70 sits in Non-Operating with Finance Costs. Net Loss 19.87 L."
   }
 ];
 
