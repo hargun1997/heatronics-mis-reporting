@@ -17,6 +17,7 @@ import {
   D2C_COSTS,
 } from './channelActuals';
 import { SKU_CELLS, type SkuCell } from './skuChannelPnl';
+import { AD_MIX_D2C, AD_MIX_AMZN, AMAZON_AD_MONTHLY } from './adMeasured';
 
 export type Granularity = 'month' | 'quarter' | 'year';
 
@@ -924,7 +925,14 @@ export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActu
 /** Factory / conversion cost added on top of product COGS to form COGM (fraction of revenue). */
 export const FACTORY_PCT = 0.10;
 
-export interface SkuAgg { rev: number; cogs: number; fac: number; oth: number; con: number; u: number; }
+export interface SkuAgg {
+  rev: number; cogs: number; fac: number;
+  oth: number;   // all channel costs (channel & fulfilment + ads) = cf + sm
+  cf: number;    // channel & fulfilment (marketplace/shipping/gateway fees)
+  sm: number;    // sales & marketing (ad spend attributed to this cell)
+  con: number;   // CM2 = rev − cogs − factory − cf − sm  (== rev − cogs − factory − oth)
+  u: number;
+}
 export interface SkuChannelMatrix {
   products: string[];                       // row order, by revenue desc (accessories last)
   channels: SalesChannel[];                 // column order (channels present)
@@ -935,15 +943,94 @@ export interface SkuChannelMatrix {
   monthsInPeriod: string[];
 }
 
-interface RawAgg { rev: number; cogs: number; oth: number; u: number; }
-const EMPTY_RAW: RawAgg = { rev: 0, cogs: 0, oth: 0, u: 0 };
+// `oth` is the raw channel-cost bucket from the SKU feed (Amazon net-proceeds
+// fees; D2C Meta+Google+shipping+gateway). `oldAd` is the ad spend already baked
+// into that bucket; `sm` is the REAL measured ad spend (which replaces it). So the
+// true channel cost = (oth − oldAd) + sm = cf + sm, and CM2 = rev − cogs − fac − cf − sm.
+interface RawAgg { rev: number; cogs: number; oth: number; oldAd: number; sm: number; u: number; }
+const EMPTY_RAW: RawAgg = { rev: 0, cogs: 0, oth: 0, oldAd: 0, sm: 0, u: 0 };
 function addRaw(a: RawAgg, c: SkuCell): RawAgg {
-  return { rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth, u: a.u + c.u };
+  return {
+    rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth,
+    oldAd: a.oldAd + cellOldAd(c), sm: a.sm + cellNewAd(c), u: a.u + c.u,
+  };
 }
-/** Adds the factory (COGM) cost and derives contribution: con = rev − cogs − factory − other. */
+/**
+ * Adds the factory (COGM) cost and derives the cascade to CM2.
+ *   COGM = cogs + factory;  cf = oth − oldAd (non-ad channel & fulfilment);
+ *   sm = real measured ads;  CM2 = rev − cogs − factory − cf − sm.
+ * `oth` on the result is the real total channel cost (cf + sm).
+ */
 function finalizeAgg(a: RawAgg): SkuAgg {
   const fac = a.rev * FACTORY_PCT;
-  return { rev: a.rev, cogs: a.cogs, fac, oth: a.oth, con: a.rev - a.cogs - fac - a.oth, u: a.u };
+  const cf = a.oth - a.oldAd;
+  const sm = a.sm;
+  const con = a.rev - a.cogs - fac - cf - sm;
+  return { rev: a.rev, cogs: a.cogs, fac, oth: cf + sm, cf, sm, con, u: a.u };
+}
+
+// --- Ad-spend (sales & marketing) attribution to SKU cells ------------------
+// Each channel-month has a real ad TOTAL; the per-SKU SPLIT comes from the
+// measured Meta/Google/Amazon feeds mapped to products (adMeasured.ts), falling
+// back to revenue share where no mapping exists.
+// The ad TOTAL charged per channel-month is the book-of-record figure already
+// embedded in `oth` (so channel totals and CM2 are backward-compatible); the
+// measured feeds only drive the per-SKU SPLIT of that total.
+function adTotalOf(ch: SalesChannel, m: string): number {
+  if (ch === 'Amazon') return AMAZON_ACTUALS[m]?.ads ?? 0;
+  if (ch === 'D2C') { const d = D2C_COSTS[m]; return d ? d.meta + d.google : 0; }
+  if (ch === 'Blinkit') return BLINKIT_ACTUALS[m]?.ads ?? 0;
+  return 0;
+}
+const oldAdTotal = adTotalOf;
+const newAdTotal = adTotalOf;
+const SKU_REV_BY_CH_MONTH = new Map<string, number>();   // ch||m -> Σ positive rev
+const SKU_REV_BY_CMP = new Map<string, number>();         // ch||m||p -> Σ positive rev
+for (const c of SKU_CELLS) {
+  SKU_REV_BY_CH_MONTH.set(`${c.ch}||${c.m}`, (SKU_REV_BY_CH_MONTH.get(`${c.ch}||${c.m}`) ?? 0) + Math.max(0, c.rev));
+  SKU_REV_BY_CMP.set(`${c.ch}||${c.m}||${c.p}`, (SKU_REV_BY_CMP.get(`${c.ch}||${c.m}||${c.p}`) ?? 0) + Math.max(0, c.rev));
+}
+// Measured mapped ad by month||product, per channel with a product feed.
+const AD_MIX: Partial<Record<SalesChannel, Map<string, number>>> = {
+  D2C: new Map(AD_MIX_D2C.map((r) => [`${r.m}||${r.p}`, r.ad])),
+  Amazon: new Map(AD_MIX_AMZN.map((r) => [`${r.m}||${r.p}`, r.ad])),
+};
+// Denominator per channel||month = Σ mapped ad over products present WITH positive
+// revenue that month (products present only via returns are excluded so the split
+// renormalises exactly to the channel-month ad total — keeping CM2 backward-compatible).
+const AD_MIX_DENOM = new Map<string, number>();
+for (const [key, prodRev] of SKU_REV_BY_CMP) {
+  if (prodRev <= 0) continue;
+  const [ch, m, p] = key.split('||');
+  const mix = AD_MIX[ch as SalesChannel];
+  if (!mix) continue;
+  const mapped = mix.get(`${m}||${p}`) ?? 0;
+  if (mapped) AD_MIX_DENOM.set(`${ch}||${m}`, (AD_MIX_DENOM.get(`${ch}||${m}`) ?? 0) + mapped);
+}
+/** Ad already embedded in the cell's `oth` bucket (revenue-allocated) — removed to isolate cf. */
+function cellOldAd(c: SkuCell): number {
+  const tot = oldAdTotal(c.ch, c.m);
+  if (tot <= 0) return 0;
+  const rd = SKU_REV_BY_CH_MONTH.get(`${c.ch}||${c.m}`) ?? 0;
+  return rd > 0 ? tot * (Math.max(0, c.rev) / rd) : 0;
+}
+/** Real measured ad (S&M) charged to the cell — product-mix split of the channel-month ad total. */
+function cellNewAd(c: SkuCell): number {
+  const tot = newAdTotal(c.ch, c.m);
+  if (tot <= 0) return 0;
+  const mix = AD_MIX[c.ch];
+  if (mix) {
+    const denom = AD_MIX_DENOM.get(`${c.ch}||${c.m}`) ?? 0;
+    if (denom > 0) {
+      const mapped = mix.get(`${c.m}||${c.p}`) ?? 0;
+      const prodRev = SKU_REV_BY_CMP.get(`${c.ch}||${c.m}||${c.p}`) ?? 0;
+      const rowShare = prodRev > 0 ? Math.max(0, c.rev) / prodRev : 0;
+      return tot * (mapped / denom) * rowShare;
+    }
+  }
+  // Fallback: revenue share (Blinkit single-SKU, or a month with no mapped ad).
+  const rd = SKU_REV_BY_CH_MONTH.get(`${c.ch}||${c.m}`) ?? 0;
+  return rd > 0 ? tot * (Math.max(0, c.rev) / rd) : 0;
 }
 
 const ALL_SKU_MONTHS = [...new Set(SKU_CELLS.map((c) => c.m))].sort();
@@ -996,11 +1083,25 @@ export const SKU_COVERAGE = { first: ALL_SKU_MONTHS[0], last: ALL_SKU_MONTHS[ALL
 // Net Revenue, COGM, Gross Margin, CM1/2/3, EBITDA and Net Income HOLD. This
 // function allocates those totals across channels using REAL drivers from the
 // SKU × Channel feed, so the split is data-driven rather than a blanket %:
-//   • Revenue  → each channel's real net-revenue share
-//   • COGM     → each channel's real product-COGS share (the SKU × channel mix)
-//   • all other cost lines → net-revenue share (shared overhead)
-// Every line sums back to the model total, so channels re-split but GM / CM / NP
-// stay exactly as booked.
+//   • Revenue         → each channel's real net-revenue share
+//   • COGM            → each channel's real product-COGS share (the SKU mix)
+//   • Sales&Marketing → each channel's real AD-SPEND share (Meta/Google/Amazon
+//                        console) — so OEM/Offline (no ads) carry ~none, and the
+//                        online channels carry what they actually spent
+//   • other cost lines → net-revenue share (shared overhead)
+// Every line still sums back to the model total, so GM / CM / EBITDA / NP hold
+// exactly as booked — only the split across channels changes.
+
+/** Real ad spend for a channel over a set of months (weights the S&M split). */
+function channelAdWeight(ch: SalesChannel, months: string[]): number {
+  let w = 0;
+  for (const m of months) {
+    if (ch === 'Amazon') w += AMAZON_AD_MONTHLY[m] ?? 0;
+    else if (ch === 'D2C') { const d = D2C_COSTS[m]; if (d) w += d.meta + d.google; }
+    else if (ch === 'Blinkit') w += BLINKIT_ACTUALS[m]?.ads ?? 0;
+  }
+  return w;
+}
 
 export interface ChannelAnchoredRow {
   channel: SalesChannel;
@@ -1010,7 +1111,7 @@ export interface ChannelAnchoredRow {
   platformCosts: number; cm3: number;
   opex: number; ebitda: number;
   nonOperating: number; netIncome: number;
-  revShare: number; cogsShare: number;
+  revShare: number; cogsShare: number; smShare: number;
 }
 
 export function channelPnlAnchored(g: Granularity, period: PeriodMIS): ChannelAnchoredRow[] {
@@ -1020,20 +1121,24 @@ export function channelPnlAnchored(g: Granularity, period: PeriodMIS): ChannelAn
 
   const realRev = chans.map((c) => Math.max(0, mx.channelTotal(c).rev));
   const realCogs = chans.map((c) => Math.max(0, mx.channelTotal(c).cogs)); // real product COGS = the COGM driver
+  const adWeight = chans.map((c) => channelAdWeight(c, mx.monthsInPeriod));  // real ad spend = the S&M driver
   const totRev = realRev.reduce((s, v) => s + v, 0) || 1;
   const totCogs = realCogs.reduce((s, v) => s + v, 0) || 1;
+  const totAd = adWeight.reduce((s, v) => s + v, 0);
 
   return chans.map((c, i) => {
     const revShare = realRev[i] / totRev;
     // If no real COGS anywhere, fall back to revenue share so COGM still allocates.
     const cogsShare = totCogs > 1 ? realCogs[i] / totCogs : revShare;
+    // Sales & Marketing split by real ad spend; fall back to revenue share if no ad data.
+    const smShare = totAd > 0 ? adWeight[i] / totAd : revShare;
 
     const revenue = period.netRevenue * revShare;
     const cogm = period.cogm * cogsShare;
     const grossMargin = revenue - cogm;
     const channelFulfillment = period.channelFulfillment * revShare;
     const cm1 = grossMargin - channelFulfillment;
-    const salesMarketing = period.salesMarketing * revShare;
+    const salesMarketing = period.salesMarketing * smShare;
     const cm2 = cm1 - salesMarketing;
     const platformCosts = period.platformCosts * revShare;
     const cm3 = cm2 - platformCosts;
@@ -1045,7 +1150,7 @@ export function channelPnlAnchored(g: Granularity, period: PeriodMIS): ChannelAn
     return {
       channel: c, revenue, cogm, grossMargin, channelFulfillment, cm1,
       salesMarketing, cm2, platformCosts, cm3, opex, ebitda, nonOperating, netIncome,
-      revShare, cogsShare,
+      revShare, cogsShare, smShare,
     };
   });
 }
