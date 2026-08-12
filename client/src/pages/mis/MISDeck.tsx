@@ -28,7 +28,7 @@ const iconDeck = (
   </svg>
 );
 
-type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelactuals' | 'skuchannel' | 'missheet';
+type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelactuals' | 'skuchannel' | 'missheet' | 'datainputs';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -40,6 +40,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'channelactuals', label: 'Channel P&L' },
   { id: 'skuchannel', label: 'SKU × Channel' },
   { id: 'missheet', label: 'MIS Sheet' },
+  { id: 'datainputs', label: 'Data Inputs' },
 ];
 
 // ----------------------------------------------------------------------------
@@ -103,6 +104,7 @@ export function MISDeck() {
         {tab === 'channelactuals' && <ChannelActualsTab />}
         {tab === 'skuchannel' && <SkuChannelTab />}
         {tab === 'missheet' && <MisSheetTab />}
+        {tab === 'datainputs' && <DataInputsTab />}
       </div>
     </>
   );
@@ -1776,4 +1778,273 @@ function fmtCountFull(v: number): string {
 
 function capitalizeGran(g: Granularity): string {
   return g === 'month' ? 'Monthly' : g === 'quarter' ? 'Quarterly' : 'Yearly';
+}
+
+// ----------------------------------------------------------------------------
+// Data Inputs — monthly update checklist: exactly what to pull, from where,
+// which columns, what it feeds, and the reconciliation self-check.
+// ----------------------------------------------------------------------------
+
+interface FeedRow {
+  export: string;      // the report / file to pull
+  where: string;       // source system + path
+  fields: string;      // columns / fields that must be present
+  feeds: string;       // which part of the dashboard it drives
+  check: string;       // reconciliation self-check
+}
+interface FeedSource {
+  name: string;
+  tier: 'book' | 'essential' | 'enhancement';
+  cadence: string;
+  rows: FeedRow[];
+}
+
+function nextMonthLabel(key: string): string {
+  const [y, m] = key.split('-').map(Number);
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${MO[nm - 1]} ${ny}`;
+}
+
+const FEED_SOURCES: FeedSource[] = [
+  {
+    name: 'Accounting / Tally — Monthly MIS',
+    tier: 'book',
+    cadence: 'Monthly (once books close)',
+    rows: [
+      {
+        export: 'Monthly management P&L (restated MIS)',
+        where: 'Tally / the MIS workbook — the same monthly management accounts this deck is built on',
+        fields: 'Net revenue, COGM, channel & fulfilment, sales & marketing, platform/payment, opex, non-operating — plus net revenue by channel (Amazon / D2C / Blinkit / Offline / OEM)',
+        feeds: 'Everything. This is the book of record — every FY/company total (GM, CM1/2/3, EBITDA, Net Income) ties to it.',
+        check: 'The anchor. Channel & SKU views re-split these totals; they never change them.',
+      },
+    ],
+  },
+  {
+    name: 'Amazon Seller Central',
+    tier: 'essential',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Sales per SKU per month',
+        where: 'Seller Central → Reports → Business Reports → Detail Page Sales & Traffic by Child ASIN (or the per-ASIN net-proceeds report)',
+        fields: 'Month, ASIN/SKU, product, units, sales, and the itemised fees (referral, FBA, other)',
+        feeds: 'SKU × Channel (Amazon) — real per-SKU revenue, units and COGS',
+        check: 'Amazon net sales should tie (±) to the model’s netByChannel.Amazon for the month',
+      },
+      {
+        export: 'Payments monthly summary',
+        where: 'Seller Central → Payments → Date-range reports → Summary',
+        fields: 'Net sales, referral fees, FBA fees, advertising',
+        feeds: 'Channel P&L (Amazon) fee bucket',
+        check: 'Referral + FBA + ads reconcile to the settlement payout',
+      },
+      {
+        export: 'Advertising report — by advertised product',
+        where: 'Amazon Ads console → Reports → Sponsored Products/Brands/Display, grouped by advertised product',
+        fields: 'Year + Month (must carry the year), Advertised product name/ASIN, Ad product, Total cost',
+        feeds: 'Per-SKU ad split for Amazon (weights how S&M lands across Amazon SKUs)',
+        check: 'Must have the YEAR on each row (not bare 1–12). Total is used to weight the split, booked S&M holds.',
+      },
+    ],
+  },
+  {
+    name: 'Shopify (D2C)',
+    tier: 'essential',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Sales by product, per month',
+        where: 'Shopify admin → Analytics → Reports → Sales → Sales by product (use the Net sales column)',
+        fields: 'Month, product/variant, net sales, units',
+        feeds: 'SKU × Channel (D2C) — real per-product revenue and units',
+        check: 'Total D2C net sales ties to the model’s netByChannel.D2C for the month',
+      },
+    ],
+  },
+  {
+    name: 'Meta Ads',
+    tier: 'enhancement',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Spend × campaign / ad set, broken down by month',
+        where: 'Ads Manager → Reports (or Ads table) → export. Include ALL ad accounts, remove filters and the row limit.',
+        fields: 'Month, Campaign name, Ad set name, Website URL, Amount spent (INR)',
+        feeds: 'Per-SKU ad split for D2C (Meta half)',
+        check: 'Line rows (not the total row) must sum to the full booked Meta spend — if it only sums to ~10–15%, the export is capped; re-export per-account or per-year',
+      },
+    ],
+  },
+  {
+    name: 'Google Ads',
+    tier: 'enhancement',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Spend × campaign × product title, by month',
+        where: 'Google Ads → Reports → include ALL campaign types (Shopping, Performance Max, Search, Demand Gen)',
+        fields: 'Year, Month, Campaign, Product Title, Cost',
+        feeds: 'Per-SKU ad split for D2C (Google half)',
+        check: 'Cost column sums to the full booked Google spend — Shopping-only export lands ~35%, so include PMax & the rest',
+      },
+    ],
+  },
+  {
+    name: 'Blinkit',
+    tier: 'essential',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Seller settlement summary',
+        where: 'Blinkit seller panel → Payments / Settlement report',
+        fields: 'Sales, fulfilment, ads, taxes, credits, payout',
+        feeds: 'Channel P&L (Blinkit) + SKU × Channel (single SKU: hCore X Lite)',
+        check: 'payout = sales − fulfilment − ads − taxes + credits',
+      },
+    ],
+  },
+  {
+    name: 'D2C fulfilment & payments',
+    tier: 'essential',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Shiprocket / Shopflo / gateway billing',
+        where: 'Shiprocket invoices (freight/COD/VAS) · Shopflo checkout billing · payment-gateway settlement charges',
+        fields: 'Monthly totals: shiprocket, shopflo, gateway',
+        feeds: 'D2C channel & fulfilment cost',
+        check: 'Sum ties to the D2C non-ad cost line in the settlement / books',
+      },
+    ],
+  },
+  {
+    name: 'Offline & OEM sales',
+    tier: 'essential',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Monthly sales figure (₹) per channel',
+        where: 'Sales / billing register (wholesale & offline)',
+        fields: 'Month, channel, net sales (₹). Single SKU each — Offline: hCore X Lite (cost ₹222 @ ASP ₹550); OEM: own pad (cost ₹220 @ ASP ₹325)',
+        feeds: 'SKU × Channel (Offline / OEM) + revenue',
+        check: 'Ties to netByChannel.Offline / .OEM in the MIS',
+      },
+    ],
+  },
+  {
+    name: 'COGS / unit costs',
+    tier: 'essential',
+    cadence: 'Only when costs change',
+    rows: [
+      {
+        export: 'Per-SKU unit cost + ASP',
+        where: 'Costing sheet',
+        fields: 'SKU, unit cost (₹); for value channels the ASP (Offline ₹550, OEM ₹325) used to convert revenue → units',
+        feeds: 'Real COGS across every SKU × channel view',
+        check: 'Only refresh when a SKU’s cost or channel ASP actually changes',
+      },
+    ],
+  },
+  {
+    name: 'Repeat-purchase (optional)',
+    tier: 'enhancement',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Repeat / cohort report — Shopify & Amazon',
+        where: 'Shopify customer cohorts · Amazon repeat-customer report',
+        fields: 'Month, repeat rate / repeat-customer share, frequency',
+        feeds: 'Repeats tab',
+        check: 'Definitions differ by source (cohort vs active) — compare trends, not levels',
+      },
+    ],
+  },
+];
+
+const TIER_BADGE: Record<FeedSource['tier'], { label: string; cls: string }> = {
+  book: { label: 'Book of record', cls: 'bg-brand-100 text-brand-700' },
+  essential: { label: 'Essential', cls: 'bg-emerald-100 text-emerald-700' },
+  enhancement: { label: 'Enhancement', cls: 'bg-amber-100 text-amber-700' },
+};
+
+function DataInputsTab() {
+  const months = seriesFor('month');
+  const last = months[months.length - 1];
+  const nextPull = last ? nextMonthLabel(last.key) : '—';
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-sm font-semibold text-slate-700">Data inputs — monthly update checklist</h2>
+        <p className="text-xs text-slate-400">
+          Exactly what to pull each month, from where, which columns, what it feeds, and how to know it’s right.
+          Latest data runs through <span className="font-medium text-slate-600">{last?.label ?? '—'}</span>; next pull:
+          <span className="font-medium text-slate-600"> {nextPull}</span>.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-xs text-slate-600">
+        <span className="font-medium text-brand-700">Start here every month.</span> The <span className="font-medium">Monthly MIS</span>
+        {' '}is the book of record — refresh it first and every FY/company total flows from it. The channel &amp; SKU feeds below
+        only <span className="font-medium">re-split</span> those totals (revenue by real revenue, COGM by real per-SKU cost,
+        S&amp;M by real ad spend); they never change the finals. So a month is “live” once the MIS is in, and gets more granular
+        as each feed lands.
+      </div>
+
+      <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
+        {(['book', 'essential', 'enhancement'] as const).map((t) => (
+          <span key={t} className="inline-flex items-center gap-1.5">
+            <span className={`px-1.5 py-0.5 rounded font-medium ${TIER_BADGE[t].cls}`}>{TIER_BADGE[t].label}</span>
+            {t === 'book' ? 'anchors all totals' : t === 'essential' ? 'needed for channel/SKU splits & real COGS' : 'sharpens the per-SKU ad & repeat detail'}
+          </span>
+        ))}
+      </div>
+
+      {FEED_SOURCES.map((src) => (
+        <SectionCard
+          key={src.name}
+          title={src.name}
+          description={src.cadence}
+          actions={<span className={`px-2 py-0.5 rounded text-[11px] font-medium ${TIER_BADGE[src.tier].cls}`}>{TIER_BADGE[src.tier].label}</span>}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-slate-400 border-b border-slate-200 text-left align-bottom">
+                  <th className="py-2 pr-4 font-medium w-8"></th>
+                  <th className="py-2 pr-4 font-medium">Pull this</th>
+                  <th className="py-2 pr-4 font-medium">From</th>
+                  <th className="py-2 pr-4 font-medium">Columns needed</th>
+                  <th className="py-2 pr-4 font-medium">Feeds</th>
+                  <th className="py-2 font-medium">Self-check</th>
+                </tr>
+              </thead>
+              <tbody>
+                {src.rows.map((r, i) => (
+                  <tr key={i} className="border-b border-slate-50 align-top">
+                    <td className="py-2.5 pr-4 text-slate-300">☐</td>
+                    <td className="py-2.5 pr-4 text-slate-700 font-medium">{r.export}</td>
+                    <td className="py-2.5 pr-4 text-slate-500">{r.where}</td>
+                    <td className="py-2.5 pr-4 text-slate-500">{r.fields}</td>
+                    <td className="py-2.5 pr-4 text-slate-500">{r.feeds}</td>
+                    <td className="py-2.5 text-slate-500">{r.check}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      ))}
+
+      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+        <span className="font-medium text-slate-600">Golden rule for the ad feeds:</span> the booked S&amp;M total always wins.
+        Meta / Google / Amazon ad exports are used to <span className="font-medium">weight</span> how marketing splits across
+        channels and SKUs — if an export is truncated, the split is off but the finals still hold. Always confirm an ad export
+        sums to the full booked spend before trusting its per-SKU detail.
+      </div>
+    </div>
+  );
 }
