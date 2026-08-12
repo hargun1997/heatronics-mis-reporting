@@ -818,15 +818,12 @@ export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelP
 
 export interface ChannelActualRow {
   channel: SalesChannel;
-  hasActuals: boolean;
-  direct: boolean;            // true for OEM/Offline: model revenue less COGS only (no fees/ads captured)
-  monthsCovered: number;      // months in the period that carry this channel's cost data
+  direct: boolean;            // OEM/Offline: single-SKU, COGS applied via blended ASP (estimate)
   revenue: number;
-  cogs: number;
-  fulfilment: number;         // channel/marketplace ops incl. shipping (a cost, positive)
-  marketing: number;          // ad spend (a cost, positive)
-  otherCosts: number;         // taxes / platform / gateway net of credits (a cost, positive)
-  contribution: number;       // revenue − cogs − fulfilment − marketing − otherCosts
+  cogs: number;               // real per-unit product COGS from the actual SKU mix on this channel
+  factory: number;            // factory / conversion cost (FACTORY_PCT of revenue) — part of COGM
+  channelCosts: number;       // marketplace fees + marketing + platform (from the SKU feed's `oth`)
+  contribution: number;       // revenue − cogs − factory − channelCosts
   cmPct: number;              // contribution / revenue
 }
 
@@ -863,77 +860,36 @@ const ACTUAL_CHANNELS: SalesChannel[] = [...FEED_CHANNELS, ...DIRECT_CHANNELS];
  * spend, Shiprocket shipping and Shopflo + gateway fees.
  */
 export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActualsResult {
-  const months = membersOf(g, period).map((m) => m.key);
-
-  const rows: ChannelActualRow[] = ACTUAL_CHANNELS.map((channel) => {
-    const direct = DIRECT_CHANNELS.includes(channel);
-    let revenue = 0, fulfilment = 0, marketing = 0, otherCosts = 0, monthsCovered = 0;
-
-    for (const key of months) {
-      if (channel === 'Blinkit') {
-        const a = BLINKIT_ACTUALS[key];
-        if (!a) continue;
-        monthsCovered++;
-        revenue += a.sales;
-        fulfilment += a.fulfilment;
-        marketing += a.ads;
-        otherCosts += a.taxes - a.credits; // taxes are a cost; credits offset it
-      } else if (channel === 'Amazon') {
-        const a = AMAZON_ACTUALS[key];
-        if (!a) continue;
-        monthsCovered++;
-        revenue += a.netSales;
-        fulfilment += a.referral + a.fba;
-        marketing += a.ads;
-      } else if (channel === 'D2C') {
-        // D2C: revenue from the model, costs from the D2C feed.
-        const c = D2C_COSTS[key];
-        if (!c) continue;
-        monthsCovered++;
-        revenue += MODEL_REV_BY_MONTH.D2C[key] || 0;
-        fulfilment += c.shiprocket;
-        marketing += c.meta + c.google;
-        otherCosts += c.shopflo + c.gateway;
-      } else {
-        // OEM / Offline — direct sales: model revenue, COGS only (no fees/ads captured).
-        const rev = MODEL_REV_BY_MONTH[channel][key] || 0;
-        if (rev <= 0) continue;
-        monthsCovered++;
-        revenue += rev;
-      }
-    }
-
-    const cogs = revenue * COGS_RATE;
-    const contribution = revenue - cogs - fulfilment - marketing - otherCosts;
+  // Roll up the SKU × Channel matrix by channel, so the Channel P&L and the
+  // SKU × Channel tab tie exactly — same real per-SKU COGS + factory cost.
+  const mx = skuChannelMatrix(g, period);
+  const rows: ChannelActualRow[] = mx.channels.map((channel) => {
+    const a = mx.channelTotal(channel);
     return {
       channel,
-      hasActuals: monthsCovered > 0,
-      direct,
-      monthsCovered,
-      revenue, cogs, fulfilment, marketing, otherCosts,
-      contribution,
-      cmPct: revenue > 0 ? contribution / revenue : 0,
+      direct: DIRECT_CHANNELS.includes(channel),
+      revenue: a.rev,
+      cogs: a.cogs,
+      factory: a.fac,
+      channelCosts: a.oth,
+      contribution: a.con,
+      cmPct: a.rev > 0 ? a.con / a.rev : 0,
     };
-  }).filter((r) => r.hasActuals);
+  });
 
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
   const totalContribution = rows.reduce((s, r) => s + r.contribution, 0);
-
-  const feedMonths = new Set<string>();
-  for (const key of months) {
-    if (BLINKIT_ACTUALS[key] || AMAZON_ACTUALS[key] || D2C_COSTS[key]) feedMonths.add(key);
-  }
   const hasDirect = rows.some((r) => r.direct);
   const coverageNote =
-    `Online cost feeds (Amazon/Blinkit/D2C) cover ${feedMonths.size}/${months.length} month(s) in this period.` +
-    (hasDirect ? ' OEM & Offline are direct sales — shown at revenue − COGS only (no marketplace fees or ads captured yet).' : '');
+    `Real per-SKU COGS from the actual channel mix, plus a ${Math.round(FACTORY_PCT * 100)}% factory (COGM) cost.` +
+    (hasDirect ? ' OEM & Offline COGS is applied via each product’s blended ASP (estimate pending unit counts).' : '');
 
   return {
     rows,
     totalRevenue,
     totalContribution,
     cmPct: totalRevenue > 0 ? totalContribution / totalRevenue : 0,
-    monthsInPeriod: months,
+    monthsInPeriod: mx.monthsInPeriod,
     coverageNote,
   };
 }
@@ -946,7 +902,10 @@ export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActu
 // for the member months of the chosen period. Amazon & D2C are real unit-level;
 // Blinkit/Offline/OEM are single-SKU value channels with estimated COGS.
 
-export interface SkuAgg { rev: number; cogs: number; oth: number; con: number; u: number; }
+/** Factory / conversion cost added on top of product COGS to form COGM (fraction of revenue). */
+export const FACTORY_PCT = 0.10;
+
+export interface SkuAgg { rev: number; cogs: number; fac: number; oth: number; con: number; u: number; }
 export interface SkuChannelMatrix {
   products: string[];                       // row order, by revenue desc (accessories last)
   channels: SalesChannel[];                 // column order (channels present)
@@ -957,9 +916,15 @@ export interface SkuChannelMatrix {
   monthsInPeriod: string[];
 }
 
-const EMPTY_AGG: SkuAgg = { rev: 0, cogs: 0, oth: 0, con: 0, u: 0 };
-function addAgg(a: SkuAgg, c: SkuCell): SkuAgg {
-  return { rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth, con: a.con + c.con, u: a.u + c.u };
+interface RawAgg { rev: number; cogs: number; oth: number; u: number; }
+const EMPTY_RAW: RawAgg = { rev: 0, cogs: 0, oth: 0, u: 0 };
+function addRaw(a: RawAgg, c: SkuCell): RawAgg {
+  return { rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth, u: a.u + c.u };
+}
+/** Adds the factory (COGM) cost and derives contribution: con = rev − cogs − factory − other. */
+function finalizeAgg(a: RawAgg): SkuAgg {
+  const fac = a.rev * FACTORY_PCT;
+  return { rev: a.rev, cogs: a.cogs, fac, oth: a.oth, con: a.rev - a.cogs - fac - a.oth, u: a.u };
 }
 
 const ALL_SKU_MONTHS = [...new Set(SKU_CELLS.map((c) => c.m))].sort();
@@ -969,36 +934,34 @@ export function skuChannelMatrix(g: Granularity, period: PeriodMIS): SkuChannelM
   const rows = SKU_CELLS.filter((c) => months.has(c.m));
 
   const key = (p: string, c: string) => `${p}||${c}`;
-  const byCell = new Map<string, SkuAgg>();
-  const byProduct = new Map<string, SkuAgg>();
-  const byChannel = new Map<SalesChannel, SkuAgg>();
-  const productRev = new Map<string, number>();
+  const byCell = new Map<string, RawAgg>();
+  const byProduct = new Map<string, RawAgg>();
+  const byChannel = new Map<SalesChannel, RawAgg>();
   const channelsSeen = new Set<SalesChannel>();
-  let grand = { ...EMPTY_AGG };
+  let grand: RawAgg = { ...EMPTY_RAW };
 
   for (const c of rows) {
-    byCell.set(key(c.p, c.ch), addAgg(byCell.get(key(c.p, c.ch)) ?? EMPTY_AGG, c));
-    byProduct.set(c.p, addAgg(byProduct.get(c.p) ?? EMPTY_AGG, c));
-    byChannel.set(c.ch, addAgg(byChannel.get(c.ch) ?? EMPTY_AGG, c));
-    productRev.set(c.p, (productRev.get(c.p) ?? 0) + c.rev);
+    byCell.set(key(c.p, c.ch), addRaw(byCell.get(key(c.p, c.ch)) ?? EMPTY_RAW, c));
+    byProduct.set(c.p, addRaw(byProduct.get(c.p) ?? EMPTY_RAW, c));
+    byChannel.set(c.ch, addRaw(byChannel.get(c.ch) ?? EMPTY_RAW, c));
     channelsSeen.add(c.ch);
-    grand = addAgg(grand, c);
+    grand = addRaw(grand, c);
   }
 
   const products = [...byProduct.keys()].sort((a, b) => {
     const ax = a.startsWith('Accessory') ? 1 : 0, bx = b.startsWith('Accessory') ? 1 : 0;
     if (ax !== bx) return ax - bx;
-    return (productRev.get(b) ?? 0) - (productRev.get(a) ?? 0);
+    return (byProduct.get(b)?.rev ?? 0) - (byProduct.get(a)?.rev ?? 0);
   });
   const channels = SALES_CHANNELS.filter((c) => channelsSeen.has(c));
 
   return {
     products,
     channels,
-    cell: (p, c) => byCell.get(key(p, c)),
-    productTotal: (p) => byProduct.get(p) ?? EMPTY_AGG,
-    channelTotal: (c) => byChannel.get(c) ?? EMPTY_AGG,
-    grand,
+    cell: (p, c) => { const r = byCell.get(key(p, c)); return r ? finalizeAgg(r) : undefined; },
+    productTotal: (p) => finalizeAgg(byProduct.get(p) ?? EMPTY_RAW),
+    channelTotal: (c) => finalizeAgg(byChannel.get(c) ?? EMPTY_RAW),
+    grand: finalizeAgg(grand),
     monthsInPeriod: [...months].sort(),
   };
 }

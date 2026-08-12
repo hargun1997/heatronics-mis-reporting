@@ -11,7 +11,7 @@ import {
   periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts, arrProjection,
   channelObservations, channelHHI, topChannel, channelsAbove, likeForLikeChannel,
   ordersByChannel, channelLabel, channelPnl, adSpendForPeriod, CHANNEL_AOV,
-  channelActualPnl, COGS_RATE,
+  channelActualPnl, FACTORY_PCT,
   skuChannelMatrix, SKU_COVERAGE,
   SALES_CHANNELS, FY_SUMMARY,
   type Granularity, type PeriodMIS, type ChannelPnlRow, type SkuAgg, type SalesChannel,
@@ -1212,22 +1212,21 @@ function ChannelActualsTab() {
   const legendItems = chOrder.map((c) => ({ label: channelLabel(c), color: colorOf(c) }));
   const donutData = cols.map((r) => ({ key: r.channel, value: r.revenue }));
 
-  // Total column (across channels with actuals).
+  // Total column (across channels).
   const tot = cols.reduce(
     (a, r) => ({
-      revenue: a.revenue + r.revenue, cogs: a.cogs + r.cogs, fulfilment: a.fulfilment + r.fulfilment,
-      marketing: a.marketing + r.marketing, otherCosts: a.otherCosts + r.otherCosts, contribution: a.contribution + r.contribution,
+      revenue: a.revenue + r.revenue, cogs: a.cogs + r.cogs, factory: a.factory + r.factory,
+      channelCosts: a.channelCosts + r.channelCosts, contribution: a.contribution + r.contribution,
     }),
-    { revenue: 0, cogs: 0, fulfilment: 0, marketing: 0, otherCosts: 0, contribution: 0 },
+    { revenue: 0, cogs: 0, factory: 0, channelCosts: 0, contribution: 0 },
   );
 
   type RowDef = { label: string; get: (r: typeof cols[number]) => number; total: number; kind: 'rev' | 'cost' | 'margin' };
   const ROWS: RowDef[] = [
     { label: 'Net Revenue', get: (r) => r.revenue, total: tot.revenue, kind: 'rev' },
-    { label: `COGS (${Math.round(COGS_RATE * 100)}%)`, get: (r) => -r.cogs, total: -tot.cogs, kind: 'cost' },
-    { label: 'Fulfilment & channel fees', get: (r) => -r.fulfilment, total: -tot.fulfilment, kind: 'cost' },
-    { label: 'Marketing (ads)', get: (r) => -r.marketing, total: -tot.marketing, kind: 'cost' },
-    { label: 'Taxes / platform / gateway', get: (r) => -r.otherCosts, total: -tot.otherCosts, kind: 'cost' },
+    { label: 'COGS (real, per SKU)', get: (r) => -r.cogs, total: -tot.cogs, kind: 'cost' },
+    { label: `Factory cost (${Math.round(FACTORY_PCT * 100)}%)`, get: (r) => -r.factory, total: -tot.factory, kind: 'cost' },
+    { label: 'Channel fees + marketing', get: (r) => -r.channelCosts, total: -tot.channelCosts, kind: 'cost' },
     { label: 'Contribution margin', get: (r) => r.contribution, total: tot.contribution, kind: 'margin' },
   ];
 
@@ -1236,7 +1235,7 @@ function ChannelActualsTab() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-slate-700">Channel P&amp;L</h2>
-          <p className="text-xs text-slate-400">Real channel-tagged costs from settlement &amp; ad-spend feeds. COGS assumed {Math.round(COGS_RATE * 100)}% of revenue.</p>
+          <p className="text-xs text-slate-400">Rolled up from the real SKU mix — actual per-unit COGS + {Math.round(FACTORY_PCT * 100)}% factory cost + real channel fees/marketing. Ties to the SKU × Channel tab.</p>
         </div>
         <div className="flex items-center gap-2">
           <GranularityToggle value={g} onChange={setG} />
@@ -1256,8 +1255,9 @@ function ChannelActualsTab() {
         <span className="font-medium text-emerald-700">Real costs, not allocation.</span> Each channel carries its own
         settled costs — Blinkit from its seller settlement (commission, shipping, storage, ads), Amazon from its Payments
         fees (referral, FBA, Sponsored Products), and D2C from Meta + Google spend, Shiprocket shipping and Shopflo +
-        gateway fees. <span className="font-medium">OEM &amp; Offline</span> are direct / wholesale sales — shown at
-        revenue minus COGS only (no marketplace fees or ads). COGS is a flat {Math.round(COGS_RATE * 100)}% of net revenue (a stated assumption). This is
+        gateway fees. <span className="font-medium">OEM &amp; Offline</span> are direct / wholesale sales — no marketplace
+        fees or ads. COGS is the <span className="font-medium">real per-unit cost of the actual SKU mix</span> on each
+        channel, plus a {Math.round(FACTORY_PCT * 100)}% factory (COGM) cost. This is
         <span className="font-medium"> contribution margin</span> — before shared opex, depreciation and interest.
         {res.coverageNote && <span className="block mt-1 text-emerald-700">{res.coverageNote}</span>}
       </div>
@@ -1326,7 +1326,7 @@ function ChannelActualsTab() {
                     {cols.map((r) => (
                       <th key={r.channel} className="py-2 px-3 text-right font-medium align-bottom">
                         <div className="text-slate-600 font-semibold">{channelLabel(r.channel)}</div>
-                        <div className="text-[10px] font-normal text-slate-400 mt-0.5">{r.direct ? 'direct · ' : ''}{r.monthsCovered} mo</div>
+                        <div className="text-[10px] font-normal text-slate-400 mt-0.5">{r.direct ? 'direct' : 'measured'}</div>
                       </th>
                     ))}
                     <th className="py-2 pl-3 text-right font-medium align-bottom text-slate-600">Total</th>
@@ -1410,7 +1410,7 @@ function SkuChannelTab() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-slate-700">SKU × Channel P&amp;L</h2>
-          <p className="text-xs text-slate-400">Per-product contribution by channel. COGS uses real per-unit cost (Amazon &amp; D2C); Blinkit/Offline/OEM are single-SKU with estimated COGS.</p>
+          <p className="text-xs text-slate-400">Per-product contribution by channel. Real per-unit COGS + {Math.round(FACTORY_PCT * 100)}% factory cost. Amazon &amp; D2C measured; Blinkit/Offline/OEM single-SKU (COGS via ASP).</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
@@ -1439,10 +1439,10 @@ function SkuChannelTab() {
 
       <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-slate-600">
         <span className="font-medium text-emerald-700">Real SKU-level costs.</span> Amazon and D2C carry each product's
-        actual units × cost and their real fees/ads; Blinkit (→ hCore X Lite), Offline (→ hCore X-L Lite) and OEM
-        (→ hCore X Lite) are single-SKU channels whose COGS is estimated from the product's blended ASP, so their margins
-        are indicative — OEM especially (wholesale) is likely optimistic. Contribution is before shared opex, depreciation
-        and interest. SKU feed covers {SKU_COVERAGE.first} → {SKU_COVERAGE.last}.
+        actual units × cost and their real fees/ads; Blinkit, Offline (both → hCore X Lite, ₹222) and OEM
+        (own SKU, ₹220) are single-SKU channels whose COGS is applied via the product's blended ASP, so their margins
+        are indicative — OEM especially (wholesale) is likely optimistic. All rows also carry a {Math.round(FACTORY_PCT * 100)}% factory
+        (COGM) cost. Contribution is before shared opex, depreciation and interest. SKU feed covers {SKU_COVERAGE.first} → {SKU_COVERAGE.last}.
       </div>
 
       {!hasData ? (
