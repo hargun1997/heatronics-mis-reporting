@@ -988,5 +988,67 @@ export function skuChannelMatrix(g: Granularity, period: PeriodMIS): SkuChannelM
 /** Earliest → latest month present in the SKU feed (for a coverage note). */
 export const SKU_COVERAGE = { first: ALL_SKU_MONTHS[0], last: ALL_SKU_MONTHS[ALL_SKU_MONTHS.length - 1] };
 
+// ----------------------------------------------------------------------------
+// Channel P&L — ANCHORED (company totals hold; COGS split driven by real SKU mix)
+// ----------------------------------------------------------------------------
+//
+// The company P&L for the period (from the model) is the book of record — its
+// Net Revenue, COGM, Gross Margin, CM1/2/3, EBITDA and Net Income HOLD. This
+// function allocates those totals across channels using REAL drivers from the
+// SKU × Channel feed, so the split is data-driven rather than a blanket %:
+//   • Revenue  → each channel's real net-revenue share
+//   • COGM     → each channel's real product-COGS share (the SKU × channel mix)
+//   • all other cost lines → net-revenue share (shared overhead)
+// Every line sums back to the model total, so channels re-split but GM / CM / NP
+// stay exactly as booked.
+
+export interface ChannelAnchoredRow {
+  channel: SalesChannel;
+  revenue: number; cogm: number; grossMargin: number;
+  channelFulfillment: number; cm1: number;
+  salesMarketing: number; cm2: number;
+  platformCosts: number; cm3: number;
+  opex: number; ebitda: number;
+  nonOperating: number; netIncome: number;
+  revShare: number; cogsShare: number;
+}
+
+export function channelPnlAnchored(g: Granularity, period: PeriodMIS): ChannelAnchoredRow[] {
+  const mx = skuChannelMatrix(g, period);
+  const chans = mx.channels;
+  if (chans.length === 0) return [];
+
+  const realRev = chans.map((c) => Math.max(0, mx.channelTotal(c).rev));
+  const realCogs = chans.map((c) => Math.max(0, mx.channelTotal(c).cogs)); // real product COGS = the COGM driver
+  const totRev = realRev.reduce((s, v) => s + v, 0) || 1;
+  const totCogs = realCogs.reduce((s, v) => s + v, 0) || 1;
+
+  return chans.map((c, i) => {
+    const revShare = realRev[i] / totRev;
+    // If no real COGS anywhere, fall back to revenue share so COGM still allocates.
+    const cogsShare = totCogs > 1 ? realCogs[i] / totCogs : revShare;
+
+    const revenue = period.netRevenue * revShare;
+    const cogm = period.cogm * cogsShare;
+    const grossMargin = revenue - cogm;
+    const channelFulfillment = period.channelFulfillment * revShare;
+    const cm1 = grossMargin - channelFulfillment;
+    const salesMarketing = period.salesMarketing * revShare;
+    const cm2 = cm1 - salesMarketing;
+    const platformCosts = period.platformCosts * revShare;
+    const cm3 = cm2 - platformCosts;
+    const opex = period.opex * revShare;
+    const ebitda = cm3 - opex;
+    const nonOperating = period.nonOperating * revShare;
+    const netIncome = ebitda - nonOperating;
+
+    return {
+      channel: c, revenue, cogm, grossMargin, channelFulfillment, cm1,
+      salesMarketing, cm2, platformCosts, cm3, opex, ebitda, nonOperating, netIncome,
+      revShare, cogsShare,
+    };
+  });
+}
+
 export { SALES_CHANNELS, FY_SUMMARY, COGS_RATE };
 export type { SalesChannel };

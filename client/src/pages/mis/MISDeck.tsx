@@ -11,7 +11,7 @@ import {
   periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts, arrProjection,
   channelObservations, channelHHI, topChannel, channelsAbove, likeForLikeChannel,
   ordersByChannel, channelLabel, channelPnl, adSpendForPeriod, CHANNEL_AOV,
-  channelActualPnl, FACTORY_PCT,
+  channelPnlAnchored, FACTORY_PCT,
   skuChannelMatrix, SKU_COVERAGE,
   SALES_CHANNELS, FY_SUMMARY,
   type Granularity, type PeriodMIS, type ChannelPnlRow, type SkuAgg, type SalesChannel,
@@ -1191,46 +1191,57 @@ function ChannelActualsTab() {
   const safeIdx = Math.min(idx, series.length - 1);
   const p = series[safeIdx];
 
-  const res = channelActualPnl(g, p);
-  const cols = res.rows;
+  const cols = channelPnlAnchored(g, p);
 
   // Full time-series across every period at this granularity — for the "since inception" charts.
-  const timeline = useMemo(() => series.map((pp) => ({ label: pp.label, res: channelActualPnl(g, pp) })), [series, g]);
-  const chOrder = SALES_CHANNELS.filter((c) => timeline.some((t) => t.res.rows.some((r) => r.channel === c)));
+  const timeline = useMemo(() => series.map((pp) => ({ label: pp.label, rows: channelPnlAnchored(g, pp) })), [series, g]);
+  const chOrder = SALES_CHANNELS.filter((c) => timeline.some((t) => t.rows.some((r) => r.channel === c)));
   const tLabels = timeline.map((t) => t.label);
   const revData = timeline.map((t) => {
     const rec: Record<string, number> = {};
-    for (const c of chOrder) rec[c] = t.res.rows.find((r) => r.channel === c)?.revenue ?? 0;
+    for (const c of chOrder) rec[c] = t.rows.find((r) => r.channel === c)?.revenue ?? 0;
     return rec;
   });
   const colorOf = (c: string) => CHANNEL_COLORS[c] || '#94a3b8';
   const revSeries = chOrder.map((c) => ({
     name: channelLabel(c), color: colorOf(c),
-    values: timeline.map((t) => { const r = t.res.rows.find((x) => x.channel === c); return r ? r.revenue : null; }),
+    values: timeline.map((t) => { const r = t.rows.find((x) => x.channel === c); return r ? r.revenue : null; }),
   }));
-  const cmSeries = chOrder.map((c) => ({
+  // Net margin % (net income / revenue) per channel over time.
+  const nmSeries = chOrder.map((c) => ({
     name: channelLabel(c), color: colorOf(c),
-    values: timeline.map((t) => { const r = t.res.rows.find((x) => x.channel === c); return r && r.revenue > 0 ? r.cmPct : null; }),
+    values: timeline.map((t) => { const r = t.rows.find((x) => x.channel === c); return r && r.revenue > 0 ? r.netIncome / r.revenue : null; }),
   }));
   const legendItems = chOrder.map((c) => ({ label: channelLabel(c), color: colorOf(c) }));
   const donutData = cols.map((r) => ({ key: r.channel, value: r.revenue }));
 
-  // Total column (across channels).
-  const tot = cols.reduce(
-    (a, r) => ({
-      revenue: a.revenue + r.revenue, cogs: a.cogs + r.cogs, factory: a.factory + r.factory,
-      channelCosts: a.channelCosts + r.channelCosts, contribution: a.contribution + r.contribution,
-    }),
-    { revenue: 0, cogs: 0, factory: 0, channelCosts: 0, contribution: 0 },
-  );
+  // Total column = the model's company totals (book of record). The channel rows sum
+  // back to these exactly because revenue/cost shares each sum to 1.
+  const tot = {
+    revenue: p.netRevenue, cogm: p.cogm, grossMargin: p.grossMargin,
+    channelFulfillment: p.channelFulfillment, cm1: p.cm1,
+    salesMarketing: p.salesMarketing, cm2: p.cm2,
+    platformCosts: p.platformCosts, cm3: p.cm3,
+    opex: p.opex, ebitda: p.ebitda,
+    nonOperating: p.nonOperating, netIncome: p.netIncome,
+  };
+  const netMarginTot = tot.revenue > 0 ? tot.netIncome / tot.revenue : null;
 
-  type RowDef = { label: string; get: (r: typeof cols[number]) => number; total: number; kind: 'rev' | 'cost' | 'margin' };
+  type RowDef = { label: string; get: (r: typeof cols[number]) => number; total: number; kind: 'rev' | 'cost' | 'margin' | 'sub' };
   const ROWS: RowDef[] = [
     { label: 'Net Revenue', get: (r) => r.revenue, total: tot.revenue, kind: 'rev' },
-    { label: 'COGS (real, per SKU)', get: (r) => -r.cogs, total: -tot.cogs, kind: 'cost' },
-    { label: `Factory cost (${Math.round(FACTORY_PCT * 100)}%)`, get: (r) => -r.factory, total: -tot.factory, kind: 'cost' },
-    { label: 'Channel fees + marketing', get: (r) => -r.channelCosts, total: -tot.channelCosts, kind: 'cost' },
-    { label: 'Contribution margin', get: (r) => r.contribution, total: tot.contribution, kind: 'margin' },
+    { label: 'Less: COGM (real SKU cost + factory)', get: (r) => -r.cogm, total: -tot.cogm, kind: 'cost' },
+    { label: 'Gross Margin', get: (r) => r.grossMargin, total: tot.grossMargin, kind: 'margin' },
+    { label: 'Less: Channel & Fulfilment', get: (r) => -r.channelFulfillment, total: -tot.channelFulfillment, kind: 'cost' },
+    { label: 'CM1', get: (r) => r.cm1, total: tot.cm1, kind: 'sub' },
+    { label: 'Less: Sales & Marketing', get: (r) => -r.salesMarketing, total: -tot.salesMarketing, kind: 'cost' },
+    { label: 'CM2', get: (r) => r.cm2, total: tot.cm2, kind: 'sub' },
+    { label: 'Less: Platform & Payment', get: (r) => -r.platformCosts, total: -tot.platformCosts, kind: 'cost' },
+    { label: 'CM3', get: (r) => r.cm3, total: tot.cm3, kind: 'sub' },
+    { label: 'Less: Operating expenses', get: (r) => -r.opex, total: -tot.opex, kind: 'cost' },
+    { label: 'EBITDA', get: (r) => r.ebitda, total: tot.ebitda, kind: 'margin' },
+    { label: 'Less: Non-Operating', get: (r) => -r.nonOperating, total: -tot.nonOperating, kind: 'cost' },
+    { label: 'Net Income', get: (r) => r.netIncome, total: tot.netIncome, kind: 'margin' },
   ];
 
   return (
@@ -1238,7 +1249,7 @@ function ChannelActualsTab() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-slate-700">Channel P&amp;L</h2>
-          <p className="text-xs text-slate-400">Rolled up from the real SKU mix — actual per-unit COGS + {Math.round(FACTORY_PCT * 100)}% factory cost + real channel fees/marketing. Ties to the SKU × Channel tab.</p>
+          <p className="text-xs text-slate-400">Full P&amp;L cascade per channel. Company totals hold to the MIS; the COGM split is driven by the real SKU × channel cost mix, everything else by revenue share.</p>
         </div>
         <div className="flex items-center gap-2">
           <GranularityToggle value={g} onChange={setG} />
@@ -1255,27 +1266,26 @@ function ChannelActualsTab() {
       </div>
 
       <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-slate-600">
-        <span className="font-medium text-emerald-700">Real costs, not allocation.</span> Each channel carries its own
-        settled costs — Blinkit from its seller settlement (commission, shipping, storage, ads), Amazon from its Payments
-        fees (referral, FBA, Sponsored Products), and D2C from Meta + Google spend, Shiprocket shipping and Shopflo +
-        gateway fees. <span className="font-medium">OEM &amp; Offline</span> are direct / wholesale sales — no marketplace
-        fees or ads. COGS is the <span className="font-medium">real per-unit cost of the actual SKU mix</span> on each
-        channel, plus a {Math.round(FACTORY_PCT * 100)}% factory (COGM) cost. This is
-        <span className="font-medium"> contribution margin</span> — before shared opex, depreciation and interest.
-        {res.coverageNote && <span className="block mt-1 text-emerald-700">{res.coverageNote}</span>}
+        <span className="font-medium text-emerald-700">Totals hold, splits are data-driven.</span> The company P&amp;L (Net
+        Revenue, Gross Margin, CM1/2/3, EBITDA, Net Income) is the MIS book of record and does not move. What changes is
+        how each line is <span className="font-medium">split across channels</span>: revenue by each channel's real revenue
+        share, and <span className="font-medium">COGM by the real per-unit COGS of the actual SKU mix</span> sold on that
+        channel (from the SKU × Channel feed) rather than a blanket %. Channel &amp; fulfilment, sales &amp; marketing,
+        platform, opex and non-operating follow revenue share. COGM already includes the {Math.round(FACTORY_PCT * 100)}%
+        factory cost. The Total column ties back to the MIS exactly.
       </div>
 
       {cols.length === 0 ? (
-        <SectionCard title="No actuals for this period" description="Pick a period covered by the settlement / ad-spend feeds.">
-          <p className="text-sm text-slate-500">Actual cost feeds run roughly Nov 2024 (Amazon) / Feb 2025 (Blinkit) / Aug 2025 (D2C) onward.</p>
+        <SectionCard title="No SKU-level data for this period" description="Pick a period covered by the SKU × channel feed.">
+          <p className="text-sm text-slate-500">SKU-level data runs {SKU_COVERAGE.first} → {SKU_COVERAGE.last}.</p>
         </SectionCard>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <KpiCard label="Revenue (channels w/ actuals)" value={inr(res.totalRevenue)} tone="brand" />
-            <KpiCard label="Contribution margin" value={inr(res.totalContribution)} tone="slate"
+            <KpiCard label="Net Revenue" value={inr(tot.revenue)} tone="brand" />
+            <KpiCard label="EBITDA" value={inr(tot.ebitda)} tone="slate"
               sub={`across ${cols.length} channel${cols.length > 1 ? 's' : ''}`} />
-            <KpiCard label="Blended CM %" value={pctStr(res.cmPct)} tone="amber" />
+            <KpiCard label="Net margin %" value={pctStr(netMarginTot)} tone="amber" />
           </div>
 
           {/* Grouped bars: every period across all years, one bar per channel */}
@@ -1311,15 +1321,15 @@ function ChannelActualsTab() {
               <LineChart labels={tLabels} series={revSeries} valueFormat={(v) => inr(v)} height={280} />
               <div className="mt-3"><Legend items={legendItems} /></div>
             </SectionCard>
-            <SectionCard title="Contribution margin % by channel" description="Real CM% per channel, period by period.">
-              <LineChart labels={tLabels} series={cmSeries} percent valueFormat={(v) => pctStr(v)} height={280} />
+            <SectionCard title="Net margin % by channel" description="Net income ÷ revenue per channel, period by period.">
+              <LineChart labels={tLabels} series={nmSeries} percent valueFormat={(v) => pctStr(v)} height={280} />
               <div className="mt-3"><Legend items={legendItems} /></div>
             </SectionCard>
           </div>
 
           <SectionCard
             title={`Channel P&L · ${p.longLabel}`}
-            description="All figures in ₹. Costs shown as negatives. Contribution = Revenue − COGS − channel fees − marketing − taxes/platform."
+            description="All figures in ₹. Costs shown as negatives. The Total column equals the MIS company P&L; channel columns re-split it using real SKU-level COGS and revenue share."
           >
             <div className="overflow-x-auto">
               <table className="w-full text-sm whitespace-nowrap">
@@ -1329,20 +1339,20 @@ function ChannelActualsTab() {
                     {cols.map((r) => (
                       <th key={r.channel} className="py-2 px-3 text-right font-medium align-bottom">
                         <div className="text-slate-600 font-semibold">{channelLabel(r.channel)}</div>
-                        <div className="text-[10px] font-normal text-slate-400 mt-0.5">{r.direct ? 'direct' : 'measured'}</div>
+                        <div className="text-[10px] font-normal text-slate-400 mt-0.5">{pctStr(r.revShare)} of rev</div>
                       </th>
                     ))}
-                    <th className="py-2 pl-3 text-right font-medium align-bottom text-slate-600">Total</th>
+                    <th className="py-2 pl-3 text-right font-medium align-bottom text-slate-600">Total (MIS)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ROWS.map((row) => {
-                    const isMargin = row.kind === 'margin' || row.kind === 'rev';
+                    const strong = row.kind === 'margin' || row.kind === 'rev';
                     return (
-                      <tr key={row.label} className={`border-b border-slate-50 ${isMargin ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
+                      <tr key={row.label} className={`border-b border-slate-50 ${strong ? 'font-semibold text-slate-800' : row.kind === 'sub' ? 'font-medium text-slate-700' : 'text-slate-600'}`}>
                         <td className="py-2 pr-4 text-left sticky left-0 bg-white">{row.label}</td>
                         {cols.map((r) => (
-                          <td key={r.channel} className={`py-2 px-3 text-right tabular-nums ${isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
+                          <td key={r.channel} className={`py-2 px-3 text-right tabular-nums ${strong ? 'text-slate-800' : row.kind === 'sub' ? 'text-slate-700' : 'text-slate-600'}`}>
                             {inr(row.get(r))}
                           </td>
                         ))}
@@ -1351,11 +1361,11 @@ function ChannelActualsTab() {
                     );
                   })}
                   <tr className="text-slate-500">
-                    <td className="py-2 pr-4 text-left sticky left-0 bg-white">CM %</td>
+                    <td className="py-2 pr-4 text-left sticky left-0 bg-white">Net margin %</td>
                     {cols.map((r) => (
-                      <td key={r.channel} className="py-2 px-3 text-right tabular-nums">{pctStr(r.cmPct)}</td>
+                      <td key={r.channel} className="py-2 px-3 text-right tabular-nums">{pctStr(r.revenue > 0 ? r.netIncome / r.revenue : null)}</td>
                     ))}
-                    <td className="py-2 pl-3 text-right tabular-nums font-medium text-slate-700">{pctStr(res.cmPct)}</td>
+                    <td className="py-2 pl-3 text-right tabular-nums font-medium text-slate-700">{pctStr(netMarginTot)}</td>
                   </tr>
                 </tbody>
               </table>

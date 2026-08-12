@@ -38,7 +38,7 @@ import {
   channelLabel,
   CHANNEL_AOV,
   deckFacts,
-  channelActualPnl,
+  channelPnlAnchored,
   skuChannelMatrix,
   FACTORY_PCT,
   type PeriodMIS,
@@ -679,52 +679,61 @@ function generateChannelPnlSheet(blend: boolean): XLSX.WorkSheet {
     row++;
   };
 
-  band('CHANNEL P&L — real per-SKU COGS + factory cost', S.title);
+  band('CHANNEL P&L — company totals held, SKU-driven split', S.title);
   band(
-    `COGS = actual cost of each channel's real SKU mix; plus a ${Math.round(FACTORY_PCT * 100)}% factory (COGM) cost; channel fees & marketing from the settlement / ad-spend feeds. Contribution is before shared opex, depreciation and interest. Ties to the SKU × Channel sheet. All in ₹.`,
+    `Company totals (Net Revenue, Gross Margin, CM1/2/3, EBITDA, Net Income) are the MIS book of record and tie to the P&L sheet. Each line is split across channels: revenue by real revenue share, COGM by the real per-unit cost of the actual SKU mix (incl. ${Math.round(FACTORY_PCT * 100)}% factory), all other costs by revenue share. The Total column ties back to the MIS exactly. All in ₹.`,
     S.subtitle,
   );
   row++;
 
-  const actualLines: { label: string; get: (r: ReturnType<typeof channelActualPnl>['rows'][number]) => number; margin: boolean }[] = [
-    { label: 'NET REVENUE', get: (r) => r.revenue, margin: true },
-    { label: 'Less: COGS (real, per SKU)', get: (r) => -r.cogs, margin: false },
-    { label: `Less: Factory (${Math.round(FACTORY_PCT * 100)}%)`, get: (r) => -r.factory, margin: false },
-    { label: 'Less: Channel fees + marketing', get: (r) => -r.channelCosts, margin: false },
-    { label: 'CONTRIBUTION MARGIN', get: (r) => r.contribution, margin: true },
+  const anchoredLines: { label: string; get: (r: ReturnType<typeof channelPnlAnchored>[number]) => number; get2: (p: PeriodMIS) => number; margin: boolean }[] = [
+    { label: 'NET REVENUE', get: (r) => r.revenue, get2: (p) => p.netRevenue, margin: true },
+    { label: 'Less: COGM (real SKU cost + factory)', get: (r) => -r.cogm, get2: (p) => -p.cogm, margin: false },
+    { label: 'GROSS MARGIN', get: (r) => r.grossMargin, get2: (p) => p.grossMargin, margin: true },
+    { label: 'Less: Channel & Fulfilment', get: (r) => -r.channelFulfillment, get2: (p) => -p.channelFulfillment, margin: false },
+    { label: 'CM1', get: (r) => r.cm1, get2: (p) => p.cm1, margin: true },
+    { label: 'Less: Sales & Marketing', get: (r) => -r.salesMarketing, get2: (p) => -p.salesMarketing, margin: false },
+    { label: 'CM2', get: (r) => r.cm2, get2: (p) => p.cm2, margin: true },
+    { label: 'Less: Platform & Payment', get: (r) => -r.platformCosts, get2: (p) => -p.platformCosts, margin: false },
+    { label: 'CM3', get: (r) => r.cm3, get2: (p) => p.cm3, margin: true },
+    { label: 'Less: Operating expenses', get: (r) => -r.opex, get2: (p) => -p.opex, margin: false },
+    { label: 'EBITDA', get: (r) => r.ebitda, get2: (p) => p.ebitda, margin: true },
+    { label: 'Less: Non-Operating', get: (r) => -r.nonOperating, get2: (p) => -p.nonOperating, margin: false },
+    { label: 'NET INCOME', get: (r) => r.netIncome, get2: (p) => p.netIncome, margin: true },
   ];
 
   yearlySeries().forEach((p) => {
-    const res = channelActualPnl('year', p);
-    if (res.rows.length === 0) return;
-    const byCh = new Map(res.rows.map((r) => [r.channel, r]));
+    const rows = channelPnlAnchored('year', p);
+    if (rows.length === 0) return;
+    const byCh = new Map(rows.map((r) => [r.channel, r]));
     band(p.longLabel, S.header);
     put(row, 0, 'Particulars', S.header);
     SALES_CHANNELS.forEach((c, i) => put(row, i + 1, channelLabel(c), S.header));
-    put(row, nCols - 1, 'Total', S.header);
+    put(row, nCols - 1, 'Total (MIS)', S.header);
     row++;
 
-    for (const line of actualLines) {
+    for (const line of anchoredLines) {
       put(row, 0, line.margin ? line.label : `   ${line.label}`, S.label);
-      let total = 0;
       SALES_CHANNELS.forEach((c, i) => {
         const r = byCh.get(c);
         const v = r ? round2(line.get(r)) : 0;
-        total += v;
         put(row, i + 1, v, signed(v, S.num));
       });
-      put(row, nCols - 1, round2(total), signed(round2(total), { ...S.num, fill: S.total.fill, font: { ...(S.num.font || {}), bold: true } }));
+      // Total = the model's company figure (book of record), not a re-sum.
+      const total = round2(line.get2(p));
+      put(row, nCols - 1, total, signed(total, { ...S.num, fill: S.total.fill, font: { ...(S.num.font || {}), bold: true } }));
       row++;
     }
-    // CM % row
-    put(row, 0, '   CM %', S.label);
+    // Net margin % row
+    put(row, 0, '   Net margin %', S.label);
     SALES_CHANNELS.forEach((c, i) => {
       const r = byCh.get(c);
-      if (r && r.revenue > 0) put(row, i + 1, round2(r.cmPct * 1000) / 1000, signed(r.cmPct, S.pct));
+      if (r && r.revenue > 0) put(row, i + 1, round2((r.netIncome / r.revenue) * 1000) / 1000, signed(r.netIncome / r.revenue, S.pct));
       else put(row, i + 1, '', S.label);
     });
-    put(row, nCols - 1, round2(res.cmPct * 1000) / 1000, signed(res.cmPct, S.pct));
-    row += 2; // CM% row + spacer
+    const nmTot = p.netRevenue > 0 ? p.netIncome / p.netRevenue : 0;
+    put(row, nCols - 1, round2(nmTot * 1000) / 1000, signed(nmTot, S.pct));
+    row += 2; // net margin row + spacer
   });
 
   ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: nCols - 1 })}`;
