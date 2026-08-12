@@ -12,8 +12,9 @@ import {
   channelObservations, channelHHI, topChannel, channelsAbove, likeForLikeChannel,
   ordersByChannel, channelLabel, channelPnl, adSpendForPeriod, CHANNEL_AOV,
   channelActualPnl, COGS_RATE,
+  skuChannelMatrix, SKU_COVERAGE,
   SALES_CHANNELS, FY_SUMMARY,
-  type Granularity, type PeriodMIS, type ChannelPnlRow,
+  type Granularity, type PeriodMIS, type ChannelPnlRow, type SkuAgg,
 } from '../../data/misDeck/analytics';
 import {
   MIS_GENERATED_AT, MIS_SOURCE_FILE, DISCOUNT_DATA, D2C_REPEATS, AMAZON_REPEATS,
@@ -27,7 +28,7 @@ const iconDeck = (
   </svg>
 );
 
-type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelactuals' | 'missheet';
+type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelactuals' | 'skuchannel' | 'missheet';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -37,6 +38,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'profitability', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
   { id: 'channelactuals', label: 'Channel P&L' },
+  { id: 'skuchannel', label: 'SKU × Channel' },
   { id: 'missheet', label: 'MIS Sheet' },
 ];
 
@@ -99,6 +101,7 @@ export function MISDeck() {
         {tab === 'profitability' && <ProfitabilityTab blended={blended} setBlended={setBlended} />}
         {tab === 'pnl' && <PnlTab blended={blended} setBlended={setBlended} />}
         {tab === 'channelactuals' && <ChannelActualsTab />}
+        {tab === 'skuchannel' && <SkuChannelTab />}
         {tab === 'missheet' && <MisSheetTab />}
       </div>
     </>
@@ -1350,6 +1353,121 @@ function ChannelActualsTab() {
                       <td key={r.channel} className="py-2 px-3 text-right tabular-nums">{pctStr(r.cmPct)}</td>
                     ))}
                     <td className="py-2 pl-3 text-right tabular-nums font-medium text-slate-700">{pctStr(res.cmPct)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// SKU × Channel P&L — product × channel contribution matrix
+// ----------------------------------------------------------------------------
+
+type SkuMetric = 'con' | 'rev' | 'cm';
+
+function SkuChannelTab() {
+  const [g, setG] = useState<Granularity>('year');
+  const series = useMemo(() => seriesFor(g), [g]);
+  const [idx, setIdx] = useState(series.length - 1);
+  useEffect(() => { setIdx(seriesFor(g).length - 1); }, [g]);
+  const safeIdx = Math.min(idx, series.length - 1);
+  const p = series[safeIdx];
+  const [metric, setMetric] = useState<SkuMetric>('con');
+
+  const mx = skuChannelMatrix(g, p);
+  const hasData = mx.products.length > 0;
+
+  const fmt = (a: SkuAgg | undefined) => {
+    if (!a || (a.rev === 0 && a.con === 0)) return <span className="text-slate-300">·</span>;
+    if (metric === 'rev') return inr(a.rev);
+    if (metric === 'con') return inr(a.con);
+    return a.rev > 0 ? pctStr(a.con / a.rev) : <span className="text-slate-300">·</span>;
+  };
+  const metricLabel = metric === 'rev' ? 'Revenue' : metric === 'con' ? 'Contribution' : 'CM %';
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700">SKU × Channel P&amp;L</h2>
+          <p className="text-xs text-slate-400">Per-product contribution by channel. COGS uses real per-unit cost (Amazon &amp; D2C); Blinkit/Offline/OEM are single-SKU with estimated COGS.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
+            {(['con', 'rev', 'cm'] as SkuMetric[]).map((m) => (
+              <button key={m} onClick={() => setMetric(m)}
+                className={`px-3 py-1.5 ${metric === m ? 'bg-brand-50 text-brand-700 font-medium' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+                {m === 'con' ? 'Contribution' : m === 'rev' ? 'Revenue' : 'CM %'}
+              </button>
+            ))}
+          </div>
+          <GranularityToggle value={g} onChange={setG} />
+          <select value={safeIdx} onChange={(e) => setIdx(Number(e.target.value))}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200">
+            {series.map((s, i) => (<option key={s.key} value={i}>{s.longLabel}</option>))}
+          </select>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-slate-600">
+        <span className="font-medium text-emerald-700">Real SKU-level costs.</span> Amazon and D2C carry each product's
+        actual units × cost and their real fees/ads; Blinkit (→ hCore X Lite), Offline (→ hCore X-L Lite) and OEM
+        (→ hCore X Lite) are single-SKU channels whose COGS is estimated from the product's blended ASP, so their margins
+        are indicative — OEM especially (wholesale) is likely optimistic. Contribution is before shared opex, depreciation
+        and interest. SKU feed covers {SKU_COVERAGE.first} → {SKU_COVERAGE.last}.
+      </div>
+
+      {!hasData ? (
+        <SectionCard title="No SKU data for this period" description="Pick a period covered by the SKU feeds.">
+          <p className="text-sm text-slate-500">SKU-level data runs {SKU_COVERAGE.first} → {SKU_COVERAGE.last}.</p>
+        </SectionCard>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <KpiCard label="Revenue" value={inr(mx.grand.rev)} tone="brand" />
+            <KpiCard label="Contribution" value={inr(mx.grand.con)} tone="slate" sub={`${mx.products.filter((x) => !x.startsWith('Accessory')).length} products × ${mx.channels.length} channels`} />
+            <KpiCard label="Blended CM %" value={mx.grand.rev > 0 ? pctStr(mx.grand.con / mx.grand.rev) : '—'} tone="amber" />
+          </div>
+
+          <SectionCard
+            title={`SKU × Channel · ${metricLabel} · ${p.longLabel}`}
+            description="Rows = products, columns = channels. Contribution = revenue − COGS − channel fees/marketing. All ₹ unless CM %."
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead>
+                  <tr className="text-xs text-slate-400 border-b border-slate-200">
+                    <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white">Product</th>
+                    {mx.channels.map((c) => (
+                      <th key={c} className="py-2 px-3 text-right font-medium text-slate-600">{channelLabel(c)}</th>
+                    ))}
+                    <th className="py-2 pl-3 text-right font-medium text-slate-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mx.products.map((prod) => {
+                    const isAcc = prod.startsWith('Accessory');
+                    return (
+                      <tr key={prod} className={`border-b border-slate-50 ${isAcc ? 'text-slate-400 italic' : 'text-slate-600'}`}>
+                        <td className="py-2 pr-4 text-left sticky left-0 bg-white font-medium">{prod}</td>
+                        {mx.channels.map((c) => (
+                          <td key={c} className="py-2 px-3 text-right tabular-nums">{fmt(mx.cell(prod, c))}</td>
+                        ))}
+                        <td className="py-2 pl-3 text-right tabular-nums font-semibold text-slate-800">{fmt(mx.productTotal(prod))}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t-2 border-slate-200 font-semibold text-slate-800">
+                    <td className="py-2 pr-4 text-left sticky left-0 bg-white">Total</td>
+                    {mx.channels.map((c) => (
+                      <td key={c} className="py-2 px-3 text-right tabular-nums">{fmt(mx.channelTotal(c))}</td>
+                    ))}
+                    <td className="py-2 pl-3 text-right tabular-nums">{fmt(mx.grand)}</td>
                   </tr>
                 </tbody>
               </table>
