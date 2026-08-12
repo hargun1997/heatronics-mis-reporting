@@ -16,6 +16,7 @@ import {
   AMAZON_ACTUALS,
   D2C_COSTS,
 } from './channelActuals';
+import { SKU_CELLS, type SkuCell } from './skuChannelPnl';
 
 export type Granularity = 'month' | 'quarter' | 'year';
 
@@ -936,6 +937,74 @@ export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActu
     coverageNote,
   };
 }
+
+// ----------------------------------------------------------------------------
+// SKU × Channel P&L
+// ----------------------------------------------------------------------------
+//
+// Aggregates the monthly SKU_CELLS to a product × channel contribution matrix
+// for the member months of the chosen period. Amazon & D2C are real unit-level;
+// Blinkit/Offline/OEM are single-SKU value channels with estimated COGS.
+
+export interface SkuAgg { rev: number; cogs: number; oth: number; con: number; u: number; }
+export interface SkuChannelMatrix {
+  products: string[];                       // row order, by revenue desc (accessories last)
+  channels: SalesChannel[];                 // column order (channels present)
+  cell: (p: string, c: SalesChannel) => SkuAgg | undefined;
+  productTotal: (p: string) => SkuAgg;
+  channelTotal: (c: SalesChannel) => SkuAgg;
+  grand: SkuAgg;
+  monthsInPeriod: string[];
+}
+
+const EMPTY_AGG: SkuAgg = { rev: 0, cogs: 0, oth: 0, con: 0, u: 0 };
+function addAgg(a: SkuAgg, c: SkuCell): SkuAgg {
+  return { rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth, con: a.con + c.con, u: a.u + c.u };
+}
+
+const ALL_SKU_MONTHS = [...new Set(SKU_CELLS.map((c) => c.m))].sort();
+
+export function skuChannelMatrix(g: Granularity, period: PeriodMIS): SkuChannelMatrix {
+  const months = new Set(membersOf(g, period).map((m) => m.key));
+  const rows = SKU_CELLS.filter((c) => months.has(c.m));
+
+  const key = (p: string, c: string) => `${p}||${c}`;
+  const byCell = new Map<string, SkuAgg>();
+  const byProduct = new Map<string, SkuAgg>();
+  const byChannel = new Map<SalesChannel, SkuAgg>();
+  const productRev = new Map<string, number>();
+  const channelsSeen = new Set<SalesChannel>();
+  let grand = { ...EMPTY_AGG };
+
+  for (const c of rows) {
+    byCell.set(key(c.p, c.ch), addAgg(byCell.get(key(c.p, c.ch)) ?? EMPTY_AGG, c));
+    byProduct.set(c.p, addAgg(byProduct.get(c.p) ?? EMPTY_AGG, c));
+    byChannel.set(c.ch, addAgg(byChannel.get(c.ch) ?? EMPTY_AGG, c));
+    productRev.set(c.p, (productRev.get(c.p) ?? 0) + c.rev);
+    channelsSeen.add(c.ch);
+    grand = addAgg(grand, c);
+  }
+
+  const products = [...byProduct.keys()].sort((a, b) => {
+    const ax = a.startsWith('Accessory') ? 1 : 0, bx = b.startsWith('Accessory') ? 1 : 0;
+    if (ax !== bx) return ax - bx;
+    return (productRev.get(b) ?? 0) - (productRev.get(a) ?? 0);
+  });
+  const channels = SALES_CHANNELS.filter((c) => channelsSeen.has(c));
+
+  return {
+    products,
+    channels,
+    cell: (p, c) => byCell.get(key(p, c)),
+    productTotal: (p) => byProduct.get(p) ?? EMPTY_AGG,
+    channelTotal: (c) => byChannel.get(c) ?? EMPTY_AGG,
+    grand,
+    monthsInPeriod: [...months].sort(),
+  };
+}
+
+/** Earliest → latest month present in the SKU feed (for a coverage note). */
+export const SKU_COVERAGE = { first: ALL_SKU_MONTHS[0], last: ALL_SKU_MONTHS[ALL_SKU_MONTHS.length - 1] };
 
 export { SALES_CHANNELS, FY_SUMMARY, COGS_RATE };
 export type { SalesChannel };
