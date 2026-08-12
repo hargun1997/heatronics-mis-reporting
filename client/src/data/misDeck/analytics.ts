@@ -818,6 +818,7 @@ export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelP
 export interface ChannelActualRow {
   channel: SalesChannel;
   hasActuals: boolean;
+  direct: boolean;            // true for OEM/Offline: model revenue less COGS only (no fees/ads captured)
   monthsCovered: number;      // months in the period that carry this channel's cost data
   revenue: number;
   cogs: number;
@@ -837,13 +838,20 @@ export interface ChannelActualsResult {
   coverageNote: string;                   // human summary of which months are covered
 }
 
-/** Net D2C revenue by month key, straight from the model. */
-const D2C_REV_BY_MONTH: Record<string, number> = monthsAsc.reduce((acc, m) => {
-  acc[m.key] = Math.max(0, m.netByChannel.D2C || 0);
+/** Net revenue by channel by month, straight from the model. */
+const MODEL_REV_BY_MONTH: Record<SalesChannel, Record<string, number>> = SALES_CHANNELS.reduce((acc, c) => {
+  acc[c] = {};
   return acc;
-}, {} as Record<string, number>);
+}, {} as Record<SalesChannel, Record<string, number>>);
+for (const m of monthsAsc) {
+  for (const c of SALES_CHANNELS) MODEL_REV_BY_MONTH[c][m.key] = Math.max(0, m.netByChannel[c] || 0);
+}
 
-const ACTUAL_CHANNELS: SalesChannel[] = ['D2C', 'Amazon', 'Blinkit'];
+// Channels with real per-channel COST feeds (marketplace fees + ad spend).
+const FEED_CHANNELS: SalesChannel[] = ['D2C', 'Amazon', 'Blinkit'];
+// Direct / wholesale channels — model revenue, COGS only (no marketplace fees or ads).
+const DIRECT_CHANNELS: SalesChannel[] = ['OEM', 'Offline'];
+const ACTUAL_CHANNELS: SalesChannel[] = [...FEED_CHANNELS, ...DIRECT_CHANNELS];
 
 /**
  * Channel-level contribution P&L from real per-channel costs.
@@ -857,6 +865,7 @@ export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActu
   const months = membersOf(g, period).map((m) => m.key);
 
   const rows: ChannelActualRow[] = ACTUAL_CHANNELS.map((channel) => {
+    const direct = DIRECT_CHANNELS.includes(channel);
     let revenue = 0, fulfilment = 0, marketing = 0, otherCosts = 0, monthsCovered = 0;
 
     for (const key of months) {
@@ -875,15 +884,21 @@ export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActu
         revenue += a.netSales;
         fulfilment += a.referral + a.fba;
         marketing += a.ads;
-      } else {
+      } else if (channel === 'D2C') {
         // D2C: revenue from the model, costs from the D2C feed.
         const c = D2C_COSTS[key];
         if (!c) continue;
         monthsCovered++;
-        revenue += D2C_REV_BY_MONTH[key] || 0;
+        revenue += MODEL_REV_BY_MONTH.D2C[key] || 0;
         fulfilment += c.shiprocket;
         marketing += c.meta + c.google;
         otherCosts += c.shopflo + c.gateway;
+      } else {
+        // OEM / Offline — direct sales: model revenue, COGS only (no fees/ads captured).
+        const rev = MODEL_REV_BY_MONTH[channel][key] || 0;
+        if (rev <= 0) continue;
+        monthsCovered++;
+        revenue += rev;
       }
     }
 
@@ -892,6 +907,7 @@ export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActu
     return {
       channel,
       hasActuals: monthsCovered > 0,
+      direct,
       monthsCovered,
       revenue, cogs, fulfilment, marketing, otherCosts,
       contribution,
@@ -902,20 +918,14 @@ export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActu
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
   const totalContribution = rows.reduce((s, r) => s + r.contribution, 0);
 
-  const covered = new Set<string>();
-  for (const r of rows) {
-    for (const key of months) {
-      if (
-        (r.channel === 'Blinkit' && BLINKIT_ACTUALS[key]) ||
-        (r.channel === 'Amazon' && AMAZON_ACTUALS[key]) ||
-        (r.channel === 'D2C' && D2C_COSTS[key])
-      ) covered.add(key);
-    }
+  const feedMonths = new Set<string>();
+  for (const key of months) {
+    if (BLINKIT_ACTUALS[key] || AMAZON_ACTUALS[key] || D2C_COSTS[key]) feedMonths.add(key);
   }
-  const missing = months.filter((m) => !covered.has(m));
-  const coverageNote = missing.length
-    ? `Actuals cover ${covered.size}/${months.length} month(s); ${missing.join(', ')} not yet in the cost feeds.`
-    : `Actuals cover all ${months.length} month(s) in this period.`;
+  const hasDirect = rows.some((r) => r.direct);
+  const coverageNote =
+    `Online cost feeds (Amazon/Blinkit/D2C) cover ${feedMonths.size}/${months.length} month(s) in this period.` +
+    (hasDirect ? ' OEM & Offline are direct sales — shown at revenue − COGS only (no marketplace fees or ads captured yet).' : '');
 
   return {
     rows,

@@ -1375,7 +1375,8 @@ function ChannelActualsTab() {
         <span className="font-medium text-emerald-700">Real costs, not allocation.</span> Each channel carries its own
         settled costs — Blinkit from its seller settlement (commission, shipping, storage, ads), Amazon from its Payments
         fees (referral, FBA, Sponsored Products), and D2C from Meta + Google spend, Shiprocket shipping and Shopflo +
-        gateway fees. COGS is a flat {Math.round(COGS_RATE * 100)}% of net revenue (a stated assumption). This is
+        gateway fees. <span className="font-medium">OEM &amp; Offline</span> are direct / wholesale sales — shown at
+        revenue minus COGS only (no marketplace fees or ads). COGS is a flat {Math.round(COGS_RATE * 100)}% of net revenue (a stated assumption). This is
         <span className="font-medium"> contribution margin</span> — before shared opex, depreciation and interest.
         {res.coverageNote && <span className="block mt-1 text-emerald-700">{res.coverageNote}</span>}
       </div>
@@ -1405,7 +1406,7 @@ function ChannelActualsTab() {
                     {cols.map((r) => (
                       <th key={r.channel} className="py-2 px-3 text-right font-medium align-bottom">
                         <div className="text-slate-600 font-semibold">{channelLabel(r.channel)}</div>
-                        <div className="text-[10px] font-normal text-slate-400 mt-0.5">{r.monthsCovered} mo</div>
+                        <div className="text-[10px] font-normal text-slate-400 mt-0.5">{r.direct ? 'direct · ' : ''}{r.monthsCovered} mo</div>
                       </th>
                     ))}
                     <th className="py-2 pl-3 text-right font-medium align-bottom text-slate-600">Total</th>
