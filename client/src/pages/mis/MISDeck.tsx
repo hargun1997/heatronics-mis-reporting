@@ -1270,9 +1270,10 @@ function ChannelActualsTab() {
         Revenue, Gross Margin, CM1/2/3, EBITDA, Net Income) is the MIS book of record and does not move. What changes is
         how each line is <span className="font-medium">split across channels</span>: revenue by each channel's real revenue
         share, and <span className="font-medium">COGM by the real per-unit COGS of the actual SKU mix</span> sold on that
-        channel (from the SKU × Channel feed) rather than a blanket %. Channel &amp; fulfilment, sales &amp; marketing,
-        platform, opex and non-operating follow revenue share. COGM already includes the {Math.round(FACTORY_PCT * 100)}%
-        factory cost. The Total column ties back to the MIS exactly.
+        channel (from the SKU × Channel feed) rather than a blanket %. <span className="font-medium">Sales &amp; marketing is
+        split by each channel's real ad spend</span> (Meta/Google/Amazon console) — so OEM &amp; Offline, which don't
+        advertise, carry almost none. Channel &amp; fulfilment, platform, opex and non-operating follow revenue share.
+        COGM already includes the {Math.round(FACTORY_PCT * 100)}% factory cost. The Total column ties back to the MIS exactly.
       </div>
 
       {cols.length === 0 ? (

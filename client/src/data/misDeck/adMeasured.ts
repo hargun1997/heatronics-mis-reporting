@@ -1,11 +1,10 @@
-// AUTO-GENERATED measured per-SKU ad spend, mapped to canonical products.
-// Sources: Meta Ads full export (spend x campaign/ad set, Apr-25..Aug-26),
-// Google Ads (spend x campaign x product title), Amazon Ads (advertised product,
-// Year+Month). Product titles/campaigns mapped to the hCore SKU set. These drive
-// the per-SKU SPLIT of each channel-month's real ad total; unmapped spend is
-// spread across the mapped products. D2C ad TOTAL stays the model's Meta+Google
-// (book of record); Amazon ad TOTAL uses the advertising console (AMAZON_AD_MONTHLY),
-// which is the complete gross spend (~2x the settlement-derived figure).
+// AUTO-GENERATED measured ad spend, mapped to canonical hCore products.
+// Sources: Meta Ads full export + Google Ads (spend x product title) => D2C mix;
+// Amazon Ads advertising console (advertised product, Year+Month) => Amazon mix
+// and AMAZON_AD_MONTHLY (complete gross spend, used to WEIGHT the channel split).
+// These drive the SPLIT only: channel/company ad TOTALS stay the book of record
+// (backward compatible), and each channel-month's ad total is distributed across
+// SKUs by this measured mix. Unmapped spend is spread across the mapped products.
 
 export interface AdMix { m: string; p: string; ad: number }
 
@@ -39,8 +38,8 @@ export const AD_MIX_D2C: AdMix[] = [
   { m: "2025-08", p: "hCore Knee", ad: 14440.02 },
   { m: "2025-08", p: "hCore Neck", ad: 13508.29 },
   { m: "2025-08", p: "hCore Rest", ad: 434.24 },
-  { m: "2025-08", p: "hCore X", ad: 1074.58 },
-  { m: "2025-08", p: "hCore X-L", ad: 3807.19 },
+  { m: "2025-08", p: "hCore X", ad: 1116.44 },
+  { m: "2025-08", p: "hCore X-L", ad: 3765.33 },
   { m: "2025-09", p: "hCore Bed Dual", ad: 7577.81 },
   { m: "2025-09", p: "hCore Bed Solo", ad: 9861.97 },
   { m: "2025-09", p: "hCore Foot", ad: 3397.11 },
@@ -243,47 +242,54 @@ export const AD_MIX_AMZN: AdMix[] = [
   { m: "2026-03", p: "hCore Bed Solo", ad: 286.57 },
   { m: "2026-03", p: "hCore Knee", ad: 35439.44 },
   { m: "2026-03", p: "hCore Neck", ad: 33900.74 },
-  { m: "2026-03", p: "hCore X-L", ad: 34586.73 },
+  { m: "2026-03", p: "hCore X", ad: 28150.65 },
+  { m: "2026-03", p: "hCore X-L", ad: 6436.08 },
   { m: "2026-03", p: "hCore X-L Lite", ad: 73511.68 },
   { m: "2026-04", p: "hCore Bed Dual", ad: 5671.9 },
   { m: "2026-04", p: "hCore Foot", ad: 4923.66 },
   { m: "2026-04", p: "hCore Knee", ad: 44305.82 },
   { m: "2026-04", p: "hCore Neck", ad: 134830.28 },
-  { m: "2026-04", p: "hCore X-L", ad: 53456.2 },
+  { m: "2026-04", p: "hCore X", ad: 43601.65 },
+  { m: "2026-04", p: "hCore X-L", ad: 9854.55 },
   { m: "2026-04", p: "hCore X-L Lite", ad: 147227.84 },
   { m: "2026-05", p: "hCore Bed Dual", ad: 7095.69 },
   { m: "2026-05", p: "hCore Bed Solo", ad: 1906.24 },
   { m: "2026-05", p: "hCore Foot", ad: 2698.05 },
   { m: "2026-05", p: "hCore Knee", ad: 235344.91 },
   { m: "2026-05", p: "hCore Neck", ad: 262900.11 },
-  { m: "2026-05", p: "hCore X-L", ad: 37096.01 },
+  { m: "2026-05", p: "hCore X", ad: 35336.36 },
+  { m: "2026-05", p: "hCore X-L", ad: 1759.65 },
   { m: "2026-05", p: "hCore X-L Lite", ad: 151453.27 },
   { m: "2026-06", p: "hCore Bed Dual", ad: 5685.19 },
   { m: "2026-06", p: "hCore Foot", ad: 3719.51 },
   { m: "2026-06", p: "hCore Knee", ad: 112832.98 },
   { m: "2026-06", p: "hCore Neck", ad: 162377.78 },
+  { m: "2026-06", p: "hCore X", ad: 10708.86 },
   { m: "2026-06", p: "hCore X Lite", ad: 5404.29 },
-  { m: "2026-06", p: "hCore X-L", ad: 12075.27 },
+  { m: "2026-06", p: "hCore X-L", ad: 1366.41 },
   { m: "2026-06", p: "hCore X-L Lite", ad: 74249.72 },
   { m: "2026-07", p: "hCore Bed Dual", ad: 27972.92 },
   { m: "2026-07", p: "hCore Foot", ad: 4286.62 },
   { m: "2026-07", p: "hCore Knee", ad: 214270.36 },
   { m: "2026-07", p: "hCore Neck", ad: 155185.84 },
   { m: "2026-07", p: "hCore Rest", ad: 7577.37 },
+  { m: "2026-07", p: "hCore X", ad: 41183.5 },
   { m: "2026-07", p: "hCore X Lite", ad: 50995.91 },
-  { m: "2026-07", p: "hCore X-L", ad: 45707.41 },
+  { m: "2026-07", p: "hCore X-L", ad: 4523.91 },
   { m: "2026-07", p: "hCore X-L Lite", ad: 109181.43 },
   { m: "2026-08", p: "hCore Bed Dual", ad: 17685.42 },
   { m: "2026-08", p: "hCore Foot", ad: 1755.49 },
   { m: "2026-08", p: "hCore Knee", ad: 95960.78 },
   { m: "2026-08", p: "hCore Neck", ad: 27993.44 },
   { m: "2026-08", p: "hCore Rest", ad: 4964.41 },
+  { m: "2026-08", p: "hCore X", ad: 5235.21 },
   { m: "2026-08", p: "hCore X Lite", ad: 77751.64 },
-  { m: "2026-08", p: "hCore X-L", ad: 5419.1 },
+  { m: "2026-08", p: "hCore X-L", ad: 183.89 },
   { m: "2026-08", p: "hCore X-L Lite", ad: 48075.95 },
 ];
 
-/** Amazon TOTAL ad spend per month from the console (complete gross spend). */
+/** Amazon TOTAL ad spend per month from the console (used only to weight the
+ *  channel-level S&M split; not to change any booked total). */
 export const AMAZON_AD_MONTHLY: Record<string, number> = {
   "2024-08": 345513.37,
   "2024-09": 556728.7,

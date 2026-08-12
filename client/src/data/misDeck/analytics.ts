@@ -973,22 +973,17 @@ function finalizeAgg(a: RawAgg): SkuAgg {
 // Each channel-month has a real ad TOTAL; the per-SKU SPLIT comes from the
 // measured Meta/Google/Amazon feeds mapped to products (adMeasured.ts), falling
 // back to revenue share where no mapping exists.
-//   • oldAdTotal = ad already embedded in the SKU feed's `oth` (removed to get cf).
-//   • newAdTotal = the real ad total we charge as S&M. D2C keeps the model's
-//     Meta+Google (book of record, ties to MIS); Amazon uses the advertising
-//     console (AMAZON_AD_MONTHLY, ~2x the settlement figure) as the truth.
-function oldAdTotal(ch: SalesChannel, m: string): number {
+// The ad TOTAL charged per channel-month is the book-of-record figure already
+// embedded in `oth` (so channel totals and CM2 are backward-compatible); the
+// measured feeds only drive the per-SKU SPLIT of that total.
+function adTotalOf(ch: SalesChannel, m: string): number {
   if (ch === 'Amazon') return AMAZON_ACTUALS[m]?.ads ?? 0;
   if (ch === 'D2C') { const d = D2C_COSTS[m]; return d ? d.meta + d.google : 0; }
   if (ch === 'Blinkit') return BLINKIT_ACTUALS[m]?.ads ?? 0;
   return 0;
 }
-function newAdTotal(ch: SalesChannel, m: string): number {
-  if (ch === 'Amazon') return AMAZON_AD_MONTHLY[m] ?? 0;
-  if (ch === 'D2C') { const d = D2C_COSTS[m]; return d ? d.meta + d.google : 0; }
-  if (ch === 'Blinkit') return BLINKIT_ACTUALS[m]?.ads ?? 0;
-  return 0;
-}
+const oldAdTotal = adTotalOf;
+const newAdTotal = adTotalOf;
 const SKU_REV_BY_CH_MONTH = new Map<string, number>();   // ch||m -> Σ positive rev
 const SKU_REV_BY_CMP = new Map<string, number>();         // ch||m||p -> Σ positive rev
 for (const c of SKU_CELLS) {
@@ -1000,9 +995,12 @@ const AD_MIX: Partial<Record<SalesChannel, Map<string, number>>> = {
   D2C: new Map(AD_MIX_D2C.map((r) => [`${r.m}||${r.p}`, r.ad])),
   Amazon: new Map(AD_MIX_AMZN.map((r) => [`${r.m}||${r.p}`, r.ad])),
 };
-// Denominator per channel||month = Σ mapped ad over products actually present in the feed.
+// Denominator per channel||month = Σ mapped ad over products present WITH positive
+// revenue that month (products present only via returns are excluded so the split
+// renormalises exactly to the channel-month ad total — keeping CM2 backward-compatible).
 const AD_MIX_DENOM = new Map<string, number>();
-for (const key of SKU_REV_BY_CMP.keys()) {
+for (const [key, prodRev] of SKU_REV_BY_CMP) {
+  if (prodRev <= 0) continue;
   const [ch, m, p] = key.split('||');
   const mix = AD_MIX[ch as SalesChannel];
   if (!mix) continue;
@@ -1085,11 +1083,25 @@ export const SKU_COVERAGE = { first: ALL_SKU_MONTHS[0], last: ALL_SKU_MONTHS[ALL
 // Net Revenue, COGM, Gross Margin, CM1/2/3, EBITDA and Net Income HOLD. This
 // function allocates those totals across channels using REAL drivers from the
 // SKU × Channel feed, so the split is data-driven rather than a blanket %:
-//   • Revenue  → each channel's real net-revenue share
-//   • COGM     → each channel's real product-COGS share (the SKU × channel mix)
-//   • all other cost lines → net-revenue share (shared overhead)
-// Every line sums back to the model total, so channels re-split but GM / CM / NP
-// stay exactly as booked.
+//   • Revenue         → each channel's real net-revenue share
+//   • COGM            → each channel's real product-COGS share (the SKU mix)
+//   • Sales&Marketing → each channel's real AD-SPEND share (Meta/Google/Amazon
+//                        console) — so OEM/Offline (no ads) carry ~none, and the
+//                        online channels carry what they actually spent
+//   • other cost lines → net-revenue share (shared overhead)
+// Every line still sums back to the model total, so GM / CM / EBITDA / NP hold
+// exactly as booked — only the split across channels changes.
+
+/** Real ad spend for a channel over a set of months (weights the S&M split). */
+function channelAdWeight(ch: SalesChannel, months: string[]): number {
+  let w = 0;
+  for (const m of months) {
+    if (ch === 'Amazon') w += AMAZON_AD_MONTHLY[m] ?? 0;
+    else if (ch === 'D2C') { const d = D2C_COSTS[m]; if (d) w += d.meta + d.google; }
+    else if (ch === 'Blinkit') w += BLINKIT_ACTUALS[m]?.ads ?? 0;
+  }
+  return w;
+}
 
 export interface ChannelAnchoredRow {
   channel: SalesChannel;
@@ -1099,7 +1111,7 @@ export interface ChannelAnchoredRow {
   platformCosts: number; cm3: number;
   opex: number; ebitda: number;
   nonOperating: number; netIncome: number;
-  revShare: number; cogsShare: number;
+  revShare: number; cogsShare: number; smShare: number;
 }
 
 export function channelPnlAnchored(g: Granularity, period: PeriodMIS): ChannelAnchoredRow[] {
@@ -1109,20 +1121,24 @@ export function channelPnlAnchored(g: Granularity, period: PeriodMIS): ChannelAn
 
   const realRev = chans.map((c) => Math.max(0, mx.channelTotal(c).rev));
   const realCogs = chans.map((c) => Math.max(0, mx.channelTotal(c).cogs)); // real product COGS = the COGM driver
+  const adWeight = chans.map((c) => channelAdWeight(c, mx.monthsInPeriod));  // real ad spend = the S&M driver
   const totRev = realRev.reduce((s, v) => s + v, 0) || 1;
   const totCogs = realCogs.reduce((s, v) => s + v, 0) || 1;
+  const totAd = adWeight.reduce((s, v) => s + v, 0);
 
   return chans.map((c, i) => {
     const revShare = realRev[i] / totRev;
     // If no real COGS anywhere, fall back to revenue share so COGM still allocates.
     const cogsShare = totCogs > 1 ? realCogs[i] / totCogs : revShare;
+    // Sales & Marketing split by real ad spend; fall back to revenue share if no ad data.
+    const smShare = totAd > 0 ? adWeight[i] / totAd : revShare;
 
     const revenue = period.netRevenue * revShare;
     const cogm = period.cogm * cogsShare;
     const grossMargin = revenue - cogm;
     const channelFulfillment = period.channelFulfillment * revShare;
     const cm1 = grossMargin - channelFulfillment;
-    const salesMarketing = period.salesMarketing * revShare;
+    const salesMarketing = period.salesMarketing * smShare;
     const cm2 = cm1 - salesMarketing;
     const platformCosts = period.platformCosts * revShare;
     const cm3 = cm2 - platformCosts;
@@ -1134,7 +1150,7 @@ export function channelPnlAnchored(g: Granularity, period: PeriodMIS): ChannelAn
     return {
       channel: c, revenue, cogm, grossMargin, channelFulfillment, cm1,
       salesMarketing, cm2, platformCosts, cm3, opex, ebitda, nonOperating, netIncome,
-      revShare, cogsShare,
+      revShare, cogsShare, smShare,
     };
   });
 }
