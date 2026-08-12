@@ -27,7 +27,7 @@ const iconDeck = (
   </svg>
 );
 
-type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelpnl' | 'channelactuals' | 'missheet';
+type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelactuals' | 'missheet';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -36,8 +36,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'repeats', label: 'Repeats' },
   { id: 'profitability', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
-  { id: 'channelpnl', label: 'Channel P&L' },
-  { id: 'channelactuals', label: 'Channel P&L (Actuals)' },
+  { id: 'channelactuals', label: 'Channel P&L' },
   { id: 'missheet', label: 'MIS Sheet' },
 ];
 
@@ -99,7 +98,6 @@ export function MISDeck() {
         {tab === 'repeats' && <RepeatsTab />}
         {tab === 'profitability' && <ProfitabilityTab blended={blended} setBlended={setBlended} />}
         {tab === 'pnl' && <PnlTab blended={blended} setBlended={setBlended} />}
-        {tab === 'channelpnl' && <ChannelPnlTab blended={blended} setBlended={setBlended} />}
         {tab === 'channelactuals' && <ChannelActualsTab />}
         {tab === 'missheet' && <MisSheetTab />}
       </div>
@@ -1176,148 +1174,7 @@ function PnlTab({ blended, setBlended }: BlendProps) {
 }
 
 // ----------------------------------------------------------------------------
-// Channel P&L (shared costs allocated by net-revenue share)
-// ----------------------------------------------------------------------------
-
-function ChannelPnlTab({ blended, setBlended }: BlendProps) {
-  const [g, setG] = useState<Granularity>('year');
-  const series = useMemo(() => (blended ? seriesForBlended(g) : seriesFor(g)), [g, blended]);
-  const [idx, setIdx] = useState(series.length - 1);
-  useEffect(() => { setIdx(seriesFor(g).length - 1); }, [g]);
-  const safeIdx = Math.min(idx, series.length - 1);
-  const p = series[safeIdx];
-
-  const marketing = adSpendForPeriod(g, p);
-  const reportedAd = marketing.d2c + marketing.amazon;
-  // Reported ad spend can exceed booked S&M in some periods; channelPnl trusts
-  // the system total and scales the ad channels to fit, so read the attributed
-  // (possibly scaled) S&M back off the rows for display.
-  const rows = channelPnl(p, marketing);
-  const byCh = new Map(rows.map((r) => [r.channel, r]));
-  const smShopify = byCh.get('D2C')!.salesMarketing;
-  const smAmazon = byCh.get('Amazon')!.salesMarketing;
-  const smBlinkit = byCh.get('Blinkit')!.salesMarketing;
-  const adOverBooked = reportedAd > p.salesMarketing + 0.5;
-  const leftover = Math.max(0, p.salesMarketing - reportedAd);
-  // Blinkit had no sales but there's residual S&M → it was spread across channels.
-  const leftoverSpread = !adOverBooked && leftover > 0.5 && (p.netByChannel.Blinkit || 0) <= 0;
-  // Show a channel if it has revenue or carries attributed marketing (so Blinkit's
-  // leftover S&M is visible and the columns still reconcile to the Total).
-  const activeChannels = SALES_CHANNELS.filter(
-    (c) => (p.netByChannel[c] || 0) > 0 || Math.abs(byCh.get(c)!.salesMarketing) > 0.5,
-  );
-  const shareOf = (c: SalesChannelKey) => (p.netRevenue ? Math.max(0, p.netByChannel[c] || 0) / p.netRevenue : 0);
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-700">Channel-level P&amp;L</h2>
-          <p className="text-xs text-slate-400">Marketing follows actual ad spend; other shared costs split by net revenue.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <BlendToggle value={blended} onChange={setBlended} />
-          <GranularityToggle value={g} onChange={setG} />
-          <select
-            value={safeIdx}
-            onChange={(e) => setIdx(Number(e.target.value))}
-            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200"
-          >
-            {series.map((s, i) => (
-              <option key={s.key} value={i}>{s.longLabel}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-slate-600">
-        <span className="font-medium text-amber-700">Marketing by ad spend; other costs allocated.</span> Sales &amp;
-        Marketing is attributed to channels from the actual ad-spend feeds — <span className="font-medium">Shopify</span> =
-        Meta + Google, <span className="font-medium">Amazon</span> = Amazon Ads, and the leftover booked S&amp;M goes to
-        <span className="font-medium"> Blinkit</span> when it has sales (otherwise the residual is spread across the
-        selling channels). The booked S&amp;M in the system is the ceiling, so no channel's marketing is ever negative.
-        COGM, platform, opex &amp; non-operating remain company totals split by each channel's net revenue. All lines
-        still reconcile to the company total.
-        {adOverBooked && (
-          <span className="block mt-1 text-amber-700">
-            Note: in {p.longLabel}, reported ad spend (Shopify + Amazon = {inr(reportedAd)}) exceeds booked S&amp;M
-            ({inr(p.salesMarketing)}). Trusting the system total, Shopify &amp; Amazon are scaled to fit
-            ({inr(smShopify)} + {inr(smAmazon)}) and Blinkit's leftover is held at ₹0.
-          </span>
-        )}
-        {leftoverSpread && (
-          <span className="block mt-1 text-amber-700">
-            Note: Blinkit had no sales in {p.longLabel}, so the {inr(leftover)} residual booked S&amp;M (beyond Shopify +
-            Amazon ad spend) is spread across the selling channels by net-revenue share — not shown as a Blinkit loss
-            against zero revenue.
-          </span>
-        )}
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <KpiCard label="Shopify marketing" value={inr(smShopify)} tone="brand"
-          sub={adOverBooked ? `Meta + Google, scaled (reported ${inr(marketing.d2c)})`
-            : leftoverSpread ? 'Meta + Google + share of residual' : 'Meta + Google'} />
-        <KpiCard label="Amazon marketing" value={inr(smAmazon)} tone="amber"
-          sub={adOverBooked ? `Amazon Ads, scaled (reported ${inr(marketing.amazon)})`
-            : leftoverSpread ? 'Amazon Ads + share of residual' : 'Amazon Ads'} />
-        <KpiCard label="Blinkit (leftover S&M)" value={inr(smBlinkit)}
-          sub={adOverBooked ? 'held at ₹0 (ads ≥ booked S&M)'
-            : leftoverSpread ? 'no sales — residual spread' : `booked S&M ${inr(p.salesMarketing)} − ads`} />
-      </div>
-
-      {blended && <BlendNote />}
-
-      <SectionCard
-        title={`Channel P&L · ${p.longLabel}`}
-        description="All figures in ₹. Costs shown as negatives. Sales & Marketing follows ad spend (Shopify/Amazon/Blinkit); other costs by net-revenue share."
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm whitespace-nowrap">
-            <thead>
-              <tr className="text-xs text-slate-400 border-b border-slate-200">
-                <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white align-bottom">Particulars</th>
-                {activeChannels.map((c) => (
-                  <th key={c} className="py-2 px-3 text-right font-medium align-bottom">
-                    <div className="text-slate-600 font-semibold">{channelLabel(c)}</div>
-                    <div className="text-[10px] font-normal text-slate-400 mt-0.5">{pctStr(shareOf(c), 0)} of rev</div>
-                  </th>
-                ))}
-                <th className="py-2 pl-3 text-right font-medium align-bottom text-slate-600">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {PNL_ROWS.map((row) => {
-                const isMargin = row.kind === 'margin' || row.kind === 'rev';
-                return (
-                  <tr key={row.label} className={`border-b border-slate-50 ${isMargin ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
-                    <td className={`py-2 pr-4 text-left sticky left-0 bg-white ${row.label.startsWith('  ') ? 'pl-4' : ''}`}>{row.label.trim()}</td>
-                    {activeChannels.map((c) => {
-                      const r = byCh.get(c)!;
-                      const raw = r[row.key as keyof ChannelPnlRow] as number;
-                      const val = row.kind === 'cost' ? -raw : raw;
-                      return (
-                        <td key={c} className={`py-2 px-3 text-right tabular-nums ${isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
-                          {inr(val)}
-                        </td>
-                      );
-                    })}
-                    <td className="py-2 pl-3 text-right tabular-nums font-medium text-slate-800">
-                      {inr(pnlAmount(p, row.key, row.kind))}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-    </div>
-  );
-}
-
-// ----------------------------------------------------------------------------
-// Channel P&L — ACTUALS (real per-channel settlement & ad-spend costs)
+// Channel P&L (real per-channel settlement & ad-spend costs)
 // ----------------------------------------------------------------------------
 
 function ChannelActualsTab() {
@@ -1330,6 +1187,27 @@ function ChannelActualsTab() {
 
   const res = channelActualPnl(g, p);
   const cols = res.rows;
+
+  // Full time-series across every period at this granularity — for the "since inception" charts.
+  const timeline = useMemo(() => series.map((pp) => ({ label: pp.label, res: channelActualPnl(g, pp) })), [series, g]);
+  const chOrder = SALES_CHANNELS.filter((c) => timeline.some((t) => t.res.rows.some((r) => r.channel === c)));
+  const tLabels = timeline.map((t) => t.label);
+  const revData = timeline.map((t) => {
+    const rec: Record<string, number> = {};
+    for (const c of chOrder) rec[c] = t.res.rows.find((r) => r.channel === c)?.revenue ?? 0;
+    return rec;
+  });
+  const colorOf = (c: string) => CHANNEL_COLORS[c] || '#94a3b8';
+  const revSeries = chOrder.map((c) => ({
+    name: channelLabel(c), color: colorOf(c),
+    values: timeline.map((t) => { const r = t.res.rows.find((x) => x.channel === c); return r ? r.revenue : null; }),
+  }));
+  const cmSeries = chOrder.map((c) => ({
+    name: channelLabel(c), color: colorOf(c),
+    values: timeline.map((t) => { const r = t.res.rows.find((x) => x.channel === c); return r && r.revenue > 0 ? r.cmPct : null; }),
+  }));
+  const legendItems = chOrder.map((c) => ({ label: channelLabel(c), color: colorOf(c) }));
+  const donutData = cols.map((r) => ({ key: r.channel, value: r.revenue }));
 
   // Total column (across channels with actuals).
   const tot = cols.reduce(
@@ -1354,7 +1232,7 @@ function ChannelActualsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700">Channel P&amp;L — Actuals</h2>
+          <h2 className="text-sm font-semibold text-slate-700">Channel P&amp;L</h2>
           <p className="text-xs text-slate-400">Real channel-tagged costs from settlement &amp; ad-spend feeds. COGS assumed {Math.round(COGS_RATE * 100)}% of revenue.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -1394,8 +1272,38 @@ function ChannelActualsTab() {
             <KpiCard label="Blended CM %" value={pctStr(res.cmPct)} tone="amber" />
           </div>
 
+          {/* Revenue mix since inception + current-period share */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <SectionCard
+              className="lg:col-span-2"
+              title="Revenue mix by channel — since inception"
+              description="Net revenue per channel across every period (follows the granularity toggle above)."
+            >
+              <StackedBarChart labels={tLabels} keys={chOrder} colors={CHANNEL_COLORS} data={revData} height={300} />
+              <div className="mt-3"><Legend items={legendItems} /></div>
+            </SectionCard>
+            <SectionCard title={`Revenue share · ${p.longLabel}`} description="Each channel's share of revenue this period.">
+              <div className="flex justify-center py-2">
+                <DonutChart data={donutData} colors={CHANNEL_COLORS} size={200} format={(n) => pctStr(n)} />
+              </div>
+              <div className="mt-2"><Legend items={legendItems} /></div>
+            </SectionCard>
+          </div>
+
+          {/* Per-channel trends since inception */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SectionCard title="Revenue by channel over time" description="Each channel's net-revenue trajectory since it started.">
+              <LineChart labels={tLabels} series={revSeries} valueFormat={(v) => inr(v)} height={280} />
+              <div className="mt-3"><Legend items={legendItems} /></div>
+            </SectionCard>
+            <SectionCard title="Contribution margin % by channel" description="Real CM% per channel, period by period.">
+              <LineChart labels={tLabels} series={cmSeries} percent valueFormat={(v) => pctStr(v)} height={280} />
+              <div className="mt-3"><Legend items={legendItems} /></div>
+            </SectionCard>
+          </div>
+
           <SectionCard
-            title={`Channel P&L (Actuals) · ${p.longLabel}`}
+            title={`Channel P&L · ${p.longLabel}`}
             description="All figures in ₹. Costs shown as negatives. Contribution = Revenue − COGS − channel fees − marketing − taxes/platform."
           >
             <div className="overflow-x-auto">
