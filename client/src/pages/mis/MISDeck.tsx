@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
 import {
-  LineChart, StackedBarChart, GrowthBarChart, DonutChart, WaterfallChart, Legend,
+  LineChart, StackedBarChart, GroupedBarChart, GrowthBarChart, DonutChart, WaterfallChart, Legend,
   inr, pctStr, pctSigned, CHANNEL_COLORS, SERIES_COLORS,
   type WaterfallStep,
 } from '../../components/mis-deck/charts';
@@ -1271,6 +1271,15 @@ function ChannelActualsTab() {
               sub={`across ${cols.length} channel${cols.length > 1 ? 's' : ''}`} />
             <KpiCard label="Blended CM %" value={pctStr(res.cmPct)} tone="amber" />
           </div>
+
+          {/* Grouped bars: every period across all years, one bar per channel */}
+          <SectionCard
+            title="Revenue by channel — every period, all years"
+            description="One bar per channel within each month / quarter / year (follows the toggle above). All periods shown at once."
+          >
+            <GroupedBarChart labels={tLabels} keys={chOrder} colors={CHANNEL_COLORS} data={revData} height={320} valueFormat={(v) => inr(v)} />
+            <div className="mt-3"><Legend items={legendItems} /></div>
+          </SectionCard>
 
           {/* Revenue mix since inception + current-period share */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

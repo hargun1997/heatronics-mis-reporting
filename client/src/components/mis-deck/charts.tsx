@@ -304,6 +304,89 @@ export function StackedBarChart({
 }
 
 // ============================================================================
+// Grouped (clustered) Bar Chart — one bar per series within each period band.
+// Shows every period (months / quarters / years) in one go, bars per channel.
+// ============================================================================
+
+export function GroupedBarChart({
+  labels, keys, colors, data, height = HEIGHT, valueFormat = inr,
+}: {
+  labels: string[];
+  keys: string[];
+  colors: Record<string, string>;
+  data: Record<string, number>[]; // one record per label
+  height?: number;
+  valueFormat?: (n: number) => string;
+}) {
+  const [ref, width] = useMeasure();
+  const [tip, setTip] = useState<TooltipState | null>(null);
+  const innerW = Math.max(10, width - PAD.left - PAD.right);
+  const innerH = height - PAD.top - PAD.bottom;
+  const n = labels.length;
+
+  const rawMax = Math.max(1, ...data.flatMap((d) => keys.map((k) => Math.max(0, d[k] || 0))));
+  const top = niceMax(rawMax);
+
+  const bandW = innerW / Math.max(1, n);
+  const groupW = bandW * 0.82;                                  // usable width per period
+  const barW = Math.max(1, groupW / Math.max(1, keys.length));
+  const groupX0 = (i: number) => PAD.left + bandW * i + (bandW - groupW) / 2;
+  const yOf = (v: number) => PAD.top + innerH - (v / top) * innerH;
+  const labelStep = Math.ceil(n / Math.max(1, Math.floor(innerW / 52)));
+  const ticks = 4;
+
+  return (
+    <div ref={ref} className="relative w-full" onMouseLeave={() => setTip(null)}>
+      <svg width={width} height={height} className="block">
+        {Array.from({ length: ticks + 1 }, (_, i) => (top * i) / ticks).map((tv, i) => (
+          <g key={i}>
+            <line x1={PAD.left} x2={width - PAD.right} y1={yOf(tv)} y2={yOf(tv)} stroke="#eef2f7" strokeWidth={1} />
+            <text x={PAD.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={10}>{inrLakh(tv)}</text>
+          </g>
+        ))}
+        {labels.map((lb, i) => {
+          const d = data[i];
+          return (
+            <g key={i}
+              onMouseMove={(e) => {
+                const rect = (e.currentTarget.ownerSVGElement!.parentElement as HTMLElement).getBoundingClientRect();
+                setTip({
+                  x: e.clientX - rect.left, y: PAD.top + 4,
+                  content: (
+                    <div>
+                      <div className="font-semibold mb-0.5">{labels[i]}</div>
+                      {keys.map((k) => (d[k] ? (
+                        <div key={k} className="flex items-center gap-1.5">
+                          <span className="inline-block w-2 h-2 rounded-full" style={{ background: colors[k] }} />
+                          <span className="text-slate-300">{k}:</span>
+                          <span className="font-medium">{valueFormat(d[k] || 0)}</span>
+                        </div>
+                      ) : null))}
+                    </div>
+                  ),
+                });
+              }}
+            >
+              <rect x={PAD.left + bandW * i} y={PAD.top} width={bandW} height={innerH} fill="transparent" />
+              {keys.map((k, ki) => {
+                const v = Math.max(0, d[k] || 0);
+                if (v <= 0) return null;
+                const h = (v / top) * innerH;
+                return <rect key={k} x={groupX0(i) + ki * barW} y={PAD.top + innerH - h} width={Math.max(0.5, barW - 1)} height={Math.max(0, h)} fill={colors[k]} rx={1} />;
+              })}
+              {(i % labelStep === 0 || i === n - 1) && (
+                <text x={PAD.left + bandW * i + bandW / 2} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{lb}</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      <Tooltip state={tip} width={width} />
+    </div>
+  );
+}
+
+// ============================================================================
 // Bar Chart (single series, +/- colored — for growth)
 // ============================================================================
 
