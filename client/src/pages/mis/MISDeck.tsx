@@ -1477,7 +1477,7 @@ function SkuChannelTab() {
 
           <SectionCard
             title={`SKU × Channel · ${metricLabel} · ${p.longLabel}`}
-            description="Rows = products, columns = channels. CM2 = revenue − COGM − channel & fulfilment − ads. Ad spend is each channel-month's real ad total, split to SKUs by revenue. All ₹ unless a %."
+            description="Rows = products, columns = channels. CM2 = revenue − COGM − channel & fulfilment − ads. Ad spend is measured per product from the Meta/Google/Amazon feeds (Amazon uses the advertising console). All ₹ unless a %."
           >
             <div className="overflow-x-auto">
               <table className="w-full text-sm whitespace-nowrap">
@@ -1534,7 +1534,7 @@ function SkuChannelTab() {
               <SectionCard
                 title={`Channel P&L at SKU level · ${channelLabel(activeCh)} · ${p.longLabel}`}
                 description={hasAds
-                  ? 'Full cascade to CM2 per SKU. Ad spend is this channel-month’s real ad total, split across SKUs by revenue (allocation, not per-SKU measured).'
+                  ? 'Full cascade to CM2 per SKU. Ad spend is measured per product from the ad feeds (Meta/Google mapped by campaign; Amazon by advertised product, from the console). Unmapped spend is spread across the mapped products.'
                   : 'Full cascade to CM2 per SKU. This channel has no ad spend — CM1 = CM2.'}
               >
                 <div className="flex items-center gap-1.5 flex-wrap mb-3">

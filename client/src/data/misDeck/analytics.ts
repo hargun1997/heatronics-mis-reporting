@@ -17,6 +17,7 @@ import {
   D2C_COSTS,
 } from './channelActuals';
 import { SKU_CELLS, type SkuCell } from './skuChannelPnl';
+import { AD_MIX_D2C, AD_MIX_AMZN, AMAZON_AD_MONTHLY } from './adMeasured';
 
 export type Granularity = 'month' | 'quarter' | 'year';
 
@@ -942,48 +943,96 @@ export interface SkuChannelMatrix {
   monthsInPeriod: string[];
 }
 
-interface RawAgg { rev: number; cogs: number; oth: number; sm: number; u: number; }
-const EMPTY_RAW: RawAgg = { rev: 0, cogs: 0, oth: 0, sm: 0, u: 0 };
+// `oth` is the raw channel-cost bucket from the SKU feed (Amazon net-proceeds
+// fees; D2C Meta+Google+shipping+gateway). `oldAd` is the ad spend already baked
+// into that bucket; `sm` is the REAL measured ad spend (which replaces it). So the
+// true channel cost = (oth − oldAd) + sm = cf + sm, and CM2 = rev − cogs − fac − cf − sm.
+interface RawAgg { rev: number; cogs: number; oth: number; oldAd: number; sm: number; u: number; }
+const EMPTY_RAW: RawAgg = { rev: 0, cogs: 0, oth: 0, oldAd: 0, sm: 0, u: 0 };
 function addRaw(a: RawAgg, c: SkuCell): RawAgg {
-  return { rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth, sm: a.sm + cellAdSpend(c), u: a.u + c.u };
+  return {
+    rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth,
+    oldAd: a.oldAd + cellOldAd(c), sm: a.sm + cellNewAd(c), u: a.u + c.u,
+  };
 }
 /**
  * Adds the factory (COGM) cost and derives the cascade to CM2.
- *   COGM = cogs + factory;  cf = oth − sm (channel & fulfilment);  con = CM2.
+ *   COGM = cogs + factory;  cf = oth − oldAd (non-ad channel & fulfilment);
+ *   sm = real measured ads;  CM2 = rev − cogs − factory − cf − sm.
+ * `oth` on the result is the real total channel cost (cf + sm).
  */
 function finalizeAgg(a: RawAgg): SkuAgg {
   const fac = a.rev * FACTORY_PCT;
+  const cf = a.oth - a.oldAd;
   const sm = a.sm;
-  const cf = a.oth - sm;
-  return { rev: a.rev, cogs: a.cogs, fac, oth: a.oth, cf, sm, con: a.rev - a.cogs - fac - a.oth, u: a.u };
+  const con = a.rev - a.cogs - fac - cf - sm;
+  return { rev: a.rev, cogs: a.cogs, fac, oth: cf + sm, cf, sm, con, u: a.u };
 }
 
 // --- Ad-spend (sales & marketing) attribution to SKU cells ------------------
-// Amazon/D2C/Blinkit each have a real MONTHLY ad total. There is no per-SKU ad
-// feed, so a channel-month's ad spend is attributed to that channel-month's SKU
-// cells by revenue share (clamped so a cell is never charged more marketing than
-// its own `oth` bucket holds). The channel/month ad totals are real; the split
-// onto individual SKUs is an allocation until a per-SKU ad report is available.
-function adTotalFor(ch: SalesChannel, m: string): number {
+// Each channel-month has a real ad TOTAL; the per-SKU SPLIT comes from the
+// measured Meta/Google/Amazon feeds mapped to products (adMeasured.ts), falling
+// back to revenue share where no mapping exists.
+//   • oldAdTotal = ad already embedded in the SKU feed's `oth` (removed to get cf).
+//   • newAdTotal = the real ad total we charge as S&M. D2C keeps the model's
+//     Meta+Google (book of record, ties to MIS); Amazon uses the advertising
+//     console (AMAZON_AD_MONTHLY, ~2x the settlement figure) as the truth.
+function oldAdTotal(ch: SalesChannel, m: string): number {
   if (ch === 'Amazon') return AMAZON_ACTUALS[m]?.ads ?? 0;
   if (ch === 'D2C') { const d = D2C_COSTS[m]; return d ? d.meta + d.google : 0; }
   if (ch === 'Blinkit') return BLINKIT_ACTUALS[m]?.ads ?? 0;
-  return 0; // OEM / Offline / Export — no ad spend
+  return 0;
 }
-const SKU_REV_BY_CH_MONTH = new Map<string, number>();
+function newAdTotal(ch: SalesChannel, m: string): number {
+  if (ch === 'Amazon') return AMAZON_AD_MONTHLY[m] ?? 0;
+  if (ch === 'D2C') { const d = D2C_COSTS[m]; return d ? d.meta + d.google : 0; }
+  if (ch === 'Blinkit') return BLINKIT_ACTUALS[m]?.ads ?? 0;
+  return 0;
+}
+const SKU_REV_BY_CH_MONTH = new Map<string, number>();   // ch||m -> Σ positive rev
+const SKU_REV_BY_CMP = new Map<string, number>();         // ch||m||p -> Σ positive rev
 for (const c of SKU_CELLS) {
-  const k = `${c.ch}||${c.m}`;
-  SKU_REV_BY_CH_MONTH.set(k, (SKU_REV_BY_CH_MONTH.get(k) ?? 0) + Math.max(0, c.rev));
+  SKU_REV_BY_CH_MONTH.set(`${c.ch}||${c.m}`, (SKU_REV_BY_CH_MONTH.get(`${c.ch}||${c.m}`) ?? 0) + Math.max(0, c.rev));
+  SKU_REV_BY_CMP.set(`${c.ch}||${c.m}||${c.p}`, (SKU_REV_BY_CMP.get(`${c.ch}||${c.m}||${c.p}`) ?? 0) + Math.max(0, c.rev));
 }
-/** Ad (S&M) spend attributed to one SKU cell, from its channel-month ad total. */
-function cellAdSpend(c: SkuCell): number {
-  const tot = adTotalFor(c.ch, c.m);
+// Measured mapped ad by month||product, per channel with a product feed.
+const AD_MIX: Partial<Record<SalesChannel, Map<string, number>>> = {
+  D2C: new Map(AD_MIX_D2C.map((r) => [`${r.m}||${r.p}`, r.ad])),
+  Amazon: new Map(AD_MIX_AMZN.map((r) => [`${r.m}||${r.p}`, r.ad])),
+};
+// Denominator per channel||month = Σ mapped ad over products actually present in the feed.
+const AD_MIX_DENOM = new Map<string, number>();
+for (const key of SKU_REV_BY_CMP.keys()) {
+  const [ch, m, p] = key.split('||');
+  const mix = AD_MIX[ch as SalesChannel];
+  if (!mix) continue;
+  const mapped = mix.get(`${m}||${p}`) ?? 0;
+  if (mapped) AD_MIX_DENOM.set(`${ch}||${m}`, (AD_MIX_DENOM.get(`${ch}||${m}`) ?? 0) + mapped);
+}
+/** Ad already embedded in the cell's `oth` bucket (revenue-allocated) — removed to isolate cf. */
+function cellOldAd(c: SkuCell): number {
+  const tot = oldAdTotal(c.ch, c.m);
   if (tot <= 0) return 0;
-  const denom = SKU_REV_BY_CH_MONTH.get(`${c.ch}||${c.m}`) ?? 0;
-  if (denom <= 0) return 0;
-  const sm = tot * (Math.max(0, c.rev) / denom);
-  // Never attribute more marketing than sits in the cell's other-cost bucket.
-  return Math.min(Math.max(0, sm), Math.max(0, c.oth));
+  const rd = SKU_REV_BY_CH_MONTH.get(`${c.ch}||${c.m}`) ?? 0;
+  return rd > 0 ? tot * (Math.max(0, c.rev) / rd) : 0;
+}
+/** Real measured ad (S&M) charged to the cell — product-mix split of the channel-month ad total. */
+function cellNewAd(c: SkuCell): number {
+  const tot = newAdTotal(c.ch, c.m);
+  if (tot <= 0) return 0;
+  const mix = AD_MIX[c.ch];
+  if (mix) {
+    const denom = AD_MIX_DENOM.get(`${c.ch}||${c.m}`) ?? 0;
+    if (denom > 0) {
+      const mapped = mix.get(`${c.m}||${c.p}`) ?? 0;
+      const prodRev = SKU_REV_BY_CMP.get(`${c.ch}||${c.m}||${c.p}`) ?? 0;
+      const rowShare = prodRev > 0 ? Math.max(0, c.rev) / prodRev : 0;
+      return tot * (mapped / denom) * rowShare;
+    }
+  }
+  // Fallback: revenue share (Blinkit single-SKU, or a month with no mapped ad).
+  const rd = SKU_REV_BY_CH_MONTH.get(`${c.ch}||${c.m}`) ?? 0;
+  return rd > 0 ? tot * (Math.max(0, c.rev) / rd) : 0;
 }
 
 const ALL_SKU_MONTHS = [...new Set(SKU_CELLS.map((c) => c.m))].sort();

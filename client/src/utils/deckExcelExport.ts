@@ -799,7 +799,7 @@ function generateSkuChannelSheet(): XLSX.WorkSheet {
     row++;
   };
   band('SKU × CHANNEL — CONTRIBUTION (CM2) + per-channel cascade (all-time)', S.title);
-  band(`Top: CM2 ₹ per product per channel. Below: full P&L cascade to CM2 per channel (Net Revenue → COGM → GM → Channel & Fulfilment → CM1 → Ads → CM2). Real per-SKU COGS + ${Math.round(FACTORY_PCT * 100)}% factory. Ad spend = each channel-month's real ad total split to SKUs by revenue. Amazon & D2C measured; Blinkit/Offline/OEM single-SKU (COGS = unit cost ÷ real ASP: Offline ₹550, OEM ₹325). Covers ${mx.monthsInPeriod.length ? SKU_FEED_NOTE : ''}`, S.subtitle);
+  band(`Top: CM2 ₹ per product per channel. Below: full P&L cascade to CM2 per channel (Net Revenue → COGM → GM → Channel & Fulfilment → CM1 → Ads → CM2). Real per-SKU COGS + ${Math.round(FACTORY_PCT * 100)}% factory. Ad spend = measured per product (Meta/Google mapped by campaign; Amazon by advertised product from the console). Amazon & D2C measured; Blinkit/Offline/OEM single-SKU (COGS = unit cost ÷ real ASP: Offline ₹550, OEM ₹325). Covers ${mx.monthsInPeriod.length ? SKU_FEED_NOTE : ''}`, S.subtitle);
   row++;
   put(row, 0, 'Product', S.header);
   chans.forEach((c, i) => put(row, i + 1, channelLabel(c), S.header));
