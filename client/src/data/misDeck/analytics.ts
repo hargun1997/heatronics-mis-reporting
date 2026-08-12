@@ -111,7 +111,26 @@ function aggregate(records: MonthlyMIS[], key: string, label: string, longLabel:
 // Period series builders
 // ----------------------------------------------------------------------------
 
-const monthsAsc = [...MONTHLY_MIS].sort((a, b) => a.year - b.year || a.month - b.month);
+// Reclassify pre-Oct-2024 "Amazon" revenue as OEM (Amazon launched Oct 2024; the
+// earlier marketplace revenue was OEM). Applied at the base so EVERY channel view —
+// Channel Mix, Overview, Growth, Channel P&L and SKU × Channel — agrees on the split.
+function reclassifyEarlyAmazon(m: MonthlyMIS): MonthlyMIS {
+  const preLaunch = m.year < 2024 || (m.year === 2024 && m.month < 10);
+  if (!preLaunch) return m;
+  const move = (obj: Partial<Record<SalesChannel, number>>): Partial<Record<SalesChannel, number>> => {
+    const amz = obj.Amazon || 0;
+    return amz ? { ...obj, Amazon: 0, OEM: (obj.OEM || 0) + amz } : obj;
+  };
+  return {
+    ...m,
+    netByChannel: move(m.netByChannel),
+    grossByChannel: move(m.grossByChannel),
+    returnsByChannel: move(m.returnsByChannel),
+  };
+}
+const monthsAsc = [...MONTHLY_MIS]
+  .map(reclassifyEarlyAmazon)
+  .sort((a, b) => a.year - b.year || a.month - b.month);
 
 // The series builders take an explicit source array so the same aggregation can
 // be reused for the actual months (default) and for the blended-GM months.
