@@ -38,6 +38,9 @@ import {
   channelLabel,
   CHANNEL_AOV,
   deckFacts,
+  channelActualPnl,
+  skuChannelMatrix,
+  FACTORY_PCT,
   type PeriodMIS,
   type Granularity,
   type ChannelPnlRow,
@@ -608,16 +611,21 @@ function generateSummarySheet(): XLSX.WorkSheet {
   put(row, 5, 'Top Channel', S.header);
   row++;
 
-  FY_SUMMARY.forEach((fy) => {
+  // Computed live from the monthly data (not a static summary), so it never goes stale.
+  yearlySeries().filter((fy) => fy.netRevenue > 0).forEach((fy) => {
+    const mix = channelMix(fy);
     const top = SALES_CHANNELS.reduce(
-      (best, c) => ((fy.mix[c] || 0) > best.share ? { c, share: fy.mix[c] || 0 } : best),
+      (best, c) => ((mix[c] || 0) > best.share ? { c, share: mix[c] || 0 } : best),
       { c: SALES_CHANNELS[0] as (typeof SALES_CHANNELS)[number], share: -1 },
     );
-    put(row, 0, fy.name, S.label);
+    const gmPct = fy.netRevenue ? fy.grossMargin / fy.netRevenue : 0;
+    const ebPct = fy.netRevenue ? fy.ebitda / fy.netRevenue : 0;
+    const niPct = fy.netRevenue ? fy.netIncome / fy.netRevenue : 0;
+    put(row, 0, fy.longLabel, S.label);
     put(row, 1, round2(fy.netRevenue), S.num);
-    put(row, 2, round2(fy.grossMarginPct * 1000) / 1000, S.pct);
-    put(row, 3, round2(fy.ebitdaPct * 1000) / 1000, signed(fy.ebitdaPct, S.pct));
-    put(row, 4, round2(fy.netIncomePct * 1000) / 1000, signed(fy.netIncomePct, S.pct));
+    put(row, 2, round2(gmPct * 1000) / 1000, S.pct);
+    put(row, 3, round2(ebPct * 1000) / 1000, signed(ebPct, S.pct));
+    put(row, 4, round2(niPct * 1000) / 1000, signed(niPct, S.pct));
     put(row, 5, `${top.c} (${(top.share * 100).toFixed(0)}%)`, S.label);
     row++;
   });
@@ -671,44 +679,52 @@ function generateChannelPnlSheet(blend: boolean): XLSX.WorkSheet {
     row++;
   };
 
-  band('CHANNEL-LEVEL P&L (marketing attributed by ad spend)', S.title);
+  band('CHANNEL P&L — real per-SKU COGS + factory cost', S.title);
   band(
-    'Shopify = Meta + Google, Amazon = Amazon Ads, leftover booked S&M → Blinkit (never negative; ads scaled to fit booked S&M). Other costs allocated by net-revenue share. All in ₹.',
+    `COGS = actual cost of each channel's real SKU mix; plus a ${Math.round(FACTORY_PCT * 100)}% factory (COGM) cost; channel fees & marketing from the settlement / ad-spend feeds. Contribution is before shared opex, depreciation and interest. Ties to the SKU × Channel sheet. All in ₹.`,
     S.subtitle,
   );
   row++;
 
-  const years = blend ? seriesForBlended('year') : yearlySeries();
-  years.forEach((p) => {
+  const actualLines: { label: string; get: (r: ReturnType<typeof channelActualPnl>['rows'][number]) => number; margin: boolean }[] = [
+    { label: 'NET REVENUE', get: (r) => r.revenue, margin: true },
+    { label: 'Less: COGS (real, per SKU)', get: (r) => -r.cogs, margin: false },
+    { label: `Less: Factory (${Math.round(FACTORY_PCT * 100)}%)`, get: (r) => -r.factory, margin: false },
+    { label: 'Less: Channel fees + marketing', get: (r) => -r.channelCosts, margin: false },
+    { label: 'CONTRIBUTION MARGIN', get: (r) => r.contribution, margin: true },
+  ];
+
+  yearlySeries().forEach((p) => {
+    const res = channelActualPnl('year', p);
+    if (res.rows.length === 0) return;
+    const byCh = new Map(res.rows.map((r) => [r.channel, r]));
     band(p.longLabel, S.header);
     put(row, 0, 'Particulars', S.header);
     SALES_CHANNELS.forEach((c, i) => put(row, i + 1, channelLabel(c), S.header));
     put(row, nCols - 1, 'Total', S.header);
     row++;
 
-    const rows = channelPnl(p, adSpendForPeriod('year', p));
-    const byCh = new Map(rows.map((r) => [r.channel, r]));
-
-    for (const line of CH_PL_LINES) {
-      const isMargin = line.kind !== 'cost';
-      const lblStyle = isMargin && line.m ? MARGIN[line.m].label : S.label;
-      put(row, 0, isMargin ? line.label : `   ${line.label}`, lblStyle);
+    for (const line of actualLines) {
+      put(row, 0, line.margin ? line.label : `   ${line.label}`, S.label);
       let total = 0;
       SALES_CHANNELS.forEach((c, i) => {
-        const r = byCh.get(c)!;
-        const raw = r[line.key] as number;
-        const v = round2(line.kind === 'cost' ? -raw : raw);
+        const r = byCh.get(c);
+        const v = r ? round2(line.get(r)) : 0;
         total += v;
-        const numStyle = isMargin && line.m ? MARGIN[line.m].num : S.num;
-        put(row, i + 1, v, signed(v, numStyle));
+        put(row, i + 1, v, signed(v, S.num));
       });
-      const totStyle = isMargin && line.m
-        ? { ...MARGIN[line.m].num }
-        : { ...S.num, fill: S.total.fill, font: { ...(S.num.font || {}), bold: true } };
-      put(row, nCols - 1, round2(total), signed(round2(total), totStyle));
+      put(row, nCols - 1, round2(total), signed(round2(total), { ...S.num, fill: S.total.fill, font: { ...(S.num.font || {}), bold: true } }));
       row++;
     }
-    row++; // spacer between FY blocks
+    // CM % row
+    put(row, 0, '   CM %', S.label);
+    SALES_CHANNELS.forEach((c, i) => {
+      const r = byCh.get(c);
+      if (r && r.revenue > 0) put(row, i + 1, round2(r.cmPct * 1000) / 1000, signed(r.cmPct, S.pct));
+      else put(row, i + 1, '', S.label);
+    });
+    put(row, nCols - 1, round2(res.cmPct * 1000) / 1000, signed(res.cmPct, S.pct));
+    row += 2; // CM% row + spacer
   });
 
   ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: nCols - 1 })}`;
@@ -716,6 +732,89 @@ function generateChannelPnlSheet(blend: boolean): XLSX.WorkSheet {
   setCols(ws, [34, ...SALES_CHANNELS.map(() => 13), 14]);
   return ws;
 }
+
+// ============================================
+// SKU × CHANNEL SHEET (product × channel contribution, all-time)
+// ============================================
+
+function generateSkuChannelSheet(): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {};
+  const merges: XLSX.Range[] = [];
+  // Use the full history: aggregate the SKU matrix over the last fiscal year that
+  // spans the whole feed is not enough, so build an all-time matrix by unioning years.
+  const years = yearlySeries();
+  const lastFy = years[years.length - 1];
+  const mx = skuChannelMatrix('year', lastFy); // channels/products for column/row shape
+  // For an all-time view we sum every FY's matrix.
+  const products = new Set<string>();
+  const channels = new Set<string>();
+  type Agg = { rev: number; con: number };
+  const cellMap = new Map<string, Agg>();
+  const prodTot = new Map<string, Agg>();
+  const chanTot = new Map<string, Agg>();
+  let grand: Agg = { rev: 0, con: 0 };
+  const add = (m: Map<string, Agg>, k: string, rev: number, con: number) => {
+    const a = m.get(k) ?? { rev: 0, con: 0 }; a.rev += rev; a.con += con; m.set(k, a);
+  };
+  years.forEach((fy) => {
+    const m = skuChannelMatrix('year', fy);
+    m.products.forEach((p) => {
+      products.add(p);
+      m.channels.forEach((c) => {
+        const a = m.cell(p, c);
+        if (!a) return;
+        channels.add(c);
+        add(cellMap, `${p}||${c}`, a.rev, a.con);
+        add(prodTot, p, a.rev, a.con);
+        add(chanTot, c, a.rev, a.con);
+        grand.rev += a.rev; grand.con += a.con;
+      });
+    });
+  });
+  const chans = SALES_CHANNELS.filter((c) => channels.has(c));
+  const prods = [...products].sort((a, b) => {
+    const ax = a.startsWith('Accessory') ? 1 : 0, bx = b.startsWith('Accessory') ? 1 : 0;
+    if (ax !== bx) return ax - bx;
+    return (prodTot.get(b)?.rev ?? 0) - (prodTot.get(a)?.rev ?? 0);
+  });
+  const nCols = chans.length + 2;
+  let row = 0;
+  const put = (r: number, c: number, v: string | number, s: Style) => { ws[XLSX.utils.encode_cell({ r, c })] = cell(v, s); };
+  const band = (text: string, s: Style) => {
+    put(row, 0, text, s);
+    for (let c = 1; c < nCols; c++) put(row, c, '', s);
+    merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
+    row++;
+  };
+  band('SKU × CHANNEL — CONTRIBUTION (all-time)', S.title);
+  band(`Contribution ₹ per product per channel. Real per-SKU COGS + ${Math.round(FACTORY_PCT * 100)}% factory. Amazon & D2C measured; Blinkit/Offline/OEM single-SKU (COGS via ASP). Covers ${mx.monthsInPeriod.length ? SKU_FEED_NOTE : ''}`, S.subtitle);
+  row++;
+  put(row, 0, 'Product', S.header);
+  chans.forEach((c, i) => put(row, i + 1, channelLabel(c), S.header));
+  put(row, nCols - 1, 'Total', S.header);
+  row++;
+  prods.forEach((p) => {
+    put(row, 0, p, S.label);
+    chans.forEach((c, i) => {
+      const a = cellMap.get(`${p}||${c}`);
+      put(row, i + 1, a ? round2(a.con) : '', a ? signed(a.con, S.num) : S.label);
+    });
+    const pt = prodTot.get(p);
+    put(row, nCols - 1, pt ? round2(pt.con) : 0, signed(pt ? round2(pt.con) : 0, { ...S.num, font: { ...(S.num.font || {}), bold: true } }));
+    row++;
+  });
+  put(row, 0, 'TOTAL', S.header);
+  chans.forEach((c, i) => { const a = chanTot.get(c); put(row, i + 1, a ? round2(a.con) : 0, signed(a ? round2(a.con) : 0, { ...S.header })); });
+  put(row, nCols - 1, round2(grand.con), signed(round2(grand.con), { ...S.header }));
+  row++;
+
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: nCols - 1 })}`;
+  ws['!merges'] = merges;
+  setCols(ws, [30, ...chans.map(() => 13), 14]);
+  return ws;
+}
+
+const SKU_FEED_NOTE = 'the SKU feeds (Amazon Oct-24+, D2C/Blinkit/Offline/OEM per their coverage).';
 
 // ============================================
 // CHANNEL ORDERS SHEET (estimated orders per channel per month)
@@ -939,6 +1038,7 @@ export async function exportDeckToExcel(options: DeckExportOptions): Promise<voi
 
   if (options.includeChannelPnl) {
     XLSX.utils.book_append_sheet(wb, generateChannelPnlSheet(options.blendCogm), 'Channel P&L');
+    XLSX.utils.book_append_sheet(wb, generateSkuChannelSheet(), 'SKU x Channel');
   }
 
   if (options.includeOrders) {

@@ -1,8 +1,8 @@
 // AUTO-GENERATED monthly SKU x Channel P&L cells. Do not edit by hand.
 // Amazon per-SKU monthly (net proceeds)+Jun-25 patch; Shopify per-product (D2C); Blinkit settlement
-// (hCore X Lite); Offline (hCore X Lite) & OEM (OEM Heating Pad, incl pre-Oct-24 revenue reclassified
-// from Amazon) from the model. Value-channel COGS = rev x (unit cost / blended ASP): Blinkit/Offline
-// ₹222, OEM ₹220 — estimate pending unit counts. con = rev - cogs - oth.
+// (hCore X Lite); Offline (hCore X Lite) & OEM (OEM Heating Pad) from the model + Jul-2026 sales.
+// Pre-Oct-24 Amazon revenue reclassified to OEM. Value-channel COGS = rev x (unit cost / blended
+// ASP): Blinkit/Offline ₹222, OEM ₹220 (estimate). con = rev - cogs - oth (factory added at view time).
 
 import type { SalesChannel } from './misDeckData';
 
@@ -774,4 +774,6 @@ export const SKU_CELLS: SkuCell[] = [
   { m: "2026-05", ch: "OEM", p: "OEM Heating Pad", rev: 2634000, cogs: 807273.34, oth: 0.0, con: 1826726.66, u: 3669.42 },
   { m: "2026-06", ch: "Offline", p: "hCore X Lite", rev: 341503, cogs: 105615.99, oth: 0.0, con: 235887.01, u: 475.75 },
   { m: "2026-06", ch: "OEM", p: "OEM Heating Pad", rev: 2207804, cogs: 676651.98, oth: 0.0, con: 1531152.02, u: 3075.69 },
+  { m: "2026-07", ch: "Offline", p: "hCore X Lite", rev: 471081.26, cogs: 145690.41, oth: 0.0, con: 325390.85, u: 656.26 },
+  { m: "2026-07", ch: "OEM", p: "OEM Heating Pad", rev: 1895500.0, cogs: 580936.45, oth: 0.0, con: 1314563.55, u: 2640.62 },
 ];
