@@ -14,7 +14,7 @@ import {
   channelActualPnl, COGS_RATE,
   skuChannelMatrix, SKU_COVERAGE,
   SALES_CHANNELS, FY_SUMMARY,
-  type Granularity, type PeriodMIS, type ChannelPnlRow, type SkuAgg,
+  type Granularity, type PeriodMIS, type ChannelPnlRow, type SkuAgg, type SalesChannel,
 } from '../../data/misDeck/analytics';
 import {
   MIS_GENERATED_AT, MIS_SOURCE_FILE, DISCOUNT_DATA, D2C_REPEATS, AMAZON_REPEATS,
@@ -1378,9 +1378,24 @@ function SkuChannelTab() {
   const safeIdx = Math.min(idx, series.length - 1);
   const p = series[safeIdx];
   const [metric, setMetric] = useState<SkuMetric>('con');
+  const [orient, setOrient] = useState<'sku' | 'channel'>('sku');
 
   const mx = skuChannelMatrix(g, p);
   const hasData = mx.products.length > 0;
+
+  // Orientation: 'sku' → products as rows / channels as columns; 'channel' → the transpose.
+  const rowKeys = orient === 'sku' ? mx.products : (mx.channels as string[]);
+  const colKeys = orient === 'sku' ? (mx.channels as string[]) : mx.products;
+  const rowLabel = (k: string) => (orient === 'sku' ? k : channelLabel(k as SalesChannel));
+  const colLabel = (k: string) => (orient === 'sku' ? channelLabel(k as SalesChannel) : k);
+  const cellAgg = (rk: string, ck: string): SkuAgg | undefined =>
+    orient === 'sku' ? mx.cell(rk, ck as SalesChannel) : mx.cell(ck, rk as SalesChannel);
+  const rowTotalAgg = (rk: string): SkuAgg =>
+    orient === 'sku' ? mx.productTotal(rk) : mx.channelTotal(rk as SalesChannel);
+  const colTotalAgg = (ck: string): SkuAgg =>
+    orient === 'sku' ? mx.channelTotal(ck as SalesChannel) : mx.productTotal(ck);
+  const rowIsFaint = (k: string) => orient === 'sku' && k.startsWith('Accessory');
+  const rowHeader = orient === 'sku' ? 'Product' : 'Channel';
 
   const fmt = (a: SkuAgg | undefined) => {
     if (!a || (a.rev === 0 && a.con === 0)) return <span className="text-slate-300">·</span>;
@@ -1397,7 +1412,15 @@ function SkuChannelTab() {
           <h2 className="text-sm font-semibold text-slate-700">SKU × Channel P&amp;L</h2>
           <p className="text-xs text-slate-400">Per-product contribution by channel. COGS uses real per-unit cost (Amazon &amp; D2C); Blinkit/Offline/OEM are single-SKU with estimated COGS.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
+            {(['sku', 'channel'] as const).map((o) => (
+              <button key={o} onClick={() => setOrient(o)}
+                className={`px-3 py-1.5 ${orient === o ? 'bg-brand-50 text-brand-700 font-medium' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
+                {o === 'sku' ? 'SKU × Channel' : 'Channel × SKU'}
+              </button>
+            ))}
+          </div>
           <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
             {(['con', 'rev', 'cm'] as SkuMetric[]).map((m) => (
               <button key={m} onClick={() => setMetric(m)}
@@ -1442,30 +1465,27 @@ function SkuChannelTab() {
               <table className="w-full text-sm whitespace-nowrap">
                 <thead>
                   <tr className="text-xs text-slate-400 border-b border-slate-200">
-                    <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white">Product</th>
-                    {mx.channels.map((c) => (
-                      <th key={c} className="py-2 px-3 text-right font-medium text-slate-600">{channelLabel(c)}</th>
+                    <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white">{rowHeader}</th>
+                    {colKeys.map((c) => (
+                      <th key={c} className="py-2 px-3 text-right font-medium text-slate-600">{colLabel(c)}</th>
                     ))}
                     <th className="py-2 pl-3 text-right font-medium text-slate-700">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {mx.products.map((prod) => {
-                    const isAcc = prod.startsWith('Accessory');
-                    return (
-                      <tr key={prod} className={`border-b border-slate-50 ${isAcc ? 'text-slate-400 italic' : 'text-slate-600'}`}>
-                        <td className="py-2 pr-4 text-left sticky left-0 bg-white font-medium">{prod}</td>
-                        {mx.channels.map((c) => (
-                          <td key={c} className="py-2 px-3 text-right tabular-nums">{fmt(mx.cell(prod, c))}</td>
-                        ))}
-                        <td className="py-2 pl-3 text-right tabular-nums font-semibold text-slate-800">{fmt(mx.productTotal(prod))}</td>
-                      </tr>
-                    );
-                  })}
+                  {rowKeys.map((rk) => (
+                    <tr key={rk} className={`border-b border-slate-50 ${rowIsFaint(rk) ? 'text-slate-400 italic' : 'text-slate-600'}`}>
+                      <td className="py-2 pr-4 text-left sticky left-0 bg-white font-medium">{rowLabel(rk)}</td>
+                      {colKeys.map((ck) => (
+                        <td key={ck} className="py-2 px-3 text-right tabular-nums">{fmt(cellAgg(rk, ck))}</td>
+                      ))}
+                      <td className="py-2 pl-3 text-right tabular-nums font-semibold text-slate-800">{fmt(rowTotalAgg(rk))}</td>
+                    </tr>
+                  ))}
                   <tr className="border-t-2 border-slate-200 font-semibold text-slate-800">
                     <td className="py-2 pr-4 text-left sticky left-0 bg-white">Total</td>
-                    {mx.channels.map((c) => (
-                      <td key={c} className="py-2 px-3 text-right tabular-nums">{fmt(mx.channelTotal(c))}</td>
+                    {colKeys.map((ck) => (
+                      <td key={ck} className="py-2 px-3 text-right tabular-nums">{fmt(colTotalAgg(ck))}</td>
                     ))}
                     <td className="py-2 pl-3 text-right tabular-nums">{fmt(mx.grand)}</td>
                   </tr>
