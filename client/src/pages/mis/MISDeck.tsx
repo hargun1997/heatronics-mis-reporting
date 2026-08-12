@@ -717,8 +717,8 @@ function ChannelsTab() {
         </div>
       </SectionCard>
 
-      {/* FY channel mix from source summary */}
-      <SectionCard title="Fiscal-year channel mix" description="From the consolidated MIS summary">
+      {/* FY channel mix — computed live from the monthly data so it never goes stale */}
+      <SectionCard title="Fiscal-year channel mix" description="Computed from the monthly MIS (net revenue by fiscal year)">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -729,15 +729,18 @@ function ChannelsTab() {
               </tr>
             </thead>
             <tbody>
-              {FY_SUMMARY.filter((f) => f.netRevenue > 0).map((f) => (
-                <tr key={f.name} className="border-b border-slate-50">
-                  <td className="py-2 pr-4 font-medium text-slate-700">{f.name}</td>
-                  <td className="py-2 px-3 text-right text-slate-700">{inr(f.netRevenue)}</td>
-                  {SALES_CHANNELS.map((c) => (
-                    <td key={c} className="py-2 px-3 text-right text-slate-600">{f.mix[c] ? pctStr(f.mix[c], 0) : '–'}</td>
-                  ))}
-                </tr>
-              ))}
+              {yearlySeries().filter((f) => f.netRevenue > 0).map((f) => {
+                const mix = channelMix(f);
+                return (
+                  <tr key={f.key} className="border-b border-slate-50">
+                    <td className="py-2 pr-4 font-medium text-slate-700">{f.longLabel}</td>
+                    <td className="py-2 px-3 text-right text-slate-700">{inr(f.netRevenue)}</td>
+                    {SALES_CHANNELS.map((c) => (
+                      <td key={c} className="py-2 px-3 text-right text-slate-600">{mix[c] ? pctStr(mix[c], 0) : '–'}</td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
