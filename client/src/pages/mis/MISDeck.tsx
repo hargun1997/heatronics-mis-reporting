@@ -1423,7 +1423,7 @@ function SkuChannelTab() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-slate-700">SKU × Channel P&amp;L</h2>
-          <p className="text-xs text-slate-400">Per-product contribution by channel. Real per-unit COGS + {Math.round(FACTORY_PCT * 100)}% factory cost. Amazon &amp; D2C measured; Blinkit/Offline/OEM single-SKU (COGS via ASP).</p>
+          <p className="text-xs text-slate-400">Per-product contribution by channel. Real per-unit COGS + {Math.round(FACTORY_PCT * 100)}% factory cost. Amazon &amp; D2C measured; Blinkit/Offline/OEM single-SKU (COGS = unit cost ÷ real ASP).</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
@@ -1452,9 +1452,9 @@ function SkuChannelTab() {
 
       <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-slate-600">
         <span className="font-medium text-emerald-700">Real SKU-level costs.</span> Amazon and D2C carry each product's
-        actual units × cost and their real fees/ads; Blinkit, Offline (both → hCore X Lite, ₹222) and OEM
-        (own SKU, ₹220) are single-SKU channels whose COGS is applied via the product's blended ASP, so their margins
-        are indicative — OEM especially (wholesale) is likely optimistic. All rows also carry a {Math.round(FACTORY_PCT * 100)}% factory
+        actual units × cost and their real fees/ads; Blinkit, Offline (both → hCore X Lite, ₹222 cost) and OEM
+        (own SKU, ₹220 cost) are single-SKU channels — COGS is unit cost ÷ real ASP: Offline ₹550 (40% COGS), OEM ₹325
+        (68% COGS, thin wholesale margin). All rows also carry a {Math.round(FACTORY_PCT * 100)}% factory
         (COGM) cost. Contribution is before shared opex, depreciation and interest. SKU feed covers {SKU_COVERAGE.first} → {SKU_COVERAGE.last}.
       </div>
 
