@@ -11,6 +11,7 @@ import {
   periodGrowth, yoyGrowth, marginsOf, channelMix, deckFacts, arrProjection,
   channelObservations, channelHHI, topChannel, channelsAbove, likeForLikeChannel,
   ordersByChannel, channelLabel, channelPnl, adSpendForPeriod, CHANNEL_AOV,
+  channelActualPnl, COGS_RATE,
   SALES_CHANNELS, FY_SUMMARY,
   type Granularity, type PeriodMIS, type ChannelPnlRow,
 } from '../../data/misDeck/analytics';
@@ -26,7 +27,7 @@ const iconDeck = (
   </svg>
 );
 
-type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelpnl' | 'missheet';
+type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelpnl' | 'channelactuals' | 'missheet';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -36,6 +37,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'profitability', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
   { id: 'channelpnl', label: 'Channel P&L' },
+  { id: 'channelactuals', label: 'Channel P&L (Actuals)' },
   { id: 'missheet', label: 'MIS Sheet' },
 ];
 
@@ -98,6 +100,7 @@ export function MISDeck() {
         {tab === 'profitability' && <ProfitabilityTab blended={blended} setBlended={setBlended} />}
         {tab === 'pnl' && <PnlTab blended={blended} setBlended={setBlended} />}
         {tab === 'channelpnl' && <ChannelPnlTab blended={blended} setBlended={setBlended} />}
+        {tab === 'channelactuals' && <ChannelActualsTab />}
         {tab === 'missheet' && <MisSheetTab />}
       </div>
     </>
@@ -1309,6 +1312,134 @@ function ChannelPnlTab({ blended, setBlended }: BlendProps) {
           </table>
         </div>
       </SectionCard>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Channel P&L — ACTUALS (real per-channel settlement & ad-spend costs)
+// ----------------------------------------------------------------------------
+
+function ChannelActualsTab() {
+  const [g, setG] = useState<Granularity>('year');
+  const series = useMemo(() => seriesFor(g), [g]);
+  const [idx, setIdx] = useState(series.length - 1);
+  useEffect(() => { setIdx(seriesFor(g).length - 1); }, [g]);
+  const safeIdx = Math.min(idx, series.length - 1);
+  const p = series[safeIdx];
+
+  const res = channelActualPnl(g, p);
+  const cols = res.rows;
+
+  // Total column (across channels with actuals).
+  const tot = cols.reduce(
+    (a, r) => ({
+      revenue: a.revenue + r.revenue, cogs: a.cogs + r.cogs, fulfilment: a.fulfilment + r.fulfilment,
+      marketing: a.marketing + r.marketing, otherCosts: a.otherCosts + r.otherCosts, contribution: a.contribution + r.contribution,
+    }),
+    { revenue: 0, cogs: 0, fulfilment: 0, marketing: 0, otherCosts: 0, contribution: 0 },
+  );
+
+  type RowDef = { label: string; get: (r: typeof cols[number]) => number; total: number; kind: 'rev' | 'cost' | 'margin' };
+  const ROWS: RowDef[] = [
+    { label: 'Net Revenue', get: (r) => r.revenue, total: tot.revenue, kind: 'rev' },
+    { label: `COGS (${Math.round(COGS_RATE * 100)}%)`, get: (r) => -r.cogs, total: -tot.cogs, kind: 'cost' },
+    { label: 'Fulfilment & channel fees', get: (r) => -r.fulfilment, total: -tot.fulfilment, kind: 'cost' },
+    { label: 'Marketing (ads)', get: (r) => -r.marketing, total: -tot.marketing, kind: 'cost' },
+    { label: 'Taxes / platform / gateway', get: (r) => -r.otherCosts, total: -tot.otherCosts, kind: 'cost' },
+    { label: 'Contribution margin', get: (r) => r.contribution, total: tot.contribution, kind: 'margin' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700">Channel P&amp;L — Actuals</h2>
+          <p className="text-xs text-slate-400">Real channel-tagged costs from settlement &amp; ad-spend feeds. COGS assumed {Math.round(COGS_RATE * 100)}% of revenue.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <GranularityToggle value={g} onChange={setG} />
+          <select
+            value={safeIdx}
+            onChange={(e) => setIdx(Number(e.target.value))}
+            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200"
+          >
+            {series.map((s, i) => (
+              <option key={s.key} value={i}>{s.longLabel}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-slate-600">
+        <span className="font-medium text-emerald-700">Real costs, not allocation.</span> Each channel carries its own
+        settled costs — Blinkit from its seller settlement (commission, shipping, storage, ads), Amazon from its Payments
+        fees (referral, FBA, Sponsored Products), and D2C from Meta + Google spend, Shiprocket shipping and Shopflo +
+        gateway fees. <span className="font-medium">OEM &amp; Offline</span> are direct / wholesale sales — shown at
+        revenue minus COGS only (no marketplace fees or ads). COGS is a flat {Math.round(COGS_RATE * 100)}% of net revenue (a stated assumption). This is
+        <span className="font-medium"> contribution margin</span> — before shared opex, depreciation and interest.
+        {res.coverageNote && <span className="block mt-1 text-emerald-700">{res.coverageNote}</span>}
+      </div>
+
+      {cols.length === 0 ? (
+        <SectionCard title="No actuals for this period" description="Pick a period covered by the settlement / ad-spend feeds.">
+          <p className="text-sm text-slate-500">Actual cost feeds run roughly Nov 2024 (Amazon) / Feb 2025 (Blinkit) / Aug 2025 (D2C) onward.</p>
+        </SectionCard>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <KpiCard label="Revenue (channels w/ actuals)" value={inr(res.totalRevenue)} tone="brand" />
+            <KpiCard label="Contribution margin" value={inr(res.totalContribution)} tone="slate"
+              sub={`across ${cols.length} channel${cols.length > 1 ? 's' : ''}`} />
+            <KpiCard label="Blended CM %" value={pctStr(res.cmPct)} tone="amber" />
+          </div>
+
+          <SectionCard
+            title={`Channel P&L (Actuals) · ${p.longLabel}`}
+            description="All figures in ₹. Costs shown as negatives. Contribution = Revenue − COGS − channel fees − marketing − taxes/platform."
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead>
+                  <tr className="text-xs text-slate-400 border-b border-slate-200">
+                    <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white align-bottom">Particulars</th>
+                    {cols.map((r) => (
+                      <th key={r.channel} className="py-2 px-3 text-right font-medium align-bottom">
+                        <div className="text-slate-600 font-semibold">{channelLabel(r.channel)}</div>
+                        <div className="text-[10px] font-normal text-slate-400 mt-0.5">{r.direct ? 'direct · ' : ''}{r.monthsCovered} mo</div>
+                      </th>
+                    ))}
+                    <th className="py-2 pl-3 text-right font-medium align-bottom text-slate-600">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ROWS.map((row) => {
+                    const isMargin = row.kind === 'margin' || row.kind === 'rev';
+                    return (
+                      <tr key={row.label} className={`border-b border-slate-50 ${isMargin ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
+                        <td className="py-2 pr-4 text-left sticky left-0 bg-white">{row.label}</td>
+                        {cols.map((r) => (
+                          <td key={r.channel} className={`py-2 px-3 text-right tabular-nums ${isMargin ? 'text-slate-800' : 'text-slate-600'}`}>
+                            {inr(row.get(r))}
+                          </td>
+                        ))}
+                        <td className="py-2 pl-3 text-right tabular-nums font-medium text-slate-800">{inr(row.total)}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="text-slate-500">
+                    <td className="py-2 pr-4 text-left sticky left-0 bg-white">CM %</td>
+                    {cols.map((r) => (
+                      <td key={r.channel} className="py-2 px-3 text-right tabular-nums">{pctStr(r.cmPct)}</td>
+                    ))}
+                    <td className="py-2 pl-3 text-right tabular-nums font-medium text-slate-700">{pctStr(res.cmPct)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        </>
+      )}
     </div>
   );
 }
