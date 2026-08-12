@@ -10,6 +10,12 @@ import {
   type MonthlyMIS,
   type SalesChannel,
 } from './misDeckData';
+import {
+  COGS_RATE,
+  BLINKIT_ACTUALS,
+  AMAZON_ACTUALS,
+  D2C_COSTS,
+} from './channelActuals';
 
 export type Granularity = 'month' | 'quarter' | 'year';
 
@@ -798,5 +804,128 @@ export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelP
   });
 }
 
-export { SALES_CHANNELS, FY_SUMMARY };
+// ----------------------------------------------------------------------------
+// Channel P&L — ACTUALS (real channel-tagged costs from settlement / ad feeds)
+// ----------------------------------------------------------------------------
+//
+// Unlike channelPnl() (which allocates company-total costs by revenue share),
+// this view uses each channel's OWN settlement and ad-spend data, so every
+// channel shows its real contribution margin. COGS is a flat COGS_RATE of net
+// revenue (a stated assumption, not a booked figure). Only D2C, Amazon and
+// Blinkit have channel-tagged cost feeds; other channels are reported as
+// revenue-only. This is additive — it does not touch the rest of the deck.
+
+export interface ChannelActualRow {
+  channel: SalesChannel;
+  hasActuals: boolean;
+  monthsCovered: number;      // months in the period that carry this channel's cost data
+  revenue: number;
+  cogs: number;
+  fulfilment: number;         // channel/marketplace ops incl. shipping (a cost, positive)
+  marketing: number;          // ad spend (a cost, positive)
+  otherCosts: number;         // taxes / platform / gateway net of credits (a cost, positive)
+  contribution: number;       // revenue − cogs − fulfilment − marketing − otherCosts
+  cmPct: number;              // contribution / revenue
+}
+
+export interface ChannelActualsResult {
+  rows: ChannelActualRow[];               // only channels with actuals (D2C/Amazon/Blinkit that have data)
+  totalRevenue: number;
+  totalContribution: number;
+  cmPct: number;
+  monthsInPeriod: string[];               // all member-month keys
+  coverageNote: string;                   // human summary of which months are covered
+}
+
+/** Net D2C revenue by month key, straight from the model. */
+const D2C_REV_BY_MONTH: Record<string, number> = monthsAsc.reduce((acc, m) => {
+  acc[m.key] = Math.max(0, m.netByChannel.D2C || 0);
+  return acc;
+}, {} as Record<string, number>);
+
+const ACTUAL_CHANNELS: SalesChannel[] = ['D2C', 'Amazon', 'Blinkit'];
+
+/**
+ * Channel-level contribution P&L from real per-channel costs.
+ * Sums, per channel, only the member months that carry that channel's cost
+ * data — so revenue and costs always align and CM% stays honest. Blinkit uses
+ * its settlement payout (already net of every Blinkit deduction); Amazon uses
+ * itemised referral + FBA + ad fees; D2C uses model revenue minus Meta/Google
+ * spend, Shiprocket shipping and Shopflo + gateway fees.
+ */
+export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActualsResult {
+  const months = membersOf(g, period).map((m) => m.key);
+
+  const rows: ChannelActualRow[] = ACTUAL_CHANNELS.map((channel) => {
+    let revenue = 0, fulfilment = 0, marketing = 0, otherCosts = 0, monthsCovered = 0;
+
+    for (const key of months) {
+      if (channel === 'Blinkit') {
+        const a = BLINKIT_ACTUALS[key];
+        if (!a) continue;
+        monthsCovered++;
+        revenue += a.sales;
+        fulfilment += a.fulfilment;
+        marketing += a.ads;
+        otherCosts += a.taxes - a.credits; // taxes are a cost; credits offset it
+      } else if (channel === 'Amazon') {
+        const a = AMAZON_ACTUALS[key];
+        if (!a) continue;
+        monthsCovered++;
+        revenue += a.netSales;
+        fulfilment += a.referral + a.fba;
+        marketing += a.ads;
+      } else {
+        // D2C: revenue from the model, costs from the D2C feed.
+        const c = D2C_COSTS[key];
+        if (!c) continue;
+        monthsCovered++;
+        revenue += D2C_REV_BY_MONTH[key] || 0;
+        fulfilment += c.shiprocket;
+        marketing += c.meta + c.google;
+        otherCosts += c.shopflo + c.gateway;
+      }
+    }
+
+    const cogs = revenue * COGS_RATE;
+    const contribution = revenue - cogs - fulfilment - marketing - otherCosts;
+    return {
+      channel,
+      hasActuals: monthsCovered > 0,
+      monthsCovered,
+      revenue, cogs, fulfilment, marketing, otherCosts,
+      contribution,
+      cmPct: revenue > 0 ? contribution / revenue : 0,
+    };
+  }).filter((r) => r.hasActuals);
+
+  const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
+  const totalContribution = rows.reduce((s, r) => s + r.contribution, 0);
+
+  const covered = new Set<string>();
+  for (const r of rows) {
+    for (const key of months) {
+      if (
+        (r.channel === 'Blinkit' && BLINKIT_ACTUALS[key]) ||
+        (r.channel === 'Amazon' && AMAZON_ACTUALS[key]) ||
+        (r.channel === 'D2C' && D2C_COSTS[key])
+      ) covered.add(key);
+    }
+  }
+  const missing = months.filter((m) => !covered.has(m));
+  const coverageNote = missing.length
+    ? `Actuals cover ${covered.size}/${months.length} month(s); ${missing.join(', ')} not yet in the cost feeds.`
+    : `Actuals cover all ${months.length} month(s) in this period.`;
+
+  return {
+    rows,
+    totalRevenue,
+    totalContribution,
+    cmPct: totalRevenue > 0 ? totalContribution / totalRevenue : 0,
+    monthsInPeriod: months,
+    coverageNote,
+  };
+}
+
+export { SALES_CHANNELS, FY_SUMMARY, COGS_RATE };
 export type { SalesChannel };
