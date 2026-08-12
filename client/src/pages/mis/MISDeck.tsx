@@ -1381,7 +1381,7 @@ function ChannelActualsTab() {
 // SKU × Channel P&L — product × channel contribution matrix
 // ----------------------------------------------------------------------------
 
-type SkuMetric = 'con' | 'rev' | 'cm';
+type SkuMetric = 'con' | 'rev' | 'sm' | 'cm';
 
 function SkuChannelTab() {
   const [g, setG] = useState<Granularity>('year');
@@ -1392,9 +1392,13 @@ function SkuChannelTab() {
   const p = series[safeIdx];
   const [metric, setMetric] = useState<SkuMetric>('con');
   const [orient, setOrient] = useState<'sku' | 'channel'>('sku');
+  const [pnlCh, setPnlCh] = useState<SalesChannel | null>(null);
 
   const mx = skuChannelMatrix(g, p);
   const hasData = mx.products.length > 0;
+  const activeCh: SalesChannel | undefined =
+    pnlCh && mx.channels.includes(pnlCh) ? pnlCh : mx.channels[0];
+  const adChannels: SalesChannel[] = ['Amazon', 'D2C', 'Blinkit'];
 
   // Orientation: 'sku' → products as rows / channels as columns; 'channel' → the transpose.
   const rowKeys = orient === 'sku' ? mx.products : (mx.channels as string[]);
@@ -1414,9 +1418,10 @@ function SkuChannelTab() {
     if (!a || (a.rev === 0 && a.con === 0)) return <span className="text-slate-300">·</span>;
     if (metric === 'rev') return inr(a.rev);
     if (metric === 'con') return inr(a.con);
+    if (metric === 'sm') return a.sm > 0 ? inr(a.sm) : <span className="text-slate-300">·</span>;
     return a.rev > 0 ? pctStr(a.con / a.rev) : <span className="text-slate-300">·</span>;
   };
-  const metricLabel = metric === 'rev' ? 'Revenue' : metric === 'con' ? 'Contribution' : 'CM %';
+  const metricLabel = metric === 'rev' ? 'Revenue' : metric === 'con' ? 'CM2 (contribution)' : metric === 'sm' ? 'Ad spend (S&M)' : 'CM2 %';
 
   return (
     <div className="space-y-6">
@@ -1435,10 +1440,10 @@ function SkuChannelTab() {
             ))}
           </div>
           <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
-            {(['con', 'rev', 'cm'] as SkuMetric[]).map((m) => (
+            {(['con', 'rev', 'sm', 'cm'] as SkuMetric[]).map((m) => (
               <button key={m} onClick={() => setMetric(m)}
                 className={`px-3 py-1.5 ${metric === m ? 'bg-brand-50 text-brand-700 font-medium' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>
-                {m === 'con' ? 'Contribution' : m === 'rev' ? 'Revenue' : 'CM %'}
+                {m === 'con' ? 'CM2' : m === 'rev' ? 'Revenue' : m === 'sm' ? 'Ad spend' : 'CM2 %'}
               </button>
             ))}
           </div>
@@ -1472,7 +1477,7 @@ function SkuChannelTab() {
 
           <SectionCard
             title={`SKU × Channel · ${metricLabel} · ${p.longLabel}`}
-            description="Rows = products, columns = channels. Contribution = revenue − COGS − channel fees/marketing. All ₹ unless CM %."
+            description="Rows = products, columns = channels. CM2 = revenue − COGM − channel & fulfilment − ads. Ad spend is each channel-month's real ad total, split to SKUs by revenue. All ₹ unless a %."
           >
             <div className="overflow-x-auto">
               <table className="w-full text-sm whitespace-nowrap">
@@ -1506,6 +1511,87 @@ function SkuChannelTab() {
               </table>
             </div>
           </SectionCard>
+
+          {/* Per-channel SKU-level P&L cascade to CM2 */}
+          {activeCh && (() => {
+            const skus = mx.products.filter((prod) => {
+              const a = mx.cell(prod, activeCh);
+              return a && (a.rev !== 0 || a.con !== 0);
+            });
+            const chTot = mx.channelTotal(activeCh);
+            type CasRow = { label: string; get: (a: SkuAgg) => number; kind: 'rev' | 'cost' | 'margin' | 'sub' };
+            const CAS: CasRow[] = [
+              { label: 'Net Revenue', get: (a) => a.rev, kind: 'rev' },
+              { label: 'Less: COGM (cost + factory)', get: (a) => -(a.cogs + a.fac), kind: 'cost' },
+              { label: 'Gross Margin', get: (a) => a.rev - a.cogs - a.fac, kind: 'margin' },
+              { label: 'Less: Channel & Fulfilment', get: (a) => -a.cf, kind: 'cost' },
+              { label: 'CM1', get: (a) => a.rev - a.cogs - a.fac - a.cf, kind: 'sub' },
+              { label: 'Less: Sales & Marketing (ads)', get: (a) => -a.sm, kind: 'cost' },
+              { label: 'CM2', get: (a) => a.con, kind: 'margin' },
+            ];
+            const hasAds = adChannels.includes(activeCh);
+            return (
+              <SectionCard
+                title={`Channel P&L at SKU level · ${channelLabel(activeCh)} · ${p.longLabel}`}
+                description={hasAds
+                  ? 'Full cascade to CM2 per SKU. Ad spend is this channel-month’s real ad total, split across SKUs by revenue (allocation, not per-SKU measured).'
+                  : 'Full cascade to CM2 per SKU. This channel has no ad spend — CM1 = CM2.'}
+              >
+                <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                  {mx.channels.map((c) => (
+                    <button key={c} onClick={() => setPnlCh(c)}
+                      className={`px-3 py-1 rounded-lg text-sm ${c === activeCh ? 'bg-brand-50 text-brand-700 font-medium border border-brand-200' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200'}`}>
+                      {channelLabel(c)}
+                    </button>
+                  ))}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm whitespace-nowrap">
+                    <thead>
+                      <tr className="text-xs text-slate-400 border-b border-slate-200">
+                        <th className="py-2 pr-4 text-left font-medium sticky left-0 bg-white align-bottom">Particulars</th>
+                        {skus.map((s) => (
+                          <th key={s} className="py-2 px-3 text-right font-medium text-slate-600 align-bottom">{s}</th>
+                        ))}
+                        <th className="py-2 pl-3 text-right font-medium text-slate-700 align-bottom">{channelLabel(activeCh)} total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {CAS.map((rowDef) => {
+                        const strong = rowDef.kind === 'margin' || rowDef.kind === 'rev';
+                        return (
+                          <tr key={rowDef.label} className={`border-b border-slate-50 ${strong ? 'font-semibold text-slate-800' : rowDef.kind === 'sub' ? 'font-medium text-slate-700' : 'text-slate-600'}`}>
+                            <td className="py-2 pr-4 text-left sticky left-0 bg-white">{rowDef.label}</td>
+                            {skus.map((s) => {
+                              const a = mx.cell(s, activeCh);
+                              return (
+                                <td key={s} className={`py-2 px-3 text-right tabular-nums ${strong ? 'text-slate-800' : rowDef.kind === 'sub' ? 'text-slate-700' : 'text-slate-600'}`}>
+                                  {a ? inr(rowDef.get(a)) : <span className="text-slate-300">·</span>}
+                                </td>
+                              );
+                            })}
+                            <td className="py-2 pl-3 text-right tabular-nums font-semibold text-slate-800">{inr(rowDef.get(chTot))}</td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="text-slate-500">
+                        <td className="py-2 pr-4 text-left sticky left-0 bg-white">CM2 %</td>
+                        {skus.map((s) => {
+                          const a = mx.cell(s, activeCh);
+                          return (
+                            <td key={s} className="py-2 px-3 text-right tabular-nums">
+                              {a && a.rev > 0 ? pctStr(a.con / a.rev) : <span className="text-slate-300">·</span>}
+                            </td>
+                          );
+                        })}
+                        <td className="py-2 pl-3 text-right tabular-nums font-medium text-slate-700">{chTot.rev > 0 ? pctStr(chTot.con / chTot.rev) : '—'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </SectionCard>
+            );
+          })()}
         </>
       )}
     </div>

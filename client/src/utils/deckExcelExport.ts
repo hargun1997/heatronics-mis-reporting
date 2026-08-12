@@ -757,13 +757,16 @@ function generateSkuChannelSheet(): XLSX.WorkSheet {
   // For an all-time view we sum every FY's matrix.
   const products = new Set<string>();
   const channels = new Set<string>();
-  type Agg = { rev: number; con: number };
+  type Agg = { rev: number; cogs: number; fac: number; cf: number; sm: number; con: number };
+  const zero = (): Agg => ({ rev: 0, cogs: 0, fac: 0, cf: 0, sm: 0, con: 0 });
   const cellMap = new Map<string, Agg>();
   const prodTot = new Map<string, Agg>();
   const chanTot = new Map<string, Agg>();
-  let grand: Agg = { rev: 0, con: 0 };
-  const add = (m: Map<string, Agg>, k: string, rev: number, con: number) => {
-    const a = m.get(k) ?? { rev: 0, con: 0 }; a.rev += rev; a.con += con; m.set(k, a);
+  let grand: Agg = zero();
+  const add = (m: Map<string, Agg>, k: string, s: Agg) => {
+    const a = m.get(k) ?? zero();
+    a.rev += s.rev; a.cogs += s.cogs; a.fac += s.fac; a.cf += s.cf; a.sm += s.sm; a.con += s.con;
+    m.set(k, a);
   };
   years.forEach((fy) => {
     const m = skuChannelMatrix('year', fy);
@@ -773,10 +776,10 @@ function generateSkuChannelSheet(): XLSX.WorkSheet {
         const a = m.cell(p, c);
         if (!a) return;
         channels.add(c);
-        add(cellMap, `${p}||${c}`, a.rev, a.con);
-        add(prodTot, p, a.rev, a.con);
-        add(chanTot, c, a.rev, a.con);
-        grand.rev += a.rev; grand.con += a.con;
+        add(cellMap, `${p}||${c}`, a);
+        add(prodTot, p, a);
+        add(chanTot, c, a);
+        grand.rev += a.rev; grand.cogs += a.cogs; grand.fac += a.fac; grand.cf += a.cf; grand.sm += a.sm; grand.con += a.con;
       });
     });
   });
@@ -795,8 +798,8 @@ function generateSkuChannelSheet(): XLSX.WorkSheet {
     merges.push({ s: { r: row, c: 0 }, e: { r: row, c: nCols - 1 } });
     row++;
   };
-  band('SKU × CHANNEL — CONTRIBUTION (all-time)', S.title);
-  band(`Contribution ₹ per product per channel. Real per-SKU COGS + ${Math.round(FACTORY_PCT * 100)}% factory. Amazon & D2C measured; Blinkit/Offline/OEM single-SKU (COGS = unit cost ÷ real ASP: Offline ₹550, OEM ₹325). Covers ${mx.monthsInPeriod.length ? SKU_FEED_NOTE : ''}`, S.subtitle);
+  band('SKU × CHANNEL — CONTRIBUTION (CM2) + per-channel cascade (all-time)', S.title);
+  band(`Top: CM2 ₹ per product per channel. Below: full P&L cascade to CM2 per channel (Net Revenue → COGM → GM → Channel & Fulfilment → CM1 → Ads → CM2). Real per-SKU COGS + ${Math.round(FACTORY_PCT * 100)}% factory. Ad spend = each channel-month's real ad total split to SKUs by revenue. Amazon & D2C measured; Blinkit/Offline/OEM single-SKU (COGS = unit cost ÷ real ASP: Offline ₹550, OEM ₹325). Covers ${mx.monthsInPeriod.length ? SKU_FEED_NOTE : ''}`, S.subtitle);
   row++;
   put(row, 0, 'Product', S.header);
   chans.forEach((c, i) => put(row, i + 1, channelLabel(c), S.header));
@@ -817,9 +820,59 @@ function generateSkuChannelSheet(): XLSX.WorkSheet {
   put(row, nCols - 1, round2(grand.con), signed(round2(grand.con), { ...S.header }));
   row++;
 
-  ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: nCols - 1 })}`;
+  // ---- Per-channel SKU-level P&L cascade to CM2 (all-time) ----
+  const cascadeLines: { label: string; get: (a: Agg) => number; margin: boolean }[] = [
+    { label: 'NET REVENUE', get: (a) => a.rev, margin: true },
+    { label: 'Less: COGM (cost + factory)', get: (a) => -(a.cogs + a.fac), margin: false },
+    { label: 'GROSS MARGIN', get: (a) => a.rev - a.cogs - a.fac, margin: true },
+    { label: 'Less: Channel & Fulfilment', get: (a) => -a.cf, margin: false },
+    { label: 'CM1', get: (a) => a.rev - a.cogs - a.fac - a.cf, margin: true },
+    { label: 'Less: Sales & Marketing (ads)', get: (a) => -a.sm, margin: false },
+    { label: 'CM2', get: (a) => a.con, margin: true },
+  ];
+  chans.forEach((c) => {
+    row++; // spacer
+    const chSkus = prods.filter((p) => {
+      const a = cellMap.get(`${p}||${c}`);
+      return a && (a.rev !== 0 || a.con !== 0);
+    });
+    const w = chSkus.length + 2; // Particulars + SKUs + channel total
+    const bandN = (text: string, s: Style) => {
+      put(row, 0, text, s);
+      for (let k = 1; k < Math.max(w, nCols); k++) put(row, k, '', s);
+      merges.push({ s: { r: row, c: 0 }, e: { r: row, c: Math.max(w, nCols) - 1 } });
+      row++;
+    };
+    bandN(`${channelLabel(c)} — P&L at SKU level (to CM2)`, S.header);
+    put(row, 0, 'Particulars', S.header);
+    chSkus.forEach((p, i) => put(row, i + 1, p, S.header));
+    put(row, w - 1, `${channelLabel(c)} total`, S.header);
+    row++;
+    const ct = chanTot.get(c) ?? zero();
+    cascadeLines.forEach((line) => {
+      put(row, 0, line.margin ? line.label : `   ${line.label}`, S.label);
+      chSkus.forEach((p, i) => {
+        const a = cellMap.get(`${p}||${c}`);
+        const v = a ? round2(line.get(a)) : 0;
+        put(row, i + 1, v, signed(v, S.num));
+      });
+      const tv = round2(line.get(ct));
+      put(row, w - 1, tv, signed(tv, { ...S.num, font: { ...(S.num.font || {}), bold: true } }));
+      row++;
+    });
+    put(row, 0, '   CM2 %', S.label);
+    chSkus.forEach((p, i) => {
+      const a = cellMap.get(`${p}||${c}`);
+      if (a && a.rev > 0) put(row, i + 1, round2((a.con / a.rev) * 1000) / 1000, signed(a.con / a.rev, S.pct));
+      else put(row, i + 1, '', S.label);
+    });
+    put(row, w - 1, ct.rev > 0 ? round2((ct.con / ct.rev) * 1000) / 1000 : 0, signed(ct.rev > 0 ? ct.con / ct.rev : 0, S.pct));
+    row++;
+  });
+
+  ws['!ref'] = `A1:${XLSX.utils.encode_cell({ r: row, c: Math.max(nCols, 8) - 1 })}`;
   ws['!merges'] = merges;
-  setCols(ws, [30, ...chans.map(() => 13), 14]);
+  setCols(ws, [34, ...chans.map(() => 13), 14]);
   return ws;
 }
 

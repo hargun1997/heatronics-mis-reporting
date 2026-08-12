@@ -924,7 +924,14 @@ export function channelActualPnl(g: Granularity, period: PeriodMIS): ChannelActu
 /** Factory / conversion cost added on top of product COGS to form COGM (fraction of revenue). */
 export const FACTORY_PCT = 0.10;
 
-export interface SkuAgg { rev: number; cogs: number; fac: number; oth: number; con: number; u: number; }
+export interface SkuAgg {
+  rev: number; cogs: number; fac: number;
+  oth: number;   // all channel costs (channel & fulfilment + ads) = cf + sm
+  cf: number;    // channel & fulfilment (marketplace/shipping/gateway fees)
+  sm: number;    // sales & marketing (ad spend attributed to this cell)
+  con: number;   // CM2 = rev − cogs − factory − cf − sm  (== rev − cogs − factory − oth)
+  u: number;
+}
 export interface SkuChannelMatrix {
   products: string[];                       // row order, by revenue desc (accessories last)
   channels: SalesChannel[];                 // column order (channels present)
@@ -935,15 +942,48 @@ export interface SkuChannelMatrix {
   monthsInPeriod: string[];
 }
 
-interface RawAgg { rev: number; cogs: number; oth: number; u: number; }
-const EMPTY_RAW: RawAgg = { rev: 0, cogs: 0, oth: 0, u: 0 };
+interface RawAgg { rev: number; cogs: number; oth: number; sm: number; u: number; }
+const EMPTY_RAW: RawAgg = { rev: 0, cogs: 0, oth: 0, sm: 0, u: 0 };
 function addRaw(a: RawAgg, c: SkuCell): RawAgg {
-  return { rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth, u: a.u + c.u };
+  return { rev: a.rev + c.rev, cogs: a.cogs + c.cogs, oth: a.oth + c.oth, sm: a.sm + cellAdSpend(c), u: a.u + c.u };
 }
-/** Adds the factory (COGM) cost and derives contribution: con = rev − cogs − factory − other. */
+/**
+ * Adds the factory (COGM) cost and derives the cascade to CM2.
+ *   COGM = cogs + factory;  cf = oth − sm (channel & fulfilment);  con = CM2.
+ */
 function finalizeAgg(a: RawAgg): SkuAgg {
   const fac = a.rev * FACTORY_PCT;
-  return { rev: a.rev, cogs: a.cogs, fac, oth: a.oth, con: a.rev - a.cogs - fac - a.oth, u: a.u };
+  const sm = a.sm;
+  const cf = a.oth - sm;
+  return { rev: a.rev, cogs: a.cogs, fac, oth: a.oth, cf, sm, con: a.rev - a.cogs - fac - a.oth, u: a.u };
+}
+
+// --- Ad-spend (sales & marketing) attribution to SKU cells ------------------
+// Amazon/D2C/Blinkit each have a real MONTHLY ad total. There is no per-SKU ad
+// feed, so a channel-month's ad spend is attributed to that channel-month's SKU
+// cells by revenue share (clamped so a cell is never charged more marketing than
+// its own `oth` bucket holds). The channel/month ad totals are real; the split
+// onto individual SKUs is an allocation until a per-SKU ad report is available.
+function adTotalFor(ch: SalesChannel, m: string): number {
+  if (ch === 'Amazon') return AMAZON_ACTUALS[m]?.ads ?? 0;
+  if (ch === 'D2C') { const d = D2C_COSTS[m]; return d ? d.meta + d.google : 0; }
+  if (ch === 'Blinkit') return BLINKIT_ACTUALS[m]?.ads ?? 0;
+  return 0; // OEM / Offline / Export — no ad spend
+}
+const SKU_REV_BY_CH_MONTH = new Map<string, number>();
+for (const c of SKU_CELLS) {
+  const k = `${c.ch}||${c.m}`;
+  SKU_REV_BY_CH_MONTH.set(k, (SKU_REV_BY_CH_MONTH.get(k) ?? 0) + Math.max(0, c.rev));
+}
+/** Ad (S&M) spend attributed to one SKU cell, from its channel-month ad total. */
+function cellAdSpend(c: SkuCell): number {
+  const tot = adTotalFor(c.ch, c.m);
+  if (tot <= 0) return 0;
+  const denom = SKU_REV_BY_CH_MONTH.get(`${c.ch}||${c.m}`) ?? 0;
+  if (denom <= 0) return 0;
+  const sm = tot * (Math.max(0, c.rev) / denom);
+  // Never attribute more marketing than sits in the cell's other-cost bucket.
+  return Math.min(Math.max(0, sm), Math.max(0, c.oth));
 }
 
 const ALL_SKU_MONTHS = [...new Set(SKU_CELLS.map((c) => c.m))].sort();
