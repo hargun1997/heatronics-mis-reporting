@@ -69,7 +69,9 @@ export function AmazonToTranzactTool() {
               <p>
                 Go to{' '}
                 <a className="text-brand-600 hover:text-brand-700 underline underline-offset-2" href="https://sellercentral.amazon.in/listing/reports/ref=xx_invreport_dnav_xx" target="_blank" rel="noopener noreferrer">Inventory Reports</a>
-                , select <b>Inventory Report</b>, and download the <code className="bg-slate-100 px-1 rounded">.txt</code> file.
+                {' '}and download the <code className="bg-slate-100 px-1 rounded">.txt</code> file. Either report works — the
+                {' '}<b>Manage Inventory</b> snapshot or the monthly <b>Inventory Ledger</b> (the tool auto-detects which). Both
+                use the <b>SELLABLE</b> closing quantity as physical stock.
               </p>
             </Step>
             <Step n={2} title="Upload & transform here">
@@ -116,7 +118,14 @@ export function AmazonToTranzactTool() {
         {result && (
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <h3 className="text-sm font-semibold text-slate-900 mb-3">Summary</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-900">Summary</h3>
+                {result.period && (
+                  <span className="text-[11px] font-medium text-brand-700 bg-brand-50 border border-brand-100 rounded px-2 py-0.5">
+                    Inventory Ledger · {result.period}
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <SummaryCard label="FG Items" value={result.totalFgItems} color="emerald" />
                 <SummaryCard label="Units Mapped" value={result.totalUnitsMapped} color="brand" />
