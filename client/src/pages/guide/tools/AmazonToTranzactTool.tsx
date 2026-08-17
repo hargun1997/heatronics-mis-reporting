@@ -65,13 +65,22 @@ export function AmazonToTranzactTool() {
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <h3 className="text-sm font-semibold text-slate-900">How it works</h3>
           <div className="mt-4 space-y-4">
-            <Step n={1} title="Download from Amazon Seller Central">
+            <Step n={1} title="Download the Inventory Ledger from Amazon">
               <p>
-                Go to{' '}
-                <a className="text-brand-600 hover:text-brand-700 underline underline-offset-2" href="https://sellercentral.amazon.in/listing/reports/ref=xx_invreport_dnav_xx" target="_blank" rel="noopener noreferrer">Inventory Reports</a>
-                {' '}and download the <code className="bg-slate-100 px-1 rounded">.txt</code> file. Either report works — the
-                {' '}<b>Manage Inventory</b> snapshot or the monthly <b>Inventory Ledger</b> (the tool auto-detects which). Both
-                use the <b>SELLABLE</b> closing quantity as physical stock.
+                Open{' '}
+                <a className="text-brand-600 hover:text-brand-700 underline underline-offset-2" href="https://sellercentral.amazon.in/reportcentral/LEDGER_REPORT/1" target="_blank" rel="noopener noreferrer">Reports → Fulfilment → Inventory Ledger</a>
+                {' '}and pick the <b>Download</b> tab. Set it up exactly like this:
+              </p>
+              <ul className="mt-1.5 space-y-0.5 list-disc pl-4">
+                <li>Type of report: <b>Summary view</b></li>
+                <li>Aggregate by location: <b>Country</b></li>
+                <li>Aggregate by time period: <b>Monthly</b></li>
+                <li>Date range: the month you're reconciling (leave ASIN/FNSKU/MSKU blank for all products)</li>
+                <li>Click <b>Request .txt Download</b> — <span className="text-rose-600 font-medium">not .csv</span> (csv drops the leading zeros in MSKUs/ASINs and breaks SKU matching)</li>
+              </ul>
+              <p className="mt-1.5">
+                When it appears in the list below with a <b>Download</b> button, grab the <code className="bg-slate-100 px-1 rounded">.txt</code> file.
+                (The older <b>Manage Inventory</b> snapshot also works — the tool auto-detects either. Both use the <b>SELLABLE</b> closing quantity.)
               </p>
             </Step>
             <Step n={2} title="Upload & transform here">
