@@ -2,10 +2,10 @@
 
 **Period:** 1-Jul-26 to 31-Jul-26
 **Basis:** Stock-transfer (STR) ledgers removed from both Sales and Purchases (internal branch transfers eliminated).
-**Format:** Contribution-margin P&L (Gross Revenue → CM1/CM2/CM3 → EBITDA → Net Profit), values in ₹ and ₹ Lac.
+**Format:** Contribution-margin P&L (Gross Revenue → CM1/CM2/CM3 → EBITDA → Net Loss), values in ₹ and ₹ Lac.
 **Source:** `Heatronics_PnL_Jul2026.xlsx` — Tally Prime P&L A/c screen and Group Summary drill-downs (13 screenshots, 31-Aug-2026).
 
-> ⚠️ **Read Note 1 before circulating.** Tally shows Closing Stock **equal to** Opening Stock (₹1,44,57,824), so inventory movement contributes **zero** to COGS this month. The 51.2% gross margin and the ₹3.41 L profit are both overstated by whatever stock was actually consumed in July. This is a provisional close.
+> ⚠️ **Read Notes 1 and 2 before circulating.** Two Tally entries are overridden here. (1) Closing Stock **equals** Opening Stock (₹1,44,57,824), so inventory movement contributes **zero** to COGS — the 51.2% gross margin is overstated by whatever stock July actually consumed. (2) Employee Cost is taken as the **debit of ₹4,19,204 only**; the ₹4,45,091 credit is disregarded as an erroneous entry. Tally's own screen therefore shows a ₹3.39 L profit where this statement shows a **₹1.04 L loss**. This is a provisional close.
 
 ---
 
@@ -28,15 +28,15 @@
 | **CM2** | **3,90,585** | **3.91** | **8.0%** |
 | Brand Investment (Content Creation – Agency) — *nil in July* | — | — | |
 | **CM3** | **3,90,585** | **3.91** | **8.0%** |
-| Payroll (Employee Cost – Indirect) — *net CREDIT, see Note 2* | 25,887 | 0.26 | |
+| Payroll (Employee Cost – Indirect) — *debit only, see Note 2* | (4,19,204) | (4.19) | |
 | Professional Fees | (36,000) | (0.36) | |
 | Other Expenses (Admin, After-sales, Staff welfare, Bank, Fin. adj) | (44,806) | (0.45) | |
 | Other Income (Indirect Income) | 5,222 | 0.05 | |
-| **EBITDA** | **3,40,887** | **3.41** | **7.0%** |
+| **EBITDA** | **(1,04,204)** | **(1.04)** | **−2.1%** |
 | Finance Costs | — | — | |
 | Cost of Fundraising (Business Development Expenses) | — | — | |
 | Depreciation | — | — | |
-| **Net Profit (PBT = PAT)** | **3,40,887** | **3.41** | **7.0%** |
+| **Net Loss (PBT = PAT)** | **(1,04,204)** | **(1.04)** | **−2.1%** |
 
 ---
 
@@ -83,12 +83,14 @@
 | Logistics & Channel | Channel Fees & Commissions 4,74,618 (Amazon 2,69,731; Shiprocket freight 1,52,561; D2C fees 44,102; Blinkit 8,224); Shipping Charges 5,119; Freight Outward – Porter/Transport 3,800 | 4,83,537 |
 | Marketing (performance) | D2C Marketing 10,08,860 (Meta 6,96,636 + Google 1,32,224 + Media Buying Agency 1,80,000) + Ecommerce Marketing 6,13,290 | 16,22,150 |
 | Brand Investment | *none booked in July* | — |
-| Payroll | Employee Cost – Indirect (debit 4,19,204 − credit 4,45,091) | **(25,887)** *credit* |
+| Payroll | Employee Cost – Indirect — **debit 4,19,204 only**; the 4,45,091 credit is disregarded (Note 2) | 4,19,204 |
 | Professional Fees | Professional Fees | 36,000 |
 | Other Expenses | Admin & General 22,276; After-Sales & Warranty 10,589; Staff Welfare 9,370; Bank Charges 2,575; less Financial Adjustments (4) | 44,806 |
 | Finance Costs | *none booked in July* | — |
 | Cost of Fundraising | *none booked in July* | — |
-| **Total Indirect Expenses** | | **21,60,606** |
+| **Total Indirect Expenses (as adjusted)** | | **26,05,697** |
+
+*Tally's P&L screen shows ₹21,60,606 — that total is net of the ₹4,45,091 employee-cost credit disregarded here. Difference is exactly ₹4,45,091.*
 
 Indirect Income (Other Income): ₹5,222
 
@@ -119,18 +121,32 @@ Blended MER (revenue per ₹ of ad spend): **D2C 1.30×**, **Ecommerce 1.95×**.
 | CM1 | 13.34 (27.0%) | 20.13 (41.3%) | +6.79 |
 | CM2 | (1.93) | 3.91 | +5.84 |
 | CM3 | (8.47) | 3.91 | +12.38 |
-| EBITDA | (19.16) | 3.41 | +22.57 |
-| **Net** | **(19.87)** | **3.41** | **+23.28** |
+| EBITDA | (19.16) | (1.04) | +18.12 |
+| **Net** | **(19.87)** | **(1.04)** | **+18.83** |
 
-The swing is driven by cost, not revenue: **Logistics & Channel −₹4.39 L**, **Brand Investment −₹6.54 L** (nil in July), **Payroll −₹4.14 L** (a net credit), **Professional Fees −₹2.83 L**, **Other Expenses −₹3.23 L**, **Finance Costs −₹0.71 L**. Marketing rose ₹0.95 L. **None of this is volume-driven** — and ₹2.40 L of the gross-margin gain is the zero stock movement in Note 1.
+The swing is driven by cost, not revenue. Ranked by contribution to the ₹18.83 L improvement:
+
+| Driver | ₹ Lac |
+|---|---:|
+| Brand Investment — nil in July (was Content Creation – Agency) | +6.54 |
+| Logistics & Channel | +4.39 |
+| Other Expenses (compliance, insurance, admin, bank) | +3.23 |
+| Professional Fees | +2.83 |
+| Gross Margin (mostly the zero stock movement, Note 1) | +2.40 |
+| Finance Costs | +0.71 |
+| Payroll | (0.31) |
+| Marketing (performance ads) | (0.95) |
+| **Net swing** | **+18.83** |
+
+**None of this is volume-driven** — revenue actually fell ₹0.71 L. July is a month where discretionary spend stopped, not one where the business turned. And ₹2.40 L of it is the zero stock movement in Note 1, which is a bookkeeping artefact rather than a real margin gain.
 
 ---
 
 ## Notes
 
 1. **⚠️ Closing Stock = Opening Stock (₹1,44,57,824).** Tally carries identical opening and closing inventory, so stock movement contributes exactly **zero** to COGS. Either July stock was never re-valued or closing was entered manually equal to opening. Until fixed, "Gross Margin" is really *Sales − RM Purchases − Direct Expenses*, not a true gross margin, and **every margin % in this document inherits that caveat**. For scale: 8,197 units shipped in July across all channels, so real stock consumption is certainly not nil. **This is the single item to fix before the month is filed.**
-2. **⚠️ Payroll is a net credit of ₹25,887.** Employee Cost – Indirect carries debit ₹4,19,204 and credit ₹4,45,091. This is the only reading under which the groups foot to the ₹21,60,606 indirect-expense total on the Tally P&L screen. Almost certainly a reversal, a provision write-back, or a wrongly-signed entry — July shows *negative* employee cost, against ₹3.88 L in June. Verify before filing.
-3. **STR removed both sides.** Tally's on-screen Nett Profit is ₹3,39,196 *with* STR included. STR purchases (₹3,81,447) exceeded STR sales (₹3,79,756) by ₹1,691 — an internal transfer/valuation loss. Removing STR from both legs, per the June treatment, lifts the profit to **₹3,40,887**, the correct external-only P&L. The ₹1,691 gap is the asymmetry of the STR pair itself.
+2. **⚠️ Employee-cost credit of ₹4,45,091 disregarded.** Tally carries both a debit of ₹4,19,204 and a credit of ₹4,45,091 against Employee Cost – Indirect. On the owner's instruction the **debit alone is taken as July payroll**: no payroll refund or recovery was actually received, so the credit is an erroneous or contra entry. At ₹4.19 L this sits sensibly against June's ₹3.88 L, whereas the netted figure implied a near-nil payroll month, which did not happen. **Consequence:** Tally's own P&L screen totals ₹21,60,606 of indirect expenses and a Nett Profit of ₹3,39,196, both of which absorb that credit. This statement shows ₹26,05,697 and a **net loss of ₹1,04,204**. **Tally needs a correcting entry** — until it is passed, the software and this statement will not agree.
+3. **STR removed both sides.** Tally's on-screen Nett Profit is ₹3,39,196 *with* STR included. STR purchases (₹3,81,447) exceeded STR sales (₹3,79,756) by ₹1,691 — an internal transfer/valuation loss. Removing STR from both legs, per the June treatment, adds ₹1,691 back. This is the smaller of the two adjustments to the Tally screen; see the reconciliation bridge at the foot of this document.
 4. **Media Buying Agency ₹1,80,000 kept in performance Marketing (CM2),** not in Brand Investment — it is a fee for running Google/Meta, not content creation. No Content Creation – Agency spend was booked in July, so the Brand Investment (CM3) line is nil, against ₹6.53 L in June.
 5. **Quick Commerce is a net debit of ₹2,667.** Returns and credit notes exceeded gross Blinkit sales, while ₹8,224 of Blinkit channel fees were still incurred — the channel lost money outright. Small in absolute terms.
 6. **Shiprocket cost is split across two Tally groups.** Freight Charges (Shiprocket) ₹1,52,561 sits directly under Channel Fees & Commissions, while Brand Boost / Delivery Boost / generic fees (₹8,377) sit under D2C Logistics — total Shiprocket ₹1,60,938. Consider re-grouping in Tally so all Shiprocket cost sits in one place.
@@ -138,5 +154,13 @@ The swing is driven by cost, not revenue: **Logistics & Channel −₹4.39 L**, 
 8. **Scope.** Tally closing balances for 1-Jul-26 to 31-Jul-26. No adjustment layered on for GST, TDS, depreciation, interest or tax. Management P&L, not a statutory statement.
 
 ### Full reconciliation
-Net Revenue 48,77,043 − COGS 23,80,772 − Indirect Expenses 21,60,606 + Indirect Income 5,222 = **+3,40,887** ✓
-Tally-stated Nett Profit ₹3,39,196 + STR pair asymmetry ₹1,691 = **₹3,40,887** ✓
+Net Revenue 48,77,043 − COGS 23,80,772 − Indirect Expenses 26,05,697 + Indirect Income 5,222 = **−1,04,204** ✓
+
+Bridge from the Tally screen:
+
+| | ₹ |
+|---|---:|
+| Nett Profit per Tally P&L screen | 3,39,196 |
+| Less: employee-cost credit disregarded (Note 2) | (4,45,091) |
+| Add: Stock Transfer pair asymmetry (Note 3) | 1,691 |
+| **Net Loss per this statement** | **(1,04,204)** |
