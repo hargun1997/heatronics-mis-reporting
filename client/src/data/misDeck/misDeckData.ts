@@ -1857,19 +1857,19 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
     "netRevenue": 4877043.37,
     "interBranch": 0,
     "turnover": 0,
-    "grossMargin": 2496271.55,
-    "cm1": 2012734.68,
-    "cm2": 390584.85,
-    "cm3": 390584.85,
-    "ebitda": -104204.15,
-    "netIncome": -104204.15,
+    "grossMargin": 2050838.55,
+    "cm1": 1567301.68,
+    "cm2": -54848.15,
+    "cm3": -54848.15,
+    "ebitda": -549637.15,
+    "netIncome": -549637.15,
     "cogmLines": {
       "Raw Material Purchases": -1286280.79,
       "Factory Overheads": -395615,
       "Manufacturing Costs (job work, wages, addl. charges)": -662292.03,
       "Inward Freight": -36584,
-      "Stock movement (Opening − Closing)": 0,
-      "TOTAL COGM": -2380771.82
+      "Stock movement (Opening − Closing)": -445433,
+      "TOTAL COGM": -2826204.82
     },
     "opexLines": {
       "Payroll (Employee Cost – Indirect, debit only)": -419204,
@@ -1882,14 +1882,14 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
       "Other Income (Indirect Incomes)": 5221.53,
       "TOTAL OPERATING EXPENSES": -494789
     },
-    "cogm": 2380771.82,
+    "cogm": 2826204.82,
     "channelFulfillment": 483536.87,
     "salesMarketing": 1622149.83,
     "platformCosts": 0,
     "opex": 494789,
     "nonOperating": 0,
     "costOfFundraising": 0,
-    "restated": "Built from the Jul-2026 Tally P&L (Heatronics_PnL_Jul2026.xlsx, 13 Tally Prime screenshots). Stock Transfers removed from both Sales (3,79,756) and Purchases (3,81,447), per the Jun-2026 treatment. WARNING: Tally shows Closing Stock = Opening Stock = 1,44,57,824, so inventory movement contributes ZERO to COGM — COGM 23.81 L is only RM purchases + direct expenses, and the 51.2% gross margin is overstated by whatever stock was actually consumed. Employee Cost – Indirect taken as the DEBIT of 4,19,204 only; the 4,45,091 credit is disregarded on the owner’s instruction (no payroll refund was received, so the credit is an erroneous or contra entry that Tally still needs corrected). Payroll therefore reads 4.19 L, in line with June’s 3.88 L. No Brand Investment, Finance Costs or Cost of Fundraising booked. Net Loss 1.04 L = Tally-stated Nett Profit 3,39,196 less the disregarded 4,45,091 credit plus the 1,691 Stock Transfer asymmetry."
+    "restated": "Built from the Jul-2026 Tally P&L, with Closing Stock re-valued to 1,40,12,391 (Tally screen, 31-Aug-2026) — the earlier draft carried Closing = Opening and so booked zero stock movement. Real movement is 4,45,433, lifting COGM to 28.26 L and cutting gross margin from 51.2% to 42.1%. Stock Transfers removed from both Sales (3,79,756) and Purchases (3,81,447), per the Jun-2026 treatment. Employee Cost – Indirect taken as the DEBIT of 4,19,204 only; the 4,45,091 credit is disregarded on the owner’s instruction (no payroll refund was received, so the credit is an erroneous or contra entry that Tally still needs corrected). No Brand Investment, Finance Costs or Cost of Fundraising booked. CM2 is NEGATIVE at (54,848): after COGS, logistics and ads the month does not cover its variable cost. Net Loss 5.50 L = Tally-stated Nett Loss 1,06,237 less the disregarded 4,45,091 credit plus the 1,691 Stock Transfer asymmetry."
   }
 ];
 
