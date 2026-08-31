@@ -43,7 +43,7 @@ export function ToolsHome() {
           <NavCard
             to="/tools/amazon-to-tranzact"
             title="Amazon → Tranzact"
-            description="Convert the Amazon FBA Inventory Report into a Tranzact Bulk Manual Adjustment Excel file."
+            description="Convert the Amazon FBA Inventory Ledger into a Tranzact Physical Stock Reconciliation upload."
             icon={iconConvert}
             accent="amber"
           />

@@ -47,7 +47,7 @@ export function AmazonToTranzactTool() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Tranzact_Adjustment_${today}.xlsx`;
+    a.download = `Tranzact_StockReconciliation_${today}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   }, [result]);
@@ -56,7 +56,7 @@ export function AmazonToTranzactTool() {
     <>
       <PageHeader
         title="Amazon → Tranzact"
-        description="Convert the Amazon FBA Inventory Report into a Tranzact Bulk Manual Adjustment file — ready for Physical Stock Reconciliation."
+        description="Convert the Amazon FBA Inventory Ledger into a Tranzact Physical Stock Reconciliation upload."
         accent="amber"
         icon={icon}
       />
@@ -90,7 +90,27 @@ export function AmazonToTranzactTool() {
               <p>
                 In Tranzact go to{' '}
                 <a className="text-brand-600 hover:text-brand-700 underline underline-offset-2" href="https://app.letstranzact.com/v3/inventory/?section=item_master" target="_blank" rel="noopener noreferrer">Inventory → Item Master</a>
-                {' '}→ Actions → <b>Physical Stock Reconciliation</b>. Pick Category "Finished Goods", Store "Amazon (Pan-India)", drop the file and submit.
+                {' '}→ Actions → <b>Physical Stock Reconciliation</b>. Ignore the <b>Download Template</b> block at the top — the file this tool produces already matches it.
+                (If you do want the blank template to check Item IDs, tick <b>With Items</b> and set Item Category to <b>Finished goods</b>.)
+              </p>
+              <p className="mt-1.5">Then set the four fields below the Download button:</p>
+              <ul className="mt-1.5 space-y-1 list-disc pl-4">
+                <li>
+                  <b>Store</b> — <b>Amazon (Pan-India)</b>.
+                  {' '}<span className="text-rose-600 font-medium">It defaults to "Raw Material Store"</span> — change it, or you will write Amazon FBA stock onto the factory store.
+                </li>
+                <li><b>As on Date</b> — the last day of the month you're reconciling (e.g. 31/07/2026 for the July ledger), <i>not</i> today's date.</li>
+                <li>
+                  <b>Final Stock Valuation</b> — <b>Use system price</b>. Tranzact then values the stock from its own item master.
+                  Choose "Use uploaded price" only if you deliberately want the prices in this file, which come from the tool's built-in FG master and can be out of date.
+                </li>
+                <li>
+                  <b>Allow Final Stock at 0 Price</b> — <b>No</b>. This makes Tranzact stop if any item would be valued at zero, instead of silently booking that stock at ₹0 and understating closing stock.
+                  Only switch to Yes once you've checked why an item has no price.
+                </li>
+              </ul>
+              <p className="mt-1.5">
+                Drop the file into <b>Update Stock Details</b> and submit. The file is the full SELLABLE count for the Amazon store, so anything Tranzact holds in that store but not listed here is genuinely zero.
               </p>
             </Step>
           </div>
