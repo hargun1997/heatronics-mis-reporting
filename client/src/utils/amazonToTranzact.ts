@@ -13,13 +13,16 @@ export interface TransformResult {
   period?: string;   // Inventory-Ledger period (e.g. "07/2026"), when detected
 }
 
-// Matches Tranzact Physical Stock Reconciliation template
+// Matches the Tranzact Physical Stock Reconciliation template, whose columns are:
+//   Item ID | Item Name | UOM | Physical Stock | Price | Comment
+// Tranzact dropped the old "Difference" column (it derives the difference itself),
+// so nothing may sit between Physical Stock and Price — a stray column shifts Price
+// and Comment right by one and the upload is rejected.
 export interface OutputRow {
   itemId: string;
   itemName: string;
   uom: string;
   physicalStock: number;
-  difference: string; // left empty — Tranzact calculates this
   price: number;
   comment: string;
 }
@@ -170,7 +173,6 @@ function buildOutputRows(
       itemName: masterItem.itemName,
       uom: masterItem.unit,
       physicalStock: stock.qty,
-      difference: '',
       price: masterItem.defaultPrice,
       comment: `Amazon FBA Stock | SKU(s): ${[...new Set(stock.skus)].join(', ')} | ${asOf}`,
     });
@@ -179,16 +181,26 @@ function buildOutputRows(
   return { outputRows, missingFgItems };
 }
 
+/**
+ * Column headers and sheet name of the Tranzact Physical Stock Reconciliation
+ * template, verified against the `stock_reconciliation_prod.xlsx` download on
+ * 31-Aug-2026. Tranzact matches on the header row, so these must stay byte-exact
+ * — including the sheet name, which the importer reads by name.
+ */
+export const TRANZACT_HEADERS = [
+  'Item ID', 'Item Name', 'UOM', 'Physical Stock', 'Price', 'Comment',
+] as const;
+export const TRANZACT_SHEET_NAME = 'Stock Reconciliation';
+
 // STEP 4: Generate Excel matching Tranzact Physical Stock Reconciliation template
 export function generateTranzactExcel(rows: OutputRow[]): Blob {
   const wsData = [
-    ['Item ID', 'Item Name', 'UOM', 'Physical Stock', 'Difference', 'Price', 'Comment'],
+    [...TRANZACT_HEADERS],
     ...rows.map(r => [
       r.itemId,
       r.itemName,
       r.uom,
       r.physicalStock,
-      r.difference,
       r.price,
       r.comment,
     ]),
@@ -198,16 +210,15 @@ export function generateTranzactExcel(rows: OutputRow[]): Blob {
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
   ws['!cols'] = [
-    { wch: 12 },
-    { wch: 35 },
-    { wch: 8 },
-    { wch: 14 },
-    { wch: 12 },
-    { wch: 10 },
-    { wch: 60 },
+    { wch: 12 },  // Item ID
+    { wch: 35 },  // Item Name
+    { wch: 8 },   // UOM
+    { wch: 14 },  // Physical Stock
+    { wch: 10 },  // Price
+    { wch: 60 },  // Comment
   ];
 
-  XLSX.utils.book_append_sheet(wb, ws, 'MySheet');
+  XLSX.utils.book_append_sheet(wb, ws, TRANZACT_SHEET_NAME);
   const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
