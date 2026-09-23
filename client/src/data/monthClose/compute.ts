@@ -274,6 +274,7 @@ export function computeClose(
 
   // ---- Blockers ------------------------------------------------------------
   const blockers = collectBlockers({
+    session,
     sku,
     lines,
     unmapped,
@@ -357,6 +358,7 @@ function reconcile(
 }
 
 function collectBlockers(ctx: {
+  session: MonthCloseSession;
   sku: SkuResult;
   lines: Record<string, LineTotal>;
   unmapped: LedgerNode[];
@@ -414,14 +416,70 @@ function collectBlockers(ctx: {
     });
   }
 
+  // A product flagged on two channels is one decision, so it is raised once
+  // with the revenue pooled. Two blockers sharing a ref also gave React two
+  // siblings with the same key, which it reconciled by keeping stale rows.
+  const unconfirmedByFg = new Map<string, { deckName: string; revenue: number; channels: Set<string> }>();
   for (const a of ctx.sku.unconfirmed) {
+    const entry = unconfirmedByFg.get(a.fgId) ?? { deckName: a.deckName, revenue: 0, channels: new Set<string>() };
+    entry.revenue = r2(entry.revenue + a.revenue);
+    entry.channels.add(a.channel);
+    unconfirmedByFg.set(a.fgId, entry);
+  }
+  for (const [fgId, v] of unconfirmedByFg) {
     out.push({
       kind: 'unmapped',
       scope: 'sku',
-      ref: `fg:${a.fgId}`,
+      ref: `fg:${fgId}`,
       message:
-        `${a.fgId} → "${a.deckName}" is inferred from the Tranzact naming convention, not confirmed. ` +
-        `${fmt(a.revenue)} of ${a.channel} revenue rests on it — confirm the product before emitting SKU cells.`,
+        `${fgId} → "${v.deckName}" is inferred from the Tranzact naming convention, not confirmed. ` +
+        `${fmt(v.revenue)} of ${[...v.channels].join(' and ')} revenue rests on it — confirm the product ` +
+        'before emitting SKU cells.',
+    });
+  }
+
+  if (ctx.sku.basisForked.length > 0 && !ctx.session.costBasis) {
+    const revenue = r2(ctx.sku.basisForked.reduce((t, a) => t + a.revenue, 0));
+    out.push({
+      kind: 'unmapped',
+      scope: 'sku',
+      ref: 'costBasis',
+      message:
+        `${fmt(revenue)} of revenue is on products Tranzact holds twice — once under the legacy HTR-* ` +
+        'item codes and once under the later hCore-* ones, at standard costs up to 44% apart. ' +
+        'Pick which generation prices a unit before emitting SKU cells.',
+    });
+  }
+
+  const uncostedByFg = new Map<string, { deckName: string; revenue: number; channels: Set<string> }>();
+  for (const a of ctx.sku.uncosted) {
+    const entry = uncostedByFg.get(a.fgId) ?? { deckName: a.deckName, revenue: 0, channels: new Set<string>() };
+    entry.revenue = r2(entry.revenue + a.revenue);
+    entry.channels.add(a.channel);
+    uncostedByFg.set(a.fgId, entry);
+  }
+  for (const [fgId, v] of uncostedByFg) {
+    const a = { fgId, deckName: v.deckName, revenue: v.revenue, channel: [...v.channels].join(' and ') };
+    out.push({
+      kind: 'unmapped',
+      scope: 'sku',
+      ref: `cost:${a.fgId}`,
+      message:
+        `No BOM prices ${a.fgId} ("${a.deckName}"), so ${fmt(a.revenue)} of ${a.channel} revenue ` +
+        'would emit at 100% margin. Add it to the Tranzact BOM export, or assign the product a ' +
+        'finished good that is priced.',
+    });
+  }
+
+  if (ctx.sku.costBook.ambiguous.length > 0) {
+    out.push({
+      kind: 'anomaly',
+      advisory: true,
+      message:
+        `${ctx.sku.costBook.ambiguous.join(', ')} ${
+          ctx.sku.costBook.ambiguous.length === 1 ? 'is' : 'are'
+        } priced by more than one BOM — an OEM variant of the same finished good, usually. ` +
+        'The cheapest is being used; check that is the one you make for this channel.',
     });
   }
 

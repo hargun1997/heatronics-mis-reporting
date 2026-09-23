@@ -1,0 +1,18 @@
+Created At,Channel Order Id,AWB Code,Category,Amount,Available Balance,Description
+31-Jul-2026 18:13:11,,,,-100.24,-11069.39,Delivery Boost Charges
+31-Jul-2026 18:10:05,,,Freight RTO,-150,-10969.15,RTO charges applied
+31-Jul-2026 18:10:05,,,Freight COD,40,-10819.15,COD charges Reversed
+31-Jul-2026 15:39:35,,,,-3.53,-10781.86,Brand Boost charges
+31-Jul-2026 04:28:42,,,Freight COD,-6.87,-10072.82,COD charges updated
+31-Jul-2026 04:28:42,,,Freight Forward,-32,-10065.95,Forward charges updated
+31-Jul-2026 04:12:02,,,Freight COD,-33.6,-10017.91,COD charges applied
+31-Jul-2026 04:12:02,,,Freight Forward,-130.36,-9984.31,Forward charges applied
+30-Jul-2026 23:21:37,,,Recharge and Credit,12095.28,0,Freight charges deducted against COD available CRF_ID : 13257502
+30-Jul-2026 21:52:13,,,Freight Forward,-36,-12095.28,Forward Excess weight charge applied
+30-Jul-2026 21:47:33,,,Freight RTO,-104.5,-12059.28,RTO Excess weight charge applied
+30-Jul-2026 04:28:32,,,Freight Forward,194.25,-9876,Forward charges Reversed
+23-Jul-2026 09:54:04,,,Recharge and Credit,15000,9975.5,Bank ReferenceNo: pay_TGtvZXaVlUJV7d | Order ID: order_TGtvRI4SEjazAb | Payment Gateway: RZ-RD
+22-Jul-2026 04:36:24,,,Recharge and Credit,15000,5096.46,Bank ReferenceNo: pay_TGPzumUx42qf7g | Order ID: order_TGPyDxPVQ67ftw | Payment Gateway: RZ-RD
+19-Jul-2026 06:56:59,,,Freight RTO,211.1,-10428.45,RTO charges Reversed
+15-Jul-2026 10:05:06,,,Recharge and Credit,611.1,-1587.54,Credit note for lost shipment #SF2541023336SRF
+14-Jul-2026 07:22:16,,,Freight RTO,6.41,-3747.86,RTO charges updated

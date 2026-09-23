@@ -6,11 +6,13 @@ import { emitClose } from '../../data/monthClose/emit';
 import { checkVisionAvailable, ingestFile } from '../../data/monthClose/ingestClient';
 import { normaliseLedgerPath } from '../../data/monthClose/ledgerMap';
 import { PRODUCTS, normaliseSku } from '../../data/monthClose/skuMap';
+import { costBasisImpact } from '../../data/monthClose/skuRollup';
 import {
   CLOSE_GROUPS,
   SOURCE_KINDS,
   emptySession,
   manualProvenance,
+  type CostBasis,
   type MonthCloseSession,
   type SourceKind,
   type UploadedSource,
@@ -137,11 +139,7 @@ export function MonthIngestTab() {
       return { ...s, skuOverrides: { ...s.skuOverrides, [`${platform}:${normaliseSku(key)}`]: fgId } };
     });
 
-  const setCogsPct = (raw: string) =>
-    setSession((s) => {
-      const n = parseFloat(raw.replace('%', '').trim());
-      return { ...s, skuCogsPct: Number.isFinite(n) ? n / 100 : null };
-    });
+  const setCostBasis = (basis: CostBasis | null) => setSession((s) => ({ ...s, costBasis: basis }));
 
   const setManual = (lineKey: string, raw: string) =>
     setSession((s) => {
@@ -250,9 +248,9 @@ export function MonthIngestTab() {
             <SkuCard
               computed={computed}
               blockers={skuBlocking}
-              cogsPct={session.skuCogsPct}
+              costBasis={session.costBasis}
               onAssignSku={assignSku}
-              onCogsPct={setCogsPct}
+              onCostBasis={setCostBasis}
             />
           )}
 
@@ -262,6 +260,7 @@ export function MonthIngestTab() {
         <div className="space-y-4">
           <CascadeCard computed={computed} label={session.periodLabel} />
           <ReconcileCard computed={computed} session={session} onAnchor={setAnchor} />
+          <CrossChecksCard sources={session.sources} computed={computed} />
           {advisory.length > 0 && <AdvisoryCard blockers={advisory} />}
           <EmitCard
             canEmit={canEmit}
@@ -337,8 +336,12 @@ function SourcesCard(props: {
                     {SOURCE_KINDS.find((k) => k.kind === s.kind)?.label ?? s.kind}
                   </span>
                   <span className="text-[10px] text-slate-400">
-                    {/* Platform sources carry product rows, not ledger rows. */}
-                    {s.skuRows.length > 0 ? `${s.skuRows.length} SKUs` : `${s.nodes.length} rows`}
+                    {/* Each source kind carries a different shape: ledger rows, product rows or standard costs. */}
+                    {s.bomCosts.length > 0
+                      ? `${s.bomCosts.length} BOM costs`
+                      : s.skuRows.length > 0
+                        ? `${s.skuRows.length} product rows`
+                        : `${s.nodes.length} rows`}
                   </span>
                   <button onClick={() => props.onRemove(s.id)} className="text-slate-300 hover:text-rose-500 text-xs">×</button>
                 </div>
@@ -415,8 +418,8 @@ function BlockersCard(props: {
           </div>
         ))}
 
-        {unverified.map((b) => (
-          <div key={b.ref} className="rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 flex items-center gap-2">
+        {unverified.map((b, i) => (
+          <div key={`${i}:${b.ref ?? b.message}`} className="rounded-lg border border-amber-100 bg-amber-50/50 px-3 py-2 flex items-center gap-2">
             <span className="text-xs text-slate-700 flex-1">{b.message}</span>
             <button
               onClick={() => props.onVerifyLine(b.ref!)}
@@ -438,42 +441,142 @@ function BlockersCard(props: {
 }
 
 
+/**
+ * What the platform files say, beside what Tally says.
+ *
+ * Platform exports are deliberately NOT a second path into the cascade — Tally
+ * is the authority, and adding a platform's own fee total to a ledger that
+ * already records it would double count. Holding them side by side is what
+ * they are good for: July's Amazon settlement came in within 0.18% of Tally's
+ * Ecommerce Sales, which is how the file earned its keep.
+ */
+function CrossChecksCard(props: { sources: UploadedSource[]; computed: ComputedClose }) {
+  const checks = props.sources.flatMap((s) => (s.crossChecks ?? []).map((c) => ({ ...c, source: s.label })));
+  if (checks.length === 0) return null;
+
+  const lineTotal = (key: string): number | null => {
+    const line = props.computed.lines[key];
+    return line ? Math.abs(line.amount) : null;
+  };
+
+  return (
+    <SectionCard
+      title="Platform vs Tally"
+      description="Held side by side, never added. A wide gap means a missing or duplicated file — not a number to fix."
+    >
+      <table className="w-full text-xs">
+        <tbody>
+          {checks.map((c, i) => {
+            const tally = c.against ? lineTotal(c.against) : null;
+            const gap = tally !== null ? Math.abs(c.amount) - tally : null;
+            const wide = gap !== null && tally !== null && tally > 0 && Math.abs(gap) > tally * 0.05;
+            return (
+              <tr key={`${c.source}-${c.label}-${i}`} className="border-b border-slate-50 align-top">
+                <td className="py-1 text-slate-600">
+                  {c.label}
+                  {c.note && <span className="block text-[10px] text-slate-400 leading-snug">{c.note}</span>}
+                </td>
+                <td className="py-1 text-right tabular-nums text-slate-700 whitespace-nowrap pl-2">{inr(c.amount)}</td>
+                <td className="py-1 text-right tabular-nums whitespace-nowrap pl-2 text-[10px]">
+                  {tally === null ? (
+                    <span className="text-slate-300">—</span>
+                  ) : (
+                    <span className={wide ? 'text-amber-600' : 'text-emerald-600'}>
+                      {gap === null || tally === 0 ? '' : `${gap >= 0 ? '+' : '−'}${((Math.abs(gap) / tally) * 100).toFixed(1)}%`}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </SectionCard>
+  );
+}
+
 function SkuCard(props: {
   computed: ComputedClose;
   blockers: Blocker[];
-  cogsPct: number | null;
+  costBasis: CostBasis | null;
   onAssignSku: (ref: string, fgId: string) => void;
-  onCogsPct: (raw: string) => void;
+  onCostBasis: (basis: CostBasis | null) => void;
 }) {
   const { sku } = props.computed;
   const productOptions = Object.values(PRODUCTS).sort((a, b) => a.deckName.localeCompare(b.deckName));
+  const impact = costBasisImpact(sku);
 
   return (
     <SectionCard
       title="SKU layer"
-      description="Platform rows resolved to products. Separate from the P&L close — these gate only the SKU cells."
+      description="Platform rows resolved to products and priced from the Tranzact BOMs. Separate from the P&L close — these gate only the SKU cells."
     >
       {props.blockers.length > 0 && (
         <div className="space-y-2 mb-3">
-          {props.blockers.map((b) => (
-            <div key={b.ref} className="rounded-lg border border-rose-100 bg-rose-50/50 px-3 py-2">
+          {props.blockers.map((b, i) => (
+            <div key={`${i}:${b.ref ?? b.message}`} className="rounded-lg border border-rose-100 bg-rose-50/50 px-3 py-2">
               <div className="text-xs text-slate-700">{b.message}</div>
-              <select
-                defaultValue=""
-                onChange={(e) => e.target.value && props.onAssignSku(b.ref!, e.target.value)}
-                className="mt-1.5 w-full px-2 py-1 text-xs rounded border border-slate-200 bg-white text-slate-600"
-              >
-                <option value="" disabled>
-                  {b.ref?.startsWith('fg:') ? 'Confirm the product…' : 'Assign to a product…'}
-                </option>
-                {productOptions.map((p) => (
-                  <option key={p.fgId} value={p.fgId}>
-                    {p.deckName} — {p.fgId} ({p.tranzactName})
+              {b.ref && b.ref !== 'costBasis' && !b.ref.startsWith('cost:') && (
+                <select
+                  defaultValue=""
+                  onChange={(e) => e.target.value && props.onAssignSku(b.ref!, e.target.value)}
+                  className="mt-1.5 w-full px-2 py-1 text-xs rounded border border-slate-200 bg-white text-slate-600"
+                >
+                  <option value="" disabled>
+                    {b.ref.startsWith('fg:') ? 'Confirm the product…' : 'Assign to a product…'}
                   </option>
-                ))}
-              </select>
+                  {productOptions.map((p) => (
+                    <option key={p.fgId} value={p.fgId}>
+                      {p.deckName} — {p.fgId} ({p.tranzactName})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           ))}
+        </div>
+      )}
+
+      {sku.costBook.count > 0 && (
+        <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2.5">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-xs font-medium text-slate-700">Cost basis</span>
+            <span className="text-[10px] text-slate-400">{sku.costBook.count} finished goods priced</span>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-500 leading-relaxed">
+            Tranzact holds the same physical product twice — under the legacy <code>HTR-*</code> item codes and
+            under the later <code>hCore-*</code> ones. Nothing in the platform files says which generation a SKU
+            means, and their standard costs differ by up to 44%.
+          </p>
+          <div className="mt-2 flex gap-2">
+            {([
+              ['legacy', 'Legacy HTR-*'],
+              ['hcore', 'Current hCore-*'],
+            ] as [CostBasis, string][]).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => props.onCostBasis(props.costBasis === value ? null : value)}
+                className={`flex-1 px-2 py-1.5 text-xs rounded-lg border transition-colors ${
+                  props.costBasis === value
+                    ? 'border-brand-300 bg-brand-50 text-brand-700 font-medium'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {label}
+                {impact && (
+                  <span className="block text-[10px] font-normal tabular-nums opacity-70">
+                    {inr(value === 'legacy' ? impact.legacy : impact.hcore)} COGS
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          {impact && impact.difference !== 0 && (
+            <p className="mt-1.5 text-[10px] text-slate-400">
+              {inr(Math.abs(impact.difference))} apart on {inr(impact.forkedRevenue)} of revenue. The legacy codes
+              are what the committed months use: they reproduce July&apos;s published Amazon COGS to 0.4%.
+            </p>
+          )}
         </div>
       )}
 
@@ -484,9 +587,11 @@ function SkuCard(props: {
               <tr className="text-slate-400 border-b border-slate-100">
                 <th className="text-left font-medium py-1">Product</th>
                 <th className="text-left font-medium py-1">Ch</th>
-                <th className="text-right font-medium py-1">Revenue</th>
                 <th className="text-right font-medium py-1">Units</th>
+                <th className="text-right font-medium py-1">Revenue</th>
+                <th className="text-right font-medium py-1">COGS</th>
                 <th className="text-right font-medium py-1">Fees</th>
+                <th className="text-right font-medium py-1">CM1</th>
               </tr>
             </thead>
             <tbody>
@@ -495,42 +600,46 @@ function SkuCard(props: {
                   <td className="py-1 text-slate-700">
                     {a.deckName}
                     {!a.confirmed && <span className="ml-1 text-[9px] px-1 rounded bg-amber-100 text-amber-700">inferred</span>}
+                    {a.byTitle && <span className="ml-1 text-[9px] px-1 rounded bg-sky-100 text-sky-700">by title</span>}
                   </td>
                   <td className="py-1 text-slate-500">{a.channel}</td>
-                  <td className="py-1 text-right tabular-nums text-slate-700">{inr(a.revenue)}</td>
                   <td className="py-1 text-right tabular-nums text-slate-500">{a.units || '—'}</td>
+                  <td className="py-1 text-right tabular-nums text-slate-700">{inr(a.revenue)}</td>
+                  <td
+                    className="py-1 text-right tabular-nums text-slate-500"
+                    title={a.bomNumber ? `${a.fgId} @ ₹${a.costPerUnit}/unit from ${a.bomNumber}` : undefined}
+                  >
+                    {a.cogs === null ? <span className="text-rose-500">no BOM</span> : inr(a.cogs)}
+                  </td>
                   <td className="py-1 text-right tabular-nums text-slate-500">{a.fees ? inr(a.fees) : '—'}</td>
+                  <td className="py-1 text-right tabular-nums text-slate-700">
+                    {a.contribution === null ? '—' : inr(a.contribution)}
+                  </td>
                 </tr>
               ))}
               <tr className="font-semibold text-slate-800">
                 <td className="py-1.5" colSpan={2}>Total</td>
-                <td className="py-1.5 text-right tabular-nums">{inr(sku.totalRevenue)}</td>
                 <td className="py-1.5 text-right tabular-nums">{sku.totalUnits || '—'}</td>
+                <td className="py-1.5 text-right tabular-nums">{inr(sku.totalRevenue)}</td>
+                <td className="py-1.5 text-right tabular-nums">{sku.totalCogs === null ? '—' : inr(sku.totalCogs)}</td>
                 <td className="py-1.5 text-right tabular-nums">{inr(sku.totalFees)}</td>
+                <td className="py-1.5 text-right tabular-nums">
+                  {inr(sku.aggregates.reduce((t, a) => t + (a.contribution ?? 0), 0))}
+                </td>
               </tr>
             </tbody>
           </table>
 
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
-            <span className="text-xs text-slate-500 flex-1">
-              COGS basis (% of revenue)
-              <span className="block text-[10px] text-slate-400">
-                No export carries per-SKU cost, and the FG master holds selling prices — so this has to be set by hand.
-              </span>
-            </span>
-            <input
-              inputMode="decimal"
-              defaultValue={props.cogsPct !== null ? String(Math.round(props.cogsPct * 1000) / 10) : ''}
-              onBlur={(e) => props.onCogsPct(e.target.value)}
-              placeholder="e.g. 30"
-              className="w-20 px-2 py-1 text-sm text-right rounded border border-slate-200 bg-white text-slate-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-200"
-            />
-            <span className="text-xs text-slate-400">%</span>
-          </div>
+          <p className="mt-2 text-[10px] text-slate-400 leading-relaxed">
+            Fees are what each platform attributes to the SKU. Shopify reports none and Shiprocket&apos;s freight
+            carries no SKU at all, so D2C contribution here is before fulfilment — it is not comparable with
+            Amazon&apos;s.
+          </p>
         </>
       ) : (
         <div className="text-xs text-slate-500">
-          No platform rows resolved yet. Drop an Amazon, Shopify, Blinkit or Shiprocket export above.
+          No platform rows resolved yet. Drop an Amazon unified transaction, a Shopify variant export, a Blinkit
+          payout workbook or the Tranzact BOM pricing file above.
         </div>
       )}
     </SectionCard>

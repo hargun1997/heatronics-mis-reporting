@@ -12,7 +12,7 @@
 
 import * as XLSX from 'xlsx';
 import { normaliseLedger } from './ledgerMap';
-import type { LedgerNode, Provenance, SkuRow, SourceKind } from './schema';
+import type { BomCost, CrossCheck, LedgerNode, Provenance, SkuRow, SourceKind } from './schema';
 
 export interface AdapterInput {
   file: File;
@@ -25,6 +25,10 @@ export interface AdapterResult {
   nodes: LedgerNode[];
   /** Product rows, for platform exports. Tally adapters return none. */
   skuRows?: SkuRow[];
+  /** Standard costs, for a BOM export. */
+  bomCosts?: BomCost[];
+  /** Figures to hold beside Tally rather than add to it. */
+  crossChecks?: CrossCheck[];
   warnings: string[];
 }
 

@@ -49,7 +49,7 @@ export async function ingestSpreadsheet(
     throw new Error(`Could not tell what "${file.name}" is. Pick the source type by hand and re-add it.`);
   }
 
-  const { nodes, skuRows, warnings } = claim.adapter.parse({ file, sourceId, workbook });
+  const { nodes, skuRows, bomCosts, crossChecks, warnings } = claim.adapter.parse({ file, sourceId, workbook });
 
   return {
     id: sourceId,
@@ -59,6 +59,8 @@ export async function ingestSpreadsheet(
     addedAt: new Date().toISOString(),
     nodes,
     skuRows: skuRows ?? [],
+    bomCosts: bomCosts ?? [],
+    crossChecks: crossChecks ?? [],
     warnings:
       claim.confidence < 0.5
         ? [`Source type guessed as "${claim.adapter.label}" — confirm it is right.`, ...warnings]

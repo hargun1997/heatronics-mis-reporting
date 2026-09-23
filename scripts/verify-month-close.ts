@@ -1,26 +1,35 @@
 // ----------------------------------------------------------------------------
-// Acceptance test for the month-close cascade.
+// Acceptance test for the month close.
 //
-// Replays the committed Jul-2026 close from its ledgers and asserts the engine
-// reproduces every figure in misDeckData.ts, plus the ₹1,691 stock-transfer
-// reconciling item named in July-2026-PnL.md.
+// Four sections, each pinning something that has already cost a round of
+// rework:
+//
+//   1. the committed Jul-2026 cascade, replayed from its ledgers
+//   2. the real Jul-2026 Tally workbook, parsed end to end
+//   3. emit, compared field by field against what is published
+//   4. the platform exports, against redacted cuts of the real July files
 //
 //   npx tsx scripts/verify-month-close.ts
 //
-// If this fails, the cascade has drifted from a month that has already been
+// If this fails, the engine has drifted from a month that has already been
 // published — fix the engine, not the fixture.
 // ----------------------------------------------------------------------------
 
+import * as fs from 'node:fs';
 import * as XLSX from 'xlsx';
-import { ADAPTERS } from '../client/src/data/monthClose/adapterRegistry';
+import { ADAPTERS, claimAdapter } from '../client/src/data/monthClose/adapterRegistry';
+import type { AdapterResult } from '../client/src/data/monthClose/adapters';
 import { computeClose } from '../client/src/data/monthClose/compute';
 import { emitClose } from '../client/src/data/monthClose/emit';
 import { MONTHLY_MIS } from '../client/src/data/misDeck/misDeckData';
+import { buildCostBook, costFor } from '../client/src/data/monthClose/skuRollup';
+import { lookupSku, platformKey } from '../client/src/data/monthClose/skuMap';
 import {
   emptySession,
   type LedgerNode,
   type MonthCloseSession,
   type Provenance,
+  type UploadedSource,
 } from '../client/src/data/monthClose/schema';
 
 const P: Provenance = {
@@ -113,6 +122,8 @@ const session: MonthCloseSession = {
       addedAt: new Date(0).toISOString(),
       nodes: JULY_LEDGERS,
       skuRows: [],
+      bomCosts: [],
+      crossChecks: [],
       warnings: [],
     },
   ],
@@ -232,6 +243,8 @@ const wbSession: MonthCloseSession = {
       addedAt: new Date(0).toISOString(),
       nodes: parsed.nodes,
       skuRows: [],
+      bomCosts: [],
+      crossChecks: [],
       warnings: parsed.warnings,
     },
   ],
@@ -293,102 +306,288 @@ if (!committed) {
 }
 
 // ---------------------------------------------------------------------------
-// SKU layer: identity resolution, and the two gates that guard it.
+// Platform exports: the real files, redacted.
+//
+// scripts/fixtures/ holds a cut of each July 2026 export, with customer-
+// identifying columns blanked and enough rows kept to exercise every trap the
+// real files sprang. The numbers asserted here are what the FULL files produce
+// where a fixture carries the whole thing (Shopify), and what the cut produces
+// where it does not. Either way, a platform renaming a column or flipping a
+// sign fails here rather than in a published month.
+// ---------------------------------------------------------------------------
+
+console.log('\nPlatform adapters against the real exports\n');
+
+const FIXTURES = new URL('./fixtures/', import.meta.url).pathname;
+
+function ingest(fileName: string): { source: UploadedSource; result: AdapterResult } {
+  const wb = XLSX.read(fs.readFileSync(FIXTURES + fileName), { type: 'buffer' });
+  const claim = claimAdapter(wb, fileName);
+  if (!claim) throw new Error(`no adapter claimed ${fileName}`);
+  const result = claim.adapter.parse({ workbook: wb, sourceId: fileName, file: { name: fileName } as File });
+  return {
+    result,
+    source: {
+      id: fileName,
+      label: fileName,
+      kind: claim.adapter.kind,
+      method: 'xlsx',
+      addedAt: new Date(0).toISOString(),
+      nodes: result.nodes,
+      skuRows: result.skuRows ?? [],
+      bomCosts: result.bomCosts ?? [],
+      crossChecks: result.crossChecks ?? [],
+      warnings: result.warnings,
+    },
+  };
+}
+
+const claimed = (fileName: string, want: string) => {
+  const wb = XLSX.read(fs.readFileSync(FIXTURES + fileName), { type: 'buffer' });
+  const claim = claimAdapter(wb, fileName);
+  const ok = claim?.adapter.kind === want;
+  if (!ok) failures++;
+  console.log(
+    ok
+      ? `  ok  ${fileName.padEnd(34)} claimed by ${want}`
+      : `FAIL  ${fileName} claimed by ${claim?.adapter.kind ?? 'nothing'}, wanted ${want}`,
+  );
+};
+
+claimed('amazon-unified-sample.csv', 'amazonSettlement');
+claimed('shopify-variant-july.csv', 'shopifySales');
+claimed('blinkit-order-charges-sample.xlsx', 'blinkitSettlement');
+claimed('shiprocket-passbook-sample.csv', 'shiprocketFreight');
+claimed('tranzact-bom-sample.xlsx', 'tranzactBom');
+
+// ---- Amazon ---------------------------------------------------------------
+// Amazon prints quantity POSITIVE on a refund even though product sales is
+// negative, and an Adjustment row carries a quantity with no sale at all.
+// Taking either at face value overstated July's units by 22%, and with them
+// COGS. The fixture holds one of each.
+const amazon = ingest('amazon-unified-sample.csv');
+const amazonRefund = amazon.source.skuRows.filter((r) => r.revenue < 0);
+const amazonAdjustment = amazon.source.skuRows.filter((r) => r.revenue === 0 && r.units !== 0);
+
+console.log(
+  amazonRefund.length > 0 && amazonRefund.every((r) => r.units < 0)
+    ? '  ok  refund rows carry negative units'
+    : 'FAIL  a refund row kept Amazon’s positive quantity',
+);
+if (amazonRefund.length === 0 || !amazonRefund.every((r) => r.units < 0)) failures++;
+
+console.log(
+  amazonAdjustment.length === 0
+    ? '  ok  FBA adjustment rows contribute no units'
+    : `FAIL  ${amazonAdjustment.length} adjustment row(s) counted as units sold`,
+);
+if (amazonAdjustment.length > 0) failures++;
+
+const amazonChecks = Object.fromEntries((amazon.result.crossChecks ?? []).map((c) => [c.against ?? c.label, c.amount]));
+console.log(
+  amazonChecks['sm_total'] > 0
+    ? `  ok  advertising split out of service fees (${fmt(amazonChecks['sm_total'])})`
+    : 'FAIL  advertising not separated from service fees',
+);
+if (!(amazonChecks['sm_total'] > 0)) failures++;
+
+// A Transfer is the settlement moving to the bank. It must never reach revenue
+// or fees: it is four times the size of the fixture's actual sales.
+const transferLeak = amazon.source.skuRows.some((r) => Math.abs(r.revenue) > 50000);
+console.log(transferLeak ? 'FAIL  a bank transfer leaked into the SKU rows' : '  ok  bank transfers excluded from SKU rows');
+if (transferLeak) failures++;
+
+// ---- Shopify (the whole July file) ----------------------------------------
+const shopify = ingest('shopify-variant-july.csv');
+const shopifyRevenue = shopify.source.skuRows.reduce((t, r) => t + r.revenue, 0);
+const titleKeyed = shopify.source.skuRows.filter((r) => r.keyKind === 'title');
+
+check('shopify net sales', shopifyRevenue, 1248813.69, 0.01);
+check('shopify title-keyed rows', titleKeyed.length, 14);
+check('shopify title-keyed value', titleKeyed.reduce((t, r) => t + r.revenue, 0), 376298.44, 0.01);
+
+// ---- Shiprocket -----------------------------------------------------------
+// The passbook's biggest positive lines are COD moving INTO the wallet, not
+// income. Summing the Amount column without excluding them lands ~74% light on
+// freight and looks plausible while doing it.
+const shiprocket = ingest('shiprocket-passbook-sample.csv');
+const wallet = (shiprocket.result.crossChecks ?? []).find((c) => /wallet transfers in/i.test(c.label));
+console.log(
+  wallet && wallet.amount > 0 && shiprocket.source.skuRows.length === 0
+    ? `  ok  wallet transfers excluded (${fmt(wallet.amount)}) and no SKUs invented`
+    : 'FAIL  wallet transfers not excluded, or the passbook produced SKU rows',
+);
+if (!wallet || wallet.amount <= 0 || shiprocket.source.skuRows.length > 0) failures++;
+
+// ---- Blinkit and the BOMs -------------------------------------------------
+const blinkit = ingest('blinkit-order-charges-sample.xlsx');
+console.log(
+  blinkit.source.skuRows.length > 0 && blinkit.source.skuRows.every((r) => r.fees > 0)
+    ? '  ok  blinkit items carry commission and shipping'
+    : 'FAIL  blinkit items lost their deductions',
+);
+if (blinkit.source.skuRows.length === 0 || !blinkit.source.skuRows.every((r) => r.fees > 0)) failures++;
+
+const bom = ingest('tranzact-bom-sample.xlsx');
+console.log(
+  bom.source.bomCosts.length >= 25
+    ? `  ok  ${bom.source.bomCosts.length} finished goods priced from the BOM export`
+    : `FAIL  only ${bom.source.bomCosts.length} BOM costs read`,
+);
+if (bom.source.bomCosts.length < 25) failures++;
+
+// FG-0001 has two BOMs. The original (FG-BOM00010, ₹262.42) must win over the
+// cheaper OEM variant (FG-BOM00063, ₹252.87), or every Amazon X-L Lite unit is
+// priced as a Medikart one.
+const book = buildCostBook([bom.source]);
+check('FG-0001 unit cost', costFor(book, 'FG-0001')?.costPerUnit ?? NaN, 262.42);
+console.log(
+  book.ambiguous.includes('FG-0001')
+    ? '  ok  FG-0001 flagged as priced by more than one BOM'
+    : 'FAIL  a multi-BOM finished good was priced silently',
+);
+if (!book.ambiguous.includes('FG-0001')) failures++;
+
+// ---------------------------------------------------------------------------
+// SKU layer: identity resolution, and the gates that guard it.
 // ---------------------------------------------------------------------------
 
 console.log('\nSKU layer\n');
 
-const skuProv: Provenance = { ...P, sourceLabel: 'platform fixture' };
+// Amazon decorates one listing four ways. Matching the whole string would treat
+// them as four products and drop whichever was not in the map.
+const AMAZON_FORMS = [
+  'HB-QQ6J-D6E0',
+  'HB-QQ6J-D6E0-FBM',
+  'HB-QQ6J-D6E0-hcore X-L lite',
+  'HB-QQ6J-D6E0-hcore X-L lite-FBM',
+];
+const collapsed = new Set(AMAZON_FORMS.map((k) => platformKey('amazon', k)));
+console.log(
+  collapsed.size === 1
+    ? `  ok  ${AMAZON_FORMS.length} Amazon SKU forms collapse to one identity`
+    : `FAIL  Amazon SKU forms gave ${collapsed.size} identities: ${[...collapsed].join(', ')}`,
+);
+if (collapsed.size !== 1) failures++;
+
+// ...but the merchant token is what identifies it, not a loose prefix match.
+console.log(
+  platformKey('amazon', 'HB-QQ6J-D6E1') !== platformKey('amazon', 'HB-QQ6J-D6E0')
+    ? '  ok  a different merchant token is a different product'
+    : 'FAIL  two different Amazon listings collapsed together',
+);
+if (platformKey('amazon', 'HB-QQ6J-D6E1') === platformKey('amazon', 'HB-QQ6J-D6E0')) failures++;
+
+// Shopify rows with no variant SKU key on the product title, and must be
+// marked as the weaker match they are.
+const byTitle = lookupSku('shopify', 'Cervical Heating Pad for Stiff Neck & Frozen Shoulder – Digital by Heatronics');
+console.log(
+  byTitle?.byTitle && byTitle.fgId === 'FG-0008'
+    ? '  ok  Shopify product title resolves, flagged as a title match'
+    : `FAIL  title lookup gave ${byTitle?.fgId ?? 'nothing'} (byTitle=${byTitle?.byTitle})`,
+);
+if (!byTitle?.byTitle || byTitle.fgId !== 'FG-0008') failures++;
+
+// The two ambiguous July titles span both the Lite and the full product, so
+// they must NOT resolve — guessing either moves ₹1.77 L between products.
+for (const title of ['Heating Pad for Back Pain', 'Heating Pad for Period Pain']) {
+  const hit = lookupSku('shopify', title);
+  console.log(
+    hit === null
+      ? `  ok  "${title}" left unmapped rather than guessed`
+      : `FAIL  "${title}" resolved to ${hit.fgId} despite spanning two products`,
+  );
+  if (hit !== null) failures++;
+}
+
+// The cost basis shifts which FG prices a unit, never which product it is.
+const legacy = lookupSku('amazon', 'VW-H1GL-KTOZ- hcore Knee', {}, undefined, 'legacy');
+const hcore = lookupSku('amazon', 'VW-H1GL-KTOZ- hcore Knee', {}, undefined, 'hcore');
+console.log(
+  legacy?.fgId === 'FG-0006' && hcore?.fgId === 'FG-0040' && legacy.product.deckName === hcore?.product.deckName
+    ? '  ok  cost basis moves the FG (FG-0006 ↔ FG-0040), not the product'
+    : `FAIL  basis switch gave ${legacy?.fgId}/${hcore?.fgId} and ${legacy?.product.deckName}/${hcore?.product.deckName}`,
+);
+if (legacy?.fgId !== 'FG-0006' || hcore?.fgId !== 'FG-0040') failures++;
+
+// ---- The gates -------------------------------------------------------------
+
 const skuSession: MonthCloseSession = {
   ...emptySession('2026-07', 'Jul 2026'),
-  sources: [
-    {
-      id: 'plat',
-      label: 'platform fixture',
-      kind: 'amazonSales',
-      method: 'xlsx',
-      addedAt: new Date(0).toISOString(),
-      nodes: [],
-      skuRows: [
-        // Known Amazon SKU from skuToFgMapping → FG-0001.
-        { platform: 'amazon', key: 'HB-QQ6J-D6E0', revenue: 100000, units: 50, fees: 12000, provenance: skuProv },
-        // Same product, different case and separators — identity must survive.
-        { platform: 'amazon', key: 'hbqq6jd6e0', revenue: 50000, units: 25, fees: 6000, provenance: skuProv },
-        // Never seen before.
-        { platform: 'shopify', key: 'ZZ-UNKNOWN-1', revenue: 9000, units: 3, fees: 400, provenance: skuProv },
-      ],
-      warnings: [],
-    },
-  ],
+  sources: [amazon.source, shopify.source, bom.source],
 };
-
 const s1 = computeClose(skuSession);
 
-check('amazon aggregate rev', s1.sku.aggregates.find((a) => a.channel === 'Amazon')?.revenue ?? NaN, 150000);
-check('amazon aggregate units', s1.sku.aggregates.find((a) => a.channel === 'Amazon')?.units ?? NaN, 75);
-check('unmapped rows', s1.sku.unmapped.length, 1);
-
-const amazonAgg = s1.sku.aggregates.find((a) => a.channel === 'Amazon');
-console.log(
-  amazonAgg?.deckName === 'hCore X-L Lite'
-    ? '  ok  HB-QQ6J-D6E0 + hbqq6jd6e0 collapsed to one product (hCore X-L Lite)'
-    : `FAIL  expected hCore X-L Lite, got ${amazonAgg?.deckName}`,
-);
-if (amazonAgg?.deckName !== 'hCore X-L Lite') failures++;
-
-// The FG → deck-name mapping is inferred, so it must NOT be usable yet.
-console.log(
-  s1.sku.unconfirmed.length > 0
-    ? '  ok  inferred product mapping flagged as unconfirmed'
-    : 'FAIL  inferred product mapping was silently trusted',
-);
-if (s1.sku.unconfirmed.length === 0) failures++;
-
-// SKU blockers must not hold up the P&L close.
+// SKU problems must never hold up the P&L close.
 const closeBlockers = s1.blockers.filter((b) => !b.advisory && b.scope !== 'sku');
 const skuBlockers = s1.blockers.filter((b) => !b.advisory && b.scope === 'sku');
 console.log(
-  skuBlockers.length >= 2
-    ? `  ok  ${skuBlockers.length} sku-scoped blockers raised`
-    : `FAIL  expected sku blockers, got ${skuBlockers.length}`,
+  skuBlockers.length > 0 && closeBlockers.every((b) => b.scope !== 'sku')
+    ? `  ok  ${skuBlockers.length} sku-scoped blockers, none leaking into the P&L gate`
+    : 'FAIL  sku blockers missing, or one leaked into the close gate',
 );
-if (skuBlockers.length < 2) failures++;
-console.log(
-  closeBlockers.every((b) => b.scope !== 'sku')
-    ? '  ok  sku issues are scoped away from the P&L gate'
-    : 'FAIL  a sku blocker leaked into the close gate',
-);
+if (skuBlockers.length === 0) failures++;
 
-// Emit must refuse SKU cells while either gate is open, and say why.
+// The two ambiguous Shopify titles must be among them.
+const unmappedTitles = s1.sku.unmapped.filter((r) => r.keyKind === 'title');
+check('unmapped title rows', unmappedTitles.length, 2);
+check('unmapped title value', unmappedTitles.reduce((t, r) => t + r.revenue, 0), 177012.52, 0.5);
+
+// Unmapped SKUs block first.
 const blockedEmit = emitClose(skuSession, s1);
 console.log(
-  blockedEmit.skuCellsTs === null && blockedEmit.skuBlockedReason
-    ? '  ok  SKU cells withheld with a reason'
-    : 'FAIL  SKU cells emitted despite open gates',
+  blockedEmit.skuCellsTs === null && /not in the map/i.test(blockedEmit.skuBlockedReason ?? '')
+    ? '  ok  SKU cells withheld while SKUs are unmapped'
+    : `FAIL  expected an unmapped block, got: ${blockedEmit.skuBlockedReason ?? 'cells emitted'}`,
 );
 if (blockedEmit.skuCellsTs !== null) failures++;
 
-// Clear both gates and set a cost basis.
-const clearedSession: MonthCloseSession = {
+// With the map complete but no basis chosen, the cost fork is what holds it.
+const mappedSession: MonthCloseSession = {
   ...skuSession,
   skuOverrides: {
-    'amazon:HBQQ6JD6E0': 'FG-0001',
-    'shopify:ZZUNKNOWN1': 'FG-0005',
-    'FG-0001': 'FG-0001',
-    'FG-0005': 'FG-0005',
+    'shopify:HEATINGPADFORBACKPAIN': 'FG-0002',
+    'shopify:HEATINGPADFORPERIODPAIN': 'FG-0003',
+    ...Object.fromEntries(s1.sku.unconfirmed.map((a) => [a.baseFgId, a.baseFgId])),
   },
-  skuCogsPct: 0.3,
 };
+const mapped = computeClose(mappedSession);
+const basisBlocked = emitClose(mappedSession, mapped);
+console.log(
+  basisBlocked.skuCellsTs === null && /cost basis/i.test(basisBlocked.skuBlockedReason ?? '')
+    ? '  ok  SKU cells withheld until a cost basis is chosen'
+    : `FAIL  expected a cost-basis block, got: ${basisBlocked.skuBlockedReason ?? 'cells emitted'}`,
+);
+if (basisBlocked.skuCellsTs !== null) failures++;
+
+// ---- Cleared ---------------------------------------------------------------
+// Assign the two ambiguous titles, confirm the inferred products, pick a basis.
+const clearedSession: MonthCloseSession = { ...mappedSession, costBasis: 'legacy' };
 const s2 = computeClose(clearedSession);
 const cleared = emitClose(clearedSession, s2);
 
 check('cleared unmapped', s2.sku.unmapped.length, 0);
-console.log(
-  cleared.skuCellsTs && cleared.skuCellsTs.includes('ch: "Amazon"') && cleared.skuCellsTs.includes('cogs: 45000')
-    ? '  ok  SKU cells emitted with COGS at the stated basis'
-    : `FAIL  SKU cells wrong:\n${cleared.skuCellsTs}`,
-);
-if (!cleared.skuCellsTs?.includes('cogs: 45000')) failures++;
+
+if (cleared.skuCellsTs === null) {
+  failures++;
+  console.log(`FAIL  SKU cells still withheld: ${cleared.skuBlockedReason}`);
+} else {
+  console.log('  ok  SKU cells emitted once every gate is cleared');
+  // Cost must be units times the BOM's own figure, not a percentage of revenue.
+  const xlLite = s2.sku.aggregates.find((a) => a.fgId === 'FG-0001' && a.units > 0);
+  if (!xlLite) {
+    failures++;
+    console.log('FAIL  no priced FG-0001 aggregate to check the unit cost against');
+  } else {
+    check('FG-0001 cost/unit', (xlLite.cogs ?? 0) / xlLite.units, 262.42, 0.01);
+  }
+  console.log(
+    cleared.skuCellsTs.includes('Total FG Cost')
+      ? '  ok  emitted cells name their cost basis'
+      : 'FAIL  emitted cells do not say where COGS came from',
+  );
+  if (!cleared.skuCellsTs.includes('Total FG Cost')) failures++;
+}
 
 console.log(failures === 0 ? '\nPASS — Jul-2026 reproduced exactly.\n' : `\n${failures} FAILURE(S)\n`);
 process.exit(failures === 0 ? 0 : 1);

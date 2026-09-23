@@ -208,6 +208,13 @@ export interface SkuRow {
   platform: SkuPlatform;
   /** The platform's own key, verbatim. */
   key: string;
+  /**
+   * What `key` actually is. Shopify reports July orders placed against variants
+   * that had no SKU set at the time — 30% of the month's D2C revenue — so those
+   * rows are keyed on the product title instead. A title match is weaker than a
+   * SKU match and is surfaced as such rather than being silently equivalent.
+   */
+  keyKind?: 'sku' | 'title';
   /** The platform's own product title, when the export carries one. */
   name?: string;
   revenue: number;
@@ -220,6 +227,48 @@ export interface SkuRow {
 /** Kept structural rather than importing from skuMap, which imports data files. */
 export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'offline' | 'oem';
 
+/**
+ * Which generation of Tranzact finished good a platform SKU means.
+ *
+ * 'legacy'  the HTR-* codes the books and the existing SKU_CELLS have used
+ * 'hcore'   the later hCore-* codes, named as the products are marketed today
+ */
+export type CostBasis = 'legacy' | 'hcore';
+
+/**
+ * A figure a platform export reports that Tally also reports, held side by side.
+ *
+ * Platform files are NOT a second path into the cascade — Tally is the authority
+ * for the P&L, and adding a platform's own fee total to it would double count.
+ * What they are good for is catching a month where the two disagree: Amazon's
+ * July settlement gives net revenue within 0.18% of Tally's Ecommerce Sales,
+ * which is how you know the file and the books describe the same month.
+ */
+export interface CrossCheck {
+  label: string;
+  amount: number;
+  /** The close line this should agree with, when there is one. */
+  against?: string;
+  note?: string;
+}
+
+/**
+ * One finished good's standard cost, exploded from its bill of materials.
+ *
+ * Keyed on the BOM rather than the FG, because an FG can carry more than one:
+ * FG-0001 has both `FG-BOM00010` (₹262.42) and `FG-BOM00063` Medikart-XL
+ * (₹252.87), an OEM variant of the same finished good. Collapsing to the FG
+ * would silently pick one.
+ */
+export interface BomCost {
+  fgId: string;
+  bomNumber: string;
+  bomName: string;
+  /** Total FG Cost per unit, in rupees. */
+  costPerUnit: number;
+  provenance: Provenance;
+}
+
 export interface UploadedSource {
   id: string;
   label: string;
@@ -231,6 +280,10 @@ export interface UploadedSource {
   nodes: LedgerNode[];
   /** Product rows, for platform exports. Empty for Tally sources. */
   skuRows: SkuRow[];
+  /** Standard costs, for a BOM export. Empty for everything else. */
+  bomCosts: BomCost[];
+  /** Figures to hold against Tally rather than feed into it. */
+  crossChecks: CrossCheck[];
   /** Adapter-level complaints — unreadable regions, totals that do not foot. */
   warnings: string[];
 }
@@ -241,18 +294,22 @@ export type SourceKind =
   | 'channelRevenue'
   | 'adSpend'
   | 'skuPnl'
+  | 'amazonSettlement'
   | 'amazonSales'
   | 'shopifySales'
   | 'blinkitSettlement'
-  | 'shiprocketFreight';
+  | 'shiprocketFreight'
+  | 'tranzactBom';
 
 export const SOURCE_KINDS: { kind: SourceKind; label: string; accepts: string; what: string }[] = [
   { kind: 'tallyPnl', label: 'Tally P&L A/c', accepts: '.xlsx, .png, .jpg', what: 'The P&L screen for the month — drives the whole cascade.' },
   { kind: 'tallyGroupSummary', label: 'Tally group summary', accepts: '.xlsx, .png, .jpg', what: 'Drill-downs for any group you need split (Employee Cost, Channel Fees).' },
-  { kind: 'amazonSales', label: 'Amazon sales / settlement', accepts: '.xlsx, .csv', what: 'Per-SKU revenue, units and fees.' },
-  { kind: 'shopifySales', label: 'Shopify / D2C sales', accepts: '.xlsx, .csv', what: 'Per-variant net sales and quantity.' },
-  { kind: 'blinkitSettlement', label: 'Blinkit settlement', accepts: '.xlsx, .csv', what: 'Per-item settlement value and deductions.' },
-  { kind: 'shiprocketFreight', label: 'Shiprocket freight', accepts: '.xlsx, .csv', what: 'Per-SKU freight cost. A cost file — carries no revenue.' },
+  { kind: 'amazonSettlement', label: 'Amazon unified transaction', accepts: '.csv, .xlsx', what: 'The month’s settlement rows — per-SKU sales, selling and FBA fees, and advertising. The one Amazon file that matters.' },
+  { kind: 'amazonSales', label: 'Amazon business report', accepts: '.csv, .xlsx', what: 'Sessions, units and ordered product sales. Traffic only — carries no fees, so it cannot price a month.' },
+  { kind: 'shopifySales', label: 'Shopify / D2C sales', accepts: '.csv, .xlsx', what: 'Total sales by product variant. Rows with a blank variant SKU fall back to the product title.' },
+  { kind: 'blinkitSettlement', label: 'Blinkit payout', accepts: '.xlsx', what: 'The order-level charges workbook out of the payout ZIP — per-item gross, commission and shipping.' },
+  { kind: 'shiprocketFreight', label: 'Shiprocket passbook', accepts: '.csv, .xlsx', what: 'The wallet ledger. A cost file with no SKU — it lands on freight outward, not on products.' },
+  { kind: 'tranzactBom', label: 'Tranzact BOM pricing', accepts: '.xlsx', what: 'Bill-of-materials export with Total FG Cost per finished good — the per-unit COGS behind SKU margin.' },
   { kind: 'channelRevenue', label: 'Channel revenue (generic)', accepts: '.xlsx, .csv', what: 'Per-channel net sales when you would rather not take them off Tally.' },
   { kind: 'adSpend', label: 'Ad spend export', accepts: '.xlsx, .csv', what: 'Meta / Google / Amazon spend, to check Sales & Marketing ties out.' },
   { kind: 'skuPnl', label: 'SKU P&L (generic)', accepts: '.xlsx, .csv', what: 'Any other per-SKU table.' },
@@ -272,14 +329,19 @@ export interface MonthCloseSession {
   manual: Record<string, FieldValue>;
   anchor: TallyAnchor;
   /**
-   * COGS as a fraction of revenue, applied to every SKU cell.
+   * Which family of Tranzact BOMs prices a unit.
    *
-   * Platform exports carry revenue, units and fees but never cost, and the FG
-   * master holds selling prices rather than unit costs — so there is no honest
-   * way to derive per-SKU COGS from the files alone. Rather than emit a zero
-   * and let it read as 100% margin, SKU cells are withheld until this is set.
+   * Tranzact carries two generations of finished good for the same physical
+   * product: the legacy `HTR-*` codes (FG-0001..FG-0017) and the later
+   * `hCore-*` codes (FG-0036..FG-0045). Their standard costs differ by up to
+   * 44% — knee digital is ₹326.78 against ₹483.96 — so the choice is worth
+   * ₹1.43 L of Amazon CM1 in July alone, and nothing in the files says which
+   * generation a platform SKU refers to.
+   *
+   * Null blocks SKU emit whenever a product in the month has both, because
+   * picking wrong moves margin by a sixth without breaking any total.
    */
-  skuCogsPct: number | null;
+  costBasis: CostBasis | null;
   /** Free text that lands in the restated note. */
   notes: string;
 }
@@ -293,7 +355,7 @@ export function emptySession(periodKey = '', periodLabel = ''): MonthCloseSessio
     skuOverrides: {},
     manual: {},
     anchor: { nettProfit: null },
-    skuCogsPct: null,
+    costBasis: null,
     notes: '',
   };
 }

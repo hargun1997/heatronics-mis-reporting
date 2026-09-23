@@ -103,6 +103,8 @@ async function ingestScreenshot(
     addedAt: new Date().toISOString(),
     nodes,
     skuRows: [],
+    bomCosts: [],
+    crossChecks: [],
     warnings,
   };
 
