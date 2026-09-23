@@ -5,6 +5,7 @@ import { computeClose, type Blocker, type ComputedClose } from '../../data/month
 import { emitClose } from '../../data/monthClose/emit';
 import { checkVisionAvailable, ingestFile } from '../../data/monthClose/ingestClient';
 import { normaliseLedgerPath } from '../../data/monthClose/ledgerMap';
+import { PRODUCTS, normaliseSku } from '../../data/monthClose/skuMap';
 import {
   CLOSE_GROUPS,
   SOURCE_KINDS,
@@ -55,7 +56,10 @@ export function MonthIngestTab() {
 
   const computed = useMemo(() => computeClose(session), [session]);
 
-  const blocking = computed.blockers.filter((b) => !b.advisory);
+  // The P&L close does not depend on the SKU layer, so the two gates are
+  // separate: an unassigned SKU withholds the SKU cells, not the month.
+  const blocking = computed.blockers.filter((b) => !b.advisory && b.scope !== 'sku');
+  const skuBlocking = computed.blockers.filter((b) => !b.advisory && b.scope === 'sku');
   const advisory = computed.blockers.filter((b) => b.advisory);
   const canEmit = blocking.length === 0 && Boolean(session.periodKey && session.periodLabel);
 
@@ -120,6 +124,24 @@ export function MonthIngestTab() {
 
   const assign = (ledgerPath: string, lineKey: string) =>
     setSession((s) => ({ ...s, overrides: { ...s.overrides, [normaliseLedgerPath(ledgerPath)]: lineKey } }));
+
+  /** ref is "sku:<platform>:<key>" or "fg:<FG-id>". */
+  const assignSku = (ref: string, fgId: string) =>
+    setSession((s) => {
+      if (ref.startsWith('fg:')) {
+        // Confirming an inferred FG → deck-name mapping for this month.
+        return { ...s, skuOverrides: { ...s.skuOverrides, [ref.slice(3)]: fgId } };
+      }
+      const [, platform, ...rest] = ref.split(':');
+      const key = rest.join(':');
+      return { ...s, skuOverrides: { ...s.skuOverrides, [`${platform}:${normaliseSku(key)}`]: fgId } };
+    });
+
+  const setCogsPct = (raw: string) =>
+    setSession((s) => {
+      const n = parseFloat(raw.replace('%', '').trim());
+      return { ...s, skuCogsPct: Number.isFinite(n) ? n / 100 : null };
+    });
 
   const setManual = (lineKey: string, raw: string) =>
     setSession((s) => {
@@ -224,6 +246,16 @@ export function MonthIngestTab() {
             />
           )}
 
+          {(computed.sku.hasSkuSources || skuBlocking.length > 0) && (
+            <SkuCard
+              computed={computed}
+              blockers={skuBlocking}
+              cogsPct={session.skuCogsPct}
+              onAssignSku={assignSku}
+              onCogsPct={setCogsPct}
+            />
+          )}
+
           <LinesCard computed={computed} session={session} onManual={setManual} />
         </div>
 
@@ -304,7 +336,10 @@ function SourcesCard(props: {
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
                     {SOURCE_KINDS.find((k) => k.kind === s.kind)?.label ?? s.kind}
                   </span>
-                  <span className="text-[10px] text-slate-400">{s.nodes.length} rows</span>
+                  <span className="text-[10px] text-slate-400">
+                    {/* Platform sources carry product rows, not ledger rows. */}
+                    {s.skuRows.length > 0 ? `${s.skuRows.length} SKUs` : `${s.nodes.length} rows`}
+                  </span>
                   <button onClick={() => props.onRemove(s.id)} className="text-slate-300 hover:text-rose-500 text-xs">×</button>
                 </div>
                 {unverified > 0 && (
@@ -398,6 +433,106 @@ function BlockersCard(props: {
           </div>
         ))}
       </div>
+    </SectionCard>
+  );
+}
+
+
+function SkuCard(props: {
+  computed: ComputedClose;
+  blockers: Blocker[];
+  cogsPct: number | null;
+  onAssignSku: (ref: string, fgId: string) => void;
+  onCogsPct: (raw: string) => void;
+}) {
+  const { sku } = props.computed;
+  const productOptions = Object.values(PRODUCTS).sort((a, b) => a.deckName.localeCompare(b.deckName));
+
+  return (
+    <SectionCard
+      title="SKU layer"
+      description="Platform rows resolved to products. Separate from the P&L close — these gate only the SKU cells."
+    >
+      {props.blockers.length > 0 && (
+        <div className="space-y-2 mb-3">
+          {props.blockers.map((b) => (
+            <div key={b.ref} className="rounded-lg border border-rose-100 bg-rose-50/50 px-3 py-2">
+              <div className="text-xs text-slate-700">{b.message}</div>
+              <select
+                defaultValue=""
+                onChange={(e) => e.target.value && props.onAssignSku(b.ref!, e.target.value)}
+                className="mt-1.5 w-full px-2 py-1 text-xs rounded border border-slate-200 bg-white text-slate-600"
+              >
+                <option value="" disabled>
+                  {b.ref?.startsWith('fg:') ? 'Confirm the product…' : 'Assign to a product…'}
+                </option>
+                {productOptions.map((p) => (
+                  <option key={p.fgId} value={p.fgId}>
+                    {p.deckName} — {p.fgId} ({p.tranzactName})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {sku.aggregates.length > 0 ? (
+        <>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-slate-400 border-b border-slate-100">
+                <th className="text-left font-medium py-1">Product</th>
+                <th className="text-left font-medium py-1">Ch</th>
+                <th className="text-right font-medium py-1">Revenue</th>
+                <th className="text-right font-medium py-1">Units</th>
+                <th className="text-right font-medium py-1">Fees</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sku.aggregates.map((a) => (
+                <tr key={`${a.fgId}-${a.channel}`} className="border-b border-slate-50">
+                  <td className="py-1 text-slate-700">
+                    {a.deckName}
+                    {!a.confirmed && <span className="ml-1 text-[9px] px-1 rounded bg-amber-100 text-amber-700">inferred</span>}
+                  </td>
+                  <td className="py-1 text-slate-500">{a.channel}</td>
+                  <td className="py-1 text-right tabular-nums text-slate-700">{inr(a.revenue)}</td>
+                  <td className="py-1 text-right tabular-nums text-slate-500">{a.units || '—'}</td>
+                  <td className="py-1 text-right tabular-nums text-slate-500">{a.fees ? inr(a.fees) : '—'}</td>
+                </tr>
+              ))}
+              <tr className="font-semibold text-slate-800">
+                <td className="py-1.5" colSpan={2}>Total</td>
+                <td className="py-1.5 text-right tabular-nums">{inr(sku.totalRevenue)}</td>
+                <td className="py-1.5 text-right tabular-nums">{sku.totalUnits || '—'}</td>
+                <td className="py-1.5 text-right tabular-nums">{inr(sku.totalFees)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
+            <span className="text-xs text-slate-500 flex-1">
+              COGS basis (% of revenue)
+              <span className="block text-[10px] text-slate-400">
+                No export carries per-SKU cost, and the FG master holds selling prices — so this has to be set by hand.
+              </span>
+            </span>
+            <input
+              inputMode="decimal"
+              defaultValue={props.cogsPct !== null ? String(Math.round(props.cogsPct * 1000) / 10) : ''}
+              onBlur={(e) => props.onCogsPct(e.target.value)}
+              placeholder="e.g. 30"
+              className="w-20 px-2 py-1 text-sm text-right rounded border border-slate-200 bg-white text-slate-700 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-200"
+            />
+            <span className="text-xs text-slate-400">%</span>
+          </div>
+        </>
+      ) : (
+        <div className="text-xs text-slate-500">
+          No platform rows resolved yet. Drop an Amazon, Shopify, Blinkit or Shiprocket export above.
+        </div>
+      )}
     </SectionCard>
   );
 }
@@ -602,7 +737,18 @@ function EmitCard(props: {
             <EmitButton label="Ledger map adds" done={props.copied === 'map'} onClick={() => props.onCopy('map', emitted!.mapAdditionsTs)} />
             <EmitButton label="Writeup (copy)" done={props.copied === 'md'} onClick={() => props.onCopy('md', emitted!.markdown)} />
             <EmitButton label="Writeup (.md)" onClick={() => download(emitted!.markdownFileName, emitted!.markdown)} />
+            {emitted!.skuCellsTs && (
+              <>
+                <EmitButton label="SKU cells" done={props.copied === 'sku'} onClick={() => props.onCopy('sku', emitted!.skuCellsTs!)} />
+                <EmitButton label="SKU map adds" done={props.copied === 'skumap'} onClick={() => props.onCopy('skumap', emitted!.skuAdditionsTs)} />
+              </>
+            )}
           </div>
+          {emitted!.skuBlockedReason && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
+              <span className="font-medium text-slate-700">SKU cells withheld.</span> {emitted!.skuBlockedReason}
+            </div>
+          )}
           <div className="text-[10px] text-slate-400">
             Paste the entry into <code className="text-slate-500">MONTHLY_MIS</code> in misDeckData.ts, drop the writeup in
             at the repo root, merge the map additions into <code className="text-slate-500">SEED_LEDGER_MAP</code>, then open

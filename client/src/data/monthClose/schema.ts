@@ -199,6 +199,27 @@ export const RECONCILE_TOLERANCE = 1;
 
 // ---- Session ---------------------------------------------------------------
 
+/**
+ * One product row from a platform export, before its SKU has been resolved to
+ * a product. Parallel to LedgerNode: the thing an adapter produces, which the
+ * map then gives an identity.
+ */
+export interface SkuRow {
+  platform: SkuPlatform;
+  /** The platform's own key, verbatim. */
+  key: string;
+  /** The platform's own product title, when the export carries one. */
+  name?: string;
+  revenue: number;
+  units: number;
+  /** Channel fees attributable to this SKU, always a positive cost. */
+  fees: number;
+  provenance: Provenance;
+}
+
+/** Kept structural rather than importing from skuMap, which imports data files. */
+export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'offline' | 'oem';
+
 export interface UploadedSource {
   id: string;
   label: string;
@@ -208,6 +229,8 @@ export interface UploadedSource {
   addedAt: string;
   /** Rows the adapter lifted out, before mapping. */
   nodes: LedgerNode[];
+  /** Product rows, for platform exports. Empty for Tally sources. */
+  skuRows: SkuRow[];
   /** Adapter-level complaints — unreadable regions, totals that do not foot. */
   warnings: string[];
 }
@@ -217,14 +240,22 @@ export type SourceKind =
   | 'tallyGroupSummary'
   | 'channelRevenue'
   | 'adSpend'
-  | 'skuPnl';
+  | 'skuPnl'
+  | 'amazonSales'
+  | 'shopifySales'
+  | 'blinkitSettlement'
+  | 'shiprocketFreight';
 
 export const SOURCE_KINDS: { kind: SourceKind; label: string; accepts: string; what: string }[] = [
   { kind: 'tallyPnl', label: 'Tally P&L A/c', accepts: '.xlsx, .png, .jpg', what: 'The P&L screen for the month — drives the whole cascade.' },
   { kind: 'tallyGroupSummary', label: 'Tally group summary', accepts: '.xlsx, .png, .jpg', what: 'Drill-downs for any group you need split (Employee Cost, Channel Fees).' },
-  { kind: 'channelRevenue', label: 'Channel revenue', accepts: '.xlsx, .csv', what: 'Per-channel net sales when you would rather not take them off Tally.' },
+  { kind: 'amazonSales', label: 'Amazon sales / settlement', accepts: '.xlsx, .csv', what: 'Per-SKU revenue, units and fees.' },
+  { kind: 'shopifySales', label: 'Shopify / D2C sales', accepts: '.xlsx, .csv', what: 'Per-variant net sales and quantity.' },
+  { kind: 'blinkitSettlement', label: 'Blinkit settlement', accepts: '.xlsx, .csv', what: 'Per-item settlement value and deductions.' },
+  { kind: 'shiprocketFreight', label: 'Shiprocket freight', accepts: '.xlsx, .csv', what: 'Per-SKU freight cost. A cost file — carries no revenue.' },
+  { kind: 'channelRevenue', label: 'Channel revenue (generic)', accepts: '.xlsx, .csv', what: 'Per-channel net sales when you would rather not take them off Tally.' },
   { kind: 'adSpend', label: 'Ad spend export', accepts: '.xlsx, .csv', what: 'Meta / Google / Amazon spend, to check Sales & Marketing ties out.' },
-  { kind: 'skuPnl', label: 'SKU-level P&L', accepts: '.xlsx, .csv', what: 'Per-SKU revenue and cost feeding skuChannelPnl.' },
+  { kind: 'skuPnl', label: 'SKU P&L (generic)', accepts: '.xlsx, .csv', what: 'Any other per-SKU table.' },
 ];
 
 export interface MonthCloseSession {
@@ -235,9 +266,20 @@ export interface MonthCloseSession {
   sources: UploadedSource[];
   /** Ledger name (joined path) → close line key, for this month's overrides. */
   overrides: Record<string, string>;
+  /** "platform:NORMALISEDSKU" → FG id, for SKUs assigned this month. */
+  skuOverrides: Record<string, string>;
   /** Line key → value, for anything typed rather than ingested. */
   manual: Record<string, FieldValue>;
   anchor: TallyAnchor;
+  /**
+   * COGS as a fraction of revenue, applied to every SKU cell.
+   *
+   * Platform exports carry revenue, units and fees but never cost, and the FG
+   * master holds selling prices rather than unit costs — so there is no honest
+   * way to derive per-SKU COGS from the files alone. Rather than emit a zero
+   * and let it read as 100% margin, SKU cells are withheld until this is set.
+   */
+  skuCogsPct: number | null;
   /** Free text that lands in the restated note. */
   notes: string;
 }
@@ -248,8 +290,10 @@ export function emptySession(periodKey = '', periodLabel = ''): MonthCloseSessio
     periodLabel,
     sources: [],
     overrides: {},
+    skuOverrides: {},
     manual: {},
     anchor: { nettProfit: null },
+    skuCogsPct: null,
     notes: '',
   };
 }

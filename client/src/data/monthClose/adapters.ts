@@ -12,7 +12,7 @@
 
 import * as XLSX from 'xlsx';
 import { normaliseLedger } from './ledgerMap';
-import type { LedgerNode, Provenance, SourceKind, UploadedSource } from './schema';
+import type { LedgerNode, Provenance, SkuRow, SourceKind } from './schema';
 
 export interface AdapterInput {
   file: File;
@@ -23,6 +23,8 @@ export interface AdapterInput {
 
 export interface AdapterResult {
   nodes: LedgerNode[];
+  /** Product rows, for platform exports. Tally adapters return none. */
+  skuRows?: SkuRow[];
   warnings: string[];
 }
 
@@ -285,56 +287,11 @@ function findColumns(rows: unknown[][]): { labelCol: number; amountCol: number }
   return { labelCol, amountCol: amountCol < 0 ? labelCol + 1 : amountCol };
 }
 
-export const ADAPTERS: SourceAdapter[] = [
+/** Tally and generic table adapters. Platform ones live in platformAdapters.ts. */
+export const BASE_ADAPTERS: SourceAdapter[] = [
   tallyPnl,
   tallyGroupSummary,
-  flatTableAdapter('channelRevenue', 'Channel revenue', /channel|net sales|marketplace/, /net\s*sales|revenue/),
+  flatTableAdapter('channelRevenue', 'Channel revenue (generic)', /channel|net sales|marketplace/, /net\s*sales|revenue/),
   flatTableAdapter('adSpend', 'Ad spend', /ad\s*spend|campaign|meta|google ads|amount spent/, /spend|cost|amount/),
-  flatTableAdapter('skuPnl', 'SKU P&L', /sku|asin|style|variant/, /revenue|net\s*sales|amount/),
+  flatTableAdapter('skuPnl', 'SKU P&L (generic)', /sku|asin|style|variant/, /revenue|net\s*sales|amount/),
 ];
-
-export interface ClaimResult {
-  adapter: SourceAdapter;
-  confidence: number;
-}
-
-/** Pick the adapter that best fits a workbook, or null when none is plausible. */
-export function claimAdapter(wb: XLSX.WorkBook, fileName: string, forced?: SourceKind): ClaimResult | null {
-  if (forced) {
-    const a = ADAPTERS.find((x) => x.kind === forced);
-    if (a) return { adapter: a, confidence: 1 };
-  }
-  const scored = ADAPTERS.map((adapter) => ({ adapter, confidence: adapter.sniff(wb, fileName) }))
-    .sort((a, b) => b.confidence - a.confidence);
-  return scored[0] && scored[0].confidence >= 0.2 ? scored[0] : null;
-}
-
-/** Read a spreadsheet file into an UploadedSource, or throw with a readable reason. */
-export async function ingestSpreadsheet(
-  file: File,
-  sourceId: string,
-  forced?: SourceKind,
-): Promise<UploadedSource> {
-  const buf = await file.arrayBuffer();
-  const workbook = XLSX.read(buf, { type: 'array' });
-
-  const claim = claimAdapter(workbook, file.name, forced);
-  if (!claim) {
-    throw new Error(
-      `Could not tell what "${file.name}" is. Pick the source type by hand and re-add it.`,
-    );
-  }
-
-  const { nodes, warnings } = claim.adapter.parse({ file, sourceId, workbook });
-  return {
-    id: sourceId,
-    label: file.name,
-    kind: claim.adapter.kind,
-    method: 'xlsx',
-    addedAt: new Date().toISOString(),
-    nodes,
-    warnings: claim.confidence < 0.5
-      ? [`Source type guessed as "${claim.adapter.label}" — confirm it is right.`, ...warnings]
-      : warnings,
-  };
-}

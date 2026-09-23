@@ -12,7 +12,7 @@
 // ----------------------------------------------------------------------------
 
 import * as XLSX from 'xlsx';
-import { ADAPTERS } from '../client/src/data/monthClose/adapters';
+import { ADAPTERS } from '../client/src/data/monthClose/adapterRegistry';
 import { computeClose } from '../client/src/data/monthClose/compute';
 import { emitClose } from '../client/src/data/monthClose/emit';
 import { MONTHLY_MIS } from '../client/src/data/misDeck/misDeckData';
@@ -112,6 +112,7 @@ const session: MonthCloseSession = {
       method: 'xlsx',
       addedAt: new Date(0).toISOString(),
       nodes: JULY_LEDGERS,
+      skuRows: [],
       warnings: [],
     },
   ],
@@ -230,6 +231,7 @@ const wbSession: MonthCloseSession = {
       method: 'xlsx',
       addedAt: new Date(0).toISOString(),
       nodes: parsed.nodes,
+      skuRows: [],
       warnings: parsed.warnings,
     },
   ],
@@ -289,6 +291,104 @@ if (!committed) {
     check(`opex: ${label.slice(0, 14)}`, emitted.opexLines[label] ?? NaN, want);
   }
 }
+
+// ---------------------------------------------------------------------------
+// SKU layer: identity resolution, and the two gates that guard it.
+// ---------------------------------------------------------------------------
+
+console.log('\nSKU layer\n');
+
+const skuProv: Provenance = { ...P, sourceLabel: 'platform fixture' };
+const skuSession: MonthCloseSession = {
+  ...emptySession('2026-07', 'Jul 2026'),
+  sources: [
+    {
+      id: 'plat',
+      label: 'platform fixture',
+      kind: 'amazonSales',
+      method: 'xlsx',
+      addedAt: new Date(0).toISOString(),
+      nodes: [],
+      skuRows: [
+        // Known Amazon SKU from skuToFgMapping → FG-0001.
+        { platform: 'amazon', key: 'HB-QQ6J-D6E0', revenue: 100000, units: 50, fees: 12000, provenance: skuProv },
+        // Same product, different case and separators — identity must survive.
+        { platform: 'amazon', key: 'hbqq6jd6e0', revenue: 50000, units: 25, fees: 6000, provenance: skuProv },
+        // Never seen before.
+        { platform: 'shopify', key: 'ZZ-UNKNOWN-1', revenue: 9000, units: 3, fees: 400, provenance: skuProv },
+      ],
+      warnings: [],
+    },
+  ],
+};
+
+const s1 = computeClose(skuSession);
+
+check('amazon aggregate rev', s1.sku.aggregates.find((a) => a.channel === 'Amazon')?.revenue ?? NaN, 150000);
+check('amazon aggregate units', s1.sku.aggregates.find((a) => a.channel === 'Amazon')?.units ?? NaN, 75);
+check('unmapped rows', s1.sku.unmapped.length, 1);
+
+const amazonAgg = s1.sku.aggregates.find((a) => a.channel === 'Amazon');
+console.log(
+  amazonAgg?.deckName === 'hCore X-L Lite'
+    ? '  ok  HB-QQ6J-D6E0 + hbqq6jd6e0 collapsed to one product (hCore X-L Lite)'
+    : `FAIL  expected hCore X-L Lite, got ${amazonAgg?.deckName}`,
+);
+if (amazonAgg?.deckName !== 'hCore X-L Lite') failures++;
+
+// The FG → deck-name mapping is inferred, so it must NOT be usable yet.
+console.log(
+  s1.sku.unconfirmed.length > 0
+    ? '  ok  inferred product mapping flagged as unconfirmed'
+    : 'FAIL  inferred product mapping was silently trusted',
+);
+if (s1.sku.unconfirmed.length === 0) failures++;
+
+// SKU blockers must not hold up the P&L close.
+const closeBlockers = s1.blockers.filter((b) => !b.advisory && b.scope !== 'sku');
+const skuBlockers = s1.blockers.filter((b) => !b.advisory && b.scope === 'sku');
+console.log(
+  skuBlockers.length >= 2
+    ? `  ok  ${skuBlockers.length} sku-scoped blockers raised`
+    : `FAIL  expected sku blockers, got ${skuBlockers.length}`,
+);
+if (skuBlockers.length < 2) failures++;
+console.log(
+  closeBlockers.every((b) => b.scope !== 'sku')
+    ? '  ok  sku issues are scoped away from the P&L gate'
+    : 'FAIL  a sku blocker leaked into the close gate',
+);
+
+// Emit must refuse SKU cells while either gate is open, and say why.
+const blockedEmit = emitClose(skuSession, s1);
+console.log(
+  blockedEmit.skuCellsTs === null && blockedEmit.skuBlockedReason
+    ? '  ok  SKU cells withheld with a reason'
+    : 'FAIL  SKU cells emitted despite open gates',
+);
+if (blockedEmit.skuCellsTs !== null) failures++;
+
+// Clear both gates and set a cost basis.
+const clearedSession: MonthCloseSession = {
+  ...skuSession,
+  skuOverrides: {
+    'amazon:HBQQ6JD6E0': 'FG-0001',
+    'shopify:ZZUNKNOWN1': 'FG-0005',
+    'FG-0001': 'FG-0001',
+    'FG-0005': 'FG-0005',
+  },
+  skuCogsPct: 0.3,
+};
+const s2 = computeClose(clearedSession);
+const cleared = emitClose(clearedSession, s2);
+
+check('cleared unmapped', s2.sku.unmapped.length, 0);
+console.log(
+  cleared.skuCellsTs && cleared.skuCellsTs.includes('ch: "Amazon"') && cleared.skuCellsTs.includes('cogs: 45000')
+    ? '  ok  SKU cells emitted with COGS at the stated basis'
+    : `FAIL  SKU cells wrong:\n${cleared.skuCellsTs}`,
+);
+if (!cleared.skuCellsTs?.includes('cogs: 45000')) failures++;
 
 console.log(failures === 0 ? '\nPASS — Jul-2026 reproduced exactly.\n' : `\n${failures} FAILURE(S)\n`);
 process.exit(failures === 0 ? 0 : 1);

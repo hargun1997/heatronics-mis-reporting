@@ -14,6 +14,7 @@
 import type { MonthlyMIS } from '../misDeck/misDeckData';
 import { toMonthlyMIS, type ComputedClose } from './compute';
 import { normaliseLedger } from './ledgerMap';
+import { renderSkuAdditions } from './skuMap';
 import { CLOSE_LINES, type MonthCloseSession } from './schema';
 
 export interface EmitResult {
@@ -23,6 +24,14 @@ export interface EmitResult {
   markdown: string;
   /** New ledger-map entries, as a TS fragment to merge into SEED_LEDGER_MAP. */
   mapAdditionsTs: string;
+  /** New SKU-map entries, as a TS fragment to merge into SEED_SKU_MAP. */
+  skuAdditionsTs: string;
+  /**
+   * SkuCell rows for skuChannelPnl.ts, or null when they cannot honestly be
+   * produced — see `skuBlockedReason`.
+   */
+  skuCellsTs: string | null;
+  skuBlockedReason: string | null;
   /** Suggested file name for the writeup, e.g. "July-2026-PnL.md". */
   markdownFileName: string;
   entry: MonthlyMIS;
@@ -68,13 +77,83 @@ export function emitClose(
   const [yearStr, monthStr] = session.periodKey.split('-');
   const monthName = MONTHS[Number(monthStr) - 1] ?? session.periodLabel;
 
+  const sku = renderSkuCells(session, c);
+
   return {
     entry,
     entryTs: renderEntry(entry),
     markdown: renderMarkdown(session, c, monthName, yearStr, restatedNote),
     mapAdditionsTs: renderMapAdditions(session),
+    skuAdditionsTs: renderSkuAdditions(session.skuOverrides ?? {}),
+    skuCellsTs: sku.ts,
+    skuBlockedReason: sku.blockedReason,
     markdownFileName: `${monthName}-${yearStr}-PnL.md`,
   };
+}
+
+/**
+ * SkuCell rows for skuChannelPnl.ts.
+ *
+ * `oth` is the channel fee the platform export reported for that product, and
+ * `con` is the contribution left after cost and fees — matching how the
+ * existing 767 cells are built.
+ *
+ * COGS is the honest problem: no platform export carries it, and the FG master
+ * holds selling prices, not unit costs. So rather than emit a zero that reads
+ * as 100% margin, this refuses until a COGS basis is set on the session, and
+ * says why.
+ */
+function renderSkuCells(
+  session: MonthCloseSession,
+  c: ComputedClose,
+): { ts: string | null; blockedReason: string | null } {
+  const { sku } = c;
+
+  if (!sku.hasSkuSources) {
+    return { ts: null, blockedReason: 'No platform exports were supplied, so there is nothing to emit.' };
+  }
+  if (sku.unmapped.length > 0) {
+    return {
+      ts: null,
+      blockedReason: `${sku.unmapped.length} platform row(s) have SKUs that are not in the map. Assign them first.`,
+    };
+  }
+  if (sku.unconfirmed.length > 0) {
+    return {
+      ts: null,
+      blockedReason:
+        `${sku.unconfirmed.length} product mapping(s) are inferred from the Tranzact naming convention ` +
+        'rather than confirmed. Confirm them first — a wrong product moves revenue between products ' +
+        'while the month still totals correctly.',
+    };
+  }
+  if (session.skuCogsPct === null || !Number.isFinite(session.skuCogsPct)) {
+    return {
+      ts: null,
+      blockedReason:
+        'No COGS basis is set. Platform exports carry revenue, units and fees but never cost, and the ' +
+        'FG master holds selling prices rather than unit costs — so per-SKU COGS cannot be derived from ' +
+        'the files. Set a COGS % of revenue, or supply a cost sheet.',
+    };
+  }
+
+  const pct = session.skuCogsPct;
+  const rows = sku.aggregates.map((a) => {
+    const cogs = Math.round(a.revenue * pct * 100) / 100;
+    const con = Math.round((a.revenue - cogs - a.fees) * 100) / 100;
+    return (
+      `  { m: "${session.periodKey}", ch: "${a.channel}", p: "${a.deckName}", ` +
+      `rev: ${a.revenue}, cogs: ${cogs}, oth: ${a.fees}, con: ${con}, u: ${a.units} },`
+    );
+  });
+
+  const ts =
+    `// ${session.periodLabel} — emitted by the month ingest dashboard.\n` +
+    `// COGS applied at ${(pct * 100).toFixed(1)}% of revenue (no per-SKU cost source available).\n` +
+    rows.join('\n') +
+    '\n';
+
+  return { ts, blockedReason: null };
 }
 
 function renderMapAdditions(session: MonthCloseSession): string {

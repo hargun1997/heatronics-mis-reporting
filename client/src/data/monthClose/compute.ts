@@ -30,6 +30,7 @@ import {
   type MonthCloseSession,
 } from './schema';
 import { pickNodes, SEED_LEDGER_MAP, type PickedNode } from './ledgerMap';
+import { computeSku, unmappedSummary, type SkuResult } from './skuRollup';
 
 export interface LineTotal {
   lineKey: string;
@@ -53,6 +54,12 @@ export interface Blocker {
   ref?: string;
   /** Anomalies are advisory; everything else stops the emit. */
   advisory?: boolean;
+  /**
+   * Which emit this stops. The P&L close does not depend on the SKU layer, so
+   * an unassigned SKU must not hold up a month that is otherwise complete —
+   * it only withholds the SKU cells.
+   */
+  scope?: 'close' | 'sku';
 }
 
 export interface ReconcileItem {
@@ -97,6 +104,8 @@ export interface ComputedClose {
   netIncome: number;
   stockMovement: number;
   reconciliation: Reconciliation;
+  /** Per-product, per-channel rollup from any platform exports supplied. */
+  sku: SkuResult;
   blockers: Blocker[];
   unmapped: LedgerNode[];
 }
@@ -260,8 +269,12 @@ export function computeClose(
   // ---- Reconciliation ------------------------------------------------------
   const reconciliation = reconcile(netIncome, session.anchor.nettProfit, lines);
 
+  // ---- SKU layer -----------------------------------------------------------
+  const sku = computeSku(session);
+
   // ---- Blockers ------------------------------------------------------------
   const blockers = collectBlockers({
+    sku,
     lines,
     unmapped,
     reconciliation,
@@ -291,6 +304,7 @@ export function computeClose(
     netIncome,
     stockMovement,
     reconciliation,
+    sku,
     blockers,
     unmapped,
   };
@@ -343,6 +357,7 @@ function reconcile(
 }
 
 function collectBlockers(ctx: {
+  sku: SkuResult;
   lines: Record<string, LineTotal>;
   unmapped: LedgerNode[];
   reconciliation: Reconciliation;
@@ -385,6 +400,44 @@ function collectBlockers(ctx: {
         `${fmt(ctx.reconciliation.residual ?? 0)} of the gap to Tally is unexplained. ` +
         'Either a ledger is mis-bucketed or one is missing.',
     });
+  }
+
+  // ---- SKU layer -----------------------------------------------------------
+  for (const u of unmappedSummary(ctx.sku.unmapped)) {
+    out.push({
+      kind: 'unmapped',
+      scope: 'sku',
+      ref: `sku:${u.platform}:${u.key}`,
+      message:
+        `${u.platform} SKU "${u.key}"${u.name ? ` (${u.name})` : ''} — ${fmt(u.revenue)} across ` +
+        `${u.rows} row${u.rows === 1 ? '' : 's'} — is not in the SKU map. Assign it a product.`,
+    });
+  }
+
+  for (const a of ctx.sku.unconfirmed) {
+    out.push({
+      kind: 'unmapped',
+      scope: 'sku',
+      ref: `fg:${a.fgId}`,
+      message:
+        `${a.fgId} → "${a.deckName}" is inferred from the Tranzact naming convention, not confirmed. ` +
+        `${fmt(a.revenue)} of ${a.channel} revenue rests on it — confirm the product before emitting SKU cells.`,
+    });
+  }
+
+  // Advisory: revenue the SKU layer sees against what the ledgers say.
+  if (ctx.sku.hasSkuSources && ctx.netRevenue > 0) {
+    const gap = r2(ctx.sku.totalRevenue - ctx.netRevenue);
+    if (Math.abs(gap) > Math.max(1, ctx.netRevenue * 0.02)) {
+      out.push({
+        kind: 'anomaly',
+        advisory: true,
+        message:
+          `The platform exports total ${fmt(ctx.sku.totalRevenue)} against ${fmt(ctx.netRevenue)} of ` +
+          `net revenue in Tally — a gap of ${fmt(gap)}. Expect some difference (timing, returns, ` +
+          'channels with no export), but a large one means a missing or duplicated file.',
+      });
+    }
   }
 
   // Advisory: the flat-stock trap that flattered July's first pass.

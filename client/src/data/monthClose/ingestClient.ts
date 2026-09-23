@@ -6,7 +6,8 @@
 // that are marked unverified, which is what makes them gate the close.
 // ----------------------------------------------------------------------------
 
-import { ingestSpreadsheet, isImage, isSpreadsheet } from './adapters';
+import { isImage, isSpreadsheet } from './adapters';
+import { ingestSpreadsheet } from './adapterRegistry';
 import type { FieldValue, LedgerNode, Provenance, SourceKind, UploadedSource } from './schema';
 
 export interface VisionLedgerRow {
@@ -101,6 +102,7 @@ async function ingestScreenshot(
     method: 'vision',
     addedAt: new Date().toISOString(),
     nodes,
+    skuRows: [],
     warnings,
   };
 
