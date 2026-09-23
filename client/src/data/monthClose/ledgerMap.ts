@@ -177,9 +177,12 @@ export function lookupLedger(
   if (overrides[own]) return { lineKey: overrides[own], fromOverride: true };
   if (map[own]) return { lineKey: map[own], fromOverride: false };
 
-  // "Add: Indirect Incomes" is the same ledger as "Indirect Incomes"; the P&L
-  // screen just prefixes it to show the arithmetic.
-  const stripped = own.replace(/^add /, '');
+  // The P&L screen prefixes real ledgers with "Add:" and "Less:" to show its
+  // arithmetic — "Less: Closing Stock" IS closing stock. So strip the prefix
+  // and retry before falling through to the ignore patterns, which would
+  // otherwise drop the closing-stock figure and inflate COGM by the whole
+  // balance.
+  const stripped = own.replace(/^(add|less) /, '');
   if (stripped !== own) {
     if (overrides[stripped]) return { lineKey: overrides[stripped], fromOverride: true };
     if (map[stripped]) return { lineKey: map[stripped], fromOverride: false };

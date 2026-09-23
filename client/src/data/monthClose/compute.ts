@@ -123,6 +123,16 @@ const OPEX_LABELS: Record<string, string> = {
 };
 
 /**
+ * Lines that carry a balance rather than a movement, and so are always a
+ * positive magnitude. Sources disagree about the sign: the Trading Account
+ * prints closing stock as "Less: Closing Stock (14,45,78,24)" because it is a
+ * deduction, while a group summary prints the same figure positive. Stock on
+ * hand is never negative, so take the magnitude and let `stockMovement` decide
+ * the direction.
+ */
+const MAGNITUDE_LINES = new Set(['cogm_open', 'cogm_close']);
+
+/**
  * Income-like buckets keep Tally's sign; expense-like buckets are negated so
  * that `effect` is always "what this did to profit".
  */
@@ -149,9 +159,10 @@ export function computeClose(
   // ---- Fold contributors onto lines ---------------------------------------
   const lines: Record<string, LineTotal> = {};
 
-  const addTo = (lineKey: string, amount: number, contributor?: PickedNode, verified = true) => {
+  const addTo = (lineKey: string, rawAmount: number, contributor?: PickedNode, verified = true) => {
     const def = CLOSE_LINES[lineKey];
     if (!def) return;
+    const amount = MAGNITUDE_LINES.has(lineKey) ? Math.abs(rawAmount) : rawAmount;
     const existing = lines[lineKey];
     if (existing) {
       existing.amount = r2(existing.amount + amount);
@@ -180,12 +191,13 @@ export function computeClose(
   for (const [lineKey, fv] of Object.entries(session.manual)) {
     const def = CLOSE_LINES[lineKey];
     if (!def) continue;
+    const value = MAGNITUDE_LINES.has(lineKey) ? Math.abs(fv.value) : fv.value;
     lines[lineKey] = {
       lineKey,
       label: def.label,
       bucket: def.bucket,
-      amount: r2(fv.value),
-      effect: r2(effectOf(def.bucket, fv.value)),
+      amount: r2(value),
+      effect: r2(effectOf(def.bucket, value)),
       contributors: [],
       verified: fv.provenance.verified,
     };

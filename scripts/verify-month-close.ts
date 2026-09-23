@@ -14,6 +14,8 @@
 import * as XLSX from 'xlsx';
 import { ADAPTERS } from '../client/src/data/monthClose/adapters';
 import { computeClose } from '../client/src/data/monthClose/compute';
+import { emitClose } from '../client/src/data/monthClose/emit';
+import { MONTHLY_MIS } from '../client/src/data/misDeck/misDeckData';
 import {
   emptySession,
   type LedgerNode,
@@ -231,11 +233,10 @@ const wbSession: MonthCloseSession = {
       warnings: parsed.warnings,
     },
   ],
-  // The first-pass workbook has no stock movement, so opening/closing are equal.
-  manual: {
-    cogm_open: { value: 14457824, provenance: P },
-    cogm_close: { value: 14457824, provenance: P },
-  },
+  // Deliberately no manual entry: opening and closing stock must come out of
+  // the workbook itself. The Trading Account prints closing stock as
+  // "Less: Closing Stock" with a negative amount, and getting either the
+  // prefix or the sign wrong inflates COGM by the whole stock balance.
   anchor: { nettProfit: { value: 339196.15, provenance: P } },
 };
 
@@ -261,6 +262,33 @@ const payrollFlag = w.blockers.find((b) => b.ref === 'op_payroll');
 console.log(flatStock ? '  ok  flat closing stock flagged' : 'FAIL  flat closing stock not flagged');
 console.log(payrollFlag ? '  ok  net payroll credit flagged' : 'FAIL  net payroll credit not flagged');
 if (!flatStock || !payrollFlag) failures++;
+
+// ---------------------------------------------------------------------------
+// Emit: the entry the dashboard produces must equal the one already committed.
+// ---------------------------------------------------------------------------
+
+console.log('\nEmit vs the committed MONTHLY_MIS entry\n');
+
+const emitted = emitClose(session, c, 'fixture').entry;
+const committed = MONTHLY_MIS.find((m) => m.key === '2026-07');
+
+if (!committed) {
+  failures++;
+  console.log('FAIL  no 2026-07 entry in MONTHLY_MIS to compare against');
+} else {
+  const numericFields = [
+    'netRevenue', 'grossMargin', 'cm1', 'cm2', 'cm3', 'ebitda', 'netIncome',
+    'cogm', 'channelFulfillment', 'salesMarketing', 'platformCosts', 'opex', 'nonOperating',
+  ] as const;
+  for (const f of numericFields) check(f, emitted[f] as number, committed[f] as number);
+
+  for (const [label, want] of Object.entries(committed.cogmLines)) {
+    check(`cogm: ${label.slice(0, 14)}`, emitted.cogmLines[label] ?? NaN, want);
+  }
+  for (const [label, want] of Object.entries(committed.opexLines)) {
+    check(`opex: ${label.slice(0, 14)}`, emitted.opexLines[label] ?? NaN, want);
+  }
+}
 
 console.log(failures === 0 ? '\nPASS — Jul-2026 reproduced exactly.\n' : `\n${failures} FAILURE(S)\n`);
 process.exit(failures === 0 ? 0 : 1);
