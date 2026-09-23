@@ -12,6 +12,7 @@ import misRoutes from './routes/mis.js';
 import driveRoutes from './routes/drive.js';
 import expenseBookingRoutes from './routes/expenseBooking.js';
 import sopVisualsRoutes from './routes/sopVisuals.js';
+import monthCloseRoutes from './routes/monthClose.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,7 @@ app.use('/api/mis', misRoutes);
 app.use('/api/drive', driveRoutes);
 app.use('/api/expense-booking', expenseBookingRoutes);
 app.use('/api/sop-visuals', sopVisualsRoutes);
+app.use('/api/month-close', monthCloseRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

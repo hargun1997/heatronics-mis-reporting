@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { MonthCloseTab } from './MonthCloseTab';
+import { MonthIngestTab } from './MonthIngestTab';
 import { SectionCard } from '../../components/ui/Card';
 import {
   LineChart, StackedBarChart, GroupedBarChart, GrowthBarChart, DonutChart, WaterfallChart, Legend,
@@ -29,7 +30,7 @@ const iconDeck = (
   </svg>
 );
 
-type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelactuals' | 'skuchannel' | 'missheet' | 'datainputs' | 'monthclose';
+type TabId = 'overview' | 'growth' | 'channels' | 'repeats' | 'profitability' | 'pnl' | 'channelactuals' | 'skuchannel' | 'missheet' | 'datainputs' | 'monthclose' | 'monthingest';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -43,6 +44,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'missheet', label: 'MIS Sheet' },
   { id: 'datainputs', label: 'Data Inputs' },
   { id: 'monthclose', label: 'Month Close' },
+  { id: 'monthingest', label: 'Month Ingest' },
 ];
 
 // ----------------------------------------------------------------------------
@@ -108,6 +110,7 @@ export function MISDeck() {
         {tab === 'missheet' && <MisSheetTab />}
         {tab === 'datainputs' && <DataInputsTab />}
         {tab === 'monthclose' && <MonthCloseTab />}
+        {tab === 'monthingest' && <MonthIngestTab />}
       </div>
     </>
   );

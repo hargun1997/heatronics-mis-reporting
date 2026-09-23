@@ -64,7 +64,7 @@ export function toAmount(v: unknown): number | null {
 
 /** Indent depth from leading whitespace, as the Tally workbooks encode it. */
 function depthOf(raw: string): number {
-  const lead = raw.length - raw.replace(/^[\s ]+/, '').length;
+  const lead = raw.length - raw.replace(/^[\s\u00a0]+/, '').length;
   return Math.floor(lead / 6);
 }
 

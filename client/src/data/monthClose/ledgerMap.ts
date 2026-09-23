@@ -141,6 +141,19 @@ export const IGNORE_PATTERNS: RegExp[] = [
  */
 export const SIGN_FLIPPED_LINES = new Set(['op_other_income']);
 
+/**
+ * Normalise a "Group > Sub > Ledger" path into the key overrides are stored
+ * under. The blockers surface raw paths, so the UI needs this to write an
+ * override that `lookupLedger` will actually find.
+ */
+export function normaliseLedgerPath(path: string): string {
+  return path
+    .split('>')
+    .map((part) => normaliseLedger(part))
+    .filter(Boolean)
+    .join(' > ');
+}
+
 export interface MapLookup {
   /** Close line key, or null when nothing in the map matches. */
   lineKey: string | null;
