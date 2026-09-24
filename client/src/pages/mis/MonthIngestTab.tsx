@@ -7,6 +7,7 @@ import { checkVisionAvailable, ingestFile } from '../../data/monthClose/ingestCl
 import { normaliseLedgerPath } from '../../data/monthClose/ledgerMap';
 import { PRODUCTS, normaliseSku } from '../../data/monthClose/skuMap';
 import { costBasisImpact } from '../../data/monthClose/skuRollup';
+import { INGESTABLE_ROWS } from '../../data/misDeck/feedSources';
 import {
   CLOSE_GROUPS,
   SOURCE_KINDS,
@@ -278,6 +279,19 @@ export function MonthIngestTab() {
 
 // ---- Cards -----------------------------------------------------------------
 
+/**
+ * Sources — the month's input catalogue, live.
+ *
+ * This used to be a drop zone plus a "force the type" dropdown, with the
+ * knowledge of which files to fetch and where they come from sitting on a
+ * different tab entirely. Documentation you have to go and look up is
+ * documentation nobody reads at the moment they need it, so the catalogue is
+ * the card now: every expected source is a row, the row says where to pull it
+ * from, and dropping the file ticks it off.
+ *
+ * The type override still exists — sniffing can be wrong — but it belongs on
+ * the file it got wrong, not as the first thing on the card.
+ */
 function SourcesCard(props: {
   sources: UploadedSource[];
   busy: string | null;
@@ -290,22 +304,25 @@ function SourcesCard(props: {
   onVerifySource: (id: string) => void;
 }) {
   const [over, setOver] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  const landedFor = (kind: SourceKind) => props.sources.filter((s) => s.kind === kind);
+  const catalogued = new Set(INGESTABLE_ROWS.map((r) => r.kind));
+  const uncatalogued = props.sources.filter((s) => !catalogued.has(s.kind));
+
+  // Book-of-record and essential rows are the month; enhancements sharpen it.
+  const required = INGESTABLE_ROWS.filter((r) => r.tier !== 'enhancement' && !r.optional);
+  const optional = INGESTABLE_ROWS.filter((r) => r.tier === 'enhancement' || r.optional);
+  const have = required.filter((r) => landedFor(r.kind!).length > 0).length;
 
   return (
     <SectionCard
       title="1 · Sources"
-      description="Tally export or screenshots, plus any platform files. Drop several at once."
+      description="Every file the month needs, where to pull it from, and what has landed. Drop several at once."
       actions={
-        <select
-          value={props.forcedKind}
-          onChange={(e) => props.setForcedKind(e.target.value as SourceKind | '')}
-          className="px-2 py-1 text-xs rounded border border-slate-200 bg-white text-slate-600"
-        >
-          <option value="">Detect type</option>
-          {SOURCE_KINDS.map((k) => (
-            <option key={k.kind} value={k.kind}>{k.label}</option>
-          ))}
-        </select>
+        <span className={`text-xs tabular-nums ${have === required.length ? 'text-emerald-600' : 'text-slate-400'}`}>
+          {have} of {required.length}
+        </span>
       }
     >
       <div
@@ -313,7 +330,7 @@ function SourcesCard(props: {
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); if (e.dataTransfer.files) props.onDrop(e.dataTransfer.files); }}
         onClick={props.onPick}
-        className={`rounded-lg border-2 border-dashed px-4 py-6 text-center cursor-pointer transition ${
+        className={`rounded-lg border-2 border-dashed px-4 py-5 text-center cursor-pointer transition ${
           over ? 'border-brand-400 bg-brand-50' : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
         }`}
       >
@@ -324,49 +341,172 @@ function SourcesCard(props: {
         </div>
       </div>
 
-      {props.sources.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {props.sources.map((s) => {
-            const unverified = s.nodes.filter((n) => !n.provenance.verified).length;
-            return (
-              <div key={s.id} className="rounded-lg border border-slate-100 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-700 truncate flex-1">{s.label}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                    {SOURCE_KINDS.find((k) => k.kind === s.kind)?.label ?? s.kind}
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    {/* Each source kind carries a different shape: ledger rows, product rows or standard costs. */}
-                    {s.bomCosts.length > 0
-                      ? `${s.bomCosts.length} BOM costs`
-                      : s.skuRows.length > 0
-                        ? `${s.skuRows.length} product rows`
-                        : `${s.nodes.length} rows`}
-                  </span>
-                  <button onClick={() => props.onRemove(s.id)} className="text-slate-300 hover:text-rose-500 text-xs">×</button>
-                </div>
-                {unverified > 0 && (
-                  <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-amber-700">
-                      {unverified} figure{unverified === 1 ? '' : 's'} read from the image, not yet confirmed
-                    </span>
-                    <button
-                      onClick={() => props.onVerifySource(s.id)}
-                      className="text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                    >
-                      I've checked these against the screen
-                    </button>
-                  </div>
-                )}
-                {s.warnings.map((w, i) => (
-                  <div key={i} className="mt-1 text-[11px] text-amber-600">⚠ {w}</div>
-                ))}
-              </div>
-            );
-          })}
+      <div className="mt-2 flex items-center gap-2 justify-end">
+        <label htmlFor="forced-kind" className="text-[10px] text-slate-400">
+          Files are identified automatically. Read one wrong? Set its type, then add it again:
+        </label>
+        <select
+          id="forced-kind"
+          value={props.forcedKind}
+          onChange={(e) => props.setForcedKind(e.target.value as SourceKind | '')}
+          className="px-2 py-1 text-[11px] rounded border border-slate-200 bg-white text-slate-600"
+        >
+          <option value="">Detect automatically</option>
+          {SOURCE_KINDS.map((k) => (
+            <option key={k.kind} value={k.kind}>{k.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mt-4 space-y-1.5">
+        {required.map((row) => (
+          <ChecklistRow
+            key={`${row.source}:${row.export}`}
+            row={row}
+            landed={landedFor(row.kind!)}
+            onRemove={props.onRemove}
+            onVerifySource={props.onVerifySource}
+          />
+        ))}
+      </div>
+
+      {(showAll || optional.some((r) => landedFor(r.kind!).length > 0)) && (
+        <div className="mt-3 space-y-1.5">
+          <div className="text-[10px] uppercase tracking-wide text-slate-400 pt-1">Optional — sharpens the detail</div>
+          {optional.map((row) => (
+            <ChecklistRow
+              key={`${row.source}:${row.export}`}
+              row={row}
+              landed={landedFor(row.kind!)}
+              onRemove={props.onRemove}
+              onVerifySource={props.onVerifySource}
+            />
+          ))}
+        </div>
+      )}
+
+      {!showAll && !optional.some((r) => landedFor(r.kind!).length > 0) && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="mt-2 text-[11px] text-slate-400 hover:text-slate-600"
+        >
+          + {optional.length} optional source{optional.length === 1 ? '' : 's'}
+        </button>
+      )}
+
+      {uncatalogued.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+          <div className="text-[10px] uppercase tracking-wide text-slate-400">Not in the checklist</div>
+          {uncatalogued.map((s) => (
+            <LandedFile key={s.id} source={s} onRemove={props.onRemove} onVerifySource={props.onVerifySource} />
+          ))}
         </div>
       )}
     </SectionCard>
+  );
+}
+
+/** One expected source: where it comes from, and whether it has arrived. */
+function ChecklistRow(props: {
+  row: (typeof INGESTABLE_ROWS)[number];
+  landed: UploadedSource[];
+  onRemove: (id: string) => void;
+  onVerifySource: (id: string) => void;
+}) {
+  const { row, landed } = props;
+  const [open, setOpen] = useState(false);
+  const here = landed.length > 0;
+
+  return (
+    <div className={`rounded-lg border px-3 py-2 ${here ? 'border-emerald-100 bg-emerald-50/40' : 'border-slate-100'}`}>
+      <div className="flex items-start gap-2.5">
+        <span className={`mt-0.5 text-xs ${here ? 'text-emerald-600' : 'text-slate-300'}`}>{here ? '✓' : '○'}</span>
+        <div className="flex-1 min-w-0">
+          <button onClick={() => setOpen(!open)} className="text-left w-full group">
+            <span className="text-xs font-medium text-slate-700">{row.export}</span>
+            <span className="text-[10px] text-slate-400 ml-1.5">{row.source}</span>
+            <span className="block text-[11px] text-slate-500 leading-snug">{row.where}</span>
+          </button>
+
+          {row.caution && (
+            <div className="mt-1 text-[10px] text-amber-700 leading-snug">⚠ {row.caution}</div>
+          )}
+
+          {open && (
+            <dl className="mt-1.5 space-y-1 text-[10px] text-slate-500 leading-snug">
+              <div><dt className="inline font-medium text-slate-600">Columns needed: </dt><dd className="inline">{row.fields}</dd></div>
+              <div><dt className="inline font-medium text-slate-600">Feeds: </dt><dd className="inline">{row.feeds}</dd></div>
+              <div><dt className="inline font-medium text-slate-600">Self-check: </dt><dd className="inline">{row.check}</dd></div>
+            </dl>
+          )}
+
+          {landed.map((s) => (
+            <LandedFile key={s.id} source={s} compact onRemove={props.onRemove} onVerifySource={props.onVerifySource} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A file that has landed: what it yielded, what it complained about. */
+function LandedFile(props: {
+  source: UploadedSource;
+  compact?: boolean;
+  onRemove: (id: string) => void;
+  onVerifySource: (id: string) => void;
+}) {
+  const s = props.source;
+  const unverified = s.nodes.filter((n) => !n.provenance.verified).length;
+  const yielded =
+    s.bomCosts.length > 0
+      ? `${s.bomCosts.length} BOM costs`
+      : s.skuRows.length > 0
+        ? `${s.skuRows.length} product rows`
+        : s.nodes.length > 0
+          ? `${s.nodes.length} ledger rows`
+          : s.crossChecks.length > 0
+            ? `${s.crossChecks.length} figures`
+            : 'nothing';
+
+  return (
+    <div className={props.compact ? 'mt-1.5' : ''}>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-600 truncate flex-1" title={s.label}>{s.label}</span>
+        <span className="text-[10px] text-slate-400 shrink-0">{yielded}</span>
+        <button
+          onClick={() => props.onRemove(s.id)}
+          className="text-slate-300 hover:text-rose-500 text-xs shrink-0"
+          title="Remove this file"
+        >
+          ×
+        </button>
+      </div>
+
+      {!props.compact && (
+        <div className="text-[10px] text-slate-400">
+          read as {SOURCE_KINDS.find((k) => k.kind === s.kind)?.label ?? s.kind}
+        </div>
+      )}
+
+      {unverified > 0 && (
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span className="text-[11px] text-amber-700">
+            {unverified} figure{unverified === 1 ? '' : 's'} read from the image, not yet confirmed
+          </span>
+          <button
+            onClick={() => props.onVerifySource(s.id)}
+            className="text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 shrink-0"
+          >
+            I&apos;ve checked these against the screen
+          </button>
+        </div>
+      )}
+
+      {s.warnings.map((w, i) => (
+        <div key={i} className="mt-1 text-[10px] text-amber-600 leading-snug">⚠ {w}</div>
+      ))}
+    </div>
   );
 }
 
