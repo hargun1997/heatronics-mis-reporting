@@ -41,7 +41,6 @@ export function MonthIngestTab() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [visionReady, setVisionReady] = useState<boolean | null>(null);
-  const [forcedKind, setForcedKind] = useState<SourceKind | ''>('');
   const [copied, setCopied] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -69,12 +68,14 @@ export function MonthIngestTab() {
   // ---- File handling -------------------------------------------------------
 
   const addFiles = useCallback(
-    async (files: FileList | File[]) => {
+    async (files: FileList | File[], kind?: SourceKind) => {
       setError(null);
       for (const file of Array.from(files)) {
         setBusy(`Reading ${file.name}…`);
         try {
-          const outcome = await ingestFile(file, forcedKind || undefined);
+          // Dropping on a row IS the declaration of what the file is, so it
+          // beats sniffing; the shared zone still guesses.
+          const outcome = await ingestFile(file, kind);
           setSession((s) => ({
             ...s,
             sources: [...s.sources, outcome.source],
@@ -89,7 +90,7 @@ export function MonthIngestTab() {
         }
       }
     },
-    [forcedKind],
+    [],
   );
 
   const removeSource = (id: string) =>
@@ -216,8 +217,6 @@ export function MonthIngestTab() {
             sources={session.sources}
             busy={busy}
             visionReady={visionReady}
-            forcedKind={forcedKind}
-            setForcedKind={setForcedKind}
             onPick={() => fileInput.current?.click()}
             onDrop={addFiles}
             onRemove={removeSource}
@@ -296,10 +295,8 @@ function SourcesCard(props: {
   sources: UploadedSource[];
   busy: string | null;
   visionReady: boolean | null;
-  forcedKind: SourceKind | '';
-  setForcedKind: (k: SourceKind | '') => void;
   onPick: () => void;
-  onDrop: (files: FileList) => void;
+  onDrop: (files: FileList | File[], kind?: SourceKind) => void;
   onRemove: (id: string) => void;
   onVerifySource: (id: string) => void;
 }) {
@@ -341,22 +338,9 @@ function SourcesCard(props: {
         </div>
       </div>
 
-      <div className="mt-2 flex items-center gap-2 justify-end">
-        <label htmlFor="forced-kind" className="text-[10px] text-slate-400">
-          Files are identified automatically. Read one wrong? Set its type, then add it again:
-        </label>
-        <select
-          id="forced-kind"
-          value={props.forcedKind}
-          onChange={(e) => props.setForcedKind(e.target.value as SourceKind | '')}
-          className="px-2 py-1 text-[11px] rounded border border-slate-200 bg-white text-slate-600"
-        >
-          <option value="">Detect automatically</option>
-          {SOURCE_KINDS.map((k) => (
-            <option key={k.kind} value={k.kind}>{k.label}</option>
-          ))}
-        </select>
-      </div>
+      <p className="mt-2 text-[10px] text-slate-400 text-center">
+        Dropped here, files are identified automatically. Drop one straight onto its row below to say what it is.
+      </p>
 
       <div className="mt-4 space-y-1.5">
         {required.map((row) => (
@@ -364,6 +348,7 @@ function SourcesCard(props: {
             key={`${row.source}:${row.export}`}
             row={row}
             landed={landedFor(row.kind!)}
+            onDrop={props.onDrop}
             onRemove={props.onRemove}
             onVerifySource={props.onVerifySource}
           />
@@ -378,6 +363,7 @@ function SourcesCard(props: {
               key={`${row.source}:${row.export}`}
               row={row}
               landed={landedFor(row.kind!)}
+              onDrop={props.onDrop}
               onRemove={props.onRemove}
               onVerifySource={props.onVerifySource}
             />
@@ -406,27 +392,75 @@ function SourcesCard(props: {
   );
 }
 
-/** One expected source: where it comes from, and whether it has arrived. */
+/**
+ * One expected source: where it comes from, and whether it has arrived.
+ *
+ * The row is its own drop target. Dropping a file here declares what it is,
+ * which beats sniffing it and removes the need for a separate "force the type"
+ * control — the thing you dropped it on IS the type.
+ */
 function ChecklistRow(props: {
   row: (typeof INGESTABLE_ROWS)[number];
   landed: UploadedSource[];
+  onDrop: (files: FileList | File[], kind?: SourceKind) => void;
   onRemove: (id: string) => void;
   onVerifySource: (id: string) => void;
 }) {
   const { row, landed } = props;
   const [open, setOpen] = useState(false);
+  const [over, setOver] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const here = landed.length > 0;
 
+  const tone = over
+    ? 'border-brand-400 bg-brand-50'
+    : here
+      ? 'border-emerald-100 bg-emerald-50/40'
+      : 'border-slate-100 hover:border-slate-300';
+
   return (
-    <div className={`rounded-lg border px-3 py-2 ${here ? 'border-emerald-100 bg-emerald-50/40' : 'border-slate-100'}`}>
+    <div
+      onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOver(false);
+        if (e.dataTransfer.files?.length) props.onDrop(e.dataTransfer.files, row.kind);
+      }}
+      className={`rounded-lg border px-3 py-2 transition-colors ${tone}`}
+    >
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept=".xlsx,.xlsm,.xls,.csv,.tsv,image/*"
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files?.length) void props.onDrop(e.target.files, row.kind);
+          e.target.value = '';
+        }}
+      />
+
       <div className="flex items-start gap-2.5">
-        <span className={`mt-0.5 text-xs ${here ? 'text-emerald-600' : 'text-slate-300'}`}>{here ? '✓' : '○'}</span>
+        <span className={`mt-0.5 text-xs shrink-0 ${here ? 'text-emerald-600' : 'text-slate-300'}`}>
+          {here ? '✓' : '○'}
+        </span>
+
         <div className="flex-1 min-w-0">
-          <button onClick={() => setOpen(!open)} className="text-left w-full group">
-            <span className="text-xs font-medium text-slate-700">{row.export}</span>
-            <span className="text-[10px] text-slate-400 ml-1.5">{row.source}</span>
-            <span className="block text-[11px] text-slate-500 leading-snug">{row.where}</span>
-          </button>
+          <div className="flex items-start gap-2">
+            <button onClick={() => setOpen(!open)} className="text-left flex-1 min-w-0">
+              <span className="text-xs font-medium text-slate-700">{row.export}</span>
+              <span className="text-[10px] text-slate-400 ml-1.5">{row.source}</span>
+              <span className="block text-[11px] text-slate-500 leading-snug">{row.where}</span>
+            </button>
+            <button
+              onClick={() => input.current?.click()}
+              className="shrink-0 px-2 py-0.5 rounded border border-slate-200 bg-white text-[10px] text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            >
+              {here ? 'Replace' : 'Choose file'}
+            </button>
+          </div>
 
           {row.caution && (
             <div className="mt-1 text-[10px] text-amber-700 leading-snug">⚠ {row.caution}</div>
