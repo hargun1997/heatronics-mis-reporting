@@ -5,6 +5,7 @@ import { MainLayout } from './layouts/MainLayout';
 import { Home } from './pages/Home';
 import { Reporting } from './pages/Reporting';
 import { MISDeck } from './pages/mis/MISDeck';
+import { MonthClosePage } from './pages/mis/MonthClosePage';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
@@ -50,6 +51,7 @@ function App() {
           {/* Top-level sections */}
           <Route path="reporting" element={<Reporting />} />
           <Route path="reporting/mis" element={<MISDeck />} />
+          <Route path="reporting/mis/close" element={<MonthClosePage />} />
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
