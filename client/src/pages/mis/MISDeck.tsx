@@ -60,23 +60,23 @@ export function MISDeck() {
         description="Investor-grade financial deck — channel-mix, growth and margin trends across month, quarter and fiscal year."
         crumbs={[{ label: 'Reporting', to: '/reporting' }, { label: 'MIS Reporting' }]}
         actions={
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-slate-400 hidden sm:block">
+          <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
+            <span className="text-[11px] text-slate-400 hidden lg:block">
               Source: {MIS_SOURCE_FILE} · {MIS_GENERATED_AT}
             </span>
             <Link
               to="/reporting/mis/close"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-400 transition-colors whitespace-nowrap"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M12 4v16m8-8H4" />
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 3v13m0-13l-4 4m4-4l4 4" />
               </svg>
               Close the month
             </Link>
             <button
               onClick={() => setShowExport(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors whitespace-nowrap"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
