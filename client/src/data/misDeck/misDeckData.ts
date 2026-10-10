@@ -23,7 +23,11 @@
 // the Platform Costs → CM3 line, and Cost of Fundraising (Business Development Expenses, ₹70)
 // sits below EBITDA in Non-Operating alongside Finance Costs. Net Loss ₹19.87 L.
 
-export const SALES_CHANNELS = ['D2C', 'Amazon', 'Blinkit', 'OEM', 'Offline', 'Export'] as const;
+// Flipkart joined when its settlement adapter landed. Every per-month channel map
+// is a Partial<Record<...>>, so the 33 months that predate it simply have no key —
+// which reads as "did not sell there", not as zero revenue. Only FY_SUMMARY.mix is
+// exhaustive, so that is the one place Flipkart had to be written in as 0.
+export const SALES_CHANNELS = ['D2C', 'Amazon', 'Blinkit', 'Flipkart', 'OEM', 'Offline', 'Export'] as const;
 export type SalesChannel = (typeof SALES_CHANNELS)[number];
 
 export interface MonthlyMIS {
@@ -1901,6 +1905,7 @@ export const FY_SUMMARY: FYSummary[] = [
       "D2C": 0,
       "Amazon": 0.073,
       "Blinkit": 0,
+      "Flipkart": 0,
       "OEM": 0.802,
       "Offline": 0.125,
       "Export": 0
@@ -1916,6 +1921,7 @@ export const FY_SUMMARY: FYSummary[] = [
       "D2C": 0.007,
       "Amazon": 0.655,
       "Blinkit": 0.005,
+      "Flipkart": 0,
       "OEM": 0.133,
       "Offline": 0.2,
       "Export": 0
@@ -1931,6 +1937,7 @@ export const FY_SUMMARY: FYSummary[] = [
       "D2C": 0.402,
       "Amazon": 0.335,
       "Blinkit": 0.054,
+      "Flipkart": 0,
       "OEM": 0.134,
       "Offline": 0.074,
       "Export": 0
@@ -1946,6 +1953,7 @@ export const FY_SUMMARY: FYSummary[] = [
       "D2C": 0.301,
       "Amazon": 0.384,
       "Blinkit": 0,
+      "Flipkart": 0,
       "OEM": 0.271,
       "Offline": 0.045,
       "Export": 0

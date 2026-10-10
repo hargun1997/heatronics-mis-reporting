@@ -18,6 +18,7 @@
 
 import type { SalesChannel } from '../misDeck/misDeckData';
 import type { BomCost, CostBasis, MonthCloseSession, SkuPlatform, SkuRow, UploadedSource } from './schema';
+import { buildUnitCostModel, type AllocationBasis, type UnitCostModel } from './costModel';
 import { hcoreTwin, lookupSku, type Platform, type SkuEntry } from './skuMap';
 
 /** Which deck channel a platform's rows belong to. */
@@ -25,6 +26,7 @@ const CHANNEL_BY_PLATFORM: Record<SkuPlatform, SalesChannel> = {
   amazon: 'Amazon',
   shopify: 'D2C',
   blinkit: 'Blinkit',
+  flipkart: 'Flipkart',
   // Shiprocket carries no SKU at all — its freight is a channel cost that
   // cannot be pushed down to products, so it never produces rows here.
   shiprocket: 'D2C',
@@ -93,11 +95,29 @@ export interface SkuAggregate {
   revenue: number;
   units: number;
   fees: number;
-  /** Null when no BOM prices this product. */
+  /** Raw material per unit from the BOM. Null when no BOM prices this product. */
   costPerUnit: number | null;
+  /** Conversion cost allocated to one unit — rent, labour, direct manufacturing. */
+  conversionPerUnit: number;
+  /** units × costPerUnit. Material only. */
+  cogRaw: number | null;
+  /**
+   * units × (costPerUnit + conversionPerUnit).
+   *
+   * This is the one that drives margin, and the reason the deck was wrong: the
+   * old table used material-only cost and called the result gross margin, which
+   * ran 16.7 points above the books in Jul-2026.
+   */
+  cogm: number | null;
+  /**
+   * Alias of `cogm`, kept so every existing caller gets the corrected figure
+   * rather than silently continuing to read the material-only one.
+   */
   cogs: number | null;
-  /** revenue − cogs − fees. Null while uncosted. */
+  /** revenue − cogm − fees. Null while uncosted. */
   contribution: number | null;
+  /** Contribution before conversion cost, for comparing the two bases. */
+  contributionBeforeConversion: number | null;
   /** The BOM the cost came from, for the audit trail. */
   bomNumber?: string;
   /** False when any contributing mapping is inferred rather than checked. */
@@ -125,16 +145,29 @@ export interface SkuResult {
   totalCogs: number | null;
   /** Revenue that a BOM could price. */
   costedRevenue: number;
+  /** Material-only product cost, for holding against COGM. */
+  totalCogRaw: number | null;
+  /** The conversion-cost allocation behind every cogm on these aggregates. */
+  costModel: UnitCostModel;
   /** True when any platform source was supplied at all. */
   hasSkuSources: boolean;
   costBook: CostBook;
 }
 
-export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): SkuResult {
+export function computeSku(
+  session: MonthCloseSession,
+  entries?: SkuEntry[],
+  allocationBasis?: AllocationBasis,
+): SkuResult {
   const rows = session.sources.flatMap((s) => s.skuRows ?? []);
   const overrides = session.skuOverrides ?? {};
   const basis = session.costBasis ?? null;
   const costBook = buildCostBook(session.sources);
+
+  // At most one source carries the month's conversion cost — it is a company
+  // figure, not a per-product one, and two of them would double the rent.
+  const conversionSources = session.sources.filter((s) => s.conversion);
+  const conversion = conversionSources[0]?.conversion ?? null;
 
   const byKey = new Map<string, SkuAggregate>();
   const unmapped: SkuRow[] = [];
@@ -167,8 +200,12 @@ export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): Sk
         units: r2(row.units),
         fees: r2(row.fees),
         costPerUnit: null,
+        conversionPerUnit: 0,
+        cogRaw: null,
+        cogm: null,
         cogs: null,
         contribution: null,
+        contributionBeforeConversion: null,
         confirmed: hit.confirmed,
         byTitle: hit.byTitle,
         // The fork is a property of the product, not of the basis currently
@@ -179,7 +216,20 @@ export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): Sk
     }
   }
 
-  // Price every aggregate once its units are final.
+  // Units are final, so the month's conversion cost can now be spread across
+  // them. This has to happen between aggregation and pricing: the allocation
+  // weight depends on how many units each product actually sold.
+  const cogByFg: Record<string, number> = {};
+  for (const fg of Object.keys(costBook.byFg)) {
+    const c = costFor(costBook, fg);
+    if (c) cogByFg[fg] = c.costPerUnit;
+  }
+  const unitsByFg: Record<string, number> = {};
+  for (const a of byKey.values()) unitsByFg[a.fgId] = r2((unitsByFg[a.fgId] ?? 0) + a.units);
+
+  const costModel = buildUnitCostModel({ cogByFg, unitsByFg, conversion, basis: allocationBasis });
+
+  // Price every aggregate.
   for (const a of byKey.values()) {
     const cost = costFor(costBook, a.fgId);
     if (!cost) {
@@ -187,15 +237,23 @@ export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): Sk
       // "Accessory (excl)" cell in the committed 767 carries cogs 0 — so a
       // missing BOM for one is not the gap it is for a heating pad.
       if (a.deckName === ACCESSORY) {
+        a.cogRaw = 0;
+        a.cogm = 0;
         a.cogs = 0;
         a.contribution = r2(a.revenue - a.fees);
+        a.contributionBeforeConversion = a.contribution;
       }
       continue;
     }
+    const unit = costModel.byFg[a.fgId];
     a.costPerUnit = cost.costPerUnit;
     a.bomNumber = cost.bomNumber;
-    a.cogs = r2(cost.costPerUnit * a.units);
-    a.contribution = r2(a.revenue - a.cogs - a.fees);
+    a.conversionPerUnit = unit?.conversionPerUnit ?? 0;
+    a.cogRaw = r2(cost.costPerUnit * a.units);
+    a.cogm = r2((unit?.cogm ?? cost.costPerUnit) * a.units);
+    a.cogs = a.cogm;
+    a.contribution = r2(a.revenue - a.cogm - a.fees);
+    a.contributionBeforeConversion = r2(a.revenue - a.cogRaw - a.fees);
   }
 
   const aggregates = [...byKey.values()].sort(
@@ -215,6 +273,8 @@ export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): Sk
     totalUnits: r2(aggregates.reduce((s, a) => s + a.units, 0)),
     totalFees: r2(aggregates.reduce((s, a) => s + a.fees, 0)),
     totalCogs: uncosted.length > 0 ? null : r2(costed.reduce((s, a) => s + (a.cogs ?? 0), 0)),
+    totalCogRaw: uncosted.length > 0 ? null : r2(costed.reduce((s, a) => s + (a.cogRaw ?? 0), 0)),
+    costModel,
     costedRevenue: r2(costed.reduce((s, a) => s + a.revenue, 0)),
     hasSkuSources: rows.length > 0,
     costBook,

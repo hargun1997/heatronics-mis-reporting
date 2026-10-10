@@ -12,7 +12,7 @@
 
 import * as XLSX from 'xlsx';
 import { normaliseLedger } from './ledgerMap';
-import type { BomCost, CrossCheck, LedgerNode, Provenance, SkuRow, SourceKind } from './schema';
+import type { BomCost, ConversionCost, CrossCheck, LedgerNode, Provenance, SkuRow, SourceKind } from './schema';
 
 export interface AdapterInput {
   file: File;
@@ -29,6 +29,8 @@ export interface AdapterResult {
   bomCosts?: BomCost[];
   /** Figures to hold beside Tally rather than add to it. */
   crossChecks?: CrossCheck[];
+  /** The month's rent, labour and direct manufacturing — what makes COG into COGM. */
+  conversion?: ConversionCost;
   warnings: string[];
 }
 

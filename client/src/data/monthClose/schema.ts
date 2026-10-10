@@ -219,13 +219,96 @@ export interface SkuRow {
   name?: string;
   revenue: number;
   units: number;
-  /** Channel fees attributable to this SKU, always a positive cost. */
+  /**
+   * Total channel cost attributable to this SKU, always a positive cost.
+   *
+   * Kept as the sum of `costs` so every existing caller keeps working. Read it
+   * when all you want is "what did the channel take"; read `costs` when the
+   * question is which part of it.
+   */
   fees: number;
+  /**
+   * The same money, broken out.
+   *
+   * One `fees` number cannot answer a unit-economics question. A product losing
+   * 8% of revenue to RTO freight and one losing it to commission need opposite
+   * responses — the first is a packaging or address problem, the second is a
+   * pricing one — and a single bucket makes them look identical.
+   *
+   * Sparse by design: an adapter fills only what its export actually carries,
+   * so a missing key means "this file does not say", never "zero".
+   */
+  costs?: SkuCosts;
+  /**
+   * Units that came back, when the export distinguishes them.
+   *
+   * Separate from a negative `units` because the two mean different things: a
+   * refund row nets the sale off, while an RTO is a unit that shipped, cost
+   * freight both ways, and may or may not be resaleable. Netting them loses
+   * the RTO rate, which is the number that actually drives D2C margin.
+   */
+  returnUnits?: number;
   provenance: Provenance;
 }
 
+/**
+ * Where a channel's take actually goes.
+ *
+ * Deliberately a record rather than named fields on SkuRow: platforms keep
+ * inventing fee lines, and a new one should be a key here rather than a schema
+ * migration. Every value is a POSITIVE cost in rupees.
+ */
+export type SkuCosts = Partial<Record<SkuCostKind, number>>;
+
+export type SkuCostKind =
+  /** Marketplace commission / referral fee. */
+  | 'commission'
+  /** Pick, pack and ship charged by the marketplace (FBA and equivalents). */
+  | 'fulfilment'
+  /** Outbound freight to the customer. */
+  | 'shippingForward'
+  /** Freight on the way back — RTO legs and customer returns. */
+  | 'shippingReturn'
+  /**
+   * Value of RTO units not recovered as sellable stock.
+   *
+   * Distinct from `shippingReturn`: the freight is spent either way, but a unit
+   * that comes back damaged is a COGS write-off on top of it.
+   */
+  | 'rtoLoss'
+  /** Warranty replacements and the reverse logistics behind them. */
+  | 'warranty'
+  /** Payment gateway MDR — Easebuzz, Shopflo, marketplace payment fees. */
+  | 'paymentGateway'
+  /**
+   * Cost of offering credit, principally Snapmint subvention.
+   *
+   * A real margin cost that looks like a discount in the books and like a fee
+   * in the gateway file, which is why it gets its own key.
+   */
+  | 'financeCost'
+  /** Platform advertising attributable to this SKU. */
+  | 'advertising'
+  /** Seller-funded discount, where the export separates it from the price. */
+  | 'discount'
+  /** Anything the export names but this list does not. */
+  | 'otherFee';
+
+/** Sum of a sparse cost record, for the `fees` total. */
+export function totalCosts(costs: SkuCosts | undefined): number {
+  if (!costs) return 0;
+  return Math.round(Object.values(costs).reduce((s, v) => s + (v ?? 0), 0) * 100) / 100;
+}
+
 /** Kept structural rather than importing from skuMap, which imports data files. */
-export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'offline' | 'oem';
+export type SkuPlatform =
+  | 'amazon'
+  | 'shopify'
+  | 'blinkit'
+  | 'flipkart'
+  | 'shiprocket'
+  | 'offline'
+  | 'oem';
 
 /**
  * Which generation of Tranzact finished good a platform SKU means.
@@ -269,6 +352,25 @@ export interface BomCost {
   provenance: Provenance;
 }
 
+/**
+ * What it cost to turn material into product this month, beyond the material.
+ *
+ * Lives here rather than in costModel.ts so schema stays the one place every
+ * data shape is declared, and costModel can stay a pure calculation module
+ * importing from it rather than the two importing each other.
+ */
+export interface ConversionCost {
+  /** Factory rent and premises cost. */
+  rent: number;
+  /** Direct wages and contract labour on the floor. */
+  labour: number;
+  /** Job work, power, consumables, additional manufacturing charges. */
+  directManufacturing: number;
+  /** Anything else in the factory block that is not one of the above. */
+  other: number;
+  provenance: Provenance;
+}
+
 export interface UploadedSource {
   id: string;
   label: string;
@@ -284,6 +386,13 @@ export interface UploadedSource {
   bomCosts: BomCost[];
   /** Figures to hold against Tally rather than feed into it. */
   crossChecks: CrossCheck[];
+  /**
+   * The month's conversion cost, when this source carries it.
+   *
+   * At most one source should: it is a company-level figure, not a per-product
+   * one, and two of them would double the rent.
+   */
+  conversion?: ConversionCost;
   /** Adapter-level complaints — unreadable regions, totals that do not foot. */
   warnings: string[];
 }
@@ -298,8 +407,14 @@ export type SourceKind =
   | 'amazonSales'
   | 'shopifySales'
   | 'blinkitSettlement'
+  | 'flipkartSettlement'
   | 'shiprocketFreight'
-  | 'tranzactBom';
+  | 'shiprocketOrders'
+  | 'easebuzzSettlement'
+  | 'snapmintSettlement'
+  | 'delhiveryWarranty'
+  | 'tranzactBom'
+  | 'conversionCost';
 
 export const SOURCE_KINDS: { kind: SourceKind; label: string; accepts: string; what: string }[] = [
   { kind: 'tallyPnl', label: 'Tally P&L A/c', accepts: '.xlsx, .png, .jpg', what: 'The P&L screen for the month — drives the whole cascade.' },
@@ -308,8 +423,14 @@ export const SOURCE_KINDS: { kind: SourceKind; label: string; accepts: string; w
   { kind: 'amazonSales', label: 'Amazon business report', accepts: '.csv, .xlsx', what: 'Sessions, units and ordered product sales. Traffic only — carries no fees, so it cannot price a month.' },
   { kind: 'shopifySales', label: 'Shopify / D2C sales', accepts: '.csv, .xlsx', what: 'Total sales by product variant. Rows with a blank variant SKU fall back to the product title.' },
   { kind: 'blinkitSettlement', label: 'Blinkit payout', accepts: '.xlsx', what: 'The order-level charges workbook out of the payout ZIP — per-item gross, commission and shipping.' },
+  { kind: 'flipkartSettlement', label: 'Flipkart settlement', accepts: '.csv, .xlsx', what: 'Per-order settlement with commission, collection and shipping fees. The “Sales Report” cannot price a month — it carries no fees.' },
   { kind: 'shiprocketFreight', label: 'Shiprocket passbook', accepts: '.csv, .xlsx', what: 'The wallet ledger. A cost file with no SKU — it lands on freight outward, not on products.' },
-  { kind: 'tranzactBom', label: 'Tranzact BOM pricing', accepts: '.xlsx', what: 'Bill-of-materials export with Total FG Cost per finished good — the per-unit COGS behind SKU margin.' },
+  { kind: 'shiprocketOrders', label: 'Shiprocket orders (RTO)', accepts: '.csv, .xlsx', what: 'Order-level shipment status. The only file that says which units came back, so the only one that can price RTO per product.' },
+  { kind: 'easebuzzSettlement', label: 'Easebuzz settlement', accepts: '.csv, .xlsx', what: 'Payment gateway MDR per transaction. Confirms D2C checkout cost and the COD vs prepaid split.' },
+  { kind: 'snapmintSettlement', label: 'Snapmint settlement', accepts: '.csv, .xlsx', what: 'EMI orders with subvention. The subvention is a real margin cost that reads as a discount in the books.' },
+  { kind: 'delhiveryWarranty', label: 'Delhivery warranty shipments', accepts: '.csv, .xlsx', what: 'Reverse and replacement waybills — the freight half of warranty cost, per product where the AWB carries one.' },
+  { kind: 'tranzactBom', label: 'Tranzact BOM pricing', accepts: '.xlsx', what: 'Bill-of-materials export with Total FG Cost per finished good — the raw COG behind SKU margin. Upload monthly.' },
+  { kind: 'conversionCost', label: 'Conversion cost (rent, labour, mfg)', accepts: '.xlsx, .csv, .png, .jpg', what: 'Factory rent, wages and direct manufacturing for the month — what turns raw COG into COGM. Usually the Tally Factory Overheads drill.' },
   { kind: 'channelRevenue', label: 'Channel revenue (generic)', accepts: '.xlsx, .csv', what: 'Per-channel net sales when you would rather not take them off Tally.' },
   { kind: 'adSpend', label: 'Ad spend export', accepts: '.xlsx, .csv', what: 'Meta / Google / Amazon spend, to check Sales & Marketing ties out.' },
   { kind: 'skuPnl', label: 'SKU P&L (generic)', accepts: '.xlsx, .csv', what: 'Any other per-SKU table.' },

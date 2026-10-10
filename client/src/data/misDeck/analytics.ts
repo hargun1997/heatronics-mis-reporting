@@ -676,6 +676,8 @@ export const CHANNEL_AOV: Record<SalesChannel, number> = {
   D2C: 1700,
   Amazon: 1400,
   Blinkit: 900,
+  // Marketplace basket, same assumption as Amazon until real Flipkart orders land.
+  Flipkart: 1400,
   OEM: 325,
   Offline: 500,
   Export: 500,

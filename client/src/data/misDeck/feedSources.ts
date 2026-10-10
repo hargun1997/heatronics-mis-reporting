@@ -84,6 +84,36 @@ export const FEED_SOURCES: FeedSource[] = [
         caution:
           'Factory Overheads comes through the P&L as a single leaf, so whether factory rent sits inside gross margin cannot be read off it. Drill that group if the answer matters.',
       },
+      {
+        export: 'Factory Overheads + Manufacturing Costs, drilled',
+        where: 'Tally → Display → Account Books → Group Summary → Factory Overheads, and the same for Manufacturing Costs',
+        fields: 'Ledger name and amount — rent, wages, job work, power, consumables',
+        feeds: 'COGM. This is what turns raw COG into the cost the books actually charge',
+        check: 'Children sum to the Factory Overheads leaf on the P&L (₹3,95,615 in Jul-2026).',
+        kind: 'conversionCost',
+        caution:
+          'Without this the SKU tab prices units at material cost only and reads ~17 points above the books — Jul-2026 said 58.8% gross margin against Tally’s 42.1%. Two columns is enough: the ledger name and the rupees.',
+      },
+    ],
+  },
+  {
+    name: 'Flipkart',
+    tier: 'essential',
+    cadence: 'Monthly',
+    rows: [
+      {
+        export: 'Settlement / commission report',
+        where: 'Flipkart Seller Hub → Payments → Settlement report, for the calendar month',
+        fields: 'Order Item ID, SKU, Event Sub Type, quantity, Final Settlement Amount, commission, shipping fee, reverse shipping fee, collection fee',
+        feeds: 'Flipkart per-SKU revenue, units and fees',
+        check: 'Net settlement should land near Tally’s Flipkart revenue, allowing for settlement timing at the month boundary.',
+        kind: 'flipkartSettlement',
+        // Optional until Flipkart has revenue: a required row nobody can satisfy
+        // teaches people to ignore the counter.
+        optional: true,
+        caution:
+          'Not the Sales Report — that carries no fees and cannot price a month, the same trap as the Amazon business report. Quantity prints positive on a return, so units are taken from the settlement sign instead.',
+      },
     ],
   },
   {
@@ -165,6 +195,51 @@ export const FEED_SOURCES: FeedSource[] = [
           'The largest positive lines are COD moving into the wallet, not income. Summing the Amount column without excluding them lands ~74% light on freight.',
       },
       {
+        export: 'Shiprocket orders export',
+        where: 'Shiprocket → Orders → Export, for the month, with shipment status included',
+        fields: 'Channel Order Id, AWB, Status, SKU, product name, quantity, freight charges, COD charges',
+        feeds: 'RTO rate and RTO freight per product — the biggest single drag on D2C contribution',
+        check: 'RTO units ÷ units shipped is the rate. Compare it against the COD share from the gateway file: COD is what drives RTO.',
+        kind: 'shiprocketOrders',
+        caution:
+          'The passbook cannot do this — it carries no SKU. An RTO pays freight twice, forward and back, so this adapter charges both legs. Order value in this file is ignored: Shopify is the authority for D2C revenue.',
+      },
+      {
+        export: 'Delhivery waybill / shipment report',
+        where: 'Delhivery One → Shipments → Export, for the month',
+        fields: 'Waybill, reference no, shipment type, status, SKU, product, quantity, freight charges',
+        feeds: 'Warranty freight — the reverse and replacement legs',
+        check: 'Only reverse, replacement and pickup legs count. Forward sale legs in the same export are Shiprocket’s and would double the freight.',
+        kind: 'delhiveryWarranty',
+        // A month with no warranty claims has no file to drop, and that is good news
+        // rather than a missing input.
+        optional: true,
+        caution:
+          'Must include a shipment-type or status column, or forward and reverse cannot be told apart and nothing is counted. This is the freight half only — the replacement UNIT is a COGS write-off the BOM prices.',
+      },
+      {
+        export: 'Easebuzz settlement',
+        where: 'Easebuzz dashboard → Transactions → Settlement report, for the month',
+        fields: 'txnid, amount, service charge, GST, net amount, status, payment mode',
+        feeds: 'D2C checkout MDR, and the COD vs prepaid split',
+        check: 'MDR runs around 2% of GMV. Failed transactions must be excluded or GMV inflates.',
+        kind: 'easebuzzSettlement',
+        caution:
+          'A gateway charges a basket, not a product, so this lands on the channel and never on a SKU. The COD share is the number worth reading — it predicts the RTO rate.',
+      },
+      {
+        export: 'Snapmint settlement',
+        where: 'Snapmint merchant dashboard → Settlements, for the month',
+        fields: 'Order ID, product, order amount, subvention amount, processing fee, net payable, status',
+        feeds: 'EMI subvention as a finance cost against the products that carry EMI',
+        check: 'Subvention runs ~9% of EMI GMV. Check which Tally ledger holds it.',
+        kind: 'snapmintSettlement',
+        // Not every month has EMI orders.
+        optional: true,
+        caution:
+          'Subvention sits on the wrong side of gross margin if the books call it a discount rather than a finance cost. EMI concentrates on high-ticket SKUs, so a channel-level number understates what it costs those products.',
+      },
+      {
         export: 'Shopflo checkout billing (optional)',
         where: 'Shopflo monthly tax invoice',
         fields: 'Checkout charges COD and online, add-ons',
@@ -177,7 +252,7 @@ export const FEED_SOURCES: FeedSource[] = [
   {
     name: 'Tranzact — product cost',
     tier: 'essential',
-    cadence: 'When BOMs or purchase prices change',
+    cadence: 'Monthly — raw COG comes off this file',
     rows: [
       {
         export: 'BOM pricing export',

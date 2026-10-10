@@ -8,11 +8,18 @@
 
 import * as XLSX from 'xlsx';
 import { BASE_ADAPTERS, type SourceAdapter } from './adapters';
+import { D2C_ADAPTERS } from './d2cAdapters';
 import { PLATFORM_ADAPTERS } from './platformAdapters';
 import type { SourceKind, UploadedSource } from './schema';
 
-/** Platform adapters first: they are more specific than the generic tables. */
-export const ADAPTERS: SourceAdapter[] = [...PLATFORM_ADAPTERS, ...BASE_ADAPTERS];
+/**
+ * Specific adapters first, generic tables last.
+ *
+ * Order only breaks ties — `claimAdapter` sorts on the sniff score — but it
+ * matters when two adapters score the same, and a named platform is always a
+ * better guess than "some table with numbers in it".
+ */
+export const ADAPTERS: SourceAdapter[] = [...PLATFORM_ADAPTERS, ...D2C_ADAPTERS, ...BASE_ADAPTERS];
 
 export interface ClaimResult {
   adapter: SourceAdapter;
@@ -49,7 +56,11 @@ export async function ingestSpreadsheet(
     throw new Error(`Could not tell what "${file.name}" is. Pick the source type by hand and re-add it.`);
   }
 
-  const { nodes, skuRows, bomCosts, crossChecks, warnings } = claim.adapter.parse({ file, sourceId, workbook });
+  const { nodes, skuRows, bomCosts, crossChecks, conversion, warnings } = claim.adapter.parse({
+    file,
+    sourceId,
+    workbook,
+  });
 
   return {
     id: sourceId,
@@ -61,6 +72,7 @@ export async function ingestSpreadsheet(
     skuRows: skuRows ?? [],
     bomCosts: bomCosts ?? [],
     crossChecks: crossChecks ?? [],
+    conversion,
     warnings:
       claim.confidence < 0.5
         ? [`Source type guessed as "${claim.adapter.label}" — confirm it is right.`, ...warnings]

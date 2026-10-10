@@ -27,77 +27,22 @@
 // landing within 0.18% of Tally's Ecommerce Sales.
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
-import { toAmount, type AdapterResult, type SourceAdapter } from './adapters';
-import type { BomCost, CrossCheck, Provenance, SkuPlatform, SkuRow, SourceKind } from './schema';
-
-// ---- Shared plumbing -------------------------------------------------------
-
-function sheetRows(wb: XLSX.WorkBook, name: string): unknown[][] {
-  const ws = wb.Sheets[name];
-  if (!ws) return [];
-  return XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
-}
-
-const cell = (v: unknown) => String(v ?? '').trim();
-const lower = (v: unknown) => cell(v).toLowerCase();
-const num = (v: unknown) => toAmount(v) ?? 0;
-const r2 = (n: number) => Math.round(n * 100) / 100;
-
-/** First row within `limit` whose cells contain every needle. Headers move; row numbers do not survive. */
-function findHeader(rows: unknown[][], needles: string[], limit = 30): number {
-  for (let i = 0; i < Math.min(rows.length, limit); i++) {
-    const cells = (rows[i] ?? []).map(lower);
-    if (needles.every((n) => cells.some((c) => c === n))) return i;
-  }
-  return -1;
-}
-
-/** Column index by exact lowercased header, trying each alias in order. */
-function col(header: string[], ...aliases: string[]): number {
-  for (const a of aliases) {
-    const i = header.indexOf(a);
-    if (i >= 0) return i;
-  }
-  return -1;
-}
-
-function provenanceFor(sourceId: string, label: string, note: string): Provenance {
-  return { sourceId, sourceLabel: label, method: 'xlsx', confidence: 'exact', verified: true, note };
-}
-
-/** What every adapter says when it cannot find its columns: what it actually saw. */
-function headerMiss(label: string, missing: string[], header: string[]): AdapterResult {
-  return {
-    nodes: [],
-    skuRows: [],
-    bomCosts: [],
-    crossChecks: [],
-    warnings: [
-      `${label}: could not find ${missing.map((m) => `a "${m}" column`).join(' and ')}. ` +
-        `Headers actually present: ${header.filter(Boolean).join(' | ') || '(none)'}. ` +
-        'If the export has been renamed upstream, add the new name to the alias list in platformAdapters.ts.',
-    ],
-  };
-}
-
-const empty = (warnings: string[] = []): AdapterResult => ({
-  nodes: [],
-  skuRows: [],
-  bomCosts: [],
-  crossChecks: [],
-  warnings,
-});
-
-function sniffOn(hay: string, patterns: RegExp[], floor = 0.05): number {
-  const hits = patterns.filter((re) => re.test(hay)).length;
-  return hits === 0 ? floor : Math.min(0.55 + hits * 0.15, 1);
-}
-
-function hayFor(wb: XLSX.WorkBook, fileName: string): string {
-  const first = sheetRows(wb, wb.SheetNames[0]).slice(0, 20);
-  return `${wb.SheetNames.join(' ')} ${fileName} ${first.flat().map(cell).join(' ')}`.toLowerCase();
-}
+import type { AdapterResult, SourceAdapter } from './adapters';
+import {
+  cell,
+  col,
+  empty,
+  findHeader,
+  hayFor,
+  headerMiss,
+  lower,
+  num,
+  provenanceFor,
+  r2,
+  sheetRows,
+  sniffOn,
+} from './adapterPlumbing';
+import { totalCosts, type BomCost, type CrossCheck, type SkuCosts, type SkuPlatform, type SkuRow, type SourceKind } from './schema';
 
 // ---- Amazon: unified transaction (the settlement file) ---------------------
 
@@ -189,7 +134,14 @@ const amazonSettlement: SourceAdapter = {
         num(row[ix.sales]) + num(row[ix.shipping]) + num(row[ix.giftWrap]) + num(row[ix.rebates]);
       // Fees print negative on a sale and positive on a refund, so negating
       // turns both into a cost that nets correctly across the month.
-      const rowFees = -(num(row[ix.selling]) + num(row[ix.fba]) + num(row[ix.otherTxn]));
+      const rowCosts: SkuCosts = {};
+      const selling = -num(row[ix.selling]);
+      const fba = -num(row[ix.fba]);
+      const otherTxn = -num(row[ix.otherTxn]);
+      if (selling !== 0) rowCosts.commission = r2(selling);
+      if (fba !== 0) rowCosts.fulfilment = r2(fba);
+      if (otherTxn !== 0) rowCosts.otherFee = r2(otherTxn);
+      const rowFees = r2(selling + fba + otherTxn);
       const qty = num(row[ix.qty]);
 
       if (rowRevenue === 0 && rowFees === 0 && qty === 0) continue;
@@ -210,7 +162,8 @@ const amazonSettlement: SourceAdapter = {
         name: cell(row[ix.desc]) || undefined,
         revenue: r2(rowRevenue),
         units,
-        fees: r2(rowFees),
+        fees: rowFees,
+        costs: rowCosts,
         provenance: p,
       });
     }
@@ -450,8 +403,12 @@ const blinkitPayout: SourceAdapter = {
       const item = cell(row[ix.item]);
       if (!item) continue;
       const rev = num(row[ix.gross]);
-      const rowFees =
-        num(row[ix.commission]) + num(row[ix.commissionGst]) + num(row[ix.shipping]) + num(row[ix.shippingGst]);
+      const commission = num(row[ix.commission]) + num(row[ix.commissionGst]);
+      const shipping = num(row[ix.shipping]) + num(row[ix.shippingGst]);
+      const rowCosts: SkuCosts = {};
+      if (commission !== 0) rowCosts.commission = r2(commission);
+      if (shipping !== 0) rowCosts.fulfilment = r2(shipping);
+      const rowFees = totalCosts(rowCosts);
       if (rev === 0 && rowFees === 0) continue;
 
       gross += rev;
@@ -463,7 +420,8 @@ const blinkitPayout: SourceAdapter = {
         name: cell(row[ix.name]) || undefined,
         revenue: r2(rev),
         units: num(row[ix.qty]),
-        fees: r2(rowFees),
+        fees: rowFees,
+        costs: rowCosts,
         provenance: p,
       });
     }
