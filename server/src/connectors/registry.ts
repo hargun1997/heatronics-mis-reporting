@@ -93,7 +93,7 @@ const delhivery = scaffold({
   label: 'Delhivery',
   group: 'logistics',
   fetchMode: 'api',
-  mode: 'live-api',
+  mode: 'manual-upload',
   note: 'Delhivery API. Token per client/warehouse. Pull feeds outbound freight billing and RTO/NDR.',
   credentialFields: [
     { key: 'apiToken', label: 'API token', type: 'password', help: 'Delhivery One → Settings → API.' },
@@ -106,7 +106,7 @@ const easebuzz = scaffold({
   label: 'Easebuzz',
   group: 'payments',
   fetchMode: 'api',
-  mode: 'live-api',
+  mode: 'manual-upload',
   note: 'Easebuzz payment gateway. Merchant key + salt. Pull feeds payment-gateway fees and cash/settlement reconciliation against D2C.',
   credentialFields: [
     { key: 'merchantKey', label: 'Merchant key', type: 'text' },
@@ -133,7 +133,7 @@ const shopflo = scaffold({
   label: 'Shopflo (Checkout)',
   group: 'payments',
   fetchMode: 'api',
-  mode: 'live-api',
+  mode: 'manual-upload',
   note: 'Shopflo checkout. API key/secret or webhook. Pull feeds revenue-by-tender, COD, discounts and checkout fees.',
   credentialFields: [
     { key: 'apiKey', label: 'API key', type: 'text' },
