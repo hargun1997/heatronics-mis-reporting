@@ -13,6 +13,7 @@ import type { ConnectorDef, CredentialField, ConnectorGroup, Credentials, FetchM
 import { NotImplementedError } from './types.js';
 import tally from './sources/tally.js';
 import shopify from './sources/shopify.js';
+import amazon from './sources/amazon.js';
 import meta from './sources/meta.js';
 import googleAds from './sources/googleAds.js';
 import amazonAds from './sources/amazonAds.js';
@@ -47,21 +48,6 @@ function scaffold(spec: ScaffoldSpec): ConnectorDef {
     },
   };
 }
-
-const amazon = scaffold({
-  id: 'amazon',
-  label: 'Amazon Seller Central',
-  group: 'marketplace',
-  fetchMode: 'api',
-  note: 'Amazon SP-API. The month lives in the finance/settlement reports; advertising is a separate Ads API. Pull feeds SkuRow[] and a net-revenue cross-check.',
-  credentialFields: [
-    { key: 'lwaClientId', label: 'LWA client ID', type: 'text', placeholder: 'amzn1.application-oa2-client.…', help: 'Login with Amazon app client ID from the SP-API app.' },
-    { key: 'lwaClientSecret', label: 'LWA client secret', type: 'password' },
-    { key: 'refreshToken', label: 'Refresh token', type: 'password', placeholder: 'Atzr|…', help: 'From authorising the SP-API app on the seller account.' },
-    { key: 'marketplaceId', label: 'Marketplace ID', type: 'text', placeholder: 'A21TJRUUN4KGV', optional: true, help: 'India = A21TJRUUN4KGV.' },
-    { key: 'region', label: 'Region endpoint', type: 'text', placeholder: 'eu-west-1', optional: true, help: 'India sits on the EU endpoint (eu-west-1).' },
-  ],
-});
 
 const flipkart = scaffold({
   id: 'flipkart',
