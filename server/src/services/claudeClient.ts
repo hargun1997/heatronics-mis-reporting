@@ -13,6 +13,7 @@
 // each one already owns a `normalise` step that treats the model as untrusted.
 
 import Anthropic from '@anthropic-ai/sdk';
+import { recordApiUsage } from '../ingest/objectStore.js';
 
 const API_KEY = process.env.ANTHROPIC_API_KEY || '';
 // Default to the current Opus. Override per-deploy with CLAUDE_MODEL.
@@ -37,6 +38,8 @@ export interface ClaudeCompleteOptions {
   model?: string;
   /** Thinking depth / token spend. Classification and OCR do well at 'low'. */
   effort?: ClaudeEffort;
+  /** Label for usage/cost tracking (e.g. 'vision', 'classifier'). */
+  feature?: string;
 }
 
 export function isClaudeConfigured(): boolean {
@@ -103,6 +106,7 @@ export async function claudeCompleteText(opts: ClaudeCompleteOptions): Promise<s
       (params as unknown as Record<string, unknown>).output_config = { effort: opts.effort ?? 'low' };
 
       const response = await anthropic.messages.create(params);
+      void recordApiUsage(params.model, opts.feature ?? 'other', response.usage ?? {});
 
       if (response.stop_reason === 'refusal') {
         const category =
@@ -159,6 +163,7 @@ export interface ClaudeChatOptions {
   maxTokens?: number;
   model?: string;
   effort?: ClaudeEffort;
+  feature?: string;
 }
 
 /**
@@ -185,6 +190,7 @@ export async function claudeChat(opts: ClaudeChatOptions): Promise<string> {
       escape.thinking = { type: 'adaptive' };
 
       const response = await anthropic.messages.create(params);
+      void recordApiUsage(params.model, opts.feature ?? 'chat', response.usage ?? {});
 
       if (response.stop_reason === 'refusal') {
         const category =

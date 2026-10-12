@@ -103,6 +103,7 @@ export class LedgerVisionService {
       maxTokens: 8192,
       // Figures must be read exactly — think a little, spend little.
       effort: 'low',
+      feature: 'tally-vision',
     });
 
     return normalise(parseJson(text));

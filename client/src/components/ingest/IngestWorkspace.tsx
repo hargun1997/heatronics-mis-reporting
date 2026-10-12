@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listConnectors, MODE_LABEL, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
 import { getIngestStatus, listIngestReports, refreshIngestStore } from '../../data/ingest/ingestClient';
 import { chatStatus } from '../../data/chat/chatClient';
+import { getUsage, usd, type UsageResponse } from '../../data/chat/usageClient';
 import { slotsFor } from '../../data/ingest/catalog';
 import type { IngestReportMeta, IngestStoreStatus } from '../../data/ingest/types';
 import { IngestStepper } from './IngestStepper';
@@ -29,6 +30,8 @@ export function IngestWorkspace() {
   const [reports, setReports] = useState<IngestReportMeta[]>([]);
   const [store, setStore] = useState<IngestStoreStatus | null>(null);
   const [claudeLive, setClaudeLive] = useState<boolean | null>(null);
+  const [usage, setUsage] = useState<UsageResponse | null>(null);
+  const [showUsage, setShowUsage] = useState(false);
   const [selected, setSelected] = useState<string>('');
   const [rechecking, setRechecking] = useState(false);
 
@@ -43,6 +46,7 @@ export function IngestWorkspace() {
     }).catch(() => {});
     getIngestStatus().then((r) => setStore(r.store)).catch(() => {});
     chatStatus().then((s) => setClaudeLive(s.configured)).catch(() => setClaudeLive(false));
+    getUsage(7).then(setUsage).catch(() => {});
     void reloadReports();
   }, [reloadReports]);
 
@@ -86,12 +90,48 @@ export function IngestWorkspace() {
           Claude API {claudeLive == null ? '…' : claudeLive ? 'live' : 'offline'}
         </span>
         <span className="text-slate-400">reads Tally screenshots &amp; powers Ask the MIS</span>
+        {usage && (
+          <button onClick={() => setShowUsage((v) => !v)} className="text-slate-400 hover:text-slate-600">
+            · AI spend today <span className="text-slate-700 font-medium">{usd(usage.today?.costUsd ?? 0)}</span>
+            <span className="text-slate-400"> ({usage.today?.calls ?? 0} calls) · 7-day {usd(usage.totalUsd)} {showUsage ? '▴' : '▾'}</span>
+          </button>
+        )}
         {store && (
           <span className="text-slate-400">
             · storage: {store.durable ? <span className="text-emerald-700">Cloud Storage</span> : <span className="text-amber-700">temporary</span>}
           </span>
         )}
       </div>
+
+      {showUsage && usage && (
+        <div className="rounded-lg border border-slate-200 bg-white p-3 text-[11px]">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-semibold text-slate-600">Claude API spend · last {usage.windowDays} days</span>
+            <span className="text-slate-400">model: {[...new Set(usage.days.flatMap((d) => d.models))].join(', ') || 'claude-opus-5-5'}</span>
+          </div>
+          {usage.days.length === 0 ? (
+            <p className="text-slate-400">No API calls recorded yet.</p>
+          ) : (
+            <table className="w-full">
+              <thead><tr className="text-[10px] text-slate-400 text-left border-b border-slate-200">
+                <th className="py-1 pr-3">Day (IST)</th><th className="py-1 pr-3 text-right">Calls</th>
+                <th className="py-1 pr-3 text-right">Tokens in/out</th><th className="py-1 text-right">Cost (USD)</th>
+              </tr></thead>
+              <tbody>
+                {usage.days.map((d) => (
+                  <tr key={d.date} className="border-b border-slate-50">
+                    <td className="py-1 pr-3 text-slate-600 tabular-nums">{d.date}</td>
+                    <td className="py-1 pr-3 text-right tabular-nums text-slate-600">{d.calls}</td>
+                    <td className="py-1 pr-3 text-right tabular-nums text-slate-400">{d.inputTokens.toLocaleString()} / {d.outputTokens.toLocaleString()}</td>
+                    <td className="py-1 text-right tabular-nums text-slate-700 font-medium">${d.costUsd.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="text-[10px] text-slate-400 mt-1.5">Priced from each response's exact token usage at Opus rates ($4/$20 per 1M in/out, cache reads $0.20). Days are IST.</p>
+        </div>
+      )}
 
       {/* Store durability banner */}
       {store && !store.durable && (
