@@ -10,6 +10,9 @@ export interface SourceStatus {
   ok: boolean;
   count: number;
   error?: string;
+  /** Earliest / latest date this source returned data for, in the range. */
+  from?: string | null;
+  through?: string | null;
 }
 
 export interface FactsResponse {
