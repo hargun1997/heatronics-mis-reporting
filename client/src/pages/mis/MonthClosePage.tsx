@@ -20,6 +20,7 @@
 // ----------------------------------------------------------------------------
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
 import { FEED_SOURCES, TIER_BADGE } from '../../data/misDeck/feedSources';
@@ -58,9 +59,17 @@ export function MonthClosePage() {
           { label: 'Close the month' },
         ]}
         actions={
-          <span className="text-[11px] text-slate-400 hidden sm:block">
-            Published through {last?.label ?? '—'} · next {last ? nextMonthLabel(last.key) : '—'}
-          </span>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/reporting/mis/connectors"
+              className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Data sources →
+            </Link>
+            <span className="text-[11px] text-slate-400 hidden sm:block">
+              Published through {last?.label ?? '—'} · next {last ? nextMonthLabel(last.key) : '—'}
+            </span>
+          </div>
         }
       />
 
