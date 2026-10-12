@@ -96,17 +96,21 @@ export function IngestStepper({
       </div>
 
       {/* Step indicator */}
-      <div className="flex items-center gap-1.5 px-4 py-2.5 text-[11px]">
+      <div className="flex items-center px-4 py-3">
         {STEPS.map((s, i) => (
-          <div key={s} className="flex items-center gap-1.5">
-            <span className={
-              'flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold ' +
-              (i < active ? 'bg-emerald-500 text-white'
-                : i === active ? 'bg-brand-500 text-white'
-                : 'bg-slate-100 text-slate-400')
-            }>{i < active ? '✓' : i + 1}</span>
-            <span className={i <= active ? 'text-slate-700 font-medium' : 'text-slate-400'}>{s}</span>
-            {i < STEPS.length - 1 && <span className="w-5 h-px bg-slate-200 mx-0.5" />}
+          <div key={s} className="flex items-center flex-1 last:flex-none">
+            <div className="flex items-center gap-2">
+              <span className={
+                'flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold tabular-nums ' +
+                (i < active ? 'bg-emerald-500 text-white'
+                  : i === active ? 'bg-brand-500 text-white'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200')
+              }>{i < active ? '✓' : i + 1}</span>
+              <span className={'text-xs font-semibold ' + (i <= active ? 'text-slate-800' : 'text-slate-400')}>{s}</span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={'flex-1 h-0.5 mx-2 rounded ' + (i < active ? 'bg-emerald-500' : 'bg-slate-200')} />
+            )}
           </div>
         ))}
       </div>
