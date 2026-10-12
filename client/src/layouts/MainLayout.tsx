@@ -28,13 +28,16 @@ const isLive = (p: string) =>
   p.startsWith('/reporting/mis/insights') ||
   p.startsWith('/reporting/mis/chat');
 
-// Primary nav: the legacy deck, and the Live MIS group.
+// Primary nav: the legacy deck + month close, and the Live MIS group.
 const navNodes: NavNode[] = [
   {
-    path: '/reporting/mis',
     label: 'Legacy MIS',
-    // The deck and its analysis tabs, but not the live sub-pages below.
+    // The deck, its analysis tabs and the month close — but not the live sub-pages below.
     matcher: (p) => (p.startsWith('/reporting') || p.startsWith('/mis')) && !isLive(p),
+    children: [
+      { path: '/reporting/mis', label: 'MIS Reporting' },
+      { path: '/reporting/mis/close', label: 'Month close' },
+    ],
   },
   {
     label: 'Live MIS',
@@ -110,6 +113,7 @@ export function MainLayout() {
               <NavLink
                 key={child.path}
                 to={child.path}
+                end={child.path === '/reporting/mis'}
                 className={({ isActive }) =>
                   `block px-3 py-1.5 text-sm ${isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'}`
                 }
