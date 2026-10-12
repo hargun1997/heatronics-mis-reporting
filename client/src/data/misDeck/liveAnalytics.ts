@@ -19,11 +19,10 @@ export const FACTORY_PCT = 0.10;
 export type Granularity = 'month' | 'quarter' | 'year';
 
 const LEVEL_RANK: Record<CompletenessLevel, number> = { topline: 0, contribution: 1, full: 2 };
-const RANK_LEVEL: CompletenessLevel[] = ['topline', 'contribution', 'full'];
 
 // ---- Period keys & labels (Indian FY, Apr–Mar) -----------------------------
 
-/** FY label for a YYYY-MM month, e.g. 2026-05 → "FY25-26", 2026-01 → "FY25-26". */
+/** FY label for a YYYY-MM month, e.g. 2026-05 → "FY26-27", 2026-01 → "FY25-26". */
 export function fyOf(periodKey: string): string {
   const [y, m] = periodKey.split('-').map(Number);
   const startYear = m >= 4 ? y : y - 1;
@@ -125,11 +124,6 @@ export function aggregatePeriods(
   }
 
   return [...buckets.values()].sort((a, b) => a.members[0].localeCompare(b.members[0]));
-}
-
-export function minLevel(levels: CompletenessLevel[]): CompletenessLevel {
-  if (levels.length === 0) return 'topline';
-  return RANK_LEVEL[Math.min(...levels.map((l) => LEVEL_RANK[l]))];
 }
 
 export function marginPct(value: number, net: number): number | null {

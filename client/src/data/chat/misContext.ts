@@ -69,9 +69,11 @@ export function buildLiveMisContext(deck: LiveDeckData | null): MisContext {
 
   const completeThrough = deck?.completeThrough ?? null;
   const latestLive = deck?.periods[deck.periods.length - 1] ?? null;
-  const throughLabel = completeThrough
-    ? serialiseMonths(deck!.months.filter((m) => m.key === completeThrough))[0]?.month ?? completeThrough
-    : (latestLive ?? MONTHLY_MIS[MONTHLY_MIS.length - 1]?.label ?? 'latest');
+  // Resolve a YYYY-MM key to its human month label via the deck's own months.
+  const labelFor = (key: string | null): string | null =>
+    key ? (deck?.months.find((m) => m.key === key)?.label ?? key) : null;
+  const throughLabel =
+    labelFor(completeThrough) ?? labelFor(latestLive) ?? MONTHLY_MIS[MONTHLY_MIS.length - 1]?.label ?? 'latest';
 
   const context = [
     'Company: Heatronics Medical Devices Pvt Ltd — D2C orthopedic heat-therapy devices, India.',

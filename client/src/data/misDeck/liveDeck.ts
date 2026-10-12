@@ -160,6 +160,10 @@ const CHANNEL_ALIASES: Record<string, SalesChannel> = {
   blinkit: 'Blinkit',
   oem: 'OEM', offline: 'Offline', export: 'Export',
 };
+// Channels outside the deck's fixed set (e.g. Flipkart) return null and are not
+// yet carried in the facts-only path — none of the wired revenue connectors
+// (Shopify/Amazon/Blinkit) hit that case today. Wiring Flipkart will mean
+// extending the deck's SalesChannel model, which is a deliberate change.
 function toSalesChannel(channel: string): SalesChannel | null {
   return CHANNEL_ALIASES[channel.trim().toLowerCase()] ?? null;
 }
@@ -313,14 +317,19 @@ export function buildLiveDeck(reports: ExtractedReport[]): LiveDeckData {
   const months: MonthlyMIS[] = [];
   const skuCells: SkuCell[] = [];
   const completeness: Record<string, PeriodCompleteness> = {};
+  // "Complete through" is the end of the CONTIGUOUS run of fully-closed months
+  // from the start — a gap (an earlier month not yet closed) stops the floor, so
+  // we never claim a later month is closed while an earlier one is still open.
   let completeThrough: string | null = null;
+  let floorBroken = false;
 
   for (const periodKey of periods) {
     const built = buildMonth(periodKey, byPeriod.get(periodKey)!);
     months.push(built.month);
     skuCells.push(...built.skuCells);
     completeness[periodKey] = built.completeness;
-    if (built.completeness.level === 'full') completeThrough = periodKey;
+    if (built.completeness.level !== 'full') floorBroken = true;
+    else if (!floorBroken) completeThrough = periodKey;
   }
 
   return { months, skuCells, completeness, completeThrough, periods };
