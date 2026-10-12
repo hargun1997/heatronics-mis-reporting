@@ -7,7 +7,14 @@
 import type { DailyFact } from '../liveMis/facts';
 
 /** How a report slot is read into the pipeline. */
-export type SlotKind = 'xlsx' | 'vision';
+export type SlotKind = 'xlsx' | 'vision' | 'bom';
+
+export interface BomCostRow {
+  fgId: string;
+  bomNumber: string;
+  bomName: string;
+  costPerUnit: number;
+}
 
 /** One report a connector can receive (a connector may have several). */
 export interface ReportSlot {
@@ -50,6 +57,8 @@ export interface Extracted {
   ledgerRows?: { name: string; depth: number; amount: number; confidence: number }[];
   nettProfit?: number | null;
   period?: string | null;
+  /** Tranzact BOM path only — standard cost per finished good. */
+  bomCosts?: BomCostRow[];
 }
 
 /** The server's record of a committed (saved + ingested) report. */

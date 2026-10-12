@@ -32,7 +32,7 @@ const SLOTS: ReportSlot[] = [
   },
   {
     connectorId: 'tranzact', slotId: 'bom', label: 'BOM pricing', required: true,
-    accept: '.xlsx,.xls', kind: 'xlsx',
+    accept: '.xlsx,.xls', kind: 'bom',
     exportSteps: [
       'Tranzact → Bill of Materials',
       'Export the BOM list WITH pricing (needs "FG Item ID" and "Total FG Cost" columns)',

@@ -39,7 +39,7 @@ export function IngestStepper({
   const [error, setError] = useState<string | null>(null);
   const [committed, setCommitted] = useState<IngestReportMeta | null>(existing ?? null);
 
-  const wired = slot.kind === 'vision' || Boolean(slot.parserId);
+  const wired = slot.kind === 'vision' || slot.kind === 'bom' || Boolean(slot.parserId);
 
   const onFiles = async (files: FileList | null) => {
     const list = files ? Array.from(files) : [];
@@ -209,7 +209,24 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
       </div>
       <div>
         <h5 className="text-[10px] uppercase tracking-wide text-slate-400 mb-1.5">Extracted</h5>
-        {extracted.ledgerRows && extracted.ledgerRows.length > 0 ? (
+        {extracted.bomCosts && extracted.bomCosts.length > 0 ? (
+          <div className="max-h-56 overflow-auto">
+            <table className="w-full text-[11px]">
+              <thead><tr className="text-[10px] text-slate-400 text-left border-b border-slate-200">
+                <th className="py-1 pr-2">Finished good</th><th className="py-1 pr-2">BOM</th><th className="py-1 text-right">Cost / unit</th>
+              </tr></thead>
+              <tbody>
+                {extracted.bomCosts.slice(0, 50).map((b, i) => (
+                  <tr key={i} className="border-b border-slate-50">
+                    <td className="py-0.5 pr-2 text-slate-700 font-medium">{b.fgId}</td>
+                    <td className="py-0.5 pr-2 text-slate-500">{b.bomNumber}</td>
+                    <td className="py-0.5 text-right tabular-nums">{inr(b.costPerUnit)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : extracted.ledgerRows && extracted.ledgerRows.length > 0 ? (
           <div className="max-h-56 overflow-auto text-[11px]">
             {extracted.ledgerRows.slice(0, 40).map((r, i) => (
               <div key={i} className="flex justify-between gap-2 border-b border-slate-50 py-0.5"
