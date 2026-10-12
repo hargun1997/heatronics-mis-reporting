@@ -17,11 +17,13 @@ import {
   FETCH_MODE_LABEL,
   GROUP_LABEL,
   listConnectors,
+  refreshStore,
   saveCredentials,
   syncConnector,
   testConnector,
   type ConnectorGroup,
   type ConnectorInfo,
+  type StoreStatus,
 } from '../../data/monthClose/connectorsClient';
 import { emptySession, type MonthCloseSession, type UploadedSource } from '../../data/monthClose/schema';
 
@@ -57,7 +59,8 @@ function sendToClose(periodKey: string, sources: UploadedSource[]): number {
 
 export function ConnectorsPage() {
   const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
-  const [store, setStore] = useState<string>('');
+  const [store, setStore] = useState<StoreStatus | null>(null);
+  const [rechecking, setRechecking] = useState(false);
   const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,8 +110,13 @@ export function ConnectorsPage() {
             </Link>
             <span>{connectedCount}/{connectors.length} connected</span>
             {store && (
-              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                {store === 'secret-manager' ? 'Secret Manager' : 'local store'}
+              <span
+                className={
+                  'px-1.5 py-0.5 rounded ' +
+                  (store.durable ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')
+                }
+              >
+                {store.durable ? 'Secret Manager · durable' : 'temporary store'}
               </span>
             )}
           </div>
@@ -135,15 +143,42 @@ export function ConnectorsPage() {
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>
         )}
 
-        {store === 'local-file' && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 space-y-1">
-            <p className="font-medium">⚠ Tokens saved here are temporary and will be cleared on restart or redeploy.</p>
-            <p>
-              This server has no persistent store configured. For credentials that survive restarts and deploys,
-              set them as <span className="font-medium">environment variables on the Cloud Run service</span> (ideally
-              backed by a Secret Manager secret), or set <code className="bg-amber-100 px-1 rounded">GOOGLE_CLOUD_PROJECT</code> to
-              store them in Secret Manager. Each connector's drawer shows the exact variable names.
-            </p>
+        {store && !store.durable && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 space-y-2">
+            <p className="font-medium">⚠ Tokens are saved to a temporary store and will be cleared on restart or redeploy.</p>
+            {store.grantHint ? (
+              <>
+                <p>
+                  To make saves permanent automatically (no env vars, no per-token work), grant this service account
+                  permission to manage secrets — <span className="font-medium">once</span>. A service can't grant itself
+                  access, so this is the one manual step. Run it in Cloud Shell, then click Re-check:
+                </p>
+                <pre className="bg-amber-100 rounded p-2 overflow-x-auto whitespace-pre-wrap font-mono text-[11px]">{store.grantHint}</pre>
+                {store.secretManagerError && (
+                  <p className="text-amber-700">Secret Manager said: {store.secretManagerError}</p>
+                )}
+              </>
+            ) : (
+              <p>
+                This server isn't running on GCP (or the project couldn't be detected), so Secret Manager isn't
+                available. Set credentials as environment variables instead — each connector's drawer shows the names.
+              </p>
+            )}
+            <button
+              onClick={async () => {
+                setRechecking(true);
+                try {
+                  const r = await refreshStore();
+                  setStore(r.store);
+                } finally {
+                  setRechecking(false);
+                }
+              }}
+              disabled={rechecking}
+              className="px-2.5 py-1 rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-100 disabled:opacity-40"
+            >
+              {rechecking ? 'Re-checking…' : 'Re-check store'}
+            </button>
           </div>
         )}
 

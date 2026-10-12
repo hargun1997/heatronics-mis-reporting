@@ -11,9 +11,10 @@ import {
   envCredentials,
   getCredentials,
   getEffectiveCredentials,
+  refreshStore,
   removeCredentials,
   saveCredentials,
-  storeBackendName,
+  storeStatus,
 } from '../connectors/credentialStore.js';
 import { NotImplementedError, type ConnectorDef, type Credentials } from '../connectors/types.js';
 
@@ -68,7 +69,14 @@ router.get('/', h(async (_req, res) => {
       ...(await connectionStatus(c)),
     })),
   );
-  res.json({ store: storeBackendName(), connectors: items });
+  res.json({ store: await storeStatus(), connectors: items });
+}));
+
+// Re-probe the store (e.g. after granting the service account Secret Manager
+// access) so it upgrades to durable storage without a redeploy.
+router.post('/refresh-store', h(async (_req, res) => {
+  refreshStore();
+  res.json({ store: await storeStatus() });
 }));
 
 router.get('/:id', h(async (req, res) => {
