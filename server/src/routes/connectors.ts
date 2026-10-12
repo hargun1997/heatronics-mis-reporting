@@ -96,6 +96,46 @@ router.post('/:id/test', async (req, res) => {
   }
 });
 
+// Live run-rate: pull a dated fact stream from every connected source that can
+// date its data. Body: { from: "YYYY-MM-DD", to: "YYYY-MM-DD" }.
+router.post('/facts', async (req, res) => {
+  const from = String(req.body?.from ?? '').trim();
+  const to = String(req.body?.to ?? '').trim();
+  const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRe.test(from) || !dateRe.test(to) || from > to) {
+    return res.status(400).json({ error: 'from and to must be YYYY-MM-DD with from <= to.' });
+  }
+
+  const facts = [];
+  const sources = [];
+  const warnings: string[] = [];
+
+  for (const c of CONNECTORS) {
+    if (!c.fetchFacts) continue; // source cannot date its data — not a run-rate feed
+    if (!(await hasCredentials(c.id))) {
+      sources.push({ id: c.id, label: c.label, ok: false, count: 0, error: 'not connected' });
+      continue;
+    }
+    try {
+      const creds = (await getCredentials(c.id))!;
+      const result = await c.fetchFacts(creds, from, to);
+      facts.push(...result.facts);
+      warnings.push(...result.warnings);
+      sources.push({ id: c.id, label: c.label, ok: true, count: result.facts.length });
+    } catch (err) {
+      sources.push({
+        id: c.id,
+        label: c.label,
+        ok: false,
+        count: 0,
+        error: err instanceof Error ? err.message : 'fetch failed',
+      });
+    }
+  }
+
+  res.json({ from, to, sources, facts, warnings });
+});
+
 // Pull one month. Body: { periodKey: "YYYY-MM" }.
 router.post('/:id/sync', async (req, res) => {
   const c = getConnector(req.params.id);

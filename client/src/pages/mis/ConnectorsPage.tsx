@@ -8,6 +8,7 @@
 // ----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
 import {
@@ -97,6 +98,12 @@ export function ConnectorsPage() {
         ]}
         actions={
           <div className="flex items-center gap-3 text-[11px] text-slate-400">
+            <Link
+              to="/reporting/mis/live"
+              className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Live MIS →
+            </Link>
             <span>{connectedCount}/{connectors.length} connected</span>
             {store && (
               <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">

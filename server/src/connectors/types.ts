@@ -8,6 +8,7 @@
 // ----------------------------------------------------------------------------
 
 import type { ConnectorSource } from './schema.js';
+import type { FactResult } from './facts.js';
 
 /** One credential input the UI renders in the connector's config drawer. */
 export interface CredentialField {
@@ -61,8 +62,14 @@ export interface ConnectorDef {
 
   /** Cheap round-trip that proves the credentials reach the source. */
   test(creds: Credentials): Promise<TestResult>;
-  /** Pull one month. periodKey is "YYYY-MM". */
+  /** Pull one month as a close-ready rollup. periodKey is "YYYY-MM". */
   fetchPeriod(creds: Credentials, periodKey: string): Promise<FetchResult>;
+  /**
+   * Pull a dated fact stream for the live run-rate view, [fromISO, toISO]
+   * inclusive ('YYYY-MM-DD'). Present only on sources that can date their
+   * data; its absence means the source feeds the close but not the run-rate.
+   */
+  fetchFacts?(creds: Credentials, fromISO: string, toISO: string): Promise<FactResult>;
 }
 
 /** Thrown by a connector whose fetch is not implemented yet. */
