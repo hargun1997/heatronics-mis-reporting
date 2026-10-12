@@ -37,17 +37,19 @@ export function pctSigned(value: number | null | undefined, digits = 1): string 
 // Palette
 // ============================================================================
 
+// Channel palette — one hue per channel, distinct in hue AND lightness, kept
+// off brand orange (reserved for actions). Mirrors tailwind `channel.*`.
 export const CHANNEL_COLORS: Record<string, string> = {
-  D2C: '#4f46e5',     // indigo
-  Amazon: '#f59e0b',  // amber
-  Blinkit: '#eab308', // yellow
-  OEM: '#0ea5e9',     // sky
-  Offline: '#8b5cf6', // violet
-  Export: '#ec4899',  // pink
+  OEM: '#2563EB',     // blue
+  D2C: '#0E7490',     // cyan-700
+  Amazon: '#D97706',  // amber-600
+  Offline: '#7C3AED', // violet
+  Blinkit: '#475569', // slate-600
+  Export: '#DB2777',  // pink-600
 };
 
 // Neutral, categorical palette — deliberately avoids red/green value signalling.
-export const SERIES_COLORS = ['#4f46e5', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
+export const SERIES_COLORS = ['#2563EB', '#0E7490', '#D97706', '#7C3AED', '#475569', '#DB2777'];
 
 // Directional accents for +/- bars — indigo for up, muted slate for down (no red/green).
 export const POS_COLOR = '#4f46e5';

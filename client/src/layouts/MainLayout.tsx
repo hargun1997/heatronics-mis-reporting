@@ -1,198 +1,169 @@
+import { useState, type ReactNode } from 'react';
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { HeatronicsMark } from '../components/HeatronicsLogo';
+import { Drawer } from '../components/ui/overlays';
+
+const DATA_INSIGHTS_URL = 'https://heatronics-dashboard-portfolio.vercel.app/';
+
+// ---- nav model -------------------------------------------------------------
 
 interface NavLeaf {
   path: string;
   label: string;
-  external?: boolean;
-  matcher?: (pathname: string) => boolean;
+  icon: ReactNode;
+  match: (p: string) => boolean;
 }
-
-interface NavGroup {
+interface NavSection {
   label: string;
-  matcher: (pathname: string) => boolean;
-  children: NavLeaf[];
+  items: NavLeaf[];
 }
 
-type NavNode = NavLeaf | NavGroup;
-const isGroup = (n: NavNode): n is NavGroup => 'children' in n;
+const ico = (d: string | string[]) => (
+  <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.1} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {(Array.isArray(d) ? d : [d]).map((p, i) => <path key={i} d={p} />)}
+  </svg>
+);
 
-const DATA_INSIGHTS_URL = 'https://heatronics-dashboard-portfolio.vercel.app/';
+// The deck is the base /reporting/mis route; the sub-pages below have their own.
+const isDeck = (p: string) =>
+  p.startsWith('/reporting/mis') &&
+  !['/live', '/close', '/connectors', '/ingest', '/chat'].some((s) => p.startsWith('/reporting/mis' + s));
 
-// The live run-rate surface, its connector console, and the readiness page.
-const isLive = (p: string) =>
-  p.startsWith('/reporting/mis/live') ||
-  p.startsWith('/reporting/mis/connectors') ||
-  p.startsWith('/reporting/mis/ingest') ||
-  p.startsWith('/reporting/mis/chat');
-
-// Primary nav: the legacy deck, and the Live MIS group.
-const navNodes: NavNode[] = [
+const SECTIONS: NavSection[] = [
   {
-    path: '/reporting/mis',
-    label: 'Legacy MIS',
-    // The deck and its analysis tabs, but not the live sub-pages below.
-    matcher: (p) => (p.startsWith('/reporting') || p.startsWith('/mis')) && !isLive(p),
+    label: 'Reporting',
+    items: [
+      { path: '/reporting/mis/live', label: 'Live MIS', icon: ico('M3 12h4l3 8 4-16 3 8h4'), match: (p) => p.startsWith('/reporting/mis/live') },
+      { path: '/reporting/mis', label: 'MIS deck', icon: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']), match: isDeck },
+      { path: '/reporting/mis/close', label: 'Month close', icon: ico('M20 6L9 17l-5-5'), match: (p) => p.startsWith('/reporting/mis/close') },
+    ],
   },
   {
-    label: 'Live MIS',
-    matcher: isLive,
-    children: [
-      { path: '/reporting/mis/connectors', label: 'Data sources' },
-      { path: '/reporting/mis/ingest', label: 'Data readiness' },
-      { path: '/reporting/mis/live', label: 'Live MIS' },
-      { path: '/reporting/mis/chat', label: 'Ask the MIS' },
+    label: 'Data pipeline',
+    items: [
+      { path: '/reporting/mis/connectors', label: 'Data sources', icon: ico(['M4 4h6v6H4z', 'M14 4h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z']), match: (p) => p.startsWith('/reporting/mis/connectors') },
+      { path: '/reporting/mis/ingest', label: 'Data readiness', icon: ico(['M12 15V3', 'M8 7l4-4 4 4', 'M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2']), match: (p) => p.startsWith('/reporting/mis/ingest') },
+      { path: '/reporting/mis/chat', label: 'Ask the MIS', icon: ico('M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z'), match: (p) => p.startsWith('/reporting/mis/chat') },
+    ],
+  },
+  {
+    label: 'Govern',
+    items: [
+      { path: '/compliance', label: 'Compliance', icon: ico('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z'), match: (p) => p.startsWith('/compliance') || p.startsWith('/tracker') },
+      { path: '/task-tracker', label: 'Task tracker', icon: ico(['M9 11l3 3 8-8', 'M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9']), match: (p) => p.startsWith('/task-tracker') },
+      { path: '/tools', label: 'Tools', icon: ico(['M14 7l3 3-8 8H6v-3z', 'M4 20h16']), match: (p) => p.startsWith('/tools') },
+      { path: '/guide', label: 'Guide & SOPs', icon: ico(['M4 5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2z', 'M8 12h8M8 16h5']), match: (p) => p.startsWith('/guide') },
     ],
   },
 ];
 
-// Secondary links, shown low-key on the right.
-const secondaryLinks: NavLeaf[] = [
-  { path: '/tools', label: 'Tools' },
-  { path: DATA_INSIGHTS_URL, label: 'Data / Insights', external: true },
-];
-
-// Flat list for the mobile bar (the dropdown's children inline).
-const mobileItems: NavLeaf[] = navNodes.flatMap((n) =>
-  isGroup(n) ? n.children : [n],
-);
-
-const baseNavClass = 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors';
-
 const externalIcon = (
-  <svg className="inline-block h-3 w-3 ml-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+  <svg className="inline-block h-3 w-3 ml-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
   </svg>
 );
+
+function RailNav({ path, onNavigate }: { path: string; onNavigate?: () => void }) {
+  return (
+    <nav className="px-3 py-4 space-y-5">
+      {SECTIONS.map((section) => (
+        <div key={section.label}>
+          <div className="px-3 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">
+            {section.label}
+          </div>
+          <div className="space-y-0.5">
+            {section.items.map((it) => {
+              const active = it.match(path);
+              return (
+                <NavLink
+                  key={it.path}
+                  to={it.path}
+                  onClick={onNavigate}
+                  className={
+                    'flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] font-semibold transition-colors ' +
+                    (active
+                      ? 'bg-brand-50 text-brand-700'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')
+                  }
+                >
+                  <span className={active ? 'text-brand-600' : 'text-slate-400'}>{it.icon}</span>
+                  {it.label}
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+}
 
 export function MainLayout() {
   const location = useLocation();
   const path = location.pathname;
-
-  const leafActive = (item: NavLeaf) =>
-    !item.external && (item.matcher ? item.matcher(path) : path.startsWith(item.path));
-
-  const cls = (active: boolean, extra = '') =>
-    `${baseNavClass} ${extra} ${active ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`;
-
-  const renderLeaf = (item: NavLeaf, extra = '') => {
-    if (item.external) {
-      return (
-        <a key={item.path} href={item.path} target="_blank" rel="noreferrer" className={cls(false, extra)}>
-          {item.label}{externalIcon}
-        </a>
-      );
-    }
-    return (
-      <NavLink key={item.path} to={item.path} className={cls(leafActive(item), extra)}>
-        {item.label}
-      </NavLink>
-    );
-  };
-
-  // Desktop dropdown for a group — opens on hover or keyboard focus.
-  const renderGroup = (group: NavGroup) => {
-    const active = group.matcher(path);
-    return (
-      <div key={group.label} className="relative group">
-        <button type="button" className={`${cls(active)} inline-flex items-center gap-1`}>
-          {group.label}
-          <svg className="h-3 w-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        <div className="absolute left-0 top-full pt-1 hidden group-hover:block group-focus-within:block z-50">
-          <div className="min-w-[160px] rounded-lg border border-slate-200 bg-white shadow-lg py-1">
-            {group.children.map((child) => (
-              <NavLink
-                key={child.path}
-                to={child.path}
-                className={({ isActive }) =>
-                  `block px-3 py-1.5 text-sm ${isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50'}`
-                }
-              >
-                {child.label}
-              </NavLink>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const activeLabel =
-    navNodes.find((n) => (isGroup(n) ? n.matcher(path) : leafActive(n)))?.label ?? 'Home';
+    SECTIONS.flatMap((s) => s.items).find((it) => it.match(path))?.label ?? 'Heatronics MIS';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
-      {/* Top Navigation Bar */}
-      <header className="bg-white/80 backdrop-blur border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-14">
-            {/* Logo / Home Button */}
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 text-slate-900 hover:opacity-80 transition-opacity"
+      {/* Top bar */}
+      <header className="bg-white/90 backdrop-blur border-b border-slate-200 sticky top-0 z-40">
+        <div className="h-14 px-4 sm:px-5 flex items-center gap-3">
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
+            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+            <span className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center shadow-sm">
+              <HeatronicsMark className="h-4 w-auto text-white" />
+            </span>
+            <span className="font-display font-bold text-[17px] hidden sm:block tracking-tight">Heatronics</span>
+            <span className="text-[10px] font-semibold text-slate-400 tracking-[0.12em] uppercase border-l border-slate-200 pl-2.5 hidden sm:block">MIS</span>
+          </Link>
+
+          {/* Mobile: current section label */}
+          <span className="lg:hidden ml-auto text-sm font-semibold text-slate-700">{activeLabel}</span>
+
+          {/* Desktop: right-side links */}
+          <div className="hidden lg:flex items-center gap-4 ml-auto">
+            <a
+              href={DATA_INSIGHTS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
             >
-              <HeatronicsMark className="h-6 w-auto text-brand-500" />
-              <span className="font-display font-bold text-lg hidden sm:block tracking-tight">Heatronics</span>
-              <span className="text-[10px] font-medium text-slate-400 hidden sm:block tracking-wide uppercase border-l border-slate-200 pl-2">MIS</span>
-            </Link>
-
-            {/* Desktop Navigation: Legacy MIS + the Live MIS dropdown */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navNodes.map((n) => (isGroup(n) ? renderGroup(n) : renderLeaf(n)))}
-            </nav>
-
-            {/* Right side secondary links (desktop): Tools + Data / Insights. */}
-            <div className="hidden md:flex items-center gap-3 text-[11px]">
-              {secondaryLinks.map((item) =>
-                item.external ? (
-                  <a key={item.path} href={item.path} target="_blank" rel="noreferrer"
-                    className="text-slate-400 hover:text-slate-600 transition-colors">
-                    {item.label}{externalIcon}
-                  </a>
-                ) : (
-                  <NavLink key={item.path} to={item.path}
-                    className={({ isActive }) =>
-                      `transition-colors ${isActive ? 'text-slate-600' : 'text-slate-400 hover:text-slate-600'}`
-                    }>
-                    {item.label}
-                  </NavLink>
-                ),
-              )}
-              <span className="text-slate-300">MIS v2.2</span>
-            </div>
-
-            {/* Mobile label */}
-            <div className="flex items-center gap-2 md:hidden">
-              <span className="text-sm font-medium text-slate-700">{activeLabel}</span>
-            </div>
+              Data / Insights{externalIcon}
+            </a>
+            <span className="text-[11px] font-semibold text-slate-400 border border-slate-200 rounded-md px-2 py-0.5">MIS v2.3</span>
+            <span className="w-8 h-8 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center" aria-hidden="true">HG</span>
           </div>
-        </div>
-
-        {/* Mobile Navigation: dropdown children shown inline */}
-        <div className="md:hidden border-t border-slate-200">
-          <nav className="flex overflow-x-auto px-2 py-2 gap-1 no-scrollbar">
-            {mobileItems.map((item) => renderLeaf(item, 'whitespace-nowrap flex-shrink-0'))}
-            {secondaryLinks.map((item) => renderLeaf(item, 'whitespace-nowrap flex-shrink-0'))}
-          </nav>
         </div>
       </header>
 
-      {/* Page content */}
-      <main className="flex-1">
-        <Outlet />
-      </main>
+      <div className="flex flex-1 min-h-0">
+        {/* Desktop rail */}
+        <aside className="hidden lg:block w-60 flex-shrink-0 border-r border-slate-200 bg-white sticky top-14 self-start h-[calc(100vh-3.5rem)] overflow-y-auto">
+          <RailNav path={path} />
+        </aside>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-4 mt-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <p className="text-center text-xs text-slate-500">
-            Heatronics Accounting Dashboard · Built for the Finance team
-          </p>
-        </div>
-      </footer>
+        {/* Main content */}
+        <main className="flex-1 min-w-0">
+          <Outlet />
+        </main>
+      </div>
+
+      {/* Mobile nav drawer (reuses the design-system Drawer) */}
+      <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" width={288} title="Navigate">
+        <RailNav path={path} onNavigate={() => setMobileOpen(false)} />
+      </Drawer>
     </div>
   );
 }

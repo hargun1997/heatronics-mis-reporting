@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { StatusPill } from '../../components/ui/StatusPill';
 import { buildMisContext } from '../../data/chat/misContext';
 import { chatStatus, sendChat, type ChatMessage } from '../../data/chat/chatClient';
 
@@ -68,22 +69,27 @@ export function MisChatPage() {
           { label: 'Ask the MIS' },
         ]}
       />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {configured === false && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             The Claude API key isn't set on the server yet, so chat can't run. Set <span className="font-mono">ANTHROPIC_API_KEY</span> on the service.
           </div>
         )}
 
-        <div className="rounded-xl border border-slate-200 bg-white flex flex-col" style={{ minHeight: '60vh' }}>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="mb-4 flex items-center gap-2">
+          <StatusPill toneName="info" dot>Grounded on closed books · through {throughLabel}</StatusPill>
+          <span className="text-[11px] text-slate-400">Answers cite the monthly P&amp;L; figures are management, not statutory.</span>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white flex flex-col shadow-soft" style={{ minHeight: '60vh' }}>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
             {messages.length === 0 && (
-              <div className="text-center text-slate-400 py-10">
-                <p className="text-sm mb-4">Ask anything about revenue, margins, channels, costs or the P&amp;L.</p>
-                <div className="flex flex-wrap gap-2 justify-center max-w-2xl mx-auto">
+              <div className="py-8">
+                <p className="text-center text-sm text-slate-500 mb-5">Ask anything about revenue, margins, channels, costs or the P&amp;L.</p>
+                <div className="grid sm:grid-cols-2 gap-2.5 max-w-2xl mx-auto">
                   {SUGGESTIONS.map((s) => (
                     <button key={s} onClick={() => void ask(s)}
-                      className="px-3 py-1.5 text-xs rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-brand-300">
+                      className="text-left text-[13px] leading-snug text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 hover:bg-brand-50 hover:border-brand-200 transition-colors">
                       {s}
                     </button>
                   ))}
@@ -91,20 +97,29 @@ export function MisChatPage() {
               </div>
             )}
             {messages.map((m, i) => (
-              <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-                <div className={
-                  'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ' +
-                  (m.role === 'user'
-                    ? 'bg-brand-600 text-white rounded-br-sm'
-                    : 'bg-slate-100 text-slate-800 rounded-bl-sm whitespace-pre-wrap')
-                }>
-                  {m.content}
+              m.role === 'user' ? (
+                <div key={i} className="flex justify-end">
+                  <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-brand-600 text-white px-3.5 py-2.5 text-sm">
+                    {m.content}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div key={i} className="flex justify-start gap-3">
+                  <span className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center flex-shrink-0" aria-hidden="true">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M12 3l2.5 5.5L20 11l-5.5 2.5L12 19l-2.5-5.5L4 11l5.5-2.5z" /></svg>
+                  </span>
+                  <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-white border border-slate-200 text-slate-800 px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed">
+                    {m.content}
+                  </div>
+                </div>
+              )
             ))}
             {loading && (
-              <div className="flex justify-start">
-                <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm">
+              <div className="flex justify-start gap-3">
+                <span className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center flex-shrink-0" aria-hidden="true">
+                  <svg className="w-4 h-4 loading-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}><path d="M12 3l2.5 5.5L20 11l-5.5 2.5L12 19l-2.5-5.5L4 11l5.5-2.5z" /></svg>
+                </span>
+                <div className="bg-white border border-slate-200 text-slate-500 rounded-2xl rounded-bl-sm px-4 py-3 text-sm">
                   Thinking through the numbers…
                 </div>
               </div>

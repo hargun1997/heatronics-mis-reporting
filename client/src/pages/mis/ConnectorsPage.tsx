@@ -5,12 +5,17 @@
 // in the browser), proves them with Test, and pulls one month with Sync. A
 // successful sync can be sent straight to the open month-close session, where
 // it joins anything dropped in by file and runs the same cascade and gates.
+//
+// The redesign moves credential entry into a side Drawer: the grid stays a
+// calm status board, and configuring a source opens its detail over a dimmed
+// canvas — the Salesforce record-drawer pattern.
 // ----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { SectionCard } from '../../components/ui/Card';
+import { Drawer } from '../../components/ui/overlays';
+import { StatusPill, type PillTone } from '../../components/ui/StatusPill';
 import {
   clearCredentials,
   envVarName,
@@ -58,6 +63,38 @@ function sendToClose(periodKey: string, sources: UploadedSource[]): number {
   return session.sources.length;
 }
 
+/** The status read of a connector → tone + label for the pill. */
+function statusOf(c: ConnectorInfo): { tone: PillTone; label: string } {
+  if (!c.connected) return { tone: 'neutral', label: 'Not connected' };
+  if (!c.implemented) return { tone: 'warning', label: `Saved · pull pending${c.viaEnv ? ' · env' : ''}` };
+  return { tone: 'positive', label: `Connected${c.viaEnv ? ' · env' : ''}` };
+}
+
+/** A square monogram tile for a source (first two letters of its label). */
+function Monogram({ label }: { label: string }) {
+  const abbr = label.replace(/[^A-Za-z0-9 ]/g, '').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  return (
+    <span className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
+      {abbr}
+    </span>
+  );
+}
+
+function StatCount({ label, count, tone }: { label: string; count: number; tone: PillTone }) {
+  const dot: Record<PillTone, string> = {
+    positive: 'bg-emerald-600', warning: 'bg-amber-600', critical: 'bg-rose-600',
+    info: 'bg-blue-700', neutral: 'bg-slate-400', brand: 'bg-brand-500',
+  };
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+        <span className={`w-2 h-2 rounded-full ${dot[tone]}`} />{label}
+      </div>
+      <div className="font-display text-[26px] font-extrabold tabular-nums mt-1.5">{count}</div>
+    </div>
+  );
+}
+
 export function ConnectorsPage() {
   const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
   const [store, setStore] = useState<StoreStatus | null>(null);
@@ -87,7 +124,9 @@ export function ConnectorsPage() {
     return by;
   }, [connectors]);
 
-  const connectedCount = connectors.filter((c) => c.connected).length;
+  const live = connectors.filter((c) => c.connected && c.implemented).length;
+  const pending = connectors.filter((c) => c.connected && !c.implemented).length;
+  const notSet = connectors.filter((c) => !c.connected).length;
 
   return (
     <>
@@ -102,50 +141,50 @@ export function ConnectorsPage() {
           { label: 'Data sources' },
         ]}
         actions={
-          <div className="flex items-center gap-3 text-[11px] text-slate-400">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs text-slate-500">
+              <span className="font-medium text-slate-600">Month to sync</span>
+              <input
+                type="month"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="px-2.5 py-1.5 text-sm rounded-lg border border-slate-300"
+              />
+            </label>
             <Link
               to="/reporting/mis/live"
-              className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+              className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
             >
               Live MIS →
             </Link>
-            <span>{connectedCount}/{connectors.length} connected</span>
-            {store && (
-              <span
-                className={
-                  'px-1.5 py-0.5 rounded ' +
-                  (store.durable ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')
-                }
-              >
-                {store.durable ? 'Secret Manager · durable' : 'temporary store'}
-              </span>
-            )}
           </div>
         }
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        <SectionCard
-          title="Month to sync"
-          description="Which month a Sync pulls. Set it before pulling; it also labels what is sent to the close."
-        >
-          <div className="flex items-center gap-3">
-            <input
-              type="month"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              className="px-3 py-1.5 text-sm rounded-lg border border-slate-200"
-            />
-            <span className="text-xs text-slate-400">Pulls 1–end of the selected month.</span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Summary */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCount label="Live & feeding" count={live} tone="positive" />
+          <StatCount label="Saved · pull pending" count={pending} tone="warning" />
+          <StatCount label="Not connected" count={notSet} tone="neutral" />
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col justify-center">
+            <div className="text-xs font-semibold text-slate-600 mb-2">Credential store</div>
+            {store ? (
+              <StatusPill toneName={store.durable ? 'positive' : 'warning'} dot>
+                {store.durable ? 'Secret Manager · durable' : 'Temporary store'}
+              </StatusPill>
+            ) : (
+              <StatusPill toneName="neutral">—</StatusPill>
+            )}
           </div>
-        </SectionCard>
+        </div>
 
         {error && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>
         )}
 
         {store && !store.durable && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 space-y-2">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 space-y-2">
             <p className="font-medium">⚠ Tokens are saved to a temporary store and will be cleared on restart or redeploy.</p>
             {store.grantHint ? (
               <>
@@ -187,7 +226,7 @@ export function ConnectorsPage() {
 
         {GROUP_ORDER.filter((g) => grouped[g]?.length).map((g) => (
           <div key={g}>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">{GROUP_LABEL[g]}</h3>
+            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400 mb-2.5">{GROUP_LABEL[g]}</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {grouped[g].map((c) => (
                 <ConnectorCard key={c.id} connector={c} period={period} onChanged={reload} />
@@ -214,19 +253,13 @@ function ConnectorCard({
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null);
 
-  const dot = connector.connected
-    ? connector.implemented ? 'bg-emerald-500' : 'bg-amber-400'
-    : 'bg-slate-300';
-  const statusText = connector.connected
-    ? `${connector.implemented ? 'Connected' : 'Saved · pull pending'}${connector.viaEnv ? ' · env' : ''}`
-    : 'Not connected';
+  const status = statusOf(connector);
 
   const save = async () => {
     setBusy('save'); setMsg(null);
     try {
       await saveCredentials(connector.id, draft);
       setDraft({});
-      setOpen(false);
       await onChanged();
       setMsg({ kind: 'ok', text: 'Credentials saved.' });
     } catch (e) {
@@ -274,103 +307,58 @@ function ConnectorCard({
     }
   };
 
+  const msgColor = msg?.kind === 'ok' ? 'text-emerald-700' : msg?.kind === 'warn' ? 'text-amber-700' : 'text-rose-700';
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${dot}`} />
-            <h4 className="text-sm font-semibold text-slate-800">{connector.label}</h4>
+    <>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 hover:shadow-card transition-shadow">
+        <div className="flex items-start gap-3">
+          <Monogram label={connector.label} />
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-bold text-slate-800 truncate">{connector.label}</h4>
+            <span className="text-[11px] text-slate-400 uppercase tracking-wide">{GROUP_LABEL[connector.group]}</span>
           </div>
-          <span className="text-[11px] text-slate-400">{statusText}</span>
+          <StatusPill toneName={connector.mode === 'live-api' ? 'info' : 'neutral'} className="whitespace-nowrap">
+            {MODE_LABEL[connector.mode]}
+          </StatusPill>
         </div>
-        <span
-          className={
-            'px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap ' +
-            (connector.mode === 'live-api' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700')
-          }
-          title={`Fetch capability: ${FETCH_MODE_LABEL[connector.fetchMode]}`}
-        >
-          {MODE_LABEL[connector.mode]}
-        </span>
+
+        {connector.note && <p className="text-[12px] leading-snug text-slate-500 line-clamp-2">{connector.note}</p>}
+
+        <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-auto">
+          <StatusPill toneName={status.tone} dot>{status.label}</StatusPill>
+          <button
+            onClick={() => { setOpen(true); setMsg(null); }}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+          >
+            {connector.connected ? 'Manage' : 'Connect'}
+          </button>
+        </div>
       </div>
 
-      {connector.note && <p className="text-[11px] leading-snug text-slate-500">{connector.note}</p>}
-
-      <div className="flex flex-wrap gap-2 mt-auto pt-1">
-        <button
-          onClick={() => setOpen(!open)}
-          className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
-        >
-          {connector.connected ? 'Update token' : 'Configure token'}
-        </button>
-        <button
-          onClick={test}
-          disabled={!connector.connected || busy !== null}
-          className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-        >
-          {busy === 'test' ? 'Testing…' : 'Test'}
-        </button>
-        <button
-          onClick={sync}
-          disabled={!connector.connected || !connector.implemented || busy !== null}
-          title={!connector.implemented ? 'Monthly pull for this source is not wired yet' : undefined}
-          className="px-2.5 py-1 text-xs rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
-        >
-          {busy === 'sync' ? 'Syncing…' : 'Sync month'}
-        </button>
-      </div>
-
-      {msg && (
-        <p
-          className={
-            'text-[11px] leading-snug ' +
-            (msg.kind === 'ok' ? 'text-emerald-700' : msg.kind === 'warn' ? 'text-amber-700' : 'text-rose-700')
-          }
-        >
-          {msg.text}
-        </p>
-      )}
-
-      {open && (
-        <div className="border-t border-slate-100 pt-3 space-y-2.5">
-          {connector.credentialFields.map((f) => (
-            <label key={f.key} className="block">
-              <span className="text-[11px] font-medium text-slate-600">
-                {f.label}{f.optional && <span className="text-slate-400 font-normal"> (optional)</span>}
-              </span>
-              <input
-                type={f.type === 'password' ? 'password' : 'text'}
-                placeholder={f.placeholder}
-                value={draft[f.key] ?? ''}
-                onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-                className="mt-0.5 w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 font-mono"
-                autoComplete="off"
-              />
-              {f.help && <span className="text-[10px] text-slate-400">{f.help}</span>}
-            </label>
-          ))}
-          <details className="text-[10px] text-slate-500">
-            <summary className="cursor-pointer text-slate-500 hover:text-slate-700">
-              Durable option: set as environment variables instead
-            </summary>
-            <div className="mt-1.5 rounded-lg bg-slate-50 border border-slate-200 p-2 space-y-0.5 font-mono">
-              <p className="font-sans text-slate-500 mb-1">
-                Set these on the Cloud Run service (value, or a Secret Manager reference). They survive restarts and redeploys and take precedence over anything saved here.
-              </p>
-              {connector.credentialFields.map((f) => (
-                <div key={f.key}>{envVarName(connector.id, f.key)}{f.optional ? '  (optional)' : ''}</div>
-              ))}
-            </div>
-          </details>
-
-          <div className="flex items-center gap-2 pt-1">
+      <Drawer
+        open={open}
+        onClose={() => setOpen(false)}
+        width={440}
+        icon={<Monogram label={connector.label} />}
+        subtitle={`${GROUP_LABEL[connector.group]} · ${FETCH_MODE_LABEL[connector.fetchMode]}`}
+        title={connector.label}
+        badges={<StatusPill toneName={status.tone} dot>{status.label}</StatusPill>}
+        footer={
+          <div className="flex items-center gap-2.5">
             <button
               onClick={save}
               disabled={busy !== null}
-              className="px-2.5 py-1 text-xs rounded-lg bg-slate-800 text-white hover:bg-slate-900 disabled:opacity-40"
+              className="flex-1 px-3 py-2.5 text-sm font-bold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
             >
               {busy === 'save' ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              onClick={test}
+              disabled={!connector.connected || busy !== null}
+              className="px-3 py-2.5 text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            >
+              {busy === 'test' ? 'Testing…' : 'Test'}
             </button>
             {connector.connected && (
               <button
@@ -380,15 +368,77 @@ function ConnectorCard({
                   finally { setBusy(null); }
                 }}
                 disabled={busy !== null}
-                className="px-2.5 py-1 text-xs rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+                aria-label="Remove credentials"
+                className="px-3 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-40"
               >
                 Remove
               </button>
             )}
-            <span className="text-[10px] text-slate-400">Blank fields are left unchanged; passwords are never shown back.</span>
           </div>
+        }
+      >
+        <div className="px-5 py-5 space-y-4">
+          {connector.note && <p className="text-[13px] leading-relaxed text-slate-600">{connector.note}</p>}
+
+          <div>
+            <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2.5">Credentials</div>
+            <div className="space-y-3">
+              {connector.credentialFields.map((f) => (
+                <label key={f.key} className="block">
+                  <span className="text-xs font-medium text-slate-600">
+                    {f.label}{f.optional && <span className="text-slate-400 font-normal"> (optional)</span>}
+                  </span>
+                  <input
+                    type={f.type === 'password' ? 'password' : 'text'}
+                    placeholder={f.placeholder}
+                    value={draft[f.key] ?? ''}
+                    onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 font-mono focus:border-brand-400 focus:outline-none"
+                    autoComplete="off"
+                  />
+                  {f.help && <span className="text-[11px] text-slate-400">{f.help}</span>}
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2">Blank fields are left unchanged; passwords are never shown back.</p>
+          </div>
+
+          {connector.implemented && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-800">Pull {period}</div>
+                  <div className="text-[11px] text-slate-500">Fetches the month and sends it to the close.</div>
+                </div>
+                <button
+                  onClick={sync}
+                  disabled={!connector.connected || busy !== null}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-white hover:bg-slate-900 disabled:opacity-40"
+                >
+                  {busy === 'sync' ? 'Syncing…' : 'Sync month'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <details className="text-[11px] text-slate-500">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">
+              Durable option: set as environment variables instead
+            </summary>
+            <div className="mt-2 rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-0.5 font-mono">
+              <p className="font-sans text-slate-500 mb-1.5">
+                Set these on the Cloud Run service (value, or a Secret Manager reference). They survive restarts and
+                redeploys and take precedence over anything saved here.
+              </p>
+              {connector.credentialFields.map((f) => (
+                <div key={f.key}>{envVarName(connector.id, f.key)}{f.optional ? '  (optional)' : ''}</div>
+              ))}
+            </div>
+          </details>
+
+          {msg && <p className={`text-xs leading-snug ${msgColor}`}>{msg.text}</p>}
         </div>
-      )}
-    </div>
+      </Drawer>
+    </>
   );
 }

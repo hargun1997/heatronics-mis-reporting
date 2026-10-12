@@ -10,6 +10,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
+import { KpiTile } from '../../components/ui/KpiTile';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { inr } from '../../components/mis-deck/charts';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import {
@@ -202,8 +204,14 @@ export function LiveMisPage() {
               <input type="date" value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)}
                 className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" />
             </label>
-            <Toggle label="Run-rate" options={GRAINS.map((g) => ({ id: g.id, label: g.label }))} value={gran} onChange={(v) => setGran(v as Granularity)} />
-            <Toggle label="Slice by" options={DIMS} value={dim} onChange={(v) => setDim(v as Dimension)} />
+            <div className="text-xs text-slate-500">
+              <span className="block mb-1 font-medium">Run-rate</span>
+              <SegmentedControl options={GRAINS.map((g) => ({ id: g.id, label: g.label }))} value={gran} onChange={setGran} size="sm" aria-label="Run-rate grain" />
+            </div>
+            <div className="text-xs text-slate-500">
+              <span className="block mb-1 font-medium">Slice by</span>
+              <SegmentedControl options={DIMS} value={dim} onChange={setDim} size="sm" aria-label="Slice dimension" />
+            </div>
             <label className="text-xs text-slate-500">
               <span className="block mb-0.5">Metric</span>
               <select value={metric} onChange={(e) => setMetric(e.target.value as MetricKey)}
@@ -218,12 +226,12 @@ export function LiveMisPage() {
 
         {/* KPI tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Tile label="Revenue" value={inr(sum.revenue)} />
-          <Tile label="Ad spend" value={inr(sum.spend)} />
-          <Tile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="rev / spend" />
-          <Tile label="Net" value={inr(sum.net)} />
-          <Tile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
-          <Tile label="MRR" value={inr(rr.MRR)} sub="30-day run-rate" />
+          <KpiTile label="Revenue" value={inr(sum.revenue)} />
+          <KpiTile label="Ad spend" value={inr(sum.spend)} />
+          <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="rev / spend" />
+          <KpiTile label="Net" value={inr(sum.net)} />
+          <KpiTile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
+          <KpiTile label="MRR" value={inr(rr.MRR)} sub="30-day run-rate" />
         </div>
 
         {/* Data freshness — every connector's dot, and the system live-through floor */}
@@ -369,33 +377,3 @@ function UploadReport({ onUpload }: { onUpload: (store: UploadStore) => void }) 
   );
 }
 
-function Toggle({ label, options, value, onChange }: {
-  label: string;
-  options: { id: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="text-xs text-slate-500">
-      <span className="block mb-0.5">{label}</span>
-      <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
-        {options.map((o) => (
-          <button key={o.id} onClick={() => onChange(o.id)}
-            className={'px-2.5 py-1.5 text-xs ' + (value === o.id ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50')}>
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="text-lg font-semibold text-slate-800 tabular-nums">{value}</div>
-      {sub && <div className="text-[10px] text-slate-400">{sub}</div>}
-    </div>
-  );
-}
