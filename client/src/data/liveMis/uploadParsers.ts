@@ -20,6 +20,11 @@ export interface UploadRecord {
   label: string;
   uploadedAt: string;
   facts: DailyFact[];
+  /** First rows of the file, for the readiness preview. */
+  rawPreview?: string[][];
+  rawRows?: number;
+  /** Human-readable extraction steps. */
+  trace?: string[];
 }
 
 export type UploadStore = Record<string, UploadRecord>;
@@ -118,7 +123,7 @@ function col(header: string[], name: string): number {
   return header.indexOf(name);
 }
 
-function parseShiprocketPassbook(wb: XLSX.WorkBook): { facts: DailyFact[]; warning?: string } {
+function parseShiprocketPassbook(wb: XLSX.WorkBook): ParseOutput {
   const rows = sheetRows(wb, wb.SheetNames[0]);
   const hi = findHeader(rows, ['amount', 'description']);
   if (hi < 0) {
@@ -129,10 +134,13 @@ function parseShiprocketPassbook(wb: XLSX.WorkBook): { facts: DailyFact[]; warni
 
   const byDay = new Map<string, number>();
   let unparsedDates = 0;
+  let dataRows = 0;
+  let walletExcluded = 0;
   for (const row of rows.slice(hi + 1)) {
     const desc = cell(row[ix.desc]);
     if (!desc) continue;
-    if (SHIPROCKET_WALLET.test(desc)) continue; // wallet transfer in, not a cost
+    dataRows += 1;
+    if (SHIPROCKET_WALLET.test(desc)) { walletExcluded += 1; continue; } // wallet transfer in, not a cost
     const amount = num(row[ix.amount]);
     const date = toISODate(row[ix.date]);
     if (!date) {
@@ -153,17 +161,28 @@ function parseShiprocketPassbook(wb: XLSX.WorkBook): { facts: DailyFact[]; warni
     fees: Math.round(fees * 100) / 100,
   }));
   const warning = unparsedDates > 0 ? `${unparsedDates} row(s) had no readable date and were skipped.` : undefined;
-  return { facts, warning };
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — found header at row ${hi + 1} (Created At / Amount / Description)`,
+    `Scanned ${dataRows} charge rows; excluded ${walletExcluded} wallet/COD transfer(s) (money in, not a cost)`,
+    `Summed charges by day → ${facts.length} daily freight facts${unparsedDates ? `; ${unparsedDates} undated row(s) skipped` : ''}`,
+  ];
+  return { facts, warning, trace };
 }
 
 // ---- Registry --------------------------------------------------------------
+
+interface ParseOutput {
+  facts: DailyFact[];
+  warning?: string;
+  trace?: string[];
+}
 
 export interface UploadParser {
   sourceId: string;
   label: string;
   accept: string;
   hint: string;
-  parse: (wb: XLSX.WorkBook) => { facts: DailyFact[]; warning?: string };
+  parse: (wb: XLSX.WorkBook) => ParseOutput;
 }
 
 export const UPLOAD_PARSERS: UploadParser[] = [
@@ -179,14 +198,20 @@ export const UPLOAD_PARSERS: UploadParser[] = [
 export async function parseUpload(parser: UploadParser, file: File): Promise<UploadRecord> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array' });
-  const { facts, warning } = parser.parse(wb);
+  const { facts, warning, trace } = parser.parse(wb);
   if (facts.length === 0) {
     throw new Error(warning || 'No rows could be read from this file.');
   }
+  // Keep a small preview of the raw file for the readiness page.
+  const allRows = sheetRows(wb, wb.SheetNames[0]);
+  const rawPreview = allRows.slice(0, 8).map((r) => (r ?? []).map((c) => cell(c)));
   return {
     sourceId: parser.sourceId,
     label: `${parser.label} · ${file.name}`,
     uploadedAt: new Date().toISOString(),
     facts,
+    rawPreview,
+    rawRows: Math.max(0, allRows.length - 1),
+    trace: [`Opened ${file.name} (${allRows.length} rows)`, ...(trace ?? [])],
   };
 }

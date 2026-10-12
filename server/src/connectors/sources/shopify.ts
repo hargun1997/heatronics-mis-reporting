@@ -340,7 +340,15 @@ const shopify: ConnectorDef = {
 
     if (pages >= 200) warnings.push('Stopped after 200 pages of orders — the range may be truncated.');
 
-    return { facts: [...byDaySku.values()], warnings };
+    const facts = [...byDaySku.values()];
+    const orderTotal = [...orderDays.values()].reduce((a, s) => a + s.size, 0);
+    const dates = facts.map((f) => f.date).sort();
+    const trace = [
+      `Resolved Admin API token for ${shopHost(creds)}`,
+      `Fetched orders ${fromISO}→${toISO} across ${pages} page(s) — ${orderTotal} orders`,
+      `Rolled up to ${facts.length} day×SKU facts${dates.length ? ` spanning ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
+    ];
+    return { facts, warnings, trace };
   },
 };
 

@@ -18,9 +18,11 @@ const isGroup = (n: NavNode): n is NavGroup => 'children' in n;
 
 const DATA_INSIGHTS_URL = 'https://heatronics-dashboard-portfolio.vercel.app/';
 
-// The live run-rate surface and its connector console.
+// The live run-rate surface, its connector console, and the readiness page.
 const isLive = (p: string) =>
-  p.startsWith('/reporting/mis/live') || p.startsWith('/reporting/mis/connectors');
+  p.startsWith('/reporting/mis/live') ||
+  p.startsWith('/reporting/mis/connectors') ||
+  p.startsWith('/reporting/mis/ingest');
 
 // Primary nav: the legacy deck, and the Live MIS group.
 const navNodes: NavNode[] = [
@@ -35,6 +37,7 @@ const navNodes: NavNode[] = [
     matcher: isLive,
     children: [
       { path: '/reporting/mis/connectors', label: 'Data sources' },
+      { path: '/reporting/mis/ingest', label: 'Data readiness' },
       { path: '/reporting/mis/live', label: 'Live MIS' },
     ],
   },
