@@ -9,11 +9,26 @@ interface NavItem {
 
 const DATA_INSIGHTS_URL = 'https://heatronics-dashboard-portfolio.vercel.app/';
 
+const isSub = (p: string) =>
+  p.startsWith('/reporting/mis/live') || p.startsWith('/reporting/mis/connectors');
+
 const navItems: NavItem[] = [
   {
     path: '/reporting/mis',
     label: 'MIS',
-    matcher: (p) => p.startsWith('/reporting') || p.startsWith('/mis'),
+    // The deck and its analysis tabs, but not the live/connector sub-pages,
+    // which have their own entries below.
+    matcher: (p) => (p.startsWith('/reporting') || p.startsWith('/mis')) && !isSub(p),
+  },
+  {
+    path: '/reporting/mis/live',
+    label: 'Live MIS',
+    matcher: (p) => p.startsWith('/reporting/mis/live'),
+  },
+  {
+    path: '/reporting/mis/connectors',
+    label: 'Data sources',
+    matcher: (p) => p.startsWith('/reporting/mis/connectors'),
   },
   {
     path: DATA_INSIGHTS_URL,
@@ -87,7 +102,7 @@ export function MainLayout() {
               >
                 Tools
               </NavLink>
-              <span className="text-slate-400">MIS v2.1</span>
+              <span className="text-slate-400">MIS v2.2</span>
             </div>
 
             {/* Mobile label */}
