@@ -1,4 +1,5 @@
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
+import { HeatronicsMark } from '../components/HeatronicsLogo';
 
 interface NavLeaf {
   path: string;
@@ -129,14 +130,11 @@ export function MainLayout() {
             {/* Logo / Home Button */}
             <Link
               to="/"
-              className="flex items-center gap-2 text-slate-900 hover:text-brand-600 transition-colors"
+              className="flex items-center gap-2.5 text-slate-900 hover:opacity-80 transition-opacity"
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-600 rounded-lg flex items-center justify-center shadow-soft">
-                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <span className="font-semibold text-base hidden sm:block tracking-tight">Heatronics</span>
+              <HeatronicsMark className="h-6 w-auto text-brand-500" />
+              <span className="font-display font-bold text-lg hidden sm:block tracking-tight">Heatronics</span>
+              <span className="text-[10px] font-medium text-slate-400 hidden sm:block tracking-wide uppercase border-l border-slate-200 pl-2">MIS</span>
             </Link>
 
             {/* Desktop Navigation: Legacy MIS + the Live MIS dropdown */}

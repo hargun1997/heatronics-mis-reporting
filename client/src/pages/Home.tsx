@@ -59,7 +59,7 @@ export function Home() {
           title="Tools"
           description="Booking suggester and data conversion utilities."
           icon={iconTools}
-          accent="emerald"
+          accent="brand"
         />
       </div>
     </div>

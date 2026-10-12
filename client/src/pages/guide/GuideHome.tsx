@@ -35,7 +35,7 @@ export function GuideHome() {
             title="Ledger & Voucher Tree"
             description="Hierarchy of ledgers and the voucher types / bill series that post to each one."
             icon={iconLedger}
-            accent="emerald"
+            accent="brand"
           />
           <NavCard
             to="/guide/architecture"

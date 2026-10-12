@@ -89,7 +89,7 @@ export function IngestPage() {
     <>
       <PageHeader
         title="Data readiness"
-        accent="emerald"
+        accent="brand"
         icon={iconLayers}
         description="Pull every source, then inspect what came in — the steps each connector ran, the raw data extracted, and for uploads, the file and what was read from it."
         crumbs={[
@@ -101,7 +101,7 @@ export function IngestPage() {
           <button
             onClick={() => void load()}
             disabled={loading}
-            className="px-2.5 py-1 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40"
+            className="px-2.5 py-1 text-xs rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
           >
             {loading ? 'Pulling…' : 'Pull all'}
           </button>

@@ -179,7 +179,7 @@ export function AmazonToTranzactTool() {
               <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
                   <h3 className="text-sm font-semibold text-slate-900">Output Preview ({result.outputRows.length} rows)</h3>
-                  <button onClick={handleDownload} className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg transition-colors">
+                  <button onClick={handleDownload} className="px-4 py-1.5 bg-brand-500 hover:bg-brand-600 text-white text-xs font-medium rounded-lg transition-colors">
                     Download Excel
                   </button>
                 </div>

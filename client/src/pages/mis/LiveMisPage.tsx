@@ -162,7 +162,7 @@ export function LiveMisPage() {
     <>
       <PageHeader
         title="Live MIS"
-        accent="emerald"
+        accent="brand"
         icon={iconLive}
         description="Runtime run-rate pulled from the connectors. Provisional and always-on — the month close stays the published truth."
         crumbs={[
@@ -180,7 +180,7 @@ export function LiveMisPage() {
             <button
               onClick={() => void load()}
               disabled={loading}
-              className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40"
+              className="px-2.5 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
             >
               {loading ? 'Pulling…' : 'Refresh'}
             </button>

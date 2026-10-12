@@ -93,7 +93,7 @@ export function ConnectorsPage() {
     <>
       <PageHeader
         title="Data sources"
-        accent="emerald"
+        accent="brand"
         icon={iconPlug}
         description="Connect each system once. Credentials are stored on the server, never in the browser. Sync pulls a month and sends it to the close."
         crumbs={[
@@ -315,7 +315,7 @@ function ConnectorCard({
           onClick={sync}
           disabled={!connector.connected || !connector.implemented || busy !== null}
           title={!connector.implemented ? 'Monthly pull for this source is not wired yet' : undefined}
-          className="px-2.5 py-1 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40"
+          className="px-2.5 py-1 text-xs rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
         >
           {busy === 'sync' ? 'Syncing…' : 'Sync month'}
         </button>

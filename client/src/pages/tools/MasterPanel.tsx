@@ -250,7 +250,7 @@ function ReplaceTab({
         type="button"
         disabled={busy || !pasteText.trim()}
         onClick={handlePaste}
-        className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-medium py-2"
+        className="w-full rounded-lg bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white font-medium py-2"
       >
         Reduce and load
       </button>
