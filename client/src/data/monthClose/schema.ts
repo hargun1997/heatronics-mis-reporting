@@ -19,7 +19,7 @@
 import type { SalesChannel } from '../misDeck/misDeckData';
 
 /** Where a figure came from, and how far it can be trusted without a human. */
-export type IngestMethod = 'xlsx' | 'vision' | 'manual' | 'derived';
+export type IngestMethod = 'xlsx' | 'vision' | 'manual' | 'derived' | 'connector';
 
 /**
  * exact     — read from a machine-readable cell, or computed from such cells.

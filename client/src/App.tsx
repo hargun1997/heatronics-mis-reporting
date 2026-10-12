@@ -6,6 +6,8 @@ import { Home } from './pages/Home';
 import { Reporting } from './pages/Reporting';
 import { MISDeck } from './pages/mis/MISDeck';
 import { MonthClosePage } from './pages/mis/MonthClosePage';
+import { ConnectorsPage } from './pages/mis/ConnectorsPage';
+import { LiveMisPage } from './pages/mis/LiveMisPage';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
@@ -52,6 +54,8 @@ function App() {
           <Route path="reporting" element={<Reporting />} />
           <Route path="reporting/mis" element={<MISDeck />} />
           <Route path="reporting/mis/close" element={<MonthClosePage />} />
+          <Route path="reporting/mis/connectors" element={<ConnectorsPage />} />
+          <Route path="reporting/mis/live" element={<LiveMisPage />} />
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
