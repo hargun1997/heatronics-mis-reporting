@@ -332,6 +332,121 @@ export interface IngestStoreStatus {
   grantHint: string | null;
 }
 
+// ---- Claude API usage / cost tracking --------------------------------------
+//
+// Every Claude response reports exact token usage; we price each call at the
+// model's published rates and append one small record per call under
+// usage/{IST-date}/, so "spend today" is a sum over a day's prefix. Append-only
+// avoids read-modify-write races across Cloud Run instances.
+
+interface Rate { input: number; output: number; cacheRead: number; cacheWrite: number } // $ per 1M tokens
+const RATES: Record<string, Rate> = {
+  'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
+  'claude-opus-5': { input: 5, output: 25, cacheRead: 0.25, cacheWrite: 6.25 },
+};
+const rateFor = (model: string): Rate => RATES[model] ?? RATES['claude-opus-5-5'];
+
+export interface TokenUsage {
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  cache_read_input_tokens?: number | null;
+  cache_creation_input_tokens?: number | null;
+}
+
+export function usageCostUsd(model: string, u: TokenUsage): number {
+  const r = rateFor(model);
+  const cost =
+    ((u.input_tokens ?? 0) * r.input +
+      (u.output_tokens ?? 0) * r.output +
+      (u.cache_read_input_tokens ?? 0) * r.cacheRead +
+      (u.cache_creation_input_tokens ?? 0) * r.cacheWrite) /
+    1_000_000;
+  return Math.round(cost * 1e6) / 1e6;
+}
+
+/** IST calendar date (the business day in India) as YYYY-MM-DD. */
+function istDate(d = new Date()): string {
+  return new Date(d.getTime() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+interface UsageRecord {
+  model: string;
+  feature: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  costUsd: number;
+  at: string;
+}
+
+/** Record one Claude call's usage. Fire-and-forget; never throws to the caller. */
+export async function recordApiUsage(model: string, feature: string, u: TokenUsage): Promise<void> {
+  try {
+    const rec: UsageRecord = {
+      model,
+      feature,
+      inputTokens: u.input_tokens ?? 0,
+      outputTokens: u.output_tokens ?? 0,
+      cacheReadTokens: u.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+      costUsd: usageCostUsd(model, u),
+      at: new Date().toISOString(),
+    };
+    const day = istDate();
+    const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const r = await resolveStore();
+    await r.backend.putText(`usage/${day}/${id}.json`, JSON.stringify(rec));
+  } catch {
+    /* usage tracking must never break an AI call */
+  }
+}
+
+export interface DayUsage {
+  date: string;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  byFeature: Record<string, { calls: number; costUsd: number }>;
+  models: string[];
+}
+
+/** Per-day usage for the last `days` IST days (most recent first). */
+export async function usageByDay(days = 7): Promise<DayUsage[]> {
+  const r = await resolveStore();
+  const wanted = new Set<string>();
+  for (let i = 0; i < days; i++) wanted.add(istDate(new Date(Date.now() - i * 86400000)));
+  const keys = (await r.backend.list('usage/')).filter((k) => {
+    const day = k.split('/')[1];
+    return k.endsWith('.json') && wanted.has(day);
+  });
+  const byDay = new Map<string, DayUsage>();
+  await Promise.all(
+    keys.map(async (k) => {
+      const text = await r.backend.getText(k);
+      if (!text) return;
+      let rec: UsageRecord;
+      try { rec = JSON.parse(text) as UsageRecord; } catch { return; }
+      const day = k.split('/')[1];
+      let d = byDay.get(day);
+      if (!d) {
+        d = { date: day, calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, byFeature: {}, models: [] };
+        byDay.set(day, d);
+      }
+      d.calls += 1;
+      d.inputTokens += rec.inputTokens + rec.cacheReadTokens + rec.cacheWriteTokens;
+      d.outputTokens += rec.outputTokens;
+      d.costUsd = Math.round((d.costUsd + rec.costUsd) * 1e6) / 1e6;
+      const f = (d.byFeature[rec.feature] ??= { calls: 0, costUsd: 0 });
+      f.calls += 1;
+      f.costUsd = Math.round((f.costUsd + rec.costUsd) * 1e6) / 1e6;
+      if (!d.models.includes(rec.model)) d.models.push(rec.model);
+    }),
+  );
+  return [...byDay.values()].sort((a, b) => b.date.localeCompare(a.date));
+}
+
 export async function ingestStoreStatus(): Promise<IngestStoreStatus> {
   const r = await resolveStore();
   const durable = r.name === 'gcs';
