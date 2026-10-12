@@ -13,6 +13,15 @@ import { SectionCard } from '../../components/ui/Card';
 import { inr } from '../../components/mis-deck/charts';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import {
+  clearUpload,
+  loadUploads,
+  parseUpload,
+  saveUpload,
+  uploadedFacts,
+  UPLOAD_PARSERS,
+  type UploadStore,
+} from '../../data/liveMis/uploadParsers';
+import {
   periodsIn,
   rollup,
   totals,
@@ -74,6 +83,7 @@ export function LiveMisPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
+  const [uploads, setUploads] = useState<UploadStore>(() => loadUploads());
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -99,7 +109,12 @@ export function LiveMisPage() {
     return () => clearInterval(t);
   }, [auto]);
 
-  const facts = data?.facts ?? [];
+  // Live-pulled facts, plus uploaded-report facts that fall in the date range.
+  const facts = useMemo(() => {
+    const apiFacts = data?.facts ?? [];
+    const up = uploadedFacts(uploads).filter((f) => f.date >= from && f.date <= to);
+    return [...apiFacts, ...up];
+  }, [data, uploads, from, to]);
   const metricDef = METRICS.find((m) => m.id === metric)!;
   // AOV and MER are ratios — they don't sum across periods, so no Total column.
   const isRatio = metric === 'aov' || metric === 'mer';
@@ -198,7 +213,14 @@ export function LiveMisPage() {
         </div>
 
         {/* Data freshness — how current each source is, and the system floor */}
-        {data && <Freshness data={data} today={today} />}
+        {data && (
+          <Freshness
+            data={data}
+            uploads={uploads}
+            today={today}
+            onUpload={(store) => setUploads({ ...store })}
+          />
+        )}
 
         {/* Run-rate grid */}
         <SectionCard
@@ -255,19 +277,35 @@ function daysAgo(date: string, today: string): number {
   return Math.round((Date.parse(today) - Date.parse(date)) / 86400000);
 }
 
-/** Per-source coverage and the system-wide freshness floor. */
-function Freshness({ data, today }: { data: FactsResponse; today: string }) {
-  const withData = data.sources.filter((s) => s.ok && s.through);
-  // The system is only as current as its stalest connected source.
-  const floor = withData.length
-    ? withData.map((s) => s.through!).sort()[0]
-    : null;
+/** Per-source coverage, the freshness floor, and the report-upload control. */
+function Freshness({
+  data,
+  uploads,
+  today,
+  onUpload,
+}: {
+  data: FactsResponse;
+  uploads: UploadStore;
+  today: string;
+  onUpload: (store: UploadStore) => void;
+}) {
+  const uploadRows = Object.values(uploads).map((u) => {
+    const dates = u.facts.map((f) => f.date).sort();
+    return { id: u.sourceId, label: u.label, count: u.facts.length, through: dates[dates.length - 1] ?? null };
+  });
+
+  // The system is only as current as its stalest source — live or uploaded.
+  const throughs = [
+    ...data.sources.filter((s) => s.ok && s.through).map((s) => s.through!),
+    ...uploadRows.filter((u) => u.through).map((u) => u.through!),
+  ].sort();
+  const floor = throughs[0] ?? null;
   const floorLag = floor ? daysAgo(floor, today) : null;
 
   return (
     <SectionCard
       title="Data freshness"
-      description="How far each connected source has data, and the date the whole system is current through."
+      description="How far each source has data, and the date the whole system is current through."
       actions={
         floor ? (
           <span
@@ -279,7 +317,7 @@ function Freshness({ data, today }: { data: FactsResponse; today: string }) {
             System current through {floor}{floorLag !== null && floorLag > 1 ? ` · ${floorLag}d behind` : ''}
           </span>
         ) : (
-          <span className="text-xs text-slate-400">No live source has data yet</span>
+          <span className="text-xs text-slate-400">No source has data yet</span>
         )
       }
     >
@@ -301,11 +339,8 @@ function Freshness({ data, today }: { data: FactsResponse; today: string }) {
                   <td className="py-1.5 pr-3 text-slate-700 font-medium">{s.label}</td>
                   <td className="py-1.5 pr-3">
                     {s.ok ? (
-                      s.count > 0 ? (
-                        <span className="text-emerald-700">live</span>
-                      ) : (
-                        <span className="text-slate-400">connected · no data in range</span>
-                      )
+                      s.count > 0 ? <span className="text-emerald-700">live</span>
+                        : <span className="text-slate-400">connected · no data in range</span>
                     ) : (
                       <span className="text-slate-400">{s.error ?? 'not connected'}</span>
                     )}
@@ -316,9 +351,32 @@ function Freshness({ data, today }: { data: FactsResponse; today: string }) {
                       <span className={lag !== null && lag > 2 ? 'text-amber-700' : 'text-slate-600'}>
                         {s.through}{lag !== null && lag > 2 ? ` (${lag}d ago)` : ''}
                       </span>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
+                    ) : <span className="text-slate-300">—</span>}
+                  </td>
+                </tr>
+              );
+            })}
+            {uploadRows.map((u) => {
+              const lag = u.through ? daysAgo(u.through, today) : null;
+              return (
+                <tr key={u.id} className="border-b border-slate-50 bg-slate-50/50">
+                  <td className="py-1.5 pr-3 text-slate-700 font-medium">{u.label}</td>
+                  <td className="py-1.5 pr-3">
+                    <span className="text-indigo-600">uploaded</span>
+                    <button
+                      onClick={() => onUpload(clearUpload(u.id))}
+                      className="ml-2 text-[10px] text-slate-400 hover:text-rose-600"
+                    >
+                      remove
+                    </button>
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums text-slate-600">{u.count}</td>
+                  <td className="py-1.5">
+                    {u.through ? (
+                      <span className={lag !== null && lag > 2 ? 'text-amber-700' : 'text-slate-600'}>
+                        {u.through}{lag !== null && lag > 2 ? ` (${lag}d ago)` : ''}
+                      </span>
+                    ) : <span className="text-slate-300">—</span>}
                   </td>
                 </tr>
               );
@@ -326,12 +384,62 @@ function Freshness({ data, today }: { data: FactsResponse; today: string }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-[11px] text-slate-400">
-        Sources without an API (e.g. Blinkit, Snapmint) ingest by file upload through the{' '}
-        <a href="/reporting/mis/close" className="text-emerald-700 underline">month close</a> — the same pipeline, so they
-        appear here once their file is in.
-      </p>
+
+      <UploadReport onUpload={onUpload} />
     </SectionCard>
+  );
+}
+
+/** Upload a report for a source whose financial data has no API (e.g. Shiprocket). */
+function UploadReport({ onUpload }: { onUpload: (store: UploadStore) => void }) {
+  const [sourceId, setSourceId] = useState(UPLOAD_PARSERS[0]?.sourceId ?? '');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const parser = UPLOAD_PARSERS.find((p) => p.sourceId === sourceId);
+
+  const onFile = async (file: File | undefined) => {
+    if (!file || !parser) return;
+    setBusy(true); setMsg(null);
+    try {
+      const rec = await parseUpload(parser, file);
+      onUpload(saveUpload(rec));
+      setMsg({ kind: 'ok', text: `Loaded ${rec.facts.length} days from ${file.name}.` });
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Could not read the file.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 border-t border-slate-100 pt-3">
+      <p className="text-[11px] text-slate-500 mb-2">
+        <span className="font-medium text-slate-600">Upload a report</span> for a source with no financial API
+        (e.g. Shiprocket's passbook — API gives shipments, not the money). It parses into daily facts and merges above.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={sourceId}
+          onChange={(e) => setSourceId(e.target.value)}
+          className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200"
+        >
+          {UPLOAD_PARSERS.map((p) => <option key={p.sourceId} value={p.sourceId}>{p.label}</option>)}
+        </select>
+        <label className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer">
+          {busy ? 'Reading…' : 'Choose file'}
+          <input
+            type="file"
+            accept={parser?.accept}
+            className="hidden"
+            onChange={(e) => void onFile(e.target.files?.[0])}
+          />
+        </label>
+        {parser && <span className="text-[10px] text-slate-400">{parser.hint}</span>}
+      </div>
+      {msg && (
+        <p className={'mt-1.5 text-[11px] ' + (msg.kind === 'ok' ? 'text-emerald-700' : 'text-rose-700')}>{msg.text}</p>
+      )}
+    </div>
   );
 }
 
