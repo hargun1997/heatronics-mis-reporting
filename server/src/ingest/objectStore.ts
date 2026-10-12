@@ -48,6 +48,18 @@ export interface ExtractedPayload {
   skuRows?: unknown[];
   crossChecks?: unknown[];
   bomCosts?: unknown[];
+  /** Tally vision output — the P&L ledger rows, bottom line and period. */
+  ledgerRows?: unknown[];
+  nettProfit?: number | null;
+  period?: string | null;
+}
+
+/** One committed report's full extracted payload, tagged with where it sits. */
+export interface ExtractedReport {
+  connectorId: string;
+  slotId: string;
+  periodKey: string; // YYYY-MM
+  payload: ExtractedPayload;
 }
 
 export interface RawFile {
@@ -315,6 +327,34 @@ export async function listExtractedFacts(): Promise<unknown[]> {
     }),
   );
   return chunks.flat();
+}
+
+/**
+ * Every committed report's FULL extracted payload, tagged with its
+ * connector/slot/period (parsed from the object key). Unlike listExtractedFacts
+ * (which keeps only `facts`), this preserves bomCosts, ledgerRows, nettProfit
+ * and period — everything the live-MIS cascade needs to rebuild a month.
+ */
+export async function readAllExtracted(): Promise<ExtractedReport[]> {
+  const r = await resolveStore();
+  const keys = (await r.backend.list('ingest/')).filter((k) => k.endsWith('/extracted.json'));
+  const reports = await Promise.all(
+    keys.map(async (k) => {
+      // ingest/{connectorId}/{slotId}/{periodKey}/extracted.json
+      const parts = k.split('/');
+      if (parts.length !== 5) return null;
+      const [, connectorId, slotId, periodKey] = parts;
+      const text = await r.backend.getText(k);
+      if (!text) return null;
+      try {
+        const payload = JSON.parse(text) as ExtractedPayload;
+        return { connectorId, slotId, periodKey, payload } satisfies ExtractedReport;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return reports.filter((x): x is ExtractedReport => x !== null);
 }
 
 export async function deleteReport(connectorId: string, slotId: string, periodKey: string): Promise<void> {

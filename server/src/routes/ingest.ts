@@ -13,6 +13,7 @@ import {
   deleteReport,
   ingestStoreStatus,
   listReports,
+  readAllExtracted,
   refreshIngestStore,
   saveReport,
   type CommitInput,
@@ -47,6 +48,12 @@ router.post('/refresh-store', h(async (_req, res) => {
 
 router.get('/reports', h(async (_req, res) => {
   res.json({ reports: await listReports() });
+}));
+
+// Full extracted payloads (facts + bomCosts + Tally ledgerRows) per report —
+// the raw material the live-MIS cascade rebuilds each month from.
+router.get('/extracted', h(async (_req, res) => {
+  res.json({ reports: await readAllExtracted() });
 }));
 
 // Read one statement from one or more screenshots (Tally P&L that scrolled).
