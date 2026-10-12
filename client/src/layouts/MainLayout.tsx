@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { HeatronicsMark } from '../components/HeatronicsLogo';
+import { ClaudeStatusPill } from '../components/ClaudeStatusPill';
 
 interface NavLeaf {
   path: string;
@@ -151,8 +152,9 @@ export function MainLayout() {
               {navNodes.map((n) => (isGroup(n) ? renderGroup(n) : renderLeaf(n)))}
             </nav>
 
-            {/* Right side secondary links (desktop): Tools + Data / Insights. */}
+            {/* Right side secondary links (desktop): Claude status + spend, Tools, Data / Insights. */}
             <div className="hidden md:flex items-center gap-3 text-[11px]">
+              <ClaudeStatusPill />
               {secondaryLinks.map((item) =>
                 item.external ? (
                   <a key={item.path} href={item.path} target="_blank" rel="noreferrer"
@@ -171,8 +173,9 @@ export function MainLayout() {
               <span className="text-slate-300">MIS v2.2</span>
             </div>
 
-            {/* Mobile label */}
+            {/* Mobile label + Claude status */}
             <div className="flex items-center gap-2 md:hidden">
+              <ClaudeStatusPill compact />
               <span className="text-sm font-medium text-slate-700">{activeLabel}</span>
             </div>
           </div>
