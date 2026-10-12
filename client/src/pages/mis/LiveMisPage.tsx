@@ -6,9 +6,8 @@
 // the "complete through" floor is the latest fully-closed month.
 // ----------------------------------------------------------------------------
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { SectionCard } from '../../components/ui/Card';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { PageHeader, SectionCard, KpiTile, SegmentedControl } from '../../components/ui';
 import { inr } from '../../components/mis-deck/charts';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import {
@@ -43,6 +42,15 @@ const TABS: { id: Tab; label: string }[] = [
 const DECK_GRAINS: { id: DeckGran; label: string }[] = [
   { id: 'month', label: 'Monthly' }, { id: 'quarter', label: 'Quarterly' }, { id: 'year', label: 'Yearly' },
 ];
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="text-xs text-slate-500">
+      <span className="block mb-1">{label}</span>
+      {children}
+    </div>
+  );
+}
 
 export function LiveMisPage() {
   const [tab, setTab] = useState<Tab>('overview');
@@ -103,7 +111,7 @@ export function LiveMisPage() {
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={'px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ' +
-                (tab === t.id ? 'border-brand-500 text-brand-700 font-medium' : 'border-transparent text-slate-500 hover:text-slate-700')}>
+                (tab === t.id ? 'border-brand-500 text-brand-700 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700')}>
               {t.label}
             </button>
           ))}
@@ -111,20 +119,25 @@ export function LiveMisPage() {
 
         {/* Deck-tab controls (period + granularity) */}
         {tab !== 'runrate' && deck && periods.length > 0 && (
-          <div className="flex flex-wrap items-end gap-3">
-            <Toggle label="Grain" options={DECK_GRAINS} value={gran} onChange={(v) => { setGran(v as DeckGran); setPeriodKey(''); }} />
+          <div className="flex flex-wrap items-end gap-4">
+            <Field label="Grain">
+              <SegmentedControl size="sm" aria-label="Granularity" options={DECK_GRAINS}
+                value={gran} onChange={(v) => { setGran(v); setPeriodKey(''); }} />
+            </Field>
             {tab !== 'pnl' && (
-              <label className="text-xs text-slate-500">
-                <span className="block mb-0.5">Period</span>
+              <Field label="Period">
                 <select value={selected?.key ?? ''} onChange={(e) => setPeriodKey(e.target.value)}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
                   {[...periods].reverse().map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
                 </select>
-              </label>
+              </Field>
             )}
             {tab === 'pnl' && (
-              <Toggle label="Show" options={[{ id: 'inr', label: '₹' }, { id: 'pct', label: '% of rev' }]}
-                value={pnlPct ? 'pct' : 'inr'} onChange={(v) => setPnlPct(v === 'pct')} />
+              <Field label="Show">
+                <SegmentedControl size="sm" aria-label="Value mode"
+                  options={[{ id: 'inr', label: '₹' }, { id: 'pct', label: '% of rev' }]}
+                  value={pnlPct ? 'pct' : 'inr'} onChange={(v) => setPnlPct(v === 'pct')} />
+              </Field>
             )}
           </div>
         )}
@@ -163,7 +176,7 @@ function CompletenessBanner({ deck }: { deck: LiveDeckData }) {
         <span className="text-amber-700 font-medium">No month is fully closed yet — upload a Tally P&amp;L to complete a month.</span>
       )}
       {latest && latest !== through && (
-        <span className="text-slate-400">Latest data: {monthLabel(latest)} (partial — <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} />)</span>
+        <span className="text-slate-400 flex items-center gap-1.5">Latest data: {monthLabel(latest)} (partial <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} />)</span>
       )}
       <span className="text-slate-400 ml-auto">{deck.periods.length} month{deck.periods.length === 1 ? '' : 's'} with data</span>
     </div>
@@ -281,28 +294,31 @@ function RunRateTab() {
           </div>
         }>
         <div className="flex flex-wrap items-end gap-4">
-          <label className="text-xs text-slate-500"><span className="block mb-0.5">From</span>
-            <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" /></label>
-          <label className="text-xs text-slate-500"><span className="block mb-0.5">To</span>
-            <input type="date" value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" /></label>
-          <Toggle label="Run-rate" options={RR_GRAINS} value={gran} onChange={(v) => setGran(v as RrGranularity)} />
-          <Toggle label="Slice by" options={RR_DIMS} value={dim} onChange={(v) => setDim(v as Dimension)} />
-          <label className="text-xs text-slate-500"><span className="block mb-0.5">Metric</span>
+          <Field label="From">
+            <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" />
+          </Field>
+          <Field label="To">
+            <input type="date" value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" />
+          </Field>
+          <Field label="Run-rate"><SegmentedControl size="sm" aria-label="Run-rate grain" options={RR_GRAINS} value={gran} onChange={setGran} /></Field>
+          <Field label="Slice by"><SegmentedControl size="sm" aria-label="Slice by" options={RR_DIMS} value={dim} onChange={setDim} /></Field>
+          <Field label="Metric">
             <select value={metric} onChange={(e) => setMetric(e.target.value as MetricKey)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
               {RR_METRICS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select></label>
+            </select>
+          </Field>
         </div>
       </SectionCard>
 
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Tile label="Revenue" value={inr(sum.revenue)} />
-        <Tile label="Ad spend" value={inr(sum.spend)} />
-        <Tile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="rev / spend" />
-        <Tile label="Net" value={inr(sum.net)} />
-        <Tile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
-        <Tile label="MRR" value={inr(rr.MRR)} sub="30-day run-rate" />
+        <KpiTile label="Revenue" value={inr(sum.revenue)} />
+        <KpiTile label="Ad spend" value={inr(sum.spend)} />
+        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="rev / spend" />
+        <KpiTile label="Net" value={inr(sum.net)} />
+        <KpiTile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
+        <KpiTile label="MRR" value={inr(rr.MRR)} sub="30-day run-rate" />
       </div>
 
       {data && (
@@ -376,30 +392,6 @@ function UploadReport({ onUpload }: { onUpload: (store: UploadStore) => void }) 
         {parser && <span className="text-[10px] text-slate-400">{parser.hint}</span>}
       </div>
       {msg && <p className={'mt-1.5 text-[11px] ' + (msg.kind === 'ok' ? 'text-emerald-700' : 'text-rose-700')}>{msg.text}</p>}
-    </div>
-  );
-}
-
-function Toggle({ label, options, value, onChange }: { label: string; options: { id: string; label: string }[]; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="text-xs text-slate-500">
-      <span className="block mb-0.5">{label}</span>
-      <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
-        {options.map((o) => (
-          <button key={o.id} onClick={() => onChange(o.id)}
-            className={'px-2.5 py-1.5 text-xs ' + (value === o.id ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50')}>{o.label}</button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="text-lg font-semibold text-slate-800 tabular-nums">{value}</div>
-      {sub && <div className="text-[10px] text-slate-400">{sub}</div>}
     </div>
   );
 }

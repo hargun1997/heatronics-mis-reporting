@@ -15,15 +15,6 @@ interface PageHeaderProps {
   accent?: 'brand' | 'emerald' | 'violet' | 'amber' | 'sky' | 'rose';
 }
 
-const accentMap: Record<NonNullable<PageHeaderProps['accent']>, string> = {
-  brand: 'from-brand-50 to-white',
-  emerald: 'from-emerald-50 to-white',
-  violet: 'from-violet-50 to-white',
-  amber: 'from-amber-50 to-white',
-  sky: 'from-sky-50 to-white',
-  rose: 'from-rose-50 to-white',
-};
-
 const iconBgMap: Record<NonNullable<PageHeaderProps['accent']>, string> = {
   brand: 'bg-brand-100 text-brand-700',
   emerald: 'bg-emerald-100 text-emerald-700',
@@ -38,8 +29,8 @@ export function PageHeader({ title, description, crumbs, actions, icon, accent =
   const derivedCrumbs: Crumb[] = crumbs ?? deriveCrumbs(location.pathname);
 
   return (
-    <div className={`bg-gradient-to-b ${accentMap[accent]} border-b border-slate-200`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div className="bg-white border-b border-slate-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {derivedCrumbs.length > 0 && (
           <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
             <Link to="/" className="hover:text-slate-700">Home</Link>
@@ -64,9 +55,9 @@ export function PageHeader({ title, description, crumbs, actions, icon, accent =
               </div>
             )}
             <div>
-              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">{title}</h1>
+              <h1 className="font-display text-2xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
               {description && (
-                <p className="mt-1 text-sm text-slate-600 max-w-3xl">{description}</p>
+                <p className="mt-1.5 text-[15px] font-normal text-slate-500 leading-relaxed max-w-3xl">{description}</p>
               )}
             </div>
           </div>

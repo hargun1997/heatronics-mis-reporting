@@ -6,6 +6,7 @@
 // ----------------------------------------------------------------------------
 
 import { useMemo, useState } from 'react';
+import { KpiTile } from '../ui';
 import { inr, pctStr } from '../mis-deck/charts';
 import type { SkuCell } from '../../data/misDeck/skuChannelPnl';
 import { SALES_CHANNELS, type SalesChannel } from '../../data/misDeck/misDeckData';
@@ -46,24 +47,17 @@ export function OverviewTab({ period }: { period: PeriodAgg }) {
   const cm2Pct = marginPct(period.cm2, period.netRevenue);
   const ebitdaPct = marginPct(period.ebitda, period.netRevenue);
 
-  const tile = (label: string, value: string, sub?: string, muted?: boolean) => (
-    <div className={`rounded-xl border p-3 ${muted ? 'border-slate-100 bg-slate-50/50' : 'border-slate-200 bg-white'}`}>
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
-      <div className={`text-lg font-semibold tabular-nums ${muted ? 'text-slate-300' : 'text-slate-800'}`}>{value}</div>
-      {sub && <div className="text-[10px] text-slate-400">{sub}</div>}
-    </div>
-  );
   const ND = '—';
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {tile('Net Revenue', inr(period.netRevenue))}
-        {tile('Gross Margin', real.has('gross_margin') && gmPct != null ? pctStr(gmPct) : ND, 'of net rev', !real.has('gross_margin'))}
-        {tile('CM2', real.has('cm2') ? inr(period.cm2) : ND, cm2Pct != null && real.has('cm2') ? pctStr(cm2Pct) : 'needs COGM', !real.has('cm2'))}
-        {tile('EBITDA', real.has('ebitda') ? inr(period.ebitda) : ND, real.has('ebitda') && ebitdaPct != null ? pctStr(ebitdaPct) : 'needs Tally', !real.has('ebitda'))}
-        {tile('Net Income', real.has('net_income') ? inr(period.netIncome) : ND, 'needs Tally', !real.has('net_income'))}
-        {tile('Top channel', topChannel ? topChannel[0] : ND, topChannel ? inr(topChannel[1]) : undefined)}
+        <KpiTile label="Net Revenue" value={inr(period.netRevenue)} />
+        <KpiTile label="Gross Margin" value={real.has('gross_margin') && gmPct != null ? pctStr(gmPct) : ND} sub="of net rev" />
+        <KpiTile label="CM2" value={real.has('cm2') ? inr(period.cm2) : ND} sub={cm2Pct != null && real.has('cm2') ? pctStr(cm2Pct) : 'needs COGM'} />
+        <KpiTile label="EBITDA" value={real.has('ebitda') ? inr(period.ebitda) : ND} sub={real.has('ebitda') && ebitdaPct != null ? pctStr(ebitdaPct) : 'needs Tally'} />
+        <KpiTile label="Net Income" value={real.has('net_income') ? inr(period.netIncome) : ND} sub="needs Tally" />
+        <KpiTile label="Top channel" value={topChannel ? topChannel[0] : ND} sub={topChannel ? inr(topChannel[1]) : undefined} />
       </div>
       <p className="text-[11px] text-slate-400">
         {period.label} · <LevelBadge level={period.level} />{' '}
