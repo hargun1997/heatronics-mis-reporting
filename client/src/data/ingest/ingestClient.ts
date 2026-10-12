@@ -7,8 +7,10 @@
 // report for the same connector+slot+period).
 // ----------------------------------------------------------------------------
 
+import * as XLSX from 'xlsx';
 import { parseUpload, UPLOAD_PARSERS } from '../liveMis/uploadParsers';
 import type {
+  BomCostRow,
   CheckItem,
   CheckReport,
   Extracted,
@@ -62,6 +64,7 @@ export async function commitReport(slot: ReportSlot, staged: StagedUpload): Prom
           ledgerRows: staged.extracted.ledgerRows,
           nettProfit: staged.extracted.nettProfit,
           period: staged.extracted.period,
+          bomCosts: staged.extracted.bomCosts,
         },
       }),
     }),
@@ -232,6 +235,89 @@ export async function runVisionChecks(slot: ReportSlot, files: File[]): Promise<
   return { ...base, periodKey: derivePeriod(extracted), extracted, checks: { items, overall: overallOf(items) } };
 }
 
+// ---- Tranzact BOM pricing (cost master, not daily facts) -------------------
+
+const bcell = (v: unknown) => String(v ?? '').trim();
+const blower = (v: unknown) => bcell(v).toLowerCase();
+const bnum = (v: unknown) => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  const n = parseFloat(bcell(v).replace(/[(),₹\s]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+};
+function bomSheetRows(wb: XLSX.WorkBook, name: string): unknown[][] {
+  const ws = wb.Sheets[name];
+  if (!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
+}
+function bomHeader(rows: unknown[][], needles: string[], limit = 30): number {
+  for (let i = 0; i < Math.min(rows.length, limit); i++) {
+    const cells = (rows[i] ?? []).map(blower);
+    if (needles.every((n) => cells.some((c) => c === n))) return i;
+  }
+  return -1;
+}
+
+export async function runBomChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
+  const rawBase64 = await fileToBase64(file);
+  const base = {
+    fileName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    rawFiles: [{ base64: rawBase64, name: file.name, mimeType: file.type || 'application/octet-stream' }],
+  };
+  const items: CheckItem[] = [];
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const sheet = wb.SheetNames.find((n) => /summary/i.test(n)) ?? wb.SheetNames[0];
+    const rows = bomSheetRows(wb, sheet);
+    const hi = bomHeader(rows, ['fg item id', 'total fg cost']);
+    if (hi < 0) {
+      items.push({ id: 'header', label: 'Recognise the BOM pricing export', status: 'fail', detail: 'No "FG Item ID / Total FG Cost" header — export from Bill of Materials WITH pricing.' });
+      const extracted: Extracted = { facts: [], rowCount: 0, through: null };
+      return { ...base, periodKey: currentMonth(), extracted, checks: { items, overall: 'fail' } };
+    }
+    const header = (rows[hi] ?? []).map(blower);
+    const ix = {
+      fg: header.indexOf('fg item id'),
+      bom: header.indexOf('bom number'),
+      name: header.indexOf('bom name'),
+      cost: header.indexOf('total fg cost'),
+    };
+    const byBom = new Map<string, BomCostRow>();
+    for (const row of rows.slice(hi + 1)) {
+      const fgId = bcell(row[ix.fg]).toUpperCase();
+      const bomNumber = bcell(row[ix.bom]);
+      if (!fgId || !bomNumber) continue;
+      if (!/^FG-\d+/.test(fgId)) continue; // only finished goods carry a sold-unit cost
+      const rawCost = row[ix.cost];
+      if (rawCost === null || rawCost === undefined || bcell(rawCost) === '') continue; // total is on the first RM line only
+      const costPerUnit = bnum(rawCost);
+      if (costPerUnit <= 0 || byBom.has(bomNumber)) continue;
+      byBom.set(bomNumber, { fgId, bomNumber, bomName: bcell(row[ix.name]), costPerUnit: Math.round(costPerUnit * 100) / 100 });
+    }
+    const bomCosts = [...byBom.values()].sort((a, b) => a.fgId.localeCompare(b.fgId));
+
+    // multi-BOM finished goods (OEM variants) — flag as a warning
+    const perFg = new Map<string, number>();
+    for (const b of bomCosts) perFg.set(b.fgId, (perFg.get(b.fgId) ?? 0) + 1);
+    const multi = [...perFg.entries()].filter(([, n]) => n > 1).map(([fg]) => fg);
+
+    items.push({ id: 'read', label: 'File read', status: 'pass', detail: `sheet "${sheet}", ${Math.max(0, rows.length - 1)} rows` });
+    items.push({ id: 'header', label: 'BOM pricing recognised', status: 'pass', detail: 'FG Item ID + Total FG Cost found' });
+    items.push({ id: 'costs', label: 'Finished-good costs extracted', status: bomCosts.length > 0 ? 'pass' : 'fail', detail: `${bomCosts.length} finished goods costed` });
+    if (multi.length) items.push({ id: 'multi', label: 'Single BOM per finished good', status: 'warn', detail: `${multi.join(', ')} have more than one BOM/cost — the lowest BOM number is used` });
+
+    const rawPreview = rows.slice(0, 8).map((r) => (r ?? []).map((c) => bcell(c)));
+    const extracted: Extracted = { facts: [], rowCount: bomCosts.length, through: null, bomCosts, rawPreview };
+    return { ...base, periodKey: currentMonth(), extracted, checks: { items, overall: overallOf(items) } };
+  } catch (e) {
+    items.push({ id: 'read', label: 'Read the BOM export', status: 'fail', detail: e instanceof Error ? e.message : 'Could not read the file.' });
+    const extracted: Extracted = { facts: [], rowCount: 0, through: null };
+    return { ...base, periodKey: currentMonth(), extracted, checks: { items, overall: 'fail' } };
+  }
+}
+
 export async function runChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
-  return slot.kind === 'vision' ? runVisionChecks(slot, files) : runXlsxChecks(slot, files[0]);
+  if (slot.kind === 'vision') return runVisionChecks(slot, files);
+  if (slot.kind === 'bom') return runBomChecks(slot, files[0]);
+  return runXlsxChecks(slot, files[0]);
 }
