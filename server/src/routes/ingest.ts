@@ -16,7 +16,9 @@ import {
   refreshIngestStore,
   saveReport,
   type CommitInput,
+  type RawFile,
 } from '../ingest/objectStore.js';
+import { ledgerVision } from '../services/ledgerVision.js';
 
 const router = Router();
 
@@ -47,12 +49,38 @@ router.get('/reports', h(async (_req, res) => {
   res.json({ reports: await listReports() });
 }));
 
+// Read one statement from one or more screenshots (Tally P&L that scrolled).
+router.post('/vision', h(async (req, res) => {
+  const raw = (req.body?.images ?? []) as unknown;
+  const images = Array.isArray(raw)
+    ? raw
+        .map((i) => i as { imageBase64?: unknown; mimeType?: unknown })
+        .filter((i) => typeof i.imageBase64 === 'string' && (i.imageBase64 as string).length > 0)
+        .map((i) => ({ data: i.imageBase64 as string, mimeType: typeof i.mimeType === 'string' ? i.mimeType : 'image/png' }))
+    : [];
+  if (images.length === 0) return res.status(400).json({ error: 'No images provided.' });
+  try {
+    res.json(await ledgerVision.extractMany(images));
+  } catch (err) {
+    res.status(502).json({ error: err instanceof Error ? err.message : 'Vision failed.' });
+  }
+}));
+
 router.post('/commit', h(async (req, res) => {
   const b = (req.body ?? {}) as Partial<CommitInput>;
-  const required = ['connectorId', 'slotId', 'slotLabel', 'periodKey', 'fileName', 'rawBase64'] as const;
+  const required = ['connectorId', 'slotId', 'slotLabel', 'periodKey', 'fileName'] as const;
   const missing = required.filter((k) => !(typeof b[k] === 'string' && (b[k] as string).trim()));
+  const rawFiles: RawFile[] = Array.isArray(b.rawFiles)
+    ? b.rawFiles
+        .map((f) => f as Partial<RawFile>)
+        .filter((f) => typeof f.base64 === 'string' && (f.base64 as string).length > 0)
+        .map((f) => ({ base64: f.base64 as string, mimeType: typeof f.mimeType === 'string' ? f.mimeType : 'application/octet-stream', name: typeof f.name === 'string' ? f.name : 'upload.bin' }))
+    : [];
   if (missing.length) {
     return res.status(400).json({ error: `Missing: ${missing.join(', ')}.` });
+  }
+  if (rawFiles.length === 0) {
+    return res.status(400).json({ error: 'No raw file(s) provided.' });
   }
   if (!isPeriod(b.periodKey as string)) {
     return res.status(400).json({ error: 'periodKey must be "YYYY-MM".' });
@@ -76,7 +104,7 @@ router.post('/commit', h(async (req, res) => {
             failed: Number((b.checks as { failed?: number }).failed) || 0,
           }
         : { passed: 0, warned: 0, failed: 0 },
-    rawBase64: b.rawBase64 as string,
+    rawFiles,
     extracted: b.extracted && typeof b.extracted === 'object' ? b.extracted : {},
   };
 

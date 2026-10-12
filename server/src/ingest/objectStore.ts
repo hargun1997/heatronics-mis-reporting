@@ -50,8 +50,15 @@ export interface ExtractedPayload {
   bomCosts?: unknown[];
 }
 
+export interface RawFile {
+  base64: string;
+  mimeType: string;
+  name: string;
+}
+
 export interface CommitInput extends Omit<IngestReportMeta, 'savedAt' | 'ingestedAt' | 'rawExt'> {
-  rawBase64: string;
+  /** One or more raw files (a report can be several screenshots). */
+  rawFiles: RawFile[];
   extracted: ExtractedPayload;
 }
 
@@ -238,10 +245,13 @@ const prefixFor = (connectorId: string, slotId: string, periodKey: string) =>
 // ---- Public API ------------------------------------------------------------
 
 /** Save (overwriting any prior report for the same connector+slot+period). */
+const extOf = (name: string) => (name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+
 export async function saveReport(input: CommitInput): Promise<IngestReportMeta> {
   const r = await resolveStore();
   const prefix = prefixFor(input.connectorId, input.slotId, input.periodKey);
-  const rawExt = (input.fileName.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const files = input.rawFiles.length ? input.rawFiles : [];
+  const rawExt = files[0] ? extOf(files[0].name) : 'bin';
 
   const meta: IngestReportMeta = {
     connectorId: input.connectorId,
@@ -259,10 +269,12 @@ export async function saveReport(input: CommitInput): Promise<IngestReportMeta> 
     ingestedAt: new Date().toISOString(),
   };
 
-  // Overwrite: clear the slot first so a changed extension can't orphan an old raw.
+  // Overwrite: clear the slot first so stale raws from a prior upload can't linger.
   await r.backend.deletePrefix(prefix);
-  const rawBuf = Buffer.from(input.rawBase64, 'base64');
-  await r.backend.put(`${prefix}raw.${rawExt}`, rawBuf, input.mimeType || 'application/octet-stream');
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    await r.backend.put(`${prefix}raw-${i + 1}.${extOf(f.name)}`, Buffer.from(f.base64, 'base64'), f.mimeType || 'application/octet-stream');
+  }
   await r.backend.putText(`${prefix}extracted.json`, JSON.stringify(input.extracted));
   await r.backend.putText(`${prefix}meta.json`, JSON.stringify(meta));
   return meta;

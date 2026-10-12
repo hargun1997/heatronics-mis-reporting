@@ -72,16 +72,34 @@ export class LedgerVisionService {
    * @param mimeType    e.g. "image/png"
    */
   async extract(imageBase64: string, mimeType: string): Promise<VisionResult> {
+    return this.extractMany([{ data: imageBase64, mimeType }]);
+  }
+
+  /**
+   * Read ONE statement that may span SEVERAL screenshots (a P&L that scrolled).
+   * All images go in one call so the model reads them as one continuous
+   * statement and doesn't double-count rows on the overlap between screens.
+   */
+  async extractMany(images: { data: string; mimeType: string }[]): Promise<VisionResult> {
     if (!isClaudeConfigured()) {
       throw new Error(
         'ANTHROPIC_API_KEY is not set on the server, so screenshots cannot be read. ' +
           'Upload the Tally xlsx export instead, or set the key and restart.',
       );
     }
+    if (images.length === 0) throw new Error('No images provided.');
+
+    const multiNote =
+      images.length > 1
+        ? '\n\nYou are given MULTIPLE screenshots that are consecutive scrolls of the SAME statement, ' +
+          'top to bottom in order. Treat them as ONE continuous statement: extract every row once in ' +
+          'order, and do NOT duplicate a row that appears on the overlap between two screenshots. The ' +
+          'Nett Profit / Loss usually appears on the last screenshot.'
+        : '';
 
     const text = await claudeCompleteText({
-      system: PROMPT,
-      parts: [{ image: { mimeType, data: imageBase64 } }],
+      system: PROMPT + multiNote,
+      parts: images.map((im) => ({ image: { mimeType: im.mimeType, data: im.data } })),
       maxTokens: 8192,
       // Figures must be read exactly — think a little, spend little.
       effort: 'low',

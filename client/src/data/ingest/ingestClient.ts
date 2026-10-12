@@ -54,9 +54,9 @@ export async function commitReport(slot: ReportSlot, staged: StagedUpload): Prom
         mimeType: staged.mimeType,
         rowCount: staged.extracted.rowCount,
         through: staged.extracted.through,
-        warnings: staged.extracted.trace ? [] : [],
+        warnings: [],
         checks: summary,
-        rawBase64: staged.rawBase64,
+        rawFiles: staged.rawFiles,
         extracted: {
           facts: staged.extracted.facts,
           ledgerRows: staged.extracted.ledgerRows,
@@ -123,7 +123,11 @@ export function derivePeriod(ex: Extracted): string {
 export async function runXlsxChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
   const parser = slot.parserId ? UPLOAD_PARSERS.find((p) => p.sourceId === slot.parserId) : undefined;
   const rawBase64 = await fileToBase64(file);
-  const base = { fileName: file.name, mimeType: file.type || 'application/octet-stream', rawBase64 };
+  const base = {
+    fileName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    rawFiles: [{ base64: rawBase64, name: file.name, mimeType: file.type || 'application/octet-stream' }],
+  };
 
   if (!parser) {
     const extracted: Extracted = { facts: [], rowCount: 0, through: null };
@@ -185,13 +189,19 @@ interface VisionResponse {
   error?: string;
 }
 
-export async function runVisionChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
-  const rawBase64 = await fileToBase64(file);
-  const base = { fileName: file.name, mimeType: file.type || 'image/png', rawBase64 };
-  const res = await fetch('/api/month-close/vision', {
+export async function runVisionChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
+  const rawFiles = await Promise.all(
+    files.map(async (f) => ({ base64: await fileToBase64(f), name: f.name, mimeType: f.type || 'image/png' })),
+  );
+  const base = {
+    fileName: files.length > 1 ? `${files[0].name} +${files.length - 1} more` : files[0].name,
+    mimeType: files[0].type || 'image/png',
+    rawFiles,
+  };
+  const res = await fetch('/api/ingest/vision', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageBase64: rawBase64, mimeType: base.mimeType }),
+    body: JSON.stringify({ images: rawFiles.map((f) => ({ imageBase64: f.base64, mimeType: f.mimeType })) }),
   });
   const body = (await res.json().catch(() => ({}))) as VisionResponse;
   if (!res.ok) {
@@ -222,6 +232,6 @@ export async function runVisionChecks(slot: ReportSlot, file: File): Promise<Sta
   return { ...base, periodKey: derivePeriod(extracted), extracted, checks: { items, overall: overallOf(items) } };
 }
 
-export async function runChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
-  return slot.kind === 'vision' ? runVisionChecks(slot, file) : runXlsxChecks(slot, file);
+export async function runChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
+  return slot.kind === 'vision' ? runVisionChecks(slot, files) : runXlsxChecks(slot, files[0]);
 }
