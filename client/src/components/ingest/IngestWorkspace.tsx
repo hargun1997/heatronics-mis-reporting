@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listConnectors, MODE_LABEL, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
 import { getIngestStatus, listIngestReports, refreshIngestStore } from '../../data/ingest/ingestClient';
+import { chatStatus } from '../../data/chat/chatClient';
 import { slotsFor } from '../../data/ingest/catalog';
 import type { IngestReportMeta, IngestStoreStatus } from '../../data/ingest/types';
 import { IngestStepper } from './IngestStepper';
@@ -27,6 +28,7 @@ export function IngestWorkspace() {
   const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
   const [reports, setReports] = useState<IngestReportMeta[]>([]);
   const [store, setStore] = useState<IngestStoreStatus | null>(null);
+  const [claudeLive, setClaudeLive] = useState<boolean | null>(null);
   const [selected, setSelected] = useState<string>('');
   const [rechecking, setRechecking] = useState(false);
 
@@ -40,6 +42,7 @@ export function IngestWorkspace() {
       setSelected((cur) => cur || r.connectors[0]?.id || '');
     }).catch(() => {});
     getIngestStatus().then((r) => setStore(r.store)).catch(() => {});
+    chatStatus().then((s) => setClaudeLive(s.configured)).catch(() => setClaudeLive(false));
     void reloadReports();
   }, [reloadReports]);
 
@@ -73,6 +76,23 @@ export function IngestWorkspace() {
 
   return (
     <div className="space-y-5">
+      {/* Status strip: Claude API (reads Tally screenshots + Ask the MIS) + store durability */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+        <span className={
+          'px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 font-medium ' +
+          (claudeLive ? 'bg-emerald-50 text-emerald-700' : claudeLive === false ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-400')
+        }>
+          <span className={'w-1.5 h-1.5 rounded-full ' + (claudeLive ? 'bg-emerald-500' : claudeLive === false ? 'bg-amber-500' : 'bg-slate-300')} />
+          Claude API {claudeLive == null ? '…' : claudeLive ? 'live' : 'offline'}
+        </span>
+        <span className="text-slate-400">reads Tally screenshots &amp; powers Ask the MIS</span>
+        {store && (
+          <span className="text-slate-400">
+            · storage: {store.durable ? <span className="text-emerald-700">Cloud Storage</span> : <span className="text-amber-700">temporary</span>}
+          </span>
+        )}
+      </div>
+
       {/* Store durability banner */}
       {store && !store.durable && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 space-y-2">

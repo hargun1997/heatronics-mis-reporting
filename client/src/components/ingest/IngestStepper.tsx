@@ -41,11 +41,12 @@ export function IngestStepper({
 
   const wired = slot.kind === 'vision' || Boolean(slot.parserId);
 
-  const onFile = async (file: File | undefined) => {
-    if (!file) return;
+  const onFiles = async (files: FileList | null) => {
+    const list = files ? Array.from(files) : [];
+    if (list.length === 0) return;
     setStage('checking'); setError(null); setStaged(null); setAck(false);
     try {
-      const s = await runChecks(slot, file);
+      const s = await runChecks(slot, list);
       setStaged(s);
       setPeriod(s.periodKey);
       setStage(s.checks.overall === 'fail' ? 'failed' : 'review');
@@ -54,6 +55,7 @@ export function IngestStepper({
       setStage('failed');
     }
   };
+  const multiple = slot.kind === 'vision';
 
   const save = async () => {
     if (!staged) return;
@@ -94,17 +96,17 @@ export function IngestStepper({
       </div>
 
       {/* Step indicator */}
-      <div className="flex items-center gap-1 px-4 py-2.5 text-[10px]">
+      <div className="flex items-center gap-1.5 px-4 py-2.5 text-[11px]">
         {STEPS.map((s, i) => (
-          <div key={s} className="flex items-center gap-1">
+          <div key={s} className="flex items-center gap-1.5">
             <span className={
-              'flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-semibold ' +
+              'flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold ' +
               (i < active ? 'bg-emerald-500 text-white'
                 : i === active ? 'bg-brand-500 text-white'
                 : 'bg-slate-100 text-slate-400')
             }>{i < active ? '✓' : i + 1}</span>
-            <span className={i <= active ? 'text-slate-600 font-medium' : 'text-slate-300'}>{s}</span>
-            {i < STEPS.length - 1 && <span className="w-4 h-px bg-slate-200 mx-0.5" />}
+            <span className={i <= active ? 'text-slate-700 font-medium' : 'text-slate-400'}>{s}</span>
+            {i < STEPS.length - 1 && <span className="w-5 h-px bg-slate-200 mx-0.5" />}
           </div>
         ))}
       </div>
@@ -112,13 +114,13 @@ export function IngestStepper({
       <div className="border-t border-slate-100 px-4 py-3 space-y-3">
         {/* Export steps — always visible */}
         <div>
-          <h5 className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">How to get this report</h5>
-          <ol className="space-y-0.5 text-[11px] text-slate-600">
+          <h5 className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1.5">How to get this report</h5>
+          <ol className="space-y-1 text-[13px] text-slate-700 leading-relaxed">
             {slot.exportSteps.map((t, i) => (
-              <li key={i} className="flex gap-2"><span className="text-slate-400 tabular-nums">{i + 1}.</span><span>{t}</span></li>
+              <li key={i} className="flex gap-2"><span className="text-brand-500 font-semibold tabular-nums">{i + 1}.</span><span>{t}</span></li>
             ))}
           </ol>
-          {slot.note && <p className="text-[10px] text-slate-400 mt-1">{slot.note}</p>}
+          {slot.note && <p className="text-[12px] text-slate-500 mt-1.5">{slot.note}</p>}
         </div>
 
         {/* ① Upload */}
@@ -127,12 +129,14 @@ export function IngestStepper({
             The reader for this report is being built — the steps above are ready. Upload opens next.
           </p>
         ) : (stage === 'idle' || stage === 'failed') && (
-          <div className="flex items-center gap-2">
-            <label className="px-2.5 py-1.5 text-xs rounded-lg bg-brand-600 text-white hover:bg-brand-700 cursor-pointer">
-              {committed ? 'Replace file' : 'Upload file'}
-              <input type="file" accept={slot.accept} className="hidden" onChange={(e) => void onFile(e.target.files?.[0])} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="px-3 py-1.5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 cursor-pointer">
+              {committed ? 'Replace' : multiple ? 'Upload screenshot(s)' : 'Upload file'}
+              <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
             </label>
-            <span className="text-[10px] text-slate-400">{slot.accept}</span>
+            <span className="text-[11px] text-slate-500">
+              {slot.accept}{multiple ? ' · select all screens at once (one statement, scrolled)' : ''}
+            </span>
           </div>
         )}
 
@@ -176,7 +180,7 @@ export function IngestStepper({
             {wired && (
               <label className="text-[11px] text-slate-500 underline cursor-pointer hover:text-slate-700">
                 Re-upload / overwrite
-                <input type="file" accept={slot.accept} className="hidden" onChange={(e) => void onFile(e.target.files?.[0])} />
+                <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
               </label>
             )}
           </div>

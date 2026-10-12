@@ -79,12 +79,20 @@ export interface IngestStoreStatus {
   grantHint: string | null;
 }
 
-/** The result of validating a file, held in the stepper until the user saves. */
+export interface RawFile {
+  base64: string;
+  name: string;
+  mimeType: string;
+}
+
+/** The result of validating file(s), held in the stepper until the user saves. */
 export interface StagedUpload {
   checks: CheckReport;
   extracted: Extracted;
+  /** Display name (first file, "+N more" when several). */
   fileName: string;
   mimeType: string;
-  rawBase64: string;
+  /** One or more raw files — a report can be several screenshots. */
+  rawFiles: RawFile[];
   periodKey: string;
 }
