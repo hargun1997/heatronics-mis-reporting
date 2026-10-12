@@ -11,9 +11,7 @@
 // caller is expected to make a human confirm each figure before it can affect a
 // close. The dashboard enforces that; this service just marks the data.
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+import { claudeCompleteText, isClaudeConfigured, stripJsonFence } from './claudeClient.js';
 
 export interface VisionLedgerRow {
   name: string;
@@ -65,11 +63,8 @@ Return ONLY JSON matching this shape, with no prose and no markdown fence:
 }`;
 
 export class LedgerVisionService {
-  private apiKey = GEMINI_API_KEY;
-  private model = DEFAULT_MODEL;
-
   isConfigured(): boolean {
-    return Boolean(this.apiKey);
+    return isClaudeConfigured();
   }
 
   /**
@@ -77,47 +72,20 @@ export class LedgerVisionService {
    * @param mimeType    e.g. "image/png"
    */
   async extract(imageBase64: string, mimeType: string): Promise<VisionResult> {
-    if (!this.apiKey) {
+    if (!isClaudeConfigured()) {
       throw new Error(
-        'GEMINI_API_KEY is not set on the server, so screenshots cannot be read. ' +
+        'ANTHROPIC_API_KEY is not set on the server, so screenshots cannot be read. ' +
           'Upload the Tally xlsx export instead, or set the key and restart.',
       );
     }
 
-    const response = await fetch(
-      `${GEMINI_API_BASE}/${this.model}:generateContent?key=${this.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: PROMPT },
-                { inline_data: { mime_type: mimeType, data: imageBase64 } },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0,
-            topP: 0.8,
-            maxOutputTokens: 8192,
-            responseMimeType: 'application/json',
-          },
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini vision error: ${response.status} - ${errorText}`);
-    }
-
-    const payload = (await response.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Gemini returned no content for this image.');
+    const text = await claudeCompleteText({
+      system: PROMPT,
+      parts: [{ image: { mimeType, data: imageBase64 } }],
+      maxTokens: 8192,
+      // Figures must be read exactly — think a little, spend little.
+      effort: 'low',
+    });
 
     return normalise(parseJson(text));
   }

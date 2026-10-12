@@ -1,4 +1,5 @@
 import { MISCategory, ClassificationRule } from './googleSheets.js';
+import { claudeCompleteText, isClaudeConfigured, stripJsonFence } from './claudeClient.js';
 
 // ============================================
 // TYPES
@@ -16,66 +17,42 @@ export interface ClassificationResult {
   head: string | null;
   subhead: string | null;
   confidence: number;
-  source: 'gemini' | 'rule' | 'similarity' | 'none';
+  source: 'claude' | 'rule' | 'similarity' | 'none';
   ruleId?: string;
   reasoning?: string;
   needsReview?: boolean;
 }
 
-export interface GeminiConfig {
+export interface ClassifierConfig {
+  /** Optional per-call model override, e.g. "claude-opus-5-5". */
   model?: string;
+  /** Retained for config-sheet compatibility; current models ignore it. */
   temperature?: number;
   apiKey?: string;
 }
 
 // ============================================
-// GEMINI API CONFIGURATION
+// CLAUDE CLASSIFIER SERVICE
 // ============================================
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-3-flash-preview';  // Latest Gemini model
+class ClaudeClassifierService {
+  private model: string | undefined;
 
-// ============================================
-// GEMINI CLASSIFIER SERVICE
-// ============================================
-
-class GeminiClassifierService {
-  private apiKey: string;
-  private model: string;
-  private temperature: number;
-
-  constructor() {
-    this.apiKey = GEMINI_API_KEY;
-    this.model = DEFAULT_MODEL;
-    this.temperature = 0.2;
-  }
-
-  // Set config from Google Sheets MIS_Config
-  setConfig(config: GeminiConfig): void {
-    if (config.apiKey) {
-      this.apiKey = config.apiKey;
-    }
+  // Set config from Google Sheets MIS_Config. The API key lives in
+  // ANTHROPIC_API_KEY on the server; only the model override is honoured here.
+  setConfig(config: ClassifierConfig): void {
     if (config.model) {
-      // Normalize model name - handle various formats
       let modelName = config.model.trim();
-      // If it's a full path, extract just the model name
       if (modelName.includes('/')) {
         modelName = modelName.split('/').pop() || modelName;
       }
       this.model = modelName;
     }
-    if (config.temperature !== undefined) {
-      this.temperature = Math.max(0, Math.min(1, config.temperature));
-    }
-    console.log(`Gemini config set: model=${this.model}, temperature=${this.temperature}`);
+    console.log(`Claude classifier config set: model=${this.model ?? 'default'}`);
   }
 
-  getConfig(): GeminiConfig {
-    return {
-      model: this.model,
-      temperature: this.temperature
-    };
+  getConfig(): ClassifierConfig {
+    return { model: this.model };
   }
 
   private buildPrompt(
@@ -199,35 +176,35 @@ Respond ONLY with the JSON array, no other text.`;
       return results;
     }
 
-    // Use Gemini for unmatched entities
+    // Use Claude for unmatched entities
     try {
       const prompt = this.buildPrompt(entitiesToClassify, categories, existingRules);
-      const geminiResults = await this.callGeminiAPI(prompt);
+      const aiResults = await this.callModel(prompt);
 
-      // Parse and validate Gemini results
+      // Parse and validate model results
       for (const entity of entitiesToClassify) {
-        const geminiResult = geminiResults.find(
+        const aiResult = aiResults.find(
           (r: any) => r.entityName?.toLowerCase() === entity.name.toLowerCase()
         );
 
-        if (geminiResult && geminiResult.head && geminiResult.subhead) {
+        if (aiResult && aiResult.head && aiResult.subhead) {
           // Validate that head/subhead exist in categories
           const validCategory = categories.find(
-            c => c.head === geminiResult.head && c.subhead === geminiResult.subhead
+            c => c.head === aiResult.head && c.subhead === aiResult.subhead
           );
 
           if (validCategory) {
             results.push({
               entityName: entity.name,
-              head: geminiResult.head,
-              subhead: geminiResult.subhead,
-              confidence: geminiResult.confidence || 70,
-              source: 'gemini',
-              reasoning: geminiResult.reasoning,
-              needsReview: (geminiResult.confidence || 70) < 80
+              head: aiResult.head,
+              subhead: aiResult.subhead,
+              confidence: aiResult.confidence || 70,
+              source: 'claude',
+              reasoning: aiResult.reasoning,
+              needsReview: (aiResult.confidence || 70) < 80
             });
           } else {
-            // Gemini returned invalid category, mark for review
+            // Model returned invalid category, mark for review
             results.push({
               entityName: entity.name,
               head: null,
@@ -235,11 +212,11 @@ Respond ONLY with the JSON array, no other text.`;
               confidence: 0,
               source: 'none',
               needsReview: true,
-              reasoning: `AI suggested invalid category: ${geminiResult.head} / ${geminiResult.subhead}`
+              reasoning: `AI suggested invalid category: ${aiResult.head} / ${aiResult.subhead}`
             });
           }
         } else {
-          // No Gemini result for this entity
+          // No model result for this entity
           results.push({
             entityName: entity.name,
             head: null,
@@ -251,7 +228,7 @@ Respond ONLY with the JSON array, no other text.`;
         }
       }
     } catch (error) {
-      console.error('Gemini API error:', error);
+      console.error('Claude classifier error:', error);
       // Mark all unclassified entities as needing review
       for (const entity of entitiesToClassify) {
         results.push({
@@ -269,60 +246,24 @@ Respond ONLY with the JSON array, no other text.`;
     return results;
   }
 
-  private async callGeminiAPI(prompt: string): Promise<any[]> {
-    if (!this.apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set on the server');
+  private async callModel(prompt: string): Promise<any[]> {
+    if (!isClaudeConfigured()) {
+      throw new Error('ANTHROPIC_API_KEY is not set on the server');
     }
-    // Build URL dynamically based on model
-    const apiUrl = `${GEMINI_API_BASE}/${this.model}:generateContent`;
-    console.log(`Calling Gemini API: ${apiUrl} (temperature=${this.temperature})`);
 
-    const response = await fetch(`${apiUrl}?key=${this.apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: this.temperature,
-          topP: 0.8,
-          maxOutputTokens: 4096,
-        }
-      })
+    const text = await claudeCompleteText({
+      parts: [{ text: prompt }],
+      maxTokens: 4096,
+      effort: 'low',
+      ...(this.model ? { model: this.model } : {}),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json() as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[]
-    };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      throw new Error('Empty response from Gemini');
-    }
-
-    // Parse JSON from response (may include markdown code blocks)
-    let jsonText = text;
-    if (text.includes('```json')) {
-      jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    } else if (text.includes('```')) {
-      jsonText = text.replace(/```\n?/g, '');
-    }
-
     try {
-      return JSON.parse(jsonText.trim());
-    } catch (parseError) {
-      console.error('Failed to parse Gemini response:', text);
-      throw new Error('Invalid JSON response from Gemini');
+      const parsed = JSON.parse(stripJsonFence(text));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      console.error('Failed to parse classifier response:', text.slice(0, 300));
+      throw new Error('Invalid JSON response from Claude');
     }
   }
 
@@ -417,4 +358,4 @@ Respond ONLY with the JSON array, no other text.`;
 }
 
 // Export singleton
-export const geminiClassifier = new GeminiClassifierService();
+export const claudeClassifier = new ClaudeClassifierService();

@@ -1,6 +1,4 @@
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+import { claudeCompleteText, type ClaudePart } from './claudeClient.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -237,110 +235,24 @@ The Tally XML export uses these fields directly — do not invent values.
 Use null for line amounts you cannot determine. Stages must be in chronological order. There must be at least one stage.`;
 }
 
+
 // ---------------------------------------------------------------------------
-// Gemini call
+// Claude call
 // ---------------------------------------------------------------------------
 
-interface GeminiPart {
-  text?: string;
-  inline_data?: { mime_type: string; data: string };
-}
-
-async function callGemini(parts: GeminiPart[]): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY environment variable is not set on the server');
-  }
-  const url = `${GEMINI_API_BASE}/${DEFAULT_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const requestBody = JSON.stringify({
-    contents: [{ parts }],
-    generationConfig: {
-      temperature: 0.2,
-      topP: 0.8,
-      // Booking advice carries the full master in context plus a multi-line
-      // JSON output. 4 KB is too tight; truncated outputs surfaced as
-      // "Unterminated string in JSON" errors. 16 KB gives plenty of room
-      // and stays well under Gemini 2.5 Flash's 64 KB output cap.
-      maxOutputTokens: 16384,
-      responseMimeType: 'application/json',
-    },
+async function callClaude(parts: ClaudePart[]): Promise<string> {
+  // Booking advice carries the full master in context plus a multi-line JSON
+  // output, so give the response plenty of room — a truncated payload shows up
+  // downstream as "Unterminated string in JSON". Retry/backoff lives in
+  // claudeClient. 'medium' effort: this is reasoning over the master, not OCR.
+  return claudeCompleteText({
+    system:
+      'You are an expert Indian accountant. Return ONLY the requested JSON object — ' +
+      'no prose, no markdown fence.',
+    parts,
+    maxTokens: 16384,
+    effort: 'medium',
   });
-
-  // Gemini intermittently returns 503 UNAVAILABLE / 429 RESOURCE_EXHAUSTED
-  // when the model is hot. Retry a few times with exponential backoff
-  // before giving up, and surface a friendlier message if all retries fail.
-  const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
-  const MAX_ATTEMPTS = 4;
-  let lastErrorText = '';
-  let lastStatus = 0;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody,
-      });
-    } catch (e) {
-      lastErrorText = e instanceof Error ? e.message : String(e);
-      lastStatus = 0;
-      if (attempt < MAX_ATTEMPTS) {
-        await sleep(backoffMs(attempt));
-        continue;
-      }
-      throw new Error(`Gemini network error after ${MAX_ATTEMPTS} attempts: ${lastErrorText}`);
-    }
-
-    if (response.ok) {
-      const data = (await response.json()) as {
-        candidates?: {
-          content?: { parts?: { text?: string }[] };
-          finishReason?: string;
-        }[];
-      };
-      const candidate = data.candidates?.[0];
-      const text = candidate?.content?.parts?.[0]?.text;
-      if (!text) throw new Error('Empty response from Gemini');
-      if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
-        // MAX_TOKENS, SAFETY, RECITATION, OTHER — flag clearly instead of
-        // letting the JSON parser stumble on a truncated payload.
-        throw new Error(
-          `Gemini response was incomplete (finishReason=${candidate.finishReason}). The booking is likely too detailed to fit. Try splitting the invoice into smaller items or remove very long notes.`
-        );
-      }
-      return text;
-    }
-
-    lastStatus = response.status;
-    lastErrorText = await response.text();
-
-    if (RETRYABLE_STATUS.has(response.status) && attempt < MAX_ATTEMPTS) {
-      await sleep(backoffMs(attempt));
-      continue;
-    }
-    break;
-  }
-
-  if (lastStatus === 503 || /UNAVAILABLE/i.test(lastErrorText)) {
-    throw new Error(
-      `Gemini is temporarily overloaded (503 UNAVAILABLE) and didn't recover after ${MAX_ATTEMPTS} retries. Please try again in a minute — usually clears within a few seconds.`
-    );
-  }
-  if (lastStatus === 429 || /RESOURCE_EXHAUSTED/i.test(lastErrorText)) {
-    throw new Error(
-      `Gemini rate limit hit (429). Please wait a moment and retry, or check the project quota in Google Cloud Console.`
-    );
-  }
-  throw new Error(`Gemini API error: ${lastStatus} - ${lastErrorText}`);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// 1.5s, 3s, 6s — caps total wait at ~10.5s before giving up.
-function backoffMs(attempt: number): number {
-  return Math.min(1500 * 2 ** (attempt - 1), 6000);
 }
 
 function parseJsonFromText(text: string): ExpenseAdvice {
@@ -363,7 +275,7 @@ function parseJsonFromText(text: string): ExpenseAdvice {
       pos >= 0
         ? jsonText.slice(Math.max(0, pos - 80), Math.min(jsonText.length, pos + 80))
         : jsonText.slice(0, 240);
-    console.error('Gemini JSON parse failed:', message);
+    console.error('Claude JSON parse failed:', message);
     console.error('Length:', jsonText.length, 'Snippet around failure:', JSON.stringify(snippet));
     throw new Error(
       `AI returned malformed JSON (${message}). Length ${jsonText.length}. The response was likely truncated or contains an unescaped character.`
@@ -415,13 +327,13 @@ export async function getExpenseBookingAdvice(
     throw new Error('Either manualEntry or attachments must be provided');
   }
   const prompt = buildPrompt(req.tallyMaster, req.answers, req.manualEntry, attachments.length);
-  const parts: GeminiPart[] = [{ text: prompt }];
+  const parts: ClaudePart[] = [{ text: prompt }];
   for (const a of attachments) {
     if (a.data && a.mime) {
-      parts.push({ inline_data: { mime_type: a.mime, data: a.data } });
+      parts.push({ image: { mimeType: a.mime, data: a.data } });
     }
   }
-  const raw = await callGemini(parts);
+  const raw = await callClaude(parts);
   const advice = parseJsonFromText(raw);
   return validateAgainstMaster(advice, req.tallyMaster);
 }
