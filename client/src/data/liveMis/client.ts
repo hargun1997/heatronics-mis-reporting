@@ -13,6 +13,8 @@ export interface SourceStatus {
   /** Earliest / latest date this source returned data for, in the range. */
   from?: string | null;
   through?: string | null;
+  /** Steps the connector ran, for the readiness page. */
+  trace?: string[];
 }
 
 export interface FactsResponse {

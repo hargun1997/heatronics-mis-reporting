@@ -120,7 +120,13 @@ const googleAds: ConnectorDef = {
       fees: 0,
       spend: Math.round(spend * 100) / 100,
     }));
-    return { facts, warnings: [] };
+    const dates = facts.map((f) => f.date).sort();
+    const trace = [
+      `Minted OAuth access token (refresh grant)`,
+      `Ran GAQL cost-by-date query for customer ${digits(creds.customerId || '')} — ${rows.length} rows`,
+      `Extracted ${facts.length} daily spend facts${dates.length ? ` spanning ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
+    ];
+    return { facts, warnings: [], trace };
   },
 
   async fetchPeriod(creds: Credentials, periodKey: string): Promise<FetchResult> {

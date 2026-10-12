@@ -100,7 +100,13 @@ const meta: ConnectorDef = {
       url = body.paging?.next ?? null;
       pages += 1;
     }
-    return { facts, warnings };
+    const dates = facts.map((f) => f.date).sort();
+    const trace = [
+      `Authenticated to ${account(creds)}`,
+      `Called Insights API (account-level, daily) ${fromISO}→${toISO} across ${pages} page(s)`,
+      `Extracted ${facts.length} daily spend facts${dates.length ? ` spanning ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
+    ];
+    return { facts, warnings, trace };
   },
 
   async fetchPeriod(creds: Credentials, periodKey: string): Promise<FetchResult> {

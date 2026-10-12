@@ -168,6 +168,7 @@ router.post('/facts', h(async (req, res) => {
         count: result.facts.length,
         from: dates[0] ?? null,
         through: dates[dates.length - 1] ?? null,
+        trace: result.trace ?? [],
       });
     } catch (err) {
       sources.push({

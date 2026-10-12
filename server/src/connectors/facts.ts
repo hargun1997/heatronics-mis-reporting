@@ -33,6 +33,8 @@ export interface DailyFact {
 export interface FactResult {
   facts: DailyFact[];
   warnings: string[];
+  /** Human-readable steps the connector ran, for the readiness page. */
+  trace?: string[];
 }
 
 export type Granularity = 'day' | 'week' | 'month';
