@@ -32,7 +32,7 @@ export interface CredentialField {
 export type FetchMode = 'api' | 'xmlhttp' | 'webhook' | 'file';
 
 /** Rough grouping for the console, mirroring FEED_SOURCES tiers. */
-export type ConnectorGroup = 'book' | 'marketplace' | 'd2c' | 'logistics' | 'payments';
+export type ConnectorGroup = 'book' | 'marketplace' | 'd2c' | 'logistics' | 'payments' | 'marketing';
 
 export type Credentials = Record<string, string>;
 

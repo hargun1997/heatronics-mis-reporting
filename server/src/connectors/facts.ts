@@ -26,6 +26,8 @@ export interface DailyFact {
   orders: number;
   /** Channel/fulfilment fees attributable here, always a positive cost. */
   fees: number;
+  /** Advertising spend, from the ad-platform connectors. Positive cost. */
+  spend?: number;
 }
 
 export interface FactResult {
@@ -41,10 +43,14 @@ export interface Metrics {
   units: number;
   orders: number;
   fees: number;
+  /** Advertising spend. */
+  spend: number;
   /** revenue − fees. */
   net: number;
   /** revenue / orders, or 0 when no orders. */
   aov: number;
+  /** Marketing efficiency ratio: revenue / spend, or 0 when no spend. */
+  mer: number;
 }
 
 export interface Bucket extends Metrics {
@@ -100,20 +106,23 @@ export function rollup(facts: DailyFact[], g: Granularity, dim: Dimension): Buck
     const id = `${period}||${d.key}`;
     let b = map.get(id);
     if (!b) {
-      b = { period, key: d.key, channel: d.channel, sku: d.sku, revenue: 0, units: 0, orders: 0, fees: 0, net: 0, aov: 0 };
+      b = { period, key: d.key, channel: d.channel, sku: d.sku, revenue: 0, units: 0, orders: 0, fees: 0, spend: 0, net: 0, aov: 0, mer: 0 };
       map.set(id, b);
     }
     b.revenue += f.revenue;
     b.units += f.units;
     b.orders += f.orders;
     b.fees += f.fees;
+    b.spend += f.spend ?? 0;
   }
   const out = [...map.values()];
   for (const b of out) {
     b.revenue = round(b.revenue);
     b.fees = round(b.fees);
+    b.spend = round(b.spend);
     b.net = round(b.revenue - b.fees);
     b.aov = b.orders > 0 ? round(b.revenue / b.orders) : 0;
+    b.mer = b.spend > 0 ? round(b.revenue / b.spend) : 0;
   }
   out.sort((a, b) => (a.period === b.period ? a.key.localeCompare(b.key) : a.period.localeCompare(b.period)));
   return out;
@@ -121,17 +130,20 @@ export function rollup(facts: DailyFact[], g: Granularity, dim: Dimension): Buck
 
 /** Totals across every fact, for the KPI tiles. */
 export function totals(facts: DailyFact[]): Metrics {
-  const m: Metrics = { revenue: 0, units: 0, orders: 0, fees: 0, net: 0, aov: 0 };
+  const m: Metrics = { revenue: 0, units: 0, orders: 0, fees: 0, spend: 0, net: 0, aov: 0, mer: 0 };
   for (const f of facts) {
     m.revenue += f.revenue;
     m.units += f.units;
     m.orders += f.orders;
     m.fees += f.fees;
+    m.spend += f.spend ?? 0;
   }
   m.revenue = round(m.revenue);
   m.fees = round(m.fees);
+  m.spend = round(m.spend);
   m.net = round(m.revenue - m.fees);
   m.aov = m.orders > 0 ? round(m.revenue / m.orders) : 0;
+  m.mer = m.spend > 0 ? round(m.revenue / m.spend) : 0;
   return m;
 }
 

@@ -19,7 +19,7 @@ export interface CredentialField {
 }
 
 export type FetchMode = 'api' | 'xmlhttp' | 'webhook' | 'file';
-export type ConnectorGroup = 'book' | 'marketplace' | 'd2c' | 'logistics' | 'payments';
+export type ConnectorGroup = 'book' | 'marketplace' | 'd2c' | 'logistics' | 'payments' | 'marketing';
 
 export interface ConnectorInfo {
   id: string;
@@ -125,6 +125,7 @@ export const GROUP_LABEL: Record<ConnectorGroup, string> = {
   book: 'Book of record',
   marketplace: 'Marketplaces',
   d2c: 'D2C',
+  marketing: 'Advertising',
   logistics: 'Logistics',
   payments: 'Payments & checkout',
 };

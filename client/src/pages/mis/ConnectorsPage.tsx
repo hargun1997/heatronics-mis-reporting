@@ -30,7 +30,7 @@ import { emptySession, type MonthCloseSession, type UploadedSource } from '../..
 const CLOSE_SESSION_KEY = 'heatronics.monthClose.session';
 const DEFAULT_PERIOD = '2026-08'; // the next month to close after Jul 2026
 
-const GROUP_ORDER: ConnectorGroup[] = ['book', 'marketplace', 'd2c', 'logistics', 'payments'];
+const GROUP_ORDER: ConnectorGroup[] = ['book', 'marketplace', 'd2c', 'marketing', 'logistics', 'payments'];
 
 const iconPlug = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
