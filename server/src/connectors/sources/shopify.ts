@@ -20,17 +20,67 @@ import type { DailyFact, FactResult } from '../facts.js';
 
 const DEFAULT_VERSION = '2024-10';
 
-function base(creds: Credentials): string {
+function shopHost(creds: Credentials): string {
   const shop = (creds.shopDomain || '').trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
   if (!shop) throw new Error('Shopify shopDomain is required (e.g. heatronics.myshopify.com).');
-  const version = (creds.apiVersion || DEFAULT_VERSION).trim();
-  return `https://${shop}/admin/api/${version}`;
+  return shop;
 }
 
-function headers(creds: Credentials): Record<string, string> {
-  const token = (creds.accessToken || '').trim();
-  if (!token) throw new Error('Shopify Admin API access token is required.');
+function base(creds: Credentials): string {
+  const version = (creds.apiVersion || DEFAULT_VERSION).trim();
+  return `https://${shopHost(creds)}/admin/api/${version}`;
+}
+
+function headers(token: string): Record<string, string> {
   return { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' };
+}
+
+// Minted client-credentials tokens cached per (shop, clientId) until they near
+// expiry. The new Dev Dashboard issues these for own-org stores; they last ~24h.
+const tokenCache = new Map<string, { token: string; expiresAt: number }>();
+
+/**
+ * Resolve an Admin API token. Prefers a pasted access token (shpat_… / offline
+ * token). Otherwise mints one from client id + secret via the client-credentials
+ * grant — the path the Dev Dashboard pushes for own-store apps since the legacy
+ * custom-app flow was retired in Jan 2026.
+ */
+async function resolveToken(creds: Credentials): Promise<string> {
+  const direct = (creds.accessToken || '').trim();
+  if (direct) return direct;
+
+  const clientId = (creds.clientId || '').trim();
+  const clientSecret = (creds.clientSecret || '').trim();
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      'Shopify needs either an Admin API access token, or a Client ID + Client secret ' +
+        '(from the Dev Dashboard app) to mint one.',
+    );
+  }
+
+  const shop = shopHost(creds);
+  const cacheKey = `${shop}|${clientId}`;
+  const cached = tokenCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.token;
+
+  const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `Shopify token request failed (${res.status}): ${await res.text()}. ` +
+        'Confirm the app is installed on this store and the Client ID/secret are correct.',
+    );
+  }
+  const body = (await res.json()) as { access_token?: string; expires_in?: number };
+  if (!body.access_token) throw new Error('Shopify returned no access_token for the client-credentials grant.');
+  tokenCache.set(cacheKey, {
+    token: body.access_token,
+    expiresAt: Date.now() + (body.expires_in ?? 86400) * 1000,
+  });
+  return body.access_token;
 }
 
 /** Pull the `page_info` out of a Shopify Link header's rel="next", if any. */
@@ -68,6 +118,7 @@ interface ShopifyOrder {
  */
 async function eachOrder(
   creds: Credentials,
+  token: string,
   startISO: string,
   endISO: string,
   fields: string,
@@ -88,7 +139,7 @@ async function eachOrder(
       url.searchParams.set('limit', '250');
       url.searchParams.set('fields', fields);
     }
-    const res = await fetch(url, { headers: headers(creds) });
+    const res = await fetch(url, { headers: headers(token) });
     if (!res.ok) throw new Error(`Shopify orders request failed (${res.status}): ${await res.text()}`);
     const body = (await res.json()) as { orders?: ShopifyOrder[] };
     for (const o of body.orders ?? []) {
@@ -121,11 +172,27 @@ const shopify: ConnectorDef = {
       help: 'Your .myshopify.com domain, not the custom storefront domain.',
     },
     {
+      key: 'clientId',
+      label: 'Client ID',
+      type: 'text',
+      placeholder: 'from the Dev Dashboard app',
+      optional: true,
+      help: 'Dev Dashboard → your app → Client ID. The server mints the token from this + the secret.',
+    },
+    {
+      key: 'clientSecret',
+      label: 'Client secret',
+      type: 'password',
+      optional: true,
+      help: 'Dev Dashboard → your app → Client secret. Install the app on your store first.',
+    },
+    {
       key: 'accessToken',
       label: 'Admin API access token',
       type: 'password',
       placeholder: 'shpat_…',
-      help: 'Custom app → API credentials → Admin API access token. Needs read_orders, read_products.',
+      optional: true,
+      help: 'Alternative to Client ID/secret: paste a token directly if your app shows one.',
     },
     {
       key: 'apiVersion',
@@ -136,10 +203,11 @@ const shopify: ConnectorDef = {
       help: `Defaults to ${DEFAULT_VERSION}.`,
     },
   ],
-  note: 'Reads orders for the month and rolls them up per variant SKU. Payment-gateway fees are not in this feed — those come from Easebuzz/Shopflo.',
+  note: 'Reads orders per variant SKU. Auth: Client ID + Client secret from the Dev Dashboard app (recommended) — the server mints the token — or paste an Admin API token. App needs read_orders + read_products. Payment-gateway fees come from Easebuzz/Shopflo, not here.',
 
   async test(creds: Credentials): Promise<TestResult> {
-    const res = await fetch(`${base(creds)}/shop.json`, { headers: headers(creds) });
+    const token = await resolveToken(creds);
+    const res = await fetch(`${base(creds)}/shop.json`, { headers: headers(token) });
     if (res.ok) {
       const body = (await res.json()) as { shop?: { myshopify_domain?: string } };
       return { ok: true, detail: `Connected to ${body.shop?.myshopify_domain ?? 'shop'}.` };
@@ -157,7 +225,8 @@ const shopify: ConnectorDef = {
     let net = 0;
     let blankSku = 0;
 
-    const { pages, count: orderCount } = await eachOrder(creds, startISO, endISO, 'id,line_items', (order) => {
+    const token = await resolveToken(creds);
+    const { pages, count: orderCount } = await eachOrder(creds, token, startISO, endISO, 'id,line_items', (order) => {
       for (const li of order.line_items ?? []) {
         const qty = num(li.quantity);
         const gross = num(li.price) * qty - num(li.total_discount);
@@ -226,7 +295,8 @@ const shopify: ConnectorDef = {
     const byDaySku = new Map<string, DailyFact>();
     const orderDays = new Map<string, Set<string>>(); // day -> order ids, to count orders
 
-    const { pages } = await eachOrder(creds, startISO, endISO, 'id,created_at,line_items', (order) => {
+    const token = await resolveToken(creds);
+    const { pages } = await eachOrder(creds, token, startISO, endISO, 'id,created_at,line_items', (order) => {
       const day = (order.created_at ?? '').slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
       const oid = String((order as { id?: unknown }).id ?? Math.random());
