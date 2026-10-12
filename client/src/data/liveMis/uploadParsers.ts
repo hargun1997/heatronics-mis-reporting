@@ -92,7 +92,9 @@ function toISODate(raw: unknown): string {
     return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
   }
   const s = String(raw ?? '').trim();
-  const m = s.match(/(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/);
+  // "12-Oct-2026" (Shiprocket) and "1 Jul 2026 8:56:34 am UTC" (Amazon) both
+  // land here — day, three-letter month, year, separated by a dash or a space.
+  const m = s.match(/(\d{1,2})[-\s]([A-Za-z]{3})[-\s](\d{2,4})/);
   if (m && MONTHS[m[2].toLowerCase()]) {
     const year = m[3].length === 2 ? `20${m[3]}` : m[3];
     return `${year}-${MONTHS[m[2].toLowerCase()]}-${m[1].padStart(2, '0')}`;
@@ -169,6 +171,138 @@ function parseShiprocketPassbook(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning, trace };
 }
 
+// ---- Amazon unified transaction (settlement file) → daily facts ------------
+
+// Rows that are not product sales. A Transfer is the settlement moving to the
+// bank — money out, not a cost — and must be excluded or it reads as a huge
+// expense. "Cost of advertising" is a real marketing cost, so it lands on
+// spend (= MER denominator), not fees.
+const AMAZON_AD = /cost of advertising/i;
+
+interface DayAgg {
+  revenue: number;
+  units: number;
+  orders: number;
+  fees: number;
+  spend: number;
+}
+
+function parseAmazonSettlement(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  // Amazon prints ~14 lines of column definitions above the real header.
+  const hi = findHeader(rows, ['date/time', 'type', 'total']);
+  if (hi < 0) {
+    return {
+      facts: [],
+      warning: 'No "date/time / type / total" header row found — is this the Amazon unified transaction export?',
+    };
+  }
+  const header = (rows[hi] ?? []).map(lower);
+  const ix = {
+    date: col(header, 'date/time'),
+    type: col(header, 'type'),
+    sku: col(header, 'sku'),
+    desc: col(header, 'description'),
+    qty: col(header, 'quantity'),
+    sales: col(header, 'product sales'),
+    shipping: col(header, 'shipping credits'),
+    giftWrap: col(header, 'gift wrap credits'),
+    rebates: col(header, 'promotional rebates'),
+    selling: col(header, 'selling fees'),
+    fba: col(header, 'fba fees'),
+    otherTxn: col(header, 'other transaction fees'),
+    total: col(header, 'total'),
+  };
+  const missing = (['product sales', 'selling fees', 'total'] as const).filter((h) => col(header, h) < 0);
+  if (missing.length > 0) {
+    return { facts: [], warning: `Amazon: header is missing column(s): ${missing.join(', ')}.` };
+  }
+
+  const byDay = new Map<string, DayAgg>();
+  const bump = (date: string): DayAgg => {
+    let d = byDay.get(date);
+    if (!d) {
+      d = { revenue: 0, units: 0, orders: 0, fees: 0, spend: 0 };
+      byDay.set(date, d);
+    }
+    return d;
+  };
+
+  let undated = 0;
+  let transfers = 0;
+  let dataRows = 0;
+  const months = new Set<string>();
+
+  for (const row of rows.slice(hi + 1)) {
+    const type = cell(row[ix.type]);
+    if (!type) continue;
+    dataRows += 1;
+
+    const date = toISODate(row[ix.date]);
+    if (!date) { undated += 1; continue; }
+    months.add(date.slice(0, 7));
+
+    const sku = ix.sku >= 0 ? cell(row[ix.sku]) : '';
+
+    if (!sku) {
+      // A bank payout — money out, not a cost. Count it and skip.
+      if (/^transfer$/i.test(type)) { transfers += num(row[ix.total]); continue; }
+      // Advertising → spend (the MER denominator), reported as a negative total.
+      if (AMAZON_AD.test(cell(row[ix.desc]))) { bump(date).spend += -num(row[ix.total]); continue; }
+      // Storage / removals / easy-ship / reimbursements: a real channel cost
+      // Amazon does not attribute to a SKU — fold into the day's fees.
+      bump(date).fees += -num(row[ix.total]);
+      continue;
+    }
+
+    const rowRevenue =
+      num(row[ix.sales]) + num(row[ix.shipping]) + num(row[ix.giftWrap]) + num(row[ix.rebates]);
+    // Fees print negative on a sale, positive on a refund; negating nets both.
+    const rowFees = -(num(row[ix.selling]) + num(row[ix.fba]) + num(row[ix.otherTxn]));
+    const qty = num(row[ix.qty]);
+    if (rowRevenue === 0 && rowFees === 0 && qty === 0) continue;
+
+    // Amazon prints quantity positive even on a refund (negative sale), so key
+    // the sign off revenue, not the quantity. A zero-revenue adjustment (an FBA
+    // reimbursement) carries a quantity but is inventory written off, not a unit.
+    const units = rowRevenue === 0 ? 0 : rowRevenue < 0 ? -Math.abs(qty) : qty;
+    const d = bump(date);
+    d.revenue += rowRevenue;
+    d.fees += rowFees;
+    d.units += units;
+    if (/^order$/i.test(type) && rowRevenue > 0) d.orders += 1;
+  }
+
+  const facts: DailyFact[] = [...byDay.entries()].map(([date, a]) => ({
+    source: 'amazon',
+    channel: 'Amazon',
+    date,
+    revenue: Math.round(a.revenue * 100) / 100,
+    units: a.units,
+    orders: a.orders,
+    fees: Math.round(a.fees * 100) / 100,
+    spend: Math.round(a.spend * 100) / 100,
+  }));
+
+  const warnings: string[] = [];
+  if (undated > 0) warnings.push(`${undated} row(s) had no readable date and were skipped.`);
+  if (months.size > 1) {
+    warnings.push(
+      `Rows span ${[...months].sort().join(', ')} — settlement windows straddle month ends; check this is the window you meant.`,
+    );
+  }
+
+  const totalRev = facts.reduce((s, f) => s + f.revenue, 0);
+  const totalFees = facts.reduce((s, f) => s + f.fees, 0);
+  const totalSpend = facts.reduce((s, f) => s + (f.spend ?? 0), 0);
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — found header at row ${hi + 1} (date/time · type · total)`,
+    `Scanned ${dataRows} transaction rows; excluded bank transfers out of ₹${Math.round(-transfers).toLocaleString('en-IN')} (settlement to bank, not a cost)`,
+    `Netted sales & refunds by day → ${facts.length} daily facts: revenue ₹${Math.round(totalRev).toLocaleString('en-IN')}, fees ₹${Math.round(totalFees).toLocaleString('en-IN')}, ad spend ₹${Math.round(totalSpend).toLocaleString('en-IN')}`,
+  ];
+  return { facts, warning: warnings.join(' ') || undefined, trace };
+}
+
 // ---- Registry --------------------------------------------------------------
 
 interface ParseOutput {
@@ -186,6 +320,13 @@ export interface UploadParser {
 }
 
 export const UPLOAD_PARSERS: UploadParser[] = [
+  {
+    sourceId: 'amazon',
+    label: 'Amazon unified transaction',
+    accept: '.xlsx,.xls,.csv',
+    hint: 'Seller Central → Reports → Payments → Transaction View → Download (unified transaction / flat file). Daily revenue, units, fees & ad spend — straight from settlement.',
+    parse: parseAmazonSettlement,
+  },
   {
     sourceId: 'shiprocket',
     label: 'Shiprocket passbook',

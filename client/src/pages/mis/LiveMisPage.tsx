@@ -110,9 +110,13 @@ export function LiveMisPage() {
   }, [auto]);
 
   // Live-pulled facts, plus uploaded-report facts that fall in the date range.
+  // A source with an upload uses the upload, not the API: the settlement file
+  // carries fees and refunds the run-rate pull (e.g. Amazon orderMetrics) does
+  // not, so letting both through would double-count that source.
   const facts = useMemo(() => {
-    const apiFacts = data?.facts ?? [];
     const up = uploadedFacts(uploads).filter((f) => f.date >= from && f.date <= to);
+    const uploaded = new Set(Object.keys(uploads));
+    const apiFacts = (data?.facts ?? []).filter((f) => !uploaded.has(f.source));
     return [...apiFacts, ...up];
   }, [data, uploads, from, to]);
   const metricDef = METRICS.find((m) => m.id === metric)!;

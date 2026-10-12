@@ -55,10 +55,13 @@ export function IngestPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Group every fact (live + uploaded, within range) by its source.
+  // Group every fact (live + uploaded, within range) by its source. A source
+  // with an upload uses the upload, not the API — the settlement file is the
+  // richer truth, so letting both through would double-count that source.
   const factsBySource = useMemo(() => {
     const up = uploadedFacts(uploads).filter((f) => f.date >= from && f.date <= to);
-    const all = [...(data?.facts ?? []), ...up];
+    const uploaded = new Set(Object.keys(uploads));
+    const all = [...(data?.facts ?? []).filter((f) => !uploaded.has(f.source)), ...up];
     const by = new Map<string, DailyFact[]>();
     for (const f of all) (by.get(f.source) ?? by.set(f.source, []).get(f.source)!).push(f);
     for (const arr of by.values()) arr.sort((a, b) => a.date.localeCompare(b.date));
