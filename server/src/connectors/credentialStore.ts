@@ -12,13 +12,17 @@
 // ----------------------------------------------------------------------------
 
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import type { Credentials } from './types.js';
 
 const PROJECT = process.env.GOOGLE_CLOUD_PROJECT || '';
+// Default to the OS temp dir: on Cloud Run the app directory is read-only and
+// only /tmp is writable, so writing elsewhere throws EROFS/EACCES. This store
+// is ephemeral by design (the UI warns to use env vars for durable creds).
 const LOCAL_FILE =
   process.env.CONNECTOR_STORE_FILE ||
-  path.join(process.cwd(), '.connector-credentials.json');
+  path.join(os.tmpdir(), 'heatronics-connector-credentials.json');
 
 const SECRET_PREFIX = 'heatronics-connector-';
 const secretName = (id: string) => `${SECRET_PREFIX}${id}`;

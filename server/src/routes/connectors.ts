@@ -5,7 +5,7 @@
 // report only whether a connector is configured, never the stored values.
 // ----------------------------------------------------------------------------
 
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { CONNECTORS, getConnector } from '../connectors/registry.js';
 import {
   envCredentials,
@@ -20,6 +20,21 @@ import { NotImplementedError, type ConnectorDef, type Credentials } from '../con
 const router = Router();
 
 const fieldKeys = (c: ConnectorDef) => c.credentialFields.map((f) => f.key);
+
+/**
+ * Wrap an async handler so a rejected promise becomes a clean 500 instead of
+ * an unhandled rejection — which on Node 20 crashes the whole process and takes
+ * the service down with it. Every route below goes through this.
+ */
+type AsyncHandler = (req: Request, res: Response) => Promise<unknown>;
+const h = (fn: AsyncHandler) => (req: Request, res: Response) => {
+  Promise.resolve(fn(req, res)).catch((err: unknown) => {
+    console.error('connector route error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error.' });
+    }
+  });
+};
 
 /** Connected when every required field is satisfied by stored or env creds. */
 async function connectionStatus(c: ConnectorDef): Promise<{ connected: boolean; viaEnv: boolean }> {
@@ -46,7 +61,7 @@ function describe(id: string) {
 }
 
 // List every connector with its configured/connected status.
-router.get('/', async (_req, res) => {
+router.get('/', h(async (_req, res) => {
   const items = await Promise.all(
     CONNECTORS.map(async (c) => ({
       ...describe(c.id),
@@ -54,16 +69,16 @@ router.get('/', async (_req, res) => {
     })),
   );
   res.json({ store: storeBackendName(), connectors: items });
-});
+}));
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
   res.json({ ...describe(c.id), ...(await connectionStatus(c)) });
-});
+}));
 
 // Save (merge) credentials. Only known field keys are stored.
-router.put('/:id/credentials', async (req, res) => {
+router.put('/:id/credentials', h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
 
@@ -85,17 +100,17 @@ router.put('/:id/credentials', async (req, res) => {
 
   await saveCredentials(c.id, merged);
   res.json({ connected: true });
-});
+}));
 
-router.delete('/:id/credentials', async (req, res) => {
+router.delete('/:id/credentials', h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
   await removeCredentials(c.id);
   res.json({ connected: false });
-});
+}));
 
 // Prove the stored credentials reach the source.
-router.post('/:id/test', async (req, res) => {
+router.post('/:id/test', h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
   const creds = await getEffectiveCredentials(c.id, fieldKeys(c));
@@ -108,11 +123,11 @@ router.post('/:id/test', async (req, res) => {
   } catch (err) {
     res.status(502).json({ ok: false, detail: err instanceof Error ? err.message : 'Test failed.' });
   }
-});
+}));
 
 // Live run-rate: pull a dated fact stream from every connected source that can
 // date its data. Body: { from: "YYYY-MM-DD", to: "YYYY-MM-DD" }.
-router.post('/facts', async (req, res) => {
+router.post('/facts', h(async (req, res) => {
   const from = String(req.body?.from ?? '').trim();
   const to = String(req.body?.to ?? '').trim();
   const dateRe = /^\d{4}-\d{2}-\d{2}$/;
@@ -148,10 +163,10 @@ router.post('/facts', async (req, res) => {
   }
 
   res.json({ from, to, sources, facts, warnings });
-});
+}));
 
 // Pull one month. Body: { periodKey: "YYYY-MM" }.
-router.post('/:id/sync', async (req, res) => {
+router.post('/:id/sync', h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
   const periodKey = String(req.body?.periodKey ?? '').trim();
@@ -170,6 +185,6 @@ router.post('/:id/sync', async (req, res) => {
     const status = err instanceof NotImplementedError ? 501 : 502;
     res.status(status).json({ error: err instanceof Error ? err.message : 'Sync failed.' });
   }
-});
+}));
 
 export default router;
