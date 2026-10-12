@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { HeatronicsMark } from '../components/HeatronicsLogo';
+import { ClaudeStatusPill } from '../components/ClaudeStatusPill';
 import { Drawer } from '../components/ui/overlays';
 
 const DATA_INSIGHTS_URL = 'https://heatronics-dashboard-portfolio.vercel.app/';
@@ -31,7 +32,7 @@ const ico = (d: string | string[]) => (
 // The deck is the base /reporting/mis route; the sub-pages below have their own.
 const isDeck = (p: string) =>
   p.startsWith('/reporting/mis') &&
-  !['/live', '/close', '/connectors', '/ingest', '/chat'].some((s) => p.startsWith('/reporting/mis' + s));
+  !['/live', '/close', '/connectors', '/ingest', '/rulebook', '/insights', '/chat'].some((s) => p.startsWith('/reporting/mis' + s));
 
 // Ordered along the data flow: sources → ingestion → MIS → govern → more.
 const SECTIONS: NavSection[] = [
@@ -40,15 +41,16 @@ const SECTIONS: NavSection[] = [
     items: [
       { path: '/reporting/mis/connectors', label: 'Data sources', icon: ico(['M4 4h6v6H4z', 'M14 4h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z']), match: (p) => p.startsWith('/reporting/mis/connectors') },
       { path: '/reporting/mis/ingest', label: 'Data readiness', icon: ico(['M12 15V3', 'M8 7l4-4 4 4', 'M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2']), match: (p) => p.startsWith('/reporting/mis/ingest') },
+      { path: '/reporting/mis/rulebook', label: 'Data rulebook', icon: ico(['M5 3h14a1 1 0 011 1v16a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z', 'M8 8h8M8 12h8M8 16h5']), match: (p) => p.startsWith('/reporting/mis/rulebook') },
     ],
   },
   {
     label: 'MIS',
     items: [
       { path: '/reporting/mis/live', label: 'Live MIS', icon: ico('M3 12h4l3 8 4-16 3 8h4'), match: (p) => p.startsWith('/reporting/mis/live') },
-      { path: '/reporting/mis/chat', label: 'Ask the MIS', icon: ico('M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z'), match: (p) => p.startsWith('/reporting/mis/chat') },
-      { path: '/reporting/mis/close', label: 'Month close', icon: ico('M20 6L9 17l-5-5'), match: (p) => p.startsWith('/reporting/mis/close') },
-      { path: '/reporting/mis', label: 'MIS deck', tag: 'Legacy', muted: true, dividerBefore: true, icon: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']), match: isDeck },
+      { path: '/reporting/mis/insights', label: 'AI Insights', icon: ico(['M13 3l2.2 6.8L22 12l-6.8 2.2L13 21l-2.2-6.8L4 12l6.8-2.2z']), match: (p) => p.startsWith('/reporting/mis/insights') || p.startsWith('/reporting/mis/chat') },
+      { path: '/reporting/mis/close', label: 'Month close', dividerBefore: true, icon: ico('M20 6L9 17l-5-5'), match: (p) => p.startsWith('/reporting/mis/close') },
+      { path: '/reporting/mis', label: 'MIS deck', tag: 'Legacy', muted: true, icon: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']), match: isDeck },
     ],
   },
   {
@@ -98,7 +100,7 @@ function Leaf({ it, active, onNavigate }: { it: NavLeaf; active: boolean; onNavi
   if (it.external) {
     return <a href={it.path} target="_blank" rel="noreferrer" className={base} onClick={onNavigate}>{inner}</a>;
   }
-  return <NavLink to={it.path} className={base} onClick={onNavigate}>{inner}</NavLink>;
+  return <NavLink to={it.path} end={it.path === '/reporting/mis'} className={base} onClick={onNavigate}>{inner}</NavLink>;
 }
 
 function RailNav({ path, onNavigate }: { path: string; onNavigate?: () => void }) {
@@ -160,9 +162,14 @@ export function MainLayout() {
             <span className="text-[10px] font-medium text-slate-400 tracking-[0.14em] uppercase border-l border-slate-200 pl-2.5 hidden sm:block">MIS</span>
           </Link>
 
-          <span className="lg:hidden ml-auto text-sm font-medium text-slate-600">{activeLabel}</span>
+          {/* Mobile: Claude status + the active page label */}
+          <div className="lg:hidden ml-auto flex items-center gap-2">
+            <ClaudeStatusPill compact />
+            <span className="text-sm font-medium text-slate-600">{activeLabel}</span>
+          </div>
 
           <div className="hidden lg:flex items-center gap-3 ml-auto">
+            <ClaudeStatusPill />
             <span className="text-[11px] font-medium text-slate-400 border border-slate-200 rounded-md px-2 py-0.5">MIS v2.3</span>
             <span className="w-8 h-8 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center" aria-hidden="true">HG</span>
           </div>
