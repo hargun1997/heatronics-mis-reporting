@@ -61,8 +61,22 @@ async function asJson<T>(res: Response): Promise<T> {
   return body;
 }
 
-export async function listConnectors(): Promise<{ store: string; connectors: ConnectorInfo[] }> {
+export interface StoreStatus {
+  backend: 'secret-manager' | 'local-file';
+  durable: boolean;
+  project: string;
+  serviceAccount: string;
+  secretManagerError: string | null;
+  grantHint: string | null;
+}
+
+export async function listConnectors(): Promise<{ store: StoreStatus; connectors: ConnectorInfo[] }> {
   return asJson(await fetch('/api/connectors'));
+}
+
+/** Re-probe the store after granting the service account Secret Manager access. */
+export async function refreshStore(): Promise<{ store: StoreStatus }> {
+  return asJson(await fetch('/api/connectors/refresh-store', { method: 'POST' }));
 }
 
 export async function saveCredentials(
