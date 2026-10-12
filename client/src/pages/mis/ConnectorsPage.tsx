@@ -17,6 +17,7 @@ import {
   FETCH_MODE_LABEL,
   GROUP_LABEL,
   listConnectors,
+  MODE_LABEL,
   refreshStore,
   saveCredentials,
   syncConnector,
@@ -283,8 +284,14 @@ function ConnectorCard({
           </div>
           <span className="text-[11px] text-slate-400">{statusText}</span>
         </div>
-        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] text-slate-500 whitespace-nowrap">
-          {FETCH_MODE_LABEL[connector.fetchMode]}
+        <span
+          className={
+            'px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap ' +
+            (connector.mode === 'live-api' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700')
+          }
+          title={`Fetch capability: ${FETCH_MODE_LABEL[connector.fetchMode]}`}
+        >
+          {MODE_LABEL[connector.mode]}
         </span>
       </div>
 

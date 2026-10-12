@@ -163,6 +163,7 @@ const shopify: ConnectorDef = {
   label: 'Shopify (D2C)',
   group: 'd2c',
   fetchMode: 'api',
+  mode: 'live-api',
   credentialFields: [
     {
       key: 'shopDomain',

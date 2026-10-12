@@ -13,6 +13,9 @@ import { SectionCard } from '../../components/ui/Card';
 import { inr } from '../../components/mis-deck/charts';
 import { fetchFacts, type FactsResponse, type SourceStatus } from '../../data/liveMis/client';
 import type { DailyFact } from '../../data/liveMis/facts';
+import { computeFreshness } from '../../data/liveMis/freshness';
+import { listConnectors, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
+import { FreshnessHeadline, FreshnessTable } from '../../components/mis/FreshnessTable';
 import {
   clearUpload,
   loadUploads,
@@ -41,6 +44,7 @@ export function IngestPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploads, setUploads] = useState<UploadStore>(() => loadUploads());
+  const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -54,6 +58,17 @@ export function IngestPage() {
   }, [from, to]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // The full roster drives the status overview — every connector appears here,
+  // live or manual, loaded or not.
+  useEffect(() => {
+    listConnectors().then((r) => setConnectors(r.connectors)).catch(() => {});
+  }, []);
+
+  const fresh = useMemo(
+    () => computeFreshness(connectors, data?.facts ?? [], uploads),
+    [connectors, data, uploads],
+  );
 
   // Group every fact (live + uploaded, within range) by its source. A source
   // with an upload uses the upload, not the API — the settlement file is the
@@ -110,6 +125,15 @@ export function IngestPage() {
         </SectionCard>
 
         {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
+
+        {/* Every connector at a glance — mode, freshness dot, data-through. */}
+        <SectionCard
+          title="Connector status"
+          description="All sources, live or manual. Green = up to date, orange = out of sync, grey = not loaded yet."
+          actions={<FreshnessHeadline fresh={fresh} />}
+        >
+          <FreshnessTable fresh={fresh} onRemoveUpload={(id) => setUploads(clearUpload(id))} />
+        </SectionCard>
 
         <UploadReport onUpload={setUploads} />
 
