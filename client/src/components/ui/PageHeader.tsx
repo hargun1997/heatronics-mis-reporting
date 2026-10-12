@@ -57,7 +57,7 @@ export function PageHeader({ title, description, crumbs, actions, icon, accent =
             <div>
               <h1 className="font-display text-2xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
               {description && (
-                <p className="mt-1 text-sm text-slate-600 max-w-3xl">{description}</p>
+                <p className="mt-1.5 text-[15px] font-normal text-slate-500 leading-relaxed max-w-3xl">{description}</p>
               )}
             </div>
           </div>
