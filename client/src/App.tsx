@@ -9,6 +9,7 @@ import { MonthClosePage } from './pages/mis/MonthClosePage';
 import { ConnectorsPage } from './pages/mis/ConnectorsPage';
 import { LiveMisPage } from './pages/mis/LiveMisPage';
 import { IngestPage } from './pages/mis/IngestPage';
+import { RulebookPage } from './pages/mis/RulebookPage';
 import { MisChatPage } from './pages/mis/MisChatPage';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
@@ -58,6 +59,7 @@ function App() {
           <Route path="reporting/mis/close" element={<MonthClosePage />} />
           <Route path="reporting/mis/connectors" element={<ConnectorsPage />} />
           <Route path="reporting/mis/ingest" element={<IngestPage />} />
+          <Route path="reporting/mis/rulebook" element={<RulebookPage />} />
           <Route path="reporting/mis/live" element={<LiveMisPage />} />
           <Route path="reporting/mis/chat" element={<MisChatPage />} />
           <Route path="compliance" element={<ComplianceHome />} />

@@ -24,6 +24,7 @@ const isLive = (p: string) =>
   p.startsWith('/reporting/mis/live') ||
   p.startsWith('/reporting/mis/connectors') ||
   p.startsWith('/reporting/mis/ingest') ||
+  p.startsWith('/reporting/mis/rulebook') ||
   p.startsWith('/reporting/mis/chat');
 
 // Primary nav: the legacy deck, and the Live MIS group.
@@ -40,6 +41,7 @@ const navNodes: NavNode[] = [
     children: [
       { path: '/reporting/mis/connectors', label: 'Data sources' },
       { path: '/reporting/mis/ingest', label: 'Data readiness' },
+      { path: '/reporting/mis/rulebook', label: 'Data rulebook' },
       { path: '/reporting/mis/live', label: 'Live MIS' },
       { path: '/reporting/mis/chat', label: 'Ask the MIS' },
     ],
