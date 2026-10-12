@@ -158,7 +158,17 @@ router.post('/facts', h(async (req, res) => {
       const result = await c.fetchFacts(creds, from, to);
       facts.push(...result.facts);
       warnings.push(...result.warnings);
-      sources.push({ id: c.id, label: c.label, ok: true, count: result.facts.length });
+      // Coverage: the span of dates this source actually returned, so the UI
+      // can show how current each connector is ("data through …").
+      const dates = result.facts.map((f) => f.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+      sources.push({
+        id: c.id,
+        label: c.label,
+        ok: true,
+        count: result.facts.length,
+        from: dates[0] ?? null,
+        through: dates[dates.length - 1] ?? null,
+      });
     } catch (err) {
       sources.push({
         id: c.id,

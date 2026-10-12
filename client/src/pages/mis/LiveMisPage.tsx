@@ -197,18 +197,8 @@ export function LiveMisPage() {
           <Tile label="MRR" value={inr(rr.MRR)} sub="30-day run-rate" />
         </div>
 
-        {/* Source status */}
-        {data && (
-          <div className="flex flex-wrap gap-2">
-            {data.sources.map((s) => (
-              <span key={s.id}
-                className={'px-2 py-0.5 rounded text-[11px] ' +
-                  (s.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400')}>
-                {s.label}: {s.ok ? `${s.count} rows` : s.error}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Data freshness — how current each source is, and the system floor */}
+        {data && <Freshness data={data} today={today} />}
 
         {/* Run-rate grid */}
         <SectionCard
@@ -258,6 +248,90 @@ export function LiveMisPage() {
         )}
       </div>
     </>
+  );
+}
+
+function daysAgo(date: string, today: string): number {
+  return Math.round((Date.parse(today) - Date.parse(date)) / 86400000);
+}
+
+/** Per-source coverage and the system-wide freshness floor. */
+function Freshness({ data, today }: { data: FactsResponse; today: string }) {
+  const withData = data.sources.filter((s) => s.ok && s.through);
+  // The system is only as current as its stalest connected source.
+  const floor = withData.length
+    ? withData.map((s) => s.through!).sort()[0]
+    : null;
+  const floorLag = floor ? daysAgo(floor, today) : null;
+
+  return (
+    <SectionCard
+      title="Data freshness"
+      description="How far each connected source has data, and the date the whole system is current through."
+      actions={
+        floor ? (
+          <span
+            className={
+              'text-xs px-2 py-0.5 rounded ' +
+              (floorLag !== null && floorLag <= 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')
+            }
+          >
+            System current through {floor}{floorLag !== null && floorLag > 1 ? ` · ${floorLag}d behind` : ''}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400">No live source has data yet</span>
+        )
+      }
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-[10px] text-slate-400 border-b border-slate-200 text-left">
+              <th className="py-1.5 pr-3 font-medium">Source</th>
+              <th className="py-1.5 pr-3 font-medium">Status</th>
+              <th className="py-1.5 pr-3 font-medium text-right">Rows</th>
+              <th className="py-1.5 font-medium">Data through</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.sources.map((s) => {
+              const lag = s.through ? daysAgo(s.through, today) : null;
+              return (
+                <tr key={s.id} className="border-b border-slate-50">
+                  <td className="py-1.5 pr-3 text-slate-700 font-medium">{s.label}</td>
+                  <td className="py-1.5 pr-3">
+                    {s.ok ? (
+                      s.count > 0 ? (
+                        <span className="text-emerald-700">live</span>
+                      ) : (
+                        <span className="text-slate-400">connected · no data in range</span>
+                      )
+                    ) : (
+                      <span className="text-slate-400">{s.error ?? 'not connected'}</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums text-slate-600">{s.count || '—'}</td>
+                  <td className="py-1.5">
+                    {s.through ? (
+                      <span className={lag !== null && lag > 2 ? 'text-amber-700' : 'text-slate-600'}>
+                        {s.through}{lag !== null && lag > 2 ? ` (${lag}d ago)` : ''}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-[11px] text-slate-400">
+        Sources without an API (e.g. Blinkit, Snapmint) ingest by file upload through the{' '}
+        <a href="/reporting/mis/close" className="text-emerald-700 underline">month close</a> — the same pipeline, so they
+        appear here once their file is in.
+      </p>
+    </SectionCard>
   );
 }
 
