@@ -9,6 +9,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
 import { buildLiveMisContext } from '../../data/chat/misContext';
 import { chatStatus, sendChat, type ChatMessage } from '../../data/chat/chatClient';
+import { getUsage, usd, type UsageResponse } from '../../data/chat/usageClient';
 import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { monthLabel } from '../../data/misDeck/liveAnalytics';
 
@@ -42,10 +43,12 @@ const PRESETS: Preset[] = [
 export function AiInsightsPage() {
   const [deck, setDeck] = useState<LiveDeckData | null>(null);
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [usage, setUsage] = useState<UsageResponse | null>(null);
 
   useEffect(() => {
     loadLiveDeck().then(setDeck).catch(() => setDeck(null));
     chatStatus().then((s) => setConfigured(s.configured)).catch(() => setConfigured(false));
+    getUsage(7).then(setUsage).catch(() => {});
   }, []);
 
   const { context, throughLabel } = useMemo(() => buildLiveMisContext(deck), [deck]);
@@ -78,10 +81,51 @@ export function AiInsightsPage() {
           </p>
         )}
 
+        <SpendCard usage={usage} />
         <Analysis context={context} configured={configured} />
         <AskChat context={context} configured={configured} />
       </div>
     </>
+  );
+}
+
+// ---- Claude API spend ------------------------------------------------------
+
+function SpendCard({ usage }: { usage: UsageResponse | null }) {
+  if (!usage) return null;
+  const models = [...new Set(usage.days.flatMap((d) => d.models))].join(', ') || 'claude-opus-5-5';
+  return (
+    <SectionCard
+      title="Claude API spend"
+      description={`Priced from each response's exact token usage at Opus rates. Days are IST · model: ${models}`}
+      actions={
+        <div className="text-right text-xs">
+          <div className="text-slate-400">today <span className="text-slate-800 font-semibold tabular-nums">{usd(usage.today?.costUsd ?? 0)}</span> · {usage.today?.calls ?? 0} calls</div>
+          <div className="text-slate-400">{usage.windowDays}-day <span className="text-slate-700 font-medium tabular-nums">{usd(usage.totalUsd)}</span></div>
+        </div>
+      }
+    >
+      {usage.days.length === 0 ? (
+        <p className="text-sm text-slate-400">No API calls recorded yet.</p>
+      ) : (
+        <table className="w-full text-[11px]">
+          <thead><tr className="text-[10px] text-slate-400 text-left border-b border-slate-200">
+            <th className="py-1 pr-3">Day (IST)</th><th className="py-1 pr-3 text-right">Calls</th>
+            <th className="py-1 pr-3 text-right">Tokens in/out</th><th className="py-1 text-right">Cost (USD)</th>
+          </tr></thead>
+          <tbody>
+            {usage.days.map((d) => (
+              <tr key={d.date} className="border-b border-slate-50">
+                <td className="py-1 pr-3 text-slate-600 tabular-nums">{d.date}</td>
+                <td className="py-1 pr-3 text-right tabular-nums text-slate-600">{d.calls}</td>
+                <td className="py-1 pr-3 text-right tabular-nums text-slate-400">{d.inputTokens.toLocaleString()} / {d.outputTokens.toLocaleString()}</td>
+                <td className="py-1 text-right tabular-nums text-slate-700 font-medium">${d.costUsd.toFixed(4)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </SectionCard>
   );
 }
 

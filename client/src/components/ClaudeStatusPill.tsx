@@ -27,8 +27,9 @@ export function ClaudeStatusPill({ compact = false }: { compact?: boolean }) {
   }, []);
 
   const dot = live ? 'bg-emerald-500' : live === false ? 'bg-amber-500' : 'bg-slate-300';
-  const today = usage?.today?.costUsd ?? null;
-  const spend = today != null ? usd(today) : null;
+  // Always show today's spend once usage has loaded — even $0.00 — so the menu
+  // bar reliably answers "how much have we spent today".
+  const spend = usage ? usd(usage.today?.costUsd ?? 0) : null;
   const title = `Claude API ${live == null ? 'checking' : live ? 'live' : 'offline'}` +
     (usage ? ` · AI spend today ${usd(usage.today?.costUsd ?? 0)} (${usage.today?.calls ?? 0} calls) · 7-day ${usd(usage.totalUsd)}` : '');
 
