@@ -142,6 +142,37 @@ export function getCredentials(id: string): Promise<Credentials | null> {
   return backend.get(id);
 }
 
+/**
+ * Credentials provided as environment variables on the service, which are the
+ * durable home on Cloud Run: they survive restarts and redeploys (unlike the
+ * local-file fallback) and can be backed by a Secret Manager secret.
+ *
+ * Naming: CONNECTOR_<ID>_<FIELD>, uppercased — e.g. CONNECTOR_SHOPIFY_CLIENTID,
+ * CONNECTOR_SHOPIFY_CLIENTSECRET, CONNECTOR_SHOPIFY_SHOPDOMAIN.
+ */
+export function envCredentials(id: string, fieldKeys: string[]): Credentials {
+  const out: Credentials = {};
+  for (const key of fieldKeys) {
+    const envName = `CONNECTOR_${id.toUpperCase()}_${key.toUpperCase()}`;
+    const v = process.env[envName];
+    if (v != null && v !== '') out[key] = v;
+  }
+  return out;
+}
+
+/**
+ * The credentials a connector should actually use: the stored values with any
+ * environment-variable values layered on top. Env wins, so a value set on the
+ * service is the source of truth and cannot be clobbered by a stale UI save.
+ */
+export async function getEffectiveCredentials(
+  id: string,
+  fieldKeys: string[],
+): Promise<Credentials> {
+  const stored = (await backend.get(id)) ?? {};
+  return { ...stored, ...envCredentials(id, fieldKeys) };
+}
+
 export async function hasCredentials(id: string): Promise<boolean> {
   const creds = await backend.get(id);
   return Boolean(creds && Object.keys(creds).length > 0);

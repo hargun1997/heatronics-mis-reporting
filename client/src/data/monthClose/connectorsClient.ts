@@ -31,6 +31,13 @@ export interface ConnectorInfo {
   note: string | null;
   credentialFields: CredentialField[];
   connected: boolean;
+  /** True when one or more fields are supplied via service environment variables. */
+  viaEnv?: boolean;
+}
+
+/** The durable env-var name for a connector field: CONNECTOR_<ID>_<FIELD>. */
+export function envVarName(connectorId: string, fieldKey: string): string {
+  return `CONNECTOR_${connectorId.toUpperCase()}_${fieldKey.toUpperCase()}`;
 }
 
 export interface TestResult {

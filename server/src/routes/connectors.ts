@@ -8,15 +8,27 @@
 import { Router } from 'express';
 import { CONNECTORS, getConnector } from '../connectors/registry.js';
 import {
+  envCredentials,
   getCredentials,
-  hasCredentials,
+  getEffectiveCredentials,
   removeCredentials,
   saveCredentials,
   storeBackendName,
 } from '../connectors/credentialStore.js';
-import { NotImplementedError, type Credentials } from '../connectors/types.js';
+import { NotImplementedError, type ConnectorDef, type Credentials } from '../connectors/types.js';
 
 const router = Router();
+
+const fieldKeys = (c: ConnectorDef) => c.credentialFields.map((f) => f.key);
+
+/** Connected when every required field is satisfied by stored or env creds. */
+async function connectionStatus(c: ConnectorDef): Promise<{ connected: boolean; viaEnv: boolean }> {
+  const creds = await getEffectiveCredentials(c.id, fieldKeys(c));
+  const required = c.credentialFields.filter((f) => !f.optional);
+  const connected = required.every((f) => (creds[f.key] || '').trim());
+  const env = envCredentials(c.id, fieldKeys(c));
+  return { connected, viaEnv: Object.keys(env).length > 0 };
+}
 
 /** Public shape of a connector — safe to send to the browser (no secrets). */
 function describe(id: string) {
@@ -38,7 +50,7 @@ router.get('/', async (_req, res) => {
   const items = await Promise.all(
     CONNECTORS.map(async (c) => ({
       ...describe(c.id),
-      connected: await hasCredentials(c.id),
+      ...(await connectionStatus(c)),
     })),
   );
   res.json({ store: storeBackendName(), connectors: items });
@@ -47,7 +59,7 @@ router.get('/', async (_req, res) => {
 router.get('/:id', async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
-  res.json({ ...describe(c.id), connected: await hasCredentials(c.id) });
+  res.json({ ...describe(c.id), ...(await connectionStatus(c)) });
 });
 
 // Save (merge) credentials. Only known field keys are stored.
@@ -86,8 +98,10 @@ router.delete('/:id/credentials', async (req, res) => {
 router.post('/:id/test', async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
-  const creds = await getCredentials(c.id);
-  if (!creds) return res.status(400).json({ ok: false, detail: 'No credentials saved yet.' });
+  const creds = await getEffectiveCredentials(c.id, fieldKeys(c));
+  if (Object.keys(creds).length === 0) {
+    return res.status(400).json({ ok: false, detail: 'No credentials saved or set yet.' });
+  }
 
   try {
     res.json(await c.test(creds));
@@ -112,12 +126,12 @@ router.post('/facts', async (req, res) => {
 
   for (const c of CONNECTORS) {
     if (!c.fetchFacts) continue; // source cannot date its data — not a run-rate feed
-    if (!(await hasCredentials(c.id))) {
+    const creds = await getEffectiveCredentials(c.id, fieldKeys(c));
+    if (Object.keys(creds).length === 0) {
       sources.push({ id: c.id, label: c.label, ok: false, count: 0, error: 'not connected' });
       continue;
     }
     try {
-      const creds = (await getCredentials(c.id))!;
       const result = await c.fetchFacts(creds, from, to);
       facts.push(...result.facts);
       warnings.push(...result.warnings);
@@ -144,8 +158,10 @@ router.post('/:id/sync', async (req, res) => {
   if (!/^\d{4}-\d{2}$/.test(periodKey)) {
     return res.status(400).json({ error: 'periodKey must be "YYYY-MM".' });
   }
-  const creds = await getCredentials(c.id);
-  if (!creds) return res.status(400).json({ error: 'No credentials saved for this connector.' });
+  const creds = await getEffectiveCredentials(c.id, fieldKeys(c));
+  if (Object.keys(creds).length === 0) {
+    return res.status(400).json({ error: 'No credentials saved or set for this connector.' });
+  }
 
   try {
     const result = await c.fetchPeriod(creds, periodKey);

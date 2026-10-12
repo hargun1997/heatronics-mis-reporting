@@ -13,6 +13,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
 import {
   clearCredentials,
+  envVarName,
   FETCH_MODE_LABEL,
   GROUP_LABEL,
   listConnectors,
@@ -133,6 +134,19 @@ export function ConnectorsPage() {
         {error && (
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>
         )}
+
+        {store === 'local-file' && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 space-y-1">
+            <p className="font-medium">⚠ Tokens saved here are temporary and will be cleared on restart or redeploy.</p>
+            <p>
+              This server has no persistent store configured. For credentials that survive restarts and deploys,
+              set them as <span className="font-medium">environment variables on the Cloud Run service</span> (ideally
+              backed by a Secret Manager secret), or set <code className="bg-amber-100 px-1 rounded">GOOGLE_CLOUD_PROJECT</code> to
+              store them in Secret Manager. Each connector's drawer shows the exact variable names.
+            </p>
+          </div>
+        )}
+
         {loading && <p className="text-sm text-slate-400">Loading connectors…</p>}
 
         {GROUP_ORDER.filter((g) => grouped[g]?.length).map((g) => (
@@ -168,7 +182,7 @@ function ConnectorCard({
     ? connector.implemented ? 'bg-emerald-500' : 'bg-amber-400'
     : 'bg-slate-300';
   const statusText = connector.connected
-    ? connector.implemented ? 'Connected' : 'Saved · pull pending'
+    ? `${connector.implemented ? 'Connected' : 'Saved · pull pending'}${connector.viaEnv ? ' · env' : ''}`
     : 'Not connected';
 
   const save = async () => {
@@ -294,6 +308,20 @@ function ConnectorCard({
               {f.help && <span className="text-[10px] text-slate-400">{f.help}</span>}
             </label>
           ))}
+          <details className="text-[10px] text-slate-500">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700">
+              Durable option: set as environment variables instead
+            </summary>
+            <div className="mt-1.5 rounded-lg bg-slate-50 border border-slate-200 p-2 space-y-0.5 font-mono">
+              <p className="font-sans text-slate-500 mb-1">
+                Set these on the Cloud Run service (value, or a Secret Manager reference). They survive restarts and redeploys and take precedence over anything saved here.
+              </p>
+              {connector.credentialFields.map((f) => (
+                <div key={f.key}>{envVarName(connector.id, f.key)}{f.optional ? '  (optional)' : ''}</div>
+              ))}
+            </div>
+          </details>
+
           <div className="flex items-center gap-2 pt-1">
             <button
               onClick={save}
