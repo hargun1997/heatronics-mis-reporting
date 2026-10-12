@@ -43,9 +43,11 @@ const METRICS: { id: MetricKey; label: string; money: boolean }[] = [
   { id: 'revenue', label: 'Revenue', money: true },
   { id: 'net', label: 'Net (rev − fees)', money: true },
   { id: 'fees', label: 'Fees', money: true },
+  { id: 'spend', label: 'Ad spend', money: true },
   { id: 'orders', label: 'Orders', money: false },
   { id: 'units', label: 'Units', money: false },
   { id: 'aov', label: 'AOV', money: true },
+  { id: 'mer', label: 'MER (rev / spend)', money: false },
 ];
 
 const AUTO_MS = 120_000; // 2 min
@@ -99,6 +101,8 @@ export function LiveMisPage() {
 
   const facts = data?.facts ?? [];
   const metricDef = METRICS.find((m) => m.id === metric)!;
+  // AOV and MER are ratios — they don't sum across periods, so no Total column.
+  const isRatio = metric === 'aov' || metric === 'mer';
   const fmt = (v: number) => (metricDef.money ? inr(v) : v.toLocaleString('en-IN'));
 
   const sum = useMemo(() => totals(facts), [facts]);
@@ -115,7 +119,7 @@ export function LiveMisPage() {
       keys.add(label);
       cell.set(`${label}||${b.period}`, b[metric]);
       // AOV doesn't sum across periods; show the range AOV instead.
-      rowTotals.set(label, (rowTotals.get(label) ?? 0) + (metric === 'aov' ? 0 : b[metric]));
+      rowTotals.set(label, (rowTotals.get(label) ?? 0) + (isRatio ? 0 : b[metric]));
     }
     const rows = [...keys].sort((a, b) => (rowTotals.get(b) ?? 0) - (rowTotals.get(a) ?? 0));
     return { rows, cell, rowTotals };
@@ -186,10 +190,10 @@ export function LiveMisPage() {
         {/* KPI tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <Tile label="Revenue" value={inr(sum.revenue)} />
+          <Tile label="Ad spend" value={inr(sum.spend)} />
+          <Tile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="rev / spend" />
           <Tile label="Net" value={inr(sum.net)} />
           <Tile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
-          <Tile label="DRR" value={inr(rr.DRR)} sub="rev / day" />
-          <Tile label="WRR" value={inr(rr.WRR)} sub="7-day run-rate" />
           <Tile label="MRR" value={inr(rr.MRR)} sub="30-day run-rate" />
         </div>
 
@@ -209,7 +213,7 @@ export function LiveMisPage() {
         {/* Run-rate grid */}
         <SectionCard
           title={`${GRAINS.find((g) => g.id === gran)!.label} ${metricDef.label} by ${DIMS.find((d) => d.id === dim)!.label.toLowerCase()}`}
-          description={`${from} → ${to} · ${days} days${metric === 'aov' ? ' · AOV is per-period, not summed' : ''}`}
+          description={`${from} → ${to} · ${days} days${isRatio ? ' · ratio metric, not summed' : ''}`}
         >
           {facts.length === 0 ? (
             <p className="text-sm text-slate-400">
@@ -223,7 +227,7 @@ export function LiveMisPage() {
                   <tr className="text-[10px] text-slate-400 border-b border-slate-200">
                     <th className="py-1.5 pr-3 text-left font-medium sticky left-0 bg-white">{DIMS.find((d) => d.id === dim)!.label}</th>
                     {periods.map((p) => <th key={p} className="py-1.5 px-2 text-right font-medium whitespace-nowrap">{p}</th>)}
-                    {metric !== 'aov' && <th className="py-1.5 pl-3 text-right font-semibold">Total</th>}
+                    {!isRatio && <th className="py-1.5 pl-3 text-right font-semibold">Total</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -234,7 +238,7 @@ export function LiveMisPage() {
                         const v = cell.get(`${key}||${p}`);
                         return <td key={p} className="py-1.5 px-2 text-right tabular-nums text-slate-600">{v == null ? '·' : fmt(v)}</td>;
                       })}
-                      {metric !== 'aov' && (
+                      {!isRatio && (
                         <td className="py-1.5 pl-3 text-right tabular-nums font-semibold text-slate-800">
                           {fmt(rowTotals.get(key) ?? 0)}
                         </td>

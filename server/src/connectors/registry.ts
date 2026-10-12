@@ -13,6 +13,9 @@ import type { ConnectorDef, CredentialField, ConnectorGroup, Credentials, FetchM
 import { NotImplementedError } from './types.js';
 import tally from './sources/tally.js';
 import shopify from './sources/shopify.js';
+import meta from './sources/meta.js';
+import googleAds from './sources/googleAds.js';
+import amazonAds from './sources/amazonAds.js';
 
 interface ScaffoldSpec {
   id: string;
@@ -155,7 +158,8 @@ const tranzact = scaffold({
   ],
 });
 
-// Display order: book of record first, then marketplaces, D2C, logistics, payments.
+// Display order: book of record first, then marketplaces, D2C, marketing,
+// logistics, payments.
 export const CONNECTORS: ConnectorDef[] = [
   tally,
   tranzact,
@@ -163,6 +167,9 @@ export const CONNECTORS: ConnectorDef[] = [
   flipkart,
   blinkit,
   shopify,
+  meta,
+  googleAds,
+  amazonAds,
   shiprocket,
   delhivery,
   easebuzz,
