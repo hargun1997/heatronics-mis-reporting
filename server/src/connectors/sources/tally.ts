@@ -152,6 +152,7 @@ const tally: ConnectorDef = {
   label: 'Tally Prime',
   group: 'book',
   fetchMode: 'xmlhttp',
+  mode: 'manual-upload',
   bookOfRecord: true,
   credentialFields: [
     {

@@ -22,7 +22,7 @@ export function LedgerReference() {
       <PageHeader
         title="Ledgers & Voucher Types"
         description="The full tree of ledgers maintained across Tally and Tranzact — grouped by primary head, with voucher types, GST treatment, and real-data examples."
-        accent="emerald"
+        accent="brand"
         icon={iconLedger}
       />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-5">

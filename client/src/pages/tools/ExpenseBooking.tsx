@@ -376,7 +376,7 @@ export function ExpenseBooking() {
 
   return (
     <>
-      <PageHeader title="Expense Booking" accent="emerald" icon={iconExpense} />
+      <PageHeader title="Expense Booking" accent="brand" icon={iconExpense} />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         <MasterPanel state={masterState} />
 
@@ -580,7 +580,7 @@ export function ExpenseBooking() {
         <button
           onClick={onSubmit}
           disabled={loading || !master}
-          className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-medium py-3 text-sm"
+          className="w-full rounded-lg bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white font-medium py-3 text-sm"
         >
           {loading ? 'Asking AI…' : 'Get booking instructions'}
         </button>
@@ -592,7 +592,7 @@ export function ExpenseBooking() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={saveCurrentToQueue}
-                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 text-sm"
+                className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 text-sm"
               >
                 Save to queue ({queue.length + 1})
               </button>
@@ -671,7 +671,7 @@ function CategoryPicker({
             onClick={() => onChange(o.v)}
             className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
               active
-                ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600'
+                ? 'border-brand-600 bg-emerald-50 ring-1 ring-emerald-600'
                 : 'border-slate-200 bg-white hover:border-slate-400'
             }`}
           >
@@ -714,7 +714,7 @@ function ChipRow({
               onClick={() => onChange(v)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                 active
-                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  ? 'bg-brand-600 text-white border-brand-600'
                   : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
               }`}
             >
@@ -1032,7 +1032,7 @@ function ExportFooter({ queue, master }: { queue: QueueItem[]; master: TallyMast
         <button
           type="button"
           onClick={generateAndDownload}
-          className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 text-sm"
+          className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 text-sm"
         >
           Download Tally XML
         </button>
@@ -1265,7 +1265,7 @@ function voucherTone(voucher: string): {
     return {
       border: 'border-emerald-200',
       bg: 'bg-emerald-50',
-      badgeBg: 'bg-emerald-600',
+      badgeBg: 'bg-brand-600',
       badgeText: 'text-white',
       chipBg: 'bg-emerald-100',
       chipText: 'text-emerald-800',

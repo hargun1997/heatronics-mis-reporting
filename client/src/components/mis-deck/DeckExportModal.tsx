@@ -109,7 +109,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
           <button
             onClick={() => run(exportEverythingToExcel)}
             disabled={busy}
-            className="w-full flex items-center gap-3 p-4 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors text-left"
+            className="w-full flex items-center gap-3 p-4 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-60 transition-colors text-left"
           >
             <span className="shrink-0">{iconExcel}</span>
             <span className="flex-1">
@@ -206,7 +206,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
               className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
                 busy || sheetCount === 0
                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-brand-600 text-white hover:bg-brand-700'
               }`}
             >
               {busy ? (

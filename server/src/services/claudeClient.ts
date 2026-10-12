@@ -145,6 +145,77 @@ export async function claudeCompleteText(opts: ClaudeCompleteOptions): Promise<s
   throw new Error(`Claude request failed after ${MAX_ATTEMPTS} attempts: ${lastError}`);
 }
 
+/** One turn in a chat conversation. */
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ClaudeChatOptions {
+  /** The grounding system prompt (role + the MIS context). Cached across turns. */
+  system: string;
+  /** The conversation so far, oldest first; must start and end with 'user'. */
+  messages: ChatTurn[];
+  maxTokens?: number;
+  model?: string;
+  effort?: ClaudeEffort;
+}
+
+/**
+ * Multi-turn chat. The system prompt (the big, stable MIS context) is marked
+ * cacheable so follow-up questions in a session only pay for the new turn, and
+ * adaptive thinking is on so the model can reason over the numbers. Retries
+ * transient failures like claudeCompleteText.
+ */
+export async function claudeChat(opts: ClaudeChatOptions): Promise<string> {
+  const anthropic = getClient();
+  const MAX_ATTEMPTS = 4;
+  let lastError = '';
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const params = {
+        model: opts.model || DEFAULT_MODEL,
+        max_tokens: opts.maxTokens ?? 8000,
+        system: [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }],
+        messages: opts.messages.map((m) => ({ role: m.role, content: m.content })),
+      } as unknown as Anthropic.MessageCreateParamsNonStreaming;
+      const escape = params as unknown as Record<string, unknown>;
+      escape.output_config = { effort: opts.effort ?? 'medium' };
+      escape.thinking = { type: 'adaptive' };
+
+      const response = await anthropic.messages.create(params);
+
+      if (response.stop_reason === 'refusal') {
+        const category =
+          (response as { stop_details?: { category?: string } }).stop_details?.category ?? 'unspecified';
+        throw new Error(`Claude declined this request (${category}).`);
+      }
+
+      const text = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('')
+        .trim();
+      if (!text) throw new Error('Claude returned no text content.');
+      return text;
+    } catch (err) {
+      const retryable =
+        err instanceof Anthropic.RateLimitError ||
+        err instanceof Anthropic.InternalServerError ||
+        err instanceof Anthropic.APIConnectionError ||
+        (err instanceof Anthropic.APIError && typeof err.status === 'number' && err.status >= 500);
+      lastError = err instanceof Error ? err.message : String(err);
+      if (retryable && attempt < MAX_ATTEMPTS) {
+        await sleep(backoffMs(attempt));
+        continue;
+      }
+      throw err instanceof Error ? err : new Error(lastError);
+    }
+  }
+  throw new Error(`Claude chat failed after ${MAX_ATTEMPTS} attempts: ${lastError}`);
+}
+
 /** Strip a stray ```json fence the model occasionally adds around bare JSON. */
 export function stripJsonFence(text: string): string {
   const t = text.trim();

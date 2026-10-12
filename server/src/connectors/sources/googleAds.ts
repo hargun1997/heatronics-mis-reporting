@@ -82,6 +82,7 @@ const googleAds: ConnectorDef = {
   label: 'Google Ads',
   group: 'marketing',
   fetchMode: 'api',
+  mode: 'manual-upload',
   implemented: true,
   credentialFields: [
     { key: 'developerToken', label: 'Developer token', type: 'password', help: 'Google Ads → API Center. Needs Google approval.' },

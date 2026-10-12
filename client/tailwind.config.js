@@ -6,20 +6,28 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Heatronics primary face (website, everything) and display face.
+        sans: ['Archivo', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        display: ['"Archivo Expanded"', 'Archivo', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
         'mis-green': '#10B981',
         'mis-yellow': '#F59E0B',
         'mis-red': '#EF4444',
         'mis-blue': '#3B82F6',
+        // Heatronics brand orange — anchored on the logo's #FE4705.
         brand: {
-          50:  '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
+          50:  '#fff3ed',
+          100: '#ffe3d4',
+          200: '#ffc4a9',
+          300: '#ff9d72',
+          400: '#ff6c38',
+          500: '#fe4705',
+          600: '#e13a00',
+          700: '#ba2f06',
+          800: '#93270c',
+          900: '#79230d',
         },
       },
       boxShadow: {

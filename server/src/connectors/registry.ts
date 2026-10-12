@@ -9,7 +9,7 @@
 // validated against a real month — the same path the file adapters took.
 // ----------------------------------------------------------------------------
 
-import type { ConnectorDef, CredentialField, ConnectorGroup, Credentials, FetchMode } from './types.js';
+import type { ConnectorDef, CredentialField, ConnectorGroup, ConnectorMode, Credentials, FetchMode } from './types.js';
 import { NotImplementedError } from './types.js';
 import tally from './sources/tally.js';
 import shopify from './sources/shopify.js';
@@ -23,6 +23,7 @@ interface ScaffoldSpec {
   label: string;
   group: ConnectorGroup;
   fetchMode: FetchMode;
+  mode: ConnectorMode;
   note: string;
   credentialFields: CredentialField[];
 }
@@ -54,6 +55,7 @@ const flipkart = scaffold({
   label: 'Flipkart Seller',
   group: 'marketplace',
   fetchMode: 'api',
+  mode: 'manual-upload',
   note: 'Flipkart Seller API. Client-credentials OAuth (app id + secret → token). Pull feeds SkuRow[] and settlement/commission cross-checks.',
   credentialFields: [
     { key: 'appId', label: 'Application ID', type: 'text', help: 'Flipkart Seller API app credentials.' },
@@ -66,6 +68,7 @@ const blinkit = scaffold({
   label: 'Blinkit (Quick Commerce)',
   group: 'marketplace',
   fetchMode: 'file',
+  mode: 'manual-upload',
   note: 'Blinkit has no open pull API — the month comes from the payout ZIP (order-charges workbook). Credentials here are for a brand-portal token if/when one is available; otherwise use the payout upload.',
   credentialFields: [
     { key: 'apiToken', label: 'Brand portal token', type: 'password', optional: true, help: 'Optional — leave blank and use the payout ZIP upload.' },
@@ -77,6 +80,7 @@ const shiprocket = scaffold({
   label: 'Shiprocket',
   group: 'logistics',
   fetchMode: 'api',
+  mode: 'manual-upload',
   note: 'Shiprocket API. Email + password mint a JWT. Pull feeds freight outward and RTO; it carries no SKU, so it lands on freight, not products.',
   credentialFields: [
     { key: 'email', label: 'API user email', type: 'text', help: 'A dedicated Shiprocket API user is recommended.' },
@@ -89,6 +93,7 @@ const delhivery = scaffold({
   label: 'Delhivery',
   group: 'logistics',
   fetchMode: 'api',
+  mode: 'manual-upload',
   note: 'Delhivery API. Token per client/warehouse. Pull feeds outbound freight billing and RTO/NDR.',
   credentialFields: [
     { key: 'apiToken', label: 'API token', type: 'password', help: 'Delhivery One → Settings → API.' },
@@ -101,6 +106,7 @@ const easebuzz = scaffold({
   label: 'Easebuzz',
   group: 'payments',
   fetchMode: 'api',
+  mode: 'manual-upload',
   note: 'Easebuzz payment gateway. Merchant key + salt. Pull feeds payment-gateway fees and cash/settlement reconciliation against D2C.',
   credentialFields: [
     { key: 'merchantKey', label: 'Merchant key', type: 'text' },
@@ -114,6 +120,7 @@ const snapmint = scaffold({
   label: 'Snapmint (BNPL)',
   group: 'payments',
   fetchMode: 'file',
+  mode: 'manual-upload',
   note: 'Snapmint BNPL. Public pull API is thin — settlement comes by report/webhook. Pull feeds revenue-by-tender, subvention and finance cost.',
   credentialFields: [
     { key: 'merchantId', label: 'Merchant ID', type: 'text' },
@@ -126,6 +133,7 @@ const shopflo = scaffold({
   label: 'Shopflo (Checkout)',
   group: 'payments',
   fetchMode: 'api',
+  mode: 'manual-upload',
   note: 'Shopflo checkout. API key/secret or webhook. Pull feeds revenue-by-tender, COD, discounts and checkout fees.',
   credentialFields: [
     { key: 'apiKey', label: 'API key', type: 'text' },
@@ -138,6 +146,7 @@ const tranzact = scaffold({
   label: 'Tranzact (ERP / BOM)',
   group: 'book',
   fetchMode: 'api',
+  mode: 'manual-upload',
   note: 'Tranzact ERP. Pull feeds BomCost[] (standard cost per finished good) and stock movement — the per-unit COGS behind SKU margin.',
   credentialFields: [
     { key: 'apiToken', label: 'API token', type: 'password', help: 'Tranzact → Settings → API access.' },

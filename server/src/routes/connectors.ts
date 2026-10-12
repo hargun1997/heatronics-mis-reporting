@@ -54,6 +54,7 @@ function describe(id: string) {
     label: c.label,
     group: c.group,
     fetchMode: c.fetchMode,
+    mode: c.mode,
     bookOfRecord: Boolean(c.bookOfRecord),
     implemented: c.implemented,
     note: c.note ?? null,

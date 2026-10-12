@@ -100,6 +100,7 @@ const amazon: ConnectorDef = {
   label: 'Amazon Seller Central',
   group: 'marketplace',
   fetchMode: 'api',
+  mode: 'manual-upload',
   implemented: true,
   credentialFields: [
     { key: 'lwaClientId', label: 'LWA client ID', type: 'text', placeholder: 'amzn1.application-oa2-client.…', help: 'Login with Amazon client ID from the SP-API app.' },

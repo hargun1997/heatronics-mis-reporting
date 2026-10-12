@@ -45,6 +45,7 @@ const amazonAds: ConnectorDef = {
   label: 'Amazon Ads',
   group: 'marketing',
   fetchMode: 'api',
+  mode: 'manual-upload',
   implemented: false,
   credentialFields: [
     { key: 'clientId', label: 'LWA client ID', type: 'text', placeholder: 'amzn1.application-oa2-client.…' },

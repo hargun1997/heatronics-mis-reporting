@@ -34,6 +34,7 @@ const meta: ConnectorDef = {
   label: 'Meta Ads',
   group: 'marketing',
   fetchMode: 'api',
+  mode: 'manual-upload',
   implemented: true,
   credentialFields: [
     {

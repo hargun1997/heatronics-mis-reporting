@@ -50,7 +50,7 @@ export function MonthClosePage() {
     <>
       <PageHeader
         title="Close the month"
-        accent="emerald"
+        accent="brand"
         icon={iconClose}
         description="Drop the month's exports in. Everything read is checked against Tally's own bottom line before it can be emitted."
         crumbs={[

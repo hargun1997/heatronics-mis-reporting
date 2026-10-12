@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Archivo', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   color-scheme: light;
 }
 

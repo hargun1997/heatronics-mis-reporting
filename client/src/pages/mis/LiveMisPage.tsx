@@ -29,6 +29,9 @@ import {
   type Granularity,
   type MetricKey,
 } from '../../data/liveMis/facts';
+import { computeFreshness } from '../../data/liveMis/freshness';
+import { listConnectors, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
+import { FreshnessHeadline, FreshnessTable } from '../../components/mis/FreshnessTable';
 
 const iconLive = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,6 +87,13 @@ export function LiveMisPage() {
   const [error, setError] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [uploads, setUploads] = useState<UploadStore>(() => loadUploads());
+  const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
+
+  // The full roster drives freshness — every connector shows a dot, even those
+  // not yet fed, so an un-loaded source reads as a gap rather than vanishing.
+  useEffect(() => {
+    listConnectors().then((r) => setConnectors(r.connectors)).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -110,9 +120,13 @@ export function LiveMisPage() {
   }, [auto]);
 
   // Live-pulled facts, plus uploaded-report facts that fall in the date range.
+  // A source with an upload uses the upload, not the API: the settlement file
+  // carries fees and refunds the run-rate pull (e.g. Amazon orderMetrics) does
+  // not, so letting both through would double-count that source.
   const facts = useMemo(() => {
-    const apiFacts = data?.facts ?? [];
     const up = uploadedFacts(uploads).filter((f) => f.date >= from && f.date <= to);
+    const uploaded = new Set(Object.keys(uploads));
+    const apiFacts = (data?.facts ?? []).filter((f) => !uploaded.has(f.source));
     return [...apiFacts, ...up];
   }, [data, uploads, from, to]);
   const metricDef = METRICS.find((m) => m.id === metric)!;
@@ -148,7 +162,7 @@ export function LiveMisPage() {
     <>
       <PageHeader
         title="Live MIS"
-        accent="emerald"
+        accent="brand"
         icon={iconLive}
         description="Runtime run-rate pulled from the connectors. Provisional and always-on — the month close stays the published truth."
         crumbs={[
@@ -166,7 +180,7 @@ export function LiveMisPage() {
             <button
               onClick={() => void load()}
               disabled={loading}
-              className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40"
+              className="px-2.5 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
             >
               {loading ? 'Pulling…' : 'Refresh'}
             </button>
@@ -212,12 +226,12 @@ export function LiveMisPage() {
           <Tile label="MRR" value={inr(rr.MRR)} sub="30-day run-rate" />
         </div>
 
-        {/* Data freshness — how current each source is, and the system floor */}
+        {/* Data freshness — every connector's dot, and the system live-through floor */}
         {data && (
           <Freshness
+            connectors={connectors}
             data={data}
             uploads={uploads}
-            today={today}
             onUpload={(store) => setUploads({ ...store })}
           />
         )}
@@ -273,118 +287,30 @@ export function LiveMisPage() {
   );
 }
 
-function daysAgo(date: string, today: string): number {
-  return Math.round((Date.parse(today) - Date.parse(date)) / 86400000);
-}
-
-/** Per-source coverage, the freshness floor, and the report-upload control. */
+/** Full connector roster: a dot per source, and the system live-through floor. */
 function Freshness({
+  connectors,
   data,
   uploads,
-  today,
   onUpload,
 }: {
+  connectors: ConnectorInfo[];
   data: FactsResponse;
   uploads: UploadStore;
-  today: string;
   onUpload: (store: UploadStore) => void;
 }) {
-  const uploadRows = Object.values(uploads).map((u) => {
-    const dates = u.facts.map((f) => f.date).sort();
-    return { id: u.sourceId, label: u.label, count: u.facts.length, through: dates[dates.length - 1] ?? null };
-  });
-
-  // The system is only as current as its stalest source — live or uploaded.
-  const throughs = [
-    ...data.sources.filter((s) => s.ok && s.through).map((s) => s.through!),
-    ...uploadRows.filter((u) => u.through).map((u) => u.through!),
-  ].sort();
-  const floor = throughs[0] ?? null;
-  const floorLag = floor ? daysAgo(floor, today) : null;
+  const fresh = useMemo(
+    () => computeFreshness(connectors, data.facts, uploads),
+    [connectors, data, uploads],
+  );
 
   return (
     <SectionCard
       title="Data freshness"
-      description="How far each source has data, and the date the whole system is current through."
-      actions={
-        floor ? (
-          <span
-            className={
-              'text-xs px-2 py-0.5 rounded ' +
-              (floorLag !== null && floorLag <= 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')
-            }
-          >
-            System current through {floor}{floorLag !== null && floorLag > 1 ? ` · ${floorLag}d behind` : ''}
-          </span>
-        ) : (
-          <span className="text-xs text-slate-400">No source has data yet</span>
-        )
-      }
+      description="Every connector, how current it is, and the date the whole MIS is live through — the system is only as current as its stalest source."
+      actions={<FreshnessHeadline fresh={fresh} />}
     >
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-[10px] text-slate-400 border-b border-slate-200 text-left">
-              <th className="py-1.5 pr-3 font-medium">Source</th>
-              <th className="py-1.5 pr-3 font-medium">Status</th>
-              <th className="py-1.5 pr-3 font-medium text-right">Rows</th>
-              <th className="py-1.5 font-medium">Data through</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.sources.map((s) => {
-              const lag = s.through ? daysAgo(s.through, today) : null;
-              return (
-                <tr key={s.id} className="border-b border-slate-50">
-                  <td className="py-1.5 pr-3 text-slate-700 font-medium">{s.label}</td>
-                  <td className="py-1.5 pr-3">
-                    {s.ok ? (
-                      s.count > 0 ? <span className="text-emerald-700">live</span>
-                        : <span className="text-slate-400">connected · no data in range</span>
-                    ) : (
-                      <span className="text-slate-400">{s.error ?? 'not connected'}</span>
-                    )}
-                  </td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums text-slate-600">{s.count || '—'}</td>
-                  <td className="py-1.5">
-                    {s.through ? (
-                      <span className={lag !== null && lag > 2 ? 'text-amber-700' : 'text-slate-600'}>
-                        {s.through}{lag !== null && lag > 2 ? ` (${lag}d ago)` : ''}
-                      </span>
-                    ) : <span className="text-slate-300">—</span>}
-                  </td>
-                </tr>
-              );
-            })}
-            {uploadRows.map((u) => {
-              const lag = u.through ? daysAgo(u.through, today) : null;
-              return (
-                <tr key={u.id} className="border-b border-slate-50 bg-slate-50/50">
-                  <td className="py-1.5 pr-3 text-slate-700 font-medium">{u.label}</td>
-                  <td className="py-1.5 pr-3">
-                    <span className="text-indigo-600">uploaded</span>
-                    <button
-                      onClick={() => onUpload(clearUpload(u.id))}
-                      className="ml-2 text-[10px] text-slate-400 hover:text-rose-600"
-                    >
-                      remove
-                    </button>
-                  </td>
-                  <td className="py-1.5 pr-3 text-right tabular-nums text-slate-600">{u.count}</td>
-                  <td className="py-1.5">
-                    {u.through ? (
-                      <span className={lag !== null && lag > 2 ? 'text-amber-700' : 'text-slate-600'}>
-                        {u.through}{lag !== null && lag > 2 ? ` (${lag}d ago)` : ''}
-                      </span>
-                    ) : <span className="text-slate-300">—</span>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
+      <FreshnessTable fresh={fresh} onRemoveUpload={(id) => onUpload(clearUpload(id))} />
       <UploadReport onUpload={onUpload} />
     </SectionCard>
   );

@@ -30,7 +30,7 @@ export function ToolsHome() {
             title="Expense Booking (AI)"
             description="Snap an invoice photo, answer a few quick questions, and the AI returns the exact voucher, ledgers and cost centre — grounded in your Tally master."
             icon={iconExpense}
-            accent="emerald"
+            accent="brand"
             badge="New"
           />
           <NavCard

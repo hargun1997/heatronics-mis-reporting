@@ -19,6 +19,7 @@ export interface CredentialField {
 }
 
 export type FetchMode = 'api' | 'xmlhttp' | 'webhook' | 'file';
+export type ConnectorMode = 'live-api' | 'manual-upload';
 export type ConnectorGroup = 'book' | 'marketplace' | 'd2c' | 'logistics' | 'payments' | 'marketing';
 
 export interface ConnectorInfo {
@@ -26,6 +27,8 @@ export interface ConnectorInfo {
   label: string;
   group: ConnectorGroup;
   fetchMode: FetchMode;
+  /** How this source is fed today — 'live-api' or 'manual-upload'. */
+  mode: ConnectorMode;
   bookOfRecord: boolean;
   implemented: boolean;
   note: string | null;
@@ -135,4 +138,9 @@ export const FETCH_MODE_LABEL: Record<FetchMode, string> = {
   xmlhttp: 'XML / HTTP',
   webhook: 'Webhook',
   file: 'File / report',
+};
+
+export const MODE_LABEL: Record<ConnectorMode, string> = {
+  'live-api': 'Live API',
+  'manual-upload': 'Manual upload',
 };

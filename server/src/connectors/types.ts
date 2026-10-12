@@ -31,6 +31,17 @@ export interface CredentialField {
  */
 export type FetchMode = 'api' | 'xmlhttp' | 'webhook' | 'file';
 
+/**
+ * How this connector is fed in practice — the thing the operator marks per
+ * source. Independent of `fetchMode` (the capability): a source that *could*
+ * expose an API (Amazon) may still run on 'manual-upload' while that API is
+ * being stood up. This is what drives the console badge, whether a loader box
+ * appears for it, and how its freshness is expected to arrive.
+ *   live-api      — pulled automatically from a stored-credential API
+ *   manual-upload — fed by a report file dropped on the readiness page
+ */
+export type ConnectorMode = 'live-api' | 'manual-upload';
+
 /** Rough grouping for the console, mirroring FEED_SOURCES tiers. */
 export type ConnectorGroup = 'book' | 'marketplace' | 'd2c' | 'logistics' | 'payments' | 'marketing';
 
@@ -52,6 +63,8 @@ export interface ConnectorDef {
   label: string;
   group: ConnectorGroup;
   fetchMode: FetchMode;
+  /** How this source is fed today — 'live-api' or 'manual-upload'. */
+  mode: ConnectorMode;
   /** The P&L book of record; there is only one (Tally). Affects UI ordering. */
   bookOfRecord?: boolean;
   /** True once the monthly pull is wired; false means credentials-only so far. */
