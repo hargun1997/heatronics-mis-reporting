@@ -5,7 +5,7 @@
 // already-ingested slot overwrites it (same connector+slot+period on the server).
 // ----------------------------------------------------------------------------
 
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 import { inr } from '../mis-deck/charts';
 import { Modal } from '../ui/overlays';
 import { commitReportMonths, monthBreakdown, restageTallyMonth, runChecks } from '../../data/ingest/ingestClient';
@@ -116,6 +116,7 @@ export function IngestStepper({
   const [committed, setCommitted] = useState<IngestReportMeta | null>(existing ?? null);
   const [committedCount, setCommittedCount] = useState<number>(existing ? 1 : 0);
   const [howOpen, setHowOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   const wired = slot.kind === 'vision' || slot.kind === 'bom' || slot.kind === 'invoice' || slot.kind === 'tally-xlsx' || Boolean(slot.parserId);
   // These connectors are read by Claude on the server (Tally screenshots, Shopflo
@@ -141,6 +142,16 @@ export function IngestStepper({
   // single invoices stay one-file.
   const multiple = slot.kind === 'vision' || slot.kind === 'tally-xlsx'
     || (slot.kind !== 'bom' && slot.kind !== 'invoice' && Boolean(slot.parserId));
+  // Drag-and-drop onto the slot — same path as the file picker. Only accept
+  // drops when the slot can take an upload (wired, and not mid-check/save).
+  const canDrop = wired && (stage === 'idle' || stage === 'failed' || stage === 'ingested');
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (!canDrop) return;
+    const files = e.dataTransfer?.files ?? null;
+    if (files && files.length > 0) void onFiles(files);
+  };
   const uploadLabel = committed ? 'Replace' : slot.kind === 'vision' ? 'Upload screenshot(s)' : slot.kind === 'invoice' ? 'Upload PDF' : slot.kind === 'tally-xlsx' ? 'Upload P&L Excel' : multiple ? 'Upload file(s)' : 'Upload file';
 
   // Tally P&L Excel can carry several months; changing the period re-stages the
@@ -233,7 +244,12 @@ export function IngestStepper({
         ))}
       </div>
 
-      <div className="border-t border-slate-100 px-4 py-3 space-y-3">
+      <div
+        className={'border-t px-4 py-3 space-y-3 transition-colors ' + (dragging ? 'border-brand-300 bg-brand-50/60' : 'border-slate-100')}
+        onDragOver={canDrop ? (e) => { e.preventDefault(); if (!dragging) setDragging(true); } : undefined}
+        onDragLeave={canDrop ? (e) => { if (e.currentTarget === e.target) setDragging(false); } : undefined}
+        onDrop={canDrop ? onDrop : undefined}
+      >
         {/* How to export (button → modal) + upload */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
@@ -249,8 +265,16 @@ export function IngestStepper({
               <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
             </label>
           )}
-          <span className="text-[11px] text-slate-500">{slot.accept}</span>
+          <span className="text-[11px] text-slate-500">
+            {canDrop ? <>{slot.accept} · or drag {multiple ? 'files' : 'a file'} here</> : slot.accept}
+          </span>
         </div>
+
+        {dragging && (
+          <div className="rounded-lg border-2 border-dashed border-brand-400 bg-brand-50 px-3 py-4 text-center text-xs font-medium text-brand-700">
+            Drop to upload{multiple ? ' — multiple files welcome' : ''}
+          </div>
+        )}
 
         {!wired && (
           <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
