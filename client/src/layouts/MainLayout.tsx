@@ -33,7 +33,7 @@ const ico = (d: string | string[]) => (
 // The deck is the base /reporting/mis route; the sub-pages below have their own.
 const isDeck = (p: string) =>
   p.startsWith('/reporting/mis') &&
-  !['/live', '/close', '/connectors', '/ingest', '/rulebook', '/insights', '/chat', '/issues', '/ownership'].some((s) => p.startsWith('/reporting/mis' + s));
+  !['/live', '/close', '/connectors', '/ingest', '/rulebook', '/insights', '/chat', '/issues', '/ownership', '/send'].some((s) => p.startsWith('/reporting/mis' + s));
 
 // Ordered along the data flow: sources → ingestion → MIS → govern → more.
 const SECTIONS: NavSection[] = [
@@ -51,6 +51,7 @@ const SECTIONS: NavSection[] = [
       { path: '/reporting/mis/live', label: 'Live MIS', icon: ico('M3 12h4l3 8 4-16 3 8h4'), match: (p) => p.startsWith('/reporting/mis/live') },
       { path: '/reporting/mis/insights', label: 'AI Insights', icon: ico(['M13 3l2.2 6.8L22 12l-6.8 2.2L13 21l-2.2-6.8L4 12l6.8-2.2z']), match: (p) => p.startsWith('/reporting/mis/insights') || p.startsWith('/reporting/mis/chat') },
       { path: '/reporting/mis/issues', label: 'Data Issues', icon: ico(['M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z', 'M12 8v4m0 3h.01']), match: (p) => p.startsWith('/reporting/mis/issues') },
+      { path: '/reporting/mis/send', label: 'Send Report', icon: ico(['M22 2L11 13', 'M22 2l-7 20-4-9-9-4 20-7z']), match: (p) => p.startsWith('/reporting/mis/send') },
       { path: '/reporting/mis/close', label: 'Month close', tag: 'Legacy', muted: true, dividerBefore: true, icon: ico('M20 6L9 17l-5-5'), match: (p) => p.startsWith('/reporting/mis/close') },
       { path: '/reporting/mis', label: 'MIS deck', tag: 'Legacy', muted: true, icon: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']), match: isDeck },
     ],
