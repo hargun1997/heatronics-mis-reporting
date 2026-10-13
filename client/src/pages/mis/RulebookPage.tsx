@@ -98,6 +98,7 @@ export function RulebookPage() {
                   <th className="px-3 py-2 font-semibold w-28">Mapping</th>
                   <th className="px-3 py-2 font-semibold w-28">Steps</th>
                   <th className="px-3 py-2 font-semibold">What we do with its data</th>
+                  <th className="px-3 py-2 font-semibold">Still to do</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,6 +131,11 @@ export function RulebookPage() {
                         })()}
                       </td>
                       <td className="px-3 py-2.5 text-slate-600 text-[13px] min-w-[16rem]">{c.summary}</td>
+                      <td className="px-3 py-2.5 text-[12px] min-w-[14rem]">
+                        {c.pending
+                          ? <span className="text-amber-700">{c.pending}</span>
+                          : <span className="text-emerald-600">✓ Nothing pending</span>}
+                      </td>
                     </tr>
                   );
                 })}

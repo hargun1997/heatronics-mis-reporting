@@ -112,6 +112,8 @@ export interface ConnectorRule {
   mapping: Ready;
   // Steps readiness is derived from the catalog (stepsFor / stepsReady), so it
   // can never drift from the actual export steps + deep links.
+  /** What is still half-left on this resource — the honest to-do, kept per source. */
+  pending?: string;
   summary: string;     // one line: what this source is for
   files: FileRule[];
 }
@@ -143,7 +145,7 @@ export function stepsReady(connectorId: string): Ready {
 export const CONNECTOR_RULES: ConnectorRule[] = [
   // ---------------- Book of record ----------------
   {
-    connectorId: 'tally', label: 'Tally Prime', group: 'Book of record', wiring: 'wired', mapping: 'done',
+    connectorId: 'tally', label: 'Tally Prime', group: 'Book of record', wiring: 'wired', mapping: 'done', pending: 'Not yet ingested -> upload a P&L screenshot to unlock OPEX -> Net Income. Desktop app, no link.',
     summary: 'The book of record. Owns everything below Contribution Margin — OPEX, EBITDA, Net Income — and reconciles the whole cascade.',
     files: [
       {
@@ -165,7 +167,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'tranzact', label: 'Tranzact (ERP / BOM)', group: 'Book of record', wiring: 'wired', seq: 1, mapping: 'done',
+    connectorId: 'tranzact', label: 'Tranzact (ERP / BOM)', group: 'Book of record', wiring: 'wired', seq: 1, mapping: 'done', pending: 'Add the deep link to the Tranzact BOM export.',
     summary: 'Standard cost per finished good — the per-unit COGS that turns SKU revenue into margin.',
     files: [
       {
@@ -181,7 +183,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Marketplaces ----------------
   {
-    connectorId: 'amazon', label: 'Amazon Seller Central', channel: 'Amazon', group: 'Marketplace', wiring: 'wired', seq: 2, mapping: 'done',
+    connectorId: 'amazon', label: 'Amazon Seller Central', channel: 'Amazon', group: 'Marketplace', wiring: 'wired', seq: 2, mapping: 'done', pending: 'Add the deep link to the Seller Central transaction export.',
     summary: 'The fee-accurate money view of the Amazon channel — revenue, units, orders, fees and ad spend.',
     files: [
       {
@@ -202,7 +204,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'flipkart', label: 'Flipkart Seller', channel: 'Flipkart', group: 'Marketplace', wiring: 'needs-sample', mapping: 'todo',
+    connectorId: 'flipkart', label: 'Flipkart Seller', channel: 'Flipkart', group: 'Marketplace', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one settlement export -> build parser + SKU map; add the deep link.',
     summary: 'Flipkart channel revenue and commission — once a settlement export is provided.',
     files: [
       {
@@ -216,7 +218,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'blinkit', label: 'Blinkit (Quick Commerce)', channel: 'Blinkit', group: 'Marketplace', wiring: 'fixture-ready', mapping: 'partial',
+    connectorId: 'blinkit', label: 'Blinkit (Quick Commerce)', channel: 'Blinkit', group: 'Marketplace', wiring: 'fixture-ready', mapping: 'partial', pending: 'Portal download failing; parser not built. Need the payout order-charges workbook; finish item-id -> FG map; add the deep link.',
     summary: 'Blinkit channel — gross bill and all the commission/shipping charges from the order-level payout.',
     files: [
       {
@@ -232,7 +234,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- D2C ----------------
   {
-    connectorId: 'shopify', label: 'Shopify (D2C)', channel: 'D2C', group: 'D2C', wiring: 'live', seq: 4, mapping: 'done',
+    connectorId: 'shopify', label: 'Shopify (D2C)', channel: 'D2C', group: 'D2C', wiring: 'live', seq: 4, mapping: 'done', pending: 'Live API pull — no upload. Fallback slot only.',
     summary: 'The D2C channel, pulled live by API — revenue, units and orders per SKU, per day. No upload needed.',
     files: [
       {
@@ -247,7 +249,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Marketing ----------------
   {
-    connectorId: 'meta', label: 'Meta Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 6, mapping: 'partial',
+    connectorId: 'meta', label: 'Meta Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 6, mapping: 'partial', pending: 'Confirm 8 second-catalog ids (generic Period/Back Pain -> assumed X Lite / X-L). Re-upload each month.',
     summary: 'D2C ad spend, split to product — the Sales & Marketing line and the MER denominator.',
     files: [
       {
@@ -261,7 +263,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'needs-sample', seq: 7, mapping: 'todo',
+    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'needs-sample', seq: 7, mapping: 'todo', pending: 'Need File 1 (campaign x cost) + optional Shopping-products; build the parser + SKU map; add the deep link.',
     summary: 'D2C ad spend — adds to Sales & Marketing.',
     files: [
       {
@@ -272,7 +274,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'amazonads', label: 'Amazon Ads', channel: 'Amazon', group: 'Marketing', wiring: 'wired', seq: 3, mapping: 'done',
+    connectorId: 'amazonads', label: 'Amazon Ads', channel: 'Amazon', group: 'Marketing', wiring: 'wired', seq: 3, mapping: 'done', pending: 'Owed: the real September Advertised Product report (test used the Oct-windowed export). Add the deep link.',
     summary: 'Amazon ad spend — the fuller Sponsored Products view that supersedes the settlement’s ad lines.',
     files: [
       {
@@ -285,7 +287,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Logistics ----------------
   {
-    connectorId: 'shiprocket', label: 'Shiprocket', group: 'Logistics', wiring: 'wired', seq: 5, mapping: 'done',
+    connectorId: 'shiprocket', label: 'Shiprocket', group: 'Logistics', wiring: 'wired', seq: 5, mapping: 'done', pending: 'Add the deep link to the Shiprocket passbook export.',
     summary: 'Outbound freight across channels — part of Channel & Fulfilment.',
     files: [
       {
@@ -297,7 +299,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'delhivery', label: 'Delhivery', group: 'Logistics', wiring: 'needs-sample', mapping: 'todo',
+    connectorId: 'delhivery', label: 'Delhivery', group: 'Logistics', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one freight/remittance export -> parser; add the deep link.',
     summary: 'Freight / remittance — adds to Channel & Fulfilment.',
     files: [
       {
@@ -310,7 +312,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Payments & checkout ----------------
   {
-    connectorId: 'easebuzz', label: 'Easebuzz', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo',
+    connectorId: 'easebuzz', label: 'Easebuzz', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one settlement export -> parser + MDR mapping; add the deep link.',
     summary: 'Payment-gateway MDR — part of Platform & Payment.',
     files: [
       {
@@ -321,7 +323,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'shopflo', label: 'Shopflo', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo',
+    connectorId: 'shopflo', label: 'Shopflo', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one checkout settlement export -> parser; add the deep link.',
     summary: 'Checkout settlement fees — part of Platform & Payment.',
     files: [
       {
@@ -332,7 +334,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'snapmint', label: 'Snapmint', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo',
+    connectorId: 'snapmint', label: 'Snapmint', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one settlement export -> parser + subvention mapping; add the deep link.',
     summary: 'BNPL subvention / fees — part of Platform & Payment.',
     files: [
       {
