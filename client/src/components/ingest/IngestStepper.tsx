@@ -117,6 +117,7 @@ export function IngestStepper({
   const [committedCount, setCommittedCount] = useState<number>(existing ? 1 : 0);
   const [howOpen, setHowOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
 
   const wired = slot.kind === 'vision' || slot.kind === 'bom' || slot.kind === 'invoice' || slot.kind === 'tally-xlsx' || Boolean(slot.parserId);
   // These connectors are read by Claude on the server (Tally screenshots, Shopflo
@@ -126,6 +127,7 @@ export function IngestStepper({
   const onFiles = async (files: FileList | null) => {
     const list = files ? Array.from(files) : [];
     if (list.length === 0) return;
+    setPicked(list.map((f) => f.name));
     setStage('checking'); setError(null); setStaged(null); setAck(false);
     try {
       const s = await runChecks(slot, list);
@@ -250,7 +252,7 @@ export function IngestStepper({
         onDragLeave={canDrop ? (e) => { if (e.currentTarget === e.target) setDragging(false); } : undefined}
         onDrop={canDrop ? onDrop : undefined}
       >
-        {/* How to export (button → modal) + upload */}
+        {/* How to export (button → modal) */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setHowOpen(true)}
@@ -258,21 +260,33 @@ export function IngestStepper({
           >
             {iconSteps} How to export{slot.exportUrl ? ' · link' : ''}
           </button>
-
-          {wired && (stage === 'idle' || stage === 'failed') && (
-            <label className="px-3 py-1.5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 cursor-pointer">
-              {uploadLabel}
-              <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
-            </label>
-          )}
-          <span className="text-[11px] text-slate-500">
-            {canDrop ? <>{slot.accept} · or drag {multiple ? 'files' : 'a file'} here</> : slot.accept}
-          </span>
         </div>
 
-        {dragging && (
-          <div className="rounded-lg border-2 border-dashed border-brand-400 bg-brand-50 px-3 py-4 text-center text-xs font-medium text-brand-700">
-            Drop to upload{multiple ? ' — multiple files welcome' : ''}
+        {/* Always-visible drop box — click to browse or drag files onto it. */}
+        {wired && (stage === 'idle' || stage === 'failed') && (
+          <label
+            className={'flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors ' +
+              (dragging ? 'border-brand-400 bg-brand-50' : 'border-slate-200 hover:border-brand-300 hover:bg-slate-50')}>
+            <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+            </svg>
+            <span className="text-sm font-medium text-slate-700">{dragging ? 'Drop to upload' : uploadLabel}</span>
+            <span className="text-[11px] text-slate-500">Drag {multiple ? 'files' : 'a file'} here or click to browse · {slot.accept}</span>
+            <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
+          </label>
+        )}
+
+        {/* The files picked / dropped — shown as soon as they land. */}
+        {picked.length > 0 && stage !== 'ingested' && (
+          <div className="flex flex-wrap gap-1.5">
+            {picked.map((name, i) => (
+              <span key={i} className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[11px] text-slate-700">
+                <svg className="w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h7l4 4v14H7zM14 3v4h4" />
+                </svg>
+                <span className="truncate">{name}</span>
+              </span>
+            ))}
           </div>
         )}
 
