@@ -914,7 +914,146 @@ function parseDelhivery(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: unparsed > 0 ? `${unparsed} row(s) had no readable date and were skipped.` : undefined, trace };
 }
 
+// ---- Flipkart Settled Transactions → Flipkart channel revenue + fees -------
+
+/**
+ * Flipkart "Settled Transactions" export (an .xlsx of several sheets). The
+ * "Orders" sheet is the per-order-item money view. Flipkart is its own channel
+ * (like Amazon). Net revenue = Sale Amount + Refund (a return reverses the sale
+ * in the same window); the Marketplace Fee column (commission + fixed +
+ * collection + shipping + …) is shown as a negative deduction, so the channel
+ * cost is its negative. GST on fees and TCS/TDS are recoverable and excluded.
+ * Fully-returned / zero-net rows drop out, so a month with no net sales yields
+ * no facts (correct — the Summary's Net Bank Settlement is then 0 too).
+ */
+function parseFlipkartSettlement(wb: XLSX.WorkBook): ParseOutput {
+  const sheet = wb.SheetNames.find((n) => n.trim().toLowerCase() === 'orders');
+  if (!sheet) return { facts: [], warning: 'No "Orders" sheet — is this the Flipkart Settled Transactions report?' };
+  const rows = sheetRows(wb, sheet);
+  const hi = findHeader(rows, ['order id', 'sale amount (rs.)', 'seller sku']);
+  if (hi < 0) return { facts: [], warning: 'Flipkart settlement: Orders header (Order ID / Sale Amount / Seller SKU) not found.' };
+  const header = (rows[hi] ?? []).map(lower);
+  const ix = {
+    sale: header.indexOf('sale amount (rs.)'),
+    mpFee: header.findIndex((h) => h.startsWith('marketplace fee')),
+    refund: header.indexOf('refund (rs.)'),
+    date: header.indexOf('order date'),
+    sku: header.indexOf('seller sku'),
+    qty: header.indexOf('quantity'),
+  };
+  if (ix.sale < 0 || ix.sku < 0) return { facts: [], warning: 'Flipkart settlement: "Sale Amount" / "Seller SKU" column not found.' };
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const byKey = new Map<string, DailyFact>(); // `${date}|${sku}`
+  let grossSale = 0, grossReturn = 0, feeTotal = 0, dataRows = 0;
+  for (const row of rows.slice(hi + 1)) {
+    const sku = cell(row[ix.sku]);
+    if (!sku || sku.toUpperCase() === 'NA') continue;
+    const rawDate = ix.date >= 0 ? cell(row[ix.date]) : '';
+    const date = /^\d{4}-\d{2}-\d{2}/.test(rawDate) ? rawDate.slice(0, 10) : toISODate(row[ix.date]);
+    if (!date) continue;
+    const sale = num(row[ix.sale]);
+    const refund = ix.refund >= 0 ? num(row[ix.refund]) : 0; // negative on returns
+    const mpFee = ix.mpFee >= 0 ? num(row[ix.mpFee]) : 0;    // negative (deduction)
+    const qty = ix.qty >= 0 ? num(row[ix.qty]) : 0;
+    const netRev = r2(sale + refund);
+    const fee = r2(-mpFee); // marketplace cost, positive
+    dataRows += 1;
+    grossSale += sale; grossReturn += refund; feeTotal += fee;
+    // Net units: a retained sale adds, a standalone return subtracts, a
+    // same-window sale-and-return nets by its revenue sign.
+    let units = 0;
+    if (sale > 0 && refund === 0) units = qty;
+    else if (sale === 0 && refund < 0) units = -qty;
+    else if (sale > 0 && refund < 0) units = netRev > 0 ? qty : 0;
+    const key = `${date}|${sku}`;
+    const e = byKey.get(key);
+    if (e) { e.revenue = r2(e.revenue + netRev); e.fees = r2((e.fees ?? 0) + fee); e.units += units; }
+    else byKey.set(key, { source: 'flipkart', channel: 'Flipkart', date, sku, skuKind: 'sku', revenue: netRev, units, orders: 0, fees: fee });
+  }
+
+  // Drop rows that net to nothing (fully-returned / zero activity).
+  const facts = [...byKey.values()].filter((f) => f.revenue !== 0 || (f.fees ?? 0) !== 0 || f.units !== 0);
+  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const netRevTotal = r2(grossSale + grossReturn);
+  const trace = [
+    `Read sheet "${sheet}" — header at row ${hi + 1}, ${dataRows} order line(s)`,
+    `Sales ₹${inr(grossSale)} − returns ₹${inr(-grossReturn)} = net revenue ₹${inr(netRevTotal)}; marketplace fees ₹${inr(feeTotal)} (commission/shipping/collection; GST + TCS/TDS excluded, recoverable)`,
+    facts.length > 0
+      ? `${facts.length} Flipkart fact(s) → Flipkart channel (Net Revenue + Channel & Fulfilment)`
+      : 'No net Flipkart activity this month (all orders returned / zero net) — nothing to post.',
+  ];
+  return { facts, trace };
+}
+
+// ---- Flipkart Consolidated FSN ad report → Flipkart per-product ad spend ----
+
+/** "End Time, 2026-09-30 23:59:59" preamble → the range end ISO date. */
+function flipkartAdDate(rows: unknown[][], headerIdx: number): string {
+  for (const r of rows.slice(0, headerIdx)) {
+    if (lower(r[0]).startsWith('end time')) {
+      const v = cell(r[1]);
+      return /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : toISODate(r[1]);
+    }
+  }
+  return '';
+}
+
+/**
+ * Flipkart Ads "Consolidated FSN Report" (PLA / PCA). Per Sku Id: Ad Spend. The
+ * Sku Ids are the same text keys as the settlement's Seller SKU, so they map to
+ * finished goods via the Flipkart SKU map → Flipkart Sales & Marketing (CM2).
+ */
+function parseFlipkartAds(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  const hi = findHeader(rows, ['sku id', 'ad spend']);
+  if (hi < 0) return { facts: [], warning: 'No "Sku Id / Ad Spend" header — is this the Flipkart Consolidated FSN ad report?' };
+  const header = (rows[hi] ?? []).map(lower);
+  const skuCol = col(header, 'sku id');
+  const spendCol = col(header, 'ad spend');
+  const nameCol = col(header, 'product name');
+  if (skuCol < 0 || spendCol < 0) return { facts: [], warning: 'Flipkart ads: "Sku Id" / "Ad Spend" column not found.' };
+
+  const date = flipkartAdDate(rows, hi) || new Date().toISOString().slice(0, 10);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const bySku = new Map<string, { name: string; spend: number }>();
+  for (const row of rows.slice(hi + 1)) {
+    const sku = cell(row[skuCol]);
+    if (!sku) continue;
+    const spend = num(row[spendCol]);
+    if (spend <= 0) continue;
+    const e = bySku.get(sku) ?? { name: nameCol >= 0 ? cell(row[nameCol]) : sku, spend: 0 };
+    e.spend += spend;
+    bySku.set(sku, e);
+  }
+
+  const facts: DailyFact[] = [...bySku.entries()].map(([sku, { name, spend }]) => ({
+    source: 'flipkartads', channel: 'Flipkart', date, sku, skuName: name, skuKind: 'sku',
+    revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend),
+  }));
+  const total = r2(facts.reduce((s, f) => s + (f.spend ?? 0), 0));
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `${facts.length} products with spend → ₹${Math.round(total).toLocaleString('en-IN')} Flipkart ad spend (per Sku Id), dated ${date} → Flipkart Sales & Marketing`,
+  ];
+  return { facts, warning: facts.length === 0 ? 'No Flipkart ad rows with spend.' : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
+  {
+    sourceId: 'flipkart',
+    label: 'Flipkart Settled Transactions',
+    accept: '.xlsx,.xls',
+    hint: 'Flipkart Seller Hub → Reports → Payment Reports → Settled Transactions → set the month → download. The "Orders" sheet gives net revenue + marketplace fees per SKU → Flipkart channel.',
+    parse: parseFlipkartSettlement,
+  },
+  {
+    sourceId: 'flipkartads',
+    label: 'Flipkart Consolidated FSN ad report',
+    accept: '.csv,.xlsx,.xls',
+    hint: 'Flipkart Seller Hub → Ads → Other Reports → Consolidated FSN Report (PLA, and PCA if run) → set the month → download. Per-product ad spend → Flipkart Sales & Marketing.',
+    parse: parseFlipkartAds,
+  },
   {
     sourceId: 'amazon',
     label: 'Amazon unified transaction',

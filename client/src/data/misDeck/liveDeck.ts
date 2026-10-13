@@ -116,6 +116,7 @@ const PLATFORM_BY_CONNECTOR: Record<string, SkuPlatform> = {
   shopify: 'shopify',
   blinkit: 'blinkit',
   shiprocket: 'shiprocket',
+  flipkart: 'flipkart',
 };
 
 /** Platform facts → SkuRow[] (one per platform+sku), for the SKU/cost layer. */
@@ -160,12 +161,11 @@ const CHANNEL_ALIASES: Record<string, SalesChannel> = {
   d2c: 'D2C', shopify: 'D2C',
   amazon: 'Amazon',
   blinkit: 'Blinkit',
+  flipkart: 'Flipkart',
   oem: 'OEM', offline: 'Offline', export: 'Export',
 };
-// Channels outside the deck's fixed set (e.g. Flipkart) return null and are not
-// yet carried in the facts-only path — none of the wired revenue connectors
-// (Shopify/Amazon/Blinkit) hit that case today. Wiring Flipkart will mean
-// extending the deck's SalesChannel model, which is a deliberate change.
+// Channels outside the deck's fixed set return null and are not carried in the
+// facts-only path. Flipkart is now in the set (settlement + ads wired).
 function toSalesChannel(channel: string): SalesChannel | null {
   return CHANNEL_ALIASES[channel.trim().toLowerCase()] ?? null;
 }
@@ -247,15 +247,20 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
   const sku = computeSku(session);
   const cogmReal = sku.hasSkuSources && sku.costBook.count > 0 && sku.totalCogs !== null;
 
-  // Per-SKU ad spend from an Amazon Advertised Product upload (source
-  // 'amazonads'), resolved to FG×channel so SKU contribution can reach a true
-  // CM2. When such a report is in, the settlement's lumped "cost of advertising"
-  // is dropped from the channel total to avoid double-counting (see below).
+  // Per-SKU ad spend from a marketplace per-product ad report, resolved to
+  // FG×channel so SKU contribution can reach a true CM2: Amazon Advertised
+  // Product ('amazonads', platform 'amazon') and Flipkart Consolidated FSN
+  // ('flipkartads', platform 'flipkart'). When the Amazon report is in, the
+  // settlement's lumped "cost of advertising" is dropped from the channel total
+  // to avoid double-counting (see below); the Flipkart settlement carries no
+  // lumped ad, so Flipkart ad spend is simply added.
   const hasAmazonAds = allFacts.some((f) => f.source === 'amazonads');
   const adByFg = new Map<string, number>(); // `${fgId}|${channel}`
   for (const f of allFacts) {
-    if (f.source !== 'amazonads' || !f.sku || !f.spend) continue;
-    const hit = lookupSku('amazon' as Platform, f.sku);
+    const platform: Platform | null =
+      f.source === 'amazonads' ? 'amazon' : f.source === 'flipkartads' ? 'flipkart' : null;
+    if (!platform || !f.sku || !f.spend) continue;
+    const hit = lookupSku(platform, f.sku);
     const ch = toSalesChannel(f.channel);
     if (!hit || !ch) continue;
     const key = `${hit.fgId}|${ch}`;
