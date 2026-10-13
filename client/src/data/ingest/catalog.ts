@@ -86,15 +86,14 @@ const SLOTS: ReportSlot[] = [
 
   // ---- Marketing ----
   {
-    connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend — day × campaign × product', required: true,
+    connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', required: true,
     accept: '.csv,.xlsx', kind: 'xlsx',
     exportSteps: [
-      'Meta Ads Manager → set the date range to the month you are ingesting',
-      'Columns: include "Amount spent" (INR) and "Campaign name"',
-      'Breakdown → By Day AND By Product, then Export (Reports or the ads table)',
-      'The Product column fills only for the catalog (dynamic product) campaign — that is expected',
+      'Meta Ads Manager → set the date range to the SINGLE month you are ingesting (whole month, all campaigns — do not filter)',
+      'Group / pivot the table by Campaign name → Ad set name → Product ID',
+      'Keep the "Amount spent" column; export the full table INCLUDING the "All" subtotal rows (CSV or XLSX)',
     ],
-    note: 'Meta spend → Sales & Marketing. The catalog campaign breaks down to real per-product spend; the rest (brand/creative/prospecting campaigns carry no product) is allocated across D2C products by revenue share, flagged as modeled.',
+    note: 'Meta spend → Sales & Marketing. Campaign/ad-set "All" subtotals give the true total; Product ID rows give measured per-product spend; the unattributed residual (ad-set total − its product rows) is allocated across that ad set\'s products. Product names/IDs map to finished goods.',
   },
   {
     connectorId: 'googleads', slotId: 'ad-spend', label: 'Ad spend — day × campaign', required: true,
