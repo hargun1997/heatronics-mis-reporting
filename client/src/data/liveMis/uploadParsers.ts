@@ -741,6 +741,62 @@ function parseSnapmint(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: facts.length === 0 ? 'No Snapmint settlement rows found.' : undefined, trace };
 }
 
+// ---- Google Ads campaign report → D2C ad spend -----------------------------
+
+/** "September 1, 2026 - September 30, 2026" → the range's end date ISO. */
+function googleRangeEnd(s: string): string {
+  const ms = [...s.matchAll(/([A-Za-z]{3})[a-z]*\s+(\d{1,2}),\s*(\d{4})/g)];
+  const last = ms[ms.length - 1];
+  if (!last) return '';
+  const mm = AD_MONTHS[last[1].toLowerCase()];
+  return mm ? `${last[3]}-${mm}-${last[2].padStart(2, '0')}` : '';
+}
+
+/**
+ * Google Ads campaign report (Campaigns table export). One total for the month;
+ * we take the "Total: Account" row as the true Google spend → D2C Sales &
+ * Marketing. There is no product dimension here (Search has none; Shopping/PMax
+ * per-item comes from the optional Shopping-products report), so the whole
+ * amount is carried channel-level and spread across D2C products by revenue.
+ */
+function parseGoogleAdsCampaigns(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  const hi = findHeader(rows, ['campaign', 'cost']);
+  if (hi < 0) return { facts: [], warning: 'No "Campaign / Cost" header — is this the Google Ads campaign report?' };
+  const header = (rows[hi] ?? []).map(lower);
+  const costCol = header.lastIndexOf('cost');
+  if (costCol < 0) return { facts: [], warning: 'Google Ads: "Cost" column not found.' };
+
+  // Date from the range line above the header.
+  let date = '';
+  for (const r of rows.slice(0, hi)) {
+    const d = googleRangeEnd(cell(r[0]));
+    if (d) { date = d; break; }
+  }
+
+  // Prefer the "Total: Account" row; else sum the campaign rows.
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  let total = 0;
+  for (const r of rows.slice(hi + 1)) {
+    if (/^total:\s*account/i.test(cell(r[0]))) { total = num(r[costCol]); break; }
+  }
+  if (total <= 0) {
+    for (const r of rows.slice(hi + 1)) {
+      if (/^total/i.test(cell(r[0]))) continue;
+      total = r2(total + num(r[costCol]));
+    }
+  }
+  if (total <= 0) return { facts: [], warning: 'No Google ad cost found in the report.' };
+
+  const dt = date || new Date().toISOString().slice(0, 10);
+  const facts: DailyFact[] = [{ source: 'googleads', channel: 'D2C', date: dt, revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(total) }];
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `Total Google ad spend ₹${Math.round(total).toLocaleString('en-IN')}, dated ${dt} → D2C Sales & Marketing (spread across D2C products by revenue)`,
+  ];
+  return { facts, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
   {
     sourceId: 'amazon',
@@ -778,6 +834,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     parse: parseSnapmint,
   },
   {
+    sourceId: 'googleads',
+    label: 'Google Ads campaign report',
+    accept: '.csv,.xlsx,.xls',
+    hint: 'Google Ads → Campaigns → set the month → Download. Total Google spend → D2C Sales & Marketing, spread across D2C products by revenue.',
+    parse: parseGoogleAdsCampaigns,
+  },
+  {
     sourceId: 'amazonads',
     label: 'Amazon Advertised Product report',
     accept: '.csv,.xlsx',
@@ -793,9 +856,23 @@ export const UPLOAD_PARSERS: UploadParser[] = [
   },
 ];
 
+/**
+ * Read a workbook from a raw file buffer. CSV/TSV exports can be UTF-16 (Google
+ * Ads does this), which XLSX's ESM build can't decode on its own (no codepage
+ * table), so detect the UTF-16 BOM and decode to a string first.
+ */
+function readWorkbook(buf: ArrayBuffer): XLSX.WorkBook {
+  const bytes = new Uint8Array(buf);
+  if (bytes.length >= 2 && ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff))) {
+    const enc = bytes[0] === 0xff ? 'utf-16le' : 'utf-16be';
+    return XLSX.read(new TextDecoder(enc).decode(bytes), { type: 'string' });
+  }
+  return XLSX.read(buf, { type: 'array' });
+}
+
 export async function parseUpload(parser: UploadParser, file: File): Promise<UploadRecord> {
   const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: 'array' });
+  const wb = readWorkbook(buf);
   const { facts, warning, trace } = parser.parse(wb);
   if (facts.length === 0) {
     throw new Error(warning || 'No rows could be read from this file.');
