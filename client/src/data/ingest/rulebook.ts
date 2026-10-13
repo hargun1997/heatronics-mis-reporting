@@ -73,6 +73,15 @@ export const WIRING_LABEL: Record<Wiring, string> = {
   'needs-sample': 'Needs one export',
 };
 
+// Per-connector build progress — the three things each source needs before it
+// is fully live: its ids mapped into the MIS, its export steps written, and its
+// rule (what we do with the data) defined. The rule is always defined below;
+// mapping and steps are tracked here and shown as the progress checklist.
+export type Ready = 'done' | 'partial' | 'todo' | 'na';
+export const READY_LABEL: Record<Ready, string> = {
+  done: 'Done', partial: 'In progress', todo: 'To do', na: 'N/A',
+};
+
 export interface Destination {
   line: string;        // cascade line label this figure lands on
   dimension: string;   // the grain it carries (channel / SKU / blended)
@@ -95,6 +104,12 @@ export interface ConnectorRule {
   channel?: string;    // the MIS channel it maps to (if a revenue source)
   group: 'Book of record' | 'Marketplace' | 'D2C' | 'Marketing' | 'Logistics' | 'Payments & checkout';
   wiring: Wiring;
+  /** Chronological order we wired it (1-based). Absent = still queued. */
+  seq?: number;
+  /** Have we figured how its ids map into the MIS (SKU→FG / channel / ledger)? */
+  mapping: Ready;
+  /** Are the in-app export steps (and deep link, where needed) added? */
+  steps: Ready;
   summary: string;     // one line: what this source is for
   files: FileRule[];
 }
@@ -102,7 +117,7 @@ export interface ConnectorRule {
 export const CONNECTOR_RULES: ConnectorRule[] = [
   // ---------------- Book of record ----------------
   {
-    connectorId: 'tally', label: 'Tally Prime', group: 'Book of record', wiring: 'wired',
+    connectorId: 'tally', label: 'Tally Prime', group: 'Book of record', wiring: 'wired', mapping: 'done', steps: 'done',
     summary: 'The book of record. Owns everything below Contribution Margin — OPEX, EBITDA, Net Income — and reconciles the whole cascade.',
     files: [
       {
@@ -124,7 +139,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'tranzact', label: 'Tranzact (ERP / BOM)', group: 'Book of record', wiring: 'wired',
+    connectorId: 'tranzact', label: 'Tranzact (ERP / BOM)', group: 'Book of record', wiring: 'wired', seq: 1, mapping: 'done', steps: 'done',
     summary: 'Standard cost per finished good — the per-unit COGS that turns SKU revenue into margin.',
     files: [
       {
@@ -140,7 +155,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Marketplaces ----------------
   {
-    connectorId: 'amazon', label: 'Amazon Seller Central', channel: 'Amazon', group: 'Marketplace', wiring: 'wired',
+    connectorId: 'amazon', label: 'Amazon Seller Central', channel: 'Amazon', group: 'Marketplace', wiring: 'wired', seq: 2, mapping: 'done', steps: 'done',
     summary: 'The fee-accurate money view of the Amazon channel — revenue, units, orders, fees and ad spend.',
     files: [
       {
@@ -161,7 +176,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'flipkart', label: 'Flipkart Seller', channel: 'Flipkart', group: 'Marketplace', wiring: 'needs-sample',
+    connectorId: 'flipkart', label: 'Flipkart Seller', channel: 'Flipkart', group: 'Marketplace', wiring: 'needs-sample', mapping: 'todo', steps: 'done',
     summary: 'Flipkart channel revenue and commission — once a settlement export is provided.',
     files: [
       {
@@ -175,7 +190,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'blinkit', label: 'Blinkit (Quick Commerce)', channel: 'Blinkit', group: 'Marketplace', wiring: 'fixture-ready',
+    connectorId: 'blinkit', label: 'Blinkit (Quick Commerce)', channel: 'Blinkit', group: 'Marketplace', wiring: 'fixture-ready', mapping: 'partial', steps: 'done',
     summary: 'Blinkit channel — gross bill and all the commission/shipping charges from the order-level payout.',
     files: [
       {
@@ -191,7 +206,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- D2C ----------------
   {
-    connectorId: 'shopify', label: 'Shopify (D2C)', channel: 'D2C', group: 'D2C', wiring: 'live',
+    connectorId: 'shopify', label: 'Shopify (D2C)', channel: 'D2C', group: 'D2C', wiring: 'live', seq: 4, mapping: 'done', steps: 'done',
     summary: 'The D2C channel, pulled live by API — revenue, units and orders per SKU, per day. No upload needed.',
     files: [
       {
@@ -206,18 +221,21 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Marketing ----------------
   {
-    connectorId: 'meta', label: 'Meta Ads', group: 'Marketing', wiring: 'needs-sample',
-    summary: 'D2C ad spend — the Sales & Marketing line and the MER denominator.',
+    connectorId: 'meta', label: 'Meta Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 6, mapping: 'partial', steps: 'done',
+    summary: 'D2C ad spend, split to product — the Sales & Marketing line and the MER denominator.',
     files: [
       {
-        slotId: 'ad-spend', label: 'Ads spend by day', required: true, cadence: 'Weekly',
-        reads: 'Amount spent by day (and campaign, if present).',
-        destinations: [{ line: 'Sales & Marketing', dimension: 'D2C · by day', rule: 'Amount spent → D2C ad spend.' }],
+        slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', required: true, cadence: 'Weekly',
+        reads: 'The "By Product" export: amount spent per catalog product id, plus the grand-total row (the true month spend).',
+        destinations: [
+          { line: 'Sales & Marketing', dimension: 'D2C · per product', rule: 'Each product id → FG → measured per-product ad on its D2C SKU; sum = the product-attributed spend.' },
+          { line: 'Sales & Marketing', dimension: 'D2C · blended', rule: 'Residual (grand total − attributed, spend Meta could not tie to a product) → spread across D2C products by revenue, so per-SKU ad foots to the true total.' },
+        ],
       },
     ],
   },
   {
-    connectorId: 'googleads', label: 'Google Ads', group: 'Marketing', wiring: 'needs-sample',
+    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'needs-sample', seq: 7, mapping: 'todo', steps: 'done',
     summary: 'D2C ad spend — adds to Sales & Marketing.',
     files: [
       {
@@ -228,32 +246,32 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'amazonads', label: 'Amazon Ads', channel: 'Amazon', group: 'Marketing', wiring: 'needs-sample',
+    connectorId: 'amazonads', label: 'Amazon Ads', channel: 'Amazon', group: 'Marketing', wiring: 'wired', seq: 3, mapping: 'done', steps: 'done',
     summary: 'Amazon ad spend — the fuller Sponsored Products view that supersedes the settlement’s ad lines.',
     files: [
       {
-        slotId: 'ad-spend', label: 'Sponsored ads report', required: true, cadence: 'Weekly',
-        reads: 'Spend by day (and campaign/SKU, if present).',
-        destinations: [{ line: 'Sales & Marketing', dimension: 'Amazon · by day', rule: 'Spend → Amazon ad spend; when present, replaces the "cost of advertising" lines in the settlement file to avoid double-count.' }],
+        slotId: 'ad-spend', label: 'Advertised Product report', required: true, cadence: 'Weekly',
+        reads: 'Total cost per advertised SKU (base MSKU); Sponsored Brands/Display rows carry no SKU.',
+        destinations: [{ line: 'Sales & Marketing', dimension: 'Amazon · per SKU', rule: 'Per-SKU cost → base MSKU → FG → measured per-SKU Amazon ad; SKU-less rows stay channel-level. When present, replaces the settlement\'s "cost of advertising" lines to avoid double-count.' }],
       },
     ],
   },
 
   // ---------------- Logistics ----------------
   {
-    connectorId: 'shiprocket', label: 'Shiprocket', group: 'Logistics', wiring: 'wired',
+    connectorId: 'shiprocket', label: 'Shiprocket', group: 'Logistics', wiring: 'wired', seq: 5, mapping: 'done', steps: 'done',
     summary: 'Outbound freight across channels — part of Channel & Fulfilment.',
     files: [
       {
         slotId: 'passbook', label: 'Wallet passbook', required: true, cadence: 'Weekly',
-        reads: 'Dated freight and shipping charges (negative amounts in the passbook).',
-        destinations: [{ line: 'Channel & Fulfilment', dimension: 'Allocated across channels', rule: 'Freight out → fulfilment, allocated across channels by their order/units share.' }],
-        exclusions: 'Wallet top-ups and COD remittances (money in, not a cost).',
+        reads: 'Dated freight/shipping charges (debit rows only), tagged to a channel from the channel-order-id suffix (…-D2C / -Amazon / -Blinkit / -Flipkart).',
+        destinations: [{ line: 'Channel & Fulfilment', dimension: 'Per channel → per SKU', rule: 'Freight out → fulfilment on its own channel; within a channel, allocated across that channel\'s SKUs by units. Untagged freight stays channel-level.' }],
+        exclusions: 'Wallet top-ups / recharges and COD remittances (credits — money in, not a cost).',
       },
     ],
   },
   {
-    connectorId: 'delhivery', label: 'Delhivery', group: 'Logistics', wiring: 'needs-sample',
+    connectorId: 'delhivery', label: 'Delhivery', group: 'Logistics', wiring: 'needs-sample', mapping: 'todo', steps: 'done',
     summary: 'Freight / remittance — adds to Channel & Fulfilment.',
     files: [
       {
@@ -266,7 +284,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Payments & checkout ----------------
   {
-    connectorId: 'easebuzz', label: 'Easebuzz', group: 'Payments & checkout', wiring: 'needs-sample',
+    connectorId: 'easebuzz', label: 'Easebuzz', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', steps: 'done',
     summary: 'Payment-gateway MDR — part of Platform & Payment.',
     files: [
       {
@@ -277,7 +295,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'shopflo', label: 'Shopflo', group: 'Payments & checkout', wiring: 'needs-sample',
+    connectorId: 'shopflo', label: 'Shopflo', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', steps: 'done',
     summary: 'Checkout settlement fees — part of Platform & Payment.',
     files: [
       {
@@ -288,7 +306,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'snapmint', label: 'Snapmint', group: 'Payments & checkout', wiring: 'needs-sample',
+    connectorId: 'snapmint', label: 'Snapmint', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', steps: 'done',
     summary: 'BNPL subvention / fees — part of Platform & Payment.',
     files: [
       {
