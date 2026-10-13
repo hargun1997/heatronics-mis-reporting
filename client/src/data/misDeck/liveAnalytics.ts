@@ -8,7 +8,7 @@
 // ----------------------------------------------------------------------------
 
 import type { MonthlyMIS, SalesChannel } from './misDeckData';
-import { SALES_CHANNELS } from './misDeckData';
+import { SALES_CHANNELS, VERTICALS, VERTICAL_BY_CHANNEL } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
 import type { CompletenessLevel, PeriodCompleteness } from './liveDeck';
 import type { ChannelRecon, TallyBucketLine } from '../monthClose/schema';
@@ -279,4 +279,169 @@ export function skuChannelMatrix(cells: SkuCell[], periodKeys: Set<string>, metr
   });
   const orderedChannels = SALES_CHANNELS.filter((c) => channels.has(c));
   return { products: orderedProducts, channels: orderedChannels, cell };
+}
+
+// ---- Bifurcated full P&L: slice by channel / vertical / SKU ------------------
+//
+// One builder powers every bifurcated P&L. It takes a slice of SkuCells (all of
+// them, or filtered to one channel or one product) and splits it into columns —
+// channels, verticals, or products. Each column is a FULL cascade down to Net
+// Income:
+//
+//   • Net Revenue → CM2 is bottoms-up, "connectors as true": revenue, COGS
+//     (BOM) + 10% factory, channel fees and ad spend all come straight off the
+//     SkuCells for that column.
+//   • Below CM2 — platform, OPEX, finance — is company-level, so it is spread
+//     across columns PRO-RATA by each column's share of the month's net revenue
+//     (the user's rule: "CM3 proportionate to each SKU/channel sales; OPEX
+//     company-level"). Each column therefore foots to its own Net Income.
+//
+// For a whole-company slice (no filter, columns cover every channel/SKU) the
+// bottoms-up columns do not quite equal Tally — the connectors never see 100% of
+// revenue — so a single "Reconciliation → Tally" column carries the per-line gap
+// and the Total column is Tally's own authoritative cascade. Filtered slices (one
+// SKU across its channels, or one channel across its SKUs) show their own Total.
+
+export type SliceColumnBy = 'channel' | 'vertical' | 'sku';
+export interface SliceFilter {
+  channel?: SalesChannel;
+  product?: string;
+}
+
+export interface PnlColumn {
+  key: string;
+  label: string;
+  kind: 'slice' | 'recon' | 'total';
+  rev: number;
+  cogs: number;
+  factory: number;
+  cogm: number;
+  gm: number;
+  fulfilment: number;
+  cm1: number;
+  marketing: number;
+  cm2: number;
+  platform: number;
+  cm3: number;
+  opex: number;
+  ebitda: number;
+  nonOperating: number;
+  netIncome: number;
+}
+
+export interface SlicePnl {
+  columnBy: SliceColumnBy;
+  /** The SKU or channel columns, each a full cascade. */
+  columns: PnlColumn[];
+  /** Plug to Tally, present only for a whole-company slice. */
+  recon: PnlColumn | null;
+  /** Σ columns (+recon). Equals Tally for a whole-company slice. */
+  total: PnlColumn;
+  /** True when `total` is Tally's authoritative cascade (whole-company slice). */
+  tied: boolean;
+}
+
+interface SliceAgg { rev: number; cogs: number; fees: number; ad: number; units: number }
+
+/** The distinct column keys available for a slice, most revenue first. */
+export function sliceOptions(
+  cells: SkuCell[],
+  periodKeys: Set<string>,
+  by: SliceColumnBy,
+  filter?: SliceFilter,
+): { key: string; label: string; revenue: number }[] {
+  const rev = new Map<string, number>();
+  for (const c of foldCells(cells, periodKeys)) {
+    if (filter?.channel && c.ch !== filter.channel) continue;
+    if (filter?.product && c.p !== filter.product) continue;
+    const key = by === 'sku' ? c.p : by === 'vertical' ? VERTICAL_BY_CHANNEL[c.ch] : c.ch;
+    rev.set(key, r2((rev.get(key) ?? 0) + c.rev));
+  }
+  const order = by === 'vertical' ? (VERTICALS as readonly string[]) : by === 'channel' ? (SALES_CHANNELS as readonly string[]) : null;
+  return [...rev.entries()]
+    .map(([key, revenue]) => ({ key, label: key, revenue }))
+    .sort((a, b) => (order ? order.indexOf(a.key) - order.indexOf(b.key) : b.revenue - a.revenue));
+}
+
+export function slicePnl(
+  period: PeriodAgg,
+  cells: SkuCell[],
+  periodKeys: Set<string>,
+  columnBy: SliceColumnBy,
+  filter?: SliceFilter,
+): SlicePnl {
+  const sel = foldCells(cells, periodKeys).filter(
+    (c) => (!filter?.channel || c.ch === filter.channel) && (!filter?.product || c.p === filter.product),
+  );
+
+  const colKey = (c: SkuCell) => (columnBy === 'sku' ? c.p : columnBy === 'vertical' ? VERTICAL_BY_CHANNEL[c.ch] : c.ch);
+  const agg = new Map<string, SliceAgg>();
+  for (const c of sel) {
+    const k = colKey(c);
+    const e = agg.get(k) ?? { rev: 0, cogs: 0, fees: 0, ad: 0, units: 0 };
+    e.rev = r2(e.rev + c.rev);
+    e.cogs = r2(e.cogs + c.cogs);
+    e.fees = r2(e.fees + c.oth);
+    e.ad = r2(e.ad + (c.ad ?? 0));
+    e.units = r2(e.units + c.u);
+    agg.set(k, e);
+  }
+
+  // Pro-rata base for the company-level cost below CM2: the month's net revenue,
+  // so each column carries its fair share and the pieces foot to the Tally totals.
+  const base = period.netRevenue || 0;
+  const belowCm2 = (share: number) => ({
+    platform: r2(period.platformCosts * share),
+    opex: r2(period.opex * share),
+    nonOperating: r2((period.nonOperating + period.costOfFundraising) * share),
+  });
+
+  const mkCol = (key: string, a: SliceAgg, kind: PnlColumn['kind'] = 'slice'): PnlColumn => {
+    const factory = r2(FACTORY_PCT * a.rev);
+    const cogm = r2(a.cogs + factory);
+    const gm = r2(a.rev - cogm);
+    const cm1 = r2(gm - a.fees);
+    const cm2 = r2(cm1 - a.ad);
+    const b = belowCm2(base ? a.rev / base : 0);
+    const cm3 = r2(cm2 - b.platform);
+    const ebitda = r2(cm3 - b.opex);
+    const netIncome = r2(ebitda - b.nonOperating);
+    return {
+      key, label: key, kind,
+      rev: a.rev, cogs: a.cogs, factory, cogm, gm,
+      fulfilment: a.fees, cm1, marketing: a.ad, cm2,
+      platform: b.platform, cm3, opex: b.opex, ebitda, nonOperating: b.nonOperating, netIncome,
+    };
+  };
+
+  const order = columnBy === 'vertical' ? (VERTICALS as readonly string[]) : columnBy === 'channel' ? (SALES_CHANNELS as readonly string[]) : null;
+  const columns = [...agg.entries()]
+    .map(([k, a]) => mkCol(k, a))
+    .sort((x, y) => (order ? order.indexOf(x.key) - order.indexOf(y.key) : y.rev - x.rev));
+
+  const SUM: (keyof PnlColumn)[] = ['rev', 'cogs', 'factory', 'cogm', 'gm', 'fulfilment', 'cm1', 'marketing', 'cm2', 'platform', 'cm3', 'opex', 'ebitda', 'nonOperating', 'netIncome'];
+  const foldCols = (label: string, kind: PnlColumn['kind'], src: PnlColumn[]): PnlColumn => {
+    const out = { key: `__${kind}`, label, kind } as PnlColumn;
+    for (const f of SUM) (out[f] as number) = r2(src.reduce((s, c) => s + (c[f] as number), 0));
+    return out;
+  };
+  const sumCols = foldCols('Total', 'total', columns);
+
+  const whole = !filter?.channel && !filter?.product;
+  if (!whole) {
+    return { columnBy, columns, recon: null, total: sumCols, tied: false };
+  }
+
+  // Whole-company slice: tie to Tally. Total is Tally's own cascade; recon plugs.
+  const tallyFactory = r2(FACTORY_PCT * period.netRevenue);
+  const tally: PnlColumn = {
+    key: '__tally', label: 'Total', kind: 'total',
+    rev: period.netRevenue, cogs: r2(period.cogm - tallyFactory), factory: tallyFactory, cogm: period.cogm, gm: period.grossMargin,
+    fulfilment: period.channelFulfillment, cm1: period.cm1, marketing: period.salesMarketing, cm2: period.cm2,
+    platform: period.platformCosts, cm3: period.cm3, opex: period.opex, ebitda: period.ebitda,
+    nonOperating: r2(period.nonOperating + period.costOfFundraising), netIncome: period.netIncome,
+  };
+  const recon = { key: '__recon', label: 'Recon → Tally', kind: 'recon' } as PnlColumn;
+  for (const f of SUM) (recon[f] as number) = r2((tally[f] as number) - (sumCols[f] as number));
+  return { columnBy, columns, recon, total: tally, tied: true };
 }

@@ -154,8 +154,8 @@ export function LiveMisPage() {
             {tab === 'overview' && selected && <OverviewTab period={selected} />}
             {tab === 'pnl' && <PnlTab periods={periods} showPct={pnlPct} />}
             {tab === 'channels' && selected && <ChannelsTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
-            {tab === 'sku' && <SkuTab cells={deck.skuCells} periodKeys={periodKeys} />}
-            {tab === 'skuchannel' && <SkuChannelTab cells={deck.skuCells} periodKeys={periodKeys} />}
+            {tab === 'sku' && selected && <SkuTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
+            {tab === 'skuchannel' && selected && <SkuChannelTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
           </SectionCard>
         )}
       </div>
