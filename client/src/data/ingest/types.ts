@@ -30,6 +30,8 @@ export interface ReportSlot {
   /** UPLOAD_PARSERS sourceId when a parser is wired; absent = not built yet */
   parserId?: string;
   note?: string;
+  /** Deep link straight to the export screen (a saved report, a console page). */
+  exportUrl?: { label: string; url: string };
 }
 
 export type CheckStatus = 'pass' | 'warn' | 'fail';

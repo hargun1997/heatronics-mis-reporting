@@ -124,6 +124,16 @@ export function IngestStepper({
               <li key={i} className="flex gap-2"><span className="text-brand-500 font-semibold tabular-nums">{i + 1}.</span><span>{t}</span></li>
             ))}
           </ol>
+          {slot.exportUrl && (
+            <a
+              href={slot.exportUrl.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 text-[12px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+            >
+              {slot.exportUrl.label} <span aria-hidden>↗</span>
+            </a>
+          )}
           {slot.note && <p className="text-[12px] text-slate-500 mt-1.5">{slot.note}</p>}
         </div>
 

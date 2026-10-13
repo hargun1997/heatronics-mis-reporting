@@ -89,11 +89,15 @@ const SLOTS: ReportSlot[] = [
     connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', required: true,
     accept: '.csv,.xlsx', kind: 'xlsx', parserId: 'meta',
     exportSteps: [
-      'Meta Ads Manager → set the date range to the SINGLE month you are ingesting (whole month, all campaigns — do not filter)',
-      'Group / pivot the table by Campaign name → Ad set name → Product ID',
-      'Keep the "Amount spent" column; export the full table INCLUDING the "All" subtotal rows (CSV or XLSX)',
+      'Open the saved "MIS Reporting" report (link below) — grouped Campaign → Ad set → Product ID with Amount spent',
+      'Set the date range to the SINGLE month you are ingesting (whole month, all campaigns)',
+      'Export → download the CSV/XLSX, then upload it here',
     ],
-    note: 'Meta spend → Sales & Marketing. Campaign/ad-set "All" subtotals give the true total; Product ID rows give measured per-product spend; the unattributed residual (ad-set total − its product rows) is allocated across that ad set\'s products. Product names/IDs map to finished goods.',
+    exportUrl: {
+      label: 'Open MIS Reporting in Meta Ads Manager',
+      url: 'https://adsmanager.facebook.com/adsmanager/reporting/view?act=2294012640954204&ads_manager_write_regions=true&business_id=488618164122715&event_source=CLICK_CREATE_REPORT&selected_report_id=120255530074250155',
+    },
+    note: 'Meta spend → Sales & Marketing. Grand total = true spend; Product ID rows give measured per-product spend; the unattributed residual is allocated across D2C products by revenue. Product ids map to finished goods.',
   },
   {
     connectorId: 'googleads', slotId: 'ad-spend', label: 'Ad spend — day × campaign', required: true,
