@@ -51,40 +51,54 @@ function lastMonth(): string {
   return `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-type MonthState = 'closed' | 'partial' | 'missing';
+type MonthState = 'complete' | 'partial' | 'none';
 
 /**
  * "Where we are" — the live window (from the Apr-2026 boundary to the current
- * month) laid out month by month, so you can see at a glance which months are
- * closed (Tally P&L in), which are partial (some connector data but no Tally),
- * and which are still blank. History before the boundary is locked legacy.
+ * month) laid out month by month. A month is scored against the FULL set of
+ * required reports (every required slot across every upload connector), not
+ * just Tally: all required sources in → green, some in → amber, none → red.
+ * History before the boundary is locked legacy.
  */
-function CoveragePanel({ reports }: { reports: IngestReportMeta[] }) {
+function CoveragePanel({ reports, connectors }: { reports: IngestReportMeta[]; connectors: ConnectorInfo[] }) {
   const today = currentMonthKey();
   const end = today > LIVE_BOUNDARY ? today : LIVE_BOUNDARY;
   const months = monthRange(LIVE_BOUNDARY, end);
 
-  // Per-month coverage from the committed records (each month is its own record
-  // after the month-split commit). A Tally P&L closes the month; anything else
-  // makes it partial.
-  const stateOf = (mk: string): { state: MonthState; sources: string[] } => {
-    const here = reports.filter((r) => r.periodKey === mk);
-    if (here.length === 0) return { state: 'missing', sources: [] };
-    const hasTally = here.some((r) => r.connectorId === 'tally' && r.slotId === 'pnl');
-    const sources = [...new Set(here.map((r) => r.connectorId))];
-    return { state: hasTally ? 'closed' : 'partial', sources };
+  // The required uploads for a complete month: every required slot on every
+  // connector that is uploaded (live-API sources pull themselves, so they don't
+  // count). Each entry is `${connectorId}|${slotId}` with a label for tooltips.
+  const expected = connectors
+    .filter((c) => c.mode !== 'live-api')
+    .flatMap((c) => slotsFor(c.id).filter((s) => s.required).map((s) => ({ key: `${c.id}|${s.slotId}`, label: `${c.label} · ${s.label}` })));
+
+  const stateOf = (mk: string): { state: MonthState; present: number; missing: string[] } => {
+    const have = new Set(reports.filter((r) => r.periodKey === mk).map((r) => `${r.connectorId}|${r.slotId}`));
+    const present = expected.filter((e) => have.has(e.key));
+    const missing = expected.filter((e) => !have.has(e.key)).map((e) => e.label);
+    const anyHere = reports.some((r) => r.periodKey === mk);
+    // Guard before connectors load (expected empty): fall back to any-data.
+    if (expected.length === 0) return { state: anyHere ? 'partial' : 'none', present: anyHere ? 1 : 0, missing: [] };
+    if (present.length === expected.length) return { state: 'complete', present: present.length, missing: [] };
+    if (present.length > 0 || anyHere) return { state: 'partial', present: present.length, missing };
+    return { state: 'none', present: 0, missing };
   };
   const rows = months.map((mk) => ({ mk, ...stateOf(mk) }));
 
-  // Fully-closed-through = the contiguous run of closed months from the boundary.
-  let closedThrough: string | null = null;
-  for (const r of rows) { if (r.state === 'closed') closedThrough = r.mk; else break; }
-  const withData = rows.filter((r) => r.state !== 'missing').length;
+  // Complete-through = the contiguous run of fully-complete months from the start.
+  let completeThrough: string | null = null;
+  for (const r of rows) { if (r.state === 'complete') completeThrough = r.mk; else break; }
+  const completeCount = rows.filter((r) => r.state === 'complete').length;
 
   const CHIP: Record<MonthState, string> = {
-    closed: 'bg-emerald-500 text-white border-emerald-500',
+    complete: 'bg-emerald-500 text-white border-emerald-500',
     partial: 'bg-amber-100 text-amber-800 border-amber-300',
-    missing: 'bg-slate-50 text-slate-400 border-slate-200 border-dashed',
+    none: 'bg-rose-50 text-rose-600 border-rose-200',
+  };
+  const tip = (r: typeof rows[number]) => {
+    if (r.state === 'complete') return `${monthName(r.mk)} — complete · all ${expected.length} required reports in`;
+    if (r.state === 'none') return `${monthName(r.mk)} — nothing uploaded · ${expected.length} required`;
+    return `${monthName(r.mk)} — partial · ${r.present}/${expected.length} in · missing: ${r.missing.join(', ')}`;
   };
 
   return (
@@ -93,29 +107,28 @@ function CoveragePanel({ reports }: { reports: IngestReportMeta[] }) {
         <h3 className="text-sm font-semibold text-slate-800">Where we are</h3>
         <span className="text-[11px] text-slate-500">
           Live window from <span className="font-medium text-slate-700">{monthName(LIVE_BOUNDARY)}</span>
-          {closedThrough
-            ? <> · <span className="text-emerald-700 font-medium">fully closed through {monthName(closedThrough)}</span></>
-            : <> · <span className="text-amber-700 font-medium">no month fully closed yet</span></>}
-          {' '}· {withData} of {rows.length} month{rows.length === 1 ? '' : 's'} have data
+          {completeThrough
+            ? <> · <span className="text-emerald-700 font-medium">complete through {monthName(completeThrough)}</span></>
+            : <> · <span className="text-amber-700 font-medium">no month fully complete yet</span></>}
+          {' '}· {completeCount} of {rows.length} month{rows.length === 1 ? '' : 's'} complete
         </span>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
         {rows.map((r) => (
-          <div key={r.mk}
-            title={r.state === 'missing' ? `${monthName(r.mk)} — nothing uploaded yet`
-              : `${monthName(r.mk)} — ${r.state === 'closed' ? 'closed (Tally P&L in)' : 'partial (no Tally yet)'} · ${r.sources.join(', ')}`}
+          <div key={r.mk} title={tip(r)}
             className={`px-2 py-1 rounded-md border text-[11px] font-medium tabular-nums ${CHIP[r.state]}`}>
             {shortMonth(r.mk)}
+            {r.state === 'partial' && expected.length > 0 && <span className="ml-1 opacity-70">{r.present}/{expected.length}</span>}
           </div>
         ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Closed (Tally in)</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-amber-300" /> Partial (no Tally yet)</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded border border-dashed border-slate-300 bg-slate-50" /> Not uploaded</span>
-        <span className="text-slate-400">· History before {monthName(LIVE_BOUNDARY)} is locked legacy.</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Complete (all required in)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-amber-300" /> Partial (some in)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-rose-300" /> Nothing uploaded</span>
+        <span className="text-slate-400">· Hover a month for what's missing. History before {monthName(LIVE_BOUNDARY)} is locked legacy.</span>
       </div>
     </div>
   );
@@ -174,7 +187,7 @@ export function IngestWorkspace() {
   return (
     <div className="space-y-5">
       {/* "Where we are" — the live window month by month */}
-      <CoveragePanel reports={reports} />
+      <CoveragePanel reports={reports} connectors={connectors} />
 
       {/* Status strip: Claude API (reads Tally screenshots + Ask the MIS) + store durability */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
