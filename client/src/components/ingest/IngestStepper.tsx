@@ -320,7 +320,7 @@ export function IngestStepper({
                   ? <>Will ingest <span className="font-medium text-slate-700">{breakdown.length} months</span>, each filed to its own month: </>
                   : <>Saving into <span className="font-medium text-slate-700">{monthName(breakdown[0].periodKey)}</span> (read from the data). </>}
                 {breakdown.length > 1 && (
-                  <span className="text-slate-600">{breakdown.map((b) => `${monthName(b.periodKey)} (${b.rowCount})`).join(', ')}. </span>
+                  <span className="text-slate-600">{breakdown.map((b) => `${monthName(b.periodKey)} (${b.rowCount > 0 ? b.rowCount : 'empty'})`).join(', ')}. </span>
                 )}
                 Re-uploading a month overwrites just that month.
               </p>
