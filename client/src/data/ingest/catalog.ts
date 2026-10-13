@@ -87,7 +87,7 @@ const SLOTS: ReportSlot[] = [
   // ---- Marketing ----
   {
     connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', required: true,
-    accept: '.csv,.xlsx', kind: 'xlsx',
+    accept: '.csv,.xlsx', kind: 'xlsx', parserId: 'meta',
     exportSteps: [
       'Meta Ads Manager → set the date range to the SINGLE month you are ingesting (whole month, all campaigns — do not filter)',
       'Group / pivot the table by Campaign name → Ad set name → Product ID',

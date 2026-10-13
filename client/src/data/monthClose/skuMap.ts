@@ -45,7 +45,7 @@ import { fgMaster } from '../fgMaster';
 import { skuToFgMapping } from '../skuToFgMapping';
 import type { CostBasis } from './schema';
 
-export type Platform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'offline' | 'oem';
+export type Platform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'meta' | 'offline' | 'oem';
 
 export const PLATFORMS: Platform[] = ['amazon', 'shopify', 'blinkit', 'shiprocket', 'offline', 'oem'];
 
@@ -251,6 +251,37 @@ const SHOPIFY_TITLES: SkuEntry[] = [
   { platform: 'shopify', key: 'Foot Warmer with Auto-Cutoff – Digital by Heatronics', fgId: 'FG-0010', confirmed: true, byTitle: true },
 ];
 
+/**
+ * Meta catalog product ids, read off the "By Product" ad export. The ads report
+ * keys spend by these numeric catalog ids; their names usually carry the hCore
+ * model ("… | hCore X-L"), which fixes the FG. A second catalog (50409…/50407…)
+ * names its items only "Heating Pad for Period/Back Pain" with no model — those
+ * are a best guess (the flagship variant of that line) and marked unconfirmed.
+ */
+const META_PRODUCTS: SkuEntry[] = [
+  // Model in the name or a distinct product line — confident.
+  { platform: 'meta', key: '48268187599062', fgId: 'FG-0004', confirmed: true, basis: 'Meta "Period Pain … | hCore X Lite"' },
+  { platform: 'meta', key: '48268188385494', fgId: 'FG-0006', confirmed: true, basis: 'Meta "Knee Heating Pad"' },
+  { platform: 'meta', key: '48268188418262', fgId: 'FG-0008', confirmed: true, basis: 'Meta "Neck Heating Pad"' },
+  { platform: 'meta', key: '48268189466838', fgId: 'FG-0010', confirmed: true, basis: 'Meta "Foot Warmer for Cold Feet"' },
+  { platform: 'meta', key: '48268187533526', fgId: 'FG-0002', confirmed: true, basis: 'Meta "Back Pain & Stiffness | hCore X-L"' },
+  { platform: 'meta', key: '50407933935830', fgId: 'FG-0002', confirmed: true, basis: 'Meta "Back Pain & Stiffness | hCore X-L" (2nd catalog)' },
+  { platform: 'meta', key: '48268188319958', fgId: 'FG-0001', confirmed: true, basis: 'Meta "Back Pain, Large Coverage | hCore X-L Lite"' },
+  { platform: 'meta', key: '48260395401430', fgId: 'FG-0003', confirmed: true, basis: 'Meta "Period Pain & Menstrual Cramps | hCore X"' },
+  { platform: 'meta', key: '48268189532374', fgId: 'FG-0012', confirmed: true, basis: 'Meta "Single Bed Warmer"' },
+  { platform: 'meta', key: '48268189565142', fgId: 'FG-0014', confirmed: true, basis: 'Meta "Double Bed Warmer"' },
+  { platform: 'meta', key: '48268191465686', fgId: 'FG-0016', confirmed: false, basis: 'Meta "Heated Backrest" — three HBR variants share the Rest deck name' },
+  // Second catalog, generic names with no model — best guess, confirm.
+  { platform: 'meta', key: '50409612607702', fgId: 'FG-0004', confirmed: false, basis: 'Meta "Heating Pad for Period Pain" (no model) → assumed X Lite; confirm' },
+  { platform: 'meta', key: '50409612673238', fgId: 'FG-0004', confirmed: false, basis: 'Meta "Heating Pad for Period Pain" (no model) → assumed X Lite; confirm' },
+  { platform: 'meta', key: '50409612640470', fgId: 'FG-0004', confirmed: false, basis: 'Meta "Heating Pad for Period Pain" (no model) → assumed X Lite; confirm' },
+  { platform: 'meta', key: '50409612706006', fgId: 'FG-0004', confirmed: false, basis: 'Meta "Heating Pad for Period Pain" (no model) → assumed X Lite; confirm' },
+  { platform: 'meta', key: '50409623584982', fgId: 'FG-0002', confirmed: false, basis: 'Meta "Heating Pad for Back Pain" (no model) → assumed X-L; confirm' },
+  { platform: 'meta', key: '50409623617750', fgId: 'FG-0002', confirmed: false, basis: 'Meta "Heating Pad for Back Pain" (no model) → assumed X-L; confirm' },
+  { platform: 'meta', key: '50409623650518', fgId: 'FG-0002', confirmed: false, basis: 'Meta "Heating Pad for Back Pain" (no model) → assumed X-L; confirm' },
+  { platform: 'meta', key: '50409623683286', fgId: 'FG-0002', confirmed: false, basis: 'Meta "Heating Pad for Back Pain" (no model) → assumed X-L; confirm' },
+];
+
 /** Blinkit's own numeric item ids, read off the July payout workbook. */
 const BLINKIT_SKUS: SkuEntry[] = [
   { platform: 'blinkit', key: '10230152', fgId: 'FG-0021', confirmed: false, basis: 'Blinkit "Active Tennis Elbow Support & Guard"' },
@@ -277,6 +308,7 @@ export const SEED_SKU_MAP: SkuEntry[] = [
   { platform: 'amazon', key: 'ML-VB5I-UWTJ', fgId: 'FG-0006', confirmed: true, basis: 'Amazon "hCore Knee Heating Pad" — second listing of the digital knee; ASP ₹1,620 matches VW-H1GL-KTOZ (FG-0006)' },
   ...SHOPIFY_SKUS,
   ...SHOPIFY_TITLES,
+  ...META_PRODUCTS,
   ...BLINKIT_SKUS,
 ];
 

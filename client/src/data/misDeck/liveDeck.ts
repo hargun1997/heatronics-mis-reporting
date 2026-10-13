@@ -256,9 +256,34 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     adByFg.set(key, r2((adByFg.get(key) ?? 0) + (f.spend ?? 0)));
   }
 
+  // Meta ad spend (source 'meta', channel D2C): product-id rows give measured
+  // per-product spend (metaAdByFg); rows with no product id (or an unmapped id)
+  // are the residual pool Meta couldn't attribute, spread across D2C products
+  // below so per-SKU ad spend still foots to the true monthly total.
+  const metaAdByFg = new Map<string, number>(); // `${fgId}|${channel}`
+  const metaMeasuredByChan = new Map<SalesChannel, number>();
+  const metaResidualByChan = new Map<SalesChannel, number>();
+  for (const f of allFacts) {
+    if (f.source !== 'meta' || !f.spend) continue;
+    const ch = toSalesChannel(f.channel);
+    if (!ch) continue;
+    const hit = f.sku ? lookupSku('meta' as Platform, f.sku) : null;
+    if (hit) {
+      metaAdByFg.set(`${hit.fgId}|${ch}`, r2((metaAdByFg.get(`${hit.fgId}|${ch}`) ?? 0) + f.spend));
+      metaMeasuredByChan.set(ch, r2((metaMeasuredByChan.get(ch) ?? 0) + f.spend));
+    } else {
+      metaResidualByChan.set(ch, r2((metaResidualByChan.get(ch) ?? 0) + f.spend));
+    }
+  }
+
   // SKU cells from the aggregates (costed ones only carry real contribution).
+  // Measured ad = Amazon per-SKU + Meta per-product; track how much Meta
+  // measured actually lands on a cell, so the rest joins the residual pool.
+  const metaAppliedByChan = new Map<SalesChannel, number>();
   const skuCells: SkuCell[] = sku.aggregates.map((a) => {
-    const ad = adByFg.get(`${a.fgId}|${a.channel}`) ?? 0;
+    const metaAd = metaAdByFg.get(`${a.fgId}|${a.channel}`) ?? 0;
+    if (metaAd) metaAppliedByChan.set(a.channel, r2((metaAppliedByChan.get(a.channel) ?? 0) + metaAd));
+    const ad = r2((adByFg.get(`${a.fgId}|${a.channel}`) ?? 0) + metaAd);
     const cogs = a.cogs ?? 0;
     return {
       m: periodKey, ch: a.channel, p: a.deckName,
@@ -266,6 +291,24 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       con: r2(a.revenue - cogs - a.fees - ad), u: a.units, ad,
     };
   });
+
+  // Spread the Meta residual — spend with no product id, plus any measured
+  // whose FG has no cell this month — across that channel's SkuCells by revenue,
+  // into `ad`. Keeps per-SKU ad footing to the true monthly Meta total.
+  const metaChannels = new Set<SalesChannel>([...metaMeasuredByChan.keys(), ...metaResidualByChan.keys()]);
+  for (const ch of metaChannels) {
+    const orphan = r2((metaMeasuredByChan.get(ch) ?? 0) - (metaAppliedByChan.get(ch) ?? 0));
+    const pool = r2((metaResidualByChan.get(ch) ?? 0) + Math.max(0, orphan));
+    if (pool <= 0) continue;
+    const cells = skuCells.filter((c) => c.ch === ch);
+    const totalRev = cells.reduce((s, c) => s + c.rev, 0);
+    if (totalRev <= 0) continue;
+    for (const c of cells) {
+      const part = r2(pool * (c.rev / totalRev));
+      c.ad = r2((c.ad ?? 0) + part);
+      c.con = r2(c.con - part);
+    }
+  }
 
   // Shiprocket freight is a per-day×channel fact with no SKU, so it never lands
   // on a SkuCell on its own. Allocate each channel's freight across that
