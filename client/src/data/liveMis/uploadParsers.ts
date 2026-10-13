@@ -132,7 +132,7 @@ function shiprocketChannel(orderId: string): string {
   if (/AMAZON|AMZ|FB[AM]/.test(s)) return 'Amazon';
   if (/BLINK/.test(s)) return 'Blinkit';
   if (/FLIP/.test(s)) return 'Flipkart';
-  return 'Shiprocket'; // untagged → stays company-level fulfilment
+  return 'D2C'; // Heatronics ships only D2C via Shiprocket, so untagged → D2C
 }
 
 function parseShiprocketPassbook(wb: XLSX.WorkBook): ParseOutput {
@@ -665,6 +665,82 @@ function parseEasebuzz(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: facts.length === 0 ? 'No Easebuzz settlement rows found.' : undefined, trace };
 }
 
+// ---- Snapmint group settlement → D2C BNPL finance cost ---------------------
+
+/**
+ * Snapmint "Merchant Settlement Date" is DD-MM-YYYY. When the day is > 12 XLSX
+ * keeps it as text (parsed directly). When the day is ≤ 12 XLSX wrongly reads it
+ * as US MM-DD and makes a serial with day and month swapped, so we swap back.
+ */
+function snapmintDate(v: unknown): string {
+  const m = cell(v).match(/^(\d{2})-(\d{2})-(\d{4})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  if (typeof v === 'number' && v > 0) {
+    const d = XLSX.SSF?.parse_date_code(v);
+    if (d && d.y) return `${d.y}-${String(d.d).padStart(2, '0')}-${String(d.m).padStart(2, '0')}`;
+  }
+  return isoDate(v);
+}
+
+/**
+ * Snapmint Group Settlement Daily Report. Snapmint is the D2C BNPL (EMI) option,
+ * so the cost to Heatronics is the subvention + merchant closing fee + P&S
+ * charges + cashback take-rate + GST (a FINANCE cost → Platform & Payment, not a
+ * discount off revenue). TCS/TDS are tax withheld (recoverable), excluded.
+ * Revenue is already counted via Shopify (these are Shopify D2C orders), so only
+ * the cost is taken. Cancellation rows carry no fee → drop out naturally.
+ */
+function parseSnapmint(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  const hi = findHeader(rows, ['loanapp id', 'settlement value']);
+  if (hi < 0) {
+    return { facts: [], warning: 'No "LoanApp Id / Settlement Value" header — is this the Snapmint Group Settlement report?' };
+  }
+  const header = (rows[hi] ?? []).map(lower);
+  const ix = {
+    date: col(header, 'merchant settlement date'),
+    sub: col(header, 'subvention'),
+    close: col(header, 'merchant closing fee'),
+    ps: col(header, 'p&s charges'),
+    cashback: col(header, 'cashback redemption take rate amount'),
+    gst: col(header, 'gst'),
+    loan: col(header, 'loanapp id'),
+  };
+  if (ix.sub < 0 && ix.ps < 0) return { facts: [], warning: 'Snapmint: subvention / P&S charge columns not found.' };
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const byDate = new Map<string, DailyFact>();
+  let orders = 0;
+  for (const row of rows.slice(hi + 1)) {
+    if (ix.loan >= 0 && !cell(row[ix.loan])) continue;
+    const date = snapmintDate(row[ix.date]);
+    if (!date) continue;
+    const fee = r2(
+      (ix.sub >= 0 ? num(row[ix.sub]) : 0) +
+      (ix.close >= 0 ? num(row[ix.close]) : 0) +
+      (ix.ps >= 0 ? num(row[ix.ps]) : 0) +
+      (ix.cashback >= 0 ? num(row[ix.cashback]) : 0) +
+      (ix.gst >= 0 ? num(row[ix.gst]) : 0),
+    );
+    if (fee === 0) continue; // cancellations / reversals carry no fee
+    orders += 1;
+    const e = byDate.get(date);
+    if (e) { e.fees = r2(e.fees + fee); e.orders += 1; }
+    else byDate.set(date, { source: 'snapmint', channel: 'D2C', date, revenue: 0, units: 0, orders: 1, fees: fee });
+  }
+
+  const facts = [...byDate.values()];
+  const total = r2(facts.reduce((s, f) => s + f.fees, 0));
+  const dates = facts.map((f) => f.date).sort();
+  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `${orders} settled EMI orders → ${facts.length} daily facts`,
+    `Snapmint BNPL cost ₹${inr(total)} (subvention + fees + GST)${dates.length ? `, ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
+  ];
+  return { facts, warning: facts.length === 0 ? 'No Snapmint settlement rows found.' : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
   {
     sourceId: 'amazon',
@@ -693,6 +769,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     accept: '.csv,.xlsx,.xls',
     hint: 'Easebuzz dashboard → Settlements → Settlement History → set the month → Download. D2C payment-gateway (MDR) cost → Platform & Payment.',
     parse: parseEasebuzz,
+  },
+  {
+    sourceId: 'snapmint',
+    label: 'Snapmint group settlement',
+    accept: '.csv,.xlsx,.xls',
+    hint: 'Snapmint → Reports → Download Group Settlement Daily Report → set the month → Submit (emailed). D2C BNPL subvention + fees → Platform & Payment.',
+    parse: parseSnapmint,
   },
   {
     sourceId: 'amazonads',

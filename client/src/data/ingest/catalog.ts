@@ -156,8 +156,15 @@ const SLOTS: ReportSlot[] = [
   {
     connectorId: 'shiprocket', slotId: 'passbook', label: 'Wallet passbook', required: true,
     accept: '.xlsx,.xls,.csv', kind: 'xlsx', parserId: 'shiprocket',
-    exportSteps: ['Shiprocket → Billing → Wallet / Passbook → export'],
-    note: 'Daily freight & charges (wallet/COD transfers are excluded).',
+    exportSteps: [
+      'Shiprocket → Wallet Transactions → Passbook tab (link below)',
+      'Set the date range to the month → Export / Download',
+    ],
+    exportUrl: {
+      label: 'Open Shiprocket Passbook',
+      url: 'https://app.shiprocket.in/seller/wallet-transactions/passbook',
+    },
+    note: 'Daily D2C freight & charges (debit rows; wallet recharges / COD transfers excluded).',
   },
   {
     connectorId: 'delhivery', slotId: 'freight', label: 'Freight / billing', required: true,
@@ -186,8 +193,17 @@ const SLOTS: ReportSlot[] = [
   },
   {
     connectorId: 'snapmint', slotId: 'settlement', label: 'Settlement / subvention', required: true,
-    accept: '.xlsx,.xls,.csv', kind: 'xlsx',
-    exportSteps: ['Snapmint merchant dashboard → Settlement report → download'],
+    accept: '.xlsx,.xls,.csv', kind: 'xlsx', parserId: 'snapmint',
+    exportSteps: [
+      'Snapmint → Reports → Download Group Settlement Daily Report (link below)',
+      'Set Start/End date to the month → Submit (the report is emailed to you)',
+      'Download it from the email, then upload it here',
+    ],
+    exportUrl: {
+      label: 'Open Snapmint merchant dashboard',
+      url: 'https://emis.snapmint.com/merchants/dashboard?app_tab=authorized',
+    },
+    note: 'D2C BNPL (EMI) cost: subvention + merchant fees + GST → Platform & Payment (a finance cost, not a discount). Revenue is counted via Shopify, so only the cost is taken. TCS/TDS excluded.',
   },
 ];
 
