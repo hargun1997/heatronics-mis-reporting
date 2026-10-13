@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation, Link } from 'react-router-dom';
 import { HeatronicsMark } from '../components/HeatronicsLogo';
 import { ClaudeStatusPill } from '../components/ClaudeStatusPill';
 import { Drawer } from '../components/ui/overlays';
+import { FloatingChat } from '../components/chat/FloatingChat';
 
 const DATA_INSIGHTS_URL = 'https://heatronics-dashboard-portfolio.vercel.app/';
 
@@ -191,6 +192,9 @@ export function MainLayout() {
       <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} side="left" width={288} title="Menu">
         <RailNav path={path} onNavigate={() => setMobileOpen(false)} />
       </Drawer>
+
+      {/* Hanging chat — ask Claude about the data from anywhere */}
+      <FloatingChat />
     </div>
   );
 }
