@@ -330,15 +330,16 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     }
   }
 
-  // Shiprocket freight is a per-day×channel fact with no SKU, so it never lands
-  // on a SkuCell on its own. Allocate each channel's freight across that
-  // channel's SkuCells pro-rata by units into `oth` (channel fees), sharpening
-  // the SKU/SKU×Channel contribution view. The month-level P&L already counts
-  // this freight via channelFulfillment (which sums all fact fees), so this is
-  // view-side attribution only — no double count there.
+  // Courier freight is a per-day×channel fact with no SKU, so it never lands
+  // on a SkuCell on its own — Shiprocket (forward D2C) and Delhivery (warranty /
+  // returns & replacement freight) alike. Allocate each channel's freight across
+  // that channel's SkuCells pro-rata by units into `oth` (channel fees),
+  // sharpening the SKU/SKU×Channel contribution view. The month-level P&L already
+  // counts this freight via channelFulfillment (which sums all fact fees), so this
+  // is view-side attribution only — no double count there.
   const freightByChan = new Map<SalesChannel, number>();
   for (const f of allFacts) {
-    if (f.source !== 'shiprocket' || !f.fees) continue;
+    if ((f.source !== 'shiprocket' && f.source !== 'delhivery') || !f.fees) continue;
     const ch = toSalesChannel(f.channel);
     if (ch) freightByChan.set(ch, r2((freightByChan.get(ch) ?? 0) + f.fees));
   }

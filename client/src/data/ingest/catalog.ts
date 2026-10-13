@@ -176,9 +176,18 @@ const SLOTS: ReportSlot[] = [
     note: 'Daily D2C freight & charges (debit rows; wallet recharges / COD transfers excluded).',
   },
   {
-    connectorId: 'delhivery', slotId: 'freight', label: 'Freight / billing', required: true,
-    accept: '.xlsx,.xls,.csv', kind: 'xlsx',
-    exportSteps: ['Delhivery One → Billing → remittance / freight export'],
+    connectorId: 'delhivery', slotId: 'wallet', label: 'Wallet report (warranty/returns freight)', required: true,
+    accept: '.xlsx,.xls', kind: 'xlsx', parserId: 'delhivery',
+    exportSteps: [
+      'Delhivery One → Finances → Unified → Transactions (link below)',
+      'Set the date range to the month → Download the wallet report (.xlsx)',
+      'Upload the file here',
+    ],
+    exportUrl: {
+      label: 'Open Delhivery Unified transactions',
+      url: 'https://one.delhivery.com/finances/unified/transactions',
+    },
+    note: 'Delhivery is the returns/replacement (warranty) courier for D2C (RET-/REP- shipments). Net freight = Deductions − Refunds (AWB-duplicate + Recharge sheets ignored; recharges are wallet top-ups, not a cost) → D2C Channel & Fulfilment.',
   },
 
   // ---- Payments & checkout ----
