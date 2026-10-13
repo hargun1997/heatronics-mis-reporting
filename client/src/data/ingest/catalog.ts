@@ -120,22 +120,31 @@ const SLOTS: ReportSlot[] = [
     note: 'Meta spend → Sales & Marketing. Grand total = true spend; Product ID rows give measured per-product spend; the unattributed residual is allocated across D2C products by revenue. Product ids map to finished goods.',
   },
   {
-    connectorId: 'googleads', slotId: 'ad-spend', label: 'Ad spend — day × campaign', required: true,
-    accept: '.csv,.xlsx', kind: 'xlsx',
+    connectorId: 'googleads', slotId: 'ad-spend', label: 'Campaign report (total spend)', required: true,
+    accept: '.csv,.xlsx', kind: 'xlsx', parserId: 'googleads',
     exportSteps: [
-      'Google Ads → Campaigns → set the date range to the month you are ingesting',
-      'Segment by Day, keep Cost (and Campaign) columns → Download',
+      'Google Ads → Campaigns (link below) → set the date range to the month',
+      'Click the Download icon (top-right of the table) → Excel or CSV',
+      'Upload it here',
     ],
-    note: 'Google spend → Sales & Marketing. Account/campaign spend by day; per-product comes from the Shopping products report below where Shopping/PMax is run.',
+    exportUrl: {
+      label: 'Open Google Ads Campaigns',
+      url: 'https://ads.google.com/aw/campaigns?ocid=1525533322',
+    },
+    note: 'Total Google spend (the "Total: Account" row) → D2C Sales & Marketing, spread across D2C products by revenue. Per-product Shopping/PMax detail is the optional report below.',
   },
   {
     connectorId: 'googleads', slotId: 'shopping-products', label: 'Shopping products (per-item cost, optional)', required: false,
     accept: '.csv,.xlsx', kind: 'xlsx',
     exportSteps: [
-      'Google Ads → Reports → Predefined → Shopping → "Shopping - Products"',
-      'Set the same date range, keep Item ID + Cost → download',
+      'Google Ads → Reports → Predefined → Shopping → "Shopping - Products" (link below)',
+      'Set the same month, keep Item ID + Cost → Download',
     ],
-    note: 'Per-product Google spend for Shopping / Performance Max. Search spend has no product and is allocated by revenue share.',
+    exportUrl: {
+      label: 'Open Google Ads Shopping products report',
+      url: 'https://ads.google.com/aw/reporteditor/view?ocid=1525533322&predefinedReportId=128',
+    },
+    note: 'Optional precision: per-product Google spend for Shopping / Performance Max. Without it, all Google spend allocates across D2C products by revenue.',
   },
   {
     connectorId: 'amazonads', slotId: 'ad-spend', label: 'Advertised Product report', required: true,

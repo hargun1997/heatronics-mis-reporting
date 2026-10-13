@@ -260,15 +260,16 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     adByFg.set(key, r2((adByFg.get(key) ?? 0) + (f.spend ?? 0)));
   }
 
-  // Meta ad spend (source 'meta', channel D2C): product-id rows give measured
-  // per-product spend (metaAdByFg); rows with no product id (or an unmapped id)
-  // are the residual pool Meta couldn't attribute, spread across D2C products
-  // below so per-SKU ad spend still foots to the true monthly total.
+  // D2C ad spend (Meta + Google, channel D2C): product-id rows give measured
+  // per-product spend (metaAdByFg); rows with no product id (Google's campaign
+  // total, Meta's unattributed residual, or an unmapped id) are the residual
+  // pool, spread across D2C products below so per-SKU ad spend still foots to the
+  // true monthly total.
   const metaAdByFg = new Map<string, number>(); // `${fgId}|${channel}`
   const metaMeasuredByChan = new Map<SalesChannel, number>();
   const metaResidualByChan = new Map<SalesChannel, number>();
   for (const f of allFacts) {
-    if (f.source !== 'meta' || !f.spend) continue;
+    if ((f.source !== 'meta' && f.source !== 'googleads') || !f.spend) continue;
     const ch = toSalesChannel(f.channel);
     if (!ch) continue;
     const hit = f.sku ? lookupSku('meta' as Platform, f.sku) : null;

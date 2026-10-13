@@ -263,13 +263,18 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'needs-sample', mapping: 'todo', pending: 'Need File 1 (campaign x cost) + optional Shopping-products; build the parser + SKU map; add the deep link.',
-    summary: 'D2C ad spend — adds to Sales & Marketing.',
+    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 10, mapping: 'done', pending: 'Re-upload the monthly campaign report. Optional: add the Shopping-products report for measured per-product spend.',
+    summary: 'D2C ad spend — adds to Sales & Marketing, spread across D2C products by revenue.',
     files: [
       {
-        slotId: 'ad-spend', label: 'Campaign spend by day', required: true, cadence: 'Weekly',
-        reads: 'Cost by campaign, segmented by day.',
-        destinations: [{ line: 'Sales & Marketing', dimension: 'D2C · by day', rule: 'Cost → D2C ad spend.' }],
+        slotId: 'ad-spend', label: 'Campaign report (total spend)', required: true, cadence: 'Weekly',
+        reads: 'The "Total: Account" row — the month\'s total Google spend; the date comes from the report\'s range header.',
+        destinations: [{ line: 'Sales & Marketing', dimension: 'D2C · blended', rule: 'Total cost → D2C ad spend, spread across D2C products by revenue (Search has no product; Shopping/PMax per-item is the optional report).' }],
+      },
+      {
+        slotId: 'shopping-products', label: 'Shopping products (optional)', required: false, cadence: 'Weekly',
+        reads: 'Per Item ID: cost — for Shopping / Performance Max only.',
+        destinations: [{ line: 'Sales & Marketing', dimension: 'D2C · per product', rule: 'Item id → FG → measured per-product Google spend; the rest (Search) stays revenue-allocated.' }],
       },
     ],
   },
