@@ -18,6 +18,7 @@ import ingestRoutes from './routes/ingest.js';
 import chatRoutes from './routes/chat.js';
 import usageRoutes from './routes/usage.js';
 import issuesRoutes from './routes/issues.js';
+import ownershipRoutes from './routes/ownership.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +48,7 @@ app.use('/api/ingest', ingestRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/issues', issuesRoutes);
+app.use('/api/ownership', ownershipRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
