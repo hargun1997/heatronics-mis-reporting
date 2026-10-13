@@ -170,6 +170,10 @@ function toSalesChannel(channel: string): SalesChannel | null {
   return CHANNEL_ALIASES[channel.trim().toLowerCase()] ?? null;
 }
 
+// Sources whose fees are payment-gateway / checkout / BNPL costs — they land on
+// Platform & Payment (below CM2), not Channel & Fulfilment.
+const PLATFORM_FEE_SOURCES = new Set<string>(['easebuzz', 'shopflo', 'snapmint']);
+
 // ---- Build one month -------------------------------------------------------
 
 const MONTH_LABELS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -362,10 +366,14 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
   const netByChannel: Partial<Record<SalesChannel, number>> = {};
   let channelFulfillment = 0;
   let salesMarketing = 0;
+  let platformCosts = 0;
   for (const f of allFacts) {
     const ch = toSalesChannel(f.channel);
     if (ch && f.revenue) netByChannel[ch] = r2((netByChannel[ch] ?? 0) + f.revenue);
-    channelFulfillment = r2(channelFulfillment + (f.fees ?? 0));
+    // Payment-gateway / checkout / BNPL fees are a Platform & Payment cost (below
+    // CM2), not channel fulfilment — a gateway charges the basket, not the SKU.
+    if (PLATFORM_FEE_SOURCES.has(f.source)) platformCosts = r2(platformCosts + (f.fees ?? 0));
+    else channelFulfillment = r2(channelFulfillment + (f.fees ?? 0));
     // When an Amazon ad report is in, its per-SKU + channel spend is the Amazon
     // ad total; drop the settlement's lumped spend so it isn't counted twice.
     const spend = hasAmazonAds && f.source === 'amazon' ? 0 : (f.spend ?? 0);
@@ -377,6 +385,9 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
   const grossMargin = cogmReal ? r2(netRevenue - cogm) : 0;
   const cm1 = cogmReal ? r2(grossMargin - channelFulfillment) : 0;
   const cm2 = cogmReal ? r2(cm1 - salesMarketing) : 0;
+  // CM3 carries the payment-gateway part of Platform & Payment; its brand-
+  // investment part still needs Tally, so the completeness floor stays at CM2.
+  const cm3 = cogmReal ? r2(cm2 - platformCosts) : 0;
 
   const month: MonthlyMIS = {
     key: periodKey, label: periodLabel(periodKey),
@@ -384,9 +395,9 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     netByChannel, grossByChannel: {}, returnsByChannel: {},
     totalGrossRevenue: 0, totalReturns: 0, totalTaxes: 0,
     netRevenue, interBranch: 0, turnover: 0,
-    grossMargin, cm1, cm2, cm3: cm2,
+    grossMargin, cm1, cm2, cm3,
     ebitda: 0, netIncome: 0, cogm,
-    channelFulfillment, salesMarketing, platformCosts: 0, opex: 0, nonOperating: 0,
+    channelFulfillment, salesMarketing, platformCosts, opex: 0, nonOperating: 0,
     costOfFundraising: 0, cogmLines: {}, opexLines: {},
   };
   return {

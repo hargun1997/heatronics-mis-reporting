@@ -263,7 +263,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'needs-sample', seq: 8, mapping: 'todo', pending: 'Need File 1 (campaign x cost) + optional Shopping-products; build the parser + SKU map; add the deep link.',
+    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'needs-sample', mapping: 'todo', pending: 'Need File 1 (campaign x cost) + optional Shopping-products; build the parser + SKU map; add the deep link.',
     summary: 'D2C ad spend — adds to Sales & Marketing.',
     files: [
       {
@@ -312,13 +312,13 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Payments & checkout ----------------
   {
-    connectorId: 'easebuzz', label: 'Easebuzz', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one settlement export -> parser + MDR mapping; add the deep link.',
-    summary: 'Payment-gateway MDR — part of Platform & Payment.',
+    connectorId: 'easebuzz', label: 'Easebuzz', group: 'Payments & checkout', wiring: 'wired', seq: 8, mapping: 'done', pending: 'Re-upload the monthly settlement export.',
+    summary: 'D2C payment-gateway MDR — part of Platform & Payment.',
     files: [
       {
         slotId: 'settlement', label: 'Settlement / MDR', required: true, cadence: 'Weekly',
-        reads: 'Settled amount and MDR / gateway fee per settlement.',
-        destinations: [{ line: 'Platform & Payment (Brand Investment)', dimension: 'D2C', rule: 'MDR / gateway fee → Platform & Payment.' }],
+        reads: 'Per settlement: service charge + GST + express service charge + express tax (the gateway cut), by settlement date.',
+        destinations: [{ line: 'Platform & Payment (Brand Investment)', dimension: 'D2C · blended', rule: 'Gateway fee → Platform & Payment. Revenue is counted via Shopify, so only the fee is taken (no double-count); a gateway charges the basket, not a SKU.' }],
       },
     ],
   },
