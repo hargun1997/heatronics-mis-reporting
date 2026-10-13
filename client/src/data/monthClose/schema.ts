@@ -168,6 +168,7 @@ export const CLOSE_GROUPS: CloseGroup[] = [
       { key: 'op_welfare', label: 'Staff welfare', bucket: 'opex', source: 'Tally → Indirect Expenses → Staff Welfare' },
       { key: 'op_bank', label: 'Bank charges', bucket: 'opex', source: 'Tally → Indirect Expenses → Bank Charges' },
       { key: 'op_finadj', label: 'Financial adjustments (net)', bucket: 'opex', source: 'Tally → Indirect Expenses → Financial Adjustments' },
+      { key: 'op_other', label: 'Other operating expenses', bucket: 'opex', source: 'Tally → Indirect Expenses (admin, repairs, misc, other)', hint: 'Small indirect ledgers with no dedicated line' },
       { key: 'op_other_income', label: 'Other income (indirect incomes)', bucket: 'otherIncome', source: 'Tally → Indirect Incomes', hint: 'Reduces operating expense' },
     ],
   },

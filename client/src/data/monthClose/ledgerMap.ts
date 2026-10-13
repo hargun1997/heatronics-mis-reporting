@@ -67,6 +67,9 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'shipping charges': 'ff_shipping',
   'freight outward exp - porter/transport': 'ff_freight_out',
   'freight outward exp porter/transport': 'ff_freight_out',
+  'freight outward exp - porter/ transport': 'ff_freight_out',
+  'freight charges- delhivery one': 'ff_freight_out',
+  'freight charges delhivery one': 'ff_freight_out',
 
   // ---- Marketing -----------------------------------------------------------
   'sales & marketing': 'sm_total',
@@ -92,6 +95,13 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'bank charges': 'op_bank',
   'financial adjustments net': 'op_finadj',
   'financial adjustments': 'op_finadj',
+  // Small indirect ledgers with no dedicated line → Other operating expenses.
+  'admin expenses': 'op_other',
+  'machine repair & maint': 'op_other',
+  'miscellanous expenses': 'op_other',
+  'miscellaneous expenses': 'op_other',
+  'other expenses': 'op_other',
+  'office expenses': 'op_other',
   'indirect incomes': 'op_other_income',
   'other income': 'op_other_income',
 
@@ -107,6 +117,7 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'purchase accounts': 'ignore',
   'direct expenses': 'ignore',
   'indirect expenses': 'ignore',
+  'cost of sales': 'ignore',
 };
 
 /**

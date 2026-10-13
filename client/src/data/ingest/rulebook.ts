@@ -145,12 +145,12 @@ export function stepsReady(connectorId: string): Ready {
 export const CONNECTOR_RULES: ConnectorRule[] = [
   // ---------------- Book of record ----------------
   {
-    connectorId: 'tally', label: 'Tally Prime', group: 'Book of record', wiring: 'wired', mapping: 'done', pending: 'Not yet ingested -> upload a P&L screenshot to unlock OPEX -> Net Income. Desktop app, no link.',
+    connectorId: 'tally', label: 'Tally Prime', group: 'Book of record', wiring: 'wired', mapping: 'done', pending: 'Upload the P&L A/c Excel (Detailed) each close to unlock OPEX -> Net Income. Desktop app, no link.',
     summary: 'The book of record. Owns everything below Contribution Margin — OPEX, EBITDA, Net Income — and reconciles the whole cascade.',
     files: [
       {
-        slotId: 'pnl', label: 'Profit & Loss A/c (screenshot)', required: true, cadence: 'Weekly / each close',
-        reads: 'Every ledger row and its hierarchy, read by the Claude vision model (credits negative, debits positive), plus the Nett Profit.',
+        slotId: 'pnl', label: 'Profit & Loss A/c (Excel)', required: true, cadence: 'Monthly / each close',
+        reads: 'Every ledger read exactly from the Detailed P&L Excel (income & debits positive) plus the Nett Profit. A multi-month export carries each month — set the Period to pick which to ingest.',
         destinations: [
           { line: 'Operating Expenses', dimension: 'Company', rule: 'Payroll, professional, admin, warranty, welfare, bank ledgers → OPEX (less other income).' },
           { line: 'Platform & Payment (Brand Investment)', dimension: 'Company', rule: 'Content / agency / brand-investment ledgers → Brand Investment.' },

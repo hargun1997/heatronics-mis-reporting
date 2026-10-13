@@ -9,6 +9,9 @@
 
 import * as XLSX from 'xlsx';
 import { parseUpload, UPLOAD_PARSERS } from '../liveMis/uploadParsers';
+import { parseTallyPnl } from '../liveMis/tallyPnl';
+import { computeClose } from '../monthClose/compute';
+import { emptySession, type LedgerNode } from '../monthClose/schema';
 import type {
   BomCostRow,
   CheckItem,
@@ -19,6 +22,7 @@ import type {
   InvoiceSummary,
   ReportSlot,
   StagedUpload,
+  TallyMonthExtract,
 } from './types';
 import type { DailyFact } from '../liveMis/facts';
 
@@ -45,6 +49,11 @@ export async function deleteIngestReport(connectorId: string, slotId: string, pe
 /** Save + ingest a validated upload (overwrites the same slot/period). */
 export async function commitReport(slot: ReportSlot, staged: StagedUpload): Promise<IngestReportMeta> {
   const summary = summarise(staged.checks);
+  // A Tally export can hold several months; commit the one matching the period
+  // the operator settled on (picked via the period input).
+  const tallyMonth = staged.extracted.tallyMonths?.find((m) => m.period === staged.periodKey);
+  const ledgerRows = tallyMonth?.ledgerRows ?? staged.extracted.ledgerRows;
+  const nettProfit = tallyMonth ? tallyMonth.nettProfit : staged.extracted.nettProfit;
   const r = await asJson<{ report: IngestReportMeta }>(
     await fetch('/api/ingest/commit', {
       method: 'POST',
@@ -63,8 +72,8 @@ export async function commitReport(slot: ReportSlot, staged: StagedUpload): Prom
         rawFiles: staged.rawFiles,
         extracted: {
           facts: staged.extracted.facts,
-          ledgerRows: staged.extracted.ledgerRows,
-          nettProfit: staged.extracted.nettProfit,
+          ledgerRows,
+          nettProfit,
           period: staged.extracted.period,
           bomCosts: staged.extracted.bomCosts,
           invoice: staged.extracted.invoice,
@@ -238,6 +247,103 @@ export async function runVisionChecks(slot: ReportSlot, files: File[]): Promise<
   return { ...base, periodKey: derivePeriod(extracted), extracted, checks: { items, overall: overallOf(items) } };
 }
 
+// ---- Tally P&L A/c Excel (book of record → the full cascade) ---------------
+
+/**
+ * Read a Tally Profit & Loss A/c Excel. A multi-period export carries many
+ * months; each is parsed to ledger rows + Nett Profit. The month whose period
+ * the operator sets is the one ingested (default: the latest complete month).
+ * A reconciliation check runs the close so the operator sees it ties to the
+ * Nett Profit before saving.
+ */
+export async function runTallyXlsxChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
+  const rawBase64 = await fileToBase64(file);
+  const base = {
+    fileName: file.name,
+    mimeType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    rawFiles: [{ base64: rawBase64, name: file.name, mimeType: file.type || 'application/octet-stream' }],
+  };
+  const items: CheckItem[] = [];
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const parsed = parseTallyPnl(wb);
+    const months = parsed.months;
+    if (months.length === 0) {
+      items.push({ id: 'read', label: 'Read the P&L', status: 'fail', detail: parsed.warning || 'No month with ledger activity.' });
+      const extracted: Extracted = { facts: [], rowCount: 0, through: null };
+      return { ...base, periodKey: currentMonth(), extracted, checks: { items, overall: 'fail' } };
+    }
+
+    // Default to the latest COMPLETE month (period before this month) with real
+    // activity; fall back to the latest substantial month, then the latest.
+    const now = currentMonth();
+    const substantial = months.filter((m) => m.ledgerRows.length >= 10);
+    const complete = substantial.filter((m) => m.period < now);
+    const pick = (complete.length ? complete : substantial.length ? substantial : months).reduce((a, b) => (a.period >= b.period ? a : b));
+    return tallyStage(base, months, pick);
+  } catch (e) {
+    items.push({ id: 'read', label: 'Read the P&L Excel', status: 'fail', detail: e instanceof Error ? e.message : 'Could not read the file.' });
+    const extracted: Extracted = { facts: [], rowCount: 0, through: null };
+    return { ...base, periodKey: currentMonth(), extracted, checks: { items, overall: 'fail' } };
+  }
+}
+
+type StageBase = Pick<StagedUpload, 'fileName' | 'mimeType' | 'rawFiles'>;
+
+/** Build the staged upload (checks + extracted) for one chosen Tally month. */
+function tallyStage(base: StageBase, months: TallyMonthExtract[], pick: TallyMonthExtract): StagedUpload {
+  const recon = reconcileTally(pick);
+  const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+  const items: CheckItem[] = [
+    { id: 'read', label: 'P&L read (Excel)', status: 'pass', detail: `${months.length} month(s) in export; ingesting ${pick.periodLabel}` },
+    { id: 'ledgers', label: 'Ledgers extracted', status: pick.ledgerRows.length > 0 ? 'pass' : 'fail', detail: `${pick.ledgerRows.length} ledgers` },
+    { id: 'nett', label: 'Nett Profit read', status: pick.nettProfit != null ? 'pass' : 'warn', detail: pick.nettProfit != null ? inr(pick.nettProfit) : 'not found' },
+    {
+      id: 'reconcile',
+      label: 'Cascade reconciles to Nett Profit',
+      status: recon.ok ? 'pass' : 'warn',
+      detail: recon.ok ? `Net Income ${inr(recon.netIncome)} ties (residual ₹0)` : `Net Income ${inr(recon.netIncome)} vs Nett Profit ${inr(pick.nettProfit ?? 0)} — residual ${inr(recon.residual)}`,
+    },
+  ];
+  if (pick.warning) items.push({ id: 'collapsed', label: 'Trading Account note', status: 'warn', detail: pick.warning });
+
+  const extracted: Extracted = {
+    facts: [],
+    rowCount: pick.ledgerRows.length,
+    through: null,
+    ledgerRows: pick.ledgerRows,
+    nettProfit: pick.nettProfit,
+    period: pick.periodLabel,
+    tallyMonths: months,
+    trace: [
+      `Months in export: ${months.map((m) => m.periodLabel).join(', ')}`,
+      `Ingesting ${pick.periodLabel}: ${pick.ledgerRows.length} ledgers, Nett Profit ${inr(pick.nettProfit ?? 0)}`,
+    ],
+  };
+  return { ...base, periodKey: pick.period, extracted, checks: { items, overall: overallOf(items) } };
+}
+
+/** Re-stage a Tally upload for a different month the operator picked (no re-read). */
+export function restageTallyMonth(staged: StagedUpload, period: string): StagedUpload {
+  const months = staged.extracted.tallyMonths;
+  const pick = months?.find((m) => m.period === period);
+  if (!months || !pick) return { ...staged, periodKey: period };
+  return tallyStage({ fileName: staged.fileName, mimeType: staged.mimeType, rawFiles: staged.rawFiles }, months, pick);
+}
+
+/** Run the month-close for one parsed Tally month to confirm it reconciles. */
+function reconcileTally(m: TallyMonthExtract): { ok: boolean; netIncome: number; residual: number } {
+  const nodes: LedgerNode[] = m.ledgerRows.map((r) => ({
+    name: r.name, depth: Math.max(0, Math.floor(r.depth ?? 0)), path: [], amount: r.amount, isLeaf: true,
+    provenance: { sourceId: 'tally', sourceLabel: 'Tally P&L', method: 'xlsx', confidence: 'exact', verified: true },
+  }));
+  const session = emptySession(m.period, m.periodLabel);
+  session.sources = [{ id: 'tally:pnl', label: 'tally', kind: 'skuPnl', method: 'xlsx', addedAt: '', nodes, skuRows: [], bomCosts: [], crossChecks: [], warnings: [] }];
+  session.anchor = { nettProfit: m.nettProfit != null ? { value: m.nettProfit, provenance: { sourceId: 'tally', sourceLabel: 'Tally P&L', method: 'xlsx', confidence: 'exact', verified: true } } : null };
+  const c = computeClose(session);
+  return { ok: c.reconciliation.ok, netIncome: c.netIncome, residual: c.reconciliation.residual ?? 0 };
+}
+
 // ---- Shopflo checkout invoice (PDF → Claude → platform cost) ---------------
 
 interface InvoiceResponse extends Partial<InvoiceSummary> {
@@ -404,5 +510,6 @@ export async function runChecks(slot: ReportSlot, files: File[]): Promise<Staged
   if (slot.kind === 'vision') return runVisionChecks(slot, files);
   if (slot.kind === 'bom') return runBomChecks(slot, files[0]);
   if (slot.kind === 'invoice') return runInvoiceChecks(slot, files[0]);
+  if (slot.kind === 'tally-xlsx') return runTallyXlsxChecks(slot, files[0]);
   return runXlsxChecks(slot, files[0]);
 }

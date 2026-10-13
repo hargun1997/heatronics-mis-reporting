@@ -7,7 +7,16 @@
 import type { DailyFact } from '../liveMis/facts';
 
 /** How a report slot is read into the pipeline. */
-export type SlotKind = 'xlsx' | 'vision' | 'bom' | 'invoice';
+export type SlotKind = 'xlsx' | 'vision' | 'bom' | 'invoice' | 'tally-xlsx';
+
+/** One month read from a Tally P&L A/c Excel (a multi-period export has several). */
+export interface TallyMonthExtract {
+  period: string;
+  periodLabel: string;
+  ledgerRows: { name: string; depth: number; amount: number; confidence: number }[];
+  nettProfit: number | null;
+  warning?: string;
+}
 
 /** The money summary read from a platform/checkout invoice PDF (Shopflo). */
 export interface InvoiceSummary {
@@ -75,6 +84,8 @@ export interface Extracted {
   bomCosts?: BomCostRow[];
   /** Invoice-PDF path only (Shopflo) — the money summary read by Claude. */
   invoice?: InvoiceSummary;
+  /** Tally P&L Excel path only — every period in the export, for the month picker. */
+  tallyMonths?: TallyMonthExtract[];
 }
 
 /** The server's record of a committed (saved + ingested) report. */
