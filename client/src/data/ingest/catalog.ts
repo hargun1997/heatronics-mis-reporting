@@ -117,11 +117,11 @@ const SLOTS: ReportSlot[] = [
   },
   {
     connectorId: 'blinkit', slotId: 'order-charges', label: 'Payout — order-level charges', required: true,
-    accept: '.xlsx,.xls', kind: 'xlsx', parserId: 'blinkit',
+    accept: '.zip,.xlsx,.xls', kind: 'xlsx', parserId: 'blinkit',
     exportSteps: [
       'Blinkit Seller → Billing → Payout Details (link below)',
       'Click "Download monthly SoA" → pick the month → Download the ZIP',
-      'Open the ZIP, then upload the single file "A&B. Order_level_charges.xlsx" here',
+      'Upload the ZIP here as-is — we open it and read "A&B. Order_level_charges.xlsx" automatically (or upload just that file if you prefer)',
     ],
     exportUrl: {
       label: 'Open Blinkit Payout Details',

@@ -8,6 +8,7 @@
 // ----------------------------------------------------------------------------
 
 import * as XLSX from 'xlsx';
+import { unzipSync } from 'fflate';
 import { parseUpload, UPLOAD_PARSERS } from '../liveMis/uploadParsers';
 import { parseTallyPnl } from '../liveMis/tallyPnl';
 import { computeClose } from '../monthClose/compute';
@@ -254,6 +255,29 @@ async function stageBaseFor(files: File[], defaultMime: string): Promise<StageBa
   };
 }
 
+/** A File-like with just what parseUpload needs — used for a file extracted from a ZIP. */
+interface FileLike { name: string; type: string; arrayBuffer: () => Promise<ArrayBuffer>; }
+
+/**
+ * Some sellers download a ZIP (Blinkit's monthly SoA). Transparently open it and
+ * return the spreadsheet inside — the order-level-charges sheet when present,
+ * else the first .xlsx/.csv — so the operator can drop the ZIP as-is. Non-ZIP
+ * files pass straight through.
+ */
+async function resolveUploadFile(file: File): Promise<File | FileLike> {
+  const isZip = /\.zip$/i.test(file.name) || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
+  if (!isZip) return file;
+  const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
+  const names = Object.keys(entries).filter((n) => !n.endsWith('/') && !n.startsWith('__MACOSX'));
+  const pick = names.find((n) => /order.{0,3}level.{0,3}charge/i.test(n) && /\.xlsx?$/i.test(n))
+    ?? names.find((n) => /\.xlsx?$/i.test(n))
+    ?? names.find((n) => /\.csv$/i.test(n));
+  if (!pick) throw new Error('No spreadsheet (.xlsx/.csv) found inside the ZIP.');
+  const bytes = entries[pick];
+  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  return { name: pick.split('/').pop() || pick, type: '', arrayBuffer: async () => ab };
+}
+
 export async function runXlsxChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
   const parser = slot.parserId ? UPLOAD_PARSERS.find((p) => p.sourceId === slot.parserId) : undefined;
   const base = await stageBaseFor(files, 'application/octet-stream');
@@ -273,7 +297,9 @@ export async function runXlsxChecks(slot: ReportSlot, files: File[]): Promise<St
     // Several files for one source are concatenated — a year of monthly exports,
     // or one multi-month file. Each fact keeps its own date, so the deck (and the
     // month-split commit) file every row to the month it actually falls in.
-    const recs = await Promise.all(files.map((f) => parseUpload(parser, f)));
+    // Open any ZIP (Blinkit) to the spreadsheet inside, then parse each file.
+    const resolved = await Promise.all(files.map(resolveUploadFile));
+    const recs = await Promise.all(resolved.map((f) => parseUpload(parser, f as File)));
     // A file whose rows carry no date (the Amazon Business Report) is stamped to
     // the month read from its own filename, so dropping many at once files each
     // to its own month. Files that already carry dates are left untouched.
