@@ -13,6 +13,7 @@ import { RulebookPage } from './pages/mis/RulebookPage';
 import { MisChatPage } from './pages/mis/MisChatPage';
 import { AiInsightsPage } from './pages/mis/AiInsightsPage';
 import { IssuesPage } from './pages/mis/IssuesPage';
+import { OwnershipPage } from './pages/mis/OwnershipPage';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
@@ -66,6 +67,7 @@ function App() {
           <Route path="reporting/mis/insights" element={<AiInsightsPage />} />
           <Route path="reporting/mis/chat" element={<MisChatPage />} />
           <Route path="reporting/mis/issues" element={<IssuesPage />} />
+          <Route path="reporting/mis/ownership" element={<OwnershipPage />} />
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 

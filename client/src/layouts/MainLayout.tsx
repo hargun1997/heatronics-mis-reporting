@@ -33,7 +33,7 @@ const ico = (d: string | string[]) => (
 // The deck is the base /reporting/mis route; the sub-pages below have their own.
 const isDeck = (p: string) =>
   p.startsWith('/reporting/mis') &&
-  !['/live', '/close', '/connectors', '/ingest', '/rulebook', '/insights', '/chat', '/issues'].some((s) => p.startsWith('/reporting/mis' + s));
+  !['/live', '/close', '/connectors', '/ingest', '/rulebook', '/insights', '/chat', '/issues', '/ownership'].some((s) => p.startsWith('/reporting/mis' + s));
 
 // Ordered along the data flow: sources → ingestion → MIS → govern → more.
 const SECTIONS: NavSection[] = [
@@ -60,6 +60,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { path: '/compliance', label: 'Compliance', icon: ico('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z'), match: (p) => p.startsWith('/compliance') || p.startsWith('/tracker') },
       { path: '/task-tracker', label: 'Task tracker', icon: ico(['M9 11l3 3 8-8', 'M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9']), match: (p) => p.startsWith('/task-tracker') },
+      { path: '/reporting/mis/ownership', label: 'Ownership', icon: ico(['M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 10-4-4 4 4 0 004 4z']), match: (p) => p.startsWith('/reporting/mis/ownership') },
     ],
   },
   {

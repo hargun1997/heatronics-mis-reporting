@@ -293,6 +293,29 @@ export async function saveReport(input: CommitInput): Promise<IngestReportMeta> 
 }
 
 /** Every committed report's metadata, across all connectors and periods. */
+// ---- Generic JSON config store ---------------------------------------------
+// Small durable key/value for app config that isn't a report — team members,
+// report-ownership assignments, saved recipient lists. Stored under config/ in
+// the same backend (GCS in prod, local file in dev).
+
+/** Read a JSON document; returns `fallback` when absent or unparseable. */
+export async function readJson<T>(name: string, fallback: T): Promise<T> {
+  const r = await resolveStore();
+  const text = await r.backend.getText(`config/${name}.json`);
+  if (!text) return fallback;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Write a JSON document under config/. */
+export async function writeJson(name: string, value: unknown): Promise<void> {
+  const r = await resolveStore();
+  await r.backend.putText(`config/${name}.json`, JSON.stringify(value, null, 2));
+}
+
 export async function listReports(): Promise<IngestReportMeta[]> {
   const r = await resolveStore();
   const keys = (await r.backend.list('ingest/')).filter((k) => k.endsWith('/meta.json'));
