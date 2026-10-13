@@ -285,11 +285,16 @@ const META_PRODUCTS: SkuEntry[] = [
   { platform: 'meta', key: '50409623683286', fgId: 'FG-0002', confirmed: true, basis: 'Shopify HCORE-XL-4 (40", 5-level) → hCore X-L' },
 ];
 
-/** Blinkit's own numeric item ids, read off the July payout workbook. */
+/**
+ * Blinkit's own numeric item ids. These older SKUs (hot water bag, tennis elbow
+ * guard, analog regular pad) are discontinued; per the owner's reporting
+ * preference they roll up to hCore X Lite so Blinkit shows under a live product
+ * rather than the excluded-accessory bucket.
+ */
 const BLINKIT_SKUS: SkuEntry[] = [
-  { platform: 'blinkit', key: '10230152', fgId: 'FG-0021', confirmed: false, basis: 'Blinkit "Active Tennis Elbow Support & Guard"' },
-  { platform: 'blinkit', key: '10225010', fgId: 'FG-0019', confirmed: false, basis: 'Blinkit "Pain Relief Hot Water Bag"' },
-  { platform: 'blinkit', key: '10190437', fgId: 'FG-0004', confirmed: false, basis: 'Blinkit "Analog Electric Heating Pad (Regular)"' },
+  { platform: 'blinkit', key: '10230152', fgId: 'FG-0004', confirmed: true, basis: 'Blinkit "Active Tennis Elbow Support & Guard" (discontinued) → rolled up to hCore X Lite per owner' },
+  { platform: 'blinkit', key: '10225010', fgId: 'FG-0004', confirmed: true, basis: 'Blinkit "Pain Relief Hot Water Bag" (discontinued) → rolled up to hCore X Lite per owner' },
+  { platform: 'blinkit', key: '10190437', fgId: 'FG-0004', confirmed: true, basis: 'Blinkit "Analog Electric Heating Pad (Regular)" → hCore X Lite' },
 ];
 
 /**
