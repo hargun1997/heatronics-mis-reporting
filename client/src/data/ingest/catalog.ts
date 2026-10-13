@@ -34,10 +34,15 @@ const SLOTS: ReportSlot[] = [
     connectorId: 'tranzact', slotId: 'bom', label: 'BOM pricing', required: true,
     accept: '.xlsx,.xls', kind: 'bom',
     exportSteps: [
-      'Tranzact → Bill of Materials',
-      'Export the BOM list WITH pricing (needs "FG Item ID" and "Total FG Cost" columns)',
+      'Tranzact → Production → Bill of Materials (link below)',
+      'Actions ▸ Download All BOMs → Pricing Type = Default Price → Download All BOMs',
+      'The file is emailed to you — download it from the email, then upload it here',
     ],
-    note: 'Standard cost per finished good — the per-unit COGS behind SKU margin.',
+    exportUrl: {
+      label: 'Open Tranzact Bill of Materials',
+      url: 'https://app.letstranzact.com/v3/production?section=bom',
+    },
+    note: 'Standard cost per finished good — the "Total FG Cost" on each FG-#### row (SFG/RM sub-rows ignored) is the per-unit COGS behind SKU margin. Emailed as an Excel (Summary sheet); upload that file.',
   },
 
   // ---- Marketplaces ----
