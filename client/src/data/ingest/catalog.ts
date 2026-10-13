@@ -135,7 +135,7 @@ const SLOTS: ReportSlot[] = [
   },
   {
     connectorId: 'googleads', slotId: 'shopping-products', label: 'Shopping products (per-item cost, optional)', required: false,
-    accept: '.csv,.xlsx', kind: 'xlsx',
+    accept: '.csv,.xlsx', kind: 'xlsx', parserId: 'googleadsproducts',
     exportSteps: [
       'Google Ads → Reports → Predefined → Shopping → "Shopping - Products" (link below)',
       'Set the same month, keep Item ID + Cost → Download',

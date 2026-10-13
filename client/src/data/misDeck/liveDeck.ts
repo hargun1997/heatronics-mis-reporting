@@ -260,23 +260,35 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     adByFg.set(key, r2((adByFg.get(key) ?? 0) + (f.spend ?? 0)));
   }
 
-  // D2C ad spend (Meta + Google, channel D2C): product-id rows give measured
-  // per-product spend (metaAdByFg); rows with no product id (Google's campaign
-  // total, Meta's unattributed residual, or an unmapped id) are the residual
-  // pool, spread across D2C products below so per-SKU ad spend still foots to the
-  // true monthly total.
+  // D2C ad spend (Meta + Google, channel D2C). Product-id rows give measured
+  // per-product spend (metaAdByFg); everything else is spread across D2C products
+  // by revenue below, so per-SKU ad still foots to the true monthly total.
+  //   • Meta ('meta'): product rows = measured; no-sku rows = Meta's precomputed
+  //     residual (grand − attributed).
+  //   • Google File 1 ('googleads', no sku) = the grand total; Google File 2
+  //     ('googleadsproducts', per item id) = measured. Google residual (Search +
+  //     unmapped) = googleTotal − googleMeasured, added to the pool.
   const metaAdByFg = new Map<string, number>(); // `${fgId}|${channel}`
   const metaMeasuredByChan = new Map<SalesChannel, number>();
   const metaResidualByChan = new Map<SalesChannel, number>();
+  const googleTotalByChan = new Map<SalesChannel, number>();
+  const googleMeasuredByChan = new Map<SalesChannel, number>();
   for (const f of allFacts) {
-    if ((f.source !== 'meta' && f.source !== 'googleads') || !f.spend) continue;
+    const isMeta = f.source === 'meta';
+    const isGoogleTotal = f.source === 'googleads';
+    const isGoogleProd = f.source === 'googleadsproducts';
+    if ((!isMeta && !isGoogleTotal && !isGoogleProd) || !f.spend) continue;
     const ch = toSalesChannel(f.channel);
     if (!ch) continue;
+    if (isGoogleTotal && !f.sku) { googleTotalByChan.set(ch, r2((googleTotalByChan.get(ch) ?? 0) + f.spend)); continue; }
     const hit = f.sku ? lookupSku('meta' as Platform, f.sku) : null;
     if (hit) {
       metaAdByFg.set(`${hit.fgId}|${ch}`, r2((metaAdByFg.get(`${hit.fgId}|${ch}`) ?? 0) + f.spend));
       metaMeasuredByChan.set(ch, r2((metaMeasuredByChan.get(ch) ?? 0) + f.spend));
-    } else {
+      if (isGoogleProd) googleMeasuredByChan.set(ch, r2((googleMeasuredByChan.get(ch) ?? 0) + f.spend));
+    } else if (!isGoogleProd) {
+      // Meta no-sku residual or unmapped Meta product. Unmapped Google products
+      // are not added here — they fall out of googleTotal − googleMeasured.
       metaResidualByChan.set(ch, r2((metaResidualByChan.get(ch) ?? 0) + f.spend));
     }
   }
@@ -300,10 +312,13 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
   // Spread the Meta residual — spend with no product id, plus any measured
   // whose FG has no cell this month — across that channel's SkuCells by revenue,
   // into `ad`. Keeps per-SKU ad footing to the true monthly Meta total.
-  const metaChannels = new Set<SalesChannel>([...metaMeasuredByChan.keys(), ...metaResidualByChan.keys()]);
+  const metaChannels = new Set<SalesChannel>([
+    ...metaMeasuredByChan.keys(), ...metaResidualByChan.keys(), ...googleTotalByChan.keys(),
+  ]);
   for (const ch of metaChannels) {
     const orphan = r2((metaMeasuredByChan.get(ch) ?? 0) - (metaAppliedByChan.get(ch) ?? 0));
-    const pool = r2((metaResidualByChan.get(ch) ?? 0) + Math.max(0, orphan));
+    const googleResidual = r2((googleTotalByChan.get(ch) ?? 0) - (googleMeasuredByChan.get(ch) ?? 0));
+    const pool = r2((metaResidualByChan.get(ch) ?? 0) + Math.max(0, orphan) + Math.max(0, googleResidual));
     if (pool <= 0) continue;
     const cells = skuCells.filter((c) => c.ch === ch);
     const totalRev = cells.reduce((s, c) => s + c.rev, 0);
@@ -375,9 +390,10 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     // CM2), not channel fulfilment — a gateway charges the basket, not the SKU.
     if (PLATFORM_FEE_SOURCES.has(f.source)) platformCosts = r2(platformCosts + (f.fees ?? 0));
     else channelFulfillment = r2(channelFulfillment + (f.fees ?? 0));
-    // When an Amazon ad report is in, its per-SKU + channel spend is the Amazon
-    // ad total; drop the settlement's lumped spend so it isn't counted twice.
-    const spend = hasAmazonAds && f.source === 'amazon' ? 0 : (f.spend ?? 0);
+    // Avoid double-counting ad spend: when the Amazon ads report is in, drop the
+    // settlement's lumped ad; the Google products report (File 2) is a breakdown
+    // of the campaign report's total (File 1), so it never adds to S&M itself.
+    const spend = (hasAmazonAds && f.source === 'amazon') || f.source === 'googleadsproducts' ? 0 : (f.spend ?? 0);
     salesMarketing = r2(salesMarketing + spend);
   }
   const netRevenue = r2(SALES_CHANNELS.reduce((s, ch) => s + (netByChannel[ch] ?? 0), 0));

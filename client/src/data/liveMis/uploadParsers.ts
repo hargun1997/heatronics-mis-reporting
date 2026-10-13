@@ -797,6 +797,60 @@ function parseGoogleAdsCampaigns(wb: XLSX.WorkBook): ParseOutput {
   return { facts, trace };
 }
 
+/** Google Merchant item id "shopify_in_9355519066326_48268187533526" → the Shopify variant id (last segment). */
+function googleItemVariant(itemId: string): string {
+  const parts = itemId.split('_');
+  return parts[parts.length - 1] || itemId;
+}
+
+/**
+ * Google Ads Shopping-products report (optional File 2). Per Item ID: cost, for
+ * Shopping / Performance Max campaigns. The item id ends in the Shopify variant
+ * id, which maps to an FG, giving measured per-product Google spend. This is a
+ * breakdown of the campaign report's total (File 1), so it feeds attribution
+ * only (the live deck does not double-count it in S&M).
+ */
+function parseGoogleAdsProducts(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  const hi = findHeader(rows, ['item id', 'cost']);
+  if (hi < 0) return { facts: [], warning: 'No "Item ID / Cost" header — is this the Google Ads Shopping-products report?' };
+  const header = (rows[hi] ?? []).map(lower);
+  const itemCol = col(header, 'item id');
+  const costCol = header.lastIndexOf('cost');
+  if (itemCol < 0 || costCol < 0) return { facts: [], warning: 'Google Shopping products: "Item ID" / "Cost" column not found.' };
+
+  let date = '';
+  for (const r of rows.slice(0, hi)) {
+    const d = googleRangeEnd(cell(r[0]));
+    if (d) { date = d; break; }
+  }
+  const dt = date || new Date().toISOString().slice(0, 10);
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const bySku = new Map<string, { name: string; spend: number }>();
+  for (const row of rows.slice(hi + 1)) {
+    const item = cell(row[itemCol]);
+    if (!item || item === '--') continue;
+    const cost = num(row[costCol]);
+    if (cost <= 0) continue;
+    const variant = googleItemVariant(item);
+    const e = bySku.get(variant) ?? { name: item, spend: 0 };
+    e.spend += cost;
+    bySku.set(variant, e);
+  }
+
+  const facts: DailyFact[] = [...bySku.entries()].map(([variant, { name, spend }]) => ({
+    source: 'googleadsproducts', channel: 'D2C', date: dt, sku: variant, skuName: name, skuKind: 'sku',
+    revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend),
+  }));
+  const total = r2(facts.reduce((s, f) => s + (f.spend ?? 0), 0));
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `${facts.length} products with spend → ₹${Math.round(total).toLocaleString('en-IN')} measured per-product (Shopping/PMax), dated ${dt}`,
+  ];
+  return { facts, warning: facts.length === 0 ? 'No Google Shopping product rows with spend.' : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
   {
     sourceId: 'amazon',
@@ -839,6 +893,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     accept: '.csv,.xlsx,.xls',
     hint: 'Google Ads → Campaigns → set the month → Download. Total Google spend → D2C Sales & Marketing, spread across D2C products by revenue.',
     parse: parseGoogleAdsCampaigns,
+  },
+  {
+    sourceId: 'googleadsproducts',
+    label: 'Google Ads Shopping products (per-item cost)',
+    accept: '.csv,.xlsx,.xls',
+    hint: 'Google Ads → Reports → Shopping → "Shopping - Products" → same month, keep Item ID + Cost. Measured per-product Google spend — a breakdown of the campaign total, not added to it.',
+    parse: parseGoogleAdsProducts,
   },
   {
     sourceId: 'amazonads',
