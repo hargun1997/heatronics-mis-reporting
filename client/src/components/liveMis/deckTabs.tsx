@@ -13,7 +13,7 @@ import {
 } from '../mis-deck/charts';
 import type { SkuCell } from '../../data/misDeck/skuChannelPnl';
 import type { SalesChannel } from '../../data/misDeck/misDeckData';
-import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
+import type { CompletenessLevel, TrafficRow } from '../../data/misDeck/liveDeck';
 import {
   marginPct, slicePnl, sliceOptions,
   type PeriodAgg, type PnlColumn, type SlicePnl, type SliceColumnBy,
@@ -57,7 +57,7 @@ function GrowthChip({ cur, prev }: { cur: number; prev: number | null }) {
   );
 }
 
-export function OverviewTab({ period, periods }: { period: PeriodAgg; periods: PeriodAgg[] }) {
+export function OverviewTab({ period, periods, traffic = [] }: { period: PeriodAgg; periods: PeriodAgg[]; traffic?: TrafficRow[] }) {
   const real = REAL_ROWS[period.level];
   const idx = periods.findIndex((p) => p.key === period.key);
   const prev = idx > 0 ? periods[idx - 1] : null;
@@ -150,6 +150,8 @@ export function OverviewTab({ period, periods }: { period: PeriodAgg; periods: P
         </div>
       </div>
 
+      {traffic.length > 0 && <AmazonTraffic rows={traffic} label={period.label} />}
+
       <p className="text-[11px] text-slate-400">
         {period.label} · <LevelBadge level={period.level} />{' '}
         {period.level === 'full'
@@ -158,6 +160,57 @@ export function OverviewTab({ period, periods }: { period: PeriodAgg; periods: P
             ? 'real through Contribution Margin; OPEX, EBITDA and Net Income need the Tally P&L for this month.'
             : 'top line only; upload the BOM and Tally P&L to complete the cascade.'}
       </p>
+    </div>
+  );
+}
+
+/** Amazon traffic & conversion for the period — from the Business Report (not the P&L). */
+function AmazonTraffic({ rows, label }: { rows: TrafficRow[]; label: string }) {
+  const totS = rows.reduce((s, r) => s + r.sessions, 0);
+  const totP = rows.reduce((s, r) => s + r.pageViews, 0);
+  const totU = rows.reduce((s, r) => s + r.units, 0);
+  const conv = (u: number, s: number) => (s > 0 ? `${((100 * u) / s).toFixed(1)}%` : '—');
+  const top = [...rows].sort((a, b) => b.sessions - a.sessions).slice(0, 12);
+  const n = (v: number) => v.toLocaleString('en-IN');
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-slate-700 mb-1.5">
+        Amazon traffic &amp; conversion · {label}
+        <span className="ml-2 font-normal text-slate-400">sessions → units ordered (from the Business Report — not revenue)</span>
+      </h4>
+      <div className="overflow-x-auto rounded-lg border border-slate-200">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="text-[10px] text-slate-400 text-left border-b border-slate-200 bg-slate-50">
+              <th className="py-1.5 px-2">Product</th>
+              <th className="py-1.5 px-2 text-right">Sessions</th>
+              <th className="py-1.5 px-2 text-right">Page views</th>
+              <th className="py-1.5 px-2 text-right">Units</th>
+              <th className="py-1.5 px-2 text-right">Conversion</th>
+            </tr>
+          </thead>
+          <tbody>
+            {top.map((r) => (
+              <tr key={r.sku} className="border-b border-slate-50">
+                <td className="py-1 px-2 text-slate-700 max-w-[260px] truncate" title={r.name}>{r.name}</td>
+                <td className="py-1 px-2 text-right tabular-nums text-slate-600">{n(r.sessions)}</td>
+                <td className="py-1 px-2 text-right tabular-nums text-slate-500">{n(r.pageViews)}</td>
+                <td className="py-1 px-2 text-right tabular-nums text-slate-600">{n(r.units)}</td>
+                <td className="py-1 px-2 text-right tabular-nums font-medium text-slate-800">{conv(r.units, r.sessions)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-slate-200 font-semibold text-slate-800 bg-slate-50/50">
+              <td className="py-1.5 px-2">Total{rows.length > top.length ? ` (${rows.length} products)` : ''}</td>
+              <td className="py-1.5 px-2 text-right tabular-nums">{n(totS)}</td>
+              <td className="py-1.5 px-2 text-right tabular-nums">{n(totP)}</td>
+              <td className="py-1.5 px-2 text-right tabular-nums">{n(totU)}</td>
+              <td className="py-1.5 px-2 text-right tabular-nums">{conv(totU, totS)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 }

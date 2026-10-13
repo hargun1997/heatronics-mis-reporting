@@ -76,7 +76,7 @@ const SLOTS: ReportSlot[] = [
   },
   {
     connectorId: 'amazon', slotId: 'business-report', label: 'Business Report (traffic, optional)', required: false,
-    accept: '.csv', kind: 'xlsx',
+    accept: '.csv,.xlsx,.xls', kind: 'xlsx', parserId: 'amazonbiz',
     exportSteps: [
       'Business Reports → Detail Page Sales & Traffic By Child Item (link below)',
       'Set the date range to the month → Download (.csv), then upload here',
