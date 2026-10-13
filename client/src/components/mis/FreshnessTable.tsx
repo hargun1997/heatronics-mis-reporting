@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------------
 // Shared freshness UI — the connector roster with green/orange/grey dots, the
 // per-source mode badge, and the "data live through" headline. Rendered on both
-// Live MIS and Data readiness so the two never drift.
+// Live MIS and Upload data so the two never drift.
 // ----------------------------------------------------------------------------
 
 import { STATUS_DOT, STATUS_LABEL, type SystemFreshness } from '../../data/liveMis/freshness';

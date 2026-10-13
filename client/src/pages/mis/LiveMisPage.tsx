@@ -192,7 +192,7 @@ function NoData() {
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center">
       <p className="text-sm text-slate-500">No uploads have been ingested yet.</p>
       <p className="text-xs text-slate-400 mt-1">
-        Head to <a href="/reporting/mis/ingest" className="text-brand-600 underline">Data readiness</a> to upload each source,
+        Head to <a href="/reporting/mis/ingest" className="text-brand-600 underline">Upload data</a> to upload each source,
         or see the <a href="/reporting/mis/rulebook" className="text-brand-600 underline">Data rulebook</a> for what feeds what.
       </p>
     </div>

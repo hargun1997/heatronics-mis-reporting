@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// Data readiness — the ingestion workspace. Pick a connector pill, see its
+// Upload data — the ingestion workspace. Pick a connector pill, see its
 // report slots, and for each run the upload → AI checks → review → save →
 // ingest flow. Reports are stored durably and overwrite by connector+slot+
 // period. (This replaced the earlier per-source list view.)
@@ -19,14 +19,14 @@ export function IngestPage() {
   return (
     <>
       <PageHeader
-        title="Data readiness"
+        title="Upload data"
         accent="brand"
         icon={iconLayers}
         description="Pick a source, follow the steps to export its report, then upload — the file is checked, you review what was read, and it's saved and ingested into the MIS. Green dots are up to date; orange need a fresh report."
         crumbs={[
           { label: 'Reporting', to: '/reporting' },
           { label: 'MIS Reporting', to: '/reporting/mis' },
-          { label: 'Data readiness' },
+          { label: 'Upload data' },
         ]}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">

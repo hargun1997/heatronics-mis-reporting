@@ -276,7 +276,7 @@ function BasisNote({ slice, dim, hasTally }: { slice: SlicePnl; dim: string; has
       ) : hasTally ? (
         'Totals are for this slice.'
       ) : (
-        <>Upload the month’s Tally P&amp;L on the <a href="/reporting/mis/ingest" className="text-brand-600 underline">Data readiness</a> page to light up CM3 and below.</>
+        <>Upload the month’s Tally P&amp;L on the <a href="/reporting/mis/ingest" className="text-brand-600 underline">Upload data</a> page to light up CM3 and below.</>
       )}
     </p>
   );
@@ -367,7 +367,7 @@ function Empty({ what }: { what: string }) {
   return (
     <p className="text-sm text-slate-400 py-6 text-center">
       No {what} for this period yet. Upload marketplace settlements and the Tranzact BOM on the{' '}
-      <a href="/reporting/mis/ingest" className="text-brand-600 underline">Data readiness</a> page.
+      <a href="/reporting/mis/ingest" className="text-brand-600 underline">Upload data</a> page.
     </p>
   );
 }

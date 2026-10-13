@@ -40,7 +40,7 @@ const SECTIONS: NavSection[] = [
     label: 'Data pipeline',
     items: [
       { path: '/reporting/mis/connectors', label: 'Data sources', icon: ico(['M4 4h6v6H4z', 'M14 4h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z']), match: (p) => p.startsWith('/reporting/mis/connectors') },
-      { path: '/reporting/mis/ingest', label: 'Data readiness', icon: ico(['M12 15V3', 'M8 7l4-4 4 4', 'M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2']), match: (p) => p.startsWith('/reporting/mis/ingest') },
+      { path: '/reporting/mis/ingest', label: 'Upload data', icon: ico(['M12 15V3', 'M8 7l4-4 4 4', 'M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2']), match: (p) => p.startsWith('/reporting/mis/ingest') },
       { path: '/reporting/mis/rulebook', label: 'Data rulebook', icon: ico(['M5 3h14a1 1 0 011 1v16a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z', 'M8 8h8M8 12h8M8 16h5']), match: (p) => p.startsWith('/reporting/mis/rulebook') },
     ],
   },
