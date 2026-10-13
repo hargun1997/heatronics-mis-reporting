@@ -125,6 +125,16 @@ function col(header: string[], name: string): number {
   return header.indexOf(name);
 }
 
+/** Channel a Shiprocket shipment belongs to, from its Channel Order Id suffix. */
+function shiprocketChannel(orderId: string): string {
+  const s = orderId.toUpperCase();
+  if (/D2C|SHOPIFY/.test(s)) return 'D2C';
+  if (/AMAZON|AMZ|FB[AM]/.test(s)) return 'Amazon';
+  if (/BLINK/.test(s)) return 'Blinkit';
+  if (/FLIP/.test(s)) return 'Flipkart';
+  return 'Shiprocket'; // untagged → stays company-level fulfilment
+}
+
 function parseShiprocketPassbook(wb: XLSX.WorkBook): ParseOutput {
   const rows = sheetRows(wb, wb.SheetNames[0]);
   const hi = findHeader(rows, ['amount', 'description']);
@@ -132,41 +142,44 @@ function parseShiprocketPassbook(wb: XLSX.WorkBook): ParseOutput {
     return { facts: [], warning: 'No "Amount / Description" header row found — is this the Shiprocket passbook export?' };
   }
   const header = (rows[hi] ?? []).map(lower);
-  const ix = { date: col(header, 'created at'), amount: col(header, 'amount'), desc: col(header, 'description') };
+  const ix = {
+    date: col(header, 'created at'),
+    oid: col(header, 'channel order id'),
+    amount: col(header, 'amount'),
+    desc: col(header, 'description'),
+  };
 
-  const byDay = new Map<string, number>();
+  const byKey = new Map<string, number>(); // `${date}|${channel}`
   let unparsedDates = 0;
   let dataRows = 0;
   let walletExcluded = 0;
+  let moneyIn = 0;
   for (const row of rows.slice(hi + 1)) {
     const desc = cell(row[ix.desc]);
     if (!desc) continue;
     dataRows += 1;
-    if (SHIPROCKET_WALLET.test(desc)) { walletExcluded += 1; continue; } // wallet transfer in, not a cost
+    if (SHIPROCKET_WALLET.test(desc)) { walletExcluded += 1; continue; } // COD remittance / bank ref — money movement, not a cost
     const amount = num(row[ix.amount]);
+    // Freight charges are negative; anything >= 0 is money in (wallet recharge,
+    // COD remittance, credit) and is not a cost.
+    if (amount >= 0) { moneyIn += 1; continue; }
     const date = toISODate(row[ix.date]);
-    if (!date) {
-      unparsedDates += 1;
-      continue;
-    }
-    // Charges are negative in the passbook; -amount is the positive cost.
-    byDay.set(date, (byDay.get(date) ?? 0) - amount);
+    if (!date) { unparsedDates += 1; continue; }
+    const channel = ix.oid >= 0 ? shiprocketChannel(cell(row[ix.oid])) : 'Shiprocket';
+    const key = `${date}|${channel}`;
+    byKey.set(key, (byKey.get(key) ?? 0) - amount);
   }
 
-  const facts: DailyFact[] = [...byDay.entries()].map(([date, fees]) => ({
-    source: 'shiprocket',
-    channel: 'Shiprocket',
-    date,
-    revenue: 0,
-    units: 0,
-    orders: 0,
-    fees: Math.round(fees * 100) / 100,
-  }));
+  const facts: DailyFact[] = [...byKey.entries()].map(([key, fees]) => {
+    const [date, channel] = key.split('|');
+    return { source: 'shiprocket', channel, date, revenue: 0, units: 0, orders: 0, fees: Math.round(fees * 100) / 100 };
+  });
+  const total = facts.reduce((s, f) => s + f.fees, 0);
   const warning = unparsedDates > 0 ? `${unparsedDates} row(s) had no readable date and were skipped.` : undefined;
   const trace = [
-    `Read sheet "${wb.SheetNames[0]}" — found header at row ${hi + 1} (Created At / Amount / Description)`,
-    `Scanned ${dataRows} charge rows; excluded ${walletExcluded} wallet/COD transfer(s) (money in, not a cost)`,
-    `Summed charges by day → ${facts.length} daily freight facts${unparsedDates ? `; ${unparsedDates} undated row(s) skipped` : ''}`,
+    `Read sheet "${wb.SheetNames[0]}" — found header at row ${hi + 1} (Created At / Channel Order Id / Amount)`,
+    `Scanned ${dataRows} rows; excluded ${walletExcluded} wallet/COD transfer(s) + ${moneyIn} money-in row(s) (recharges / remittances / credits)`,
+    `Freight by day × channel → ${facts.length} facts, total ₹${Math.round(total).toLocaleString('en-IN')}`,
   ];
   return { facts, warning, trace };
 }
@@ -417,6 +430,110 @@ function parseAmazonAdvertisedProduct(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: facts.length === 0 ? 'No ad spend rows found.' : undefined, trace };
 }
 
+// ---- Meta Ads → per-product ad spend ---------------------------------------
+
+/** Meta "Product ID" cell "48268188418262, Neck Heating Pad" → { id, name }. */
+function metaProduct(raw: string): { id: string; name: string } {
+  const m = raw.match(/^(\d+)\s*,\s*(.+)$/);
+  return m ? { id: m[1], name: m[2].trim() } : { id: raw, name: raw };
+}
+
+/**
+ * A date cell → "YYYY-MM-DD". XLSX converts ISO date strings in a CSV into Excel
+ * serial numbers (46295 = 2026-09-30), so accept a serial, a real Date, or an
+ * already-ISO string. Returns '' when the cell is not a date.
+ */
+function isoDate(v: unknown): string {
+  if (v == null || v === '') return '';
+  if (typeof v === 'number' && v > 0) {
+    const d = XLSX.SSF?.parse_date_code(v);
+    return d && d.y ? `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}` : '';
+  }
+  const s = cell(v);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const dt = new Date(s);
+  return Number.isNaN(dt.getTime()) ? '' : dt.toISOString().slice(0, 10);
+}
+
+/**
+ * Meta Ads export grouped Campaign → Ad set → Product ID over one month. Each
+ * leaf row is spend for one catalog product; the all-blank row is the true
+ * grand total. Meta's "By Product" breakdown drops spend it can't tie to a
+ * product, so the product rows sum to LESS than the total — we emit per-product
+ * facts plus one residual fact (grand − attributed) so the month's S&M foots to
+ * the real total while the per-product detail survives. The live deck maps each
+ * product id → FG and spreads the residual across D2C products.
+ */
+function parseMetaAds(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  const hi = findHeader(rows, ['campaign name', 'product id']);
+  if (hi < 0) {
+    return { facts: [], warning: 'No "Campaign name / Product ID" header — is this the Meta ad report grouped by campaign → ad set → product?' };
+  }
+  const header = (rows[hi] ?? []).map(lower);
+  const ix = {
+    campaign: col(header, 'campaign name'),
+    product: col(header, 'product id'),
+    amount: header.findIndex((h) => h.includes('amount spent')),
+    end: header.findIndex((h) => h.includes('reporting end')),
+    start: header.findIndex((h) => h.includes('reporting start')),
+  };
+  if (ix.amount < 0) return { facts: [], warning: 'Meta Ads: "Amount spent" column not found.' };
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const bySku = new Map<string, { name: string; spend: number }>();
+  let grandTotal: number | null = null;
+  let leafSum = 0;
+  let leafRows = 0;
+  let lastDate = '';
+  for (const row of rows.slice(hi + 1)) {
+    const amt = num(row[ix.amount]);
+    const campaign = ix.campaign >= 0 ? cell(row[ix.campaign]) : '';
+    const prodRaw = ix.product >= 0 ? cell(row[ix.product]) : '';
+    const iso = isoDate(row[ix.end >= 0 ? ix.end : ix.start]);
+    if (iso && iso > lastDate) lastDate = iso;
+    if (!prodRaw) {
+      // All-blank row = grand total; campaign-only row = a subtotal (skip to
+      // avoid double-counting).
+      if (!campaign && amt) grandTotal = amt;
+      continue;
+    }
+    const { id, name } = metaProduct(prodRaw);
+    const e = bySku.get(id) ?? { name, spend: 0 };
+    e.spend += amt;
+    e.name = name;
+    bySku.set(id, e);
+    leafSum += amt;
+    leafRows += 1;
+  }
+
+  const date = lastDate || new Date().toISOString().slice(0, 10);
+  const facts: DailyFact[] = [];
+  for (const [id, { name, spend }] of bySku) {
+    if (spend === 0) continue;
+    facts.push({ source: 'meta', channel: 'D2C', date, sku: id, skuName: name, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend) });
+  }
+  // Residual: spend Meta booked but did not attribute to any product in this
+  // breakdown. Carried as an un-SKU'd D2C fact so the month total is exact; the
+  // deck spreads it across D2C products by revenue.
+  const residual = grandTotal != null ? r2(grandTotal - leafSum) : 0;
+  if (residual > 0) {
+    facts.push({ source: 'meta', channel: 'D2C', date, revenue: 0, units: 0, orders: 0, fees: 0, spend: residual });
+  }
+
+  const total = r2(facts.reduce((s, f) => s + (f.spend ?? 0), 0));
+  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `${leafRows} product rows → ₹${inr(leafSum)} across ${bySku.size} products`,
+    grandTotal != null
+      ? `Grand total ₹${inr(grandTotal)} → residual ₹${inr(residual)} unattributed, carried D2C-level`
+      : 'No grand-total row — total is the sum of product rows',
+    `Total Meta ad spend ₹${inr(total)}, dated ${date}`,
+  ];
+  return { facts, warning: facts.length === 0 ? 'No Meta ad spend rows found.' : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
   {
     sourceId: 'amazon',
@@ -438,6 +555,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     accept: '.csv,.xlsx',
     hint: 'Amazon Ads → Measurement & Reporting → Sponsored Ads Reports → Advertised Product → same month as the settlement. Per-SKU ad spend.',
     parse: parseAmazonAdvertisedProduct,
+  },
+  {
+    sourceId: 'meta',
+    label: 'Meta ad spend (campaign × ad set × product)',
+    accept: '.csv,.xlsx',
+    hint: 'Meta Ads Manager → grouped Campaign → Ad set → Product ID, one whole month, keep the "All" subtotal rows. Per-product spend + the unattributed residual.',
+    parse: parseMetaAds,
   },
 ];
 

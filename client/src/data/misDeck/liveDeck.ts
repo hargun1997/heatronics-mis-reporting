@@ -184,37 +184,33 @@ interface BuiltMonth {
   completeness: PeriodCompleteness;
 }
 
-function buildMonth(periodKey: string, reports: ExtractedReport[], liveFacts: DailyFact[] = []): BuiltMonth {
+function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: DailyFact[] = []): BuiltMonth {
   const session: MonthCloseSession = emptySession(periodKey, periodLabel(periodKey));
   const sources: UploadedSource[] = [];
-  const allFacts: DailyFact[] = [];
+  const allFacts: DailyFact[] = [...monthFacts];
   let hasTally = false;
   let through: string | null = null;
   const contributors = new Set<string>();
 
+  for (const f of monthFacts) {
+    if (f.date && (!through || f.date > through)) through = f.date;
+    contributors.add(f.source);
+  }
+
+  // Per-period report data: Tally ledgers and the BOM. (Dated facts are routed
+  // by their own month in buildLiveDeck and arrive via monthFacts.)
   for (const rep of reports) {
     const p = rep.payload || {};
-    const facts = Array.isArray(p.facts) ? p.facts : [];
     const ledgerRows = Array.isArray(p.ledgerRows) ? p.ledgerRows : [];
     const bomCosts = Array.isArray(p.bomCosts) ? p.bomCosts : [];
-    if (facts.length || ledgerRows.length || bomCosts.length) contributors.add(rep.connectorId);
-
-    for (const f of facts) { allFacts.push(f); if (f.date && (!through || f.date > through)) through = f.date; }
-
-    const src: UploadedSource = {
-      id: `${rep.connectorId}:${rep.slotId}`,
-      label: rep.connectorId,
-      kind: 'skuPnl',
-      method: 'xlsx',
-      addedAt: '',
+    if (!ledgerRows.length && !bomCosts.length) continue;
+    contributors.add(rep.connectorId);
+    sources.push({
+      id: `${rep.connectorId}:${rep.slotId}`, label: rep.connectorId, kind: 'skuPnl', method: 'xlsx', addedAt: '',
       nodes: ledgerRows.length ? ledgerRowsToNodes(ledgerRows, rep.connectorId) : [],
-      skuRows: facts.length ? factsToSkuRows(facts, rep.connectorId) : [],
-      bomCosts: bomCosts.length ? bomCostsToBomCost(bomCosts, rep.connectorId) : [],
-      crossChecks: [],
-      warnings: [],
-    };
-    sources.push(src);
-
+      skuRows: [], bomCosts: bomCosts.length ? bomCostsToBomCost(bomCosts, rep.connectorId) : [],
+      crossChecks: [], warnings: [],
+    });
     if (ledgerRows.length) {
       hasTally = true;
       if (p.nettProfit != null) {
@@ -223,27 +219,20 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], liveFacts: Da
     }
   }
 
-  // Live connector facts (Shopify D2C today) — merged alongside the uploads so
-  // live-API channels reach the deck. One synthetic source per connector feeds
-  // the SKU layer; facts also flow into the facts-only revenue/fees/spend.
-  if (liveFacts.length) {
-    const byConn = new Map<string, DailyFact[]>();
-    for (const f of liveFacts) {
-      allFacts.push(f);
-      if (f.date && (!through || f.date > through)) through = f.date;
-      contributors.add(f.source);
-      const arr = byConn.get(f.source) ?? [];
-      arr.push(f);
-      byConn.set(f.source, arr);
-    }
-    for (const [conn, fs] of byConn) {
-      const skuRows = factsToSkuRows(fs, conn);
-      if (skuRows.length === 0) continue;
-      sources.push({
-        id: `live:${conn}`, label: conn, kind: 'skuPnl', method: 'connector',
-        addedAt: '', nodes: [], skuRows, bomCosts: [], crossChecks: [], warnings: [],
-      });
-    }
+  // SKU rows from this month's facts — one synthetic source per connector.
+  const factsByConn = new Map<string, DailyFact[]>();
+  for (const f of monthFacts) {
+    const arr = factsByConn.get(f.source) ?? [];
+    arr.push(f);
+    factsByConn.set(f.source, arr);
+  }
+  for (const [conn, fs] of factsByConn) {
+    const skuRows = factsToSkuRows(fs, conn);
+    if (skuRows.length === 0) continue;
+    sources.push({
+      id: `facts:${conn}`, label: conn, kind: 'skuPnl', method: 'connector',
+      addedAt: '', nodes: [], skuRows, bomCosts: [], crossChecks: [], warnings: [],
+    });
   }
 
   session.sources = sources;
@@ -267,9 +256,34 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], liveFacts: Da
     adByFg.set(key, r2((adByFg.get(key) ?? 0) + (f.spend ?? 0)));
   }
 
+  // Meta ad spend (source 'meta', channel D2C): product-id rows give measured
+  // per-product spend (metaAdByFg); rows with no product id (or an unmapped id)
+  // are the residual pool Meta couldn't attribute, spread across D2C products
+  // below so per-SKU ad spend still foots to the true monthly total.
+  const metaAdByFg = new Map<string, number>(); // `${fgId}|${channel}`
+  const metaMeasuredByChan = new Map<SalesChannel, number>();
+  const metaResidualByChan = new Map<SalesChannel, number>();
+  for (const f of allFacts) {
+    if (f.source !== 'meta' || !f.spend) continue;
+    const ch = toSalesChannel(f.channel);
+    if (!ch) continue;
+    const hit = f.sku ? lookupSku('meta' as Platform, f.sku) : null;
+    if (hit) {
+      metaAdByFg.set(`${hit.fgId}|${ch}`, r2((metaAdByFg.get(`${hit.fgId}|${ch}`) ?? 0) + f.spend));
+      metaMeasuredByChan.set(ch, r2((metaMeasuredByChan.get(ch) ?? 0) + f.spend));
+    } else {
+      metaResidualByChan.set(ch, r2((metaResidualByChan.get(ch) ?? 0) + f.spend));
+    }
+  }
+
   // SKU cells from the aggregates (costed ones only carry real contribution).
+  // Measured ad = Amazon per-SKU + Meta per-product; track how much Meta
+  // measured actually lands on a cell, so the rest joins the residual pool.
+  const metaAppliedByChan = new Map<SalesChannel, number>();
   const skuCells: SkuCell[] = sku.aggregates.map((a) => {
-    const ad = adByFg.get(`${a.fgId}|${a.channel}`) ?? 0;
+    const metaAd = metaAdByFg.get(`${a.fgId}|${a.channel}`) ?? 0;
+    if (metaAd) metaAppliedByChan.set(a.channel, r2((metaAppliedByChan.get(a.channel) ?? 0) + metaAd));
+    const ad = r2((adByFg.get(`${a.fgId}|${a.channel}`) ?? 0) + metaAd);
     const cogs = a.cogs ?? 0;
     return {
       m: periodKey, ch: a.channel, p: a.deckName,
@@ -277,6 +291,47 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], liveFacts: Da
       con: r2(a.revenue - cogs - a.fees - ad), u: a.units, ad,
     };
   });
+
+  // Spread the Meta residual — spend with no product id, plus any measured
+  // whose FG has no cell this month — across that channel's SkuCells by revenue,
+  // into `ad`. Keeps per-SKU ad footing to the true monthly Meta total.
+  const metaChannels = new Set<SalesChannel>([...metaMeasuredByChan.keys(), ...metaResidualByChan.keys()]);
+  for (const ch of metaChannels) {
+    const orphan = r2((metaMeasuredByChan.get(ch) ?? 0) - (metaAppliedByChan.get(ch) ?? 0));
+    const pool = r2((metaResidualByChan.get(ch) ?? 0) + Math.max(0, orphan));
+    if (pool <= 0) continue;
+    const cells = skuCells.filter((c) => c.ch === ch);
+    const totalRev = cells.reduce((s, c) => s + c.rev, 0);
+    if (totalRev <= 0) continue;
+    for (const c of cells) {
+      const part = r2(pool * (c.rev / totalRev));
+      c.ad = r2((c.ad ?? 0) + part);
+      c.con = r2(c.con - part);
+    }
+  }
+
+  // Shiprocket freight is a per-day×channel fact with no SKU, so it never lands
+  // on a SkuCell on its own. Allocate each channel's freight across that
+  // channel's SkuCells pro-rata by units into `oth` (channel fees), sharpening
+  // the SKU/SKU×Channel contribution view. The month-level P&L already counts
+  // this freight via channelFulfillment (which sums all fact fees), so this is
+  // view-side attribution only — no double count there.
+  const freightByChan = new Map<SalesChannel, number>();
+  for (const f of allFacts) {
+    if (f.source !== 'shiprocket' || !f.fees) continue;
+    const ch = toSalesChannel(f.channel);
+    if (ch) freightByChan.set(ch, r2((freightByChan.get(ch) ?? 0) + f.fees));
+  }
+  for (const [ch, freight] of freightByChan) {
+    const cells = skuCells.filter((c) => c.ch === ch);
+    const totalU = cells.reduce((s, c) => s + c.u, 0);
+    if (totalU <= 0 || freight === 0) continue;
+    for (const c of cells) {
+      const part = r2(freight * (c.u / totalU));
+      c.oth = r2(c.oth + part);
+      c.con = r2(c.con - part);
+    }
+  }
 
   if (hasTally) {
     // Full cascade from the Tally ledgers — the authoritative monthly close.
@@ -346,26 +401,61 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], liveFacts: Da
 
 // ---- Assemble --------------------------------------------------------------
 
+const isBomReport = (rep: ExtractedReport) => (rep.payload?.bomCosts?.length ?? 0) > 0;
+const factMonth = (f: DailyFact): string | null =>
+  f.date && /^\d{4}-\d{2}/.test(f.date) ? f.date.slice(0, 7) : null;
+
 export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[] = []): LiveDeckData {
-  const byPeriod = new Map<string, ExtractedReport[]>();
+  // The BOM is a period-independent cost book (standard cost per finished good),
+  // so it must be available to EVERY month, not only its upload period. Split it
+  // out and share it across all periods; keep one per connector:slot (latest).
+  const bomByKey = new Map<string, ExtractedReport>();
   for (const rep of reports) {
+    if (!isBomReport(rep)) continue;
+    const key = `${rep.connectorId}:${rep.slotId}`;
+    const prev = bomByKey.get(key);
+    if (!prev || rep.periodKey > prev.periodKey) bomByKey.set(key, rep);
+  }
+  const bomReports = [...bomByKey.values()];
+
+  // Ledger (Tally) reports stay period-specific — they describe one month only.
+  // Facts-only reports (Amazon/Shiprocket/…) are grouped here too, but their
+  // dated facts are re-routed by month below, so the reps loop ignores them.
+  const ledgerByPeriod = new Map<string, ExtractedReport[]>();
+  for (const rep of reports) {
+    if (isBomReport(rep)) continue;
     if (!/^\d{4}-\d{2}$/.test(rep.periodKey)) continue;
-    const arr = byPeriod.get(rep.periodKey) ?? [];
+    const arr = ledgerByPeriod.get(rep.periodKey) ?? [];
     arr.push(rep);
-    byPeriod.set(rep.periodKey, arr);
+    ledgerByPeriod.set(rep.periodKey, arr);
   }
 
-  // Live connector facts grouped by their own month.
-  const liveByPeriod = new Map<string, DailyFact[]>();
-  for (const f of liveFacts) {
-    if (!f.date || !/^\d{4}-\d{2}/.test(f.date)) continue;
-    const pk = f.date.slice(0, 7);
-    const arr = liveByPeriod.get(pk) ?? [];
+  // Durable upload facts, routed to the month each row actually falls in — a
+  // settlement/passbook can straddle two months, so each day lands in its own.
+  // uploadKeys records which source+month a durable upload already covers, so a
+  // live API pull for the same source+month is suppressed (upload wins).
+  const factsByMonth = new Map<string, DailyFact[]>();
+  const uploadKeys = new Set<string>();
+  const pushFact = (pk: string, f: DailyFact) => {
+    const arr = factsByMonth.get(pk) ?? [];
     arr.push(f);
-    liveByPeriod.set(pk, arr);
+    factsByMonth.set(pk, arr);
+  };
+  for (const rep of reports) {
+    for (const f of rep.payload?.facts ?? []) {
+      const pk = factMonth(f);
+      if (!pk) continue;
+      pushFact(pk, f);
+      uploadKeys.add(`${f.source}|${pk}`);
+    }
+  }
+  for (const f of liveFacts) {
+    const pk = factMonth(f);
+    if (!pk || uploadKeys.has(`${f.source}|${pk}`)) continue;
+    pushFact(pk, f);
   }
 
-  const periods = [...new Set([...byPeriod.keys(), ...liveByPeriod.keys()])].sort();
+  const periods = [...new Set([...ledgerByPeriod.keys(), ...factsByMonth.keys()])].sort();
   const months: MonthlyMIS[] = [];
   const skuCells: SkuCell[] = [];
   const completeness: Record<string, PeriodCompleteness> = {};
@@ -376,11 +466,9 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   let floorBroken = false;
 
   for (const periodKey of periods) {
-    const reps = byPeriod.get(periodKey) ?? [];
-    // A source with a durable upload this period overrides its live pull.
-    const uploaded = new Set(reps.map((r) => r.connectorId));
-    const live = (liveByPeriod.get(periodKey) ?? []).filter((f) => !uploaded.has(f.source));
-    const built = buildMonth(periodKey, reps, live);
+    // Ledgers for this month + the shared BOM cost book.
+    const reps = [...(ledgerByPeriod.get(periodKey) ?? []), ...bomReports];
+    const built = buildMonth(periodKey, reps, factsByMonth.get(periodKey) ?? []);
     months.push(built.month);
     skuCells.push(...built.skuCells);
     completeness[periodKey] = built.completeness;

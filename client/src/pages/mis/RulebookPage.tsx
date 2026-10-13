@@ -7,9 +7,11 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import {
   CASCADE, CONNECTOR_RULES, SHEET_RULES, COMPLETENESS_RULE,
-  WIRING_LABEL, type LineOwner, type Wiring, type ConnectorRule,
+  WIRING_LABEL, READY_LABEL, stepsReady, stepsFor,
+  type LineOwner, type Wiring, type Ready, type ConnectorRule,
 } from '../../data/ingest/rulebook';
 
 const iconBook = (
@@ -33,7 +35,17 @@ const WIRING_STYLE: Record<Wiring, string> = {
   'needs-sample': 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
+const READY_STYLE: Record<Ready, string> = {
+  done: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  partial: 'bg-amber-50 text-amber-700 border-amber-200',
+  todo: 'bg-slate-50 text-slate-400 border-slate-200',
+  na: 'bg-slate-50 text-slate-400 border-slate-200',
+};
+const READY_MARK: Record<Ready, string> = { done: '✓', partial: '◐', todo: '○', na: '—' };
+
 const GROUP_ORDER = ['Book of record', 'Marketplace', 'D2C', 'Marketing', 'Logistics', 'Payments & checkout'] as const;
+
+type RbTab = 'checklist' | 'cascade' | 'sources' | 'sheets';
 
 function Badge({ children, cls }: { children: ReactNode; cls: string }) {
   return <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap ${cls}`}>{children}</span>;
@@ -50,6 +62,16 @@ export function RulebookPage() {
     return GROUP_ORDER.map((g) => [g, m.get(g) ?? []] as const).filter(([, a]) => a.length > 0);
   }, []);
 
+  // Progress checklist — the ones we have wired, in the order we did them, then
+  // the queue. Three columns: mapping figured, steps added, what we do (rule).
+  const checklist = useMemo(() => {
+    const done = CONNECTOR_RULES.filter((c) => c.seq != null).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+    const queued = CONNECTOR_RULES.filter((c) => c.seq == null);
+    return [...done, ...queued];
+  }, []);
+
+  const [tab, setTab] = useState<RbTab>('checklist');
+
   return (
     <>
       <PageHeader
@@ -64,7 +86,90 @@ export function RulebookPage() {
         ]}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <div className="mb-6 overflow-x-auto">
+          <SegmentedControl<RbTab>
+            options={[
+              { id: 'checklist', label: 'Checklist' },
+              { id: 'cascade', label: 'P&L cascade' },
+              { id: 'sources', label: 'Sources & files' },
+              { id: 'sheets', label: 'Sheets' },
+            ]}
+            value={tab}
+            onChange={setTab}
+            aria-label="Rulebook view"
+          />
+        </div>
+
+        {tab === 'checklist' && (
+        <section>
+          <h2 className="text-base font-semibold text-slate-800 mb-1">Connector progress</h2>
+          <p className="text-sm text-slate-500 mb-3">
+            Each source needs three things: its ids mapped into the MIS, its export steps added, and its rule
+            (what we do with the data) defined. Done ones first, in the order we wired them, then the queue.
+          </p>
+          <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                  <th className="px-3 py-2 font-semibold w-10">#</th>
+                  <th className="px-3 py-2 font-semibold">Source</th>
+                  <th className="px-3 py-2 font-semibold w-28">Mapping</th>
+                  <th className="px-3 py-2 font-semibold w-28">Steps</th>
+                  <th className="px-3 py-2 font-semibold">What we do with its data</th>
+                  <th className="px-3 py-2 font-semibold">Still to do</th>
+                </tr>
+              </thead>
+              <tbody>
+                {checklist.map((c, i) => {
+                  const firstQueued = c.seq == null && (checklist[i - 1]?.seq != null);
+                  return (
+                    <tr key={c.connectorId}
+                      className={`align-top ${firstQueued ? 'border-t-2 border-slate-200' : 'border-t border-slate-100'}`}>
+                      <td className="px-3 py-2.5 tabular-nums text-slate-400">{c.seq ?? '·'}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-slate-800">{c.label}</span>
+                          {c.channel && <Badge cls="bg-slate-50 text-slate-500 border-slate-200">{c.channel}</Badge>}
+                        </div>
+                        <Badge cls={WIRING_STYLE[c.wiring]}>{WIRING_LABEL[c.wiring]}</Badge>
+                      </td>
+                      <td className="px-3 py-2.5"><Badge cls={READY_STYLE[c.mapping]}>{READY_MARK[c.mapping]} {READY_LABEL[c.mapping]}</Badge></td>
+                      <td className="px-3 py-2.5">
+                        {(() => {
+                          const r = stepsReady(c.connectorId);
+                          const s = stepsFor(c.connectorId);
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <Badge cls={READY_STYLE[r]}>{READY_MARK[r]} {READY_LABEL[r]}</Badge>
+                              <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                                {s.steps ? '✓' : '○'} steps · {s.linkExpected ? `${s.link ? '✓' : '○'} link` : '— link'}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600 text-[13px] min-w-[16rem]">{c.summary}</td>
+                      <td className="px-3 py-2.5 text-[12px] min-w-[14rem]">
+                        {c.pending
+                          ? <span className="text-amber-700">{c.pending}</span>
+                          : <span className="text-emerald-600">✓ Nothing pending</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-2">
+            The queue (below the line) is the remaining one-by-one order. The full file→read→destination rule for
+            every source is in the “Sources &amp; files” tab.
+          </p>
+        </section>
+        )}
+
+        {tab === 'cascade' && (
+        <div className="space-y-8">
         {/* 1 — The cascade and who owns each line */}
         <section>
           <h2 className="text-base font-semibold text-slate-800 mb-1">The P&amp;L cascade</h2>
@@ -107,8 +212,10 @@ export function RulebookPage() {
             <p className="text-sm text-brand-900/80 leading-relaxed">{COMPLETENESS_RULE.body}</p>
           </div>
         </section>
+        </div>
+        )}
 
-        {/* 3 — Per-connector rules */}
+        {tab === 'sources' && (
         <section>
           <h2 className="text-base font-semibold text-slate-800 mb-1">Every source, every file</h2>
           <p className="text-sm text-slate-500 mb-3">
@@ -131,8 +238,9 @@ export function RulebookPage() {
             ))}
           </div>
         </section>
+        )}
 
-        {/* 4 — What feeds each sheet */}
+        {tab === 'sheets' && (
         <section>
           <h2 className="text-base font-semibold text-slate-800 mb-1">What feeds each sheet</h2>
           <p className="text-sm text-slate-500 mb-3">Every tab of the MIS and the data behind it.</p>
@@ -150,6 +258,7 @@ export function RulebookPage() {
             ))}
           </div>
         </section>
+        )}
       </div>
     </>
   );

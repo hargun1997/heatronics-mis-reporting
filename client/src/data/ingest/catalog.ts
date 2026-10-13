@@ -86,14 +86,36 @@ const SLOTS: ReportSlot[] = [
 
   // ---- Marketing ----
   {
-    connectorId: 'meta', slotId: 'ad-spend', label: 'Ads spend by day', required: true,
-    accept: '.csv,.xlsx', kind: 'xlsx',
-    exportSteps: ['Meta Ads Manager → Reports → breakdown by day → export (needs "Amount spent" + date)'],
+    connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', required: true,
+    accept: '.csv,.xlsx', kind: 'xlsx', parserId: 'meta',
+    exportSteps: [
+      'Open the saved "MIS Reporting" report (link below) — grouped Campaign → Ad set → Product ID with Amount spent',
+      'Set the date range to the SINGLE month you are ingesting (whole month, all campaigns)',
+      'Export → download the CSV/XLSX, then upload it here',
+    ],
+    exportUrl: {
+      label: 'Open MIS Reporting in Meta Ads Manager',
+      url: 'https://adsmanager.facebook.com/adsmanager/reporting/view?act=2294012640954204&ads_manager_write_regions=true&business_id=488618164122715&event_source=CLICK_CREATE_REPORT&selected_report_id=120255530074250155',
+    },
+    note: 'Meta spend → Sales & Marketing. Grand total = true spend; Product ID rows give measured per-product spend; the unattributed residual is allocated across D2C products by revenue. Product ids map to finished goods.',
   },
   {
-    connectorId: 'googleads', slotId: 'ad-spend', label: 'Campaign spend by day', required: true,
+    connectorId: 'googleads', slotId: 'ad-spend', label: 'Ad spend — day × campaign', required: true,
     accept: '.csv,.xlsx', kind: 'xlsx',
-    exportSteps: ['Google Ads → Reports → Campaign, segmented by day → download'],
+    exportSteps: [
+      'Google Ads → Campaigns → set the date range to the month you are ingesting',
+      'Segment by Day, keep Cost (and Campaign) columns → Download',
+    ],
+    note: 'Google spend → Sales & Marketing. Account/campaign spend by day; per-product comes from the Shopping products report below where Shopping/PMax is run.',
+  },
+  {
+    connectorId: 'googleads', slotId: 'shopping-products', label: 'Shopping products (per-item cost, optional)', required: false,
+    accept: '.csv,.xlsx', kind: 'xlsx',
+    exportSteps: [
+      'Google Ads → Reports → Predefined → Shopping → "Shopping - Products"',
+      'Set the same date range, keep Item ID + Cost → download',
+    ],
+    note: 'Per-product Google spend for Shopping / Performance Max. Search spend has no product and is allocated by revenue share.',
   },
   {
     connectorId: 'amazonads', slotId: 'ad-spend', label: 'Advertised Product report', required: true,
