@@ -46,14 +46,72 @@ export async function deleteIngestReport(connectorId: string, slotId: string, pe
   await asJson(await fetch(`/api/ingest/reports/${connectorId}/${slotId}/${periodKey}`, { method: 'DELETE' }));
 }
 
-/** Save + ingest a validated upload (overwrites the same slot/period). */
-export async function commitReport(slot: ReportSlot, staged: StagedUpload): Promise<IngestReportMeta> {
-  const summary = summarise(staged.checks);
-  // A Tally export can hold several months; commit the one matching the period
-  // the operator settled on (picked via the period input).
-  const tallyMonth = staged.extracted.tallyMonths?.find((m) => m.period === staged.periodKey);
-  const ledgerRows = tallyMonth?.ledgerRows ?? staged.extracted.ledgerRows;
-  const nettProfit = tallyMonth ? tallyMonth.nettProfit : staged.extracted.nettProfit;
+/** One month's slice of a staged upload — the unit the store overwrites. */
+export interface MonthCommit {
+  periodKey: string;
+  facts: DailyFact[];
+  ledgerRows?: Extracted['ledgerRows'];
+  nettProfit?: number | null;
+  rowCount: number;
+  through: string | null;
+  /** How this slice was decided — drives the UI wording. */
+  basis: 'tally' | 'facts' | 'single';
+}
+
+const isISODate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+
+/**
+ * Split a staged upload into one commit per month it actually covers, so each
+ * month overwrites only its own slot/period (never clobbering a neighbour):
+ *   • Tally P&L → one slice per ledger-month in the export.
+ *   • Dated facts (settlements, ads, …) → bucketed by each row's own date.
+ *   • Dateless (BOM, a Tally screenshot, an undated invoice) → a single slice
+ *     filed under the operator's chosen month.
+ */
+export function monthBreakdown(staged: StagedUpload, overridePeriod: string): MonthCommit[] {
+  const ex = staged.extracted;
+
+  if (ex.tallyMonths && ex.tallyMonths.length > 0) {
+    return [...ex.tallyMonths]
+      .sort((a, b) => a.period.localeCompare(b.period))
+      .map((m) => ({
+        periodKey: m.period, facts: [],
+        ledgerRows: m.ledgerRows, nettProfit: m.nettProfit,
+        rowCount: m.ledgerRows.length, through: null, basis: 'tally' as const,
+      }));
+  }
+
+  const dated = ex.facts.filter((f) => isISODate(f.date));
+  if (dated.length > 0) {
+    const byMonth = new Map<string, DailyFact[]>();
+    for (const f of dated) {
+      const pk = f.date.slice(0, 7);
+      (byMonth.get(pk) ?? byMonth.set(pk, []).get(pk)!).push(f);
+    }
+    // Any undated rows ride with the override month if it is one we saw, else the
+    // latest detected month, so nothing is silently dropped.
+    const months = [...byMonth.keys()].sort();
+    const undated = ex.facts.filter((f) => !isISODate(f.date));
+    if (undated.length > 0) {
+      const host = byMonth.has(overridePeriod) ? overridePeriod : months[months.length - 1];
+      byMonth.get(host)!.push(...undated);
+    }
+    return months.map((pk) => {
+      const facts = byMonth.get(pk)!;
+      const ds = facts.map((f) => f.date).filter(isISODate).sort();
+      return { periodKey: pk, facts, rowCount: facts.length, through: ds[ds.length - 1] ?? null, basis: 'facts' as const };
+    });
+  }
+
+  return [{
+    periodKey: overridePeriod, facts: ex.facts,
+    ledgerRows: ex.ledgerRows, nettProfit: ex.nettProfit,
+    rowCount: ex.rowCount, through: ex.through, basis: 'single' as const,
+  }];
+}
+
+/** POST one month slice to the durable store (overwrites that slot+period). */
+async function postCommit(slot: ReportSlot, staged: StagedUpload, mc: MonthCommit, summary: ReturnType<typeof summarise>): Promise<IngestReportMeta> {
   const r = await asJson<{ report: IngestReportMeta }>(
     await fetch('/api/ingest/commit', {
       method: 'POST',
@@ -62,18 +120,18 @@ export async function commitReport(slot: ReportSlot, staged: StagedUpload): Prom
         connectorId: slot.connectorId,
         slotId: slot.slotId,
         slotLabel: slot.label,
-        periodKey: staged.periodKey,
+        periodKey: mc.periodKey,
         fileName: staged.fileName,
         mimeType: staged.mimeType,
-        rowCount: staged.extracted.rowCount,
-        through: staged.extracted.through,
+        rowCount: mc.rowCount,
+        through: mc.through,
         warnings: [],
         checks: summary,
         rawFiles: staged.rawFiles,
         extracted: {
-          facts: staged.extracted.facts,
-          ledgerRows,
-          nettProfit,
+          facts: mc.facts,
+          ledgerRows: mc.ledgerRows,
+          nettProfit: mc.nettProfit,
           period: staged.extracted.period,
           bomCosts: staged.extracted.bomCosts,
           invoice: staged.extracted.invoice,
@@ -82,6 +140,25 @@ export async function commitReport(slot: ReportSlot, staged: StagedUpload): Prom
     }),
   );
   return r.report;
+}
+
+/**
+ * Save + ingest a validated upload, splitting it into one durable commit per
+ * month it covers (see monthBreakdown). Returns every month's record, ascending.
+ */
+export async function commitReportMonths(slot: ReportSlot, staged: StagedUpload, overridePeriod: string): Promise<IngestReportMeta[]> {
+  const summary = summarise(staged.checks);
+  const metas: IngestReportMeta[] = [];
+  for (const mc of monthBreakdown(staged, overridePeriod)) {
+    metas.push(await postCommit(slot, staged, mc, summary));
+  }
+  return metas;
+}
+
+/** Save + ingest a single-month upload (overwrites the same slot/period). */
+export async function commitReport(slot: ReportSlot, staged: StagedUpload): Promise<IngestReportMeta> {
+  const [meta] = await commitReportMonths(slot, staged, staged.periodKey);
+  return meta;
 }
 
 export function summarise(checks: CheckReport): { passed: number; warned: number; failed: number } {
@@ -135,14 +212,21 @@ export function derivePeriod(ex: Extracted): string {
 
 // ---- xlsx / csv checks (reuse the upload parsers) --------------------------
 
-export async function runXlsxChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
-  const parser = slot.parserId ? UPLOAD_PARSERS.find((p) => p.sourceId === slot.parserId) : undefined;
-  const rawBase64 = await fileToBase64(file);
-  const base = {
-    fileName: file.name,
-    mimeType: file.type || 'application/octet-stream',
-    rawFiles: [{ base64: rawBase64, name: file.name, mimeType: file.type || 'application/octet-stream' }],
+/** Build the shared StageBase (display name + raw bytes) from one or more files. */
+async function stageBaseFor(files: File[], defaultMime: string): Promise<StageBase> {
+  const rawFiles = await Promise.all(
+    files.map(async (f) => ({ base64: await fileToBase64(f), name: f.name, mimeType: f.type || defaultMime })),
+  );
+  return {
+    fileName: files.length > 1 ? `${files[0].name} +${files.length - 1} more` : files[0].name,
+    mimeType: files[0].type || defaultMime,
+    rawFiles,
   };
+}
+
+export async function runXlsxChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
+  const parser = slot.parserId ? UPLOAD_PARSERS.find((p) => p.sourceId === slot.parserId) : undefined;
+  const base = await stageBaseFor(files, 'application/octet-stream');
 
   if (!parser) {
     const extracted: Extracted = { facts: [], rowCount: 0, through: null };
@@ -156,18 +240,26 @@ export async function runXlsxChecks(slot: ReportSlot, file: File): Promise<Stage
 
   const items: CheckItem[] = [];
   try {
-    const rec = await parseUpload(parser, file);
-    const dates = rec.facts.map((f) => f.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    // Several files for one source are concatenated — a year of monthly exports,
+    // or one multi-month file. Each fact keeps its own date, so the deck (and the
+    // month-split commit) file every row to the month it actually falls in.
+    const recs = await Promise.all(files.map((f) => parseUpload(parser, f)));
+    const facts = recs.flatMap((r) => r.facts);
+    const rawRows = recs.reduce((s, r) => s + (r.rawRows ?? 0), 0);
+    const trace = files.length > 1
+      ? recs.flatMap((r, i) => [`— ${files[i].name} —`, ...(r.trace ?? [])])
+      : recs[0]?.trace;
+    const dates = facts.map((f) => f.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
     const through = dates[dates.length - 1] ?? null;
     const months = new Set(dates.map((d) => d.slice(0, 7)));
 
-    items.push({ id: 'read', label: 'File read', status: 'pass', detail: `${rec.rawRows ?? '?'} source rows` });
+    items.push({ id: 'read', label: 'File read', status: 'pass', detail: `${rawRows || '?'} source rows${files.length > 1 ? ` across ${files.length} files` : ''}` });
     items.push({ id: 'recognised', label: 'Report recognised', status: 'pass', detail: parser.label });
     items.push({
       id: 'rows',
       label: 'Rows extracted',
-      status: rec.facts.length > 0 ? 'pass' : 'fail',
-      detail: `${rec.facts.length} daily facts`,
+      status: facts.length > 0 ? 'pass' : 'fail',
+      detail: `${facts.length} daily facts`,
     });
     items.push({
       id: 'dates',
@@ -176,15 +268,16 @@ export async function runXlsxChecks(slot: ReportSlot, file: File): Promise<Stage
       detail: through ? `through ${through}` : 'no dated rows',
     });
     if (months.size > 1) {
-      items.push({ id: 'span', label: 'Single-month window', status: 'warn', detail: `rows span ${[...months].sort().join(', ')}` });
+      // Multi-month is now a feature, not a warning: each month is filed separately.
+      items.push({ id: 'span', label: 'Months covered', status: 'pass', detail: `${[...months].sort().join(', ')} — each filed to its own month` });
     }
 
     const extracted: Extracted = {
-      facts: rec.facts,
-      rowCount: rec.facts.length,
+      facts,
+      rowCount: facts.length,
       through,
-      rawPreview: rec.rawPreview,
-      trace: rec.trace,
+      rawPreview: recs[0]?.rawPreview,
+      trace,
     };
     return { ...base, periodKey: derivePeriod(extracted), extracted, checks: { items, overall: overallOf(items) } };
   } catch (e) {
@@ -256,20 +349,20 @@ export async function runVisionChecks(slot: ReportSlot, files: File[]): Promise<
  * A reconciliation check runs the close so the operator sees it ties to the
  * Nett Profit before saving.
  */
-export async function runTallyXlsxChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
-  const rawBase64 = await fileToBase64(file);
-  const base = {
-    fileName: file.name,
-    mimeType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    rawFiles: [{ base64: rawBase64, name: file.name, mimeType: file.type || 'application/octet-stream' }],
-  };
+export async function runTallyXlsxChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
+  const base = await stageBaseFor(files, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   const items: CheckItem[] = [];
   try {
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-    const parsed = parseTallyPnl(wb);
-    const months = parsed.months;
+    // Several Tally exports are merged by period (a later file wins for a month it
+    // repeats), so a full year can be dropped in one or many files.
+    const byPeriod = new Map<string, TallyMonthExtract>();
+    for (const file of files) {
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      for (const m of parseTallyPnl(wb).months) byPeriod.set(m.period, m);
+    }
+    const months = [...byPeriod.values()].sort((a, b) => a.period.localeCompare(b.period));
     if (months.length === 0) {
-      items.push({ id: 'read', label: 'Read the P&L', status: 'fail', detail: parsed.warning || 'No month with ledger activity.' });
+      items.push({ id: 'read', label: 'Read the P&L', status: 'fail', detail: 'No month with ledger activity.' });
       const extracted: Extracted = { facts: [], rowCount: 0, through: null };
       return { ...base, periodKey: currentMonth(), extracted, checks: { items, overall: 'fail' } };
     }
@@ -510,6 +603,6 @@ export async function runChecks(slot: ReportSlot, files: File[]): Promise<Staged
   if (slot.kind === 'vision') return runVisionChecks(slot, files);
   if (slot.kind === 'bom') return runBomChecks(slot, files[0]);
   if (slot.kind === 'invoice') return runInvoiceChecks(slot, files[0]);
-  if (slot.kind === 'tally-xlsx') return runTallyXlsxChecks(slot, files[0]);
-  return runXlsxChecks(slot, files[0]);
+  if (slot.kind === 'tally-xlsx') return runTallyXlsxChecks(slot, files);
+  return runXlsxChecks(slot, files);
 }

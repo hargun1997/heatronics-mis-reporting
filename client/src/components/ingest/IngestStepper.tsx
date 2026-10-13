@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { inr } from '../mis-deck/charts';
 import { Modal } from '../ui/overlays';
-import { commitReport, restageTallyMonth, runChecks } from '../../data/ingest/ingestClient';
+import { commitReportMonths, monthBreakdown, restageTallyMonth, runChecks } from '../../data/ingest/ingestClient';
 import type { IngestReportMeta, ReportSlot, StagedUpload } from '../../data/ingest/types';
 
 const iconSteps = (
@@ -114,6 +114,7 @@ export function IngestStepper({
   const [ack, setAck] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [committed, setCommitted] = useState<IngestReportMeta | null>(existing ?? null);
+  const [committedCount, setCommittedCount] = useState<number>(existing ? 1 : 0);
   const [howOpen, setHowOpen] = useState(false);
 
   const wired = slot.kind === 'vision' || slot.kind === 'bom' || slot.kind === 'invoice' || slot.kind === 'tally-xlsx' || Boolean(slot.parserId);
@@ -135,8 +136,12 @@ export function IngestStepper({
       setStage('failed');
     }
   };
-  const multiple = slot.kind === 'vision';
-  const uploadLabel = committed ? 'Replace' : multiple ? 'Upload screenshot(s)' : slot.kind === 'invoice' ? 'Upload PDF' : slot.kind === 'tally-xlsx' ? 'Upload P&L Excel' : 'Upload file';
+  // Multi-file for screenshots, Tally P&L exports, and plain xlsx/csv reports
+  // (drop a year of monthly files, or one multi-month file, in one go). BOM and
+  // single invoices stay one-file.
+  const multiple = slot.kind === 'vision' || slot.kind === 'tally-xlsx'
+    || (slot.kind !== 'bom' && slot.kind !== 'invoice' && Boolean(slot.parserId));
+  const uploadLabel = committed ? 'Replace' : slot.kind === 'vision' ? 'Upload screenshot(s)' : slot.kind === 'invoice' ? 'Upload PDF' : slot.kind === 'tally-xlsx' ? 'Upload P&L Excel' : multiple ? 'Upload file(s)' : 'Upload file';
 
   // Tally P&L Excel can carry several months; changing the period re-stages the
   // chosen month (ledgers, Nett Profit, reconciliation) without re-reading.
@@ -147,13 +152,19 @@ export function IngestStepper({
     }
   };
   const tallyMonths = staged?.extracted.tallyMonths;
+  // How this upload splits into months. When the months are read from the data
+  // (dated facts, or a Tally export's own month columns) the Month input is just
+  // an override; when there's nothing dated (BOM, a screenshot) it's required.
+  const breakdown = staged ? monthBreakdown(staged, period) : [];
+  const autoMonths = breakdown.length > 0 && breakdown[0].basis !== 'single';
 
   const save = async () => {
     if (!staged) return;
     setStage('saving'); setError(null);
     try {
-      const meta = await commitReport(slot, { ...staged, periodKey: period });
-      setCommitted(meta);
+      const metas = await commitReportMonths(slot, { ...staged, periodKey: period }, period);
+      setCommitted(metas[metas.length - 1] ?? null);
+      setCommittedCount(metas.length);
       setStage('ingested');
       onCommitted();
     } catch (e) {
@@ -163,10 +174,10 @@ export function IngestStepper({
   };
 
   const hasWarn = staged?.checks.items.some((i) => i.status === 'warn') ?? false;
-  // The month is mandatory: every report is filed under its period, and that key
-  // is what makes a re-upload overwrite the previous one for that month.
+  // The month is mandatory only when it can't be read from the data — that key is
+  // what makes a re-upload overwrite the previous one for that month.
   const periodOk = /^\d{4}-\d{2}$/.test(period);
-  const canSave = stage === 'review' && staged?.checks.overall !== 'fail' && (!hasWarn || ack) && periodOk;
+  const canSave = stage === 'review' && staged?.checks.overall !== 'fail' && (!hasWarn || ack) && (autoMonths || periodOk);
   const active = stepIndex(stage);
 
   return (
@@ -185,18 +196,20 @@ export function IngestStepper({
           </div>
           {committed && (
             <p className="text-[11px] text-emerald-700 mt-0.5">
-              Ingested · {committed.periodKey}{committed.through ? ` · through ${committed.through}` : ''} · {committed.rowCount} rows · {committed.fileName}
+              Ingested · {committedCount > 1 ? `${committedCount} months` : committed.periodKey}{committed.through ? ` · through ${committed.through}` : ''} · {committed.rowCount} rows · {committed.fileName}
             </p>
           )}
         </div>
-        {/* Month this upload is for — visible from the start so it is always
-            clear which month you are filing. Auto-fills from the file on upload;
-            change it to re-file (Tally's multi-month export picks the month here). */}
+        {/* Month this upload is for. When the data carries its own dates (facts or
+            a Tally export's month columns) the months are read automatically and
+            this is just an override; otherwise (BOM, a screenshot) it's required. */}
         <div className="shrink-0 text-right">
-          <label className="block text-[10px] font-medium text-slate-500 mb-0.5">Month <span className="text-rose-500">*</span></label>
+          <label className="block text-[10px] font-medium text-slate-500 mb-0.5">
+            Month {autoMonths ? <span className="text-slate-400 font-normal">(auto)</span> : <span className="text-rose-500">*</span>}
+          </label>
           <input type="month" value={period} onChange={(e) => onPeriod(e.target.value)}
-            className={`px-2 py-1 rounded-lg border text-xs ${periodOk ? 'border-slate-200' : 'border-rose-300 bg-rose-50'}`} />
-          {!periodOk && <span className="block mt-0.5 text-[10px] text-rose-500">required</span>}
+            className={`px-2 py-1 rounded-lg border text-xs ${autoMonths || periodOk ? 'border-slate-200' : 'border-rose-300 bg-rose-50'}`} />
+          {!autoMonths && !periodOk && <span className="block mt-0.5 text-[10px] text-rose-500">required</span>}
         </div>
       </div>
 
@@ -263,16 +276,28 @@ export function IngestStepper({
         {/* ④ Save / ⑤ Ingest (the month lives in the header, auto-filled on upload) */}
         {stage === 'review' && staged && (
           <div className="border-t border-slate-100 pt-3 space-y-2">
-            <p className="text-[11px] text-slate-500">
-              Saving into <span className="font-medium text-slate-700">{periodOk ? monthName(period) : 'the month set above'}</span>.
-              {' '}Re-uploading for the same month overwrites the previous file.
-            </p>
-            {!periodOk && (
+            {autoMonths ? (
+              <p className="text-[11px] text-slate-500">
+                {breakdown.length > 1
+                  ? <>Will ingest <span className="font-medium text-slate-700">{breakdown.length} months</span>, each filed to its own month: </>
+                  : <>Saving into <span className="font-medium text-slate-700">{monthName(breakdown[0].periodKey)}</span> (read from the data). </>}
+                {breakdown.length > 1 && (
+                  <span className="text-slate-600">{breakdown.map((b) => `${monthName(b.periodKey)} (${b.rowCount})`).join(', ')}. </span>
+                )}
+                Re-uploading a month overwrites just that month.
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-500">
+                Saving into <span className="font-medium text-slate-700">{periodOk ? monthName(period) : 'the month set above'}</span>.
+                {' '}Re-uploading for the same month overwrites the previous file.
+              </p>
+            )}
+            {!autoMonths && !periodOk && (
               <p className="text-[11px] text-rose-500">Set the <span className="font-medium">Month</span> (top right) before saving — required.</p>
             )}
             {tallyMonths && tallyMonths.length > 1 && (
               <p className="text-[10px] text-slate-400">
-                This export has {tallyMonths.length} months — set the Month above to pick which to ingest: {tallyMonths.map((m) => m.periodLabel).join(', ')}
+                Tally export carries {tallyMonths.length} months — all are ingested: {tallyMonths.map((m) => m.periodLabel).join(', ')}
               </p>
             )}
             {hasWarn && (
@@ -283,7 +308,7 @@ export function IngestStepper({
             )}
             <button onClick={save} disabled={!canSave}
               className="px-3 py-1.5 text-xs rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40">
-              Save &amp; ingest into MIS
+              {breakdown.length > 1 ? `Save & ingest ${breakdown.length} months` : 'Save & ingest into MIS'}
             </button>
           </div>
         )}
