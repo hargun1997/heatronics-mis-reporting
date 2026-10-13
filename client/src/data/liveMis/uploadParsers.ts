@@ -544,6 +544,7 @@ function parseMetaAds(wb: XLSX.WorkBook): ParseOutput {
   }
   const header = (rows[hi] ?? []).map(lower);
   const ix = {
+    month: col(header, 'month'),
     campaign: col(header, 'campaign name'),
     product: col(header, 'product id'),
     amount: header.findIndex((h) => h.includes('amount spent')),
@@ -553,55 +554,68 @@ function parseMetaAds(wb: XLSX.WorkBook): ParseOutput {
   if (ix.amount < 0) return { facts: [], warning: 'Meta Ads: "Amount spent" column not found.' };
 
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  const bySku = new Map<string, { name: string; spend: number }>();
+  // The export can carry several months (a "Month" column like "2026-09-01 -
+  // 2026-09-30"). Group product spend by month × product; each month files to
+  // itself. The lone grand-total row is the TRUE total across all months — the
+  // unattributed residual (grand − all leaf spend) is split across months
+  // pro-rata by their leaf spend so the overall total stays exact.
+  const perMonth = new Map<string, { bySku: Map<string, { name: string; spend: number }>; leaf: number }>();
   let grandTotal: number | null = null;
-  let leafSum = 0;
   let leafRows = 0;
-  let lastDate = '';
+  const monthOf = (row: unknown[]): string => {
+    if (ix.month >= 0) {
+      const m = cell(row[ix.month]).match(/(\d{4})-(\d{2})-\d{2}/);
+      if (m) return `${m[1]}-${m[2]}`;
+    }
+    const iso = isoDate(row[ix.end >= 0 ? ix.end : ix.start]);
+    return iso ? iso.slice(0, 7) : '';
+  };
   for (const row of rows.slice(hi + 1)) {
     const amt = num(row[ix.amount]);
     const campaign = ix.campaign >= 0 ? cell(row[ix.campaign]) : '';
     const prodRaw = ix.product >= 0 ? cell(row[ix.product]) : '';
-    const iso = isoDate(row[ix.end >= 0 ? ix.end : ix.start]);
-    if (iso && iso > lastDate) lastDate = iso;
     if (!prodRaw) {
-      // All-blank row = grand total; campaign-only row = a subtotal (skip to
-      // avoid double-counting).
-      if (!campaign && amt) grandTotal = amt;
+      // All-blank row = grand total; campaign-only row = a subtotal (skip).
+      if (!campaign && amt) grandTotal = (grandTotal ?? 0) + amt;
       continue;
     }
+    const mo = monthOf(row);
+    if (!mo) continue;
     const { id, name } = metaProduct(prodRaw);
-    const e = bySku.get(id) ?? { name, spend: 0 };
+    const pm = perMonth.get(mo) ?? { bySku: new Map(), leaf: 0 };
+    perMonth.set(mo, pm);
+    const e = pm.bySku.get(id) ?? { name, spend: 0 };
     e.spend += amt;
     e.name = name;
-    bySku.set(id, e);
-    leafSum += amt;
+    pm.bySku.set(id, e);
+    pm.leaf += amt;
     leafRows += 1;
   }
 
-  const date = lastDate || new Date().toISOString().slice(0, 10);
+  const totalLeaf = [...perMonth.values()].reduce((s, pm) => s + pm.leaf, 0);
+  const overallResidual = grandTotal != null ? r2(grandTotal - totalLeaf) : 0;
   const facts: DailyFact[] = [];
-  for (const [id, { name, spend }] of bySku) {
-    if (spend === 0) continue;
-    facts.push({ source: 'meta', channel: 'D2C', date, sku: id, skuName: name, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend) });
-  }
-  // Residual: spend Meta booked but did not attribute to any product in this
-  // breakdown. Carried as an un-SKU'd D2C fact so the month total is exact; the
-  // deck spreads it across D2C products by revenue.
-  const residual = grandTotal != null ? r2(grandTotal - leafSum) : 0;
-  if (residual > 0) {
-    facts.push({ source: 'meta', channel: 'D2C', date, revenue: 0, units: 0, orders: 0, fees: 0, spend: residual });
+  for (const [mo, pm] of perMonth) {
+    const date = `${mo}-01`;
+    for (const [id, { name, spend }] of pm.bySku) {
+      if (spend === 0) continue;
+      facts.push({ source: 'meta', channel: 'D2C', date, sku: id, skuName: name, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend) });
+    }
+    // This month's share of the unattributed residual (pro-rata by leaf spend).
+    const share = totalLeaf > 0 ? r2(overallResidual * (pm.leaf / totalLeaf)) : 0;
+    if (share > 0) facts.push({ source: 'meta', channel: 'D2C', date, revenue: 0, units: 0, orders: 0, fees: 0, spend: share });
   }
 
   const total = r2(facts.reduce((s, f) => s + (f.spend ?? 0), 0));
   const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const months = [...perMonth.keys()].sort();
   const trace = [
     `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
-    `${leafRows} product rows → ₹${inr(leafSum)} across ${bySku.size} products`,
+    `${leafRows} product rows across ${months.length} month(s) (${months.join(', ')}) → ₹${inr(totalLeaf)} attributed`,
     grandTotal != null
-      ? `Grand total ₹${inr(grandTotal)} → residual ₹${inr(residual)} unattributed, carried D2C-level`
+      ? `Grand total ₹${inr(grandTotal)} → residual ₹${inr(overallResidual)} unattributed, split across months pro-rata`
       : 'No grand-total row — total is the sum of product rows',
-    `Total Meta ad spend ₹${inr(total)}, dated ${date}`,
+    `Total Meta ad spend ₹${inr(total)}`,
   ];
   return { facts, warning: facts.length === 0 ? 'No Meta ad spend rows found.' : undefined, trace };
 }
