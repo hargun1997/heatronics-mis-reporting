@@ -373,6 +373,44 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     }
   }
 
+  // ---- Marketing bifurcation by ad platform -------------------------------
+  // Tally books S&M as a single bucket, so the P&L lost the Google / Meta /
+  // Amazon / Flipkart split it used to carry. Rebuild it from the connector ad
+  // facts using the SAME double-count guards as the S&M scalar below, then plug
+  // the gap to the authoritative S&M total as a blended "Other" bucket so the
+  // breakdown always foots exactly to the P&L line.
+  const adPlatformLabel = (source: string): string | null => {
+    switch (source) {
+      case 'googleads': return 'Google Ads';
+      case 'meta': return 'Meta (FB / Instagram)';
+      case 'amazonads': return 'Amazon Ads';
+      case 'amazon': return hasAmazonAds ? null : 'Amazon Ads'; // settlement's lumped ad, only when no dedicated report
+      case 'flipkartads': return 'Flipkart Ads';
+      default: return null; // googleadsproducts (a breakdown of googleads) + non-ad sources
+    }
+  };
+  const MARKETING_PLATFORM_ORDER = ['Google Ads', 'Meta (FB / Instagram)', 'Amazon Ads', 'Flipkart Ads'];
+  const adAttributed = new Map<string, number>();
+  for (const f of allFacts) {
+    if (f.source === 'googleadsproducts') continue; // breakdown of the googleads grand total
+    const label = adPlatformLabel(f.source);
+    if (!label || !f.spend) continue;
+    adAttributed.set(label, r2((adAttributed.get(label) ?? 0) + f.spend));
+  }
+  const buildMarketingByPlatform = (smTotal: number): Record<string, number> => {
+    const out: Record<string, number> = {};
+    let attributed = 0;
+    for (const label of MARKETING_PLATFORM_ORDER) {
+      const v = r2(adAttributed.get(label) ?? 0);
+      if (v !== 0) { out[label] = v; attributed = r2(attributed + v); }
+    }
+    const other = r2(smTotal - attributed);
+    // Keep a blended remainder (agency fees, offline, unattributed) so the split
+    // foots to the real S&M line; ignore sub-rupee rounding dust.
+    if (Math.abs(other) >= 1) out['Other / Blended'] = other;
+    return out;
+  };
+
   if (hasTally) {
     // Full cascade from the Tally ledgers — the authoritative monthly close.
     const c = computeClose(session);
@@ -393,6 +431,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       grossMargin: c.grossMargin, cm1: c.cm1, cm2: c.cm2, cm3: c.cm3,
       ebitda: c.ebitda, netIncome: c.netIncome, cogm: c.cogm,
       channelFulfillment: c.channelFulfillment, salesMarketing: c.salesMarketing,
+      marketingByPlatform: buildMarketingByPlatform(c.salesMarketing),
       platformCosts: c.platformCosts, opex: c.opex, nonOperating: c.nonOperating,
       costOfFundraising: c.costOfFundraising, cogmLines: c.cogmLines, opexLines: c.opexLines,
       tallyLines, channelRecon,
@@ -444,6 +483,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     grossMargin, cm1, cm2, cm3,
     ebitda: 0, netIncome: 0, cogm,
     channelFulfillment, salesMarketing, platformCosts, opex: 0, nonOperating: 0,
+    marketingByPlatform: buildMarketingByPlatform(salesMarketing),
     costOfFundraising: 0, cogmLines: {}, opexLines: {},
   };
   return {

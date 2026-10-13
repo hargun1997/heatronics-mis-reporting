@@ -270,6 +270,18 @@ export function PnlTab({ periods, showPct }: { periods: PeriodAgg[]; showPct: bo
     return [...seen.entries()].map(([lineKey, label]) => ({ lineKey, label }));
   };
 
+  // Sales & Marketing drills into its ad-platform split (Google / Meta / Amazon /
+  // Flipkart / Other), rebuilt from connector ad facts — the breakdown Tally no
+  // longer carries. Union the platform labels across the shown periods, in a
+  // stable order, then any extras as they first appear.
+  const MKT_ORDER = ['Google Ads', 'Meta (FB / Instagram)', 'Amazon Ads', 'Flipkart Ads', 'Other / Blended'];
+  const marketingLines = () => {
+    const present = new Set<string>();
+    for (const p of cols) for (const label of Object.keys(p.marketingByPlatform ?? {})) present.add(label);
+    const ordered = [...MKT_ORDER.filter((l) => present.has(l)), ...[...present].filter((l) => !MKT_ORDER.includes(l))];
+    return ordered.map((label) => ({ lineKey: label, label }));
+  };
+
   return (
     <div ref={scrollRef} className="overflow-x-auto">
       <table className="min-w-full text-xs border-collapse">
@@ -285,8 +297,9 @@ export function PnlTab({ periods, showPct }: { periods: PeriodAgg[]; showPct: bo
         </thead>
         <tbody>
           {PNL_ROWS.map((row) => {
+            const isMarketing = row.k === 'sales_marketing';
             const cascades = PNL_EXPANDABLE[row.k];
-            const lines = cascades ? bucketLines(cascades) : [];
+            const lines = isMarketing ? marketingLines() : cascades ? bucketLines(cascades) : [];
             const canExpand = lines.length > 0;
             const isOpen = expanded.has(row.k);
             return (
@@ -318,6 +331,14 @@ export function PnlTab({ periods, showPct }: { periods: PeriodAgg[]; showPct: bo
                   <tr key={`${row.k}:${ln.lineKey}`} className="border-b border-slate-50 bg-white">
                     <td className="py-1 pr-3 pl-6 sticky left-0 bg-white text-[11px] text-slate-500">{ln.label}</td>
                     {cols.map((p) => {
+                      if (isMarketing) {
+                        const v = p.marketingByPlatform?.[ln.lineKey];
+                        return (
+                          <td key={p.key} className="py-1 px-2 text-right tabular-nums text-[11px] text-slate-500">
+                            {v != null && v !== 0 ? inr(-v) : <span className="text-slate-300">—</span>}
+                          </td>
+                        );
+                      }
                       const line = (p.tallyLines ?? []).find((l) => l.lineKey === ln.lineKey);
                       return (
                         <td key={p.key} className="py-1 px-2 text-right tabular-nums text-[11px] text-slate-500">
@@ -333,7 +354,7 @@ export function PnlTab({ periods, showPct }: { periods: PeriodAgg[]; showPct: bo
         </tbody>
       </table>
       <p className="text-[10px] text-slate-400 mt-2">
-        ▸ Click a cost line to drill into Tally’s own ledger buckets for that line.
+        ▸ Click a cost line to drill in — Sales &amp; Marketing splits by ad platform (Google / Meta / Amazon / Flipkart); the rest drill into Tally’s own ledger buckets.
       </p>
     </div>
   );

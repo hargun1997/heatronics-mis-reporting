@@ -76,6 +76,14 @@ export interface MonthlyMIS {
   cogm: number;
   channelFulfillment: number;
   salesMarketing: number;
+  /**
+   * Sales & Marketing split by ad platform (Google / Meta / Amazon Ads /
+   * Flipkart Ads), with a blended "Other" bucket that plugs the gap to the
+   * authoritative `salesMarketing` total so the breakdown always foots to the
+   * P&L line. Rebuilt from the connector ad facts — Tally itself no longer
+   * carries this bifurcation. Present on live months; absent on static history.
+   */
+  marketingByPlatform?: Record<string, number>;
   platformCosts: number;
   opex: number;
   nonOperating: number;
