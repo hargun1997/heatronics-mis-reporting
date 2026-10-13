@@ -213,6 +213,22 @@ function currentMonth(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+/**
+ * A YYYY-MM read from a file's NAME, for reports that carry no date inside them
+ * (the Amazon Business Report). Handles "Apr-2026", "April 2026", "2026-04",
+ * "04-2026" and the like. Undefined when no month is encoded.
+ */
+export function monthFromName(name: string): string | undefined {
+  const s = name.toLowerCase();
+  let m = s.match(/(20\d{2})[-_. ](0[1-9]|1[0-2])(?!\d)/);      // 2026-04
+  if (m) return `${m[1]}-${m[2]}`;
+  m = s.match(/(?<!\d)(0[1-9]|1[0-2])[-_. ](20\d{2})/);         // 04-2026
+  if (m) return `${m[2]}-${m[1]}`;
+  m = s.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[-_. ]?(20\d{2})/); // apr-2026 / april 2026
+  if (m && MONTHS[m[1].slice(0, 3)]) return `${m[2]}-${MONTHS[m[1].slice(0, 3)]}`;
+  return undefined;
+}
+
 /** Best-guess YYYY-MM from the facts' latest date, else a Tally period string. */
 export function derivePeriod(ex: Extracted): string {
   if (ex.through && /^\d{4}-\d{2}/.test(ex.through)) return ex.through.slice(0, 7);
@@ -258,7 +274,14 @@ export async function runXlsxChecks(slot: ReportSlot, files: File[]): Promise<St
     // or one multi-month file. Each fact keeps its own date, so the deck (and the
     // month-split commit) file every row to the month it actually falls in.
     const recs = await Promise.all(files.map((f) => parseUpload(parser, f)));
-    const facts = recs.flatMap((r) => r.facts);
+    // A file whose rows carry no date (the Amazon Business Report) is stamped to
+    // the month read from its own filename, so dropping many at once files each
+    // to its own month. Files that already carry dates are left untouched.
+    const facts = recs.flatMap((r, i) => {
+      if (r.facts.length === 0 || r.facts.some((f) => isISODate(f.date))) return r.facts;
+      const m = r.period ?? monthFromName(files[i].name);
+      return m ? r.facts.map((f) => (f.date ? f : { ...f, date: `${m}-01` })) : r.facts;
+    });
     const rawRows = recs.reduce((s, r) => s + (r.rawRows ?? 0), 0);
     const trace = files.length > 1
       ? recs.flatMap((r, i) => [`— ${files[i].name} —`, ...(r.trace ?? [])])
