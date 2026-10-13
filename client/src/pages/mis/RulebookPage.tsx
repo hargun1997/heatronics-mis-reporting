@@ -9,7 +9,8 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import {
   CASCADE, CONNECTOR_RULES, SHEET_RULES, COMPLETENESS_RULE,
-  WIRING_LABEL, READY_LABEL, type LineOwner, type Wiring, type Ready, type ConnectorRule,
+  WIRING_LABEL, READY_LABEL, stepsReady, stepsFor,
+  type LineOwner, type Wiring, type Ready, type ConnectorRule,
 } from '../../data/ingest/rulebook';
 
 const iconBook = (
@@ -114,7 +115,20 @@ export function RulebookPage() {
                         <Badge cls={WIRING_STYLE[c.wiring]}>{WIRING_LABEL[c.wiring]}</Badge>
                       </td>
                       <td className="px-3 py-2.5"><Badge cls={READY_STYLE[c.mapping]}>{READY_MARK[c.mapping]} {READY_LABEL[c.mapping]}</Badge></td>
-                      <td className="px-3 py-2.5"><Badge cls={READY_STYLE[c.steps]}>{READY_MARK[c.steps]} {READY_LABEL[c.steps]}</Badge></td>
+                      <td className="px-3 py-2.5">
+                        {(() => {
+                          const r = stepsReady(c.connectorId);
+                          const s = stepsFor(c.connectorId);
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <Badge cls={READY_STYLE[r]}>{READY_MARK[r]} {READY_LABEL[r]}</Badge>
+                              <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                                {s.steps ? '✓' : '○'} steps · {s.linkExpected ? `${s.link ? '✓' : '○'} link` : '— link'}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className="px-3 py-2.5 text-slate-600 text-[13px] min-w-[16rem]">{c.summary}</td>
                     </tr>
                   );
