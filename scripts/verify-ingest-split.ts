@@ -116,6 +116,37 @@ console.log('\n2. buildLiveDeck — a multi-month report populates each month');
   ok(r0(byKey.get('2026-09')!.netByChannel.Amazon ?? 0) === 9999, 'per-month commits: Sep overwritten to ₹9999');
 }
 
+// ---- 3. Marketing bifurcation foots to the S&M line -------------------------
+
+console.log('\n3. buildLiveDeck — marketing splits by ad platform and foots to S&M');
+
+{
+  // A facts-only month with spend across every ad platform. Each platform fact
+  // carries spend; revenue keeps the month on the topline. Google File 2
+  // (googleadsproducts) must NOT add on top of the googleads grand total.
+  const spendFact = (source: string, spend: number, channel = 'Amazon'): DailyFact =>
+    ({ source, channel, date: '2026-09-15', revenue: 0, units: 0, orders: 0, fees: 0, spend });
+  const facts: DailyFact[] = [
+    fact('2026-09-10', 5000, 'amazon', 'Amazon'),   // revenue, keeps month alive
+    spendFact('amazonads', 300, 'Amazon'),
+    spendFact('flipkartads', 200, 'Flipkart'),
+    spendFact('meta', 150, 'D2C'),
+    spendFact('googleads', 100, 'D2C'),              // grand total
+    spendFact('googleadsproducts', 60, 'D2C'),       // breakdown — must not double-count
+  ];
+  const reports = [{ connectorId: 'amazon', slotId: 'unified-transaction', periodKey: '2026-09', payload: { facts } }];
+  const deck = buildLiveDeck(reports, []);
+  const m = deck.months.find((x) => x.key === '2026-09')!;
+  const mbp = m.marketingByPlatform ?? {};
+  ok(r0(m.salesMarketing) === 750, `S&M total = ₹750 (amazonads 300 + flipkart 200 + meta 150 + googleads 100; products excluded) — got ₹${r0(m.salesMarketing)}`);
+  ok(r0(mbp['Amazon Ads'] ?? 0) === 300, `Amazon Ads = ₹300 (got ₹${r0(mbp['Amazon Ads'] ?? 0)})`);
+  ok(r0(mbp['Flipkart Ads'] ?? 0) === 200, `Flipkart Ads = ₹200 (got ₹${r0(mbp['Flipkart Ads'] ?? 0)})`);
+  ok(r0(mbp['Meta (FB / Instagram)'] ?? 0) === 150, `Meta = ₹150 (got ₹${r0(mbp['Meta (FB / Instagram)'] ?? 0)})`);
+  ok(r0(mbp['Google Ads'] ?? 0) === 100, `Google Ads = ₹100, products not double-counted (got ₹${r0(mbp['Google Ads'] ?? 0)})`);
+  const sumParts = Object.values(mbp).reduce((s, v) => s + v, 0);
+  ok(r0(sumParts) === r0(m.salesMarketing), `platform split foots to S&M line (parts ₹${r0(sumParts)} = S&M ₹${r0(m.salesMarketing)})`);
+}
+
 // ---- Result -----------------------------------------------------------------
 
 if (failures > 0) {

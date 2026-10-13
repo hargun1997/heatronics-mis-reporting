@@ -62,6 +62,8 @@ export interface PeriodAgg {
   channelFulfillment: number;
   cm1: number;
   salesMarketing: number;
+  /** S&M split by ad platform (Google / Meta / Amazon / Flipkart / Other), summed across member months. */
+  marketingByPlatform: Record<string, number>;
   cm2: number;
   platformCosts: number;
   cm3: number;
@@ -102,7 +104,7 @@ export function aggregatePeriods(
       b = {
         key, label: gran === 'month' ? monthLabel(m.key) : key, members: [],
         netByChannel: {}, netRevenue: 0, cogm: 0, grossMargin: 0, channelFulfillment: 0, cm1: 0,
-        salesMarketing: 0, cm2: 0, platformCosts: 0, cm3: 0, opex: 0, ebitda: 0,
+        salesMarketing: 0, marketingByPlatform: {}, cm2: 0, platformCosts: 0, cm3: 0, opex: 0, ebitda: 0,
         nonOperating: 0, costOfFundraising: 0, netIncome: 0,
         tallyLines: [], channelRecon: { revenueResidue: {}, cogmVariance: 0 },
         level: 'full', hasTally: true,
@@ -117,6 +119,9 @@ export function aggregatePeriods(
     b.cogm = r2(b.cogm + m.cogm);
     b.channelFulfillment = r2(b.channelFulfillment + m.channelFulfillment);
     b.salesMarketing = r2(b.salesMarketing + m.salesMarketing);
+    for (const [label, v] of Object.entries(m.marketingByPlatform ?? {})) {
+      b.marketingByPlatform[label] = r2((b.marketingByPlatform[label] ?? 0) + v);
+    }
     b.platformCosts = r2(b.platformCosts + m.platformCosts);
     b.opex = r2(b.opex + m.opex);
     b.nonOperating = r2(b.nonOperating + m.nonOperating);
