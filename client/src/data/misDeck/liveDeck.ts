@@ -29,6 +29,7 @@ import {
 } from '../monthClose/schema';
 import { computeClose } from '../monthClose/compute';
 import { computeSku } from '../monthClose/skuRollup';
+import { lookupSku, type Platform } from '../monthClose/skuMap';
 
 // Factory overhead convention — 10% of revenue added to product COGS to form
 // COGM, matching the deck (analytics.ts FACTORY_PCT) and the committed closes.
@@ -227,17 +228,31 @@ function buildMonth(periodKey: string, reports: ExtractedReport[]): BuiltMonth {
   const sku = computeSku(session);
   const cogmReal = sku.hasSkuSources && sku.costBook.count > 0 && sku.totalCogs !== null;
 
+  // Per-SKU ad spend from an Amazon Advertised Product upload (source
+  // 'amazonads'), resolved to FG×channel so SKU contribution can reach a true
+  // CM2. When such a report is in, the settlement's lumped "cost of advertising"
+  // is dropped from the channel total to avoid double-counting (see below).
+  const hasAmazonAds = allFacts.some((f) => f.source === 'amazonads');
+  const adByFg = new Map<string, number>(); // `${fgId}|${channel}`
+  for (const f of allFacts) {
+    if (f.source !== 'amazonads' || !f.sku || !f.spend) continue;
+    const hit = lookupSku('amazon' as Platform, f.sku);
+    const ch = toSalesChannel(f.channel);
+    if (!hit || !ch) continue;
+    const key = `${hit.fgId}|${ch}`;
+    adByFg.set(key, r2((adByFg.get(key) ?? 0) + (f.spend ?? 0)));
+  }
+
   // SKU cells from the aggregates (costed ones only carry real contribution).
-  const skuCells: SkuCell[] = sku.aggregates.map((a) => ({
-    m: periodKey,
-    ch: a.channel,
-    p: a.deckName,
-    rev: a.revenue,
-    cogs: a.cogs ?? 0,
-    oth: a.fees,
-    con: a.contribution ?? r2(a.revenue - (a.cogs ?? 0) - a.fees),
-    u: a.units,
-  }));
+  const skuCells: SkuCell[] = sku.aggregates.map((a) => {
+    const ad = adByFg.get(`${a.fgId}|${a.channel}`) ?? 0;
+    const cogs = a.cogs ?? 0;
+    return {
+      m: periodKey, ch: a.channel, p: a.deckName,
+      rev: a.revenue, cogs, oth: a.fees,
+      con: r2(a.revenue - cogs - a.fees - ad), u: a.units, ad,
+    };
+  });
 
   if (hasTally) {
     // Full cascade from the Tally ledgers — the authoritative monthly close.
@@ -272,7 +287,10 @@ function buildMonth(periodKey: string, reports: ExtractedReport[]): BuiltMonth {
     const ch = toSalesChannel(f.channel);
     if (ch && f.revenue) netByChannel[ch] = r2((netByChannel[ch] ?? 0) + f.revenue);
     channelFulfillment = r2(channelFulfillment + (f.fees ?? 0));
-    salesMarketing = r2(salesMarketing + (f.spend ?? 0));
+    // When an Amazon ad report is in, its per-SKU + channel spend is the Amazon
+    // ad total; drop the settlement's lumped spend so it isn't counted twice.
+    const spend = hasAmazonAds && f.source === 'amazon' ? 0 : (f.spend ?? 0);
+    salesMarketing = r2(salesMarketing + spend);
   }
   const netRevenue = r2(SALES_CHANNELS.reduce((s, ch) => s + (netByChannel[ch] ?? 0), 0));
 

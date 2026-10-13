@@ -7,7 +7,7 @@
 
 import type { SalesChannel } from './misDeckData';
 
-export interface SkuCell { m: string; ch: SalesChannel; p: string; rev: number; cogs: number; oth: number; con: number; u: number; }
+export interface SkuCell { m: string; ch: SalesChannel; p: string; rev: number; cogs: number; oth: number; con: number; u: number; /** live-only: per-SKU ad spend, when an ad report is ingested. */ ad?: number; }
 
 export const SKU_CELLS: SkuCell[] = [
   { m: "2024-10", ch: "Amazon", p: "hCore X-L Lite", rev: 420636.58, cogs: 93840.0, oth: 86443.56, con: 240353.02, u: 345.0 },

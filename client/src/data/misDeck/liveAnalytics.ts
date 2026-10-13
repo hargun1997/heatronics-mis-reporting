@@ -138,7 +138,8 @@ export interface ChannelRoll {
   cogs: number;     // product COGS (no factory)
   factory: number;  // 10% of revenue
   fees: number;     // channel fees (oth)
-  cm2: number;      // rev − cogs − factory − fees
+  ad: number;       // per-SKU ad spend, when an ad report is in
+  cm2: number;      // rev − cogs − factory − fees − ad
   units: number;
 }
 
@@ -151,14 +152,15 @@ export function channelRollup(cells: SkuCell[], periodKeys: Set<string>): Channe
   for (const c of foldCells(cells, periodKeys)) {
     const factory = FACTORY_PCT * c.rev;
     let e = by.get(c.ch);
-    if (!e) { e = { channel: c.ch, revenue: 0, cogs: 0, factory: 0, fees: 0, cm2: 0, units: 0 }; by.set(c.ch, e); }
+    if (!e) { e = { channel: c.ch, revenue: 0, cogs: 0, factory: 0, fees: 0, ad: 0, cm2: 0, units: 0 }; by.set(c.ch, e); }
     e.revenue = r2(e.revenue + c.rev);
     e.cogs = r2(e.cogs + c.cogs);
     e.factory = r2(e.factory + factory);
     e.fees = r2(e.fees + c.oth);
+    e.ad = r2(e.ad + (c.ad ?? 0));
     e.units = r2(e.units + c.u);
   }
-  for (const e of by.values()) e.cm2 = r2(e.revenue - e.cogs - e.factory - e.fees);
+  for (const e of by.values()) e.cm2 = r2(e.revenue - e.cogs - e.factory - e.fees - e.ad);
   return [...by.values()].sort((a, b) => b.revenue - a.revenue);
 }
 
@@ -168,6 +170,7 @@ export interface SkuRoll {
   cogs: number;
   factory: number;
   fees: number;
+  ad: number;
   cm2: number;
   units: number;
   channels: Partial<Record<SalesChannel, number>>; // revenue by channel
@@ -178,15 +181,16 @@ export function skuRollup(cells: SkuCell[], periodKeys: Set<string>): SkuRoll[] 
   for (const c of foldCells(cells, periodKeys)) {
     const factory = FACTORY_PCT * c.rev;
     let e = by.get(c.p);
-    if (!e) { e = { product: c.p, revenue: 0, cogs: 0, factory: 0, fees: 0, cm2: 0, units: 0, channels: {} }; by.set(c.p, e); }
+    if (!e) { e = { product: c.p, revenue: 0, cogs: 0, factory: 0, fees: 0, ad: 0, cm2: 0, units: 0, channels: {} }; by.set(c.p, e); }
     e.revenue = r2(e.revenue + c.rev);
     e.cogs = r2(e.cogs + c.cogs);
     e.factory = r2(e.factory + factory);
     e.fees = r2(e.fees + c.oth);
+    e.ad = r2(e.ad + (c.ad ?? 0));
     e.units = r2(e.units + c.u);
     e.channels[c.ch] = r2((e.channels[c.ch] ?? 0) + c.rev);
   }
-  for (const e of by.values()) e.cm2 = r2(e.revenue - e.cogs - e.factory - e.fees);
+  for (const e of by.values()) e.cm2 = r2(e.revenue - e.cogs - e.factory - e.fees - e.ad);
   return [...by.values()].sort((a, b) => b.revenue - a.revenue);
 }
 
@@ -200,21 +204,22 @@ export interface SkuChannelMatrix {
 }
 
 export function skuChannelMatrix(cells: SkuCell[], periodKeys: Set<string>, metric: MatrixMetric): SkuChannelMatrix {
-  const agg = new Map<string, { rev: number; cogs: number; factory: number; fees: number; units: number }>();
+  const agg = new Map<string, { rev: number; cogs: number; factory: number; fees: number; ad: number; units: number }>();
   const products = new Set<string>();
   const channels = new Set<SalesChannel>();
   for (const c of foldCells(cells, periodKeys)) {
     products.add(c.p); channels.add(c.ch);
     const id = `${c.p}|${c.ch}`;
-    const e = agg.get(id) ?? { rev: 0, cogs: 0, factory: 0, fees: 0, units: 0 };
+    const e = agg.get(id) ?? { rev: 0, cogs: 0, factory: 0, fees: 0, ad: 0, units: 0 };
     e.rev = r2(e.rev + c.rev); e.cogs = r2(e.cogs + c.cogs);
-    e.factory = r2(e.factory + FACTORY_PCT * c.rev); e.fees = r2(e.fees + c.oth); e.units = r2(e.units + c.u);
+    e.factory = r2(e.factory + FACTORY_PCT * c.rev); e.fees = r2(e.fees + c.oth);
+    e.ad = r2(e.ad + (c.ad ?? 0)); e.units = r2(e.units + c.u);
     agg.set(id, e);
   }
   const cell: Record<string, Partial<Record<SalesChannel, number>>> = {};
   for (const [id, e] of agg) {
     const [p, ch] = id.split('|') as [string, SalesChannel];
-    const cm2 = r2(e.rev - e.cogs - e.factory - e.fees);
+    const cm2 = r2(e.rev - e.cogs - e.factory - e.fees - e.ad);
     const v = metric === 'revenue' ? e.rev : metric === 'units' ? e.units
       : metric === 'cm2pct' ? (e.rev ? r2((cm2 / e.rev) * 100) / 100 : 0) : cm2;
     (cell[p] ??= {})[ch] = v;

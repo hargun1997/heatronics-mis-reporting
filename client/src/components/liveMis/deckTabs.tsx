@@ -168,6 +168,7 @@ export function ChannelsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
             <th className="py-1.5 px-2 font-medium">Net Revenue</th>
             <th className="py-1.5 px-2 font-medium">COGM</th>
             <th className="py-1.5 px-2 font-medium">Fees</th>
+            <th className="py-1.5 px-2 font-medium">Ad</th>
             <th className="py-1.5 px-2 font-medium">CM2</th>
             <th className="py-1.5 pl-2 font-medium">CM2 %</th>
           </tr>
@@ -180,6 +181,7 @@ export function ChannelsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
               <td className="py-1.5 px-2 tabular-nums text-slate-700">{inr(revenue)}</td>
               <td className="py-1.5 px-2 tabular-nums text-slate-500">{measured && roll ? inr(roll.cogs + roll.factory) : ND}</td>
               <td className="py-1.5 px-2 tabular-nums text-slate-500">{measured && roll ? inr(roll.fees) : ND}</td>
+              <td className="py-1.5 px-2 tabular-nums text-slate-500">{measured && roll ? inr(roll.ad) : ND}</td>
               <td className="py-1.5 px-2 tabular-nums font-semibold text-slate-800">{measured && roll ? inr(roll.cm2) : ND}</td>
               <td className="py-1.5 pl-2 tabular-nums text-slate-600">{measured && roll && roll.revenue ? pctStr(roll.cm2 / roll.revenue) : ND}</td>
             </tr>
@@ -209,6 +211,7 @@ export function SkuTab({ cells, periodKeys }: { cells: SkuCell[]; periodKeys: Se
             <th className="py-1.5 px-2 font-medium">Net Revenue</th>
             <th className="py-1.5 px-2 font-medium">COGM</th>
             <th className="py-1.5 px-2 font-medium">Fees</th>
+            <th className="py-1.5 px-2 font-medium">Ad</th>
             <th className="py-1.5 px-2 font-medium">CM2</th>
             <th className="py-1.5 pl-2 font-medium">CM2 %</th>
           </tr>
@@ -221,6 +224,7 @@ export function SkuTab({ cells, periodKeys }: { cells: SkuCell[]; periodKeys: Se
               <td className="py-1.5 px-2 tabular-nums text-slate-700">{inr(r.revenue)}</td>
               <td className="py-1.5 px-2 tabular-nums text-slate-500">{inr(r.cogs + r.factory)}</td>
               <td className="py-1.5 px-2 tabular-nums text-slate-500">{inr(r.fees)}</td>
+              <td className="py-1.5 px-2 tabular-nums text-slate-500">{inr(r.ad)}</td>
               <td className="py-1.5 px-2 tabular-nums font-semibold text-slate-800">{inr(r.cm2)}</td>
               <td className="py-1.5 pl-2 tabular-nums text-slate-600">{r.revenue ? pctStr(r.cm2 / r.revenue) : '—'}</td>
             </tr>

@@ -96,9 +96,13 @@ const SLOTS: ReportSlot[] = [
     exportSteps: ['Google Ads → Reports → Campaign, segmented by day → download'],
   },
   {
-    connectorId: 'amazonads', slotId: 'ad-spend', label: 'Sponsored ads report', required: true,
-    accept: '.csv,.xlsx', kind: 'xlsx',
-    exportSteps: ['Amazon Ads console → Reports → Sponsored Products (spend by day) → download'],
+    connectorId: 'amazonads', slotId: 'ad-spend', label: 'Advertised Product report', required: true,
+    accept: '.csv,.xlsx', kind: 'xlsx', parserId: 'amazonads',
+    exportSteps: [
+      'Amazon Ads console → Measurement and Reporting → Sponsored Ads Reports → Create Report',
+      'Report type "Advertised Product", date range = the same month as the Amazon settlement → download CSV',
+    ],
+    note: 'Per-SKU ad spend — splits Amazon marketing across products for true per-SKU CM2.',
   },
 
   // ---- Logistics ----
