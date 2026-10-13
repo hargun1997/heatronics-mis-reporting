@@ -82,6 +82,13 @@ function AiBadge() {
 type Stage = 'idle' | 'checking' | 'review' | 'saving' | 'ingested' | 'failed';
 const STEPS = ['Upload', 'AI checks', 'Review', 'Save', 'Ingest'] as const;
 
+const MONTH_ABBR = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "2026-09" → "Sep 2026". */
+function monthName(periodKey: string): string {
+  const [y, m] = periodKey.split('-');
+  return `${MONTH_ABBR[Number(m)] ?? m} ${y}`;
+}
+
 function stepIndex(stage: Stage): number {
   switch (stage) {
     case 'idle': return 0;
@@ -182,6 +189,15 @@ export function IngestStepper({
             </p>
           )}
         </div>
+        {/* Month this upload is for — visible from the start so it is always
+            clear which month you are filing. Auto-fills from the file on upload;
+            change it to re-file (Tally's multi-month export picks the month here). */}
+        <div className="shrink-0 text-right">
+          <label className="block text-[10px] font-medium text-slate-500 mb-0.5">Month <span className="text-rose-500">*</span></label>
+          <input type="month" value={period} onChange={(e) => onPeriod(e.target.value)}
+            className={`px-2 py-1 rounded-lg border text-xs ${periodOk ? 'border-slate-200' : 'border-rose-300 bg-rose-50'}`} />
+          {!periodOk && <span className="block mt-0.5 text-[10px] text-rose-500">required</span>}
+        </div>
       </div>
 
       {/* Step indicator */}
@@ -244,26 +260,21 @@ export function IngestStepper({
 
         {error && <p className="text-[11px] text-rose-700">{error}</p>}
 
-        {/* Period + ④ Save / ⑤ Ingest */}
+        {/* ④ Save / ⑤ Ingest (the month lives in the header, auto-filled on upload) */}
         {stage === 'review' && staged && (
           <div className="border-t border-slate-100 pt-3 space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-[11px] text-slate-500">
-                <span className="block mb-0.5">Period (month this report belongs to) <span className="text-rose-500">*</span></span>
-                <input type="month" value={period} onChange={(e) => onPeriod(e.target.value)}
-                  className={`px-2.5 py-1 rounded-lg border text-sm ${periodOk ? 'border-slate-200' : 'border-rose-300 bg-rose-50'}`} />
-                {!periodOk && (
-                  <span className="block mt-1 text-[10px] text-rose-500">
-                    Pick the month this report covers — required. Re-uploading for the same month overwrites the previous file.
-                  </span>
-                )}
-                {tallyMonths && tallyMonths.length > 1 && (
-                  <span className="block mt-1 text-[10px] text-slate-400">
-                    This export has {tallyMonths.length} months — set the period to pick which to ingest: {tallyMonths.map((m) => m.periodLabel).join(', ')}
-                  </span>
-                )}
-              </label>
-            </div>
+            <p className="text-[11px] text-slate-500">
+              Saving into <span className="font-medium text-slate-700">{periodOk ? monthName(period) : 'the month set above'}</span>.
+              {' '}Re-uploading for the same month overwrites the previous file.
+            </p>
+            {!periodOk && (
+              <p className="text-[11px] text-rose-500">Set the <span className="font-medium">Month</span> (top right) before saving — required.</p>
+            )}
+            {tallyMonths && tallyMonths.length > 1 && (
+              <p className="text-[10px] text-slate-400">
+                This export has {tallyMonths.length} months — set the Month above to pick which to ingest: {tallyMonths.map((m) => m.periodLabel).join(', ')}
+              </p>
+            )}
             {hasWarn && (
               <label className="flex items-center gap-2 text-[11px] text-amber-700">
                 <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />

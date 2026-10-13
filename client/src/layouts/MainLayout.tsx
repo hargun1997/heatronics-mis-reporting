@@ -49,7 +49,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { path: '/reporting/mis/live', label: 'Live MIS', icon: ico('M3 12h4l3 8 4-16 3 8h4'), match: (p) => p.startsWith('/reporting/mis/live') },
       { path: '/reporting/mis/insights', label: 'AI Insights', icon: ico(['M13 3l2.2 6.8L22 12l-6.8 2.2L13 21l-2.2-6.8L4 12l6.8-2.2z']), match: (p) => p.startsWith('/reporting/mis/insights') || p.startsWith('/reporting/mis/chat') },
-      { path: '/reporting/mis/close', label: 'Month close', dividerBefore: true, icon: ico('M20 6L9 17l-5-5'), match: (p) => p.startsWith('/reporting/mis/close') },
+      { path: '/reporting/mis/close', label: 'Month close', tag: 'Legacy', muted: true, dividerBefore: true, icon: ico('M20 6L9 17l-5-5'), match: (p) => p.startsWith('/reporting/mis/close') },
       { path: '/reporting/mis', label: 'MIS deck', tag: 'Legacy', muted: true, icon: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']), match: isDeck },
     ],
   },
