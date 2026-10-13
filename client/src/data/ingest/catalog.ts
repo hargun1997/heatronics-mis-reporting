@@ -196,9 +196,18 @@ const SLOTS: ReportSlot[] = [
     note: 'D2C payment-gateway cost: service charge + GST + express fees → Platform & Payment (not channel fees). Revenue is counted via Shopify, so only the fee is taken.',
   },
   {
-    connectorId: 'shopflo', slotId: 'settlement', label: 'Checkout settlement', required: true,
-    accept: '.xlsx,.xls,.csv', kind: 'xlsx',
-    exportSteps: ['Shopflo → Settlements → export'],
+    connectorId: 'shopflo', slotId: 'invoice', label: 'Checkout invoice (PDF)', required: true,
+    accept: '.pdf', kind: 'invoice',
+    exportSteps: [
+      'Shopflo → Billing → Invoices (link below)',
+      'Open the invoice for the month and download the PDF',
+      'Upload the PDF here — Claude reads the invoice (AI in use)',
+    ],
+    exportUrl: {
+      label: 'Open Shopflo Billing → Invoices',
+      url: 'https://dashboard.shopflo.com/billing#invoices',
+    },
+    note: 'D2C checkout cost, invoiced as a PDF. Claude reads the taxable amount + GST → Platform & Payment (dated to the billing cycle). TDS withheld is recoverable, excluded. Revenue is counted via Shopify, so only the fee is taken.',
   },
   {
     connectorId: 'snapmint', slotId: 'settlement', label: 'Settlement / subvention', required: true,

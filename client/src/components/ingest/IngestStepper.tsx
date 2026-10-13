@@ -56,6 +56,29 @@ function ExportHelpModal({ slot, open, onClose }: { slot: ReportSlot; open: bool
   );
 }
 
+/** Shown while a Claude-backed connector (Tally / Shopflo) is being read. */
+function AiWorking({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
+      <span className="relative flex h-2.5 w-2.5" aria-hidden>
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-500" />
+      </span>
+      <span className="font-medium">Claude is working</span>
+      <span className="text-violet-500">— {label}</span>
+    </div>
+  );
+}
+
+/** Small static marker that a slot is read by AI (Claude). */
+function AiBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">
+      <span className="h-1.5 w-1.5 rounded-full bg-violet-500" aria-hidden /> Claude reads this
+    </span>
+  );
+}
+
 type Stage = 'idle' | 'checking' | 'review' | 'saving' | 'ingested' | 'failed';
 const STEPS = ['Upload', 'AI checks', 'Review', 'Save', 'Ingest'] as const;
 
@@ -86,7 +109,10 @@ export function IngestStepper({
   const [committed, setCommitted] = useState<IngestReportMeta | null>(existing ?? null);
   const [howOpen, setHowOpen] = useState(false);
 
-  const wired = slot.kind === 'vision' || slot.kind === 'bom' || Boolean(slot.parserId);
+  const wired = slot.kind === 'vision' || slot.kind === 'bom' || slot.kind === 'invoice' || Boolean(slot.parserId);
+  // These connectors are read by Claude on the server (Tally screenshots, Shopflo
+  // invoices), so we surface an "AI is working" indicator while it runs.
+  const usesAI = slot.kind === 'vision' || slot.kind === 'invoice';
 
   const onFiles = async (files: FileList | null) => {
     const list = files ? Array.from(files) : [];
@@ -103,6 +129,7 @@ export function IngestStepper({
     }
   };
   const multiple = slot.kind === 'vision';
+  const uploadLabel = committed ? 'Replace' : multiple ? 'Upload screenshot(s)' : slot.kind === 'invoice' ? 'Upload PDF' : 'Upload file';
 
   const save = async () => {
     if (!staged) return;
@@ -133,6 +160,8 @@ export function IngestStepper({
               ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">required</span>
               : <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-400">optional</span>}
             {slot.kind === 'vision' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">screenshot → AI</span>}
+            {slot.kind === 'invoice' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">PDF → AI</span>}
+            {usesAI && <AiBadge />}
           </div>
           {committed && (
             <p className="text-[11px] text-emerald-700 mt-0.5">
@@ -174,7 +203,7 @@ export function IngestStepper({
 
           {wired && (stage === 'idle' || stage === 'failed') && (
             <label className="px-3 py-1.5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 cursor-pointer">
-              {committed ? 'Replace' : multiple ? 'Upload screenshot(s)' : 'Upload file'}
+              {uploadLabel}
               <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
             </label>
           )}
@@ -189,7 +218,11 @@ export function IngestStepper({
 
         <ExportHelpModal slot={slot} open={howOpen} onClose={() => setHowOpen(false)} />
 
-        {stage === 'checking' && <p className="text-xs text-slate-500">Running checks through the file…</p>}
+        {stage === 'checking' && (
+          usesAI
+            ? <AiWorking label={slot.kind === 'vision' ? 'reading the screenshot' : 'reading the invoice'} />
+            : <p className="text-xs text-slate-500">Running checks through the file…</p>
+        )}
 
         {/* ② AI checks + ③ Review */}
         {(stage === 'review' || stage === 'failed') && staged && (
@@ -235,6 +268,38 @@ export function IngestStepper({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function InvoiceSummaryView({ invoice, trace }: { invoice: NonNullable<StagedUpload['extracted']['invoice']>; trace?: string[] }) {
+  const money = (n: number | null) => (n == null ? '—' : inr(n));
+  const taxable = invoice.taxableAmount ?? 0;
+  const tax = invoice.taxAmount ?? 0;
+  const fee = Math.round((taxable + tax) * 100) / 100;
+  const row = (label: string, value: string, strong = false) => (
+    <div className={`flex justify-between gap-2 py-0.5 ${strong ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
+      <span>{label}</span><span className="tabular-nums">{value}</span>
+    </div>
+  );
+  return (
+    <div className="text-[11px]">
+      {invoice.provider && <div className="text-slate-500 mb-1">{invoice.provider}{invoice.invoiceNumber ? ` · ${invoice.invoiceNumber}` : ''}</div>}
+      {row('Taxable amount', money(invoice.taxableAmount))}
+      {row('GST / IGST', money(invoice.taxAmount))}
+      <div className="border-t border-slate-100 my-1" />
+      {row('→ Platform & Payment cost', inr(fee), true)}
+      {row('TDS withheld (recoverable, excluded)', invoice.amountWithheld ? `(${money(invoice.amountWithheld)})` : '—')}
+      {invoice.total != null && row('Invoice total / balance due', money(invoice.total))}
+      {(invoice.periodStart || invoice.periodEnd) && (
+        <div className="text-slate-400 mt-1">Billing cycle {invoice.periodStart ?? '?'} → {invoice.periodEnd ?? '?'}</div>
+      )}
+      {trace && trace.length > 0 && (
+        <details className="mt-2 text-[10px] text-slate-400">
+          <summary className="cursor-pointer hover:text-slate-600">How this was read</summary>
+          <ul className="mt-1 space-y-0.5">{trace.map((t, i) => <li key={i}>{t}</li>)}</ul>
+        </details>
+      )}
     </div>
   );
 }
@@ -285,6 +350,8 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
               </div>
             ))}
           </div>
+        ) : extracted.invoice ? (
+          <InvoiceSummaryView invoice={extracted.invoice} trace={extracted.trace} />
         ) : extracted.facts.length > 0 ? (
           <div className="max-h-56 overflow-auto">
             <table className="w-full text-[11px]">

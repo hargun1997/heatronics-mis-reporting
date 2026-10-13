@@ -20,6 +20,7 @@ import {
   type RawFile,
 } from '../ingest/objectStore.js';
 import { ledgerVision } from '../services/ledgerVision.js';
+import { invoiceVision } from '../services/invoiceVision.js';
 
 const router = Router();
 
@@ -70,6 +71,20 @@ router.post('/vision', h(async (req, res) => {
     res.json(await ledgerVision.extractMany(images));
   } catch (err) {
     res.status(502).json({ error: err instanceof Error ? err.message : 'Vision failed.' });
+  }
+}));
+
+// Read one platform/checkout invoice PDF (Shopflo and future billers) into its
+// money summary + billing period. The client turns that into a daily cost fact.
+router.post('/invoice', h(async (req, res) => {
+  const pdfBase64 = (req.body?.pdfBase64 ?? '') as unknown;
+  if (typeof pdfBase64 !== 'string' || pdfBase64.length === 0) {
+    return res.status(400).json({ error: 'No PDF provided.' });
+  }
+  try {
+    res.json(await invoiceVision.extract(pdfBase64));
+  } catch (err) {
+    res.status(502).json({ error: err instanceof Error ? err.message : 'Invoice read failed.' });
   }
 }));
 
