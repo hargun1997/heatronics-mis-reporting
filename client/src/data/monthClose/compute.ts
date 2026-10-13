@@ -22,12 +22,15 @@
 
 import type { MonthlyMIS, SalesChannel } from '../misDeck/misDeckData';
 import {
+  BUCKET_CASCADE,
+  CLOSE_GROUPS,
   CLOSE_LINES,
   RECONCILE_TOLERANCE,
   type Bucket,
   type FieldValue,
   type LedgerNode,
   type MonthCloseSession,
+  type TallyBucketLine,
 } from './schema';
 import { pickNodes, SEED_LEDGER_MAP, type PickedNode } from './ledgerMap';
 import { computeSku, unmappedSummary, type SkuResult } from './skuRollup';
@@ -104,6 +107,13 @@ export interface ComputedClose {
   netIncome: number;
   stockMovement: number;
   reconciliation: Reconciliation;
+  /**
+   * Tally's below-gross-margin cost blocks, broken out into their own ledger
+   * lines with Tally's authoritative total. Built purely from the deduped
+   * ledger `lines` — no connector facts — so the headline cascade is
+   * untouched; channel attribution is filled by the tagging layer downstream.
+   */
+  tallyLines: TallyBucketLine[];
   /** Per-product, per-channel rollup from any platform exports supplied. */
   sku: SkuResult;
   blockers: Blocker[];
@@ -157,6 +167,39 @@ function effectOf(bucket: Bucket, amount: number): number {
     default:
       return -amount;
   }
+}
+
+/**
+ * Break the below-gross-margin cost blocks (channel & fulfilment, sales &
+ * marketing, platform, non-operating, fundraising) into their own Tally ledger
+ * lines, in display order, each carrying Tally's authoritative total as a
+ * signed effect (costs negative). COGM and operating expenses are already
+ * itemised on MonthlyMIS (cogmLines / opexLines), so they are not repeated.
+ *
+ * Pure: no connector facts, so it cannot move the headline cascade. byChannel
+ * starts empty and blended equals the whole total; the tagging layer fills them
+ * in downstream from the platform exports.
+ */
+function buildTallyLines(lines: Record<string, LineTotal>): TallyBucketLine[] {
+  const out: TallyBucketLine[] = [];
+  for (const group of CLOSE_GROUPS) {
+    for (const def of group.lines) {
+      const cascadeLine = BUCKET_CASCADE[def.bucket];
+      if (!cascadeLine) continue;
+      const line = lines[def.key];
+      if (!line) continue;
+      out.push({
+        lineKey: def.key,
+        label: def.label,
+        bucket: def.bucket,
+        cascadeLine,
+        total: line.effect,
+        byChannel: {},
+        blended: line.effect,
+      });
+    }
+  }
+  return out;
 }
 
 export function computeClose(
@@ -267,6 +310,9 @@ export function computeClose(
   const costOfFundraising = sumBucket('fundraising');
   const netIncome = r2(ebitda - nonOperating - costOfFundraising);
 
+  // ---- Tally expense buckets (authoritative totals, pre-attribution) -------
+  const tallyLines = buildTallyLines(lines);
+
   // ---- Reconciliation ------------------------------------------------------
   const reconciliation = reconcile(netIncome, session.anchor.nettProfit, lines);
 
@@ -306,6 +352,7 @@ export function computeClose(
     netIncome,
     stockMovement,
     reconciliation,
+    tallyLines,
     sku,
     blockers,
     unmapped,
