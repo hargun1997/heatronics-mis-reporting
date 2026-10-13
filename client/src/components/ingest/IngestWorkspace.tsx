@@ -11,6 +11,7 @@ import { getIngestStatus, listIngestReports, refreshIngestStore } from '../../da
 import { chatStatus } from '../../data/chat/chatClient';
 import { slotsFor } from '../../data/ingest/catalog';
 import type { IngestReportMeta, IngestStoreStatus } from '../../data/ingest/types';
+import { LIVE_BOUNDARY } from '../../data/misDeck/liveDeck';
 import { IngestStepper } from './IngestStepper';
 
 type PillStatus = 'fresh' | 'stale' | 'none' | 'live';
@@ -18,10 +19,106 @@ const PILL_DOT: Record<PillStatus, string> = {
   fresh: 'bg-emerald-500', stale: 'bg-amber-500', none: 'bg-slate-300', live: 'bg-sky-500',
 };
 
+const MONTH_ABBR = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function monthName(mk: string): string {
+  const [y, m] = mk.split('-');
+  return `${MONTH_ABBR[Number(m)] ?? m} ${y}`;
+}
+function shortMonth(mk: string): string {
+  const [y, m] = mk.split('-');
+  return `${MONTH_ABBR[Number(m)] ?? m} '${y.slice(2)}`;
+}
+function nextMonth(mk: string): string {
+  let [y, m] = mk.split('-').map(Number);
+  m += 1; if (m > 12) { m = 1; y += 1; }
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+/** Month keys from `start` to `end` inclusive (calendar-walked). */
+function monthRange(start: string, end: string): string[] {
+  const out: string[] = [];
+  let cur = start;
+  while (cur <= end && out.length < 120) { out.push(cur); cur = nextMonth(cur); }
+  return out;
+}
+
 function lastMonth(): string {
   const d = new Date();
   const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
   return `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+type MonthState = 'closed' | 'partial' | 'missing';
+
+/**
+ * "Where we are" — the live window (from the Apr-2026 boundary to the current
+ * month) laid out month by month, so you can see at a glance which months are
+ * closed (Tally P&L in), which are partial (some connector data but no Tally),
+ * and which are still blank. History before the boundary is locked legacy.
+ */
+function CoveragePanel({ reports }: { reports: IngestReportMeta[] }) {
+  const today = currentMonthKey();
+  const end = today > LIVE_BOUNDARY ? today : LIVE_BOUNDARY;
+  const months = monthRange(LIVE_BOUNDARY, end);
+
+  // Per-month coverage from the committed records (each month is its own record
+  // after the month-split commit). A Tally P&L closes the month; anything else
+  // makes it partial.
+  const stateOf = (mk: string): { state: MonthState; sources: string[] } => {
+    const here = reports.filter((r) => r.periodKey === mk);
+    if (here.length === 0) return { state: 'missing', sources: [] };
+    const hasTally = here.some((r) => r.connectorId === 'tally' && r.slotId === 'pnl');
+    const sources = [...new Set(here.map((r) => r.connectorId))];
+    return { state: hasTally ? 'closed' : 'partial', sources };
+  };
+  const rows = months.map((mk) => ({ mk, ...stateOf(mk) }));
+
+  // Fully-closed-through = the contiguous run of closed months from the boundary.
+  let closedThrough: string | null = null;
+  for (const r of rows) { if (r.state === 'closed') closedThrough = r.mk; else break; }
+  const withData = rows.filter((r) => r.state !== 'missing').length;
+
+  const CHIP: Record<MonthState, string> = {
+    closed: 'bg-emerald-500 text-white border-emerald-500',
+    partial: 'bg-amber-100 text-amber-800 border-amber-300',
+    missing: 'bg-slate-50 text-slate-400 border-slate-200 border-dashed',
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h3 className="text-sm font-semibold text-slate-800">Where we are</h3>
+        <span className="text-[11px] text-slate-500">
+          Live window from <span className="font-medium text-slate-700">{monthName(LIVE_BOUNDARY)}</span>
+          {closedThrough
+            ? <> · <span className="text-emerald-700 font-medium">fully closed through {monthName(closedThrough)}</span></>
+            : <> · <span className="text-amber-700 font-medium">no month fully closed yet</span></>}
+          {' '}· {withData} of {rows.length} month{rows.length === 1 ? '' : 's'} have data
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {rows.map((r) => (
+          <div key={r.mk}
+            title={r.state === 'missing' ? `${monthName(r.mk)} — nothing uploaded yet`
+              : `${monthName(r.mk)} — ${r.state === 'closed' ? 'closed (Tally P&L in)' : 'partial (no Tally yet)'} · ${r.sources.join(', ')}`}
+            className={`px-2 py-1 rounded-md border text-[11px] font-medium tabular-nums ${CHIP[r.state]}`}>
+            {shortMonth(r.mk)}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Closed (Tally in)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-amber-300" /> Partial (no Tally yet)</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded border border-dashed border-slate-300 bg-slate-50" /> Not uploaded</span>
+        <span className="text-slate-400">· History before {monthName(LIVE_BOUNDARY)} is locked legacy.</span>
+      </div>
+    </div>
+  );
 }
 
 export function IngestWorkspace() {
@@ -76,6 +173,9 @@ export function IngestWorkspace() {
 
   return (
     <div className="space-y-5">
+      {/* "Where we are" — the live window month by month */}
+      <CoveragePanel reports={reports} />
+
       {/* Status strip: Claude API (reads Tally screenshots + Ask the MIS) + store durability */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
         <span className={
