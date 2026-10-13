@@ -80,10 +80,10 @@ function Leaf({ it, active, onNavigate }: { it: NavLeaf; active: boolean; onNavi
   const base =
     'group flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition-colors ' +
     (active
-      ? 'bg-brand-500/10 text-brand-700 font-semibold'
+      ? 'bg-gradient-to-r from-brand-50 to-brand-50/30 text-brand-700 font-semibold ring-1 ring-brand-100 shadow-sm'
       : it.muted
-        ? 'text-slate-400 font-normal hover:text-slate-700 hover:bg-slate-900/[0.035]'
-        : 'text-slate-500 font-medium hover:text-slate-900 hover:bg-slate-900/[0.035]');
+        ? 'text-slate-400 font-normal hover:text-slate-700 hover:bg-slate-900/[0.04]'
+        : 'text-slate-600 font-medium hover:text-slate-900 hover:bg-slate-900/[0.04]');
   const iconCls = active ? 'text-brand-600' : it.muted ? 'text-slate-300 group-hover:text-slate-400' : 'text-slate-400 group-hover:text-slate-600';
   const inner = (
     <>
@@ -108,7 +108,7 @@ function RailNav({ path, onNavigate }: { path: string; onNavigate?: () => void }
     <nav className="px-3 py-5 space-y-6">
       {SECTIONS.map((section) => (
         <div key={section.label}>
-          <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400/90">
+          <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             {section.label}
           </div>
           <div className="space-y-0.5">
@@ -134,13 +134,7 @@ export function MainLayout() {
     SECTIONS.flatMap((s) => s.items).find((it) => it.match?.(path))?.label ?? 'Heatronics MIS';
 
   return (
-    <div className="min-h-screen text-slate-900 flex flex-col bg-slate-50">
-      {/* Soft depth so the glass panels have something to blur over. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(45rem_32rem_at_8%_-8%,rgba(254,71,5,0.07),transparent),radial-gradient(42rem_34rem_at_102%_0%,rgba(37,99,235,0.06),transparent)]"
-      />
-
+    <div className="min-h-screen text-slate-900 flex flex-col app-ground">
       {/* Top bar — glassy, minimal; links live in the rail. */}
       <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
         <div className="h-14 px-4 sm:px-5 flex items-center gap-3">
@@ -155,7 +149,7 @@ export function MainLayout() {
           </button>
 
           <Link to="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <span className="w-8 h-8 rounded-xl bg-brand-500 flex items-center justify-center shadow-sm">
+            <span className="w-8 h-8 rounded-xl bg-brand-gradient flex items-center justify-center shadow-card">
               <HeatronicsMark className="h-4 w-auto text-white" />
             </span>
             <span className="font-display font-bold text-[17px] hidden sm:block tracking-tight">Heatronics</span>
@@ -178,7 +172,7 @@ export function MainLayout() {
 
       <div className="flex flex-1 min-h-0">
         {/* Desktop rail — glassy */}
-        <aside className="hidden lg:block w-[248px] flex-shrink-0 border-r border-slate-200/70 bg-white/55 backdrop-blur-xl supports-[backdrop-filter]:bg-white/45 sticky top-14 self-start h-[calc(100vh-3.5rem)] overflow-y-auto">
+        <aside className="hidden lg:block w-[248px] flex-shrink-0 border-r border-slate-200/70 bg-white/75 backdrop-blur-xl supports-[backdrop-filter]:bg-white/65 sticky top-14 self-start h-[calc(100vh-3.5rem)] overflow-y-auto">
           <RailNav path={path} />
         </aside>
 
