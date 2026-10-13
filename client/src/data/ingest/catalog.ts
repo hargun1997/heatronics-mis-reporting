@@ -45,18 +45,27 @@ const SLOTS: ReportSlot[] = [
     connectorId: 'amazon', slotId: 'unified-transaction', label: 'Unified Transaction (settlement)', required: true,
     accept: '.xlsx,.xls,.csv', kind: 'xlsx', parserId: 'amazon',
     exportSteps: [
-      'Seller Central (Heatronics / amazon.in) → Reports → Payments',
-      'Transaction View → set the date range → Download (flat file / unified transaction)',
+      'Payment reports → Reports Repository tab (link below)',
+      'Report Type = Transaction, Account Type = All (Unified Reports), pick the Month (or a custom range)',
+      'Request Report → wait until Status = Ready → Download CSV, then upload here',
     ],
+    exportUrl: {
+      label: 'Open Amazon Reports Repository',
+      url: 'https://sellercentral.amazon.in/payments/reports-repository?ref_=xx_rrepo_ttab_dash',
+    },
     note: 'Revenue, units, fees and ad spend — the fee-accurate money view.',
   },
   {
     connectorId: 'amazon', slotId: 'business-report', label: 'Business Report (traffic, optional)', required: false,
     accept: '.csv', kind: 'xlsx',
     exportSteps: [
-      'Seller Central → Reports → Business Reports',
-      'Detail Page Sales & Traffic by Child Item → download CSV',
+      'Business Reports → Detail Page Sales & Traffic By Child Item (link below)',
+      'Set the date range to the month → Download (.csv), then upload here',
     ],
+    exportUrl: {
+      label: 'Open Amazon Business Reports (by child item)',
+      url: 'https://sellercentral.amazon.in/business-reports/ref=xx_sitemetric_dnav_xx#/report?id=102%3ADetailSalesTrafficByChildItem&chartCols=&columns=0%2F1%2F2%2F3%2F8%2F9%2F14%2F15%2F20%2F21%2F26%2F27%2F28%2F29%2F30%2F31%2F32%2F33%2F34%2F35%2F36%2F37',
+    },
     note: 'Sessions / units by SKU. Gross of refunds, no fees — use for conversion, not the P&L.',
   },
   {
@@ -127,9 +136,14 @@ const SLOTS: ReportSlot[] = [
     connectorId: 'amazonads', slotId: 'ad-spend', label: 'Advertised Product report', required: true,
     accept: '.csv,.xlsx', kind: 'xlsx', parserId: 'amazonads',
     exportSteps: [
-      'Amazon Ads console → Measurement and Reporting → Sponsored Ads Reports → Create Report',
-      'Report type "Advertised Product", date range = the same month as the Amazon settlement → download CSV',
+      'Amazon Ads → Create report, template "Advertised product" (link below)',
+      'Date range = the same month as the settlement; Report period / Date range = that month',
+      'Submit → download the CSV, then upload it here',
     ],
+    exportUrl: {
+      label: 'Open Amazon Ads — Advertised product report',
+      url: 'https://advertising.amazon.in/reporting/new?entityId=ENTITY6HS1BPYC5VNY&templateId=advertised_product',
+    },
     note: 'Per-SKU ad spend — splits Amazon marketing across products for true per-SKU CM2.',
   },
 
