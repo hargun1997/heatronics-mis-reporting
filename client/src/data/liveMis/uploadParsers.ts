@@ -856,7 +856,8 @@ function parseGoogleAdsProducts(wb: XLSX.WorkBook): ParseOutput {
 /**
  * Delhivery One wallet export ("Unified transactions"). Delhivery is the
  * returns/replacement (warranty) courier for D2C — the shipments are RET-/REP-
- * orders — so its net freight is a D2C Channel & Fulfilment cost.
+ * orders — so its net freight is an after-sales cost booked to Platform &
+ * Payment (below CM2), not the Channel & Fulfilment of the original sale.
  *
  * The workbook carries a "Deductions" sheet (freight debits) and a "Refunds"
  * sheet (cancellation + weight-reconciliation credits); the "AWB Deductions" /
@@ -908,7 +909,7 @@ function parseDelhivery(wb: XLSX.WorkBook): ParseOutput {
   const trace = [
     `Read "${dedSheet}"${refSheet ? ` + "${refSheet}"` : ''} (AWB-duplicate + Recharges sheets ignored)`,
     `${debits} deduction(s) ₹${inr(debitSum)} − ${credits} refund(s) ₹${inr(creditSum)} = net ₹${inr(net)}`,
-    `Net warranty/returns freight by day → ${facts.length} D2C facts → Channel & Fulfilment (CM1)`,
+    `Net warranty/returns freight by day → ${facts.length} D2C facts → Platform & Payment (below CM2)`,
   ];
   return { facts, warning: unparsed > 0 ? `${unparsed} row(s) had no readable date and were skipped.` : undefined, trace };
 }
@@ -932,7 +933,7 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     sourceId: 'delhivery',
     label: 'Delhivery wallet report',
     accept: '.xlsx,.xls',
-    hint: 'Delhivery One → Finances → Unified transactions → Download wallet report. Net warranty/returns freight (deductions − refunds; AWB-duplicate + recharge sheets ignored) → D2C Channel & Fulfilment.',
+    hint: 'Delhivery One → Finances → Unified transactions → Download wallet report. Net warranty/returns freight (deductions − refunds; AWB-duplicate + recharge sheets ignored) → D2C Platform & Payment (below CM2).',
     parse: parseDelhivery,
   },
   {

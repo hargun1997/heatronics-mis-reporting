@@ -187,7 +187,7 @@ const SLOTS: ReportSlot[] = [
       label: 'Open Delhivery Unified transactions',
       url: 'https://one.delhivery.com/finances/unified/transactions',
     },
-    note: 'Delhivery is the returns/replacement (warranty) courier for D2C (RET-/REP- shipments). Net freight = Deductions − Refunds (AWB-duplicate + Recharge sheets ignored; recharges are wallet top-ups, not a cost) → D2C Channel & Fulfilment.',
+    note: 'Delhivery is the returns/replacement (warranty) courier for D2C (RET-/REP- shipments). Net freight = Deductions − Refunds (AWB-duplicate + Recharge sheets ignored; recharges are wallet top-ups, not a cost). An after-sales cost → D2C Platform & Payment (below CM2), not the Channel & Fulfilment of the original sale.',
   },
 
   // ---- Payments & checkout ----
