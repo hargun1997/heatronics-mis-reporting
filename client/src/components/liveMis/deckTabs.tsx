@@ -7,7 +7,10 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { KpiTile } from '../ui';
-import { inr, pctStr } from '../mis-deck/charts';
+import {
+  inr, pctStr, LineChart, DonutChart, WaterfallChart, Legend,
+  CHANNEL_COLORS, SERIES_COLORS, type LineSeries, type WaterfallStep,
+} from '../mis-deck/charts';
 import type { SkuCell } from '../../data/misDeck/skuChannelPnl';
 import type { SalesChannel } from '../../data/misDeck/misDeckData';
 import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
@@ -37,29 +40,116 @@ export function LevelBadge({ level }: { level: CompletenessLevel }) {
 
 // ---- Overview --------------------------------------------------------------
 
-export function OverviewTab({ period }: { period: PeriodAgg }) {
+// Channel colours, with the channels the base palette doesn't name.
+const CH_COLORS: Record<string, string> = {
+  ...CHANNEL_COLORS, Flipkart: '#1D4ED8', GT: '#16A34A', B2B: '#9333EA',
+};
+
+/** ▲/▼ growth chip vs the prior period of the same grain. */
+function GrowthChip({ cur, prev }: { cur: number; prev: number | null }) {
+  if (prev == null || prev === 0) return null;
+  const g = (cur - prev) / Math.abs(prev);
+  const up = g >= 0;
+  return (
+    <span className={`text-[10px] font-medium ${up ? 'text-emerald-600' : 'text-rose-500'}`}>
+      {up ? '▲' : '▼'} {pctStr(Math.abs(g))}
+    </span>
+  );
+}
+
+export function OverviewTab({ period, periods }: { period: PeriodAgg; periods: PeriodAgg[] }) {
   const real = REAL_ROWS[period.level];
-  const topChannel = useMemo(() => {
-    const entries = Object.entries(period.netByChannel) as [string, number][];
-    entries.sort((a, b) => b[1] - a[1]);
-    return entries[0];
-  }, [period]);
+  const idx = periods.findIndex((p) => p.key === period.key);
+  const prev = idx > 0 ? periods[idx - 1] : null;
   const gmPct = marginPct(period.grossMargin, period.netRevenue);
   const cm2Pct = marginPct(period.cm2, period.netRevenue);
   const ebitdaPct = marginPct(period.ebitda, period.netRevenue);
-
   const ND = '—';
 
+  // Trend series across the whole history (muted where a period isn't real yet).
+  const labels = periods.map((p) => p.label);
+  const realV = (p: PeriodAgg, key: string, v: number): number | null => (REAL_ROWS[p.level].has(key) ? v : null);
+  const moneySeries: LineSeries[] = [
+    { name: 'Net Revenue', color: SERIES_COLORS[0], values: periods.map((p) => p.netRevenue) },
+    { name: 'CM2', color: SERIES_COLORS[1], values: periods.map((p) => realV(p, 'cm2', p.cm2)) },
+    { name: 'EBITDA', color: SERIES_COLORS[2], values: periods.map((p) => realV(p, 'ebitda', p.ebitda)) },
+  ];
+  const pctSeries: LineSeries[] = [
+    { name: 'GM %', color: SERIES_COLORS[0], values: periods.map((p) => (p.netRevenue ? realV(p, 'gross_margin', p.grossMargin / p.netRevenue) : null)) },
+    { name: 'CM2 %', color: SERIES_COLORS[1], values: periods.map((p) => (p.netRevenue ? realV(p, 'cm2', p.cm2 / p.netRevenue) : null)) },
+    { name: 'EBITDA %', color: SERIES_COLORS[2], values: periods.map((p) => (p.netRevenue ? realV(p, 'ebitda', p.ebitda / p.netRevenue) : null)) },
+  ];
+
+  const mix = (Object.entries(period.netByChannel) as [string, number][])
+    .filter(([, v]) => v > 0).map(([key, value]) => ({ key, value })).sort((a, b) => b.value - a.value);
+  const totalMix = mix.reduce((s, d) => s + d.value, 0);
+
+  // P&L waterfall for the selected period — the lines that are real at its level.
+  const WF: { label: string; value: number; type: 'total' | 'cost'; real: string }[] = [
+    { label: 'Net Rev', value: period.netRevenue, type: 'total', real: 'net_revenue' },
+    { label: '− COGM', value: -period.cogm, type: 'cost', real: 'cogm' },
+    { label: 'Gross', value: period.grossMargin, type: 'total', real: 'gross_margin' },
+    { label: '− Ch & Ful', value: -period.channelFulfillment, type: 'cost', real: 'channel_fulfilment' },
+    { label: 'CM1', value: period.cm1, type: 'total', real: 'cm1' },
+    { label: '− S&M', value: -period.salesMarketing, type: 'cost', real: 'sales_marketing' },
+    { label: 'CM2', value: period.cm2, type: 'total', real: 'cm2' },
+    { label: '− Platform', value: -period.platformCosts, type: 'cost', real: 'platform_payment' },
+    { label: '− OPEX', value: -period.opex, type: 'cost', real: 'opex' },
+    { label: 'EBITDA', value: period.ebitda, type: 'total', real: 'ebitda' },
+    { label: 'Net Inc', value: period.netIncome, type: 'total', real: 'net_income' },
+  ];
+  const steps: WaterfallStep[] = WF.filter((s) => real.has(s.real)).map(({ label, value, type }) => ({ label, value, type }));
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiTile label="Net Revenue" value={inr(period.netRevenue)} />
+        <KpiTile label="Net Revenue" value={inr(period.netRevenue)} sub={<GrowthChip cur={period.netRevenue} prev={prev?.netRevenue ?? null} />} />
         <KpiTile label="Gross Margin" value={real.has('gross_margin') && gmPct != null ? pctStr(gmPct) : ND} sub="of net rev" />
-        <KpiTile label="CM2" value={real.has('cm2') ? inr(period.cm2) : ND} sub={cm2Pct != null && real.has('cm2') ? pctStr(cm2Pct) : 'needs COGM'} />
+        <KpiTile label="CM2" value={real.has('cm2') ? inr(period.cm2) : ND} sub={real.has('cm2') ? <GrowthChip cur={period.cm2} prev={prev && REAL_ROWS[prev.level].has('cm2') ? prev.cm2 : null} /> : 'needs COGM'} />
         <KpiTile label="EBITDA" value={real.has('ebitda') ? inr(period.ebitda) : ND} sub={real.has('ebitda') && ebitdaPct != null ? pctStr(ebitdaPct) : 'needs Tally'} />
-        <KpiTile label="Net Income" value={real.has('net_income') ? inr(period.netIncome) : ND} sub="needs Tally" />
-        <KpiTile label="Top channel" value={topChannel ? topChannel[0] : ND} sub={topChannel ? inr(topChannel[1]) : undefined} />
+        <KpiTile label="Net Income" value={real.has('net_income') ? inr(period.netIncome) : ND} sub={real.has('net_income') ? <GrowthChip cur={period.netIncome} prev={prev && REAL_ROWS[prev.level].has('net_income') ? prev.netIncome : null} /> : 'needs Tally'} />
+        <KpiTile label="CM2 %" value={real.has('cm2') && cm2Pct != null ? pctStr(cm2Pct) : ND} sub="of net rev" />
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div>
+          <h4 className="text-xs font-semibold text-slate-700 mb-1.5">Revenue &amp; margin — trend</h4>
+          <LineChart labels={labels} series={moneySeries} />
+          <Legend items={moneySeries.map((s) => ({ label: s.name, color: s.color }))} />
+        </div>
+        <div>
+          <h4 className="text-xs font-semibold text-slate-700 mb-1.5">Margin % — trend</h4>
+          <LineChart labels={labels} series={pctSeries} percent yFormat={(n) => pctStr(n)} valueFormat={(n) => pctStr(n)} />
+          <Legend items={pctSeries.map((s) => ({ label: s.name, color: s.color }))} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div>
+          <h4 className="text-xs font-semibold text-slate-700 mb-1.5">Channel mix · {period.label}</h4>
+          {mix.length === 0 ? <p className="text-xs text-slate-400 py-6 text-center">No channel revenue.</p> : (
+            <div className="flex items-center gap-4">
+              <DonutChart data={mix} colors={CH_COLORS} />
+              <div className="space-y-1">
+                {mix.map((d) => (
+                  <div key={d.key} className="flex items-center gap-2 text-xs">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: CH_COLORS[d.key] ?? '#94a3b8' }} />
+                    <span className="text-slate-600 w-20">{d.key}</span>
+                    <span className="tabular-nums text-slate-500">{pctStr(totalMix ? d.value / totalMix : 0)}</span>
+                    <span className="tabular-nums text-slate-400">{inr(d.value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div>
+          <h4 className="text-xs font-semibold text-slate-700 mb-1.5">P&amp;L bridge · {period.label}</h4>
+          {steps.length >= 3 ? <WaterfallChart steps={steps} />
+            : <p className="text-xs text-slate-400 py-6 text-center">Upload the month's Tally P&amp;L to see the full bridge.</p>}
+        </div>
+      </div>
+
       <p className="text-[11px] text-slate-400">
         {period.label} · <LevelBadge level={period.level} />{' '}
         {period.level === 'full'
