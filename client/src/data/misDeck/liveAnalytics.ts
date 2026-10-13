@@ -11,6 +11,7 @@ import type { MonthlyMIS, SalesChannel } from './misDeckData';
 import { SALES_CHANNELS } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
 import type { CompletenessLevel, PeriodCompleteness } from './liveDeck';
+import type { ChannelRecon, TallyBucketLine } from '../monthClose/schema';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 // Factory overhead added to product COGS at view time (matches the deck).
@@ -69,6 +70,10 @@ export interface PeriodAgg {
   nonOperating: number;
   costOfFundraising: number;
   netIncome: number;
+  /** Tally expense buckets, summed across member months and merged by line key. */
+  tallyLines: TallyBucketLine[];
+  /** Channel reconciliation, summed across member months. */
+  channelRecon: ChannelRecon;
   /** Lowest completeness across member months — how far down the cascade is real. */
   level: CompletenessLevel;
   hasTally: boolean;
@@ -81,6 +86,11 @@ export function aggregatePeriods(
   gran: Granularity,
 ): PeriodAgg[] {
   const buckets = new Map<string, PeriodAgg>();
+  // Tally buckets and recon are accumulated alongside, then written onto each
+  // PeriodAgg in the recompute pass. Keyed by bucket key → line key so a line is
+  // merged across member months rather than repeated.
+  const tallyByBucket = new Map<string, Map<string, TallyBucketLine>>();
+  const reconByBucket = new Map<string, ChannelRecon>();
   const asc = [...months].sort((a, b) => a.key.localeCompare(b.key));
 
   for (const m of asc) {
@@ -93,7 +103,9 @@ export function aggregatePeriods(
         key, label: gran === 'month' ? monthLabel(m.key) : key, members: [],
         netByChannel: {}, netRevenue: 0, cogm: 0, grossMargin: 0, channelFulfillment: 0, cm1: 0,
         salesMarketing: 0, cm2: 0, platformCosts: 0, cm3: 0, opex: 0, ebitda: 0,
-        nonOperating: 0, costOfFundraising: 0, netIncome: 0, level: 'full', hasTally: true,
+        nonOperating: 0, costOfFundraising: 0, netIncome: 0,
+        tallyLines: [], channelRecon: { revenueResidue: {}, cogmVariance: 0 },
+        level: 'full', hasTally: true,
       };
       buckets.set(key, b);
     }
@@ -111,9 +123,25 @@ export function aggregatePeriods(
     b.costOfFundraising = r2(b.costOfFundraising + (m.costOfFundraising ?? 0));
     if (LEVEL_RANK[lvl] < LEVEL_RANK[b.level]) b.level = lvl;
     if (!comp?.hasTally) b.hasTally = false;
+
+    // Merge this month's Tally buckets into the running set for its period.
+    if (m.tallyLines?.length) {
+      const lines = tallyByBucket.get(key) ?? new Map<string, TallyBucketLine>();
+      for (const line of m.tallyLines) mergeTallyLine(lines, line);
+      tallyByBucket.set(key, lines);
+    }
+    if (m.channelRecon) {
+      const recon = reconByBucket.get(key) ?? { revenueResidue: {}, cogmVariance: 0 };
+      for (const ch of SALES_CHANNELS) {
+        const v = m.channelRecon.revenueResidue[ch];
+        if (v !== undefined) recon.revenueResidue[ch] = r2((recon.revenueResidue[ch] ?? 0) + v);
+      }
+      recon.cogmVariance = r2(recon.cogmVariance + m.channelRecon.cogmVariance);
+      reconByBucket.set(key, recon);
+    }
   }
 
-  // Recompute the margin ladder from the summed inputs.
+  // Recompute the margin ladder from the summed inputs; attach Tally buckets/recon.
   for (const b of buckets.values()) {
     b.grossMargin = r2(b.netRevenue - b.cogm);
     b.cm1 = r2(b.grossMargin - b.channelFulfillment);
@@ -121,9 +149,29 @@ export function aggregatePeriods(
     b.cm3 = r2(b.cm2 - b.platformCosts);
     b.ebitda = r2(b.cm3 - b.opex);
     b.netIncome = r2(b.ebitda - b.nonOperating - b.costOfFundraising);
+    b.tallyLines = [...(tallyByBucket.get(b.key)?.values() ?? [])];
+    b.channelRecon = reconByBucket.get(b.key) ?? { revenueResidue: {}, cogmVariance: 0 };
   }
 
   return [...buckets.values()].sort((a, b) => a.members[0].localeCompare(b.members[0]));
+}
+
+/** Sum one month's Tally bucket line into the period's running set, by line key. */
+function mergeTallyLine(into: Map<string, TallyBucketLine>, line: TallyBucketLine): void {
+  const existing = into.get(line.lineKey);
+  if (!existing) {
+    into.set(line.lineKey, {
+      ...line,
+      byChannel: { ...line.byChannel },
+    });
+    return;
+  }
+  existing.total = r2(existing.total + line.total);
+  existing.blended = r2(existing.blended + line.blended);
+  for (const ch of SALES_CHANNELS) {
+    const v = line.byChannel[ch];
+    if (v !== undefined) existing.byChannel[ch] = r2((existing.byChannel[ch] ?? 0) + v);
+  }
 }
 
 export function marginPct(value: number, net: number): number | null {

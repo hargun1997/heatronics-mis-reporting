@@ -147,11 +147,15 @@ const EXPECTED: Record<string, number> = {
   stockMovement: 445433,
 };
 
+// OEM Sales now feeds the B2B channel and Offline Sales the GT channel: the
+// ledger map was repointed ('oem sales'→rev_b2b, 'offline sales'→rev_gt) when
+// the Tranzact OEM/GT SKU split was wired, so the same July ledgers now land on
+// B2B and GT rather than the legacy OEM/Offline channels.
 const EXPECTED_CHANNELS: Record<string, number> = {
   D2C: 1316297.46,
   Amazon: 1196831.31,
-  OEM: 1895500,
-  Offline: 471081.26,
+  B2B: 1895500,
+  GT: 471081.26,
   Blinkit: -2666.66,
 };
 

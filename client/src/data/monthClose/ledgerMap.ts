@@ -37,6 +37,12 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'shopify sales': 'rev_d2c',
   'ecommerce sales': 'rev_amazon',
   'amazon sales': 'rev_amazon',
+  // Flipkart feeds its own channel ONLY when Tally ledgers it separately. If
+  // Flipkart is still lumped inside "Ecommerce Sales" (→ rev_amazon), the
+  // channel recon's revenue residue surfaces it against the connector facts —
+  // we never silently split a combined ledger.
+  'flipkart sales': 'rev_flipkart',
+  'ecommerce - flipkart': 'rev_flipkart',
   // Offline Sales = General Trade (Dealer/Retailer/Physio); OEM Sales = B2B.
   // Tranzact's Sales Invoice Register gives the SKU split within each.
   'oem sales': 'rev_b2b',

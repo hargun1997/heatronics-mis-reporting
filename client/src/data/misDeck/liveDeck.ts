@@ -31,6 +31,7 @@ import { computeClose } from '../monthClose/compute';
 import { computeSku } from '../monthClose/skuRollup';
 import { lookupSku, type Platform } from '../monthClose/skuMap';
 import { fetchFacts } from '../liveMis/client';
+import { accumulateTags, buildChannelRecon, tagTallyLines, toSalesChannel } from './expenseTagging';
 
 // Factory overhead convention — 10% of revenue added to product COGS to form
 // COGM, matching the deck (analytics.ts FACTORY_PCT) and the committed closes.
@@ -158,21 +159,8 @@ function bomCostsToBomCost(rows: NonNullable<ExtractedReport['payload']['bomCost
   }));
 }
 
-// ---- Channel normalisation for the facts-only path -------------------------
-
-const CHANNEL_ALIASES: Record<string, SalesChannel> = {
-  d2c: 'D2C', shopify: 'D2C',
-  amazon: 'Amazon',
-  blinkit: 'Blinkit',
-  flipkart: 'Flipkart',
-  gt: 'GT', b2b: 'B2B',
-  oem: 'OEM', offline: 'Offline', export: 'Export',
-};
-// Channels outside the deck's fixed set return null and are not carried in the
-// facts-only path. Flipkart is now in the set (settlement + ads wired).
-function toSalesChannel(channel: string): SalesChannel | null {
-  return CHANNEL_ALIASES[channel.trim().toLowerCase()] ?? null;
-}
+// Channel normalisation (toSalesChannel) is shared with the tagging layer and
+// imported from expenseTagging.ts — one source of truth for the alias table.
 
 // Sources whose fees land on Platform & Payment (below CM2), not Channel &
 // Fulfilment: payment-gateway / checkout / BNPL costs (easebuzz, shopflo,
@@ -369,6 +357,14 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
   if (hasTally) {
     // Full cascade from the Tally ledgers — the authoritative monthly close.
     const c = computeClose(session);
+
+    // Retain Tally's own expense buckets and attribute what the connector facts
+    // can to channels; whatever they cannot stays as the company-wide blended
+    // remainder. Pure view-side: the headline cascade above is unchanged.
+    const tags = accumulateTags(allFacts);
+    const tallyLines = tagTallyLines(c.tallyLines, tags, c.netByChannel);
+    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, FACTORY_PCT);
+
     const month: MonthlyMIS = {
       key: periodKey, label: periodLabel(periodKey),
       month: Number(periodKey.split('-')[1]), year: Number(periodKey.split('-')[0]),
@@ -380,6 +376,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       channelFulfillment: c.channelFulfillment, salesMarketing: c.salesMarketing,
       platformCosts: c.platformCosts, opex: c.opex, nonOperating: c.nonOperating,
       costOfFundraising: c.costOfFundraising, cogmLines: c.cogmLines, opexLines: c.opexLines,
+      tallyLines, channelRecon,
     };
     return {
       month, skuCells,

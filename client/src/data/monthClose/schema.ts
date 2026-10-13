@@ -85,6 +85,70 @@ export type Bucket =
   | 'contra'
   | 'ignore';
 
+/**
+ * Which block of the contribution cascade a Tally expense bucket subtracts.
+ *
+ * These are the cost blocks BELOW gross margin that today reach the deck only
+ * as single aggregate numbers (channelFulfillment, salesMarketing, …). COGM and
+ * operating expenses are already itemised on MonthlyMIS (cogmLines / opexLines),
+ * so they are not repeated here — this covers exactly the blocks that were not
+ * yet broken out into their own Tally ledger lines.
+ */
+export type CascadeLine =
+  | 'channel_fulfilment' // → CM1
+  | 'sales_marketing' // → CM2
+  | 'platform_payment' // → CM3
+  | 'non_operating' // below EBITDA
+  | 'cost_of_fundraising'; // below EBITDA
+
+/** Which cascade block each expense bucket lands on. Buckets not listed (cogm, opex, otherIncome, revenue, contra, ignore) are carried elsewhere. */
+export const BUCKET_CASCADE: Partial<Record<Bucket, CascadeLine>> = {
+  fulfillment: 'channel_fulfilment',
+  marketing: 'sales_marketing',
+  platform: 'platform_payment',
+  nonOperating: 'non_operating',
+  fundraising: 'cost_of_fundraising',
+};
+
+/**
+ * One Tally expense bucket, authoritative total intact, with the slice we can
+ * attribute to specific channels split out from the company-wide remainder.
+ *
+ * `total` is Tally's own figure for the ledger line (signed: costs negative,
+ * matching the cascade's `effect`). `byChannel` is only what the connector
+ * facts give direct evidence for — Amazon's channel fees off the Amazon
+ * settlement, Meta/Google spend by channel, and so on — and `blended` is
+ * everything left over (`total − Σ byChannel`). The remainder is NOT forced
+ * onto channels: it stays visible as company-level cost, and it is left
+ * unclamped so that connector facts exceeding Tally's total show as a negative
+ * blended rather than being silently hidden.
+ */
+export interface TallyBucketLine {
+  /** Close-line key (ff_channel_fees, sm_total, …) — stable aggregation key. */
+  lineKey: string;
+  label: string;
+  bucket: Bucket;
+  cascadeLine: CascadeLine;
+  /** Tally's authoritative total, signed effect (costs negative). */
+  total: number;
+  /** Slice attributable to channels from connector facts, same sign as total. */
+  byChannel: Partial<Record<SalesChannel, number>>;
+  /** total − Σ byChannel. Company-wide remainder; may be negative. */
+  blended: number;
+}
+
+/**
+ * Where the connector-built channel/SKU view diverges from Tally's authority,
+ * carried as named residues rather than smeared away — Tally stays the truth
+ * for the P&L, and these say by how much the bottoms-up view disagrees.
+ */
+export interface ChannelRecon {
+  /** Per channel: Tally net revenue − Σ connector SkuCell revenue. */
+  revenueResidue: Partial<Record<SalesChannel, number>>;
+  /** Tally COGM − (Σ BOM-costed SkuCell COGS + factory overhead on net revenue). */
+  cogmVariance: number;
+}
+
 export interface CloseLine {
   key: string;
   label: string;
@@ -114,6 +178,7 @@ export const CLOSE_GROUPS: CloseGroup[] = [
     lines: [
       { key: 'rev_d2c', label: 'D2C / Shopify', bucket: 'revenue', channel: 'D2C', source: 'Tally → Sales Accounts → D2C Sales' },
       { key: 'rev_amazon', label: 'Amazon / Ecommerce', bucket: 'revenue', channel: 'Amazon', source: 'Tally → Sales Accounts → Ecommerce Sales' },
+      { key: 'rev_flipkart', label: 'Flipkart / Ecommerce', bucket: 'revenue', channel: 'Flipkart', source: 'Tally → Sales Accounts → Flipkart Sales', hint: 'Only when Tally ledgers Flipkart separately; otherwise it sits inside Ecommerce Sales and the channel recon surfaces it' },
       { key: 'rev_b2b', label: 'B2B (OEM)', bucket: 'revenue', channel: 'B2B', source: 'Tally → Sales Accounts → OEM Sales', hint: 'OEM / private-label; SKU split from Tranzact OEM/ invoices' },
       { key: 'rev_gt', label: 'GT (General Trade)', bucket: 'revenue', channel: 'GT', source: 'Tally → Sales Accounts → Offline Sales', hint: 'Dealer + Retailer + Physio; SKU split from Tranzact GTD/GTR/PHY invoices' },
       { key: 'rev_oem', label: 'OEM (legacy)', bucket: 'revenue', channel: 'OEM', source: 'Tally → Sales Accounts → OEM Sales (legacy label)' },

@@ -23,8 +23,35 @@
 // the Platform Costs → CM3 line, and Cost of Fundraising (Business Development Expenses, ₹70)
 // sits below EBITDA in Non-Operating alongside Finance Costs. Net Loss ₹19.87 L.
 
+// Type-only import of the recon/tagging shapes. These are runtime-view
+// extensions (hand-added, not part of the xlsx extraction) that let the Live
+// MIS retain Tally's own expense buckets and the channel reconciliation. The
+// import is erased at compile time, so the schema ↔ misDeckData type cycle has
+// no runtime edge.
+import type { TallyBucketLine, ChannelRecon } from '../monthClose/schema';
+
 export const SALES_CHANNELS = ['D2C', 'Amazon', 'Blinkit', 'Flipkart', 'GT', 'B2B', 'OEM', 'Offline', 'Export'] as const;
 export type SalesChannel = (typeof SALES_CHANNELS)[number];
+
+// ---- Verticals -------------------------------------------------------------
+// Channels roll up into reporting verticals: Ecommerce gathers Amazon +
+// Flipkart, Quick Commerce gathers Blinkit, GT gathers GT + legacy Offline, and
+// B2B gathers B2B + legacy OEM. "Company" is not a channel — it is where
+// blended / company-wide cost that no channel can claim is shown.
+export const VERTICALS = ['D2C', 'Ecommerce', 'Quick Commerce', 'GT', 'B2B', 'Export', 'Company'] as const;
+export type Vertical = (typeof VERTICALS)[number];
+
+export const VERTICAL_BY_CHANNEL: Record<SalesChannel, Vertical> = {
+  D2C: 'D2C',
+  Amazon: 'Ecommerce',
+  Flipkart: 'Ecommerce',
+  Blinkit: 'Quick Commerce',
+  GT: 'GT',
+  Offline: 'GT',
+  B2B: 'B2B',
+  OEM: 'B2B',
+  Export: 'Export',
+};
 
 export interface MonthlyMIS {
   key: string;
@@ -58,6 +85,16 @@ export interface MonthlyMIS {
   opexLines: Record<string, number>;
   /** Present when the month was restated to tie to an external statement. */
   restated?: string;
+  /**
+   * Tally's own below-gross-margin expense buckets (channel & fulfilment,
+   * sales & marketing, platform, non-operating, fundraising), each with the
+   * slice attributable to channels split from the company-wide remainder.
+   * Present only on live months built from a Tally P&L; absent on the static
+   * historical entries, which keep their aggregate numbers.
+   */
+  tallyLines?: TallyBucketLine[];
+  /** Named residues between the connector channel/SKU view and Tally's authority. */
+  channelRecon?: ChannelRecon;
 }
 
 export interface FYSummary {
