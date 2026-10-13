@@ -269,8 +269,14 @@ async function resolveUploadFile(file: File): Promise<File | FileLike> {
   if (!isZip) return file;
   const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
   const names = Object.keys(entries).filter((n) => !n.endsWith('/') && !n.startsWith('__MACOSX'));
-  const pick = names.find((n) => /order.{0,3}level.{0,3}charge/i.test(n) && /\.xlsx?$/i.test(n))
-    ?? names.find((n) => /\.xlsx?$/i.test(n))
+  // Blinkit's payout ZIP has two layouts: a compact "A&B. Order_level_charges.xlsx"
+  // and an expanded set where the order data is in "Forward & Return ... Orders.xlsx".
+  // Prefer the order file; never the Note / Payout Breakup / per-charge summaries.
+  const isXlsx = (n: string) => /\.xlsx?$/i.test(n);
+  const pick = names.find((n) => isXlsx(n) && /order.{0,3}level.{0,3}charge/i.test(n))
+    ?? names.find((n) => isXlsx(n) && /forward/i.test(n))
+    ?? names.find((n) => isXlsx(n) && !/note|payout\s*breakup|charge|adjust|refund|inventory|storage|courier|recall|damaged|cn-?dn|pending|breakup/i.test(n))
+    ?? names.find((n) => isXlsx(n))
     ?? names.find((n) => /\.csv$/i.test(n));
   if (!pick) throw new Error('No spreadsheet (.xlsx/.csv) found inside the ZIP.');
   const bytes = entries[pick];
