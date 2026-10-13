@@ -66,11 +66,17 @@ const SLOTS: ReportSlot[] = [
   },
   {
     connectorId: 'blinkit', slotId: 'order-charges', label: 'Payout — order-level charges', required: true,
-    accept: '.xlsx,.xls', kind: 'xlsx',
+    accept: '.xlsx,.xls', kind: 'xlsx', parserId: 'blinkit',
     exportSteps: [
-      'Blinkit brand portal → Payments → download the payout ZIP',
-      'Open "A&B. Order_level_charges.xlsx" from the ZIP and upload that single workbook',
+      'Blinkit Seller → Billing → Payout Details (link below)',
+      'Click "Download monthly SoA" → pick the month → Download the ZIP',
+      'Open the ZIP, then upload the single file "A&B. Order_level_charges.xlsx" here',
     ],
+    exportUrl: {
+      label: 'Open Blinkit Payout Details',
+      url: 'https://seller.blinkit.com/dashboard/billing?billing=payout_details',
+    },
+    note: 'Blinkit channel: per-item gross bill → net revenue; commission + commission GST + shipping + shipping GST → channel fees. TCS/TDS are tax withheld (recoverable), not a cost.',
   },
 
   // ---- D2C (live) ----

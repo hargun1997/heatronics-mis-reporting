@@ -218,15 +218,15 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'blinkit', label: 'Blinkit (Quick Commerce)', channel: 'Blinkit', group: 'Marketplace', wiring: 'fixture-ready', mapping: 'partial', pending: 'Portal download failing; parser not built. Need the payout order-charges workbook; finish item-id -> FG map; add the deep link.',
+    connectorId: 'blinkit', label: 'Blinkit (Quick Commerce)', channel: 'Blinkit', group: 'Marketplace', wiring: 'wired', seq: 7, mapping: 'done', pending: 'Re-upload the monthly SoA each month. New catalog item ids map on sight.',
     summary: 'Blinkit channel — gross bill and all the commission/shipping charges from the order-level payout.',
     files: [
       {
         slotId: 'order-charges', label: 'Payout — order-level charges', required: true, cadence: 'Weekly',
-        reads: 'Per item: total gross bill, commission + commission GST, shipping + shipping GST.',
+        reads: 'The "Forward & Return Orders" sheet — per order line: item id, order date, gross bill, net deductions, TCS/TDS. Returns carry the opposite sign.',
         destinations: [
-          { line: 'Net Revenue', dimension: 'Blinkit · per SKU', rule: 'Total gross bill amount per item → Blinkit net revenue.' },
-          { line: 'Channel & Fulfilment', dimension: 'Blinkit · per SKU', rule: 'Commission + commission GST + shipping + shipping GST → channel fees.' },
+          { line: 'Net Revenue', dimension: 'Blinkit · per SKU', rule: 'Total gross bill amount per item → Blinkit net revenue, by order date.' },
+          { line: 'Channel & Fulfilment', dimension: 'Blinkit · per SKU', rule: 'Fees = net deductions − TCS − TDS (commission + GST + shipping + GST). TCS/TDS are tax withheld on the seller\'s behalf, recoverable — not a cost.' },
         ],
       },
     ],
@@ -263,7 +263,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'needs-sample', seq: 7, mapping: 'todo', pending: 'Need File 1 (campaign x cost) + optional Shopping-products; build the parser + SKU map; add the deep link.',
+    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'needs-sample', seq: 8, mapping: 'todo', pending: 'Need File 1 (campaign x cost) + optional Shopping-products; build the parser + SKU map; add the deep link.',
     summary: 'D2C ad spend — adds to Sales & Marketing.',
     files: [
       {

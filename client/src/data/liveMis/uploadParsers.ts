@@ -534,6 +534,84 @@ function parseMetaAds(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: facts.length === 0 ? 'No Meta ad spend rows found.' : undefined, trace };
 }
 
+// ---- Blinkit payout → per-SKU Blinkit revenue & fees ------------------------
+
+/**
+ * Blinkit monthly SoA — the "A&B. Order_level_charges.xlsx" from the payout ZIP.
+ * The "Forward & Return Orders" sheet is one row per order line: gross bill and
+ * the full fee stack (commission + GST, shipping + GST), plus TCS/TDS which are
+ * tax WITHHELD on the seller's behalf (recoverable), not a cost — so fees =
+ * Net Deductions − TCS − TDS. Returns/reversals carry the opposite sign.
+ */
+function parseBlinkit(wb: XLSX.WorkBook): ParseOutput {
+  const sheet = wb.SheetNames.find((n) => /forward|order/i.test(n)) ?? wb.SheetNames[0];
+  const rows = sheetRows(wb, sheet);
+  const hi = findHeader(rows, ['item id', 'order id']);
+  if (hi < 0) {
+    return { facts: [], warning: 'No "Order ID / Item ID" header — is this Blinkit\'s "A&B. Order_level_charges.xlsx"?' };
+  }
+  const header = (rows[hi] ?? []).map(lower);
+  const ix = {
+    type: col(header, 'order type'),
+    date: col(header, 'order date'),
+    item: col(header, 'item id'),
+    name: col(header, 'product name'),
+    status: col(header, 'order status'),
+    qty: col(header, 'quantity'),
+    gross: col(header, 'total gross bill amount'),
+    netDed: col(header, 'net deductions'),
+    tcs: col(header, 'tcs amount'),
+    tds1: col(header, 'tds 194o amount'),
+    tds2: col(header, 'tds 194q amount'),
+  };
+  if (ix.item < 0 || ix.gross < 0) return { facts: [], warning: 'Blinkit: "Item ID" / "Total Gross Bill Amount" column not found.' };
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const byKey = new Map<string, DailyFact>();
+  let lines = 0;
+  let returns = 0;
+  for (const row of rows.slice(hi + 1)) {
+    const item = cell(row[ix.item]);
+    if (!item) continue;
+    const date = isoDate(row[ix.date]);
+    if (!date) continue;
+    const sign = /return|reversal/i.test(ix.type >= 0 ? cell(row[ix.type]) : '') ? -1 : 1;
+    if (sign < 0) returns += 1;
+    const gross = num(row[ix.gross]);
+    const netDed = ix.netDed >= 0 ? num(row[ix.netDed]) : 0;
+    const taxWithheld = (ix.tcs >= 0 ? num(row[ix.tcs]) : 0) + (ix.tds1 >= 0 ? num(row[ix.tds1]) : 0) + (ix.tds2 >= 0 ? num(row[ix.tds2]) : 0);
+    const fees = r2(netDed - taxWithheld); // marketplace cut; TCS/TDS are recoverable, not a cost
+    const qty = ix.qty >= 0 ? num(row[ix.qty]) || 1 : 1;
+    const key = `${date}|${item}`;
+    const e = byKey.get(key);
+    if (e) {
+      e.revenue = r2(e.revenue + sign * gross);
+      e.units = r2(e.units + sign * qty);
+      e.orders += sign;
+      e.fees = r2(e.fees + sign * fees);
+    } else {
+      byKey.set(key, {
+        source: 'blinkit', channel: 'Blinkit', date,
+        sku: item, skuName: cell(row[ix.name]) || item, skuKind: 'sku',
+        revenue: r2(sign * gross), units: r2(sign * qty), orders: sign, fees: r2(sign * fees),
+      });
+    }
+    lines += 1;
+  }
+
+  const facts = [...byKey.values()];
+  const rev = r2(facts.reduce((s, f) => s + f.revenue, 0));
+  const fee = r2(facts.reduce((s, f) => s + f.fees, 0));
+  const dates = facts.map((f) => f.date).sort();
+  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const trace = [
+    `Read sheet "${sheet}" — header at row ${hi + 1}`,
+    `${lines} order lines${returns ? ` (${returns} returns)` : ''} → ${facts.length} day×SKU facts`,
+    `Blinkit revenue ₹${inr(rev)}, fees ₹${inr(fee)} (commission + shipping + GST; TCS/TDS excluded)${dates.length ? `, ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
+  ];
+  return { facts, warning: facts.length === 0 ? 'No Blinkit order rows found.' : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
   {
     sourceId: 'amazon',
@@ -548,6 +626,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     accept: '.xlsx,.xls,.csv',
     hint: 'Shiprocket → Billing → Wallet/Passbook → export. Daily freight & charges (wallet transfers excluded).',
     parse: parseShiprocketPassbook,
+  },
+  {
+    sourceId: 'blinkit',
+    label: 'Blinkit payout (order-level charges)',
+    accept: '.xlsx,.xls',
+    hint: 'Blinkit Seller → Billing → Payout Details → Download monthly SoA → open "A&B. Order_level_charges.xlsx" from the ZIP. Per-SKU revenue + commission/shipping fees.',
+    parse: parseBlinkit,
   },
   {
     sourceId: 'amazonads',
