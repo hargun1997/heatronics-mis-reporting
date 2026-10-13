@@ -5,7 +5,7 @@
 // never faked.
 // ----------------------------------------------------------------------------
 
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { KpiTile } from '../ui';
 import { inr, pctStr } from '../mis-deck/charts';
 import type { SkuCell } from '../../data/misDeck/skuChannelPnl';
@@ -101,7 +101,14 @@ const PNL_EXPANDABLE: Record<string, CascadeLine[]> = {
 };
 
 export function PnlTab({ periods, showPct }: { periods: PeriodAgg[]; showPct: boolean }) {
-  const cols = periods.slice(-12);
+  // Show the whole history (Dec-2023 onward), scrollable. Start scrolled to the
+  // most recent month so the current period is in view without hiding the past.
+  const cols = periods;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [cols.length]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (k: string) =>
     setExpanded((prev) => {
@@ -121,11 +128,11 @@ export function PnlTab({ periods, showPct }: { periods: PeriodAgg[]; showPct: bo
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
+    <div ref={scrollRef} className="overflow-x-auto">
+      <table className="min-w-full text-xs border-collapse">
         <thead>
           <tr className="text-[10px] text-slate-400 border-b border-slate-200">
-            <th className="py-1.5 pr-3 text-left font-medium sticky left-0 bg-white">Line</th>
+            <th className="py-1.5 pr-3 text-left font-medium sticky left-0 bg-white z-10">Line</th>
             {cols.map((p) => (
               <th key={p.key} className="py-1.5 px-2 text-right font-medium whitespace-nowrap">
                 <div>{p.label}</div><div className="font-normal"><LevelBadge level={p.level} /></div>
