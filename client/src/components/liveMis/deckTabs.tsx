@@ -198,25 +198,31 @@ export function PnlTab({ periods, showPct }: { periods: PeriodAgg[]; showPct: bo
 // spread pro-rata by sales. A whole-company slice also carries a "Recon → Tally"
 // column so every line ties to the Tally Total.
 
-interface CascadeRow { k: keyof PnlColumn; label: string; kind: 'rev' | 'cost' | 'margin'; strong?: boolean }
+// `real` is the REAL_ROWS key for completeness gating — rows below a month's
+// level are muted to '—', exactly as the company P&L and Overview tabs do, so
+// the bifurcated views never show fabricated numbers on a not-yet-closed month.
+interface CascadeRow { k: keyof PnlColumn; label: string; kind: 'rev' | 'cost' | 'margin'; real: string; strong?: boolean }
 const FULL_CASCADE: CascadeRow[] = [
-  { k: 'rev', label: 'Net Revenue', kind: 'rev' },
-  { k: 'cogm', label: 'COGM', kind: 'cost' },
-  { k: 'gm', label: 'Gross Margin', kind: 'margin' },
-  { k: 'fulfilment', label: 'Channel & Fulfilment', kind: 'cost' },
-  { k: 'cm1', label: 'CM1', kind: 'margin' },
-  { k: 'marketing', label: 'Sales & Marketing', kind: 'cost' },
-  { k: 'cm2', label: 'CM2', kind: 'margin' },
-  { k: 'platform', label: 'Platform & Payment', kind: 'cost' },
-  { k: 'cm3', label: 'CM3', kind: 'margin' },
-  { k: 'opex', label: 'Operating Expenses', kind: 'cost' },
-  { k: 'ebitda', label: 'EBITDA', kind: 'margin', strong: true },
-  { k: 'nonOperating', label: 'Non-Operating + Fundraising', kind: 'cost' },
-  { k: 'netIncome', label: 'Net Income', kind: 'margin', strong: true },
+  { k: 'rev', label: 'Net Revenue', kind: 'rev', real: 'net_revenue' },
+  { k: 'cogm', label: 'COGM', kind: 'cost', real: 'cogm' },
+  { k: 'gm', label: 'Gross Margin', kind: 'margin', real: 'gross_margin' },
+  { k: 'fulfilment', label: 'Channel & Fulfilment', kind: 'cost', real: 'channel_fulfilment' },
+  { k: 'cm1', label: 'CM1', kind: 'margin', real: 'cm1' },
+  { k: 'marketing', label: 'Sales & Marketing', kind: 'cost', real: 'sales_marketing' },
+  { k: 'cm2', label: 'CM2', kind: 'margin', real: 'cm2' },
+  { k: 'platform', label: 'Platform & Payment', kind: 'cost', real: 'platform_payment' },
+  { k: 'cm3', label: 'CM3', kind: 'margin', real: 'cm3' },
+  { k: 'opex', label: 'Operating Expenses', kind: 'cost', real: 'opex' },
+  { k: 'ebitda', label: 'EBITDA', kind: 'margin', real: 'ebitda', strong: true },
+  { k: 'nonOperating', label: 'Non-Operating + Fundraising', kind: 'cost', real: 'non_operating' },
+  { k: 'netIncome', label: 'Net Income', kind: 'margin', real: 'net_income', strong: true },
 ];
 
-function FullPnlTable({ slice, firstCol }: { slice: SlicePnl; firstCol: string }) {
-  if (slice.columns.length === 0) return <Empty what="data for this slice" />;
+function FullPnlTable({ slice, firstCol, level }: { slice: SlicePnl; firstCol: string; level: CompletenessLevel }) {
+  // A tied whole-company slice is worth showing even with no connector columns —
+  // its Tally Total still stands. Otherwise, nothing to render.
+  if (slice.columns.length === 0 && !slice.tied) return <Empty what="data for this slice" />;
+  const real = REAL_ROWS[level];
   const cols: PnlColumn[] = [...slice.columns, ...(slice.recon ? [slice.recon] : []), slice.total];
   const colCls = (c: PnlColumn) =>
     c.kind === 'total' ? 'font-semibold text-slate-800' : c.kind === 'recon' ? 'text-slate-400 italic' : 'text-slate-600';
@@ -235,12 +241,15 @@ function FullPnlTable({ slice, firstCol }: { slice: SlicePnl; firstCol: string }
           </tr>
         </thead>
         <tbody>
-          {FULL_CASCADE.map((row) => (
+          {FULL_CASCADE.map((row) => {
+            const isReal = real.has(row.real);
+            return (
             <tr key={row.k as string} className={`border-b border-slate-50 ${row.kind === 'margin' ? 'bg-slate-50/60' : ''}`}>
               <td className={`py-1.5 pr-3 sticky left-0 bg-white ${row.strong || row.kind === 'margin' ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
                 {row.kind === 'cost' ? '− ' : ''}{row.label}
               </td>
               {cols.map((c) => {
+                if (!isReal) return <td key={c.key} className="py-1.5 px-2 text-right text-slate-300">—</td>;
                 const raw = c[row.k] as number;
                 return (
                   <td key={c.key} className={`py-1.5 px-2 text-right tabular-nums ${colCls(c)}`}>
@@ -249,7 +258,8 @@ function FullPnlTable({ slice, firstCol }: { slice: SlicePnl; firstCol: string }
                 );
               })}
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
     </div>
@@ -290,7 +300,7 @@ export function ChannelsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
         </div>
         <span className="text-[10px] text-slate-400"><LevelBadge level={period.level} /></span>
       </div>
-      <FullPnlTable slice={slice} firstCol="Line" />
+      <FullPnlTable slice={slice} firstCol="Line" level={period.level} />
       <BasisNote slice={slice} dim={by === 'vertical' ? 'vertical' : 'channel'} hasTally={period.hasTally} />
     </div>
   );
@@ -303,7 +313,7 @@ export function SkuTab({ period, cells, periodKeys }: { period: PeriodAgg; cells
   return (
     <div className="space-y-3">
       <div className="flex justify-end"><span className="text-[10px] text-slate-400"><LevelBadge level={period.level} /></span></div>
-      <FullPnlTable slice={slice} firstCol="Line" />
+      <FullPnlTable slice={slice} firstCol="Line" level={period.level} />
       <BasisNote slice={slice} dim="SKU" hasTally={period.hasTally} />
     </div>
   );
@@ -341,7 +351,7 @@ export function SkuChannelTab({ period, cells, periodKeys }: { period: PeriodAgg
         </select>
         <span className="text-[10px] text-slate-400 ml-auto"><LevelBadge level={period.level} /></span>
       </div>
-      {slice && <FullPnlTable slice={slice} firstCol={orient === 'sku' ? 'Line  (channels →)' : 'Line  (SKUs →)'} />}
+      {slice && <FullPnlTable slice={slice} firstCol={orient === 'sku' ? 'Line  (channels →)' : 'Line  (SKUs →)'} level={period.level} />}
       <p className="text-[10px] text-slate-400">
         {orient === 'sku'
           ? `Full P&L for “${selected}” across every channel it sold in.`

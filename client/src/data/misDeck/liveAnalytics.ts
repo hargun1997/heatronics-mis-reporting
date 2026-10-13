@@ -427,7 +427,11 @@ export function slicePnl(
   };
   const sumCols = foldCols('Total', 'total', columns);
 
-  const whole = !filter?.channel && !filter?.product;
+  // Tie to Tally only for a whole-company slice of a month that actually has a
+  // Tally close. Without one (a top-line / contribution month) there is no
+  // authoritative cascade to reconcile against, so the slice just foots to its
+  // own bottoms-up total and the view mutes the rows that are not yet real.
+  const whole = !filter?.channel && !filter?.product && period.hasTally;
   if (!whole) {
     return { columnBy, columns, recon: null, total: sumCols, tied: false };
   }

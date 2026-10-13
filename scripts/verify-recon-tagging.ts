@@ -388,5 +388,9 @@ for (const f of PNL_FIELDS) {
 }
 check('B2B→SKU total revenue = B2B cell revenue', b2bSkus.total.rev, 4000000);
 
+// A month with no Tally close is NOT tied: no recon column, no claimed Tally total.
+const noTally = slicePnl({ ...sepPeriod, hasTally: false }, bifurCells, bifurPeriodKeys, 'channel');
+assert('no-Tally month: whole-company slice is not tied (no recon column)', !noTally.tied && noTally.recon === null);
+
 console.log(failures === 0 ? '\nPASS — recon + tagging reproduced exactly.\n' : `\n${failures} FAILURE(S)\n`);
 process.exit(failures === 0 ? 0 : 1);
