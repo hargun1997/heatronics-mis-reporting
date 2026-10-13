@@ -56,6 +56,25 @@ export function OwnershipPage() {
     try { setLastRun(await runReminders()); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Send failed.'); } finally { setBusy(false); }
   };
 
+  // Assign (or unassign) a report to a person from the person's side. Upserts a
+  // slot-linked assignment and adds/removes this member as an owner; an
+  // assignment left with no owners is removed.
+  const toggleReport = (memberId: string, connectorId: string, slotId: string, slotLabel: string, checked: boolean) =>
+    wrap(async () => {
+      const existing = (data?.assignments ?? []).find((a) => a.connectorId === connectorId && a.slotId === slotId);
+      if (checked) {
+        if (existing) {
+          if (!existing.ownerIds.includes(memberId)) await saveAssignment({ ...existing, ownerIds: [...existing.ownerIds, memberId] });
+        } else {
+          await saveAssignment({ label: slotLabel, connectorId, slotId, dueDay: 7, ownerIds: [memberId], active: true });
+        }
+      } else if (existing) {
+        const owners = existing.ownerIds.filter((o) => o !== memberId);
+        if (owners.length === 0) await deleteAssignment(existing.id);
+        else await saveAssignment({ ...existing, ownerIds: owners });
+      }
+    });
+
   return (
     <>
       <PageHeader
@@ -88,9 +107,11 @@ export function OwnershipPage() {
         {data && (
           <TeamCard
             members={data.members}
+            assignments={data.assignments}
             busy={busy}
             onSave={(m) => wrap(() => saveMember(m))}
             onDelete={(id) => wrap(() => deleteMember(id))}
+            onToggleReport={toggleReport}
           />
         )}
       </div>
@@ -283,27 +304,83 @@ function AssignmentForm({
 
 // ---- Team ------------------------------------------------------------------
 
+// Catalog upload slots grouped by connector, for the per-person report checklist.
+const SLOTS_BY_CONNECTOR = (() => {
+  const g = new Map<string, { connectorId: string; slotId: string; label: string }[]>();
+  for (const s of ALL_SLOTS) {
+    const arr = g.get(s.connectorId) ?? [];
+    arr.push({ connectorId: s.connectorId, slotId: s.slotId, label: s.label });
+    g.set(s.connectorId, arr);
+  }
+  return [...g.entries()];
+})();
+
 function TeamCard({
-  members, busy, onSave, onDelete,
+  members, assignments, busy, onSave, onDelete, onToggleReport,
 }: {
   members: Overview['members'];
+  assignments: Assignment[];
   busy: boolean;
   onSave: (m: { name: string; email: string }) => void;
   onDelete: (id: string) => void;
+  onToggleReport: (memberId: string, connectorId: string, slotId: string, slotLabel: string, checked: boolean) => void;
 }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
   const add = () => { if (name.trim() && email.trim()) { onSave({ name: name.trim(), email: email.trim() }); setName(''); setEmail(''); } };
+
+  // Which (connectorId, slotId) a member owns, from the slot-linked assignments.
+  const ownsSlot = (memberId: string, connectorId: string, slotId: string) =>
+    assignments.some((a) => a.connectorId === connectorId && a.slotId === slotId && a.ownerIds.includes(memberId));
+  const reportCount = (memberId: string) =>
+    assignments.filter((a) => a.ownerIds.includes(memberId)).length;
+
   return (
-    <SectionCard title="Team members" description="People who can own an upload. Reminders go to these email addresses.">
-      <div className="space-y-1.5">
-        {members.map((m) => (
-          <div key={m.id} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-3 py-2">
-            <span className="text-sm font-medium text-slate-700">{m.name}</span>
-            <span className="text-xs text-slate-400">{m.email}</span>
-            <button onClick={() => onDelete(m.id)} disabled={busy} className="ml-auto text-[11px] text-rose-600 hover:underline disabled:opacity-50">remove</button>
-          </div>
-        ))}
+    <SectionCard title="Team members" description="People who can own an upload. Open a person to tick the reports they're responsible for.">
+      <div className="space-y-2">
+        {members.map((m) => {
+          const open = openId === m.id;
+          return (
+            <div key={m.id} className="rounded-lg border border-slate-100 bg-white">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <span className="text-sm font-medium text-slate-700">{m.name}</span>
+                <span className="text-xs text-slate-400">{m.email}</span>
+                <span className="text-[10px] text-brand-700 bg-brand-50 border border-brand-100 rounded-full px-2 py-0.5">{reportCount(m.id)} report{reportCount(m.id) === 1 ? '' : 's'}</span>
+                <button onClick={() => setOpenId(open ? null : m.id)} className="ml-auto text-[11px] text-brand-600 hover:underline">
+                  {open ? 'done' : 'assign reports'}
+                </button>
+                <button onClick={() => onDelete(m.id)} disabled={busy} className="text-[11px] text-rose-600 hover:underline disabled:opacity-50">remove</button>
+              </div>
+              {open && (
+                <div className="border-t border-slate-100 px-3 py-3 bg-slate-50/40">
+                  <p className="text-[11px] text-slate-500 mb-2">Tick each report <b>{m.name}</b> is responsible to upload each month. Reminders go out until it's in.</p>
+                  <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+                    {SLOTS_BY_CONNECTOR.map(([connectorId, slots]) => (
+                      <div key={connectorId}>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">{connectorId}</div>
+                        <div className="space-y-1">
+                          {slots.map((s) => {
+                            const on = ownsSlot(m.id, s.connectorId, s.slotId);
+                            return (
+                              <label key={`${s.connectorId}::${s.slotId}`} className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+                                <input type="checkbox" checked={on} disabled={busy}
+                                  onChange={(e) => onToggleReport(m.id, s.connectorId, s.slotId, s.label, e.target.checked)}
+                                  className="mt-0.5" />
+                                <span>{s.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {members.length === 0 && <p className="text-sm text-slate-400">No team members yet — add one below.</p>}
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <label className="block">
