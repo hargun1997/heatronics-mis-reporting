@@ -179,12 +179,25 @@ function parseShiprocketPassbook(wb: XLSX.WorkBook): ParseOutput {
 // spend (= MER denominator), not fees.
 const AMAZON_AD = /cost of advertising/i;
 
-interface DayAgg {
+/**
+ * The base Amazon MSKU: the auto-generated XX-XXXX-XXXX id, with any
+ * product-name or "-FBM" suffix the seller appended stripped off. This is the
+ * key the SKU→FG map uses, and stripping it also merges a product's FBA and FBM
+ * rows into one line (both carry the same base MSKU).
+ */
+function amazonBaseSku(sku: string): { base: string; name: string } {
+  const m = sku.match(/^([A-Za-z0-9]{2}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4})(.*)$/);
+  if (!m) return { base: sku.trim(), name: '' };
+  const name = m[2].replace(/^[-\s]+/, '').replace(/[-\s]*FBM$/i, '').trim();
+  return { base: m[1].toUpperCase(), name };
+}
+
+interface SkuAgg {
   revenue: number;
   units: number;
   orders: number;
   fees: number;
-  spend: number;
+  name: string;
 }
 
 function parseAmazonSettlement(wb: XLSX.WorkBook): ParseOutput {
@@ -218,13 +231,14 @@ function parseAmazonSettlement(wb: XLSX.WorkBook): ParseOutput {
     return { facts: [], warning: `Amazon: header is missing column(s): ${missing.join(', ')}.` };
   }
 
-  const byDay = new Map<string, DayAgg>();
-  const bump = (date: string): DayAgg => {
-    let d = byDay.get(date);
-    if (!d) {
-      d = { revenue: 0, units: 0, orders: 0, fees: 0, spend: 0 };
-      byDay.set(date, d);
-    }
+  // Product rows aggregate per day × base-SKU; ad spend and the fees Amazon
+  // doesn't attribute to a SKU (storage, removals, reimbursements) stay at the
+  // channel level, keyed by day with no SKU.
+  const skuDay = new Map<string, SkuAgg>(); // key: `${date}|${base}`
+  const chanDay = new Map<string, { fees: number; spend: number }>(); // key: date
+  const chan = (date: string) => {
+    let d = chanDay.get(date);
+    if (!d) { d = { fees: 0, spend: 0 }; chanDay.set(date, d); }
     return d;
   };
 
@@ -248,10 +262,10 @@ function parseAmazonSettlement(wb: XLSX.WorkBook): ParseOutput {
       // A bank payout — money out, not a cost. Count it and skip.
       if (/^transfer$/i.test(type)) { transfers += num(row[ix.total]); continue; }
       // Advertising → spend (the MER denominator), reported as a negative total.
-      if (AMAZON_AD.test(cell(row[ix.desc]))) { bump(date).spend += -num(row[ix.total]); continue; }
+      if (AMAZON_AD.test(cell(row[ix.desc]))) { chan(date).spend += -num(row[ix.total]); continue; }
       // Storage / removals / easy-ship / reimbursements: a real channel cost
       // Amazon does not attribute to a SKU — fold into the day's fees.
-      bump(date).fees += -num(row[ix.total]);
+      chan(date).fees += -num(row[ix.total]);
       continue;
     }
 
@@ -266,23 +280,32 @@ function parseAmazonSettlement(wb: XLSX.WorkBook): ParseOutput {
     // the sign off revenue, not the quantity. A zero-revenue adjustment (an FBA
     // reimbursement) carries a quantity but is inventory written off, not a unit.
     const units = rowRevenue === 0 ? 0 : rowRevenue < 0 ? -Math.abs(qty) : qty;
-    const d = bump(date);
-    d.revenue += rowRevenue;
-    d.fees += rowFees;
-    d.units += units;
-    if (/^order$/i.test(type) && rowRevenue > 0) d.orders += 1;
+    const { base, name } = amazonBaseSku(sku);
+    const key = `${date}|${base}`;
+    let a = skuDay.get(key);
+    if (!a) { a = { revenue: 0, units: 0, orders: 0, fees: 0, name }; skuDay.set(key, a); }
+    a.revenue += rowRevenue;
+    a.fees += rowFees;
+    a.units += units;
+    if (!a.name && name) a.name = name;
+    if (/^order$/i.test(type) && rowRevenue > 0) a.orders += 1;
   }
 
-  const facts: DailyFact[] = [...byDay.entries()].map(([date, a]) => ({
-    source: 'amazon',
-    channel: 'Amazon',
-    date,
-    revenue: Math.round(a.revenue * 100) / 100,
-    units: a.units,
-    orders: a.orders,
-    fees: Math.round(a.fees * 100) / 100,
-    spend: Math.round(a.spend * 100) / 100,
-  }));
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const facts: DailyFact[] = [];
+  for (const [key, a] of skuDay) {
+    const [date, base] = key.split('|');
+    facts.push({
+      source: 'amazon', channel: 'Amazon', date,
+      sku: base, skuName: a.name || base, skuKind: 'sku',
+      revenue: r2(a.revenue), units: a.units, orders: a.orders, fees: r2(a.fees),
+    });
+  }
+  for (const [date, c] of chanDay) {
+    if (c.fees === 0 && c.spend === 0) continue;
+    facts.push({ source: 'amazon', channel: 'Amazon', date, revenue: 0, units: 0, orders: 0, fees: r2(c.fees), spend: r2(c.spend) });
+  }
+  facts.sort((x, y) => x.date.localeCompare(y.date));
 
   const warnings: string[] = [];
   if (undated > 0) warnings.push(`${undated} row(s) had no readable date and were skipped.`);
@@ -295,10 +318,11 @@ function parseAmazonSettlement(wb: XLSX.WorkBook): ParseOutput {
   const totalRev = facts.reduce((s, f) => s + f.revenue, 0);
   const totalFees = facts.reduce((s, f) => s + f.fees, 0);
   const totalSpend = facts.reduce((s, f) => s + (f.spend ?? 0), 0);
+  const skuCount = new Set([...skuDay.keys()].map((k) => k.split('|')[1])).size;
   const trace = [
     `Read sheet "${wb.SheetNames[0]}" — found header at row ${hi + 1} (date/time · type · total)`,
     `Scanned ${dataRows} transaction rows; excluded bank transfers out of ₹${Math.round(-transfers).toLocaleString('en-IN')} (settlement to bank, not a cost)`,
-    `Netted sales & refunds by day → ${facts.length} daily facts: revenue ₹${Math.round(totalRev).toLocaleString('en-IN')}, fees ₹${Math.round(totalFees).toLocaleString('en-IN')}, ad spend ₹${Math.round(totalSpend).toLocaleString('en-IN')}`,
+    `Per-SKU by day across ${skuCount} products (FBA + FBM merged on base MSKU) → ${facts.length} facts: revenue ₹${Math.round(totalRev).toLocaleString('en-IN')}, fees ₹${Math.round(totalFees).toLocaleString('en-IN')}, ad spend ₹${Math.round(totalSpend).toLocaleString('en-IN')}`,
   ];
   return { facts, warning: warnings.join(' ') || undefined, trace };
 }
