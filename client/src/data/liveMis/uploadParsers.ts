@@ -616,59 +616,77 @@ function parseMetaAds(wb: XLSX.WorkBook): ParseOutput {
  * Net Deductions − TCS − TDS. Returns/reversals carry the opposite sign.
  */
 function parseBlinkit(wb: XLSX.WorkBook): ParseOutput {
-  const sheet = wb.SheetNames.find((n) => /forward|order/i.test(n)) ?? wb.SheetNames[0];
-  const rows = sheetRows(wb, sheet);
-  const hi = findHeader(rows, ['item id', 'order id']);
-  if (hi < 0) {
-    return { facts: [], warning: 'No "Order ID / Item ID" header — is this Blinkit\'s "A&B. Order_level_charges.xlsx"?' };
-  }
-  const header = (rows[hi] ?? []).map(lower);
-  const ix = {
-    type: col(header, 'order type'),
-    date: col(header, 'order date'),
-    item: col(header, 'item id'),
-    name: col(header, 'product name'),
-    status: col(header, 'order status'),
-    qty: col(header, 'quantity'),
-    gross: col(header, 'total gross bill amount'),
-    netDed: col(header, 'net deductions'),
-    tcs: col(header, 'tcs amount'),
-    tds1: col(header, 'tds 194o amount'),
-    tds2: col(header, 'tds 194q amount'),
-  };
-  if (ix.item < 0 || ix.gross < 0) return { facts: [], warning: 'Blinkit: "Item ID" / "Total Gross Bill Amount" column not found.' };
-
+  // Blinkit ships two payout layouts: a compact one ("A&B. Order_level_charges.xlsx"
+  // with a single "Forward & Return Orders" sheet) and an expanded one where
+  // forward and cancelled/returned orders are SEPARATE sheets. Both carry the same
+  // order columns, so we read EVERY sheet that has the order signature (a "Total
+  // Gross Bill Amount" column plus an Item/Order id) and accumulate across them.
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const byKey = new Map<string, DailyFact>();
   let lines = 0;
   let returns = 0;
-  for (const row of rows.slice(hi + 1)) {
-    const item = cell(row[ix.item]);
-    if (!item) continue;
-    const date = isoDate(row[ix.date]);
-    if (!date) continue;
-    const sign = /return|reversal/i.test(ix.type >= 0 ? cell(row[ix.type]) : '') ? -1 : 1;
-    if (sign < 0) returns += 1;
-    const gross = num(row[ix.gross]);
-    const netDed = ix.netDed >= 0 ? num(row[ix.netDed]) : 0;
-    const taxWithheld = (ix.tcs >= 0 ? num(row[ix.tcs]) : 0) + (ix.tds1 >= 0 ? num(row[ix.tds1]) : 0) + (ix.tds2 >= 0 ? num(row[ix.tds2]) : 0);
-    const fees = r2(netDed - taxWithheld); // marketplace cut; TCS/TDS are recoverable, not a cost
-    const qty = ix.qty >= 0 ? num(row[ix.qty]) || 1 : 1;
-    const key = `${date}|${item}`;
-    const e = byKey.get(key);
-    if (e) {
-      e.revenue = r2(e.revenue + sign * gross);
-      e.units = r2(e.units + sign * qty);
-      e.orders += sign;
-      e.fees = r2(e.fees + sign * fees);
-    } else {
-      byKey.set(key, {
-        source: 'blinkit', channel: 'Blinkit', date,
-        sku: item, skuName: cell(row[ix.name]) || item, skuKind: 'sku',
-        revenue: r2(sign * gross), units: r2(sign * qty), orders: sign, fees: r2(sign * fees),
-      });
+  const sheetsUsed: string[] = [];
+
+  for (const sheet of wb.SheetNames) {
+    const rows = sheetRows(wb, sheet);
+    let hi = -1;
+    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+      const cells = (rows[i] ?? []).map(lower);
+      if (cells.some((c) => c === 'total gross bill amount') && cells.some((c) => c === 'item id' || c === 'order id')) { hi = i; break; }
     }
-    lines += 1;
+    if (hi < 0) continue;
+    sheetsUsed.push(sheet);
+    const header = (rows[hi] ?? []).map(lower);
+    const ix = {
+      type: col(header, 'order type'),
+      date: col(header, 'order date'),
+      item: col(header, 'item id'),
+      order: col(header, 'order id'),
+      name: col(header, 'product name'),
+      qty: col(header, 'quantity'),
+      gross: col(header, 'total gross bill amount'),
+      netDed: col(header, 'net deductions'),
+      tcs: col(header, 'tcs amount'),
+      tds1: col(header, 'tds 194o amount'),
+      tds2: col(header, 'tds 194q amount'),
+    };
+    for (const row of rows.slice(hi + 1)) {
+      const id = (ix.item >= 0 ? cell(row[ix.item]) : '') || (ix.order >= 0 ? cell(row[ix.order]) : '');
+      if (!id) continue;
+      const date = isoDate(row[ix.date]);
+      if (!date) continue;
+      const gross = num(row[ix.gross]);
+      const netDed = ix.netDed >= 0 ? num(row[ix.netDed]) : 0;
+      const qty = ix.qty >= 0 ? num(row[ix.qty]) || 1 : 1;
+      // A forward row is positive; a return/cancellation is flagged by its Order
+      // Type OR already carries negative amounts (the expanded cancelled sheet).
+      // sign = −1 only flips a positive magnitude; already-negative values keep
+      // their sign under +1, so both layouts net correctly.
+      const sign = /return|reversal|cancel/i.test(ix.type >= 0 ? cell(row[ix.type]) : '') ? -1 : 1;
+      const taxWithheld = (ix.tcs >= 0 ? num(row[ix.tcs]) : 0) + (ix.tds1 >= 0 ? num(row[ix.tds1]) : 0) + (ix.tds2 >= 0 ? num(row[ix.tds2]) : 0);
+      const fees = r2(netDed - taxWithheld); // marketplace cut; TCS/TDS are recoverable, not a cost
+      if (gross === 0 && fees === 0 && qty === 0) continue;
+      if (sign < 0 || gross < 0) returns += 1;
+      const key = `${date}|${id}`;
+      const e = byKey.get(key);
+      if (e) {
+        e.revenue = r2(e.revenue + sign * gross);
+        e.units = r2(e.units + sign * qty);
+        e.orders += sign;
+        e.fees = r2(e.fees + sign * fees);
+      } else {
+        byKey.set(key, {
+          source: 'blinkit', channel: 'Blinkit', date,
+          sku: id, skuName: (ix.name >= 0 ? cell(row[ix.name]) : '') || id, skuKind: 'sku',
+          revenue: r2(sign * gross), units: r2(sign * qty), orders: sign, fees: r2(sign * fees),
+        });
+      }
+      lines += 1;
+    }
+  }
+
+  if (sheetsUsed.length === 0) {
+    return { facts: [], warning: 'No Blinkit order sheet (needs "Total Gross Bill Amount" + Item/Order ID) — upload the payout ZIP or its "Order_level_charges" / "Forward & Return" sheet.' };
   }
 
   const facts = [...byKey.values()];
@@ -677,8 +695,8 @@ function parseBlinkit(wb: XLSX.WorkBook): ParseOutput {
   const dates = facts.map((f) => f.date).sort();
   const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
   const trace = [
-    `Read sheet "${sheet}" — header at row ${hi + 1}`,
-    `${lines} order lines${returns ? ` (${returns} returns)` : ''} → ${facts.length} day×SKU facts`,
+    `Read sheet(s): ${sheetsUsed.join(', ')}`,
+    `${lines} order lines${returns ? ` (${returns} returns/cancellations)` : ''} → ${facts.length} day×SKU facts`,
     `Blinkit revenue ₹${inr(rev)}, fees ₹${inr(fee)} (commission + shipping + GST; TCS/TDS excluded)${dates.length ? `, ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
   ];
   return { facts, warning: facts.length === 0 ? 'No Blinkit order rows found.' : undefined, trace };
