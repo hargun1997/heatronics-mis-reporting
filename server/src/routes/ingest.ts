@@ -21,6 +21,7 @@ import {
 } from '../ingest/objectStore.js';
 import { ledgerVision } from '../services/ledgerVision.js';
 import { invoiceVision } from '../services/invoiceVision.js';
+import { shopfloHistoryVision } from '../services/shopfloHistoryVision.js';
 
 const router = Router();
 
@@ -85,6 +86,24 @@ router.post('/invoice', h(async (req, res) => {
     res.json(await invoiceVision.extract(pdfBase64));
   } catch (err) {
     res.status(502).json({ error: err instanceof Error ? err.message : 'Invoice read failed.' });
+  }
+}));
+
+// Read a Shopflo "Billing History" screenshot into per-month invoice rows. The
+// client maps each due date to its service month (arrears) and books the amount.
+router.post('/shopflo-history', h(async (req, res) => {
+  const raw = (req.body?.images ?? []) as unknown;
+  const images = Array.isArray(raw)
+    ? raw
+        .map((i) => i as { imageBase64?: unknown; mimeType?: unknown })
+        .filter((i) => typeof i.imageBase64 === 'string' && (i.imageBase64 as string).length > 0)
+        .map((i) => ({ data: i.imageBase64 as string, mimeType: typeof i.mimeType === 'string' ? i.mimeType : 'image/png' }))
+    : [];
+  if (images.length === 0) return res.status(400).json({ error: 'No images provided.' });
+  try {
+    res.json(await shopfloHistoryVision.extract(images));
+  } catch (err) {
+    res.status(502).json({ error: err instanceof Error ? err.message : 'Shopflo history read failed.' });
   }
 }));
 

@@ -528,6 +528,73 @@ interface InvoiceResponse extends Partial<InvoiceSummary> {
  * cost is the taxable amount + GST (matching Easebuzz/Snapmint); TDS withheld is
  * recoverable and excluded. Dated to the billing-cycle end.
  */
+interface ShopfloHistoryRow { invoiceNumber: string | null; dueDate: string | null; amount: number | null; status: string | null; }
+
+/** "2026-10" → "2026-09" (Shopflo bills in arrears: a due date covers the prior month). */
+function prevMonthKey(mk: string): string {
+  let [y, m] = mk.split('-').map(Number);
+  m -= 1; if (m < 1) { m = 12; y -= 1; }
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * Read a Shopflo "Billing History" SCREENSHOT through the server (Claude) into
+ * one D2C platform-cost fact per month. Each invoice's amount includes GST and
+ * is booked as the cost; its due date maps to the prior service month (arrears).
+ * One screenshot covers every month, so this splits across months on commit.
+ */
+export async function runShopfloHistoryChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
+  const base = await stageBaseFor(files, 'image/png');
+  const res = await fetch('/api/ingest/shopflo-history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ images: base.rawFiles.map((f) => ({ imageBase64: f.base64, mimeType: f.mimeType })) }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { rows?: ShopfloHistoryRow[]; warnings?: string[]; error?: string };
+  if (!res.ok) {
+    const extracted: Extracted = { facts: [], rowCount: 0, through: null };
+    return { ...base, periodKey: currentMonth(), extracted, checks: { items: [{ id: 'read', label: 'Read the billing history', status: 'fail', detail: body.error || `Read failed (${res.status}).` }], overall: 'fail' } };
+  }
+
+  const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const rows = Array.isArray(body.rows) ? body.rows : [];
+  // One D2C platform-cost fact per invoice, booked to the prior month (arrears).
+  const byMonth = new Map<string, number>();
+  let skipped = 0;
+  for (const row of rows) {
+    if (row.amount == null || row.amount <= 0 || !row.dueDate || !/^\d{4}-\d{2}-\d{2}$/.test(row.dueDate)) { skipped += 1; continue; }
+    const mo = prevMonthKey(row.dueDate.slice(0, 7));
+    byMonth.set(mo, r2((byMonth.get(mo) ?? 0) + row.amount));
+  }
+  const facts: DailyFact[] = [...byMonth.entries()].map(([mo, fee]) => ({
+    source: 'shopflo', channel: 'D2C', date: `${mo}-01`, revenue: 0, units: 0, orders: 0, fees: fee,
+  }));
+  const months = [...byMonth.keys()].sort();
+  const total = r2(facts.reduce((s, f) => s + f.fees, 0));
+
+  const items: CheckItem[] = [
+    { id: 'read', label: 'Billing history read (Claude)', status: rows.length > 0 ? 'pass' : 'fail', detail: `${rows.length} invoice row(s)` },
+    { id: 'months', label: 'Months booked', status: facts.length > 0 ? 'pass' : 'fail', detail: facts.length > 0 ? `${months.join(', ')} (due date → prior month)` : 'no datable rows' },
+    { id: 'amount', label: 'Platform cost (incl. GST)', status: total > 0 ? 'pass' : 'warn', detail: inr(total) },
+  ];
+  if (skipped > 0) items.push({ id: 'skipped', label: 'Rows skipped', status: 'warn', detail: `${skipped} row(s) had no amount/date` });
+  for (const w of body.warnings ?? []) items.push({ id: `w-${items.length}`, label: 'Model note', status: 'warn', detail: w });
+
+  const dates = facts.map((f) => f.date).sort();
+  const extracted: Extracted = {
+    facts,
+    rowCount: facts.length,
+    through: dates[dates.length - 1] ?? null,
+    trace: [
+      `Read ${rows.length} invoice row(s) from the billing-history screenshot`,
+      `Booked ${facts.length} month(s) to D2C Platform & Payment (amount incl. GST, due date → prior month): ${months.map((m) => `${m} ${inr(byMonth.get(m)!)}`).join(', ')}`,
+      `Total Shopflo checkout cost ${inr(total)}`,
+    ],
+  };
+  return { ...base, periodKey: facts.length ? (months[months.length - 1]) : currentMonth(), extracted, checks: { items, overall: overallOf(items) } };
+}
+
 export async function runInvoiceChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
   const rawBase64 = await fileToBase64(file);
   const base = {
@@ -680,7 +747,13 @@ export async function runBomChecks(slot: ReportSlot, file: File): Promise<Staged
 export async function runChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
   if (slot.kind === 'vision') return runVisionChecks(slot, files);
   if (slot.kind === 'bom') return runBomChecks(slot, files[0]);
-  if (slot.kind === 'invoice') return runInvoiceChecks(slot, files[0]);
+  if (slot.kind === 'invoice') {
+    // A PDF is a single monthly invoice; a screenshot (image) is the billing
+    // history covering every month — read it with the history reader instead.
+    const f = files[0];
+    const isImage = /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif)$/i.test(f.name);
+    return isImage ? runShopfloHistoryChecks(slot, files) : runInvoiceChecks(slot, files[0]);
+  }
   if (slot.kind === 'tally-xlsx') return runTallyXlsxChecks(slot, files);
   return runXlsxChecks(slot, files);
 }

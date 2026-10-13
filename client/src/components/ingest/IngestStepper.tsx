@@ -142,8 +142,8 @@ export function IngestStepper({
   // Multi-file for screenshots, Tally P&L exports, and plain xlsx/csv reports
   // (drop a year of monthly files, or one multi-month file, in one go). BOM and
   // single invoices stay one-file.
-  const multiple = slot.kind === 'vision' || slot.kind === 'tally-xlsx'
-    || (slot.kind !== 'bom' && slot.kind !== 'invoice' && Boolean(slot.parserId));
+  const multiple = slot.kind === 'vision' || slot.kind === 'tally-xlsx' || slot.kind === 'invoice'
+    || (slot.kind !== 'bom' && Boolean(slot.parserId));
   // Drag-and-drop onto the slot — same path as the file picker. Only accept
   // drops when the slot can take an upload (wired, and not mid-check/save).
   const canDrop = wired && (stage === 'idle' || stage === 'failed' || stage === 'ingested');

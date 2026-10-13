@@ -242,12 +242,13 @@ const SLOTS: ReportSlot[] = [
     note: 'D2C payment-gateway cost: service charge + GST + express fees → Platform & Payment (not channel fees). Revenue is counted via Shopify, so only the fee is taken.',
   },
   {
-    connectorId: 'shopflo', slotId: 'invoice', label: 'Checkout invoice (PDF)', required: true,
-    accept: '.pdf', kind: 'invoice',
+    connectorId: 'shopflo', slotId: 'invoice', label: 'Checkout invoice (PDF or billing-history screenshot)', required: true,
+    accept: '.pdf,.png,.jpg,.jpeg,.webp', kind: 'invoice',
     exportSteps: [
-      'Shopflo → Billing → Invoices (link below)',
-      'Open the invoice for the month and download the PDF',
-      'Upload the PDF here — Claude reads the invoice (AI in use)',
+      'Shopflo → Billing → Invoices / Billing History (link below)',
+      'Fastest: screenshot the whole "Billing History" table — Claude reads every month at once (amount incl. GST; each due date books to the prior month)',
+      'Or, per month: open an invoice and upload its PDF',
+      'Upload the screenshot or PDF here (AI in use)',
     ],
     exportUrl: {
       label: 'Open Shopflo Billing → Invoices',
