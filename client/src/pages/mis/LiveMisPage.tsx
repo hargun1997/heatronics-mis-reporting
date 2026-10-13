@@ -103,6 +103,20 @@ export function LiveMisPage() {
     [shownPeriods, periodKey],
   );
   const periodKeys = useMemo(() => new Set(selected?.members ?? []), [selected]);
+  // Amazon traffic (Business Report) for the selected period — aggregated per SKU
+  // across the period's months. Overview-only; never part of the P&L.
+  const trafficRows = useMemo(() => {
+    if (!deck || !selected) return [];
+    const byKey = new Map<string, { sku: string; name: string; sessions: number; pageViews: number; units: number }>();
+    for (const mk of selected.members) {
+      for (const r of deck.traffic[mk] ?? []) {
+        const e = byKey.get(r.sku) ?? { sku: r.sku, name: r.name, sessions: 0, pageViews: 0, units: 0 };
+        e.sessions += r.sessions; e.pageViews += r.pageViews; e.units += r.units;
+        byKey.set(r.sku, e);
+      }
+    }
+    return [...byKey.values()];
+  }, [deck, selected]);
 
   return (
     <>
@@ -189,7 +203,7 @@ export function LiveMisPage() {
           <NoData />
         ) : (
           <SectionCard title={TABS.find((t) => t.id === tab)!.label}>
-            {tab === 'overview' && selected && <OverviewTab period={selected} periods={shownPeriods} />}
+            {tab === 'overview' && selected && <OverviewTab period={selected} periods={shownPeriods} traffic={trafficRows} />}
             {tab === 'pnl' && <PnlTab periods={shownPeriods} showPct={pnlPct} />}
             {tab === 'channels' && selected && <ChannelsTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
             {tab === 'sku' && selected && <SkuTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}

@@ -19,6 +19,9 @@ export interface DailyFact {
   orders: number;
   fees: number;
   spend?: number;
+  /** Traffic sources only (Amazon Business Report) — never fed into the P&L. */
+  sessions?: number;
+  pageViews?: number;
 }
 
 export type Granularity = 'day' | 'week' | 'month';

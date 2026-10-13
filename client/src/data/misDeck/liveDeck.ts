@@ -67,6 +67,15 @@ export interface PeriodCompleteness {
 // so everything through Mar 2026 is locked history and the rebuild owns Apr 2026+.
 export const LIVE_BOUNDARY = '2026-04';
 
+/** One product's Amazon traffic for a month (from the Business Report). */
+export interface TrafficRow {
+  sku: string;
+  name: string;
+  sessions: number;
+  pageViews: number;
+  units: number;
+}
+
 export interface LiveDeckData {
   months: MonthlyMIS[];               // ascending by period
   skuCells: SkuCell[];
@@ -75,6 +84,8 @@ export interface LiveDeckData {
   completeThrough: string | null;
   /** Raw period keys present, ascending. */
   periods: string[];
+  /** Amazon traffic & conversion per month (from the Business Report), for display only. */
+  traffic: Record<string, TrafficRow[]>;
 }
 
 // ---- Store payloads (mirror of server ExtractedReport) ---------------------
@@ -549,7 +560,24 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
     }
   }
 
-  return { months: allMonths, skuCells: allCells, completeness, completeThrough, periods };
+  // Amazon traffic & conversion per month, aggregated per SKU from the Business
+  // Report facts (inert to the P&L — revenue/fees are 0). Display only.
+  const traffic: Record<string, TrafficRow[]> = {};
+  for (const [pk, facts] of factsByMonth) {
+    const byKey = new Map<string, TrafficRow>();
+    for (const f of facts) {
+      if (f.source !== 'amazonbiz') continue;
+      const key = f.sku || f.skuName || '(sku)';
+      const e = byKey.get(key) ?? { sku: key, name: f.skuName || key, sessions: 0, pageViews: 0, units: 0 };
+      e.sessions += f.sessions ?? 0;
+      e.pageViews += f.pageViews ?? 0;
+      e.units += f.units ?? 0;
+      byKey.set(key, e);
+    }
+    if (byKey.size) traffic[pk] = [...byKey.values()].sort((a, b) => b.sessions - a.sessions);
+  }
+
+  return { months: allMonths, skuCells: allCells, completeness, completeThrough, periods, traffic };
 }
 
 /** "2026-03" → "2026-04", rolling the year at December. */

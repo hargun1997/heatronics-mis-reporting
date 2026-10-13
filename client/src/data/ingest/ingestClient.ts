@@ -103,8 +103,11 @@ export function monthBreakdown(staged: StagedUpload, overridePeriod: string): Mo
     });
   }
 
+  // Dateless facts (e.g. the Amazon Business Report, which carries no per-row
+  // date) are stamped to the chosen month so the deck routes them there.
+  const stamped = ex.facts.map((f) => (f.date ? f : { ...f, date: `${overridePeriod}-01` }));
   return [{
-    periodKey: overridePeriod, facts: ex.facts,
+    periodKey: overridePeriod, facts: stamped,
     ledgerRows: ex.ledgerRows, nettProfit: ex.nettProfit,
     rowCount: ex.rowCount, through: ex.through, basis: 'single' as const,
   }];

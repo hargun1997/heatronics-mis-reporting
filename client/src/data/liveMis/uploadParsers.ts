@@ -340,6 +340,70 @@ function parseAmazonSettlement(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: warnings.join(' ') || undefined, trace };
 }
 
+// ---- Amazon Business Report → per-SKU traffic & conversion (no P&L) ---------
+
+/** Normalise a header cell: lowercase, en/em dashes → "-", collapse spaces. */
+const norm = (v: unknown) => cell(v).toLowerCase().replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
+
+/**
+ * Amazon "Detail Page Sales and Traffic By Child Item" (Business Report). A
+ * monthly snapshot per child ASIN: Sessions, Page Views, Units Ordered, Buy Box.
+ * It has no per-row date and its Ordered Product Sales is GROSS of refunds and
+ * fees, so it is NOT money — the settlement owns revenue. We take only the
+ * traffic (sessions / page views) and units, as a conversion aid; revenue/fees
+ * stay 0 so these facts are inert to the cascade. Dated to the chosen month on
+ * commit (the report carries no date).
+ */
+function parseAmazonBusinessReport(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  let hi = -1;
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const cells = (rows[i] ?? []).map(norm);
+    if (cells.some((c) => c.includes('session')) && cells.some((c) => c.includes('units ordered') || c.includes('unit session'))) { hi = i; break; }
+  }
+  if (hi < 0) {
+    return { facts: [], warning: 'No Business Report header (needs Sessions + Units Ordered) — is this "Detail Page Sales and Traffic by Child Item"?' };
+  }
+  const header = (rows[hi] ?? []).map(norm);
+  const find = (pred: (h: string) => boolean) => header.findIndex(pred);
+  const ix = {
+    sku: find((h) => h === 'sku' || h === 'seller sku' || h === 'msku'),
+    asin: find((h) => h.includes('child') && h.includes('asin')),
+    title: find((h) => h === 'title'),
+    sessions: find((h) => h.includes('session') && h.includes('total') && !h.includes('percent')),
+    sessionsAlt: find((h) => h === 'sessions'),
+    pv: find((h) => h.includes('page view') && h.includes('total') && !h.includes('percent')),
+    pvAlt: find((h) => h === 'page views'),
+    units: find((h) => h.includes('units ordered') && !h.includes('b2b')),
+  };
+  const sCol = ix.sessions >= 0 ? ix.sessions : ix.sessionsAlt;
+  const pCol = ix.pv >= 0 ? ix.pv : ix.pvAlt;
+
+  const facts: DailyFact[] = [];
+  let totS = 0, totU = 0;
+  for (const row of rows.slice(hi + 1)) {
+    const sku = cell(row[ix.sku >= 0 ? ix.sku : ix.asin]);
+    if (!sku) continue;
+    const sessions = Math.round(num(sCol >= 0 ? row[sCol] : 0));
+    const pageViews = Math.round(num(pCol >= 0 ? row[pCol] : 0));
+    const units = Math.round(num(ix.units >= 0 ? row[ix.units] : 0));
+    if (sessions === 0 && pageViews === 0 && units === 0) continue;
+    totS += sessions; totU += units;
+    facts.push({
+      source: 'amazonbiz', channel: 'Amazon', date: '',
+      sku, skuName: ix.title >= 0 ? (cell(row[ix.title]) || sku) : sku, skuKind: 'sku',
+      revenue: 0, units, orders: 0, fees: 0, sessions, pageViews,
+    });
+  }
+  const conv = totS > 0 ? (100 * totU / totS).toFixed(1) : '0';
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `${facts.length} products with traffic → ${totS.toLocaleString('en-IN')} sessions, ${totU.toLocaleString('en-IN')} units ordered (conversion ${conv}%)`,
+    'Traffic only — revenue/fees are 0, so this never touches the P&L (the settlement owns the money).',
+  ];
+  return { facts, warning: facts.length === 0 ? 'No rows with sessions/units found.' : undefined, trace };
+}
+
 // ---- Registry --------------------------------------------------------------
 
 interface ParseOutput {
@@ -1189,6 +1253,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     accept: '.csv,.xlsx',
     hint: 'Amazon Ads → Measurement & Reporting → Sponsored Ads Reports → Advertised Product → same month as the settlement. Per-SKU ad spend.',
     parse: parseAmazonAdvertisedProduct,
+  },
+  {
+    sourceId: 'amazonbiz',
+    label: 'Amazon Business Report (traffic by child item)',
+    accept: '.csv,.xlsx,.xls',
+    hint: 'Seller Central → Business Reports → Detail Page Sales & Traffic By Child Item → set the month → download. Per-SKU sessions, page views & units ordered → conversion (not the P&L).',
+    parse: parseAmazonBusinessReport,
   },
   {
     sourceId: 'meta',
