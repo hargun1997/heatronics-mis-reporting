@@ -86,14 +86,33 @@ const SLOTS: ReportSlot[] = [
 
   // ---- Marketing ----
   {
-    connectorId: 'meta', slotId: 'ad-spend', label: 'Ads spend by day', required: true,
+    connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend — day × campaign × product', required: true,
     accept: '.csv,.xlsx', kind: 'xlsx',
-    exportSteps: ['Meta Ads Manager → Reports → breakdown by day → export (needs "Amount spent" + date)'],
+    exportSteps: [
+      'Meta Ads Manager → set the date range to the month you are ingesting',
+      'Columns: include "Amount spent" (INR) and "Campaign name"',
+      'Breakdown → By Day AND By Product, then Export (Reports or the ads table)',
+      'The Product column fills only for the catalog (dynamic product) campaign — that is expected',
+    ],
+    note: 'Meta spend → Sales & Marketing. The catalog campaign breaks down to real per-product spend; the rest (brand/creative/prospecting campaigns carry no product) is allocated across D2C products by revenue share, flagged as modeled.',
   },
   {
-    connectorId: 'googleads', slotId: 'ad-spend', label: 'Campaign spend by day', required: true,
+    connectorId: 'googleads', slotId: 'ad-spend', label: 'Ad spend — day × campaign', required: true,
     accept: '.csv,.xlsx', kind: 'xlsx',
-    exportSteps: ['Google Ads → Reports → Campaign, segmented by day → download'],
+    exportSteps: [
+      'Google Ads → Campaigns → set the date range to the month you are ingesting',
+      'Segment by Day, keep Cost (and Campaign) columns → Download',
+    ],
+    note: 'Google spend → Sales & Marketing. Account/campaign spend by day; per-product comes from the Shopping products report below where Shopping/PMax is run.',
+  },
+  {
+    connectorId: 'googleads', slotId: 'shopping-products', label: 'Shopping products (per-item cost, optional)', required: false,
+    accept: '.csv,.xlsx', kind: 'xlsx',
+    exportSteps: [
+      'Google Ads → Reports → Predefined → Shopping → "Shopping - Products"',
+      'Set the same date range, keep Item ID + Cost → download',
+    ],
+    note: 'Per-product Google spend for Shopping / Performance Max. Search spend has no product and is allocated by revenue share.',
   },
   {
     connectorId: 'amazonads', slotId: 'ad-spend', label: 'Advertised Product report', required: true,
