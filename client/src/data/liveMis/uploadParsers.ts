@@ -612,6 +612,59 @@ function parseBlinkit(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: facts.length === 0 ? 'No Blinkit order rows found.' : undefined, trace };
 }
 
+// ---- Easebuzz settlements → D2C payment-gateway (MDR) cost ------------------
+
+/**
+ * Easebuzz Settlement History export. Each row is one settlement of D2C
+ * collections; the gateway's cut is Service Charge + GST + Express Service
+ * Charge + Express Service Tax. We emit the fee only (revenue is already counted
+ * via Shopify — Easebuzz is just the D2C payment rail, so counting Total Amount
+ * would double-count). Lands on Platform & Payment, by settlement date. The
+ * trailing "Total Settlements" summary row is skipped.
+ */
+function parseEasebuzz(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  const hi = findHeader(rows, ['settlement id', 'settlement date']);
+  if (hi < 0) {
+    return { facts: [], warning: 'No "Settlement Id / Settlement Date" header — is this the Easebuzz Settlement History export?' };
+  }
+  const header = (rows[hi] ?? []).map(lower);
+  const ix = {
+    id: col(header, 'settlement id'),
+    date: col(header, 'settlement date'),
+    svc: col(header, 'service charge'),
+    gst: col(header, 'gst'),
+    exSvc: col(header, 'express service charge'),
+    exTax: col(header, 'express service tax'),
+  };
+  if (ix.svc < 0) return { facts: [], warning: 'Easebuzz: "Service Charge" column not found.' };
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const byDate = new Map<string, DailyFact>();
+  let settlements = 0;
+  for (const row of rows.slice(hi + 1)) {
+    const id = ix.id >= 0 ? cell(row[ix.id]) : '';
+    const date = isoDate(row[ix.date]);
+    if (!id || !date) continue; // skips the blank + "Total Settlements" summary rows
+    const fee = r2(num(row[ix.svc]) + num(row[ix.gst]) + (ix.exSvc >= 0 ? num(row[ix.exSvc]) : 0) + (ix.exTax >= 0 ? num(row[ix.exTax]) : 0));
+    settlements += 1;
+    const e = byDate.get(date);
+    if (e) e.fees = r2(e.fees + fee);
+    else byDate.set(date, { source: 'easebuzz', channel: 'D2C', date, revenue: 0, units: 0, orders: 0, fees: fee });
+  }
+
+  const facts = [...byDate.values()];
+  const total = r2(facts.reduce((s, f) => s + f.fees, 0));
+  const dates = facts.map((f) => f.date).sort();
+  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `${settlements} settlements → ${facts.length} daily facts`,
+    `Easebuzz gateway cost ₹${inr(total)} (service charge + GST + express)${dates.length ? `, ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
+  ];
+  return { facts, warning: facts.length === 0 ? 'No Easebuzz settlement rows found.' : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
   {
     sourceId: 'amazon',
@@ -633,6 +686,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     accept: '.xlsx,.xls',
     hint: 'Blinkit Seller → Billing → Payout Details → Download monthly SoA → open "A&B. Order_level_charges.xlsx" from the ZIP. Per-SKU revenue + commission/shipping fees.',
     parse: parseBlinkit,
+  },
+  {
+    sourceId: 'easebuzz',
+    label: 'Easebuzz settlements',
+    accept: '.csv,.xlsx,.xls',
+    hint: 'Easebuzz dashboard → Settlements → Settlement History → set the month → Download. D2C payment-gateway (MDR) cost → Platform & Payment.',
+    parse: parseEasebuzz,
   },
   {
     sourceId: 'amazonads',

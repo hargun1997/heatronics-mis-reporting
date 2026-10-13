@@ -168,8 +168,16 @@ const SLOTS: ReportSlot[] = [
   // ---- Payments & checkout ----
   {
     connectorId: 'easebuzz', slotId: 'settlement', label: 'Settlement / MDR', required: true,
-    accept: '.xlsx,.xls,.csv', kind: 'xlsx',
-    exportSteps: ['Easebuzz dashboard → Settlements → export'],
+    accept: '.xlsx,.xls,.csv', kind: 'xlsx', parserId: 'easebuzz',
+    exportSteps: [
+      'Easebuzz dashboard → Settlements → Settlement History (link below)',
+      'Set the date range to the month → click Download',
+    ],
+    exportUrl: {
+      label: 'Open Easebuzz Settlements',
+      url: 'https://dashboard.easebuzz.in/payouts/history',
+    },
+    note: 'D2C payment-gateway cost: service charge + GST + express fees → Platform & Payment (not channel fees). Revenue is counted via Shopify, so only the fee is taken.',
   },
   {
     connectorId: 'shopflo', slotId: 'settlement', label: 'Checkout settlement', required: true,
