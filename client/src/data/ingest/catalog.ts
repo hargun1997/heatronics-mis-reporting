@@ -44,6 +44,20 @@ const SLOTS: ReportSlot[] = [
     },
     note: 'Standard cost per finished good — the "Total FG Cost" on each FG-#### row (SFG/RM sub-rows ignored) is the per-unit COGS behind SKU margin. Emailed as an Excel (Summary sheet); upload that file.',
   },
+  {
+    connectorId: 'tranzact', slotId: 'sales', label: 'Sales Invoice Register (GT / B2B)', required: true,
+    accept: '.xlsx,.xls', kind: 'xlsx', parserId: 'tranzact',
+    exportSteps: [
+      'Tranzact → Reports → Sales → "Sales Invoice Register (Item-wise)" (link below)',
+      'Set Invoice Date = the month (Last Month) → Generate Report → download the .xlsx',
+      'Upload it here',
+    ],
+    exportUrl: {
+      label: 'Open Tranzact Reports (Sales)',
+      url: 'https://app.letstranzact.com/v3/reports-and-bi/?section=reports',
+    },
+    note: 'The SKU-level source for GT (General Trade) and B2B (OEM) — the two channels with no platform connector. Channel from the invoice prefix (OEM/ → B2B; GTD/GTR/PHY → GT); Item ID is the FG; value before tax. GT ties to Tally Offline Sales, B2B to Tally OEM Sales.',
+  },
 
   // ---- Marketplaces ----
   {
