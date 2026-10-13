@@ -17,6 +17,7 @@ import connectorRoutes from './routes/connectors.js';
 import ingestRoutes from './routes/ingest.js';
 import chatRoutes from './routes/chat.js';
 import usageRoutes from './routes/usage.js';
+import issuesRoutes from './routes/issues.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,6 +46,7 @@ app.use('/api/connectors', connectorRoutes);
 app.use('/api/ingest', ingestRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/usage', usageRoutes);
+app.use('/api/issues', issuesRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
