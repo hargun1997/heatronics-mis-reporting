@@ -125,6 +125,16 @@ function col(header: string[], name: string): number {
   return header.indexOf(name);
 }
 
+/** Channel a Shiprocket shipment belongs to, from its Channel Order Id suffix. */
+function shiprocketChannel(orderId: string): string {
+  const s = orderId.toUpperCase();
+  if (/D2C|SHOPIFY/.test(s)) return 'D2C';
+  if (/AMAZON|AMZ|FB[AM]/.test(s)) return 'Amazon';
+  if (/BLINK/.test(s)) return 'Blinkit';
+  if (/FLIP/.test(s)) return 'Flipkart';
+  return 'Shiprocket'; // untagged → stays company-level fulfilment
+}
+
 function parseShiprocketPassbook(wb: XLSX.WorkBook): ParseOutput {
   const rows = sheetRows(wb, wb.SheetNames[0]);
   const hi = findHeader(rows, ['amount', 'description']);
@@ -132,41 +142,44 @@ function parseShiprocketPassbook(wb: XLSX.WorkBook): ParseOutput {
     return { facts: [], warning: 'No "Amount / Description" header row found — is this the Shiprocket passbook export?' };
   }
   const header = (rows[hi] ?? []).map(lower);
-  const ix = { date: col(header, 'created at'), amount: col(header, 'amount'), desc: col(header, 'description') };
+  const ix = {
+    date: col(header, 'created at'),
+    oid: col(header, 'channel order id'),
+    amount: col(header, 'amount'),
+    desc: col(header, 'description'),
+  };
 
-  const byDay = new Map<string, number>();
+  const byKey = new Map<string, number>(); // `${date}|${channel}`
   let unparsedDates = 0;
   let dataRows = 0;
   let walletExcluded = 0;
+  let moneyIn = 0;
   for (const row of rows.slice(hi + 1)) {
     const desc = cell(row[ix.desc]);
     if (!desc) continue;
     dataRows += 1;
-    if (SHIPROCKET_WALLET.test(desc)) { walletExcluded += 1; continue; } // wallet transfer in, not a cost
+    if (SHIPROCKET_WALLET.test(desc)) { walletExcluded += 1; continue; } // COD remittance / bank ref — money movement, not a cost
     const amount = num(row[ix.amount]);
+    // Freight charges are negative; anything >= 0 is money in (wallet recharge,
+    // COD remittance, credit) and is not a cost.
+    if (amount >= 0) { moneyIn += 1; continue; }
     const date = toISODate(row[ix.date]);
-    if (!date) {
-      unparsedDates += 1;
-      continue;
-    }
-    // Charges are negative in the passbook; -amount is the positive cost.
-    byDay.set(date, (byDay.get(date) ?? 0) - amount);
+    if (!date) { unparsedDates += 1; continue; }
+    const channel = ix.oid >= 0 ? shiprocketChannel(cell(row[ix.oid])) : 'Shiprocket';
+    const key = `${date}|${channel}`;
+    byKey.set(key, (byKey.get(key) ?? 0) - amount);
   }
 
-  const facts: DailyFact[] = [...byDay.entries()].map(([date, fees]) => ({
-    source: 'shiprocket',
-    channel: 'Shiprocket',
-    date,
-    revenue: 0,
-    units: 0,
-    orders: 0,
-    fees: Math.round(fees * 100) / 100,
-  }));
+  const facts: DailyFact[] = [...byKey.entries()].map(([key, fees]) => {
+    const [date, channel] = key.split('|');
+    return { source: 'shiprocket', channel, date, revenue: 0, units: 0, orders: 0, fees: Math.round(fees * 100) / 100 };
+  });
+  const total = facts.reduce((s, f) => s + f.fees, 0);
   const warning = unparsedDates > 0 ? `${unparsedDates} row(s) had no readable date and were skipped.` : undefined;
   const trace = [
-    `Read sheet "${wb.SheetNames[0]}" — found header at row ${hi + 1} (Created At / Amount / Description)`,
-    `Scanned ${dataRows} charge rows; excluded ${walletExcluded} wallet/COD transfer(s) (money in, not a cost)`,
-    `Summed charges by day → ${facts.length} daily freight facts${unparsedDates ? `; ${unparsedDates} undated row(s) skipped` : ''}`,
+    `Read sheet "${wb.SheetNames[0]}" — found header at row ${hi + 1} (Created At / Channel Order Id / Amount)`,
+    `Scanned ${dataRows} rows; excluded ${walletExcluded} wallet/COD transfer(s) + ${moneyIn} money-in row(s) (recharges / remittances / credits)`,
+    `Freight by day × channel → ${facts.length} facts, total ₹${Math.round(total).toLocaleString('en-IN')}`,
   ];
   return { facts, warning, trace };
 }
