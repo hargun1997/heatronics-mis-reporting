@@ -81,6 +81,7 @@ export function monthBreakdown(staged: StagedUpload, overridePeriod: string): Mo
       }));
   }
 
+  const slices: MonthCommit[] = [];
   const dated = ex.facts.filter((f) => isISODate(f.date));
   if (dated.length > 0) {
     const byMonth = new Map<string, DailyFact[]>();
@@ -96,12 +97,22 @@ export function monthBreakdown(staged: StagedUpload, overridePeriod: string): Mo
       const host = byMonth.has(overridePeriod) ? overridePeriod : months[months.length - 1];
       byMonth.get(host)!.push(...undated);
     }
-    return months.map((pk) => {
+    for (const pk of months) {
       const facts = byMonth.get(pk)!;
       const ds = facts.map((f) => f.date).filter(isISODate).sort();
-      return { periodKey: pk, facts, rowCount: facts.length, through: ds[ds.length - 1] ?? null, basis: 'facts' as const };
-    });
+      slices.push({ periodKey: pk, facts, rowCount: facts.length, through: ds[ds.length - 1] ?? null, basis: 'facts' });
+    }
   }
+
+  // Zero-activity months the report confirmed (e.g. a Flipkart settlement with no
+  // orders) — ingest an empty slice so the month is marked covered.
+  const covered = new Set(slices.map((s) => s.periodKey));
+  for (const m of ex.emptyMonths ?? []) {
+    if (/^\d{4}-\d{2}$/.test(m) && !covered.has(m)) {
+      slices.push({ periodKey: m, facts: [], rowCount: 0, through: null, basis: 'facts' });
+    }
+  }
+  if (slices.length > 0) return slices;
 
   // Dateless facts (e.g. the Amazon Business Report, which carries no per-row
   // date) are stamped to the chosen month so the deck routes them there.
@@ -255,21 +266,26 @@ export async function runXlsxChecks(slot: ReportSlot, files: File[]): Promise<St
     const dates = facts.map((f) => f.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
     const through = dates[dates.length - 1] ?? null;
     const months = new Set(dates.map((d) => d.slice(0, 7)));
+    // Months a file confirmed as zero-activity (parsed cleanly, no rows). These
+    // are still ingested — an empty report marks the month covered.
+    const emptyMonths = [...new Set(recs.filter((r) => r.empty && r.period).map((r) => r.period as string))]
+      .filter((m) => !months.has(m));
 
     items.push({ id: 'read', label: 'File read', status: 'pass', detail: `${rawRows || '?'} source rows${files.length > 1 ? ` across ${files.length} files` : ''}` });
     items.push({ id: 'recognised', label: 'Report recognised', status: 'pass', detail: parser.label });
     items.push({
       id: 'rows',
-      label: 'Rows extracted',
-      status: facts.length > 0 ? 'pass' : 'fail',
-      detail: `${facts.length} daily facts`,
+      label: facts.length > 0 ? 'Rows extracted' : 'No activity',
+      status: facts.length > 0 || emptyMonths.length > 0 ? 'pass' : 'fail',
+      detail: facts.length > 0
+        ? `${facts.length} daily facts`
+        : emptyMonths.length > 0
+          ? `empty month confirmed: ${emptyMonths.join(', ')} — nothing to post, filed as covered`
+          : 'no rows read',
     });
-    items.push({
-      id: 'dates',
-      label: 'Dates parsed',
-      status: through ? 'pass' : 'warn',
-      detail: through ? `through ${through}` : 'no dated rows',
-    });
+    if (facts.length > 0) {
+      items.push({ id: 'dates', label: 'Dates parsed', status: through ? 'pass' : 'warn', detail: through ? `through ${through}` : 'no dated rows' });
+    }
     if (months.size > 1) {
       // Multi-month is now a feature, not a warning: each month is filed separately.
       items.push({ id: 'span', label: 'Months covered', status: 'pass', detail: `${[...months].sort().join(', ')} — each filed to its own month` });
@@ -281,8 +297,12 @@ export async function runXlsxChecks(slot: ReportSlot, files: File[]): Promise<St
       through,
       rawPreview: recs[0]?.rawPreview,
       trace,
+      emptyMonths: emptyMonths.length > 0 ? emptyMonths : undefined,
     };
-    return { ...base, periodKey: derivePeriod(extracted), extracted, checks: { items, overall: overallOf(items) } };
+    // When there are no dated facts, default the month to the latest empty month
+    // the report named (so the header shows it) instead of the current month.
+    const periodKey = facts.length > 0 ? derivePeriod(extracted) : (emptyMonths[emptyMonths.length - 1] ?? derivePeriod(extracted));
+    return { ...base, periodKey, extracted, checks: { items, overall: overallOf(items) } };
   } catch (e) {
     items.push({ id: 'read', label: 'Read the report', status: 'fail', detail: e instanceof Error ? e.message : 'Could not read the file.' });
     const extracted: Extracted = { facts: [], rowCount: 0, through: null };

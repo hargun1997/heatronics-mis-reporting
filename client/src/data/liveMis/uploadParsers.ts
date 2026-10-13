@@ -25,6 +25,10 @@ export interface UploadRecord {
   rawRows?: number;
   /** Human-readable extraction steps. */
   trace?: string[];
+  /** The month (YYYY-MM) the report states it covers, when it does. */
+  period?: string;
+  /** True when the file parsed cleanly but had zero activity (a valid empty month). */
+  empty?: boolean;
 }
 
 export type UploadStore = Record<string, UploadRecord>;
@@ -410,6 +414,10 @@ interface ParseOutput {
   facts: DailyFact[];
   warning?: string;
   trace?: string[];
+  /** The month (YYYY-MM) the report covers, read from the file when it states one. */
+  period?: string;
+  /** The file was understood but had no activity — a valid empty month, not an error. */
+  emptyOk?: boolean;
 }
 
 export interface UploadParser {
@@ -990,7 +998,22 @@ function parseDelhivery(wb: XLSX.WorkBook): ParseOutput {
  * Fully-returned / zero-net rows drop out, so a month with no net sales yields
  * no facts (correct — the Summary's Net Bank Settlement is then 0 too).
  */
+/** Month (YYYY-MM) a Flipkart settlement states it covers, from the Summary's "Payment Duration". */
+function flipkartPeriod(wb: XLSX.WorkBook): string | undefined {
+  const sn = wb.SheetNames.find((n) => /summary/i.test(n));
+  if (!sn) return undefined;
+  for (const r of sheetRows(wb, sn).slice(0, 20)) {
+    if (/payment duration/i.test(cell(r[0]))) {
+      const ms = [...cell(r[1]).matchAll(/(\d{4})-(\d{2})-\d{2}/g)];
+      const last = ms[ms.length - 1];
+      if (last) return `${last[1]}-${last[2]}`;
+    }
+  }
+  return undefined;
+}
+
 function parseFlipkartSettlement(wb: XLSX.WorkBook): ParseOutput {
+  const period = flipkartPeriod(wb);
   const sheet = wb.SheetNames.find((n) => n.trim().toLowerCase() === 'orders');
   if (!sheet) return { facts: [], warning: 'No "Orders" sheet — is this the Flipkart Settled Transactions report?' };
   const rows = sheetRows(wb, sheet);
@@ -1045,9 +1068,11 @@ function parseFlipkartSettlement(wb: XLSX.WorkBook): ParseOutput {
     `Sales ₹${inr(grossSale)} − returns ₹${inr(-grossReturn)} = net revenue ₹${inr(netRevTotal)}; marketplace fees ₹${inr(feeTotal)} (commission/shipping/collection; GST + TCS/TDS excluded, recoverable)`,
     facts.length > 0
       ? `${facts.length} Flipkart fact(s) → Flipkart channel (Net Revenue + Channel & Fulfilment)`
-      : 'No net Flipkart activity this month (all orders returned / zero net) — nothing to post.',
+      : `No net Flipkart activity${period ? ` for ${period}` : ''} (no orders / all returned) — a valid empty month.`,
   ];
-  return { facts, trace };
+  // Header was found, so zero facts here means a genuinely empty month — mark it
+  // ingestable (emptyOk) rather than an error, and carry the report's own month.
+  return { facts, trace, period, emptyOk: facts.length === 0 };
 }
 
 // ---- Flipkart Consolidated FSN ad report → Flipkart per-product ad spend ----
@@ -1287,8 +1312,10 @@ function readWorkbook(buf: ArrayBuffer): XLSX.WorkBook {
 export async function parseUpload(parser: UploadParser, file: File): Promise<UploadRecord> {
   const buf = await file.arrayBuffer();
   const wb = readWorkbook(buf);
-  const { facts, warning, trace } = parser.parse(wb);
-  if (facts.length === 0) {
+  const { facts, warning, trace, period, emptyOk } = parser.parse(wb);
+  // Zero rows is an error only when the file wasn't understood. A parser that
+  // recognised the file but found no activity (emptyOk) is a valid empty month.
+  if (facts.length === 0 && !emptyOk) {
     throw new Error(warning || 'No rows could be read from this file.');
   }
   // Keep a small preview of the raw file for the readiness page.
@@ -1302,5 +1329,7 @@ export async function parseUpload(parser: UploadParser, file: File): Promise<Upl
     rawPreview,
     rawRows: Math.max(0, allRows.length - 1),
     trace: [`Opened ${file.name} (${allRows.length} rows)`, ...(trace ?? [])],
+    period,
+    empty: facts.length === 0,
   };
 }

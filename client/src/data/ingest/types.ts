@@ -86,6 +86,8 @@ export interface Extracted {
   invoice?: InvoiceSummary;
   /** Tally P&L Excel path only — every period in the export, for the month picker. */
   tallyMonths?: TallyMonthExtract[];
+  /** Months the upload confirms are zero-activity (parsed OK, no rows) — still ingested, marking the month covered. */
+  emptyMonths?: string[];
 }
 
 /** The server's record of a committed (saved + ingested) report. */
