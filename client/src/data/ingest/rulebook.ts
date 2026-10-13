@@ -249,7 +249,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Marketing ----------------
   {
-    connectorId: 'meta', label: 'Meta Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 6, mapping: 'partial', pending: 'Confirm 8 second-catalog ids (generic Period/Back Pain -> assumed X Lite / X-L). Re-upload each month.',
+    connectorId: 'meta', label: 'Meta Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 6, mapping: 'done', pending: 'Re-upload each month. All 19 catalog ids cross-verified against Shopify.',
     summary: 'D2C ad spend, split to product — the Sales & Marketing line and the MER denominator.',
     files: [
       {
