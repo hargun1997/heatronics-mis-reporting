@@ -343,6 +343,80 @@ export interface UploadParser {
   parse: (wb: XLSX.WorkBook) => ParseOutput;
 }
 
+// ---- Amazon Advertised Product report → per-SKU ad spend -------------------
+
+const AD_MONTHS: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/** Parse "Oct 12, 2026" → "2026-10-12". Returns '' if unreadable. */
+function adDate(s: string): string {
+  const m = String(s).match(/([A-Za-z]{3})\s+(\d{1,2}),?\s+(\d{4})/);
+  if (!m) return '';
+  const mm = AD_MONTHS[m[1].toLowerCase()];
+  if (!mm) return '';
+  return `${m[3]}-${mm}-${m[2].padStart(2, '0')}`;
+}
+
+/**
+ * The Advertised Product report is a per-campaign summary over a window (its
+ * "Date range" column varies row to row), so we aggregate ad cost per base SKU
+ * and stamp it on the window's end date — enough to land it in the right month.
+ * Sponsored Brands / Display rows carry no SKU and become channel-level spend.
+ */
+function parseAmazonAdvertisedProduct(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  const hi = findHeader(rows, ['advertised product sku', 'total cost']);
+  if (hi < 0) {
+    return { facts: [], warning: 'No "Advertised product SKU / Total cost" header — is this the Amazon Advertised Product report?' };
+  }
+  const header = (rows[hi] ?? []).map(lower);
+  const ix = {
+    range: col(header, 'date range'),
+    sku: col(header, 'advertised product sku'),
+    cost: col(header, 'total cost'),
+  };
+  if (ix.cost < 0) return { facts: [], warning: 'Amazon Ads: "Total cost" column not found.' };
+
+  const bySku = new Map<string, number>();
+  let channelSpend = 0;
+  let dataRows = 0;
+  let lastDate = '';
+  for (const row of rows.slice(hi + 1)) {
+    const cost = num(row[ix.cost]);
+    const skuRaw = ix.sku >= 0 ? cell(row[ix.sku]) : '';
+    if (cost === 0 && !skuRaw) continue;
+    dataRows += 1;
+    // End of the row's window — the latest date seen stamps every fact.
+    const rg = ix.range >= 0 ? cell(row[ix.range]) : '';
+    const end = adDate(rg.split(' - ').pop() ?? rg);
+    if (end && end > lastDate) lastDate = end;
+    if (!skuRaw) { channelSpend += cost; continue; } // Sponsored Brands / Display
+    const { base } = amazonBaseSku(skuRaw);
+    bySku.set(base, (bySku.get(base) ?? 0) + cost);
+  }
+
+  const date = lastDate || new Date().toISOString().slice(0, 10);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const facts: DailyFact[] = [];
+  for (const [base, spend] of bySku) {
+    if (spend === 0) continue;
+    facts.push({ source: 'amazonads', channel: 'Amazon', date, sku: base, skuName: base, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend) });
+  }
+  if (channelSpend !== 0) {
+    facts.push({ source: 'amazonads', channel: 'Amazon', date, revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(channelSpend) });
+  }
+
+  const total = facts.reduce((s, f) => s + (f.spend ?? 0), 0);
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `${dataRows} ad rows → per-SKU spend across ${bySku.size} products (Sponsored Brands/Display ₹${Math.round(channelSpend).toLocaleString('en-IN')} stays channel-level)`,
+    `Total Amazon ad spend ₹${Math.round(total).toLocaleString('en-IN')}, dated ${date}`,
+  ];
+  return { facts, warning: facts.length === 0 ? 'No ad spend rows found.' : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
   {
     sourceId: 'amazon',
@@ -357,6 +431,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     accept: '.xlsx,.xls,.csv',
     hint: 'Shiprocket → Billing → Wallet/Passbook → export. Daily freight & charges (wallet transfers excluded).',
     parse: parseShiprocketPassbook,
+  },
+  {
+    sourceId: 'amazonads',
+    label: 'Amazon Advertised Product report',
+    accept: '.csv,.xlsx',
+    hint: 'Amazon Ads → Measurement & Reporting → Sponsored Ads Reports → Advertised Product → same month as the settlement. Per-SKU ad spend.',
+    parse: parseAmazonAdvertisedProduct,
   },
 ];
 
