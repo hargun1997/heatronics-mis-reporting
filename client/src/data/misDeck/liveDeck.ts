@@ -30,6 +30,7 @@ import {
 import { computeClose } from '../monthClose/compute';
 import { computeSku } from '../monthClose/skuRollup';
 import { lookupSku, type Platform } from '../monthClose/skuMap';
+import { fetchFacts } from '../liveMis/client';
 
 // Factory overhead convention — 10% of revenue added to product COGS to form
 // COGM, matching the deck (analytics.ts FACTORY_PCT) and the committed closes.
@@ -183,7 +184,7 @@ interface BuiltMonth {
   completeness: PeriodCompleteness;
 }
 
-function buildMonth(periodKey: string, reports: ExtractedReport[]): BuiltMonth {
+function buildMonth(periodKey: string, reports: ExtractedReport[], liveFacts: DailyFact[] = []): BuiltMonth {
   const session: MonthCloseSession = emptySession(periodKey, periodLabel(periodKey));
   const sources: UploadedSource[] = [];
   const allFacts: DailyFact[] = [];
@@ -219,6 +220,29 @@ function buildMonth(periodKey: string, reports: ExtractedReport[]): BuiltMonth {
       if (p.nettProfit != null) {
         session.anchor = { nettProfit: { value: p.nettProfit, provenance: prov(rep.connectorId, 'Tally P&L', 'vision', 'read') } };
       }
+    }
+  }
+
+  // Live connector facts (Shopify D2C today) — merged alongside the uploads so
+  // live-API channels reach the deck. One synthetic source per connector feeds
+  // the SKU layer; facts also flow into the facts-only revenue/fees/spend.
+  if (liveFacts.length) {
+    const byConn = new Map<string, DailyFact[]>();
+    for (const f of liveFacts) {
+      allFacts.push(f);
+      if (f.date && (!through || f.date > through)) through = f.date;
+      contributors.add(f.source);
+      const arr = byConn.get(f.source) ?? [];
+      arr.push(f);
+      byConn.set(f.source, arr);
+    }
+    for (const [conn, fs] of byConn) {
+      const skuRows = factsToSkuRows(fs, conn);
+      if (skuRows.length === 0) continue;
+      sources.push({
+        id: `live:${conn}`, label: conn, kind: 'skuPnl', method: 'connector',
+        addedAt: '', nodes: [], skuRows, bomCosts: [], crossChecks: [], warnings: [],
+      });
     }
   }
 
@@ -322,7 +346,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[]): BuiltMonth {
 
 // ---- Assemble --------------------------------------------------------------
 
-export function buildLiveDeck(reports: ExtractedReport[]): LiveDeckData {
+export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[] = []): LiveDeckData {
   const byPeriod = new Map<string, ExtractedReport[]>();
   for (const rep of reports) {
     if (!/^\d{4}-\d{2}$/.test(rep.periodKey)) continue;
@@ -331,7 +355,17 @@ export function buildLiveDeck(reports: ExtractedReport[]): LiveDeckData {
     byPeriod.set(rep.periodKey, arr);
   }
 
-  const periods = [...byPeriod.keys()].sort();
+  // Live connector facts grouped by their own month.
+  const liveByPeriod = new Map<string, DailyFact[]>();
+  for (const f of liveFacts) {
+    if (!f.date || !/^\d{4}-\d{2}/.test(f.date)) continue;
+    const pk = f.date.slice(0, 7);
+    const arr = liveByPeriod.get(pk) ?? [];
+    arr.push(f);
+    liveByPeriod.set(pk, arr);
+  }
+
+  const periods = [...new Set([...byPeriod.keys(), ...liveByPeriod.keys()])].sort();
   const months: MonthlyMIS[] = [];
   const skuCells: SkuCell[] = [];
   const completeness: Record<string, PeriodCompleteness> = {};
@@ -342,7 +376,11 @@ export function buildLiveDeck(reports: ExtractedReport[]): LiveDeckData {
   let floorBroken = false;
 
   for (const periodKey of periods) {
-    const built = buildMonth(periodKey, byPeriod.get(periodKey)!);
+    const reps = byPeriod.get(periodKey) ?? [];
+    // A source with a durable upload this period overrides its live pull.
+    const uploaded = new Set(reps.map((r) => r.connectorId));
+    const live = (liveByPeriod.get(periodKey) ?? []).filter((f) => !uploaded.has(f.source));
+    const built = buildMonth(periodKey, reps, live);
     months.push(built.month);
     skuCells.push(...built.skuCells);
     completeness[periodKey] = built.completeness;
@@ -353,6 +391,23 @@ export function buildLiveDeck(reports: ExtractedReport[]): LiveDeckData {
   return { months, skuCells, completeness, completeThrough, periods };
 }
 
+/** Live connector facts over a window covering the uploaded months (Shopify D2C today). */
+async function fetchLiveFacts(reports: ExtractedReport[]): Promise<DailyFact[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  let from = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
+  const months = reports.map((r) => r.periodKey).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
+  if (months.length) {
+    const earliest = `${months[0]}-01`;
+    if (earliest < from) from = earliest;
+  }
+  const res = await fetchFacts(from, today);
+  return Array.isArray(res.facts) ? res.facts : [];
+}
+
 export async function loadLiveDeck(): Promise<LiveDeckData> {
-  return buildLiveDeck(await fetchExtractedReports());
+  const reports = await fetchExtractedReports();
+  // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck;
+  // never fail the whole load if the live pull is unavailable.
+  const liveFacts = await fetchLiveFacts(reports).catch(() => [] as DailyFact[]);
+  return buildLiveDeck(reports, liveFacts);
 }
