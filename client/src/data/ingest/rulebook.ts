@@ -328,13 +328,13 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'shopflo', label: 'Shopflo', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one checkout settlement export -> parser; add the deep link.',
-    summary: 'Checkout settlement fees — part of Platform & Payment.',
+    connectorId: 'shopflo', label: 'Shopflo', channel: 'D2C', group: 'Payments & checkout', wiring: 'wired', seq: 11, mapping: 'done', pending: 'Re-upload the monthly invoice PDF. Claude reads it (AI in use).',
+    summary: 'D2C checkout invoice (PDF) — part of Platform & Payment.',
     files: [
       {
-        slotId: 'settlement', label: 'Checkout settlement', required: true, cadence: 'Weekly',
-        reads: 'Settled amount and checkout fee per settlement.',
-        destinations: [{ line: 'Platform & Payment (Brand Investment)', dimension: 'D2C', rule: 'Checkout fee → Platform & Payment.' }],
+        slotId: 'invoice', label: 'Checkout invoice (PDF)', required: true, cadence: 'Monthly',
+        reads: 'Claude reads the invoice PDF: taxable amount + GST = the checkout cost; TDS withheld is recoverable and excluded. Dated to the billing cycle.',
+        destinations: [{ line: 'Platform & Payment (Brand Investment)', dimension: 'D2C · blended', rule: 'Checkout fee (taxable + GST) → Platform & Payment. Revenue is counted via Shopify, so only the fee is taken; TDS excluded (recoverable).' }],
       },
     ],
   },

@@ -16,9 +16,11 @@ import type {
   Extracted,
   IngestReportMeta,
   IngestStoreStatus,
+  InvoiceSummary,
   ReportSlot,
   StagedUpload,
 } from './types';
+import type { DailyFact } from '../liveMis/facts';
 
 async function asJson<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
@@ -65,6 +67,7 @@ export async function commitReport(slot: ReportSlot, staged: StagedUpload): Prom
           nettProfit: staged.extracted.nettProfit,
           period: staged.extracted.period,
           bomCosts: staged.extracted.bomCosts,
+          invoice: staged.extracted.invoice,
         },
       }),
     }),
@@ -235,6 +238,87 @@ export async function runVisionChecks(slot: ReportSlot, files: File[]): Promise<
   return { ...base, periodKey: derivePeriod(extracted), extracted, checks: { items, overall: overallOf(items) } };
 }
 
+// ---- Shopflo checkout invoice (PDF → Claude → platform cost) ---------------
+
+interface InvoiceResponse extends Partial<InvoiceSummary> {
+  warnings?: string[];
+  error?: string;
+}
+
+/**
+ * Read a platform/checkout invoice PDF through the server (Claude) into a single
+ * D2C platform-cost fact. The service rule lives here, not in the model: the
+ * cost is the taxable amount + GST (matching Easebuzz/Snapmint); TDS withheld is
+ * recoverable and excluded. Dated to the billing-cycle end.
+ */
+export async function runInvoiceChecks(slot: ReportSlot, file: File): Promise<StagedUpload> {
+  const rawBase64 = await fileToBase64(file);
+  const base = {
+    fileName: file.name,
+    mimeType: file.type || 'application/pdf',
+    rawFiles: [{ base64: rawBase64, name: file.name, mimeType: file.type || 'application/pdf' }],
+  };
+
+  const res = await fetch('/api/ingest/invoice', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pdfBase64: rawBase64 }),
+  });
+  const body = (await res.json().catch(() => ({}))) as InvoiceResponse;
+  if (!res.ok) {
+    const extracted: Extracted = { facts: [], rowCount: 0, through: null };
+    return {
+      ...base, periodKey: currentMonth(), extracted,
+      checks: { items: [{ id: 'invoice', label: 'Read the invoice', status: 'fail', detail: body.error || `Invoice read failed (${res.status}).` }], overall: 'fail' },
+    };
+  }
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+  const invoice: InvoiceSummary = {
+    provider: body.provider ?? null,
+    invoiceNumber: body.invoiceNumber ?? null,
+    periodStart: body.periodStart ?? null,
+    periodEnd: body.periodEnd ?? null,
+    taxableAmount: typeof body.taxableAmount === 'number' ? body.taxableAmount : null,
+    taxAmount: typeof body.taxAmount === 'number' ? body.taxAmount : null,
+    amountWithheld: typeof body.amountWithheld === 'number' ? body.amountWithheld : null,
+    total: typeof body.total === 'number' ? body.total : null,
+  };
+
+  const taxable = invoice.taxableAmount ?? 0;
+  const tax = invoice.taxAmount ?? 0;
+  const fee = r2(taxable + tax); // cost = taxable + GST; TDS withheld excluded (recoverable)
+  const date = invoice.periodEnd ?? invoice.periodStart ?? null;
+
+  const items: CheckItem[] = [
+    { id: 'read', label: 'Invoice read (Claude)', status: invoice.taxableAmount != null ? 'pass' : 'fail', detail: invoice.provider ? `from ${invoice.provider}` : 'provider not detected' },
+    { id: 'amount', label: 'Taxable + GST', status: fee > 0 ? 'pass' : 'fail', detail: `${inr(taxable)} + ${inr(tax)} = ${inr(fee)}` },
+    { id: 'withheld', label: 'TDS withheld (excluded, recoverable)', status: 'pass', detail: invoice.amountWithheld ? inr(invoice.amountWithheld) : 'none' },
+    { id: 'period', label: 'Billing cycle read', status: date ? 'pass' : 'warn', detail: invoice.periodStart && invoice.periodEnd ? `${invoice.periodStart} → ${invoice.periodEnd}` : (date ?? 'not detected — set the period') },
+  ];
+  for (const w of body.warnings ?? []) items.push({ id: `w-${items.length}`, label: 'Model note', status: 'warn', detail: w });
+
+  const facts: DailyFact[] = fee > 0 && date
+    ? [{ source: 'shopflo', channel: 'D2C', date, revenue: 0, units: 0, orders: 0, fees: fee }]
+    : [];
+  if (fee > 0 && !date) {
+    items.push({ id: 'nodate', label: 'No date → no fact', status: 'fail', detail: 'Billing cycle not read; cannot date the cost. Re-upload a clearer PDF.' });
+  }
+
+  const extracted: Extracted = {
+    facts,
+    rowCount: facts.length,
+    through: date,
+    invoice,
+    trace: [
+      invoice.invoiceNumber ? `Invoice ${invoice.invoiceNumber}${invoice.provider ? ` — ${invoice.provider}` : ''}` : 'Shopflo invoice',
+      `Checkout cost ${inr(fee)} (taxable ${inr(taxable)} + GST ${inr(tax)}; TDS ${invoice.amountWithheld ? inr(invoice.amountWithheld) : '₹0'} excluded) → D2C Platform & Payment${date ? `, dated ${date}` : ''}`,
+    ],
+  };
+  return { ...base, periodKey: derivePeriod(extracted), extracted, checks: { items, overall: overallOf(items) } };
+}
+
 // ---- Tranzact BOM pricing (cost master, not daily facts) -------------------
 
 const bcell = (v: unknown) => String(v ?? '').trim();
@@ -319,5 +403,6 @@ export async function runBomChecks(slot: ReportSlot, file: File): Promise<Staged
 export async function runChecks(slot: ReportSlot, files: File[]): Promise<StagedUpload> {
   if (slot.kind === 'vision') return runVisionChecks(slot, files);
   if (slot.kind === 'bom') return runBomChecks(slot, files[0]);
+  if (slot.kind === 'invoice') return runInvoiceChecks(slot, files[0]);
   return runXlsxChecks(slot, files[0]);
 }

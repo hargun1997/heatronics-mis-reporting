@@ -21,10 +21,12 @@ const DEFAULT_MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 
 export type ClaudeEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
-/** One piece of a prompt: either text or an inline image. Order is preserved. */
+/** One piece of a prompt: text, an inline image, or an inline PDF. Order is preserved. */
 export interface ClaudePart {
   text?: string;
   image?: { mimeType: string; data: string };
+  /** Base64 PDF (no data: prefix) sent as a document block — e.g. an invoice. */
+  pdf?: { data: string };
 }
 
 export interface ClaudeCompleteOptions {
@@ -70,6 +72,12 @@ function toContentBlocks(parts: ClaudePart[]): Anthropic.ContentBlockParam[] {
           media_type: part.image.mimeType as Anthropic.Base64ImageSource['media_type'],
           data: part.image.data,
         },
+      });
+    }
+    if (part.pdf) {
+      blocks.push({
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: part.pdf.data },
       });
     }
     if (typeof part.text === 'string' && part.text.length > 0) {

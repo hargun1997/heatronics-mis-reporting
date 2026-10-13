@@ -7,7 +7,19 @@
 import type { DailyFact } from '../liveMis/facts';
 
 /** How a report slot is read into the pipeline. */
-export type SlotKind = 'xlsx' | 'vision' | 'bom';
+export type SlotKind = 'xlsx' | 'vision' | 'bom' | 'invoice';
+
+/** The money summary read from a platform/checkout invoice PDF (Shopflo). */
+export interface InvoiceSummary {
+  provider: string | null;
+  invoiceNumber: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  taxableAmount: number | null;
+  taxAmount: number | null;
+  amountWithheld: number | null;
+  total: number | null;
+}
 
 export interface BomCostRow {
   fgId: string;
@@ -61,6 +73,8 @@ export interface Extracted {
   period?: string | null;
   /** Tranzact BOM path only — standard cost per finished good. */
   bomCosts?: BomCostRow[];
+  /** Invoice-PDF path only (Shopflo) — the money summary read by Claude. */
+  invoice?: InvoiceSummary;
 }
 
 /** The server's record of a committed (saved + ingested) report. */
