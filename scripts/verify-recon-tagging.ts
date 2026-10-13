@@ -22,7 +22,7 @@ import {
   buildChannelRecon,
   tagTallyLines,
 } from '../client/src/data/misDeck/expenseTagging';
-import { aggregatePeriods, FACTORY_PCT } from '../client/src/data/misDeck/liveAnalytics';
+import { aggregatePeriods, slicePnl, FACTORY_PCT, type PeriodAgg, type PnlColumn } from '../client/src/data/misDeck/liveAnalytics';
 import type { DailyFact } from '../client/src/data/liveMis/facts';
 import type { MonthlyMIS, SalesChannel } from '../client/src/data/misDeck/misDeckData';
 import type { SkuCell } from '../client/src/data/misDeck/skuChannelPnl';
@@ -324,6 +324,69 @@ for (const gran of ['quarter', 'year'] as const) {
   check(`${gran}: recon residue Amazon`, a.channelRecon.revenueResidue.Amazon ?? NaN, 15);
   check(`${gran}: recon cogmVariance`, a.channelRecon.cogmVariance, 30);
 }
+
+// ---------------------------------------------------------------------------
+// 5. Bifurcated full P&L (slicePnl): whole-company slices tie to Tally on every
+//    cascade line; CM1/CM2 are channel-specific (bottoms-up); a filtered slice
+//    foots to its own total; below-CM2 is pro-rata by sales.
+// ---------------------------------------------------------------------------
+
+console.log('\nBifurcated full P&L\n');
+
+// Connector SkuCells with real per-cell fees (oth) and ad so CM1/CM2 are exercised.
+const bifurCells: SkuCell[] = [
+  { m: '2026-09', ch: 'D2C', p: 'A', rev: 180000, cogs: 45000, oth: 5000, ad: 30000, con: 0, u: 10 },
+  { m: '2026-09', ch: 'Amazon', p: 'B', rev: 680000, cogs: 190000, oth: 50000, ad: 20000, con: 0, u: 20 },
+  { m: '2026-09', ch: 'B2B', p: 'C', rev: 4000000, cogs: 1200000, oth: 10000, con: 0, u: 300 },
+  { m: '2026-09', ch: 'GT', p: 'D', rev: 500000, cogs: 150000, oth: 0, con: 0, u: 40 },
+  { m: '2026-09', ch: 'Blinkit', p: 'E', rev: -2000, cogs: 0, oth: 0, con: 0, u: -1 },
+];
+
+const sepPeriod: PeriodAgg = {
+  key: '2026-09', label: 'Sep 2026', members: ['2026-09'],
+  netByChannel: c.netByChannel, netRevenue: c.netRevenue, cogm: c.cogm, grossMargin: c.grossMargin,
+  channelFulfillment: c.channelFulfillment, cm1: c.cm1, salesMarketing: c.salesMarketing, cm2: c.cm2,
+  platformCosts: c.platformCosts, cm3: c.cm3, opex: c.opex, ebitda: c.ebitda,
+  nonOperating: c.nonOperating, costOfFundraising: c.costOfFundraising, netIncome: c.netIncome,
+  tallyLines: tagged,
+  channelRecon: buildChannelRecon(c.netByChannel, bifurCells, c.cogm, c.netRevenue, FACTORY_PCT),
+  level: 'full', hasTally: true,
+};
+const bifurPeriodKeys = new Set(['2026-09']);
+
+const PNL_FIELDS: (keyof PnlColumn)[] = ['rev', 'cogm', 'gm', 'fulfilment', 'cm1', 'marketing', 'cm2', 'platform', 'cm3', 'opex', 'ebitda', 'nonOperating', 'netIncome'];
+
+// Whole-company slices (channel / vertical / sku) tie to the Tally cascade.
+for (const by of ['channel', 'vertical', 'sku'] as const) {
+  const s = slicePnl(sepPeriod, bifurCells, bifurPeriodKeys, by);
+  assert(`${by}: whole-company slice is tied to Tally (has recon column)`, s.tied && !!s.recon);
+  for (const f of PNL_FIELDS) {
+    const sum = r2(s.columns.reduce((acc, col) => acc + (col[f] as number), 0) + ((s.recon?.[f] as number) ?? 0));
+    check(`${by}: Σcols+recon ${f}`, sum, s.total[f] as number);
+  }
+  check(`${by}: Total Net Revenue == Tally`, s.total.rev, c.netRevenue);
+  check(`${by}: Total Net Income == Tally`, s.total.netIncome, c.netIncome);
+}
+
+// CM1/CM2 are channel-specific: the Amazon column carries Amazon's own fees/ad.
+const byCh = slicePnl(sepPeriod, bifurCells, bifurPeriodKeys, 'channel');
+const amazonCol = byCh.columns.find((col) => col.key === 'Amazon')!;
+check('Amazon column fulfilment = its own fees', amazonCol.fulfilment, 50000);
+check('Amazon column marketing = its own ad', amazonCol.marketing, 20000);
+check('Amazon CM1 = GM − its fees', amazonCol.cm1, r2(amazonCol.gm - 50000));
+check('Amazon CM2 = CM1 − its ad', amazonCol.cm2, r2(amazonCol.cm1 - 20000));
+// Below CM2 is pro-rata by sales: Amazon's platform share of the company total.
+check('Amazon platform = pro-rata share', amazonCol.platform, r2(c.platformCosts * (amazonCol.rev / c.netRevenue)));
+check('Amazon opex = pro-rata share', amazonCol.opex, r2(c.opex * (amazonCol.rev / c.netRevenue)));
+
+// A filtered slice (one channel → its SKUs) foots to its own total, not Tally.
+const b2bSkus = slicePnl(sepPeriod, bifurCells, bifurPeriodKeys, 'sku', { channel: 'B2B' });
+assert('filtered slice is not tied to Tally (no recon column)', !b2bSkus.tied && b2bSkus.recon === null);
+for (const f of PNL_FIELDS) {
+  const sum = r2(b2bSkus.columns.reduce((acc, col) => acc + (col[f] as number), 0));
+  check(`B2B→SKU: Σcols ${f}`, sum, b2bSkus.total[f] as number);
+}
+check('B2B→SKU total revenue = B2B cell revenue', b2bSkus.total.rev, 4000000);
 
 console.log(failures === 0 ? '\nPASS — recon + tagging reproduced exactly.\n' : `\n${failures} FAILURE(S)\n`);
 process.exit(failures === 0 ? 0 : 1);
