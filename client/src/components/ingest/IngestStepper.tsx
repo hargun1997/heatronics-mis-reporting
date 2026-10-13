@@ -262,15 +262,19 @@ export function IngestStepper({
           </button>
         </div>
 
-        {/* Always-visible drop box — click to browse or drag files onto it. */}
-        {wired && (stage === 'idle' || stage === 'failed') && (
+        {/* Always-visible drop box — click to browse or drag files onto it. Stays
+            available after ingest so replacing / adding a month is one drop away. */}
+        {wired && (stage === 'idle' || stage === 'failed' || stage === 'ingested') && (
           <label
-            className={'flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center cursor-pointer transition-colors ' +
+            className={'flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed text-center cursor-pointer transition-colors ' +
+              (stage === 'ingested' ? 'px-4 py-4 ' : 'px-4 py-6 ') +
               (dragging ? 'border-brand-400 bg-brand-50' : 'border-slate-200 hover:border-brand-300 hover:bg-slate-50')}>
             <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
             </svg>
-            <span className="text-sm font-medium text-slate-700">{dragging ? 'Drop to upload' : uploadLabel}</span>
+            <span className="text-sm font-medium text-slate-700">
+              {dragging ? 'Drop to upload' : stage === 'ingested' ? 'Replace or add another month' : uploadLabel}
+            </span>
             <span className="text-[11px] text-slate-500">Drag {multiple ? 'files' : 'a file'} here or click to browse · {slot.accept}</span>
             <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
           </label>
@@ -354,15 +358,7 @@ export function IngestStepper({
         {stage === 'saving' && <p className="text-xs text-slate-500">Saving to durable storage and ingesting…</p>}
 
         {stage === 'ingested' && (
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-emerald-700">✓ Saved &amp; ingested.</span>
-            {wired && (
-              <label className="text-[11px] text-slate-500 underline cursor-pointer hover:text-slate-700">
-                Re-upload / overwrite
-                <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
-              </label>
-            )}
-          </div>
+          <p className="text-[11px] text-emerald-700">✓ Saved &amp; ingested. Drop a file above to replace this month or add another.</p>
         )}
       </div>
     </div>
