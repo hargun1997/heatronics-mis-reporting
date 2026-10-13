@@ -37,8 +37,10 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'shopify sales': 'rev_d2c',
   'ecommerce sales': 'rev_amazon',
   'amazon sales': 'rev_amazon',
-  'oem sales': 'rev_oem',
-  'offline sales': 'rev_offline',
+  // Offline Sales = General Trade (Dealer/Retailer/Physio); OEM Sales = B2B.
+  // Tranzact's Sales Invoice Register gives the SKU split within each.
+  'oem sales': 'rev_b2b',
+  'offline sales': 'rev_gt',
   'quick commerce sales': 'rev_blinkit',
   'blinkit sales': 'rev_blinkit',
   'export sales': 'rev_export',

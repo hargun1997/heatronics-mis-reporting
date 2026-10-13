@@ -36,4 +36,11 @@ export const fgMaster: Record<string, FgMasterEntry> = {
   "FG-0026": { itemId: "FG-0026", itemName: "Infi-Regular-Analog-Blue", unit: "pcs", defaultPrice: 0 },
   "FG-0027": { itemId: "FG-0027", itemName: "HTR-HP-XL-D (Light Grey)", unit: "pcs", defaultPrice: 0 },
   "FG-0028": { itemId: "FG-0028", itemName: "Dipnish-HP-R-A (Light Grey)", unit: "pcs", defaultPrice: 0 },
+  "FG-0034": { itemId: "FG-0034", itemName: "SESOS-HP-XL-A", unit: "pcs", defaultPrice: 400 },
+  "FG-0088": { itemId: "FG-0088", itemName: "MCP-Regular-Analog-Wine", unit: "pcs", defaultPrice: 310 },
+  "FG-0089": { itemId: "FG-0089", itemName: "MCP-Regular-Analog-Dark grey", unit: "pcs", defaultPrice: 310 },
+  "FG-0098": { itemId: "FG-0098", itemName: "H.P.U-A-19X10-MODI MEDITEX", unit: "pcs", defaultPrice: 400 },
+  "FG-0100": { itemId: "FG-0100", itemName: "Coccyx Cushion", unit: "pcs", defaultPrice: 600 },
+  "FG-0101": { itemId: "FG-0101", itemName: "Cervical Pillow", unit: "pcs", defaultPrice: 600 },
+  "FG-0102": { itemId: "FG-0102", itemName: "FG-Secure-HP-PVC-A", unit: "pcs", defaultPrice: 270 },
 };

@@ -167,8 +167,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'tranzact', label: 'Tranzact (ERP / BOM)', group: 'Book of record', wiring: 'wired', seq: 1, mapping: 'done', pending: 'Add the deep link to the Tranzact BOM export.',
-    summary: 'Standard cost per finished good — the per-unit COGS that turns SKU revenue into margin.',
+    connectorId: 'tranzact', label: 'Tranzact (ERP / BOM / GT·B2B sales)', group: 'Book of record', wiring: 'wired', seq: 1, mapping: 'done', pending: 'Re-upload the BOM when costs change and the Sales Invoice Register each month.',
+    summary: 'Standard cost per finished good, and the SKU-level sales for the two connector-less channels (GT, B2B).',
     files: [
       {
         slotId: 'bom', label: 'BOM pricing export', required: true, cadence: 'When costs change',
@@ -177,6 +177,14 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
           { line: 'COGM', dimension: 'Per SKU → all channels', rule: 'Cost/unit × units sold, + 10% factory overhead, summed to COGM on every SKU and channel that sells that FG.' },
         ],
         exclusions: 'Non-FG rows and accessories (COGS forced to 0).',
+      },
+      {
+        slotId: 'sales', label: 'Sales Invoice Register (Item-wise)', required: true, cadence: 'Monthly',
+        reads: 'Per invoice line: channel from the invoice prefix (OEM/ → B2B; GTD/GTR/PHY → GT), Item ID → FG, Invoice Quantity → units, Item Value before tax → revenue.',
+        destinations: [
+          { line: 'Net Revenue', dimension: 'GT / B2B · per SKU', rule: 'The SKU split for GT and B2B — the two channels with no platform connector. GT ties to Tally Offline Sales, B2B to Tally OEM Sales (Tally is the channel total; this gives the per-SKU bifurcation).' },
+        ],
+        exclusions: 'Freight / non-FG invoice lines.',
       },
     ],
   },

@@ -114,8 +114,10 @@ export const CLOSE_GROUPS: CloseGroup[] = [
     lines: [
       { key: 'rev_d2c', label: 'D2C / Shopify', bucket: 'revenue', channel: 'D2C', source: 'Tally → Sales Accounts → D2C Sales' },
       { key: 'rev_amazon', label: 'Amazon / Ecommerce', bucket: 'revenue', channel: 'Amazon', source: 'Tally → Sales Accounts → Ecommerce Sales' },
-      { key: 'rev_oem', label: 'OEM', bucket: 'revenue', channel: 'OEM', source: 'Tally → Sales Accounts → OEM Sales' },
-      { key: 'rev_offline', label: 'Offline', bucket: 'revenue', channel: 'Offline', source: 'Tally → Sales Accounts → Offline Sales' },
+      { key: 'rev_b2b', label: 'B2B (OEM)', bucket: 'revenue', channel: 'B2B', source: 'Tally → Sales Accounts → OEM Sales', hint: 'OEM / private-label; SKU split from Tranzact OEM/ invoices' },
+      { key: 'rev_gt', label: 'GT (General Trade)', bucket: 'revenue', channel: 'GT', source: 'Tally → Sales Accounts → Offline Sales', hint: 'Dealer + Retailer + Physio; SKU split from Tranzact GTD/GTR/PHY invoices' },
+      { key: 'rev_oem', label: 'OEM (legacy)', bucket: 'revenue', channel: 'OEM', source: 'Tally → Sales Accounts → OEM Sales (legacy label)' },
+      { key: 'rev_offline', label: 'Offline (legacy)', bucket: 'revenue', channel: 'Offline', source: 'Tally → Sales Accounts → Offline Sales (legacy label)' },
       { key: 'rev_blinkit', label: 'Blinkit / Quick Commerce', bucket: 'revenue', channel: 'Blinkit', source: 'Tally → Sales Accounts → Quick Commerce Sales', hint: 'Can be net negative when credit notes exceed sales' },
       { key: 'rev_export', label: 'Export', bucket: 'revenue', channel: 'Export', source: 'Tally → Sales Accounts → Export Sales' },
       { key: 'rev_str', label: 'Stock transfers (internal)', bucket: 'contra', source: 'Tally → Sales Accounts → Stock Transfers', hint: 'Contra — stripped from both sales and purchases' },
@@ -226,7 +228,7 @@ export interface SkuRow {
 }
 
 /** Kept structural rather than importing from skuMap, which imports data files. */
-export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'flipkart' | 'offline' | 'oem';
+export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'flipkart' | 'gt' | 'b2b' | 'offline' | 'oem';
 
 /**
  * Which generation of Tranzact finished good a platform SKU means.

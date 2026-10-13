@@ -117,6 +117,9 @@ const PLATFORM_BY_CONNECTOR: Record<string, SkuPlatform> = {
   blinkit: 'blinkit',
   shiprocket: 'shiprocket',
   flipkart: 'flipkart',
+  // Tranzact Sales Invoice Register — split by invoice prefix into GT / B2B.
+  tranzactgt: 'gt',
+  tranzactb2b: 'b2b',
 };
 
 /** Platform facts → SkuRow[] (one per platform+sku), for the SKU/cost layer. */
@@ -162,6 +165,7 @@ const CHANNEL_ALIASES: Record<string, SalesChannel> = {
   amazon: 'Amazon',
   blinkit: 'Blinkit',
   flipkart: 'Flipkart',
+  gt: 'GT', b2b: 'B2B',
   oem: 'OEM', offline: 'Offline', export: 'Export',
 };
 // Channels outside the deck's fixed set return null and are not carried in the

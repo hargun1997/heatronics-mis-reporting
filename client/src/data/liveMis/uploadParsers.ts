@@ -1039,7 +1039,80 @@ function parseFlipkartAds(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: facts.length === 0 ? 'No Flipkart ad rows with spend.' : undefined, trace };
 }
 
+// ---- Tranzact Sales Invoice Register (item-wise) → GT / B2B channel×SKU ----
+
+/** Invoice prefix → channel + fact source. OEM = B2B; GTD/GTR/PHY roll up to GT. */
+function tranzactChannel(invoice: string): { channel: string; source: string } | null {
+  const p = (invoice.split('/')[0] || '').trim().toUpperCase();
+  if (p === 'OEM') return { channel: 'B2B', source: 'tranzactb2b' };
+  if (p === 'GTD' || p === 'GTR' || p === 'PHY' || p === 'GT') return { channel: 'GT', source: 'tranzactgt' };
+  return null;
+}
+
+/**
+ * Tranzact "Sales Invoice Register (Item-wise)". GT (General Trade — Dealer,
+ * Retailer, Physio) and B2B (OEM) have no platform connector, so this register
+ * is their SKU-level source. The invoice-number prefix carries the channel
+ * (OEM/ → B2B; GTD/GTR/PHY → GT); the Item ID is the FG code directly; the
+ * value is taken before tax. The channel totals reconcile to Tally's Offline
+ * (GT) and OEM (B2B) Sales ledgers.
+ */
+function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
+  const rows = sheetRows(wb, wb.SheetNames[0]);
+  const hi = findHeader(rows, ['invoice number', 'item id', 'invoice quantity']);
+  if (hi < 0) return { facts: [], warning: 'No "Invoice Number / Item ID / Invoice Quantity" header — is this the Tranzact Sales Invoice Register (Item-wise)?' };
+  const header = (rows[hi] ?? []).map(lower);
+  const ix = {
+    inv: col(header, 'invoice number'),
+    date: col(header, 'document date'),
+    item: col(header, 'item id'),
+    desc: col(header, 'item description'),
+    qty: col(header, 'invoice quantity'),
+    val: header.findIndex((h) => h.startsWith('item value - before tax')),
+  };
+  if (ix.inv < 0 || ix.item < 0 || ix.val < 0) return { facts: [], warning: 'Tranzact: Invoice Number / Item ID / Item Value column not found.' };
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const byKey = new Map<string, DailyFact>(); // `${source}|${date}|${fg}`
+  const byCh = new Map<string, number>();
+  let skippedNoFg = 0, skippedCh = 0;
+  for (const row of rows.slice(hi + 1)) {
+    const inv = cell(row[ix.inv]);
+    if (!inv || /report ends/i.test(inv)) continue;
+    const ch = tranzactChannel(inv);
+    if (!ch) { skippedCh += 1; continue; }
+    const item = cell(row[ix.item]).toUpperCase();
+    if (!item || !/^FG-\d+/.test(item)) { skippedNoFg += 1; continue; } // freight / non-FG lines
+    const val = num(row[ix.val]);
+    const qty = num(row[ix.qty]);
+    const rawDate = ix.date >= 0 ? cell(row[ix.date]) : '';
+    const date = /^\d{4}-\d{2}-\d{2}/.test(rawDate) ? rawDate.slice(0, 10) : toISODate(row[ix.date]);
+    if (!date) continue;
+    const key = `${ch.source}|${date}|${item}`;
+    const e = byKey.get(key);
+    if (e) { e.revenue = r2(e.revenue + val); e.units += qty; }
+    else byKey.set(key, { source: ch.source, channel: ch.channel, date, sku: item, skuName: cell(row[ix.desc]), skuKind: 'sku', revenue: r2(val), units: qty, orders: 0, fees: 0 });
+    byCh.set(ch.channel, r2((byCh.get(ch.channel) ?? 0) + val));
+  }
+
+  const facts = [...byKey.values()];
+  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const trace = [
+    `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
+    `${facts.length} channel×SKU facts: ${[...byCh.entries()].map(([c, v]) => `${c} ₹${inr(v)}`).join(', ')}`,
+    `GT → Tally Offline Sales; B2B → Tally OEM Sales${skippedNoFg ? `; skipped ${skippedNoFg} non-FG line(s) (freight)` : ''}${skippedCh ? `; ${skippedCh} row(s) with unrecognised invoice prefix` : ''}`,
+  ];
+  return { facts, warning: facts.length === 0 ? 'No GT/B2B invoice rows found.' : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
+  {
+    sourceId: 'tranzact',
+    label: 'Tranzact Sales Invoice Register (Item-wise)',
+    accept: '.xlsx,.xls',
+    hint: 'Tranzact → Reports → Sales → Sales Invoice Register (Item-wise) → last month. GT (Offline) + B2B (OEM) channel×SKU revenue + units; channel from the invoice prefix.',
+    parse: parseTranzactSales,
+  },
   {
     sourceId: 'flipkart',
     label: 'Flipkart Settled Transactions',

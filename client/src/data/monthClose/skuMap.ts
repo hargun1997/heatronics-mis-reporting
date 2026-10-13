@@ -45,7 +45,7 @@ import { fgMaster } from '../fgMaster';
 import { skuToFgMapping } from '../skuToFgMapping';
 import type { CostBasis } from './schema';
 
-export type Platform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'meta' | 'flipkart' | 'offline' | 'oem';
+export type Platform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'meta' | 'flipkart' | 'gt' | 'b2b' | 'offline' | 'oem';
 
 export const PLATFORMS: Platform[] = ['amazon', 'shopify', 'blinkit', 'shiprocket', 'offline', 'oem'];
 
