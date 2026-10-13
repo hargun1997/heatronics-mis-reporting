@@ -22,12 +22,15 @@ function serialiseMonths(list: MonthlyMIS[]) {
     cm2: r(m.cm2), platformCosts: r(m.platformCosts), cm3: r(m.cm3), opex: r(m.opex),
     ebitda: r(m.ebitda), nonOperating: r(m.nonOperating), netIncome: r(m.netIncome),
     netByChannel: Object.fromEntries(Object.entries(m.netByChannel).map(([k, v]) => [k, r(v as number)])),
+    ...(m.marketingByPlatform && Object.keys(m.marketingByPlatform).length
+      ? { marketingByPlatform: Object.fromEntries(Object.entries(m.marketingByPlatform).map(([k, v]) => [k, r(v)])) }
+      : {}),
     ...(m.restated ? { note: m.restated } : {}),
   }));
 }
 
 const SCHEMA_LINE =
-  'Each month: netRevenue, cogm (cost of goods manufactured), grossMargin, channelFulfillment, cm1, salesMarketing, cm2, platformCosts, cm3, opex, ebitda, nonOperating, netIncome, and netByChannel (net revenue split by channel). "note" marks a restated month.';
+  'Each month: netRevenue, cogm (cost of goods manufactured), grossMargin, channelFulfillment, cm1, salesMarketing, cm2, platformCosts, cm3, opex, ebitda, nonOperating, netIncome, netByChannel (net revenue split by channel), and marketingByPlatform (salesMarketing split by ad platform — Google / Meta / Amazon / Flipkart / Other — when available). "note" marks a restated month.';
 
 export function buildMisContext(): MisContext {
   const months = serialiseMonths([...MONTHLY_MIS]);
