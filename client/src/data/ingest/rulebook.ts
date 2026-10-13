@@ -287,13 +287,13 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Logistics ----------------
   {
-    connectorId: 'shiprocket', label: 'Shiprocket', group: 'Logistics', wiring: 'wired', seq: 5, mapping: 'done', pending: 'Add the deep link to the Shiprocket passbook export.',
-    summary: 'Outbound freight across channels — part of Channel & Fulfilment.',
+    connectorId: 'shiprocket', label: 'Shiprocket', channel: 'D2C', group: 'Logistics', wiring: 'wired', seq: 5, mapping: 'done', pending: 'Re-upload the monthly passbook export.',
+    summary: 'D2C outbound freight — part of Channel & Fulfilment.',
     files: [
       {
         slotId: 'passbook', label: 'Wallet passbook', required: true, cadence: 'Weekly',
-        reads: 'Dated freight/shipping charges (debit rows only), tagged to a channel from the channel-order-id suffix (…-D2C / -Amazon / -Blinkit / -Flipkart).',
-        destinations: [{ line: 'Channel & Fulfilment', dimension: 'Per channel → per SKU', rule: 'Freight out → fulfilment on its own channel; within a channel, allocated across that channel\'s SKUs by units. Untagged freight stays channel-level.' }],
+        reads: 'Dated freight/shipping charges (debit rows only). Heatronics ships only D2C via Shiprocket, so untagged rows are D2C; a channel-order-id suffix (…-Amazon / -Blinkit / -Flipkart) reassigns the rare exception.',
+        destinations: [{ line: 'Channel & Fulfilment', dimension: 'D2C · per SKU', rule: 'Freight out → D2C fulfilment, allocated across D2C SKUs by units.' }],
         exclusions: 'Wallet top-ups / recharges and COD remittances (credits — money in, not a cost).',
       },
     ],
@@ -334,13 +334,13 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'snapmint', label: 'Snapmint', group: 'Payments & checkout', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one settlement export -> parser + subvention mapping; add the deep link.',
-    summary: 'BNPL subvention / fees — part of Platform & Payment.',
+    connectorId: 'snapmint', label: 'Snapmint', channel: 'D2C', group: 'Payments & checkout', wiring: 'wired', seq: 9, mapping: 'done', pending: 'Re-upload the monthly group settlement report.',
+    summary: 'D2C BNPL (EMI) subvention / fees — part of Platform & Payment.',
     files: [
       {
         slotId: 'settlement', label: 'Settlement / subvention', required: true, cadence: 'Weekly',
-        reads: 'Disbursed amount and subvention / fee per settlement.',
-        destinations: [{ line: 'Platform & Payment (Brand Investment)', dimension: 'D2C', rule: 'Subvention + fee → Platform & Payment.' }],
+        reads: 'Per settled EMI order: subvention + merchant closing fee + P&S charges + cashback take-rate + GST, by settlement date. Cancellations carry no fee.',
+        destinations: [{ line: 'Platform & Payment (Brand Investment)', dimension: 'D2C · blended', rule: 'Subvention + fees → Platform & Payment as a finance cost (not a discount off revenue). Revenue is counted via Shopify, so only the cost is taken; TCS/TDS excluded.' }],
       },
     ],
   },
