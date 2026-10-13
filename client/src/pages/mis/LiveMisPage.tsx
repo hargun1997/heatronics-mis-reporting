@@ -44,6 +44,15 @@ const DECK_GRAINS: { id: DeckGran; label: string }[] = [
   { id: 'month', label: 'Monthly' }, { id: 'quarter', label: 'Quarterly' }, { id: 'year', label: 'Yearly' },
 ];
 
+// Heatronics runs an Apr–Mar fiscal year, so a month's FY starts in the April on
+// or before it: Apr 2025 → Mar 2026 is "FY25–26".
+const isMonthKey = (k: string) => /^\d{4}-\d{2}$/.test(k);
+const fyStartOf = (monthKey: string): number => {
+  const [y, m] = monthKey.split('-').map(Number);
+  return m >= 4 ? y : y - 1;
+};
+const fyLabel = (startY: number): string => `FY${String(startY).slice(2)}–${String((startY + 1) % 100).padStart(2, '0')}`;
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="text-xs text-slate-500">
@@ -63,6 +72,7 @@ export function LiveMisPage() {
   const [gran, setGran] = useState<DeckGran>('month');
   const [periodKey, setPeriodKey] = useState<string>('');
   const [pnlPct, setPnlPct] = useState(false);
+  const [fy, setFy] = useState<string>('all');
 
   const loadDeck = useCallback(async () => {
     setDeckLoading(true); setDeckError(null);
@@ -76,9 +86,21 @@ export function LiveMisPage() {
     () => (deck ? aggregatePeriods(deck.months, deck.completeness, gran) : []),
     [deck, gran],
   );
+  // Fiscal years present in the data, newest first — drives the Year filter.
+  const fys = useMemo(() => {
+    const ys = new Set<number>();
+    for (const p of deck?.periods ?? []) if (isMonthKey(p)) ys.add(fyStartOf(p));
+    return [...ys].sort((a, b) => b - a);
+  }, [deck]);
+  // The periods actually shown — scoped to one fiscal year unless "All".
+  const shownPeriods = useMemo(() => {
+    if (fy === 'all') return periods;
+    const start = Number(fy);
+    return periods.filter((p) => (p.members ?? [p.key]).some((mk) => isMonthKey(mk) && fyStartOf(mk) === start));
+  }, [periods, fy]);
   const selected = useMemo(
-    () => periods.find((p) => p.key === periodKey) ?? periods[periods.length - 1],
-    [periods, periodKey],
+    () => shownPeriods.find((p) => p.key === periodKey) ?? shownPeriods[shownPeriods.length - 1],
+    [shownPeriods, periodKey],
   );
   const periodKeys = useMemo(() => new Set(selected?.members ?? []), [selected]);
 
@@ -131,11 +153,20 @@ export function LiveMisPage() {
               <SegmentedControl size="sm" aria-label="Granularity" options={DECK_GRAINS}
                 value={gran} onChange={(v) => { setGran(v); setPeriodKey(''); }} />
             </Field>
+            {fys.length > 1 && (
+              <Field label="Year">
+                <select value={fy} onChange={(e) => { setFy(e.target.value); setPeriodKey(''); }}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
+                  <option value="all">All years</option>
+                  {fys.map((y) => <option key={y} value={y}>{fyLabel(y)}</option>)}
+                </select>
+              </Field>
+            )}
             {tab !== 'pnl' && (
               <Field label="Period">
                 <select value={selected?.key ?? ''} onChange={(e) => setPeriodKey(e.target.value)}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
-                  {[...periods].reverse().map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+                  {[...shownPeriods].reverse().map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
                 </select>
               </Field>
             )}
@@ -154,12 +185,12 @@ export function LiveMisPage() {
           <RunRateTab />
         ) : !deck ? (
           <p className="text-sm text-slate-400 py-8 text-center">{deckLoading ? 'Loading the MIS…' : 'No data yet.'}</p>
-        ) : periods.length === 0 ? (
+        ) : shownPeriods.length === 0 ? (
           <NoData />
         ) : (
           <SectionCard title={TABS.find((t) => t.id === tab)!.label}>
-            {tab === 'overview' && selected && <OverviewTab period={selected} periods={periods} />}
-            {tab === 'pnl' && <PnlTab periods={periods} showPct={pnlPct} />}
+            {tab === 'overview' && selected && <OverviewTab period={selected} periods={shownPeriods} />}
+            {tab === 'pnl' && <PnlTab periods={shownPeriods} showPct={pnlPct} />}
             {tab === 'channels' && selected && <ChannelsTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
             {tab === 'sku' && selected && <SkuTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
             {tab === 'skuchannel' && selected && <SkuChannelTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
