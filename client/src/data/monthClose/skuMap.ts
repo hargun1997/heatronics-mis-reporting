@@ -274,6 +274,7 @@ export const SEED_SKU_MAP: SkuEntry[] = [
     confirmed: true,
   })),
   { platform: 'amazon', key: 'BP-E09Z-J064', fgId: 'FG-0016', confirmed: false, basis: 'Amazon "hCore Heated Back Support for Office Chair" — which HBR variant is unknown' },
+  { platform: 'amazon', key: 'ML-VB5I-UWTJ', fgId: 'FG-0006', confirmed: true, basis: 'Amazon "hCore Knee Heating Pad" — second listing of the digital knee; ASP ₹1,620 matches VW-H1GL-KTOZ (FG-0006)' },
   ...SHOPIFY_SKUS,
   ...SHOPIFY_TITLES,
   ...BLINKIT_SKUS,
