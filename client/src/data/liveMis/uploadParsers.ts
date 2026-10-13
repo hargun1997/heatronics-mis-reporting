@@ -851,6 +851,68 @@ function parseGoogleAdsProducts(wb: XLSX.WorkBook): ParseOutput {
   return { facts, warning: facts.length === 0 ? 'No Google Shopping product rows with spend.' : undefined, trace };
 }
 
+// ---- Delhivery wallet report → warranty/returns freight (D2C) --------------
+
+/**
+ * Delhivery One wallet export ("Unified transactions"). Delhivery is the
+ * returns/replacement (warranty) courier for D2C — the shipments are RET-/REP-
+ * orders — so its net freight is a D2C Channel & Fulfilment cost.
+ *
+ * The workbook carries a "Deductions" sheet (freight debits) and a "Refunds"
+ * sheet (cancellation + weight-reconciliation credits); the "AWB Deductions" /
+ * "AWB Refunds" sheets are per-AWB duplicates of the same totals, and
+ * "Recharges" are wallet top-ups (money in, not a cost). Net cost = deductions −
+ * refunds, by day. The money column is "Miles" (Delhivery's name for the wallet
+ * ₹ value).
+ */
+function parseDelhivery(wb: XLSX.WorkBook): ParseOutput {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const findSheet = (exact: string) => wb.SheetNames.find((n) => n.trim().toLowerCase() === exact);
+  const dedSheet = findSheet('deductions');
+  const refSheet = findSheet('refunds');
+  if (!dedSheet) {
+    return { facts: [], warning: 'No "Deductions" sheet — is this the Delhivery wallet (Unified transactions) export?' };
+  }
+
+  const byDate = new Map<string, number>();
+  let debits = 0, credits = 0, debitSum = 0, creditSum = 0, unparsed = 0;
+  const scan = (sheetName: string, sign: 1 | -1) => {
+    const rows = sheetRows(wb, sheetName);
+    const hi = findHeader(rows, ['miles', 'date & time']);
+    if (hi < 0) return;
+    const header = (rows[hi] ?? []).map(lower);
+    const amtCol = col(header, 'miles');
+    const dateCol = col(header, 'date & time');
+    if (amtCol < 0 || dateCol < 0) return;
+    for (const row of rows.slice(hi + 1)) {
+      const amt = num(row[amtCol]);
+      if (amt <= 0) continue;
+      const raw = cell(row[dateCol]);
+      const date = /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : toISODate(row[dateCol]);
+      if (!date) { unparsed += 1; continue; }
+      if (sign > 0) { debits += 1; debitSum += amt; } else { credits += 1; creditSum += amt; }
+      byDate.set(date, r2((byDate.get(date) ?? 0) + sign * amt));
+    }
+  };
+  scan(dedSheet, 1);
+  if (refSheet) scan(refSheet, -1);
+
+  // D2C returns/replacement freight (warranty-related). Net per day — a day whose
+  // refunds exceed its debits nets negative, which is correct; the monthly sum is
+  // the true cost.
+  const facts: DailyFact[] = [...byDate.entries()].map(([date, fees]) => ({
+    source: 'delhivery', channel: 'D2C', date, revenue: 0, units: 0, orders: 0, fees: r2(fees),
+  }));
+  const net = r2(debitSum - creditSum);
+  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const trace = [
+    `Read "${dedSheet}"${refSheet ? ` + "${refSheet}"` : ''} (AWB-duplicate + Recharges sheets ignored)`,
+    `${debits} deduction(s) ₹${inr(debitSum)} − ${credits} refund(s) ₹${inr(creditSum)} = net ₹${inr(net)}`,
+    `Net warranty/returns freight by day → ${facts.length} D2C facts → Channel & Fulfilment (CM1)`,
+  ];
+  return { facts, warning: unparsed > 0 ? `${unparsed} row(s) had no readable date and were skipped.` : undefined, trace };
+}
+
 export const UPLOAD_PARSERS: UploadParser[] = [
   {
     sourceId: 'amazon',
@@ -865,6 +927,13 @@ export const UPLOAD_PARSERS: UploadParser[] = [
     accept: '.xlsx,.xls,.csv',
     hint: 'Shiprocket → Billing → Wallet/Passbook → export. Daily freight & charges (wallet transfers excluded).',
     parse: parseShiprocketPassbook,
+  },
+  {
+    sourceId: 'delhivery',
+    label: 'Delhivery wallet report',
+    accept: '.xlsx,.xls',
+    hint: 'Delhivery One → Finances → Unified transactions → Download wallet report. Net warranty/returns freight (deductions − refunds; AWB-duplicate + recharge sheets ignored) → D2C Channel & Fulfilment.',
+    parse: parseDelhivery,
   },
   {
     sourceId: 'blinkit',
