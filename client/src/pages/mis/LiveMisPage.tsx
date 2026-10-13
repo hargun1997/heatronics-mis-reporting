@@ -21,6 +21,7 @@ import { computeFreshness } from '../../data/liveMis/freshness';
 import { listConnectors, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
 import { FreshnessHeadline, FreshnessTable } from '../../components/mis/FreshnessTable';
 import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
+import { exportLiveMis } from '../../utils/liveMisExport';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran } from '../../data/misDeck/liveAnalytics';
 import { OverviewTab, PnlTab, ChannelsTab, SkuTab, SkuChannelTab, LevelBadge } from '../../components/liveMis/deckTabs';
 
@@ -94,10 +95,16 @@ export function LiveMisPage() {
           { label: 'Live MIS' },
         ]}
         actions={
-          <button onClick={() => void loadDeck()} disabled={deckLoading}
-            className="px-2.5 py-1 rounded-lg bg-brand-600 text-white text-[11px] hover:bg-brand-700 disabled:opacity-40">
-            {deckLoading ? 'Loading…' : 'Refresh'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => deck && exportLiveMis(deck)} disabled={!deck || deckLoading}
+              className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
+              Export Excel
+            </button>
+            <button onClick={() => void loadDeck()} disabled={deckLoading}
+              className="px-2.5 py-1 rounded-lg bg-brand-600 text-white text-[11px] hover:bg-brand-700 disabled:opacity-40">
+              {deckLoading ? 'Loading…' : 'Refresh'}
+            </button>
+          </div>
         }
       />
 
@@ -151,7 +158,7 @@ export function LiveMisPage() {
           <NoData />
         ) : (
           <SectionCard title={TABS.find((t) => t.id === tab)!.label}>
-            {tab === 'overview' && selected && <OverviewTab period={selected} />}
+            {tab === 'overview' && selected && <OverviewTab period={selected} periods={periods} />}
             {tab === 'pnl' && <PnlTab periods={periods} showPct={pnlPct} />}
             {tab === 'channels' && selected && <ChannelsTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
             {tab === 'sku' && selected && <SkuTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
