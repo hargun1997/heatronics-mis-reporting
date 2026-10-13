@@ -225,7 +225,7 @@ export interface SkuRow {
 }
 
 /** Kept structural rather than importing from skuMap, which imports data files. */
-export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'offline' | 'oem';
+export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'flipkart' | 'offline' | 'oem';
 
 /**
  * Which generation of Tranzact finished good a platform SKU means.

@@ -74,9 +74,32 @@ const SLOTS: ReportSlot[] = [
     note: 'Sessions / units by SKU. Gross of refunds, no fees — use for conversion, not the P&L.',
   },
   {
-    connectorId: 'flipkart', slotId: 'settlement', label: 'Settlement / commission', required: true,
-    accept: '.xlsx,.xls,.csv', kind: 'xlsx',
-    exportSteps: ['Flipkart Seller Hub → Reports Center → Settlement report → download'],
+    connectorId: 'flipkart', slotId: 'settlement', label: 'Settled Transactions', required: true,
+    accept: '.xlsx,.xls', kind: 'xlsx', parserId: 'flipkart',
+    exportSteps: [
+      'Flipkart Seller Hub → Reports → Reports Center → Payment Reports (link below)',
+      'Pick "Settled Transactions" → Request Report → set the date range to the month',
+      'When ready (Requested tab / emailed), download the .xlsx and upload here',
+    ],
+    exportUrl: {
+      label: 'Open Flipkart Reports Center (Payment Reports)',
+      url: 'https://seller.flipkart.com/index.html#dashboard/metrics/report-centre',
+    },
+    note: 'Flipkart is its own channel (like Amazon). The "Orders" sheet gives net revenue (Sale Amount − returns) + marketplace fees (commission/shipping/collection) per Seller SKU → Flipkart Net Revenue + Channel & Fulfilment. GST on fees + TCS/TDS are recoverable, excluded. Fully-returned months post nothing.',
+  },
+  {
+    connectorId: 'flipkartads', slotId: 'ad-spend', label: 'Consolidated FSN ad report', required: true,
+    accept: '.csv,.xlsx,.xls', kind: 'xlsx', parserId: 'flipkartads',
+    exportSteps: [
+      'Flipkart Seller Hub → Ads → Other Reports (link below)',
+      'Report Type = "Consolidated FSN Report", set the month (range up to 1 month)',
+      'Download for Ad Product = PLA — and PCA too if you run PCA ads — then upload here',
+    ],
+    exportUrl: {
+      label: 'Open Flipkart Ads — Other Reports',
+      url: 'https://seller.flipkart.com/index.html#dashboard/ads/reports/others',
+    },
+    note: 'Per-product (Sku Id) Flipkart ad spend → Flipkart Sales & Marketing. Sku Ids map to finished goods via the Flipkart SKU map (same ids as the settlement Seller SKU).',
   },
   {
     connectorId: 'blinkit', slotId: 'order-charges', label: 'Payout — order-level charges', required: true,

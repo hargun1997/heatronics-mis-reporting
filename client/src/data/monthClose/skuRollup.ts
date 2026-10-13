@@ -25,6 +25,7 @@ const CHANNEL_BY_PLATFORM: Record<SkuPlatform, SalesChannel> = {
   amazon: 'Amazon',
   shopify: 'D2C',
   blinkit: 'Blinkit',
+  flipkart: 'Flipkart',
   // Shiprocket carries no SKU at all — its freight is a channel cost that
   // cannot be pushed down to products, so it never produces rows here.
   shiprocket: 'D2C',

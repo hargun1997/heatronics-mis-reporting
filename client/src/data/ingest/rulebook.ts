@@ -204,16 +204,27 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'flipkart', label: 'Flipkart Seller', channel: 'Flipkart', group: 'Marketplace', wiring: 'needs-sample', mapping: 'todo', pending: 'Need one settlement export -> build parser + SKU map; add the deep link.',
-    summary: 'Flipkart channel revenue and commission — once a settlement export is provided.',
+    connectorId: 'flipkart', label: 'Flipkart Seller', channel: 'Flipkart', group: 'Marketplace', wiring: 'wired', seq: 13, mapping: 'done', pending: 'Re-upload the monthly Settled Transactions report. Flipkart is its own channel (like Amazon).',
+    summary: 'Flipkart channel — net revenue and marketplace fees from Settled Transactions.',
     files: [
       {
-        slotId: 'settlement', label: 'Settlement / commission', required: true, cadence: 'Weekly',
-        reads: 'Per order/SKU: settled value, commission, collection/shipping fees. (Parser built on your first export.)',
+        slotId: 'settlement', label: 'Settled Transactions', required: true, cadence: 'Monthly',
+        reads: 'The "Orders" sheet, per Seller SKU: net revenue = Sale Amount − returns; marketplace fee = commission + fixed + collection + shipping (shown as a negative deduction). A fully-returned month nets to zero.',
         destinations: [
-          { line: 'Net Revenue', dimension: 'Flipkart · per SKU', rule: 'Settled sale value → Flipkart net revenue.' },
-          { line: 'Channel & Fulfilment', dimension: 'Flipkart', rule: 'Commission + collection + shipping fees → channel fees.' },
+          { line: 'Net Revenue', dimension: 'Flipkart · per SKU', rule: 'Net settled sale value (sale − returns) → Flipkart net revenue.' },
+          { line: 'Channel & Fulfilment', dimension: 'Flipkart · per SKU', rule: 'Marketplace fee (commission + fixed + collection + shipping) → Flipkart channel fees. GST on fees + TCS/TDS excluded (recoverable).' },
         ],
+      },
+    ],
+  },
+  {
+    connectorId: 'flipkartads', label: 'Flipkart Ads (PLA/PCA)', channel: 'Flipkart', group: 'Marketing', wiring: 'wired', seq: 14, mapping: 'done', pending: 'Re-upload the monthly Consolidated FSN report (PLA, and PCA if run).',
+    summary: 'Flipkart per-product ad spend — part of Sales & Marketing.',
+    files: [
+      {
+        slotId: 'ad-spend', label: 'Consolidated FSN report', required: true, cadence: 'Monthly',
+        reads: 'Per Sku Id: Ad Spend. Sku Ids are the same text keys as the settlement Seller SKU, so they map to finished goods via the Flipkart SKU map.',
+        destinations: [{ line: 'Sales & Marketing', dimension: 'Flipkart · per product', rule: 'Each Sku Id → FG → measured per-product ad on its Flipkart SKU; counted once in the Flipkart S&M total (the settlement carries no lumped ad).' }],
       },
     ],
   },

@@ -45,7 +45,7 @@ import { fgMaster } from '../fgMaster';
 import { skuToFgMapping } from '../skuToFgMapping';
 import type { CostBasis } from './schema';
 
-export type Platform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'meta' | 'offline' | 'oem';
+export type Platform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'meta' | 'flipkart' | 'offline' | 'oem';
 
 export const PLATFORMS: Platform[] = ['amazon', 'shopify', 'blinkit', 'shiprocket', 'offline', 'oem'];
 
@@ -298,6 +298,25 @@ const BLINKIT_SKUS: SkuEntry[] = [
 ];
 
 /**
+ * Flipkart Seller SKU / Ad "Sku Id" → FG. The same text ids appear on both the
+ * Settled Transactions report (Seller SKU) and the Consolidated FSN ad report
+ * (Sku Id), so one map serves both. All ten are the live hCore catalog; the
+ * "Lite" suffix is the lower-cost twin, "XL" is the large (X-L) frame.
+ */
+const FLIPKART_SKUS: SkuEntry[] = [
+  { platform: 'flipkart', key: 'hCore_X_Heating_Belt_', fgId: 'FG-0003', confirmed: true, basis: 'Flipkart "hCore X Electric Heating Belt" → hCore X' },
+  { platform: 'flipkart', key: 'hcore_X_Heating_Belt_Lite', fgId: 'FG-0004', confirmed: true, basis: 'Flipkart "hCore X Lite Electric Heating Pad" → hCore X Lite' },
+  { platform: 'flipkart', key: 'hcore_XL_Heating_Belt', fgId: 'FG-0002', confirmed: true, basis: 'Flipkart "hCore XL Large Electric Heating Pad" → hCore X-L' },
+  { platform: 'flipkart', key: 'hcore_XL_Lite_Heating_Belt', fgId: 'FG-0001', confirmed: true, basis: 'Flipkart "hCore XL Lite Large Electric Heating Pad" → hCore X-L Lite' },
+  { platform: 'flipkart', key: 'hcore_Knee', fgId: 'FG-0006', confirmed: true, basis: 'Flipkart "Knee Heating Pad" → hCore Knee' },
+  { platform: 'flipkart', key: 'hCore_Neck', fgId: 'FG-0008', confirmed: true, basis: 'Flipkart "Neck Heating Pad" → hCore Neck' },
+  { platform: 'flipkart', key: 'hcore_Foot_Warmer', fgId: 'FG-0010', confirmed: true, basis: 'Flipkart "Heated Foot Warmer" → hCore Foot' },
+  { platform: 'flipkart', key: 'hcore Bed Warmer Solo', fgId: 'FG-0012', confirmed: true, basis: 'Flipkart "Single Bed Warmer" → hCore Bed Solo' },
+  { platform: 'flipkart', key: 'hcore_Bed_Warmer_Dual', fgId: 'FG-0014', confirmed: true, basis: 'Flipkart "hCore Bed Warmer Dual" → hCore Bed Dual' },
+  { platform: 'flipkart', key: 'hcore_Rest', fgId: 'FG-0016', confirmed: true, basis: 'Flipkart "hCore Heated Back Rest" → hCore Rest' },
+];
+
+/**
  * Platform key → FG.
  *
  * Amazon is seeded from skuToFgMapping.ts, which the Amazon→Tranzact stock tool
@@ -318,6 +337,7 @@ export const SEED_SKU_MAP: SkuEntry[] = [
   ...SHOPIFY_TITLES,
   ...META_PRODUCTS,
   ...BLINKIT_SKUS,
+  ...FLIPKART_SKUS,
 ];
 
 /** Platform keys vary in case and separators between exports; identity does not. */
