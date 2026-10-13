@@ -14,6 +14,7 @@ import { MisChatPage } from './pages/mis/MisChatPage';
 import { AiInsightsPage } from './pages/mis/AiInsightsPage';
 import { IssuesPage } from './pages/mis/IssuesPage';
 import { OwnershipPage } from './pages/mis/OwnershipPage';
+import { SendReportPage } from './pages/mis/SendReportPage';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
@@ -68,6 +69,7 @@ function App() {
           <Route path="reporting/mis/chat" element={<MisChatPage />} />
           <Route path="reporting/mis/issues" element={<IssuesPage />} />
           <Route path="reporting/mis/ownership" element={<OwnershipPage />} />
+          <Route path="reporting/mis/send" element={<SendReportPage />} />
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
