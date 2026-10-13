@@ -445,10 +445,52 @@ function adDate(s: string): string {
 }
 
 /**
- * The Advertised Product report is a per-campaign summary over a window (its
- * "Date range" column varies row to row), so we aggregate ad cost per base SKU
- * and stamp it on the window's end date — enough to land it in the right month.
- * Sponsored Brands / Display rows carry no SKU and become channel-level spend.
+ * Resolve the Advertised Product report's "Month" cell → "YYYY-MM". The export
+ * can give a bare month NUMBER (4 = April) with no year, a month name, a
+ * "YYYY-MM" string, or a full date. For a bare number/name with no year we pick
+ * the year with a trailing-12-months rule: a month at or before the current
+ * month is this year, a later month is last year (so in Oct-2026, 4–9 → 2026,
+ * 11–12 → 2025). Returns '' when the cell is not a month.
+ */
+function adMonthYear(v: unknown, now: Date): string {
+  const s = cell(v);
+  if (!s) return '';
+  // Already "YYYY-MM" or a full ISO date.
+  const ym = s.match(/^(\d{4})-(\d{2})(?:-\d{2})?/);
+  if (ym) return `${ym[1]}-${ym[2]}`;
+  const resolveYear = (mm: number): number => {
+    const curMonth = now.getUTCMonth() + 1;
+    const curYear = now.getUTCFullYear();
+    return mm <= curMonth ? curYear : curYear - 1;
+  };
+  // A bare month number ("4", "04", or "4.0" from a numeric cell).
+  const numMatch = s.match(/^(\d{1,2})(?:\.0+)?$/);
+  if (numMatch) {
+    const mm = Number(numMatch[1]);
+    if (mm >= 1 && mm <= 12) return `${resolveYear(mm)}-${String(mm).padStart(2, '0')}`;
+    return '';
+  }
+  // A month name ("Apr", "April"), optionally with a year ("Apr 2026").
+  const nameMatch = s.toLowerCase().match(/([a-z]{3,})\.?\s*(\d{4})?/);
+  if (nameMatch) {
+    const mm = AD_MONTHS[nameMatch[1].slice(0, 3)];
+    if (mm) {
+      const year = nameMatch[2] ? Number(nameMatch[2]) : resolveYear(Number(mm));
+      return `${year}-${mm}`;
+    }
+  }
+  // Fall back to any parseable date string ("Oct 12, 2026").
+  const iso = adDate(s) || isoDate(v);
+  return iso ? iso.slice(0, 7) : '';
+}
+
+/**
+ * The Advertised Product report is a per-campaign summary. It now arrives with a
+ * "Month" column so one file can carry several months at once — we group ad cost
+ * per base SKU WITHIN each month and date each month's facts to its first day,
+ * so the deck files every month to itself. Sponsored Brands / Display rows carry
+ * no SKU and become channel-level spend for their month. When there is no "Month"
+ * column (the old single-window export) we fall back to the window's end date.
  */
 function parseAmazonAdvertisedProduct(wb: XLSX.WorkBook): ParseOutput {
   const rows = sheetRows(wb, wb.SheetNames[0]);
@@ -458,46 +500,61 @@ function parseAmazonAdvertisedProduct(wb: XLSX.WorkBook): ParseOutput {
   }
   const header = (rows[hi] ?? []).map(lower);
   const ix = {
+    month: col(header, 'month'),
     range: col(header, 'date range'),
     sku: col(header, 'advertised product sku'),
     cost: col(header, 'total cost'),
   };
   if (ix.cost < 0) return { facts: [], warning: 'Amazon Ads: "Total cost" column not found.' };
 
-  const bySku = new Map<string, number>();
-  let channelSpend = 0;
+  const now = new Date();
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  // Group per month → per base SKU, with channel-level spend (no SKU) per month.
+  const perMonth = new Map<string, { bySku: Map<string, number>; channel: number }>();
   let dataRows = 0;
   let lastDate = '';
   for (const row of rows.slice(hi + 1)) {
     const cost = num(row[ix.cost]);
     const skuRaw = ix.sku >= 0 ? cell(row[ix.sku]) : '';
     if (cost === 0 && !skuRaw) continue;
-    dataRows += 1;
-    // End of the row's window — the latest date seen stamps every fact.
+    // Month for this row: the "Month" column if present, else the window end.
+    let mo = ix.month >= 0 ? adMonthYear(row[ix.month], now) : '';
     const rg = ix.range >= 0 ? cell(row[ix.range]) : '';
     const end = adDate(rg.split(' - ').pop() ?? rg);
     if (end && end > lastDate) lastDate = end;
-    if (!skuRaw) { channelSpend += cost; continue; } // Sponsored Brands / Display
+    if (!mo) mo = end ? end.slice(0, 7) : '';
+    if (!mo) continue;
+    dataRows += 1;
+    const pm = perMonth.get(mo) ?? { bySku: new Map(), channel: 0 };
+    perMonth.set(mo, pm);
+    if (!skuRaw) { pm.channel += cost; continue; } // Sponsored Brands / Display
     const { base } = amazonBaseSku(skuRaw);
-    bySku.set(base, (bySku.get(base) ?? 0) + cost);
+    pm.bySku.set(base, (pm.bySku.get(base) ?? 0) + cost);
   }
 
-  const date = lastDate || new Date().toISOString().slice(0, 10);
-  const r2 = (n: number) => Math.round(n * 100) / 100;
   const facts: DailyFact[] = [];
-  for (const [base, spend] of bySku) {
-    if (spend === 0) continue;
-    facts.push({ source: 'amazonads', channel: 'Amazon', date, sku: base, skuName: base, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend) });
-  }
-  if (channelSpend !== 0) {
-    facts.push({ source: 'amazonads', channel: 'Amazon', date, revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(channelSpend) });
+  let skuCount = 0;
+  let channelSpendTotal = 0;
+  for (const [mo, pm] of perMonth) {
+    const date = `${mo}-01`;
+    for (const [base, spend] of pm.bySku) {
+      if (spend === 0) continue;
+      skuCount += 1;
+      facts.push({ source: 'amazonads', channel: 'Amazon', date, sku: base, skuName: base, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend) });
+    }
+    if (pm.channel !== 0) {
+      channelSpendTotal += pm.channel;
+      facts.push({ source: 'amazonads', channel: 'Amazon', date, revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(pm.channel) });
+    }
   }
 
   const total = facts.reduce((s, f) => s + (f.spend ?? 0), 0);
+  const months = [...perMonth.keys()].sort();
+  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
   const trace = [
     `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
-    `${dataRows} ad rows → per-SKU spend across ${bySku.size} products (Sponsored Brands/Display ₹${Math.round(channelSpend).toLocaleString('en-IN')} stays channel-level)`,
-    `Total Amazon ad spend ₹${Math.round(total).toLocaleString('en-IN')}, dated ${date}`,
+    `${dataRows} ad rows across ${months.length} month(s) (${months.join(', ') || '—'}) → ${skuCount} per-SKU facts (Sponsored Brands/Display ₹${inr(channelSpendTotal)} stays channel-level)`,
+    `Total Amazon ad spend ₹${inr(total)}`,
   ];
   return { facts, warning: facts.length === 0 ? 'No ad spend rows found.' : undefined, trace };
 }
