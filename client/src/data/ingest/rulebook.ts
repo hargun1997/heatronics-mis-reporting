@@ -305,12 +305,12 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
   },
   {
     connectorId: 'delhivery', label: 'Delhivery', channel: 'D2C', group: 'Logistics', wiring: 'wired', seq: 12, mapping: 'done', pending: 'Re-upload the monthly wallet report.',
-    summary: 'D2C warranty/returns freight — part of Channel & Fulfilment.',
+    summary: 'D2C warranty/returns freight — an after-sales cost below CM2 (Platform & Payment).',
     files: [
       {
         slotId: 'wallet', label: 'Wallet report', required: true, cadence: 'Monthly',
         reads: 'Delhivery is the returns/replacement (warranty) courier for D2C (RET-/REP- shipments). Net freight = Deductions − Refunds by day (the money column is "Miles").',
-        destinations: [{ line: 'Channel & Fulfilment', dimension: 'D2C · per SKU', rule: 'Warranty/returns freight → D2C fulfilment, allocated across D2C SKUs by units (same bucket as Shiprocket outbound freight).' }],
+        destinations: [{ line: 'Platform & Payment (Brand Investment)', dimension: 'D2C · blended', rule: 'Warranty/returns freight is an after-sales cost → Platform & Payment (below CM2), not the Channel & Fulfilment of the original sale. Blended at the month level (not smeared onto forward-sale SKUs).' }],
         exclusions: 'The "AWB Deductions"/"AWB Refunds" sheets (per-AWB duplicates of the same totals) and "Recharges" (wallet top-ups — money in, not a cost).',
       },
     ],
