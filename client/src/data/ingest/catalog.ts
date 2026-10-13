@@ -11,15 +11,15 @@ import type { ReportSlot } from './types';
 const SLOTS: ReportSlot[] = [
   // ---- Book of record ----
   {
-    connectorId: 'tally', slotId: 'pnl', label: 'Profit & Loss A/c', required: true,
-    accept: '.png,.jpg,.jpeg,.webp', kind: 'vision',
+    connectorId: 'tally', slotId: 'pnl', label: 'Profit & Loss A/c (Excel)', required: true,
+    accept: '.xlsx,.xls', kind: 'tally-xlsx',
     exportSteps: [
       'Tally Prime → Gateway of Tally → Profit & Loss A/c',
-      'Set the period (F2) to the month you are ingesting',
-      'Press F12 → show all ledgers / method = Detailed (expand every level)',
-      'Screenshot the full screen. If it scrolls, take one screenshot per screen.',
+      'F12 → Format of Report = Detailed (expands groups into ledgers)',
+      'E: Export → File Format = Excel (Spreadsheet). Auto Column = Monthly gives every month in one file.',
+      'Export, then upload the .xlsx here — pick the month to ingest with the Period selector.',
     ],
-    note: 'Claude reads every ledger and its hierarchy from the screenshot and reconciles to the Nett Profit.',
+    note: 'Read exactly from the Excel (no OCR). Every ledger maps into the cascade and the close reconciles to the Nett Profit. A multi-month export carries each month; set the Period to choose which one to ingest.',
   },
   {
     connectorId: 'tally', slotId: 'trial-balance', label: 'Trial Balance (optional)', required: false,

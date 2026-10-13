@@ -128,6 +128,7 @@ const OPEX_LABELS: Record<string, string> = {
   op_welfare: 'Staff Welfare',
   op_bank: 'Bank Charges',
   op_finadj: 'Financial Adjustments (net)',
+  op_other: 'Other Operating Expenses',
   op_other_income: 'Other Income (Indirect Incomes)',
 };
 

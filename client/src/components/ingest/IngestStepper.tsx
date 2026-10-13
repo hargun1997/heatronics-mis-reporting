@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { inr } from '../mis-deck/charts';
 import { Modal } from '../ui/overlays';
-import { commitReport, runChecks } from '../../data/ingest/ingestClient';
+import { commitReport, restageTallyMonth, runChecks } from '../../data/ingest/ingestClient';
 import type { IngestReportMeta, ReportSlot, StagedUpload } from '../../data/ingest/types';
 
 const iconSteps = (
@@ -109,7 +109,7 @@ export function IngestStepper({
   const [committed, setCommitted] = useState<IngestReportMeta | null>(existing ?? null);
   const [howOpen, setHowOpen] = useState(false);
 
-  const wired = slot.kind === 'vision' || slot.kind === 'bom' || slot.kind === 'invoice' || Boolean(slot.parserId);
+  const wired = slot.kind === 'vision' || slot.kind === 'bom' || slot.kind === 'invoice' || slot.kind === 'tally-xlsx' || Boolean(slot.parserId);
   // These connectors are read by Claude on the server (Tally screenshots, Shopflo
   // invoices), so we surface an "AI is working" indicator while it runs.
   const usesAI = slot.kind === 'vision' || slot.kind === 'invoice';
@@ -129,7 +129,17 @@ export function IngestStepper({
     }
   };
   const multiple = slot.kind === 'vision';
-  const uploadLabel = committed ? 'Replace' : multiple ? 'Upload screenshot(s)' : slot.kind === 'invoice' ? 'Upload PDF' : 'Upload file';
+  const uploadLabel = committed ? 'Replace' : multiple ? 'Upload screenshot(s)' : slot.kind === 'invoice' ? 'Upload PDF' : slot.kind === 'tally-xlsx' ? 'Upload P&L Excel' : 'Upload file';
+
+  // Tally P&L Excel can carry several months; changing the period re-stages the
+  // chosen month (ledgers, Nett Profit, reconciliation) without re-reading.
+  const onPeriod = (v: string) => {
+    setPeriod(v);
+    if (slot.kind === 'tally-xlsx' && staged?.extracted.tallyMonths?.some((m) => m.period === v)) {
+      setStaged(restageTallyMonth(staged, v));
+    }
+  };
+  const tallyMonths = staged?.extracted.tallyMonths;
 
   const save = async () => {
     if (!staged) return;
@@ -237,8 +247,13 @@ export function IngestStepper({
             <div className="flex flex-wrap items-center gap-3">
               <label className="text-[11px] text-slate-500">
                 <span className="block mb-0.5">Period (month this report belongs to)</span>
-                <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)}
+                <input type="month" value={period} onChange={(e) => onPeriod(e.target.value)}
                   className="px-2.5 py-1 rounded-lg border border-slate-200 text-sm" />
+                {tallyMonths && tallyMonths.length > 1 && (
+                  <span className="block mt-1 text-[10px] text-slate-400">
+                    This export has {tallyMonths.length} months — set the period to pick which to ingest: {tallyMonths.map((m) => m.periodLabel).join(', ')}
+                  </span>
+                )}
               </label>
             </div>
             {hasWarn && (
