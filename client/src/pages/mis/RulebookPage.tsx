@@ -7,6 +7,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import {
   CASCADE, CONNECTOR_RULES, SHEET_RULES, COMPLETENESS_RULE,
   WIRING_LABEL, READY_LABEL, stepsReady, stepsFor,
@@ -44,6 +45,8 @@ const READY_MARK: Record<Ready, string> = { done: '✓', partial: '◐', todo: '
 
 const GROUP_ORDER = ['Book of record', 'Marketplace', 'D2C', 'Marketing', 'Logistics', 'Payments & checkout'] as const;
 
+type RbTab = 'checklist' | 'cascade' | 'sources' | 'sheets';
+
 function Badge({ children, cls }: { children: ReactNode; cls: string }) {
   return <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap ${cls}`}>{children}</span>;
 }
@@ -67,6 +70,8 @@ export function RulebookPage() {
     return [...done, ...queued];
   }, []);
 
+  const [tab, setTab] = useState<RbTab>('checklist');
+
   return (
     <>
       <PageHeader
@@ -81,8 +86,22 @@ export function RulebookPage() {
         ]}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
-        {/* 0 — Connector progress checklist */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        <div className="mb-6 overflow-x-auto">
+          <SegmentedControl<RbTab>
+            options={[
+              { id: 'checklist', label: 'Checklist' },
+              { id: 'cascade', label: 'P&L cascade' },
+              { id: 'sources', label: 'Sources & files' },
+              { id: 'sheets', label: 'Sheets' },
+            ]}
+            value={tab}
+            onChange={setTab}
+            aria-label="Rulebook view"
+          />
+        </div>
+
+        {tab === 'checklist' && (
         <section>
           <h2 className="text-base font-semibold text-slate-800 mb-1">Connector progress</h2>
           <p className="text-sm text-slate-500 mb-3">
@@ -144,10 +163,13 @@ export function RulebookPage() {
           </div>
           <p className="text-[11px] text-slate-400 mt-2">
             The queue (below the line) is the remaining one-by-one order. The full file→read→destination rule for
-            every source is in “Every source, every file” below.
+            every source is in the “Sources &amp; files” tab.
           </p>
         </section>
+        )}
 
+        {tab === 'cascade' && (
+        <div className="space-y-8">
         {/* 1 — The cascade and who owns each line */}
         <section>
           <h2 className="text-base font-semibold text-slate-800 mb-1">The P&amp;L cascade</h2>
@@ -190,8 +212,10 @@ export function RulebookPage() {
             <p className="text-sm text-brand-900/80 leading-relaxed">{COMPLETENESS_RULE.body}</p>
           </div>
         </section>
+        </div>
+        )}
 
-        {/* 3 — Per-connector rules */}
+        {tab === 'sources' && (
         <section>
           <h2 className="text-base font-semibold text-slate-800 mb-1">Every source, every file</h2>
           <p className="text-sm text-slate-500 mb-3">
@@ -214,8 +238,9 @@ export function RulebookPage() {
             ))}
           </div>
         </section>
+        )}
 
-        {/* 4 — What feeds each sheet */}
+        {tab === 'sheets' && (
         <section>
           <h2 className="text-base font-semibold text-slate-800 mb-1">What feeds each sheet</h2>
           <p className="text-sm text-slate-500 mb-3">Every tab of the MIS and the data behind it.</p>
@@ -233,6 +258,7 @@ export function RulebookPage() {
             ))}
           </div>
         </section>
+        )}
       </div>
     </>
   );

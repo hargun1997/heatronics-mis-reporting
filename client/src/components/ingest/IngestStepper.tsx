@@ -7,8 +7,54 @@
 
 import { useState } from 'react';
 import { inr } from '../mis-deck/charts';
+import { Modal } from '../ui/overlays';
 import { commitReport, runChecks } from '../../data/ingest/ingestClient';
 import type { IngestReportMeta, ReportSlot, StagedUpload } from '../../data/ingest/types';
+
+const iconSteps = (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+  </svg>
+);
+
+/** The export help modal: the saved-report link (if any) + detailed raw steps + how to download. */
+function ExportHelpModal({ slot, open, onClose }: { slot: ReportSlot; open: boolean; onClose: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} width={580} icon={iconSteps}
+      title={slot.label} subtitle="How to export this report"
+      footer={<button onClick={onClose} className="px-3.5 py-1.5 text-sm font-medium rounded-lg bg-slate-800 text-white hover:bg-slate-900">Done</button>}>
+      {slot.exportUrl ? (
+        <a href={slot.exportUrl.url} target="_blank" rel="noopener noreferrer"
+          className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 hover:bg-brand-100 transition-colors mb-4">
+          <div>
+            <div className="text-sm font-semibold text-brand-800">{slot.exportUrl.label}</div>
+            <div className="text-xs text-brand-700/80 mt-0.5">Fastest — opens the export screen. Set the month, then Export.</div>
+          </div>
+          <span className="text-brand-600 text-lg leading-none" aria-hidden>↗</span>
+        </a>
+      ) : (
+        <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+          No saved-report link yet — follow the raw steps below. (We add a one-click link per source as its export URL is confirmed.)
+        </p>
+      )}
+
+      <h4 className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">Steps</h4>
+      <ol className="space-y-2.5">
+        {slot.exportSteps.map((t, i) => (
+          <li key={i} className="flex gap-3 text-sm text-slate-700 leading-relaxed">
+            <span className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold flex items-center justify-center mt-0.5">{i + 1}</span>
+            <span>{t}</span>
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
+        <span className="font-medium text-slate-600">Download &amp; upload:</span> accepts {slot.accept} — CSV or Excel are both fine, and you don't need to clean junk header rows. Download the file, then come back here and tap “Upload file”.
+      </div>
+      {slot.note && <p className="text-xs text-slate-500 mt-3"><span className="font-medium text-slate-600">What we do with it:</span> {slot.note}</p>}
+    </Modal>
+  );
+}
 
 type Stage = 'idle' | 'checking' | 'review' | 'saving' | 'ingested' | 'failed';
 const STEPS = ['Upload', 'AI checks', 'Review', 'Save', 'Ingest'] as const;
@@ -38,6 +84,7 @@ export function IngestStepper({
   const [ack, setAck] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [committed, setCommitted] = useState<IngestReportMeta | null>(existing ?? null);
+  const [howOpen, setHowOpen] = useState(false);
 
   const wired = slot.kind === 'vision' || slot.kind === 'bom' || Boolean(slot.parserId);
 
@@ -116,43 +163,31 @@ export function IngestStepper({
       </div>
 
       <div className="border-t border-slate-100 px-4 py-3 space-y-3">
-        {/* Export steps — always visible */}
-        <div>
-          <h5 className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1.5">How to get this report</h5>
-          <ol className="space-y-1 text-[13px] text-slate-700 leading-relaxed">
-            {slot.exportSteps.map((t, i) => (
-              <li key={i} className="flex gap-2"><span className="text-brand-500 font-semibold tabular-nums">{i + 1}.</span><span>{t}</span></li>
-            ))}
-          </ol>
-          {slot.exportUrl && (
-            <a
-              href={slot.exportUrl.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 text-[12px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
-            >
-              {slot.exportUrl.label} <span aria-hidden>↗</span>
-            </a>
-          )}
-          {slot.note && <p className="text-[12px] text-slate-500 mt-1.5">{slot.note}</p>}
-        </div>
+        {/* How to export (button → modal) + upload */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setHowOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+          >
+            {iconSteps} How to export{slot.exportUrl ? ' · link' : ''}
+          </button>
 
-        {/* ① Upload */}
-        {!wired ? (
-          <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
-            The reader for this report is being built — the steps above are ready. Upload opens next.
-          </p>
-        ) : (stage === 'idle' || stage === 'failed') && (
-          <div className="flex items-center gap-2 flex-wrap">
+          {wired && (stage === 'idle' || stage === 'failed') && (
             <label className="px-3 py-1.5 text-sm font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 cursor-pointer">
               {committed ? 'Replace' : multiple ? 'Upload screenshot(s)' : 'Upload file'}
               <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
             </label>
-            <span className="text-[11px] text-slate-500">
-              {slot.accept}{multiple ? ' · select all screens at once (one statement, scrolled)' : ''}
-            </span>
-          </div>
+          )}
+          <span className="text-[11px] text-slate-500">{slot.accept}</span>
+        </div>
+
+        {!wired && (
+          <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
+            The reader for this report is being built — the export steps are ready (tap “How to export”). Upload opens next.
+          </p>
         )}
+
+        <ExportHelpModal slot={slot} open={howOpen} onClose={() => setHowOpen(false)} />
 
         {stage === 'checking' && <p className="text-xs text-slate-500">Running checks through the file…</p>}
 
