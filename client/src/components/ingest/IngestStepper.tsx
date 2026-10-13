@@ -156,7 +156,10 @@ export function IngestStepper({
   };
 
   const hasWarn = staged?.checks.items.some((i) => i.status === 'warn') ?? false;
-  const canSave = stage === 'review' && staged?.checks.overall !== 'fail' && (!hasWarn || ack);
+  // The month is mandatory: every report is filed under its period, and that key
+  // is what makes a re-upload overwrite the previous one for that month.
+  const periodOk = /^\d{4}-\d{2}$/.test(period);
+  const canSave = stage === 'review' && staged?.checks.overall !== 'fail' && (!hasWarn || ack) && periodOk;
   const active = stepIndex(stage);
 
   return (
@@ -246,9 +249,14 @@ export function IngestStepper({
           <div className="border-t border-slate-100 pt-3 space-y-2">
             <div className="flex flex-wrap items-center gap-3">
               <label className="text-[11px] text-slate-500">
-                <span className="block mb-0.5">Period (month this report belongs to)</span>
+                <span className="block mb-0.5">Period (month this report belongs to) <span className="text-rose-500">*</span></span>
                 <input type="month" value={period} onChange={(e) => onPeriod(e.target.value)}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 text-sm" />
+                  className={`px-2.5 py-1 rounded-lg border text-sm ${periodOk ? 'border-slate-200' : 'border-rose-300 bg-rose-50'}`} />
+                {!periodOk && (
+                  <span className="block mt-1 text-[10px] text-rose-500">
+                    Pick the month this report covers — required. Re-uploading for the same month overwrites the previous file.
+                  </span>
+                )}
                 {tallyMonths && tallyMonths.length > 1 && (
                   <span className="block mt-1 text-[10px] text-slate-400">
                     This export has {tallyMonths.length} months — set the period to pick which to ingest: {tallyMonths.map((m) => m.periodLabel).join(', ')}

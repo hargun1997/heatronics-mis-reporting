@@ -19,8 +19,9 @@
 // ----------------------------------------------------------------------------
 
 import type { MonthlyMIS, SalesChannel } from './misDeckData';
-import { SALES_CHANNELS } from './misDeckData';
+import { SALES_CHANNELS, MONTHLY_MIS } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
+import { SKU_CELLS } from './skuChannelPnl';
 import type { DailyFact } from '../liveMis/facts';
 import {
   emptySession,
@@ -57,7 +58,14 @@ export interface PeriodCompleteness {
   through: string | null;
   /** Reconciliation residual vs Tally's Nett Profit, when a Tally P&L is in. */
   reconcileResidual: number | null;
+  /** True for frozen legacy months (≤ the live boundary) taken from the static deck. */
+  locked?: boolean;
 }
+
+// The seam: months before this are frozen legacy (the published static deck);
+// this month and after are rebuilt live from uploads. FY26-27 starts Apr 2026,
+// so everything through Mar 2026 is locked history and the rebuild owns Apr 2026+.
+export const LIVE_BOUNDARY = '2026-04';
 
 export interface LiveDeckData {
   months: MonthlyMIS[];               // ascending by period
@@ -493,28 +501,63 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
     pushFact(pk, f);
   }
 
-  const periods = [...new Set([...ledgerByPeriod.keys(), ...factsByMonth.keys()])].sort();
+  // Live months are rebuilt only from the boundary onward; everything before it
+  // is frozen legacy and must not be recomputed (nor duplicated) from uploads.
+  const livePeriods = [...new Set([...ledgerByPeriod.keys(), ...factsByMonth.keys()])]
+    .sort()
+    .filter((p) => p >= LIVE_BOUNDARY);
   const months: MonthlyMIS[] = [];
   const skuCells: SkuCell[] = [];
   const completeness: Record<string, PeriodCompleteness> = {};
-  // "Complete through" is the end of the CONTIGUOUS run of fully-closed months
-  // from the start — a gap (an earlier month not yet closed) stops the floor, so
-  // we never claim a later month is closed while an earlier one is still open.
-  let completeThrough: string | null = null;
-  let floorBroken = false;
 
-  for (const periodKey of periods) {
+  for (const periodKey of livePeriods) {
     // Ledgers for this month + the shared BOM cost book.
     const reps = [...(ledgerByPeriod.get(periodKey) ?? []), ...bomReports];
     const built = buildMonth(periodKey, reps, factsByMonth.get(periodKey) ?? []);
     months.push(built.month);
     skuCells.push(...built.skuCells);
     completeness[periodKey] = built.completeness;
-    if (built.completeness.level !== 'full') floorBroken = true;
-    else if (!floorBroken) completeThrough = periodKey;
   }
 
-  return { months, skuCells, completeness, completeThrough, periods };
+  // Splice in the frozen legacy history (≤ the boundary) from the published
+  // static deck, so the Live MIS is one continuous timeline: locked past +
+  // live FY26-27. Legacy months are fully closed by definition.
+  const legacyMonths = MONTHLY_MIS.filter((m) => m.key < LIVE_BOUNDARY);
+  for (const lm of legacyMonths) {
+    completeness[lm.key] = {
+      periodKey: lm.key, hasTally: true, cogmReal: true, level: 'full', locked: true,
+      sources: ['legacy'], through: null, reconcileResidual: 0,
+    };
+  }
+  const legacyCells = SKU_CELLS.filter((c) => c.m < LIVE_BOUNDARY);
+
+  const allMonths = [...legacyMonths, ...months].sort((a, b) => a.key.localeCompare(b.key));
+  const allCells = [...legacyCells, ...skuCells];
+  const periods = [...new Set(allMonths.map((m) => m.key))].sort();
+
+  // "Complete through" is the end of the CONTIGUOUS run of fully-closed months
+  // from the start. It walks the CALENDAR, not just the months present, so a hole
+  // (e.g. Apr–Aug 2026 not uploaded yet, between locked Mar and a live Sep) stops
+  // the floor — we never claim a later month is closed while an earlier one is
+  // missing or still open.
+  let completeThrough: string | null = null;
+  if (periods.length) {
+    let cur: string | null = periods[0];
+    while (cur && completeness[cur]?.level === 'full') {
+      completeThrough = cur;
+      cur = nextMonthKey(cur);
+    }
+  }
+
+  return { months: allMonths, skuCells: allCells, completeness, completeThrough, periods };
+}
+
+/** "2026-03" → "2026-04", rolling the year at December. */
+function nextMonthKey(pk: string): string {
+  let [y, m] = pk.split('-').map(Number);
+  m += 1;
+  if (m > 12) { m = 1; y += 1; }
+  return `${y}-${String(m).padStart(2, '0')}`;
 }
 
 /** Live connector facts over a window covering the uploaded months (Shopify D2C today). */

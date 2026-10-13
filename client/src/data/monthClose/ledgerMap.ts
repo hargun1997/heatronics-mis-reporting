@@ -62,6 +62,7 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'job work charges': 'cogm_mfg',
   'manufacturing wages': 'cogm_mfg',
   'additional charges - purchase': 'cogm_mfg',
+  'dyeing expenses': 'cogm_mfg',
   'inward freight': 'cogm_freight_in',
   'opening stock': 'cogm_open',
   'closing stock': 'cogm_close',
@@ -72,6 +73,14 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'blinkit channel fees': 'ff_channel_fees',
   'd2c fees': 'ff_channel_fees',
   'freight charges shiprocket': 'ff_channel_fees',
+  // Amazon FBA fulfilment lines and their adjustments (FY26-27 exports break
+  // these out of the single "Channel Fees" rollup). Tally prints them debit-
+  // positive, so the reimbursement/damage credits come through negative and
+  // net correctly against the fees.
+  'fba inbound pickup service': 'ff_channel_fees',
+  'fba storage fee': 'ff_channel_fees',
+  'fba inventory reimbursement - general adjustment': 'ff_channel_fees',
+  'amazon damage refunds': 'ff_channel_fees',
   'shipping charges': 'ff_shipping',
   'freight outward exp - porter/transport': 'ff_freight_out',
   'freight outward exp porter/transport': 'ff_freight_out',
@@ -86,6 +95,8 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'google ads direct': 'sm_total',
   'meta ads direct': 'sm_total',
   'media buying agency - google/fb': 'sm_total',
+  // Amazon advertising, booked as its own ledger in the FY26-27 exports.
+  'cost of advertising': 'sm_total',
 
   // ---- Platform / brand ----------------------------------------------------
   'content creation - agency': 'pf_platform',
@@ -110,6 +121,14 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'miscellaneous expenses': 'op_other',
   'other expenses': 'op_other',
   'office expenses': 'op_other',
+  // FY26-27 indirect ledgers with no dedicated line of their own.
+  'operations platform subscriptions': 'op_other',
+  'govt fee': 'op_other',
+  'interest on tds late payment': 'op_other',
+  'nsdl service exp': 'op_other',
+  'compliance & certification': 'op_other',
+  'insurance exp': 'op_other',
+  'other': 'op_other',
   'indirect incomes': 'op_other_income',
   'other income': 'op_other_income',
 

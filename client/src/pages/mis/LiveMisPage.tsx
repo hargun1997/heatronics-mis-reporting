@@ -178,6 +178,10 @@ function CompletenessBanner({ deck }: { deck: LiveDeckData }) {
       {latest && latest !== through && (
         <span className="text-slate-400 flex items-center gap-1.5">Latest data: {monthLabel(latest)} (partial <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} />)</span>
       )}
+      <span className="text-slate-400 flex items-center gap-1.5">
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 text-[10px] font-medium text-slate-500">Locked</span>
+        history through Mar 2026 · live from Apr 2026
+      </span>
       <span className="text-slate-400 ml-auto">{deck.periods.length} month{deck.periods.length === 1 ? '' : 's'} with data</span>
     </div>
   );
