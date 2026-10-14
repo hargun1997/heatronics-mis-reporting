@@ -29,7 +29,7 @@ export function PageHeader({ title, description, crumbs, actions, icon, accent =
   const derivedCrumbs: Crumb[] = crumbs ?? deriveCrumbs(location.pathname);
 
   return (
-    <div className="bg-white border-b border-slate-200">
+    <div className="bg-brand-soft border-b border-slate-200/70">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {derivedCrumbs.length > 0 && (
           <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
@@ -50,7 +50,7 @@ export function PageHeader({ title, description, crumbs, actions, icon, accent =
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div className="flex items-start gap-3">
             {icon && (
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${iconBgMap[accent]} flex-shrink-0`}>
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${accent === 'brand' ? 'bg-brand-gradient text-white shadow-card' : iconBgMap[accent]}`}>
                 {icon}
               </div>
             )}
