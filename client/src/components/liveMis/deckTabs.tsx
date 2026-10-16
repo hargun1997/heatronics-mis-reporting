@@ -534,6 +534,74 @@ export function SkuChannelTab({ period, cells, periodKeys }: { period: PeriodAgg
   );
 }
 
+// ---- Units sold (quantity) by product × channel ----------------------------
+
+export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; cells: SkuCell[]; periodKeys: Set<string> }) {
+  const { products, channels, units, rowTotal, colTotal, grand } = useMemo(() => {
+    const inPeriod = cells.filter((c) => periodKeys.has(c.m));
+    const units = new Map<string, Map<string, number>>(); // product -> channel -> units
+    const colTotal = new Map<string, number>();
+    for (const c of inPeriod) {
+      if (!c.u) continue;
+      const row = units.get(c.p) ?? new Map<string, number>();
+      row.set(c.ch, (row.get(c.ch) ?? 0) + c.u);
+      units.set(c.p, row);
+      colTotal.set(c.ch, (colTotal.get(c.ch) ?? 0) + c.u);
+    }
+    const rowTotal = new Map<string, number>();
+    for (const [p, row] of units) rowTotal.set(p, [...row.values()].reduce((s, v) => s + v, 0));
+    // Rows (products) and columns (channels) both ordered by total units, desc.
+    const products = [...units.keys()].sort((a, b) => (rowTotal.get(b) ?? 0) - (rowTotal.get(a) ?? 0));
+    const channels = [...colTotal.keys()].sort((a, b) => (colTotal.get(b) ?? 0) - (colTotal.get(a) ?? 0));
+    const grand = [...colTotal.values()].reduce((s, v) => s + v, 0);
+    return { products, channels, units, rowTotal, colTotal, grand };
+  }, [cells, periodKeys]);
+
+  if (products.length === 0) return <Empty what="units data" />;
+  const n = (v: number) => Math.round(v).toLocaleString('en-IN');
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end"><span className="text-[10px] text-slate-400"><LevelBadge level={period.level} /></span></div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-xs border-collapse">
+          <thead>
+            <tr className="text-[10px] text-slate-400 border-b border-slate-200">
+              <th className="py-1.5 pr-3 text-left font-medium sticky left-0 bg-white z-10">Product</th>
+              {channels.map((ch) => <th key={ch} className="py-1.5 px-2 text-right font-medium whitespace-nowrap">{ch}</th>)}
+              <th className="py-1.5 pl-3 text-right font-semibold text-slate-500">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => {
+              const row = units.get(p)!;
+              return (
+                <tr key={p} className="border-b border-slate-50">
+                  <td className="py-1.5 pr-3 sticky left-0 bg-white text-slate-700">{p}</td>
+                  {channels.map((ch) => {
+                    const v = row.get(ch) ?? 0;
+                    return <td key={ch} className="py-1.5 px-2 text-right tabular-nums text-slate-600">{v ? n(v) : <span className="text-slate-300">—</span>}</td>;
+                  })}
+                  <td className="py-1.5 pl-3 text-right tabular-nums font-semibold text-slate-800">{n(rowTotal.get(p) ?? 0)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-slate-200 bg-slate-50/60">
+              <td className="py-1.5 pr-3 sticky left-0 bg-slate-50 font-semibold text-slate-700">Total</td>
+              {channels.map((ch) => <td key={ch} className="py-1.5 px-2 text-right tabular-nums font-semibold text-slate-800">{n(colTotal.get(ch) ?? 0)}</td>)}
+              <td className="py-1.5 pl-3 text-right tabular-nums font-semibold text-slate-900">{n(grand)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p className="text-[10px] text-slate-400">
+        Quantity sold per product, split by channel, for the selected period. Units are net of returns where the channel reports them.
+      </p>
+    </div>
+  );
+}
+
 function Empty({ what }: { what: string }) {
   return (
     <p className="text-sm text-slate-400 py-6 text-center">
