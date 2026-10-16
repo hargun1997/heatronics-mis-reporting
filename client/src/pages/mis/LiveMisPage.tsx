@@ -23,7 +23,7 @@ import { FreshnessHeadline, FreshnessTable } from '../../components/mis/Freshnes
 import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { exportLiveMis } from '../../utils/liveMisExport';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran } from '../../data/misDeck/liveAnalytics';
-import { OverviewTab, PnlTab, ChannelsTab, SkuTab, SkuChannelTab, LevelBadge } from '../../components/liveMis/deckTabs';
+import { OverviewTab, PnlTab, ChannelsTab, SkuTab, SkuChannelTab, SkuUnitsTab, LevelBadge } from '../../components/liveMis/deckTabs';
 
 const iconLive = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -31,13 +31,14 @@ const iconLive = (
   </svg>
 );
 
-type Tab = 'overview' | 'pnl' | 'channels' | 'sku' | 'skuchannel' | 'runrate';
+type Tab = 'overview' | 'pnl' | 'channels' | 'sku' | 'skuchannel' | 'units' | 'runrate';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'pnl', label: 'P&L' },
   { id: 'channels', label: 'Channels' },
   { id: 'sku', label: 'SKU' },
   { id: 'skuchannel', label: 'SKU × Channel' },
+  { id: 'units', label: 'Units sold' },
   { id: 'runrate', label: 'Run-rate' },
 ];
 const DECK_GRAINS: { id: DeckGran; label: string }[] = [
@@ -208,6 +209,7 @@ export function LiveMisPage() {
             {tab === 'channels' && selected && <ChannelsTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
             {tab === 'sku' && selected && <SkuTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
             {tab === 'skuchannel' && selected && <SkuChannelTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
+            {tab === 'units' && selected && <SkuUnitsTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
           </SectionCard>
         )}
       </div>
