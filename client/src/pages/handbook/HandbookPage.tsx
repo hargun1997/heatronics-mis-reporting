@@ -2,10 +2,10 @@
 // Accounts Handbook — the one accounting knowledge base in the app.
 //
 // One page, one URL (/handbook). The home shows search, the daily/monthly
-// task shortcuts and the topic cards. Opening a topic or an article opens a
-// large reader window (modal) on top of the home — it behaves like separate
-// pages (topic list → article → next article, back, breadcrumb, nested
-// sidebar) but the URL never changes and nothing reloads. Every article body
+// task shortcuts and the topic cards. Opening a topic or an article swaps the
+// page to the reader in place (no popup) — it behaves like separate pages
+// (topic list → article → next article, back, breadcrumb, nested sidebar,
+// "Handbook home") but the URL never changes and nothing reloads. Every article body
 // stays mounted once opened, so going back to one is instant.
 //
 // Old links (/handbook/<topic>/<article>, /handbook#<section>, /guide/sop/…)
@@ -16,7 +16,7 @@
 // shareable artifact); collections.ts decides the structure.
 // ----------------------------------------------------------------------------
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SopVisual } from '../../components/ui/SopVisual';
 import {
@@ -352,7 +352,7 @@ function ArticlePanel({
 
       {a.toc.length > 1 && (
         <aside className="hidden w-[210px] flex-shrink-0 2xl:block">
-          <div className="sticky top-4">
+          <div className="sticky top-32">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">On this page</div>
             <ul className="space-y-1 border-l border-slate-200">
               {a.toc.map((h) => (
@@ -376,7 +376,7 @@ function ArticlePanel({
 }
 
 // ---------------------------------------------------------------------------
-// The reader window (modal)
+// The reader (in-page)
 // ---------------------------------------------------------------------------
 
 function Reader({
@@ -394,32 +394,15 @@ function Reader({
   back: () => void;
   close: () => void;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [activeHeading, setActiveHeading] = useState<string | undefined>();
   const isOpen = !!view;
 
-  // Esc closes; page behind doesn't scroll while reading.
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
-    window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [isOpen, close]);
-
   // Each open: jump to the section, or to the top (settling after lazy screenshots load).
   useEffect(() => {
     if (!view) return;
-    const box = scrollRef.current;
     if (!view.anchor) {
-      box?.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
       return;
     }
     const go = () => document.getElementById(view.anchor!)?.scrollIntoView({ block: 'start' });
@@ -435,20 +418,18 @@ function Reader({
   // Scroll-spy for "On this page".
   const a = view?.a;
   useEffect(() => {
-    const box = scrollRef.current;
-    if (!box || !a) return;
+    if (!a) return;
     const onScroll = () => {
-      const top = box.getBoundingClientRect().top;
       let cur: string | undefined;
       for (const h of a.toc) {
         const el = document.getElementById(h.id);
-        if (el && el.getBoundingClientRect().top - top < 120) cur = h.id;
+        if (el && el.getBoundingClientRect().top < 170) cur = h.id;
       }
       setActiveHeading(cur);
     };
     onScroll();
-    box.addEventListener('scroll', onScroll, { passive: true });
-    return () => box.removeEventListener('scroll', onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, [a]);
 
   // Links inside the handbook text (#c16, #s3 …) open their article here.
@@ -468,11 +449,10 @@ function Reader({
   const lastArticle = opened[opened.length - 1];
 
   return (
-    <div className={isOpen ? 'fixed inset-0 z-50' : 'hidden'} role="dialog" aria-modal="true" aria-label="Accounts Handbook reader">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={close} />
-      <div className="absolute inset-2 flex flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-overlay sm:inset-4 lg:inset-x-[max(1rem,calc((100vw-1320px)/2))] lg:inset-y-5">
-        {/* Header: back · breadcrumb · close */}
-        <div className="flex h-14 flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 sm:px-4">
+    <div className={isOpen ? '' : 'hidden'} aria-label="Accounts Handbook reader">
+      <div>
+        {/* Bar: back · breadcrumb · search · home (sticks under the app header) */}
+        <div className="sticky top-14 z-30 flex h-14 items-center gap-2 border-b border-slate-200 bg-white/90 px-3 backdrop-blur-xl sm:px-4">
           <button
             type="button"
             onClick={back}
@@ -513,15 +493,20 @@ function Reader({
           <div className="ml-auto hidden w-72 md:block">
             <HandbookSearch />
           </div>
-          <button type="button" onClick={close} aria-label="Close" className="ml-2 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
-            <Icon paths={['M6 18L18 6M6 6l12 12']} className="h-5 w-5" />
+          <button
+            type="button"
+            onClick={close}
+            className="ml-2 inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+          >
+            <Icon paths={['M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10']} className="h-4 w-4" />
+            <span className="hidden sm:inline">Handbook home</span>
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1">
+        <div className="flex">
           {shown && (
             <aside
-              className={`${navOpen ? 'block' : 'hidden'} absolute inset-y-14 left-0 z-10 w-72 overflow-y-auto border-r border-slate-200 bg-white shadow-drawer-left lg:static lg:block lg:shadow-none`}
+              className={`${navOpen ? 'block' : 'hidden'} fixed bottom-0 left-0 top-28 z-40 w-72 overflow-y-auto overscroll-contain border-r border-slate-200 bg-white shadow-drawer-left lg:sticky lg:top-28 lg:z-0 lg:block lg:h-[calc(100vh-7rem)] lg:flex-shrink-0 lg:self-start lg:bg-white/70 lg:shadow-none`}
             >
               <ReaderNav
                 view={shown}
@@ -532,7 +517,7 @@ function Reader({
               />
             </aside>
           )}
-          <div ref={scrollRef} className="min-w-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="min-w-0 flex-1">
             {shown && !shown.a && <CollectionPanel c={shown.c} open={open} />}
             {/* Article panel stays mounted after the first article, so bodies never re-render. */}
             {lastArticle && (
@@ -702,7 +687,9 @@ export function HandbookPage() {
 
   return (
     <HandbookOpenContext.Provider value={openHref}>
-      <Home open={open} openHref={openHref} />
+      <div hidden={!!view}>
+        <Home open={open} openHref={openHref} />
+      </div>
       <Reader view={view} history={stack.length} opened={opened} open={open} back={back} close={close} />
     </HandbookOpenContext.Provider>
   );
