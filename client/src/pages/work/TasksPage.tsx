@@ -197,6 +197,30 @@ const KINDS: { k: Exclude<Kind, ''>; l: string; test: (t: WorkTask) => boolean }
   { k: 'uploads', l: 'MIS uploads', test: (t) => !!t.upload },
   { k: 'guide', l: 'Has a guide', test: (t) => !!t.howTo },
 ];
+/** Heads (functions) for the top selector: matched on a task's role label, then its area. */
+const HEADS: { k: string; l: string; roles: string[]; areas: string[] }[] = [
+  { k: 'accounts', l: 'Accounts', roles: ['accountant', 'accounts', 'accounts executive', 'accounts manager', 'mis uploads'], areas: ['Daily & monthly books', 'MIS uploads', 'GST, TDS & tax'] },
+  { k: 'ca', l: 'CA / Audit', roles: ['ca', 'chartered accountant', 'statutory auditor', 'auditor', 'tax consultant'], areas: [] },
+  { k: 'hr', l: 'HR', roles: ['hr', 'payroll', 'icc'], areas: ['HR & payroll'] },
+  { k: 'cs', l: 'CS / ROC', roles: ['company secretary', 'cs'], areas: ['MCA / ROC'] },
+  { k: 'legal', l: 'Legal', roles: ['legal'], areas: ['Legal & licences'] },
+  { k: 'admin', l: 'Admin', roles: ['admin', 'it', 'logistics', 'hse'], areas: ['Admin'] },
+  { k: 'quality', l: 'Quality / ISO', roles: ['mr', 'quality', 'qa', 'plant head', 'purchase'], areas: ['ISO / QMS'] },
+  { k: 'founders', l: 'CFO / Founder', roles: ['cfo', 'founder'], areas: ['Investors'] },
+];
+
+/** "CFO / Accounts Manager" → ["cfo", "accounts manager"]; drops "(…)". */
+const roleTokens = (label?: string) =>
+  (label ?? '')
+    .replace(/\([^)]*\)/g, '')
+    .split(/\s*(?:\/|,|&|\band\b)\s*/i)
+    .map((r) => r.trim().toLowerCase())
+    .filter(Boolean);
+
+const inHead = (t: WorkTask, h: (typeof HEADS)[number]) => {
+  return h.areas.includes(t.area) || roleTokens(t.roleLabel).some((r) => h.roles.includes(r));
+};
+
 const WHENS: { k: Exclude<When, ''>; l: string }[] = [
   { k: 'overdue', l: 'Overdue' },
   { k: 'today', l: 'Due today' },
@@ -211,6 +235,7 @@ export function TasksPage() {
   const [me, setMe] = useState(() => readLS('tasks:me'));
   const [who, setWho] = useState<Who>(() => (readLS('tasks:me') ? 'mine' : 'all'));
   const [area, setArea] = useState('');
+  const [head, setHead] = useState('');
   const [q, setQ] = useState('');
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -265,9 +290,8 @@ export function TasksPage() {
   const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const areas = useMemo(() => [...new Set((state?.tasks ?? []).map((t) => t.area))].sort(), [state]);
 
-  const matches = useCallback(
+  const matchesBase = useCallback(
     (t: WorkTask) => {
-      if (area && t.area !== area) return false;
       if (kind && !KINDS.find((x) => x.k === kind)!.test(t)) return false;
       if (who === 'mine' && !(me && t.ownerIds.includes(me))) return false;
       if (who === 'unassigned' && t.ownerIds.length) return false;
@@ -279,8 +303,17 @@ export function TasksPage() {
       }
       return true;
     },
-    [area, who, me, q, kind],
+    [who, me, q, kind],
   );
+  const matches = useCallback(
+    (t: WorkTask) => (!area || t.area === area) && (!head || inHead(t, HEADS.find((h) => h.k === head)!)) && matchesBase(t),
+    [area, head, matchesBase],
+  );
+  /** Task count per head under the other filters (for the head selector). */
+  const headCounts = useMemo(() => {
+    const base = (state?.tasks ?? []).filter((t) => (!area || t.area === area) && matchesBase(t));
+    return { total: base.length, by: new Map(HEADS.map((h) => [h.k, base.filter((t) => inHead(t, h)).length])) };
+  }, [state, area, matchesBase]);
 
   const agenda = useMemo(() => (state ? buildAgenda(state, today) : []), [state, today]);
   const filtered = useMemo(() => agenda.filter((i) => matches(i.task)), [agenda, matches]);
@@ -301,7 +334,7 @@ export function TasksPage() {
     setWhen((cur) => (cur === w ? '' : w));
     setView('agenda');
   };
-  const anyQuick = !!(when || kind || area || q || who !== 'all');
+  const anyQuick = !!(when || kind || area || head || q || who !== 'all');
 
   const stats = useMemo(() => {
     const ym = today.slice(0, 7);
@@ -399,7 +432,14 @@ export function TasksPage() {
           {/* Main column */}
           <div className="min-w-0">
             {/* Toolbar */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div className="z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur lg:sticky lg:top-16">
+              {/* Head (function) selector */}
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                <AreaTab on={!head} label="All heads" n={headCounts.total} onClick={() => setHead('')} />
+                {HEADS.map((h) => (
+                  <AreaTab key={h.k} on={head === h.k} label={h.l} n={headCounts.by.get(h.k) ?? 0} onClick={() => setHead(head === h.k ? '' : h.k)} />
+                ))}
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-sm">
                   {(['agenda', 'all'] as const).map((v) => (
@@ -422,12 +462,7 @@ export function TasksPage() {
                     className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-3 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
                   />
                 </label>
-                <select
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className="rounded-lg border border-slate-200 py-1.5 pl-2 pr-8 text-sm text-slate-700"
-                  aria-label="Area"
-                >
+                <select value={area} onChange={(e) => setArea(e.target.value)} className="rounded-lg border border-slate-200 py-1.5 pl-2 pr-8 text-sm text-slate-700" aria-label="Area">
                   <option value="">All areas</option>
                   {areas.map((a) => (
                     <option key={a}>{a}</option>
@@ -472,6 +507,7 @@ export function TasksPage() {
                       setWhen('');
                       setKind('');
                       setArea('');
+                      setHead('');
                       setQ('');
                       setWho('all');
                     }}
@@ -629,6 +665,21 @@ function Stat({
       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`font-display text-3xl font-extrabold tabular-nums ${txt}`}>{value}</div>
       <div className="text-xs text-slate-400">{active ? 'Filtered · click to clear' : sub}</div>
+    </button>
+  );
+}
+
+function AreaTab({ on, label, n, onClick }: { on: boolean; label: string; n: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+        on ? 'bg-slate-900 text-white' : n ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+      }`}
+    >
+      {label}
+      <span className={`rounded-md px-1.5 text-[11px] tabular-nums ${on ? 'bg-white/20 text-white' : 'bg-white text-slate-500'}`}>{n}</span>
     </button>
   );
 }
@@ -942,7 +993,12 @@ function TaskEditor({
       </div>
 
       <div>
-        <label className={lbl}>Owners {f.roleLabel ? <span className="font-normal text-slate-400">· role: {f.roleLabel}</span> : null}</label>
+        <label className={lbl}>Role / head — e.g. Accountant, CA, HR, Company Secretary (separate several with “/”). Drives the head filter and Who does what.</label>
+        <input className={input} value={f.roleLabel ?? ''} onChange={(e) => set({ roleLabel: e.target.value })} placeholder="e.g. CA / Accounts Manager" />
+      </div>
+
+      <div>
+        <label className={lbl}>Owners</label>
         <div className="flex flex-wrap gap-1.5">
           {members.length ? (
             members.map((m) => {
@@ -1183,12 +1239,33 @@ function AllTasks({
   const byArea = new Map<string, WorkTask[]>();
   for (const t of tasks) byArea.set(t.area, [...(byArea.get(t.area) ?? []), t]);
   const order = [...byArea.keys()].sort();
+  // Areas start folded; one area (or a search) shows open. The open task's area stays open.
+  const openTaskArea = openKey?.startsWith('all:') ? state.tasks.find((t) => `all:${t.id}` === openKey)?.area : undefined;
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const autoOpen = order.length <= 1 || tasks.length <= 20;
+  const isOpen = (a: string) => autoOpen || expanded.has(a) || a === openTaskArea;
+  const toggleArea = (a: string) =>
+    setExpanded((cur) => {
+      const n = new Set(cur);
+      if (n.has(a)) n.delete(a);
+      else n.add(a);
+      return n;
+    });
 
   return (
     <div className="mt-5 space-y-6">
       <div className="flex items-center justify-between px-1">
         <span className="text-sm text-slate-500">
           {tasks.length} task{tasks.length === 1 ? '' : 's'} · {tasks.filter((t) => !t.ownerIds.length).length} without an owner
+          {!autoOpen && (
+            <button
+              type="button"
+              onClick={() => setExpanded(expanded.size >= order.length ? new Set() : new Set(order))}
+              className="ml-3 font-medium text-brand-700 hover:underline"
+            >
+              {expanded.size >= order.length ? 'Collapse all' : 'Expand all'}
+            </button>
+          )}
         </span>
         {!adding && (
           <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-600">
@@ -1199,10 +1276,25 @@ function AllTasks({
       {adding && <TaskEditor members={members} areas={areas} onSave={onSave} onCancel={() => setAdding(false)} />}
       {order.map((a) => (
         <section key={a}>
-          <h2 className="mb-2 px-1 font-display text-sm font-bold uppercase tracking-wide text-slate-800">
-            {a} <span className="ml-1 font-sans text-xs font-normal normal-case tracking-normal text-slate-400">{byArea.get(a)!.length}</span>
-          </h2>
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <button
+            type="button"
+            onClick={() => toggleArea(a)}
+            disabled={autoOpen}
+            className="mb-2 flex w-full items-center gap-2 rounded-xl px-1 py-1 text-left enabled:hover:bg-white"
+          >
+            {!autoOpen && <ChevronDownIcon className={`h-4 w-4 text-slate-400 transition ${isOpen(a) ? '' : '-rotate-90'}`} />}
+            <h2 className="font-display text-sm font-bold uppercase tracking-wide text-slate-800">{a}</h2>
+            <span className="text-xs text-slate-400">{byArea.get(a)!.length}</span>
+            <span className="ml-auto flex -space-x-1.5">
+              {[...new Set(byArea.get(a)!.flatMap((t) => t.ownerIds))]
+                .map((id) => memberById.get(id))
+                .filter((m): m is TeamMember => !!m)
+                .map((m) => (
+                  <Avatar key={m.id} m={m} size="h-5 w-5 text-[9px]" />
+                ))}
+            </span>
+          </button>
+          {isOpen(a) && <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             {byArea.get(a)!.map((t) => {
               const key = `all:${t.id}`;
               const open = openKey === key;
@@ -1232,7 +1324,7 @@ function AllTasks({
                 </li>
               );
             })}
-          </ul>
+          </ul>}
         </section>
       ))}
       {!order.length && <p className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">No tasks match.</p>}
