@@ -22,6 +22,7 @@ import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 import { SystemArchitecture } from './pages/guide/SystemArchitecture';
 import { LedgerReference } from './pages/guide/LedgerReference';
 import { SopHome } from './pages/guide/sop/SopHome';
+import { HandbookPage } from './pages/HandbookPage';
 import { SalesSop } from './pages/guide/sop/SalesSop';
 import { SalesAmazonSop } from './pages/guide/sop/SalesAmazonSop';
 import { SalesShopifySop } from './pages/guide/sop/SalesShopifySop';
@@ -76,8 +77,7 @@ function App() {
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
           {/* Accounts Handbook is now folded into the SOPs */}
-          <Route path="handbook" element={<Navigate to="/guide/sop" replace />} />
-          <Route path="handbook/*" element={<Navigate to="/guide/sop" replace />} />
+          <Route path="handbook" element={<HandbookPage />} />
 
           {/* Task tracker is now folded into Compliance → Operations */}
           <Route path="task-tracker" element={<Navigate to="/compliance/operations" replace />} />
