@@ -59,8 +59,7 @@ const SECTIONS: NavSection[] = [
   {
     label: 'Govern',
     items: [
-      { path: '/compliance', label: 'Compliance', icon: ico('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z'), match: (p) => p.startsWith('/compliance') || p.startsWith('/tracker') },
-      { path: '/task-tracker', label: 'Task tracker', icon: ico(['M9 11l3 3 8-8', 'M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9']), match: (p) => p.startsWith('/task-tracker') },
+      { path: '/compliance', label: 'Tasks & Compliance', icon: ico('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z'), match: (p) => p.startsWith('/compliance') || p.startsWith('/tracker') || p.startsWith('/task-tracker') },
       { path: '/reporting/mis/ownership', label: 'Ownership', icon: ico(['M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 10-4-4 4 4 0 004 4z']), match: (p) => p.startsWith('/reporting/mis/ownership') },
     ],
   },
@@ -69,6 +68,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { path: '/tools', label: 'Tools', icon: ico(['M14 7l3 3-8 8H6v-3z', 'M4 20h16']), match: (p) => p.startsWith('/tools') },
       { path: '/guide', label: 'Guide & SOPs', icon: ico(['M4 5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2z', 'M8 12h8M8 16h5']), match: (p) => p.startsWith('/guide') },
+      { path: '/handbook', label: 'Accounts Handbook', icon: ico(['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']), match: (p) => p.startsWith('/handbook') },
       { path: DATA_INSIGHTS_URL, label: 'Data / Insights', external: true, icon: ico(['M3 3v18h18', 'M7 14l4-4 3 3 5-6']) },
     ],
   },
@@ -191,7 +191,9 @@ export function MainLayout() {
       </Drawer>
 
       {/* Hanging chat — ask Claude about the data from anywhere */}
-      <FloatingChat />
+      {/* The handbook page has its own grounded chat panel, so hide the
+          floating MIS chat there to avoid two overlapping chat widgets. */}
+      {!path.startsWith('/handbook') && <FloatingChat />}
     </div>
   );
 }

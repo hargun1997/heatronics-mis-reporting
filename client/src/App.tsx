@@ -17,9 +17,7 @@ import { OwnershipPage } from './pages/mis/OwnershipPage';
 import { SendReportPage } from './pages/mis/SendReportPage';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
-
-// Legacy feature pages (kept alive under new routes)
-import { TaskTracker } from './pages/TaskTracker';
+import { HandbookPage } from './pages/HandbookPage';
 
 // Guide
 import { GuideHome } from './pages/guide/GuideHome';
@@ -73,8 +71,11 @@ function App() {
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
-          {/* Legacy feature routes */}
-          <Route path="task-tracker" element={<TaskTracker />} />
+          {/* Accounts Handbook */}
+          <Route path="handbook" element={<HandbookPage />} />
+
+          {/* Task tracker is now folded into Compliance → Operations */}
+          <Route path="task-tracker" element={<Navigate to="/compliance/operations" replace />} />
 
           {/* Old MIS Reporting view is retired — superseded by the new MIS Reporting deck */}
           <Route path="mis-tracking" element={<Navigate to="/reporting/mis" replace />} />

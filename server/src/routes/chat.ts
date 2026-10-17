@@ -35,6 +35,20 @@ You answer questions about the business using ONLY the MIS context provided belo
 === MIS CONTEXT ===
 `;
 
+const HANDBOOK_PREAMBLE = `You are the Heatronics Accounts Handbook assistant — a clarification helper for the accountant and the CA of Heatronics Medical Devices (a D2C medical-devices brand in India: orthopedic heat-therapy products).
+
+You answer questions about HOW THE BOOKS ARE OPERATED using ONLY the handbook knowledge provided below. Rules:
+- Explain the handbook's actual procedure — which system creates an entry, the journal it posts, the control ledger it lands in, and how it is reconciled — not generic textbook accounting.
+- Always cite the handbook section the answer comes from, e.g. "see §c14 D1" or "§S4 bill-wise matching", so the reader can open it.
+- All amounts are Indian Rupees (₹).
+- Keep answers tight and practical, as step-by-step as the handbook. Use small markdown lists/tables where it helps.
+- Mapping rules and plugin settings are changed only by Hargun — never instruct the accountant to change a rule or plugin setting themselves; tell them to flag it to Hargun.
+- If something is not covered in the handbook, say so plainly and suggest asking Hargun rather than inventing a step.
+- You are read-only guidance — never claim to change data or take actions.
+
+=== HANDBOOK KNOWLEDGE ===
+`;
+
 router.get('/status', h(async (_req, res) => {
   res.json({ configured: isClaudeConfigured() });
 }));
@@ -43,8 +57,9 @@ router.post('/', h(async (req, res) => {
   if (!isClaudeConfigured()) {
     return res.status(400).json({ error: 'The Claude API key is not set on the server. Set ANTHROPIC_API_KEY and restart.' });
   }
-  const body = (req.body ?? {}) as { context?: unknown; messages?: unknown };
+  const body = (req.body ?? {}) as { context?: unknown; messages?: unknown; mode?: unknown };
   const context = typeof body.context === 'string' ? body.context : '';
+  const preamble = body.mode === 'handbook' ? HANDBOOK_PREAMBLE : SYSTEM_PREAMBLE;
   const rawMessages = Array.isArray(body.messages) ? body.messages : [];
   const messages: ChatTurn[] = rawMessages
     .map((m) => m as { role?: unknown; content?: unknown })
@@ -55,10 +70,10 @@ router.post('/', h(async (req, res) => {
     return res.status(400).json({ error: 'messages must be a non-empty list ending with a user turn.' });
   }
   if (!context) {
-    return res.status(400).json({ error: 'No MIS context was provided.' });
+    return res.status(400).json({ error: 'No context was provided.' });
   }
 
-  const reply = await claudeChat({ system: SYSTEM_PREAMBLE + context, messages });
+  const reply = await claudeChat({ system: preamble + context, messages });
   res.json({ reply });
 }));
 
