@@ -15,6 +15,8 @@ import {
   ChevronDownIcon,
   ClipboardDocumentCheckIcon,
   CloudArrowUpIcon,
+  LinkIcon,
+  UserGroupIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   TrashIcon,
@@ -32,6 +34,7 @@ import {
   runWorkReminders,
   saveMember,
   saveSettings,
+  saveRouting,
   previewReminders,
   connectMail,
   sendTestMail,
@@ -183,6 +186,22 @@ const groupOf = (due: string, today: string): Group => {
 // --- page --------------------------------------------------------------------
 
 type Who = 'all' | 'mine' | 'unassigned' | string;
+type When = '' | 'overdue' | 'today' | 'week';
+type Kind = '' | 'daily' | 'weekly' | 'monthly' | 'periodic' | 'uploads' | 'guide';
+
+const KINDS: { k: Exclude<Kind, ''>; l: string; test: (t: WorkTask) => boolean }[] = [
+  { k: 'daily', l: 'Daily', test: (t) => t.cadence === 'daily' },
+  { k: 'weekly', l: 'Weekly', test: (t) => t.cadence === 'weekly' },
+  { k: 'monthly', l: 'Monthly', test: (t) => t.cadence === 'monthly' },
+  { k: 'periodic', l: 'Quarterly & yearly', test: (t) => ['quarterly', 'half-yearly', 'yearly', 'one-time'].includes(t.cadence) },
+  { k: 'uploads', l: 'MIS uploads', test: (t) => !!t.upload },
+  { k: 'guide', l: 'Has a guide', test: (t) => !!t.howTo },
+];
+const WHENS: { k: Exclude<When, ''>; l: string }[] = [
+  { k: 'overdue', l: 'Overdue' },
+  { k: 'today', l: 'Due today' },
+  { k: 'week', l: 'Next 7 days' },
+];
 
 export function TasksPage() {
   const [state, setState] = useState<WorkState | null>(null);
@@ -196,6 +215,8 @@ export function TasksPage() {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [when, setWhen] = useState<When>('');
+  const [kind, setKind] = useState<Kind>('');
   const [params, setParams] = useSearchParams();
   const today = todayIST();
 
@@ -247,6 +268,7 @@ export function TasksPage() {
   const matches = useCallback(
     (t: WorkTask) => {
       if (area && t.area !== area) return false;
+      if (kind && !KINDS.find((x) => x.k === kind)!.test(t)) return false;
       if (who === 'mine' && !(me && t.ownerIds.includes(me))) return false;
       if (who === 'unassigned' && t.ownerIds.length) return false;
       if (who !== 'all' && who !== 'mine' && who !== 'unassigned' && !t.ownerIds.includes(who)) return false;
@@ -257,23 +279,41 @@ export function TasksPage() {
       }
       return true;
     },
-    [area, who, me, q],
+    [area, who, me, q, kind],
   );
 
   const agenda = useMemo(() => (state ? buildAgenda(state, today) : []), [state, today]);
-  const shown = useMemo(() => agenda.filter((i) => matches(i.task)), [agenda, matches]);
+  const filtered = useMemo(() => agenda.filter((i) => matches(i.task)), [agenda, matches]);
+  const shown = useMemo(
+    () =>
+      filtered.filter((i) =>
+        when === 'overdue'
+          ? !i.done && i.due < today
+          : when === 'today'
+            ? i.due === today
+            : when === 'week'
+              ? i.due >= today && diffDays(i.due, today) <= 7
+              : true,
+      ),
+    [filtered, when, today],
+  );
+  const pickWhen = (w: When) => {
+    setWhen((cur) => (cur === w ? '' : w));
+    setView('agenda');
+  };
+  const anyQuick = !!(when || kind || area || q || who !== 'all');
 
   const stats = useMemo(() => {
     const ym = today.slice(0, 7);
     const doneMonth = Object.values(state?.done ?? {}).reduce((n, m) => n + Object.values(m).filter((e) => e.at.slice(0, 7) === ym).length, 0);
     return {
-      overdue: shown.filter((i) => !i.done && i.due < today).length,
-      today: shown.filter((i) => i.due === today).length,
-      todayOpen: shown.filter((i) => i.due === today && !i.done).length,
-      week: shown.filter((i) => !i.done && i.due > today && diffDays(i.due, today) <= 7).length,
+      overdue: filtered.filter((i) => !i.done && i.due < today).length,
+      today: filtered.filter((i) => i.due === today).length,
+      todayOpen: filtered.filter((i) => i.due === today && !i.done).length,
+      week: filtered.filter((i) => !i.done && i.due > today && diffDays(i.due, today) <= 7).length,
       doneMonth,
     };
-  }, [shown, state, today]);
+  }, [filtered, state, today]);
 
   // --- mutations (optimistic, then refresh) ---
   const toggle = async (i: Item) => {
@@ -343,9 +383,9 @@ export function TasksPage() {
 
         {/* Stat tiles */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Overdue" value={stats.overdue} tone={stats.overdue ? 'rose' : 'slate'} sub={stats.overdue ? 'Needs attention' : 'Nothing late'} />
-          <Stat label="Due today" value={stats.todayOpen} tone="brand" sub={`${stats.today - stats.todayOpen} of ${stats.today} done`} />
-          <Stat label="Next 7 days" value={stats.week} tone="amber" sub="Open tasks" />
+          <Stat label="Overdue" value={stats.overdue} tone={stats.overdue ? 'rose' : 'slate'} sub={stats.overdue ? 'Needs attention' : 'Nothing late'} active={when === 'overdue'} onClick={() => pickWhen('overdue')} />
+          <Stat label="Due today" value={stats.todayOpen} tone="brand" sub={`${stats.today - stats.todayOpen} of ${stats.today} done`} active={when === 'today'} onClick={() => pickWhen('today')} />
+          <Stat label="Next 7 days" value={stats.week} tone="amber" sub="Open tasks" active={when === 'week'} onClick={() => pickWhen('week')} />
           <Stat label="Ticked this month" value={stats.doneMonth} tone="emerald" sub={`${MN[Number(today.slice(5, 7))]} ${today.slice(0, 4)}`} />
         </div>
 
@@ -412,6 +452,35 @@ export function TasksPage() {
                   </Chip>
                 ))}
               </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2">
+                <span className="mr-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Quick</span>
+                {WHENS.map((w) => (
+                  <Chip key={w.k} on={when === w.k} onClick={() => pickWhen(w.k)}>
+                    {w.l}
+                  </Chip>
+                ))}
+                <span className="mx-1 w-px self-stretch bg-slate-200" />
+                {KINDS.map((x) => (
+                  <Chip key={x.k} on={kind === x.k} onClick={() => setKind(kind === x.k ? '' : x.k)}>
+                    {x.l}
+                  </Chip>
+                ))}
+                {anyQuick && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWhen('');
+                      setKind('');
+                      setArea('');
+                      setQ('');
+                      setWho('all');
+                    }}
+                    className="ml-auto text-xs font-medium text-slate-500 hover:text-brand-700"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
             </div>
 
             {preview && <EmailPreview onClose={() => setPreview(false)} />}
@@ -420,7 +489,7 @@ export function TasksPage() {
               <div className="mt-5 space-y-6">
                 {GROUPS.map((g) => {
                   const list = shown.filter((i) => groupOf(i.due, today) === g.key);
-                  if (!list.length && g.key !== 'today') return null;
+                  if (!list.length && (g.key !== 'today' || (when && when !== 'today'))) return null;
                   const open = list.filter((i) => !i.done).length;
                   return (
                     <section key={g.key}>
@@ -481,6 +550,7 @@ export function TasksPage() {
           {/* Right rail */}
           <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
             <TeamCard state={state} me={me} onChanged={load} onError={setError} />
+            <RolesCard state={state} onChanged={load} onError={setError} />
             <RemindersCard state={state} onRan={load} onPreview={() => setPreview(true)} />
             <Link
               to="/handbook"
@@ -527,16 +597,39 @@ function Header({ me, members, onMe }: { me: string; members: TeamMember[]; onMe
   );
 }
 
-function Stat({ label, value, sub, tone: t }: { label: string; value: number; sub: string; tone: 'rose' | 'brand' | 'amber' | 'emerald' | 'slate' }) {
+function Stat({
+  label,
+  value,
+  sub,
+  tone: t,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  sub: string;
+  tone: 'rose' | 'brand' | 'amber' | 'emerald' | 'slate';
+  active?: boolean;
+  onClick?: () => void;
+}) {
   const bar = { rose: 'bg-rose-500', brand: 'bg-brand-500', amber: 'bg-amber-400', emerald: 'bg-emerald-500', slate: 'bg-slate-300' }[t];
   const txt = { rose: 'text-rose-600', brand: 'text-slate-900', amber: 'text-slate-900', emerald: 'text-slate-900', slate: 'text-slate-900' }[t];
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      aria-pressed={onClick ? !!active : undefined}
+      title={onClick ? (active ? 'Show everything' : `Show only: ${label.toLowerCase()}`) : undefined}
+      className={`relative overflow-hidden rounded-2xl border bg-white px-4 py-3 text-left shadow-sm transition disabled:cursor-default ${
+        active ? 'border-brand-400 ring-2 ring-brand-100' : 'border-slate-200 enabled:hover:border-slate-300'
+      }`}
+    >
       <span className={`absolute inset-y-0 left-0 w-1 ${bar}`} />
       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`font-display text-3xl font-extrabold tabular-nums ${txt}`}>{value}</div>
-      <div className="text-xs text-slate-400">{sub}</div>
-    </div>
+      <div className="text-xs text-slate-400">{active ? 'Filtered · click to clear' : sub}</div>
+    </button>
   );
 }
 
@@ -638,6 +731,23 @@ function TaskRow({
   );
 }
 
+/** A reference link: in-app paths stay in the app, others open in a new tab. */
+function RefLink({ l }: { l: { label: string; url: string } }) {
+  const cls =
+    'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-800';
+  return l.url.startsWith('/') ? (
+    <Link to={l.url} className={cls}>
+      {l.url.startsWith('/handbook') ? <BookOpenIcon className="h-3.5 w-3.5" /> : <LinkIcon className="h-3.5 w-3.5" />}
+      {l.label}
+    </Link>
+  ) : (
+    <a href={l.url} target="_blank" rel="noreferrer" className={cls}>
+      <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+      {l.label}
+    </a>
+  );
+}
+
 /** Expanded task: How to (handbook, in place) · Details & owners · History. */
 function TaskPanel({
   task,
@@ -657,8 +767,33 @@ function TaskPanel({
   const [tab, setTab] = useState<'how' | 'edit' | 'history'>(task.howTo ? 'how' : 'edit');
   const history = Object.entries(state.done[task.id] ?? {}).sort((a, b) => (a[0] < b[0] ? 1 : -1));
   const byId = new Map(members.map((m) => [m.id, m]));
+  const [copied, setCopied] = useState(false);
+  const copyLink = async () => {
+    const url = `${window.location.origin}/tasks?task=${encodeURIComponent(task.id)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt('Copy this link', url);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
   return (
     <div className="border-t border-slate-100 px-3 pb-4 pt-2 sm:px-4">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => void copyLink()}
+          className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:border-brand-300 hover:text-brand-700"
+          title="Copy a link that opens this task"
+        >
+          <LinkIcon className="h-3.5 w-3.5" />
+          {copied ? 'Link copied' : 'Copy task link'}
+        </button>
+        {(task.links ?? []).map((l) => (
+          <RefLink key={l.url} l={l} />
+        ))}
+      </div>
       <div className="mb-3 flex gap-1 text-sm">
         {(
           [
@@ -949,6 +1084,43 @@ function TaskEditor({
         )}
       </div>
 
+      <div>
+        <label className={lbl}>References — Handbook sections, MIS pages or portals (shown on the task and in emails)</label>
+        <div className="space-y-1.5">
+          {(f.links ?? []).map((l, i) => (
+            <div key={i} className="flex gap-1.5">
+              <input
+                className={`${input} w-2/5`}
+                value={l.label}
+                placeholder="Label"
+                onChange={(e) => set({ links: f.links!.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })}
+              />
+              <input
+                className={input}
+                value={l.url}
+                placeholder="/handbook#c7 or https://…"
+                onChange={(e) => set({ links: f.links!.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })}
+              />
+              <button
+                type="button"
+                onClick={() => set({ links: f.links!.filter((_, j) => j !== i) })}
+                className="shrink-0 rounded-lg px-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                aria-label="Remove reference"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => set({ links: [...(f.links ?? []), { label: '', url: '' }] })}
+            className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline"
+          >
+            <PlusIcon className="h-3.5 w-3.5" /> Add reference
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
         <span className="mr-auto text-xs text-slate-500">{describe({ cadence: cad, ...f } as WorkTask)}</span>
         {msg && <span className={`text-xs ${msg === 'Saved' ? 'text-emerald-600' : 'text-rose-600'}`}>{msg}</span>}
@@ -1155,6 +1327,108 @@ function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: str
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8 am – 10 pm
 const hourLabel = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? 'am' : 'pm'}`;
+
+/** Who does what: each role from the task list → a person. Tasks with no owner get filled automatically. */
+function RolesCard({ state, onChanged, onError }: { state: WorkState; onChanged: () => Promise<void>; onError: (s: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const r = state.routing ?? { roles: {} };
+  const names = [...new Set([...state.roleNames, ...Object.keys(r.roles)])].sort((a, b) => a.localeCompare(b));
+  const unowned = state.tasks.filter((t) => t.active && !t.ownerIds.some((id) => state.members.some((m) => m.id === id))).length;
+  const mapped = names.filter((n) => r.roles[n]?.length).length;
+
+  const save = async (next: { roles: Record<string, string[]>; fallback?: string }) => {
+    setBusy(true);
+    setNote('');
+    try {
+      const res = await saveRouting({ ...next, apply: true });
+      setNote(res.assigned ? `Assigned ${res.assigned} task${res.assigned > 1 ? 's' : ''} that had no owner.` : 'Saved.');
+      await onChanged();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Could not save.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const setRole = (role: string, id: string) => {
+    const roles = { ...r.roles };
+    if (id) roles[role] = [id];
+    else delete roles[role];
+    void save({ roles, fallback: r.fallback });
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 px-4 py-3 text-left">
+        <UserGroupIcon className="h-4 w-4 text-brand-600" />
+        <h3 className="font-display text-sm font-bold text-slate-900">Who does what</h3>
+        <span className="ml-auto text-xs text-slate-500">
+          {mapped}/{names.length} roles{unowned ? <span className="text-amber-700"> · {unowned} no owner</span> : null}
+        </span>
+        <ChevronDownIcon className={`h-4 w-4 text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-slate-100 px-4 py-3 text-sm">
+          <p className="text-xs leading-relaxed text-slate-500">
+            Pick who covers each role. Any task with no owner is assigned automatically from its role; tasks you assigned by hand are left alone.
+          </p>
+          <ul className="divide-y divide-slate-100">
+            {names.map((n) => (
+              <li key={n} className="flex items-center gap-2 py-1.5">
+                <span className="min-w-0 flex-1 truncate text-slate-700" title={n}>
+                  {n}
+                </span>
+                <select
+                  value={r.roles[n]?.[0] ?? ''}
+                  disabled={busy}
+                  onChange={(e) => setRole(n, e.target.value)}
+                  className="w-32 rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-xs text-slate-800"
+                  aria-label={`Who covers ${n}`}
+                >
+                  <option value="">— default —</option>
+                  {state.members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </li>
+            ))}
+          </ul>
+          <div className="flex items-center gap-2 border-t border-slate-100 pt-2">
+            <span className="flex-1 text-xs font-medium text-slate-700">Anyone else (unmatched roles)</span>
+            <select
+              value={r.fallback ?? ''}
+              disabled={busy}
+              onChange={(e) => void save({ roles: r.roles, fallback: e.target.value })}
+              className="w-32 rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-xs font-medium text-slate-800"
+              aria-label="Owner for unmatched roles"
+            >
+              <option value="">— nobody —</option>
+              {state.members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {unowned > 0 && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void save({ roles: r.roles, fallback: r.fallback })}
+              className="w-full rounded-lg border border-brand-200 bg-brand-50 py-1.5 text-xs font-semibold text-brand-800 hover:bg-brand-100 disabled:opacity-50"
+            >
+              Assign the {unowned} task{unowned > 1 ? 's' : ''} with no owner
+            </button>
+          )}
+          {note && <p className="text-xs text-emerald-700">{note}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function RemindersCard({ state, onRan, onPreview }: { state: WorkState; onRan: () => Promise<void>; onPreview: () => void }) {
   const [busy, setBusy] = useState(false);

@@ -40,6 +40,44 @@ const HOW_TO: Record<string, string> = {
   'acc-gstr9': 'c7',
   'hr-tds-salary': 'c8',
   'adm-courier-recon': 'c16-m2-shiprocket',
+  'adm-asset-physical': 'c26',
+  'acc-advance-tax': 'c8',
+  'acc-tax-audit': 'c12',
+  'acc-itr-filing': 'c12',
+  'inv-audited-financials': 'c12',
+  'hr-salary-disbursement': 'c9',
+};
+
+/** Extra references shown on the task (and in emails), besides its "how to". */
+const LINKS: Record<string, { label: string; url: string }[]> = {
+  'ops-d1-tranzact-to-tally': [{ label: 'Tranzact: B2B, offline and purchases', url: '/handbook#c4' }],
+  'ops-m1-amazon-reports': [
+    { label: 'Amazon chapter', url: '/handbook#c6' },
+    { label: 'Monthly Amazon expense JV', url: '/handbook#c6-monthly-jv' },
+  ],
+  'ops-m5-banks-statutory-close': [
+    { label: 'Month-end close', url: '/handbook#c10' },
+    { label: 'Banks', url: '/handbook#c9' },
+  ],
+  'acc-gstr1': [{ label: 'GST monthly cycle', url: '/handbook#c7-monthly-cycle' }, { label: 'GST portal', url: 'https://www.gst.gov.in/' }],
+  'acc-gstr3b': [{ label: 'GST monthly cycle', url: '/handbook#c7-monthly-cycle' }, { label: 'GST portal', url: 'https://www.gst.gov.in/' }],
+  'acc-gstr2b-recon': [{ label: 'GST monthly cycle', url: '/handbook#c7-monthly-cycle' }],
+  'acc-gstr9': [{ label: 'GST portal', url: 'https://www.gst.gov.in/' }],
+  'acc-tds-payment': [{ label: 'TIN / OLTAS payment', url: 'https://www.incometax.gov.in/' }],
+  'acc-tds-return-q': [{ label: 'TRACES', url: 'https://www.tdscpc.gov.in/' }],
+  'ops-q-26q-form16a': [{ label: 'TRACES', url: 'https://www.tdscpc.gov.in/' }],
+  'acc-itr-filing': [{ label: 'Income-tax e-filing', url: 'https://www.incometax.gov.in/' }],
+  'acc-mis-close': [{ label: 'Live MIS', url: '/reporting/mis/live' }, { label: 'Upload data', url: '/reporting/mis/ingest' }],
+  'inv-monthly-update': [{ label: 'Live MIS', url: '/reporting/mis/live' }],
+  'hr-pf-challan': [{ label: 'EPFO employer portal', url: 'https://unifiedportal-emp.epfindia.gov.in/' }],
+  'hr-esi-challan': [{ label: 'ESIC portal', url: 'https://www.esic.gov.in/' }],
+  'mca-aoc4': [{ label: 'MCA portal', url: 'https://www.mca.gov.in/' }],
+  'mca-mgt7': [{ label: 'MCA portal', url: 'https://www.mca.gov.in/' }],
+  'mca-dir3-kyc': [{ label: 'MCA portal', url: 'https://www.mca.gov.in/' }],
+  'mca-dpt3': [{ label: 'MCA portal', url: 'https://www.mca.gov.in/' }],
+  'mca-msme-1': [{ label: 'MCA portal', url: 'https://www.mca.gov.in/' }],
+  'leg-msme-udyam': [{ label: 'Udyam portal', url: 'https://udyamregistration.gov.in/' }],
+  'adm-ewaybill-check': [{ label: 'E-way bill portal', url: 'https://ewaybillgst.gov.in/' }],
 };
 
 /** Clearer titles for the daily/monthly book-keeping tasks (match the Handbook). */
@@ -67,6 +105,10 @@ function toTask(cat: ComplianceCategoryKey, it: ComplianceItem): Partial<WorkTas
     ownerIds: [],
     roleLabel: it.owner,
     howTo: HOW_TO[it.id],
+    links: [
+      ...(it.referenceUrl && it.referenceUrl !== `/handbook#${HOW_TO[it.id]}` ? [{ label: it.reference?.replace(/^Handbook · /, '') || 'Reference', url: it.referenceUrl }] : []),
+      ...(LINKS[it.id] ?? []),
+    ].filter((l, i, a) => a.findIndex((x) => x.url === l.url) === i),
     form: it.form,
     authority: it.authority,
     penalty: it.penalty,

@@ -57,6 +57,10 @@ function taskCard(i: OpenItem, base: string, ownerNames: string): string {
   const links = [
     `<a href="${base}/tasks?task=${encodeURIComponent(i.task.id)}" style="color:${BRAND};text-decoration:none;font-weight:600">Open task →</a>`,
     i.task.howTo ? `<a href="${base}/handbook#${encodeURIComponent(i.task.howTo)}" style="color:${BRAND};text-decoration:none;font-weight:600">How to do it →</a>` : '',
+    ...(i.task.links ?? [])
+      .filter((l) => !(i.task.howTo && l.url === `/handbook#${i.task.howTo}`))
+      .slice(0, 3)
+      .map((l) => `<a href="${l.url.startsWith('/') ? base + l.url : esc(l.url)}" style="color:#475569;text-decoration:underline">${esc(l.label)}</a>`),
     i.task.upload ? `<span style="color:${MUTED}">Ticks itself when the file is uploaded</span>` : '',
   ]
     .filter(Boolean)

@@ -12,7 +12,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { readJson, writeJson, listReports } from '../ingest/objectStore.js';
-import { listAssignments } from './ownershipStore.js';
+import { listAssignments, listMembers, type TeamMember } from './ownershipStore.js';
 import type { Cadence, ScheduleSpec } from './workSchedule.js';
 import { occurrences, todayIST, addDays, parseYmd, ymd, lookbackDays } from './workSchedule.js';
 
@@ -31,6 +31,8 @@ export interface WorkTask extends ScheduleSpec {
   authority?: string;
   penalty?: string;
   notes?: string;
+  /** Reference links (Handbook sections, MIS pages, portals). */
+  links?: { label: string; url: string }[];
   /** Linked MIS upload slot → auto-done when the report for the period lands. */
   upload?: { connectorId: string; slotId: string };
   /** Start reminding this many days before the due date (default 2). */
@@ -58,10 +60,86 @@ export interface ReminderSettings {
 
 export const DEFAULT_SETTINGS: ReminderSettings = { enabled: true, sendHour: 14, summaryTo: ['hargun@heatronics.in'], includeDueSoon: true };
 
+export interface Routing {
+  /** Role name (as it appears in task role labels, e.g. "Accountant") → member ids. */
+  roles: Record<string, string[]>;
+  /** Owner for tasks whose roles match no one. */
+  fallback?: string;
+}
+
+/** "CFO / Accounts Manager" → ["CFO", "Accounts Manager"]; "MR (Management Representative)" → ["MR"]. */
+export const splitRoles = (label?: string): string[] =>
+  (label ?? '')
+    .replace(/\([^)]*\)/g, '')
+    .split(/\s*(?:\/|,|&|\band\b)\s*/i)
+    .map((r) => r.trim())
+    .filter(Boolean);
+
+/** Starting routing from the team list (by email); everything unmatched goes to Hargun. */
+function defaultRouting(members: TeamMember[]): Routing {
+  const by = (pred: (m: TeamMember) => boolean) => members.filter(pred).map((m) => m.id);
+  const accounts = by((m) => /^accounts@/i.test(m.email));
+  const hargun = by((m) => /^hargun@/i.test(m.email));
+  const roles: Record<string, string[]> = {};
+  if (accounts.length)
+    for (const r of ['Accountant', 'Accounts', 'Accounts Executive', 'Accounts Manager', 'Payroll', 'MIS uploads']) roles[r] = accounts;
+  if (hargun.length) for (const r of ['CFO', 'Founder']) roles[r] = hargun;
+  return { roles, fallback: hargun[0] };
+}
+
+/** Give every active task with no (valid) owner the people its roles map to. Returns how many changed. */
+function applyRouting(doc: WorkDoc, members: TeamMember[]): number {
+  const valid = new Set(members.map((m) => m.id));
+  const r = doc.routing;
+  if (!r) return 0;
+  const lower = new Map(Object.entries(r.roles).map(([k, v]) => [k.toLowerCase(), v.filter((id) => valid.has(id))]));
+  let n = 0;
+  for (const t of doc.tasks) {
+    if (t.ownerIds.some((id) => valid.has(id))) continue;
+    const ids = new Set<string>();
+    for (const role of splitRoles(t.roleLabel)) for (const id of lower.get(role.toLowerCase()) ?? []) ids.add(id);
+    if (!ids.size && r.fallback && valid.has(r.fallback)) ids.add(r.fallback);
+    if (ids.size) {
+      t.ownerIds = [...ids];
+      n++;
+    }
+  }
+  return n;
+}
+
+export async function saveRouting(input: Partial<Routing>, apply = true): Promise<{ routing: Routing; assigned: number }> {
+  const [doc, members] = await Promise.all([readWork(), listMembers()]);
+  const roles: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(input.roles ?? doc.routing?.roles ?? {})) {
+    const ids = (Array.isArray(v) ? v : []).map(String).filter(Boolean);
+    if (k.trim() && ids.length) roles[k.trim()] = ids;
+  }
+  doc.routing = { roles, fallback: input.fallback === '' ? undefined : (input.fallback ?? doc.routing?.fallback) };
+  const assigned = apply ? applyRouting(doc, members) : 0;
+  await writeWork(doc);
+  return { routing: doc.routing, assigned };
+}
+
+/** Handbook guide for an MIS upload, from its connector / label. */
+function uploadHowTo(text: string): string | undefined {
+  const t = text.toLowerCase();
+  if (t.includes('amazon')) return 'c16-m1-amazon';
+  if (t.includes('shiprocket')) return 'c16-m2-shiprocket';
+  if (t.includes('snapmint')) return 'c16-m3-snapmint';
+  if (t.includes('easebuzz') || t.includes('shopify')) return 'c14-d2-shopify-easebuzz';
+  if (t.includes('tranzact')) return 'c14-d1-tranzact';
+  if (t.includes('blinkit')) return 'c25';
+  if (t.includes('bank') || t.includes('hdfc') || t.includes('icici')) return 'c9';
+  if (t.includes('tally') || t.includes('trial balance')) return 'c10';
+  return undefined;
+}
+
 export interface WorkDoc {
   version: 1;
   seededAt?: string;
   settings?: ReminderSettings;
+  /** Who does what: role (from a task's role label) → people. */
+  routing?: Routing;
   /** India date (YYYY-MM-DD) of the last automatic daily send. */
   lastScheduledDay?: string;
   tasks: WorkTask[];
@@ -106,6 +184,12 @@ function clean(input: Partial<WorkTask>, prev?: WorkTask): WorkTask {
     penalty: input.penalty ?? prev?.penalty,
     notes: input.notes ?? prev?.notes,
     upload: input.upload === null ? undefined : input.upload ?? prev?.upload,
+    links: Array.isArray(input.links)
+      ? input.links
+          .map((l) => ({ label: String(l?.label ?? '').trim(), url: String(l?.url ?? '').trim() }))
+          .filter((l) => l.url && /^(https?:\/\/|\/)/.test(l.url))
+          .map((l) => ({ label: l.label || l.url, url: l.url }))
+      : prev?.links,
     remindDaysBefore: num(input.remindDaysBefore, 0, 30) ?? prev?.remindDaysBefore ?? 2,
     active: input.active ?? prev?.active ?? true,
     source: input.source ?? prev?.source ?? 'custom',
@@ -195,7 +279,7 @@ export async function importSeed(
   tasks: Partial<WorkTask>[],
   done: WorkDoc['done'],
   force = false,
-): Promise<{ imported: number; skipped: boolean }> {
+): Promise<{ imported: number; skipped: boolean; assigned?: number }> {
   const doc = await readWork();
   if (doc.seededAt && !force) return { imported: 0, skipped: true };
   const byId = new Map(doc.tasks.map((t) => [t.id, t]));
@@ -218,7 +302,9 @@ export async function importSeed(
           dueDay: a.dueDay,
           arrears: true,
           upload: a.connectorId && a.slotId ? { connectorId: a.connectorId, slotId: a.slotId } : undefined,
-          howTo: undefined,
+          roleLabel: 'MIS uploads',
+          howTo: uploadHowTo(`${a.connectorId ?? ''} ${a.label}`),
+          links: [{ label: 'Upload data', url: '/reporting/mis/ingest' }],
           active: a.active,
           source: 'ownership',
         },
@@ -230,8 +316,12 @@ export async function importSeed(
   doc.tasks = [...byId.values()];
   for (const [id, m] of Object.entries(done ?? {})) doc.done[id] = { ...m, ...(doc.done[id] ?? {}) };
   doc.seededAt = new Date().toISOString();
+  // Owners: route by role (accounts roles → the accounts mailbox, the rest → Hargun).
+  const members = await listMembers();
+  if (!doc.routing) doc.routing = defaultRouting(members);
+  const assigned = applyRouting(doc, members);
   await writeWork(doc);
-  return { imported: doc.tasks.length, skipped: false };
+  return { imported: doc.tasks.length, skipped: false, assigned };
 }
 
 /** Periods auto-completed by an uploaded report, per upload task. */
