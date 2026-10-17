@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { searchHandbook, type HbSearchHit } from '../../data/handbook/handbook';
+import { useHandbookOpen } from './handbookNav';
 
 const searchIcon = (cls: string) => (
   <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -43,6 +44,7 @@ export function HandbookSearch({ size = 'compact' }: { size?: 'compact' | 'large
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const openInReader = useHandbookOpen();
   const hits = useMemo(() => searchHandbook(q), [q]);
   const large = size === 'large';
   const showing = q.trim().length >= 2 && open;
@@ -64,7 +66,8 @@ export function HandbookSearch({ size = 'compact' }: { size?: 'compact' | 'large
     setOpen(false);
     setQ('');
     inputRef.current?.blur();
-    navigate(h.href);
+    if (openInReader) openInReader(h.href);
+    else navigate(h.href);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
