@@ -16,12 +16,32 @@ const iconLedger = (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
   </svg>
 );
+const iconBook = (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+  </svg>
+);
 
 export function GuideHome() {
   return (
     <>
-      <PageHeader title="Guide" accent="violet" icon={iconSop} />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <PageHeader
+        title="Guide"
+        description="The full Accounts Handbook is the deep reference; the SOPs below are the quick, single-task procedures."
+        accent="violet"
+        icon={iconSop}
+      />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4">
+        {/* The comprehensive handbook sits above the quick SOPs so it's clear
+            which is the authoritative reference and which are the shortcuts. */}
+        <NavCard
+          to="/handbook"
+          title="Accounts Handbook"
+          description="The complete, authored reference: how every system is wired, each journal and control ledger, the operating calendar, and a chat to ask clarifications."
+          icon={iconBook}
+          accent="brand"
+          badge="Start here"
+        />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <NavCard
             to="/guide/sop"
