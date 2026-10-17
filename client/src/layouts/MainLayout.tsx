@@ -67,7 +67,8 @@ const SECTIONS: NavSection[] = [
   {
     label: 'Guides',
     items: [
-      { path: '/guide/sop', label: 'Accounting SOPs', icon: ico(['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']), match: (p) => p.startsWith('/guide') || p.startsWith('/handbook') },
+      { path: '/guide/sop', label: 'Accounting SOPs', icon: ico(['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']), match: (p) => p.startsWith('/guide') },
+      { path: '/handbook', label: 'Accounts Handbook', icon: ico(['M12 6.5C10.8 5.5 9.2 5 7.5 5S4.2 5.5 3 6.5v13C4.2 18.5 5.8 18 7.5 18s3.3.5 4.5 1.5m0-13c1.2-1 2.8-1.5 4.5-1.5s3.3.5 4.5 1.5v13c-1.2-1-2.8-1.5-4.5-1.5s-3.3.5-4.5 1.5m0-13v13']), match: (p) => p.startsWith('/handbook') },
     ],
   },
   {
@@ -197,7 +198,7 @@ export function MainLayout() {
 
       {/* Hanging chat — the SOP pages get the handbook-grounded "Ask about the
           SOPs" chat; everywhere else gets the MIS data chat. */}
-      {path.startsWith('/guide/sop') ? <SopChat /> : <FloatingChat />}
+      {path.startsWith('/handbook') ? null : path.startsWith('/guide/sop') ? <SopChat /> : <FloatingChat />}
     </div>
   );
 }
