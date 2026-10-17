@@ -60,8 +60,9 @@ const SECTIONS: NavSection[] = [
   {
     label: 'Govern',
     items: [
-      { path: '/compliance', label: 'Tasks & Compliance', icon: ico('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z'), match: (p) => p.startsWith('/compliance') || p.startsWith('/tracker') || p.startsWith('/task-tracker') },
-      { path: '/reporting/mis/ownership', label: 'Ownership', icon: ico(['M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 10-4-4 4 4 0 004 4z']), match: (p) => p.startsWith('/reporting/mis/ownership') },
+      { path: '/tasks', label: 'Tasks & owners', icon: ico(['M9 11l3 3 8-8', 'M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h9']), match: (p) => p.startsWith('/tasks') },
+      { path: '/compliance', label: 'Tasks & Compliance', tag: 'Legacy', muted: true, dividerBefore: true, icon: ico('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z'), match: (p) => p.startsWith('/compliance') || p.startsWith('/tracker') || p.startsWith('/task-tracker') },
+      { path: '/reporting/mis/ownership', label: 'Ownership', tag: 'Legacy', muted: true, icon: ico(['M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 10-4-4 4 4 0 004 4z']), match: (p) => p.startsWith('/reporting/mis/ownership') },
     ],
   },
   {
