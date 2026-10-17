@@ -17,6 +17,8 @@ import raw from '../../content/handbook/handbook.html?raw';
 export interface HbSub {
   id: string;
   title: string;
+  /** Plain text of this section (from its heading to the next one), for search. */
+  text: string;
 }
 
 export interface HbChapter {
@@ -69,6 +71,12 @@ export function getHandbook(): Handbook {
       if (v && v.startsWith('img/')) el.setAttribute(attr, IMG_BASE + v.slice(4));
     }
   });
+  // Word gaps between block-level cells so extracted text (search, chat) reads
+  // "Creditors 5,36,027.61", not "Creditors5,36,027.61". Whitespace between
+  // these elements does not change how the page renders.
+  wrap.querySelectorAll('td,th,li,dt,dd,p,div,h2,h3,h4,figcaption,summary,text,span.p,span.ar,span.s,span.nm,span.a,h4,.je>*').forEach((el) => {
+    el.after(doc.createTextNode(' '));
+  });
   // External links open in a new tab.
   wrap.querySelectorAll<HTMLAnchorElement>('a[href^="http"]').forEach((a) => {
     a.target = '_blank';
@@ -110,7 +118,18 @@ export function getHandbook(): Handbook {
       const t = h.textContent?.trim() ?? '';
       if (!t || t === title) return;
       if (!h.id) h.id = `${el.id}-${slugify(t)}`;
-      if (!subs.some((s) => s.id === h.id)) subs.push({ id: h.id, title: t });
+      if (!subs.some((s) => s.id === h.id)) subs.push({ id: h.id, title: t, text: '' });
+    });
+    // Section text = from each h3 to the next h3 (or the end of the chapter).
+    subs.forEach((s, i) => {
+      const start = doc.getElementById(s.id);
+      if (!start) return;
+      const range = doc.createRange();
+      range.setStartBefore(start);
+      const next = subs[i + 1] && doc.getElementById(subs[i + 1].id);
+      if (next) range.setEndBefore(next);
+      else range.setEndAfter(el.lastChild ?? el);
+      s.text = range.toString().replace(/\s+/g, ' ');
     });
     const ch: HbChapter = {
       id: el.id,
@@ -145,25 +164,68 @@ export function handbookHref(anchorId?: string): string {
 
 export interface HbSearchHit {
   chapter: HbChapter;
-  snippet: string;
+  /** The section the match is in, when it is inside one. */
+  sub?: HbSub;
+  /** Snippet split around the match so the UI can highlight it. */
+  before: string;
+  match: string;
+  after: string;
+  href: string;
 }
 
-export function searchHandbook(q: string, limit = 30): HbSearchHit[] {
+function snippet(text: string, at: number, len: number) {
+  const start = Math.max(0, at - 60);
+  const end = Math.min(text.length, at + len + 90);
+  return {
+    before: (start > 0 ? '…' : '') + text.slice(start, at),
+    match: text.slice(at, at + len),
+    after: text.slice(at + len, end) + (end < text.length ? '…' : ''),
+  };
+}
+
+/**
+ * Full-text search across every chapter and section. Title matches rank
+ * first, then body matches; each hit deep-links to the exact section.
+ */
+export function searchHandbook(q: string, limit = 40): HbSearchHit[] {
   const v = q.trim().toLowerCase();
   if (v.length < 2) return [];
-  const hits: HbSearchHit[] = [];
+  const titleHits: HbSearchHit[] = [];
+  const bodyHits: HbSearchHit[] = [];
   for (const ch of getHandbook().chapters) {
-    const hay = ch.text.toLowerCase();
-    const i = hay.indexOf(v);
-    const inTitle = ch.title.toLowerCase().includes(v) || ch.no.toLowerCase() === v;
-    if (i < 0 && !inTitle) continue;
-    const at = Math.max(0, i);
-    const start = Math.max(0, at - 50);
-    const snippet = (start > 0 ? '…' : '') + ch.text.slice(start, at + v.length + 70).trim() + '…';
-    hits.push({ chapter: ch, snippet });
-    if (hits.length >= limit) break;
+    const chHref = `${HANDBOOK_BASE}/${ch.slug}`;
+    if (ch.title.toLowerCase().includes(v) || ch.no.toLowerCase() === v) {
+      const i = ch.title.toLowerCase().indexOf(v);
+      titleHits.push({
+        chapter: ch,
+        before: i >= 0 ? ch.title.slice(0, i) : ch.title,
+        match: i >= 0 ? ch.title.slice(i, i + v.length) : '',
+        after: (i >= 0 ? ch.title.slice(i + v.length) : '') + (ch.lede ? ' — ' + ch.lede : ''),
+        href: chHref,
+      });
+    }
+    let matchedSection = false;
+    for (const sub of ch.subs) {
+      const href = `${chHref}#${sub.id}`;
+      if (sub.title.toLowerCase().includes(v)) {
+        titleHits.push({ chapter: ch, sub, ...snippet(sub.text, sub.text.toLowerCase().indexOf(v), v.length), href });
+        matchedSection = true;
+        continue;
+      }
+      const i = sub.text.toLowerCase().indexOf(v);
+      if (i >= 0) {
+        bodyHits.push({ chapter: ch, sub, ...snippet(sub.text, i, v.length), href });
+        matchedSection = true;
+      }
+    }
+    if (!matchedSection) {
+      const i = ch.text.toLowerCase().indexOf(v);
+      if (i >= 0 && !titleHits.some((h) => h.chapter === ch && !h.sub)) {
+        bodyHits.push({ chapter: ch, ...snippet(ch.text, i, v.length), href: chHref });
+      }
+    }
   }
-  return hits;
+  return [...titleHits, ...bodyHits].slice(0, limit);
 }
 
 /**

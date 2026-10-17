@@ -9,18 +9,21 @@
 // redirect into the matching chapter (see App.tsx).
 // ----------------------------------------------------------------------------
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { NavCard } from '../../components/ui/Card';
 import { Drawer } from '../../components/ui/overlays';
 import { SopVisual } from '../../components/ui/SopVisual';
 import {
   HANDBOOK_BASE,
   getHandbook,
-  searchHandbook,
+  handbookHref,
   type HbChapter,
 } from '../../data/handbook/handbook';
 import { TEAM_VISUALS } from '../../data/handbook/teamVisuals';
+import { TOPIC_GROUPS } from '../../data/handbook/topics';
+import { HandbookSearch } from './HandbookSearch';
 import './handbook.generated.css';
 
 const bookIcon = (
@@ -49,9 +52,7 @@ function HandbookNav({
   onNavigate?: () => void;
 }) {
   const hb = getHandbook();
-  const [q, setQ] = useState('');
   const [closed, setClosed] = useState<Record<string, boolean>>({});
-  const hits = useMemo(() => searchHandbook(q), [q]);
   const activeRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
@@ -64,44 +65,15 @@ function HandbookNav({
         <Link
           to={HANDBOOK_BASE}
           onClick={onNavigate}
-          className="flex items-center gap-2 px-1 pb-2.5 font-display font-bold text-[15px] text-slate-900 hover:text-brand-700"
+          className="flex items-center gap-2 px-1 font-display font-bold text-[15px] text-slate-900 hover:text-brand-700"
         >
           <span className="w-7 h-7 rounded-lg bg-brand-gradient text-white flex items-center justify-center">{bookIcon}</span>
           Accounts Handbook
         </Link>
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search the handbook…"
-          aria-label="Search the handbook"
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-300"
-        />
       </div>
 
       <nav className="flex-1 overflow-y-auto overscroll-contain p-2 pb-10" aria-label="Handbook contents">
-        {q.trim().length >= 2 ? (
-          <div className="space-y-1">
-            <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              {hits.length ? `${hits.length} chapter${hits.length > 1 ? 's' : ''} match` : 'No matches'}
-            </div>
-            {hits.map((h) => (
-              <Link
-                key={h.chapter.id}
-                to={`${HANDBOOK_BASE}/${h.chapter.slug}`}
-                onClick={onNavigate}
-                className="block rounded-lg px-2.5 py-2 hover:bg-slate-100"
-              >
-                <div className="text-sm font-medium text-slate-900">
-                  <span className="font-mono text-xs text-brand-700 mr-1.5">{h.chapter.no}</span>
-                  {h.chapter.title}
-                </div>
-                <div className="mt-0.5 text-xs text-slate-500 line-clamp-2">{h.snippet}</div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          hb.parts.map((p) => {
+        {hb.parts.map((p) => {
             const isClosed = closed[p.id] && current?.partId !== p.id;
             return (
               <div key={p.id} className="mt-1">
@@ -160,8 +132,7 @@ function HandbookNav({
                 )}
               </div>
             );
-          })
-        )}
+          })}
       </nav>
     </div>
   );
@@ -280,6 +251,11 @@ export function HandbookPage() {
               <span> › {ch.subs.find((s) => s.id === activeSub)?.title}</span>
             )}
           </div>
+          {ch && (
+            <div className="ml-auto w-44 sm:w-72 flex-shrink-0">
+              <HandbookSearch />
+            </div>
+          )}
         </div>
 
         {!ch ? (
@@ -291,34 +267,65 @@ export function HandbookPage() {
               accent="brand"
               icon={bookIcon}
             />
-            <div className="max-w-[1040px] mx-auto px-4 sm:px-6 py-8 space-y-8">
+            <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-8 space-y-10">
+              <HandbookSearch size="large" />
+
+              {TOPIC_GROUPS.map((g) => {
+                const icon = (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                    {g.icon.map((d) => (
+                      <path key={d} strokeLinecap="round" strokeLinejoin="round" d={d} />
+                    ))}
+                  </svg>
+                );
+                return (
+                  <section key={g.heading}>
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">{g.heading}</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {g.topics.map((t) => (
+                        <NavCard
+                          key={t.anchor}
+                          to={handbookHref(t.anchor)}
+                          title={t.title}
+                          description={t.description}
+                          icon={icon}
+                          accent={g.accent}
+                          badge={hb.idToChapter.get(t.anchor)?.no}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+
               <div
                 className="hb hb-cover rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-card"
                 onClick={onContentClick}
                 dangerouslySetInnerHTML={{ __html: hb.coverHtml }}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {hb.parts.map((p) => (
-                  <div key={p.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700">{p.eyebrow}</div>
-                    <div className="mt-0.5 font-display text-lg font-extrabold text-slate-900">{p.title}</div>
-                    {p.blurb && <p className="mt-1 text-sm text-slate-500">{p.blurb}</p>}
-                    <ul className="mt-3 divide-y divide-slate-100">
-                      {p.chapters.map((c) => (
-                        <li key={c.id}>
-                          <Link
-                            to={`${HANDBOOK_BASE}/${c.slug}`}
-                            className="flex gap-3 py-2 text-sm text-slate-700 hover:text-brand-700"
-                          >
-                            <span className="font-mono text-xs text-brand-700 min-w-[26px] pt-0.5">{c.no}</span>
-                            <span>{c.title}</span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+
+              <section>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">All chapters</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {hb.parts.map((p) => (
+                    <div key={p.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700">{p.eyebrow}</div>
+                      <div className="mt-0.5 font-display text-lg font-extrabold text-slate-900">{p.title}</div>
+                      {p.blurb && <p className="mt-1 text-sm text-slate-500">{p.blurb}</p>}
+                      <ul className="mt-3 divide-y divide-slate-100">
+                        {p.chapters.map((c) => (
+                          <li key={c.id}>
+                            <Link to={`${HANDBOOK_BASE}/${c.slug}`} className="flex gap-3 py-2 text-sm text-slate-700 hover:text-brand-700">
+                              <span className="font-mono text-xs text-brand-700 min-w-[26px] pt-0.5">{c.no}</span>
+                              <span>{c.title}</span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
           </>
         ) : (
