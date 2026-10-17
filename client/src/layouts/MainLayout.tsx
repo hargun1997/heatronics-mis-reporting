@@ -67,8 +67,7 @@ const SECTIONS: NavSection[] = [
   {
     label: 'Guides',
     items: [
-      { path: '/guide/sop', label: 'Accounting SOPs', icon: ico(['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']), match: (p) => p.startsWith('/guide/sop') || p.startsWith('/handbook') },
-      { path: '/guide', label: 'Guide & reference', icon: ico(['M4 5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2z', 'M8 12h8M8 16h5']), match: (p) => p.startsWith('/guide') && !p.startsWith('/guide/sop') },
+      { path: '/guide/sop', label: 'Accounting SOPs', icon: ico(['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']), match: (p) => p.startsWith('/guide') || p.startsWith('/handbook') },
     ],
   },
   {

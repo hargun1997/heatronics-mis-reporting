@@ -19,7 +19,6 @@ import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
 // Guide
-import { GuideHome } from './pages/guide/GuideHome';
 import { SystemArchitecture } from './pages/guide/SystemArchitecture';
 import { LedgerReference } from './pages/guide/LedgerReference';
 import { SopHome } from './pages/guide/sop/SopHome';
@@ -88,7 +87,7 @@ function App() {
           <Route path="mis-tracking/*" element={<Navigate to="/reporting/mis" replace />} />
 
           {/* Guide hub */}
-          <Route path="guide" element={<GuideHome />} />
+          <Route path="guide" element={<Navigate to="/guide/sop" replace />} />
           <Route path="guide/architecture" element={<SystemArchitecture />} />
           <Route path="guide/ledgers" element={<LedgerReference />} />
 

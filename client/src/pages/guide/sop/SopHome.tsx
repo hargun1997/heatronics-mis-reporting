@@ -62,6 +62,13 @@ const GROUPS: SopGroup[] = [
       { to: '/guide/sop/close', title: 'Month-end close', description: 'Control-ledger tie-outs, bank BRS, statutory dates, send the MIS.', accent: 'emerald' },
     ],
   },
+  {
+    heading: 'Reference',
+    items: [
+      { to: '/guide/ledgers', title: 'Ledger & Voucher Tree', description: 'The chart of accounts: control ledgers and the voucher types / bill series that post to each one.', accent: 'brand' },
+      { to: '/guide/architecture', title: 'System Architecture', description: 'How Tranzact, Tally, the Tally plugin, the channels and the banks connect.', accent: 'brand' },
+    ],
+  },
 ];
 
 export function SopHome() {
