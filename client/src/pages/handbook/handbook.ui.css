@@ -1,0 +1,38 @@
+/* Accounts Handbook — help-center chrome (hand-written; the article body
+   styles live in handbook.generated.css). */
+
+/* Ledger-paper hero: ruled lines + the red margin rule of an accounts book. */
+.hb-hero {
+  background:
+    linear-gradient(90deg, transparent 0 72px, rgba(254, 71, 5, 0.28) 72px 73px, transparent 73px 76px, rgba(254, 71, 5, 0.18) 76px 77px, transparent 77px),
+    repeating-linear-gradient(180deg, transparent 0 33px, rgba(15, 23, 42, 0.055) 33px 34px),
+    radial-gradient(1200px 400px at 85% -10%, rgba(254, 108, 56, 0.16), transparent 60%),
+    linear-gradient(180deg, #fffaf6 0%, #ffffff 100%);
+}
+@media (max-width: 640px) {
+  .hb-hero {
+    background:
+      repeating-linear-gradient(180deg, transparent 0 33px, rgba(15, 23, 42, 0.05) 33px 34px),
+      linear-gradient(180deg, #fffaf6 0%, #ffffff 100%);
+  }
+}
+
+/* Staggered reveal for cards. */
+@keyframes hb-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.hb-rise { animation: hb-rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .hb-rise { animation: none; }
+}
+
+/* Article body inside the reading column: the card chrome comes from the
+   page, so flatten the handbook's own chapter card. */
+.hb .hb-article {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+.hb .hb-article > .opblock:first-child { padding-top: 0; }

@@ -3,9 +3,9 @@
 //
 // The handbook lives in ONE file: client/src/content/handbook/handbook.html.
 // That same file is published standalone (the shareable Claude artifact), and
-// the app renders it natively here: we parse it once, split it into Parts →
-// Chapters → sub-sections, and the React pages render each chapter inside the
-// app layout with the app's navigation. Screenshots live in
+// the app renders it as a help center: collections (cards) → articles (one
+// focused page each). collections.ts decides the structure; this module
+// parses the HTML once and cuts it into those articles. Screenshots live in
 // client/public/handbook/img and are referenced as img/... in the HTML.
 //
 // To change accounting content, edit handbook.html (and re-run
@@ -13,48 +13,58 @@
 // ----------------------------------------------------------------------------
 
 import raw from '../../content/handbook/handbook.html?raw';
-
-export interface HbSub {
-  id: string;
-  title: string;
-  /** Plain text of this section (from its heading to the next one), for search. */
-  text: string;
-}
-
-export interface HbChapter {
-  id: string; // DOM id in handbook.html, e.g. "c6"
-  no: string; // displayed number, e.g. "6", "S0", "4b"
-  title: string;
-  lede: string;
-  slug: string; // URL segment, e.g. "6-amazon"
-  partId: string;
-  html: string; // the chapter <section> outer HTML
-  text: string; // plain text, for search
-  subs: HbSub[];
-}
-
-export interface HbPart {
-  id: string;
-  eyebrow: string; // "Part I"
-  title: string; // "How the books are built"
-  blurb: string;
-  chapters: HbChapter[];
-}
-
-export interface Handbook {
-  coverHtml: string;
-  parts: HbPart[];
-  chapters: HbChapter[];
-  bySlug: Map<string, HbChapter>;
-  /** Any element id inside the handbook → the chapter that contains it. */
-  idToChapter: Map<string, HbChapter>;
-}
+import { COLLECTIONS, type ArticleDef, type CollectionAccent } from './collections';
 
 export const HANDBOOK_BASE = '/handbook';
 const IMG_BASE = '/handbook/img/';
 
+export interface HbHeading {
+  id: string;
+  title: string;
+  /** Text from this heading to the next one, for search deep links. */
+  text: string;
+}
+
+export interface HbArticle {
+  slug: string;
+  title: string;
+  summary: string;
+  /** Badge such as "Daily · D1 · ~10 min" (from the task tag in the handbook). */
+  tag?: string;
+  collection: HbCollection;
+  /** Source chapter id in handbook.html. */
+  chapterId: string;
+  html: string;
+  text: string;
+  /** "On this page" headings. */
+  toc: HbHeading[];
+  href: string;
+}
+
+export interface HbCollection {
+  slug: string;
+  title: string;
+  description: string;
+  accent: CollectionAccent;
+  icon: string[];
+  articles: HbArticle[];
+  href: string;
+}
+
+export interface Handbook {
+  coverHtml: string;
+  collections: HbCollection[];
+  articles: HbArticle[];
+  /** Any element id in the handbook (chapter ids too) → the article that shows it. */
+  idToArticle: Map<string, HbArticle>;
+  /** Old chapter-style URL segments (e.g. "13-monthly-tasks") → chapter id. */
+  legacySlugs: Map<string, string>;
+}
+
 const slugify = (t: string) =>
-  t.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+  t.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+
+const clean = (t: string | null | undefined) => (t ?? '').replace(/\s+/g, ' ').trim();
 
 let cache: Handbook | null = null;
 
@@ -74,99 +84,207 @@ export function getHandbook(): Handbook {
   // Word gaps between block-level cells so extracted text (search, chat) reads
   // "Creditors 5,36,027.61", not "Creditors5,36,027.61". Whitespace between
   // these elements does not change how the page renders.
-  wrap.querySelectorAll('td,th,li,dt,dd,p,div,h2,h3,h4,figcaption,summary,text,span.p,span.ar,span.s,span.nm,span.a,h4,.je>*').forEach((el) => {
-    el.after(doc.createTextNode(' '));
-  });
+  wrap
+    .querySelectorAll('td,th,li,dt,dd,p,div,h2,h3,h4,figcaption,summary,text,span.p,span.ar,span.s,span.nm,span.a,.je>*')
+    .forEach((el) => el.after(doc.createTextNode(' ')));
   // External links open in a new tab.
   wrap.querySelectorAll<HTMLAnchorElement>('a[href^="http"]').forEach((a) => {
     a.target = '_blank';
     a.rel = 'noopener';
   });
 
+  // --- chapters --------------------------------------------------------------
   let coverHtml = '';
-  const parts: HbPart[] = [];
-  const chapters: HbChapter[] = [];
-  const bySlug = new Map<string, HbChapter>();
-  const idToChapter = new Map<string, HbChapter>();
-  let part: HbPart | null = null;
-
+  const chapters = new Map<string, Element>();
+  const chapterOrder: string[] = [];
+  const legacySlugs = new Map<string, string>();
   for (const el of Array.from(wrap.children)) {
     if (el.classList.contains('cover')) {
-      el.querySelector('#toc')?.remove(); // the React home renders its own contents grid
+      el.querySelector('#toc')?.remove();
       coverHtml = el.innerHTML;
-      continue;
+    } else if (el.classList.contains('chapter') && el.id) {
+      chapters.set(el.id, el);
+      chapterOrder.push(el.id);
+      const no = clean(el.querySelector('.chno')?.textContent).replace(/^0(?=\d)/, '');
+      legacySlugs.set(`${slugify(no)}-${slugify(clean(el.querySelector('.chhead h2')?.textContent))}`, el.id);
     }
-    if (el.classList.contains('partband')) {
-      part = {
-        id: el.id,
-        eyebrow: el.querySelector('.eyebrow')?.textContent?.trim() ?? '',
-        title: el.querySelector('h2')?.textContent?.trim() ?? '',
-        blurb: el.querySelector('p:not(.eyebrow)')?.textContent?.trim() ?? '',
-        chapters: [],
-      };
-      parts.push(part);
-      continue;
-    }
-    if (!el.classList.contains('chapter') || !part) continue;
-
-    const rawNo = el.querySelector('.chno')?.textContent?.trim() ?? '';
-    const no = rawNo.replace(/^0(?=\d)/, '');
-    const title = el.querySelector('.chhead h2')?.textContent?.trim() ?? el.id;
-    const lede = el.querySelector('.chhead .lede')?.textContent?.trim() ?? '';
-    const subs: HbSub[] = [];
-    el.querySelectorAll('h3').forEach((h) => {
-      const t = h.textContent?.trim() ?? '';
-      if (!t || t === title) return;
-      if (!h.id) h.id = `${el.id}-${slugify(t)}`;
-      if (!subs.some((s) => s.id === h.id)) subs.push({ id: h.id, title: t, text: '' });
-    });
-    // Section text = from each h3 to the next h3 (or the end of the chapter).
-    subs.forEach((s, i) => {
-      const start = doc.getElementById(s.id);
-      if (!start) return;
-      const range = doc.createRange();
-      range.setStartBefore(start);
-      const next = subs[i + 1] && doc.getElementById(subs[i + 1].id);
-      if (next) range.setEndBefore(next);
-      else range.setEndAfter(el.lastChild ?? el);
-      s.text = range.toString().replace(/\s+/g, ' ');
-    });
-    const ch: HbChapter = {
-      id: el.id,
-      no,
-      title,
-      lede,
-      slug: `${slugify(no)}-${slugify(title)}`,
-      partId: part.id,
-      html: el.outerHTML,
-      text: (el.textContent ?? '').replace(/\s+/g, ' '),
-      subs,
-    };
-    part.chapters.push(ch);
-    chapters.push(ch);
-    bySlug.set(ch.slug, ch);
-    idToChapter.set(ch.id, ch);
-    el.querySelectorAll('[id]').forEach((n) => idToChapter.set(n.id, ch));
   }
 
-  cache = { coverHtml, parts: parts.filter((p) => p.chapters.length), chapters, bySlug, idToChapter };
+  // Give every h3/h4 an id so it can be deep-linked and listed "on this page".
+  for (const [cid, el] of chapters) {
+    el.querySelectorAll('h3,h4').forEach((h) => {
+      if (!h.id) {
+        let id = `${cid}-${slugify(clean(h.textContent))}`;
+        let n = 2;
+        while (doc.getElementById(id)) id = `${cid}-${slugify(clean(h.textContent))}-${n++}`;
+        h.id = id;
+      }
+    });
+  }
+
+  // --- articles ----------------------------------------------------------------
+  const collections: HbCollection[] = [];
+  const articles: HbArticle[] = [];
+  const idToArticle = new Map<string, HbArticle>();
+  const used = new Set<string>();
+
+  /** Build an article from a set of top-level chapter nodes. */
+  const makeArticle = (
+    col: HbCollection,
+    chapterId: string,
+    nodes: Element[],
+    title: string,
+    summary: string,
+    headingLevel: 'h3' | 'h4',
+  ): HbArticle => {
+    const box = doc.createElement('div');
+    box.className = 'chapter hb-article';
+    nodes.forEach((n) => box.appendChild(n.cloneNode(true)));
+    // The page shows the title and task tag natively; drop the duplicates.
+    let tag: string | undefined;
+    const lead = box.querySelector(':scope > .opblock > header, :scope > header');
+    if (lead) {
+      const t = lead.querySelector('.tag');
+      if (t) {
+        tag = clean(t.textContent);
+        t.remove();
+      }
+      const h3 = lead.querySelector('h3');
+      if (h3 && clean(h3.textContent) === title) h3.remove();
+      if (!clean(lead.textContent)) lead.remove();
+    }
+    const firstH3 = box.querySelector(':scope > h3');
+    if (firstH3 && clean(firstH3.textContent) === title) firstH3.remove();
+
+    // "On this page": h3s for whole chapters, h4 steps for single sections.
+    // Journal-entry captions (.je h4) are not headings a reader navigates by.
+    const pick = (sel: string) => Array.from(box.querySelectorAll(sel)).filter((h) => !h.closest('.je'));
+    let heads = pick(headingLevel);
+    if (heads.length < 2 && headingLevel === 'h3') heads = pick('h4');
+    const toc: HbHeading[] = heads
+      .filter((h) => h.id && clean(h.textContent))
+      .map((h, i, arr) => {
+        const range = doc.createRange();
+        range.setStartBefore(h);
+        if (arr[i + 1]) range.setEndBefore(arr[i + 1]);
+        else range.setEndAfter(box.lastChild ?? box);
+        return { id: h.id, title: clean(h.textContent), text: clean(range.toString()) };
+      });
+
+    let slug = slugify(title) || chapterId;
+    while (articles.some((a) => a.collection === col && a.slug === slug)) slug += '-2';
+    const art: HbArticle = {
+      slug,
+      title,
+      summary,
+      tag,
+      collection: col,
+      chapterId,
+      html: box.outerHTML,
+      text: clean(box.textContent),
+      toc,
+      href: `${col.href}/${slug}`,
+    };
+    // Map every id from the source nodes (including headings the page now
+    // renders natively) to this article, for deep links and old URLs.
+    nodes.forEach((n) => {
+      if (n.id) idToArticle.set(n.id, art);
+      n.querySelectorAll('[id]').forEach((d) => idToArticle.set(d.id, art));
+    });
+    return art;
+  };
+
+  const addChapter = (col: HbCollection, def: ArticleDef) => {
+    const el = chapters.get(def.chapter);
+    if (!el) return;
+    used.add(def.chapter);
+    const chTitle = clean(el.querySelector('.chhead h2')?.textContent);
+    const lede = clean(el.querySelector('.chhead .lede')?.textContent);
+    const body = Array.from(el.children).filter((c) => !c.classList.contains('chhead'));
+    const out: HbArticle[] = [];
+
+    if (!def.split) {
+      out.push(makeArticle(col, def.chapter, body, def.title ?? chTitle, def.summary ?? lede, 'h3'));
+    } else {
+      // Group: a top-level node that is or contains an h3 starts a new section.
+      const intro: Element[] = [];
+      const groups: { head: Element; nodes: Element[] }[] = [];
+      for (const n of body) {
+        const h = n.matches('h3') ? n : n.querySelector('h3');
+        if (h) groups.push({ head: h, nodes: [n] });
+        else if (groups.length) groups[groups.length - 1].nodes.push(n);
+        else intro.push(n);
+      }
+      const hasIntro = intro.some((n) => clean(n.textContent).length > 0);
+      if (hasIntro && def.overviewTitle) {
+        out.push(makeArticle(col, def.chapter, intro, def.overviewTitle, def.summary ?? lede, 'h3'));
+      } else if (hasIntro && groups[0]) {
+        groups[0].nodes.unshift(...intro); // fold a short intro into the first section
+      }
+      groups.forEach((g, i) => {
+        const t = clean(g.head.textContent);
+        const sum =
+          def.sectionSummaries?.[g.head.id] ??
+          def.sectionSummaries?.[t] ??
+          clean(g.nodes.map((n) => n.textContent).join(' ')).replace(t, '').slice(0, 140).trim() + '…';
+        const a = makeArticle(col, def.chapter, g.nodes, t, sum, 'h4');
+        if (!def.overviewTitle && i === 0) idToArticle.set(def.chapter, a);
+        out.push(a);
+      });
+    }
+    if (out[0]) idToArticle.set(def.chapter, out[0]);
+    col.articles.push(...out);
+    articles.push(...out);
+  };
+
+  for (const c of COLLECTIONS) {
+    const col: HbCollection = {
+      slug: c.slug,
+      title: c.title,
+      description: c.description,
+      accent: c.accent,
+      icon: c.icon,
+      articles: [],
+      href: `${HANDBOOK_BASE}/${c.slug}`,
+    };
+    collections.push(col);
+    c.articles.forEach((d) => addChapter(col, d));
+  }
+
+  // Safety net: any chapter not placed in a collection is still published.
+  const leftover = chapterOrder.filter((id) => !used.has(id));
+  if (leftover.length) {
+    const more: HbCollection = {
+      slug: 'more',
+      title: 'More',
+      description: 'Other handbook chapters.',
+      accent: 'brand',
+      icon: ['M4 6h16M4 12h16M4 18h16'],
+      articles: [],
+      href: `${HANDBOOK_BASE}/more`,
+    };
+    collections.push(more);
+    leftover.forEach((id) => addChapter(more, { chapter: id }));
+  }
+
+  cache = { coverHtml, collections, articles, idToArticle, legacySlugs };
   return cache;
 }
 
 /** URL for any handbook anchor id (chapter id or any element id inside it). */
 export function handbookHref(anchorId?: string): string {
   if (!anchorId || anchorId === 'c0') return HANDBOOK_BASE;
-  const hb = getHandbook();
-  const ch = hb.idToChapter.get(anchorId);
-  if (!ch) return HANDBOOK_BASE;
-  return ch.id === anchorId ? `${HANDBOOK_BASE}/${ch.slug}` : `${HANDBOOK_BASE}/${ch.slug}#${anchorId}`;
+  const a = getHandbook().idToArticle.get(anchorId);
+  if (!a) return HANDBOOK_BASE;
+  const isWholeTarget = a.chapterId === anchorId || !a.toc.length || a.html.indexOf(`id="${anchorId}"`) < 0;
+  return isWholeTarget ? a.href : `${a.href}#${anchorId}`;
 }
 
+// --- search ------------------------------------------------------------------
+
 export interface HbSearchHit {
-  chapter: HbChapter;
-  /** The section the match is in, when it is inside one. */
-  sub?: HbSub;
-  /** Snippet split around the match so the UI can highlight it. */
+  article: HbArticle;
+  heading?: HbHeading;
   before: string;
   match: string;
   after: string;
@@ -184,48 +302,32 @@ function snippet(text: string, at: number, len: number) {
 }
 
 /**
- * Full-text search across every chapter and section. Title matches rank
- * first, then body matches; each hit deep-links to the exact section.
+ * Full-text search across every article. Title matches rank first, then the
+ * first body match per article, deep-linked to the heading it sits under.
  */
 export function searchHandbook(q: string, limit = 40): HbSearchHit[] {
   const v = q.trim().toLowerCase();
   if (v.length < 2) return [];
-  const titleHits: HbSearchHit[] = [];
-  const bodyHits: HbSearchHit[] = [];
-  for (const ch of getHandbook().chapters) {
-    const chHref = `${HANDBOOK_BASE}/${ch.slug}`;
-    if (ch.title.toLowerCase().includes(v) || ch.no.toLowerCase() === v) {
-      const i = ch.title.toLowerCase().indexOf(v);
-      titleHits.push({
-        chapter: ch,
-        before: i >= 0 ? ch.title.slice(0, i) : ch.title,
-        match: i >= 0 ? ch.title.slice(i, i + v.length) : '',
-        after: (i >= 0 ? ch.title.slice(i + v.length) : '') + (ch.lede ? ' — ' + ch.lede : ''),
-        href: chHref,
-      });
+  const top: HbSearchHit[] = [];
+  const rest: HbSearchHit[] = [];
+  for (const a of getHandbook().articles) {
+    const t = a.title.toLowerCase().indexOf(v);
+    if (t >= 0) {
+      top.push({ article: a, before: a.title.slice(0, t), match: a.title.slice(t, t + v.length), after: a.title.slice(t + v.length) + ' — ' + a.summary, href: a.href });
+      continue;
     }
-    let matchedSection = false;
-    for (const sub of ch.subs) {
-      const href = `${chHref}#${sub.id}`;
-      if (sub.title.toLowerCase().includes(v)) {
-        titleHits.push({ chapter: ch, sub, ...snippet(sub.text, sub.text.toLowerCase().indexOf(v), v.length), href });
-        matchedSection = true;
-        continue;
-      }
-      const i = sub.text.toLowerCase().indexOf(v);
-      if (i >= 0) {
-        bodyHits.push({ chapter: ch, sub, ...snippet(sub.text, i, v.length), href });
-        matchedSection = true;
-      }
+    const h = a.toc.find((x) => x.title.toLowerCase().includes(v));
+    if (h) {
+      const i = h.title.toLowerCase().indexOf(v);
+      top.push({ article: a, heading: h, before: h.title.slice(0, i), match: h.title.slice(i, i + v.length), after: h.title.slice(i + v.length), href: `${a.href}#${h.id}` });
+      continue;
     }
-    if (!matchedSection) {
-      const i = ch.text.toLowerCase().indexOf(v);
-      if (i >= 0 && !titleHits.some((h) => h.chapter === ch && !h.sub)) {
-        bodyHits.push({ chapter: ch, ...snippet(ch.text, i, v.length), href: chHref });
-      }
-    }
+    const i = a.text.toLowerCase().indexOf(v);
+    if (i < 0) continue;
+    const under = a.toc.find((x) => x.text.toLowerCase().includes(v));
+    rest.push({ article: a, heading: under, ...snippet(a.text, i, v.length), href: under ? `${a.href}#${under.id}` : a.href });
   }
-  return [...titleHits, ...bodyHits].slice(0, limit);
+  return [...top, ...rest].slice(0, limit);
 }
 
 /**
@@ -233,11 +335,11 @@ export function searchHandbook(q: string, limit = 40): HbSearchHit[] {
  * Built from the same single source, so the chat can never drift from it.
  */
 export function handbookChatContext(): string {
-  const hb = getHandbook();
-  return hb.parts
-    .map((p) =>
-      `# ${p.eyebrow} · ${p.title}\n` +
-      p.chapters.map((c) => `## Chapter ${c.no} · ${c.title} (open: ${HANDBOOK_BASE}/${c.slug})\n${c.text}`).join('\n\n'),
+  return getHandbook()
+    .collections.map(
+      (c) =>
+        `# ${c.title}\n` +
+        c.articles.map((a) => `## ${a.title} (open: ${a.href})\n${a.text}`).join('\n\n'),
     )
     .join('\n\n');
 }

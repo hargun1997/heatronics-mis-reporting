@@ -1,7 +1,7 @@
-// Accounts Handbook search — one search box used in two sizes: the large one
-// on the handbook home and the compact one in the reading bar of every
-// chapter. Results deep-link to the exact section and highlight the match.
-// Press "/" anywhere in the handbook to jump to search.
+// Accounts Handbook search — one search box in two sizes: the large one on
+// the handbook home and the compact one in the bar of every collection and
+// article page. Results open the exact article (and heading) and highlight
+// the match. Press "/" anywhere in the handbook to jump to search.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,16 +17,18 @@ function Hit({ h, active, onPick }: { h: HbSearchHit; active: boolean; onPick: (
   return (
     <button
       type="button"
+      role="option"
+      aria-selected={active}
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => onPick(h)}
       className={`w-full text-left rounded-lg px-3 py-2.5 ${active ? 'bg-brand-50' : 'hover:bg-slate-50'}`}
     >
-      <div className="flex items-baseline gap-2 text-sm">
-        <span className="font-mono text-xs text-brand-700 min-w-[26px]">{h.chapter.no}</span>
-        <span className="font-semibold text-slate-900">{h.chapter.title}</span>
-        {h.sub && <span className="text-slate-500 truncate">› {h.sub.title}</span>}
+      <div className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
+        <span className="font-semibold text-slate-900">{h.article.title}</span>
+        {h.heading && <span className="text-slate-500">› {h.heading.title}</span>}
+        <span className="ml-auto text-[11px] font-medium uppercase tracking-wide text-slate-400">{h.article.collection.title}</span>
       </div>
-      <div className="mt-0.5 pl-[34px] text-xs leading-relaxed text-slate-500 line-clamp-2">
+      <div className="mt-0.5 text-xs leading-relaxed text-slate-500 line-clamp-2">
         {h.before}
         {h.match && <mark className="bg-amber-100 text-slate-900 rounded px-0.5">{h.match}</mark>}
         {h.after}
@@ -35,7 +37,7 @@ function Hit({ h, active, onPick }: { h: HbSearchHit; active: boolean; onPick: (
   );
 }
 
-export function HandbookSearch({ size = 'compact', autoFocusKey = true }: { size?: 'compact' | 'large'; autoFocusKey?: boolean }) {
+export function HandbookSearch({ size = 'compact' }: { size?: 'compact' | 'large' }) {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -43,25 +45,24 @@ export function HandbookSearch({ size = 'compact', autoFocusKey = true }: { size
   const navigate = useNavigate();
   const hits = useMemo(() => searchHandbook(q), [q]);
   const large = size === 'large';
-  const showing = q.trim().length >= 2 && (large || open);
+  const showing = q.trim().length >= 2 && open;
 
   // "/" focuses search (unless already typing somewhere).
   useEffect(() => {
-    if (!autoFocusKey) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(t.tagName) && !t.isContentEditable) {
+      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) && !t.isContentEditable) {
         e.preventDefault();
         inputRef.current?.focus();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [autoFocusKey]);
+  }, []);
 
   const pick = (h: HbSearchHit) => {
     setOpen(false);
-    if (!large) setQ('');
+    setQ('');
     inputRef.current?.blur();
     navigate(h.href);
   };
@@ -83,21 +84,10 @@ export function HandbookSearch({ size = 'compact', autoFocusKey = true }: { size
     }
   };
 
-  const results = (
-    <div role="listbox" aria-label="Search results">
-      <div className="px-3 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-        {hits.length ? `${hits.length}${hits.length === 40 ? '+' : ''} result${hits.length > 1 ? 's' : ''}` : `No results for “${q.trim()}”`}
-      </div>
-      {hits.map((h, i) => (
-        <Hit key={h.href + i} h={h} active={i === active} onPick={pick} />
-      ))}
-    </div>
-  );
-
   return (
     <div className={`relative ${large ? 'w-full' : 'w-full max-w-sm'}`}>
       <div className="relative">
-        <span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400`}>
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
           {searchIcon(large ? 'h-5 w-5' : 'h-4 w-4')}
         </span>
         <input
@@ -112,22 +102,35 @@ export function HandbookSearch({ size = 'compact', autoFocusKey = true }: { size
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
-          placeholder={large ? 'Search the handbook — e.g. Snapmint, option 5, TDS 194C, Journal 53…' : 'Search the handbook…'}
+          role="combobox"
+          aria-expanded={showing}
           aria-label="Search the handbook"
-          className={`w-full rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-300 ${
-            large ? 'pl-11 pr-14 py-3.5 text-[15px] shadow-card' : 'pl-9 pr-10 py-1.5 text-sm'
+          placeholder={large ? 'Search — e.g. Snapmint, option 5, TDS 194C, Journal 53…' : 'Search the handbook…'}
+          className={`w-full rounded-xl border bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400 ${
+            large ? 'border-slate-300/80 pl-12 pr-14 py-4 text-base shadow-card-lg' : 'border-slate-200 pl-9 pr-10 py-1.5 text-sm'
           }`}
         />
-        <kbd className={`hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-slate-50 px-1.5 text-[11px] text-slate-400 ${q ? 'sm:hidden' : ''}`}>/</kbd>
+        {!q && (
+          <kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[11px] font-medium text-slate-400">
+            /
+          </kbd>
+        )}
       </div>
-      {showing &&
-        (large ? (
-          <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-card">{results}</div>
-        ) : (
-          <div className="absolute right-0 z-40 mt-2 w-[min(560px,calc(100vw-2rem))] max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-popover">
-            {results}
+      {showing && (
+        <div
+          role="listbox"
+          className={`absolute z-40 mt-2 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-popover ${
+            large ? 'left-0 right-0' : 'right-0 w-[min(580px,calc(100vw-2rem))]'
+          }`}
+        >
+          <div className="px-3 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            {hits.length ? `${hits.length}${hits.length === 40 ? '+' : ''} result${hits.length > 1 ? 's' : ''}` : `No results for “${q.trim()}”`}
           </div>
-        ))}
+          {hits.map((h, i) => (
+            <Hit key={h.href + i} h={h} active={i === active} onPick={pick} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

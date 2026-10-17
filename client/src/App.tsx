@@ -55,7 +55,8 @@ function App() {
 
           {/* Accounts Handbook — the single accounting knowledge base (handbook.html) */}
           <Route path="handbook" element={<HandbookPage />} />
-          <Route path="handbook/:chapter" element={<HandbookPage />} />
+          <Route path="handbook/:collection" element={<HandbookPage />} />
+          <Route path="handbook/:collection/:article" element={<HandbookPage />} />
 
           {/* Task tracker is now folded into Compliance → Operations */}
           <Route path="task-tracker" element={<Navigate to="/compliance/operations" replace />} />

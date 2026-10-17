@@ -1,382 +1,586 @@
 // ----------------------------------------------------------------------------
-// Accounts Handbook — the one accounting knowledge base in the app.
+// Accounts Handbook — the one accounting knowledge base in the app, laid out
+// as a help center (industry pattern: Stripe / Intercom / Notion help):
 //
-// Renders client/src/content/handbook/handbook.html (single source, also the
-// shareable artifact) natively inside the app: a nested Parts → Chapters →
-// Sections navigator with full-text search on the left, one chapter per route
-// (/handbook/:chapter) with previous/next, and the team's uploaded screenshot
-// slots under the chapter they belong to. The old /guide/sop/* SOP pages
-// redirect into the matching chapter (see App.tsx).
+//   /handbook                          Home: search + "today" tasks + collection cards
+//   /handbook/:collection              Collection: its articles as cards
+//   /handbook/:collection/:article     Article: one focused page, nested nav on
+//                                      the left, "On this page" on the right
+//
+// Content comes only from client/src/content/handbook/handbook.html (also the
+// shareable artifact); collections.ts decides the structure. Old /guide/sop/*
+// links and /handbook#<id> deep links resolve to the right article.
 // ----------------------------------------------------------------------------
 
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { NavCard } from '../../components/ui/Card';
 import { Drawer } from '../../components/ui/overlays';
 import { SopVisual } from '../../components/ui/SopVisual';
 import {
   HANDBOOK_BASE,
   getHandbook,
   handbookHref,
-  type HbChapter,
+  type HbArticle,
+  type HbCollection,
 } from '../../data/handbook/handbook';
+import { QUICK_TASKS, type CollectionAccent } from '../../data/handbook/collections';
 import { TEAM_VISUALS } from '../../data/handbook/teamVisuals';
-import { TOPIC_GROUPS } from '../../data/handbook/topics';
 import { HandbookSearch } from './HandbookSearch';
 import './handbook.generated.css';
-
-const bookIcon = (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-  </svg>
-);
-
-const chevron = (open: boolean) => (
-  <svg className={`h-3 w-3 transition-transform ${open ? '' : '-rotate-90'}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-  </svg>
-);
+import './handbook.ui.css';
 
 // ---------------------------------------------------------------------------
-// Navigator
+// Small pieces
 // ---------------------------------------------------------------------------
 
-function HandbookNav({
-  current,
-  activeSub,
-  onNavigate,
-}: {
-  current?: HbChapter;
-  activeSub?: string;
-  onNavigate?: () => void;
-}) {
-  const hb = getHandbook();
-  const [closed, setClosed] = useState<Record<string, boolean>>({});
-  const activeRef = useRef<HTMLAnchorElement>(null);
+const TILE: Record<CollectionAccent, string> = {
+  brand: 'bg-brand-50 text-brand-700 ring-brand-100',
+  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+  violet: 'bg-violet-50 text-violet-700 ring-violet-100',
+  amber: 'bg-amber-50 text-amber-700 ring-amber-100',
+  sky: 'bg-sky-50 text-sky-700 ring-sky-100',
+  rose: 'bg-rose-50 text-rose-700 ring-rose-100',
+};
+const BAR: Record<CollectionAccent, string> = {
+  brand: 'from-brand-400 to-brand-600',
+  emerald: 'from-emerald-400 to-emerald-600',
+  violet: 'from-violet-400 to-violet-600',
+  amber: 'from-amber-400 to-amber-500',
+  sky: 'from-sky-400 to-sky-600',
+  rose: 'from-rose-400 to-rose-600',
+};
 
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [current?.id]);
-
+function Icon({ paths, className = 'h-5 w-5' }: { paths: string[]; className?: string }) {
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-slate-200/70">
-        <Link
-          to={HANDBOOK_BASE}
-          onClick={onNavigate}
-          className="flex items-center gap-2 px-1 font-display font-bold text-[15px] text-slate-900 hover:text-brand-700"
-        >
-          <span className="w-7 h-7 rounded-lg bg-brand-gradient text-white flex items-center justify-center">{bookIcon}</span>
-          Accounts Handbook
-        </Link>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto overscroll-contain p-2 pb-10" aria-label="Handbook contents">
-        {hb.parts.map((p) => {
-            const isClosed = closed[p.id] && current?.partId !== p.id;
-            return (
-              <div key={p.id} className="mt-1">
-                <button
-                  type="button"
-                  onClick={() => setClosed((c) => ({ ...c, [p.id]: !c[p.id] }))}
-                  aria-expanded={!isClosed}
-                  className="w-full flex items-start gap-1.5 rounded-lg px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:bg-slate-100"
-                >
-                  <span className="mt-[3px]">{chevron(!isClosed)}</span>
-                  <span>
-                    {p.eyebrow} · {p.title}
-                  </span>
-                </button>
-                {!isClosed && (
-                  <ul className="space-y-0.5">
-                    {p.chapters.map((c) => {
-                      const active = current?.id === c.id;
-                      return (
-                        <li key={c.id}>
-                          <Link
-                            ref={active ? activeRef : undefined}
-                            to={`${HANDBOOK_BASE}/${c.slug}`}
-                            onClick={onNavigate}
-                            aria-current={active ? 'page' : undefined}
-                            className={`flex gap-2 rounded-lg px-2.5 py-1.5 text-[13.5px] leading-snug ${
-                              active ? 'bg-brand-50 text-brand-800 font-semibold' : 'text-slate-700 hover:bg-slate-100'
-                            }`}
-                          >
-                            <span className={`font-mono text-[11.5px] min-w-[24px] pt-px ${active ? 'text-brand-700' : 'text-slate-400'}`}>{c.no}</span>
-                            <span>{c.title}</span>
-                          </Link>
-                          {active && c.subs.length > 0 && (
-                            <ul className="ml-9 my-1 border-l border-slate-200">
-                              {c.subs.map((s) => (
-                                <li key={s.id}>
-                                  <Link
-                                    to={`${HANDBOOK_BASE}/${c.slug}#${s.id}`}
-                                    onClick={onNavigate}
-                                    className={`block -ml-px border-l-2 px-3 py-1 text-[12.5px] leading-snug ${
-                                      activeSub === s.id
-                                        ? 'border-brand-500 text-brand-700 font-medium'
-                                        : 'border-transparent text-slate-500 hover:text-slate-800'
-                                    }`}
-                                  >
-                                    {s.title}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-      </nav>
-    </div>
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      {paths.map((d) => (
+        <path key={d} strokeLinecap="round" strokeLinejoin="round" d={d} />
+      ))}
+    </svg>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Content: in-handbook links (#c16, #s3 …) route to the right chapter.
-// ---------------------------------------------------------------------------
+function Tile({ c, size = 'md' }: { c: HbCollection; size?: 'md' | 'lg' }) {
+  return (
+    <span className={`inline-flex flex-shrink-0 items-center justify-center rounded-xl ring-1 ${TILE[c.accent]} ${size === 'lg' ? 'h-12 w-12' : 'h-10 w-10'}`}>
+      <Icon paths={c.icon} className={size === 'lg' ? 'h-6 w-6' : 'h-5 w-5'} />
+    </span>
+  );
+}
 
-function useHandbookLinks() {
+function TagPill({ tag }: { tag?: string }) {
+  if (!tag) return null;
+  const kind = /daily/i.test(tag)
+    ? 'bg-emerald-50 text-emerald-700'
+    : /month/i.test(tag)
+      ? 'bg-violet-50 text-violet-700'
+      : /week/i.test(tag)
+        ? 'bg-sky-50 text-sky-700'
+        : 'bg-slate-100 text-slate-600';
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${kind}`}>{tag}</span>;
+}
+
+const chevronRight = (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+/** In-content links (#c16, #s3 …) route to the article that holds the id. */
+function useContentLinks() {
   const navigate = useNavigate();
   return (e: React.MouseEvent<HTMLElement>) => {
     const a = (e.target as HTMLElement).closest('a');
-    if (!a) return;
-    const href = a.getAttribute('href') || '';
+    const href = a?.getAttribute('href') || '';
     if (!href.startsWith('#')) return;
     e.preventDefault();
-    const id = href.slice(1);
-    const ch = getHandbook().idToChapter.get(id);
-    if (id === 'c0' || !ch) {
-      navigate(HANDBOOK_BASE);
-      return;
-    }
-    navigate(ch.id === id ? `${HANDBOOK_BASE}/${ch.slug}` : `${HANDBOOK_BASE}/${ch.slug}#${id}`);
+    navigate(handbookHref(href.slice(1)));
   };
 }
 
 // ---------------------------------------------------------------------------
-// Page
+// Left rail: collections → articles (nested), on collection + article pages
 // ---------------------------------------------------------------------------
 
-export function HandbookPage() {
-  const { chapter: slug } = useParams();
-  const location = useLocation();
+function Rail({ collection, article, onNavigate }: { collection?: HbCollection; article?: HbArticle; onNavigate?: () => void }) {
   const hb = getHandbook();
-  const ch = slug ? hb.bySlug.get(slug) : undefined;
-  const [drawer, setDrawer] = useState(false);
-  const [activeSub, setActiveSub] = useState<string | undefined>();
-  const contentRef = useRef<HTMLDivElement>(null);
-  const onContentClick = useHandbookLinks();
-
-  // Jump to the #section, or to the top when the chapter changes.
-  useEffect(() => {
-    const id = location.hash.slice(1);
-    if (id) {
-      // Screenshots above the target load lazily and shift the layout, so
-      // settle the jump a couple of times.
-      const go = () => document.getElementById(id)?.scrollIntoView({ block: 'start' });
-      requestAnimationFrame(go);
-      const t1 = window.setTimeout(go, 250);
-      const t2 = window.setTimeout(go, 800);
-      return () => {
-        window.clearTimeout(t1);
-        window.clearTimeout(t2);
-      };
-    } else {
-      window.scrollTo({ top: 0 });
-    }
-  }, [slug, location.hash]);
-
-  // Scroll-spy: highlight the section being read.
-  useEffect(() => {
-    if (!ch) return;
-    const onScroll = () => {
-      let cur: string | undefined;
-      for (const s of ch.subs) {
-        const el = document.getElementById(s.id);
-        if (el && el.getBoundingClientRect().top < 140) cur = s.id;
-      }
-      setActiveSub(cur);
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [ch]);
-
-  if (slug && !ch) return <Navigate to={HANDBOOK_BASE} replace />;
-  // Deep link by section id, e.g. /handbook#c16-m2-shiprocket (used by task references).
-  if (!slug && location.hash.length > 1 && hb.idToChapter.has(location.hash.slice(1))) {
-    return <HandbookRedirect anchor={location.hash.slice(1)} />;
-  }
-
-  const idx = ch ? hb.chapters.indexOf(ch) : -1;
-  const prev = idx > 0 ? hb.chapters[idx - 1] : undefined;
-  const next = ch ? hb.chapters[idx + 1] : hb.chapters[0];
-  const part = ch ? hb.parts.find((p) => p.id === ch.partId) : undefined;
-  const visuals = ch ? TEAM_VISUALS[ch.id] ?? [] : [];
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const activeRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => activeRef.current?.scrollIntoView({ block: 'nearest' }), [article?.href]);
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)]">
-      {/* Desktop navigator */}
-      <aside className="hidden xl:block w-[284px] flex-shrink-0 border-r border-slate-200/70 bg-white/70 backdrop-blur-xl sticky top-14 self-start h-[calc(100vh-3.5rem)]">
-        <HandbookNav current={ch} activeSub={activeSub} />
-      </aside>
+    <nav aria-label="Handbook" className="p-3 pb-12 text-sm">
+      <Link
+        to={HANDBOOK_BASE}
+        onClick={onNavigate}
+        className="mb-3 flex items-center gap-2 rounded-lg px-2 py-1.5 font-display text-[15px] font-bold text-slate-900 hover:text-brand-700"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-gradient text-white">
+          <Icon paths={['M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']} className="h-4 w-4" />
+        </span>
+        Accounts Handbook
+      </Link>
+      <ul className="space-y-0.5">
+        {hb.collections.map((c) => {
+          const isCurrent = c === collection;
+          const expanded = open[c.slug] ?? isCurrent;
+          return (
+            <li key={c.slug}>
+              <div className={`flex items-center rounded-lg ${isCurrent ? 'bg-slate-100/80' : 'hover:bg-slate-50'}`}>
+                <Link
+                  to={c.href}
+                  onClick={onNavigate}
+                  className={`flex flex-1 items-center gap-2.5 px-2 py-1.5 ${isCurrent ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                >
+                  <span className={`flex h-6 w-6 items-center justify-center rounded-md ${TILE[c.accent]}`}>
+                    <Icon paths={c.icon} className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="flex-1">{c.title}</span>
+                  <span className="text-[11px] font-normal text-slate-400">{c.articles.length}</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setOpen((o) => ({ ...o, [c.slug]: !expanded }))}
+                  aria-label={`${expanded ? 'Collapse' : 'Expand'} ${c.title}`}
+                  aria-expanded={expanded}
+                  className="mr-1 rounded-md p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                >
+                  <svg className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.17 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              {expanded && (
+                <ul className="my-1 ml-[22px] border-l border-slate-200 pl-2">
+                  {c.articles.map((a) => {
+                    const active = a === article;
+                    return (
+                      <li key={a.href}>
+                        <Link
+                          ref={active ? activeRef : undefined}
+                          to={a.href}
+                          onClick={onNavigate}
+                          aria-current={active ? 'page' : undefined}
+                          className={`-ml-[9px] block border-l-2 py-1.5 pl-3 pr-2 text-[13px] leading-snug ${
+                            active ? 'border-brand-500 font-semibold text-brand-700' : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                          }`}
+                        >
+                          {a.title}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
 
-      <div className="flex-1 min-w-0">
-        {/* Compact bar: contents button below xl + where you are */}
-        <div className="sticky top-14 z-30 flex items-center gap-3 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl px-4 sm:px-6 h-11">
+/** Rail + content, with the sticky bar: browse (small screens), breadcrumb, search. */
+function Shell({ collection, article, children }: { collection?: HbCollection; article?: HbArticle; children: React.ReactNode }) {
+  const [drawer, setDrawer] = useState(false);
+  return (
+    <div className="flex min-h-[calc(100vh-3.5rem)]">
+      <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[272px] flex-shrink-0 self-start overflow-y-auto overscroll-contain border-r border-slate-200/70 bg-white/70 backdrop-blur-xl xl:block">
+        <Rail collection={collection} article={article} />
+      </aside>
+      <div className="min-w-0 flex-1">
+        <div className="sticky top-14 z-30 flex h-12 items-center gap-3 border-b border-slate-200/70 bg-white/85 px-4 backdrop-blur-xl sm:px-6">
           <button
             type="button"
             onClick={() => setDrawer(true)}
-            className="xl:hidden inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 xl:hidden"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-              <path strokeLinecap="round" d="M4 6h16M4 12h10M4 18h16" />
-            </svg>
-            Contents
+            <Icon paths={['M4 6h16M4 12h10M4 18h16']} className="h-4 w-4" />
+            Browse
           </button>
-          <div className="min-w-0 truncate text-xs text-slate-500">
-            <Link to={HANDBOOK_BASE} className="hover:text-slate-800">Accounts Handbook</Link>
-            {part && <span> › {part.eyebrow}</span>}
-            {ch && (
-              <span className="text-slate-800 font-medium"> › {ch.no} {ch.title}</span>
+          <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-xs text-slate-500 sm:flex">
+            <Link to={HANDBOOK_BASE} className="flex-shrink-0 hover:text-slate-900">Handbook</Link>
+            {collection && (
+              <>
+                <span className="text-slate-300">/</span>
+                <Link to={collection.href} className={`flex-shrink-0 ${article ? 'hover:text-slate-900' : 'font-medium text-slate-900'}`}>
+                  {collection.title}
+                </Link>
+              </>
             )}
-            {ch && activeSub && (
-              <span> › {ch.subs.find((s) => s.id === activeSub)?.title}</span>
+            {article && (
+              <>
+                <span className="text-slate-300">/</span>
+                <span className="truncate font-medium text-slate-900">{article.title}</span>
+              </>
             )}
+          </nav>
+          <div className="ml-auto w-48 flex-shrink-0 sm:w-80">
+            <HandbookSearch />
           </div>
-          {ch && (
-            <div className="ml-auto w-44 sm:w-72 flex-shrink-0">
-              <HandbookSearch />
-            </div>
-          )}
         </div>
-
-        {!ch ? (
-          <>
-            <PageHeader
-              title="Accounts Handbook"
-              description="How Heatronics' books are built and run: every system, the voucher it posts, the control ledger it lands in, the daily and monthly tasks with screenshots, the open findings and the FAQ. One source for the accountant and the CA."
-              crumbs={[{ label: 'Accounts Handbook' }]}
-              accent="brand"
-              icon={bookIcon}
-            />
-            <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-8 space-y-10">
-              <HandbookSearch size="large" />
-
-              {TOPIC_GROUPS.map((g) => {
-                const icon = (
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-                    {g.icon.map((d) => (
-                      <path key={d} strokeLinecap="round" strokeLinejoin="round" d={d} />
-                    ))}
-                  </svg>
-                );
-                return (
-                  <section key={g.heading}>
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">{g.heading}</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {g.topics.map((t) => (
-                        <NavCard
-                          key={t.anchor}
-                          to={handbookHref(t.anchor)}
-                          title={t.title}
-                          description={t.description}
-                          icon={icon}
-                          accent={g.accent}
-                          badge={hb.idToChapter.get(t.anchor)?.no}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                );
-              })}
-
-              <div
-                className="hb hb-cover rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-card"
-                onClick={onContentClick}
-                dangerouslySetInnerHTML={{ __html: hb.coverHtml }}
-              />
-
-              <section>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">All chapters</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {hb.parts.map((p) => (
-                    <div key={p.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700">{p.eyebrow}</div>
-                      <div className="mt-0.5 font-display text-lg font-extrabold text-slate-900">{p.title}</div>
-                      {p.blurb && <p className="mt-1 text-sm text-slate-500">{p.blurb}</p>}
-                      <ul className="mt-3 divide-y divide-slate-100">
-                        {p.chapters.map((c) => (
-                          <li key={c.id}>
-                            <Link to={`${HANDBOOK_BASE}/${c.slug}`} className="flex gap-3 py-2 text-sm text-slate-700 hover:text-brand-700">
-                              <span className="font-mono text-xs text-brand-700 min-w-[26px] pt-0.5">{c.no}</span>
-                              <span>{c.title}</span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-          </>
-        ) : (
-          <div className="max-w-[1040px] mx-auto px-4 sm:px-6 py-8 space-y-6">
-            <div ref={contentRef} className="hb" onClick={onContentClick} dangerouslySetInnerHTML={{ __html: ch.html }} />
-
-            {visuals.length > 0 && (
-              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
-                <h3 className="font-semibold text-slate-900">Team screenshots</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Upload a current screen for any slot; it replaces the previous one for everyone.
-                </p>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {visuals.map((v) => (
-                    <SopVisual key={v.key} placeholderKey={v.key} label={v.label} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <nav className="grid grid-cols-2 gap-3" aria-label="Chapter navigation">
-              {prev ? (
-                <Link to={`${HANDBOOK_BASE}/${prev.slug}`} className="rounded-xl border border-slate-200 bg-white p-4 hover:border-brand-300 hover:shadow-card">
-                  <div className="text-[11px] uppercase tracking-wider text-slate-400">← Previous</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-800">{prev.no} · {prev.title}</div>
-                </Link>
-              ) : <span />}
-              {next && (
-                <Link to={`${HANDBOOK_BASE}/${next.slug}`} className="rounded-xl border border-slate-200 bg-white p-4 text-right hover:border-brand-300 hover:shadow-card">
-                  <div className="text-[11px] uppercase tracking-wider text-slate-400">Next →</div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-800">{next.no} · {next.title}</div>
-                </Link>
-              )}
-            </nav>
-          </div>
-        )}
+        {children}
       </div>
-
-      <Drawer open={drawer} onClose={() => setDrawer(false)} side="left" width={320} title="Contents">
-        <div className="-m-4 h-[calc(100vh-4rem)]">
-          <HandbookNav current={ch} activeSub={activeSub} onNavigate={() => setDrawer(false)} />
+      <Drawer open={drawer} onClose={() => setDrawer(false)} side="left" width={320} title="Browse the handbook">
+        <div className="-m-4">
+          <Rail collection={collection} article={article} onNavigate={() => setDrawer(false)} />
         </div>
       </Drawer>
     </div>
   );
 }
 
-/** Redirects an old SOP / guide route to the handbook section that replaced it. */
-export function HandbookRedirect({ anchor }: { anchor: string }) {
+// ---------------------------------------------------------------------------
+// Home
+// ---------------------------------------------------------------------------
+
+function Home() {
   const hb = getHandbook();
-  const ch = hb.idToChapter.get(anchor);
-  if (!ch || anchor === 'c0') return <Navigate to={HANDBOOK_BASE} replace />;
-  return <Navigate to={ch.id === anchor ? `${HANDBOOK_BASE}/${ch.slug}` : `${HANDBOOK_BASE}/${ch.slug}#${anchor}`} replace />;
+  const onClick = useContentLinks();
+  const daily = QUICK_TASKS.filter((t) => t.code.startsWith('D'));
+  const monthly = QUICK_TASKS.filter((t) => t.code.startsWith('M'));
+  const chip = (t: (typeof QUICK_TASKS)[number]) => (
+    <Link
+      key={t.code}
+      to={handbookHref(t.anchor)}
+      className="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 py-1 pl-1 pr-3 text-[13px] text-slate-700 shadow-soft transition hover:border-brand-300 hover:text-brand-800"
+    >
+      <span className="rounded-full bg-slate-900 px-2 py-0.5 font-mono text-[11px] font-semibold text-white group-hover:bg-brand-600">{t.code}</span>
+      {t.label}
+    </Link>
+  );
+
+  return (
+    <div>
+      <section className="hb-hero border-b border-slate-200/70">
+        <div className="mx-auto max-w-[1120px] px-4 pb-10 pt-12 sm:px-6 sm:pl-[104px] lg:pt-16">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-700">Heatronics · Accounts</p>
+          <h1 className="mt-2 font-display text-[34px] font-extrabold leading-[1.08] tracking-tight text-slate-900 sm:text-[44px]">Accounts Handbook</h1>
+          <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-slate-600">
+            How our books are built and run — every system, the entry it posts, the ledger it lands in, and each daily and monthly task with screenshots.
+          </p>
+          <div className="mt-7 max-w-2xl">
+            <HandbookSearch size="large" />
+          </div>
+          <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Every day</span>
+              {daily.map(chip)}
+            </div>
+            <span className="hidden h-5 w-px bg-slate-200 lg:block" />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Every month</span>
+              {monthly.map(chip)}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-[1120px] px-4 py-10 sm:px-6">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <h2 className="font-display text-xl font-extrabold tracking-tight text-slate-900">Browse by topic</h2>
+          <span className="text-xs text-slate-500">
+            {hb.collections.length} collections · {hb.articles.length} articles
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {hb.collections.map((c, i) => (
+            <article
+              key={c.slug}
+              className="hb-rise group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-card-lg"
+              style={{ animationDelay: `${i * 40}ms` }}
+            >
+              <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${BAR[c.accent]} opacity-80`} />
+              <Link to={c.href} className="flex items-start gap-3.5 p-5 pb-3">
+                <Tile c={c} />
+                <div className="min-w-0">
+                  <h3 className="font-display text-[17px] font-bold leading-tight text-slate-900 group-hover:text-brand-700">{c.title}</h3>
+                  <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{c.description}</p>
+                </div>
+              </Link>
+              <ul className="mx-5 flex-1 border-t border-slate-100 py-2">
+                {c.articles.slice(0, 4).map((a) => (
+                  <li key={a.href}>
+                    <Link to={a.href} className="flex items-center gap-2 py-1.5 text-[13.5px] text-slate-700 hover:text-brand-700">
+                      <span className="h-1 w-1 flex-shrink-0 rounded-full bg-slate-300" />
+                      <span className="truncate">{a.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                to={c.href}
+                className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-brand-700"
+              >
+                {c.articles.length > 4 ? `View all ${c.articles.length} articles` : `${c.articles.length} article${c.articles.length > 1 ? 's' : ''}`}
+                {chevronRight}
+              </Link>
+            </article>
+          ))}
+        </div>
+
+        {hb.coverHtml && (
+          <section className="mt-12">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">How to use this handbook</h2>
+            <div
+              className="hb hb-cover rounded-2xl border border-slate-200 bg-white p-6 shadow-card"
+              onClick={onClick}
+              dangerouslySetInnerHTML={{ __html: hb.coverHtml }}
+            />
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Collection
+// ---------------------------------------------------------------------------
+
+function CollectionView({ c }: { c: HbCollection }) {
+  useEffect(() => window.scrollTo({ top: 0 }), [c]);
+  return (
+    <Shell collection={c}>
+      <div className="mx-auto max-w-[880px] px-4 py-10 sm:px-8">
+        <div className="flex items-start gap-4">
+          <Tile c={c} size="lg" />
+          <div>
+            <h1 className="font-display text-[28px] font-extrabold leading-tight tracking-tight text-slate-900">{c.title}</h1>
+            <p className="mt-1.5 text-[15px] leading-relaxed text-slate-500">{c.description}</p>
+            <p className="mt-2 text-xs font-medium text-slate-400">
+              {c.articles.length} article{c.articles.length > 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+        <ol className="mt-8 space-y-3">
+          {c.articles.map((a, i) => (
+            <li key={a.href} className="hb-rise" style={{ animationDelay: `${i * 35}ms` }}>
+              <Link
+                to={a.href}
+                className="group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-soft transition hover:border-brand-200 hover:shadow-card"
+              >
+                <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-semibold text-slate-500 group-hover:bg-brand-50 group-hover:text-brand-700">
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-[15.5px] font-semibold text-slate-900 group-hover:text-brand-700">{a.title}</h2>
+                    <TagPill tag={a.tag} />
+                  </div>
+                  {a.summary && <p className="mt-1 text-sm leading-relaxed text-slate-500">{a.summary}</p>}
+                  {a.toc.length > 1 && (
+                    <p className="mt-2 truncate text-xs text-slate-400">
+                      {a.toc
+                        .slice(0, 5)
+                        .map((h) => h.title)
+                        .join(' · ')}
+                    </p>
+                  )}
+                </div>
+                <span className="mt-1 text-slate-300 group-hover:text-brand-500">{chevronRight}</span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Article
+// ---------------------------------------------------------------------------
+
+function OnThisPage({ a, active, compact }: { a: HbArticle; active?: string; compact?: boolean }) {
+  if (a.toc.length < 2) return null;
+  return (
+    <nav aria-label="On this page" className={compact ? 'rounded-xl border border-slate-200 bg-slate-50/60 p-4' : ''}>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">On this page</div>
+      <ul className={compact ? 'grid gap-x-6 gap-y-1 sm:grid-cols-2' : 'space-y-1 border-l border-slate-200'}>
+        {a.toc.map((h) => (
+          <li key={h.id}>
+            <Link
+              to={`${a.href}#${h.id}`}
+              className={
+                compact
+                  ? 'block py-0.5 text-[13px] text-slate-600 hover:text-brand-700'
+                  : `-ml-px block border-l-2 py-1 pl-3 text-[12.5px] leading-snug ${
+                      active === h.id ? 'border-brand-500 font-medium text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-900'
+                    }`
+              }
+            >
+              {h.title}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+function ArticleView({ a }: { a: HbArticle }) {
+  const hb = getHandbook();
+  const location = useLocation();
+  const onClick = useContentLinks();
+  const [active, setActive] = useState<string | undefined>();
+  const c = a.collection;
+  const idx = c.articles.indexOf(a);
+  const gIdx = hb.articles.indexOf(a);
+  const prev = hb.articles[gIdx - 1];
+  const next = hb.articles[gIdx + 1];
+  const visuals = hb.idToArticle.get(a.chapterId) === a ? TEAM_VISUALS[a.chapterId] ?? [] : [];
+
+  // Jump to #heading (settling after lazy screenshots load), else the top.
+  useEffect(() => {
+    const id = location.hash.slice(1);
+    if (!id) {
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    const go = () => document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    requestAnimationFrame(go);
+    const t1 = window.setTimeout(go, 250);
+    const t2 = window.setTimeout(go, 800);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [a.href, location.hash]);
+
+  // Scroll-spy for "On this page".
+  useEffect(() => {
+    const onScroll = () => {
+      let cur: string | undefined;
+      for (const h of a.toc) {
+        const el = document.getElementById(h.id);
+        if (el && el.getBoundingClientRect().top < 150) cur = h.id;
+      }
+      setActive(cur);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [a]);
+
+  return (
+    <Shell collection={c} article={a}>
+      <div className="mx-auto flex max-w-[1180px] gap-10 px-4 py-8 sm:px-8">
+        <article className="min-w-0 flex-1">
+          <header className="mb-6">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Link to={c.href} className="inline-flex items-center gap-1.5 font-semibold text-slate-500 hover:text-brand-700">
+                <span className={`flex h-5 w-5 items-center justify-center rounded ${TILE[c.accent]}`}>
+                  <Icon paths={c.icon} className="h-3 w-3" />
+                </span>
+                {c.title}
+              </Link>
+              <span className="text-slate-300">·</span>
+              <span className="text-slate-400">
+                {idx + 1} of {c.articles.length}
+              </span>
+              <TagPill tag={a.tag} />
+            </div>
+            <h1 className="mt-3 font-display text-[30px] font-extrabold leading-[1.15] tracking-tight text-slate-900">{a.title}</h1>
+            {a.summary && <p className="mt-2 max-w-3xl text-[16px] leading-relaxed text-slate-500">{a.summary}</p>}
+          </header>
+
+          <div className="mb-6 2xl:hidden">
+            <OnThisPage a={a} compact />
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card sm:p-8">
+            <div className="hb" onClick={onClick} dangerouslySetInnerHTML={{ __html: a.html }} />
+          </div>
+
+          {visuals.length > 0 && (
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-card">
+              <h2 className="font-semibold text-slate-900">Team screenshots</h2>
+              <p className="mt-1 text-sm text-slate-500">Upload a current screen for any slot; it replaces the previous one for everyone.</p>
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                {visuals.map((v) => (
+                  <SopVisual key={v.key} placeholderKey={v.key} label={v.label} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <nav className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Previous and next">
+            {prev ? (
+              <Link to={prev.href} className="group rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-brand-300 hover:shadow-card">
+                <div className="text-[11px] uppercase tracking-wider text-slate-400">← Previous · {prev.collection.title}</div>
+                <div className="mt-0.5 text-sm font-semibold text-slate-800 group-hover:text-brand-700">{prev.title}</div>
+              </Link>
+            ) : (
+              <span />
+            )}
+            {next && (
+              <Link to={next.href} className="group rounded-2xl border border-slate-200 bg-white p-4 text-right transition hover:border-brand-300 hover:shadow-card">
+                <div className="text-[11px] uppercase tracking-wider text-slate-400">Next · {next.collection.title} →</div>
+                <div className="mt-0.5 text-sm font-semibold text-slate-800 group-hover:text-brand-700">{next.title}</div>
+              </Link>
+            )}
+          </nav>
+
+          {c.articles.length > 1 && (
+            <section className="mt-8">
+              <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">More in {c.title}</h2>
+              <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+                {c.articles
+                  .filter((x) => x !== a)
+                  .map((x) => (
+                    <li key={x.href}>
+                      <Link to={x.href} className="flex items-center justify-between gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-700">
+                        <span>{x.title}</span>
+                        <span className="text-slate-300">{chevronRight}</span>
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </section>
+          )}
+        </article>
+
+        <aside className="hidden w-[220px] flex-shrink-0 2xl:block">
+          <div className="sticky top-[136px]">
+            <OnThisPage a={a} active={active} />
+          </div>
+        </aside>
+      </div>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Router entry
+// ---------------------------------------------------------------------------
+
+export function HandbookPage() {
+  const { collection: cSlug, article: aSlug } = useParams();
+  const location = useLocation();
+  const hb = getHandbook();
+
+  if (!cSlug) {
+    // Deep link by section id, e.g. /handbook#c16-m2-shiprocket (task references).
+    const id = location.hash.slice(1);
+    if (id && hb.idToArticle.has(id)) return <Navigate to={handbookHref(id)} replace />;
+    return <Home />;
+  }
+
+  const c = hb.collections.find((x) => x.slug === cSlug);
+  if (!c) {
+    // Older chapter URLs (/handbook/13-monthly-tasks#…) → the article now holding it.
+    const legacy = hb.legacySlugs.get(cSlug);
+    if (legacy) return <Navigate to={handbookHref(location.hash.slice(1) || legacy)} replace />;
+    return <Navigate to={HANDBOOK_BASE} replace />;
+  }
+  if (!aSlug) return <CollectionView c={c} />;
+  const a = c.articles.find((x) => x.slug === aSlug);
+  if (!a) return <Navigate to={c.href} replace />;
+  return <ArticleView key={a.href} a={a} />;
+}
+
+/** Redirects an old SOP / guide route to the handbook article that replaced it. */
+export function HandbookRedirect({ anchor }: { anchor: string }) {
+  return <Navigate to={handbookHref(anchor)} replace />;
 }
