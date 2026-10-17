@@ -21,6 +21,7 @@ export interface WorkTask extends ScheduleSpec {
   authority?: string;
   penalty?: string;
   notes?: string;
+  links?: { label: string; url: string }[];
   upload?: { connectorId: string; slotId: string };
   remindDaysBefore?: number;
   active: boolean;
@@ -49,6 +50,11 @@ export interface ReminderSettings {
   includeDueSoon: boolean;
 }
 
+export interface Routing {
+  roles: Record<string, string[]>;
+  fallback?: string;
+}
+
 export interface DraftEmail {
   kind: 'owner' | 'summary';
   to: string[];
@@ -66,6 +72,8 @@ export interface WorkState {
   members: TeamMember[];
   mailer: MailerStatus;
   settings: ReminderSettings;
+  routing: Routing;
+  roleNames: string[];
   lastScheduledDay?: string;
   lastReminderRun?: { at: string; sent: number; dryRun: boolean; recipients: number };
 }
@@ -96,6 +104,8 @@ export const importSeed = (tasks: Partial<WorkTask>[], done: WorkState['done']) 
   post('/api/work/import', { tasks, done }).then((r) => json<{ imported: number; skipped: boolean }>(r));
 export const runWorkReminders = () => post('/api/work/reminders/run', {}).then((r) => json<ReminderRun>(r));
 
+export const saveRouting = (r: Partial<Routing> & { apply?: boolean }) =>
+  post('/api/work/routing', r).then((r2) => json<{ routing: Routing; assigned: number }>(r2));
 export const saveSettings = (s: Partial<ReminderSettings>) => post('/api/work/settings', s).then((r) => json<ReminderSettings>(r));
 export const previewReminders = () =>
   fetch('/api/work/reminders/preview').then((r) => json<{ drafts: DraftEmail[]; items: number; unowned: number }>(r));

@@ -7,6 +7,7 @@
 //   DELETE /api/work/tasks/:id
 //   POST   /api/work/tasks/:id/done    { period, done, by?, note? }
 //   POST   /api/work/import            one-time seed { tasks, done, force? }
+//   POST   /api/work/routing           who does what (role → people); fills tasks with no owner
 //   POST   /api/work/settings          daily email settings (send hour, summary to)
 //   GET    /api/work/reminders/preview today's emails, rendered, not sent
 //   POST   /api/work/reminders/run     send now; {scheduled:true} = the hourly
@@ -18,7 +19,7 @@
 // ----------------------------------------------------------------------------
 
 import { Router, type Request, type Response } from 'express';
-import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
+import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, saveRouting, ensureRouting, splitRoles, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
 import { runWorkReminders, buildReminderEmails } from '../services/workReminders.js';
 import { listMembers } from '../services/ownershipStore.js';
 import { mailerStatus, ensureMailConfig, saveMailConfig, sendEmail } from '../services/mailer.js';
@@ -40,10 +41,13 @@ const baseUrl = (req: Request) =>
 router.get(
   '/',
   h(async (_req, res) => {
+    await ensureRouting();
     const [doc, members] = await Promise.all([readWork(), listMembers(), ensureMailConfig()]);
     res.json({
       ...doc,
       settings: { ...DEFAULT_SETTINGS, ...(doc.settings ?? {}) },
+      routing: doc.routing ?? { roles: {} },
+      roleNames: [...new Set(doc.tasks.flatMap((t) => splitRoles(t.roleLabel)))].sort(),
       autoDone: await autoDone(doc.tasks),
       members,
       mailer: mailerStatus(),
@@ -76,6 +80,11 @@ router.post(
     const { tasks, done, force } = req.body ?? {};
     res.json(await importSeed(Array.isArray(tasks) ? tasks : [], done ?? {}, Boolean(force)));
   }),
+);
+
+router.post(
+  '/routing',
+  h(async (req, res) => res.json(await saveRouting(req.body ?? {}, req.body?.apply !== false))),
 );
 
 router.post('/settings', h(async (req, res) => res.json(await saveSettings(req.body ?? {}))));
