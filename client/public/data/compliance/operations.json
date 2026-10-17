@@ -12,8 +12,8 @@
       "frequency": "daily",
       "owner": "Accountant",
       "notes": "Done when Pending = 0 and Approved = 0 on both Document Approval and Journal Entry. ~10 min. Needs Tally open for the plugin to connect.",
-      "reference": "SOP · B2B & Tranzact push",
-      "referenceUrl": "/guide/sop/sales/b2b"
+      "reference": "Handbook · B2B & Tranzact push",
+      "referenceUrl": "/handbook#c4"
     },
     {
       "id": "ops-d2-shopify-easebuzz",
@@ -22,8 +22,8 @@
       "frequency": "daily",
       "owner": "Accountant",
       "notes": "NEVER fetch the same Easebuzz dates twice — a second fetch double-books the payouts. If a day looks short, check the Day Book (voucher type Journal, that date) before re-fetching. ~5 min.",
-      "reference": "SOP · Shopify + Easebuzz",
-      "referenceUrl": "/guide/sop/collections/easebuzz"
+      "reference": "Handbook · Shopify + Easebuzz",
+      "referenceUrl": "/handbook#c14-d2-shopify-easebuzz"
     },
     {
       "id": "ops-w1-weekly-checks",
@@ -32,8 +32,8 @@
       "frequency": "weekly",
       "owner": "Accountant",
       "notes": "Recommended control, every Monday, ~15 min.",
-      "reference": "SOP · Easebuzz payouts",
-      "referenceUrl": "/guide/sop/collections/easebuzz"
+      "reference": "Handbook · Easebuzz payouts",
+      "referenceUrl": "/handbook#c14-d2-shopify-easebuzz"
     },
     {
       "id": "ops-m1-amazon-reports",
@@ -42,8 +42,8 @@
       "frequency": "monthly",
       "dueDay": 5,
       "owner": "Accountant",
-      "reference": "SOP · Amazon",
-      "referenceUrl": "/guide/sop/sales/amazon"
+      "reference": "Handbook · Amazon",
+      "referenceUrl": "/handbook#c6"
     },
     {
       "id": "ops-m2-shiprocket-cod",
@@ -52,8 +52,8 @@
       "frequency": "monthly",
       "dueDay": 5,
       "owner": "Accountant",
-      "reference": "SOP · Shiprocket COD",
-      "referenceUrl": "/guide/sop/collections/shiprocket"
+      "reference": "Handbook · Shiprocket COD",
+      "referenceUrl": "/handbook#c16-m2-shiprocket"
     },
     {
       "id": "ops-m3-snapmint",
@@ -62,8 +62,8 @@
       "frequency": "monthly",
       "dueDay": 5,
       "owner": "Accountant",
-      "reference": "SOP · Snapmint",
-      "referenceUrl": "/guide/sop/collections/snapmint"
+      "reference": "Handbook · Snapmint",
+      "referenceUrl": "/handbook#c16-m3-snapmint"
     },
     {
       "id": "ops-m4-platform-invoices-jv",
@@ -72,8 +72,8 @@
       "frequency": "monthly",
       "dueDay": 15,
       "owner": "Accountant",
-      "reference": "SOP · Platform invoices",
-      "referenceUrl": "/guide/sop/expense"
+      "reference": "Handbook · Platform invoices",
+      "referenceUrl": "/handbook#c16-m4-platform-invoices"
     },
     {
       "id": "ops-m5-banks-statutory-close",
@@ -83,8 +83,8 @@
       "dueDay": 20,
       "owner": "Accountant",
       "notes": "Statutory filings themselves are tracked in the Accounts category; this task is the operating close that feeds them.",
-      "reference": "SOP · Month-end close",
-      "referenceUrl": "/guide/sop/close"
+      "reference": "Handbook · Month-end close",
+      "referenceUrl": "/handbook#c10"
     },
     {
       "id": "ops-q-26q-form16a",
@@ -95,8 +95,8 @@
       "dueDay": 31,
       "owner": "Accountant",
       "authority": "Income Tax / Amazon",
-      "reference": "SOP · TDS & TCS",
-      "referenceUrl": "/guide/sop/tax/tds"
+      "reference": "Handbook · TDS & TCS",
+      "referenceUrl": "/handbook#c8"
     }
   ]
 }

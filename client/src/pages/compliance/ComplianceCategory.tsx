@@ -708,7 +708,7 @@ function ItemEditor({
                 value={item.referenceUrl ?? ''}
                 onChange={(e) => update('referenceUrl', e.target.value)}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                placeholder="/guide/sop/sales/amazon"
+                placeholder="/handbook#c6"
               />
             </Field>
           </div>

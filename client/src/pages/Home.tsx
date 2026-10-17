@@ -48,9 +48,9 @@ export function Home() {
           accent="amber"
         />
         <NavCard
-          to="/guide"
-          title="Guide"
-          description="System architecture, SOPs and ledger reference."
+          to="/handbook"
+          title="Accounts Handbook"
+          description="How the books are wired, daily and monthly tasks with screenshots, findings and FAQ."
           icon={iconGuide}
           accent="violet"
         />

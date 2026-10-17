@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Heatronics Accounts Handbook</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
@@ -436,7 +435,7 @@ body{margin:0}
   <div class="chhead"><span class="chno">S6</span><div><h2>Tally Banking</h2><p class="lede">The last link in every chain. Bank receipts clear the collection ledgers and Amazon Bank; payments clear creditors.</p></div></div>
   <ul>
     <li><b>Concept:</b> the statement is imported line by line. Each line is matched to an existing voucher, or a Receipt or Payment is created against the right ledger.</li>
-    <li><b>Routing:</b> Easebuzz, Snapmint and Shiprocket credits → their Collection ledger. Amazon credits → <code>Amazon Bank</code>. Supplier payments → the supplier.</li>
+    <li><b>Routing:</b> Easebuzz, Snapmint and Shiprocket credits → their Collection ledger. Amazon credits → <code>Amazon Bank</code>. Direct B2B receipts (Blinkit included) → the party ledger, against the bill reference. Supplier payments → the supplier. Inter-bank transfers are Contra. Per-bank notes are in chapter 9.</li>
     <li><b>Rule:</b> anything unknown is named to Hargun. Don't park it in Suspense, which already holds ₹12.6 L.</li>
     <li><b>Format:</b> Central Bank Excel needs headings on row 14. Upload via File Manager → Bank Statement New.</li>
   </ul>
@@ -448,6 +447,8 @@ body{margin:0}
     <li><b>Platform invoices</b> (Amazon ads and fees, Shiprocket, Easebuzz, Snapmint), as Purchase-Expense against each platform's control ledger (chapter 13, M4).</li>
     <li><b>Amazon expense JV</b> monthly: Dr Amazon Expenses (Creditors), Cr Cost of Advertising and settlement-posted FBA heads (chapter 6).</li>
     <li><b>GST set-off and payment</b> journals monthly (chapter 7, query to the CA).</li>
+    <li><b>Capital goods and monthly depreciation</b>, booked directly in Tally, never through Tranzact (chapter 9b).</li>
+    <li><b>Provisions and other journals</b>, and payroll.</li>
   </ul>
 </section>
 
@@ -460,7 +461,7 @@ body{margin:0}
     <tr><td>Company</td><td>Heatronics Medical Devices Pvt Ltd · CIN U31900UP2022PTC175309 · Udyam UP-28-0059978 (Micro, Mfg)</td></tr>
     <tr><td>Books</td><td>Tally Prime (Silver, single user) on Tally On Cloud (Thakur Hardsoft). FY 2026-27 from 1-Apr-26. Earlier years are in Busy.</td></tr>
     <tr><td>GST registrations</td><td><b>Uttar Pradesh</b> (principal; Tranzact and Shopify billing) · Haryana · Karnataka · Maharashtra · Telangana (Amazon FBA locations)</td></tr>
-    <tr><td>Main product</td><td>hCore heat therapy devices, HSN 90211000, GST 5%. Most inputs and services at 18%, so the business is inverted-duty.</td></tr>
+    <tr><td>Main product</td><td>hCore heat therapy devices (D2C orthopedic heat therapy), HSN 90211000, GST 5%. Most inputs and services at 18%, so the business is inverted-duty.</td></tr>
   </table></div>
   <div class="tw"><table>
     <tr><th>System</th><th>Creates in Tally</th><th>Route</th><th>Frequency</th></tr>
@@ -502,6 +503,17 @@ Indirect Expenses
 Bank OD A/c → Cash Credit Limit - [Central Bank]      Bank Accounts → ICICI CC, HDFC, Central Current, Easebuzz Wire
 Duties &amp; Taxes → GST Input · GST Output · GST Stock Transfer (state-wise) · TDS Payable (by section) · GST Payable (by state)
 Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) · Suspense</div>
+  <h3 id="c2-app-ledger-reference">Other ledgers and bill series (to confirm)</h3>
+  <p>The MIS app's ledger reference lists these as well. They don't conflict with the tree above, but they haven't been checked against the Tally ledger list. Confirm the exact names before using them.</p>
+  <div class="tw"><table>
+    <tr><th>Ledger / series</th><th>Voucher</th><th>GST</th><th>Note</th></tr>
+    <tr><td><code>Rent</code></td><td>Journal</td><td>Taxable</td><td>Monthly rent; TDS u/s 194-I deducted on payment</td></tr>
+    <tr><td><code>Electricity Charges</code></td><td>Payment, Journal</td><td>Exempt</td><td>—</td></tr>
+    <tr><td><code>Internet &amp; Telephone</code></td><td>Purchase (services)</td><td>Taxable</td><td>—</td></tr>
+    <tr><td><code>Digital Advertising</code></td><td>Purchase (services)</td><td>Taxable</td><td>Sales &amp; Marketing</td></tr>
+    <tr><td><code>TDS Payable - 194C</code> / <code>- 194J</code></td><td>Journal, Payment</td><td>—</td><td>194C also covers transport contractors; 194J covers professional fees and consultancy</td></tr>
+    <tr><td>Tranzact bill series codes</td><td>—</td><td>—</td><td>Purchase RM <code>PUR-RM-YYYYMM-####</code> · Job work <code>JW-YYYYMM-####</code> · Blinkit <code>BLK-YYYYMM-####</code> · Capital goods (Tally) <code>CAP-YYYYMM-####</code></td></tr>
+  </table></div>
 </section>
 
 <!-- 3 -->
@@ -525,6 +537,9 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <tr><td>Amazon Bank Transfer</td><td>eCom2Tally (Settlement)</td><td class="dr">Amazon Bank</td><td class="cr">Amazon Settlement</td></tr>
     <tr><td>Purchase-Expense</td><td>Accountant</td><td class="dr">Fee / ad ledger + Input GST</td><td class="cr">Platform control account</td></tr>
     <tr><td>Receipt / Payment</td><td>Bank import</td><td colspan="2">Bank ↔ control account / party</td></tr>
+    <tr><td>Contra</td><td>Bank import</td><td colspan="2">Bank ↔ bank (inter-bank transfers, e.g. ICICI ↔ Central Bank CC)</td></tr>
+    <tr><td>Purchase (CapGoods)</td><td>Accountant (Tally)</td><td class="dr">Asset ledger + Input GST (CapGoods)</td><td class="cr">Supplier</td></tr>
+    <tr><td>Journal (Depreciation)</td><td>Accountant (Tally), monthly</td><td class="dr">Depreciation Expense</td><td class="cr">Accumulated Depreciation — [asset class]</td></tr>
   </table></div>
 </section>
 
@@ -562,6 +577,58 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <tr><td>Internal Transfer Series</td><td><code>Internal Transfer Sales</code></td><td>Purchases: goods / service</td><td><code>RM Purchases</code> / <code>Job Work Charges</code></td></tr>
   </table></div>
   <div class="callout warn"><b>Known gaps:</b> no series rule for Supernode (Amazon 3P), whose debtor is ₹2.93 L. Every service bill posts to Job Work Charges. "Mark Paid" and the TCS ledgers point to ledgers that don't exist in Tally (Ch 11).</div>
+  <h3 id="c4-purchases">Purchases (goods)</h3>
+  <div class="spec">
+    <ul>
+      <li>Goods bills (Is Service = false) post to <code>RM Purchases</code>, with input GST attached by rate (<code>IGST/CGST/SGST Input - 18%</code>, also 5% / 12%).</li>
+      <li>Approve the Purchase in Document Approval and push it in the daily D1 run.</li>
+      <li>The supplier balance is cleared by the payment booked from the bank statement, against the bill reference.</li>
+      <li>Input credit is claimable only for invoices that appear in GSTR-2B (Section 16(2)(aa)). Matching is part of M4 (chapter 13).</li>
+    </ul>
+    <div class="jes">
+      <div class="je"><h4>Goods purchase (RM)<span>Purchase</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">RM Purchases</span><span class="a">taxable</span></div>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">IGST/CGST/SGST Input</span><span class="a">GST</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Supplier (Sundry Creditor)</span><span class="a">gross</span></div></div>
+    </div>
+  </div>
+  <h3 id="c4-job-work">Job work and service bills</h3>
+  <ul>
+    <li>Service bills (Is Service = true) post to <code>Job Work Charges</code> with input GST. TDS is split in Tranzact at 2% u/s 194C on the pre-GST value; example: Ravi Teleinfomatics above.</li>
+    <li>Approve both the Purchase and the TDS Journal, and push both in the D1 run.</li>
+    <li>Stock sent to and received from job workers is tracked in Tranzact through Material Out / Material In <span class="pill warn">to confirm</span>.</li>
+    <li>TDS is deposited by the 7th and filed in the quarterly 26Q (chapters 8 and 14).</li>
+  </ul>
+</section>
+
+<!-- 4b -->
+<section class="chapter" id="c25">
+  <div class="chhead"><span class="chno">04b</span><div><h2>Blinkit (quick commerce)</h2><p class="lede">Blinkit is a quick-commerce B2B buyer. Its invoices are raised in Tranzact under the Blinkit Sales Series and reach Tally through the Chrome plugin, like any other Tranzact sale.</p></div></div>
+  <div class="spec">
+    <dl class="facts">
+      <div><dt>Source</dt><dd>Tranzact, Blinkit Sales Series (code <code>BLK-YYYYMM-####</code> <span class="pill warn">to confirm</span>)</dd></div>
+      <div><dt>Posted by</dt><dd>TranZact Chrome plugin, daily D1 (Sales voucher type)</dd></div>
+      <div><dt>Vouchers</dt><dd>Sales; Credit Note / Debit Note for deductions and returns</dd></div>
+      <div><dt>Ledger</dt><dd><code>Blinkit Sales</code> (Sales Accounts → Quick Commerce)</dd></div>
+      <div><dt>Control</dt><dd>Blinkit party ledger (Sundry Debtor). No separate clearing ledger.</dd></div>
+      <div><dt>GST</dt><dd><code>IGST/CGST/SGST Output - 5%</code>. Inter- or intra-state follows the destination warehouse, not Blinkit's HQ.</dd></div>
+      <div><dt>Settlement</dt><dd>On credit terms into <code>Cash Credit Limit - [Central Bank]</code>; the receipt is booked against the open invoice by bill reference</dd></div>
+      <div><dt>Fees</dt><dd>Channel-fee deductions come on Blinkit debit / credit notes and are journalled from them</dd></div>
+    </dl>
+    <div class="jes">
+      <div class="je"><h4>Blinkit sale, inter-state, 5% GST<span>Sales</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Blinkit (party)</span><span class="a">gross</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Blinkit Sales</span><span class="a">taxable</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">IGST Output - 5%</span><span class="a">GST</span></div></div>
+      <ol>
+        <li>Raise the invoice under the Blinkit Sales Series. Carry Blinkit's GSTIN and the destination state.</li>
+        <li>Match PO + GRN: Blinkit pays only against a reconciled PO and GRN, so confirm the PO number and quantity before saving.</li>
+        <li>Approve in Document Approval and push in the D1 run (chapter 11).</li>
+        <li>When the payout lands, book the receipt against the open invoice by bill reference.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="callout warn"><b>Watch:</b> Blinkit is B2B and rejects invoices without the buyer GSTIN. Disputed POs delay settlement. Flag any invoice older than 45 days for follow-up.</div>
 </section>
 
 <!-- 5 -->
@@ -572,6 +639,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   <div class="spec">
     <dl class="facts">
       <div><dt>Source</dt><dd>Shopify API (orders, refunds); Easebuzz API; Snapmint and Shiprocket monthly reports</dd></div>
+      <div><dt>Collectors</dt><dd>Easebuzz: prepaid card / UPI. Snapmint: prepaid EMI / BNPL. Shiprocket: COD.</dd></div>
       <div><dt>Frequency</dt><dd>Shopify + Easebuzz daily; Snapmint + Shiprocket monthly</dd></div>
       <div><dt>Match key</dt><dd>Prepaid: <code>pg:</code> tag ↔ Easebuzz <code>bank_transaction_id</code>. COD: <code>HTR-&lt;order&gt;-D2C</code> ↔ Shiprocket <code>id</code></dd></div>
       <div><dt>Control</dt><dd>Prepaid / COD Receivable; Easebuzz / Snapmint / ShipRocket Collection</dd></div>
@@ -598,6 +666,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <div class="tacc"><div class="t">ShipRocket Collection</div><div class="b"><div><span class="lab">DR</span>COD remittances<br>31.50 L</div><div><span class="lab">CR</span>Bank + all freight invoices<br>35.45 L</div></div><div class="bal">Should be: ≈ 0 · <b style="color:var(--bad)">Is: 3.96 L Cr</b></div></div>
   </div>
   <p style="font-size:13px;color:var(--muted)">Apr-26 to 6-Dec-26 (TB). Opening on 1-Apr was 0 except Easebuzz.</p>
+  <div class="callout warn"><b>Rule:</b> never clear a Shopify sale directly against the bank. It always goes through its receivable and then its collector (Easebuzz / Snapmint / ShipRocket Collection), and the bank receipt empties the collector.</div>
 </section>
 
 <!-- 6 -->
@@ -628,7 +697,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
         <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Settlement → then Amazon Bank</span><span class="a">44,942.53</span></div></div>
     </div>
   </div>
-  <h3>The monthly Amazon expense JV</h3>
+  <h3 id="c6-monthly-jv">The monthly Amazon expense JV</h3>
   <p>Ads and some FBA charges reach the P&amp;L twice. The settlement posts the gross to <code>Cost of Advertising</code>. The GST invoice books the same spend to <code>Amazon Ads</code> + IGST + TDS against <code>Amazon Expenses (Creditors)</code>. As the plugin partner advised, a monthly JV moves the settlement-side expense onto the creditor. The expense then stays once, with GST and TDS split, and the creditor is treated as settled.</p>
   <div class="spec">
     <div class="jes">
@@ -672,6 +741,20 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <li><b>Monthly set-off:</b> no set-off or payment journals appear in the books. The <code>GST Payable (&lt;state&gt;)</code> ledgers show about ₹1.01 Cr with no movement.</li>
     <li><b>Unexpected states:</b> <code>IGST Output-DELHI</code>, <code>-GUJARAT</code> and <code>Purchase-STR-DELHI/GUJARAT</code> exist without a registration there.</li>
   </ul>
+  <h3 id="c7-monthly-cycle">Monthly cycle and set-off</h3>
+  <ul>
+    <li><b>Net payable is per GSTIN:</b> output less input for each registration, settled monthly through the set-off JV and the challan payment. Because the business is inverted-duty, most months build up credit rather than pay cash.</li>
+    <li><b>GSTR-2B:</b> input credit is claimable only for invoices that appear in 2B (Section 16(2)(aa)).</li>
+    <li><b>Ineligible ITC:</b> no credit on some categories (motor car, food and beverages, employee welfare). Write "Ineligible ITC" in the narration.</li>
+    <li><b>Capital goods:</b> ITC follows Rule 43 (chapter 9b).</li>
+  </ul>
+  <div class="spec">
+    <div class="je"><h4>Shopify output GST (UP, 5%, price-inclusive)<span>Shopify Sales</span></h4>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Shopify Prepaid Receivable</span><span class="a">gross (incl. GST)</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">Shopify Sales</span><span class="a">taxable</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">CGST 2.500% + SGST 2.500%</span><span class="a">GST</span></div></div>
+    <p style="font-size:14px;color:var(--muted)">An intra-state prepaid Shopify sale. The Amazon equivalent, per GSTIN, is the MTR sale in chapter 6.</p>
+  </div>
 </section>
 
 <!-- 8 -->
@@ -700,13 +783,84 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <tr><td><code>Central Current Account</code> · <code>Easebuzz Wire A/C</code></td><td>Bank Accounts</td><td>Low use</td><td class="n">— · 0.10 L</td></tr>
   </table></div>
   <p>Statements are imported at month end (File Manager → Bank Statement New → Tally Banking). The Central Bank file needs its headings on row 14.</p>
+  <h3 id="c9-central-cc">Central Bank CC (operating)</h3>
+  <ul>
+    <li>The operating OD account. Every channel payout lands here, and supplier payments go out from here.</li>
+    <li><b>Payments:</b> suppliers against the bill reference; salary; GST and TDS challans, with the period in the narration.</li>
+    <li><b>CC interest</b> debits are an expense (Bank Charges / Finance Costs), not a transfer.</li>
+    <li>Import every month. Statements left to pile up make the BRS painful.</li>
+  </ul>
+  <h3 id="c9-icici">ICICI Bank A/C - CC</h3>
+  <ul>
+    <li>Export the month's Excel from ICICI NetBanking → Bank Statement New → Banking → Import Bank Statement.</li>
+    <li>Match each line or create a Payment / Receipt. Transfers between banks are Contra. Review every match before saving: auto-matching can mislabel the counter-party.</li>
+    <li>Regrouping to Bank OD A/c is open (finding 8).</li>
+  </ul>
+  <div class="je"><h4>Inter-bank transfer<span>Contra</span></h4>
+    <div class="ln d"><span class="s">Dr</span><span class="nm">ICICI Bank  A/C - CC</span><span class="a">amount</span></div>
+    <div class="ln c"><span class="s">Cr</span><span class="nm">Cash Credit Limit - [Central Bank]</span><span class="a">amount</span></div></div>
+  <h3 id="c9-hdfc">HDFC Bank A/C</h3>
+  <ul>
+    <li>A payments account, not a marketplace escrow. Export the Excel from HDFC NetBanking and import it the same way.</li>
+    <li>Tag the bill reference on every supplier payment so creditor ageing stays clean.</li>
+    <li>Run the BRS and resolve uncleared items before the GST filings.</li>
+  </ul>
+  <div class="je"><h4>Supplier payment from HDFC<span>Payment</span></h4>
+    <div class="ln d"><span class="s">Dr</span><span class="nm">Supplier (Sundry Creditor), against bill ref</span><span class="a">bill</span></div>
+    <div class="ln c"><span class="s">Cr</span><span class="nm">HDFC Bank  A/C</span><span class="a">bill</span></div></div>
+  <h3 id="c9-easebuzz-wire">Easebuzz Wire A/C</h3>
+  <ul>
+    <li>A low-use bank account. It is <b>not</b> the clearing ledger: Easebuzz payouts clear <code>Easebuzz Collection A/c</code> (a Sundry Debtor) and land in the Central Bank CC. Never post settlements to Easebuzz Wire A/C.</li>
+    <li>If it moved in the month, import its statement through Bank Statement New and reconcile. Otherwise confirm the balance is unchanged.</li>
+  </ul>
+</section>
+
+<!-- 9b -->
+<section class="chapter" id="c26">
+  <div class="chhead"><span class="chno">09b</span><div><h2>Capital goods and depreciation</h2><p class="lede">Plant and machinery, computers, furniture. Booked and depreciated directly in Tally, not Tranzact. ITC on capital goods follows Rule 43.</p></div></div>
+  <div class="callout info">The procedure comes from the MIS app's SOP. The ledger names and the <code>CAP-YYYYMM-####</code> series are <span class="pill warn">to confirm</span> against Tally before first use.</div>
+  <div class="spec">
+    <dl class="facts">
+      <div><dt>Voucher</dt><dd>Purchase (CapGoods), series <code>CAP-YYYYMM-####</code>; Journal (Depreciation)</dd></div>
+      <div><dt>Asset</dt><dd><code>Plant &amp; Machinery</code> / <code>Computers &amp; Laptops</code> / <code>Furniture &amp; Fixtures</code> (Fixed Assets)</dd></div>
+      <div><dt>Input GST</dt><dd><code>Input CGST (CapGoods)</code> + <code>Input SGST (CapGoods)</code>, or <code>Input IGST (CapGoods)</code></dd></div>
+      <div><dt>Depreciation</dt><dd>Dr <code>Depreciation Expense</code> (Indirect Expense), Cr <code>Accumulated Depreciation — [asset class]</code>, monthly</dd></div>
+      <div><dt>Not yet in use</dt><dd>Capital Work-in-Progress until commissioning</dd></div>
+      <div><dt>Register</dt><dd>Fixed Asset Register: asset tag, purchase date, capitalisation date, useful life, depreciation rate</dd></div>
+    </dl>
+    <ol>
+      <li><b>Book the purchase invoice in Tally</b> under the CapGoods series. Attach the vendor invoice and delivery challan.</li>
+      <li><b>Claim ITC.</b> Capital goods ITC is eligible in full in the month of capitalisation. If the asset serves both taxable and exempt supplies, apply the Rule 43 reversal proportion.</li>
+      <li><b>Capitalise on commissioning.</b> An asset that takes time to install sits in Capital Work-in-Progress; on commissioning, journal it from CWIP to the asset ledger.</li>
+      <li><b>Record it in the Fixed Asset Register.</b></li>
+      <li><b>Book depreciation at month end:</b> Dr Depreciation Expense, Cr Accumulated Depreciation.</li>
+    </ol>
+  </div>
+  <h3 id="c26-examples">Worked examples (illustrative)</h3>
+  <p>Amounts are examples from the app's SOP, not entries from our books.</p>
+  <div class="tgrid">
+    <div class="je"><h4>Plant &amp; Machinery ₹590,000 @ 18%<span>Purchase (CapGoods)</span></h4>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Plant &amp; Machinery</span><span class="a">₹500,000.00</span></div>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Input CGST (CapGoods)</span><span class="a">₹45,000.00</span></div>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Input SGST (CapGoods)</span><span class="a">₹45,000.00</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">XYZ Machines Pvt Ltd</span><span class="a">₹590,000.00</span></div></div>
+    <div class="je"><h4>Monthly depreciation, SLM, 15 years<span>Journal (Depreciation)</span></h4>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Depreciation Expense</span><span class="a">₹2,500.00</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">Accumulated Depreciation — Plant &amp; Machinery</span><span class="a">₹2,500.00</span></div></div>
+    <div class="je"><h4>Laptop ₹59,000 @ 18% IGST<span>Purchase (CapGoods)</span></h4>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Computers &amp; Laptops</span><span class="a">₹50,000.00</span></div>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Input IGST (CapGoods)</span><span class="a">₹9,000.00</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">Apple India Pvt Ltd</span><span class="a">₹59,000.00</span></div></div>
+  </div>
+  <p style="font-size:13px;color:var(--muted)">Depreciation: ₹500,000 cost, ₹50,000 salvage, straight line over 15 years = ₹2,500 a month. The laptop is an inter-state purchase from a Bengaluru vendor. The machinery example is a new packaging line; the app calls the vendor a Pune (intra-state) supplier, but our principal GSTIN is UP, so CGST + SGST applies only to a UP vendor. A Pune vendor would be IGST.</p>
+  <div class="callout warn"><b>Watch:</b> don't route capital goods through Tranzact; the plugin isn't set up to post to fixed-asset ledgers. If an asset is partly used for exempt supplies, work out the Rule 43 common-credit reversal monthly. Disposals and scrap need their own journal, not a credit note.</div>
 </section>
 
 <section class="partband" id="p2"><p class="eyebrow">Part II</p><h2>Operating the books: calendar and tasks</h2><p>Every recurring task, step by step, with the real screens and the links to open. Click a screenshot to view it full size.</p></section>
 <section class="chapter" id="c13">
   <div class="chhead"><span class="chno">10</span><div><h2>Operating calendar</h2><p class="lede">What is done when: daily, weekly, monthly, quarterly.</p></div></div>
 <div class="opblock">
-    <header><h3>The calendar</h3></header>
+    <header><h3 id="c13-calendar">The calendar</h3></header>
     <div class="tw"><table>
       <tr><th>When</th><th>Task</th><th>Section</th></tr>
       <tr><td>Every working day</td><td>Tranzact: split TDS, approve, push to Tally</td><td><a href="#c14">D1</a></td></tr>
@@ -722,12 +876,13 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
       <tr><td>Quarterly</td><td>26Q, Form 16A to Amazon</td><td><a href="#c17">Q</a></td></tr>
     </table></div>
     <div class="callout warn"><b class="k">Before any import:</b> check the date in Tally's top bar is <b>today</b>. On 17-Oct it read 6-Dec-2026, and every import form defaulted to December.</div>
+    <div class="callout info"><b class="k">In the MIS app:</b> Tasks &amp; Compliance → Operations carries these same tasks (D1, D2, W1, M1–M5, Q), each owned by the accountant and linked to its SOP. The statutory filings themselves are tracked in the Accounts category; M5 is the operating close that feeds them. Also at month end: the depreciation journal (chapter 9b), and the Easebuzz Wire statement if that account moved (chapter 9).</div>
   </div>
 </section>
 <section class="chapter" id="c14">
   <div class="chhead"><span class="chno">11</span><div><h2>Daily tasks</h2><p class="lede">Every working day, about 15 minutes in all.</p></div></div>
 <div class="opblock">
-    <header><span class="tag daily">Daily · D1 · ~10 min</span><h3>Tranzact → Tally</h3></header>
+    <header><span class="tag daily">Daily · D1 · ~10 min</span><h3 id="c14-d1-tranzact">Tranzact → Tally</h3></header>
     <p class="done">Done when: Pending and Approved both read 0 on Document Approval and on Journal Entry.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Split TDS on every service bill</h4>
       <div class="btns"><a class="btn" href="https://app.letstranzact.com/v3/payments/?section=ledger_consolidated" target="_blank" rel="noopener">Ledger (Consolidated) ↗</a></div>
@@ -761,7 +916,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     </div></div>
     <div class="step"><div class="no">6</div><div class="body"><h4>Check</h4><p>Back in Tranzact, Pending = 0 and Approved = 0 on both tabs. Everything else is under Completed.</p></div></div>
   </div><div class="opblock">
-    <header><span class="tag daily">Daily · D2 · ~5 min</span><h3>Shopify orders, then Easebuzz payouts</h3></header>
+    <header><span class="tag daily">Daily · D2 · ~5 min</span><h3 id="c14-d2-shopify-easebuzz">Shopify orders, then Easebuzz payouts</h3></header>
     <p class="done">Done when: yesterday's orders and payouts are in Tally.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Open option 3</h4><p>Gateway of Tally → <b>http://tally-integRation.in</b> → <b>3 : E-Store, Pay Gateways &amp; Courier</b>.</p></div></div>
     <div class="step"><div class="no">2</div><div class="body"><h4>Shopify orders first</h4>
@@ -792,7 +947,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
 <section class="chapter" id="c16">
   <div class="chhead"><span class="chno">13</span><div><h2>Monthly tasks</h2><p class="lede">Day 1 to Day 20 of the following month.</p></div></div>
 <div class="opblock">
-    <header><span class="tag monthly">Monthly · M1 · by Day 5</span><h3>Amazon: four reports</h3></header>
+    <header><span class="tag monthly">Monthly · M1 · by Day 5</span><h3 id="c16-m1-amazon">Amazon: four reports</h3></header>
     <p class="done">Done when: MTR-B2C, MTR-B2B, STR and Settlement are imported for the month.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Download MTR-B2C, MTR-B2B, STR</h4>
       <div class="btns"><a class="btn" href="https://sellercentral.amazon.in/mytax/gstreports/monthly" target="_blank" rel="noopener">GST Monthly Reports ↗</a></div>
@@ -821,7 +976,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     </div></div>
     <div class="step"><div class="no">5</div><div class="body"><h4>Check</h4><p><code>Amazon Seller A/c</code> ends the month as a small Dr (sales in the open settlement). <code>Amazon Settlement</code> holds only the open settlement. After the bank import, <code>Amazon Bank</code> holds 1–2 days at most.</p></div></div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · M2 · by Day 5</span><h3>Shiprocket COD remittances</h3></header>
+    <header><span class="tag monthly">Monthly · M2 · by Day 5</span><h3 id="c16-m2-shiprocket">Shiprocket COD remittances</h3></header>
     <p class="done">Done when: the month's remittances are imported, and freight invoices booked = Total Deductions from COD.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Download the COD remittance report</h4>
       <div class="btns"><a class="btn" href="https://app.shiprocket.in/seller/reports/download-reports/instant-reports" target="_blank" rel="noopener">Instant Reports ↗</a><a class="btn" href="https://app.shiprocket.in/seller/remitted/cod-remittance" target="_blank" rel="noopener">COD Remittance ↗</a></div>
@@ -836,7 +991,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     </div></div>
     <div class="step"><div class="no">5</div><div class="body"><h4>Book freight invoices and tie out</h4><p>Book every Shiprocket GST invoice, COD and prepaid freight alike: Dr freight + GST, Cr <code>ShipRocket Collection</code>. The total booked for the month should equal Total Deductions from COD.</p></div></div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · M3 · by Day 5</span><h3>Snapmint settlements</h3></header>
+    <header><span class="tag monthly">Monthly · M3 · by Day 5</span><h3 id="c16-m3-snapmint">Snapmint settlements</h3></header>
     <p class="done">Done when: the month's Snapmint payouts are imported.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Request the report (arrives by email)</h4>
       <div class="btns"><a class="btn" href="https://emis.snapmint.com/merchants/dashboard" target="_blank" rel="noopener">Snapmint portal ↗</a></div>
@@ -851,7 +1006,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
       <figure class="narrow"><a href="img/opt5_wrongfile.jpg" target="_blank"><img src="img/opt5_wrongfile.jpg" alt="Option 5 with SnapMint platform but an Amazon file name" loading="lazy"></a></figure>
     </div></div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · M4 · by Day 15</span><h3>Platform invoices and the Amazon expense JV</h3></header>
+    <header><span class="tag monthly">Monthly · M4 · by Day 15</span><h3 id="c16-m4-platform-invoices">Platform invoices and the Amazon expense JV</h3></header>
     <p class="done">Done when: every platform invoice is booked, the Amazon JV is passed, and <code>Cost of Advertising</code> = 0.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Download the invoices</h4>
       <div class="btns"><a class="btn" href="https://sellercentral.amazon.in/payments/reports-repository" target="_blank" rel="noopener">Amazon Payments (Advertising Invoice History) ↗</a></div>
@@ -865,14 +1020,15 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
       <tr><td>Shiprocket</td><td>Shiprocket billing</td><td class="dr">Freight Charges (Shiprocket) / Forward Delivery + GST</td><td class="cr">ShipRocket Collection</td></tr>
       <tr><td>Easebuzz</td><td>Easebuzz dashboard</td><td class="dr">PG Transaction Fee - Easebuzz + GST</td><td class="cr">Easebuzz Collection A/c</td></tr>
       <tr><td>Snapmint</td><td>Snapmint portal → Monthly Invoices</td><td class="dr">BNPL Processing Fee - Snapmint + GST</td><td class="cr">Snapmint Collection</td></tr>
-    </table></div></div></div>
+    </table></div>
+    <div class="callout warn"><b class="k">Credit the platform's control ledger,</b> not the bank, and don't book these as a plain expense paid. The invoice credits the same ledger the payouts debit, which is how each clearing ledger nets out. Where an expense carries no input credit, write "Ineligible ITC" in the narration (chapter 7).</div></div></div>
     <div class="step"><div class="no">3</div><div class="body"><h4>Pass the Amazon expense JV</h4>
       <div class="tw"><table><tr><th>Dr</th><th>Cr</th></tr><tr><td class="dr">Amazon Expenses (Creditors)</td><td class="cr">Cost of Advertising (full month balance)<br>FBA Inbound Pickup Service (settlement amount)<br>FBA storage fee - Amazon (settlement part only)</td></tr></table></div>
       <p>See <a href="#c6">chapter 6</a> for why. Template: Journal 53, 30-Apr-26.</p>
     </div></div>
     <div class="step"><div class="no">4</div><div class="body"><h4>Match to GSTR-2B</h4><p>Tick every invoice against the month's GSTR-2B. If one is missing from 2B, there is no input credit for it, so tell Hargun.</p></div></div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · M5 · Day 7–20</span><h3>Banks, statutory dates, close</h3></header>
+    <header><span class="tag monthly">Monthly · M5 · Day 7–20</span><h3 id="c16-m5-close">Banks, statutory dates, close</h3></header>
     <p class="done">Done when: 3 banks reconciled, every ledger below is OK, Hargun signs off.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Import and reconcile the 3 banks</h4><ol><li>Download Excel statements: HDFC, ICICI, Central Bank.</li><li>File Manager → <b>Bank Statement New</b> → upload.</li><li>Tally → Banking → import the statement and reconcile. For the Central Bank file, the column headings must be on <b>row 14</b>.</li></ol></div></div>
     <div class="step"><div class="no">2</div><div class="body"><h4>Statutory dates</h4><ul><li><b>7th</b>: TDS paid for last month</li><li><b>10th</b>: GSTR-1 data to the CA (due 11th)</li><li><b>20th</b>: GSTR-3B</li></ul></div></div>
@@ -1260,5 +1416,3 @@ let tk=false;addEventListener('scroll',()=>{if(!tk){tk=true;requestAnimationFram
 spy();
 })();
 </script>
-
-</body></html>

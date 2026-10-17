@@ -211,3 +211,15 @@ No environment variables are required for basic deployment. The app runs entirel
 ### Health Check
 
 The app includes a health check endpoint at `/health` that returns `200 OK`.
+
+## Accounts Handbook (single source)
+
+The accounting knowledge base lives in ONE file: `client/src/content/handbook/handbook.html`
+(screenshots in `client/public/handbook/img/`). The app renders it natively at `/handbook`
+(nested Parts → Chapters → Sections, search, one chapter per route), and the same file is
+published as the shareable Accounts Handbook artifact. Old `/guide/sop/*`, `/guide/ledgers`
+and `/guide/architecture` links redirect to the matching chapter; `/handbook#<section-id>`
+deep-links to any section.
+
+To change content: edit `handbook.html`. If you edited its `<style>` block, regenerate the
+scoped app stylesheet with `node scripts/handbook/build-css.mjs`.
