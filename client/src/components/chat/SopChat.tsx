@@ -1,12 +1,12 @@
 // ----------------------------------------------------------------------------
-// SOP chat — a floating "Ask about the SOPs" widget shown on the SOP pages.
-// Grounded in the same handbook knowledge pack that now backs the SOPs, so the
-// accountant and the CA can ask clarifications (it cites the handbook sections
-// the SOPs were built from). Reads only; it can't change anything.
+// Handbook chat — a floating "Ask about the handbook" widget shown on the
+// Accounts Handbook pages. Grounded in the full handbook text (the same single
+// source the pages render), so the accountant and the CA can ask
+// clarifications and get the chapter cited. Reads only; it can't change anything.
 // ----------------------------------------------------------------------------
 
 import { useEffect, useRef, useState } from 'react';
-import { HANDBOOK_CONTEXT } from '../../data/chat/handbookContext';
+import { handbookChatContext } from '../../data/handbook/handbook';
 import { chatStatus, sendChat, type ChatMessage } from '../../data/chat/chatClient';
 import { Markdown } from '../ui/Markdown';
 
@@ -64,7 +64,7 @@ export function SopChat() {
     setInput('');
     setLoading(true);
     try {
-      const reply = await sendChat(HANDBOOK_CONTEXT, next, 'handbook');
+      const reply = await sendChat(handbookChatContext(), next, 'handbook');
       setMessages([...next, { role: 'assistant', content: reply }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Chat failed.');
@@ -78,7 +78,7 @@ export function SopChat() {
     <>
       <button
         onClick={() => setOpen((o) => !o)}
-        aria-label={open ? 'Close chat' : 'Ask about the SOPs'}
+        aria-label={open ? 'Close chat' : 'Ask about the handbook'}
         className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-brand-500 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center hover:bg-brand-600 hover:scale-105 active:scale-95 transition-all"
       >
         {open ? iconClose : iconChat}
@@ -91,7 +91,7 @@ export function SopChat() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </span>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-slate-800 leading-tight">Ask about the SOPs</div>
+              <div className="text-sm font-semibold text-slate-800 leading-tight">Ask about the handbook</div>
               <div className="text-[10px] text-slate-400 leading-tight">Grounded in how the books are wired · cites sections · reads only</div>
             </div>
             <button onClick={() => setOpen(false)} aria-label="Close" className="ml-auto text-slate-400 hover:text-slate-700">{iconClose}</button>
@@ -130,7 +130,7 @@ export function SopChat() {
               <div className="flex justify-start">
                 <div className="rounded-2xl rounded-bl-sm bg-slate-50 border border-slate-100 px-3 py-2 text-sm text-slate-400 flex items-center gap-2">
                   <span className="inline-block w-3 h-3 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-                  Reading the SOPs…
+                  Reading the handbook…
                 </div>
               </div>
             )}
@@ -146,7 +146,7 @@ export function SopChat() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(input); } }}
                 rows={1}
-                placeholder={configured === false ? 'Chat unavailable' : 'Ask about the SOPs…'}
+                placeholder={configured === false ? 'Chat unavailable' : 'Ask about the handbook…'}
                 disabled={configured === false || loading}
                 className="flex-1 resize-none max-h-28 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/40 focus:border-brand-300 disabled:bg-slate-50"
               />

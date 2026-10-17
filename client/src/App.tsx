@@ -19,32 +19,9 @@ import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
 // Guide
-import { SystemArchitecture } from './pages/guide/SystemArchitecture';
-import { LedgerReference } from './pages/guide/LedgerReference';
-import { SopHome } from './pages/guide/sop/SopHome';
-import { HandbookPage } from './pages/HandbookPage';
-import { SalesSop } from './pages/guide/sop/SalesSop';
-import { SalesAmazonSop } from './pages/guide/sop/SalesAmazonSop';
-import { SalesShopifySop } from './pages/guide/sop/SalesShopifySop';
-import { SalesBlinkitSop } from './pages/guide/sop/SalesBlinkitSop';
-import { SalesB2BSop } from './pages/guide/sop/SalesB2BSop';
-import { PurchaseSop } from './pages/guide/sop/PurchaseSop';
-import { ExpenseSop } from './pages/guide/sop/ExpenseSop';
-import { BankingSop } from './pages/guide/sop/BankingSop';
-import { BankingEasebuzzWireSop } from './pages/guide/sop/BankingEasebuzzWireSop';
-import { BankingHdfcSop } from './pages/guide/sop/BankingHdfcSop';
-import { BankingIciciSop } from './pages/guide/sop/BankingIciciSop';
-import { BankingCentralCcSop } from './pages/guide/sop/BankingCentralCcSop';
-import { CapitalGoodsSop } from './pages/guide/sop/CapitalGoodsSop';
-import { JobWorkSop } from './pages/guide/sop/JobWorkSop';
-import { EasebuzzSop } from './pages/guide/sop/EasebuzzSop';
-import { SnapmintSop } from './pages/guide/sop/SnapmintSop';
-import { ShiprocketCodSop } from './pages/guide/sop/ShiprocketCodSop';
-import { GstSop } from './pages/guide/sop/GstSop';
-import { TdsSop } from './pages/guide/sop/TdsSop';
-import { MonthCloseSop } from './pages/guide/sop/MonthCloseSop';
 
 // Tools
+import { HandbookPage, HandbookRedirect } from './pages/handbook/HandbookPage';
 import { ToolsHome } from './pages/guide/tools/ToolsHome';
 import { InvoiceBookingSuggester } from './pages/guide/tools/InvoiceBookingSuggester';
 import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
@@ -76,8 +53,9 @@ function App() {
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
-          {/* Accounts Handbook is now folded into the SOPs */}
+          {/* Accounts Handbook — the single accounting knowledge base (handbook.html) */}
           <Route path="handbook" element={<HandbookPage />} />
+          <Route path="handbook/:chapter" element={<HandbookPage />} />
 
           {/* Task tracker is now folded into Compliance → Operations */}
           <Route path="task-tracker" element={<Navigate to="/compliance/operations" replace />} />
@@ -86,33 +64,32 @@ function App() {
           <Route path="mis-tracking" element={<Navigate to="/reporting/mis" replace />} />
           <Route path="mis-tracking/*" element={<Navigate to="/reporting/mis" replace />} />
 
-          {/* Guide hub */}
-          <Route path="guide" element={<Navigate to="/guide/sop" replace />} />
-          <Route path="guide/architecture" element={<SystemArchitecture />} />
-          <Route path="guide/ledgers" element={<LedgerReference />} />
-
-          {/* SOPs */}
-          <Route path="guide/sop" element={<SopHome />} />
-          <Route path="guide/sop/sales" element={<SalesSop />} />
-          <Route path="guide/sop/sales/amazon" element={<SalesAmazonSop />} />
-          <Route path="guide/sop/sales/shopify" element={<SalesShopifySop />} />
-          <Route path="guide/sop/sales/blinkit" element={<SalesBlinkitSop />} />
-          <Route path="guide/sop/sales/b2b" element={<SalesB2BSop />} />
-          <Route path="guide/sop/purchase" element={<PurchaseSop />} />
-          <Route path="guide/sop/expense" element={<ExpenseSop />} />
-          <Route path="guide/sop/collections/easebuzz" element={<EasebuzzSop />} />
-          <Route path="guide/sop/collections/snapmint" element={<SnapmintSop />} />
-          <Route path="guide/sop/collections/shiprocket" element={<ShiprocketCodSop />} />
-          <Route path="guide/sop/tax/gst" element={<GstSop />} />
-          <Route path="guide/sop/tax/tds" element={<TdsSop />} />
-          <Route path="guide/sop/close" element={<MonthCloseSop />} />
-          <Route path="guide/sop/banking" element={<BankingSop />} />
-          <Route path="guide/sop/banking/easebuzz-wire" element={<BankingEasebuzzWireSop />} />
-          <Route path="guide/sop/banking/hdfc" element={<BankingHdfcSop />} />
-          <Route path="guide/sop/banking/icici" element={<BankingIciciSop />} />
-          <Route path="guide/sop/banking/central-cc" element={<BankingCentralCcSop />} />
-          <Route path="guide/sop/capital-goods" element={<CapitalGoodsSop />} />
-          <Route path="guide/sop/job-work" element={<JobWorkSop />} />
+          {/* Old Guide / SOP routes → the handbook section that replaced each page */}
+          <Route path="guide" element={<HandbookRedirect anchor="c0" />} />
+          <Route path="guide/sop" element={<HandbookRedirect anchor="c0" />} />
+          <Route path="guide/sop/sales" element={<HandbookRedirect anchor="c3" />} />
+          <Route path="guide/sop/sales/amazon" element={<HandbookRedirect anchor="c6" />} />
+          <Route path="guide/sop/sales/shopify" element={<HandbookRedirect anchor="c5" />} />
+          <Route path="guide/sop/sales/blinkit" element={<HandbookRedirect anchor="c25" />} />
+          <Route path="guide/sop/sales/b2b" element={<HandbookRedirect anchor="c4" />} />
+          <Route path="guide/sop/purchase" element={<HandbookRedirect anchor="c4-purchases" />} />
+          <Route path="guide/sop/expense" element={<HandbookRedirect anchor="c16-m4-platform-invoices" />} />
+          <Route path="guide/sop/job-work" element={<HandbookRedirect anchor="c4-job-work" />} />
+          <Route path="guide/sop/capital-goods" element={<HandbookRedirect anchor="c26" />} />
+          <Route path="guide/sop/collections/easebuzz" element={<HandbookRedirect anchor="c14-d2-shopify-easebuzz" />} />
+          <Route path="guide/sop/collections/snapmint" element={<HandbookRedirect anchor="c16-m3-snapmint" />} />
+          <Route path="guide/sop/collections/shiprocket" element={<HandbookRedirect anchor="c16-m2-shiprocket" />} />
+          <Route path="guide/sop/tax/gst" element={<HandbookRedirect anchor="c7" />} />
+          <Route path="guide/sop/tax/tds" element={<HandbookRedirect anchor="c8" />} />
+          <Route path="guide/sop/close" element={<HandbookRedirect anchor="c10" />} />
+          <Route path="guide/sop/banking" element={<HandbookRedirect anchor="c9" />} />
+          <Route path="guide/sop/banking/central-cc" element={<HandbookRedirect anchor="c9-central-cc" />} />
+          <Route path="guide/sop/banking/icici" element={<HandbookRedirect anchor="c9-icici" />} />
+          <Route path="guide/sop/banking/hdfc" element={<HandbookRedirect anchor="c9-hdfc" />} />
+          <Route path="guide/sop/banking/easebuzz-wire" element={<HandbookRedirect anchor="c9-easebuzz-wire" />} />
+          <Route path="guide/ledgers" element={<HandbookRedirect anchor="c2" />} />
+          <Route path="guide/architecture" element={<HandbookRedirect anchor="s0" />} />
+          <Route path="guide/sop/*" element={<Navigate to="/handbook" replace />} />
 
           {/* Tools (top-level) */}
           <Route path="tools" element={<ToolsHome />} />
