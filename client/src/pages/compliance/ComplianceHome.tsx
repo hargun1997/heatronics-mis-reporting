@@ -71,7 +71,12 @@ export function ComplianceHome() {
 
   return (
     <>
-      <PageHeader title="Compliance" accent="amber" icon={iconCalendar} />
+      <PageHeader
+        title="Tasks & Compliance"
+        description="Operating tasks from the Accounts Handbook plus every statutory obligation, tracked month by month."
+        accent="amber"
+        icon={iconCalendar}
+      />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Current month banner */}
         <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-amber-50 to-white p-4 flex flex-wrap items-center justify-between gap-3">

@@ -5,7 +5,7 @@ import { ClaudeStatusPill } from '../components/ClaudeStatusPill';
 import { Drawer } from '../components/ui/overlays';
 import { FloatingChat } from '../components/chat/FloatingChat';
 
-const DATA_INSIGHTS_URL = 'https://heatronics-dashboard-portfolio.vercel.app/';
+const DATA_INSIGHTS_URL = 'https://digistex-portfolio.vercel.app/';
 
 // ---- nav model -------------------------------------------------------------
 
@@ -64,11 +64,16 @@ const SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: 'Guides',
+    items: [
+      { path: '/handbook', label: 'Accounts Handbook', icon: ico(['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']), match: (p) => p.startsWith('/handbook') },
+      { path: '/guide', label: 'Guide & SOPs', icon: ico(['M4 5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2z', 'M8 12h8M8 16h5']), match: (p) => p.startsWith('/guide') },
+    ],
+  },
+  {
     label: 'More',
     items: [
       { path: '/tools', label: 'Tools', icon: ico(['M14 7l3 3-8 8H6v-3z', 'M4 20h16']), match: (p) => p.startsWith('/tools') },
-      { path: '/guide', label: 'Guide & SOPs', icon: ico(['M4 5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2z', 'M8 12h8M8 16h5']), match: (p) => p.startsWith('/guide') },
-      { path: '/handbook', label: 'Accounts Handbook', icon: ico(['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']), match: (p) => p.startsWith('/handbook') },
       { path: DATA_INSIGHTS_URL, label: 'Data / Insights', external: true, icon: ico(['M3 3v18h18', 'M7 14l4-4 3 3 5-6']) },
     ],
   },

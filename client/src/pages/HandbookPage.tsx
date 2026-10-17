@@ -35,7 +35,11 @@ const iconChat = (
 );
 
 export function HandbookPage() {
-  const [chatOpen, setChatOpen] = useState(true);
+  // Default open on wide screens (side-by-side); closed on phones/tablets so
+  // the handbook gets the full width and the chat opens as an overlay.
+  const [chatOpen, setChatOpen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 1024
+  );
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -109,8 +113,10 @@ export function HandbookPage() {
         </div>
       </div>
 
-      {/* Body: handbook + chat */}
-      <div className="flex-1 flex min-h-0">
+      {/* Body: handbook + chat. On wide screens the chat is a side column; on
+          narrow screens it overlays the handbook so the two never squeeze
+          each other into unreadable slivers. */}
+      <div className="flex-1 flex min-h-0 relative">
         <iframe
           key={iframeSrc}
           title="Heatronics Accounts Handbook"
@@ -119,7 +125,7 @@ export function HandbookPage() {
         />
 
         {chatOpen && (
-          <aside className="w-[min(92vw,380px)] flex-shrink-0 border-l border-slate-200 bg-white flex flex-col min-h-0">
+          <aside className="absolute inset-0 z-20 w-full lg:static lg:inset-auto lg:z-auto lg:w-[380px] flex-shrink-0 border-l border-slate-200 bg-white flex flex-col min-h-0 shadow-xl lg:shadow-none">
             <div className="px-4 py-3 border-b border-slate-100 bg-brand-500/5 flex items-center gap-2">
               <span className="w-7 h-7 rounded-lg bg-brand-500 text-white flex items-center justify-center">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
