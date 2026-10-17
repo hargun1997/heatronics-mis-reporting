@@ -1,0 +1,25 @@
+# Daily task emails (Tasks & owners).
+# Runs every hour; the app sends once a day, after the send hour set on the
+# Tasks page (default 2 pm India time), and skips the rest. Run it by hand
+# from the Actions tab to test.
+name: Task reminder emails
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask the MIS to send today's task emails
+        env:
+          APP_URL: ${{ vars.MIS_APP_URL || 'https://heatronics-mis-tool-559416687588.europe-west1.run.app' }}
+        run: |
+          curl -fsS --retry 3 --retry-delay 20 --max-time 120 \
+            -X POST "$APP_URL/api/work/reminders/run" \
+            -H 'Content-Type: application/json' \
+            -d '{"scheduled":true}'
+          echo

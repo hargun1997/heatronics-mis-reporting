@@ -14,6 +14,7 @@ import { MisChatPage } from './pages/mis/MisChatPage';
 import { AiInsightsPage } from './pages/mis/AiInsightsPage';
 import { IssuesPage } from './pages/mis/IssuesPage';
 import { OwnershipPage } from './pages/mis/OwnershipPage';
+import { TasksPage } from './pages/work/TasksPage';
 import { SendReportPage } from './pages/mis/SendReportPage';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
@@ -50,6 +51,8 @@ function App() {
           <Route path="reporting/mis/issues" element={<IssuesPage />} />
           <Route path="reporting/mis/ownership" element={<OwnershipPage />} />
           <Route path="reporting/mis/send" element={<SendReportPage />} />
+          <Route path="tasks" element={<TasksPage />} />
+          <Route path="work" element={<Navigate to="/tasks" replace />} />
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
@@ -57,8 +60,8 @@ function App() {
           {/* One route so moving between handbook views never remounts the page */}
           <Route path="handbook/*" element={<HandbookPage />} />
 
-          {/* Task tracker is now folded into Compliance → Operations */}
-          <Route path="task-tracker" element={<Navigate to="/compliance/operations" replace />} />
+          {/* Old task tracker → the unified Tasks page */}
+          <Route path="task-tracker" element={<Navigate to="/tasks" replace />} />
 
           {/* Old MIS Reporting view is retired — superseded by the new MIS Reporting deck */}
           <Route path="mis-tracking" element={<Navigate to="/reporting/mis" replace />} />
@@ -102,9 +105,9 @@ function App() {
           <Route path="guide/tools" element={<Navigate to="/tools" replace />} />
           <Route path="guide/tools/invoice-booking" element={<Navigate to="/tools/invoice-booking" replace />} />
           <Route path="guide/tools/amazon-to-tranzact" element={<Navigate to="/tools/amazon-to-tranzact" replace />} />
-          <Route path="tracker" element={<Navigate to="/compliance" replace />} />
-          <Route path="tracker/compliance" element={<Navigate to="/compliance" replace />} />
-          <Route path="tracker/*" element={<Navigate to="/compliance" replace />} />
+          <Route path="tracker" element={<Navigate to="/tasks" replace />} />
+          <Route path="tracker/compliance" element={<Navigate to="/tasks" replace />} />
+          <Route path="tracker/*" element={<Navigate to="/tasks" replace />} />
 
           {/* Catch-all → home */}
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -23,7 +23,7 @@ export interface OutstandingItem {
   owners: { name: string; email: string }[];
 }
 
-export interface MailerStatus { configured: boolean; provider: 'resend' | 'mailgun' | 'none'; from: string | null; }
+export interface MailerStatus { configured: boolean; provider: 'smtp' | 'resend' | 'mailgun' | 'none'; from: string | null; }
 
 export interface Overview {
   members: TeamMember[];

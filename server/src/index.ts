@@ -19,7 +19,9 @@ import chatRoutes from './routes/chat.js';
 import usageRoutes from './routes/usage.js';
 import issuesRoutes from './routes/issues.js';
 import ownershipRoutes from './routes/ownership.js';
+import workRoutes from './routes/work.js';
 import reportRoutes from './routes/report.js';
+import { refreshMailConfig } from './services/mailer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +52,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/issues', issuesRoutes);
 app.use('/api/ownership', ownershipRoutes);
+app.use('/api/work', workRoutes);
 app.use('/api/report', reportRoutes);
 
 // Health check
@@ -76,6 +79,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.listen(PORT, () => {
+  void refreshMailConfig();
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║         Heatronics Accounting Dashboard Server                ║

@@ -41,9 +41,9 @@ export function Home() {
           accent="brand"
         />
         <NavCard
-          to="/compliance"
-          title="Compliance"
-          description="Track monthly, quarterly and yearly compliance items."
+          to="/tasks"
+          title="Tasks & owners"
+          description="What’s due, who owns it and how to do it — with email reminders."
           icon={iconCompliance}
           accent="amber"
         />
