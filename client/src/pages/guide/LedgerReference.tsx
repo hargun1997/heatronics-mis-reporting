@@ -178,12 +178,11 @@ function VoucherTypesView({ query }: { query: string }) {
   }, [q]);
 
   const exampleJournal = {
-    title: 'Sales (Amazon-B2C) — how a voucher posts',
+    title: 'Sales-Amazon-<STATE> — how a voucher posts',
     lines: [
-      { side: 'Dr' as const, ledger: 'Amazon Unsettled Receivable', amount: '₹1,180.00' },
-      { side: 'Cr' as const, ledger: 'Sales — Amazon B2C', amount: '₹1,000.00' },
-      { side: 'Cr' as const, ledger: 'Output CGST', amount: '₹90.00' },
-      { side: 'Cr' as const, ledger: 'Output SGST', amount: '₹90.00' },
+      { side: 'Dr' as const, ledger: 'Amazon Seller A/c', amount: '₹1,100.00' },
+      { side: 'Cr' as const, ledger: 'Amazon Sales', amount: '₹1,047.62' },
+      { side: 'Cr' as const, ledger: 'IGST Output-HARYANA', amount: '₹52.38' },
     ],
   };
 
@@ -232,7 +231,7 @@ function VoucherTypesView({ query }: { query: string }) {
 
       <div className="rounded-xl border border-slate-200 bg-white p-5">
         <h3 className="text-sm font-semibold text-slate-900">{exampleJournal.title}</h3>
-        <p className="mt-1 text-xs text-slate-500">Illustrative journal the plugin posts for a ₹1,180 Amazon B2C sale at 18% GST (intra-state).</p>
+        <p className="mt-1 text-xs text-slate-500">Real April-26 journal the plugin posts for an Amazon MTR sale at 5% GST, against the state GSTIN.</p>
         <div className="mt-3">
           <JournalTable lines={exampleJournal.lines} />
         </div>

@@ -200,14 +200,14 @@ function KeyPrinciples() {
         'Operating expenses (rent, utilities, ads, freight, services) are booked directly in Tally — Tranzact is used only for inventory-linked transactions.',
     },
     {
-      title: 'Bank integration varies',
+      title: 'Banks are imported month-end',
       body:
-        'ICICI is a live bank feed into Tally and is used for petty payments. Central Bank (daily) and HDFC (escrow) require manual Excel statement import into Tally.',
+        'All three banks are imported from Excel statements into Tally Banking at month end (File Manager → Bank Statement New) and reconciled. The Central Bank CC is the operating OD where every channel payout lands; the Central Bank file needs its headings on row 14.',
     },
     {
       title: 'Clearing for marketplaces',
       body:
-        'Sales on Amazon, Shopify, Easebuzz, Snapmint and Shiprocket are parked in clearing ledgers until the actual settlement. Settlement journals net commissions, fees, TCS/TDS and remit the balance to HDFC / Central.',
+        'Sales on Amazon, Shopify, Easebuzz, Snapmint and Shiprocket park in control ledgers (Amazon Seller A/c, Shopify Prepaid / COD Receivable, the Collection ledgers) until the payout clears them by bill reference. The bank receipt in the Central Bank CC is the last link that empties them.',
     },
   ];
   return (
@@ -227,13 +227,13 @@ function KeyPrinciples() {
 
 function ChannelTable() {
   const rows = [
-    { channel: 'Amazon', flow: 'MTR / STR / Settlement', modes: 'B2B + B2C', system: 'Tranzact → Plugin → Tally', clearing: 'Amazon Unsettled Receivable', bank: 'HDFC Escrow' },
-    { channel: 'Shopify', flow: 'Order → Payment capture → Ship', modes: 'B2C', system: 'Tranzact → Plugin → Tally', clearing: 'Easebuzz / Snapmint / Shiprocket COD', bank: 'Central Bank' },
-    { channel: 'Easebuzz', flow: 'Prepaid capture', modes: 'B2C', system: 'Shopify + Tranzact', clearing: 'Easebuzz Clearing', bank: 'Central Bank' },
-    { channel: 'Snapmint', flow: 'Prepaid EMI / BNPL', modes: 'B2C', system: 'Shopify + Tranzact', clearing: 'Snapmint Clearing', bank: 'Central Bank' },
-    { channel: 'Shiprocket', flow: 'COD collection', modes: 'B2C', system: 'Shopify + Tranzact', clearing: 'Shiprocket COD Remittance', bank: 'Central Bank' },
-    { channel: 'Blinkit', flow: 'B2B orders', modes: 'B2B', system: 'Tranzact → Plugin → Tally', clearing: 'Blinkit Receivable', bank: 'Central Bank' },
-    { channel: 'B2B Distributor', flow: 'Direct B2B sales', modes: 'B2B', system: 'Tranzact → Plugin → Tally', clearing: 'Sundry Debtors', bank: 'Central Bank' },
+    { channel: 'Amazon', flow: 'MTR / STR / Settlement', modes: 'B2B + B2C', system: 'Plugin option 2 → Tally', clearing: 'Amazon Seller A/c → Settlement → Bank', bank: 'Central Bank CC' },
+    { channel: 'Shopify', flow: 'Order → payout → clear', modes: 'B2C', system: 'Plugin option 3 → Tally', clearing: 'Shopify Prepaid / COD Receivable', bank: 'Central Bank CC' },
+    { channel: 'Easebuzz', flow: 'Prepaid payout (daily)', modes: 'B2C', system: 'Plugin option 3', clearing: 'Easebuzz Collection A/c', bank: 'Central Bank CC' },
+    { channel: 'Snapmint', flow: 'Prepaid EMI / BNPL (monthly)', modes: 'B2C', system: 'Plugin option 5', clearing: 'Snapmint Collection', bank: 'Central Bank CC' },
+    { channel: 'Shiprocket', flow: 'COD remittance (monthly)', modes: 'B2C', system: 'Plugin option 5', clearing: 'ShipRocket Collection', bank: 'Central Bank CC' },
+    { channel: 'Blinkit', flow: 'B2B orders', modes: 'B2B', system: 'Tranzact → Chrome plugin → Tally', clearing: 'Blinkit party (Sundry Debtor)', bank: 'Central Bank CC' },
+    { channel: 'B2B / OEM / Offline', flow: 'Self-invoiced sales', modes: 'B2B', system: 'Tranzact → Chrome plugin → Tally', clearing: 'Party (Sundry Debtor)', bank: 'Central Bank CC' },
   ];
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -273,9 +273,10 @@ function ChannelTable() {
 
 function BankTable() {
   const rows = [
-    { bank: 'ICICI Bank', use: 'Petty / day-to-day payments', integration: 'Live Tally bank feed', reconciliation: 'Auto via Tally' },
-    { bank: 'Central Bank of India', use: 'Daily transactions — channel payouts, B2B receipts', integration: 'Manual statement import (Excel)', reconciliation: 'Monthly BRS in Tally' },
-    { bank: 'HDFC Bank', use: 'Escrow for marketplace settlements (Amazon, Shopify)', integration: 'Manual statement import (Excel)', reconciliation: 'Monthly BRS in Tally' },
+    { bank: 'Cash Credit Limit - [Central Bank]', use: 'Operating OD — every channel payout (Amazon, Easebuzz, Snapmint, Shiprocket) lands here; supplier payments go out', integration: 'Manual Excel import (headings on row 14)', reconciliation: 'Monthly BRS in Tally' },
+    { bank: 'ICICI Bank A/C - CC', use: 'Payments; net-credit ₹1.22 Cr — likely OD, regroup pending', integration: 'Manual Excel import', reconciliation: 'Monthly BRS in Tally' },
+    { bank: 'HDFC Bank A/C', use: 'Payments', integration: 'Manual Excel import', reconciliation: 'Monthly BRS in Tally' },
+    { bank: 'Easebuzz Wire A/C', use: 'Low-use wire account (not the Easebuzz clearing ledger)', integration: 'Manual Excel import', reconciliation: 'Monthly BRS in Tally' },
   ];
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">

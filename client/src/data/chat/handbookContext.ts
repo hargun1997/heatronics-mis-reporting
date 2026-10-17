@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------------
 // Handbook context pack — a compact, high-signal knowledge base distilled from
-// the Heatronics Accounts Handbook (client/public/handbook/index.html). It
-// grounds the handbook clarification chat so Claude answers from how the books
+// the Heatronics Accounts Handbook (now folded into the Accounting SOPs under
+// /guide/sop). It grounds the SOP clarification chat so Claude answers from how the books
 // are actually wired, not from generic accounting knowledge. Keep it in sync
 // with the handbook when the handbook changes.
 //

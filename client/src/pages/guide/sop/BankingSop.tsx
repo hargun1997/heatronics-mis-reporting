@@ -1,6 +1,7 @@
 import { NavCard } from '../../../components/ui/Card';
 import { PageHeader } from '../../../components/ui/PageHeader';
 
+// Source of truth: Accounts Handbook §S6 / §c9 (Banks).
 const ic = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 6h18M3 14h18M3 18h18" />
@@ -10,35 +11,35 @@ const ic = (
 export function BankingSop() {
   const banks = [
     {
-      to: '/guide/sop/banking/easebuzz-wire',
-      title: 'Easebuzz Wire',
+      to: '/guide/sop/banking/central-cc',
+      title: 'Central Bank CC (operating)',
       description:
-        'Settlement rail for Shopify prepaid (Easebuzz / Snapmint). Daily Receipt + fee Journal in Tally.',
-    },
-    {
-      to: '/guide/sop/banking/hdfc',
-      title: 'HDFC Escrow',
-      description:
-        'Marketplace payouts (Amazon, Blinkit, Shiprocket COD). Manual Excel import + Settlement Journals in Tally.',
+        'Cash Credit Limit - [Central Bank] — the operating OD account. Every channel payout (Amazon, Easebuzz, Snapmint, Shiprocket) lands here. File needs headings on row 14.',
     },
     {
       to: '/guide/sop/banking/icici',
-      title: 'ICICI',
+      title: 'ICICI Bank A/C - CC',
       description:
-        'Live Tally bank-feed for petty payments / receipts. Operator just reviews and tags counter-parties.',
+        'Payments account, net credits ₹1.22 Cr — likely overdrawn, so it should be regrouped to Bank OD. Imported and reconciled monthly.',
     },
     {
-      to: '/guide/sop/banking/central-cc',
-      title: 'Central Bank CC',
+      to: '/guide/sop/banking/hdfc',
+      title: 'HDFC Bank A/C',
       description:
-        'Primary operating account — vendor payments, salary, GST / TDS payouts. Manual Excel import in Tally.',
+        'Payments account. Imported and reconciled monthly like the others.',
+    },
+    {
+      to: '/guide/sop/banking/easebuzz-wire',
+      title: 'Easebuzz Wire A/C',
+      description:
+        'A low-use wire bank account (≈ ₹0.10 L) — distinct from the Easebuzz Collection A/c clearing ledger.',
     },
   ];
   return (
     <>
       <PageHeader
         title="Banking SOP (Tally)"
-        description="One sub-SOP per bank. Each spells out how that account is fed in Tally, the voucher types used, and the typical journal entries."
+        description="Bank statements are imported at month end (File Manager → Bank Statement New → Tally Banking) and reconciled. Each line matches an existing voucher or creates a Receipt / Payment. Credits route: Easebuzz / Snapmint / Shiprocket → their Collection ledger; Amazon → Amazon Bank; suppliers → the supplier. Anything unknown is named to Hargun — never parked in Suspense."
         accent="sky"
         icon={ic}
       />

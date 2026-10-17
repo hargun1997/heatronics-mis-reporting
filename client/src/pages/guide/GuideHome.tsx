@@ -27,17 +27,16 @@ export function GuideHome() {
     <>
       <PageHeader
         title="Guide"
-        description="The full Accounts Handbook is the deep reference; the SOPs below are the quick, single-task procedures."
+        description="The Accounting SOPs are the full operating handbook as step-by-step procedures; the reference pages below give the ledger tree and the system architecture behind them."
         accent="violet"
         icon={iconSop}
       />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4">
-        {/* The comprehensive handbook sits above the quick SOPs so it's clear
-            which is the authoritative reference and which are the shortcuts. */}
+        {/* The SOPs are the single home for how the books are built & operated. */}
         <NavCard
-          to="/handbook"
-          title="Accounts Handbook"
-          description="The complete, authored reference: how every system is wired, each journal and control ledger, the operating calendar, and a chat to ask clarifications."
+          to="/guide/sop"
+          title="Accounting SOPs"
+          description="The complete handbook as SOPs: every channel, collection, tax and close procedure — the journal each posts, the control ledger it lands in, and how it reconciles. Includes a chat to ask clarifications."
           icon={iconBook}
           accent="brand"
           badge="Start here"
@@ -45,8 +44,8 @@ export function GuideHome() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <NavCard
             to="/guide/sop"
-            title="Accounting SOPs"
-            description="Standard operating procedures for Sales, Purchase, Expense, Banking, Capital Goods and Job Work."
+            title="All SOPs"
+            description="Sales, collections & settlements, purchases & expenses, banking, GST & TDS, and the month-end close."
             icon={iconSop}
             accent="violet"
           />

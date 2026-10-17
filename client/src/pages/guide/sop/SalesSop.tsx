@@ -13,32 +13,32 @@ export function SalesSop() {
       to: '/guide/sop/sales/amazon',
       title: 'Amazon',
       description:
-        'Pan-India store — B2C and B2B (with buyer GSTIN). Settles to HDFC Escrow via Amazon Unsettled Receivable.',
+        'Amazon issues the invoices (MTR). The plugin (option 2) imports the four monthly reports and posts the Seller A/c → Settlement → Bank chain, per GSTIN.',
     },
     {
       to: '/guide/sop/sales/shopify',
-      title: 'Shopify',
+      title: 'Shopify (D2C)',
       description:
-        'D2C orders — prepaid via Easebuzz / Snapmint, COD via Shiprocket. Settles to Central Bank or Easebuzz Wire.',
+        'Plugin pulls orders daily (option 3). One sale → Shopify Prepaid or COD Receivable, cleared by the matching payout. GST 5%, price-inclusive.',
     },
     {
       to: '/guide/sop/sales/blinkit',
       title: 'Blinkit',
       description:
-        'B2B quick-commerce buyer. PO + GRN matched, then 15–30 day payout into Central Bank.',
+        'Quick-commerce B2B. Raised in Tranzact under the Blinkit Sales Series and pushed with the Chrome plugin.',
     },
     {
       to: '/guide/sop/sales/b2b',
-      title: 'B2B Distributors',
+      title: 'B2B, OEM & Offline',
       description:
-        'Direct distributors, OEM and offline dealers. Sale on Sundry Debtor; Receipt in Central Bank on wire / cheque.',
+        'Everything Heatronics invoices itself (OEM, GT, MT, Physio, B2C offline, internal transfer) — raised in Tranzact, ledger chosen by document series.',
     },
   ];
   return (
     <>
       <PageHeader
-        title="Sales SOP (Tranzact)"
-        description="One sub-SOP per sales channel. All four run on Tranzact and push to Tally via the plugin — the channel-specific bits are the bill series, sales ledger, clearing ledger and settlement bank."
+        title="Sales SOPs"
+        description="Two routes into Tally: Amazon and Shopify are created by the eCom2Tally plugin from reports / API; B2B, OEM, offline and Blinkit are raised in Tranzact and pushed by the Chrome plugin. The collection & settlement SOPs cover how each payout clears its receivable."
         accent="brand"
         icon={ic}
       />

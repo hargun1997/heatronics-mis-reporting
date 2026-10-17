@@ -1,7 +1,7 @@
 {
   "category": "operations",
   "name": "Operations",
-  "description": "The day-to-day book-keeping routine for the accountant, taken from the Accounts Handbook (Part II). Each task links back to the handbook section with the full step-by-step and screenshots.",
+  "description": "The day-to-day book-keeping routine for the accountant. Each task links to the matching Accounting SOP with the full step-by-step, journals and gotchas.",
   "version": 1,
   "updatedAt": "2026-10-17",
   "items": [
@@ -12,8 +12,8 @@
       "frequency": "daily",
       "owner": "Accountant",
       "notes": "Done when Pending = 0 and Approved = 0 on both Document Approval and Journal Entry. ~10 min. Needs Tally open for the plugin to connect.",
-      "reference": "Handbook §c14 · D1",
-      "referenceUrl": "/handbook#c14"
+      "reference": "SOP · B2B & Tranzact push",
+      "referenceUrl": "/guide/sop/sales/b2b"
     },
     {
       "id": "ops-d2-shopify-easebuzz",
@@ -22,8 +22,8 @@
       "frequency": "daily",
       "owner": "Accountant",
       "notes": "NEVER fetch the same Easebuzz dates twice — a second fetch double-books the payouts. If a day looks short, check the Day Book (voucher type Journal, that date) before re-fetching. ~5 min.",
-      "reference": "Handbook §c14 · D2",
-      "referenceUrl": "/handbook#c14"
+      "reference": "SOP · Shopify + Easebuzz",
+      "referenceUrl": "/guide/sop/collections/easebuzz"
     },
     {
       "id": "ops-w1-weekly-checks",
@@ -32,8 +32,8 @@
       "frequency": "weekly",
       "owner": "Accountant",
       "notes": "Recommended control, every Monday, ~15 min.",
-      "reference": "Handbook §c15 · W1",
-      "referenceUrl": "/handbook#c15"
+      "reference": "SOP · Easebuzz payouts",
+      "referenceUrl": "/guide/sop/collections/easebuzz"
     },
     {
       "id": "ops-m1-amazon-reports",
@@ -42,8 +42,8 @@
       "frequency": "monthly",
       "dueDay": 5,
       "owner": "Accountant",
-      "reference": "Handbook §c16 · M1",
-      "referenceUrl": "/handbook#c16"
+      "reference": "SOP · Amazon",
+      "referenceUrl": "/guide/sop/sales/amazon"
     },
     {
       "id": "ops-m2-shiprocket-cod",
@@ -52,8 +52,8 @@
       "frequency": "monthly",
       "dueDay": 5,
       "owner": "Accountant",
-      "reference": "Handbook §c16 · M2",
-      "referenceUrl": "/handbook#c16"
+      "reference": "SOP · Shiprocket COD",
+      "referenceUrl": "/guide/sop/collections/shiprocket"
     },
     {
       "id": "ops-m3-snapmint",
@@ -62,8 +62,8 @@
       "frequency": "monthly",
       "dueDay": 5,
       "owner": "Accountant",
-      "reference": "Handbook §c16 · M3",
-      "referenceUrl": "/handbook#c16"
+      "reference": "SOP · Snapmint",
+      "referenceUrl": "/guide/sop/collections/snapmint"
     },
     {
       "id": "ops-m4-platform-invoices-jv",
@@ -72,8 +72,8 @@
       "frequency": "monthly",
       "dueDay": 15,
       "owner": "Accountant",
-      "reference": "Handbook §c16 · M4",
-      "referenceUrl": "/handbook#c16"
+      "reference": "SOP · Platform invoices",
+      "referenceUrl": "/guide/sop/expense"
     },
     {
       "id": "ops-m5-banks-statutory-close",
@@ -83,8 +83,8 @@
       "dueDay": 20,
       "owner": "Accountant",
       "notes": "Statutory filings themselves are tracked in the Accounts category; this task is the operating close that feeds them.",
-      "reference": "Handbook §c16 · M5",
-      "referenceUrl": "/handbook#c16"
+      "reference": "SOP · Month-end close",
+      "referenceUrl": "/guide/sop/close"
     },
     {
       "id": "ops-q-26q-form16a",
@@ -95,8 +95,8 @@
       "dueDay": 31,
       "owner": "Accountant",
       "authority": "Income Tax / Amazon",
-      "reference": "Handbook §c17 · Q",
-      "referenceUrl": "/handbook#c17"
+      "reference": "SOP · TDS & TCS",
+      "referenceUrl": "/guide/sop/tax/tds"
     }
   ]
 }
