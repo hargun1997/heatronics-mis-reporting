@@ -1,51 +1,51 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
+// Source of truth: Accounts Handbook §c4 + §c8 (TDS) + §c23 (Tranzact FAQ).
+// In these books "Job Work Charges" is the ledger every service bill lands in,
+// with 2% TDS u/s 194C split in Tranzact.
 const spec: SopSpec = {
-  title: 'Job Work SOP (Tranzact)',
+  title: 'Job Work & Service Bills (Tranzact)',
   description:
-    'Outsourcing a manufacturing step to a job worker. Material goes out on a delivery challan, comes back after processing, and only the processing fee is booked as an expense. ITC-04 is filed quarterly.',
+    'Job-work and service bills are booked in Tranzact (Is Service = true → Job Work Charges) and pushed to Tally. TDS is split in Tranzact at 2% u/s 194C on the pre-GST value, creating a journal that is approved and pushed alongside the purchase.',
   accent: 'rose',
   operateIn: 'Tranzact',
   voucherTypes: [
-    { name: 'Material Out Challan' },
-    { name: 'Material In Challan' },
-    { name: 'Job Work (JW)', billSeries: 'JW-YYYYMM-####' },
+    { name: 'Purchase', billSeries: 'service → Job Work Charges' },
+    { name: 'Journal (TDS split)', billSeries: '194C, 2%' },
   ],
   ledgerMapping: [
-    { role: 'Expense ledger', ledger: 'Job Work Charges (Inward)' },
-    { role: 'Input GST', ledger: 'Input CGST + SGST or Input IGST' },
-    { role: 'Counter-party', ledger: 'Job Worker (Sundry Creditor)' },
-    { role: 'Stock tracking', ledger: 'Tranzact — Material at Job Worker bin' },
+    { role: 'Expense ledger', ledger: 'Job Work Charges' },
+    { role: 'Input GST', ledger: 'IGST/CGST/SGST Input - 18%' },
+    { role: 'TDS', ledger: 'TDS Payable - 194C (Contractors)' },
+    { role: 'Counter-party', ledger: 'Job worker / contractor (Sundry Creditor)' },
   ],
   steps: [
-    { title: 'Issue Material Out Challan in Tranzact', body: 'Specify items, quantity, and job worker. Stock moves out of main store into a "Material at Job Worker" virtual bin.' },
-    { title: 'Wait for processing', body: 'Track pending job-work quantities from the Tranzact dashboard. Flag anything outstanding >180 days — GST implications kick in.' },
-    { title: 'Receive back with Material In Challan', body: 'Reconcile quantity received + scrap/waste. Stock moves back into the main store.' },
-    { title: 'Book the Job Work invoice', body: 'Use the JW voucher series. Only the processing fee is booked — never the value of raw material (that stayed on our books throughout).' },
-    { title: 'File ITC-04 quarterly', body: 'Consolidate Material Out / Material In for the quarter and file ITC-04.' },
+    { title: 'Book the service bill in Tranzact', body: 'Service bills (Is Service = true) map to Job Work Charges with input GST.' },
+    { title: 'Split TDS (D1)', body: 'Payments → Ledger (Consolidated) → split icon → TDS → 2% on the pre-GST value. The field starts at 0 — never save at 0. A journal is created: Dr supplier, Cr TDS Payable - 194C.' },
+    { title: 'Approve + push', body: 'Approve the Purchase and the TDS Journal, then push both in the daily D1 run.' },
+    { title: 'Deposit TDS', body: 'TDS Payable - 194C is deposited by the 7th of the next month; the 26Q return is filed quarterly (see the TDS & TCS SOP).' },
   ],
   examples: [
     {
-      title: 'Job worker invoice · ₹11,800 @ 18% GST',
-      scenario: 'External processor invoices processing charges for a batch of units.',
-      voucherType: 'Job Work (JW)',
+      title: 'Job-work / service bill + 2% TDS (Ravi Teleinfomatics)',
+      scenario: 'A ₹1,01,374.27 service bill with 2% TDS u/s 194C split in Tranzact (₹1,718.21).',
+      voucherType: 'Purchase + Journal',
       journal: [
-        { side: 'Dr', ledger: 'Job Work Charges (Inward)', amount: '₹10,000.00' },
-        { side: 'Dr', ledger: 'Input CGST', amount: '₹900.00' },
-        { side: 'Dr', ledger: 'Input SGST', amount: '₹900.00' },
-        { side: 'Cr', ledger: 'XYZ Processors (Sundry Creditor)', amount: '₹11,800.00' },
+        { side: 'Dr', ledger: 'Job Work Charges + GST Input', amount: '₹1,01,374.27' },
+        { side: 'Cr', ledger: 'Ravi Teleinfomatics', amount: '₹1,01,374.27' },
+        { side: 'Dr', ledger: 'Ravi Teleinfomatics', amount: '₹1,718.21' },
+        { side: 'Cr', ledger: 'TDS Payable - 194C (Contractors)', amount: '₹1,718.21' },
       ],
-      note: 'Raw material does not move into the job work invoice — it remains as inventory and only transitions between virtual bins in Tranzact.',
     },
   ],
   gotchas: [
-    'If material is not received back within 180 days (1 year for capital goods), it is deemed a supply — GST becomes payable.',
-    'Scrap generated at the job worker must either come back or be sold by the job worker on behalf of Heatronics with invoice.',
-    'Never book the raw material cost inside the job work invoice — it double-counts inventory.',
+    'Tranzact’s purchase rule sends EVERY service bill to Job Work Charges — software and consultancy included. Re-code genuinely non-job-work services in Tally until the rule is split.',
+    'Only 194C is configured. Professional fees (194J), rent (194I) need the correct section — check each TDS journal before pushing.',
+    'The TDS % field starts at 0; saving at 0 silently books no TDS.',
   ],
   visuals: [
-    { key: 'jobwork.material-out', label: 'Material Out challan in Tranzact' },
-    { key: 'jobwork.material-in', label: 'Material In challan with quantity + scrap reconciliation' },
+    { key: 'jobwork.material-out', label: 'Consolidated ledger filtered to one supplier' },
+    { key: 'jobwork.material-in', label: 'TDS split dialog (Split Options → TDS → %)' },
   ],
 };
 

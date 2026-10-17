@@ -17,7 +17,6 @@ import { OwnershipPage } from './pages/mis/OwnershipPage';
 import { SendReportPage } from './pages/mis/SendReportPage';
 import { ComplianceHome } from './pages/compliance/ComplianceHome';
 import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
-import { HandbookPage } from './pages/HandbookPage';
 
 // Guide
 import { GuideHome } from './pages/guide/GuideHome';
@@ -38,6 +37,12 @@ import { BankingIciciSop } from './pages/guide/sop/BankingIciciSop';
 import { BankingCentralCcSop } from './pages/guide/sop/BankingCentralCcSop';
 import { CapitalGoodsSop } from './pages/guide/sop/CapitalGoodsSop';
 import { JobWorkSop } from './pages/guide/sop/JobWorkSop';
+import { EasebuzzSop } from './pages/guide/sop/EasebuzzSop';
+import { SnapmintSop } from './pages/guide/sop/SnapmintSop';
+import { ShiprocketCodSop } from './pages/guide/sop/ShiprocketCodSop';
+import { GstSop } from './pages/guide/sop/GstSop';
+import { TdsSop } from './pages/guide/sop/TdsSop';
+import { MonthCloseSop } from './pages/guide/sop/MonthCloseSop';
 
 // Tools
 import { ToolsHome } from './pages/guide/tools/ToolsHome';
@@ -71,8 +76,9 @@ function App() {
           <Route path="compliance" element={<ComplianceHome />} />
           <Route path="compliance/:category" element={<ComplianceCategory />} />
 
-          {/* Accounts Handbook */}
-          <Route path="handbook" element={<HandbookPage />} />
+          {/* Accounts Handbook is now folded into the SOPs */}
+          <Route path="handbook" element={<Navigate to="/guide/sop" replace />} />
+          <Route path="handbook/*" element={<Navigate to="/guide/sop" replace />} />
 
           {/* Task tracker is now folded into Compliance → Operations */}
           <Route path="task-tracker" element={<Navigate to="/compliance/operations" replace />} />
@@ -95,6 +101,12 @@ function App() {
           <Route path="guide/sop/sales/b2b" element={<SalesB2BSop />} />
           <Route path="guide/sop/purchase" element={<PurchaseSop />} />
           <Route path="guide/sop/expense" element={<ExpenseSop />} />
+          <Route path="guide/sop/collections/easebuzz" element={<EasebuzzSop />} />
+          <Route path="guide/sop/collections/snapmint" element={<SnapmintSop />} />
+          <Route path="guide/sop/collections/shiprocket" element={<ShiprocketCodSop />} />
+          <Route path="guide/sop/tax/gst" element={<GstSop />} />
+          <Route path="guide/sop/tax/tds" element={<TdsSop />} />
+          <Route path="guide/sop/close" element={<MonthCloseSop />} />
           <Route path="guide/sop/banking" element={<BankingSop />} />
           <Route path="guide/sop/banking/easebuzz-wire" element={<BankingEasebuzzWireSop />} />
           <Route path="guide/sop/banking/hdfc" element={<BankingHdfcSop />} />

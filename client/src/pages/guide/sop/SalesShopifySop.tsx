@@ -1,93 +1,82 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
+// Source of truth: Accounts Handbook §c5 (Shopify D2C) + §S3/§c3 (plugin voucher
+// catalogue) + §c21 (control-account map). Shopify sales are created by the
+// eCom2Tally plugin (option 3, daily API pull), NOT by Tranzact.
 const spec: SopSpec = {
-  title: 'Sales — Shopify',
+  title: 'Sales — Shopify (D2C)',
   description:
-    'Shopify D2C orders — prepaid via Easebuzz / Snapmint, COD via Shiprocket. Booked in Tranzact; settlement lands in Central Bank (or Easebuzz Wire) via the channel’s clearing ledger.',
+    'Shopify orders are pulled into Tally by the eCom2Tally plugin (option 3, daily). One sale opens one of two receivables — Shopify Prepaid Receivable (Easebuzz / Snapmint) or Shopify COD Receivable (Shiprocket) — which the matching payout later clears by bill reference. GST is 5% (device HSN 90211000), prices GST-inclusive, UP GSTIN.',
   accent: 'brand',
-  operateIn: 'Tranzact',
+  operateIn: 'Tally',
   voucherTypes: [
-    { name: 'Sales (Shopify-Prepaid)', billSeries: 'SHO-PRE-YYYYMM-####' },
-    { name: 'Sales (Shopify-COD)', billSeries: 'SHO-COD-YYYYMM-####' },
+    { name: 'Shopify Sales', billSeries: 'prepaid: pg: tag · COD: HTR-<order_number>-D2C' },
+    { name: 'Shopify Credit Note', billSeries: 'refunds / RTO / cancellations (automatic)' },
   ],
   ledgerMapping: [
-    { role: 'Prepaid sales ledger', ledger: 'Sales — Shopify (Prepaid)' },
-    { role: 'COD sales ledger', ledger: 'Sales — Shopify (COD)' },
-    { role: 'Prepaid clearing', ledger: 'Easebuzz Clearing / Snapmint Clearing' },
-    { role: 'COD clearing', ledger: 'Shiprocket COD Remittance' },
-    { role: 'GST (intra-state)', ledger: 'Output CGST + Output SGST' },
-    { role: 'GST (inter-state)', ledger: 'Output IGST' },
+    { role: 'Prepaid receivable', ledger: 'Shopify Prepaid Receivable' },
+    { role: 'COD receivable', ledger: 'Shopify COD Receivable' },
+    { role: 'Prepaid collectors', ledger: 'Easebuzz Collection A/c · Snapmint Collection' },
+    { role: 'COD collector', ledger: 'ShipRocket Collection' },
+    { role: 'GST output (UP)', ledger: 'IGST 5.00% · CGST 2.500% · SGST 2.500%' },
+    { role: 'Bank (final)', ledger: 'Cash Credit Limit - [Central Bank]' },
   ],
   steps: [
     {
-      title: 'Identify payment mode',
-      body: 'Shopify orders carry payment_gateway in the export. Prepaid → Easebuzz/Snapmint series. COD → Shiprocket series.',
+      title: 'Daily: pull Shopify orders (option 3)',
+      body: 'Gateway of Tally → tally-integRation.in → 3 : E-Store, Pay Gateways & Courier. Platform Type Online-Store, Platform Shopify-Orders, Status any, From/To = yesterday. The plugin creates Shopify Sales (and Credit Notes for refunds / RTO / cancellations — never book these by hand).',
     },
     {
-      title: 'Pick the matching bill series in Tranzact',
-      body: 'SHO-PRE-YYYYMM-#### for prepaid; SHO-COD-YYYYMM-#### for COD. Each maps to its own sales + clearing ledger.',
+      title: 'How the receivable is chosen',
+      body: 'Prepaid orders book Dr Shopify Prepaid Receivable under the value after "pg:" in the order tags. COD orders book Dr Shopify COD Receivable under bill ref HTR-<order_number>-D2C. GST is read price-inclusive at 5%.',
     },
     {
-      title: 'Buyer details',
-      body: 'D2C sales are typically B2C — no GSTIN. If a buyer requests a tax invoice, mark as B2B and capture GSTIN before saving.',
+      title: 'Then pull Easebuzz (same dates)',
+      body: 'Easebuzz always runs second — a payout can only clear an order already in Tally. See the Easebuzz Payouts SOP. Snapmint and Shiprocket clear monthly via option 5.',
     },
     {
-      title: 'Save & sync',
-      body: 'On Save the Tally plugin UPSERTs the invoice into Tally against Sales — Shopify (Prepaid/COD) + the matching clearing ledger.',
+      title: 'Clearing by bill reference',
+      body: 'Prepaid: the Shopify "pg:" value must equal the Easebuzz bank_transaction_id to knock the bill off. COD: the Shopify HTR-<order>-D2C must equal the Shiprocket id. If the references differ the sale stays open (Dr) and an unmatched credit appears — the ledger total can look right while ageing is wrong.',
     },
     {
-      title: 'Settlement',
-      body: 'Easebuzz daily wire is booked in the Easebuzz Wire SOP. Snapmint settlement and Shiprocket COD remittance land in Central Bank — both knock off their respective clearing ledgers.',
+      title: 'Reconcile',
+      body: 'Shopify Admin → Analytics → Sales (gross less discounts) should equal Tally Shopify Sales. Prepaid/COD Receivable should hold only the last few days of open orders.',
     },
   ],
   examples: [
     {
-      title: 'Shopify Prepaid (Easebuzz) · ₹2,360 @ 18% GST',
-      scenario: 'Order paid on Shopify via Easebuzz UPI. Payout lands in Central Bank on T+2.',
-      voucherType: 'Sales (Shopify-Prepaid)',
+      title: 'Easebuzz payout clears a prepaid order (Apr-26)',
+      scenario: 'Real April-26 journal PTGHF6MZ1B — Easebuzz settles a prepaid Shopify order, less its gateway fee.',
+      voucherType: 'Journal (Easebuzz)',
       journal: [
-        { side: 'Dr', ledger: 'Easebuzz Clearing', amount: '₹2,360.00' },
-        { side: 'Cr', ledger: 'Sales — Shopify (Prepaid)', amount: '₹2,000.00' },
-        { side: 'Cr', ledger: 'Output CGST', amount: '₹180.00' },
-        { side: 'Cr', ledger: 'Output SGST', amount: '₹180.00' },
+        { side: 'Dr', ledger: 'Easebuzz Collection A/c', amount: '₹10,030.43' },
+        { side: 'Dr', ledger: 'PG Transaction Fee - Easebuzz', amount: '₹114.02' },
+        { side: 'Cr', ledger: 'Shopify Prepaid Receivable', amount: '₹10,144.44' },
       ],
-      note: 'On Easebuzz daily wire (Easebuzz Wire SOP): Dr Central Bank (net), Dr Easebuzz Gateway Fee + Input GST, Cr Easebuzz Clearing.',
+      note: 'The Shopify Sales voucher earlier opened Shopify Prepaid Receivable (Dr) under the pg: tag; this payout knocks it off. Easebuzz Collection is later cleared at bank import: Dr Cash Credit Limit - [Central Bank], Cr Easebuzz Collection A/c.',
     },
     {
-      title: 'Shopify COD · Intra-state · ₹1,770 @ 18% GST',
-      scenario: 'COD order shipped via Shiprocket. Cash collected from buyer by courier.',
-      voucherType: 'Sales (Shopify-COD)',
+      title: 'Shiprocket COD remittance clears COD orders (Apr-26)',
+      scenario: 'Real April-26 Journal 1 — Shiprocket remits COD collected for several D2C orders.',
+      voucherType: 'Journal (Shiprocket COD)',
       journal: [
-        { side: 'Dr', ledger: 'Shiprocket COD Remittance', amount: '₹1,770.00' },
-        { side: 'Cr', ledger: 'Sales — Shopify (COD)', amount: '₹1,500.00' },
-        { side: 'Cr', ledger: 'Output CGST', amount: '₹135.00' },
-        { side: 'Cr', ledger: 'Output SGST', amount: '₹135.00' },
+        { side: 'Dr', ledger: 'ShipRocket Collection', amount: '₹24,176.20' },
+        { side: 'Cr', ledger: 'Shopify COD Receivable', amount: '₹24,176.20', note: 'Against HTR-18836-D2C, HTR-18841-D2C …' },
       ],
-      note: 'On Shiprocket payout: Dr Central Bank, Dr Shiprocket Freight (+ Input GST), Cr Shiprocket COD Remittance.',
-    },
-    {
-      title: 'Shopify Prepaid (Snapmint EMI) · ₹4,720 @ 18% GST',
-      scenario: 'Buyer pays in 3-month EMI via Snapmint. Snapmint pays Heatronics upfront, less their fee.',
-      voucherType: 'Sales (Shopify-Prepaid)',
-      journal: [
-        { side: 'Dr', ledger: 'Snapmint Clearing', amount: '₹4,720.00' },
-        { side: 'Cr', ledger: 'Sales — Shopify (Prepaid)', amount: '₹4,000.00' },
-        { side: 'Cr', ledger: 'Output CGST', amount: '₹360.00' },
-        { side: 'Cr', ledger: 'Output SGST', amount: '₹360.00' },
-      ],
-      note: 'On Snapmint settlement: Dr Central Bank (net), Dr Snapmint Gateway Fee + Input GST, Cr Snapmint Clearing.',
+      note: 'ShipRocket Collection is then cleared by the bank receipt and by the Shiprocket freight invoices (booked as Purchase-Expense). See the Shiprocket COD SOP.',
     },
   ],
   clearing:
-    'Prepaid Shopify orders sit in Easebuzz Clearing or Snapmint Clearing until daily / weekly settlement. COD orders sit in Shiprocket COD Remittance until the courier remits. None should ever be cleared directly against the bank — always via the clearing ledger.',
+    'Prepaid orders sit in Shopify Prepaid Receivable until the Easebuzz / Snapmint journal clears them; COD orders sit in Shopify COD Receivable until the Shiprocket COD journal clears them. The collectors (Easebuzz / Snapmint / ShipRocket Collection) then empty to the Central Bank CC on bank import. Never clear a Shopify sale directly against the bank — always through its receivable and collector.',
   gotchas: [
-    'Never credit Sales — Shopify directly against Central Bank. Always via the matching clearing ledger.',
-    'COD orders that fail (RTO) need a Credit Note that knocks the receivable off Shiprocket COD Remittance.',
-    'Watch for Shopify combo / discount orders — the GST base may need a manual adjustment before save.',
+    'Reference mismatch is the real failure mode: if the pg: tag ≠ Easebuzz bank_transaction_id (or HTR-<order>-D2C ≠ Shiprocket id), the sale stays open and an unmatched credit appears.',
+    'Do NOT book Shopify returns/RTO/cancellations by hand — the plugin adjusts them from Shopify data. A COD order older than 30 days in Shopify COD Receivable usually means a missed RTO or a reference mismatch.',
+    'GST is 5% on the device (HSN 90211000), not 18% — prices are GST-inclusive.',
+    'Treat every import as one-time: re-running the same dates can double-book. Check the Day Book before re-fetching.',
   ],
   visuals: [
-    { key: 'sales.shopify.payment-mode', label: 'Identifying COD vs Prepaid in the Shopify export' },
-    { key: 'sales.shopify.tally-result', label: 'Voucher in Tally after plugin sync' },
+    { key: 'sales.shopify.payment-mode', label: 'Option 3 form set to Shopify-Orders' },
+    { key: 'sales.shopify.tally-result', label: 'Shopify Sales voucher in Tally after the plugin pull' },
   ],
 };
 

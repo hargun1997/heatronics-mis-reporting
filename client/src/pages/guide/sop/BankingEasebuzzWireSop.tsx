@@ -1,68 +1,42 @@
 import { SopLayout, SopSpec } from '../../../components/ui/SopLayout';
 
+// Source of truth: Accounts Handbook §c9 (Banks). Note the distinction between
+// the Easebuzz WIRE bank account and the Easebuzz Collection A/c clearing ledger.
 const spec: SopSpec = {
-  title: 'Banking — Easebuzz Wire',
+  title: 'Banking — Easebuzz Wire A/C',
   description:
-    'Easebuzz Wire is the bank-grade settlement rail used to route prepaid Shopify collections (Easebuzz / Snapmint) into the company current account. Flows are booked in Tally only; Tranzact does not touch this rail.',
+    'Easebuzz Wire A/C is a low-use bank account (≈ ₹0.10 L on the TB). It is NOT the Easebuzz clearing ledger — that is "Easebuzz Collection A/c" (a Sundry Debtor), cleared when the daily settlement lands in the Central Bank CC. This page is only the bank account itself.',
   accent: 'sky',
   operateIn: 'Tally',
   voucherTypes: [
-    { name: 'Receipt', billSeries: 'gateway settlement' },
-    { name: 'Journal', billSeries: 'gateway fee + TDS' },
-    { name: 'Contra', billSeries: 'wire to operating account' },
+    { name: 'Receipt / Payment', billSeries: 'rare' },
+    { name: 'Contra', billSeries: 'transfers' },
   ],
   ledgerMapping: [
-    { role: 'Settlement clearing', ledger: 'Easebuzz Clearing' },
-    { role: 'Gateway fee', ledger: 'Easebuzz Gateway Fee' },
-    { role: 'TDS u/s 194-O (if applicable)', ledger: 'TDS Receivable — 194-O' },
-    { role: 'Counter-party', ledger: 'Central Bank of India — Current A/c' },
+    { role: 'Bank ledger', ledger: 'Easebuzz Wire A/C' },
+    { role: 'Clearing ledger (not this page)', ledger: 'Easebuzz Collection A/c → see Shopify / Easebuzz SOPs' },
   ],
   steps: [
-    {
-      title: 'Wait for Easebuzz daily payout report',
-      body: 'Each business day Easebuzz sends a payout email. Download the CSV — it shows gross, gateway fee, GST on fee and net wired to Central Bank.',
-    },
-    {
-      title: 'Receipt voucher in Tally',
-      body: 'Dr Central Bank for the net amount. Cr Easebuzz Clearing for the gross amount. The difference is fee + GST.',
-    },
-    {
-      title: 'Journal the gateway fee',
-      body: 'Dr Easebuzz Gateway Fee + Input CGST + Input SGST. Cr Easebuzz Clearing for the same total. The clearing ledger should now zero out for that day’s payout.',
-    },
-    {
-      title: 'TDS u/s 194-O (only if Heatronics is the deductee)',
-      body: 'If the gateway has deducted TDS, post a Journal: Dr TDS Receivable — 194-O, Cr Easebuzz Clearing.',
-    },
-    {
-      title: 'Reconcile against Shopify orders',
-      body: 'Tie the gross to the Shopify (Prepaid) clearing report. Any unmatched orders need investigation before month-end close.',
-    },
+    { title: 'Import if there is activity', body: 'If the account moved in the month, import its statement via File Manager → Bank Statement New and reconcile. Otherwise confirm it is flat.' },
+    { title: 'Do not confuse it with the clearing ledger', body: 'Easebuzz prepaid settlements clear the Easebuzz Collection A/c and land in the Central Bank CC (see the Easebuzz Payouts SOP), not here.' },
   ],
   examples: [
     {
-      title: 'Easebuzz daily wire',
-      scenario: 'Gross collected ₹50,000; gateway fee ₹500 + GST ₹90; net wired to Central Bank ₹49,410.',
-      voucherType: 'Receipt + Journal',
+      title: 'Where Easebuzz actually settles',
+      scenario: 'For reference — the Easebuzz payout clears the collection ledger and lands in the operating bank, not the wire account.',
+      voucherType: 'Receipt (Central Bank)',
       journal: [
-        { side: 'Dr', ledger: 'Central Bank of India — Current A/c', amount: '₹49,410.00' },
-        { side: 'Dr', ledger: 'Easebuzz Gateway Fee', amount: '₹500.00' },
-        { side: 'Dr', ledger: 'Input CGST', amount: '₹45.00' },
-        { side: 'Dr', ledger: 'Input SGST', amount: '₹45.00' },
-        { side: 'Cr', ledger: 'Easebuzz Clearing', amount: '₹50,000.00' },
+        { side: 'Dr', ledger: 'Cash Credit Limit - [Central Bank]', amount: 'net' },
+        { side: 'Cr', ledger: 'Easebuzz Collection A/c', amount: 'net' },
       ],
-      note: 'Two vouchers in Tally — Receipt for the wire, Journal for the fee — but they share the same Easebuzz Clearing line that should net to zero.',
     },
   ],
-  clearing:
-    'Easebuzz Clearing is a non-bank suspense ledger. Each day the Receipt + Journal pair must zero it out. If a balance carries over, an order failed to wire and needs to be chased.',
   gotchas: [
-    'Never post Shopify sales directly to Central Bank — they always route via Easebuzz Clearing first.',
-    'Daily reconciliation is mandatory; weekly batches lose visibility into individual gateway disputes.',
+    'Easebuzz Wire A/C (bank) vs Easebuzz Collection A/c (clearing ledger) are different ledgers — do not post settlements to the bank account.',
   ],
   visuals: [
-    { key: 'banking.easebuzz.payout-csv', label: 'Easebuzz payout CSV — the columns to read' },
-    { key: 'banking.easebuzz.voucher-pair', label: 'Receipt + fee Journal pair in Tally' },
+    { key: 'banking.easebuzz.payout-csv', label: 'Easebuzz dashboard → Settlements' },
+    { key: 'banking.easebuzz.voucher-pair', label: 'Easebuzz Collection A/c in the ledger' },
   ],
 };
 
