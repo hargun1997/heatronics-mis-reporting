@@ -19,7 +19,7 @@
 // ----------------------------------------------------------------------------
 
 import { Router, type Request, type Response } from 'express';
-import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, saveRouting, splitRoles, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
+import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, saveRouting, ensureRouting, splitRoles, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
 import { runWorkReminders, buildReminderEmails } from '../services/workReminders.js';
 import { listMembers } from '../services/ownershipStore.js';
 import { mailerStatus, ensureMailConfig, saveMailConfig, sendEmail } from '../services/mailer.js';
@@ -41,6 +41,7 @@ const baseUrl = (req: Request) =>
 router.get(
   '/',
   h(async (_req, res) => {
+    await ensureRouting();
     const [doc, members] = await Promise.all([readWork(), listMembers(), ensureMailConfig()]);
     res.json({
       ...doc,

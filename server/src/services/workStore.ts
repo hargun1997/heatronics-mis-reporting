@@ -107,6 +107,16 @@ function applyRouting(doc: WorkDoc, members: TeamMember[]): number {
   return n;
 }
 
+/** One-time: tasks seeded before routing existed get the default mapping and owners. */
+export async function ensureRouting(): Promise<void> {
+  const doc = await readWork();
+  if (!doc.seededAt || doc.routing) return;
+  const members = await listMembers();
+  doc.routing = defaultRouting(members);
+  applyRouting(doc, members);
+  await writeWork(doc);
+}
+
 export async function saveRouting(input: Partial<Routing>, apply = true): Promise<{ routing: Routing; assigned: number }> {
   const [doc, members] = await Promise.all([readWork(), listMembers()]);
   const roles: Record<string, string[]> = {};
