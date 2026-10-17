@@ -8,6 +8,7 @@ export type ComplianceFrequency =
   | 'one-time';
 
 export type ComplianceCategoryKey =
+  | 'operations'
   | 'accounts'
   | 'legal'
   | 'mca'
@@ -38,6 +39,14 @@ export interface ComplianceItem {
   penalty?: string;
   /** Any additional notes. */
   notes?: string;
+  /** Human-readable label for a source reference, e.g. "Handbook §c14 · D1". */
+  reference?: string;
+  /**
+   * Deep link the reference opens. For handbook tasks this is the handbook
+   * page with the section anchor, e.g. "/handbook#c14". Any absolute or
+   * app-relative URL is allowed.
+   */
+  referenceUrl?: string;
 }
 
 export interface ComplianceCategory {
@@ -65,6 +74,11 @@ export const CATEGORY_META: Record<
   ComplianceCategoryKey,
   { name: string; accent: 'brand' | 'emerald' | 'violet' | 'amber' | 'sky' | 'rose'; blurb: string }
 > = {
+  operations: {
+    name: 'Operations',
+    accent: 'brand',
+    blurb: 'Daily, weekly, monthly & quarterly book-keeping tasks from the Accounts Handbook.',
+  },
   accounts: {
     name: 'Accounts',
     accent: 'brand',
@@ -103,6 +117,7 @@ export const CATEGORY_META: Record<
 };
 
 export const ALL_CATEGORIES: ComplianceCategoryKey[] = [
+  'operations',
   'accounts',
   'legal',
   'mca',

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, Link } from 'react-router-dom';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Pill } from '../../components/ui/Card';
 import type {
@@ -444,6 +444,34 @@ function ItemsTable({
                   {item.notes && (
                     <p className="mt-1 text-[11px] text-slate-500 italic">{item.notes}</p>
                   )}
+                  {item.reference && (
+                    <div className="mt-1.5">
+                      {item.referenceUrl ? (
+                        item.referenceUrl.startsWith('/') ? (
+                          <Link
+                            to={item.referenceUrl}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2z" />
+                            </svg>
+                            {item.reference} ↗
+                          </Link>
+                        ) : (
+                          <a
+                            href={item.referenceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 hover:text-brand-700 hover:underline"
+                          >
+                            {item.reference} ↗
+                          </a>
+                        )
+                      ) : (
+                        <span className="text-[11px] text-slate-500">{item.reference}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
@@ -514,6 +542,8 @@ function ItemEditor({
       form: item.form?.trim() || undefined,
       penalty: item.penalty?.trim() || undefined,
       notes: item.notes?.trim() || undefined,
+      reference: item.reference?.trim() || undefined,
+      referenceUrl: item.referenceUrl?.trim() || undefined,
     });
   };
 
@@ -663,6 +693,25 @@ function ItemEditor({
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
             />
           </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Reference label">
+              <input
+                value={item.reference ?? ''}
+                onChange={(e) => update('reference', e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                placeholder="e.g. Handbook §c14 · D1"
+              />
+            </Field>
+            <Field label="Reference link">
+              <input
+                value={item.referenceUrl ?? ''}
+                onChange={(e) => update('referenceUrl', e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                placeholder="/handbook#c14"
+              />
+            </Field>
+          </div>
 
           {!isEdit && (
             <Field label="Custom ID (optional)">

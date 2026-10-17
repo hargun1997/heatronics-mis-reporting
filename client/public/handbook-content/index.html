@@ -1,0 +1,1264 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Heatronics Accounts Handbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+/* Layout: handbook — chapter tab strip pinned at top, one 920px column of chapters; each channel uses the same "spec sheet" template. */
+:root{
+  --bg:#F2F2EE; --paper:#FFFFFF; --sunk:#ECEAE4; --ink:#16130F; --muted:#5B554C; --line:#DCD7CD;
+  --accent:#A84612; --accent-soft:#FAE5D5; --accent-ink:#6F2C07;
+  --dr:#1E5890; --dr-soft:#E2EDF8; --cr:#933C10; --cr-soft:#FAE8DC;
+  --ok:#24693A; --ok-soft:#E0F0E5; --warn:#865700; --warn-soft:#FFF1D2; --bad:#A1261A; --bad-soft:#FAE1DE;
+  --f-body:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif; --f-head:'IBM Plex Serif',Georgia,serif; --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11100F; --paper:#1A1816; --sunk:#23201D; --ink:#ECE7DF; --muted:#A79F95; --line:#332F2A;
+  --accent:#F08A4B; --accent-soft:#38220F; --accent-ink:#F6B88E;
+  --dr:#8EBEF0; --dr-soft:#152839; --cr:#F2A47A; --cr-soft:#382012;
+  --ok:#86CF9D; --ok-soft:#162E20; --warn:#F2C76B; --warn-soft:#332610; --bad:#F59A8E; --bad-soft:#381814; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11100F; --paper:#1A1816; --sunk:#23201D; --ink:#ECE7DF; --muted:#A79F95; --line:#332F2A;
+  --accent:#F08A4B; --accent-soft:#38220F; --accent-ink:#F6B88E;
+  --dr:#8EBEF0; --dr-soft:#152839; --cr:#F2A47A; --cr-soft:#382012;
+  --ok:#86CF9D; --ok-soft:#162E20; --warn:#F2C76B; --warn-soft:#332610; --bad:#F59A8E; --bad-soft:#381814; color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
+a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ink);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.tabs nav{max-width:980px;margin:0 auto;display:flex;gap:2px;overflow-x:auto;padding-block:8px;scrollbar-width:none}
+.tabs a{flex:none;color:var(--bg);text-decoration:none;font-size:13px;font-weight:500;padding:6px 10px;border-radius:6px;white-space:nowrap;opacity:.85}
+.tabs a:hover{background:color-mix(in srgb,var(--bg) 14%,transparent);opacity:1}
+.tabs a b{font-family:var(--f-mono);font-weight:600;margin-right:4px;color:var(--accent-soft)}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:36px 90px;display:flex;flex-direction:column;gap:40px}
+h1{font-family:var(--f-head);font-weight:600;font-size:clamp(30px,5vw,44px);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-family:var(--f-head);font-weight:600;font-size:27px;line-height:1.2;margin:0;text-wrap:balance}
+h3{font-size:17px;font-weight:600;margin:0}
+p{margin:0}
+.eyebrow{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);font-size:17px;max-width:70ch}
+.chapter{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:18px;scroll-margin-top:60px}
+.chhead{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:start;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.chno{font-family:var(--f-mono);font-weight:600;font-size:13px;color:var(--accent-ink);background:var(--accent-soft);border-radius:8px;padding:6px 10px;margin-top:4px}
+.chhead>div{display:flex;flex-direction:column;gap:6px;min-width:0}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--sunk);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th{background:var(--sunk);text-align:left;font-weight:600;padding:8px 11px;white-space:nowrap}
+td{padding:8px 11px;border-top:1px solid var(--line);vertical-align:top}
+td.n,th.n{text-align:right;white-space:nowrap}
+.dr{color:var(--dr);font-weight:600}.cr{color:var(--cr);font-weight:600}
+ul,ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px}
+/* spec sheet */
+.spec{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:20px}
+dl.facts{margin:0;display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;align-self:start}
+dl.facts div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;padding:8px 12px;border-top:1px solid var(--line);font-size:13.5px}
+dl.facts div:first-child{border-top:none}
+dl.facts dt{color:var(--muted);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding-top:2px}
+dl.facts dd{margin:0;min-width:0;overflow-wrap:anywhere}
+/* journal entry */
+.je{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.je h4{margin:0;font-size:13px;font-weight:600;padding:7px 12px;background:var(--sunk);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.je h4 span{color:var(--muted);font-weight:500}
+.je .ln{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:8px;padding:5px 12px;font-size:14px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.je .ln .s{font-family:var(--f-mono);font-size:12px;font-weight:600;padding-top:2px}
+.je .ln.d .s{color:var(--dr)} .je .ln.c .s{color:var(--cr)} .je .ln.c .a{padding-left:0}
+.je .ln.c .nm{padding-left:22px}
+.jes{display:flex;flex-direction:column;gap:10px;min-width:0}
+/* T accounts */
+.tacc{border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;font-size:13px;font-variant-numeric:tabular-nums}
+.tacc .t{padding:6px 10px;font-weight:600;text-align:center;border-bottom:1.5px solid var(--ink);background:var(--accent-soft);color:var(--accent-ink)}
+.tacc .b{display:grid;grid-template-columns:1fr 1fr}
+.tacc .b>div{padding:8px 10px;display:flex;flex-direction:column;gap:3px}
+.tacc .b>div:first-child{border-right:1.5px solid var(--ink)}
+.tacc .lab{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+.tacc .bal{padding:6px 10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted)}
+.tgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.flowline{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13.5px;padding:12px 14px;background:var(--sunk);border-radius:10px}
+.flowline .p{padding:4px 9px;border-radius:6px;background:var(--paper);border:1px solid var(--line);font-weight:500}
+.flowline .p.c{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.flowline .p.b{background:var(--ok-soft)}
+.flowline .ar{color:var(--muted);font-size:12px}
+.callout{border-radius:10px;padding:12px 16px;font-size:14.5px;display:block}
+.callout>:is(p,ul,ol,div,dl,table,figure)+*,.callout>*+:is(p,ul,ol,div,dl,table,figure){margin-top:6px}
+.callout>p{margin:0}
+.callout.bad{background:var(--bad-soft)} .callout.warn{background:var(--warn-soft)} .callout.ok{background:var(--ok-soft)} .callout.info{background:var(--sunk)}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.ok{background:var(--ok-soft);color:var(--ok)}
+.tree{font-family:var(--f-mono);font-size:13px;line-height:1.7;background:var(--sunk);border-radius:10px;padding:14px 16px;overflow-x:auto;white-space:pre}
+.cover{display:flex;flex-direction:column;gap:14px;padding:6px 0 4px}
+.toc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 24px;font-size:15px}
+.toc a{display:grid;grid-template-columns:40px 1fr;text-decoration:none;color:var(--ink);padding:6px 0;border-bottom:1px solid var(--line)}
+.toc a b{font-family:var(--f-mono);color:var(--accent)}
+figure{margin:0;display:flex;flex-direction:column;gap:6px}
+figure img{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;display:block;background:#fff}
+figcaption{font-size:13px;color:var(--muted)}
+
+.partband{display:flex;flex-direction:column;gap:6px;padding:22px 26px;border-radius:16px;background:var(--ink);color:var(--bg);scroll-margin-top:60px}
+.partband h2{color:var(--bg)} .partband .eyebrow{color:var(--accent)} .partband p{opacity:.85}
+.opblock{display:flex;flex-direction:column;gap:14px;padding-top:6px}
+.opblock+.opblock{border-top:1px dashed var(--line);padding-top:22px;margin-top:6px}
+.opblock>header{display:flex;flex-direction:column;gap:6px}
+.opblock h3{font-size:19px}
+.opblock h4{font-size:15.5px;font-weight:600;margin:0}
+.tag{display:inline-flex;align-self:flex-start;font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink)}
+.tag.daily{background:var(--dr-soft);color:var(--dr)} .tag.monthly{background:var(--cr-soft);color:var(--cr)} .tag.weekly{background:var(--ok-soft);color:var(--ok)}
+.done{align-self:flex-start;background:var(--ok-soft);color:var(--ok);border-radius:10px;padding:8px 14px;font-size:14.5px;font-weight:500}
+.step{display:grid;grid-template-columns:38px minmax(0,1fr);gap:14px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+.step>.no{width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
+.step>.body{min-width:0;display:flex;flex-direction:column;gap:10px}
+.btn{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:13.5px;font-weight:600;padding:7px 12px;border-radius:8px;background:var(--ink);color:var(--bg);text-decoration:none}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+dl.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 16px;margin:0;font-size:14.5px;background:var(--sunk);padding:12px 14px;border-radius:10px}
+dl.kv dt{color:var(--muted)} dl.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+figure a{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+figure a img{border:none;border-radius:0}
+figure.narrow{max-width:440px}
+.callout b.k{color:var(--ink)}
+@media (max-width:760px){.pair{grid-template-columns:minmax(0,1fr)} .step{grid-template-columns:minmax(0,1fr)}}
+
+@media (max-width:760px){.spec,.tgrid,.toc{grid-template-columns:minmax(0,1fr)} .chapter{padding:18px} .chhead{grid-template-columns:minmax(0,1fr)} dl.facts div{grid-template-columns:96px minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+figure.diagram{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px}
+figure.diagram svg{width:100%;height:auto;display:block}
+.concept{background:var(--sunk);border-radius:12px;padding:14px 18px;margin:12px 0}
+.concept h3{margin-top:0}
+.concept ul{margin:8px 0 0}
+
+.faq{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.faq details{background:var(--sunk);border-radius:8px;padding:10px 14px}
+.faq summary{cursor:pointer;font-weight:600}
+.faq details p{margin:8px 0 2px}
+/* ---- nested navigation ---- */
+body{margin:0}
+.side{position:fixed;top:0;left:0;bottom:0;width:300px;background:var(--paper);border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:20;transform:translateX(-100%);transition:transform .2s}
+.side.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.25)}
+.side .top{padding:16px 16px 10px;border-bottom:1px solid var(--line)}
+.side .brand{font-family:var(--f-head);font-weight:600;font-size:17px;color:var(--ink);text-decoration:none;display:block;margin-bottom:10px}
+.side input{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.side .navtree{overflow-y:auto;padding:8px 8px 40px;flex:1;overscroll-behavior:contain}
+.part{margin-top:6px}
+.part>button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border-radius:8px;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.part>button:hover{background:var(--sunk)}
+.part>button:focus-visible,.ch>div>button:focus-visible{outline:2px solid var(--accent)}
+.car{display:inline-block;width:10px;transition:transform .15s;font-size:10px}
+.part.closed>button .car,.ch.closed .car{transform:rotate(-90deg)}
+.part.closed>ul,.ch.closed>ul{display:none}
+.navtree ul{list-style:none;margin:0;padding:0}
+.ch>div{display:flex;align-items:center}
+.ch>div>a{flex:1;display:flex;gap:8px;padding:6px 8px 6px 10px;border-radius:7px;color:var(--ink);text-decoration:none;font-size:14px;line-height:1.35}
+.ch>div>a b{font-family:var(--f-mono);font-size:12px;color:var(--muted);min-width:22px;font-weight:600;padding-top:1px}
+.ch>div>button{all:unset;cursor:pointer;padding:6px 8px;color:var(--muted);border-radius:6px}
+.ch>div>a:hover,.ch>div>button:hover,.sub a:hover{background:var(--sunk)}
+.ch.cur>div>a{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.ch.cur>div>a b{color:var(--accent-ink)}
+.sub{margin:2px 0 6px 40px;border-left:1px solid var(--line)}
+.sub a{display:block;padding:4px 10px;font-size:13px;color:var(--muted);text-decoration:none;border-radius:0 6px 6px 0;line-height:1.35}
+.sub a.cur{color:var(--accent);border-left:2px solid var(--accent);margin-left:-1px;font-weight:600}
+.hide{display:none!important}
+.bar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--bg);padding:8px max(16px,env(safe-area-inset-left,0px))}
+.bar button{all:unset;cursor:pointer;padding:6px 10px;border-radius:6px;font-weight:600;font-size:14px;background:color-mix(in srgb,var(--bg) 14%,transparent)}
+.crumb{font-size:13px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.crumb b{font-weight:600}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:19;display:none}
+.scrim.on{display:block}
+@media (min-width:1100px){
+  .side{transform:none}
+  body{padding-left:300px}
+  .bar button.menu{display:none}
+  .scrim{display:none!important}
+}
+.chnav{display:flex;justify-content:space-between;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:14px}
+.chnav a{text-decoration:none;max-width:48%}
+.chnav a span{display:block;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.chnav a.next{text-align:right;margin-left:auto}
+.toc2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}
+.toc2 .card{background:var(--sunk);border-radius:10px;padding:12px 14px}
+.toc2 h4{margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.toc2 a{display:flex;gap:8px;padding:3px 0;text-decoration:none;font-size:14px;color:var(--ink)}
+.toc2 a b{font-family:var(--f-mono);font-size:12px;color:var(--accent);min-width:24px}
+.toc2 a:hover{color:var(--accent)}
+.chapter,.partband,.cover{scroll-margin-top:56px} .chapter h3{scroll-margin-top:60px}
+@media (min-width:1100px){.chapter,.partband,.cover{scroll-margin-top:52px}}
+</style>
+
+
+<aside class="side" id="side" aria-label="Contents"><div class="top"><a class="brand" href="#c0">Accounts Handbook</a><input id="q" type="search" placeholder="Search the handbook…" aria-label="Filter sections"></div><nav class="navtree" id="tree"></nav></aside>
+<div class="scrim" id="scrim"></div>
+<div class="bar"><button class="menu" id="menu" aria-controls="side" aria-expanded="false">☰ Contents</button><div class="crumb" id="crumb"><b>Accounts Handbook</b></div></div>
+
+<div class="wrap">
+
+<section class="cover" id="c0">
+  <p class="eyebrow">Heatronics Medical Devices Pvt Ltd · FY 2026-27</p>
+  <h1>Accounts Handbook</h1>
+  <p class="lede">How the books are built: which system creates each entry, the journal it posts, the control account it lands in, and how each account is reconciled. Written for the CA and the accountant. Part II has every task step by step, with screenshots and links.</p>
+  <div class="callout info"><b>How to read a channel chapter (4–6):</b> every channel uses the same sheet: <i>facts</i> on the left (source, frequency, who posts, control account, GST, recon), <i>journal entries</i> on the right, then a <i>T-account</i> of the control account and its <i>known issues</i>.</div>
+  <div class="callout ok"><b>New here? Start with Part 0.</b> <a href="#s0">S0 The complete picture</a> shows every system and how data flows into Tally. S1–S7 then explain each component: its concept, our rules and settings, and what we do there.</div>
+  <div id="toc" class="toc2" aria-label="Contents"></div>
+</section>
+
+<section class="partband" id="p0"><p class="eyebrow">Part 0</p><h2>The setup: how everything is wired</h2><p>One complete picture first. Then each component one by one: what it is, the concept behind it, the rules and settings we use, and what we do there.</p></section>
+
+<section class="chapter" id="s0">
+  <div class="chhead"><span class="chno">S0</span><div><h2>The complete picture</h2><p class="lede">Data starts in five outside systems and the banks. It crosses one of four bridges, becomes a voucher inside Tally, and lands in a control ledger. Cash arriving in the bank clears that ledger.</p></div></div>
+  <figure class="diagram">
+  <svg viewBox="0 0 1040 640" role="img" aria-label="Architecture: Tranzact pushes vouchers through the TranZact Chrome plugin; Shopify and Easebuzz reach Tally through tally-integration.in and plugin option 3; Amazon reports are uploaded to tally-integration.in and pulled with option 2; Snapmint and Shiprocket files are uploaded as downloaded through File Manager into option 5; bank statements go through File Manager into Tally Banking. Each lands in a control ledger, which clears to the bank." style="color:var(--ink);font-family:var(--f-body)">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+    </defs>
+    <g font-size="11" font-weight="700" letter-spacing="1.2" fill="currentColor" opacity=".6" text-anchor="middle">
+      <text x="105" y="18">WHERE DATA STARTS</text><text x="360" y="18">BRIDGE</text><text x="650" y="18">INSIDE TALLY</text><text x="920" y="18">WHERE IT LANDS</text>
+    </g>
+    <rect x="510" y="28" width="280" height="590" rx="14" fill="none" stroke="currentColor" stroke-dasharray="5 5" opacity=".55"/>
+    <text x="524" y="46" font-size="11" fill="currentColor" opacity=".7">Tally Prime · Tally On Cloud</text>
+    <!-- sources -->
+    <g font-size="12.5" fill="currentColor">
+      <rect x="20" y="40" width="170" height="46" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="105" y="60" text-anchor="middle" font-weight="600">Tranzact ERP</text><text x="105" y="76" text-anchor="middle" font-size="11" opacity=".75">our invoices &amp; bills</text>
+      <rect x="20" y="130" width="170" height="46" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="105" y="150" text-anchor="middle" font-weight="600">Shopify</text><text x="105" y="166" text-anchor="middle" font-size="11" opacity=".75">D2C orders, refunds</text>
+      <rect x="20" y="186" width="170" height="46" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="105" y="206" text-anchor="middle" font-weight="600">Easebuzz</text><text x="105" y="222" text-anchor="middle" font-size="11" opacity=".75">prepaid payouts</text>
+      <rect x="20" y="262" width="170" height="46" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="105" y="282" text-anchor="middle" font-weight="600">Amazon Seller Central</text><text x="105" y="298" text-anchor="middle" font-size="11" opacity=".75">MTR · STR · Settlement</text>
+      <rect x="20" y="360" width="170" height="46" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="105" y="380" text-anchor="middle" font-weight="600">Snapmint</text><text x="105" y="396" text-anchor="middle" font-size="11" opacity=".75">settlement CSV by email</text>
+      <rect x="20" y="416" width="170" height="46" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="105" y="436" text-anchor="middle" font-weight="600">Shiprocket</text><text x="105" y="452" text-anchor="middle" font-size="11" opacity=".75">COD remittance XLS</text>
+      <rect x="20" y="540" width="170" height="46" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="105" y="560" text-anchor="middle" font-weight="600">Bank statements</text><text x="105" y="576" text-anchor="middle" font-size="11" opacity=".75">Central CC · ICICI · HDFC</text>
+    </g>
+    <!-- bridges -->
+    <g font-size="12.5" fill="currentColor">
+      <rect x="250" y="40" width="220" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="360" y="60" text-anchor="middle" font-weight="600">TranZact Chrome plugin</text><text x="360" y="76" text-anchor="middle" font-size="11" opacity=".75">needs Tally open</text>
+      <rect x="250" y="124" width="220" height="196" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="360" y="143" text-anchor="middle" font-weight="600">tally-integration.in</text>
+      <rect x="262" y="154" width="196" height="64" rx="7" style="fill:var(--sunk)" stroke="currentColor" stroke-opacity=".4"/><text x="360" y="176" text-anchor="middle" font-size="12" font-weight="600">Store / Gateway workspace</text><text x="360" y="192" text-anchor="middle" font-size="11" opacity=".75">API keys + mapping rules</text><text x="360" y="207" text-anchor="middle" font-size="11" opacity=".75">(Shopify, Easebuzz)</text>
+      <rect x="262" y="240" width="196" height="64" rx="7" style="fill:var(--sunk)" stroke="currentColor" stroke-opacity=".4"/><text x="360" y="262" text-anchor="middle" font-size="12" font-weight="600">Marketplace workspace</text><text x="360" y="278" text-anchor="middle" font-size="11" opacity=".75">Amazon preset + monthly</text><text x="360" y="293" text-anchor="middle" font-size="11" opacity=".75">report uploads</text>
+      <rect x="250" y="470" width="220" height="120" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="360" y="489" text-anchor="middle" font-weight="600">Tally On Cloud File Manager</text>
+      <rect x="262" y="498" width="196" height="34" rx="6" style="fill:var(--sunk)" stroke="currentColor" stroke-opacity=".4"/><text x="360" y="520" text-anchor="middle" font-size="12" font-family="var(--f-mono)">S:\Custom Uploads</text>
+      <rect x="262" y="542" width="196" height="34" rx="6" style="fill:var(--sunk)" stroke="currentColor" stroke-opacity=".4"/><text x="360" y="564" text-anchor="middle" font-size="12" font-family="var(--f-mono)">Bank Statement New</text>
+    </g>
+    <!-- inside tally -->
+    <g font-size="12.5" fill="currentColor">
+      <rect x="525" y="124" width="250" height="320" rx="10" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="650" y="143" text-anchor="middle" font-weight="600">eCom2Tally plugin (TCP)</text><text x="650" y="158" text-anchor="middle" font-size="10.5" opacity=".7">Gateway → tally-integRation.in</text>
+      <rect x="537" y="168" width="226" height="46" rx="7" style="fill:var(--dr-soft)" stroke="currentColor" stroke-opacity=".5"/><text x="650" y="188" text-anchor="middle" font-weight="600">3 · E-Store / Pay Gateways</text><text x="650" y="204" text-anchor="middle" font-size="11" opacity=".75">Shopify orders, Easebuzz payouts</text>
+      <rect x="537" y="250" width="226" height="46" rx="7" style="fill:var(--dr-soft)" stroke="currentColor" stroke-opacity=".5"/><text x="650" y="270" text-anchor="middle" font-weight="600">2 · E-Com Import</text><text x="650" y="286" text-anchor="middle" font-size="11" opacity=".75">Amazon MTR, STR, Settlement</text>
+      <rect x="537" y="384" width="226" height="46" rx="7" style="fill:var(--dr-soft)" stroke="currentColor" stroke-opacity=".5"/><text x="650" y="404" text-anchor="middle" font-weight="600">5 · Courier (COD) Reports</text><text x="650" y="420" text-anchor="middle" font-size="11" opacity=".75">Shiprocket, Snapmint files</text>
+      <rect x="525" y="530" width="250" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="650" y="553" text-anchor="middle" font-weight="600">Banking · import statement</text><text x="650" y="570" text-anchor="middle" font-size="11" opacity=".75">match receipts / payments</text>
+    </g>
+    <!-- ledgers -->
+    <g font-size="12.5" fill="currentColor">
+      <rect x="820" y="40" width="200" height="46" rx="8" stroke="currentColor" stroke-width="1.5" style="fill:var(--paper)"/><text x="920" y="60" text-anchor="middle" font-weight="600">Party ledgers</text><text x="920" y="76" text-anchor="middle" font-size="11" opacity=".75">customers · suppliers · TDS</text>
+      <rect x="820" y="160" width="200" height="46" rx="8" stroke="currentColor" stroke-width="1.5" style="fill:var(--accent-soft)"/><text x="920" y="180" text-anchor="middle" font-weight="600">Shopify Receivables</text><text x="920" y="196" text-anchor="middle" font-size="11" opacity=".75">Prepaid · COD</text>
+      <rect x="820" y="226" width="200" height="46" rx="8" stroke="currentColor" stroke-width="1.5" style="fill:var(--accent-soft)"/><text x="920" y="246" text-anchor="middle" font-weight="600">Collection ledgers</text><text x="920" y="262" text-anchor="middle" font-size="11" opacity=".75">Easebuzz · Snapmint · ShipRocket</text>
+      <rect x="820" y="296" width="200" height="46" rx="8" stroke="currentColor" stroke-width="1.5" style="fill:var(--accent-soft)"/><text x="920" y="316" text-anchor="middle" font-weight="600">Amazon chain</text><text x="920" y="332" text-anchor="middle" font-size="11" opacity=".75">Seller → Settlement → Bank</text>
+      <rect x="820" y="535" width="200" height="46" rx="8" stroke="currentColor" stroke-width="1.5" style="fill:var(--ok-soft)"/><text x="920" y="555" text-anchor="middle" font-weight="600">Banks</text><text x="920" y="571" text-anchor="middle" font-size="11" opacity=".75">Central CC · ICICI · HDFC</text>
+    </g>
+    <!-- arrows -->
+    <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ah)">
+      <line x1="190" y1="63" x2="248" y2="63"/>
+      <line x1="470" y1="63" x2="818" y2="63"/>
+      <polyline points="190,153 226,153 226,180 260,180"/>
+      <polyline points="190,209 226,209 226,196 260,196"/>
+      <line x1="458" y1="191" x2="535" y2="191"/>
+      <polyline points="763,184 800,184 800,183 818,183"/>
+      <polyline points="763,200 796,200 796,249 818,249"/>
+      <polyline points="190,285 226,285 226,272 260,272"/>
+      <line x1="458" y1="273" x2="535" y2="273"/>
+      <polyline points="763,273 790,273 790,319 818,319"/>
+      <polyline points="190,383 226,383 226,512 260,512"/>
+      <polyline points="190,439 226,439"/>
+            <polyline points="458,515 495,515 495,407 535,407"/>
+      <polyline points="763,407 805,407 805,262 818,262"/>
+      <polyline points="190,563 232,563 232,559 260,559"/>
+      <line x1="458" y1="559" x2="523" y2="559"/>
+      <line x1="775" y1="558" x2="818" y2="558"/>
+    </g>
+    <g stroke="currentColor" stroke-width="1.4" fill="none" stroke-dasharray="5 4" marker-end="url(#ah)" opacity=".7">
+      <line x1="1005" y1="342" x2="1005" y2="533"/>
+    </g>
+    <g font-size="10.5" fill="currentColor" opacity=".85">
+      <text x="219" y="57" text-anchor="middle">approve</text>
+      <text x="645" y="57" text-anchor="middle">Sales · Purchase · CN · DN · JV  (daily)</text>
+      <text x="497" y="184" text-anchor="middle">fetch daily</text>
+      <text x="497" y="266" text-anchor="middle">pull monthly</text>
+      <text x="224" y="270" text-anchor="middle">upload</text>
+            <text x="215" y="378" text-anchor="middle">CSV</text>
+      <text x="215" y="434" text-anchor="middle">XLS</text>
+      <text x="1000" y="440" text-anchor="end">Receipt</text>
+      <text x="1000" y="454" text-anchor="end">clears</text>
+    </g>
+  </svg>
+  <figcaption>Four bridges. Tranzact goes straight in through its Chrome plugin. Shopify and Easebuzz are fetched daily through option 3, using rules kept on tally-integration.in. Amazon reports are uploaded to that site and pulled with option 2. Snapmint and Shiprocket files are uploaded as downloaded to <code>S:\Custom Uploads</code> and read by option 5. Bank statements go through File Manager into Tally Banking. Each voucher lands in a control ledger, and bank receipts empty it.</figcaption>
+  </figure>
+  <div class="tw"><table>
+    <tr><th>Component</th><th>What it is</th><th>Where it runs</th><th>Who / when</th><th>Section</th></tr>
+    <tr><td>TranZact Chrome plugin</td><td>Pushes approved Tranzact documents into Tally as vouchers</td><td>Accountant's Chrome → Tally On Cloud</td><td>Accountant, daily</td><td><a href="#s1">S1</a></td></tr>
+    <tr><td>tally-integration.in</td><td>The plugin vendor's website. Holds API keys, mapping rules and uploaded Amazon reports.</td><td>Web</td><td>Settings: Hargun. Uploads: accountant, monthly.</td><td><a href="#s2">S2</a></td></tr>
+    <tr><td>eCom2Tally plugin (TCP)</td><td>The add-on inside Tally that creates the vouchers</td><td>Inside Tally</td><td>Accountant, daily and monthly</td><td><a href="#s3">S3</a></td></tr>
+    <tr><td>Bill-wise matching</td><td>The rule that lets a payout clear exactly its order</td><td>Inside Tally (bill references)</td><td>Automatic, if references match</td><td><a href="#s4">S4</a></td></tr>
+    <tr><td>File Manager</td><td>Puts downloaded report files on the Tally server so option 5 can read them</td><td>Laptop → Tally On Cloud</td><td>Accountant, monthly</td><td><a href="#s5">S5</a></td></tr>
+    <tr><td>Tally Banking</td><td>Imports bank statements and reconciles</td><td>Inside Tally</td><td>Accountant, month end</td><td><a href="#s6">S6</a></td></tr>
+    <tr><td>Manual layer</td><td>Platform invoices, Amazon expense JV, adjustments</td><td>Inside Tally</td><td>Accountant, monthly</td><td><a href="#s7">S7</a></td></tr>
+  </table></div>
+</section>
+
+<section class="chapter" id="s1">
+  <div class="chhead"><span class="chno">S1</span><div><h2>Tranzact and the TranZact Chrome plugin</h2><p class="lede">Tranzact is where we raise invoices and record bills. The Chrome plugin is the bridge that turns approved Tranzact documents into Tally vouchers.</p></div></div>
+  <div class="concept">
+    <h3>The concept</h3>
+    <div class="flowline"><span class="p">Document in Tranzact</span><span class="ar">rules pick ledgers →</span><span class="p">Accounting entry (draft)</span><span class="ar">approve →</span><span class="p">Approved queue</span><span class="ar">Chrome plugin sends →</span><span class="p c">Tally voucher</span><span class="ar">status back →</span><span class="p">Completed</span></div>
+    <ul>
+      <li><b>Tranzact decides the ledgers, not Tally.</b> Every document is turned into an accounting entry using <b>Accounting Rules</b> (which sales or purchase ledger) and <b>Ledger Settings</b> (tax, discount, round-off, TCS and journal ledgers).</li>
+      <li><b>Nothing moves until it is approved.</b> Documents wait in <b>Document Approval</b>, journals in <b>Journal Entry</b>.</li>
+      <li><b>The Chrome plugin talks to Tally directly.</b> It connects to the Tally On Cloud server, so Tally must be open. It sends one voucher type at a time. With "Check TDL &amp; Duplicate Vouchers" on, it won't send a voucher that already exists.</li>
+      <li><b>Ledger names must match exactly.</b> If a ledger named in Tranzact doesn't exist in Tally, the push can fail or a stray ledger can appear.</li>
+    </ul>
+  </div>
+  <h3>Rules and settings we use</h3>
+  <div class="tw"><table>
+    <tr><th>Setting (Tranzact → Accounting Integration)</th><th>Our value</th><th>Effect</th></tr>
+    <tr><td>Accounting Rules: sales by document series</td><td>B2C → B2C Offline Sales · OEM → OEM Sales · GT Dealer / Retailer / CNF → GT - … Sales · MT → MT Sales · Physio → Physio Channel Sales · Blinkit → Blinkit Sales · Internal Transfer → Internal Transfer Sales</td><td>Picks the sales ledger by series prefix</td></tr>
+    <tr><td>Accounting Rules: purchases</td><td>Is Service = false → RM Purchases; true → Job Work Charges</td><td>Every service bill goes to Job Work Charges</td></tr>
+    <tr><td>Tax ledgers</td><td>IGST/CGST/SGST Input/Output - 5 / 12 / 18%</td><td>GST lines on each voucher</td></tr>
+    <tr><td>Discount / additional / round-off</td><td>Trade Discount - GT (default) / - MT; Additional Charges - Sales / - Purchase; Round-off - Sales / - Purchase</td><td>—</td></tr>
+    <tr><td>TCS</td><td>TCS Credit / TCS Credit Receivable</td><td><span class="pill bad">not in Tally</span></td></tr>
+    <tr><td>Journal Entry ledgers</td><td>TDS → TDS Payable - 194C (output) / TDS Receivable (input); Mark Paid → Central Bank of India - Operating A/C</td><td>Mark Paid ledger <span class="pill bad">not in Tally</span></td></tr>
+    <tr><td>TDS split</td><td>Payments → Ledger (Consolidated) → split icon → TDS %</td><td>Creates one journal per split</td></tr>
+    <tr><td>Chrome plugin</td><td>Tally 3.0 ticked · Direct Integration · Check TDL &amp; Duplicate = Yes</td><td>Sends Sales, Purchase, CN, DN, JV (not PV / RV / SM)</td></tr>
+  </table></div>
+  <div class="callout info"><b>What we do here:</b> daily, split TDS on service bills, approve documents and journals, then push all five voucher types (chapter 11, D1). Rules are changed only by Hargun.</div>
+</section>
+
+<section class="chapter" id="s2">
+  <div class="chhead"><span class="chno">S2</span><div><h2>tally-integration.in (the plugin website)</h2><p class="lede">The vendor's website. It is the plugin's control room: it stores API keys and mapping rules, and holds the Amazon files until Tally pulls them.</p></div></div>
+  <div class="concept">
+    <h3>The concept</h3>
+    <ul>
+      <li><b>Two workspaces.</b> <b>Store / Gateway</b> holds direct API connections (Shopify, Easebuzz; a Shiprocket API mapping exists but is not used; there are <b>no Snapmint settings</b> on the site, so its mapping lives inside the TCP). <b>Marketplace</b> holds Amazon (and any marketplace), where data arrives as uploaded Excel reports.</li>
+      <li><b>Mapping rules are templates.</b> Every field of a voucher (number, date, bill reference, ledger) is built from the source data with <code>{{key}}</code> placeholders, plus an optional regex. For example, bill ref <code>{{tags}}</code> with regex <code>(?&lt;=pg:)[^,\s]+</code> takes the text after <code>pg:</code> in the Shopify order tags.</li>
+      <li><b>Ledger names are typed as free text.</b> Tally uses them by exact name; a name that doesn't match an existing ledger is the likely source of new near-duplicate ledgers. That is why near-duplicate ledgers appear, such as <code>IGST 5.00%</code> next to <code>IGST Output - 5%</code>.</li>
+      <li><b>Amazon uploads are stored per company, month and report type</b> until option 2 in Tally pulls them.</li>
+    </ul>
+  </div>
+  <figure class="narrow"><a href="img/plugin_home.jpg" target="_blank"><img src="img/plugin_home.jpg" alt="Workspace choice on tally-integration.in" loading="lazy"></a><figcaption>Two workspaces: Marketplace (Amazon uploads) and Store/Gateway (API settings).</figcaption></figure>
+  <h3>Rules and settings we use</h3>
+  <div class="tw"><table>
+    <tr><th>Connector</th><th>Key rules</th><th>Ledgers it uses</th></tr>
+    <tr><td>Shopify</td><td>Voucher no. <code>{{name}}</code> · date <code>{{created_at}}</code> · prepaid bill ref <code>{{tags}}</code> + regex <code>(?&lt;=pg:)[^,\s]+</code> · COD bill ref <code>HTR-{{order_number}}-D2C</code> · item <code>{{line_items.name}}</code> / <code>{{line_items.product_id.0}}</code> · price incl. GST ON · reverse GST OFF</td><td>Shopify Prepaid Receivable · Shopify COD Receivable</td></tr>
+    <tr><td>Easebuzz</td><td>Bill ref key <code>bank_transaction_id</code> (no regex) · voucher and ref date <code>payout_actual_date</code></td><td>PG Transaction Fee - Easebuzz · Shopify Prepaid Receivable · Easebuzz Collection A/c</td></tr>
+    <tr><td>Shiprocket (API, unused)</td><td>Bill ref key <code>id</code></td><td>ShipRocket Commission · Shopify COD Receivable · ShipRocket Collection A/C <span class="pill warn">names differ from Tally</span></td></tr>
+    <tr><td>Amazon (Marketplace)</td><td>One preset for all reports · separate voucher per GSTIN ON · %-wise sales / GST ledgers OFF · unit PCS</td><td>Sales-Amazon · Credit Note-Amazon · Amazon Seller A/c · Amazon Sales · Shipping-Amazon · CGST/SGST/IGST Output (all get the state suffix)</td></tr>
+  </table></div>
+  <div class="pair">
+    <figure><a href="img/set_shopify.jpg" target="_blank"><img src="img/set_shopify.jpg" alt="Shopify mapping" loading="lazy"></a><figcaption>Shopify mapping and formula builder.</figcaption></figure>
+    <figure><a href="img/set_amazon.jpg" target="_blank"><img src="img/set_amazon.jpg" alt="Amazon preset" loading="lazy"></a><figcaption>Amazon preset.</figcaption></figure>
+  </div>
+  <div class="callout info"><b>What we do here:</b> monthly, upload the four Amazon reports in Marketplace → Upload Files (chapter 13, M1). Settings are not changed without Hargun.</div>
+</section>
+
+<section class="chapter" id="s3">
+  <div class="chhead"><span class="chno">S3</span><div><h2>eCom2Tally plugin inside Tally (the TCP)</h2><p class="lede">A Tally add-on (a .tcp file) that adds the "tally-integRation.in" menu. It is what actually creates vouchers for Shopify, Easebuzz, Amazon, Shiprocket and Snapmint.</p></div></div>
+  <div class="concept">
+    <h3>The concept: every import does the same five things</h3>
+    <div class="flowline"><span class="p">1 · Read source rows</span><span class="ar">→</span><span class="p">2 · Apply mapping rules</span><span class="ar">→</span><span class="p">3 · Create missing ledgers / items (by exact name)</span><span class="ar">→</span><span class="p">4 · Build voucher + bill refs</span><span class="ar">→</span><span class="p c">5 · Post to Tally</span></div>
+    <ul>
+      <li><b>Where it reads from depends on the option.</b> Option 3 calls the Shopify / Easebuzz API through the website. Option 2 downloads the Amazon file you uploaded to the website. Option 5 reads an Excel file from the Tally server's <code>S:\Custom Uploads\</code> folder.</li>
+      <li><b>Treat every import as one-time.</b> Assume it doesn't check for vouchers it already created: running the same dates or the same file twice can book them twice. The Easebuzz import also has a <b>confirmed pagination bug</b> (April settlements came in only partly), which invites re-fetches. This is the most likely cause of the Easebuzz gap (chapter 18).</li>
+      <li><b>It uses Tally's current date as the default.</b> That's why forms showed December while Tally's date was 6-Dec-2026.</li>
+    </ul>
+  </div>
+  <div class="pair">
+    <figure><a href="img/tally_gateway.jpg" target="_blank"><img src="img/tally_gateway.jpg" alt="Gateway of Tally" loading="lazy"></a><figcaption>Gateway → Utilities → http://tally-integRation.in</figcaption></figure>
+    <figure><a href="img/tally_menu.jpg" target="_blank"><img src="img/tally_menu.jpg" alt="E-Commerce Integration menu" loading="lazy"></a><figcaption>The plugin's menu.</figcaption></figure>
+  </div>
+  <h3>Each option: what it reads, what it creates, what we enter</h3>
+  <div class="tw"><table>
+    <tr><th>Option</th><th>Reads</th><th>Creates (voucher types)</th><th>We enter</th></tr>
+    <tr><td><b>3 · E-Store, Pay Gateways &amp; Courier</b></td><td>Shopify / Easebuzz API, via the website keys</td><td>Shopify Sales, Shopify Credit Note; Journal (Easebuzz payout)</td><td>Platform Type, Platform, Status any, From/To date</td></tr>
+    <tr><td><b>2 · E-Com Import</b></td><td>Amazon file uploaded on the website for that month</td><td>Sales-Amazon-STATE, Credit Note-Amazon-STATE, Sales/Purchase-STR, Amazon Settlement, Amazon Commission, Amazon TDS-TCS, Amazon Bank Transfer</td><td>Platform Amazon, File Type, rows 00001-10000, month and year, Club on POS False, GSTIN All</td></tr>
+    <tr><td><b>5 · Courier Partner (COD)-Reports</b></td><td>Excel in <code>S:\Custom Uploads\</code></td><td>Journal (Shiprocket COD), Journal / SnapMint Journal (Snapmint)</td><td>Platform, folder, file name, sheet name</td></tr>
+    <tr><td>8 · Order-wise settlement Report</td><td>Tally data</td><td>Report only</td><td>Use it to find orders a payout didn't clear</td></tr>
+    <tr><td>1 · Login · C · Configuration</td><td>—</td><td>—</td><td>Set once. Don't change.</td></tr>
+    <tr><td>4 · Zoho · 6 · Direct · 7 · Godown · C · Sync</td><td colspan="3">Not used</td></tr>
+  </table></div>
+  <div class="callout info"><b>What we do here:</b> daily option 3 (D2), monthly option 2 (M1) and option 5 (M2, M3). New .tcp versions go to Hargun, who files them in <code>03_Tally_Plugins/eCom2Tally</code>.</div>
+</section>
+
+<section class="chapter" id="s4">
+  <div class="chhead"><span class="chno">S4</span><div><h2>Bill-wise matching: how a payout finds its order</h2><p class="lede">This is the idea the whole D2C and Amazon setup depends on. A sale opens a bill under a reference. A payout clears the bill with the same reference.</p></div></div>
+  <figure class="diagram">
+  <svg viewBox="0 0 960 300" role="img" aria-label="A Shopify COD sale opens bill HTR-18836-D2C in Shopify COD Receivable; the Shiprocket remittance carries id HTR-18836-D2C and clears it. If the references differ, both balances stay open." style="color:var(--ink);font-family:var(--f-body)">
+    <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+    <g font-size="12.5" fill="currentColor">
+      <rect x="20" y="30" width="220" height="70" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="130" y="55" text-anchor="middle" font-weight="600">Shopify order #18836 (COD)</text><text x="130" y="74" text-anchor="middle" font-size="11.5" opacity=".8">₹1,480 · order_number 18836</text><text x="130" y="90" text-anchor="middle" font-size="11" opacity=".7">rule: HTR-{{order_number}}-D2C</text>
+      <rect x="20" y="190" width="220" height="70" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="130" y="215" text-anchor="middle" font-weight="600">Shiprocket remittance row</text><text x="130" y="234" text-anchor="middle" font-size="11.5" opacity=".8">id = HTR-18836-D2C · ₹1,480</text><text x="130" y="250" text-anchor="middle" font-size="11" opacity=".7">rule: bill ref key = id</text>
+      <rect x="330" y="20" width="300" height="250" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--accent-soft)"/><text x="480" y="44" text-anchor="middle" font-weight="700">Shopify COD Receivable</text>
+      <line x1="480" y1="56" x2="480" y2="250" stroke="currentColor" opacity=".5"/><line x1="345" y1="56" x2="615" y2="56" stroke="currentColor" opacity=".5"/>
+      <text x="405" y="74" text-anchor="middle" font-size="11" font-weight="700" opacity=".7">DR</text><text x="555" y="74" text-anchor="middle" font-size="11" font-weight="700" opacity=".7">CR</text>
+      <text x="405" y="100" text-anchor="middle" font-size="12" font-family="var(--f-mono)">New Ref</text><text x="405" y="116" text-anchor="middle" font-size="12" font-family="var(--f-mono)">HTR-18836-D2C</text><text x="405" y="132" text-anchor="middle" font-size="12">1,480</text>
+      <text x="555" y="214" text-anchor="middle" font-size="12" font-family="var(--f-mono)">Agst Ref</text><text x="555" y="230" text-anchor="middle" font-size="12" font-family="var(--f-mono)">HTR-18836-D2C</text><text x="555" y="246" text-anchor="middle" font-size="12">1,480</text>
+      <rect x="700" y="40" width="240" height="90" rx="8" stroke="currentColor" stroke-width="1.4" style="fill:var(--ok-soft)"/><text x="820" y="66" text-anchor="middle" font-weight="700">References equal</text><text x="820" y="86" text-anchor="middle" font-size="11.5">bill knocked off · balance 0</text><text x="820" y="104" text-anchor="middle" font-size="11.5">money moves to ShipRocket</text><text x="820" y="119" text-anchor="middle" font-size="11.5">Collection → bank</text>
+      <rect x="700" y="170" width="240" height="90" rx="8" stroke="currentColor" stroke-width="1.4" style="fill:var(--bad-soft)"/><text x="820" y="196" text-anchor="middle" font-weight="700">References differ</text><text x="820" y="216" text-anchor="middle" font-size="11.5">sale stays open (Dr) and a</text><text x="820" y="234" text-anchor="middle" font-size="11.5">new unmatched credit appears.</text><text x="820" y="252" text-anchor="middle" font-size="11.5">Ledger looks fine, ageing doesn't</text>
+    </g>
+    <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ah2)">
+      <polyline points="240,65 300,65 300,116 345,116"/>
+      <polyline points="240,225 300,225 300,230 470,230"/>
+      <line x1="630" y1="100" x2="698" y2="85"/>
+      <line x1="630" y1="220" x2="698" y2="215"/>
+    </g>
+    <g font-size="10.5" fill="currentColor" opacity=".85"><text x="270" y="58" text-anchor="middle">Shopify Sales</text><text x="290" y="218" text-anchor="middle">Journal</text></g>
+  </svg>
+  <figcaption>Illustration: the reference format is real (April-26 journals use HTR-18836-D2C), the amount is made up. Prepaid works the same way: the Shopify <code>pg:</code> tag opens the bill, and Easebuzz's <code>bank_transaction_id</code> must carry the identical value to clear it.</figcaption>
+  </figure>
+  <div class="tw"><table>
+    <tr><th>Pair</th><th>Bill opened with</th><th>Cleared with</th><th>Where to check</th></tr>
+    <tr><td>Shopify prepaid ↔ Easebuzz <span class="pill warn">to confirm</span></td><td>Value after <code>pg:</code> in order tags</td><td><code>bank_transaction_id</code> (or is it <code>txnid</code>?)</td><td>Outstandings → Ledger → Shopify Prepaid Receivable (bill-wise); option 8</td></tr>
+    <tr><td>Shopify prepaid ↔ Snapmint <span class="pill warn">to confirm</span></td><td>Value after <code>pg:</code></td><td>Snapmint order / loan reference</td><td>Same</td></tr>
+    <tr><td>Shopify COD ↔ Shiprocket <span class="pill ok">seen in April data</span></td><td><code>HTR-&lt;order&gt;-D2C</code></td><td>Shiprocket <code>id</code></td><td>Outstandings → Shopify COD Receivable</td></tr>
+    <tr><td>Amazon sale ↔ settlement</td><td>Amazon order ID</td><td>Order ID in the settlement</td><td>Amazon Seller A/c</td></tr>
+  </table></div>
+</section>
+
+<section class="chapter" id="s5">
+  <div class="chhead"><span class="chno">S5</span><div><h2>Tally On Cloud File Manager</h2><p class="lede">Option 5 can only read a file that sits on the Tally server. File Manager is how a file on your laptop gets there.</p></div></div>
+  <div class="concept">
+    <div class="flowline"><span class="p">Download report (Shiprocket XLS / Snapmint file)</span><span class="ar">→</span><span class="p">File Manager → Custom Uploads</span><span class="ar">= S:\Custom Uploads\ inside Tally →</span><span class="p c">Option 5</span></div>
+    <ul>
+      <li><b>No conversion step.</b> The file is uploaded as downloaded. Option 5 reads it by folder, exact file name and exact sheet name (<code>AWB level report</code> for Shiprocket, <code>Sheet 1</code> for Snapmint).</li>
+      <li><b>If the import rejects the file,</b> check the date format first. Format decision (Oct-2026): <b>Shiprocket .xls</b>, dates <code>DD-Mon-YY</code> (e.g. 28-Sep-26); <b>Snapmint .csv</b>, the older 27-column header with dates <code>DD-MM-YYYY</code>. Newer report formats are not backward compatible, and this is being worked on with the vendor. Send a rejected file to Hargun rather than editing it.</li>
+      <li><b>Other folders:</b> <code>Bank Statements</code> is the older bank folder; use <code>Bank Statement New</code>. <code>Export</code> is where Tally exports (TB, ledger vouchers) land.</li>
+      <li><b>Same folder trap as the API imports:</b> importing the same file twice books it twice. Name files by month and keep a log.</li>
+      <li><b>Plugin builds</b> are kept in <code>Documents/Compliance/Accounts/03_Tally_Plugins/eCom2Tally</code>.</li>
+    </ul>
+  </div>
+  <figure><a href="img/filemgr.jpg" target="_blank"><img src="img/filemgr.jpg" alt="Tally On Cloud File Manager" loading="lazy"></a><figcaption>Custom Uploads (import files), Bank Statement New (bank files), Export (Tally exports). Leave Data and Backup alone.</figcaption></figure>
+  <div class="callout info"><b>What we do here:</b> monthly, upload the Shiprocket and Snapmint files to Custom Uploads and give the exact file name in option 5 (chapter 13).</div>
+</section>
+
+<section class="chapter" id="s6">
+  <div class="chhead"><span class="chno">S6</span><div><h2>Tally Banking</h2><p class="lede">The last link in every chain. Bank receipts clear the collection ledgers and Amazon Bank; payments clear creditors.</p></div></div>
+  <ul>
+    <li><b>Concept:</b> the statement is imported line by line. Each line is matched to an existing voucher, or a Receipt or Payment is created against the right ledger.</li>
+    <li><b>Routing:</b> Easebuzz, Snapmint and Shiprocket credits → their Collection ledger. Amazon credits → <code>Amazon Bank</code>. Supplier payments → the supplier.</li>
+    <li><b>Rule:</b> anything unknown is named to Hargun. Don't park it in Suspense, which already holds ₹12.6 L.</li>
+    <li><b>Format:</b> Central Bank Excel needs headings on row 14. Upload via File Manager → Bank Statement New.</li>
+  </ul>
+</section>
+
+<section class="chapter" id="s7">
+  <div class="chhead"><span class="chno">S7</span><div><h2>The manual layer</h2><p class="lede">What no plugin does: platform GST invoices, the Amazon expense JV, payroll and adjustments.</p></div></div>
+  <ul>
+    <li><b>Platform invoices</b> (Amazon ads and fees, Shiprocket, Easebuzz, Snapmint), as Purchase-Expense against each platform's control ledger (chapter 13, M4).</li>
+    <li><b>Amazon expense JV</b> monthly: Dr Amazon Expenses (Creditors), Cr Cost of Advertising and settlement-posted FBA heads (chapter 6).</li>
+    <li><b>GST set-off and payment</b> journals monthly (chapter 7, query to the CA).</li>
+  </ul>
+</section>
+
+<section class="partband" id="p1"><p class="eyebrow">Part I</p><h2>How the books are built</h2><p>Entity, ledgers, voucher types, and the accounting for each channel, GST, TDS/TCS and banks.</p></section>
+<!-- 1 -->
+<section class="chapter" id="c1">
+  <div class="chhead"><span class="chno">01</span><div><h2>Entity, registrations, systems</h2><p class="lede">One company in Tally Prime, five GST registrations, four systems feeding it.</p></div></div>
+  <div class="tw"><table>
+    <tr><th>Item</th><th>Detail</th></tr>
+    <tr><td>Company</td><td>Heatronics Medical Devices Pvt Ltd · CIN U31900UP2022PTC175309 · Udyam UP-28-0059978 (Micro, Mfg)</td></tr>
+    <tr><td>Books</td><td>Tally Prime (Silver, single user) on Tally On Cloud (Thakur Hardsoft). FY 2026-27 from 1-Apr-26. Earlier years are in Busy.</td></tr>
+    <tr><td>GST registrations</td><td><b>Uttar Pradesh</b> (principal; Tranzact and Shopify billing) · Haryana · Karnataka · Maharashtra · Telangana (Amazon FBA locations)</td></tr>
+    <tr><td>Main product</td><td>hCore heat therapy devices, HSN 90211000, GST 5%. Most inputs and services at 18%, so the business is inverted-duty.</td></tr>
+  </table></div>
+  <div class="tw"><table>
+    <tr><th>System</th><th>Creates in Tally</th><th>Route</th><th>Frequency</th></tr>
+    <tr><td>Tranzact (ERP)</td><td>Sales, purchases, CN, DN, TDS journals for invoices we raise and bills we receive</td><td>Approve in Tranzact → TranZact Chrome plugin</td><td>Daily</td></tr>
+    <tr><td>eCom2Tally plugin (tally-integration.in)</td><td>Shopify sales; Easebuzz, Snapmint, Shiprocket settlements; all Amazon vouchers</td><td>API (Shopify, Easebuzz) or uploaded reports (Amazon, Snapmint, Shiprocket)</td><td>Daily (API) / monthly (reports)</td></tr>
+    <tr><td>Bank statements</td><td>Receipts and payments</td><td>Excel import in Tally Banking</td><td>Month end</td></tr>
+    <tr><td>Manual</td><td>Platform fee invoices (Purchase-Expense), Amazon expense JV, payroll, other journals</td><td>Accountant</td><td>Monthly</td></tr>
+  </table></div>
+</section>
+
+<!-- 2 -->
+<section class="chapter" id="c2">
+  <div class="chhead"><span class="chno">02</span><div><h2>Chart of accounts: the groups that matter</h2><p class="lede">The channel control accounts sit under Sundry Debtors as sub-groups. Fee and ad ledgers sit under Indirect Expenses.</p></div></div>
+  <div class="tree">Sundry Debtors
+├─ D2C Debtors
+│   ├─ Shopify Prepaid Receivable      ← Shopify prepaid sales
+│   ├─ Shopify COD Receivable          ← Shopify COD sales
+│   ├─ Easebuzz Collection A/c         ← Easebuzz payouts (clearing)
+│   ├─ Snapmint Collection             ← Snapmint payouts (clearing)
+│   └─ ShipRocket Collection           ← COD remittances (clearing) + all Shiprocket freight
+├─ Amazon Debtors
+│   ├─ Amazon Seller A/c               ← MTR sales
+│   ├─ Amazon Settlement               ← settlement net
+│   └─ Amazon Bank                     ← payout initiated, not yet in bank
+├─ Flipkart Debtors
+└─ (B2B parties from Tranzact)
+Sundry Creditors
+├─ Amazon Creditors → Amazon Expenses (Creditors)   ← Amazon fee/ad invoices
+├─ Service Creditors / Manf. Employees / Office Employee
+Sales Accounts
+├─ D2C Sales → Shopify Sales
+├─ Ecommerce Sales → Amazon Sales
+├─ OEM Sales · Offline Sales (GT Dealer / Retailer, Physio, B2C Offline) · Quick Commerce → Blinkit
+└─ Stock Transfers → Sales-STR-&lt;STATE&gt;          (mirrored by Purchase-STR-&lt;STATE&gt;)
+Indirect Expenses
+├─ Channel Fees &amp; Commissions → Amazon / Blinkit / D2C fees (Shiprocket, Easebuzz, Snapmint)
+├─ Sales &amp; Marketing → Ecommerce Marketing → Amazon Ads  ·  D2C Marketing (Meta, Google)
+└─ (root) Cost of Advertising, FBA … ← created by the Amazon settlement import
+Bank OD A/c → Cash Credit Limit - [Central Bank]      Bank Accounts → ICICI CC, HDFC, Central Current, Easebuzz Wire
+Duties &amp; Taxes → GST Input · GST Output · GST Stock Transfer (state-wise) · TDS Payable (by section) · GST Payable (by state)
+Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) · Suspense</div>
+</section>
+
+<!-- 3 -->
+<section class="chapter" id="c3">
+  <div class="chhead"><span class="chno">03</span><div><h2>Voucher type catalogue</h2><p class="lede">Every voucher type in use, who creates it, and its standard posting.</p></div></div>
+  <div class="tw"><table>
+    <tr><th>Voucher type</th><th>Created by</th><th>Dr</th><th>Cr</th></tr>
+    <tr><td>Sales / Purchase / Credit Note / Debit Note</td><td>Tranzact plugin</td><td colspan="2">Party ↔ ledger by Tranzact document series (Ch 4)</td></tr>
+    <tr><td>Journal (TDS split)</td><td>Tranzact plugin</td><td class="dr">Supplier</td><td class="cr">TDS Payable - 194C</td></tr>
+    <tr><td>Shopify Sales</td><td>eCom2Tally (API)</td><td class="dr">Shopify Prepaid / COD Receivable</td><td class="cr">Shopify Sales + GST</td></tr>
+    <tr><td>Shopify Credit Note</td><td>eCom2Tally (API)</td><td class="dr">Shopify Sales + GST</td><td class="cr">Shopify Prepaid / COD Receivable</td></tr>
+    <tr><td>Journal (Easebuzz)</td><td>eCom2Tally (API)</td><td class="dr">Easebuzz Collection A/c; PG Transaction Fee - Easebuzz</td><td class="cr">Shopify Prepaid Receivable</td></tr>
+    <tr><td>Journal / SnapMint Journal</td><td>eCom2Tally (file)</td><td class="dr">Snapmint Collection</td><td class="cr">Shopify Prepaid Receivable</td></tr>
+    <tr><td>Journal (Shiprocket COD)</td><td>eCom2Tally (file)</td><td class="dr">ShipRocket Collection</td><td class="cr">Shopify COD Receivable</td></tr>
+    <tr><td>Sales-Amazon-&lt;STATE&gt;</td><td>eCom2Tally (MTR)</td><td class="dr">Amazon Seller A/c</td><td class="cr">Amazon Sales + &lt;STATE&gt; GST</td></tr>
+    <tr><td>Credit Note-Amazon-&lt;STATE&gt;</td><td>eCom2Tally (MTR)</td><td class="dr">Amazon Sales + GST</td><td class="cr">Amazon Seller A/c</td></tr>
+    <tr><td>Sales-STR / Purchase-STR</td><td>eCom2Tally (STR)</td><td colspan="2">Inter-GSTIN stock transfer, both sides</td></tr>
+    <tr><td>Amazon Settlement</td><td>eCom2Tally (Settlement)</td><td class="dr">Amazon Settlement; Cost of Advertising</td><td class="cr">Amazon Seller A/c</td></tr>
+    <tr><td>Amazon Commission</td><td>eCom2Tally (Settlement)</td><td class="dr">Amazon Expenses (Creditors)</td><td class="cr">Amazon Seller A/c</td></tr>
+    <tr><td>Amazon TDS-TCS</td><td>eCom2Tally (Settlement)</td><td class="dr">TDS (Amazon); TCS-IGST/CGST/SGST (Amazon)</td><td class="cr">Amazon Seller A/c</td></tr>
+    <tr><td>Amazon Bank Transfer</td><td>eCom2Tally (Settlement)</td><td class="dr">Amazon Bank</td><td class="cr">Amazon Settlement</td></tr>
+    <tr><td>Purchase-Expense</td><td>Accountant</td><td class="dr">Fee / ad ledger + Input GST</td><td class="cr">Platform control account</td></tr>
+    <tr><td>Receipt / Payment</td><td>Bank import</td><td colspan="2">Bank ↔ control account / party</td></tr>
+  </table></div>
+</section>
+
+<!-- 4 -->
+<section class="chapter" id="c4">
+  <div class="chhead"><span class="chno">04</span><div><h2>Tranzact: B2B, offline and purchases</h2><p class="lede">Everything Heatronics invoices itself (OEM, GT, MT, Physio, B2C offline, Blinkit, Amazon 3P via Supernode) and every supplier bill.</p></div></div>
+  <div class="spec">
+    <dl class="facts">
+      <div><dt>Source</dt><dd>Tranzact invoices, bills, CN/DN</dd></div>
+      <div><dt>Posted by</dt><dd>TranZact Chrome plugin after approval</dd></div>
+      <div><dt>Frequency</dt><dd>Daily</dd></div>
+      <div><dt>Ledger choice</dt><dd>By document series (table below)</dd></div>
+      <div><dt>Control</dt><dd>Party ledgers (debtors/creditors)</dd></div>
+      <div><dt>GST</dt><dd><code>IGST/CGST/SGST Output - 5%</code>…; inputs <code>… Input - 18%</code>…</dd></div>
+      <div><dt>TDS</dt><dd>Split in Tranzact on service bills → journal to <code>TDS Payable - 194C</code></dd></div>
+      <div><dt>Recon</dt><dd>Tranzact sales/purchase register = Tally ledgers, by series</dd></div>
+    </dl>
+    <div class="jes">
+      <div class="je"><h4>Sale (e.g. GT Dealer Series)<span>Sales</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Dealer (party)</span><span class="a">gross</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">GT - Dealer Sales</span><span class="a">taxable</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">CGST/SGST or IGST Output - 2.5/5%</span><span class="a">GST</span></div></div>
+      <div class="je"><h4>Service bill + TDS split (Ravi Teleinfomatics)<span>Purchase + Journal</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Job Work Charges + GST Input</span><span class="a">1,01,374.27</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Ravi Teleinfomatics</span><span class="a">1,01,374.27</span></div>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Ravi Teleinfomatics</span><span class="a">1,718.21</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">TDS Payable - 194C (Contractors), 2% on pre-GST value</span><span class="a">1,718.21</span></div></div>
+    </div>
+  </div>
+  <div class="tw"><table>
+    <tr><th>Series</th><th>Sales ledger</th><th>Series</th><th>Sales ledger</th></tr>
+    <tr><td>OEM Sales Series</td><td><code>OEM Sales</code></td><td>B2C Series</td><td><code>B2C Offline Sales</code></td></tr>
+    <tr><td>GT Dealer / Retailer / CNF</td><td><code>GT - Dealer / Retailer / CNF Sales</code></td><td>MT Sales Series</td><td><code>MT Sales</code></td></tr>
+    <tr><td>Physio Channel Series</td><td><code>Physio Channel Sales</code></td><td>Blinkit Sales Series</td><td><code>Blinkit Sales</code></td></tr>
+    <tr><td>Internal Transfer Series</td><td><code>Internal Transfer Sales</code></td><td>Purchases: goods / service</td><td><code>RM Purchases</code> / <code>Job Work Charges</code></td></tr>
+  </table></div>
+  <div class="callout warn"><b>Known gaps:</b> no series rule for Supernode (Amazon 3P), whose debtor is ₹2.93 L. Every service bill posts to Job Work Charges. "Mark Paid" and the TCS ledgers point to ledgers that don't exist in Tally (Ch 11).</div>
+</section>
+
+<!-- 5 -->
+<section class="chapter" id="c5">
+  <div class="chhead"><span class="chno">05</span><div><h2>Shopify D2C: Easebuzz, Snapmint, Shiprocket</h2><p class="lede">One sale, two possible receivables, three possible collectors. Each payout clears the order by bill reference.</p></div></div>
+  <div class="flowline"><span class="p">Shopify order</span><span class="ar">Shopify Sales →</span><span class="p c">Prepaid Receivable</span><span class="ar">Journal →</span><span class="p c">Easebuzz / Snapmint Collection</span><span class="ar">Receipt →</span><span class="p b">Central Bank CC</span></div>
+  <div class="flowline"><span class="p">Shopify order (COD)</span><span class="ar">Shopify Sales →</span><span class="p c">COD Receivable</span><span class="ar">Journal →</span><span class="p c">ShipRocket Collection</span><span class="ar">Receipt + freight invoices →</span><span class="p b">Central Bank CC / Freight</span></div>
+  <div class="spec">
+    <dl class="facts">
+      <div><dt>Source</dt><dd>Shopify API (orders, refunds); Easebuzz API; Snapmint and Shiprocket monthly reports</dd></div>
+      <div><dt>Frequency</dt><dd>Shopify + Easebuzz daily; Snapmint + Shiprocket monthly</dd></div>
+      <div><dt>Match key</dt><dd>Prepaid: <code>pg:</code> tag ↔ Easebuzz <code>bank_transaction_id</code>. COD: <code>HTR-&lt;order&gt;-D2C</code> ↔ Shiprocket <code>id</code></dd></div>
+      <div><dt>Control</dt><dd>Prepaid / COD Receivable; Easebuzz / Snapmint / ShipRocket Collection</dd></div>
+      <div><dt>GST</dt><dd>Output <code>IGST 5.00%</code> / <code>CGST 2.500%</code> / <code>SGST 2.500%</code> (UP GSTIN). Prices GST-inclusive.</dd></div>
+      <div><dt>Fees</dt><dd>PG fee in the settlement journal; Shiprocket freight and Snapmint fees from invoices</dd></div>
+      <div><dt>Recon</dt><dd>Tally Shopify Sales vs Shopify sales report; payouts vs gateway dashboards; collections vs bank</dd></div>
+    </dl>
+    <div class="jes">
+      <div class="je"><h4>Easebuzz payout (Apr-26)<span>Journal PTGHF6MZ1B</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Easebuzz Collection A/c</span><span class="a">10,030.43</span></div>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">PG Transaction Fee - Easebuzz</span><span class="a">114.02</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Shopify Prepaid Receivable</span><span class="a">10,144.44</span></div></div>
+      <div class="je"><h4>Shiprocket COD remittance (Apr-26)<span>Journal 1</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">ShipRocket Collection</span><span class="a">24,176.20</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Shopify COD Receivable (HTR-18836-D2C, HTR-18841-D2C …)</span><span class="a">24,176.20</span></div></div>
+      <div class="je"><h4>Shiprocket freight invoice, COD and prepaid<span>Purchase-Expense</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Freight Charges (Shiprocket) / Forward Delivery + GST Input</span><span class="a">invoice</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">ShipRocket Collection</span><span class="a">invoice</span></div></div>
+    </div>
+  </div>
+  <div class="tgrid">
+    <div class="tacc"><div class="t">Shopify Prepaid Receivable</div><div class="b"><div><span class="lab">DR</span>Prepaid sales<br>36.78 L</div><div><span class="lab">CR</span>Easebuzz + Snapmint payouts, refunds<br>63.46 L</div></div><div class="bal">Should be: last 2–3 days, Dr · <b style="color:var(--bad)">Is: 26.68 L Cr</b></div></div>
+    <div class="tacc"><div class="t">Easebuzz Collection A/c</div><div class="b"><div><span class="lab">DR</span>Opening 12.02 L<br>Payout journals 59.77 L</div><div><span class="lab">CR</span>Bank receipts, invoice<br>31.55 L</div></div><div class="bal">Should be: 1–2 days · <b style="color:var(--bad)">Is: 40.24 L Dr</b></div></div>
+    <div class="tacc"><div class="t">ShipRocket Collection</div><div class="b"><div><span class="lab">DR</span>COD remittances<br>31.50 L</div><div><span class="lab">CR</span>Bank + all freight invoices<br>35.45 L</div></div><div class="bal">Should be: ≈ 0 · <b style="color:var(--bad)">Is: 3.96 L Cr</b></div></div>
+  </div>
+  <p style="font-size:13px;color:var(--muted)">Apr-26 to 6-Dec-26 (TB). Opening on 1-Apr was 0 except Easebuzz.</p>
+</section>
+
+<!-- 6 -->
+<section class="chapter" id="c6">
+  <div class="chhead"><span class="chno">06</span><div><h2>Amazon</h2><p class="lede">Amazon issues the sales invoices (MTR). Money moves Seller A/c → Settlement → Amazon Bank → bank. Fees and ads are deducted at source, and Amazon also sends GST invoices for them.</p></div></div>
+  <div class="flowline"><span class="p">MTR B2C/B2B</span><span class="ar">Sales-Amazon-STATE →</span><span class="p c">Amazon Seller A/c</span><span class="ar">Amazon Settlement →</span><span class="p c">Amazon Settlement</span><span class="ar">Bank Transfer →</span><span class="p c">Amazon Bank</span><span class="ar">Receipt →</span><span class="p b">Central Bank CC</span></div>
+  <div class="spec">
+    <dl class="facts">
+      <div><dt>Source</dt><dd>MTR-B2C, MTR-B2B, STR (GST Monthly Reports); Settlement = Transaction report (Reports Repository)</dd></div>
+      <div><dt>Frequency</dt><dd>Monthly; one import per report type</dd></div>
+      <div><dt>GSTINs</dt><dd>Separate voucher per GSTIN: HR, KA, MH, TS, UP. Voucher types and GST ledgers carry the state suffix.</dd></div>
+      <div><dt>Control</dt><dd>Amazon Seller A/c, Amazon Settlement, Amazon Bank, Amazon Expenses (Creditors)</dd></div>
+      <div><dt>Fees</dt><dd>Order fees: Amazon Commission → creditor. Ads and FBA charges: Settlement → <code>Cost of Advertising</code> etc. (needs the monthly JV)</dd></div>
+      <div><dt>Invoices</dt><dd>Fees: Tax Document Library. Ads: Advertising Invoice History. Booked as Purchase-Expense against the creditor.</dd></div>
+      <div><dt>Recon</dt><dd>MTR totals = Amazon Sales; each settlement closes to 0; Amazon Bank = in-transit only; creditor ≈ 0 after JV</dd></div>
+    </dl>
+    <div class="jes">
+      <div class="je"><h4>MTR sale (Apr-26)<span>Sales-Amazon-HARYANA DEL5-1</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Seller A/c</span><span class="a">1,100.00</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Sales</span><span class="a">1,047.62</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">IGST Output-HARYANA</span><span class="a">52.38</span></div></div>
+      <div class="je"><h4>Settlement with ad deduction (Apr-26)<span>Amazon Settlement</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Cost of Advertising</span><span class="a">48,085.79</span></div>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Seller A/c</span><span class="a">4,268.50</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Settlement</span><span class="a">52,354.29</span></div></div>
+      <div class="je"><h4>Payout<span>Amazon Bank Transfer → Receipt</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Bank → then Central Bank CC</span><span class="a">44,942.53</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Settlement → then Amazon Bank</span><span class="a">44,942.53</span></div></div>
+    </div>
+  </div>
+  <h3>The monthly Amazon expense JV</h3>
+  <p>Ads and some FBA charges reach the P&amp;L twice. The settlement posts the gross to <code>Cost of Advertising</code>. The GST invoice books the same spend to <code>Amazon Ads</code> + IGST + TDS against <code>Amazon Expenses (Creditors)</code>. As the plugin partner advised, a monthly JV moves the settlement-side expense onto the creditor. The expense then stays once, with GST and TDS split, and the creditor is treated as settled.</p>
+  <div class="spec">
+    <div class="jes">
+      <div class="je"><h4>Ads invoice (Apr-26)<span>Purchase-Expense</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Ads</span><span class="a">4,54,260.69</span></div>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">IGST Input - 18%</span><span class="a">81,766.92</span></div>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">TDS (Amazon), recoverable</span><span class="a">9,085.21</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">TDS Payable - 194C (Contractors)</span><span class="a">9,085.21</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">5,36,027.61</span></div></div>
+    </div>
+    <div class="jes">
+      <div class="je"><h4>Monthly JV (template: Journal 53, 30-Apr-26)<span>Journal</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">5,82,428.14</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Cost of Advertising</span><span class="a">5,36,027.65</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">FBA Inbound Pickup Service</span><span class="a">33,680.50</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">FBA storage fee - Amazon (settlement part)</span><span class="a">12,719.99</span></div></div>
+      <div class="callout ok">After the JV: <code>Cost of Advertising</code> = 0; creditor ≈ 0, leaving only timing.</div>
+    </div>
+  </div>
+  <figure><img src="img/jv53.jpg" alt="Journal 53 in Tally" loading="lazy"><figcaption>Journal 53 as passed in Tally.</figcaption></figure>
+  <div class="tgrid">
+    <div class="tacc"><div class="t">Amazon Expenses (Creditors)</div><div class="b"><div><span class="lab">DR</span>Commission 29.04 L incl. JV (Apr only)</div><div><span class="lab">CR</span>Invoices 63.65 L</div></div><div class="bal">Should be ≈ 0 · <b style="color:var(--bad)">Is: 34.61 L Cr</b></div></div>
+    <div class="tacc"><div class="t">Cost of Advertising</div><div class="b"><div><span class="lab">DR</span>Settlements 39.93 L</div><div><span class="lab">CR</span>Apr JV 5.36 L</div></div><div class="bal">Should be 0 · <b style="color:var(--bad)">Is: 34.57 L Dr</b></div></div>
+    <div class="tacc"><div class="t">Amazon Seller A/c</div><div class="b"><div><span class="lab">DR</span>MTR sales 102.65 L</div><div><span class="lab">CR</span>Settlements, fees, CN 106.64 L</div></div><div class="bal">Should be small Dr · <b style="color:var(--bad)">Is: 3.99 L Cr</b></div></div>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="chapter" id="c7">
+  <div class="chhead"><span class="chno">07</span><div><h2>GST</h2><p class="lede">Three ledger families, five registrations, inverted duty.</p></div></div>
+  <div class="tw"><table>
+    <tr><th>Source</th><th>Output ledgers</th><th>GSTIN</th><th>GSTR-1 source</th></tr>
+    <tr><td>Tranzact</td><td><code>IGST/CGST/SGST Output - 5%</code> (also 12%, 18%)</td><td>UP</td><td>Tranzact sales register</td></tr>
+    <tr><td>Shopify</td><td><code>IGST 5.00%</code>, <code>CGST 2.500%</code>, <code>SGST 2.500%</code></td><td>UP</td><td>Shopify sales (Tally)</td></tr>
+    <tr><td>Amazon MTR</td><td><code>IGST/CGST/SGST Output-&lt;STATE&gt;</code></td><td>HR, KA, MH, TS, UP</td><td>MTR B2C / B2B per GSTIN</td></tr>
+    <tr><td>Amazon STR</td><td><code>GST Stock Transfer</code> group, state-wise</td><td>between GSTINs</td><td>STR</td></tr>
+  </table></div>
+  <ul>
+    <li><b>Input:</b> <code>GST Input</code> has built up to ₹63.7 L (mostly IGST 18% on services and ads, CGST/SGST 9%). With 5% output, credit accumulates. This is relevant to an inverted-duty refund (a <code>GST Refund</code> ledger exists).</li>
+    <li><b>TCS by Amazon (sec 52):</b> <code>TCS-IGST/CGST/SGST (Amazon)</code>, ₹43,544. Claim it in the electronic cash ledger per GSTIN.</li>
+    <li><b>Monthly set-off:</b> no set-off or payment journals appear in the books. The <code>GST Payable (&lt;state&gt;)</code> ledgers show about ₹1.01 Cr with no movement.</li>
+    <li><b>Unexpected states:</b> <code>IGST Output-DELHI</code>, <code>-GUJARAT</code> and <code>Purchase-STR-DELHI/GUJARAT</code> exist without a registration there.</li>
+  </ul>
+</section>
+
+<!-- 8 -->
+<section class="chapter" id="c8">
+  <div class="chhead"><span class="chno">08</span><div><h2>TDS and TCS</h2></div></div>
+  <div class="tw"><table>
+    <tr><th>Flow</th><th>Section</th><th>Booked as</th><th>Ledger</th></tr>
+    <tr><td>Job work / contractor bills</td><td>194C</td><td>TDS split in Tranzact → journal</td><td><code>TDS Payable - 194C (Contractors)</code></td></tr>
+    <tr><td>Professional, rent, commission</td><td>194J / 194I / 194H</td><td>Manual</td><td><code>TDS Payable - 194J / 194I / 194H</code></td></tr>
+    <tr><td>Amazon ads</td><td>194C (CA to confirm)</td><td>In the ads invoice. Amazon has already been paid gross, so the TDS is also a recoverable from Amazon.</td><td>Cr <code>TDS Payable - 194C</code> / Dr <code>TDS (Amazon)</code></td></tr>
+    <tr><td>Amazon deducts on our sales</td><td>194-O</td><td>Amazon TDS-TCS voucher</td><td>Dr <code>TDS (Amazon)</code></td></tr>
+    <tr><td>Amazon collects on our sales</td><td>GST TCS (sec 52)</td><td>Amazon TDS-TCS voucher</td><td><code>TCS-IGST/CGST/SGST (Amazon)</code></td></tr>
+  </table></div>
+  <div class="callout warn"><b>One ledger, two kinds of credit:</b> <code>TDS (Amazon)</code> (₹77,802) holds both the 194-O credit (claimed via 26AS) and the ads TDS Amazon must refund. A separate <code>TDS Receivable - 194C (Ads)</code> ledger already exists. Use it for the ads part, so each balance can be reconciled on its own.</div>
+  <p><b>Amazon refund of ads TDS:</b> file 26Q on time → upload Form 16A on Seller Central → Amazon credits it in a later settlement → clear <code>TDS Receivable - 194C (Ads)</code>.</p>
+</section>
+
+<!-- 9 -->
+<section class="chapter" id="c9">
+  <div class="chhead"><span class="chno">09</span><div><h2>Banks</h2></div></div>
+  <div class="tw"><table>
+    <tr><th>Ledger</th><th>Group</th><th>Role</th><th class="n">Closing (TB)</th></tr>
+    <tr><td><code>Cash Credit Limit - [Central Bank]</code></td><td>Bank OD A/c</td><td>Operating; every channel payout lands here</td><td class="n">28.00 L</td></tr>
+    <tr><td><code>ICICI Bank  A/C - CC</code></td><td>Bank Accounts <span class="pill warn">check</span></td><td>Payments; net credits ₹1.22 Cr, so likely overdrawn → Bank OD</td><td class="n">1.22 Cr</td></tr>
+    <tr><td><code>HDFC Bank  A/C</code></td><td>Bank Accounts</td><td>Payments</td><td class="n">1.81 L</td></tr>
+    <tr><td><code>Central Current Account</code> · <code>Easebuzz Wire A/C</code></td><td>Bank Accounts</td><td>Low use</td><td class="n">— · 0.10 L</td></tr>
+  </table></div>
+  <p>Statements are imported at month end (File Manager → Bank Statement New → Tally Banking). The Central Bank file needs its headings on row 14.</p>
+</section>
+
+<section class="partband" id="p2"><p class="eyebrow">Part II</p><h2>Operating the books: calendar and tasks</h2><p>Every recurring task, step by step, with the real screens and the links to open. Click a screenshot to view it full size.</p></section>
+<section class="chapter" id="c13">
+  <div class="chhead"><span class="chno">10</span><div><h2>Operating calendar</h2><p class="lede">What is done when: daily, weekly, monthly, quarterly.</p></div></div>
+<div class="opblock">
+    <header><h3>The calendar</h3></header>
+    <div class="tw"><table>
+      <tr><th>When</th><th>Task</th><th>Section</th></tr>
+      <tr><td>Every working day</td><td>Tranzact: split TDS, approve, push to Tally</td><td><a href="#c14">D1</a></td></tr>
+      <tr><td>Every working day</td><td>Shopify orders, then Easebuzz payouts, for yesterday</td><td><a href="#c14">D2</a></td></tr>
+      <tr><td>Every Monday</td><td>Easebuzz count, Tranzact rejects, Suspense, Tally date</td><td><a href="#c15">W1</a></td></tr>
+      <tr><td>By Day 3</td><td>Daily work caught up to month end</td><td>D1, D2</td></tr>
+      <tr><td>By Day 5</td><td>Amazon, Shiprocket, Snapmint imported</td><td><a href="#c16">M1</a>–<a href="#c16">M3</a></td></tr>
+      <tr><td>By Day 7</td><td>TDS paid for last month</td><td><a href="#c16">M5</a></td></tr>
+      <tr><td>By Day 10</td><td>GSTR-1 data to the CA (due 11th)</td><td>M5</td></tr>
+      <tr><td>By Day 12</td><td>HDFC, ICICI, Central Bank reconciled</td><td>M5</td></tr>
+      <tr><td>By Day 15</td><td>Platform invoices booked + Amazon expense JV</td><td><a href="#c16">M4</a></td></tr>
+      <tr><td>By Day 20</td><td>Clearing ledgers checked · GSTR-3B · close</td><td>M5</td></tr>
+      <tr><td>Quarterly</td><td>26Q, Form 16A to Amazon</td><td><a href="#c17">Q</a></td></tr>
+    </table></div>
+    <div class="callout warn"><b class="k">Before any import:</b> check the date in Tally's top bar is <b>today</b>. On 17-Oct it read 6-Dec-2026, and every import form defaulted to December.</div>
+  </div>
+</section>
+<section class="chapter" id="c14">
+  <div class="chhead"><span class="chno">11</span><div><h2>Daily tasks</h2><p class="lede">Every working day, about 15 minutes in all.</p></div></div>
+<div class="opblock">
+    <header><span class="tag daily">Daily · D1 · ~10 min</span><h3>Tranzact → Tally</h3></header>
+    <p class="done">Done when: Pending and Approved both read 0 on Document Approval and on Journal Entry.</p>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Split TDS on every service bill</h4>
+      <div class="btns"><a class="btn" href="https://app.letstranzact.com/v3/payments/?section=ledger_consolidated" target="_blank" rel="noopener">Ledger (Consolidated) ↗</a></div>
+      <ol><li>Filter Document Type = Counter-party, Status = Payable.</li><li>Find each <b>service</b> bill (job work, contractors, fees). Search by supplier if needed.</li><li>Click the split icon in Actions → Split Options = <b>TDS</b>.</li><li>Enter <b>TDS %</b>. Job work = <b>2%</b>, worked on the value before GST. The field starts at 0, so never save at 0.</li><li>Save. The Split Amount column now shows the TDS, and a journal entry is created.</li></ol>
+      <figure><a href="img/tds_list.jpg" target="_blank"><img src="img/tds_list.jpg" alt="Consolidated ledger filtered to Ravi Teleinfomatics with split amounts" loading="lazy"></a><figcaption>Consolidated ledger, one supplier. Split Amount = TDS already split.</figcaption></figure>
+      <div class="pair">
+        <figure><a href="img/tds_options.jpg" target="_blank"><img src="img/tds_options.jpg" alt="Split Details dialog with split options list showing TDS" loading="lazy"></a><figcaption>Split Options → TDS.</figcaption></figure>
+        <figure><a href="img/tds_split.jpg" target="_blank"><img src="img/tds_split.jpg" alt="Split Details with TDS percent field" loading="lazy"></a><figcaption>Enter the TDS % → Save.</figcaption></figure>
+      </div>
+    </div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Approve everything pending</h4>
+      <div class="btns"><a class="btn" href="https://app.letstranzact.com/v3/tally-integration/?section=document_approval" target="_blank" rel="noopener">Document Approval ↗</a><a class="btn" href="https://app.letstranzact.com/v3/tally-integration/?section=journal_entry" target="_blank" rel="noopener">Journal Entry ↗</a></div>
+      <ol><li>Document Approval → Status = Pending → ✓ each, or Bulk Approval.</li><li>Journal Entry → approve the TDS journals from step 1.</li><li>Rejected? Fix it in Tranzact and approve again. Never type it into Tally by hand.</li></ol>
+      <figure><a href="img/tz_approval.jpg" target="_blank"><img src="img/tz_approval.jpg" alt="Document Approval with Pending 1, Approved 2, Rejected 2, Completed 789" loading="lazy"></a><figcaption>Document Approval: the counts at the top are your checklist.</figcaption></figure>
+    </div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Open Tally, then the TranZact Chrome plugin</h4>
+      <ol><li>Log in to Tally On Cloud and open the company. <b>The plugin only works while Tally is open.</b></li><li>Chrome → TranZact – Tally Integration extension.</li><li>Status must read <b>Connected</b> (Tally 3.0 ticked). If it says Connecting…, click Reconnect.</li></ol>
+      <figure><a href="img/tz_plugin.jpg" target="_blank"><img src="img/tz_plugin.jpg" alt="TranZact plugin connect screen, server details hidden" loading="lazy"></a><figcaption>Connect screen. Server details hidden here.</figcaption></figure>
+    </div></div>
+    <div class="step"><div class="no">4</div><div class="body"><h4>Send Voucher Data → Direct Integration</h4>
+      <div class="pair">
+        <figure><a href="img/tzp_send.jpg" target="_blank"><img src="img/tzp_send.jpg" alt="Choose Send Voucher Data to Tally" loading="lazy"></a><figcaption>Choose <b>Send Voucher Data to Tally</b>.</figcaption></figure>
+        <figure><a href="img/tzp_direct.jpg" target="_blank"><img src="img/tzp_direct.jpg" alt="Choose Direct Integration" loading="lazy"></a><figcaption>Then <b>Direct Integration</b>, not Excel.</figcaption></figure>
+      </div>
+    </div></div>
+    <div class="step"><div class="no">5</div><div class="body"><h4>Push all five voucher types, one at a time</h4>
+      <p>Do <b>Sales Invoice → Purchase Invoice → Credit Note → Debit Note → Journal Entry</b>. PV, RV and SM are not used.</p>
+      <figure><a href="img/tzp_vtype.jpg" target="_blank"><img src="img/tzp_vtype.jpg" alt="Voucher type grid" loading="lazy"></a><figcaption>Pick a voucher type.</figcaption></figure>
+      <ol><li>Check TDL &amp; Duplicate Vouchers = <b>Yes</b>.</li><li><b>Refresh</b> to fetch the approved documents.</li><li>Tick the header box to select all → <b>Send to Tally</b>.</li><li><b>Update TZ Status</b> → Back → next voucher type.</li></ol>
+      <figure><a href="img/tzp_register.jpg" target="_blank"><img src="img/tzp_register.jpg" alt="Sales Register direct API screen with Send to Tally and Update TZ Status" loading="lazy"></a><figcaption>Refresh · select all · Send to Tally · Update TZ Status.</figcaption></figure>
+    </div></div>
+    <div class="step"><div class="no">6</div><div class="body"><h4>Check</h4><p>Back in Tranzact, Pending = 0 and Approved = 0 on both tabs. Everything else is under Completed.</p></div></div>
+  </div><div class="opblock">
+    <header><span class="tag daily">Daily · D2 · ~5 min</span><h3>Shopify orders, then Easebuzz payouts</h3></header>
+    <p class="done">Done when: yesterday's orders and payouts are in Tally.</p>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Open option 3</h4><p>Gateway of Tally → <b>http://tally-integRation.in</b> → <b>3 : E-Store, Pay Gateways &amp; Courier</b>.</p></div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Shopify orders first</h4>
+      <dl class="kv"><dt>Platform Type</dt><dd>Online-Store</dd><dt>Platform</dt><dd>Shopify-Orders</dd><dt>Status</dt><dd>any</dd><dt>From / To</dt><dd>yesterday / yesterday (D-M-YYYY)</dd></dl>
+      <figure><a href="img/opt3_shopify.jpg" target="_blank"><img src="img/opt3_shopify.jpg" alt="Option 3 form set to Shopify-Orders" loading="lazy"></a><figcaption>These screens showed 1-12-2026 to 31-12-2026. Always overwrite the dates.</figcaption></figure>
+    </div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Then Easebuzz, same dates</h4>
+      <dl class="kv"><dt>Platform Type</dt><dd>Payment-Gateway</dd><dt>Platform</dt><dd>Easebuzz</dd><dt>Status</dt><dd>any</dd><dt>From / To</dt><dd>same as step 2</dd></dl>
+      <figure><a href="img/opt3_easebuzz.jpg" target="_blank"><img src="img/opt3_easebuzz.jpg" alt="Option 3 form set to Easebuzz" loading="lazy"></a><figcaption>Payouts can only clear orders that are already in Tally, so Easebuzz always runs second.</figcaption></figure>
+    </div></div>
+    <div class="callout warn"><b class="k">Never fetch the same Easebuzz dates twice.</b> A second fetch books the payouts again. If a day looks short, check Tally first (Day Book, voucher type Journal, that date) before fetching again.</div>
+  </div>
+</section>
+<section class="chapter" id="c15">
+  <div class="chhead"><span class="chno">12</span><div><h2>Weekly checks</h2><p class="lede">Every Monday. A recommended control, not part of the current routine (today's cadence is daily and monthly).</p></div></div>
+<div class="opblock">
+    <header><span class="tag weekly">Weekly · Monday · ~15 min</span><h3>Weekly checks</h3></header>
+    <div class="tw"><table>
+      <tr><th>Check</th><th>How</th><th>OK when</th></tr>
+      <tr><td>Tally date</td><td>Top bar of Tally</td><td>Today's date</td></tr>
+      <tr><td>Easebuzz payout count</td><td>Last week's Journal vouchers against <code>Easebuzz Collection A/c</code> vs the Easebuzz dashboard settlement list</td><td>Same count, same amounts, no repeats</td></tr>
+      <tr><td>Easebuzz in bank</td><td><code>Easebuzz Collection A/c</code> balance</td><td>About 1–2 days of payouts</td></tr>
+      <tr><td>Tranzact rejects</td><td>Document Approval → Rejected</td><td>0, or each one being fixed</td></tr>
+      <tr><td>Suspense</td><td><code>Suspense</code> ledger</td><td>Nothing new; anything new is named to Hargun</td></tr>
+    </table></div>
+  </div>
+</section>
+<section class="chapter" id="c16">
+  <div class="chhead"><span class="chno">13</span><div><h2>Monthly tasks</h2><p class="lede">Day 1 to Day 20 of the following month.</p></div></div>
+<div class="opblock">
+    <header><span class="tag monthly">Monthly · M1 · by Day 5</span><h3>Amazon: four reports</h3></header>
+    <p class="done">Done when: MTR-B2C, MTR-B2B, STR and Settlement are imported for the month.</p>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Download MTR-B2C, MTR-B2B, STR</h4>
+      <div class="btns"><a class="btn" href="https://sellercentral.amazon.in/mytax/gstreports/monthly" target="_blank" rel="noopener">GST Monthly Reports ↗</a></div>
+      <ol><li>Merchant Tax Report (MTR) + Include Transactions <b>B2C</b> → year, month → Download.</li><li>MTR + <b>B2B</b> → Download.</li><li>Stock Transfer Report (STR) → Download.</li></ol>
+      <figure><a href="img/amz_gst.jpg" target="_blank"><img src="img/amz_gst.jpg" alt="GST Monthly Reports" loading="lazy"></a></figure>
+    </div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Request the Settlement (Transaction) report</h4>
+      <div class="btns"><a class="btn" href="https://sellercentral.amazon.in/payments/reports-repository" target="_blank" rel="noopener">Reports Repository ↗</a></div>
+      <dl class="kv"><dt>Account Type</dt><dd>All (Unified Reports)</dd><dt>Report Type</dt><dd>Transaction</dd><dt>Reporting range</dt><dd>Month → month, year</dd></dl>
+      <p>Request Report → download from the list once it's ready.</p>
+      <figure><a href="img/amz_repo.jpg" target="_blank"><img src="img/amz_repo.jpg" alt="Reports Repository" loading="lazy"></a></figure>
+    </div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Upload all four on the plugin site</h4>
+      <div class="btns"><a class="btn" href="https://tally-integration.in/ecom-user/user-profile" target="_blank" rel="noopener">tally-integration.in ↗</a></div>
+      <ol><li>Enter Marketplace Interface → Upload Files.</li><li>Company Heatronics · E-Commerce Site <b>Amazon</b> · Year · Month.</li><li>Report Type = the file's type → Choose File → Upload. Repeat for each file.</li></ol>
+      <figure class="narrow"><a href="img/plugin_upload.jpg" target="_blank"><img src="img/plugin_upload.jpg" alt="Upload E-Commerce Reports form" loading="lazy"></a></figure>
+    </div></div>
+    <div class="step"><div class="no">4</div><div class="body"><h4>Import into Tally with option 2, one file type at a time</h4>
+      <p>Gateway → tally-integRation.in → <b>2 : E-Com Import</b>. Order: <b>MTR-B2C → MTR-B2B → STR → Settlement</b>.</p>
+      <dl class="kv"><dt>Platform Type</dt><dd>Amazon</dd><dt>File Type</dt><dd>one per run</dd><dt>Rows to Import</dt><dd>00001-10000 (more rows: run again with 10001-20000)</dd><dt>Month &amp; Year</dt><dd>the closing month</dd><dt>Club on PlaceofSupply</dt><dd>False</dd><dt>PAN</dt><dd>pre-filled</dd><dt>GSTIN</dt><dd>All Items → Accept Yes</dd></dl>
+      <div class="pair">
+        <figure><a href="img/amz_imp1.jpg" target="_blank"><img src="img/amz_imp1.jpg" alt="Platform list in Import Data" loading="lazy"></a><figcaption>Platform Type = Amazon.</figcaption></figure>
+        <figure><a href="img/amz_imp2.jpg" target="_blank"><img src="img/amz_imp2.jpg" alt="File type list" loading="lazy"></a><figcaption>File Type list.</figcaption></figure>
+      </div>
+      <figure><a href="img/amz_imp3.jpg" target="_blank"><img src="img/amz_imp3.jpg" alt="Completed import form with Accept prompt" loading="lazy"></a><figcaption>Filled form → Accept? Yes.</figcaption></figure>
+    </div></div>
+    <div class="step"><div class="no">5</div><div class="body"><h4>Check</h4><p><code>Amazon Seller A/c</code> ends the month as a small Dr (sales in the open settlement). <code>Amazon Settlement</code> holds only the open settlement. After the bank import, <code>Amazon Bank</code> holds 1–2 days at most.</p></div></div>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · M2 · by Day 5</span><h3>Shiprocket COD remittances</h3></header>
+    <p class="done">Done when: the month's remittances are imported, and freight invoices booked = Total Deductions from COD.</p>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Download the COD remittance report</h4>
+      <div class="btns"><a class="btn" href="https://app.shiprocket.in/seller/reports/download-reports/instant-reports" target="_blank" rel="noopener">Instant Reports ↗</a><a class="btn" href="https://app.shiprocket.in/seller/remitted/cod-remittance" target="_blank" rel="noopener">COD Remittance ↗</a></div>
+      <ol><li>Instant Reports → COD remittance, date range = the month → download. The file holds two sheets, <i>AWB level report</i> and <i>CRF level report</i>.</li><li>On COD Remittance, note the month's <b>Total Deductions from COD</b>.</li></ol>
+      <figure><a href="img/sr_cod.jpg" target="_blank"><img src="img/sr_cod.jpg" alt="Shiprocket COD Remittance summary" loading="lazy"></a></figure>
+    </div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Name the file</h4><p>Save it as downloaded, renamed <code>YYYY-MM_Mon_Shiprocket_COD_AWB.xls</code>. Don't edit its contents.</p></div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Upload to Custom Uploads</h4><p>Tally On Cloud portal → File Manager → <b>Custom Uploads</b> → File Operations → upload.</p></div></div>
+    <div class="step"><div class="no">4</div><div class="body"><h4>Import with option 5</h4>
+      <dl class="kv"><dt>Menu</dt><dd>5 : Courier Partner (COD)-Reports</dd><dt>Platform</dt><dd>ShipRocket</dd><dt>Folder Path</dt><dd>S:\Custom Uploads\</dd><dt>File Name</dt><dd>retype the exact file name</dd><dt>Sheet Name</dt><dd>AWB level report</dd></dl>
+      <figure><a href="img/opt5_list.jpg" target="_blank"><img src="img/opt5_list.jpg" alt="Option 5 form with platform list" loading="lazy"></a><figcaption>Platform list: iThink Logistic, ShipRocket, SnapMint.</figcaption></figure>
+    </div></div>
+    <div class="step"><div class="no">5</div><div class="body"><h4>Book freight invoices and tie out</h4><p>Book every Shiprocket GST invoice, COD and prepaid freight alike: Dr freight + GST, Cr <code>ShipRocket Collection</code>. The total booked for the month should equal Total Deductions from COD.</p></div></div>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · M3 · by Day 5</span><h3>Snapmint settlements</h3></header>
+    <p class="done">Done when: the month's Snapmint payouts are imported.</p>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Request the report (arrives by email)</h4>
+      <div class="btns"><a class="btn" href="https://emis.snapmint.com/merchants/dashboard" target="_blank" rel="noopener">Snapmint portal ↗</a></div>
+      <ol><li>Reports → <b>Download Merchant Settlement Daily Report</b>.</li><li>Start = 1st, End = last day of the month. Leave UTR blank, enter the accounts email → Submit.</li></ol>
+      <figure><a href="img/snap_dl.jpg" target="_blank"><img src="img/snap_dl.jpg" alt="Snapmint settlement report dialog" loading="lazy"></a></figure>
+    </div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Name and upload</h4><p>Save the emailed file following the existing Custom Uploads convention, e.g. <code>2026-05_May_Snapmint_Group_Settlement_Report.csv</code>, upload to File Manager → Custom Uploads.</p></div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Import with option 5</h4>
+      <dl class="kv"><dt>Platform</dt><dd>SnapMint</dd><dt>Folder Path</dt><dd>S:\Custom Uploads\</dd><dt>File Name</dt><dd>retype this month's file</dd><dt>Sheet Name</dt><dd>Sheet 1</dd></dl>
+      <figure><a href="img/opt5_snapmint.jpg" target="_blank"><img src="img/opt5_snapmint.jpg" alt="Option 5 set to SnapMint" loading="lazy"></a></figure>
+      <div class="callout bad"><b class="k">Wrong-file risk.</b> The form remembers the last file. It was once found with Platform SnapMint and the Amazon file <code>2026SepMonthlyUnifiedTransaction.xlsx</code> in File Name. Importing that would post Amazon data as Snapmint vouchers. Always retype the file name.</div>
+      <figure class="narrow"><a href="img/opt5_wrongfile.jpg" target="_blank"><img src="img/opt5_wrongfile.jpg" alt="Option 5 with SnapMint platform but an Amazon file name" loading="lazy"></a></figure>
+    </div></div>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · M4 · by Day 15</span><h3>Platform invoices and the Amazon expense JV</h3></header>
+    <p class="done">Done when: every platform invoice is booked, the Amazon JV is passed, and <code>Cost of Advertising</code> = 0.</p>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Download the invoices</h4>
+      <div class="btns"><a class="btn" href="https://sellercentral.amazon.in/payments/reports-repository" target="_blank" rel="noopener">Amazon Payments (Advertising Invoice History) ↗</a></div>
+      <ul><li>Amazon ads: Payments → Advertising Invoice History</li><li>Amazon fees: Seller Central → Tax Document Library</li><li>Shiprocket billing · Easebuzz dashboard · Snapmint → Reports → Monthly Invoices</li></ul>
+    </div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Book each invoice as Purchase-Expense</h4><p>Base amount to the fee ledger, GST to Input GST, credit the platform's control ledger. Amazon ads also carry the TDS lines (chapter 8).</p><div class="tw"><table>
+      <tr><th>Platform</th><th>Invoice from</th><th>Dr</th><th>Cr</th></tr>
+      <tr><td>Amazon ads</td><td>Payments → Advertising Invoice History</td><td class="dr">Amazon Ads + IGST Input + TDS (Amazon)</td><td class="cr">Amazon Expenses (Creditors) + TDS Payable - 194C</td></tr>
+      <tr><td>Amazon seller fees</td><td>Tax Document Library</td><td class="dr">Listing Fees / Fixed Closing / FBA Weight Handling / Pick and Pack… + GST</td><td class="cr">Amazon Expenses (Creditors)</td></tr>
+      <tr><td>Amazon fee credit notes</td><td>Tax Document Library</td><td colspan="2">Debit Note: Dr Amazon Expenses (Creditors), Cr fee ledgers + GST</td></tr>
+      <tr><td>Shiprocket</td><td>Shiprocket billing</td><td class="dr">Freight Charges (Shiprocket) / Forward Delivery + GST</td><td class="cr">ShipRocket Collection</td></tr>
+      <tr><td>Easebuzz</td><td>Easebuzz dashboard</td><td class="dr">PG Transaction Fee - Easebuzz + GST</td><td class="cr">Easebuzz Collection A/c</td></tr>
+      <tr><td>Snapmint</td><td>Snapmint portal → Monthly Invoices</td><td class="dr">BNPL Processing Fee - Snapmint + GST</td><td class="cr">Snapmint Collection</td></tr>
+    </table></div></div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Pass the Amazon expense JV</h4>
+      <div class="tw"><table><tr><th>Dr</th><th>Cr</th></tr><tr><td class="dr">Amazon Expenses (Creditors)</td><td class="cr">Cost of Advertising (full month balance)<br>FBA Inbound Pickup Service (settlement amount)<br>FBA storage fee - Amazon (settlement part only)</td></tr></table></div>
+      <p>See <a href="#c6">chapter 6</a> for why. Template: Journal 53, 30-Apr-26.</p>
+    </div></div>
+    <div class="step"><div class="no">4</div><div class="body"><h4>Match to GSTR-2B</h4><p>Tick every invoice against the month's GSTR-2B. If one is missing from 2B, there is no input credit for it, so tell Hargun.</p></div></div>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · M5 · Day 7–20</span><h3>Banks, statutory dates, close</h3></header>
+    <p class="done">Done when: 3 banks reconciled, every ledger below is OK, Hargun signs off.</p>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Import and reconcile the 3 banks</h4><ol><li>Download Excel statements: HDFC, ICICI, Central Bank.</li><li>File Manager → <b>Bank Statement New</b> → upload.</li><li>Tally → Banking → import the statement and reconcile. For the Central Bank file, the column headings must be on <b>row 14</b>.</li></ol></div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Statutory dates</h4><ul><li><b>7th</b>: TDS paid for last month</li><li><b>10th</b>: GSTR-1 data to the CA (due 11th)</li><li><b>20th</b>: GSTR-3B</li></ul></div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Check every clearing ledger</h4>
+      <p>Display More Reports → Account Books → Ledger, or Outstandings → Ledger for bill-wise ageing.</p>
+      <div class="tw"><table>
+        <tr><th>Ledger</th><th>OK if it holds</th><th>Flag to Hargun if</th></tr>
+        <tr><td>Shopify Prepaid Receivable</td><td>last 2–3 days of orders (Dr)</td><td>any Cr balance; order &gt; 10 days</td></tr>
+        <tr><td>Shopify COD Receivable</td><td>COD orders in transit (Dr)</td><td>order &gt; 30 days</td></tr>
+        <tr><td>Easebuzz Collection A/c</td><td>1–2 days of payouts</td><td>balance &gt; 3 days old</td></tr>
+        <tr><td>Snapmint Collection</td><td>payouts not yet in bank</td><td>balance &gt; 3 days old</td></tr>
+        <tr><td>ShipRocket Collection</td><td>COD not yet remitted</td><td>Cr balance; deductions ≠ invoices</td></tr>
+        <tr><td>Amazon Seller A/c</td><td>sales in the open settlement (Dr)</td><td>Cr balance</td></tr>
+        <tr><td>Amazon Settlement</td><td>the open settlement</td><td>closed settlement not at 0</td></tr>
+        <tr><td>Amazon Bank</td><td>1–2 days in transit</td><td>older balance</td></tr>
+        <tr><td>Amazon Expenses (Creditors)</td><td>≈ 0 after the JV</td><td>large Cr: JV missed</td></tr>
+        <tr><td>Cost of Advertising</td><td>0 after the JV</td><td>any balance</td></tr>
+        <tr><td>Suspense</td><td>0</td><td>anything</td></tr>
+      </table></div>
+    </div></div>
+  </div>
+</section>
+<section class="chapter" id="c17">
+  <div class="chhead"><span class="chno">14</span><div><h2>Quarterly tasks and fixes</h2></div></div>
+<div class="opblock">
+    <header><span class="tag">Quarterly</span><h3>Quarterly</h3></header>
+    <ul><li><b>26Q (TDS return)</b> by 31 Jul · 31 Oct · 31 Jan · 31 May. Late filing means Amazon won't refund the TDS on ads.</li><li><b>Form 16A</b> → upload to Seller Central once generated.</li><li><b>TDS refunds from Amazon:</b> check they arrived in settlements. Older than 6 months → raise a Seller Central case.</li></ul>
+  </div><div class="opblock">
+    <header><h3>When things break</h3></header>
+    <div class="tw"><table>
+      <tr><th>Problem</th><th>Fix</th></tr>
+      <tr><td>Import forms show December dates</td><td>Tally's date is wrong. Alt+F2 → today. If it keeps resetting, Hargun raises it with Tally On Cloud (Thakur Hardsoft).</td></tr>
+      <tr><td>TranZact plugin stuck on Connecting…</td><td>Open Tally on cloud first, then Reconnect.</td></tr>
+      <tr><td>Shiprocket / Snapmint import fails</td><td>File in Custom Uploads? Dates right (Shiprocket <code>DD-Mon-YY</code>; Snapmint 27 columns, <code>DD-MM-YYYY</code>)? Sheet name exact (<code>AWB level report</code> / <code>Sheet 1</code>)? File name retyped?</td></tr>
+      <tr><td>Easebuzz payouts missing</td><td>Check Day Book first. Then re-fetch only the missing day. Never repeat a day already in Tally.</td></tr>
+      <tr><td>Order stuck in a receivable</td><td>Option 8 : Order-wise settlement Report → find it → tell Hargun.</td></tr>
+      <tr><td>Tranzact document rejected</td><td>Fix in Tranzact → approve again.</td></tr>
+      <tr><td>New plugin (.tcp) version</td><td>Give it to Hargun. It gets filed in <code>03_Tally_Plugins/eCom2Tally</code>.</td></tr>
+    </table></div>
+  </div>
+</section>
+<section class="chapter" id="c18">
+  <div class="chhead"><span class="chno">15</span><div><h2>Tools and menus</h2><p class="lede">Tranzact plugin, tally-integration.in, Tally plugin menu, Tally On Cloud File Manager.</p></div></div>
+<div class="opblock">
+    <header><span class="tag">A9</span><h3>Tools and menus</h3><p class="lede">Four tools are involved: Tranzact (and its Chrome plugin), the plugin website tally-integration.in, Tally Prime on Tally On Cloud, and the Tally On Cloud File Manager.</p></header>
+    <div class="pair">
+      <figure><a href="img/tally_gateway.jpg" target="_blank"><img src="img/tally_gateway.jpg" alt="Gateway of Tally with the tally-integRation.in utility" loading="lazy"></a><figcaption>Gateway of Tally → Utilities → <b>http://tally-integRation.in</b> opens the plugin menu.</figcaption></figure>
+      <figure><a href="img/tally_menu.jpg" target="_blank"><img src="img/tally_menu.jpg" alt="E-Commerce Integration menu" loading="lazy"></a><figcaption>The E-Commerce Integration menu.</figcaption></figure>
+    </div>
+    <div class="tw"><table>
+      <tr><th>Option</th><th>Used for</th></tr>
+      <tr><td>1 : Login</td><td>Website credentials, set once</td></tr>
+      <tr><td><b>2 : E-Com Import</b></td><td>Amazon MTR-B2B, MTR-B2C, Settlement, STR (after uploading on the website)</td></tr>
+      <tr><td><b>3 : E-Store, Pay Gateways &amp; Courier</b></td><td>Shopify orders and Easebuzz payouts, by API, daily</td></tr>
+      <tr><td>4 : Zoho Integration</td><td>Not used</td></tr>
+      <tr><td><b>5 : Courier Partner (COD)-Reports</b></td><td>Shiprocket and Snapmint file imports (from <code>S:\Custom Uploads\</code>)</td></tr>
+      <tr><td>6 : E-Com Import (Direct)</td><td>Not used</td></tr>
+      <tr><td>8 : Order-wise settlement Report</td><td>Find orders a payout didn't clear</td></tr>
+      <tr><td>C : Configuration</td><td>Plugin settings. Don't change.</td></tr>
+    </table></div>
+    <div class="pair">
+      <figure><a href="img/plugin_home.jpg" target="_blank"><img src="img/plugin_home.jpg" alt="tally-integration.in workspace choice" loading="lazy"></a><figcaption>tally-integration.in: Marketplace (Amazon uploads) or Store/Gateway (Shopify, Easebuzz settings).</figcaption></figure>
+      <figure><a href="img/filemgr.jpg" target="_blank"><img src="img/filemgr.jpg" alt="Tally On Cloud File Manager" loading="lazy"></a><figcaption>Tally On Cloud → File Manager. <code>Custom Uploads</code> = files to import; <code>Bank Statement New</code> = statements; <code>Export</code> = Tally exports. Don't touch <code>Data</code> or backups.</figcaption></figure>
+    </div>
+  </div>
+</section>
+<section class="chapter" id="c19">
+  <div class="chhead"><span class="chno">16</span><div><h2>Plugin settings (reference: do not change)</h2><p class="lede">How tally-integration.in is set up. Compare against these before changing anything.</p></div></div>
+<div class="pair"><figure><a href="img/set_shopify.jpg" target="_blank"><img src="img/set_shopify.jpg" alt="Shopify mapping: bill reference from tags with pg regex, COD reference, voucher date and number" loading="lazy"></a><figcaption>Shopify mapping. Prepaid bill ref = <code>{{tags}}</code> with regex <code>(?&lt;=pg:)[^,\s]+</code>; COD bill ref = <code>HTR-{{order_number}}-D2C</code>; voucher no. = <code>{{name}}</code>; date = <code>{{created_at}}</code>.</figcaption></figure><figure><a href="img/set_shopify2.jpg" target="_blank"><img src="img/set_shopify2.jpg" alt="Shopify customer ledgers and item settings" loading="lazy"></a><figcaption>Customer ledgers: <code>Shopify Prepaid Receivable</code> and <code>Shopify COD Receivable</code>. Item price inclusive of GST: ON.</figcaption></figure><figure><a href="img/set_easebuzz.jpg" target="_blank"><img src="img/set_easebuzz.jpg" alt="Easebuzz Tally settings with sample payout JSON" loading="lazy"></a><figcaption>Easebuzz: bill reference key <code>bank_transaction_id</code>; PG commission → <code>PG Transaction Fee - Easebuzz</code>; customer <code>Shopify Prepaid Receivable</code>; gateway <code>Easebuzz Collection A/c</code>; dates from <code>payout_actual_date</code>.</figcaption></figure><figure class="narrow"><a href="img/set_shiprocket.jpg" target="_blank"><img src="img/set_shiprocket.jpg" alt="Shiprocket Tally mapping on the plugin site" loading="lazy"></a><figcaption>Plugin-site Shiprocket mapping (API route). It names <code>ShipRocket Commission</code> and <code>ShipRocket Collection A/C</code>, which don't exist in Tally. The file import through option 5 posts to <code>ShipRocket Collection</code>.</figcaption></figure><figure><a href="img/set_amazon.jpg" target="_blank"><img src="img/set_amazon.jpg" alt="Amazon integration configuration" loading="lazy"></a><figcaption>One preset for all Amazon reports. Separate voucher per GSTIN is ON, so the plugin adds the state to voucher types and GST ledgers.</figcaption></figure></div>
+</section>
+<section class="partband" id="pc"><p class="eyebrow">Part III</p><h2>Close, findings, queries</h2></section>
+<!-- 10 -->
+<section class="chapter" id="c10">
+  <div class="chhead"><span class="chno">17</span><div><h2>Month-end close and reconciliations</h2></div></div>
+  <div class="tw"><table>
+    <tr><th>By</th><th>Close step</th><th>Evidence</th></tr>
+    <tr><td>Day 3</td><td>Tranzact pushed (Pending/Approved = 0); Shopify + Easebuzz caught up</td><td>Tranzact counts; Shopify sales report = Tally Shopify Sales</td></tr>
+    <tr><td>Day 5</td><td>Amazon MTR-B2C, MTR-B2B, STR, Settlement; Shiprocket; Snapmint imported</td><td>MTR totals = Amazon Sales by GSTIN</td></tr>
+    <tr><td>Day 7</td><td>TDS deposited</td><td>Challans = TDS Payable by section</td></tr>
+    <tr><td>Day 10</td><td>GSTR-1 data</td><td>Output by GSTIN from the three families</td></tr>
+    <tr><td>Day 12</td><td>Banks reconciled</td><td>BRS for Central CC, ICICI, HDFC</td></tr>
+    <tr><td>Day 15</td><td>Platform invoices booked; Amazon expense JV; 2B matched</td><td>Cost of Advertising = 0; creditor ≈ 0</td></tr>
+    <tr><td>Day 20</td><td>Control accounts reviewed; GSTR-3B; set-off JV</td><td>Table below</td></tr>
+  </table></div>
+  <div class="tw"><table>
+    <tr><th>Control account</th><th>Expected balance</th><th>Reconcile to</th></tr>
+    <tr><td>Shopify Prepaid / COD Receivable</td><td>Small Dr (open orders)</td><td>Order-wise settlement report (plugin option 8)</td></tr>
+    <tr><td>Easebuzz / Snapmint Collection</td><td>1–2 days</td><td>Gateway settlement list vs bank</td></tr>
+    <tr><td>ShipRocket Collection</td><td>≈ 0</td><td>COD remitted − Total Deductions from COD − bank</td></tr>
+    <tr><td>Amazon Seller A/c / Settlement / Bank</td><td>Open settlement / in-transit only</td><td>Seller Central statement view</td></tr>
+    <tr><td>Amazon Expenses (Creditors)</td><td>≈ 0 after JV</td><td>Invoices vs settlement deductions</td></tr>
+    <tr><td>Suspense</td><td>0</td><td>—</td></tr>
+  </table></div>
+</section>
+
+<!-- 11 -->
+<section class="chapter" id="c11">
+  <div class="chhead"><span class="chno">18</span><div><h2>Findings and proposed adjustments</h2><p class="lede">From the TB (1-Apr to 6-Dec-26), 879 ledgers and April-26 ledger detail. April closes clean; the issues build from May. The amounts are exact TB figures; adjustments need confirming at the month level.</p></div></div>
+  <div class="tw"><table>
+    <tr><th>#</th><th>Finding</th><th class="n">Amount</th><th>Proposed adjustment</th><th>Status</th></tr>
+    <tr><td>1</td><td>Amazon expense JV missing May–Oct; ads expensed twice</td><td class="n">34.57 L</td><td>Monthly JV: Dr Amazon Expenses (Creditors) / Cr Cost of Advertising, FBA Inbound Pickup, settlement part of FBA storage</td><td><span class="pill bad">Pass</span></td></tr>
+    <tr><td>2</td><td>Shopify Prepaid Receivable in credit; Easebuzz Collection overstated</td><td class="n">26.68 L Cr / 40.24 L Dr</td><td>Find duplicate Easebuzz journals (same <code>bank_transaction_id</code>). Reverse: Dr Shopify Prepaid / Cr Easebuzz Collection. Explain the ₹12.02 L opening.</td><td><span class="pill warn">Investigate</span></td></tr>
+    <tr><td>3</td><td>ShipRocket Collection in credit</td><td class="n">3.96 L Cr</td><td>Tie freight invoices to Total Deductions from COD; check wallet recharges</td><td><span class="pill warn">Investigate</span></td></tr>
+    <tr><td>4</td><td>Amazon chain: Seller Cr, Settlement Cr, Bank Dr</td><td class="n">3.99 / 3.73 / 2.53 L</td><td>Month view to find the missing MTR or duplicated settlement</td><td><span class="pill warn">Investigate</span></td></tr>
+    <tr><td>5</td><td>Suspense</td><td class="n">12.65 L Dr</td><td>Identify and reclassify</td><td><span class="pill warn">Investigate</span></td></tr>
+    <tr><td>6</td><td>Difference in opening balances</td><td class="n">7.02 L</td><td>Reconcile 1-Apr openings to the audited FY26 balance sheet</td><td><span class="pill warn">CA</span></td></tr>
+    <tr><td>7</td><td>GST Payable carry-overs; no set-off entries</td><td class="n">~1.01 Cr</td><td>Confirm the nature; pass monthly set-off / payment JVs</td><td><span class="pill warn">CA</span></td></tr>
+    <tr><td>8</td><td>ICICI CC under Bank Accounts</td><td class="n">1.22 Cr</td><td>Regroup to Bank OD A/c if it's a CC</td><td><span class="pill ok">Simple</span></td></tr>
+    <tr><td>9</td><td><code>TDS (Amazon)</code> mixes 194-O credit and ads TDS recoverable</td><td class="n">0.78 L</td><td>Use <code>TDS Receivable - 194C (Ads)</code> for the ads part</td><td><span class="pill ok">Simple</span></td></tr>
+    <tr><td>10</td><td>Tranzact ledgers missing in Tally (Mark Paid, TCS)</td><td class="n">—</td><td>Repoint in Tranzact Ledger Settings</td><td><span class="pill ok">Simple</span></td></tr>
+    <tr><td>11</td><td>Duplicate ledgers: 3 FBA storage, 3 Shiprocket creditors, 2 GST families; plugin ledgers at the root of Indirect Expenses</td><td class="n">—</td><td>Merge and regroup under the MIS sub-groups</td><td><span class="pill ok">Hygiene</span></td></tr>
+    <tr><td>12</td><td>Tally working date 6-Dec-2026</td><td class="n">—</td><td>Correct the date; check for vouchers dated after today</td><td><span class="pill bad">Now</span></td></tr>
+  </table></div>
+</section>
+
+<!-- 12 -->
+<section class="chapter" id="c12">
+  <div class="chhead"><span class="chno">19</span><div><h2>Queries for the CA</h2></div></div>
+  <ol>
+    <li>What is the right TDS section on Amazon ads and on Amazon seller fees (194C / 194H / 194-O interplay)?</li>
+    <li>What are the ~₹1.01 Cr <code>GST Payable (&lt;state&gt;)</code> balances, and how should monthly set-off be recorded in the books?</li>
+    <li>Should we file an inverted-duty refund on accumulated ITC (₹63.7 L)?</li>
+    <li>Where does the ₹7.02 L opening difference come from? Was it the Busy → Tally migration?</li>
+    <li>Why are there Delhi / Gujarat output and STR ledgers with no registration in those states?</li>
+    <li>Should ICICI be classified as CC/OD?</li>
+    <li>For the Amazon JV: one per month for May–Oct, or one catch-up dated 31-Oct?</li>
+  </ol>
+  <h3>Internal queries (accounts team)</h3>
+  <ol>
+    <li>Were Easebuzz payouts ever fetched twice for the same dates? Do all Easebuzz payouts land in the Central Bank CC?</li>
+    <li>What is in Suspense?</li>
+    <li>How are Shiprocket wallet recharges booked?</li>
+    <li>Which sales ledger do Supernode invoices use?</li>
+    <li>Should "Mark Paid" point to Central Current Account or the Central Bank CC ledger?</li>
+    <li>Is the Snapmint report the Merchant or the Group one?</li>
+  </ol>
+  <div class="callout info"><b>Data that settles most of this:</b> month-by-month views (Apr–Oct) of Easebuzz Collection, Shopify Prepaid Receivable, Amazon Seller A/c, Amazon Settlement, Amazon Expenses (Creditors), Cost of Advertising and Suspense, plus a full Apr–Oct export of Easebuzz Collection.</div>
+</section>
+
+<section class="partband" id="p3"><p class="eyebrow">Appendix</p><h2>Reference</h2></section>
+<section class="chapter" id="c20">
+  <div class="chhead"><span class="chno">20</span><div><h2>Links</h2></div></div>
+<div class="opblock">
+    <header><h3>Links</h3></header>
+    <div class="tw"><table>
+      <tr><th>What</th><th>Link</th></tr>
+      <tr><td>Tranzact · TDS split</td><td><a href="https://app.letstranzact.com/v3/payments/?section=ledger_consolidated" target="_blank" rel="noopener">Payments → Ledger (Consolidated)</a></td></tr>
+      <tr><td>Tranzact · approvals</td><td><a href="https://app.letstranzact.com/v3/tally-integration/?section=document_approval" target="_blank" rel="noopener">Document Approval</a> · <a href="https://app.letstranzact.com/v3/tally-integration/?section=journal_entry" target="_blank" rel="noopener">Journal Entry</a> · <a href="https://app.letstranzact.com/v3/tally-integration/?section=ledger_settings" target="_blank" rel="noopener">Ledger Settings</a> · <a href="https://app.letstranzact.com/v3/tally-integration/?section=accounting_rules" target="_blank" rel="noopener">Accounting Rules</a></td></tr>
+      <tr><td>Tally plugin site</td><td><a href="https://tally-integration.in/ecom-user/user-profile" target="_blank" rel="noopener">tally-integration.in</a></td></tr>
+      <tr><td>Amazon · MTR, STR</td><td><a href="https://sellercentral.amazon.in/mytax/gstreports/monthly" target="_blank" rel="noopener">GST Monthly Reports</a></td></tr>
+      <tr><td>Amazon · Settlement, ad invoices</td><td><a href="https://sellercentral.amazon.in/payments/reports-repository" target="_blank" rel="noopener">Payments → Reports Repository</a></td></tr>
+      <tr><td>Shiprocket</td><td><a href="https://app.shiprocket.in/seller/reports/download-reports/instant-reports" target="_blank" rel="noopener">Instant Reports</a> · <a href="https://app.shiprocket.in/seller/remitted/cod-remittance" target="_blank" rel="noopener">COD Remittance</a></td></tr>
+      <tr><td>Snapmint</td><td><a href="https://emis.snapmint.com/merchants/dashboard" target="_blank" rel="noopener">Merchant portal</a></td></tr>
+      <tr><td>Tally On Cloud</td><td>Thakur Hardsoft portal → File Manager <span class="cr">[link to add]</span></td></tr>
+      <tr><td>Plugin builds</td><td><code>Documents/Compliance/Accounts/03_Tally_Plugins/eCom2Tally</code></td></tr>
+    </table></div>
+  </div>
+</section>
+<section class="chapter" id="c21">
+  <div class="chhead"><span class="chno">21</span><div><h2>Control account map</h2></div></div>
+<div class="opblock">
+    <header><h3>Ledger map: where each clearing ledger sits</h3></header>
+    <div class="tw"><table>
+      <tr><th>Ledger</th><th>Group (Tally)</th><th>Filled by</th><th>Emptied by</th></tr>
+      <tr><td>Shopify Prepaid Receivable</td><td>Sundry Debtors → D2C Debtors</td><td>Shopify Sales (prepaid)</td><td>Easebuzz / Snapmint journals</td></tr>
+      <tr><td>Shopify COD Receivable</td><td>Sundry Debtors → D2C Debtors</td><td>Shopify Sales (COD)</td><td>Shiprocket COD journal</td></tr>
+      <tr><td>Easebuzz Collection A/c</td><td>Sundry Debtors → D2C Debtors</td><td>Easebuzz journal</td><td>Bank receipt; Easebuzz invoice</td></tr>
+      <tr><td>Snapmint Collection</td><td>Sundry Debtors → D2C Debtors</td><td>Snapmint journal</td><td>Bank receipt; Snapmint invoice</td></tr>
+      <tr><td>ShipRocket Collection</td><td>Sundry Debtors → D2C Debtors</td><td>COD journal</td><td>Bank receipt; freight invoices</td></tr>
+      <tr><td>Amazon Seller A/c</td><td>Sundry Debtors → Amazon Debtors</td><td>Sales-Amazon-STATE</td><td>Amazon Settlement, Commission, TDS-TCS</td></tr>
+      <tr><td>Amazon Settlement</td><td>Sundry Debtors → Amazon Debtors</td><td>Amazon Settlement voucher</td><td>Amazon Bank Transfer</td></tr>
+      <tr><td>Amazon Bank</td><td>Sundry Debtors → Amazon Debtors</td><td>Amazon Bank Transfer</td><td>Bank receipt</td></tr>
+      <tr><td>Amazon Expenses (Creditors)</td><td>Sundry Creditors → Amazon Creditors</td><td>Amazon invoices (Purchase-Expense)</td><td>Amazon Commission; monthly JV; Debit Notes</td></tr>
+    </table></div>
+  </div>
+</section>
+<section class="chapter" id="c22">
+  <div class="chhead"><span class="chno">22</span><div><h2>Terms</h2></div></div>
+<div class="opblock">
+    <header><h3>Terms</h3></header>
+    <div class="tw"><table>
+      <tr><td><b>Clearing ledger</b></td><td>A holding ledger where money waits between the sale and the bank. It should keep emptying out.</td></tr>
+      <tr><td><b>Bill reference / knock-off</b></td><td>The ID that lets a payout clear exactly the order it pays for.</td></tr>
+      <tr><td><b>MTR</b></td><td>Amazon Merchant Tax Report: the month's Amazon-issued sales invoices, B2C and B2B.</td></tr>
+      <tr><td><b>STR</b></td><td>Stock Transfer Report: stock Amazon moved between our GST registrations.</td></tr>
+      <tr><td><b>Settlement</b></td><td>Amazon's payout statement: sales, fees, ads, TDS/TCS and the net paid to bank.</td></tr>
+      <tr><td><b>AWB / CRF</b></td><td>Shiprocket shipment number / remittance batch.</td></tr>
+      <tr><td><b>TDS split</b></td><td>Tax we deduct from a service bill in Tranzact. It becomes a journal entry.</td></tr>
+      <tr><td><b>Purchase-Expense</b></td><td>The voucher type used to book platform fee invoices with GST.</td></tr>
+    </table></div>
+  </div>
+</section>
+<section class="chapter" id="c23">
+  <div class="chhead"><span class="chno">23</span><div><h2>FAQ</h2><p class="lede">Questions that came up while the setup was documented, with their answers. Use the sidebar filter to jump to a topic.</p></div></div>
+  <h3>Amazon</h3>
+  <div class="faq">
+    <details><summary>Why does Cost of Advertising show ₹34.6 L?</summary><p>Settlements post each ad deduction to Cost of Advertising. The ads GST invoice books the same spend again to Amazon Ads (₹33.84 L Dr, the correct expense). The monthly JV that cancels the settlement side (template Journal 53, 30-Apr-26) was passed only for April. Pass it for May–Oct (chapter 6).</p></details>
+    <details><summary>Why is Amazon Expenses (Creditors) ₹34.6 L Cr?</summary><p>It is the other half of the same missing JV. Once the May–Oct JVs are passed it should be close to zero. If about ₹1 L Dr is left afterwards, an invoice is missing.</p></details>
+    <details><summary>What exactly does the monthly Amazon JV do?</summary><p>Dr Amazon Expenses (Creditors). Cr Cost of Advertising (its full balance), FBA Inbound Pickup Service, and the settlement part of FBA storage fee. April example: ₹5,82,428.14 = ₹5,36,027.65 + ₹33,680.50 + ₹12,719.99. Our plugin partner advised it, and it is correct: it stops settlement deductions being treated as expenses paid as-is.</p></details>
+    <details><summary>May–Oct catch-up: what goes in?</summary><p>Cost of Advertising ₹34,57,347.02, plus FBA Inbound Pickup Service ₹1,07,026.89, plus the settlement share of FBA storage. Check the other FBA heads for the same pattern: FBA storage fee ₹0.70 L, FBA Inventory Storage Fee ₹0.39 L, Partnered Carrier ₹0.16 L. Long-term fix: ask the plugin vendor to post settlement ad deductions straight to Amazon Expenses (Creditors).</p></details>
+    <details><summary>Which Amazon reports, and from where?</summary><p>MTR-B2C, MTR-B2B and STR come from GST Monthly Reports. The Settlement comes from Reports Repository (All Unified → Transaction → month; download once Status shows done). Ads invoices come from Advertising Invoice History, fee invoices from Tax Document Library. Links are in chapter 20.</p></details>
+    <details><summary>In what order do I import Amazon reports?</summary><p>MTR → STR → Settlement. Sales must exist before the settlement can knock them off.</p></details>
+    <details><summary>The Amazon file has more than 10,000 rows.</summary><p>Run option 2 again with rows 00001-10000, then 10001-20000.</p></details>
+    <details><summary>The PAN on the option 2 form is wrong.</summary><p>It is pre-filled from the company. Change it with F11 → More Details → PAN/CIN.</p></details>
+    <details><summary>Why is TDS (Amazon) ₹77,802 hard to reconcile?</summary><p>It mixes the 194-O credit Amazon deducts from settlements with the 194C TDS we deduct on ads invoices, which Amazon must refund. Move the ads part to TDS Receivable - 194C (Ads).</p></details>
+    <details><summary>When does Amazon refund the ads TDS?</summary><p>After the 26Q is filed on time, TRACES reflects it, and Form 16A is uploaded on Seller Central. If it is older than 6 months, raise a case.</p></details>
+  </div>
+  <h3>Shopify, Easebuzz, Snapmint, Shiprocket</h3>
+  <div class="faq">
+    <details><summary>Do I book Shopify returns, RTOs or cancellations by hand?</summary><p>No. The plugin adjusts refunds, RTOs and cancellations automatically from Shopify's data. A COD order older than 30 days in Shopify COD Receivable usually means an RTO the plugin missed, or a reference mismatch.</p></details>
+    <details><summary>A day of Easebuzz payouts looks missing. Do I re-fetch?</summary><p>Check Day Book for that date first. The Easebuzz import has a confirmed pagination bug, so payouts can come in only partly. Count payouts against Easebuzz dashboard → Settlements, re-fetch only the missing day in a small date range, and never repeat a day that is already in.</p></details>
+    <details><summary>Why is Shopify Prepaid in credit and Easebuzz Collection overstated?</summary><p>Settlement journals (₹59.77 L) far exceed both bank receipts (₹31.55 L) and prepaid sales (₹36.78 L). The likely cause is duplicate Easebuzz imports: look for a repeated bank_transaction_id. The alternative is missing Shopify prepaid orders, with Easebuzz credits posted elsewhere (Suspense?).</p></details>
+    <details><summary>How is the Easebuzz bank leg booked?</summary><p>At bank import: Dr bank (Cash Credit Limit - Central Bank), Cr Easebuzz Collection A/c.</p></details>
+    <details><summary>Is the Easebuzz fee being counted twice?</summary><p>Open question for the CA. The payout journal already debits PG Transaction Fee - Easebuzz (e.g. ₹114.02), and the monthly Easebuzz invoice is also booked as Dr PG fee + GST (April: Purchase-Expense 162, ₹8,052.18). Confirm whether the invoice should carry only the GST.</p></details>
+    <details><summary>Where are the Snapmint plugin settings?</summary><p>There are none on tally-integration.in. Snapmint's mapping is inside the TCP. Snapmint posts under two voucher types, Journal and SnapMint Journal. Fee credits come as Debit Notes (April: DN 16, ₹100.10).</p></details>
+    <details><summary>Snapmint cashback: anything to watch?</summary><p>If Snapmint deducts cashback from the payout, check that the net matches the bank credit.</p></details>
+    <details><summary>Where do Shiprocket freight invoices go, prepaid freight too?</summary><p>Purchase-Expense: Dr freight + GST, Cr ShipRocket Collection, for COD and prepaid freight alike. The month's total should equal Total Deductions from COD on the COD Remittance page. It is material: on 17-Oct-26 the dashboard showed Total COD Remitted ₹98.76 L and deductions ₹49.95 L.</p></details>
+    <details><summary>Why is ShipRocket Collection ₹3.96 L Cr?</summary><p>Freight invoices plus bank receipts exceed the COD collected. April alone: COD ₹6.54 L, invoices ₹4.64 L, bank ₹3.28 L, leaving ₹1.38 L Cr. Check for wallet recharges paid from bank and for invoices booked to the wrong ledger.</p></details>
+    <details><summary>Option 5 rejected my file.</summary><p>Check that the file is in Custom Uploads, the file name is retyped exactly, the sheet name is exact (AWB level report / Sheet 1), and the dates are right (Shiprocket DD-Mon-YY; Snapmint 27 columns, DD-MM-YYYY). Still failing? Send the file to Hargun. Don't edit it.</p></details>
+    <details><summary>Is there a parser or conversion script?</summary><p>No. Files are uploaded as downloaded.</p></details>
+    <details><summary>The Snapmint report didn't arrive.</summary><p>It comes by email only after you request it on the portal: Reports → Download Merchant Settlement Daily Report, Start = 1st, End = last day, UTR blank, accounts email.</p></details>
+  </div>
+  <h3>Tranzact</h3>
+  <div class="faq">
+    <details><summary>The TranZact plugin says "Connecting…".</summary><p>Log in to Tally On Cloud and open the company first, then click Reconnect. Tally 3.0 must be ticked.</p></details>
+    <details><summary>A Tranzact document was rejected.</summary><p>Fix it in Tranzact and approve it again. Never type it into Tally by hand.</p></details>
+    <details><summary>How is TDS on a job-work bill handled?</summary><p>Tranzact → Payments → Ledger (Consolidated) → split icon → TDS → %, on the pre-GST value. For example, 2% of ₹1,01,374.27 is ₹1,718.21. This creates one journal; approve it in Journal Entry and push it.</p></details>
+    <details><summary>Which TDS section does Tranzact use?</summary><p>Only 194C is set (TDS Payable - 194C). Professional fees (194J), rent (194I) and purchase of goods above the threshold (194Q) need a different section, so check every TDS journal before you push it.</p></details>
+    <details><summary>A payment was "Marked Paid" in Tranzact.</summary><p>Mark Paid always posts to Central Bank of India - Operating A/C, which doesn't exist in Tally, whichever bank actually paid. Book payments from the bank statement instead.</p></details>
+    <details><summary>Why do software or consultancy bills sit in Job Work Charges?</summary><p>Tranzact's purchase rule sends every service bill there. Re-code non-job-work services in Tally until the rule is split.</p></details>
+    <details><summary>Who moves Tranzact documents?</summary><p>The person on duty moves all of them, every day: Sales, Purchase, Credit Note, Debit Note and Journal.</p></details>
+  </div>
+  <h3>Tally, banks and access</h3>
+  <div class="faq">
+    <details><summary>Import forms default to December. Why?</summary><p>Tally's working date was 6-Dec-2026 (shown in the header and as the last-entry date). Set today with Alt+F2. If it reverts at each login, Thakur Hardsoft must fix the server date. Then check Day Book from tomorrow to 31-Mar-27 for vouchers dated in the future, delete them, and re-import with the correct dates.</p></details>
+    <details><summary>Why are there duplicate ledgers?</summary><p>For example IGST 5.00% next to IGST Output - 5%, three FBA storage ledgers, and ShipRocket / Shiprocket Limited / SHIPROCKET PRIVATE LIMITED. The plugin website and Tranzact each use their own ledger names. Merge and regroup them under the CA's guidance; don't create more.</p></details>
+    <details><summary>How do I export the ledger list with groups?</summary><p>There is no F12 setting for this. Use Chart of Accounts → Ledgers → Alt+E (export), or the detailed Trial Balance.</p></details>
+    <details><summary>The Central Bank statement won't import.</summary><p>The column headings must be on row 14. Upload the file via File Manager → Bank Statement New, then Banking → Import Bank Statement.</p></details>
+    <details><summary>Which bank do channel payouts land in?</summary><p>Cash Credit Limit - [Central Bank], the OD account: Amazon, Easebuzz, Snapmint and Shiprocket. ICICI Bank A/C - CC sits under Bank Accounts with ₹1.22 Cr net credit, so it should be regrouped to Bank OD.</p></details>
+    <details><summary>Can I change settings on tally-integration.in?</summary><p>No. The accountant only uploads Amazon reports there. Settings are changed only by Hargun. Claude (and Claude Code) does not access that site and does not post into Tally; every setting in chapter 16 was captured from Hargun's screenshots on 17-Oct-2026.</p></details>
+    <details><summary>What is the order of work in every cycle?</summary><p>Collect all reports → upload them (File Manager, or the website for Amazon) → import → reconcile.</p></details>
+    <details><summary>Why are there Facebook India (₹20.0 L) and Google India (₹4.9 L) payables?</summary><p>Either they are genuinely open, or the payments haven't been booked. Check with Hargun.</p></details>
+  </div>
+</section>
+<section class="chapter" id="c24">
+  <div class="chhead"><span class="chno">24</span><div><h2>Evidence, figures and working files</h2><p class="lede">The exact numbers and sources behind the findings, plus the companion files, so this handbook stands on its own.</p></div></div>
+  <h3>Source exports used</h3>
+  <div class="tw"><table>
+    <tr><th>File</th><th>What it is</th></tr>
+    <tr><td><code>TrialBal.xlsx</code></td><td>Detailed Trial Balance, 1-Apr to 6-Dec-26. It has no Dr/Cr marks, so signs were inferred from openings being 0 on 1-Apr (Easebuzz excepted: its opening shows a "Cr" label but is arithmetically ₹12,01,845.64 Dr).</td></tr>
+    <tr><td><code>Master.xlsx</code></td><td>List of Ledgers (879)</td></tr>
+    <tr><td><code>Master_1.xlsx</code></td><td>April-26 ledger vouchers: Shopify Prepaid, Shopify COD, Easebuzz, Snapmint, ShipRocket, Amazon Seller, Amazon Settlement, Amazon Bank, Amazon Expenses (Creditors). Exports carry an extra "Not synced" status column.</td></tr>
+    <tr><td><code>Ledger_Rule.xlsx</code></td><td>Ledger rules export</td></tr>
+  </table></div>
+  <h3>April-26 closing balances (April was clean)</h3>
+  <div class="tw"><table>
+    <tr><th>Ledger</th><th class="n">30-Apr-26</th></tr>
+    <tr><td>Shopify Prepaid Receivable</td><td class="n">₹58,948 Dr</td></tr>
+    <tr><td>Shopify COD Receivable</td><td class="n">₹1,68,293 Dr</td></tr>
+    <tr><td>Snapmint</td><td class="n">₹23,840 Dr</td></tr>
+    <tr><td>Amazon Seller A/c</td><td class="n">₹19,852 Dr</td></tr>
+    <tr><td>Amazon Bank</td><td class="n">0</td></tr>
+    <tr><td>Amazon Expenses (Creditors)</td><td class="n">₹600 Cr</td></tr>
+  </table></div>
+  <h3>Trial balance to 6-Dec-26: exact figures</h3>
+  <div class="tw"><table>
+    <tr><th>Ledger</th><th class="n">Balance</th><th>Note</th></tr>
+    <tr><td>Cost of Advertising</td><td class="n">₹34,57,347.02 Dr</td><td>JV not passed May–Oct</td></tr>
+    <tr><td>Amazon Expenses (Creditors)</td><td class="n">₹34,60,722.53 Cr</td><td>Other side of the same JV</td></tr>
+    <tr><td>Amazon Ads</td><td class="n">₹33,84,216 Dr</td><td>From invoices: the correct expense</td></tr>
+    <tr><td>FBA Inbound Pickup Service</td><td class="n">₹1,07,026.89 Dr</td><td>Same pattern</td></tr>
+    <tr><td>Shopify Prepaid Receivable</td><td class="n">₹26,68,005.91 Cr</td><td>Should be Dr</td></tr>
+    <tr><td>Easebuzz Collection A/c</td><td class="n">₹40,23,855.62 Dr</td><td>Opening ₹12.02 L Dr from FY26</td></tr>
+    <tr><td>ShipRocket Collection</td><td class="n">₹3,95,644.03 Cr</td><td></td></tr>
+    <tr><td>Amazon Seller A/c</td><td class="n">₹3,99,116.87 Cr</td><td></td></tr>
+    <tr><td>Amazon Settlement</td><td class="n">₹3,72,746.05 Cr</td><td></td></tr>
+    <tr><td>Amazon Bank</td><td class="n">₹2,53,063.13 Dr</td><td></td></tr>
+    <tr><td>Suspense</td><td class="n">₹12,64,704.96 Dr</td><td></td></tr>
+    <tr><td>Difference in opening balances</td><td class="n">₹7,01,874</td><td></td></tr>
+    <tr><td>GST Payable (All GST) / (UP)</td><td class="n">₹1.01 Cr / ₹92.3 L</td><td>Plus HR, KA, MH, TS; no movement, looks like opening carry-over</td></tr>
+    <tr><td>SUPERNODE VENTURES PRIVATE LIMITED</td><td class="n">₹2.93 L Dr</td><td>No series rule in Tranzact</td></tr>
+    <tr><td>Facebook India / Google India</td><td class="n">₹20.0 L / ₹4.9 L Cr</td><td>Open or unbooked payments?</td></tr>
+  </table></div>
+  <h3>Ledger names to know</h3>
+  <ul>
+    <li><b>Shiprocket creditors (3):</b> <code>ShipRocket</code> (₹2.07 L Cr, via Shipping Expenses (ShipRocket)), <code>Shiprocket Limited</code>, <code>SHIPROCKET PRIVATE LIMITED</code>.</li>
+    <li><b>Freight heads (3):</b> <code>Freight Charges (Shiprocket)</code>, <code>Forward Delivery - Shiprocket</code>, <code>Shipping Expenses (ShipRocket)</code>.</li>
+    <li><b>Ads heads (2):</b> <code>Amazon Ads</code> (invoices) and <code>Cost of Advertising</code> (settlements).</li>
+    <li><b>TCS:</b> Tally has <code>TCS Receivable</code> and <code>TCS-*GST (Amazon)</code>. Tranzact's <code>TCS Credit</code> / <code>TCS Credit Receivable</code> don't exist.</li>
+    <li><b>Tranzact ledgers not covered elsewhere:</b> <code>Discount Received (from Supplier)</code> (purchase discount) and <code>Repairs &amp; Maintenance</code> (purchase additional charge).</li>
+  </ul>
+  <h3>Monthly tie-outs not covered elsewhere</h3>
+  <ul>
+    <li><b>Tranzact:</b> Accounting Reports → Sales Register and Purchase Register for the month. Series-wise totals = Tally sales and purchase ledgers. Same for the Credit Note and Debit Note reports. Journal Entry tab: Pending 0, Rejected 0.</li>
+    <li><b>Shopify:</b> Shopify Admin → Analytics → Sales report: gross sales less discounts = Tally Shopify Sales.</li>
+    <li><b>Calendar extras:</b> Day 7 TDS payment includes TDS on Amazon invoices. Day 10: sales complete from all streams. Day 18: control sheet clean, exceptions listed. Day 20: close and send the MIS.</li>
+  </ul>
+  <h3>Companion files</h3>
+  <ul>
+    <li><b>Claude Code runbook</b> <code>HEATRONICS_MONTHLY_CLOSE.md</code>. Month folder: <code>~/Documents/Heatronics/Documents/Compliance/Accounts/04_Monthly_Close/YYYY-MM/</code>, containing <code>raw/</code> (amazon, shiprocket, snapmint, easebuzz, shopify, bank, amazon_invoices), <code>upload/</code>, <code>tally_exports/</code> and <code>close_report.md</code>. File naming: <code>YYYY-MM_&lt;Mon&gt;_&lt;Source&gt;_&lt;Report&gt;.&lt;ext&gt;</code>. Claude Code renames and files the reports, flags what's missing, totals each source, ties totals to the Tally exports, and drafts the Amazon JV sheet. It never posts into Tally and never touches tally-integration.in.</li>
+    <li><b>Plugin builds:</b> each new eCom2Tally .tcp is renamed by date and kept in <code>Documents/Compliance/Accounts/03_Tally_Plugins/eCom2Tally</code> (Drive-synced) with a README version log, plus a copy in Downloads. Current build: 17-Oct-2026 "b".</li>
+  </ul>
+  <h3>Still awaited</h3>
+  <ul>
+    <li>Month-by-month ledger views (Apr–Oct): Easebuzz Collection, Shopify Prepaid, Amazon Seller, Amazon Settlement, Amazon Expenses (Creditors), Cost of Advertising, Suspense. Also a full Apr–Oct Easebuzz Collection export.</li>
+    <li>Day Book check for vouchers dated in the future; voucher-type list screenshot; bank import screenshots; Tally On Cloud portal link.</li>
+    <li>Confirmation of the bill-reference match keys (Easebuzz, Snapmint) and the Snapmint report name (Group vs Merchant daily).</li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+(function(){
+const wrap=document.querySelector('.wrap'),tree=document.getElementById('tree'),toc=document.getElementById('toc');
+const slug=t=>t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
+const parts=[];let cur={title:'Start',id:'c0',chapters:[]};parts.push(cur);
+for(const el of wrap.children){
+  if(el.classList.contains('partband')){const e=el.querySelector('.eyebrow'),h=el.querySelector('h2');cur={title:(e?e.textContent+' · ':'')+h.textContent,short:e?e.textContent:'',name:h.textContent,id:el.id,chapters:[]};parts.push(cur);}
+  else if(el.classList.contains('chapter')){
+    const no=(el.querySelector('.chno')||{}).textContent||'',h=el.querySelector('.chhead h2'),title=h?h.textContent:'';
+    const subs=[];el.querySelectorAll('h3').forEach(x=>{const t=x.textContent.trim();if(!t||t===title)return;if(!x.id)x.id=el.id+'-'+slug(t);subs.push({id:x.id,t,el:x});});
+    cur.chapters.push({id:el.id,no:no.replace(/^0/,''),title,subs,el,part:cur});
+  }
+}
+parts[0].chapters=[]; // cover handled by brand link
+const all=[];parts.forEach(p=>p.chapters.forEach(c=>all.push(c)));
+// sidebar
+const html=[];
+parts.filter(p=>p.chapters.length).forEach((p,pi)=>{
+  html.push(`<div class="part" data-part="${p.id}"><button aria-expanded="true"><span class="car">▼</span>${p.title}</button><ul>`);
+  p.chapters.forEach(c=>{
+    html.push(`<li class="ch closed" data-ch="${c.id}"><div><a href="#${c.id}"><b>${c.no}</b><span>${c.title}</span></a>${c.subs.length?'<button aria-label="Show sections"><span class="car">▼</span></button>':''}</div>`);
+    if(c.subs.length)html.push('<ul class="sub">'+c.subs.map(s=>`<li><a href="#${s.id}" data-sub="${s.id}">${s.t}</a></li>`).join('')+'</ul>');
+    html.push('</li>');
+  });
+  html.push('</ul></div>');
+});
+tree.innerHTML=html.join('');
+tree.addEventListener('click',e=>{
+  const pb=e.target.closest('.part>button');if(pb){const p=pb.parentElement;p.classList.toggle('closed');pb.setAttribute('aria-expanded',!p.classList.contains('closed'));return;}
+  const cb=e.target.closest('.ch>div>button');if(cb){cb.closest('.ch').classList.toggle('closed');return;}
+  if(e.target.closest('a'))closeMenu();
+});
+// cover toc
+if(toc){toc.innerHTML=parts.filter(p=>p.chapters.length).map(p=>`<div class="card"><h4>${p.title}</h4>`+p.chapters.map(c=>`<a href="#${c.id}"><b>${c.no}</b>${c.title}</a>`).join('')+'</div>').join('');}
+// prev/next
+all.forEach((c,i)=>{const n=document.createElement('nav');n.className='chnav';n.setAttribute('aria-label','Chapter navigation');
+  const p=all[i-1],x=all[i+1];
+  n.innerHTML=(p?`<a href="#${p.id}"><span>← Previous</span>${p.no} · ${p.title}</a>`:'')+(x?`<a class="next" href="#${x.id}"><span>Next →</span>${x.no} · ${x.title}</a>`:'');
+  c.el.appendChild(n);});
+// filter
+const q=document.getElementById('q');
+q.addEventListener('input',()=>{const v=q.value.trim().toLowerCase();
+  tree.querySelectorAll('.part').forEach(p=>{let any=false;
+    p.querySelectorAll('.ch').forEach(li=>{const c=all.find(a=>a.id===li.dataset.ch);
+      const subHit=c.subs.filter(s=>s.t.toLowerCase().includes(v));const hit=!v||c.title.toLowerCase().includes(v)||c.no===v||subHit.length||c.el.textContent.toLowerCase().includes(v);
+      li.classList.toggle('hide',!hit);
+      li.querySelectorAll('.sub li').forEach(s=>s.classList.toggle('hide',!!v&&!s.textContent.toLowerCase().includes(v)&&!c.title.toLowerCase().includes(v)));
+      if(v&&subHit.length)li.classList.remove('closed');
+      any=any||hit;});
+    p.classList.toggle('hide',!any);if(v&&any)p.classList.remove('closed');});
+});
+// menu
+const side=document.getElementById('side'),scrim=document.getElementById('scrim'),menu=document.getElementById('menu');
+function closeMenu(){side.classList.remove('open');scrim.classList.remove('on');menu.setAttribute('aria-expanded','false');}
+menu.addEventListener('click',()=>{const o=!side.classList.contains('open');side.classList.toggle('open',o);scrim.classList.toggle('on',o);menu.setAttribute('aria-expanded',o);});
+scrim.addEventListener('click',closeMenu);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu();});
+// scroll spy
+const crumb=document.getElementById('crumb');let last=null,lastSub=null;
+function spy(){
+  const y=90;let c=null;for(const ch of all){if(ch.el.getBoundingClientRect().top<=y)c=ch;else break;}
+  let s=null;if(c)for(const sb of c.subs){if(sb.el.getBoundingClientRect().top<=y+40)s=sb;}
+  if(c!==last){
+    tree.querySelectorAll('.ch.cur').forEach(li=>{li.classList.remove('cur');li.classList.add('closed');});
+    if(c){const li=tree.querySelector(`[data-ch="${c.id}"]`);li.classList.add('cur');li.classList.remove('closed');li.closest('.part').classList.remove('closed');
+      const r=li.getBoundingClientRect(),tr=tree.getBoundingClientRect();if(r.top<tr.top||r.bottom>tr.bottom)li.scrollIntoView({block:'nearest'});}
+    last=c;
+  }
+  if(s!==lastSub){tree.querySelectorAll('.sub a.cur').forEach(a=>a.classList.remove('cur'));if(s){const a=tree.querySelector(`[data-sub="${s.id}"]`);if(a)a.classList.add('cur');}lastSub=s;}
+  crumb.innerHTML=c?`${c.part.short||c.part.name} › <b>${c.no} ${c.title}</b>${s?' › '+s.t:''}`:'<b>Accounts Handbook</b>';
+}
+let tk=false;addEventListener('scroll',()=>{if(!tk){tk=true;requestAnimationFrame(()=>{spy();tk=false;});}},{passive:true});
+spy();
+})();
+</script>
+
+</body></html>

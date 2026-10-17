@@ -1,0 +1,102 @@
+{
+  "category": "operations",
+  "name": "Operations",
+  "description": "The day-to-day book-keeping routine for the accountant, taken from the Accounts Handbook (Part II). Each task links back to the handbook section with the full step-by-step and screenshots.",
+  "version": 1,
+  "updatedAt": "2026-10-17",
+  "items": [
+    {
+      "id": "ops-d1-tranzact-to-tally",
+      "title": "D1 · Tranzact → Tally (split TDS, approve, push)",
+      "description": "Split TDS on every service bill (job work = 2% on value before GST — never save at 0), approve everything pending (documents + TDS journals; fix rejects in Tranzact, never type into Tally by hand), then push all five voucher types one at a time via the Chrome plugin: Sales → Purchase → Credit Note → Debit Note → Journal.",
+      "frequency": "daily",
+      "owner": "Accountant",
+      "notes": "Done when Pending = 0 and Approved = 0 on both Document Approval and Journal Entry. ~10 min. Needs Tally open for the plugin to connect.",
+      "reference": "Handbook §c14 · D1",
+      "referenceUrl": "/handbook#c14"
+    },
+    {
+      "id": "ops-d2-shopify-easebuzz",
+      "title": "D2 · Shopify orders, then Easebuzz payouts",
+      "description": "In the plugin option 3, fetch yesterday's Shopify-Orders first (Platform Type Online-Store), then Easebuzz payouts for the SAME dates (Platform Type Payment-Gateway). Easebuzz runs second because a payout can only clear an order already in Tally.",
+      "frequency": "daily",
+      "owner": "Accountant",
+      "notes": "NEVER fetch the same Easebuzz dates twice — a second fetch double-books the payouts. If a day looks short, check the Day Book (voucher type Journal, that date) before re-fetching. ~5 min.",
+      "reference": "Handbook §c14 · D2",
+      "referenceUrl": "/handbook#c14"
+    },
+    {
+      "id": "ops-w1-weekly-checks",
+      "title": "W1 · Weekly checks (Monday)",
+      "description": "Confirm Tally's top-bar date is today; reconcile last week's Easebuzz payout count/amounts against the Easebuzz dashboard settlement list (no repeats); clear Tranzact rejects; review Suspense.",
+      "frequency": "weekly",
+      "owner": "Accountant",
+      "notes": "Recommended control, every Monday, ~15 min.",
+      "reference": "Handbook §c15 · W1",
+      "referenceUrl": "/handbook#c15"
+    },
+    {
+      "id": "ops-m1-amazon-reports",
+      "title": "M1 · Amazon: import four reports",
+      "description": "Download MTR-B2C, MTR-B2B and STR, request the Settlement (Transaction) report, upload all four on the plugin site, then import into Tally with option 2 one file type at a time. Check Amazon Seller A/c, Amazon Settlement and Amazon Bank end-of-month balances.",
+      "frequency": "monthly",
+      "dueDay": 5,
+      "owner": "Accountant",
+      "reference": "Handbook §c16 · M1",
+      "referenceUrl": "/handbook#c16"
+    },
+    {
+      "id": "ops-m2-shiprocket-cod",
+      "title": "M2 · Shiprocket COD remittances",
+      "description": "Download the COD remittance report, save it unedited as YYYY-MM_Mon_Shiprocket_COD_AWB.xls, upload to File Manager → Custom Uploads, import with option 5, then book every Shiprocket freight invoice (COD + prepaid) and tie out — total booked should equal Total Deductions from COD.",
+      "frequency": "monthly",
+      "dueDay": 5,
+      "owner": "Accountant",
+      "reference": "Handbook §c16 · M2",
+      "referenceUrl": "/handbook#c16"
+    },
+    {
+      "id": "ops-m3-snapmint",
+      "title": "M3 · Snapmint settlements",
+      "description": "Request the settlement report (arrives by email), save it per the Custom Uploads naming convention, upload to File Manager → Custom Uploads, and import with option 5.",
+      "frequency": "monthly",
+      "dueDay": 5,
+      "owner": "Accountant",
+      "reference": "Handbook §c16 · M3",
+      "referenceUrl": "/handbook#c16"
+    },
+    {
+      "id": "ops-m4-platform-invoices-jv",
+      "title": "M4 · Platform invoices + Amazon expense JV",
+      "description": "Book each platform invoice as Purchase-Expense (base → fee ledger, GST → Input GST, credit the platform's control ledger; Amazon ads also carry TDS lines), pass the Amazon expense JV, and match every invoice to GSTR-2B. If an invoice is missing from 2B there is no input credit — tell Hargun.",
+      "frequency": "monthly",
+      "dueDay": 15,
+      "owner": "Accountant",
+      "reference": "Handbook §c16 · M4",
+      "referenceUrl": "/handbook#c16"
+    },
+    {
+      "id": "ops-m5-banks-statutory-close",
+      "title": "M5 · Banks, statutory dates, close",
+      "description": "Import and reconcile the three banks (HDFC, ICICI, Central Bank — Central Bank file needs column headings on row 14); meet the statutory dates (7th TDS paid, 10th GSTR-1 data to the CA, 20th GSTR-3B); then check every clearing ledger is cleared and close.",
+      "frequency": "monthly",
+      "dueDay": 20,
+      "owner": "Accountant",
+      "notes": "Statutory filings themselves are tracked in the Accounts category; this task is the operating close that feeds them.",
+      "reference": "Handbook §c16 · M5",
+      "referenceUrl": "/handbook#c16"
+    },
+    {
+      "id": "ops-q-26q-form16a",
+      "title": "Q · 26Q, Form 16A, Amazon TDS refunds",
+      "description": "File the 26Q TDS return (by 31 Jul / 31 Oct / 31 Jan / 31 May — late filing means Amazon won't refund the TDS on ads), upload Form 16A to Seller Central once generated, and confirm Amazon TDS refunds arrived in settlements (older than 6 months → raise a Seller Central case).",
+      "frequency": "quarterly",
+      "months": [7, 10, 1, 5],
+      "dueDay": 31,
+      "owner": "Accountant",
+      "authority": "Income Tax / Amazon",
+      "reference": "Handbook §c17 · Q",
+      "referenceUrl": "/handbook#c17"
+    }
+  ]
+}
