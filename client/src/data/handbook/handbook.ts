@@ -127,6 +127,7 @@ export function getHandbook(): Handbook {
   const articles: HbArticle[] = [];
   const idToArticle = new Map<string, HbArticle>();
   const used = new Set<string>();
+  const usedSlugs = new Set<string>();
 
   /** Build an article from a set of top-level chapter nodes. */
   const makeArticle = (
@@ -136,6 +137,8 @@ export function getHandbook(): Handbook {
     title: string,
     summary: string,
     headingLevel: 'h3' | 'h4',
+    /** Source heading text to drop (the page shows the title natively). */
+    sourceTitle: string = title,
   ): HbArticle => {
     const box = doc.createElement('div');
     box.className = 'chapter hb-article';
@@ -146,15 +149,16 @@ export function getHandbook(): Handbook {
     if (lead) {
       const t = lead.querySelector('.tag');
       if (t) {
-        tag = clean(t.textContent);
+        const txt = clean(t.textContent);
+        if (!/^[A-Z]\d+$/.test(txt)) tag = txt; // drop stale internal codes like "A9"
         t.remove();
       }
       const h3 = lead.querySelector('h3');
-      if (h3 && clean(h3.textContent) === title) h3.remove();
+      if (h3 && clean(h3.textContent) === sourceTitle) h3.remove();
       if (!clean(lead.textContent)) lead.remove();
     }
     const firstH3 = box.querySelector(':scope > h3');
-    if (firstH3 && clean(firstH3.textContent) === title) firstH3.remove();
+    if (firstH3 && clean(firstH3.textContent) === sourceTitle) firstH3.remove();
 
     // "On this page": h3s for whole chapters, h4 steps for single sections.
     // Journal-entry captions (.je h4) are not headings a reader navigates by.
@@ -172,7 +176,8 @@ export function getHandbook(): Handbook {
       });
 
     let slug = slugify(title) || chapterId;
-    while (articles.some((a) => a.collection === col && a.slug === slug)) slug += '-2';
+    while (usedSlugs.has(`${col.slug}/${slug}`)) slug += '-2';
+    usedSlugs.add(`${col.slug}/${slug}`);
     const art: HbArticle = {
       slug,
       title,
@@ -204,7 +209,7 @@ export function getHandbook(): Handbook {
     const out: HbArticle[] = [];
 
     if (!def.split) {
-      out.push(makeArticle(col, def.chapter, body, def.title ?? chTitle, def.summary ?? lede, 'h3'));
+      out.push(makeArticle(col, def.chapter, body, def.title ?? chTitle, def.summary ?? lede, 'h3', chTitle));
     } else {
       // Group: a top-level node that is or contains an h3 starts a new section.
       const intro: Element[] = [];
@@ -223,20 +228,22 @@ export function getHandbook(): Handbook {
       }
       groups.forEach((g, i) => {
         const t = clean(g.head.textContent);
-        const sum =
-          def.sectionSummaries?.[g.head.id] ??
-          def.sectionSummaries?.[t] ??
-          clean(g.nodes.map((n) => n.textContent).join(' ')).replace(t, '').slice(0, 140).trim() + '…';
-        const a = makeArticle(col, def.chapter, g.nodes, t, sum, 'h4');
+        const sec = def.sections?.[g.head.id] ?? def.sections?.[t] ?? {};
+        const target = (sec.collection && colBySlug.get(sec.collection)) || col;
+        const sum = sec.summary ?? clean(g.nodes.map((n) => n.textContent).join(' ')).replace(t, '').slice(0, 140).trim() + '…';
+        const a = makeArticle(target, def.chapter, g.nodes, sec.title ?? t, sum, 'h4', t);
         if (!def.overviewTitle && i === 0) idToArticle.set(def.chapter, a);
-        out.push(a);
+        if (target === col) out.push(a);
+        else target.articles.push(a);
       });
     }
     if (out[0]) idToArticle.set(def.chapter, out[0]);
     col.articles.push(...out);
-    articles.push(...out);
   };
 
+  // Create every collection first, so a split chapter can place a section in
+  // another collection (e.g. purchases from the Tranzact chapter).
+  const colBySlug = new Map<string, HbCollection>();
   for (const c of COLLECTIONS) {
     const col: HbCollection = {
       slug: c.slug,
@@ -248,8 +255,9 @@ export function getHandbook(): Handbook {
       href: `${HANDBOOK_BASE}/${c.slug}`,
     };
     collections.push(col);
-    c.articles.forEach((d) => addChapter(col, d));
+    colBySlug.set(c.slug, col);
   }
+  COLLECTIONS.forEach((c) => c.articles.forEach((d) => addChapter(colBySlug.get(c.slug)!, d)));
 
   // Safety net: any chapter not placed in a collection is still published.
   const leftover = chapterOrder.filter((id) => !used.has(id));
@@ -267,6 +275,8 @@ export function getHandbook(): Handbook {
     leftover.forEach((id) => addChapter(more, { chapter: id }));
   }
 
+  // Reading order (previous / next) follows the collections.
+  articles.push(...collections.flatMap((c) => c.articles));
   cache = { coverHtml, collections, articles, idToArticle, legacySlugs };
   return cache;
 }

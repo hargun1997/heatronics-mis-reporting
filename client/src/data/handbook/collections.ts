@@ -26,8 +26,12 @@ export interface ArticleDef {
   split?: boolean;
   /** Title for the overview article of a split chapter (omit to fold the intro into the first section). */
   overviewTitle?: string;
-  /** Per-section summaries for split chapters, keyed by the h3 id or h3 text. */
-  sectionSummaries?: Record<string, string>;
+  /**
+   * Per-section overrides for split chapters, keyed by the h3 id or h3 text:
+   * a clearer title, the one-line summary, or a different collection to file
+   * the section under.
+   */
+  sections?: Record<string, { title?: string; summary?: string; collection?: string }>;
 }
 
 export interface CollectionDef {
@@ -44,131 +48,147 @@ export const COLLECTIONS: CollectionDef[] = [
   {
     slug: 'getting-started',
     title: 'Getting started',
-    description: 'How the whole setup fits together, what runs when, and quick answers.',
+    description: 'Start here: how the whole setup fits together and what runs when.',
     accent: 'brand',
     icon: ['M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7'],
     articles: [
-      { chapter: 's0', title: 'How everything is wired', summary: 'One picture: where data starts, how it reaches Tally, and which ledger it lands in.' },
-      { chapter: 'c13', title: 'Operating calendar', summary: 'What happens daily, weekly and monthly, and by which day.' },
-      { chapter: 'c1', title: 'Entity, registrations and systems' },
-      { chapter: 's4', title: 'Bill-wise matching: how a payout clears its order' },
+      { chapter: 's0', title: 'How the setup works (one diagram)', summary: 'Every system, how its data reaches Tally, and the ledger it lands in.' },
+      { chapter: 'c13', title: 'What to do when: the operating calendar', summary: 'Every daily, weekly and monthly task, with the day it is due.' },
+      { chapter: 'c1', title: 'Company, GST registrations and systems', summary: 'One company in Tally Prime, five GST registrations, four systems feeding it.' },
+      { chapter: 's4', title: 'How a payout clears its order (bill references)', summary: 'The matching rule behind every D2C and Amazon receipt, and how to spot when it fails.' },
     ],
   },
   {
     slug: 'daily-work',
     title: 'Daily work',
-    description: 'The two things that move every day: Tranzact documents and Shopify/Easebuzz.',
+    description: 'The two jobs done every day, plus the Monday check.',
     accent: 'emerald',
     icon: ['M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
     articles: [
       {
         chapter: 'c14',
         split: true,
-        sectionSummaries: {
-          'Tranzact → Tally': 'D1 · Approve documents and push all five voucher types with the TranZact Chrome plugin.',
-          'Shopify orders, then Easebuzz payouts': 'D2 · Pull yesterday’s Shopify orders, then Easebuzz payouts, with plugin option 3.',
+        sections: {
+          'Tranzact → Tally': { title: 'D1 · Push Tranzact documents to Tally', summary: 'Split TDS, approve pending documents, then send all five voucher types with the TranZact Chrome plugin.' },
+          'Shopify orders, then Easebuzz payouts': { title: 'D2 · Import Shopify orders and Easebuzz payouts', summary: 'Plugin option 3: yesterday’s Shopify orders first, then Easebuzz payouts for the same dates.' },
         },
       },
-      { chapter: 'c15', title: 'Weekly checks', summary: 'A short Monday review of the control ledgers (recommended).' },
+      { chapter: 'c15', title: 'Weekly · Check the control ledgers', summary: 'A 15-minute Monday review: what each clearing ledger should show and what to chase.' },
     ],
   },
   {
     slug: 'month-end',
     title: 'Month-end work',
-    description: 'Amazon, Shiprocket, Snapmint, platform invoices, banks and the close — step by step.',
+    description: 'Imports, invoices, banks and the close — in the order they are done.',
     accent: 'violet',
     icon: ['M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'],
     articles: [
       {
         chapter: 'c16',
         split: true,
-        sectionSummaries: {
-          'Amazon: four reports': 'M1 · Download MTR-B2C, MTR-B2B, STR and Settlement; upload; import with option 2.',
-          'Shiprocket COD remittances': 'M2 · COD remittance file → Custom Uploads → option 5; book freight invoices.',
-          'Snapmint settlements': 'M3 · Request the settlement report by email → Custom Uploads → option 5.',
-          'Platform invoices and the Amazon expense JV': 'M4 · Book every platform GST invoice and pass the monthly Amazon JV.',
-          'Banks, statutory dates, close': 'M5 · Import bank statements, reconcile, statutory dates, close.',
+        sections: {
+          'Amazon: four reports': { title: 'M1 · Import Amazon reports (MTR, STR, Settlement)', summary: 'Download the four reports, upload them on the plugin site, import with option 2.' },
+          'Shiprocket COD remittances': { title: 'M2 · Import Shiprocket COD remittances', summary: 'COD file → Custom Uploads → option 5, then book freight invoices to ShipRocket Collection.' },
+          'Snapmint settlements': { title: 'M3 · Import Snapmint settlements', summary: 'Request the report by email → Custom Uploads → option 5.' },
+          'Platform invoices and the Amazon expense JV': { title: 'M4 · Book platform invoices and the Amazon expense JV', summary: 'Every platform GST invoice as Purchase-Expense, then the monthly Amazon JV, then match GSTR-2B.' },
+          'Banks, statutory dates, close': { title: 'M5 · Banks, statutory dates and close', summary: 'Import and reconcile the three banks, file on time, check every clearing ledger.' },
         },
       },
-      { chapter: 'c10', title: 'Month-end close and reconciliations' },
-      { chapter: 'c17', title: 'Quarterly tasks and fixes' },
+      { chapter: 'c10', title: 'Month-end close checklist and reconciliations', summary: 'The tie-outs that must hold before the month is closed and the MIS sent.' },
+      { chapter: 'c17', title: 'Quarterly tasks and fixing errors', summary: 'Quarterly returns, plus what to do when an import or a ledger goes wrong.' },
     ],
   },
   {
     slug: 'sales-channels',
     title: 'Sales channels',
-    description: 'How each channel’s sales reach Tally, the journals they post and how they clear.',
+    description: 'How each channel’s sales are booked in Tally and how they clear.',
     accent: 'brand',
     icon: ['M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z'],
     articles: [
-      { chapter: 'c6', title: 'Amazon' },
-      { chapter: 'c5', title: 'Shopify D2C (Easebuzz, Snapmint, Shiprocket)' },
-      { chapter: 'c25', title: 'Blinkit (quick commerce)' },
+      { chapter: 'c6', title: 'Amazon: how sales and settlements are booked', summary: 'MTR sales, the Seller A/c → Settlement → Bank chain, fees, ads and the monthly JV.' },
+      { chapter: 'c5', title: 'Shopify D2C: prepaid, COD and their collectors', summary: 'One sale, two receivables (prepaid / COD), three collectors (Easebuzz, Snapmint, Shiprocket).' },
+      { chapter: 'c25', title: 'Blinkit: quick-commerce invoicing and payment', summary: 'Invoiced from Tranzact (Blinkit series), paid on credit terms into the Central Bank CC.' },
       {
         chapter: 'c4',
         split: true,
         overviewTitle: 'B2B, OEM and offline sales (Tranzact)',
+        summary: 'Everything we invoice ourselves: how the Tranzact series decides the sales ledger.',
+        sections: {
+          'Purchases (goods)': { title: 'Purchases of goods (raw material)', summary: 'Goods bills in Tranzact post to RM Purchases with input GST; match to GSTR-2B.', collection: 'purchases-assets' },
+          'Job work and service bills': { title: 'Job work and service bills (2% TDS)', summary: 'Service bills post to Job Work Charges; split TDS in Tranzact before pushing.', collection: 'purchases-assets' },
+        },
       },
     ],
   },
   {
     slug: 'banking',
     title: 'Banks & payouts',
-    description: 'Where every payout lands, how statements are imported and reconciled.',
+    description: 'Which payout lands in which bank, and how statements are imported and reconciled.',
     accent: 'sky',
     icon: ['M3 10h18M5 10V20m4-10v10m6-10v10m4-10v10M3 20h18M12 3l9 5H3l9-5z'],
     articles: [
-      { chapter: 'c9', split: true, overviewTitle: 'Banks — overview' },
-      { chapter: 's6', title: 'Importing statements in Tally Banking' },
+      {
+        chapter: 'c9',
+        split: true,
+        overviewTitle: 'Banks overview: which payout lands where',
+        summary: 'All banks at a glance, and the rule for routing every credit to the right ledger.',
+        sections: {
+          'Central Bank CC (operating)': { title: 'Central Bank CC — operating account', summary: 'Every channel payout lands here; how to book receipts, payments and CC interest.' },
+          'ICICI Bank A/C - CC': { title: 'ICICI CC — payments account', summary: 'Monthly statement import and matching; regroup to Bank OD pending.' },
+          'HDFC Bank A/C': { title: 'HDFC — payments account', summary: 'Monthly statement import, supplier payments and BRS.' },
+          'Easebuzz Wire A/C': { title: 'Easebuzz Wire — low-use account', summary: 'Not the Easebuzz clearing ledger; what does and doesn’t post here.' },
+        },
+      },
+      { chapter: 's6', title: 'How to import a bank statement in Tally', summary: 'Upload to File Manager, import in Banking, match each line or create the voucher.' },
     ],
   },
   {
     slug: 'purchases-assets',
     title: 'Purchases & assets',
-    description: 'Capital goods, depreciation and the purchase-side rules.',
+    description: 'Goods and service bills, TDS on job work, capital goods and depreciation.',
     accent: 'emerald',
     icon: ['M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'],
-    articles: [{ chapter: 'c26', title: 'Capital goods and depreciation' }],
+    articles: [{ chapter: 'c26', title: 'Capital goods and depreciation', summary: 'Booking an asset with ITC, and the monthly depreciation journal (booked in Tally).' }],
   },
   {
     slug: 'tax',
     title: 'GST & TDS',
-    description: 'Registrations, monthly GST cycle, TDS splits, TCS and refunds.',
+    description: 'GST registrations and monthly cycle; TDS splits, TCS, 26Q and refunds.',
     accent: 'amber',
     icon: ['M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z'],
     articles: [
-      { chapter: 'c7', title: 'GST' },
-      { chapter: 'c8', title: 'TDS and TCS' },
+      { chapter: 'c7', title: 'GST: registrations, ledgers and monthly cycle', summary: 'Five GSTINs, three ledger families, GSTR-1 / 3B / 2B and set-off.' },
+      { chapter: 'c8', title: 'TDS and TCS: splits, 26Q and refunds', summary: '194C on job work, Amazon 194-O and TCS, quarterly 26Q, getting ads TDS refunded.' },
     ],
   },
   {
     slug: 'systems-tools',
     title: 'Systems & tools',
-    description: 'Tranzact, the eCom2Tally plugin, Tally On Cloud — concept, settings and menus.',
+    description: 'What each tool does, how it is set up, and where to click.',
     accent: 'rose',
     icon: ['M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z', 'M15 12a3 3 0 11-6 0 3 3 0 016 0z'],
     articles: [
-      { chapter: 's1', title: 'Tranzact and the TranZact Chrome plugin' },
-      { chapter: 's2', title: 'tally-integration.in (plugin website)' },
-      { chapter: 's3', title: 'eCom2Tally plugin inside Tally' },
-      { chapter: 's5', title: 'Tally On Cloud File Manager' },
-      { chapter: 's7', title: 'The manual layer' },
-      { chapter: 'c18', title: 'Tools and menus' },
-      { chapter: 'c19', title: 'Plugin settings (reference — do not change)' },
+      { chapter: 's1', title: 'Tranzact and the TranZact Chrome plugin: how they work', summary: 'How Tranzact picks ledgers, why approval matters, and how the plugin pushes to Tally.' },
+      { chapter: 's2', title: 'tally-integration.in: the plugin website and its mappings', summary: 'Where API keys, mapping rules and Amazon uploads live — read-only for the accountant.' },
+      { chapter: 's3', title: 'eCom2Tally in Tally: menu options 2, 3 and 5', summary: 'What each import option reads, what it creates, and what you enter.' },
+      { chapter: 's5', title: 'File Manager: getting files onto Tally On Cloud', summary: 'Which folder each file goes in so option 5 and bank import can read it.' },
+      { chapter: 's7', title: 'Entries no plugin makes (manual layer)', summary: 'Platform invoices, the Amazon JV, payroll and adjustments booked by hand.' },
+      { chapter: 'c18', title: 'Menus and screens: quick reference', summary: 'Where each tool’s menu is, with screenshots.' },
+      { chapter: 'c19', title: 'Plugin settings — reference, do not change', summary: 'The exact mapping rules on tally-integration.in, to compare against.' },
     ],
   },
   {
     slug: 'reference',
     title: 'Reference',
-    description: 'Chart of accounts, voucher types, control ledgers, links and terms.',
+    description: 'Ledgers, voucher types, control accounts, links and terms.',
     accent: 'sky',
     icon: ['M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'],
     articles: [
-      { chapter: 'c2', title: 'Chart of accounts' },
-      { chapter: 'c3', title: 'Voucher type catalogue' },
-      { chapter: 'c21', title: 'Control account map' },
-      { chapter: 'c20', title: 'Links' },
-      { chapter: 'c22', title: 'Terms' },
+      { chapter: 'c2', title: 'Chart of accounts: the groups that matter', summary: 'Where each control ledger sits and which ledgers need regrouping.' },
+      { chapter: 'c3', title: 'Voucher types and what posts them', summary: 'Every voucher type in use, which system creates it, and its standard entry.' },
+      { chapter: 'c21', title: 'Control ledgers: what clears each one', summary: 'Each clearing ledger, what debits it, what credits it, and its expected balance.' },
+      { chapter: 'c20', title: 'Links: portals and report downloads', summary: 'Every login and report page used in this handbook.' },
+      { chapter: 'c22', title: 'Glossary', summary: 'The terms used in this handbook, in plain words.' },
     ],
   },
   {
@@ -181,11 +201,11 @@ export const COLLECTIONS: CollectionDef[] = [
       {
         chapter: 'c23',
         split: true,
-        sectionSummaries: {
-          Amazon: 'Ads double-count, the monthly JV, reports, import order, TDS.',
-          'Shopify, Easebuzz, Snapmint, Shiprocket': 'Returns, re-fetching, freight, rejected files.',
-          Tranzact: 'Connecting, rejected documents, TDS split, Mark Paid.',
-          'Tally, banks and access': 'Tally date, duplicate ledgers, bank import, access rules.',
+        sections: {
+          Amazon: { title: 'FAQ · Amazon', summary: 'Ads counted twice, the monthly JV, reports, import order, TDS refunds.' },
+          'Shopify, Easebuzz, Snapmint, Shiprocket': { title: 'FAQ · Shopify and its collectors', summary: 'Returns, re-fetching Easebuzz, freight, rejected files.' },
+          Tranzact: { title: 'FAQ · Tranzact', summary: '“Connecting…”, rejected documents, the TDS split, Mark Paid.' },
+          'Tally, banks and access': { title: 'FAQ · Tally, banks and access', summary: 'Tally date, duplicate ledgers, bank import, who may change what.' },
         },
       },
     ],
@@ -193,13 +213,13 @@ export const COLLECTIONS: CollectionDef[] = [
   {
     slug: 'health-check',
     title: 'Health check & open items',
-    description: 'Findings from the books review, questions for the CA, and the evidence behind them.',
+    description: 'What the books review found, what is pending with the CA, and the evidence.',
     accent: 'rose',
     icon: ['M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'],
     articles: [
-      { chapter: 'c11', title: 'Findings and proposed adjustments' },
-      { chapter: 'c12', title: 'Queries for the CA' },
-      { chapter: 'c24', title: 'Evidence, figures and working files' },
+      { chapter: 'c11', title: 'Findings and proposed fixes', summary: 'Each problem found in the books, the exact amount, and the adjustment proposed.' },
+      { chapter: 'c12', title: 'Open questions for the CA', summary: 'Decisions waiting on the CA or the team.' },
+      { chapter: 'c24', title: 'Evidence: figures and source files', summary: 'Exact balances, source exports and companion files behind the findings.' },
     ],
   },
 ];
