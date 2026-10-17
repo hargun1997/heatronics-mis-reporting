@@ -6,7 +6,7 @@
 // ============================================================================
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowTopRightOnSquareIcon,
   BellAlertIcon,
@@ -31,6 +31,12 @@ import {
   importSeed,
   runWorkReminders,
   saveMember,
+  saveSettings,
+  previewReminders,
+  connectMail,
+  sendTestMail,
+  type ReminderSettings,
+  type DraftEmail,
   saveTask,
   setTaskDone,
   type ReminderRun,
@@ -189,7 +195,28 @@ export function TasksPage() {
   const [q, setQ] = useState('');
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [params, setParams] = useSearchParams();
   const today = todayIST();
+
+  // Links from the daily emails: /tasks?task=<id> opens that task, /tasks?who=<memberId> filters.
+  const linkTask = params.get('task');
+  const linkWho = params.get('who');
+  const [linked, setLinked] = useState(false);
+  useEffect(() => {
+    if (linked || !state || (!linkTask && !linkWho)) return;
+    setLinked(true);
+    if (linkWho && state.members.some((m) => m.id === linkWho)) setWho(linkWho);
+    if (linkTask && state.tasks.some((t) => t.id === linkTask)) {
+      setWho('all');
+      setArea('');
+      setQ('');
+      setView('all');
+      setOpenKey(`all:${linkTask}`);
+      setTimeout(() => document.getElementById(`task-${linkTask}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    }
+    setParams({}, { replace: true });
+  }, [linked, state, linkTask, linkWho, setParams]);
 
   const load = useCallback(async () => {
     try {
@@ -387,6 +414,8 @@ export function TasksPage() {
               </div>
             </div>
 
+            {preview && <EmailPreview onClose={() => setPreview(false)} />}
+
             {view === 'agenda' ? (
               <div className="mt-5 space-y-6">
                 {GROUPS.map((g) => {
@@ -452,7 +481,7 @@ export function TasksPage() {
           {/* Right rail */}
           <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
             <TeamCard state={state} me={me} onChanged={load} onError={setError} />
-            <RemindersCard state={state} onRan={load} />
+            <RemindersCard state={state} onRan={load} onPreview={() => setPreview(true)} />
             <Link
               to="/handbook"
               className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-300"
@@ -1006,7 +1035,7 @@ function AllTasks({
               const key = `all:${t.id}`;
               const open = openKey === key;
               return (
-                <li key={t.id} className={open ? 'bg-slate-50/60' : ''}>
+                <li key={t.id} id={`task-${t.id}`} className={`scroll-mt-24 ${open ? 'bg-slate-50/60' : ''}`}>
                   <button type="button" onClick={() => setOpenKey(open ? null : key)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left sm:px-4">
                     <div className="min-w-0 flex-1">
                       <div className={`truncate text-sm font-semibold ${t.active ? 'text-slate-900' : 'text-slate-400 line-through'}`}>{t.title}</div>
@@ -1124,14 +1153,30 @@ function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: str
   );
 }
 
-function RemindersCard({ state, onRan }: { state: WorkState; onRan: () => Promise<void> }) {
+const HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8 am – 10 pm
+const hourLabel = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? 'am' : 'pm'}`;
+
+function RemindersCard({ state, onRan, onPreview }: { state: WorkState; onRan: () => Promise<void>; onPreview: () => void }) {
   const [busy, setBusy] = useState(false);
   const [run, setRun] = useState<ReminderRun | null>(null);
   const [err, setErr] = useState('');
+  const [summaryTo, setSummaryTo] = useState(state.settings.summaryTo.join(', '));
   const last = state.lastReminderRun;
   const unowned = state.tasks.filter((t) => t.active && !t.ownerIds.length).length;
+  const st = state.settings;
+
+  const update = async (p: Partial<ReminderSettings>) => {
+    setErr('');
+    try {
+      await saveSettings(p);
+      await onRan();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not save.');
+    }
+  };
 
   const send = async () => {
+    if (!window.confirm(state.mailer.configured ? 'Send today’s task emails to every owner now?' : 'Email isn’t connected — this will be a dry run. Continue?')) return;
     setBusy(true);
     setErr('');
     try {
@@ -1148,39 +1193,216 @@ function RemindersCard({ state, onRan }: { state: WorkState; onRan: () => Promis
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
         <BellAlertIcon className="h-4 w-4 text-brand-600" />
-        <h3 className="font-display text-sm font-bold text-slate-900">Reminders</h3>
-        <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-medium ${state.mailer.configured ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-          {state.mailer.configured ? 'Email on' : 'Email not set up'}
-        </span>
+        <h3 className="font-display text-sm font-bold text-slate-900">Daily emails</h3>
+        <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-600">
+          <input type="checkbox" checked={st.enabled} onChange={(e) => void update({ enabled: e.target.checked })} className="rounded text-brand-600" />
+          {st.enabled ? 'On' : 'Off'}
+        </label>
       </div>
       <div className="space-y-3 px-4 py-3 text-sm text-slate-600">
-        <p>Each owner gets one email listing their overdue and due-soon tasks, each with its “How to” link. It repeats daily until ticked; uploads tick themselves.</p>
-        {!state.mailer.configured && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Sending is a dry run until the mail service is configured on the server.</p>}
-        {unowned > 0 && <p className="text-xs text-amber-700">{unowned} active task{unowned > 1 ? 's have' : ' has'} no owner — they won’t be emailed.</p>}
+        <div className="flex items-center gap-2">
+          <span>Send at</span>
+          <select value={st.sendHour} onChange={(e) => void update({ sendHour: Number(e.target.value) })} className="rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-sm font-medium text-slate-800">
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {hourLabel(h)}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-slate-400">India time</span>
+        </div>
+        <p className="text-xs leading-relaxed text-slate-500">
+          Anything not ticked by then is emailed from <b className="font-medium text-slate-700">{state.mailer.from ?? 'hargun@heatronics.in'}</b>: each owner gets their own list (with description, task link and how-to), and the team summary goes to:
+        </p>
+        <input
+          className={input}
+          value={summaryTo}
+          onChange={(e) => setSummaryTo(e.target.value)}
+          onBlur={() => {
+            const list = summaryTo.split(/[,\s]+/).filter(Boolean);
+            if (list.join(',') !== st.summaryTo.join(',')) void update({ summaryTo: list });
+          }}
+          placeholder="hargun@heatronics.in"
+          aria-label="Team summary goes to"
+        />
+        <label className="flex items-center gap-2 text-xs text-slate-600">
+          <input type="checkbox" checked={st.includeDueSoon} onChange={(e) => void update({ includeDueSoon: e.target.checked })} className="rounded text-brand-600" />
+          Also list what’s coming up in the next few days
+        </label>
+
+        <MailConnection state={state} onChanged={onRan} />
+
+        {unowned > 0 && <p className="text-xs text-amber-700">{unowned} active task{unowned > 1 ? 's have' : ' has'} no owner — they only show in the team summary.</p>}
         <div className="text-xs text-slate-500">
-          Last run:{' '}
+          Last sent:{' '}
           {last
-            ? `${new Date(last.at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} · ${last.dryRun ? 'dry run' : `${last.sent} sent`} to ${last.recipients} people`
+            ? `${new Date(last.at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} · ${last.dryRun ? 'dry run' : `${last.sent} of ${last.recipients} emails sent`}`
             : 'never'}
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void send()}
-          className="w-full rounded-lg border border-brand-200 bg-brand-50 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-100 disabled:opacity-50"
-        >
-          {busy ? 'Sending…' : 'Send reminders now'}
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={onPreview} className="rounded-lg border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 hover:border-slate-300">
+            Preview emails
+          </button>
+          <button type="button" disabled={busy} onClick={() => void send()} className="rounded-lg border border-brand-200 bg-brand-50 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-100 disabled:opacity-50">
+            {busy ? 'Sending…' : 'Send now'}
+          </button>
+        </div>
         {run && (
           <p className="text-xs text-slate-600">
-            {run.items} open item{run.items === 1 ? '' : 's'} → {run.emails.length} email{run.emails.length === 1 ? '' : 's'}
-            {run.emails.some((e) => e.dryRun) ? ' (dry run)' : ''}
-            {run.emails.some((e) => e.error) ? ` · ${run.emails.filter((e) => e.error).length} failed` : ''}.
+            {run.emails.length} email{run.emails.length === 1 ? '' : 's'}
+            {run.emails.some((e) => e.dryRun) ? ' (dry run — not sent)' : ` · ${run.emails.filter((e) => e.sent).length} sent`}
+            {run.emails.some((e) => e.error && !e.dryRun) ? ` · failed: ${run.emails.find((e) => e.error && !e.dryRun)!.error}` : ''}
           </p>
         )}
         {err && <p className="text-xs text-rose-600">{err}</p>}
       </div>
     </div>
+  );
+}
+
+/** Email connection: Zoho SMTP as hargun@heatronics.in (password is write-only). */
+function MailConnection({ state, onChanged }: { state: WorkState; onChanged: () => Promise<void> }) {
+  const m = state.mailer;
+  const [editing, setEditing] = useState(!m.configured);
+  const [pass, setPass] = useState('');
+  const [user, setUser] = useState(m.user ?? 'contact@heatronics.in');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [testTo, setTestTo] = useState('hargun@heatronics.in');
+
+  const connect = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await connectMail({ pass, user });
+      setPass('');
+      setMsg(r.check.ok ? { ok: true, text: 'Connected — Zoho accepted the login.' } : { ok: false, text: `Not saved — Zoho didn’t accept it: ${r.check.error ?? 'unknown error'}` });
+      if (r.check.ok) setEditing(false);
+      await onChanged();
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'Could not save.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const test = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await sendTestMail(testTo);
+      setMsg({ ok: true, text: `Test email sent to ${testTo}.` });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'Test failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 ${m.configured ? 'border-emerald-200 bg-emerald-50/50' : 'border-amber-200 bg-amber-50/60'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className={`text-xs font-semibold ${m.configured ? 'text-emerald-800' : 'text-amber-800'}`}>
+          {m.configured
+            ? m.provider === 'smtp'
+              ? `Email connected · Zoho (${m.user})`
+              : `Email connected · ${m.provider}`
+            : 'Email not connected — sends are a dry run'}
+        </span>
+        {m.configured && m.source !== 'env' && !editing && (
+          <button type="button" onClick={() => setEditing(true)} className="text-xs font-medium text-slate-500 hover:text-slate-800">
+            Change
+          </button>
+        )}
+      </div>
+      {m.source === 'env' && <p className="mt-1 text-[11px] text-slate-500">Set on the server (Cloud Run settings).</p>}
+      {editing && m.source !== 'env' && (
+        <div className="mt-2 space-y-2">
+          <p className="text-[11px] leading-relaxed text-slate-600">
+            Zoho Mail → My Account → Security → <b>App passwords</b> → generate one named “MIS”, paste it below. Emails go out as Hargun &lt;hargun@heatronics.in&gt; (an alias of this mailbox). The password is stored on the server and never shown again.
+          </p>
+          <input className={input} value={user} onChange={(e) => setUser(e.target.value)} placeholder="Zoho login (mailbox)" aria-label="Zoho login" />
+          <input className={input} type="password" autoComplete="new-password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Zoho app password" aria-label="Zoho app password" />
+          <div className="flex justify-end gap-2">
+            {m.configured && (
+              <button type="button" onClick={() => setEditing(false)} className="rounded-lg px-2.5 py-1 text-xs text-slate-600 hover:bg-white">
+                Cancel
+              </button>
+            )}
+            <button type="button" disabled={busy || !pass.trim()} onClick={() => void connect()} className="rounded-lg bg-brand-500 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50">
+              {busy ? 'Checking…' : 'Connect'}
+            </button>
+          </div>
+        </div>
+      )}
+      {m.configured && !editing && (
+        <div className="mt-2 flex gap-1.5">
+          <input className={`${input} py-1 text-xs`} value={testTo} onChange={(e) => setTestTo(e.target.value)} aria-label="Send test to" />
+          <button type="button" disabled={busy} onClick={() => void test()} className="shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50">
+            Send test
+          </button>
+        </div>
+      )}
+      {msg && <p className={`mt-1.5 text-[11px] ${msg.ok ? 'text-emerald-700' : 'text-rose-600'}`}>{msg.text}</p>}
+    </div>
+  );
+}
+
+/** In-page preview of today's emails, exactly as they will be sent. */
+function EmailPreview({ onClose }: { onClose: () => void }) {
+  const [data, setData] = useState<{ drafts: DraftEmail[] } | null>(null);
+  const [err, setErr] = useState('');
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    previewReminders()
+      .then(setData)
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : 'Could not build the preview.'));
+  }, []);
+  const d = data?.drafts[i];
+  return (
+    <section className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+        <h2 className="font-display text-sm font-bold text-slate-900">Today’s emails — preview</h2>
+        <span className="text-xs text-slate-400">nothing is sent from here</span>
+        <button type="button" onClick={onClose} className="ml-auto rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close preview">
+          <XMarkIcon className="h-4 w-4" />
+        </button>
+      </div>
+      {err && <p className="px-4 py-3 text-sm text-rose-600">{err}</p>}
+      {!data && !err && <p className="px-4 py-6 text-sm text-slate-500">Building…</p>}
+      {data && !data.drafts.length && <p className="px-4 py-6 text-sm text-slate-500">Nothing to send today — no owner has a pending task and no team-summary address is set.</p>}
+      {data && d && (
+        <>
+          <div className="flex gap-1.5 overflow-x-auto border-b border-slate-100 px-4 py-2">
+            {data.drafts.map((x, k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setI(k)}
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${k === i ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+              >
+                {x.kind === 'summary' ? '★ ' : ''}
+                {x.name} · {x.items}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-0.5 border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-600">
+            <div>
+              <span className="inline-block w-14 text-slate-400">From</span>Hargun &lt;hargun@heatronics.in&gt;
+            </div>
+            <div>
+              <span className="inline-block w-14 text-slate-400">To</span>
+              {d.to.join(', ')}
+            </div>
+            <div>
+              <span className="inline-block w-14 text-slate-400">Subject</span>
+              <b className="font-semibold text-slate-800">{d.subject}</b>
+            </div>
+          </div>
+          <iframe title="Email preview" srcDoc={d.html} sandbox="allow-popups" className="h-[720px] w-full bg-slate-100" />
+        </>
+      )}
+    </section>
   );
 }
 

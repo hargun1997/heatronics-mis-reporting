@@ -35,8 +35,27 @@ export interface DoneEntry {
 
 export interface MailerStatus {
   configured: boolean;
-  provider: 'resend' | 'mailgun' | 'none';
+  provider: 'smtp' | 'resend' | 'mailgun' | 'none';
   from: string | null;
+  source?: 'env' | 'app';
+  host?: string;
+  user?: string;
+}
+
+export interface ReminderSettings {
+  enabled: boolean;
+  sendHour: number;
+  summaryTo: string[];
+  includeDueSoon: boolean;
+}
+
+export interface DraftEmail {
+  kind: 'owner' | 'summary';
+  to: string[];
+  name: string;
+  subject: string;
+  html: string;
+  items: number;
 }
 
 export interface WorkState {
@@ -46,6 +65,8 @@ export interface WorkState {
   autoDone: Record<string, string[]>;
   members: TeamMember[];
   mailer: MailerStatus;
+  settings: ReminderSettings;
+  lastScheduledDay?: string;
   lastReminderRun?: { at: string; sent: number; dryRun: boolean; recipients: number };
 }
 
@@ -53,7 +74,7 @@ export interface ReminderRun {
   at: string;
   items: number;
   unowned: number;
-  emails: { sent: boolean; dryRun: boolean; to: string[]; error?: string }[];
+  emails: { sent: boolean; dryRun: boolean; to: string[]; error?: string; kind: 'owner' | 'summary'; subject: string }[];
   mailer: MailerStatus;
 }
 
@@ -74,6 +95,13 @@ export const setTaskDone = (id: string, period: string, done: boolean, by?: stri
 export const importSeed = (tasks: Partial<WorkTask>[], done: WorkState['done']) =>
   post('/api/work/import', { tasks, done }).then((r) => json<{ imported: number; skipped: boolean }>(r));
 export const runWorkReminders = () => post('/api/work/reminders/run', {}).then((r) => json<ReminderRun>(r));
+
+export const saveSettings = (s: Partial<ReminderSettings>) => post('/api/work/settings', s).then((r) => json<ReminderSettings>(r));
+export const previewReminders = () =>
+  fetch('/api/work/reminders/preview').then((r) => json<{ drafts: DraftEmail[]; items: number; unowned: number }>(r));
+export const connectMail = (c: { pass?: string; user?: string; host?: string; port?: number; from?: string }) =>
+  post('/api/work/mail', c).then((r) => json<{ mailer: MailerStatus; check: { ok: boolean; error?: string } }>(r));
+export const sendTestMail = (to: string) => post('/api/work/mail/test', { to }).then((r) => json<{ sent: boolean }>(r));
 
 export const saveMember = (m: Partial<TeamMember>) =>
   post('/api/ownership/members', m).then((r) => json<{ member: TeamMember }>(r)).then((x) => x.member);

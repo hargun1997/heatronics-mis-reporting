@@ -45,9 +45,25 @@ export interface DoneEntry {
   note?: string;
 }
 
+export interface ReminderSettings {
+  /** Send the daily emails automatically. */
+  enabled: boolean;
+  /** Hour of day (India time, 0–23) to send; tasks not done by then are emailed. */
+  sendHour: number;
+  /** Who gets the team summary (default Hargun). */
+  summaryTo: string[];
+  /** Also list tasks due in the next few days (each task's "remind from"). */
+  includeDueSoon: boolean;
+}
+
+export const DEFAULT_SETTINGS: ReminderSettings = { enabled: true, sendHour: 14, summaryTo: ['hargun@heatronics.in'], includeDueSoon: true };
+
 export interface WorkDoc {
   version: 1;
   seededAt?: string;
+  settings?: ReminderSettings;
+  /** India date (YYYY-MM-DD) of the last automatic daily send. */
+  lastScheduledDay?: string;
   tasks: WorkTask[];
   /** taskId → period → done entry */
   done: Record<string, Record<string, DoneEntry>>;
@@ -128,6 +144,40 @@ export async function setDone(id: string, period: string, done: boolean, by?: st
   if (done) map[period] = { at: new Date().toISOString(), by, note };
   else delete map[period];
   await writeWork(doc);
+}
+
+export async function saveSettings(input: Partial<ReminderSettings>): Promise<ReminderSettings> {
+  const doc = await readWork();
+  const cur = { ...DEFAULT_SETTINGS, ...(doc.settings ?? {}) };
+  const emails = Array.isArray(input.summaryTo)
+    ? input.summaryTo.map((e) => String(e).trim()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e))
+    : cur.summaryTo;
+  const next: ReminderSettings = {
+    enabled: input.enabled ?? cur.enabled,
+    sendHour: num(input.sendHour, 0, 23) ?? cur.sendHour,
+    summaryTo: emails,
+    includeDueSoon: input.includeDueSoon ?? cur.includeDueSoon,
+  };
+  doc.settings = next;
+  await writeWork(doc);
+  return next;
+}
+
+/**
+ * Claim today's automatic send: true if it is past the send hour and nobody has
+ * sent today yet (marks the day first, so overlapping triggers don't double-send).
+ */
+export async function claimScheduledRun(now = new Date()): Promise<{ ok: boolean; reason?: string; day: string }> {
+  const doc = await readWork();
+  const st = { ...DEFAULT_SETTINGS, ...(doc.settings ?? {}) };
+  const day = todayIST(now);
+  const hour = new Date(now.getTime() + 5.5 * 3_600_000).getUTCHours();
+  if (!st.enabled) return { ok: false, reason: 'Daily emails are switched off.', day };
+  if (hour < st.sendHour) return { ok: false, reason: `Not yet ${st.sendHour}:00 India time.`, day };
+  if (doc.lastScheduledDay === day) return { ok: false, reason: 'Already sent today.', day };
+  doc.lastScheduledDay = day;
+  await writeWork(doc);
+  return { ok: true, day };
 }
 
 export async function recordReminderRun(run: WorkDoc['lastReminderRun']): Promise<void> {

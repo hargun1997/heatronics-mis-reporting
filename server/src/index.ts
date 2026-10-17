@@ -21,6 +21,7 @@ import issuesRoutes from './routes/issues.js';
 import ownershipRoutes from './routes/ownership.js';
 import workRoutes from './routes/work.js';
 import reportRoutes from './routes/report.js';
+import { refreshMailConfig } from './services/mailer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,6 +79,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.listen(PORT, () => {
+  void refreshMailConfig();
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
 ║         Heatronics Accounting Dashboard Server                ║
