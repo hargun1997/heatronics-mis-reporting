@@ -6,8 +6,6 @@ import { Drawer } from '../components/ui/overlays';
 import { FloatingChat } from '../components/chat/FloatingChat';
 import { SopChat } from '../components/chat/SopChat';
 
-const DATA_INSIGHTS_URL = 'https://digistex-portfolio.vercel.app/';
-
 // ---- nav model -------------------------------------------------------------
 
 interface NavLeaf {
@@ -75,7 +73,6 @@ const SECTIONS: NavSection[] = [
     label: 'More',
     items: [
       { path: '/tools', label: 'Tools', icon: ico(['M14 7l3 3-8 8H6v-3z', 'M4 20h16']), match: (p) => p.startsWith('/tools') },
-      { path: DATA_INSIGHTS_URL, label: 'Data / Insights', external: true, icon: ico(['M3 3v18h18', 'M7 14l4-4 3 3 5-6']) },
     ],
   },
 ];
