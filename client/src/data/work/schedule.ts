@@ -122,24 +122,31 @@ export function lookbackDays(c: Cadence): number {
   return c === 'daily' ? 1 : c === 'weekly' ? 14 : c === 'monthly' ? 45 : 120;
 }
 
-/** Plain-words schedule, e.g. "Monthly · by the 7th (for last month)". */
+/** Plain-words schedule, e.g. "Every month on the 1st" (for last month). */
+export const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
+
 export function describe(spec: ScheduleSpec): string {
   const MN = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const WD = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const ord = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
+  const WDL = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const day = (d?: number, fallback = 1) => ((d ?? fallback) >= 31 ? 'last day' : ordinal(d ?? fallback));
   switch (spec.cadence) {
     case 'daily':
-      return 'Daily (Mon–Sat)';
+      return 'Every working day (Mon–Sat)';
     case 'weekly':
-      return `Weekly · ${WD[spec.dueWeekday ?? 1]}`;
+      return `Every ${WDL[spec.dueWeekday ?? 1]}`;
     case 'monthly':
-      return `Monthly · by the ${ord(spec.dueDay ?? 1)}${spec.arrears ? ' (for last month)' : ''}`;
+      return `Every month on the ${day(spec.dueDay)}${spec.arrears ? ' (for last month)' : ''}`;
     case 'quarterly':
     case 'half-yearly':
-      return `${spec.cadence === 'quarterly' ? 'Quarterly' : 'Half-yearly'} · ${ord(spec.dueDay ?? 1)} of ${(spec.months?.length ? spec.months : DEFAULT_MONTHS[spec.cadence]).map((m) => MN[m]).join(', ')}`;
+      return `${spec.cadence === 'quarterly' ? 'Quarterly' : 'Half-yearly'} on the ${day(spec.dueDay)} of ${(spec.months?.length ? spec.months : DEFAULT_MONTHS[spec.cadence]).map((m) => MN[m]).join(', ')}`;
     case 'yearly':
-      return `Yearly · ${spec.dueDay ?? 31} ${MN[spec.dueMonth ?? 3]}`;
-    case 'one-time':
-      return spec.dueDate ? `One-time · ${spec.dueDate}` : spec.dueMonth ? `One-time · ${spec.dueDay ?? 1} ${MN[spec.dueMonth]}` : 'One-time';
+      return `Every year on ${spec.dueDay ?? 31} ${MN[spec.dueMonth ?? 3]}`;
+    case 'one-time': {
+      if (spec.dueDate) {
+        const d = parseYmd(spec.dueDate);
+        return `Once on ${d.getUTCDate()} ${MN[d.getUTCMonth() + 1]} ${d.getUTCFullYear()}`;
+      }
+      return spec.dueMonth ? `Once on ${spec.dueDay ?? 1} ${MN[spec.dueMonth]}` : 'Once — no date set';
+    }
   }
 }

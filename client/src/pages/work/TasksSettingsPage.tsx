@@ -48,7 +48,7 @@ export function TasksSettingsPage() {
   }, [state, hash]);
 
   return (
-    <div className="pb-16">
+    <div className="tasks-ui pb-16">
       <PageHeader
         title="People & reminders"
         description="Who owns tasks, the heads you filter by, who covers each role, and the daily reminder email."
@@ -63,9 +63,9 @@ export function TasksSettingsPage() {
       <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
         {error && <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</p>}
         {!state ? (
-          <p className="py-16 text-center text-sm text-slate-500">Loading…</p>
+          <p className="py-16 text-center text-sm text-slate-600">Loading…</p>
         ) : !state.seededAt ? (
-          <p className="py-16 text-center text-sm text-slate-500">
+          <p className="py-16 text-center text-sm text-slate-600">
             Open <Link to="/tasks" className="font-medium text-brand-700 hover:underline">Tasks &amp; owners</Link> once first to set up the task list.
           </p>
         ) : (
@@ -105,8 +105,8 @@ export function TasksSettingsPage() {
 function SectionTitle({ title, sub }: { title: string; sub: string }) {
   return (
     <div className="mb-2 px-1">
-      <h2 className="font-display text-base font-bold text-slate-900">{title}</h2>
-      <p className="text-xs text-slate-500">{sub}</p>
+      <h2 className="font-display text-base font-bold text-slate-950">{title}</h2>
+      <p className="text-[13px] text-slate-600">{sub}</p>
     </div>
   );
 }
@@ -146,20 +146,20 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
           <li key={h.id} className="space-y-2 px-4 py-3">
             <div className="flex items-center gap-2">
               <input className={`${field} font-semibold`} value={h.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Head name, e.g. CA / Audit" aria-label="Head name" />
-              <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs tabular-nums text-slate-500" title="Tasks under this head">
+              <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-[13px] tabular-nums text-slate-600" title="Tasks under this head">
                 {count(h)}
               </span>
               <button
                 type="button"
                 onClick={() => setHeads((hs) => hs.filter((_, j) => j !== i))}
-                className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600"
                 aria-label={`Delete ${h.name || 'head'}`}
               >
                 <TrashIcon className="h-4 w-4" />
               </button>
             </div>
             <input
-              className={`${field} text-xs`}
+              className={`${field} text-[13px]`}
               value={h.roles.join(', ')}
               onChange={(e) => set(i, { roles: e.target.value.split(',').map((r) => r.trim()).filter((r, k, a) => r || k === a.length - 1) })}
               placeholder="Roles, comma-separated — e.g. CA, Statutory Auditor"
@@ -173,7 +173,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
                     key={a}
                     type="button"
                     onClick={() => set(i, { areas: on ? h.areas.filter((x) => x !== a) : [...h.areas, a] })}
-                    className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${on ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                    className={`rounded-full border px-2 py-0.5 text-[12px] font-medium ${on ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
                   >
                     {a}
                   </button>
@@ -191,9 +191,9 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
         >
           <PlusIcon className="h-4 w-4" /> Add head
         </button>
-        <span className="ml-auto text-xs text-emerald-700">{msg}</span>
+        <span className="ml-auto text-[13px] text-emerald-700">{msg}</span>
         {dirty && (
-          <button type="button" onClick={() => setHeads(state.heads)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm text-slate-500 hover:bg-slate-100">
+          <button type="button" onClick={() => setHeads(state.heads)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
             <XMarkIcon className="h-4 w-4" /> Undo
           </button>
         )}
@@ -201,7 +201,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
           {busy ? 'Saving…' : 'Save heads'}
         </button>
       </div>
-      <p className="border-t border-slate-100 px-4 py-2 text-[11px] text-slate-400">
+      <p className="border-t border-slate-100 px-4 py-2 text-[12px] text-slate-500">
         Tip: to put a task under “CA / Audit”, add “CA” to its Role / head field (task → Details &amp; owners).
       </p>
     </div>

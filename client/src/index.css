@@ -133,3 +133,26 @@ body {
   background-repeat: repeat-x;
   height: 1px;
 }
+
+/* Tasks pages — set for reading: IBM Plex Sans (body) + Plex Mono (dates and
+   figures), near-black text, tabular numbers. */
+.tasks-ui {
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #0b1220;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  -webkit-font-smoothing: antialiased;
+}
+.tasks-ui .font-display,
+.tasks-ui .font-sans,
+.tasks-ui h1,
+.tasks-ui h2,
+.tasks-ui h3 {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  letter-spacing: -0.005em;
+}
+.tasks-ui h1 { font-weight: 700; }
+.tasks-ui .font-mono {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.tasks-ui input::placeholder,
+.tasks-ui textarea::placeholder { color: #64748b; }
