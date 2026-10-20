@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Cog6ToothIcon, PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { getWork, saveHeads, type Head, type WorkState } from '../../data/work/workClient';
+import { getEmailTemplates, getWork, saveHeads, type EmailTemplate, type Head, type WorkState } from '../../data/work/workClient';
 import { EmailPreview, RemindersCard, RolesCard, TeamCard } from './TasksPage';
 
 const field = 'w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100';
@@ -95,9 +95,66 @@ export function TasksSettingsPage() {
                 <EmailPreview onClose={() => setPreview(false)} />
               </div>
             )}
+            <section id="templates" className="scroll-mt-24 lg:col-span-2">
+              <SectionTitle title="Email templates" sub="Every email the Tasks pages send, filled with sample tasks from your list. Nothing is sent from here." />
+              <EmailTemplates />
+            </section>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Gallery of every email format, rendered by the server with sample tasks. */
+function EmailTemplates() {
+  const [list, setList] = useState<EmailTemplate[] | null>(null);
+  const [err, setErr] = useState('');
+  const [k, setK] = useState(0);
+  useEffect(() => {
+    getEmailTemplates()
+      .then((r) => setList(r.templates))
+      .catch((e: unknown) => setErr(e instanceof Error ? e.message : 'Could not load the templates.'));
+  }, []);
+  const t = list?.[k];
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm">
+      {err && <p className="px-4 py-3 text-[14px] text-rose-700">{err}</p>}
+      {!list && !err && <p className="px-4 py-6 text-[14px] text-slate-600">Loading…</p>}
+      {list && t && (
+        <div className="grid lg:grid-cols-[280px_minmax(0,1fr)]">
+          <ul className="border-b border-slate-200 lg:border-b-0 lg:border-r">
+            {list.map((x, i) => (
+              <li key={x.key}>
+                <button
+                  type="button"
+                  onClick={() => setK(i)}
+                  className={`block w-full border-l-4 px-4 py-3 text-left transition ${i === k ? 'border-brand-500 bg-brand-50/60' : 'border-transparent hover:bg-slate-50'}`}
+                >
+                  <span className="block text-[15px] font-semibold text-slate-950">{x.name}</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-slate-700">{x.when}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="min-w-0">
+            <div className="space-y-0.5 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-800">
+              <div>
+                <span className="inline-block w-16 font-semibold text-slate-600">From</span>Hargun &lt;hargun@heatronics.in&gt;
+              </div>
+              <div>
+                <span className="inline-block w-16 font-semibold text-slate-600">To</span>
+                {t.to || '—'}
+              </div>
+              <div>
+                <span className="inline-block w-16 font-semibold text-slate-600">Subject</span>
+                <b className="font-semibold text-slate-950">{t.subject}</b>
+              </div>
+            </div>
+            <iframe title={t.name} srcDoc={t.html} sandbox="allow-popups" className="h-[760px] w-full bg-slate-100" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

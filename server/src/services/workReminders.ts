@@ -18,9 +18,9 @@
 
 import { listMembers, type TeamMember } from './ownershipStore.js';
 import { sendEmail, mailerStatus, ensureMailConfig, type MailResult, type MailerStatus } from './mailer.js';
-import { openItems, readWork, recordReminderRun, markReminded, taskOpenItems, DEFAULT_SETTINGS, type OpenItem } from './workStore.js';
-import { todayIST } from './workSchedule.js';
-import { ownerDigest, teamSummary } from './workEmails.js';
+import { openItems, readWork, recordReminderRun, markReminded, taskOpenItems, DEFAULT_SETTINGS, type OpenItem, type WorkTask } from './workStore.js';
+import { todayIST, addDays, parseYmd, ymd } from './workSchedule.js';
+import { ownerDigest, teamSummary, taskReminder, testEmail } from './workEmails.js';
 
 export interface DraftEmail {
   kind: 'owner' | 'summary';
@@ -102,7 +102,6 @@ export async function runWorkReminders(base: string, now = new Date()): Promise<
 export async function remindTaskNow(id: string, base: string, now = new Date()) {
   await ensureMailConfig();
   const [items, members, doc] = await Promise.all([taskOpenItems(id, now), listMembers(), readWork()]);
-  const st = { ...DEFAULT_SETTINGS, ...(doc.settings ?? {}) };
   const task = doc.tasks.find((t) => t.id === id)!;
   const owners = members.filter((m) => task.ownerIds.includes(m.id));
   if (!owners.length) throw new Error('This task has no owner to remind.');
@@ -111,10 +110,57 @@ export async function remindTaskNow(id: string, base: string, now = new Date()) 
   const today = todayIST(now);
   const emails: (MailResult & { subject: string })[] = [];
   for (const m of owners) {
-    const { html } = ownerDigest({ member: m, items, base, today, sendHour: st.sendHour, names });
-    const subject = `[Heatronics] Reminder: ${task.title}`;
+    const { subject, html } = taskReminder({ member: m, items, base, today, names });
     emails.push({ ...(await sendEmail({ to: [m.email], subject, html })), subject });
   }
   if (emails.some((e) => e.sent)) await markReminded([id], now.toISOString());
   return { emails, mailer: mailerStatus() };
+}
+
+export interface TemplateSample {
+  key: string;
+  name: string;
+  when: string;
+  to: string;
+  subject: string;
+  html: string;
+}
+
+/** Every email format, filled with sample items built from real tasks (nothing is sent). */
+export async function buildTemplateSamples(base: string, now = new Date()): Promise<TemplateSample[]> {
+  const [doc, members] = await Promise.all([readWork(), listMembers()]);
+  const st = { ...DEFAULT_SETTINGS, ...(doc.settings ?? {}) };
+  const today = todayIST(now);
+  const hour = `${st.sendHour % 12 || 12}:00 ${st.sendHour < 12 ? 'am' : 'pm'}`;
+  const active = doc.tasks.filter((t) => t.active);
+  const guided = active.filter((t) => t.howTo && t.cadence !== 'daily');
+  const pool = [...guided, ...active.filter((t) => !guided.includes(t))];
+  const fallback: WorkTask = {
+    id: 'sample',
+    title: 'File GSTR-3B',
+    area: 'GST, TDS & tax',
+    description: 'File the monthly GSTR-3B return and pay the tax due.',
+    ownerIds: [],
+    cadence: 'monthly',
+    dueDay: 20,
+    active: true,
+  };
+  const [a = fallback, b = a, c = b] = pool;
+  const member: TeamMember = members.find((m) => a.ownerIds.includes(m.id)) ?? members[0] ?? { id: 'sample', name: 'Aashish', email: 'accounts@heatronics.in' };
+  const mk = (t: WorkTask, late: number): OpenItem => {
+    const due = ymd(addDays(parseYmd(today), -late));
+    return { task: t, period: t.cadence === 'yearly' ? due.slice(0, 4) : due.slice(0, 7), due, late };
+  };
+  const names = (i: OpenItem) => members.filter((m) => i.task.ownerIds.includes(m.id)).map((m) => m.name).join(', ') || member.name;
+  const ownerItems = [mk(a, 2), mk(b, 0), mk(c, -2)];
+  const owner = ownerDigest({ member, items: ownerItems, base, today, sendHour: st.sendHour, names });
+  const summary = teamSummary({ items: [mk(a, 2), mk(b, 0), mk(c, 0), mk(c, -3)], members: members.length ? members : [member], base, today, sendHour: st.sendHour, names });
+  const single = taskReminder({ member, items: [mk(a, 1)], base, today, names });
+  const test = testEmail({ base, today, from: mailerStatus().from ?? 'Hargun <hargun@heatronics.in>' });
+  return [
+    { key: 'owner', name: 'Daily email — each owner', when: `Every day at ${hour} to each person with a task overdue or due today (plus what’s coming up). Repeats until ticked.`, to: member.email, ...owner },
+    { key: 'summary', name: 'Daily team summary', when: `Every day at ${hour} to ${st.summaryTo.join(', ') || 'the summary address'} — everything not done, grouped by owner, incl. tasks with no owner.`, to: st.summaryTo.join(', '), ...summary },
+    { key: 'task', name: 'Reminder for one task', when: '“Send reminder now” on a task — goes straight to that task’s owners.', to: member.email, ...single },
+    { key: 'test', name: 'Test email', when: '“Send test” in Daily reminder email — checks the connection.', to: 'the address you enter', ...test },
+  ];
 }
