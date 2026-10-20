@@ -1,34 +1,11 @@
-/* Accounts Handbook — help-center chrome (hand-written; the article body
-   styles live in handbook.generated.css). */
+/* Accounts Handbook — reader chrome (hand-written; the article body styles
+   live in handbook.generated.css, built from handbook.html).
 
-/* Ledger-paper hero: ruled lines + the red margin rule of an accounts book. */
-.hb-hero {
-  background:
-    linear-gradient(90deg, transparent 0 72px, rgba(254, 71, 5, 0.28) 72px 73px, transparent 73px 76px, rgba(254, 71, 5, 0.18) 76px 77px, transparent 77px),
-    repeating-linear-gradient(180deg, transparent 0 33px, rgba(15, 23, 42, 0.055) 33px 34px),
-    radial-gradient(1200px 400px at 85% -10%, rgba(254, 108, 56, 0.16), transparent 60%),
-    linear-gradient(180deg, #fffaf6 0%, #ffffff 100%);
-}
-@media (max-width: 640px) {
-  .hb-hero {
-    background:
-      repeating-linear-gradient(180deg, transparent 0 33px, rgba(15, 23, 42, 0.05) 33px 34px),
-      linear-gradient(180deg, #fffaf6 0%, #ffffff 100%);
-  }
-}
+   Rules under .hbx apply only to the handbook page. Rules on plain .hb are
+   shared with the Tasks page, which shows handbook articles inline. */
 
-/* Staggered reveal for cards. */
-@keyframes hb-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-.hb-rise { animation: hb-rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-@media (prefers-reduced-motion: reduce) {
-  .hb-rise { animation: none; }
-}
-
-/* Article body inside the reading column: the card chrome comes from the
-   page, so flatten the handbook's own chapter card. */
+/* Article body inside a page column: the page carries the chrome, so flatten
+   the handbook's own chapter card. (Shared with the Tasks page.) */
 .hb .hb-article {
   background: transparent;
   border: 0;
@@ -36,3 +13,130 @@
   padding: 0;
 }
 .hb .hb-article > .opblock:first-child { padding-top: 0; }
+
+/* ---------------------------------------------------------------------------
+   Type: IBM Plex Sans / Mono across the handbook, set for reading.
+   ------------------------------------------------------------------------- */
+.hbx {
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+.hbx .font-mono { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+.hbx .hb {
+  --f-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --f-head: 'IBM Plex Sans', system-ui, sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --muted: #475569;
+  font-size: 16.5px;
+  line-height: 1.6;
+}
+.hbx .hb h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.005em; }
+.hbx .hb h3 { font-size: 18px; font-weight: 600; line-height: 1.35; }
+.hbx .hb .opblock h3 { font-size: 19px; }
+.hbx .hb h4 { line-height: 1.4; }
+.hbx .hb .chapter { gap: 20px; }
+
+/* Tables and wide blocks scroll inside their own box, never the page. */
+.hbx .hb .hb-article > table,
+.hbx .hb .step .body > table,
+.hbx .hb .callout > table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.hbx .hb .tw,
+.hbx .hb .tree,
+.hbx .hb .flowline { max-width: 100%; }
+.hbx .hb img,
+.hbx .hb svg { max-width: 100%; }
+.hbx .hb figure img { cursor: zoom-in; }
+
+/* Calmer task steps: a hairline instead of a boxed card. */
+.hbx .hb .step {
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.hbx .hb .step > .no {
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------------------
+   Foldable sections (fold.ts adds .hbf-head + a chevron to each heading)
+   ------------------------------------------------------------------------- */
+.hbx .hb .hbf-head {
+  position: relative;
+  cursor: pointer;
+  border-radius: 6px;
+  padding-left: 30px;
+  min-height: 28px;
+}
+.hbx .hb .hbf-head:hover { color: #93270c; }
+.hbf-btn {
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  /* Bigger tap target than it looks. */
+  outline-offset: 0;
+}
+.hbf-btn::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+.hbf-btn:hover { background: #f1f5f9; color: #0f172a; }
+.hbf-btn:focus-visible { outline: 2px solid #fe4705; }
+.hbf-btn svg { transition: transform 0.15s ease; }
+.hbx .hb .hbf-head[data-open='false'] .hbf-btn svg { transform: rotate(-90deg); }
+.hbx .hb .hbf-hide { display: none !important; }
+/* A folded step / block reads as one outline line. */
+.hbx .hb .step:has(.hbf-head[data-open='false']) { padding-top: 10px; padding-bottom: 10px; align-items: center; }
+.hbx .hb .step:has(.hbf-head[data-open='false']) > .body { gap: 0; }
+.hbx .hb .opblock:has(> header .hbf-head[data-open='false']) { gap: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .hbf-btn svg { transition: none; }
+}
+
+/* "On this page" (narrow screens): no default disclosure marker. */
+.hbx details > summary::-webkit-details-marker { display: none; }
+
+/* ---------------------------------------------------------------------------
+   Compact density: tighter spacing, screenshots as thumbnails (click = large).
+   ------------------------------------------------------------------------- */
+.hbx-compact .hb { font-size: 15.5px; line-height: 1.55; }
+.hbx-compact .hb .chapter { gap: 12px; }
+.hbx-compact .hb .opblock { gap: 10px; }
+.hbx-compact .hb .opblock + .opblock { padding-top: 14px; }
+.hbx-compact .hb .step { padding: 10px 12px; gap: 10px; }
+.hbx-compact .hb .step > .body { gap: 8px; }
+.hbx-compact .hb .callout { padding: 8px 12px; }
+.hbx-compact .hb figure { display: inline-flex; max-width: 100%; }
+.hbx-compact .hb figure img {
+  width: auto;
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  object-position: left top;
+}
+.hbx-compact .hb figure a { display: inline-block; max-width: 100%; }
+.hbx-compact .hb .pair { gap: 10px; }
+
+/* Phones: keep the step number beside its text (the base CSS stacks them). */
+@media (max-width: 760px) {
+  .hbx .hb .step { grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 12px; }
+  .hbx .hb .step > .no { width: 28px; height: 28px; font-size: 13px; }
+  .hbx .hb h3 { font-size: 17px; }
+}
