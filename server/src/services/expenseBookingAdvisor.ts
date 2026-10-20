@@ -330,7 +330,8 @@ export async function getExpenseBookingAdvice(
   const parts: ClaudePart[] = [{ text: prompt }];
   for (const a of attachments) {
     if (a.data && a.mime) {
-      parts.push({ image: { mimeType: a.mime, data: a.data } });
+      // PDFs must go as a document block — an image block with a PDF mime is rejected.
+      parts.push(a.mime === 'application/pdf' ? { pdf: { data: a.data } } : { image: { mimeType: a.mime, data: a.data } });
     }
   }
   const raw = await callClaude(parts);

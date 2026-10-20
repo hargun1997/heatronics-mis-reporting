@@ -21,6 +21,7 @@ import issuesRoutes from './routes/issues.js';
 import ownershipRoutes from './routes/ownership.js';
 import workRoutes from './routes/work.js';
 import reportRoutes from './routes/report.js';
+import bookingAssistantRoutes from './routes/bookingAssistant.js';
 import { refreshMailConfig } from './services/mailer.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -54,6 +55,7 @@ app.use('/api/issues', issuesRoutes);
 app.use('/api/ownership', ownershipRoutes);
 app.use('/api/work', workRoutes);
 app.use('/api/report', reportRoutes);
+app.use('/api/booking-assistant', bookingAssistantRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

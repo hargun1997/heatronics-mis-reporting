@@ -161,6 +161,8 @@ export async function claudeCompleteText(opts: ClaudeCompleteOptions): Promise<s
 export interface ChatTurn {
   role: 'user' | 'assistant';
   content: string;
+  /** Optional attachments (invoice images / PDFs / extracted text) sent ahead of `content`. */
+  parts?: ClaudePart[];
 }
 
 export interface ClaudeChatOptions {
@@ -191,7 +193,10 @@ export async function claudeChat(opts: ClaudeChatOptions): Promise<string> {
         model: opts.model || DEFAULT_MODEL,
         max_tokens: opts.maxTokens ?? 8000,
         system: [{ type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } }],
-        messages: opts.messages.map((m) => ({ role: m.role, content: m.content })),
+        messages: opts.messages.map((m) => ({
+          role: m.role,
+          content: m.parts?.length ? toContentBlocks([...m.parts, { text: m.content }]) : m.content,
+        })),
       } as unknown as Anthropic.MessageCreateParamsNonStreaming;
       const escape = params as unknown as Record<string, unknown>;
       escape.output_config = { effort: opts.effort ?? 'medium' };

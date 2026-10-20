@@ -64,6 +64,7 @@ const SECTIONS: NavSection[] = [
     label: 'Guides',
     items: [
       { path: '/handbook', label: 'Accounts Handbook', icon: ico(['M4 19.5A2.5 2.5 0 016.5 17H20', 'M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z']), match: (p) => p.startsWith('/guide') || p.startsWith('/handbook') },
+      { path: '/booking-assistant', label: 'Booking assistant', icon: ico(['M4 5h16v14H4z', 'M4 9h16', 'M9 9v10', 'M13 13h4M13 16h4']), match: (p) => p.startsWith('/booking-assistant') },
     ],
   },
   {

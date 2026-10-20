@@ -25,6 +25,7 @@ import { ToolsHome } from './pages/guide/tools/ToolsHome';
 import { InvoiceBookingSuggester } from './pages/guide/tools/InvoiceBookingSuggester';
 import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
 import { ExpenseBooking } from './pages/tools/ExpenseBooking';
+import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
           {/* Accounts Handbook — the single accounting knowledge base (handbook.html) */}
           {/* One route so moving between handbook views never remounts the page */}
           <Route path="handbook/*" element={<HandbookPage />} />
+          <Route path="booking-assistant" element={<BookingAssistantPage />} />
 
           {/* Old task tracker → the unified Tasks page */}
           <Route path="task-tracker" element={<Navigate to="/tasks" replace />} />
