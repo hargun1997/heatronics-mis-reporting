@@ -49,7 +49,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
     return all.filter((r) => {
       if (filter !== 'all' && r.status !== filter) return false;
       if (!q) return true;
-      return [r.vendor, r.ledger, r.voucherType, r.gst, r.tds, r.notes, r.suggestion ?? '', ...r.keywords]
+      return [r.vendor, r.ledger, r.voucherType, r.gst, r.tds, r.notes, r.suggestion ?? '', r.party ?? '', r.evidence ?? '', ...r.keywords]
         .join(' ')
         .toLowerCase()
         .includes(q);
@@ -187,17 +187,27 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                       {r.status === 'needs-info' ? (
                         <span className="rounded bg-amber-100 px-1.5 py-px text-[11.5px] font-semibold text-amber-900">Needs info</span>
                       ) : (
-                        <span className="rounded bg-emerald-50 px-1.5 py-px text-[11.5px] font-semibold text-emerald-800 ring-1 ring-emerald-200">Confirmed</span>
+                        <span className="rounded bg-emerald-50 px-1.5 py-px text-[11.5px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                          {r.evidence ? 'Confirmed · from books' : 'Confirmed'}
+                        </span>
                       )}
                     </div>
                     <div className="mt-1 text-[13px] text-slate-600">
-                      Ledger{' '}
+                      <span className="inline-block w-6 font-semibold text-slate-500">Dr</span>
                       {r.ledger === TO_CONFIRM ? (
-                        <span className="font-medium text-amber-900">to confirm</span>
+                        <span className="font-medium text-amber-900">ledger to confirm</span>
                       ) : (
-                        <span className="font-mono text-[12.5px] font-medium text-[#0b1220]">{r.ledger}</span>
+                        r.ledger.split(' · ').map((l, li) => (
+                          <span key={li} className="mb-0.5 mr-1 inline-block rounded bg-slate-100 px-1 font-mono text-[12px] font-medium text-[#0b1220]">{l}</span>
+                        ))
                       )}
                     </div>
+                    {r.party && (
+                      <div className="mt-0.5 text-[13px] text-slate-600">
+                        <span className="inline-block w-6 font-semibold text-slate-500">Cr</span>
+                        <span className="font-mono text-[12.5px] font-medium text-[#0b1220]">{r.party}</span>
+                      </div>
+                    )}
                     {r.status === 'needs-info' && r.suggestion && (
                       <div className="mt-0.5 text-[12.5px] text-slate-600">
                         Closest in Tally: <span className="font-mono text-[12px] text-slate-800">{r.suggestion}</span>
@@ -209,6 +219,12 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                       {r.tds && <Fact k="TDS" v={r.tds} />}
                     </dl>
                     {r.notes && <p className="mt-1 text-[12.5px] leading-snug text-slate-600">{r.notes}</p>}
+                    {r.evidence && (
+                      <details className="mt-1.5 rounded-md bg-slate-50 px-2 py-1 text-[12.5px] text-slate-700">
+                        <summary className="cursor-pointer font-medium text-[#0b1220]">Evidence from the books</summary>
+                        <p className="mt-1 font-mono text-[12px] leading-relaxed text-slate-800">{r.evidence}</p>
+                      </details>
+                    )}
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
                       {r.anchor && (
                         <Link to={`/handbook#${r.anchor}`} className="font-medium text-brand-700 hover:underline">
@@ -297,8 +313,12 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete,
         <input className={field} value={draft.keywords.join(', ')} onChange={(e) => set('keywords', e.target.value.split(',').map((k) => k.trim()).filter(Boolean))} />
       </label>
       <label className={label}>
-        Ledger <span className="font-normal text-slate-500">(exact Tally name, or “To confirm”)</span>
+        Dr ledger(s) <span className="font-normal text-slate-500">(exact Tally names, or “To confirm”)</span>
         <input className={`${field} font-mono`} value={draft.ledger} onChange={(e) => set('ledger', e.target.value)} />
+      </label>
+      <label className={label}>
+        Cr / party ledger <span className="font-normal text-slate-500">(collection or vendor ledger)</span>
+        <input className={`${field} font-mono`} value={draft.party ?? ''} onChange={(e) => set('party', e.target.value)} />
       </label>
       <div className="grid grid-cols-2 gap-2">
         <label className={label}>
@@ -317,6 +337,10 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete,
       <label className={label}>
         Notes
         <textarea className={`${field} min-h-[56px]`} value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
+      </label>
+      <label className={label}>
+        Evidence from the books <span className="font-normal text-slate-500">(an example voucher)</span>
+        <textarea className={`${field} min-h-[56px] font-mono`} value={draft.evidence ?? ''} onChange={(e) => set('evidence', e.target.value)} />
       </label>
       <div className="grid grid-cols-2 gap-2">
         <label className={label}>

@@ -13,6 +13,7 @@
 // ----------------------------------------------------------------------------
 
 import { readAllExtracted, readJson, writeJson } from '../ingest/objectStore.js';
+import { BUNDLED_HISTORY } from './expenseMap.js';
 
 export interface SavedHistory {
   fileName: string;
@@ -22,7 +23,7 @@ export interface SavedHistory {
 }
 
 export interface HistorySource {
-  kind: 'ingest' | 'upload';
+  kind: 'bundled' | 'ingest' | 'upload';
   label: string;
   detail: string;
 }
@@ -88,8 +89,12 @@ async function ingestedLedgerHistory(): Promise<{ text: string; sources: History
 /** Everything the assistant knows about past bookings, for the system prompt. */
 export async function bookingHistoryContext(): Promise<{ text: string; sources: HistorySource[] }> {
   const [ingest, saved] = await Promise.all([ingestedLedgerHistory(), readSavedHistory().catch(() => null)]);
-  const parts: string[] = [];
-  const sources = [...ingest.sources];
+  // The pattern + example vouchers from the books always come first.
+  const parts: string[] = [BUNDLED_HISTORY];
+  const sources: HistorySource[] = [
+    { kind: 'bundled', label: 'Books pattern Apr–Oct 26', detail: 'Example vouchers from Hargun’s Tally data' },
+    ...ingest.sources,
+  ];
   if (saved) {
     parts.push(
       `## Saved Tally export (voucher-level history) — ${saved.fileName}, saved ${saved.savedAt.slice(0, 10)}\n` +

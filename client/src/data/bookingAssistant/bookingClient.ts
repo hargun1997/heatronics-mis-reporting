@@ -19,6 +19,10 @@ export interface ExpenseMapRow {
   anchor: string;
   status: MapRowStatus;
   suggestion?: string;
+  /** Cr ledger — platform collection ledger or vendor party ledger. */
+  party?: string;
+  /** A real example voucher from the books. */
+  evidence?: string;
 }
 
 export interface ExpenseMapDoc {
@@ -28,7 +32,7 @@ export interface ExpenseMapDoc {
 }
 
 export interface HistorySource {
-  kind: 'ingest' | 'upload';
+  kind: 'bundled' | 'ingest' | 'upload';
   label: string;
   detail: string;
 }
