@@ -469,7 +469,7 @@ export function EmailPreview({ onClose, embedded }: { onClose: () => void; embed
                 onClick={() => setI(k)}
                 className={`shrink-0 rounded-full border px-3 py-1 text-sm font-medium ${k === i ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
               >
-                {x.kind === 'summary' ? 'Team summary · ' : ''}
+                {x.kind === 'summary' && !/summary/i.test(x.name) ? 'Team summary · ' : ''}
                 {x.name} · {x.items}
               </button>
             ))}

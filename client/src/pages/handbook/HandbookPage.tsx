@@ -679,10 +679,10 @@ function Reader({
         </button>
         {shown && (
           <nav aria-label="Breadcrumb" className="ml-1 flex min-w-0 flex-1 items-center gap-1 text-sm text-slate-600">
-            <Go onClick={close} className="hidden flex-shrink-0 rounded px-1 py-1 hover:text-slate-900 hover:underline md:block">
+            <Go onClick={close} className="flex-shrink-0 rounded px-1 py-1 hover:text-slate-900 hover:underline">
               Handbook
             </Go>
-            <ChevronRightIcon className="hidden h-3.5 w-3.5 flex-shrink-0 text-slate-400 md:block" aria-hidden="true" />
+            <ChevronRightIcon className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" aria-hidden="true" />
             <Go
               onClick={() => open({ c: shown.c })}
               className={`min-w-0 truncate rounded px-1 py-1 ${shown.a ? 'hidden flex-shrink-0 hover:text-slate-900 hover:underline sm:block' : 'font-semibold text-slate-900'}`}
@@ -926,9 +926,16 @@ export function HandbookPage() {
   useEffect(() => {
     if (!incoming) return;
     if (target) open(target);
-    navigate(HANDBOOK_BASE, { replace: true });
+    navigate(HANDBOOK_BASE, { replace: true, state: { settled: true } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.hash]);
+  // Clicking "Accounts Handbook" in the menu while reading (same URL, new
+  // history entry) returns to the handbook home.
+  const settled = (location.state as { settled?: boolean } | null)?.settled;
+  useEffect(() => {
+    if (!incoming && !settled) close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
   if (incoming && !target && location.pathname !== HANDBOOK_BASE) return <Navigate to={HANDBOOK_BASE} replace />;
 
   return (

@@ -47,10 +47,10 @@ export function TasksPage() {
   // Links from the daily emails: /tasks?task=<id> opens that task, /tasks?who=<memberId> filters.
   const linkTask = params.get('task');
   const linkWho = params.get('who');
-  const [linked, setLinked] = useState(false);
+  // Runs whenever a link lands (also in-app ones, e.g. "Do this after"); the
+  // params are cleared afterwards, so each link is handled once.
   useEffect(() => {
-    if (linked || !state || (!linkTask && !linkWho)) return;
-    setLinked(true);
+    if (!state || (!linkTask && !linkWho)) return;
     if (linkWho && state.members.some((m) => m.id === linkWho)) setWho(linkWho);
     if (linkTask && state.tasks.some((t) => t.id === linkTask)) {
       setWhoRaw('all');
@@ -61,7 +61,7 @@ export function TasksPage() {
       setTimeout(() => document.getElementById(`task-${linkTask}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
     }
     setParams({}, { replace: true });
-  }, [linked, state, linkTask, linkWho, setParams, setWho]);
+  }, [state, linkTask, linkWho, setParams, setWho]);
 
   const load = useCallback(async () => {
     try {
@@ -283,6 +283,11 @@ export function TasksPage() {
             openKey={openKey}
             setOpenKey={setOpenKey}
             filtered={anyFilter}
+            onClearAll={() => {
+              setFilters(NO_FILTERS);
+              setQ('');
+              setWhoRaw('all');
+            }}
             onToggle={(i) => void toggle(i)}
             onSave={onSaveTask}
             onDelete={onDeleteTask}

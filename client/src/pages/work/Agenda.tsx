@@ -77,7 +77,7 @@ function TaskRow({
               {ticked}/{total}
             </span>
           )}
-          {compact && <span className={`hidden shrink-0 whitespace-nowrap text-sm sm:block ${dueCls || 'text-slate-600'}`}>{dueText}</span>}
+          {compact && <span className={`shrink-0 whitespace-nowrap text-sm ${dueCls || 'text-slate-600'}`}>{dueText}</span>}
           <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
         </button>
       </div>
@@ -98,6 +98,7 @@ export function Agenda({
   openKey,
   setOpenKey,
   filtered,
+  onClearAll,
   onToggle,
   onSave,
   onDelete,
@@ -115,6 +116,7 @@ export function Agenda({
   setOpenKey: (k: string | null) => void;
   /** Any filter or search active (changes the empty-state wording). */
   filtered: boolean;
+  onClearAll?: () => void;
   onToggle: (i: Item) => void;
   onSave: (t: Partial<WorkTask>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -130,6 +132,11 @@ export function Agenda({
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
         <p className="text-[15px] font-medium text-slate-900">{filtered ? 'Nothing matches these filters.' : 'Nothing due. You’re all caught up.'}</p>
+        {filtered && onClearAll && (
+          <button type="button" onClick={onClearAll} className="mt-3 inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
+            Show everything
+          </button>
+        )}
       </div>
     );
 

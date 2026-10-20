@@ -70,7 +70,8 @@ export function AllTasks({
   const order = [...byArea.keys()].sort();
   // Areas start folded (remembered per browser); a short list or the linked task's area shows open.
   const openTaskArea = openKey?.startsWith('all:') ? state.tasks.find((t) => `all:${t.id}` === openKey)?.area : undefined;
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(order.filter((a) => readFold(`tasks:area:${a}`, false))));
+  // Seed from every area (not just the ones the current filter shows), so clearing a filter keeps remembered folds.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(state.tasks.map((t) => t.area).filter((a) => readFold(`tasks:area:${a}`, false))));
   const autoOpen = order.length <= 1 || tasks.length <= 20;
   const isOpen = (a: string) => autoOpen || expanded.has(a) || a === openTaskArea;
   const setAll = (open: boolean) => {

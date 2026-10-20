@@ -111,7 +111,7 @@ function Leaf({ it, active, onNavigate, mini }: { it: NavLeaf; active: boolean; 
       onClick={onNavigate}
       title={mini ? it.label : undefined}
       aria-label={mini ? it.label : undefined}
-      aria-current={active ? 'page' : undefined}
+      aria-current={active ? 'page' : 'false'}
     >
       {active && !mini && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-brand-500" aria-hidden="true" />}
       <span className={iconCls}>{it.icon}</span>
@@ -160,7 +160,7 @@ function RailNav({ path, onNavigate, mini }: { path: string; onNavigate?: () => 
           <div key={section.label} className="space-y-1">
             {i > 0 && <div className="mx-4 my-2 border-t border-slate-200" />}
             {section.items
-              .filter((it) => !it.muted)
+              .filter((it) => !it.muted || it.match?.(path))
               .map((it) => (
                 <Leaf key={it.path} it={it} active={it.match?.(path) ?? false} mini />
               ))}
