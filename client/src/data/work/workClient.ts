@@ -122,6 +122,15 @@ export const remindTask = (id: string) =>
   );
 export const saveRouting = (r: Partial<Routing> & { apply?: boolean }) =>
   post('/api/work/routing', r).then((r2) => json<{ routing: Routing; assigned: number }>(r2));
+export interface EmailTemplate {
+  key: string;
+  name: string;
+  when: string;
+  to: string;
+  subject: string;
+  html: string;
+}
+export const getEmailTemplates = () => fetch('/api/work/templates').then((r) => json<{ templates: EmailTemplate[] }>(r));
 export const saveSettings = (s: Partial<ReminderSettings>) => post('/api/work/settings', s).then((r) => json<ReminderSettings>(r));
 export const previewReminders = () =>
   fetch('/api/work/reminders/preview').then((r) => json<{ drafts: DraftEmail[]; items: number; unowned: number }>(r));
