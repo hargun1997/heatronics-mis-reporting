@@ -35,6 +35,8 @@ import {
   saveMember,
   saveSettings,
   saveRouting,
+  remindTask,
+  deleteTasks,
   previewReminders,
   connectMail,
   sendTestMail,
@@ -46,6 +48,7 @@ import {
   type TeamMember,
   type WorkState,
   type WorkTask,
+  type Head,
 } from '../../data/work/workClient';
 import { buildSeed } from '../../data/work/seed';
 import '../handbook/handbook.generated.css';
@@ -178,6 +181,16 @@ function buildAgenda(state: WorkState, today: string): Item[] {
   return out.sort((a, b) => (a.due === b.due ? a.task.title.localeCompare(b.task.title) : a.due < b.due ? -1 : 1));
 }
 
+/** Is this open item in today's daily email (owner set, reminders on, inside its window)? */
+function inTodaysEmail(i: Item, state: WorkState, today: string): boolean {
+  if (i.done || i.task.remind === false || !state.settings.enabled) return false;
+  if (!i.task.ownerIds.some((id) => state.members.some((m) => m.id === id))) return false;
+  const n = diffDays(i.due, today);
+  return n <= 0 || (state.settings.includeDueSoon && n <= (i.task.remindDaysBefore ?? 2));
+}
+
+const hourLabelIST = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? 'am' : 'pm'}`;
+
 const groupOf = (due: string, today: string): Group => {
   const n = diffDays(due, today);
   return n < 0 ? 'overdue' : n === 0 ? 'today' : n <= 7 ? 'week' : 'later';
@@ -197,18 +210,6 @@ const KINDS: { k: Exclude<Kind, ''>; l: string; test: (t: WorkTask) => boolean }
   { k: 'uploads', l: 'MIS uploads', test: (t) => !!t.upload },
   { k: 'guide', l: 'Has a guide', test: (t) => !!t.howTo },
 ];
-/** Heads (functions) for the top selector: matched on a task's role label, then its area. */
-const HEADS: { k: string; l: string; roles: string[]; areas: string[] }[] = [
-  { k: 'accounts', l: 'Accounts', roles: ['accountant', 'accounts', 'accounts executive', 'accounts manager', 'mis uploads'], areas: ['Daily & monthly books', 'MIS uploads', 'GST, TDS & tax'] },
-  { k: 'ca', l: 'CA / Audit', roles: ['ca', 'chartered accountant', 'statutory auditor', 'auditor', 'tax consultant'], areas: [] },
-  { k: 'hr', l: 'HR', roles: ['hr', 'payroll', 'icc'], areas: ['HR & payroll'] },
-  { k: 'cs', l: 'CS / ROC', roles: ['company secretary', 'cs'], areas: ['MCA / ROC'] },
-  { k: 'legal', l: 'Legal', roles: ['legal'], areas: ['Legal & licences'] },
-  { k: 'admin', l: 'Admin', roles: ['admin', 'it', 'logistics', 'hse'], areas: ['Admin'] },
-  { k: 'quality', l: 'Quality / ISO', roles: ['mr', 'quality', 'qa', 'plant head', 'purchase'], areas: ['ISO / QMS'] },
-  { k: 'founders', l: 'CFO / Founder', roles: ['cfo', 'founder'], areas: ['Investors'] },
-];
-
 /** "CFO / Accounts Manager" → ["cfo", "accounts manager"]; drops "(…)". */
 const roleTokens = (label?: string) =>
   (label ?? '')
@@ -217,8 +218,10 @@ const roleTokens = (label?: string) =>
     .map((r) => r.trim().toLowerCase())
     .filter(Boolean);
 
-const inHead = (t: WorkTask, h: (typeof HEADS)[number]) => {
-  return h.areas.includes(t.area) || roleTokens(t.roleLabel).some((r) => h.roles.includes(r));
+/** A task is in a head by its area or by any of its roles (case-insensitive). */
+const inHead = (t: WorkTask, h: Head) => {
+  const roles = h.roles.map((r) => r.toLowerCase());
+  return h.areas.includes(t.area) || roleTokens(t.roleLabel).some((r) => roles.includes(r));
 };
 
 const WHENS: { k: Exclude<When, ''>; l: string }[] = [
@@ -306,13 +309,16 @@ export function TasksPage() {
     [who, me, q, kind],
   );
   const matches = useCallback(
-    (t: WorkTask) => (!area || t.area === area) && (!head || inHead(t, HEADS.find((h) => h.k === head)!)) && matchesBase(t),
-    [area, head, matchesBase],
+    (t: WorkTask) => {
+      const h = head ? state?.heads?.find((x) => x.id === head) : undefined;
+      return (!area || t.area === area) && (!h || inHead(t, h)) && matchesBase(t);
+    },
+    [area, head, matchesBase, state],
   );
   /** Task count per head under the other filters (for the head selector). */
   const headCounts = useMemo(() => {
     const base = (state?.tasks ?? []).filter((t) => (!area || t.area === area) && matchesBase(t));
-    return { total: base.length, by: new Map(HEADS.map((h) => [h.k, base.filter((t) => inHead(t, h)).length])) };
+    return { total: base.length, by: new Map((state?.heads ?? []).map((h) => [h.id, base.filter((t) => inHead(t, h)).length])) };
   }, [state, area, matchesBase]);
 
   const agenda = useMemo(() => (state ? buildAgenda(state, today) : []), [state, today]);
@@ -369,6 +375,11 @@ export function TasksPage() {
 
   const onSaveTask = async (t: Partial<WorkTask>) => {
     await saveTask(t);
+    await load();
+  };
+  const onDeleteTasks = async (ids: string[]) => {
+    await deleteTasks(ids);
+    setOpenKey(null);
     await load();
   };
   const onDeleteTask = async (id: string) => {
@@ -436,9 +447,12 @@ export function TasksPage() {
               {/* Head (function) selector */}
               <div className="mb-2 flex flex-wrap gap-1.5">
                 <AreaTab on={!head} label="All heads" n={headCounts.total} onClick={() => setHead('')} />
-                {HEADS.map((h) => (
-                  <AreaTab key={h.k} on={head === h.k} label={h.l} n={headCounts.by.get(h.k) ?? 0} onClick={() => setHead(head === h.k ? '' : h.k)} />
+                {state.heads.map((h) => (
+                  <AreaTab key={h.id} on={head === h.id} label={h.name} n={headCounts.by.get(h.id) ?? 0} onClick={() => setHead(head === h.id ? '' : h.id)} />
                 ))}
+                <Link to="/tasks/settings#heads" className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-400 hover:text-brand-700" title="Add, rename or delete heads">
+                  <PlusIcon className="h-3.5 w-3.5" /> Edit heads
+                </Link>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-sm">
@@ -549,6 +563,7 @@ export function TasksPage() {
                                 open={openKey === key}
                                 onOpen={() => setOpenKey(openKey === key ? null : key)}
                                 onToggle={() => void toggle(i)}
+                                emailed={inTodaysEmail(i, state, today) ? `In ${hourLabelIST(state.settings.sendHour)} email` : undefined}
                               >
                                 {openKey === key && (
                                   <TaskPanel task={i.task} state={state} members={members} areas={areas} onSave={onSaveTask} onDelete={onDeleteTask} />
@@ -579,15 +594,14 @@ export function TasksPage() {
                 areas={areas}
                 onSave={onSaveTask}
                 onDelete={onDeleteTask}
+                onDeleteMany={onDeleteTasks}
               />
             )}
           </div>
 
           {/* Right rail */}
           <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-            <TeamCard state={state} me={me} onChanged={load} onError={setError} />
-            <RolesCard state={state} onChanged={load} onError={setError} />
-            <RemindersCard state={state} onRan={load} onPreview={() => setPreview(true)} />
+            <LiveReminders state={state} agenda={agenda} today={today} onPreview={() => setPreview(true)} />
             <Link
               to="/handbook"
               className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-300"
@@ -615,7 +629,7 @@ function Header({ me, members, onMe }: { me: string; members: TeamMember[]; onMe
       title="Tasks & owners"
       description="Everything that has to be done, who does it and how — each task opens its Accounts Handbook section. Owners get a reminder email until it’s ticked."
       icon={<ClipboardDocumentCheckIcon className="h-6 w-6" />}
-      crumbs={[{ label: 'Govern' }, { label: 'Tasks & owners' }]}
+      crumbs={[{ label: 'Tasks' }, { label: 'Tasks & owners' }]}
       actions={
         <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm">
           <span className="text-slate-500">I am</span>
@@ -724,6 +738,7 @@ function TaskRow({
   open,
   onOpen,
   onToggle,
+  emailed,
   children,
 }: {
   item: Item;
@@ -732,6 +747,7 @@ function TaskRow({
   open: boolean;
   onOpen: () => void;
   onToggle: () => void;
+  emailed?: string;
   children?: React.ReactNode;
 }) {
   const { task, done, auto } = item;
@@ -769,6 +785,12 @@ function TaskRow({
                 How to
               </span>
             )}
+            {emailed && (
+              <span className="inline-flex items-center gap-1 text-violet-700" title={emailed}>
+                <BellAlertIcon className="h-3.5 w-3.5" />
+                {emailed}
+              </span>
+            )}
           </div>
         </button>
         <span className={`hidden whitespace-nowrap text-xs font-medium sm:block ${done ? 'text-slate-400' : due.tone}`}>{done ? 'Done' : due.text}</span>
@@ -779,6 +801,88 @@ function TaskRow({
       </div>
       {children}
     </li>
+  );
+}
+
+/** Task-level reminders: who gets emailed, when, last sent; on/off and send now. */
+function ReminderStrip({
+  task,
+  state,
+  members,
+  onSave,
+}: {
+  task: WorkTask;
+  state: WorkState;
+  members: TeamMember[];
+  onSave: (t: Partial<WorkTask>) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const owners = members.filter((m) => task.ownerIds.includes(m.id));
+  const on = task.remind !== false;
+  const last = state.reminded?.[task.id];
+  const days = task.remindDaysBefore ?? 2;
+  const hour = hourLabelIST(state.settings.sendHour);
+  const fmt = (iso: string) => new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+
+  const sendNow = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await remindTask(task.id);
+      const sent = r.emails.filter((e) => e.sent).length;
+      const err = r.emails.find((e) => e.error && !e.dryRun)?.error;
+      setMsg(
+        sent
+          ? { ok: true, text: `Sent to ${owners.map((o) => o.name).join(', ')}.` }
+          : r.emails.some((e) => e.dryRun)
+            ? { ok: false, text: 'Email isn’t connected — nothing was sent (see People & reminders).' }
+            : { ok: false, text: err ?? 'Not sent.' },
+      );
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : 'Not sent.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`mb-3 rounded-xl border px-3 py-2 ${on && owners.length ? 'border-violet-200 bg-violet-50/60' : 'border-slate-200 bg-white'}`}>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <BellAlertIcon className={`h-4 w-4 ${on && owners.length ? 'text-violet-600' : 'text-slate-400'}`} />
+        <span className="min-w-0 flex-1 text-slate-700">
+          {!on ? (
+            'Reminders off for this task.'
+          ) : !owners.length ? (
+            <>No owner — reminders only show in the team summary. Assign someone in Details &amp; owners.</>
+          ) : (
+            <>
+              Emails <b className="font-semibold">{owners.map((o) => o.name).join(', ')}</b> daily at {hour} from {days === 0 ? 'the due day' : `${days} day${days > 1 ? 's' : ''} before`} until ticked
+              {last ? <span className="text-slate-500"> · last sent {fmt(last)}</span> : <span className="text-slate-500"> · not sent yet</span>}
+              {!state.settings.enabled && <span className="text-amber-700"> · daily emails are paused</span>}
+            </>
+          )}
+        </span>
+        {on && owners.length > 0 && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void sendNow()}
+            className="rounded-lg bg-violet-600 px-2.5 py-1 font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+          >
+            {busy ? 'Sending…' : 'Send reminder now'}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => void onSave({ id: task.id, remind: !on })}
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-600 hover:text-slate-900"
+        >
+          {on ? 'Turn off' : 'Turn on'}
+        </button>
+      </div>
+      {msg && <p className={`mt-1 text-[11px] ${msg.ok ? 'text-emerald-700' : 'text-rose-600'}`}>{msg.text}</p>}
+    </div>
   );
 }
 
@@ -845,6 +949,7 @@ function TaskPanel({
           <RefLink key={l.url} l={l} />
         ))}
       </div>
+      <ReminderStrip task={task} state={state} members={members} onSave={onSave} />
       <div className="mb-3 flex gap-1 text-sm">
         {(
           [
@@ -1222,6 +1327,7 @@ function AllTasks({
   areas,
   onSave,
   onDelete,
+  onDeleteMany,
 }: {
   state: WorkState;
   matches: (t: WorkTask) => boolean;
@@ -1234,8 +1340,31 @@ function AllTasks({
   areas: string[];
   onSave: (t: Partial<WorkTask>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onDeleteMany: (ids: string[]) => Promise<void>;
 }) {
   const tasks = state.tasks.filter(matches);
+  const [selecting, setSelecting] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(() => new Set());
+  const [deleting, setDeleting] = useState(false);
+  const toggleSel = (id: string) =>
+    setSel((cur) => {
+      const n = new Set(cur);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const allShownSelected = tasks.length > 0 && tasks.every((t) => sel.has(t.id));
+  const removeSelected = async () => {
+    if (!sel.size || !window.confirm(`Delete ${sel.size} task${sel.size > 1 ? 's' : ''} and their history? This can’t be undone.`)) return;
+    setDeleting(true);
+    try {
+      await onDeleteMany([...sel]);
+      setSel(new Set());
+      setSelecting(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
   const byArea = new Map<string, WorkTask[]>();
   for (const t of tasks) byArea.set(t.area, [...(byArea.get(t.area) ?? []), t]);
   const order = [...byArea.keys()].sort();
@@ -1267,11 +1396,44 @@ function AllTasks({
             </button>
           )}
         </span>
-        {!adding && (
-          <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-600">
-            <PlusIcon className="h-4 w-4" /> Add task
-          </button>
-        )}
+        <span className="flex items-center gap-2">
+          {selecting ? (
+            <>
+              <button type="button" onClick={() => setSel(allShownSelected ? new Set() : new Set(tasks.map((t) => t.id)))} className="text-sm font-medium text-slate-600 hover:text-slate-900">
+                {allShownSelected ? 'Clear' : `Select all ${tasks.length}`}
+              </button>
+              <button
+                type="button"
+                disabled={!sel.size || deleting}
+                onClick={() => void removeSelected()}
+                className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-40"
+              >
+                <TrashIcon className="h-4 w-4" /> {deleting ? 'Deleting…' : `Delete ${sel.size || ''}`.trim()}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelecting(false);
+                  setSel(new Set());
+                }}
+                className="rounded-lg px-2 py-1.5 text-sm text-slate-500 hover:bg-slate-100"
+              >
+                Done
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => setSelecting(true)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-300">
+                Select
+              </button>
+              {!adding && (
+                <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-600">
+                  <PlusIcon className="h-4 w-4" /> Add task
+                </button>
+              )}
+            </>
+          )}
+        </span>
       </div>
       {adding && <TaskEditor members={members} areas={areas} onSave={onSave} onCancel={() => setAdding(false)} />}
       {order.map((a) => (
@@ -1299,8 +1461,18 @@ function AllTasks({
               const key = `all:${t.id}`;
               const open = openKey === key;
               return (
-                <li key={t.id} id={`task-${t.id}`} className={`scroll-mt-24 ${open ? 'bg-slate-50/60' : ''}`}>
-                  <button type="button" onClick={() => setOpenKey(open ? null : key)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left sm:px-4">
+                <li key={t.id} id={`task-${t.id}`} className={`scroll-mt-24 ${open ? 'bg-slate-50/60' : ''} ${sel.has(t.id) ? 'bg-rose-50/50' : ''}`}>
+                  <div className="flex items-center">
+                  {selecting && (
+                    <input
+                      type="checkbox"
+                      checked={sel.has(t.id)}
+                      onChange={() => toggleSel(t.id)}
+                      className="ml-3 h-4 w-4 shrink-0 rounded border-slate-300 text-rose-600 sm:ml-4"
+                      aria-label={`Select ${t.title}`}
+                    />
+                  )}
+                  <button type="button" onClick={() => (selecting ? toggleSel(t.id) : setOpenKey(open ? null : key))} className="flex w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left sm:px-4">
                     <div className="min-w-0 flex-1">
                       <div className={`truncate text-sm font-semibold ${t.active ? 'text-slate-900' : 'text-slate-400 line-through'}`}>{t.title}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
@@ -1320,7 +1492,8 @@ function AllTasks({
                     <Owners ids={t.ownerIds} memberById={memberById} roleLabel={t.roleLabel} />
                     <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
                   </button>
-                  {open && <TaskPanel task={t} state={state} members={members} areas={areas} onSave={onSave} onDelete={onDelete} />}
+                  </div>
+                  {open && !selecting && <TaskPanel task={t} state={state} members={members} areas={areas} onSave={onSave} onDelete={onDelete} />}
                 </li>
               );
             })}
@@ -1332,13 +1505,100 @@ function AllTasks({
   );
 }
 
-function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: string; onChanged: () => Promise<void>; onError: (s: string) => void }) {
+/** Today's reminder email, live: when it goes, who gets it, how many tasks each. */
+function LiveReminders({ state, agenda, today, onPreview }: { state: WorkState; agenda: Item[]; today: string; onPreview: () => void }) {
+  const st = state.settings;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const ist = new Date(now + 5.5 * 3_600_000);
+  const minsToSend = st.sendHour * 60 - (ist.getUTCHours() * 60 + ist.getUTCMinutes());
+  const sentToday = state.lastScheduledDay === today;
+  const items = agenda.filter((i) => inTodaysEmail(i, state, today));
+  const people = state.members
+    .map((m) => {
+      const mine = items.filter((i) => i.task.ownerIds.includes(m.id));
+      return { m, n: mine.length, late: mine.filter((i) => i.due < today).length, pending: mine.some((i) => i.due <= today) };
+    })
+    .filter((p) => p.pending);
+  const unowned = agenda.filter((i) => !i.done && i.due <= today && !i.task.ownerIds.some((id) => state.members.some((m) => m.id === id))).length;
+  const status = !st.enabled
+    ? { text: 'Paused', cls: 'bg-slate-100 text-slate-600' }
+    : !state.mailer.configured
+      ? { text: 'Email not connected', cls: 'bg-amber-50 text-amber-700' }
+      : sentToday
+        ? { text: 'Sent today', cls: 'bg-emerald-50 text-emerald-700' }
+        : { text: 'Scheduled', cls: 'bg-violet-50 text-violet-700' };
+  const when = sentToday
+    ? `Sent today${state.lastReminderRun ? ` at ${new Date(state.lastReminderRun.at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}` : ''} · next tomorrow ${hourLabelIST(st.sendHour)}`
+    : minsToSend > 0
+      ? `Goes out today at ${hourLabelIST(st.sendHour)} · in ${Math.floor(minsToSend / 60) ? `${Math.floor(minsToSend / 60)}h ` : ''}${minsToSend % 60}m`
+      : `Due now (${hourLabelIST(st.sendHour)}) — sends within the hour`;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+        <BellAlertIcon className="h-4 w-4 text-violet-600" />
+        <h3 className="font-display text-sm font-bold text-slate-900">Today’s reminder email</h3>
+        <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-medium ${status.cls}`}>{status.text}</span>
+      </div>
+      <div className="space-y-3 px-4 py-3 text-sm">
+        <p className="text-xs text-slate-500">{st.enabled ? when : 'Daily emails are switched off.'}</p>
+        {people.length ? (
+          <ul className="space-y-2">
+            {people.map((p) => (
+              <li key={p.m.id} className="flex items-center gap-2.5">
+                <Avatar m={p.m} size="h-7 w-7 text-[10px] ring-0" />
+                <span className="min-w-0 flex-1 truncate font-medium text-slate-800">{p.m.name}</span>
+                <span className="text-xs text-slate-500">
+                  {p.n} task{p.n > 1 ? 's' : ''}
+                  {p.late ? <span className="text-rose-600"> · {p.late} late</span> : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">Nobody has anything pending today — no owner emails.</p>
+        )}
+        {unowned > 0 && <p className="text-xs text-amber-700">{unowned} due task{unowned > 1 ? 's have' : ' has'} no owner — only in the team summary.</p>}
+        <p className="text-xs text-slate-500">
+          Team summary → {st.summaryTo.join(', ') || <span className="text-amber-700">nobody</span>}
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={onPreview} className="rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-300">
+            Preview emails
+          </button>
+          <Link to="/tasks/settings" className="rounded-lg border border-violet-200 bg-violet-50 py-1.5 text-center text-xs font-semibold text-violet-800 hover:bg-violet-100">
+            People &amp; settings
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: string; onChanged: () => Promise<void>; onError: (s: string) => void }) {
   const [adding, setAdding] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const today = todayIST();
   const agenda = useMemo(() => buildAgenda(state, today), [state, today]);
+  const startEdit = (m: TeamMember) => {
+    setEditId(m.id);
+    setName(m.name);
+    setEmail(m.email);
+    setAdding(true);
+  };
+  const close = () => {
+    setAdding(false);
+    setEditId(null);
+    setName('');
+    setEmail('');
+  };
   const openCount = (id: string) => agenda.filter((i) => !i.done && i.task.ownerIds.includes(id) && diffDays(i.due, today) <= 7).length;
   const lateCount = (id: string) => agenda.filter((i) => !i.done && i.task.ownerIds.includes(id) && i.due < today).length;
   const loads = (id: string) => state.tasks.filter((t) => t.active && t.ownerIds.includes(id)).length;
@@ -1346,10 +1606,8 @@ function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: str
   const add = async () => {
     setBusy(true);
     try {
-      await saveMember({ name: name.trim(), email: email.trim() });
-      setName('');
-      setEmail('');
-      setAdding(false);
+      await saveMember({ id: editId ?? undefined, name: name.trim(), email: email.trim() });
+      close();
       await onChanged();
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Could not add person.');
@@ -1371,7 +1629,7 @@ function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: str
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-        <h3 className="font-display text-sm font-bold text-slate-900">Team</h3>
+        <h3 className="font-display text-sm font-bold text-slate-900">People</h3>
         {!adding && (
           <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
             <UserPlusIcon className="h-4 w-4" /> Add
@@ -1387,11 +1645,15 @@ function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: str
                 {m.name}
                 {m.id === me && <span className="ml-1.5 rounded bg-slate-100 px-1 text-[10px] font-medium text-slate-500">you</span>}
               </div>
+              <div className="truncate text-xs text-slate-400">{m.email}</div>
               <div className="truncate text-xs text-slate-500">
                 {loads(m.id)} task{loads(m.id) === 1 ? '' : 's'} · {openCount(m.id)} due this week
                 {lateCount(m.id) ? <span className="text-rose-600"> · {lateCount(m.id)} late</span> : null}
               </div>
             </div>
+            <button type="button" onClick={() => startEdit(m)} className="rounded px-1.5 py-0.5 text-xs font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-800">
+              Edit
+            </button>
             <button type="button" onClick={() => void remove(m)} aria-label={`Remove ${m.name}`} className="rounded p-1 text-slate-300 opacity-0 hover:text-rose-600 group-hover:opacity-100 focus:opacity-100">
               <TrashIcon className="h-4 w-4" />
             </button>
@@ -1404,11 +1666,11 @@ function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: str
           <input className={input} placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
           <input className={input} placeholder="Email (for reminders)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setAdding(false)} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
+            <button type="button" onClick={close} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
               Cancel
             </button>
             <button type="button" disabled={busy || !name.trim() || !email.includes('@')} onClick={() => void add()} className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
-              Add person
+              {editId ? 'Save' : 'Add person'}
             </button>
           </div>
         </div>
@@ -1421,8 +1683,18 @@ const HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8 am – 10 pm
 const hourLabel = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? 'am' : 'pm'}`;
 
 /** Who does what: each role from the task list → a person. Tasks with no owner get filled automatically. */
-function RolesCard({ state, onChanged, onError }: { state: WorkState; onChanged: () => Promise<void>; onError: (s: string) => void }) {
-  const [open, setOpen] = useState(false);
+export function RolesCard({
+  state,
+  onChanged,
+  onError,
+  defaultOpen = false,
+}: {
+  state: WorkState;
+  onChanged: () => Promise<void>;
+  onError: (s: string) => void;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const r = state.routing ?? { roles: {} };
@@ -1522,7 +1794,7 @@ function RolesCard({ state, onChanged, onError }: { state: WorkState; onChanged:
   );
 }
 
-function RemindersCard({ state, onRan, onPreview }: { state: WorkState; onRan: () => Promise<void>; onPreview: () => void }) {
+export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; onRan: () => Promise<void>; onPreview: () => void }) {
   const [busy, setBusy] = useState(false);
   const [run, setRun] = useState<ReminderRun | null>(null);
   const [err, setErr] = useState('');
@@ -1715,7 +1987,7 @@ function MailConnection({ state, onChanged }: { state: WorkState; onChanged: () 
 }
 
 /** In-page preview of today's emails, exactly as they will be sent. */
-function EmailPreview({ onClose }: { onClose: () => void }) {
+export function EmailPreview({ onClose }: { onClose: () => void }) {
   const [data, setData] = useState<{ drafts: DraftEmail[] } | null>(null);
   const [err, setErr] = useState('');
   const [i, setI] = useState(0);

@@ -13,11 +13,9 @@ import { RulebookPage } from './pages/mis/RulebookPage';
 import { MisChatPage } from './pages/mis/MisChatPage';
 import { AiInsightsPage } from './pages/mis/AiInsightsPage';
 import { IssuesPage } from './pages/mis/IssuesPage';
-import { OwnershipPage } from './pages/mis/OwnershipPage';
 import { TasksPage } from './pages/work/TasksPage';
+import { TasksSettingsPage } from './pages/work/TasksSettingsPage';
 import { SendReportPage } from './pages/mis/SendReportPage';
-import { ComplianceHome } from './pages/compliance/ComplianceHome';
-import { ComplianceCategory } from './pages/compliance/ComplianceCategory';
 
 // Guide
 
@@ -49,12 +47,13 @@ function App() {
           <Route path="reporting/mis/insights" element={<AiInsightsPage />} />
           <Route path="reporting/mis/chat" element={<MisChatPage />} />
           <Route path="reporting/mis/issues" element={<IssuesPage />} />
-          <Route path="reporting/mis/ownership" element={<OwnershipPage />} />
+          <Route path="reporting/mis/ownership" element={<Navigate to="/tasks/settings" replace />} />
           <Route path="reporting/mis/send" element={<SendReportPage />} />
           <Route path="tasks" element={<TasksPage />} />
+          <Route path="tasks/settings" element={<TasksSettingsPage />} />
           <Route path="work" element={<Navigate to="/tasks" replace />} />
-          <Route path="compliance" element={<ComplianceHome />} />
-          <Route path="compliance/:category" element={<ComplianceCategory />} />
+          <Route path="compliance" element={<Navigate to="/tasks" replace />} />
+          <Route path="compliance/*" element={<Navigate to="/tasks" replace />} />
 
           {/* Accounts Handbook — the single accounting knowledge base (handbook.html) */}
           {/* One route so moving between handbook views never remounts the page */}

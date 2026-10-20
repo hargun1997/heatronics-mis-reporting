@@ -24,6 +24,7 @@ export interface WorkTask extends ScheduleSpec {
   links?: { label: string; url: string }[];
   upload?: { connectorId: string; slotId: string };
   remindDaysBefore?: number;
+  remind?: boolean;
   active: boolean;
   source?: string;
 }
@@ -50,6 +51,13 @@ export interface ReminderSettings {
   includeDueSoon: boolean;
 }
 
+export interface Head {
+  id: string;
+  name: string;
+  roles: string[];
+  areas: string[];
+}
+
 export interface Routing {
   roles: Record<string, string[]>;
   fallback?: string;
@@ -74,7 +82,9 @@ export interface WorkState {
   settings: ReminderSettings;
   routing: Routing;
   roleNames: string[];
+  heads: Head[];
   lastScheduledDay?: string;
+  reminded?: Record<string, string>;
   lastReminderRun?: { at: string; sent: number; dryRun: boolean; recipients: number };
 }
 
@@ -104,6 +114,12 @@ export const importSeed = (tasks: Partial<WorkTask>[], done: WorkState['done']) 
   post('/api/work/import', { tasks, done }).then((r) => json<{ imported: number; skipped: boolean }>(r));
 export const runWorkReminders = () => post('/api/work/reminders/run', {}).then((r) => json<ReminderRun>(r));
 
+export const deleteTasks = (ids: string[]) => post('/api/work/tasks/delete', { ids }).then((r) => json<{ deleted: number }>(r));
+export const saveHeads = (heads: Partial<Head>[]) => post('/api/work/heads', { heads }).then((r) => json<Head[]>(r));
+export const remindTask = (id: string) =>
+  post(`/api/work/tasks/${encodeURIComponent(id)}/remind`, {}).then((r) =>
+    json<{ emails: { sent: boolean; dryRun: boolean; to: string[]; error?: string }[]; mailer: MailerStatus }>(r),
+  );
 export const saveRouting = (r: Partial<Routing> & { apply?: boolean }) =>
   post('/api/work/routing', r).then((r2) => json<{ routing: Routing; assigned: number }>(r2));
 export const saveSettings = (s: Partial<ReminderSettings>) => post('/api/work/settings', s).then((r) => json<ReminderSettings>(r));

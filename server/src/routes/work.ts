@@ -6,6 +6,9 @@
 //   POST   /api/work/tasks             create/update a task
 //   DELETE /api/work/tasks/:id
 //   POST   /api/work/tasks/:id/done    { period, done, by?, note? }
+//   POST   /api/work/tasks/:id/remind  email this task's owners now
+//   POST   /api/work/tasks/delete      { ids } delete several tasks
+//   POST   /api/work/heads             { heads } the head (function) list for the filter
 //   POST   /api/work/import            one-time seed { tasks, done, force? }
 //   POST   /api/work/routing           who does what (role → people); fills tasks with no owner
 //   POST   /api/work/settings          daily email settings (send hour, summary to)
@@ -19,8 +22,8 @@
 // ----------------------------------------------------------------------------
 
 import { Router, type Request, type Response } from 'express';
-import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, saveRouting, ensureRouting, splitRoles, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
-import { runWorkReminders, buildReminderEmails } from '../services/workReminders.js';
+import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, saveRouting, ensureRouting, splitRoles, saveHeads, deleteTasks, DEFAULT_HEADS, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
+import { runWorkReminders, buildReminderEmails, remindTaskNow } from '../services/workReminders.js';
 import { listMembers } from '../services/ownershipStore.js';
 import { mailerStatus, ensureMailConfig, saveMailConfig, sendEmail } from '../services/mailer.js';
 
@@ -47,6 +50,7 @@ router.get(
       ...doc,
       settings: { ...DEFAULT_SETTINGS, ...(doc.settings ?? {}) },
       routing: doc.routing ?? { roles: {} },
+      heads: doc.heads ?? DEFAULT_HEADS,
       roleNames: [...new Set(doc.tasks.flatMap((t) => splitRoles(t.roleLabel)))].sort(),
       autoDone: await autoDone(doc.tasks),
       members,
@@ -72,6 +76,21 @@ router.post(
     await setDone(req.params.id, String(period), Boolean(done), by ? String(by) : undefined, note ? String(note) : undefined);
     res.json({ ok: true });
   }),
+);
+
+router.post(
+  '/tasks/delete',
+  h(async (req, res) => res.json({ deleted: await deleteTasks(Array.isArray(req.body?.ids) ? req.body.ids : []) })),
+);
+
+router.post(
+  '/heads',
+  h(async (req, res) => res.json(await saveHeads(Array.isArray(req.body?.heads) ? req.body.heads : []))),
+);
+
+router.post(
+  '/tasks/:id/remind',
+  h(async (req, res) => res.json(await remindTaskNow(req.params.id, baseUrl(req)))),
 );
 
 router.post(

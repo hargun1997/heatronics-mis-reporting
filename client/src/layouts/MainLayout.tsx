@@ -51,16 +51,13 @@ const SECTIONS: NavSection[] = [
       { path: '/reporting/mis/insights', label: 'AI Insights', icon: ico(['M13 3l2.2 6.8L22 12l-6.8 2.2L13 21l-2.2-6.8L4 12l6.8-2.2z']), match: (p) => p.startsWith('/reporting/mis/insights') || p.startsWith('/reporting/mis/chat') },
       { path: '/reporting/mis/issues', label: 'Data Issues', icon: ico(['M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z', 'M12 8v4m0 3h.01']), match: (p) => p.startsWith('/reporting/mis/issues') },
       { path: '/reporting/mis/send', label: 'Send Report', icon: ico(['M22 2L11 13', 'M22 2l-7 20-4-9-9-4 20-7z']), match: (p) => p.startsWith('/reporting/mis/send') },
-      { path: '/reporting/mis/close', label: 'Month close', tag: 'Legacy', muted: true, dividerBefore: true, icon: ico('M20 6L9 17l-5-5'), match: (p) => p.startsWith('/reporting/mis/close') },
-      { path: '/reporting/mis', label: 'MIS deck', tag: 'Legacy', muted: true, icon: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']), match: isDeck },
     ],
   },
   {
-    label: 'Govern',
+    label: 'Tasks',
     items: [
-      { path: '/tasks', label: 'Tasks & owners', icon: ico(['M9 11l3 3 8-8', 'M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h9']), match: (p) => p.startsWith('/tasks') },
-      { path: '/compliance', label: 'Tasks & Compliance', tag: 'Legacy', muted: true, dividerBefore: true, icon: ico('M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z'), match: (p) => p.startsWith('/compliance') || p.startsWith('/tracker') || p.startsWith('/task-tracker') },
-      { path: '/reporting/mis/ownership', label: 'Ownership', tag: 'Legacy', muted: true, icon: ico(['M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-3.13a4 4 0 10-4-4 4 4 0 004 4z']), match: (p) => p.startsWith('/reporting/mis/ownership') },
+      { path: '/tasks', label: 'Tasks & owners', icon: ico(['M9 11l3 3 8-8', 'M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h9']), match: (p) => p === '/tasks' || p === '/tasks/' },
+      { path: '/tasks/settings', label: 'People & reminders', icon: ico(['M12 15a3 3 0 100-6 3 3 0 000 6z', 'M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z']), match: (p) => p.startsWith('/tasks/settings') },
     ],
   },
   {
@@ -75,6 +72,12 @@ const SECTIONS: NavSection[] = [
       { path: '/tools', label: 'Tools', icon: ico(['M14 7l3 3-8 8H6v-3z', 'M4 20h16']), match: (p) => p.startsWith('/tools') },
     ],
   },
+];
+
+// Old pages kept reachable, folded away at the bottom of the rail.
+const LEGACY: NavLeaf[] = [
+  { path: '/reporting/mis/close', label: 'Month close', muted: true, icon: ico('M20 6L9 17l-5-5'), match: (p) => p.startsWith('/reporting/mis/close') },
+  { path: '/reporting/mis', label: 'MIS deck', muted: true, icon: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']), match: isDeck },
 ];
 
 const externalArrow = (
@@ -110,6 +113,50 @@ function Leaf({ it, active, onNavigate }: { it: NavLeaf; active: boolean; onNavi
   return <NavLink to={it.path} end={it.path === '/reporting/mis'} className={base} onClick={onNavigate}>{inner}</NavLink>;
 }
 
+function LegacyGroup({ path, onNavigate }: { path: string; onNavigate?: () => void }) {
+  const inside = LEGACY.some((it) => it.match?.(path));
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem('nav:legacy') === 'open';
+    } catch {
+      return false;
+    }
+  });
+  const shown = open || inside;
+  const toggle = () => {
+    const next = !shown;
+    setOpen(next);
+    try {
+      localStorage.setItem('nav:legacy', next ? 'open' : 'closed');
+    } catch {
+      /* private mode */
+    }
+  };
+  return (
+    <div className="border-t border-dashed border-slate-200 pt-4">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={shown}
+        className="flex w-full items-center gap-2 rounded-lg px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400 hover:text-slate-600"
+      >
+        Legacy
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] tracking-wider text-slate-400">{LEGACY.length}</span>
+        <svg className={`ml-auto h-3.5 w-3.5 transition ${shown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {shown && (
+        <div className="space-y-0.5">
+          {LEGACY.map((it) => (
+            <Leaf key={it.path} it={it} active={it.match?.(path) ?? false} onNavigate={onNavigate} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RailNav({ path, onNavigate }: { path: string; onNavigate?: () => void }) {
   return (
     <nav className="px-3 py-5 space-y-6">
@@ -128,6 +175,7 @@ function RailNav({ path, onNavigate }: { path: string; onNavigate?: () => void }
           </div>
         </div>
       ))}
+      <LegacyGroup path={path} onNavigate={onNavigate} />
     </nav>
   );
 }
@@ -138,7 +186,7 @@ export function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const activeLabel =
-    SECTIONS.flatMap((s) => s.items).find((it) => it.match?.(path))?.label ?? 'Heatronics MIS';
+    [...SECTIONS.flatMap((s) => s.items), ...LEGACY].find((it) => it.match?.(path))?.label ?? 'Heatronics MIS';
 
   return (
     <div className="min-h-screen text-slate-900 flex flex-col app-ground">
