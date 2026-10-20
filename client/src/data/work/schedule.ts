@@ -22,6 +22,8 @@ export type Cadence = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'half-yearl
 export interface ScheduleSpec {
   cadence: Cadence;
   dueDay?: number;
+  /** Optional first day of a window, e.g. 8 for "8th–9th" (due date stays dueDay). */
+  startDay?: number;
   dueWeekday?: number;
   months?: number[];
   dueMonth?: number;
@@ -135,7 +137,7 @@ export function describe(spec: ScheduleSpec): string {
     case 'weekly':
       return `Every ${WDL[spec.dueWeekday ?? 1]}`;
     case 'monthly':
-      return `Every month on the ${day(spec.dueDay)}${spec.arrears ? ' (for last month)' : ''}`;
+      return `Every month${spec.startDay && spec.startDay < (spec.dueDay ?? 1) ? `, ${ordinal(spec.startDay)}–${day(spec.dueDay)}` : ` on the ${day(spec.dueDay)}`}${spec.arrears ? ' (for last month)' : ''}`;
     case 'quarterly':
     case 'half-yearly':
       return `${spec.cadence === 'quarterly' ? 'Quarterly' : 'Half-yearly'} on the ${day(spec.dueDay)} of ${(spec.months?.length ? spec.months : DEFAULT_MONTHS[spec.cadence]).map((m) => MN[m]).join(', ')}`;

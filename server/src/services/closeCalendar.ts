@@ -1,0 +1,293 @@
+// ============================================================================
+// ACCOUNTING CALENDAR — Hargun's monthly close, as tasks on the Tasks page.
+//
+//   Daily     Tranzact → Tally · Shopify orders + Easebuzz payouts
+//   Weekly    bank statements (Central, HDFC, ICICI) · contra · platform
+//             collection ledgers (after each settlement is imported)
+//   1st       Shiprocket COD remittance · Snapmint settlement
+//   3rd       Amazon MTR / STR / Settlement · expense invoices · JVs
+//   4th       clear all bank statements
+//   5th       attendance + salary booking
+//   6th       TDS report to the CA
+//   8th–9th   GSTR-1 data (discrepancies, e-invoice, e-way bill)
+//   10th      reports into the MIS
+//   14th      GSTR-2B reconciliation
+//   17th      GSTR-3B data and preparation
+//
+// Applied once per CALENDAR_VERSION: tasks are upserted by id (owners and
+// edits the team made are kept), and the older tasks this replaces are
+// switched off (not deleted — history stays).
+// ============================================================================
+
+import type { WorkTask } from './workStore.js';
+
+export const CALENDAR_VERSION = 1;
+
+const H = (id: string) => `/handbook#${id}`;
+const BANKS = [
+  { id: 'central', label: 'Central Bank CC', link: H('c9-central-cc') },
+  { id: 'hdfc', label: 'HDFC Bank', link: H('c9-hdfc') },
+  { id: 'icici', label: 'ICICI Bank CC', link: H('c9-icici') },
+];
+
+const base: Partial<WorkTask> = { ownerIds: [], active: true, source: 'calendar', remindDaysBefore: 1 };
+
+export const CALENDAR_TASKS: Partial<WorkTask>[] = [
+  // --- Daily -----------------------------------------------------------------
+  {
+    ...base,
+    id: 'cal-d-tranzact',
+    title: 'Daily · Tranzact → Tally (sales and purchases)',
+    area: 'Daily books',
+    roleLabel: 'Accountant',
+    cadence: 'daily',
+    howTo: 'c14-d1-tranzact',
+    description: 'Push every approved Tranzact document (sales invoices, purchases, job work) to Tally; Pending and Approved should both read 0.',
+    remindDaysBefore: 0,
+  },
+  {
+    ...base,
+    id: 'cal-d-shopify',
+    title: 'Daily · Shopify orders and Easebuzz payouts',
+    area: 'Daily books',
+    roleLabel: 'Accountant',
+    cadence: 'daily',
+    howTo: 'c14-d2-shopify-easebuzz',
+    description: 'Import yesterday’s Shopify orders, then the Easebuzz payouts, so each payout matches its orders in Easebuzz Collection.',
+    remindDaysBefore: 0,
+  },
+
+  // --- Weekly ----------------------------------------------------------------
+  {
+    ...base,
+    id: 'cal-w-banks',
+    title: 'Weekly · Bank statements → reconcile with books',
+    area: 'Weekly reconciliation',
+    roleLabel: 'Accountant',
+    cadence: 'weekly',
+    dueWeekday: 1,
+    howTo: 'c9',
+    description: 'Download last week’s statement for each bank and reconcile it with the bank ledger in Tally. Every line should be matched or explained.',
+    checklist: BANKS.map((b) => ({ ...b, hint: 'Statement downloaded and reconciled' })),
+  },
+  {
+    ...base,
+    id: 'cal-w-contra',
+    title: 'Weekly · Reconcile contra (bank-to-bank) entries',
+    area: 'Weekly reconciliation',
+    roleLabel: 'Accountant',
+    cadence: 'weekly',
+    dueWeekday: 1,
+    howTo: 'c9',
+    description:
+      'A transfer between our own banks is booked once: a payment or receipt voucher in one bank, so it shows in the other. Check every transfer appears in both bank ledgers, none is booked twice and none is missing.',
+    dependsOn: ['cal-w-banks'],
+  },
+  {
+    ...base,
+    id: 'cal-w-platforms',
+    title: 'Weekly · Reconcile platform collection ledgers',
+    area: 'Weekly reconciliation',
+    roleLabel: 'Accountant',
+    cadence: 'weekly',
+    dueWeekday: 2,
+    howTo: 'c21',
+    description: 'Only after each platform’s own settlement has been imported. Compare the platform report with its collection ledger; the difference should be only payouts still in transit.',
+    dependsOn: ['cal-d-shopify', 'cal-m01-cod', 'cal-m01-snapmint', 'cal-m03-amazon'],
+    checklist: [
+      { id: 'easebuzz', label: 'Easebuzz ↔ Easebuzz Collection', hint: 'After the daily Shopify + Easebuzz import', link: H('c14-d2-shopify-easebuzz') },
+      { id: 'snapmint', label: 'Snapmint ↔ Snapmint Collection', hint: 'After the Snapmint settlement (1st)', link: H('c16-m3-snapmint') },
+      { id: 'shiprocket', label: 'Shiprocket ↔ Shiprocket Collection', hint: 'After the COD remittance settlement (1st)', link: H('c16-m2-shiprocket') },
+      { id: 'amazon', label: 'Amazon ↔ Amazon Bank', hint: 'After the Amazon settlement report (3rd)', link: H('c16-m1-amazon') },
+    ],
+  },
+
+  // --- Monthly ---------------------------------------------------------------
+  {
+    ...base,
+    id: 'cal-m01-cod',
+    title: '1st · Shiprocket COD remittance settlement',
+    area: 'Month-end close',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 1,
+    arrears: true,
+    howTo: 'c16-m2-shiprocket',
+    links: [{ label: 'Upload data', url: '/reporting/mis/ingest' }],
+  },
+  {
+    ...base,
+    id: 'cal-m01-snapmint',
+    title: '1st · Snapmint settlement (Group Daily Merchant Report)',
+    area: 'Month-end close',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 1,
+    arrears: true,
+    howTo: 'c16-m3-snapmint',
+  },
+  {
+    ...base,
+    id: 'cal-m03-amazon',
+    title: '3rd · Amazon MTR, STR and Settlement report',
+    area: 'Month-end close',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 3,
+    arrears: true,
+    howTo: 'c16-m1-amazon',
+    checklist: [
+      { id: 'mtr', label: 'MTR (B2B + B2C) imported' },
+      { id: 'str', label: 'STR (stock transfers) imported' },
+      { id: 'settlement', label: 'Settlement report imported' },
+    ],
+  },
+  {
+    ...base,
+    id: 'cal-m03-expenses',
+    title: '3rd · Book all expense invoices',
+    area: 'Month-end close',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 3,
+    arrears: true,
+    howTo: 'c27-overview',
+    description: 'Collect every expense invoice for last month and book it in the right ledger. Ask the Booking assistant if unsure.',
+    checklist: [
+      { id: 'shopflo', label: 'Shopflo', hint: 'Ledger to confirm', link: H('c27-shopflo') },
+      { id: 'shiprocket', label: 'Shiprocket', hint: 'Shiprocket Collection', link: H('c27-shiprocket') },
+      { id: 'easebuzz', label: 'Easebuzz', hint: 'Easebuzz Collection', link: H('c27-easebuzz') },
+      { id: 'snapmint', label: 'Snapmint', hint: 'Snapmint Collection', link: H('c27-snapmint') },
+      { id: 'amazon', label: 'Amazon — all GSTs, TDS and TCS entries', hint: 'Amazon Expenses (Creditors)', link: H('c27-amazon') },
+      { id: 'facebook', label: 'Facebook (Meta ads)', hint: 'Ledger to confirm', link: H('c27-facebook') },
+      { id: 'google', label: 'Google (Ads)', hint: 'Ledger to confirm', link: H('c27-google') },
+      { id: 'bitespeed', label: 'Bitespeed (Actartly)', hint: 'Ledger to confirm', link: H('c27-bitespeed') },
+      { id: 'digistex', label: 'Digistex', hint: 'Ledger to confirm', link: H('c27-digistex') },
+      { id: 'shopify', label: 'Shopify', hint: 'Ledger to confirm', link: H('c27-shopify') },
+      { id: 'claude', label: 'AI (Claude)', hint: 'Ledger to confirm', link: H('c27-claude') },
+      { id: 'gcloud', label: 'Google Cloud', hint: 'Ledger to confirm', link: H('c27-gcloud') },
+    ],
+  },
+  {
+    ...base,
+    id: 'cal-m03-jv',
+    title: '3rd · Pass JVs: Amazon settlement, bank and other ledgers',
+    area: 'Month-end close',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 3,
+    arrears: true,
+    howTo: 'c6-monthly-jv',
+    description: 'The monthly Amazon expense JV, plus special-case JVs on bank and other ledgers.',
+    dependsOn: ['cal-m03-amazon'],
+    links: [{ label: 'Platform invoices', url: H('c16-m4-platform-invoices') }],
+  },
+  {
+    ...base,
+    id: 'cal-m04-banks',
+    title: '4th · Clear all bank statements',
+    area: 'Month-end close',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 4,
+    arrears: true,
+    howTo: 'c16-m5-close',
+    description: 'Every line of last month’s statements is booked and reconciled; nothing left in Suspense.',
+    checklist: BANKS.map((b) => ({ ...b, hint: 'All lines booked, closing balance matches' })),
+  },
+  {
+    ...base,
+    id: 'cal-m05-salary',
+    title: '5th · Attendance sharing and salary expense booking',
+    area: 'Month-end close',
+    roleLabel: 'Accountant / HR',
+    cadence: 'monthly',
+    dueDay: 5,
+    arrears: true,
+    checklist: [
+      { id: 'attendance', label: 'Attendance shared' },
+      { id: 'salary', label: 'Salary expense booked' },
+    ],
+  },
+  {
+    ...base,
+    id: 'cal-m06-tds',
+    title: '6th · Share TDS report with the CA (all clearances)',
+    area: 'GST & TDS',
+    roleLabel: 'Accountant / CA',
+    cadence: 'monthly',
+    dueDay: 6,
+    arrears: true,
+    howTo: 'c8',
+  },
+  {
+    ...base,
+    id: 'cal-m09-gstr1',
+    title: '8th–9th · GSTR-1: resolve discrepancies, e-invoice and e-way bill check, share data',
+    area: 'GST & TDS',
+    roleLabel: 'Accountant / CA',
+    cadence: 'monthly',
+    startDay: 8,
+    dueDay: 9,
+    arrears: true,
+    howTo: 'c7-monthly-cycle',
+    checklist: [
+      { id: 'discrepancies', label: 'All discrepancies resolved' },
+      { id: 'einvoice', label: 'E-invoices checked' },
+      { id: 'ewaybill', label: 'E-way bills checked' },
+      { id: 'shared', label: 'Data shared with the CA' },
+    ],
+  },
+  {
+    ...base,
+    id: 'cal-m10-mis',
+    title: '10th · Update all reports into the MIS portal',
+    area: 'Month-end close',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 10,
+    arrears: true,
+    howTo: 'c28-upload',
+    links: [
+      { label: 'Upload data', url: '/reporting/mis/ingest' },
+      { label: 'Live MIS', url: '/reporting/mis/live' },
+    ],
+  },
+  {
+    ...base,
+    id: 'cal-m14-2b',
+    title: '14th · GSTR-2B reconciliation',
+    area: 'GST & TDS',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 14,
+    arrears: true,
+    howTo: 'c7-monthly-cycle',
+  },
+  {
+    ...base,
+    id: 'cal-m17-3b',
+    title: '17th · GSTR-3B data sharing and preparation',
+    area: 'GST & TDS',
+    roleLabel: 'Accountant / CA',
+    cadence: 'monthly',
+    dueDay: 17,
+    arrears: true,
+    howTo: 'c7-monthly-cycle',
+    dependsOn: ['cal-m14-2b'],
+  },
+];
+
+/** Older tasks the calendar replaces — switched off, not deleted. */
+export const REPLACED_TASK_IDS = [
+  'cmp-operations-ops-d1-tranzact-to-tally',
+  'cmp-operations-ops-d2-shopify-easebuzz',
+  'cmp-operations-ops-w1-weekly-checks',
+  'cmp-operations-ops-m1-amazon-reports',
+  'cmp-operations-ops-m2-shiprocket-cod',
+  'cmp-operations-ops-m3-snapmint',
+  'cmp-operations-ops-m4-platform-invoices-jv',
+  'cmp-operations-ops-m5-banks-statutory-close',
+  'cmp-accounts-acc-mis-close',
+  'cmp-accounts-acc-gstr2b-recon',
+];

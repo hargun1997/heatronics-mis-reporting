@@ -22,6 +22,8 @@ export interface WorkTask extends ScheduleSpec {
   penalty?: string;
   notes?: string;
   links?: { label: string; url: string }[];
+  checklist?: { id: string; label: string; hint?: string; link?: string }[];
+  dependsOn?: string[];
   upload?: { connectorId: string; slotId: string };
   remindDaysBefore?: number;
   remind?: boolean;
@@ -85,6 +87,7 @@ export interface WorkState {
   heads: Head[];
   lastScheduledDay?: string;
   reminded?: Record<string, string>;
+  checks?: Record<string, Record<string, string[]>>;
   lastReminderRun?: { at: string; sent: number; dryRun: boolean; recipients: number };
 }
 
@@ -114,6 +117,8 @@ export const importSeed = (tasks: Partial<WorkTask>[], done: WorkState['done']) 
   post('/api/work/import', { tasks, done }).then((r) => json<{ imported: number; skipped: boolean }>(r));
 export const runWorkReminders = () => post('/api/work/reminders/run', {}).then((r) => json<ReminderRun>(r));
 
+export const setTaskCheck = (id: string, period: string, item: string, checked: boolean, by?: string) =>
+  post(`/api/work/tasks/${encodeURIComponent(id)}/check`, { period, item, checked, by }).then((r) => json<{ checks: string[]; done: boolean }>(r));
 export const deleteTasks = (ids: string[]) => post('/api/work/tasks/delete', { ids }).then((r) => json<{ deleted: number }>(r));
 export const saveHeads = (heads: Partial<Head>[]) => post('/api/work/heads', { heads }).then((r) => json<Head[]>(r));
 export const remindTask = (id: string) =>
