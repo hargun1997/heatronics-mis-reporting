@@ -26,12 +26,19 @@ export function ToolsHome() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NavCard
-            to="/tools/expense-booking"
-            title="Expense Booking (AI)"
-            description="Snap an invoice photo, answer a few quick questions, and the AI returns the exact voucher, ledgers and cost centre — grounded in your Tally master."
+            to="/booking-assistant"
+            title="Booking assistant (AI)"
+            description="Ask which ledger / which voucher / how to cut the entry — attach the invoice or a Tally Day Book. Grounded in Hargun's ledger map, the Accounts Handbook and past bookings."
             icon={iconExpense}
             accent="brand"
             badge="New"
+          />
+          <NavCard
+            to="/tools/expense-booking"
+            title="Expense Booking → Tally XML"
+            description="The structured form: snap an invoice, answer a few questions, get the voucher and download a Tally XML import — grounded in your Tally master."
+            icon={iconExpense}
+            accent="brand"
           />
           <NavCard
             to="/tools/invoice-booking"
