@@ -184,7 +184,9 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="text-[14px] font-semibold text-[#0b1220]">{r.vendor}</span>
-                      {r.status === 'needs-info' ? (
+                      {r.status === 'out-of-scope' ? (
+                        <span className="rounded bg-slate-100 px-1.5 py-px text-[11.5px] font-semibold text-slate-700 ring-1 ring-slate-200">Not in scope for now</span>
+                      ) : r.status === 'needs-info' ? (
                         <span className="rounded bg-amber-100 px-1.5 py-px text-[11.5px] font-semibold text-amber-900">Needs info</span>
                       ) : (
                         <span className="rounded bg-emerald-50 px-1.5 py-px text-[11.5px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
@@ -219,6 +221,26 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                       {r.tds && <Fact k="TDS" v={r.tds} />}
                     </dl>
                     {r.notes && <p className="mt-1 text-[12.5px] leading-snug text-slate-600">{r.notes}</p>}
+                    {r.subRules && r.subRules.length > 0 && (
+                      <div className="mt-1.5 rounded-md border border-slate-200 px-2 py-1.5">
+                        <div className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">Rules by document</div>
+                        <ul className="mt-1 space-y-1">
+                          {r.subRules.map((s, si) => (
+                            <li key={si} className="text-[12.5px] leading-snug text-slate-700">
+                              <span className="font-semibold text-[#0b1220]">{s.when}</span> → {s.then}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {r.link && (
+                      <div className="mt-1.5 text-[12.5px] leading-snug">
+                        <a href={r.link} target="_blank" rel="noreferrer" className="font-semibold text-brand-700 hover:underline">
+                          Download invoices ↗
+                        </a>
+                        {r.linkNote && <span className="text-slate-600"> — {r.linkNote}</span>}
+                      </div>
+                    )}
                     {r.evidence && (
                       <details className="mt-1.5 rounded-md bg-slate-50 px-2 py-1 text-[12.5px] text-slate-700">
                         <summary className="cursor-pointer font-medium text-[#0b1220]">Evidence from the books</summary>
@@ -271,9 +293,9 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
 
 function Fact({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex gap-1">
-      <dt className="text-slate-500">{k}</dt>
-      <dd className="text-slate-800">{v}</dd>
+    <div className="flex min-w-0 max-w-full gap-1">
+      <dt className="flex-shrink-0 text-slate-500">{k}</dt>
+      <dd className="min-w-0 break-words text-slate-800">{v}</dd>
     </div>
   );
 }
@@ -293,6 +315,8 @@ interface EditorProps {
 
 function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete }: EditorProps) {
   const set = <K extends keyof ExpenseMapRow>(k: K, v: ExpenseMapRow[K]) => setDraft({ ...draft, [k]: v });
+  // Kept as raw text while typing, so a half-written line isn't dropped.
+  const [subRulesText, setSubRulesText] = useState(() => (draft.subRules ?? []).map((s) => `${s.when} → ${s.then}`).join('\n'));
   const field = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-[#0b1220] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30';
   const label = 'block text-[12px] font-medium text-slate-700';
   return (
@@ -342,6 +366,34 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete,
         Evidence from the books <span className="font-normal text-slate-500">(an example voucher)</span>
         <textarea className={`${field} min-h-[56px] font-mono`} value={draft.evidence ?? ''} onChange={(e) => set('evidence', e.target.value)} />
       </label>
+      <label className={label}>
+        Invoice download link
+        <input className={field} type="url" value={draft.link ?? ''} onChange={(e) => set('link', e.target.value)} placeholder="https://…" />
+      </label>
+      <label className={label}>
+        What to download there
+        <input className={field} value={draft.linkNote ?? ''} onChange={(e) => set('linkNote', e.target.value)} />
+      </label>
+      <label className={label}>
+        Rules by document <span className="font-normal text-slate-500">(one per line: when → then)</span>
+        <textarea
+          className={`${field} min-h-[56px]`}
+          value={subRulesText}
+          onChange={(e) => {
+            setSubRulesText(e.target.value);
+            set(
+              'subRules',
+              e.target.value
+                .split('\n')
+                .map((line) => {
+                  const i = line.indexOf('→');
+                  return i < 0 ? null : { when: line.slice(0, i).trim(), then: line.slice(i + 1).trim() };
+                })
+                .filter((x): x is { when: string; then: string } => !!x && !!x.when && !!x.then),
+            );
+          }}
+        />
+      </label>
       <div className="grid grid-cols-2 gap-2">
         <label className={label}>
           Handbook anchor
@@ -352,6 +404,7 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete,
           <select className={field} value={draft.status} onChange={(e) => set('status', e.target.value as ExpenseMapRow['status'])}>
             <option value="confirmed">Confirmed</option>
             <option value="needs-info">Needs info</option>
+            <option value="out-of-scope">Not in scope for now</option>
           </select>
         </label>
       </div>

@@ -5,7 +5,12 @@ import * as XLSX from 'xlsx';
 import { readFileAsText } from '../tally/reduceTallyExport';
 import type { TallyMaster } from '../tally/useTallyMaster';
 
-export type MapRowStatus = 'confirmed' | 'needs-info';
+export type MapRowStatus = 'confirmed' | 'needs-info' | 'out-of-scope';
+
+export interface MapSubRule {
+  when: string;
+  then: string;
+}
 
 export interface ExpenseMapRow {
   id: string;
@@ -23,6 +28,11 @@ export interface ExpenseMapRow {
   party?: string;
   /** A real example voucher from the books. */
   evidence?: string;
+  /** Official invoice download link + what to download there. */
+  link?: string;
+  linkNote?: string;
+  /** Structured sub-rules, e.g. Amazon invoice type → ledger. */
+  subRules?: MapSubRule[];
 }
 
 export interface ExpenseMapDoc {
