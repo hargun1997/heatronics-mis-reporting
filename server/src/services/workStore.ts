@@ -13,6 +13,7 @@
 import { randomUUID } from 'node:crypto';
 import { readJson, writeJson, listReports } from '../ingest/objectStore.js';
 import { listAssignments, listMembers, type TeamMember } from './ownershipStore.js';
+import { CALENDAR_TASKS, CALENDAR_VERSION, REPLACED_TASK_IDS } from './closeCalendar.js';
 import type { Cadence, ScheduleSpec } from './workSchedule.js';
 import { occurrences, todayIST, addDays, parseYmd, ymd, lookbackDays } from './workSchedule.js';
 
@@ -39,8 +40,21 @@ export interface WorkTask extends ScheduleSpec {
   remindDaysBefore?: number;
   /** Email the owners about this task until it is ticked (default on). */
   remind?: boolean;
+  /** Sub-steps ticked per period (banks, platforms, vendors…). */
+  checklist?: ChecklistItem[];
+  /** Tasks that should be done first (e.g. settlement import before reconciliation). */
+  dependsOn?: string[];
   active: boolean;
   source?: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  /** Short help, e.g. the ledger to use. */
+  hint?: string;
+  /** Handbook anchor or URL for this item. */
+  link?: string;
 }
 
 export interface DoneEntry {
@@ -168,6 +182,33 @@ export async function ensureRouting(): Promise<void> {
   await writeWork(doc);
 }
 
+/**
+ * One-time per CALENDAR_VERSION: add Hargun's accounting calendar (upsert by
+ * id, keeping owners and edits), switch off the older tasks it replaces, and
+ * give the new tasks owners from Who does what.
+ */
+export async function ensureCalendar(): Promise<void> {
+  const doc = await readWork();
+  if (!doc.seededAt || (doc.calendarVersion ?? 0) >= CALENDAR_VERSION) return;
+  const byId = new Map(doc.tasks.map((t) => [t.id, t]));
+  for (const c of CALENDAR_TASKS) {
+    const prev = byId.get(c.id!);
+    // keep what the team changed on an existing calendar task (owners, reminders)
+    const merged = clean(prev ? { ...c, ownerIds: prev.ownerIds, remind: prev.remind, active: prev.active } : c, prev);
+    byId.set(merged.id, merged);
+  }
+  for (const id of REPLACED_TASK_IDS) {
+    const t = byId.get(id);
+    if (t) byId.set(id, { ...t, active: false, notes: [t.notes, 'Replaced by the accounting calendar.'].filter(Boolean).join(' ') });
+  }
+  doc.tasks = [...byId.values()];
+  const members = await listMembers();
+  if (!doc.routing) doc.routing = defaultRouting(members);
+  applyRouting(doc, members);
+  doc.calendarVersion = CALENDAR_VERSION;
+  await writeWork(doc);
+}
+
 export async function saveRouting(input: Partial<Routing>, apply = true): Promise<{ routing: Routing; assigned: number }> {
   const [doc, members] = await Promise.all([readWork(), listMembers()]);
   const roles: Record<string, string[]> = {};
@@ -209,6 +250,10 @@ export interface WorkDoc {
   lastReminderRun?: { at: string; sent: number; dryRun: boolean; recipients: number };
   /** Heads (functions) for the task filter; default list when unset. */
   heads?: Head[];
+  /** taskId → period → ticked checklist item ids. */
+  checks?: Record<string, Record<string, string[]>>;
+  /** Version of the accounting calendar applied to this task list. */
+  calendarVersion?: number;
   /** taskId → when its owners were last emailed about it. */
   reminded?: Record<string, string>;
 }
@@ -257,6 +302,18 @@ function clean(input: Partial<WorkTask>, prev?: WorkTask): WorkTask {
       : prev?.links,
     remindDaysBefore: num(input.remindDaysBefore, 0, 30) ?? prev?.remindDaysBefore ?? 2,
     remind: input.remind ?? prev?.remind ?? true,
+    checklist: Array.isArray(input.checklist)
+      ? input.checklist
+          .map((c, i) => ({
+            id: String(c?.id || `i${i + 1}`),
+            label: String(c?.label ?? '').trim(),
+            hint: c?.hint ? String(c.hint) : undefined,
+            link: c?.link ? String(c.link) : undefined,
+          }))
+          .filter((c) => c.label)
+      : prev?.checklist,
+    dependsOn: Array.isArray(input.dependsOn) ? input.dependsOn.map(String) : prev?.dependsOn,
+    startDay: num(input.startDay, 1, 31) ?? (input.startDay === null ? undefined : prev?.startDay),
     active: input.active ?? prev?.active ?? true,
     source: input.source ?? prev?.source ?? 'custom',
     cadence,
@@ -356,6 +413,25 @@ export async function taskOpenItems(id: string, now = new Date()): Promise<OpenI
   const pending = open.filter((o) => o.due <= today);
   const pick = pending.length ? pending : open.slice(0, 1);
   return pick.map((o) => ({ task: t, period: o.period, due: o.due, late: late(o.due) }));
+}
+
+/** Tick / untick one checklist item for a period; all ticked → the task is done for that period. */
+export async function setCheck(id: string, period: string, item: string, checked: boolean, by?: string): Promise<{ checks: string[]; done: boolean }> {
+  const doc = await readWork();
+  const t = doc.tasks.find((x) => x.id === id);
+  if (!t) throw new Error('Unknown task.');
+  if (!/^(\d{4}(-\d{2}(-\d{2})?|-W\d{2})?|once)$/.test(period)) throw new Error('Bad period.');
+  if (!t.checklist?.some((c) => c.id === item)) throw new Error('Unknown checklist item.');
+  doc.checks = { ...(doc.checks ?? {}) };
+  const byPeriod = (doc.checks[id] = { ...(doc.checks[id] ?? {}) });
+  const cur = new Set(byPeriod[period] ?? []);
+  if (checked) cur.add(item);
+  else cur.delete(item);
+  byPeriod[period] = [...cur];
+  const all = t.checklist.every((c) => cur.has(c.id));
+  if (all && !doc.done[id]?.[period]) (doc.done[id] ??= {})[period] = { at: new Date().toISOString(), by, note: 'All checklist items ticked' };
+  await writeWork(doc);
+  return { checks: byPeriod[period], done: !!doc.done[id]?.[period] };
 }
 
 export async function recordReminderRun(run: WorkDoc['lastReminderRun']): Promise<void> {

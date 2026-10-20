@@ -36,6 +36,7 @@ import {
   saveSettings,
   saveRouting,
   remindTask,
+  setTaskCheck,
   deleteTasks,
   previewReminders,
   connectMail,
@@ -575,10 +576,11 @@ export function TasksPage() {
                                 open={openKey === key}
                                 onOpen={() => setOpenKey(openKey === key ? null : key)}
                                 onToggle={() => void toggle(i)}
+                                checks={state.checks?.[i.task.id]?.[i.period]}
                                 emailed={inTodaysEmail(i, state, today) ? `In ${hourLabelIST(state.settings.sendHour)} email` : undefined}
                               >
                                 {openKey === key && (
-                                  <TaskPanel task={i.task} state={state} members={members} areas={areas} onSave={onSaveTask} onDelete={onDeleteTask} />
+                                  <TaskPanel task={i.task} state={state} members={members} areas={areas} onSave={onSaveTask} onDelete={onDeleteTask} period={i.period} reload={load} />
                                 )}
                               </TaskRow>
                             );
@@ -607,6 +609,7 @@ export function TasksPage() {
                 onSave={onSaveTask}
                 onDelete={onDeleteTask}
                 onDeleteMany={onDeleteTasks}
+                onReload={load}
               />
             )}
           </div>
@@ -778,7 +781,9 @@ function ScheduleBadge({ t }: { t: WorkTask }) {
               : '—'
             : (t.dueDay ?? 1) >= 31
               ? 'Last'
-              : ordinal(t.dueDay ?? 1);
+              : t.startDay && t.startDay < (t.dueDay ?? 1)
+                ? `${t.startDay}–${ordinal(t.dueDay ?? 1)}`
+                : ordinal(t.dueDay ?? 1);
   const bottom =
     t.cadence === 'daily'
       ? 'Mon–Sat'
@@ -807,8 +812,10 @@ function TaskRow({
   onOpen,
   onToggle,
   emailed,
+  checks,
   children,
 }: {
+  checks?: string[];
   item: Item;
   today: string;
   memberById: Map<string, TeamMember>;
@@ -856,6 +863,12 @@ function TaskRow({
                 How to
               </span>
             )}
+            {(task.checklist?.length ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 font-mono text-[12px] font-semibold text-slate-800" title="Checklist">
+                ✓ {checks?.length ?? 0}/{task.checklist!.length}
+              </span>
+            )}
+            {(task.dependsOn?.length ?? 0) > 0 && <span className="text-slate-600">· after {task.dependsOn!.length} task{task.dependsOn!.length > 1 ? 's' : ''}</span>}
             {emailed && (
               <span className="inline-flex items-center gap-1 text-violet-700" title={emailed}>
                 <BellAlertIcon className="h-3.5 w-3.5" />
@@ -872,6 +885,124 @@ function TaskRow({
       </div>
       {children}
     </li>
+  );
+}
+
+/** The period to work on: the earliest open one (overdue / today), else the next. */
+function currentPeriod(task: WorkTask, state: WorkState, today: string): string | undefined {
+  let from = ymd(addDays(parseYmd(today), -lookbackDays(task.cadence)));
+  const start = trackingStart(state, today);
+  if (from < start) from = start;
+  const occ = occurrences(task, from, ymd(addDays(parseYmd(today), 400)));
+  const open = occ.find((o) => !state.done[task.id]?.[o.period]);
+  return (open ?? occ[occ.length - 1])?.period;
+}
+
+/** "Do after": the tasks this one depends on, with their latest status. */
+function DependsOn({ task, state, today }: { task: WorkTask; state: WorkState; today: string }) {
+  const deps = (task.dependsOn ?? []).map((id) => state.tasks.find((t) => t.id === id)).filter((t): t is WorkTask => !!t && t.active);
+  if (!deps.length) return null;
+  const status = (t: WorkTask) => {
+    const occ = occurrences(t, ymd(addDays(parseYmd(today), -45)), today);
+    const last = occ[occ.length - 1];
+    if (!last) return { ok: true, text: 'nothing due yet' };
+    const done = !!state.done[t.id]?.[last.period] || !!state.autoDone[t.id]?.includes(last.period);
+    return { ok: done, text: `${done ? 'done' : 'not done'} for ${periodLabel(last.period)}` };
+  };
+  return (
+    <div className="mb-3 rounded-xl border border-slate-300 bg-white px-3 py-2">
+      <div className="mb-1 text-[12px] font-bold uppercase tracking-wide text-slate-700">Do after</div>
+      <ul className="flex flex-wrap gap-1.5">
+        {deps.map((t) => {
+          const st = status(t);
+          return (
+            <li key={t.id}>
+              <Link
+                to={`/tasks?task=${encodeURIComponent(t.id)}`}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[13px] font-medium ${
+                  st.ok ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-amber-300 bg-amber-50 text-amber-900'
+                }`}
+              >
+                <span className={`h-2 w-2 rounded-full ${st.ok ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                {t.title} <span className="font-normal opacity-80">· {st.text}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** Sub-steps for this period (banks, platforms, vendors…). All ticked → the task is done. */
+function Checklist({ task, state, period, reload }: { task: WorkTask; state: WorkState; period: string; reload?: () => Promise<void> }) {
+  const [checked, setChecked] = useState<Set<string>>(() => new Set(state.checks?.[task.id]?.[period] ?? []));
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState('');
+  const items = task.checklist ?? [];
+  const toggle = async (id: string) => {
+    const next = !checked.has(id);
+    setBusy(id);
+    setErr('');
+    setChecked((c) => {
+      const n = new Set(c);
+      if (next) n.add(id);
+      else n.delete(id);
+      return n;
+    });
+    try {
+      const r = await setTaskCheck(task.id, period, id, next);
+      setChecked(new Set(r.checks));
+      if (r.done && reload) await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not save.');
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="mb-3 rounded-xl border border-slate-300 bg-white">
+      <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2">
+        <span className="text-[12px] font-bold uppercase tracking-wide text-slate-700">Checklist · {periodLabel(period)}</span>
+        <span className="ml-auto font-mono text-[13px] font-semibold tabular-nums text-slate-950">
+          {checked.size}/{items.length}
+        </span>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {items.map((c) => {
+          const on = checked.has(c.id);
+          return (
+            <li key={c.id} className="flex items-center gap-3 px-3 py-2">
+              <button
+                type="button"
+                disabled={busy === c.id}
+                onClick={() => void toggle(c.id)}
+                aria-label={on ? `Untick ${c.label}` : `Tick ${c.label}`}
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${on ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-400 hover:border-brand-500'}`}
+              >
+                {on && <CheckIcon className="h-3.5 w-3.5" strokeWidth={3} />}
+              </button>
+              <span className="min-w-0 flex-1">
+                <span className={`block text-[14.5px] font-semibold ${on ? 'text-slate-500 line-through' : 'text-slate-950'}`}>{c.label}</span>
+                {c.hint && <span className="block text-[13px] text-slate-700">{c.hint}</span>}
+              </span>
+              {c.link &&
+                (c.link.startsWith('/') ? (
+                  <Link to={c.link} className="shrink-0 text-[13px] font-semibold text-brand-700 hover:underline">
+                    How to →
+                  </Link>
+                ) : (
+                  <a href={c.link} target="_blank" rel="noreferrer" className="shrink-0 text-[13px] font-semibold text-brand-700 hover:underline">
+                    Open →
+                  </a>
+                ))}
+            </li>
+          );
+        })}
+      </ul>
+      {err && <p className="px-3 pb-2 text-[13px] text-rose-700">{err}</p>}
+      <p className="border-t border-slate-100 px-3 py-1.5 text-[12px] text-slate-600">Tick every item and the task is marked done for {periodLabel(period)}.</p>
+    </div>
   );
 }
 
@@ -982,6 +1113,8 @@ function TaskPanel({
   areas,
   onSave,
   onDelete,
+  period,
+  reload,
 }: {
   task: WorkTask;
   state: WorkState;
@@ -989,8 +1122,13 @@ function TaskPanel({
   areas: string[];
   onSave: (t: Partial<WorkTask>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  /** The period being worked on (agenda row); defaults to the current open one. */
+  period?: string;
+  reload?: () => Promise<void>;
 }) {
   const [tab, setTab] = useState<'how' | 'edit' | 'history'>(task.howTo ? 'how' : 'edit');
+  const today = todayIST();
+  const workPeriod = period ?? currentPeriod(task, state, today);
   const history = Object.entries(state.done[task.id] ?? {}).sort((a, b) => (a[0] < b[0] ? 1 : -1));
   const byId = new Map(members.map((m) => [m.id, m]));
   const [copied, setCopied] = useState(false);
@@ -1020,6 +1158,8 @@ function TaskPanel({
           <RefLink key={l.url} l={l} />
         ))}
       </div>
+      {(task.dependsOn?.length ?? 0) > 0 && <DependsOn task={task} state={state} today={today} />}
+      {(task.checklist?.length ?? 0) > 0 && workPeriod && <Checklist task={task} state={state} period={workPeriod} reload={reload} />}
       <ReminderStrip task={task} state={state} members={members} onSave={onSave} />
       <div className="mb-3 flex gap-1 text-sm">
         {(
@@ -1177,8 +1317,21 @@ function ScheduleBuilder({ f, set }: { f: Partial<WorkTask>; set: (p: Partial<Wo
         )}
         {cad === 'monthly' && (
           <>
-            <span className="font-medium">Every month on the</span>
+            <span className="font-medium">Every month {f.startDay ? 'from the' : 'on the'}</span>
+            {f.startDay ? (
+              <>
+                <DaySelect value={f.startDay} onChange={(n) => set({ startDay: n })} />
+                <span className="font-medium">to the</span>
+              </>
+            ) : null}
             <DaySelect value={f.dueDay} onChange={(n) => set({ dueDay: n })} />
+            <button
+              type="button"
+              onClick={() => set({ startDay: f.startDay ? (null as unknown as undefined) : Math.max(1, (f.dueDay ?? 2) - 1) })}
+              className="text-[13px] font-semibold text-brand-700 hover:underline"
+            >
+              {f.startDay ? 'Single day' : '+ Make it a range'}
+            </button>
           </>
         )}
         {(cad === 'quarterly' || cad === 'half-yearly') && (
@@ -1613,7 +1766,9 @@ function AllTasks({
   onSave,
   onDelete,
   onDeleteMany,
+  onReload,
 }: {
+  onReload: () => Promise<void>;
   state: WorkState;
   matches: (t: WorkTask) => boolean;
   memberById: Map<string, TeamMember>;
@@ -1785,7 +1940,7 @@ function AllTasks({
                     <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-500 transition ${open ? 'rotate-180' : ''}`} />
                   </button>
                   </div>
-                  {open && !selecting && <TaskPanel task={t} state={state} members={members} areas={areas} onSave={onSave} onDelete={onDelete} />}
+                  {open && !selecting && <TaskPanel task={t} state={state} members={members} areas={areas} onSave={onSave} onDelete={onDelete} reload={onReload} />}
                 </li>
               );
             })}

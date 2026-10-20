@@ -7,6 +7,7 @@
 //   DELETE /api/work/tasks/:id
 //   POST   /api/work/tasks/:id/done    { period, done, by?, note? }
 //   POST   /api/work/tasks/:id/remind  email this task's owners now
+//   POST   /api/work/tasks/:id/check   { period, item, checked } tick a checklist item
 //   POST   /api/work/tasks/delete      { ids } delete several tasks
 //   POST   /api/work/heads             { heads } the head (function) list for the filter
 //   POST   /api/work/import            one-time seed { tasks, done, force? }
@@ -23,7 +24,7 @@
 // ----------------------------------------------------------------------------
 
 import { Router, type Request, type Response } from 'express';
-import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, saveRouting, ensureRouting, splitRoles, saveHeads, deleteTasks, DEFAULT_HEADS, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
+import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, saveRouting, ensureRouting, ensureCalendar, setCheck, splitRoles, saveHeads, deleteTasks, DEFAULT_HEADS, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
 import { runWorkReminders, buildReminderEmails, remindTaskNow, buildTemplateSamples } from '../services/workReminders.js';
 import { testEmail } from '../services/workEmails.js';
 import { todayIST } from '../services/workSchedule.js';
@@ -48,6 +49,7 @@ router.get(
   '/',
   h(async (_req, res) => {
     await ensureRouting();
+    await ensureCalendar();
     const [doc, members] = await Promise.all([readWork(), listMembers(), ensureMailConfig()]);
     res.json({
       ...doc,
@@ -78,6 +80,14 @@ router.post(
     const { period, done, by, note } = req.body ?? {};
     await setDone(req.params.id, String(period), Boolean(done), by ? String(by) : undefined, note ? String(note) : undefined);
     res.json({ ok: true });
+  }),
+);
+
+router.post(
+  '/tasks/:id/check',
+  h(async (req, res) => {
+    const { period, item, checked, by } = req.body ?? {};
+    res.json(await setCheck(req.params.id, String(period), String(item), Boolean(checked), by ? String(by) : undefined));
   }),
 );
 
