@@ -858,25 +858,35 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
 
 <section class="partband" id="p2"><p class="eyebrow">Part II</p><h2>Operating the books: calendar and tasks</h2><p>Every recurring task, step by step, with the real screens and the links to open. Click a screenshot to view it full size.</p></section>
 <section class="chapter" id="c13">
-  <div class="chhead"><span class="chno">10</span><div><h2>Operating calendar</h2><p class="lede">What is done when: daily, weekly, monthly, quarterly.</p></div></div>
+  <div class="chhead"><span class="chno">10</span><div><h2>Operating calendar</h2><p class="lede">What is done when: daily, weekly, then each working day of the month from the 1st to the 17th, and quarterly.</p></div></div>
 <div class="opblock">
     <header><h3 id="c13-calendar">The calendar</h3></header>
     <div class="tw"><table>
       <tr><th>When</th><th>Task</th><th>Section</th></tr>
-      <tr><td>Every working day</td><td>Tranzact: split TDS, approve, push to Tally</td><td><a href="#c14">D1</a></td></tr>
-      <tr><td>Every working day</td><td>Shopify orders, then Easebuzz payouts, for yesterday</td><td><a href="#c14">D2</a></td></tr>
-      <tr><td>Every Monday</td><td>Easebuzz count, Tranzact rejects, Suspense, Tally date</td><td><a href="#c15">W1</a></td></tr>
-      <tr><td>By Day 3</td><td>Daily work caught up to month end</td><td>D1, D2</td></tr>
-      <tr><td>By Day 5</td><td>Amazon, Shiprocket, Snapmint imported</td><td><a href="#c16">M1</a>–<a href="#c16">M3</a></td></tr>
-      <tr><td>By Day 7</td><td>TDS paid for last month</td><td><a href="#c16">M5</a></td></tr>
-      <tr><td>By Day 10</td><td>GSTR-1 data to the CA (due 11th)</td><td>M5</td></tr>
-      <tr><td>By Day 12</td><td>HDFC, ICICI, Central Bank reconciled</td><td>M5</td></tr>
-      <tr><td>By Day 15</td><td>Platform invoices booked + Amazon expense JV</td><td><a href="#c16">M4</a></td></tr>
-      <tr><td>By Day 20</td><td>Clearing ledgers checked · GSTR-3B · close</td><td>M5</td></tr>
+      <tr><td>Every working day</td><td>Tranzact → Tally: sales and purchases (split TDS, approve, push)</td><td><a href="#c14-d1-tranzact">D1</a></td></tr>
+      <tr><td>Every working day</td><td>Shopify orders, then Easebuzz payouts, for yesterday</td><td><a href="#c14-d2-shopify-easebuzz">D2</a></td></tr>
+      <tr><td>Weekly</td><td>Download the bank statements (Central Bank, HDFC, ICICI) and reconcile them with the books</td><td><a href="#s6">S6</a> · <a href="#c9">Ch 9</a></td></tr>
+      <tr><td>Weekly</td><td>Reconcile contra entries. A bank-to-bank transfer is booked <b>once</b>: as the payment (or receipt) in one bank, so it shows in the other. Don't book it again from the second statement.</td><td><a href="#c9">Ch 9</a></td></tr>
+      <tr><td>Weekly</td><td>Reconcile each platform collection ledger once its settlement is imported: Easebuzz vs <code>Easebuzz Collection A/c</code>, Snapmint vs <code>Snapmint Collection</code>, Shiprocket vs <code>ShipRocket Collection</code>, Amazon vs <code>Amazon Bank</code></td><td><a href="#c21">Ch 21</a></td></tr>
+      <tr><td>Weekly (Monday)</td><td>Tally date, Easebuzz payout count, Tranzact rejects, Suspense</td><td><a href="#c15">W1</a></td></tr>
+      <tr><td>1st</td><td>Shiprocket COD remittance settlement</td><td><a href="#c16-m2-shiprocket">M2</a></td></tr>
+      <tr><td>1st</td><td>Snapmint settlement (Group Daily Merchant Report)</td><td><a href="#c16-m3-snapmint">M3</a></td></tr>
+      <tr><td>3rd</td><td>Amazon MTR, STR and Settlement reports</td><td><a href="#c16-m1-amazon">M1</a></td></tr>
+      <tr><td>3rd</td><td>All expense invoices booked</td><td><a href="#c27-overview">Ch 13b</a> · <a href="#c16-m4-platform-invoices">M4</a></td></tr>
+      <tr><td>3rd</td><td>JVs for the Amazon settlement, bank and other ledgers (special cases)</td><td><a href="#c6-monthly-jv">Ch 6</a> · <a href="#c16-m4-platform-invoices">M4</a></td></tr>
+      <tr><td>4th</td><td>Clear all bank statements for the month</td><td><a href="#c16-m5-close">M5</a></td></tr>
+      <tr><td>5th</td><td>Attendance shared; salary expense booked</td><td>—</td></tr>
+      <tr><td>6th</td><td>TDS report shared with the CA, with all clearances</td><td><a href="#c8">Ch 8</a></td></tr>
+      <tr><td>7th</td><td>TDS for last month deposited (statutory due date)</td><td><a href="#c16-m5-close">M5</a></td></tr>
+      <tr><td>8th–9th</td><td>GSTR-1: resolve every discrepancy, check e-invoices and e-way bills, share the data</td><td><a href="#c7">Ch 7</a></td></tr>
+      <tr><td>10th</td><td>Update all reports into the MIS portal</td><td><a href="#c28-overview">Ch 13c</a></td></tr>
+      <tr><td>14th</td><td>GSTR-2B reconciliation</td><td><a href="#c7-monthly-cycle">Ch 7</a></td></tr>
+      <tr><td>17th</td><td>GSTR-3B data shared and prepared (return due 20th)</td><td><a href="#c7-monthly-cycle">Ch 7</a></td></tr>
+      <tr><td>By the 20th</td><td>Clearing ledgers checked · month closed</td><td><a href="#c16-m5-close">M5</a> · <a href="#c10">Ch 17</a></td></tr>
       <tr><td>Quarterly</td><td>26Q, Form 16A to Amazon</td><td><a href="#c17">Q</a></td></tr>
     </table></div>
     <div class="callout warn"><b class="k">Before any import:</b> check the date in Tally's top bar is <b>today</b>. On 17-Oct it read 6-Dec-2026, and every import form defaulted to December.</div>
-    <div class="callout info"><b class="k">In the MIS app:</b> Tasks &amp; Compliance → Operations carries these same tasks (D1, D2, W1, M1–M5, Q), each owned by the accountant and linked to its SOP. The statutory filings themselves are tracked in the Accounts category; M5 is the operating close that feeds them. Also at month end: the depreciation journal (chapter 9b), and the Easebuzz Wire statement if that account moved (chapter 9).</div>
+    <div class="callout info"><b class="k">In the MIS app:</b> Tasks &amp; Compliance → Operations carries these same tasks (D1, D2, W1, M1–M5, expense booking, MIS update, Q), each owned by the accountant and linked to its SOP. The statutory filings themselves are tracked in the Accounts category; M5 is the operating close that feeds them. Also at month end: the depreciation journal (chapter 9b), and the Easebuzz Wire statement if that account moved (chapter 9).</div>
   </div>
 </section>
 <section class="chapter" id="c14">
@@ -945,9 +955,9 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   </div>
 </section>
 <section class="chapter" id="c16">
-  <div class="chhead"><span class="chno">13</span><div><h2>Monthly tasks</h2><p class="lede">Day 1 to Day 20 of the following month.</p></div></div>
+  <div class="chhead"><span class="chno">13</span><div><h2>Monthly tasks</h2><p class="lede">Day 1 to Day 20 of the following month (the dates are in chapter 10).</p></div></div>
 <div class="opblock">
-    <header><span class="tag monthly">Monthly · M1 · by Day 5</span><h3 id="c16-m1-amazon">Amazon: four reports</h3></header>
+    <header><span class="tag monthly">Monthly · M1 · 3rd</span><h3 id="c16-m1-amazon">Amazon: four reports</h3></header>
     <p class="done">Done when: MTR-B2C, MTR-B2B, STR and Settlement are imported for the month.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Download MTR-B2C, MTR-B2B, STR</h4>
       <div class="btns"><a class="btn" href="https://sellercentral.amazon.in/mytax/gstreports/monthly" target="_blank" rel="noopener">GST Monthly Reports ↗</a></div>
@@ -976,7 +986,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     </div></div>
     <div class="step"><div class="no">5</div><div class="body"><h4>Check</h4><p><code>Amazon Seller A/c</code> ends the month as a small Dr (sales in the open settlement). <code>Amazon Settlement</code> holds only the open settlement. After the bank import, <code>Amazon Bank</code> holds 1–2 days at most.</p></div></div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · M2 · by Day 5</span><h3 id="c16-m2-shiprocket">Shiprocket COD remittances</h3></header>
+    <header><span class="tag monthly">Monthly · M2 · 1st</span><h3 id="c16-m2-shiprocket">Shiprocket COD remittances</h3></header>
     <p class="done">Done when: the month's remittances are imported, and freight invoices booked = Total Deductions from COD.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Download the COD remittance report</h4>
       <div class="btns"><a class="btn" href="https://app.shiprocket.in/seller/reports/download-reports/instant-reports" target="_blank" rel="noopener">Instant Reports ↗</a><a class="btn" href="https://app.shiprocket.in/seller/remitted/cod-remittance" target="_blank" rel="noopener">COD Remittance ↗</a></div>
@@ -991,7 +1001,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     </div></div>
     <div class="step"><div class="no">5</div><div class="body"><h4>Book freight invoices and tie out</h4><p>Book every Shiprocket GST invoice, COD and prepaid freight alike: Dr freight + GST, Cr <code>ShipRocket Collection</code>. The total booked for the month should equal Total Deductions from COD.</p></div></div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · M3 · by Day 5</span><h3 id="c16-m3-snapmint">Snapmint settlements</h3></header>
+    <header><span class="tag monthly">Monthly · M3 · 1st</span><h3 id="c16-m3-snapmint">Snapmint settlements</h3></header>
     <p class="done">Done when: the month's Snapmint payouts are imported.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Request the report (arrives by email)</h4>
       <div class="btns"><a class="btn" href="https://emis.snapmint.com/merchants/dashboard" target="_blank" rel="noopener">Snapmint portal ↗</a></div>
@@ -1006,8 +1016,9 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
       <figure class="narrow"><a href="img/opt5_wrongfile.jpg" target="_blank"><img src="img/opt5_wrongfile.jpg" alt="Option 5 with SnapMint platform but an Amazon file name" loading="lazy"></a></figure>
     </div></div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · M4 · by Day 15</span><h3 id="c16-m4-platform-invoices">Platform invoices and the Amazon expense JV</h3></header>
+    <header><span class="tag monthly">Monthly · M4 · 3rd</span><h3 id="c16-m4-platform-invoices">Platform invoices and the Amazon expense JV</h3></header>
     <p class="done">Done when: every platform invoice is booked, the Amazon JV is passed, and <code>Cost of Advertising</code> = 0.</p>
+    <p>Every vendor, one by one (ledger, voucher, GST, TDS, where to download): <a href="#c27-overview">chapter 13b, Expense booking</a>.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Download the invoices</h4>
       <div class="btns"><a class="btn" href="https://sellercentral.amazon.in/payments/reports-repository" target="_blank" rel="noopener">Amazon Payments (Advertising Invoice History) ↗</a></div>
       <ul><li>Amazon ads: Payments → Advertising Invoice History</li><li>Amazon fees: Seller Central → Tax Document Library</li><li>Shiprocket billing · Easebuzz dashboard · Snapmint → Reports → Monthly Invoices</li></ul>
@@ -1028,10 +1039,10 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     </div></div>
     <div class="step"><div class="no">4</div><div class="body"><h4>Match to GSTR-2B</h4><p>Tick every invoice against the month's GSTR-2B. If one is missing from 2B, there is no input credit for it, so tell Hargun.</p></div></div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · M5 · Day 7–20</span><h3 id="c16-m5-close">Banks, statutory dates, close</h3></header>
+    <header><span class="tag monthly">Monthly · M5 · 4th–20th</span><h3 id="c16-m5-close">Banks, statutory dates, close</h3></header>
     <p class="done">Done when: 3 banks reconciled, every ledger below is OK, Hargun signs off.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Import and reconcile the 3 banks</h4><ol><li>Download Excel statements: HDFC, ICICI, Central Bank.</li><li>File Manager → <b>Bank Statement New</b> → upload.</li><li>Tally → Banking → import the statement and reconcile. For the Central Bank file, the column headings must be on <b>row 14</b>.</li></ol></div></div>
-    <div class="step"><div class="no">2</div><div class="body"><h4>Statutory dates</h4><ul><li><b>7th</b>: TDS paid for last month</li><li><b>10th</b>: GSTR-1 data to the CA (due 11th)</li><li><b>20th</b>: GSTR-3B</li></ul></div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Statutory dates</h4><ul><li><b>4th</b>: all bank statements cleared</li><li><b>6th</b>: TDS report to the CA with all clearances; <b>7th</b>: TDS paid for last month</li><li><b>8th–9th</b>: GSTR-1 discrepancies resolved, e-invoice and e-way bill check, data shared (due 11th)</li><li><b>14th</b>: GSTR-2B reconciliation</li><li><b>17th</b>: GSTR-3B data shared and prepared (due 20th)</li></ul></div></div>
     <div class="step"><div class="no">3</div><div class="body"><h4>Check every clearing ledger</h4>
       <p>Display More Reports → Account Books → Ledger, or Outstandings → Ledger for bill-wise ageing.</p>
       <div class="tw"><table>
@@ -1049,6 +1060,303 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
         <tr><td>Suspense</td><td>0</td><td>anything</td></tr>
       </table></div>
     </div></div>
+  </div>
+</section>
+<section class="chapter" id="c27">
+  <div class="chhead"><span class="chno">13b</span><div><h2>Expense booking</h2><p class="lede">Every vendor bill that has to be booked by hand each month: what it is, where to get it, which ledger and voucher it goes to, and its GST and TDS. Done on the 3rd.</p></div></div>
+<div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · ~1–2 hrs</span><h3 id="c27-overview">The monthly expense run (3rd)</h3></header>
+    <p class="done">Done when: every invoice in the table below is booked for the month, each platform collection ledger has its fees, and every booked invoice is ticked against GSTR-2B (on the 14th).</p>
+    <p>On the 3rd of each month, collect last month's invoices from every vendor below and book each one in Tally. This is the vendor-by-vendor detail behind <a href="#c16-m4-platform-invoices">M4 · Platform invoices and the Amazon expense JV</a>.</p>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Collect every invoice</h4>
+      <ol><li>Download last month's invoice(s) from each vendor's portal (links in each section).</li><li>Save them in the month's close folder (chapter 24, <code>04_Monthly_Close/YYYY-MM/raw/</code>). The exact sub-folder for expense invoices is <span class="pill warn">to confirm</span>.</li><li>Missing an invoice? Note it and tell Hargun. Don't book from a payment alone.</li></ol>
+    </div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Book each one: the ledger rule</h4>
+      <ul>
+        <li><b>Platforms that pay us</b> (Shiprocket, Easebuzz, Snapmint): credit that platform's <b>collection ledger</b>, not the bank. Their fees are taken out of our payouts, so the invoice and the payouts net off in the same ledger (chapter 21).</li>
+        <li><b>Amazon</b>: credit <code>Amazon Expenses (Creditors)</code>, with every GST, TDS and TCS line recorded (chapter 6).</li>
+        <li><b>Everyone else</b> (Shopflo, Meta, Google Ads, Bitespeed, Digistex, Shopify, Claude, Google Cloud): ledger <span class="pill warn">to confirm with Hargun</span>. Until confirmed, use the candidate named in each section only after Hargun says yes.</li>
+      </ul>
+    </div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Voucher type</h4>
+      <p>The handbook's practice for platform and fee invoices is <b>Purchase-Expense</b>: Dr the fee/ad ledger + Input GST, Cr the party or control ledger (chapter 3; M4). Credit notes from a vendor go in as a <b>Debit Note</b>. A <code>Purchase-Services</code> voucher type also exists in Tally, and the MIS app's expense advisor uses it for service bills. Which one to use for SaaS and ad bills is <span class="pill warn">to confirm with Hargun</span>; until then, follow M4 (Purchase-Expense).</p>
+    </div></div>
+    <div class="step"><div class="no">4</div><div class="body"><h4>GST: domestic or reverse charge?</h4>
+      <ul>
+        <li><b>Domestic invoice</b> (vendor shows an Indian GSTIN and charges GST): take the GST as input. Vendor in UP → CGST + SGST; outside UP → IGST.</li>
+        <li><b>Foreign invoice</b> (no Indian GST charged, billed from abroad, often in USD): this is usually an import of services, and IGST is paid by us under <b>reverse charge (RCM)</b>. RCM ledgers and the exact entry are <span class="pill warn">to confirm with the CA</span>; no RCM ledger appears in the app's ledger snapshot.</li>
+        <li>Read the invoice header to decide. Meta, Google Ads, Shopify, Anthropic and Google Cloud can bill either from an Indian entity or from abroad.</li>
+      </ul>
+    </div></div>
+    <h4>All vendors at a glance</h4>
+    <div class="tw"><table>
+      <tr><th>Vendor</th><th>Ledger (credit side)</th><th>Voucher</th><th>GST</th><th>TDS</th><th>Status of info</th></tr>
+      <tr><td><a href="#c27-shopflo">Shopflo</a></td><td>To confirm</td><td>Purchase-Expense?</td><td>Domestic input</td><td>Likely deducted; section to confirm</td><td>Needs: Ledger, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-shiprocket">Shiprocket</a></td><td><code>ShipRocket Collection</code></td><td>Purchase-Expense</td><td>Domestic input, 18%</td><td>To confirm</td><td><b>Ledger set.</b> Needs: Link, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-easebuzz">Easebuzz</a></td><td><code>Easebuzz Collection A/c</code></td><td>Purchase-Expense</td><td>Domestic input, 18%</td><td>To confirm</td><td><b>Ledger set.</b> Needs: Link, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-snapmint">Snapmint</a></td><td><code>Snapmint Collection</code></td><td>Purchase-Expense</td><td>Domestic input, 18%</td><td>To confirm</td><td><b>Ledger set.</b> Needs: TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-amazon">Amazon</a></td><td><code>Amazon Expenses (Creditors)</code></td><td>Purchase-Expense (+ Debit Note, JV)</td><td>Domestic input (IGST)</td><td>Ads 194C (CA to confirm); sales TDS/TCS via settlement</td><td><b>Ledger set.</b> Needs: Screenshot</td></tr>
+      <tr><td><a href="#c27-facebook">Facebook (Meta ads)</a></td><td>To confirm</td><td>Purchase-Expense?</td><td>Domestic or RCM: to confirm</td><td>To confirm</td><td>Needs: Link, ledger, GST, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-google">Google Ads</a></td><td>To confirm</td><td>Purchase-Expense?</td><td>Domestic or RCM: to confirm</td><td>To confirm</td><td>Needs: Link, ledger, GST, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-bitespeed">Bitespeed (Actartly)</a></td><td>To confirm</td><td>Purchase-Expense?</td><td>Domestic input</td><td>To confirm</td><td>Needs: Link, ledger, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-digistex">Digistex</a></td><td>To confirm</td><td>Purchase-Expense?</td><td>To confirm</td><td>To confirm</td><td>Needs: What it bills, link, ledger, GST, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-shopify">Shopify</a></td><td>To confirm</td><td>Purchase-Expense?</td><td>Domestic or RCM: to confirm</td><td>To confirm</td><td>Needs: Link, ledger, GST, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-claude">Claude (Anthropic)</a></td><td>To confirm</td><td>Purchase-Expense?</td><td>Likely RCM (foreign): to confirm</td><td>To confirm with CA</td><td>Needs: Link, ledger, GST, TDS, screenshot</td></tr>
+      <tr><td><a href="#c27-gcloud">Google Cloud</a></td><td>To confirm</td><td>Purchase-Expense?</td><td>Domestic or RCM: to confirm</td><td>To confirm</td><td>Needs: Link, ledger, GST, TDS, screenshot</td></tr>
+    </table></div>
+    <div class="callout warn"><b class="k">Candidate ledgers are not decisions.</b> Where a section names a "candidate" ledger, it was found in the MIS app's Tally ledger snapshot (May 2026). It may be out of date. Use it only after Hargun confirms the name in Tally.</div>
+    <div class="callout info"><b class="k">After booking:</b> on the 14th, tick every invoice against GSTR-2B (chapter 7). An invoice missing from 2B gives no input credit yet. Tell Hargun.</div>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-shopflo">Shopflo (checkout)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Shopflo's monthly invoice for the D2C checkout on heatronics.in (checkout fee / plan).</dd></div>
+      <div><dt>Download</dt><dd>Shopflo dashboard → Billing → Invoices. The MIS upload slot links to <a href="https://dashboard.shopflo.com/billing#invoices" target="_blank" rel="noopener">dashboard.shopflo.com/billing</a>. Link for accounts: <span class="pill warn">to confirm with Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd><span class="pill warn">To confirm with Hargun</span>. Candidates in the snapshot: expense <code>Checkout Fee - Shopflo</code> (or <code>Shopflo Annual Plan</code>); party <code>SHOPFLO TECHNOLOGIES PVT LTD</code>.</dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (handbook practice). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>Domestic input, from the GSTIN on the invoice (UP → CGST + SGST, else IGST).</dd></div>
+      <div><dt>TDS</dt><dd>The MIS app's Shopflo reader notes TDS withheld on these invoices, so TDS appears to apply. Section (194J or 194C): <span class="pill warn">to confirm</span></dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>Open Shopflo → Billing → Invoices and download last month's invoice PDF.</li><li>Tally → Purchase-Expense → party = the confirmed Shopflo ledger.</li><li>Dr the confirmed expense ledger with the taxable value, Dr Input GST, Cr the party.</li><li>If TDS applies, add the TDS line (Cr <code>TDS Payable - &lt;section&gt;</code>, party reduced by the same amount).</li><li>Narration: invoice number and billing period.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> The Shopflo Billing → Invoices screen with the month's invoice.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-shiprocket">Shiprocket (freight)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Shiprocket's GST invoices for D2C freight: forward delivery, RTO, COD handling, weight discrepancy and other charges, on COD and prepaid orders alike.</dd></div>
+      <div><dt>Download</dt><dd>Shiprocket → Billing (invoices). Link: <span class="pill warn">needed from Hargun</span>. For the COD figure to tie to, see <a href="https://app.shiprocket.in/seller/remitted/cod-remittance" target="_blank" rel="noopener">COD Remittance</a>.</dd></div>
+      <div><dt>Ledger</dt><dd>Cr <code>ShipRocket Collection</code> (set by Hargun). Dr the freight heads in M4: <code>Freight Charges (Shiprocket)</code> / <code>Forward Delivery - Shiprocket</code>. The snapshot also lists <code>RTO Charge</code>, <code>COD Handling Charge</code>, <code>Weight Discrepancy</code> and <code>Early COD Remittance Fee</code> (each "- Shiprocket"). Which heads are in use: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (chapter 3; M4)</dd></div>
+      <div><dt>GST</dt><dd>Domestic input, 18%, IGST or CGST + SGST from the invoice.</dd></div>
+      <div><dt>TDS</dt><dd>The freight ledgers are marked TDS-applicable in the snapshot (194C would apply to transport). Whether we deduct on Shiprocket bills, which are recovered from COD: <span class="pill warn">to confirm</span></dd></div>
+    </dl>
+    <div class="je"><h4>Freight invoice<span>Purchase-Expense</span></h4>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Freight Charges (Shiprocket) / Forward Delivery - Shiprocket</span><span class="a">taxable</span></div>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">IGST Input - 18% (or CGST + SGST)</span><span class="a">GST</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">ShipRocket Collection</span><span class="a">gross</span></div></div>
+    <h4>Steps</h4>
+    <ol><li>Import the month's COD remittances first (<a href="#c16-m2-shiprocket">M2</a>, on the 1st).</li><li>Download every Shiprocket invoice for the month.</li><li>Book each as Purchase-Expense: Dr freight head + GST, Cr <code>ShipRocket Collection</code>.</li><li>Tie out: the total booked = <b>Total Deductions from COD</b> on the COD Remittance page. A gap means an invoice is missing.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Shiprocket's billing / invoice list for the month.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-easebuzz">Easebuzz (payment gateway)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Easebuzz's monthly GST invoice for payment-gateway charges (transaction fee / MDR, refund processing).</dd></div>
+      <div><dt>Download</dt><dd>Easebuzz dashboard → invoices. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd>Cr <code>Easebuzz Collection A/c</code> (set by Hargun). Dr <code>PG Transaction Fee - Easebuzz</code> (M4); the snapshot also has <code>Refund Processing Fee - Easebuzz</code>.</dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (chapter 3; M4)</dd></div>
+      <div><dt>GST</dt><dd>Domestic input, 18%.</dd></div>
+      <div><dt>TDS</dt><dd>The fee ledger is marked no-TDS in the snapshot. <span class="pill warn">to confirm</span></dd></div>
+    </dl>
+    <div class="je"><h4>Easebuzz invoice<span>Purchase-Expense</span></h4>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">PG Transaction Fee - Easebuzz</span><span class="a">taxable</span></div>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Input GST 18%</span><span class="a">GST</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">Easebuzz Collection A/c</span><span class="a">gross</span></div></div>
+    <h4>Steps</h4>
+    <ol><li>Download last month's Easebuzz invoice.</li><li>Book as Purchase-Expense: Dr the fee ledger + GST, Cr <code>Easebuzz Collection A/c</code>.</li><li>Check: the invoice fee ≈ the fees already netted in the daily Easebuzz payout journals (D2) for the month.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> The Easebuzz dashboard invoice page.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-snapmint">Snapmint (BNPL)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Snapmint's monthly GST invoice for BNPL / EMI processing fees and subvention.</dd></div>
+      <div><dt>Download</dt><dd><a href="https://emis.snapmint.com/merchants/dashboard" target="_blank" rel="noopener">Snapmint portal</a> → Reports → Monthly Invoices (as in M4). Exact link: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Ledger</dt><dd>Cr <code>Snapmint Collection</code> (set by Hargun). Dr <code>BNPL Processing Fee - Snapmint</code> (M4).</dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (chapter 3; M4)</dd></div>
+      <div><dt>GST</dt><dd>Domestic input, 18%.</dd></div>
+      <div><dt>TDS</dt><dd><span class="pill warn">to confirm</span> (the fee ledger is marked no-TDS in the snapshot)</dd></div>
+    </dl>
+    <div class="je"><h4>Snapmint invoice<span>Purchase-Expense</span></h4>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">BNPL Processing Fee - Snapmint</span><span class="a">taxable</span></div>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Input GST 18%</span><span class="a">GST</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">Snapmint Collection</span><span class="a">gross</span></div></div>
+    <h4>Steps</h4>
+    <ol><li>Import the month's Snapmint settlement first (<a href="#c16-m3-snapmint">M3</a>, on the 1st).</li><li>Download the monthly invoice.</li><li>Book as Purchase-Expense: Dr fee + GST, Cr <code>Snapmint Collection</code>.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Snapmint → Reports → Monthly Invoices.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-amazon">Amazon (fees, ads, TDS and TCS)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Amazon's GST invoices for seller fees (listing, closing, FBA, pick and pack…), the advertising invoices, and any fee credit notes.</dd></div>
+      <div><dt>Download</dt><dd>Ads: <a href="https://sellercentral.amazon.in/payments/reports-repository" target="_blank" rel="noopener">Payments</a> → Advertising Invoice History. Fees and credit notes: Seller Central → Tax Document Library. Direct link to the Tax Document Library: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd>Cr <code>Amazon Expenses (Creditors)</code> (set by Hargun). Dr the fee ledgers (Listing Fees, Fixed Closing, FBA Weight Handling, Pick and Pack…) or <code>Amazon Ads</code>.</dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense for invoices; Debit Note for fee credit notes; Journal for the monthly expense JV (chapter 6).</dd></div>
+      <div><dt>GST</dt><dd>Domestic input; record every GST line on the invoice (IGST Input - 18% on the ads invoice in chapter 6).</dd></div>
+      <div><dt>TDS / TCS</dt><dd>Record them all. <b>Ads:</b> TDS 194C on the invoice (CA to confirm, chapter 8). <b>On our sales:</b> TDS u/s 194-O and GST TCS (sec 52) come in through the Settlement import as the <i>Amazon TDS-TCS</i> voucher.</dd></div>
+    </dl>
+    <div class="je"><h4>Ads invoice<span>Purchase-Expense</span></h4>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Ads</span><span class="a">taxable</span></div>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">IGST Input - 18%</span><span class="a">GST</span></div>
+      <div class="ln d"><span class="s">Dr</span><span class="nm">TDS Receivable - 194C (Ads) (recoverable from Amazon)</span><span class="a">TDS</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">TDS Payable - 194C (Contractors)</span><span class="a">TDS</span></div>
+      <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">gross</span></div></div>
+    <h4>Steps</h4>
+    <ol><li>Import the four Amazon reports first (<a href="#c16-m1-amazon">M1</a>), also on the 3rd.</li><li>Download all fee invoices, credit notes and ad invoices for the month.</li><li>Book each fee invoice as Purchase-Expense, each credit note as a Debit Note, all against <code>Amazon Expenses (Creditors)</code>.</li><li>Book the ad invoice with its GST and TDS lines (above). Chapter 8 recommends <code>TDS Receivable - 194C (Ads)</code> over <code>TDS (Amazon)</code> for the recoverable side.</li><li>Check the Amazon TDS-TCS vouchers from the settlement are there for the month: Dr <code>TDS (Amazon)</code> and <code>TCS-IGST/CGST/SGST (Amazon)</code>, Cr <code>Amazon Seller A/c</code>. If any are missing, tell Hargun before passing them by hand.</li><li>Pass the monthly Amazon expense JV (<a href="#c6-monthly-jv">chapter 6</a>): Dr <code>Amazon Expenses (Creditors)</code>, Cr <code>Cost of Advertising</code> and the settlement-posted FBA heads.</li><li>Check: <code>Cost of Advertising</code> = 0 and <code>Amazon Expenses (Creditors)</code> ≈ 0.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> The Tax Document Library and the Advertising Invoice History pages.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-facebook">Facebook (Meta ads)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Meta's invoices / payment receipts for Facebook and Instagram ad spend (D2C marketing).</dd></div>
+      <div><dt>Download</dt><dd>Meta Ads Manager → Billing &amp; payments. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd><span class="pill warn">To confirm with Hargun</span>. Candidate expense in the snapshot: <code>Meta Ads (Direct)</code> (D2C Marketing). A "Facebook India" payable of ₹20.0 L already sits in the books (chapters 18 and 23), so a party ledger for it exists. Its exact name: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (handbook practice). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>If the invoice is from <i>Facebook India Online Services</i> with an Indian GSTIN and GST charged → domestic IGST input. If it is billed from abroad with no GST → import of services under RCM. <span class="pill warn">to confirm with CA</span></dd></div>
+      <div><dt>TDS</dt><dd><span class="pill warn">to confirm with CA</span></dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>Download every Meta invoice / receipt for the month (Meta can bill several times a month as the threshold is hit).</li><li>Check the invoice header: Indian GSTIN or foreign entity.</li><li>Book once the ledger is confirmed: Dr ad ledger + GST (or RCM lines), Cr the Facebook party ledger.</li><li>The payment from the bank then clears the party ledger.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Meta Billing &amp; payments with the month's invoices.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-google">Google Ads</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Google Ads' monthly invoice / statement for search, Shopping and Performance Max spend.</dd></div>
+      <div><dt>Download</dt><dd>Google Ads → Billing → Documents. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd><span class="pill warn">To confirm with Hargun</span>. Candidate expense: <code>Google Ads (Direct)</code> (D2C Marketing). A "Google India" payable of ₹4.9 L already sits in the books (chapter 18), so its party ledger exists. Exact name: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (handbook practice). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>If billed by <i>Google India</i> with GST → domestic IGST input; if billed from abroad with no GST → RCM. <span class="pill warn">to confirm with CA</span></dd></div>
+      <div><dt>TDS</dt><dd><span class="pill warn">to confirm with CA</span></dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>Download the month's Google Ads invoice.</li><li>Check the billing entity and GST.</li><li>Book once confirmed: Dr ad ledger + GST, Cr the Google party ledger.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Google Ads → Billing → Documents.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-bitespeed">Bitespeed (billed by Actartly)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Bitespeed's subscription and messaging (WhatsApp / communication) charges. The invoice comes from <b>Actartly Technology Private Limited</b>.</dd></div>
+      <div><dt>Download</dt><dd>Bitespeed dashboard → billing. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd><span class="pill warn">To confirm with Hargun</span>. Candidates: expense <code>Bitespeed Subscription</code> (D2C Platform Subscriptions) and <code>Bitespeed Communication Charges</code> (D2C Communication Fees); party <code>Actartly Technology Private Limited</code> (Service Creditors).</dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (handbook practice). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>Domestic input from the invoice GSTIN.</dd></div>
+      <div><dt>TDS</dt><dd>Ledgers are marked TDS-applicable in the snapshot. Section: <span class="pill warn">to confirm</span></dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>Download the Actartly invoice(s) for the month.</li><li>Split subscription vs messaging charges if the invoice shows both.</li><li>Book once confirmed: Dr expense(s) + GST, Cr <code>Actartly Technology Private Limited</code>, less TDS if it applies.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Bitespeed billing page / Actartly invoice.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-digistex">Digistex</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Digistex's monthly invoice. The MIS uses a Digistex customer-LTV export for Shopify. What exactly Digistex bills for: <span class="pill warn">to confirm with Hargun</span></dd></div>
+      <div><dt>Download</dt><dd>Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd><span class="pill warn">To confirm with Hargun</span>. The snapshot has a party <code>Digistex4u</code> (Service Creditors) but no expense ledger for it.</dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (handbook practice). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd><span class="pill warn">to confirm</span> from the invoice</dd></div>
+      <div><dt>TDS</dt><dd>The party is marked TDS-applicable in the snapshot. Section: <span class="pill warn">to confirm</span></dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>Download the month's Digistex invoice.</li><li>Book once ledger and TDS are confirmed: Dr expense + GST, Cr <code>Digistex4u</code>, less TDS if it applies.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Where the Digistex invoice is downloaded.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-shopify">Shopify (store subscription and apps)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Shopify's bill for the heatronics.in store plan, plus any app charges billed through Shopify.</dd></div>
+      <div><dt>Download</dt><dd>Shopify admin → Settings → Billing → Bills. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd><span class="pill warn">To confirm with Hargun</span>. Candidate: <code>Shopify Subscription</code> (D2C Platform Subscriptions). Party ledger: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (handbook practice). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>Read the bill: if it is from a foreign Shopify entity in USD with no Indian GST, it is an import of services under RCM; if Indian GST is charged, it is a domestic input. <span class="pill warn">to confirm with CA</span>. The exchange rate to use for a USD bill: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>TDS</dt><dd><span class="pill warn">to confirm with CA</span> (payments abroad have their own rules)</dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>Download the month's Shopify bill(s).</li><li>Note the billing entity, currency and GST shown.</li><li>Book once confirmed. If RCM applies, add the RCM IGST lines the CA specifies.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Shopify Settings → Billing → Bills.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-claude">AI tools: Claude (Anthropic)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Anthropic's invoices / receipts for Claude subscriptions and API usage.</dd></div>
+      <div><dt>Download</dt><dd>Claude / Anthropic Console → billing → invoices. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd><span class="pill warn">To confirm with Hargun</span>. Candidate: <code>AI Tools - Anthropic &amp; Others</code> (Operations Platform Subscriptions). Party ledger: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (handbook practice). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>Anthropic is a foreign supplier, usually billed in USD, so this is likely an import of services with IGST paid by us under RCM. <span class="pill warn">to confirm with CA</span></dd></div>
+      <div><dt>TDS</dt><dd><span class="pill warn">to confirm with CA</span> (payment to a non-resident)</dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>Download every Anthropic invoice / receipt for the month (subscription and API are billed separately).</li><li>Note the USD amount and the INR actually charged on the card or bank.</li><li>Book once ledger, rate and RCM treatment are confirmed.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> The Anthropic billing / invoices page.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-gcloud">Google Cloud</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Google Cloud's monthly invoice for hosting (Cloud Run, storage, Secret Manager) used by the MIS app and portals.</dd></div>
+      <div><dt>Download</dt><dd>Google Cloud console → Billing → Documents. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Ledger</dt><dd><span class="pill warn">To confirm with Hargun</span>. No Google Cloud ledger in the snapshot; it would sit under Operations Platform Subscriptions like Tally and Tranzact.</dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense (handbook practice). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>If the invoice is from an Indian Google Cloud entity with GST → domestic input; if billed from abroad with no GST → RCM. <span class="pill warn">to confirm with CA</span></dd></div>
+      <div><dt>TDS</dt><dd><span class="pill warn">to confirm with CA</span></dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>Download the month's Google Cloud invoice.</li><li>Check the billing entity and GST.</li><li>Book once the ledger is created and confirmed.</li></ol>
+    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Google Cloud Billing → Documents.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div>
+</section>
+<section class="chapter" id="c28">
+  <div class="chhead"><span class="chno">13c</span><div><h2>Filling the MIS</h2><p class="lede">Upload last month's reports into the Live MIS in this app, check every source is in, and read the result. Done on the 10th.</p></div></div>
+<div class="opblock">
+    <header><span class="tag monthly">Monthly · 10th · ~45 min</span><h3 id="c28-overview">What this is and when</h3></header>
+    <p class="done">Done when: the month's chip under "Where we are" is green (all required reports in) and the month shows in Live MIS.</p>
+    <p>The <b>Live MIS</b> is the management P&amp;L built from source reports: channels, SKUs, ad spend, fees and the Tally P&amp;L. It is filled by uploading one report per source per month on <b>Reporting → MIS Reporting → Upload data</b>. Nothing is posted to Tally from here; the MIS only reads.</p>
+    <ul>
+      <li><b>When:</b> the 10th, after the books for the month are in: daily imports, platform settlements (1st, 3rd), expense invoices (<a href="#c27-overview">chapter 13b</a>) and bank clearing (4th). The Tally P&amp;L should reflect all of it.</li>
+      <li><b>Where:</b> the left menu under <i>Data pipeline</i>: Data sources, Upload data, Data rulebook. Under <i>MIS</i>: Live MIS.</li>
+      <li><b>History:</b> months before Apr 2026 are locked; only the live window from Apr 2026 is filled.</li>
+    </ul>
+    <figure><a href="img/mis_ingest_tally.jpg" target="_blank"><img src="img/mis_ingest_tally.jpg" alt="Upload data page with the Where we are month chips, the source pills and the Tally P&amp;L upload slot" loading="lazy"></a><figcaption>Upload data. Taken on a test copy with nothing uploaded, so every month is red and the store notice reads "temporary".</figcaption></figure>
+  </div><div class="opblock">
+    <header><h3 id="c28-sources">Data sources: what file goes where</h3></header>
+    <p>Each source is a pill on Upload data. Each has one or more report slots. <b>Required</b> slots must be in for the month to count as complete.</p>
+    <div class="tw"><table>
+      <tr><th>Source (pill)</th><th>Slot</th><th>Need</th><th>File</th><th>Export from</th></tr>
+      <tr><td>Tally Prime</td><td>Profit &amp; Loss A/c (Excel)</td><td>Required</td><td>.xlsx</td><td>Tally → P&amp;L A/c → F12 Detailed → Export Excel (Auto Column = Monthly works)</td></tr>
+      <tr><td>Tally Prime</td><td>Trial Balance</td><td>Optional</td><td>Screenshots</td><td>Tally → Trial Balance → F12 Detailed</td></tr>
+      <tr><td>Tranzact (ERP / BOM)</td><td>BOM pricing</td><td>Required</td><td>.xlsx (emailed)</td><td>Production → Bill of Materials → Download All BOMs (Default Price)</td></tr>
+      <tr><td>Tranzact (ERP / BOM)</td><td>Sales Invoice Register (GT / B2B)</td><td>Required</td><td>.xlsx</td><td>Reports → Sales → Sales Invoice Register (Item-wise), last month</td></tr>
+      <tr><td>Amazon Seller Central</td><td>Unified Transaction (settlement)</td><td>Required</td><td>.csv / .xlsx</td><td>Payments → Reports Repository → Transaction, All (Unified)</td></tr>
+      <tr><td>Amazon Seller Central</td><td>Business Report (traffic)</td><td>Optional</td><td>.csv</td><td>Business Reports → Detail Page Sales &amp; Traffic By Child Item</td></tr>
+      <tr><td>Flipkart Seller</td><td>Settled Transactions</td><td>Required</td><td>.xlsx</td><td>Seller Hub → Reports Center → Payment Reports</td></tr>
+      <tr><td>Flipkart Ads</td><td>Consolidated FSN ad report</td><td>Required</td><td>.csv / .xlsx</td><td>Seller Hub → Ads → Other Reports (PLA, and PCA if run)</td></tr>
+      <tr><td>Blinkit (Quick Commerce)</td><td>Payout — order-level charges</td><td>Required</td><td>ZIP as downloaded</td><td>Billing → Payout Details → Download monthly SoA</td></tr>
+      <tr><td>Shopify (D2C)</td><td>Live API; "Sales by variant" only as a fallback</td><td>—</td><td>.csv</td><td>Pulled automatically; no upload normally</td></tr>
+      <tr><td>Meta Ads</td><td>Ad spend — campaign × ad set × product</td><td>Required</td><td>.csv / .xlsx</td><td>Saved "MIS Reporting" report in Ads Manager, single month</td></tr>
+      <tr><td>Google Ads</td><td>Campaign report (total spend)</td><td>Required</td><td>.csv / .xlsx</td><td>Campaigns → month → Download</td></tr>
+      <tr><td>Google Ads</td><td>Shopping products</td><td>Optional</td><td>.csv / .xlsx</td><td>Reports → Predefined → Shopping - Products</td></tr>
+      <tr><td>Amazon Ads</td><td>Advertised Product report</td><td>Required</td><td>.csv / .xlsx</td><td>Amazon Ads → Create report → Advertised product</td></tr>
+      <tr><td>Shiprocket</td><td>Wallet passbook</td><td>Required</td><td>.xlsx / .csv</td><td>Wallet Transactions → Passbook</td></tr>
+      <tr><td>Delhivery</td><td>Wallet report (warranty / returns freight)</td><td>Required</td><td>.xlsx</td><td>Delhivery One → Finances → Unified → Transactions</td></tr>
+      <tr><td>Easebuzz</td><td>Settlement / MDR</td><td>Required</td><td>.xlsx / .csv</td><td>Settlements → Settlement History</td></tr>
+      <tr><td>Shopflo (Checkout)</td><td>Checkout invoice</td><td>Required</td><td>PDF or billing-history screenshot</td><td>Billing → Invoices (Claude reads it)</td></tr>
+      <tr><td>Snapmint (BNPL)</td><td>Settlement / subvention</td><td>Required</td><td>.xlsx / .csv (emailed)</td><td>Reports → Group Settlement Daily Report</td></tr>
+    </table></div>
+    <div class="callout warn"><b class="k">Not the same files as Tally.</b> The MIS takes Shiprocket's <b>wallet passbook</b>, not the COD remittance file used for Tally (M2). The Amazon settlement file is the same one you import in M1, so reuse it.</div>
+    <p>Every slot's <b>How to export</b> button gives the exact steps and, where known, a one-click link. Credentials on <b>Data sources</b> are set by Hargun; the accountant doesn't change them.</p>
+    <figure><a href="img/mis_connectors.jpg" target="_blank"><img src="img/mis_connectors.jpg" alt="Data sources page with a card per connector grouped by book of record, marketplaces, D2C, advertising, logistics, payments" loading="lazy"></a><figcaption>Data sources: one card per system. "Manual upload" sources are filled on Upload data; Shopify is a live API.</figcaption></figure>
+  </div><div class="opblock">
+    <header><h3 id="c28-upload">Upload a report, step by step</h3></header>
+    <div class="step"><div class="no">1</div><div class="body"><h4>Open Upload data and pick the source</h4>
+      <ol><li>Reporting → MIS Reporting → <b>Upload data</b>.</li><li>Click the source pill (e.g. <i>Amazon Seller Central</i>). Its report slots open below.</li></ol>
+      <figure><a href="img/mis_ingest_amazon.jpg" target="_blank"><img src="img/mis_ingest_amazon.jpg" alt="Amazon Seller Central selected, showing the Unified Transaction and Business Report slots with the five-step bar" loading="lazy"></a><figcaption>Each slot runs five steps: Upload → AI checks → Review → Save → Ingest.</figcaption></figure>
+    </div></div>
+    <div class="step"><div class="no">2</div><div class="body"><h4>Set the Month</h4><p>Top right of the slot. It shows red ("required") until set. For files that carry several months (Tally P&amp;L with Auto Column = Monthly), the month is read from the file and you can ingest several at once.</p></div></div>
+    <div class="step"><div class="no">3</div><div class="body"><h4>Export the report</h4>
+      <p>Click <b>How to export</b>: it opens the portal link and the steps for that exact report.</p>
+      <figure><a href="img/mis_ingest_howto.jpg" target="_blank"><img src="img/mis_ingest_howto.jpg" alt="How to export dialog for the Amazon Unified Transaction report with a link and three steps" loading="lazy"></a><figcaption>How to export: link, steps, and what the MIS takes from the file.</figcaption></figure>
+    </div></div>
+    <div class="step"><div class="no">4</div><div class="body"><h4>Upload, then review</h4>
+      <ol><li>Drop the file on the slot (or click to browse). Upload the file as downloaded; don't clean it.</li><li><b>AI checks</b> run. A <b>fail</b> blocks saving: fix the file (usually the wrong report or month) and upload again.</li><li><b>Review</b> what was read: totals and a preview of rows. Warnings must be ticked to acknowledge before you can save.</li></ol>
+    </div></div>
+    <div class="step"><div class="no">5</div><div class="body"><h4>Save &amp; ingest into MIS</h4><p>Click <b>Save &amp; ingest into MIS</b>. The slot then shows "Ingested · month · rows". Uploading again for the same month <b>replaces</b> it, so a corrected file is safe to re-upload.</p></div></div>
+    <div class="callout info"><b class="k">Order:</b> Tally P&amp;L last, after the expense invoices and bank clearing are booked, so OPEX and Net Income are final.</div>
+  </div><div class="opblock">
+    <header><h3 id="c28-check">Check the month is complete</h3></header>
+    <ul>
+      <li><b>Where we are</b> (top of Upload data): one chip per month. <b>Green</b> = all required reports in; <b>amber</b> = some in (hover to see what's missing); <b>red</b> = nothing uploaded.</li>
+      <li><b>Pill dots:</b> green = up to date for last month, orange = needs a fresh report, grey = nothing yet, blue = live API.</li>
+      <li><b>Data rulebook</b> → Checklist: what each source feeds and what is still to do. "Sources &amp; files" lists the rule for every file.</li>
+      <li><b>Data issues</b>: a cross-month health scan of everything uploaded (missing months, a cost centre gone to zero, big swings). Explain anything new for the month to Hargun.</li>
+    </ul>
+    <figure><a href="img/mis_rulebook.jpg" target="_blank"><img src="img/mis_rulebook.jpg" alt="Data Rulebook checklist listing each connector, its mapping and steps status, what is done with its data and what is still to do" loading="lazy"></a><figcaption>Data rulebook → Checklist.</figcaption></figure>
+  </div><div class="opblock">
+    <header><h3 id="c28-live">Read the Live MIS</h3></header>
+    <ol>
+      <li>MIS → <b>Live MIS</b>. The status line shows how far the MIS is closed and where the live window starts.</li>
+      <li>Pick <b>Grain</b> (Monthly / Quarterly / Yearly), <b>Year</b> and <b>Period</b>.</li>
+      <li>Tabs: Overview, P&amp;L, Channels, SKU, SKU × Channel, Units sold, Run-rate. The full P&amp;L below CM2 (OPEX, EBITDA, Net Income) appears once the month's Tally P&amp;L is in.</li>
+      <li>Sanity-check against Tally: net revenue by channel and the P&amp;L bottom line should match the books for the month.</li>
+      <li><b>Export Excel</b> if a copy is needed. Then tell Hargun the month is complete.</li>
+    </ol>
+    <figure><a href="img/mis_live.jpg" target="_blank"><img src="img/mis_live.jpg" alt="Live MIS overview with KPI tiles, revenue and margin trend, channel mix and P&amp;L bridge" loading="lazy"></a><figcaption>Live MIS → Overview.</figcaption></figure>
   </div>
 </section>
 <section class="chapter" id="c17">
