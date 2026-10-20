@@ -1063,66 +1063,63 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   </div>
 </section>
 <section class="chapter" id="c27">
-  <div class="chhead"><span class="chno">13b</span><div><h2>Expense booking</h2><p class="lede">Every vendor bill that is booked by hand each month: what it is, where to get it, the ledgers and voucher the books actually use, and its GST and TDS. Done on the 3rd.</p></div></div>
+  <div class="chhead"><span class="chno">13b</span><div><h2>Expense booking</h2><p class="lede">Every vendor bill booked by hand each month: what it is, where to download it, the ledgers and voucher the books actually use, and its GST and TDS. Done on the 3rd.</p></div></div>
 <div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · ~1–2 hrs</span><h3 id="c27-overview">The monthly expense run (3rd)</h3></header>
     <p class="done">Done when: every invoice in the table below is booked for the month, each platform collection ledger has its fees, and every booked invoice is ticked against GSTR-2B (on the 14th).</p>
     <p>On the 3rd of each month, collect last month's invoices from every vendor below and book each one in Tally. This is the vendor-by-vendor detail behind <a href="#c16-m4-platform-invoices">M4 · Platform invoices and the Amazon expense JV</a>. <span class="pill ok">From the books</span> marks what Tally already shows (List of Ledgers and Trial Balance to Oct-26, ledger vouchers Apr-26). <span class="pill warn">To confirm</span> marks what is still open.</p>
     <div class="step"><div class="no">1</div><div class="body"><h4>Collect every invoice</h4>
-      <ol><li>Download last month's invoice(s) from each vendor's portal.</li><li>Save them in the month's close folder (chapter 24, <code>04_Monthly_Close/YYYY-MM/raw/</code>). The exact sub-folder for expense invoices is <span class="pill warn">to confirm</span>.</li><li>Missing an invoice? Note it and tell Hargun. Don't book from a payment alone.</li></ol>
+      <ol><li>Download last month's invoice(s) from each vendor's portal (links in the table below and in each section).</li><li>Save them in the month's close folder (chapter 24, <code>04_Monthly_Close/YYYY-MM/raw/</code>). The exact sub-folder for expense invoices is <span class="pill warn">to confirm</span>.</li><li>Missing an invoice? Note it and tell Hargun. Don't book from a payment alone.</li></ol>
     </div></div>
     <div class="step"><div class="no">2</div><div class="body"><h4>The pattern in the books</h4>
-      <p><span class="pill ok">From the books</span> Every vendor bill is a <b>Purchase-Expense</b> voucher: Dr the fee/expense ledger(s) + <code>IGST Input - 18%</code>, Cr the TDS payable ledger (where TDS applies), Cr the rest to the credit-side ledger.</p>
+      <p><span class="pill ok">From the books</span> Every vendor bill is a <b>Purchase-Expense</b> voucher: Dr the fee/expense ledger(s) + <code>IGST Input - 18%</code> (or CGST + SGST for a UP vendor), Cr the TDS payable ledger (where TDS applies), Cr the rest to the credit-side ledger. A vendor <b>credit note</b> is booked as a <b>Debit Note</b> voucher that reverses the fee ledger(s).</p>
       <ul>
         <li><b>Platforms that pay us</b> (Shiprocket, Easebuzz, Snapmint): the credit side is the platform's <b>collection ledger</b>, not the bank. Their fees come out of our payouts, so the invoice and the payouts net off in the same ledger (chapter 21).</li>
         <li><b>Amazon</b>: credit <code>Amazon Expenses (Creditors)</code>, with every GST, TDS and TCS line recorded (chapter 6).</li>
         <li><b>Other vendors</b>: credit the vendor's party ledger (named in each section); the bank payment then clears it.</li>
       </ul>
     </div></div>
-    <div class="step"><div class="no">3</div><div class="body"><h4>GST: domestic or reverse charge?</h4>
-      <ul>
-        <li><b>Domestic invoice</b> (Indian GSTIN, GST charged): take the GST as input. Meta (<code>Facebook India Online Services Private Limited</code>) and Google Ads (<code>Google India Pvt Ltd</code>) bill from Indian entities, so these are domestic, not RCM.</li>
-        <li><b>Foreign invoice</b> (Shopify, Anthropic; no Indian GST, usually USD): import of services, IGST paid by us under <b>reverse charge</b>. Input-side ledgers exist: <code>Input Igst RCM</code>, <code>Input Cgst RCM</code>, <code>Input Sgst RCM</code> (₹8,398.92 of IGST RCM already used). The RCM <b>payable</b> ledger and the exact monthly RCM entry are <span class="pill warn">to confirm with the CA</span>.</li>
-      </ul>
+    <div class="step"><div class="no">3</div><div class="body"><h4>GST</h4>
+      <p>Every bill booked today is a domestic GST invoice: take the GST on it as input credit. Meta (<code>Facebook India Online Services Private Limited</code>) and Google Ads (<code>Google India Pvt Ltd</code>) bill from Indian entities. Shopify and Claude (Anthropic) are not booked for now.</p>
     </div></div>
     <div class="callout warn"><b class="k">For the CA: TDS section on ads.</b> The master sets <b>194J</b> as the TDS category on the Google Ads, Meta, Bitespeed and Shopflo ledgers. Advertising contracts usually fall under <b>194C</b>. Which section is right is <span class="pill warn">to confirm with the CA</span> before the next 26Q.</div>
     <h4>All vendors at a glance</h4>
     <div class="tw"><table>
-      <tr><th>Vendor</th><th>Credit (party / control)</th><th>Debit (expense)</th><th>GST</th><th>TDS</th><th>Still open</th></tr>
-      <tr><td><a href="#c27-shopflo">Shopflo</a></td><td><code>SHOPFLO TECHNOLOGIES PVT LTD</code></td><td><code>Checkout Fee - Shopflo</code></td><td>Domestic input</td><td>194J in master (CA: 194C?)</td><td>Link, screenshot, TDS section</td></tr>
-      <tr><td><a href="#c27-shiprocket">Shiprocket</a></td><td><code>ShipRocket Collection</code></td><td>Shiprocket fee ledgers (10)</td><td>IGST Input - 18%</td><td>194C</td><td>Link, screenshot</td></tr>
-      <tr><td><a href="#c27-easebuzz">Easebuzz</a></td><td><code>Easebuzz Collection A/c</code></td><td><code>PG Transaction Fee - Easebuzz</code>, <code>Refund Processing Fee - Easebuzz</code></td><td>IGST Input - 18%</td><td>None (no-TDS in master)</td><td>Link, screenshot</td></tr>
-      <tr><td><a href="#c27-snapmint">Snapmint</a></td><td><code>Snapmint Collection</code></td><td><code>BNPL Processing Fee - Snapmint</code></td><td>IGST Input - 18%</td><td>194H</td><td>Link, screenshot</td></tr>
-      <tr><td><a href="#c27-amazon">Amazon</a></td><td><code>Amazon Expenses (Creditors)</code></td><td>Amazon fee ledgers (12), <code>Amazon Ads</code></td><td>IGST Input - 18%</td><td>Ads 194C; TDS/TCS on sales via settlement</td><td>Tax Document Library link, screenshot</td></tr>
-      <tr><td><a href="#c27-facebook">Facebook (Meta)</a></td><td><code>Facebook India Online Services Private Limited</code></td><td><code>Meta Ads (Direct)</code></td><td>Domestic input</td><td>194J in master (CA: 194C?)</td><td>Link, screenshot, TDS section</td></tr>
-      <tr><td><a href="#c27-google">Google Ads</a></td><td><code>Google India Pvt Ltd</code></td><td><code>Google Ads (Direct)</code></td><td>Domestic input</td><td>194J in master (CA: 194C?)</td><td>Link, screenshot, TDS section</td></tr>
-      <tr><td><a href="#c27-bitespeed">Bitespeed</a></td><td><code>Actartly Technology Pvt. Ltd. (Bite Speed)</code></td><td><code>Bitespeed Communication Charges</code></td><td>Domestic input</td><td>194J in master</td><td>Link, screenshot</td></tr>
+      <tr><th>Vendor · download</th><th>Credit (party / control)</th><th>Debit (expense)</th><th>GST</th><th>TDS</th><th>Still open</th></tr>
+      <tr><td><a href="#c27-shopflo">Shopflo</a><br><a href="https://dashboard.shopflo.com/billing#invoices" target="_blank" rel="noopener">Invoices ↗</a></td><td><code>SHOPFLO TECHNOLOGIES PVT LTD</code></td><td><code>Checkout Fee - Shopflo</code></td><td>Domestic input</td><td>194J in master (CA: 194C?)</td><td>TDS section</td></tr>
+      <tr><td><a href="#c27-shiprocket">Shiprocket</a><br><a href="https://app.shiprocket.in/seller/bills/invoices" target="_blank" rel="noopener">Bills ↗</a></td><td><code>ShipRocket Collection</code></td><td>Shiprocket fee ledgers (10)</td><td>IGST Input - 18%</td><td>194C</td><td>—</td></tr>
+      <tr><td><a href="#c27-easebuzz">Easebuzz</a><br><a href="https://dashboard.easebuzz.in/payouts/invoices" target="_blank" rel="noopener">Settlement Invoices ↗</a></td><td><code>Easebuzz Collection A/c</code></td><td><code>PG Transaction Fee - Easebuzz</code>, <code>Refund Processing Fee - Easebuzz</code></td><td>IGST Input - 18%</td><td>None (no-TDS in master)</td><td>—</td></tr>
+      <tr><td><a href="#c27-snapmint">Snapmint</a><br><a href="https://emis.snapmint.com/merchants/monthly_invoices" target="_blank" rel="noopener">Monthly Invoices ↗</a></td><td><code>Snapmint Collection</code></td><td><code>BNPL Processing Fee - Snapmint</code></td><td>IGST Input - 18%</td><td>194H</td><td>—</td></tr>
+      <tr><td><a href="#c27-amazon">Amazon</a><br><a href="https://sellercentral.amazon.in/tax/seller-fee-invoices" target="_blank" rel="noopener">Seller Fee Invoices ↗</a></td><td><code>Amazon Expenses (Creditors)</code></td><td>Amazon fee ledgers by invoice type, <code>Amazon Ads</code></td><td>IGST Input - 18%, per Heatronics GSTIN</td><td>Ads 194C; TDS/TCS on sales via settlement</td><td>How Tally picks the GSTIN</td></tr>
+      <tr><td><a href="#c27-facebook">Facebook (Meta)</a><br><a href="https://business.facebook.com/latest/billing_hub/payment_activity?business_id=488618164122715&amp;asset_id=2294012640954204&amp;payment_account_id=2294012640954204" target="_blank" rel="noopener">Payment activity ↗</a></td><td><code>Facebook India Online Services Private Limited</code></td><td><code>Meta Ads (Direct)</code></td><td>Domestic input</td><td>194J in master (CA: 194C?)</td><td>TDS section</td></tr>
+      <tr><td><a href="#c27-google">Google Ads</a><br><a href="https://ads.google.com/aw/billing/documents?ocid=1525533322" target="_blank" rel="noopener">Billing → Documents ↗</a></td><td><code>Google India Pvt Ltd</code></td><td><code>Google Ads (Direct)</code></td><td>Domestic input</td><td>194J in master (CA: 194C?)</td><td>TDS section</td></tr>
+      <tr><td><a href="#c27-bitespeed">Bitespeed</a><br><a href="https://marketing.bitespeed.co/settings" target="_blank" rel="noopener">Settings → Billing ↗</a></td><td><code>Actartly Technology Pvt. Ltd. (Bite Speed)</code></td><td><code>Bitespeed Communication Charges</code></td><td>Domestic input</td><td>194J in master</td><td>—</td></tr>
       <tr><td><a href="#c27-digistex">Digistex</a></td><td><code>Digistex4u</code></td><td>Likely <code>Media Buying Agency - Google/FB</code></td><td>From the invoice</td><td>TDS on (section to confirm)</td><td>Expense ledger, link, screenshot</td></tr>
-      <tr><td><a href="#c27-shopify">Shopify</a></td><td>Party: to confirm</td><td><code>Shopify Subscription</code></td><td>RCM (foreign)</td><td>194J in master</td><td>RCM payable ledger, link, screenshot</td></tr>
-      <tr><td><a href="#c27-claude">Claude (Anthropic)</a></td><td>Party: to confirm</td><td><code>AI Tools - Anthropic &amp; Others</code></td><td>RCM (foreign)</td><td>To confirm with CA</td><td>RCM payable ledger, link, screenshot</td></tr>
-      <tr><td><a href="#c27-gcloud">Google Cloud</a></td><td>To confirm</td><td>No ledger yet</td><td>Depends on billing entity</td><td>To confirm</td><td>Ledger, billing entity, link, screenshot</td></tr>
+      <tr><td><a href="#c27-shopify">Shopify</a></td><td colspan="5">Not in scope for now: not booked, Hargun to decide later.</td></tr>
+      <tr><td><a href="#c27-claude">Claude (Anthropic)</a></td><td colspan="5">Not in scope for now: not booked, Hargun to decide later.</td></tr>
+      <tr><td><a href="#c27-gcloud">Google Cloud</a></td><td>To confirm</td><td>No ledger yet</td><td>From the invoice</td><td>To confirm</td><td>Ledger, billing entity, link, screenshot</td></tr>
     </table></div>
     <div class="callout info"><b class="k">After booking:</b> on the 14th, tick every invoice against GSTR-2B (chapter 7). An invoice missing from 2B gives no input credit yet. Tell Hargun.</div>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-shopflo">Shopflo (checkout)</h3></header>
     <dl class="facts">
       <div><dt>The bill</dt><dd>Shopflo's monthly invoice for the D2C checkout on heatronics.in.</dd></div>
-      <div><dt>Download</dt><dd>Shopflo dashboard → Billing → Invoices (the MIS upload slot uses <a href="https://dashboard.shopflo.com/billing#invoices" target="_blank" rel="noopener">dashboard.shopflo.com/billing</a>). Link for accounts: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Download</dt><dd><a href="https://dashboard.shopflo.com/billing#invoices" target="_blank" rel="noopener">Shopflo → Billing → Invoices</a></dd></div>
       <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Dr <code>Checkout Fee - Shopflo</code> (in use; <code>Shopflo Annual Plan</code> exists but is unused). Cr party <code>SHOPFLO TECHNOLOGIES PVT LTD</code> (Company - Resident, TDS on).</dd></div>
       <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
       <div><dt>GST</dt><dd>Domestic input, from the GSTIN on the invoice.</dd></div>
       <div><dt>TDS</dt><dd><span class="pill ok">From the books</span> TDS category 194J in the master. 194J vs 194C: <span class="pill warn">to confirm with the CA</span></dd></div>
     </dl>
     <h4>Steps</h4>
-    <ol><li>Download last month's invoice PDF.</li><li>Purchase-Expense: Dr <code>Checkout Fee - Shopflo</code> + GST input, Cr the TDS payable ledger, Cr <code>SHOPFLO TECHNOLOGIES PVT LTD</code> with the balance.</li><li>Narration: invoice number and billing period.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> The Shopflo Billing → Invoices screen with the month's invoice.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <ol><li>Open <a href="https://dashboard.shopflo.com/billing#invoices" target="_blank" rel="noopener">Billing → Invoices</a>. In Billing History, click <b>View</b> on last month's invoice and download the PDF.</li><li>Purchase-Expense: Dr <code>Checkout Fee - Shopflo</code> + GST input, Cr the TDS payable ledger, Cr <code>SHOPFLO TECHNOLOGIES PVT LTD</code> with the balance.</li><li>Narration: invoice number and billing period.</li></ol>
+    <figure><a href="img/exp_shopflo.jpg" target="_blank"><img src="img/exp_shopflo.jpg" alt="Shopflo Billing, Invoices tab, Billing History with invoice numbers, amounts, due dates and View buttons" loading="lazy"></a><figcaption>Billing → Invoices tab → click <b>View</b> on the month's invoice to open and download the PDF.</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-shiprocket">Shiprocket (freight)</h3></header>
     <dl class="facts">
-      <div><dt>The bill</dt><dd>Shiprocket's GST invoices for D2C freight and add-ons, on COD and prepaid orders alike.</dd></div>
-      <div><dt>Download</dt><dd>Shiprocket → Billing (invoices). Link: <span class="pill warn">needed from Hargun</span>. Tie-out figure: <a href="https://app.shiprocket.in/seller/remitted/cod-remittance" target="_blank" rel="noopener">COD Remittance</a>.</dd></div>
+      <div><dt>The bill</dt><dd>Shiprocket's GST bills for D2C freight and add-ons, on COD and prepaid orders alike. Three invoice series: <b>Freight</b> (<code>SRF…</code>), <b>VAS</b> (<code>SRV…</code>) and <b>COD Remittance Fee</b> (<code>SRC…</code>), plus debit notes and credit notes.</dd></div>
+      <div><dt>Download</dt><dd><a href="https://app.shiprocket.in/seller/bills/invoices" target="_blank" rel="noopener">Shiprocket → Bills</a>. Download all three tabs every month: <b>Invoices</b>, <b>Debit Note</b> and <b>Credit Note</b>. Tie-out figure: <a href="https://app.shiprocket.in/seller/remitted/cod-remittance" target="_blank" rel="noopener">COD Remittance</a>.</dd></div>
       <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Cr <code>ShipRocket Collection</code>. Dr the fee ledger(s) in use: <code>Freight Charges (Shiprocket)</code>, <code>Forward Delivery - Shiprocket</code>, <code>RTO Charge - Shiprocket</code>, <code>Weight Discrepancy - Shiprocket</code>, <code>COD Handling Charge - Shiprocket</code>, <code>Early COD Remittance Fee - Shiprocket</code>, <code>Brand Boost - Shiprocket</code>, <code>Delivery Boost - Shiprocket</code>, <code>Shiprocket Generic Fee</code>, <code>Shipping Expenses (ShipRocket)</code>.</dd></div>
-      <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
+      <div><dt>Vouchers</dt><dd>Invoices and Shiprocket <b>debit notes</b>: Purchase-Expense. Shiprocket <b>credit notes</b>: Debit Note voucher (Dr <code>ShipRocket Collection</code>, Cr the fee ledger + GST), which reduces what we owe.</dd></div>
       <div><dt>GST</dt><dd><code>IGST Input - 18%</code></dd></div>
       <div><dt>TDS</dt><dd><span class="pill ok">From the books</span> <code>TDS Payable - 194C (Contractors)</code></dd></div>
     </dl>
@@ -1133,13 +1130,13 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
       <div class="ln c"><span class="s">Cr</span><span class="nm">TDS Payable - 194C (Contractors)</span><span class="a">222.70</span></div>
       <div class="ln c"><span class="s">Cr</span><span class="nm">ShipRocket Collection</span><span class="a">12,916.50</span></div></div>
     <h4>Steps</h4>
-    <ol><li>Import the month's COD remittances first (<a href="#c16-m2-shiprocket">M2</a>, on the 1st).</li><li>Download every Shiprocket invoice for the month.</li><li>Book each as above: the fee ledger per charge type + IGST, TDS 194C on the pre-GST value, balance to <code>ShipRocket Collection</code>.</li><li>Tie out: the total booked = <b>Total Deductions from COD</b> on the COD Remittance page. A gap means an invoice is missing.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Shiprocket's billing / invoice list for the month.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <ol><li>Import the month's COD remittances first (<a href="#c16-m2-shiprocket">M2</a>, on the 1st).</li><li>Open <a href="https://app.shiprocket.in/seller/bills/invoices" target="_blank" rel="noopener">Bills</a>, set the date filter to last month, and download every bill on the <b>Invoices</b> tab (SRF, SRV, SRC), then the <b>Debit Note</b> and <b>Credit Note</b> tabs.</li><li>Book each invoice and debit note as Purchase-Expense: the fee ledger per charge type + IGST, TDS 194C on the pre-GST value, balance to <code>ShipRocket Collection</code>.</li><li>Book each credit note as a Debit Note voucher reducing <code>ShipRocket Collection</code>.</li><li>Tie out: the net total booked = <b>Total Deductions from COD</b> on the COD Remittance page. A gap means a bill is missing.</li></ol>
+    <figure><a href="img/exp_shiprocket.jpg" target="_blank"><img src="img/exp_shiprocket.jpg" alt="Shiprocket Bills page with Invoices, Debit Note and Credit Note tabs and a list of Freight, VAS and COD Remittance Fee invoices" loading="lazy"></a><figcaption>Bills → set the date filter → download from each of the <b>Invoices</b>, <b>Debit Note</b> and <b>Credit Note</b> tabs (View Invoice per row, or the download icon on the right).</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-easebuzz">Easebuzz (payment gateway)</h3></header>
     <dl class="facts">
       <div><dt>The bill</dt><dd>Easebuzz's monthly GST invoice for payment-gateway charges (two in Apr-26).</dd></div>
-      <div><dt>Download</dt><dd>Easebuzz dashboard → invoices. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>Download</dt><dd><a href="https://dashboard.easebuzz.in/payouts/invoices" target="_blank" rel="noopener">Easebuzz → Settlements → Settlement Invoices</a>: pick the month, download the PDF.</dd></div>
       <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Cr <code>Easebuzz Collection A/c</code>. Dr <code>PG Transaction Fee - Easebuzz</code>, <code>Refund Processing Fee - Easebuzz</code>.</dd></div>
       <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
       <div><dt>GST</dt><dd><code>IGST Input - 18%</code></dd></div>
@@ -1147,13 +1144,13 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     </dl>
     <div class="callout bad"><b class="k">Don't count the fee twice.</b> The daily Easebuzz settlement Journal from the plugin (D2) already books the PG fee on every payout to <code>PG Transaction Fee - Easebuzz</code>. The monthly invoice is booked as Purchase-Expense too. Before booking it, reconcile the invoice against the fees already booked in the month and tell Hargun the difference. Book only what isn't already there, as he decides.</div>
     <h4>Steps</h4>
-    <ol><li>Download last month's Easebuzz invoice(s).</li><li>Total the month's <code>PG Transaction Fee - Easebuzz</code> already posted by the daily journals; compare with the invoice.</li><li>Book the Purchase-Expense: Dr fee ledger(s) + <code>IGST Input - 18%</code>, Cr <code>Easebuzz Collection A/c</code>, avoiding any fee already booked.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> The Easebuzz dashboard invoice page.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <ol><li>Open <a href="https://dashboard.easebuzz.in/payouts/invoices" target="_blank" rel="noopener">Settlement Invoices</a>, set the month and download the PDF (blue Download button).</li><li>Total the month's <code>PG Transaction Fee - Easebuzz</code> already posted by the daily journals; compare with the invoice's service charge.</li><li>Book the Purchase-Expense: Dr fee ledger(s) + <code>IGST Input - 18%</code>, Cr <code>Easebuzz Collection A/c</code>, avoiding any fee already booked.</li></ol>
+    <figure><a href="img/exp_easebuzz.jpg" target="_blank"><img src="img/exp_easebuzz.jpg" alt="Easebuzz Settlement Invoices with a month picker and one invoice row showing service charge, GST, invoiced amount and a Download button" loading="lazy"></a><figcaption>Settlements → Settlement Invoices → pick the month → click the blue <b>Download</b> button.</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-snapmint">Snapmint (BNPL)</h3></header>
     <dl class="facts">
-      <div><dt>The bill</dt><dd>Snapmint's monthly GST invoice for its services fee.</dd></div>
-      <div><dt>Download</dt><dd><a href="https://emis.snapmint.com/merchants/dashboard" target="_blank" rel="noopener">Snapmint portal</a> → Reports → Monthly Invoices (as in M4). Exact link: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>The bill</dt><dd>Snapmint's monthly GST invoice for its services fee, with a working CSV behind it.</dd></div>
+      <div><dt>Download</dt><dd><a href="https://emis.snapmint.com/merchants/monthly_invoices" target="_blank" rel="noopener">Snapmint → Monthly Invoices</a>: the <b>Invoice</b> PDF and the <b>Working</b> CSV.</dd></div>
       <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Cr <code>Snapmint Collection</code>. Dr <code>BNPL Processing Fee - Snapmint</code>.</dd></div>
       <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
       <div><dt>GST</dt><dd><code>IGST Input - 18%</code></dd></div>
@@ -1165,24 +1162,33 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
       <div class="ln c"><span class="s">Cr</span><span class="nm">TDS Payable - 194H (Commission)</span><span class="a">78.00</span></div>
       <div class="ln c"><span class="s">Cr</span><span class="nm">Snapmint Collection</span><span class="a">4,520.46</span></div></div>
     <h4>Steps</h4>
-    <ol><li>Import the month's Snapmint settlement first (<a href="#c16-m3-snapmint">M3</a>, on the 1st).</li><li>Download the monthly invoice.</li><li>Book as above; narration "BEING SNAPMINT SERVICES FEES BOOKED" with the invoice number.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Snapmint → Reports → Monthly Invoices.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <ol><li>Import the month's Snapmint settlement first (<a href="#c16-m3-snapmint">M3</a>, on the 1st).</li><li>Open <a href="https://emis.snapmint.com/merchants/monthly_invoices" target="_blank" rel="noopener">Monthly Invoices</a> and download last month's <b>Invoice</b> (PDF) and <b>Working</b> (CSV).</li><li>Book as above; narration "BEING SNAPMINT SERVICES FEES BOOKED" with the invoice number.</li></ol>
+    <figure><a href="img/exp_snapmint.jpg" target="_blank"><img src="img/exp_snapmint.jpg" alt="Snapmint Monthly Invoices table with invoice date, number, amount, GST and Invoice and Working download links" loading="lazy"></a><figcaption>Monthly Invoices → on the month's row click <b>Invoice</b> (PDF) and <b>Working</b> (CSV).</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-amazon">Amazon (fees, ads, TDS and TCS)</h3></header>
     <dl class="facts">
-      <div><dt>The bill</dt><dd>Amazon's GST invoices for seller fees, the advertising invoices, and any fee credit notes.</dd></div>
-      <div><dt>Download</dt><dd>Ads: <a href="https://sellercentral.amazon.in/payments/reports-repository" target="_blank" rel="noopener">Payments</a> → Advertising Invoice History. Fees and credit notes: Seller Central → Tax Document Library. Direct link: <span class="pill warn">needed from Hargun</span></dd></div>
-      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Cr <code>Amazon Expenses (Creditors)</code>. Fee ledgers in use: <code>Amazon Channel Fees</code>, <code>Fixed Closing Fee - Amazon</code>, <code>Listing Fees - Amazon</code>, <code>Pick and Pack Fees - Amazon</code>, <code>FBA Weight Handling Fee - Amazon</code>, <code>FBA storage fee - Amazon</code>, <code>Inbound Transportation Fee- Amazon</code>, <code>Refund Processig Fee- Amazon</code> (spelled so in Tally), <code>Removal Fee- Amazon</code>, <code>Shipping Charge Back Fee- Amazon</code>, <code>GIftwrap Fee- Amazon</code>, <code>Amazon Fees (Generic)</code>; ads to <code>Amazon Ads</code>.</dd></div>
-      <div><dt>Vouchers</dt><dd>Purchase-Expense for fee and ad invoices; Debit Note for fee credit notes; <i>Amazon Commission</i> (posted by the plugin); Journal for the monthly JV (chapter 6).</dd></div>
-      <div><dt>GST</dt><dd><code>IGST Input - 18%</code></dd></div>
+      <div><dt>The bill</dt><dd>Amazon's monthly seller fee invoices, FBA invoices, the Product Ads invoice and fee credit notes. There are several each month, one set per Heatronics GSTIN.</dd></div>
+      <div><dt>Download</dt><dd><a href="https://sellercentral.amazon.in/tax/seller-fee-invoices" target="_blank" rel="noopener">Seller Central → Finance → Tax document library → Seller Fee Invoices</a>. Download <b>all</b> of the month. <b>View</b> on a row also offers a transaction-level CSV (order ID, fee type) to tie fees to orders.</dd></div>
+      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Cr <code>Amazon Expenses (Creditors)</code>. Dr by invoice type (table below).</dd></div>
+      <div><dt>Vouchers</dt><dd>Purchase-Expense for invoices; Debit Note for credit notes; <i>Amazon Commission</i> (posted by the plugin); Journal for the monthly JV (chapter 6).</dd></div>
+      <div><dt>GST</dt><dd><code>IGST Input - 18%</code>, booked under the GSTIN the invoice is raised on (below).</dd></div>
       <div><dt>TDS / TCS</dt><dd><span class="pill ok">From the books</span> Deducted by Amazon on our sales: <code>TDS (Amazon)</code> (TDS Receivable). GST TCS: <code>TCS-CGST (Amazon)</code>, <code>TCS-SGST (Amazon)</code>, <code>TCS-IGST (Amazon)</code> (TCS Receivable). Ads TDS: Cr <code>TDS Payable - 194C (Contractors)</code>, recoverable side <code>TDS Receivable - 194C (Ads)</code> (chapter 8).</dd></div>
     </dl>
+    <h4>Which invoice goes to which ledger</h4>
+    <div class="tw"><table>
+      <tr><th>Invoice Type (on the list)</th><th>Voucher</th><th>Dr (per the lines on the invoice)</th></tr>
+      <tr><td>Merchant VAT Invoice</td><td>Purchase-Expense</td><td>Selling-fee ledgers: <code>Amazon Channel Fees</code>, <code>Fixed Closing Fee - Amazon</code>, <code>Listing Fees - Amazon</code>, <code>Refund Processig Fee- Amazon</code> (spelled so in Tally), <code>Shipping Charge Back Fee- Amazon</code>, <code>GIftwrap Fee- Amazon</code>, <code>Amazon Fees (Generic)</code></td></tr>
+      <tr><td>Fulfillment by Amazon Tax Invoice</td><td>Purchase-Expense</td><td>FBA ledgers: <code>Pick and Pack Fees - Amazon</code>, <code>FBA Weight Handling Fee - Amazon</code>, <code>FBA storage fee - Amazon</code>, <code>Inbound Transportation Fee- Amazon</code>, <code>Removal Fee- Amazon</code></td></tr>
+      <tr><td>Product Ads VAT Invoice</td><td>Purchase-Expense</td><td><code>Amazon Ads</code> (₹33.8 L booked FY 26-27), with the 194C TDS lines</td></tr>
+      <tr><td>Merchant VAT Credit Note</td><td>Debit Note</td><td>Reverses the fee ledger(s): Dr <code>Amazon Expenses (Creditors)</code>, Cr fee ledger + GST</td></tr>
+    </table></div>
+    <div class="callout warn"><b class="k">Book each invoice under its GSTIN.</b> The <b>Payer Registration</b> column shows which Heatronics GSTIN the invoice is raised on: <code>09</code> = Uttar Pradesh, <code>27</code> = Maharashtra, <code>29</code> = Karnataka, <code>36</code> = Telangana. Book it under that registration so the input credit lands on the right GSTIN. How Tally separates input credit by GSTIN for purchases is not described elsewhere in this handbook: <span class="pill warn">to confirm with Hargun</span></div>
     <div class="jes">
       <div class="je"><h4>Vch 172, 6-Apr-26 (from the books)<span>Purchase-Expense</span></h4>
         <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Fees (Generic)</span><span class="a">196.25</span></div>
         <div class="ln d"><span class="s">Dr</span><span class="nm">IGST Input - 18%</span><span class="a">35.33</span></div>
         <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">231.58</span></div></div>
-      <div class="je"><h4>Ads invoice<span>Purchase-Expense</span></h4>
+      <div class="je"><h4>Product Ads invoice<span>Purchase-Expense</span></h4>
         <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Ads</span><span class="a">taxable</span></div>
         <div class="ln d"><span class="s">Dr</span><span class="nm">IGST Input - 18%</span><span class="a">GST</span></div>
         <div class="ln d"><span class="s">Dr</span><span class="nm">TDS Receivable - 194C (Ads)</span><span class="a">TDS</span></div>
@@ -1190,47 +1196,47 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
         <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">gross</span></div></div>
     </div>
     <h4>Steps</h4>
-    <ol><li>Import the four Amazon reports first (<a href="#c16-m1-amazon">M1</a>), also on the 3rd.</li><li>Book every fee invoice as Purchase-Expense to the matching fee ledger + <code>IGST Input - 18%</code>, Cr <code>Amazon Expenses (Creditors)</code>; each credit note as a Debit Note.</li><li>Book the ad invoice with its GST and TDS lines (above).</li><li>Check the settlement brought in the month's <code>TDS (Amazon)</code> and <code>TCS-… (Amazon)</code> lines (Amazon TDS-TCS voucher). If any are missing, tell Hargun.</li><li>Pass the monthly Amazon expense JV (<a href="#c6-monthly-jv">chapter 6</a>).</li><li>Check: <code>Cost of Advertising</code> = 0 and <code>Amazon Expenses (Creditors)</code> ≈ 0.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> The Tax Document Library and the Advertising Invoice History pages.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <ol><li>Import the four Amazon reports first (<a href="#c16-m1-amazon">M1</a>), also on the 3rd.</li><li>Open <a href="https://sellercentral.amazon.in/tax/seller-fee-invoices" target="_blank" rel="noopener">Seller Fee Invoices</a> and download every row for last month (Start / End Date = the month), using <b>View</b> on each.</li><li>Book each by its Invoice Type (table above), under the GSTIN in Payer Registration, Cr <code>Amazon Expenses (Creditors)</code>.</li><li>Check the settlement brought in the month's <code>TDS (Amazon)</code> and <code>TCS-… (Amazon)</code> lines (Amazon TDS-TCS voucher). If any are missing, tell Hargun.</li><li>Pass the monthly Amazon expense JV (<a href="#c6-monthly-jv">chapter 6</a>).</li><li>Check: <code>Cost of Advertising</code> = 0 and <code>Amazon Expenses (Creditors)</code> ≈ 0.</li></ol>
+    <figure><a href="img/exp_amazon.jpg" target="_blank"><img src="img/exp_amazon.jpg" alt="Amazon Tax Document Library, Seller Fee Invoices list with Invoice Type, Invoice Number, Payer Registration and View buttons" loading="lazy"></a><figcaption>Tax document library → <b>Seller Fee Invoices</b> tab → click <b>View</b> on each row of the month; note the Invoice Type and Payer Registration.</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-facebook">Facebook (Meta ads)</h3></header>
     <dl class="facts">
-      <div><dt>The bill</dt><dd>Meta's GST invoices for Facebook and Instagram ad spend.</dd></div>
-      <div><dt>Download</dt><dd>Meta Ads Manager → Billing &amp; payments. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>The bill</dt><dd>Meta's VAT (GST) invoices for Facebook and Instagram ad spend: one per payment (<code>FBADS-605-…</code>), several a month, as the prepaid balance is topped up.</dd></div>
+      <div><dt>Download</dt><dd><a href="https://business.facebook.com/latest/billing_hub/payment_activity?business_id=488618164122715&amp;asset_id=2294012640954204&amp;payment_account_id=2294012640954204" target="_blank" rel="noopener">Billing hub → Payment activity</a> → Ad accounts → <b>Heatronics_Ads (2294012640954204)</b>.</dd></div>
       <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Dr <code>Meta Ads (Direct)</code> (₹37.6 L booked in FY 26-27 to date). Cr party <code>Facebook India Online Services Private Limited</code>.</dd></div>
       <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
-      <div><dt>GST</dt><dd><span class="pill ok">From the books</span> Domestic: billed by the Indian entity with GST, so input credit, not RCM.</dd></div>
+      <div><dt>GST</dt><dd><span class="pill ok">From the books</span> Domestic: billed by the Indian entity with GST, so input credit.</dd></div>
       <div><dt>TDS</dt><dd>194J is set in the master; advertising is usually 194C. <span class="pill warn">to confirm with the CA</span></dd></div>
     </dl>
     <h4>Steps</h4>
-    <ol><li>Download every Meta invoice for the month (Meta bills each time the threshold is hit).</li><li>Purchase-Expense: Dr <code>Meta Ads (Direct)</code> + GST input, Cr TDS payable, Cr <code>Facebook India Online Services Private Limited</code>.</li><li>The bank payment then clears the party ledger.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Meta Billing &amp; payments with the month's invoices.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <ol><li>Open <a href="https://business.facebook.com/latest/billing_hub/payment_activity?business_id=488618164122715&amp;asset_id=2294012640954204&amp;payment_account_id=2294012640954204" target="_blank" rel="noopener">Payment activity</a> → <b>Ad accounts</b> → Heatronics_Ads.</li><li>Filter <b>Payment status = Paid</b> and set the date range to last month.</li><li>Download the VAT invoice (download icon under Action) for <b>every</b> paid transaction.</li><li>Purchase-Expense: Dr <code>Meta Ads (Direct)</code> + GST input, Cr TDS payable, Cr <code>Facebook India Online Services Private Limited</code>.</li><li>The bank payment then clears the party ledger.</li></ol>
+    <figure><a href="img/exp_meta.jpg" target="_blank"><img src="img/exp_meta.jpg" alt="Meta Billing hub Payment activity for Heatronics_Ads, filtered to Payment status Paid, with VAT invoice IDs and download buttons" loading="lazy"></a><figcaption>Payment activity → Ad accounts → filter <b>Payment status is Paid</b> + the month → click the download icon on every row.</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-google">Google Ads</h3></header>
     <dl class="facts">
-      <div><dt>The bill</dt><dd>Google Ads' monthly GST invoice for search, Shopping and Performance Max spend.</dd></div>
-      <div><dt>Download</dt><dd>Google Ads → Billing → Documents. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>The bill</dt><dd>Google Ads' GST invoice for search, Shopping and Performance Max spend: <b>one invoice per month</b>, issued on the last day of the month and available by the 5th business day of the next.</dd></div>
+      <div><dt>Download</dt><dd><a href="https://ads.google.com/aw/billing/documents?ocid=1525533322" target="_blank" rel="noopener">Google Ads → Billing → Documents</a> → Tax and statutory documents, Document type: Invoice.</dd></div>
       <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Dr <code>Google Ads (Direct)</code> (₹19.6 L to date). Cr party <code>Google India Pvt Ltd</code>. Agency-run spend sits in <code>Media Buying Agency - Google/FB</code> (₹6.3 L), see Digistex.</dd></div>
       <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
       <div><dt>GST</dt><dd><span class="pill ok">From the books</span> Domestic: billed by Google India with GST.</dd></div>
       <div><dt>TDS</dt><dd>194J is set in the master; advertising is usually 194C. <span class="pill warn">to confirm with the CA</span></dd></div>
     </dl>
     <h4>Steps</h4>
-    <ol><li>Download the month's Google Ads invoice.</li><li>Purchase-Expense: Dr <code>Google Ads (Direct)</code> + GST input, Cr TDS payable, Cr <code>Google India Pvt Ltd</code>.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Google Ads → Billing → Documents.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <ol><li>Open <a href="https://ads.google.com/aw/billing/documents?ocid=1525533322" target="_blank" rel="noopener">Billing → Documents</a> → <b>Tax and statutory documents</b>, filter Document type: Invoice, and download last month's invoice.</li><li>Purchase-Expense: Dr <code>Google Ads (Direct)</code> + GST input, Cr TDS payable, Cr <code>Google India Pvt Ltd</code>.</li></ol>
+    <figure><a href="img/exp_google.jpg" target="_blank"><img src="img/exp_google.jpg" alt="Google Ads Billing Documents, Tax and statutory documents tab filtered to Invoice, one invoice per month with Download links" loading="lazy"></a><figcaption>Billing → Documents → <b>Tax and statutory documents</b> → Document type: Invoice → <b>Download</b> on the month's row.</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-bitespeed">Bitespeed (billed by Actartly)</h3></header>
     <dl class="facts">
-      <div><dt>The bill</dt><dd>Bitespeed's messaging (WhatsApp / communication) charges, invoiced by Actartly Technology.</dd></div>
-      <div><dt>Download</dt><dd>Bitespeed dashboard → billing. Link: <span class="pill warn">needed from Hargun</span></dd></div>
+      <div><dt>The bill</dt><dd>Bitespeed's messaging (WhatsApp / communication) charges, invoiced by Actartly Technology. The Payment History list shows wallet top-ups at ₹0; the actual charges are in each row's Invoice and Billing Breakdown.</dd></div>
+      <div><dt>Download</dt><dd><a href="https://marketing.bitespeed.co/settings" target="_blank" rel="noopener">Bitespeed → Settings → Billing → Payment History</a>: download both the <b>Invoice</b> and the <b>Billing Breakdown</b> for the month.</dd></div>
       <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Dr <code>Bitespeed Communication Charges</code> (in use, ₹1.58 L; <code>Bitespeed Subscription</code> exists but is unused). Cr party <code>Actartly Technology Pvt. Ltd. (Bite Speed)</code>.</dd></div>
       <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
       <div><dt>GST</dt><dd>Domestic input, from the invoice GSTIN.</dd></div>
       <div><dt>TDS</dt><dd><span class="pill ok">From the books</span> TDS category 194J in the master.</dd></div>
     </dl>
     <h4>Steps</h4>
-    <ol><li>Download the Actartly invoice(s) for the month.</li><li>Purchase-Expense: Dr <code>Bitespeed Communication Charges</code> + GST input, Cr TDS payable (194J), Cr <code>Actartly Technology Pvt. Ltd. (Bite Speed)</code>.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Bitespeed billing page / Actartly invoice.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <ol><li>Open <a href="https://marketing.bitespeed.co/settings" target="_blank" rel="noopener">Settings</a> → <b>Billing</b> → <b>Payment History</b>.</li><li>For each row of the month (billing month and wallet top-ups), download the <b>Invoice</b> and the <b>Billing Breakdown</b>. Don't go by the ₹0 in the Amount column.</li><li>Purchase-Expense on the actual charges: Dr <code>Bitespeed Communication Charges</code> + GST input, Cr TDS payable (194J), Cr <code>Actartly Technology Pvt. Ltd. (Bite Speed)</code>.</li></ol>
+    <figure><a href="img/exp_bitespeed.jpg" target="_blank"><img src="img/exp_bitespeed.jpg" alt="Bitespeed Settings, Billing, Payment History tab with Paid Invoices list, Top-up rows at zero rupees and Invoice and Billing Breakdown links" loading="lazy"></a><figcaption>Settings → Billing → <b>Payment History</b> → click <b>Invoice</b> and <b>Billing Breakdown</b> on each row of the month.</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-digistex">Digistex</h3></header>
     <dl class="facts">
@@ -1245,43 +1251,23 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <ol><li>Download the month's Digistex invoice.</li><li>Purchase-Expense: Dr the confirmed expense ledger + GST (if charged), Cr TDS payable, Cr <code>Digistex4u</code>.</li></ol>
     <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Where the Digistex invoice is downloaded.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-shopify">Shopify (store subscription and apps)</h3></header>
-    <dl class="facts">
-      <div><dt>The bill</dt><dd>Shopify's bill for the heatronics.in plan and apps, from a foreign Shopify entity.</dd></div>
-      <div><dt>Download</dt><dd>Shopify admin → Settings → Billing → Bills. Link: <span class="pill warn">needed from Hargun</span></dd></div>
-      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Dr <code>Shopify Subscription</code> (exists, TDS category 194J from 1-Apr-26; nothing booked yet). Party ledger: <span class="pill warn">to confirm</span></dd></div>
-      <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
-      <div><dt>GST</dt><dd>Foreign supplier → import of services under RCM. Input side: <code>Input Igst RCM</code>. RCM payable ledger and monthly entry: <span class="pill warn">to confirm with the CA</span></dd></div>
-      <div><dt>TDS</dt><dd>194J in the master; for a non-resident payee <span class="pill warn">to confirm with the CA</span></dd></div>
-    </dl>
-    <h4>Steps</h4>
-    <ol><li>Download the month's Shopify bill(s); note USD amount and the INR actually charged.</li><li>Purchase-Expense: Dr <code>Shopify Subscription</code>, Cr the party; add the RCM IGST lines (<code>Input Igst RCM</code> and the payable the CA confirms).</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Shopify Settings → Billing → Bills.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <header><span class="tag">Not booked for now</span><h3 id="c27-shopify">Shopify (store subscription and apps)</h3></header>
+    <div class="callout info"><b class="k">Not booked for now — Hargun to decide later.</b> Don't book Shopify bills until Hargun says so. A <code>Shopify Subscription</code> ledger exists in Tally but nothing is booked to it.</div>
   </div><div class="opblock">
-    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-claude">AI tools: Claude (Anthropic)</h3></header>
-    <dl class="facts">
-      <div><dt>The bill</dt><dd>Anthropic's invoices for Claude subscriptions and API usage, billed from the US.</dd></div>
-      <div><dt>Download</dt><dd>Claude / Anthropic Console → billing → invoices. Link: <span class="pill warn">needed from Hargun</span></dd></div>
-      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Dr <code>AI Tools - Anthropic &amp; Others</code> (under Operations Platform Subscriptions; nothing booked yet). Party ledger: <span class="pill warn">to confirm</span></dd></div>
-      <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
-      <div><dt>GST</dt><dd>Foreign supplier → RCM via <code>Input Igst RCM</code>. RCM payable ledger and monthly entry: <span class="pill warn">to confirm with the CA</span></dd></div>
-      <div><dt>TDS</dt><dd>Payment to a non-resident: <span class="pill warn">to confirm with the CA</span></dd></div>
-    </dl>
-    <h4>Steps</h4>
-    <ol><li>Download every Anthropic invoice for the month (subscription and API are billed separately).</li><li>Purchase-Expense: Dr <code>AI Tools - Anthropic &amp; Others</code>, Cr the party; add the RCM IGST lines.</li></ol>
-    <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> The Anthropic billing / invoices page.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+    <header><span class="tag">Not booked for now</span><h3 id="c27-claude">AI tools: Claude (Anthropic)</h3></header>
+    <div class="callout info"><b class="k">Not booked for now — Hargun to decide later.</b> Don't book Anthropic bills until Hargun says so. An <code>AI Tools - Anthropic &amp; Others</code> ledger exists in Tally but nothing is booked to it.</div>
   </div><div class="opblock">
     <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-gcloud">Google Cloud</h3></header>
     <dl class="facts">
       <div><dt>The bill</dt><dd>Google Cloud's monthly invoice for hosting used by the MIS app and portals.</dd></div>
       <div><dt>Download</dt><dd>Google Cloud console → Billing → Documents. Link: <span class="pill warn">needed from Hargun</span></dd></div>
-      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> No Google Cloud ledger exists. Suggested: create <code>Google Cloud</code> under Operations Platform Subscriptions, or use <code>Other SaaS (Domestic)</code> if billed by Google Cloud India. <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> No Google Cloud ledger exists. Suggested: create <code>Google Cloud</code> under Operations Platform Subscriptions, or use <code>Other SaaS (Domestic)</code>. <span class="pill warn">to confirm</span></dd></div>
       <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
-      <div><dt>GST</dt><dd>Indian Google Cloud entity with GST → domestic input; billed from abroad → RCM. Billing entity: <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>From the invoice. Billing entity: <span class="pill warn">to confirm</span></dd></div>
       <div><dt>TDS</dt><dd><span class="pill warn">to confirm</span></dd></div>
     </dl>
     <h4>Steps</h4>
-    <ol><li>Download the month's invoice and note the billing entity.</li><li>Book once the ledger is created: Dr expense + GST (or RCM lines), Cr the party.</li></ol>
+    <ol><li>Download the month's invoice and note the billing entity.</li><li>Book once the ledger is created: Dr expense + GST input, Cr the party.</li></ol>
     <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Google Cloud Billing → Documents.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
   </div>
 </section>
