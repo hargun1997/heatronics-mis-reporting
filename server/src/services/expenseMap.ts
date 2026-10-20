@@ -553,8 +553,8 @@ const SEED: ExpenseMapRow[] = [
     party: 'Blink Commerce Private Limited (<state of invoice>)',
     voucherType: 'Purchase-Expense (fee invoices); Debit Note (credit notes)',
     gst: 'GST input as per the invoice',
-    tds: '194H on commission — to confirm with CA',
-    notes: 'Invoices are per state — Cr the Blink Commerce Private Limited ledger for the state on the invoice. A Transfer invoice is a stock transfer, not a fee — to confirm before booking.',
+    tds: 'TDS is deducted on Blinkit fees — Cr TDS Payable - 194H (Commission) on commission; section for other fee lines per CA',
+    notes: 'Invoices are per state — Cr the Blink Commerce Private Limited ledger for the state on the invoice. Transfer invoices are SALES, already booked from Tranzact — do NOT book them as expenses.',
     anchor: 'c27-blinkit',
     status: 'confirmed',
     link: 'https://seller.blinkit.com/dashboard/billing?billing=invoices',
@@ -567,7 +567,7 @@ const SEED: ExpenseMapRow[] = [
       { when: 'Returns', then: 'Dr Returns Processing Fee - Blinkit' },
       { when: 'Ads', then: 'Dr Blinkit Advertising' },
       { when: 'Banners', then: 'Dr Blinkit Banners & Visibility Fee' },
-      { when: 'Transfer invoice', then: 'Stock transfer, not a fee — to confirm with Hargun before booking' },
+      { when: 'Transfer invoice', then: 'Not an expense — it is a sale, already booked from Tranzact. Do not book it here.' },
       { when: 'Blinkit credit note', then: 'Debit Note voucher — reverse the fee ledger + GST against Blink Commerce Private Limited (<state>)' },
     ],
   },
@@ -579,7 +579,7 @@ const SEED: ExpenseMapRow[] = [
     party: 'Flipkart Seller Account',
     voucherType: PLATFORM,
     gst: 'GST input as per the invoice',
-    tds: 'To confirm with CA',
+    tds: 'TDS is deducted on Flipkart fees — Cr the TDS Payable ledger (section per CA)',
     notes:
       'Dr one of the three fee ledgers per line (commission / fixed fee / ad services); Cr Flipkart Seller Account. Ledger names verbatim ("Flipkart -Commision Fees"). Download: Seller Hub → Reports → Report centre → Invoices → "Commission Invoice" + "Commission Invoice Transaction Details" (ready around the 8th).',
     anchor: 'c27-flipkart',
@@ -589,15 +589,14 @@ const SEED: ExpenseMapRow[] = [
     id: 'digistex',
     vendor: 'Digistex',
     keywords: ['digistex'],
-    ledger: TO_CONFIRM,
+    ledger: 'Media Buying Agency - Google/FB',
     party: 'Digistex4u',
     voucherType: PLATFORM,
-    gst: 'As per the invoice',
-    tds: 'TDS on — party is Individual/HUF resident (section to confirm)',
-    notes: 'The expense ledger is Hargun’s call.',
+    gst: 'GST input as per the invoice',
+    tds: 'TDS is deducted — Cr the TDS Payable ledger per the Digistex4u master setting (Individual/HUF resident)',
+    notes: 'Confirmed by Hargun: Dr Media Buying Agency - Google/FB + GST, Cr Digistex4u, deduct TDS.',
     anchor: 'c27-digistex',
-    status: 'needs-info',
-    suggestion: 'Media Buying Agency - Google/FB',
+    status: 'confirmed',
     evidence: 'Party Digistex4u (Individual/HUF, resident, TDS applicable) in the master.',
   },
   {
@@ -666,9 +665,9 @@ Example vouchers:
 - Google Ads: one invoice per month (Billing → Documents → Invoice); Purchase-Expense, Dr Google Ads (Direct) + GST input, Cr Google India Pvt Ltd.
 
 ## Blinkit fee invoices (Purchase-Expense; Cr Blink Commerce Private Limited (<state of invoice>); GST input)
-Download per state from https://seller.blinkit.com/dashboard/billing?billing=invoices (Billing → Invoices). Fee → Dr ledger: Commission Fee → Commission - Blinkit; Storage Fee → Storage Fee - Blinkit; Shipping Fee → Shipping Fee- Blinkit; Logistics → Logistics / Handling Fee - Blinkit; Returns → Returns Processing Fee - Blinkit; Ads → Blinkit Advertising; Banners → Blinkit Banners & Visibility Fee. TDS 194H on commission — to confirm with CA. A Transfer invoice is a stock transfer, not a fee — to confirm. Blinkit credit notes → Debit Note voucher.
+Download per state from https://seller.blinkit.com/dashboard/billing?billing=invoices (Billing → Invoices). Fee → Dr ledger: Commission Fee → Commission - Blinkit; Storage Fee → Storage Fee - Blinkit; Shipping Fee → Shipping Fee- Blinkit; Logistics → Logistics / Handling Fee - Blinkit; Returns → Returns Processing Fee - Blinkit; Ads → Blinkit Advertising; Banners → Blinkit Banners & Visibility Fee. TDS IS deducted on Blinkit fees (TDS Payable - 194H (Commission) on commission; section for other fee lines per CA). Transfer invoices are SALES, already booked from Tranzact — never book them as an expense. Blinkit credit notes → Debit Note voucher.
 
-## Flipkart fee invoices (Purchase-Expense; Cr Flipkart Seller Account; GST input; TDS to confirm with CA)
+## Flipkart fee invoices (Purchase-Expense; Cr Flipkart Seller Account; GST input; TDS IS deducted — section per CA)
 Dr one of: Flipkart -Commision Fees, Fixed Fees-Flipkart, Flipkart Ad Services Fee. Download: Seller Hub → Reports → Report centre → Invoices → "Commission Invoice" + "Commission Invoice Transaction Details" (ready around the 8th).
 
 ## Shiprocket documents
@@ -677,7 +676,7 @@ Download Invoices, Debit Notes AND Credit Notes every month from https://app.shi
 ## Standing rules from Hargun
 - **Heatronics does not book RCM (reverse charge) currently.** Never propose RCM lines, reverse-charge journals or RCM ledgers. If a bill looks like it would attract RCM, say "Heatronics does not book RCM currently — flag to Hargun" instead of building an RCM entry.
 - **Shopify and Claude/Anthropic bills are not booked for now.** If one comes up, say these are not booked currently and ask Hargun before booking.
-- Vendor party ledgers (verbatim): SHOPFLO TECHNOLOGIES PVT LTD (Dr Checkout Fee - Shopflo); Facebook India Online Services Private Limited (Dr Meta Ads (Direct), domestic GST); Google India Pvt Ltd (Dr Google Ads (Direct), domestic GST); Actartly Technology Pvt. Ltd. (Bite Speed) (Dr Bitespeed Communication Charges — the Bitespeed payment-history list shows ₹0 for wallet top-ups; use the Invoice + Billing Breakdown); Digistex4u (Individual/HUF resident, TDS on; expense ledger open — needs Hargun). Google Cloud has no ledger yet — needs Hargun.
+- Vendor party ledgers (verbatim): SHOPFLO TECHNOLOGIES PVT LTD (Dr Checkout Fee - Shopflo); Facebook India Online Services Private Limited (Dr Meta Ads (Direct), domestic GST); Google India Pvt Ltd (Dr Google Ads (Direct), domestic GST); Actartly Technology Pvt. Ltd. (Bite Speed) (Dr Bitespeed Communication Charges — the Bitespeed payment-history list shows ₹0 for wallet top-ups; use the Invoice + Billing Breakdown); Digistex4u (confirmed by Hargun: Dr Media Buying Agency - Google/FB + GST input, Cr Digistex4u, deduct TDS — Individual/HUF resident). Google Cloud has no ledger yet — needs Hargun.
 - Each map row may carry the official invoice download link — mention it when the accountant asks where to get the invoice.
 
 CA flag: the master sets TDS 194J on the Google, Meta, Bitespeed and Shopflo ledgers. Advertising is usually 194C. Answer with the master's setting (194J) but always add "confirm with CA" on the TDS line for these.`;
