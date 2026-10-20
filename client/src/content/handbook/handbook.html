@@ -1091,10 +1091,12 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
       <tr><td><a href="#c27-easebuzz">Easebuzz</a><br><a href="https://dashboard.easebuzz.in/payouts/invoices" target="_blank" rel="noopener">Settlement Invoices ↗</a></td><td><code>Easebuzz Collection A/c</code></td><td><code>PG Transaction Fee - Easebuzz</code>, <code>Refund Processing Fee - Easebuzz</code></td><td>IGST Input - 18%</td><td>None (no-TDS in master)</td><td>—</td></tr>
       <tr><td><a href="#c27-snapmint">Snapmint</a><br><a href="https://emis.snapmint.com/merchants/monthly_invoices" target="_blank" rel="noopener">Monthly Invoices ↗</a></td><td><code>Snapmint Collection</code></td><td><code>BNPL Processing Fee - Snapmint</code></td><td>IGST Input - 18%</td><td>194H</td><td>—</td></tr>
       <tr><td><a href="#c27-amazon">Amazon</a><br><a href="https://sellercentral.amazon.in/tax/seller-fee-invoices" target="_blank" rel="noopener">Seller Fee Invoices ↗</a></td><td><code>Amazon Expenses (Creditors)</code></td><td>Amazon fee ledgers by invoice type, <code>Amazon Ads</code></td><td>IGST Input - 18%, per Heatronics GSTIN</td><td>Ads 194C; TDS/TCS on sales via settlement</td><td>How Tally picks the GSTIN</td></tr>
+      <tr><td><a href="#c27-blinkit">Blinkit</a><br><a href="https://seller.blinkit.com/dashboard/billing?billing=invoices" target="_blank" rel="noopener">Billing → Invoices ↗</a></td><td><code>Blink Commerce Private Limited (&lt;state&gt;)</code></td><td>Blinkit Channel Fees ledgers</td><td>GST input per invoice</td><td>Deduct TDS (section with CA)</td><td>TDS section (CA)</td></tr>
+      <tr><td><a href="#c27-flipkart">Flipkart</a><br><a href="https://seller.flipkart.com/index.html#dashboard/metrics/report-centre" target="_blank" rel="noopener">Report centre ↗</a></td><td><code>Flipkart Seller Account</code></td><td>Flipkart Channel Fees ledgers</td><td>GST input per invoice</td><td>Deduct TDS (section with CA)</td><td>TDS section (CA)</td></tr>
       <tr><td><a href="#c27-facebook">Facebook (Meta)</a><br><a href="https://business.facebook.com/latest/billing_hub/payment_activity?business_id=488618164122715&amp;asset_id=2294012640954204&amp;payment_account_id=2294012640954204" target="_blank" rel="noopener">Payment activity ↗</a></td><td><code>Facebook India Online Services Private Limited</code></td><td><code>Meta Ads (Direct)</code></td><td>Domestic input</td><td>194J in master (CA: 194C?)</td><td>TDS section</td></tr>
       <tr><td><a href="#c27-google">Google Ads</a><br><a href="https://ads.google.com/aw/billing/documents?ocid=1525533322" target="_blank" rel="noopener">Billing → Documents ↗</a></td><td><code>Google India Pvt Ltd</code></td><td><code>Google Ads (Direct)</code></td><td>Domestic input</td><td>194J in master (CA: 194C?)</td><td>TDS section</td></tr>
       <tr><td><a href="#c27-bitespeed">Bitespeed</a><br><a href="https://marketing.bitespeed.co/settings" target="_blank" rel="noopener">Settings → Billing ↗</a></td><td><code>Actartly Technology Pvt. Ltd. (Bite Speed)</code></td><td><code>Bitespeed Communication Charges</code></td><td>Domestic input</td><td>194J in master</td><td>—</td></tr>
-      <tr><td><a href="#c27-digistex">Digistex</a></td><td><code>Digistex4u</code></td><td>Likely <code>Media Buying Agency - Google/FB</code></td><td>From the invoice</td><td>TDS on (section to confirm)</td><td>Expense ledger, link, screenshot</td></tr>
+      <tr><td><a href="#c27-digistex">Digistex</a></td><td><code>Digistex4u</code></td><td><code>Media Buying Agency - Google/FB</code></td><td>GST input per invoice</td><td>Deduct TDS (section with CA)</td><td>Link, screenshot</td></tr>
       <tr><td><a href="#c27-shopify">Shopify</a></td><td colspan="5">Not in scope for now: not booked, Hargun to decide later.</td></tr>
       <tr><td><a href="#c27-claude">Claude (Anthropic)</a></td><td colspan="5">Not in scope for now: not booked, Hargun to decide later.</td></tr>
       <tr><td><a href="#c27-gcloud">Google Cloud</a></td><td>To confirm</td><td>No ledger yet</td><td>From the invoice</td><td>To confirm</td><td>Ledger, billing entity, link, screenshot</td></tr>
@@ -1242,14 +1244,51 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <dl class="facts">
       <div><dt>The bill</dt><dd>Digistex4u's monthly invoice for media buying (Google / Meta ads run by the agency).</dd></div>
       <div><dt>Download</dt><dd>Link: <span class="pill warn">needed from Hargun</span></dd></div>
-      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Cr party <code>Digistex4u</code> (Individual/HUF - Resident, TDS on). Expense: likely <code>Media Buying Agency - Google/FB</code> (₹6.3 L ≈ the Digistex4u bills). <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Dr <code>Media Buying Agency - Google/FB</code> (₹6.3 L, matches the Digistex4u bills; confirmed by Hargun). Cr party <code>Digistex4u</code> (Individual/HUF - Resident, TDS on).</dd></div>
       <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
-      <div><dt>GST</dt><dd>From the invoice (whether GST is charged).</dd></div>
-      <div><dt>TDS</dt><dd>TDS is on for the party; section <span class="pill warn">to confirm</span></dd></div>
+      <div><dt>GST</dt><dd>GST input as charged on the invoice.</dd></div>
+      <div><dt>TDS</dt><dd><b>Deduct TDS</b>. The exact section stays with the CA, alongside the 194J / 194C question in the overview.</dd></div>
     </dl>
     <h4>Steps</h4>
-    <ol><li>Download the month's Digistex invoice.</li><li>Purchase-Expense: Dr the confirmed expense ledger + GST (if charged), Cr TDS payable, Cr <code>Digistex4u</code>.</li></ol>
+    <ol><li>Download the month's Digistex invoice.</li><li>Purchase-Expense: Dr <code>Media Buying Agency - Google/FB</code> + GST input, Cr TDS payable, Cr <code>Digistex4u</code>.</li></ol>
     <figure><div class="callout info"><b class="k">Screenshot coming — Hargun to share.</b> Where the Digistex invoice is downloaded.</div><figcaption>Placeholder. No image yet.</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-blinkit">Blinkit (marketplace fees)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Blinkit's monthly fee invoices, issued by <b>Blinkit Commerce Pvt Ltd</b> separately for each state: <b>Commission Fee</b>, <b>Storage Fee</b> and <b>Shipping Fee</b>, plus any credit or debit notes. The list also shows a <b>Transfer invoice</b>: a sales document, not booked here (note below).</dd></div>
+      <div><dt>Download</dt><dd><a href="https://seller.blinkit.com/dashboard/billing?billing=invoices" target="_blank" rel="noopener">Blinkit seller hub → Billing → Invoices</a>: set the date range to last month and download every invoice for every state (UP, Maharashtra, Haryana, Delhi…), plus anything in the Credit/Debit Note column.</dd></div>
+      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Cr the party ledger for the invoice's state: <code>Blink Commerce Private Limited (&lt;state&gt;)</code>. Tally has Chandigarh, Chhatisgarh, Delhi, Gujrat, Haryana, Jharkhand, Karnataka, Maharashtra, Tamilnadu, Telangana, Uttar Pradesh and West Bengal. Dr the fee ledger (group <i>Blinkit Channel Fees</i>, table below).</dd></div>
+      <div><dt>Vouchers</dt><dd>Purchase-Expense for fee invoices and debit notes; Debit Note voucher for Blinkit credit notes, against the same state party.</dd></div>
+      <div><dt>GST</dt><dd>GST input as charged on the invoice (UP invoice → CGST + SGST; other states → IGST).</dd></div>
+      <div><dt>TDS</dt><dd><b>Deduct TDS</b> on Blinkit fees. The exact section (194H is typical on commission) stays with the CA, alongside the 194J / 194C question in the overview.</dd></div>
+    </dl>
+    <div class="tw"><table>
+      <tr><th>Invoice type / charge</th><th>Dr ledger</th></tr>
+      <tr><td>Commission Fee</td><td><code>Commission - Blinkit</code></td></tr>
+      <tr><td>Storage Fee</td><td><code>Storage Fee - Blinkit</code></td></tr>
+      <tr><td>Shipping Fee</td><td><code>Shipping Fee- Blinkit</code></td></tr>
+      <tr><td>Logistics / handling</td><td><code>Logistics / Handling Fee - Blinkit</code></td></tr>
+      <tr><td>Returns</td><td><code>Returns Processing Fee - Blinkit</code></td></tr>
+      <tr><td>Ads</td><td><code>Blinkit Advertising</code></td></tr>
+      <tr><td>Banners / visibility</td><td><code>Blinkit Banners &amp; Visibility Fee</code></td></tr>
+    </table></div>
+    <div class="callout warn"><b class="k">Don't book the Transfer invoice.</b> It is a sales document (State "Pan India"), not a Blinkit charge. Blinkit sales are booked directly from Tranzact, so it is already in Tally (<a href="#c25">chapter 4b</a>). In the expense run, book only the fee invoices.</div>
+    <h4>Steps</h4>
+    <ol><li>Open <a href="https://seller.blinkit.com/dashboard/billing?billing=invoices" target="_blank" rel="noopener">Billing → Invoices</a>, set the date range to last month.</li><li>Download every Commission, Storage and Shipping Fee invoice for every state, and every credit / debit note.</li><li>Book each as Purchase-Expense: Dr the fee ledger + GST input, Cr TDS payable, Cr <code>Blink Commerce Private Limited (&lt;state&gt;)</code> for the invoice's state.</li><li>Book each credit note as a Debit Note voucher against the same state party.</li></ol>
+    <figure><a href="img/exp_blinkit.jpg" target="_blank"><img src="img/exp_blinkit.jpg" alt="Blinkit seller hub Billing, Invoices tab with the invoice list by issuer, invoice type, state and Download links" loading="lazy"></a><figcaption>Billing → <b>Invoices</b> → set the month range → click <b>Download</b> on every Commission, Storage and Shipping Fee row (all states).</figcaption></figure>
+  </div><div class="opblock">
+    <header><span class="tag monthly">Monthly · 3rd · Expense</span><h3 id="c27-flipkart">Flipkart (marketplace fees)</h3></header>
+    <dl class="facts">
+      <div><dt>The bill</dt><dd>Flipkart's monthly <b>Commission Invoice</b> (PDF) with its <b>Commission Invoice Transaction Details</b>. Generated around the 8th of the following month. A new channel, with small volumes so far.</dd></div>
+      <div><dt>Download</dt><dd><a href="https://seller.flipkart.com/index.html#dashboard/metrics/report-centre" target="_blank" rel="noopener">Seller Hub → Reports → Report centre</a>, group <b>Invoices</b>: download both for the month.</dd></div>
+      <div><dt>Ledgers</dt><dd><span class="pill ok">From the books</span> Cr <code>Flipkart Seller Account</code>. Dr the fee ledger (group <i>Flipkart Channel Fees</i>): <code>Flipkart -Commision Fees</code> (spelled so in Tally), <code>Fixed Fees-Flipkart</code>, <code>Flipkart Ad Services Fee</code>.</dd></div>
+      <div><dt>Voucher</dt><dd>Purchase-Expense</dd></div>
+      <div><dt>GST</dt><dd>GST input as charged on the invoice.</dd></div>
+      <div><dt>TDS</dt><dd><b>Deduct TDS</b> on Flipkart fees. The exact section stays with the CA, alongside the 194J / 194C question in the overview.</dd></div>
+    </dl>
+    <h4>Steps</h4>
+    <ol><li>After the 8th, open <a href="https://seller.flipkart.com/index.html#dashboard/metrics/report-centre" target="_blank" rel="noopener">Report centre</a> and select the <b>Invoices</b> group.</li><li>Download <b>Commission Invoice</b> and <b>Commission Invoice Transaction Details</b> for last month (request them with Request New Report if they aren't listed).</li><li>Purchase-Expense: Dr the fee ledger(s) per the invoice lines + GST input, Cr TDS payable, Cr <code>Flipkart Seller Account</code>.</li></ol>
+    <figure><a href="img/exp_flipkart.jpg" target="_blank"><img src="img/exp_flipkart.jpg" alt="Flipkart Seller Hub Reports, Invoices group selected, with Commission Invoice and Commission Invoice Transaction Details rows and Download links" loading="lazy"></a><figcaption>Reports → <b>Invoices</b> group → <b>Download</b> on Commission Invoice and Commission Invoice Transaction Details for the month.</figcaption></figure>
   </div><div class="opblock">
     <header><span class="tag">Not booked for now</span><h3 id="c27-shopify">Shopify (store subscription and apps)</h3></header>
     <div class="callout info"><b class="k">Not booked for now — Hargun to decide later.</b> Don't book Shopify bills until Hargun says so. A <code>Shopify Subscription</code> ledger exists in Tally but nothing is booked to it.</div>
