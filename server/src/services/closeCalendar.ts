@@ -165,6 +165,8 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
         url: 'https://business.facebook.com/latest/billing_hub/payment_activity?business_id=488618164122715&asset_id=2294012640954204&payment_account_id=2294012640954204',
       },
       { label: 'Google Ads invoices', url: 'https://ads.google.com/aw/billing/documents?ocid=1525533322' },
+      { label: 'Blinkit invoices', url: 'https://seller.blinkit.com/dashboard/billing?billing=invoices' },
+      { label: 'Flipkart report centre (Invoices)', url: 'https://seller.flipkart.com/index.html#dashboard/metrics/report-centre' },
       { label: 'Booking assistant', url: '/booking-assistant' },
     ],
     checklist: [
@@ -176,6 +178,8 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
       { id: 'facebook', label: 'Facebook (Meta ads)', hint: 'Billing hub → Payment activity, status Paid → download every FBADS VAT invoice · Dr Meta Ads (Direct) · Cr Facebook India Online Services Private Limited · GST · TDS', link: H('c27-facebook') },
       { id: 'google', label: 'Google (Ads)', hint: 'Billing → Documents → one invoice per month · Dr Google Ads (Direct) · Cr Google India Pvt Ltd · GST · TDS', link: H('c27-google') },
       { id: 'bitespeed', label: 'Bitespeed (Actartly)', hint: 'Invoice + Billing Breakdown (list shows ₹0 for top-ups) · Dr Bitespeed Communication Charges · Cr Actartly Technology Pvt. Ltd. (Bite Speed) · TDS', link: H('c27-bitespeed') },
+      { id: 'blinkit', label: 'Blinkit (all states)', hint: 'Billing → Invoices, every state · Purchase-Expense: Dr Commission / Storage Fee / Shipping Fee / Logistics / Returns - Blinkit (or Blinkit Advertising) + GST · Cr Blink Commerce Private Limited (<state>) · TDS · credit notes → Debit Note', link: H('c27-blinkit') },
+      { id: 'flipkart', label: 'Flipkart', hint: 'Report centre → Invoices → Commission Invoice + Transaction Details (ready ~8th — tick when booked) · Dr Flipkart -Commision Fees / Fixed Fees-Flipkart / Flipkart Ad Services Fee + GST · Cr Flipkart Seller Account · TDS', link: H('c27-flipkart') },
       { id: 'digistex', label: 'Digistex', hint: 'Cr Digistex4u · Dr likely Media Buying Agency - Google/FB (to confirm) · TDS', link: H('c27-digistex') },
       { id: 'gcloud', label: 'Google Cloud', hint: 'No ledger yet — to confirm (create “Google Cloud” under Operations Platform Subscriptions?)', link: H('c27-gcloud') },
     ],
