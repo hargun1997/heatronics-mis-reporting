@@ -160,6 +160,11 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
       { label: 'Snapmint invoices', url: 'https://emis.snapmint.com/merchants/monthly_invoices' },
       { label: 'Shopflo invoices', url: 'https://dashboard.shopflo.com/billing#invoices' },
       { label: 'Bitespeed billing', url: 'https://marketing.bitespeed.co/settings' },
+      {
+        label: 'Meta paid invoices',
+        url: 'https://business.facebook.com/latest/billing_hub/payment_activity?business_id=488618164122715&asset_id=2294012640954204&payment_account_id=2294012640954204',
+      },
+      { label: 'Google Ads invoices', url: 'https://ads.google.com/aw/billing/documents?ocid=1525533322' },
       { label: 'Booking assistant', url: '/booking-assistant' },
     ],
     checklist: [
@@ -168,8 +173,8 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
       { id: 'easebuzz', label: 'Easebuzz', hint: 'Purchase-Expense · Dr PG Transaction Fee - Easebuzz + IGST · Cr Easebuzz Collection A/c · no TDS (don’t double-count daily fees)', link: H('c27-easebuzz') },
       { id: 'snapmint', label: 'Snapmint', hint: 'Invoice PDF + Working CSV · Purchase-Expense: Dr BNPL Processing Fee - Snapmint + IGST, Cr Snapmint Collection, TDS 194H', link: H('c27-snapmint') },
       { id: 'amazon', label: 'Amazon — all GSTs, TDS and TCS entries', hint: 'Download ALL seller fee invoices · Merchant VAT → selling-fee ledgers, FBA Tax Invoice → FBA ledgers, Product Ads → Amazon Ads, Credit Note → Debit Note · Cr Amazon Expenses (Creditors) · book on the GSTIN shown', link: H('c27-amazon') },
-      { id: 'facebook', label: 'Facebook (Meta ads)', hint: 'Dr Meta Ads (Direct) · Cr Facebook India Online Services Private Limited · GST · TDS', link: H('c27-facebook') },
-      { id: 'google', label: 'Google (Ads)', hint: 'Dr Google Ads (Direct) · Cr Google India Pvt Ltd · GST · TDS', link: H('c27-google') },
+      { id: 'facebook', label: 'Facebook (Meta ads)', hint: 'Billing hub → Payment activity, status Paid → download every FBADS VAT invoice · Dr Meta Ads (Direct) · Cr Facebook India Online Services Private Limited · GST · TDS', link: H('c27-facebook') },
+      { id: 'google', label: 'Google (Ads)', hint: 'Billing → Documents → one invoice per month · Dr Google Ads (Direct) · Cr Google India Pvt Ltd · GST · TDS', link: H('c27-google') },
       { id: 'bitespeed', label: 'Bitespeed (Actartly)', hint: 'Invoice + Billing Breakdown (list shows ₹0 for top-ups) · Dr Bitespeed Communication Charges · Cr Actartly Technology Pvt. Ltd. (Bite Speed) · TDS', link: H('c27-bitespeed') },
       { id: 'digistex', label: 'Digistex', hint: 'Cr Digistex4u · Dr likely Media Buying Agency - Google/FB (to confirm) · TDS', link: H('c27-digistex') },
       { id: 'gcloud', label: 'Google Cloud', hint: 'No ledger yet — to confirm (create “Google Cloud” under Operations Platform Subscriptions?)', link: H('c27-gcloud') },
