@@ -108,9 +108,9 @@ function layout(opts: { preheader: string; heading: string; sub: string; stats: 
       <div style="${FONT};font-size:22px;font-weight:800;color:#ffffff;margin-top:4px">${esc(opts.heading)}</div>
       <div style="${FONT};font-size:13px;color:#ffe4d9;margin-top:2px">${esc(opts.sub)}</div>
     </td></tr>
-    <tr><td style="background:#fff3ee;padding:12px 16px">
+    ${opts.stats ? `<tr><td style="background:#fff3ee;padding:12px 16px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="6"><tr>${opts.stats}</tr></table>
-    </td></tr>
+    </td></tr>` : ''}
     <tr><td style="background:#f8fafc;padding:4px 18px 8px 18px;border-left:1px solid ${LINE};border-right:1px solid ${LINE}">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${opts.body}</table>
     </td></tr>
@@ -193,6 +193,43 @@ export function teamSummary(o: { items: OpenItem[]; members: TeamMember[]; base:
     body,
     cta: { href: `${o.base}/tasks`, label: 'Open Tasks & owners' },
     footer: footer(hourLabel(o.sendHour)),
+  });
+  return { subject, html };
+}
+
+/** "Send reminder now" from a task: one task, straight to its owners. */
+export function taskReminder(o: { member: TeamMember; items: OpenItem[]; base: string; today: string; names: (i: OpenItem) => string }) {
+  const t = o.items[0]!.task;
+  const first = o.member.name.split(/\s+/)[0] || 'there';
+  const overdue = o.items.filter((i) => i.late > 0).length;
+  const due = o.items.filter((i) => i.late === 0).length;
+  const subject = `[Heatronics] Reminder: ${t.title}`;
+  const html = layout({
+    preheader: `${t.title} — ${o.items.length > 1 ? `${o.items.length} periods open` : status(o.items[0]!).text}`,
+    heading: `Hi ${first}, a reminder from Hargun`,
+    sub: `${t.title} · ${dayLabel(o.today)}`,
+    stats: stat('Overdue', overdue, '#dc2626') + stat('Due today', due, BRAND) + stat('Coming up', o.items.length - overdue - due, '#d97706'),
+    body: section('Please complete', INK, o.items.map((i) => taskCard(i, o.base, o.names(i))).join('')),
+    cta: { href: `${o.base}/tasks?task=${encodeURIComponent(t.id)}`, label: 'Open the task' },
+    footer: 'Sent by Hargun from the Heatronics MIS. Tick the task in the MIS once it’s done.',
+  });
+  return { subject, html };
+}
+
+/** The "Send test" email: proves the connection works. */
+export function testEmail(o: { base: string; today: string; from: string }) {
+  const subject = '[Heatronics] Test email from the MIS';
+  const html = layout({
+    preheader: 'Your Heatronics MIS can send email.',
+    heading: 'Email is working ✓',
+    sub: `Test sent ${dayLabel(o.today)}`,
+    stats: '',
+    body: `<tr><td style="${FONT};font-size:15px;color:#0f172a;line-height:1.6;padding:16px 0">
+      This is a test from <b>Tasks &amp; owners</b> in the Heatronics MIS.<br/>
+      Daily task emails and reminders will go out from <b>${esc(o.from)}</b> in this same format.
+    </td></tr>`,
+    cta: { href: `${o.base}/tasks/settings#emails`, label: 'Open email settings' },
+    footer: 'Sent by Hargun from the Heatronics MIS.',
   });
   return { subject, html };
 }

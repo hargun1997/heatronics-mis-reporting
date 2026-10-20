@@ -17,13 +17,16 @@
 //                                      trigger, sends once a day after the send hour
 //   POST   /api/work/mail              connect email (Zoho SMTP password; write-only)
 //   POST   /api/work/mail/test         send a test email
+//   GET    /api/work/templates         every email format, rendered with sample tasks
 //
 // Team members are the shared people list (/api/ownership/members).
 // ----------------------------------------------------------------------------
 
 import { Router, type Request, type Response } from 'express';
 import { readWork, saveTask, deleteTask, setDone, importSeed, autoDone, saveSettings, saveRouting, ensureRouting, splitRoles, saveHeads, deleteTasks, DEFAULT_HEADS, claimScheduledRun, DEFAULT_SETTINGS } from '../services/workStore.js';
-import { runWorkReminders, buildReminderEmails, remindTaskNow } from '../services/workReminders.js';
+import { runWorkReminders, buildReminderEmails, remindTaskNow, buildTemplateSamples } from '../services/workReminders.js';
+import { testEmail } from '../services/workEmails.js';
+import { todayIST } from '../services/workSchedule.js';
 import { listMembers } from '../services/ownershipStore.js';
 import { mailerStatus, ensureMailConfig, saveMailConfig, sendEmail } from '../services/mailer.js';
 
@@ -127,6 +130,14 @@ router.post(
   }),
 );
 
+router.get(
+  '/templates',
+  h(async (req, res) => {
+    await ensureMailConfig();
+    res.json({ templates: await buildTemplateSamples(baseUrl(req)) });
+  }),
+);
+
 router.post(
   '/mail',
   h(async (req, res) => {
@@ -141,11 +152,8 @@ router.post(
   h(async (req, res) => {
     const to = String(req.body?.to ?? '').trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) throw new Error('Enter an email address to send the test to.');
-    const result = await sendEmail({
-      to: [to],
-      subject: '[Heatronics] Test email from the MIS',
-      html: `<p style="font-family:Arial,sans-serif">This is a test from the Heatronics MIS (Tasks &amp; owners). If you can read this, the daily task emails will reach you.</p>`,
-    });
+    const t = testEmail({ base: baseUrl(req), today: todayIST(), from: mailerStatus().from ?? '' });
+    const result = await sendEmail({ to: [to], subject: t.subject, html: t.html });
     if (!result.sent) throw new Error(result.error || (result.dryRun ? 'Email is not connected yet.' : 'Send failed.'));
     res.json(result);
   }),
