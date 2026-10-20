@@ -37,6 +37,8 @@ export interface WorkTask extends ScheduleSpec {
   upload?: { connectorId: string; slotId: string };
   /** Start reminding this many days before the due date (default 2). */
   remindDaysBefore?: number;
+  /** Email the owners about this task until it is ticked (default on). */
+  remind?: boolean;
   active: boolean;
   source?: string;
 }
@@ -59,6 +61,55 @@ export interface ReminderSettings {
 }
 
 export const DEFAULT_SETTINGS: ReminderSettings = { enabled: true, sendHour: 14, summaryTo: ['hargun@heatronics.in'], includeDueSoon: true };
+
+export interface Head {
+  id: string;
+  name: string;
+  /** Role names (from task role labels) that belong to this head, e.g. "HR", "Payroll". */
+  roles: string[];
+  /** Task areas that belong to this head, e.g. "HR & payroll". */
+  areas: string[];
+}
+
+export const DEFAULT_HEADS: Head[] = [
+  { id: 'accounts', name: 'Accounts', roles: ['Accountant', 'Accounts', 'Accounts Executive', 'Accounts Manager', 'MIS uploads'], areas: ['Daily & monthly books', 'MIS uploads', 'GST, TDS & tax'] },
+  { id: 'ca', name: 'CA / Audit', roles: ['CA', 'Chartered Accountant', 'Statutory Auditor', 'Auditor', 'Tax consultant'], areas: [] },
+  { id: 'hr', name: 'HR', roles: ['HR', 'Payroll', 'ICC'], areas: ['HR & payroll'] },
+  { id: 'cs', name: 'CS / ROC', roles: ['Company Secretary', 'CS'], areas: ['MCA / ROC'] },
+  { id: 'legal', name: 'Legal', roles: ['Legal'], areas: ['Legal & licences'] },
+  { id: 'admin', name: 'Admin', roles: ['Admin', 'IT', 'Logistics', 'HSE'], areas: ['Admin'] },
+  { id: 'quality', name: 'Quality / ISO', roles: ['MR', 'Quality', 'QA', 'Plant Head', 'Purchase'], areas: ['ISO / QMS'] },
+  { id: 'founders', name: 'CFO / Founder', roles: ['CFO', 'Founder'], areas: ['Investors'] },
+];
+
+export async function saveHeads(input: Partial<Head>[]): Promise<Head[]> {
+  const doc = await readWork();
+  const list = (x: unknown) => (Array.isArray(x) ? x.map((v) => String(v).trim()).filter(Boolean) : []);
+  const heads: Head[] = input
+    .map((h) => ({
+      id: String(h.id || randomUUID()),
+      name: String(h.name ?? '').trim(),
+      roles: [...new Set(list(h.roles))],
+      areas: [...new Set(list(h.areas))],
+    }))
+    .filter((h) => h.name);
+  doc.heads = heads;
+  await writeWork(doc);
+  return heads;
+}
+
+export async function deleteTasks(ids: string[]): Promise<number> {
+  const doc = await readWork();
+  const kill = new Set(ids.map(String));
+  const before = doc.tasks.length;
+  doc.tasks = doc.tasks.filter((t) => !kill.has(t.id));
+  for (const id of kill) {
+    delete doc.done[id];
+    if (doc.reminded) delete doc.reminded[id];
+  }
+  await writeWork(doc);
+  return before - doc.tasks.length;
+}
 
 export interface Routing {
   /** Role name (as it appears in task role labels, e.g. "Accountant") → member ids. */
@@ -156,6 +207,10 @@ export interface WorkDoc {
   /** taskId → period → done entry */
   done: Record<string, Record<string, DoneEntry>>;
   lastReminderRun?: { at: string; sent: number; dryRun: boolean; recipients: number };
+  /** Heads (functions) for the task filter; default list when unset. */
+  heads?: Head[];
+  /** taskId → when its owners were last emailed about it. */
+  reminded?: Record<string, string>;
 }
 
 const EMPTY: WorkDoc = { version: 1, tasks: [], done: {} };
@@ -201,6 +256,7 @@ function clean(input: Partial<WorkTask>, prev?: WorkTask): WorkTask {
           .map((l) => ({ label: l.label || l.url, url: l.url }))
       : prev?.links,
     remindDaysBefore: num(input.remindDaysBefore, 0, 30) ?? prev?.remindDaysBefore ?? 2,
+    remind: input.remind ?? prev?.remind ?? true,
     active: input.active ?? prev?.active ?? true,
     source: input.source ?? prev?.source ?? 'custom',
     cadence,
@@ -272,6 +328,34 @@ export async function claimScheduledRun(now = new Date()): Promise<{ ok: boolean
   doc.lastScheduledDay = day;
   await writeWork(doc);
   return { ok: true, day };
+}
+
+/** Remember when each task's owners were emailed. */
+export async function markReminded(taskIds: string[], at: string): Promise<void> {
+  if (!taskIds.length) return;
+  const doc = await readWork();
+  doc.reminded = { ...(doc.reminded ?? {}) };
+  for (const id of taskIds) doc.reminded[id] = at;
+  await writeWork(doc);
+}
+
+/** This task's open occurrences now: overdue / due today, else the next one coming up. */
+export async function taskOpenItems(id: string, now = new Date()): Promise<OpenItem[]> {
+  const doc = await readWork();
+  const t = doc.tasks.find((x) => x.id === id);
+  if (!t) throw new Error('Unknown task.');
+  const auto = await autoDone([t]);
+  const today = todayIST(now);
+  const start = doc.seededAt ? todayIST(new Date(doc.seededAt)) : today;
+  let from = ymd(addDays(parseYmd(today), -lookbackDays(t.cadence)));
+  if (from < start) from = start;
+  const open = occurrences(t, from, ymd(addDays(parseYmd(today), 400))).filter(
+    (o) => !doc.done[t.id]?.[o.period] && !auto[t.id]?.includes(o.period),
+  );
+  const late = (due: string) => Math.round((parseYmd(today).getTime() - parseYmd(due).getTime()) / 86_400_000);
+  const pending = open.filter((o) => o.due <= today);
+  const pick = pending.length ? pending : open.slice(0, 1);
+  return pick.map((o) => ({ task: t, period: o.period, due: o.due, late: late(o.due) }));
 }
 
 export async function recordReminderRun(run: WorkDoc['lastReminderRun']): Promise<void> {
@@ -363,7 +447,7 @@ export async function openItems(now = new Date()): Promise<OpenItem[]> {
   const start = doc.seededAt ? todayIST(new Date(doc.seededAt)) : today;
   const out: OpenItem[] = [];
   for (const t of doc.tasks) {
-    if (!t.active) continue;
+    if (!t.active || t.remind === false) continue;
     let from = ymd(addDays(parseYmd(today), -lookbackDays(t.cadence)));
     if (from < start) from = start;
     const to = ymd(addDays(parseYmd(today), t.remindDaysBefore ?? 2));
