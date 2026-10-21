@@ -35,6 +35,8 @@ const M = 12;
 
 const rs = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? '-' : `Rs ${Math.round(v).toLocaleString('en-IN')}`);
 const num = (v: number) => (!Number.isFinite(v) ? '-' : Math.round(v) ? Math.round(v).toLocaleString('en-IN') : '-');
+/** v as a whole-number share of the price. */
+const sh = (v: number, price: number) => (price > 0 && Number.isFinite(price) && Number.isFinite(v) ? `${Math.round((v / price) * 100)}%` : '-');
 const pc = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? '-' : `${Math.round(v * 1000) / 10}%`);
 
 interface Col { w: number; align?: 'left' | 'right' }
@@ -42,7 +44,7 @@ interface CellStyle { bold?: boolean; color?: RGB; fill?: RGB }
 type Cell = string | { t: string; s?: CellStyle };
 
 /** Draws a simple table; returns the y after it. */
-function table(doc: jsPDF, x: number, y: number, cols: Col[], head: string[], rows: Cell[][], rowH = 6.2, rowStyle?: (i: number) => CellStyle | undefined) {
+function table(doc: jsPDF, x: number, y: number, cols: Col[], head: string[], rows: Cell[][], rowH = 6.2, size = 8.5) {
   const total = cols.reduce((a, c) => a + c.w, 0);
   const pad = 1.8;
   const draw = (cells: Cell[], yy: number, base: CellStyle, h: number) => {
@@ -65,9 +67,9 @@ function table(doc: jsPDF, x: number, y: number, cols: Col[], head: string[], ro
   const headH = head.some((h, i) => doc.getTextWidth(h) > cols[i].w - 3.6) ? 9 : rowH;
   draw(head, y, { bold: true, color: MUTED, fill: HEAD_BG }, headH);
   y += headH;
-  doc.setFontSize(8.5);
-  rows.forEach((r, i) => {
-    draw(r, y, rowStyle?.(i) || {}, rowH);
+  doc.setFontSize(size);
+  rows.forEach((r) => {
+    draw(r, y, {}, rowH);
     y += rowH;
     doc.setDrawColor(...LINE);
     doc.setLineWidth(0.2);
@@ -138,13 +140,14 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
     const room = Number.isFinite(res.price) ? x.asp - res.price : null;
     return [
       { t: x.name, s: { bold: true } },
-      rs(x.asp), rs(gl.cost), rs(gl.amazon), rs(gl.returns), rs(gl.ads), rs(gl.gst), rs(gl.margin),
-      { t: rs(res.price), s: { bold: true, fill: SOFT } },
+      rs(x.asp),
+      ...[gl.cost, gl.amazon, gl.returns, gl.ads, gl.gst, gl.margin].map((v) => `${rs(v)}\n${sh(v, res.price)}`),
+      { t: `${rs(res.price)}\n100%`, s: { bold: true, fill: SOFT } },
       rs(be),
-      room == null ? '-' : { t: room < 0 ? `${rs(-room)} short` : `+${rs(room)}`, s: { bold: true, color: room < 0 ? BAD : GOOD } },
+      room == null ? '-' : { t: room < 0 ? `${rs(-room)} short\nraise ${sh(-room, x.asp)}` : `+${rs(room)}\n${sh(room, x.asp)} off ok`, s: { bold: true, color: room < 0 ? BAD : GOOD } },
     ];
   });
-  y = table(pdf, M, y, sumCols, ['Product', 'Selling at', 'Product cost', 'Amazon fees', 'Returns', `Ads ${Math.round(t * 100)}%`, 'GST to pay', `Margin ${pc(m)}`, 'Lowest price', 'Break-even', 'Room'], sumRows, 7);
+  y = table(pdf, M, y, sumCols, ['Product', 'Selling at', 'Product cost', 'Amazon fees', 'Returns', `Ads ${Math.round(t * 100)}%`, 'GST to pay', `Margin ${pc(m)}`, 'Lowest price', 'Break-even', 'Room vs today'], sumRows, 9.5);
   y += 6;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
@@ -152,14 +155,14 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   const notes = [
     `Product cost = materials + ${pc(buyGstOf(settings))} GST on them + conversion (overheads per unit) from production. Amazon fees = FBA, inbound, storage, referral and closing, including their GST. Ads include ${pc(buyGstOf(settings))} GST.`,
     `GST is inverted: we buy at ${pc(buyGstOf(settings))} and sell at ${pc(g.gst)}, so the sale GST is paid out of the input GST already counted in the costs. "GST to pay" is only what those credits don't cover (usually nothing); leftover credit is lost.`,
-    'Returns = the FBA and refund admin fees wasted on returned units, spread over the units that stay sold. Room = today\'s average selling price minus the lowest price.',
+    'Returns = the FBA and refund admin fees wasted on returned units, spread over the units that stay sold. Percentages are shares of the lowest price. Room = today\'s average selling price minus the lowest price, and how much % off today\'s price that allows.',
   ];
   if (missing.length) notes.push(`No product cost for: ${missing.map((x) => `${x.name} (${x.item || 'not linked'})`).join(', ')}.`);
   pdf.text(notes.flatMap((n) => pdf.splitTextToSize(n, W - M * 2) as string[]), M, y);
 
   // ---------- Per product, two per page ----------
   const half = (W - M * 2 - 8) / 2;
-  const colsHalf: Col[] = [{ w: half - 5 * 18.5 }, ...COLS.map(() => ({ w: 18.5, align: 'right' as const }))];
+  const colsHalf: Col[] = [{ w: half - 5 * 20.5 }, ...COLS.map(() => ({ w: 20.5, align: 'right' as const }))];
   rows.forEach(({ x, p }, i) => {
     if (i % 2 === 0) { pdf.addPage(); y = header(pdf, 'By product', source); } else y += 8;
     const res = COLS.map((c) => solve(x, settings, costIn(p)!, c.u, t));
@@ -177,14 +180,14 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(...INK);
-    pdf.text(`Where the money goes (Rs per unit, ${Math.round(t * 100)}% ads, ${pc(m)} margin)`, M, y + 3);
+    pdf.text(`Where the money goes (Rs per unit and % of price, ${Math.round(t * 100)}% ads, ${pc(m)} margin)`, M, y + 3);
     pdf.text(`Lowest price by ad spend (${pc(m)} margin)`, M + half + 8, y + 3);
     const ty = y + 5;
     const gRows: Cell[][] = [
-      ...GROUPS.map(([k, label]) => [k === 'margin' ? `${label} (${pc(m)})` : label, ...res.map((r) => num(groupLines(r.lines)[k]))] as Cell[]),
-      [{ t: 'Lowest price, incl. GST', s: { bold: true } }, ...res.map((r) => ({ t: rs(r.price), s: { bold: true, fill: SOFT } }))],
+      ...GROUPS.map(([k, label]) => [k === 'margin' ? `${label} (${pc(m)})` : label, ...res.map((r) => { const v = groupLines(r.lines)[k]; return num(v) === '-' ? '-' : `${num(v)} (${sh(v, r.price)})`; })] as Cell[]),
+      [{ t: 'Lowest price', s: { bold: true } }, ...res.map((r) => ({ t: rs(r.price), s: { bold: true, fill: SOFT } }))],
     ];
-    const y1 = table(pdf, M, ty, colsHalf, ['', ...COLS.map((c) => c.label)], gRows);
+    const y1 = table(pdf, M, ty, colsHalf, ['', ...COLS.map((c) => c.label)], gRows, 6.2, 7.8);
     const tRows: Cell[][] = TACOS.map((tt) => [
       { t: `${Math.round(tt * 100)}% ads`, s: Math.abs(tt - t) < 1e-9 ? { bold: true } : {} },
       ...COLS.map((c) => {
@@ -193,7 +196,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
         return { t: rs(pr), s: over ? { color: BAD, fill: BAD_BG } : Math.abs(tt - t) < 1e-9 ? { bold: true, fill: SOFT } : {} };
       }),
     ]);
-    const y2 = table(pdf, M + half + 8, ty, colsHalf, ['', ...COLS.map((c) => c.label)], tRows);
+    const y2 = table(pdf, M + half + 8, ty, colsHalf, ['', ...COLS.map((c) => c.label)], tRows, 6.2, 7.8);
     y = Math.max(y1, y2) + 3;
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7.5);

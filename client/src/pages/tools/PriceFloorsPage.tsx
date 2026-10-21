@@ -323,6 +323,8 @@ function UploadCard({ state, settings, onSaved, setNote }: {
 }
 
 const fmtPct = (v: number) => `${Math.round(v * 1000) / 10}%`;
+/** v as a share of the price, e.g. "53%". */
+const share = (v: number, price: number) => (price > 0 && Number.isFinite(price) && Number.isFinite(v) ? `${Math.round((v / price) * 100)}%` : '—');
 
 /** Target margin, typed as a percent; saves on Enter or when the field loses focus. */
 function MarginInput({ value, onSave }: { value: number; onSave: (v: number) => void }) {
@@ -368,8 +370,21 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
     const ft = res ? res.price : null;
     return { ...r, be, ft, g: res ? groupLines(res.lines) : null, room: ft != null && Number.isFinite(ft) && r.x.asp ? r.x.asp - ft : null };
   });
-  const room = (v: number | null) =>
-    v == null ? <span className="text-slate-400">—</span> : <span className={`font-semibold ${v < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{v < 0 ? `▼ ${rs(-v)} short` : `▲ ${rs(v)}`}</span>;
+  // Room as ₹ and as the % off today's price it allows (or the % increase it needs)
+  const room = (v: number | null, asp: number) =>
+    v == null ? <span className="text-slate-400">—</span> : (
+      <span className={`font-semibold ${v < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+        {v < 0 ? `▼ ${rs(-v)} short` : `▲ ${rs(v)}`}
+        <span className="block text-xs font-normal">{v < 0 ? `raise ${share(-v, asp)}` : `${share(v, asp)} off possible`}</span>
+      </span>
+    );
+  // ₹ with its share of the lowest price underneath
+  const part = (v: number | undefined, price: number | null) => (
+    <>
+      {rs(v)}
+      {v != null && price != null && Number.isFinite(price) && <span className="block text-xs text-slate-400">{share(v, price)}</span>}
+    </>
+  );
   const td = 'px-3 py-3 text-right tabular-nums text-slate-600';
   return (
     <>
@@ -382,14 +397,14 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
             </div>
             {r.g ? (
               <div className="mt-1 text-[13px] tabular-nums text-slate-500">
-                Cost {rs(r.g.cost)} · Amazon {rs(r.g.amazon)} · Returns {rs(r.g.returns)} · Ads {rs(r.g.ads)} · GST to pay {rs(r.g.gst)} · Margin {rs(r.g.margin)}
+                Cost {rs(r.g.cost)} ({share(r.g.cost, r.ft!)}) · Amazon {rs(r.g.amazon)} ({share(r.g.amazon, r.ft!)}) · Returns {rs(r.g.returns)} ({share(r.g.returns, r.ft!)}) · Ads {rs(r.g.ads)} ({share(r.g.ads, r.ft!)}) · GST to pay {rs(r.g.gst)} · Margin {rs(r.g.margin)} ({share(r.g.margin, r.ft!)})
               </div>
             ) : (
               <div className="mt-1 text-[13px] text-slate-500">{hasCosts ? 'Not linked to a product cost' : 'Costs not loaded'}</div>
             )}
             <div className="mt-1 flex items-baseline justify-between gap-3 text-[13px] text-slate-500">
               <span>Selling at {rs(r.x.asp)} · break-even {rs(r.be)}</span>
-              {room(r.room)}
+              {room(r.room, r.x.asp)}
             </div>
           </li>
         ))}
@@ -408,7 +423,7 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
               <th className="px-3 py-3 text-right font-semibold">Margin {fmtPct(m)}</th>
               <th className="px-3 py-3 text-right font-semibold">Lowest price</th>
               <th className="px-3 py-3 text-right font-semibold">Break-even</th>
-              <th className="py-3 pl-3 pr-5 text-right font-semibold">Room</th>
+              <th className="py-3 pl-3 pr-5 text-right font-semibold">Room vs today</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -422,15 +437,15 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
                   </span>
                 </td>
                 <td className="px-3 py-3 text-right tabular-nums">{rs(r.x.asp)}</td>
-                <td className={td}>{rs(r.g?.cost)}</td>
-                <td className={td}>{rs(r.g?.amazon)}</td>
-                <td className={td}>{rs(r.g?.returns)}</td>
-                <td className={td}>{rs(r.g?.ads)}</td>
-                <td className={td}>{rs(r.g?.gst)}</td>
-                <td className={td}>{rs(r.g?.margin)}</td>
+                <td className={td}>{part(r.g?.cost, r.ft)}</td>
+                <td className={td}>{part(r.g?.amazon, r.ft)}</td>
+                <td className={td}>{part(r.g?.returns, r.ft)}</td>
+                <td className={td}>{part(r.g?.ads, r.ft)}</td>
+                <td className={td}>{part(r.g?.gst, r.ft)}</td>
+                <td className={td}>{part(r.g?.margin, r.ft)}</td>
                 <td className="px-3 py-3 text-right tabular-nums font-bold">{rs(r.ft)}</td>
                 <td className={td}>{rs(r.be)}</td>
-                <td className="py-3 pl-3 pr-5 text-right tabular-nums">{room(r.room)}</td>
+                <td className="py-3 pl-3 pr-5 text-right tabular-nums">{room(r.room, r.x.asp)}</td>
               </tr>
             ))}
           </tbody>
@@ -488,7 +503,12 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
                       <td className="py-2 pl-3 pr-3">{label}{k === 'margin' ? ` (${fmtPct(m)})` : ''}</td>
                       {res.map((x, i) => {
                         const v = groupLines(x.lines)[k];
-                        return <td key={i} className="px-3 py-2 text-right tabular-nums text-slate-600">{!Number.isFinite(v) ? '—' : Math.round(v) ? Math.round(v).toLocaleString('en-IN') : '–'}</td>;
+                        return (
+                          <td key={i} className="px-3 py-2 text-right tabular-nums text-slate-600">
+                            {!Number.isFinite(v) ? '—' : Math.round(v) ? Math.round(v).toLocaleString('en-IN') : '–'}
+                            {Number.isFinite(v) && Math.round(v) !== 0 && <span className="ml-1.5 text-xs text-slate-400">{share(v, x.price)}</span>}
+                          </td>
+                        );
                       })}
                     </tr>
                   ))}
