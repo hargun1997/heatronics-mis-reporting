@@ -14,6 +14,9 @@ import {
   DEFAULT_SETTINGS,
   SELLER_CENTRAL_REPORTS,
   TACOS,
+  buyGstOf,
+  costIn,
+  grossCost,
   groupLines,
   marginOf,
   mergeReport,
@@ -21,6 +24,7 @@ import {
   returnRate,
   rs,
   solve,
+  type CostIn,
   type CostsSnapshot,
   type FeeReport,
   type FloorSettings,
@@ -55,7 +59,8 @@ async function api<T>(url: string, body?: unknown, method?: string): Promise<T> 
   return j as T;
 }
 
-interface Row { x: FloorSku; p: ProductCost | null; cost: number | null }
+/** cost = product cost incl. the GST paid on materials; c = the split solve() needs. */
+interface Row { x: FloorSku; p: ProductCost | null; c: CostIn | null; cost: number | null }
 
 export function PriceFloorsPage() {
   const [state, setState] = useState<ApiState | null>(null);
@@ -81,7 +86,8 @@ export function PriceFloorsPage() {
   const rows: Row[] = useMemo(
     () => settings.skus.map((x) => {
       const p = products.find((q) => q.item === x.item) || null;
-      return { x, p, cost: p?.cost ?? null };
+      const c = costIn(p);
+      return { x, p, c, cost: c ? grossCost(c, settings) : null };
     }),
     [settings, products],
   );
@@ -102,7 +108,7 @@ export function PriceFloorsPage() {
   const t = Number(tacos);
   const m = marginOf(settings);
   const priced = rows.filter((r) => r.cost != null);
-  const below = priced.filter((r) => solve(r.x, settings, r.cost!, 0, t).price > r.x.asp);
+  const below = priced.filter((r) => solve(r.x, settings, r.c!, 0, t).price > r.x.asp);
   const saveMargin = async (v: number) => {
     const next = { ...settings, global: { ...settings.global, margin: v } };
     setState((st) => (st ? { ...st, settings: next } : st));
@@ -150,7 +156,7 @@ export function PriceFloorsPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <SourceCard
             title="Product costs"
-            line={costs?.month ? `${monthName(costs.month)} · full cost per unit` : 'Not loaded yet'}
+            line={costs?.month ? `${monthName(costs.month)} · materials + ${fmtPct(buyGstOf(settings))} GST + conversion` : 'Not loaded yet'}
             sub={
               costs?.error
                 ? <span className="text-rose-700">Last refresh failed: {costs.error}{costs.month ? ' (showing the last good costs)' : ''}</span>
@@ -173,7 +179,7 @@ export function PriceFloorsPage() {
 
         <SectionCard
           title="Lowest price per product"
-          description="Where each rupee of that price goes. Returns at each product's own rate, all resellable. Room = today's average price minus the lowest price."
+          description={`Where each rupee of that price goes. Costs include their ${fmtPct(buyGstOf(settings))} GST; the ${fmtPct(settings.global.gst)} on the sale is paid from those credits. Returns at each product's own rate, all resellable. Room = today's average price minus the lowest price.`}
           className="overflow-hidden"
         >
           <div className="-mt-1 mb-4 flex flex-wrap items-center gap-3">
@@ -350,15 +356,15 @@ const GROUP_ROWS: [keyof Groups, string][] = [
   ['amazon', 'Amazon fees'],
   ['returns', 'Returns'],
   ['ads', 'Ads'],
-  ['gst', 'GST on the sale'],
+  ['gst', 'GST still to pay'],
   ['margin', 'Margin'],
 ];
 
 function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: FloorSettings; t: number; hasCosts: boolean }) {
   const m = marginOf(settings);
   const out = rows.map((r) => {
-    const be = r.cost != null ? solve(r.x, settings, r.cost, 0, t, 0).price : null;
-    const res = r.cost != null ? solve(r.x, settings, r.cost, 0, t) : null;
+    const be = r.c ? solve(r.x, settings, r.c, 0, t, 0).price : null;
+    const res = r.c ? solve(r.x, settings, r.c, 0, t) : null;
     const ft = res ? res.price : null;
     return { ...r, be, ft, g: res ? groupLines(res.lines) : null, room: ft != null && Number.isFinite(ft) && r.x.asp ? r.x.asp - ft : null };
   });
@@ -376,7 +382,7 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
             </div>
             {r.g ? (
               <div className="mt-1 text-[13px] tabular-nums text-slate-500">
-                Cost {rs(r.g.cost)} · Amazon {rs(r.g.amazon)} · Returns {rs(r.g.returns)} · Ads {rs(r.g.ads)} · GST {rs(r.g.gst)} · Margin {rs(r.g.margin)}
+                Cost {rs(r.g.cost)} · Amazon {rs(r.g.amazon)} · Returns {rs(r.g.returns)} · Ads {rs(r.g.ads)} · GST to pay {rs(r.g.gst)} · Margin {rs(r.g.margin)}
               </div>
             ) : (
               <div className="mt-1 text-[13px] text-slate-500">{hasCosts ? 'Not linked to a product cost' : 'Costs not loaded'}</div>
@@ -398,7 +404,7 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
               <th className="px-3 py-3 text-right font-semibold">Amazon fees</th>
               <th className="px-3 py-3 text-right font-semibold">Returns</th>
               <th className="px-3 py-3 text-right font-semibold">Ads {Math.round(t * 100)}%</th>
-              <th className="px-3 py-3 text-right font-semibold">GST</th>
+              <th className="px-3 py-3 text-right font-semibold">GST to pay</th>
               <th className="px-3 py-3 text-right font-semibold">Margin {fmtPct(m)}</th>
               <th className="px-3 py-3 text-right font-semibold">Lowest price</th>
               <th className="px-3 py-3 text-right font-semibold">Break-even</th>
@@ -437,9 +443,12 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
 function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: number }) {
   const [view, setView] = useState<'grid' | 'cost'>('grid');
   const cost = r.cost!;
+  const ci = r.c!;
   const m = marginOf(settings);
-  const ft = solve(r.x, settings, cost, 0, t).price;
-  const res = COLS.map((c) => solve(r.x, settings, cost, c.u, t));
+  const b = buyGstOf(settings);
+  const ft = solve(r.x, settings, ci, 0, t).price;
+  const res = COLS.map((c) => solve(r.x, settings, ci, c.u, t));
+  const now = res[1].lines;
   return (
     <Disclosure
       title={r.x.name}
@@ -462,7 +471,7 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
                 <tr key={tt} className={Math.abs(tt - t) < 1e-9 ? 'bg-brand-50 font-semibold' : ''}>
                   <td className="py-2 pl-3 pr-3 tabular-nums">{Math.round(tt * 100)}%</td>
                   {COLS.map((c) => {
-                    const p = solve(r.x, settings, cost, c.u, tt).price;
+                    const p = solve(r.x, settings, ci, c.u, tt).price;
                     const over = p > r.x.asp;
                     return (
                       <td key={c.label} className={`px-3 py-2 text-right tabular-nums ${over ? 'bg-rose-50 text-rose-700' : ''}`}>
@@ -493,7 +502,8 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
         </table>
       </div>
       <p className="mt-3 text-xs text-slate-500">
-        Red cells are above today's price of {rs(r.x.asp)}. Product cost {rs(cost)} for {r.x.item} (materials and conversion). Amazon fees = FBA, inbound, storage, referral and closing, with their 18% GST. Returns = wasted fees on returned units, plus the lost unit when it can't be resold. ASIN {r.x.asin}.
+        Red cells are above today's price of {rs(r.x.asp)}. Product cost {rs(cost)} for {r.x.item} = materials {rs(ci.material)} + {fmtPct(b)} GST + conversion {rs(ci.conversion)}. Amazon fees = FBA, inbound, storage, referral and closing; fees and ads include {fmtPct(b)} GST. Returns = wasted fees on returned units, plus the lost unit when it can't be resold.
+        {' '}GST: the {fmtPct(settings.global.gst)} on the sale ({rs(now.outGst)} at the all-resellable price) is paid from the {rs(now.inGst)} of input GST in the costs, so nothing extra is paid{now.credit > 0.5 ? `; ${rs(now.credit)} of credit is left over and lost` : ''}. ASIN {r.x.asin}.
       </p>
     </Disclosure>
   );
@@ -501,6 +511,8 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
 
 const GLOBAL_FIELDS: [keyof FloorSettings['global'], string, string][] = [
   ['margin', 'Target margin', '% of the selling price, after every cost'],
+  ['gst', 'GST on our sale', '% charged to the customer'],
+  ['buyGst', 'GST on purchases', '% on materials, Amazon fees and ads'],
   ['placement', 'Inbound placement', '₹ per unit, when a SKU has no inbound of its own'],
   ['transport', 'Inbound transport', '₹ per unit, when a SKU has no inbound of its own'],
   ['storage', 'Storage', '₹ per unit sold'],
@@ -510,6 +522,7 @@ const GLOBAL_FIELDS: [keyof FloorSettings['global'], string, string][] = [
   ['removal', 'Removal fee', '₹ per unsellable return'],
   ['minSample', 'Average return rate below', 'units sold'],
 ];
+const PCT_FIELDS = new Set<keyof FloorSettings['global']>(['margin', 'gst', 'buyGst']);
 const SKU_FIELDS: [keyof FloorSku, string][] = [
   ['asp', 'Avg price ₹'],
   ['sold', 'Units sold'],
@@ -559,8 +572,8 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
               <input
                 inputMode="decimal"
                 className={inputCls}
-                value={k === 'margin' ? Math.round(marginOf(s) * 1000) / 10 : s.global[k]}
-                onChange={(e) => setS({ ...s, global: { ...s.global, [k]: k === 'margin' ? num(e.target.value) / 100 : num(e.target.value) } })}
+                value={PCT_FIELDS.has(k) ? Math.round((k === 'margin' ? marginOf(s) : k === 'buyGst' ? buyGstOf(s) : s.global[k]) * 1000) / 10 : s.global[k]}
+                onChange={(e) => setS({ ...s, global: { ...s.global, [k]: PCT_FIELDS.has(k) ? num(e.target.value) / 100 : num(e.target.value) } })}
               />
               <span className="mt-1 block text-xs font-normal text-slate-500">{unit}</span>
             </label>
@@ -606,7 +619,7 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
             {busy ? 'Saving…' : 'Save settings'}
           </button>
           {dirty && <button type="button" onClick={() => setS(settings)} className="h-11 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">Undo changes</button>}
-          <p className="text-xs text-slate-500">Referral % is of the GST-inclusive price and applies from the band up. Amazon fees include their 18% GST.</p>
+          <p className="text-xs text-slate-500">Referral % is of the GST-inclusive price and applies from the band up. Amazon fees include their GST; materials and ads get GST on purchases added.</p>
         </div>
       </div>
     </Disclosure>

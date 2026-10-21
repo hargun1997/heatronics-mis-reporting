@@ -4,8 +4,10 @@
 // read from production.heatronics.in) and the SKU's Amazon economics (from the
 // Seller Central "Revenue and fees" report uploaded here).
 //
-// Amazon fees include the 18% GST Amazon charges on them; that GST is treated as
-// a cost because of the inverted duty structure (5% output, 18% input).
+// GST is inverted: we sell at 5% and buy almost everything at 18% (materials,
+// Amazon fees, ads). So every purchase is counted with its 18% GST, and the 5%
+// GST on the sale is paid out of those input credits, costing nothing extra
+// unless the credits fall short. Credit left over is lost (not refunded).
 // ----------------------------------------------------------------------------
 
 export interface FloorSku {
@@ -36,6 +38,7 @@ export interface FloorGlobal {
   removal: number; // removal fee per unsellable return
   minSample: number; // below this many units sold, use the average return rate
   margin: number; // target profit as a share of the GST-inclusive selling price
+  buyGst: number; // GST paid on materials, Amazon fees and ads (input credit)
 }
 
 export interface FloorSettings {
@@ -107,6 +110,7 @@ export const DEFAULT_GLOBAL: FloorGlobal = {
   removal: 11.8,
   minSample: 30,
   margin: 0.08,
+  buyGst: 0.18,
 };
 
 const s = (asin: string, name: string, sku: string, item: string, asp: number, sold: number, returned: number, fba: number, admin: number, refPct: number): FloorSku => ({
@@ -164,8 +168,11 @@ export interface Lines {
   returns: number;
   unsellable: number;
   ads: number;
-  gst: number;
+  gst: number; // GST still to pay on the sale after input credits (0 while credits cover it)
   margin: number;
+  credit: number; // input GST left over after paying the sale GST: lost, already inside the costs
+  outGst: number; // GST on the sale (5%)
+  inGst: number; // GST inside the costs (18%)
 }
 
 /** Same lines grouped the way the page shows them. */
@@ -181,13 +188,23 @@ export const groupLines = (l: Lines): Groups => ({
 
 /** Target margin from settings; older saved settings have none. */
 export const marginOf = (st: FloorSettings) => (Number.isFinite(st.global.margin) ? st.global.margin : DEFAULT_GLOBAL.margin);
+export const buyGstOf = (st: FloorSettings) => (Number.isFinite(st.global.buyGst) ? st.global.buyGst : DEFAULT_GLOBAL.buyGst);
+
+/** Product cost split as production reports it: materials (before GST) and conversion (overheads, no GST). */
+export interface CostIn { material: number; conversion: number }
+export const costIn = (p: ProductCost | null | undefined): CostIn | null =>
+  p?.cost == null ? null : { material: p.material ?? p.cost - (p.conversion ?? 0), conversion: p.conversion ?? 0 };
+/** Product cost with the GST paid on materials. */
+export const grossCost = (c: CostIn, st: FloorSettings) => c.material * (1 + buyGstOf(st)) + c.conversion;
 
 /**
  * Lowest GST-inclusive price that leaves `margin` (share of the price) after product cost,
- * Amazon fees, returns, ads and GST. margin = 0 gives the break-even price.
+ * Amazon fees, returns, ads and any GST not covered by input credits. margin = 0 gives break-even.
  */
-export function solve(x: FloorSku, st: FloorSettings, cost: number, unsellable: number | null, tacos: number, margin = marginOf(st)): { price: number; lines: Lines } {
+export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: number | null, tacos: number, margin = marginOf(st)): { price: number; lines: Lines } {
   const g = st.global;
+  const b = buyGstOf(st);
+  const cost = grossCost(c, st);
   const r = unsellable === null ? 0 : Math.min(returnRate(x, st), 0.9);
   const u = unsellable || 0;
   const k = r / (1 - r);
@@ -195,28 +212,47 @@ export function solve(x: FloorSku, st: FloorSettings, cost: number, unsellable: 
   const inbound = sent + g.storage;
   const base = cost + x.fba + inbound + k * (x.fba + x.admin) + k * u * (cost + inbound + g.removal);
   const net = 1 / (1 + g.gst);
+  const ads = tacos * (1 + b); // ad spend is billed with 18% GST on top
   // ads + margin (+ referral) can eat the whole price: then no price works
-  const lo = net - tacos - margin;
+  const lo = 1 - ads - margin;
   const hi = lo - x.refPct;
-  let price = lo > 0 ? (base + g.closeLo) / lo : Infinity;
+  let price = Infinity;
   let above = false;
-  if (price >= g.band) {
-    price = hi > 0 ? Math.max(g.band, (base + g.closeHi) / hi) : Infinity;
-    above = true;
+  let extra = 0; // sale GST the input credits don't cover
+  let inGst = 0;
+  let outGst = 0;
+  for (let i = 0; i < 30; i++) {
+    price = lo > 0 ? (base + extra + g.closeLo) / lo : Infinity;
+    above = false;
+    if (price >= g.band) {
+      price = hi > 0 ? Math.max(g.band, (base + extra + g.closeHi) / hi) : Infinity;
+      above = true;
+    }
+    if (!Number.isFinite(price)) break;
+    // Amazon fees (incl. their GST): fulfilment, inbound, storage, referral, closing, wasted on returns, removal
+    const amazon = x.fba + inbound + (above ? x.refPct * price + g.closeHi : g.closeLo) + k * (x.fba + x.admin) + k * u * (inbound + g.removal);
+    inGst = (amazon * b) / (1 + b) + b * c.material * (1 + k * u) + b * tacos * price;
+    outGst = price - price * net;
+    const next = Math.max(0, outGst - inGst);
+    if (Math.abs(next - extra) < 0.005) { extra = next; break; }
+    extra = next;
   }
-  const lines = {
-      cost,
-      fba: x.fba,
-      placement: x.inbound != null ? 0 : g.placement,
-      transport: x.inbound != null ? x.inbound : g.transport,
-      storage: g.storage,
-      referral: above ? x.refPct * price : 0,
-      closing: above ? g.closeHi : g.closeLo,
-      returns: k * (x.fba + x.admin),
-      unsellable: k * u * (cost + inbound + g.removal),
-      ads: tacos * price,
-      gst: price - price * net,
-      margin: 0,
+  const lines: Lines = {
+    cost,
+    fba: x.fba,
+    placement: x.inbound != null ? 0 : g.placement,
+    transport: x.inbound != null ? x.inbound : g.transport,
+    storage: g.storage,
+    referral: above ? x.refPct * price : 0,
+    closing: above ? g.closeHi : g.closeLo,
+    returns: k * (x.fba + x.admin),
+    unsellable: k * u * (cost + inbound + g.removal),
+    ads: ads * price,
+    gst: extra,
+    margin: 0,
+    credit: Math.max(0, inGst - outGst),
+    outGst,
+    inGst,
   };
   const spent = lines.cost + lines.fba + lines.placement + lines.transport + lines.storage + lines.referral + lines.closing + lines.returns + lines.unsellable + lines.ads + lines.gst;
   lines.margin = price - spent;
