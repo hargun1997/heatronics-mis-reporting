@@ -7,9 +7,12 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, SectionCard } from '../../components/ui/Card';
 import { Disclosure } from '../../components/ui/Disclosure';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { Modal } from '../../components/ui/overlays';
+import { downloadFloorsReport } from '../../utils/priceFloorsExport';
 import {
   COLS,
   DEFAULT_SETTINGS,
+  SELLER_CENTRAL_REPORTS,
   TACOS,
   mergeReport,
   pct,
@@ -58,6 +61,7 @@ export function PriceFloorsPage() {
   const [tacos, setTacos] = useState<string>('0.1');
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<{ tone: 'good' | 'bad'; text: string } | null>(null);
+  const [picker, setPicker] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -106,6 +110,14 @@ export function PriceFloorsPage() {
         icon={icon}
         crumbs={[{ label: 'Tools', to: '/tools' }, { label: 'Amazon price floors' }]}
         actions={
+          <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPicker(true)}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            Download report
+          </button>
           <button
             type="button"
             onClick={refreshCosts}
@@ -114,6 +126,7 @@ export function PriceFloorsPage() {
           >
             {busy === 'costs' ? 'Refreshing…' : 'Refresh costs'}
           </button>
+          </div>
         }
       />
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -170,6 +183,16 @@ export function PriceFloorsPage() {
         <SettingsEditor settings={settings} products={products} onSaved={(s) => setState((st) => (st ? { ...st, settings: s } : st))} setNote={setNote} />
         <History reports={state?.reports || []} onDeleted={(id) => setState((st) => (st ? { ...st, reports: st.reports.filter((r) => r.id !== id) } : st))} />
       </div>
+      {picker && <DownloadPicker
+        open
+        onClose={() => setPicker(false)}
+        rows={rows}
+        onDownload={(skus) => {
+          const r = downloadFloorsReport({ skus, settings, products, costs, feeReport: state?.reports[0] || null });
+          setPicker(false);
+          setNote({ tone: r.written ? 'good' : 'bad', text: r.written ? `Report downloaded for ${r.written} product${r.written > 1 ? 's' : ''}.` : 'None of the picked products has a cost yet, so there was nothing to put in the report.' });
+        }}
+      />}
     </>
   );
 }
@@ -201,6 +224,7 @@ function UploadCard({ state, settings, onSaved, setNote }: {
   setNote: (n: { tone: 'good' | 'bad'; text: string } | null) => void;
 }) {
   const [preview, setPreview] = useState<{ rep: FeeReport; next: FloorSettings; updated: string[]; added: string[] } | null>(null);
+  const [drag, setDrag] = useState(false);
   const [busy, setBusy] = useState(false);
   const latest = state?.reports[0];
   const onFile = async (f: File | undefined) => {
@@ -250,12 +274,25 @@ function UploadCard({ state, settings, onSaved, setNote }: {
       ) : (
         <>
           <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{latest ? when(latest.uploadedAt) : 'Starting values'}</div>
-          <div className="mb-4 mt-1.5 text-sm text-slate-600">{latest ? latest.fileName : 'From the 14 Oct fee report. Upload a fresh one to refresh fees, prices and returns.'}</div>
-          <label className="mt-auto inline-flex h-11 translate-y-0 cursor-pointer items-center justify-center rounded-xl bg-brand-500 px-4 pt-0 text-sm font-semibold text-white hover:bg-brand-600 focus-within:ring-2 focus-within:ring-brand-400">
+          <div className="mb-3 mt-1.5 text-sm text-slate-600">{latest ? latest.fileName : 'From the 14 Oct fee report. Upload a fresh one to refresh fees, prices and returns.'}</div>
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); void onFile(e.dataTransfer.files?.[0]); }}
+            className={`mt-auto flex min-h-[64px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-2 text-center text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-brand-400 ${drag ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-300 bg-brand-50/40 text-brand-700 hover:bg-brand-50'}`}
+          >
             <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
-            {busy ? 'Reading…' : 'Upload fee report'}
+            {busy ? 'Reading…' : drag ? 'Drop it here' : 'Drop the fee report here, or click to choose'}
           </label>
-          <p className="mt-2 text-xs text-slate-500">Seller Central → Reports → Revenue and fees, all ASINs, .xlsx</p>
+          <a
+            href={settings.reportUrl || SELLER_CENTRAL_REPORTS}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex min-h-[44px] items-center gap-1 text-sm font-semibold text-brand-700 hover:underline"
+          >
+            Open Seller Central to download it ↗
+          </a>
+          <p className="text-xs text-slate-500">Reports → Revenue and fees, all ASINs, .xlsx. Change this link in Settings.</p>
         </>
       )}
     </Card>
@@ -452,6 +489,11 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
   return (
     <Disclosure title="Settings: product links and Amazon fee rates" subtitle={settings.updatedAt ? `Last saved ${when(settings.updatedAt)}` : 'Starting values from the 14 Oct fee report'}>
       <div className="space-y-5 pt-2">
+        <label className="block max-w-2xl text-[13px] font-semibold text-slate-600">
+          Seller Central link for the fee report
+          <input className={inputCls.replace('tabular-nums', '')} value={s.reportUrl || ''} placeholder={SELLER_CENTRAL_REPORTS} onChange={(e) => setS({ ...s, reportUrl: e.target.value.trim() })} />
+          <span className="mt-1 block text-xs font-normal text-slate-500">Paste the address of the Revenue and fees report page; the upload card opens it.</span>
+        </label>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {GLOBAL_FIELDS.map(([k, label, unit]) => (
             <label key={k} className="block text-[13px] font-semibold text-slate-600">
@@ -536,5 +578,51 @@ function History({ reports, onDeleted }: { reports: ReportMeta[]; onDeleted: (id
         <p className="pt-1 text-sm text-slate-500">Upload a Seller Central fee report to start the history.</p>
       )}
     </Disclosure>
+  );
+}
+
+function DownloadPicker({ open, onClose, rows, onDownload }: { open: boolean; onClose: () => void; rows: Row[]; onDownload: (skus: FloorSku[]) => void }) {
+  const withCost = rows.filter((r) => r.cost != null);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(withCost.map((r) => r.x.asin)));
+  const all = picked.size === withCost.length && withCost.length > 0;
+  const toggle = (a: string) => setPicked((p) => { const n = new Set(p); if (n.has(a)) n.delete(a); else n.add(a); return n; });
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Download price floors report"
+      subtitle="Pick the products to include. You get an Excel file with the summary, floors by ad spend, cost breakdown and the inputs used."
+      footer={
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <span className="text-sm text-slate-500">{picked.size} of {withCost.length} picked</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="h-11 rounded-xl px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+            <button
+              type="button"
+              disabled={!picked.size}
+              onClick={() => onDownload(rows.filter((r) => picked.has(r.x.asin)).map((r) => r.x))}
+              className="h-11 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
+            >
+              Download Excel
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-1">
+        <label className="flex min-h-[44px] items-center gap-3 rounded-lg px-2 font-semibold text-slate-900 hover:bg-slate-50">
+          <input type="checkbox" className="h-4 w-4 accent-brand-500" checked={all} onChange={() => setPicked(all ? new Set() : new Set(withCost.map((r) => r.x.asin)))} />
+          All products
+        </label>
+        <div className="border-t border-slate-100" />
+        {rows.map((r) => (
+          <label key={r.x.asin} className={`flex min-h-[44px] items-center gap-3 rounded-lg px-2 text-sm ${r.cost == null ? 'text-slate-400' : 'text-slate-800 hover:bg-slate-50'}`}>
+            <input type="checkbox" className="h-4 w-4 accent-brand-500" disabled={r.cost == null} checked={picked.has(r.x.asin)} onChange={() => toggle(r.x.asin)} />
+            <span className="flex-1">{r.x.name}</span>
+            <span className="text-xs text-slate-500">{r.cost == null ? 'no cost yet' : rs(r.cost)}</span>
+          </label>
+        ))}
+      </div>
+    </Modal>
   );
 }

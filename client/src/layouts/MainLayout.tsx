@@ -48,7 +48,6 @@ const I = {
   tools: ico(['M14 7l3 3-8 8H6v-3z', 'M4 20h16']),
   close: ico('M20 6L9 17l-5-5'),
   deck: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']),
-  tag: ico(['M7 7h.01', 'M3 12V7a4 4 0 014-4h5l9 9-9 9z']),
 };
 
 // Ordered by how often people use them: everyday work first, MIS next,
@@ -60,6 +59,7 @@ const SECTIONS: NavSection[] = [
       { path: '/tasks', label: 'Tasks', icon: I.tasks, match: (p) => p === '/tasks' || p === '/tasks/' },
       { path: '/handbook', label: 'Accounts Handbook', icon: I.book, match: (p) => p.startsWith('/guide') || p.startsWith('/handbook') },
       { path: '/booking-assistant', label: 'Booking assistant', icon: I.booking, match: (p) => p.startsWith('/booking-assistant') },
+      { path: '/tools', label: 'Tools', icon: I.tools, match: (p) => p.startsWith('/tools') },
     ],
   },
   {
@@ -69,7 +69,6 @@ const SECTIONS: NavSection[] = [
       { path: '/reporting/mis/ingest', label: 'Upload data', icon: I.upload, match: (p) => p.startsWith('/reporting/mis/ingest') },
       { path: '/reporting/mis/issues', label: 'Data issues', icon: I.issues, match: (p) => p.startsWith('/reporting/mis/issues') },
       { path: '/reporting/mis/send', label: 'Send report', icon: I.send, match: (p) => p.startsWith('/reporting/mis/send') },
-      { path: '/tools/price-floors', label: 'Price floors', icon: I.tag, match: (p) => p.startsWith('/tools/price-floors') },
       { path: '/reporting/mis/insights', label: 'AI insights', icon: I.ai, match: (p) => p.startsWith('/reporting/mis/insights') || p.startsWith('/reporting/mis/chat') },
     ],
   },
@@ -80,7 +79,6 @@ const SECTIONS: NavSection[] = [
       { path: '/tasks/settings', label: 'People & reminders', icon: I.people, match: (p) => p.startsWith('/tasks/settings') },
       { path: '/reporting/mis/connectors', label: 'Data sources', icon: I.sources, match: (p) => p.startsWith('/reporting/mis/connectors') },
       { path: '/reporting/mis/rulebook', label: 'Data rulebook', icon: I.rules, match: (p) => p.startsWith('/reporting/mis/rulebook') },
-      { path: '/tools', label: 'Tools', icon: I.tools, match: (p) => p.startsWith('/tools') && !p.startsWith('/tools/price-floors') },
       { path: '/reporting/mis/close', label: 'Month close (old)', muted: true, icon: I.close, match: (p) => p.startsWith('/reporting/mis/close') },
       { path: '/reporting/mis', label: 'MIS deck (old)', muted: true, icon: I.deck, match: isDeck },
     ],
