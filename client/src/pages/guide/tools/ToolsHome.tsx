@@ -48,6 +48,14 @@ export function ToolsHome() {
             accent="brand"
           />
           <NavCard
+            to="/tools/price-floors"
+            title="Amazon price floors"
+            description="Lowest break-even Amazon price per product: production's latest cost plus your Seller Central fee report, by ad spend and returns."
+            icon={iconConvert}
+            accent="amber"
+            badge="New"
+          />
+          <NavCard
             to="/tools/amazon-to-tranzact"
             title="Amazon → Tranzact"
             description="Convert the Amazon FBA Inventory Ledger into a Tranzact Physical Stock Reconciliation upload."

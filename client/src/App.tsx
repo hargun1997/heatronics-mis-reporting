@@ -26,6 +26,7 @@ import { InvoiceBookingSuggester } from './pages/guide/tools/InvoiceBookingSugge
 import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
 import { ExpenseBooking } from './pages/tools/ExpenseBooking';
 import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
+import { PriceFloorsPage } from './pages/tools/PriceFloorsPage';
 
 function App() {
   return (
@@ -100,6 +101,7 @@ function App() {
           <Route path="tools/invoice-booking" element={<InvoiceBookingSuggester />} />
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
           <Route path="tools/expense-booking" element={<ExpenseBooking />} />
+          <Route path="tools/price-floors" element={<PriceFloorsPage />} />
 
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />
