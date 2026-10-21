@@ -42,6 +42,8 @@ export interface FloorSettings {
   skus: FloorSku[];
   updatedAt: string | null;
   updatedBy: string | null;
+  /** Seller Central page where the Revenue and fees report is downloaded. */
+  reportUrl?: string;
 }
 
 export interface ProductCost {
@@ -110,8 +112,11 @@ const s = (asin: string, name: string, sku: string, item: string, asp: number, s
 });
 
 /** Starting point until the first report is uploaded (Seller Central fee report, 14 Oct 2026). */
+export const SELLER_CENTRAL_REPORTS = 'https://sellercentral.amazon.in/';
+
 export const DEFAULT_SETTINGS: FloorSettings = {
   global: DEFAULT_GLOBAL,
+  reportUrl: SELLER_CENTRAL_REPORTS,
   updatedAt: null,
   updatedBy: null,
   skus: [
