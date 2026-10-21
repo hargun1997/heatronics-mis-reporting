@@ -153,7 +153,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
     const slot = i % 6;
     if (slot === 0) { pdf.addPage(); header(pdf, `Waterfall per unit at ${ads(t)}`, source); }
     const bx = M + (slot % 3) * (bw + gap);
-    let by = M + 18 + Math.floor(slot / 3) * 88;
+    let by = M + 16 + Math.floor(slot / 3) * 90;
     const res = solve(x, settings, c, 0, t);
     const g = groupLines(res.lines, res.price);
     pdf.setFillColor(...BRAND);
@@ -175,7 +175,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
         { t: k === 'price' || k === 'saleGst' ? '' : sh(g[k], g.net), s: { ...st, color: total ? INK : MUTED } },
       ];
     });
-    table(pdf, bx, by, wcols, ['', 'Rs', '% of net'], wrows, 7, 8.5);
+    table(pdf, bx, by, wcols, ['', 'Rs', '% of net'], wrows, 6.1, 8.5);
   });
   pdf.setFont('helvetica', 'normal');
 
