@@ -16,7 +16,8 @@ import {
   buyGstOf,
   costIn,
   grossCost,
-  WATERFALL,
+  assumptionsLine,
+  waterfallRows,
   groupLines,
   marginOf,
   mergeReport,
@@ -179,7 +180,7 @@ export function PriceFloorsPage() {
 
         <SectionCard
           title="Pricing guide"
-          description={`Price at ${fmtPct(m)} margin on net sales for each ad spend. Never sell below break-even. Open a product below for its waterfall.`}
+          description={`Prices include ${assumptionsLine(settings)}. Never sell below break-even. Open a product below for its waterfall.`}
           className="overflow-hidden"
         >
           <div className="-mt-1 mb-4 flex flex-wrap items-center gap-3">
@@ -209,6 +210,10 @@ export function PriceFloorsPage() {
               onToggle={(on) => saveGlobal({ packingOn: on }, on ? 'Packing on' : 'Packing off')}
               onSave={(v) => saveGlobal({ packing: v }, `Packing ${fmtPct(v)}`)}
             />
+            <label className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[14px] font-semibold text-slate-700">
+              <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={g.stuckOn !== false} onChange={(e) => saveGlobal({ stuckOn: e.target.checked }, e.target.checked ? 'GST stuck counted' : 'GST stuck ignored')} />
+              Count GST stuck
+            </label>
           </div>
           <SummaryTable rows={rows} settings={settings} t={t} hasCosts={products.length > 0} />
         </SectionCard>
@@ -470,7 +475,7 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
           <tr><th className="py-1.5 text-left font-semibold">Per unit, {Math.round(t * 100)}% ads</th><th className="py-1.5 font-semibold">₹</th><th className="py-1.5 font-semibold">% of net sales</th></tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {WATERFALL.map(({ k, label, sign }) => (
+          {waterfallRows(settings).map(({ k, label, sign }) => (
             <tr key={k} className={sign === '=' || k === 'price' ? 'font-semibold text-slate-900' : 'text-slate-600'}>
               <td className="py-2"><span className="mr-1.5 inline-block w-3 text-slate-400">{sign}</span>{label}{k === 'saleGst' ? ` ${fmtPct(settings.global.gst)}` : ''}</td>
               <td className="py-2 text-right tabular-nums">{rs(g[k])}</td>
@@ -484,7 +489,7 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
   );
 }
 
-type NumKey = Exclude<keyof FloorSettings['global'], 'resellerOn' | 'packingOn'>;
+type NumKey = Exclude<keyof FloorSettings['global'], 'resellerOn' | 'packingOn' | 'stuckOn'>;
 const GLOBAL_FIELDS: [NumKey, string, string][] = [
   ['margin', 'Target margin', '% of net sales (price without GST), after every cost'],
   ['gst', 'GST on our sale', '% charged to the customer'],
