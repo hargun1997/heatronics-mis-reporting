@@ -10,6 +10,7 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Modal } from '../../components/ui/overlays';
 import { downloadFloorsReport } from '../../utils/priceFloorsExport';
 import {
+  DEFAULT_GLOBAL,
   DEFAULT_SETTINGS,
   SELLER_CENTRAL_REPORTS,
   buyGstOf,
@@ -462,6 +463,8 @@ const GLOBAL_FIELDS: [keyof FloorSettings['global'], string, string][] = [
   ['margin', 'Target margin', '% of net sales (price without GST), after every cost'],
   ['gst', 'GST on our sale', '% charged to the customer'],
   ['buyGst', 'GST on purchases', '% on materials, Amazon fees and ads'],
+  ['reseller', 'Reseller margin', '% of net sales kept by the 3P seller'],
+  ['packing', 'Packing', '% of net sales, before GST'],
   ['placement', 'Inbound placement', '₹ per unit, when a SKU has no inbound of its own'],
   ['transport', 'Inbound transport', '₹ per unit, when a SKU has no inbound of its own'],
   ['storage', 'Storage', '₹ per unit sold'],
@@ -471,7 +474,7 @@ const GLOBAL_FIELDS: [keyof FloorSettings['global'], string, string][] = [
   ['removal', 'Removal fee', '₹ per unsellable return'],
   ['minSample', 'Average return rate below', 'units sold'],
 ];
-const PCT_FIELDS = new Set<keyof FloorSettings['global']>(['margin', 'gst', 'buyGst']);
+const PCT_FIELDS = new Set<keyof FloorSettings['global']>(['margin', 'gst', 'buyGst', 'reseller', 'packing']);
 const SKU_FIELDS: [keyof FloorSku, string][] = [
   ['asp', 'Avg price ₹'],
   ['sold', 'Units sold'],
@@ -521,7 +524,7 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
               <input
                 inputMode="decimal"
                 className={inputCls}
-                value={PCT_FIELDS.has(k) ? Math.round((k === 'margin' ? marginOf(s) : k === 'buyGst' ? buyGstOf(s) : s.global[k]) * 1000) / 10 : s.global[k]}
+                value={PCT_FIELDS.has(k) ? Math.round((k === 'margin' ? marginOf(s) : k === 'buyGst' ? buyGstOf(s) : (s.global[k] ?? DEFAULT_GLOBAL[k])) * 1000) / 10 : s.global[k]}
                 onChange={(e) => setS({ ...s, global: { ...s.global, [k]: PCT_FIELDS.has(k) ? num(e.target.value) / 100 : num(e.target.value) } })}
               />
               <span className="mt-1 block text-xs font-normal text-slate-500">{unit}</span>

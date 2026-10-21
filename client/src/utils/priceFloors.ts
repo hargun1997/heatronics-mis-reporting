@@ -41,6 +41,8 @@ export interface FloorGlobal {
   minSample: number; // below this many units sold, use the average return rate
   margin: number; // target profit as a share of net sales (selling price without GST)
   buyGst: number; // GST paid on materials, Amazon fees and ads (input credit)
+  reseller: number; // reseller's (3P seller's) margin, share of net sales
+  packing: number; // packing, share of net sales (before GST; GST added at buyGst)
 }
 
 export interface FloorSettings {
@@ -113,6 +115,8 @@ export const DEFAULT_GLOBAL: FloorGlobal = {
   minSample: 30,
   margin: 0.08,
   buyGst: 0.18,
+  reseller: 0.04,
+  packing: 0.01,
 };
 
 const s = (asin: string, name: string, sku: string, item: string, asp: number, sold: number, returned: number, fba: number, admin: number, refPct: number): FloorSku => ({
@@ -182,10 +186,12 @@ export interface Lines {
   returnsEx: number; // fees wasted on returns + lost unit when unsellable
   adsEx: number; // ad spend
   stuck: number; // input GST the sale GST can't use up (lost)
+  resellerEx: number; // reseller margin
+  packingEx: number; // packing, before GST
 }
 
 /** The waterfall the page and PDF show: price → GST → net sales → costs (before GST) → GST stuck → margin. */
-export interface Groups { price: number; saleGst: number; net: number; cost: number; amazon: number; returns: number; ads: number; stuck: number; margin: number }
+export interface Groups { price: number; saleGst: number; net: number; cost: number; packing: number; amazon: number; returns: number; ads: number; reseller: number; stuck: number; margin: number }
 export const groupLines = (l: Lines, price: number): Groups => ({
   price,
   saleGst: l.outGst,
@@ -194,6 +200,8 @@ export const groupLines = (l: Lines, price: number): Groups => ({
   amazon: l.amazonEx,
   returns: l.returnsEx,
   ads: l.adsEx,
+  packing: l.packingEx,
+  reseller: l.resellerEx,
   stuck: l.stuck,
   margin: l.margin,
 });
@@ -202,9 +210,11 @@ export const WATERFALL: { k: keyof Groups; label: string; sign: '' | '−' | '='
   { k: 'saleGst', label: 'GST on the sale', sign: '−' },
   { k: 'net', label: 'Net sales', sign: '=' },
   { k: 'cost', label: 'Product cost', sign: '−' },
+  { k: 'packing', label: 'Packing', sign: '−' },
   { k: 'amazon', label: 'Amazon fees', sign: '−' },
   { k: 'returns', label: 'Returns', sign: '−' },
   { k: 'ads', label: 'Ads', sign: '−' },
+  { k: 'reseller', label: 'Reseller margin', sign: '−' },
   { k: 'stuck', label: 'GST stuck', sign: '−' },
   { k: 'margin', label: 'Margin', sign: '=' },
 ];
@@ -237,7 +247,10 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
   const net = 1 / (1 + g.gst);
   const ads = tacos * (1 + b); // ad spend is billed with 18% GST on top
   // ads + margin (+ referral) can eat the whole price: then no price works
-  const lo = 1 - ads - margin * net; // margin is taken on net sales (price without GST)
+  const rsl = Number.isFinite(g.reseller) ? g.reseller : DEFAULT_GLOBAL.reseller;
+  const pk = Number.isFinite(g.packing) ? g.packing : DEFAULT_GLOBAL.packing;
+  // margin, reseller margin and packing are shares of net sales (price without GST); packing also carries GST
+  const lo = 1 - ads - (margin + rsl) * net - pk * net * (1 + b);
   const hi = lo - x.refPct;
   let price = Infinity;
   let above = false;
@@ -255,7 +268,7 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     if (!Number.isFinite(price)) break;
     // Amazon fees (incl. their GST): fulfilment, inbound, storage, referral, closing, wasted on returns, removal
     amazon = x.fba + inbound + (above ? x.refPct * price + g.closeHi : g.closeLo) + k * (x.fba + x.admin) + k * u * (inbound + g.removal);
-    inGst = (amazon * b) / (1 + b) + b * c.material * (1 + k * u) + b * tacos * price;
+    inGst = (amazon * b) / (1 + b) + b * c.material * (1 + k * u) + b * tacos * price + b * pk * net * price;
     outGst = price - price * net;
     const next = Math.max(0, outGst - inGst);
     if (Math.abs(next - extra) < 0.005) { extra = next; break; }
@@ -283,12 +296,14 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     returnsEx: 0,
     adsEx: tacos * price,
     stuck: Math.max(0, inGst - outGst),
+    resellerEx: rsl * net * price,
+    packingEx: pk * net * price,
   };
   // split Amazon's charges (incl. GST) into regular fees and those caused by returns, before GST
   const retFees = k * (x.fba + x.admin) + k * u * (inbound + g.removal);
   lines.returnsEx = retFees / (1 + b) + k * u * (c.material + c.conversion);
   lines.amazonEx = (amazon - retFees) / (1 + b);
-  const spent = lines.cost + lines.fba + lines.placement + lines.transport + lines.storage + lines.referral + lines.closing + lines.returns + lines.unsellable + lines.ads + lines.gst;
+  const spent = lines.cost + lines.fba + lines.placement + lines.transport + lines.storage + lines.referral + lines.closing + lines.returns + lines.unsellable + lines.ads + lines.gst + lines.resellerEx + lines.packingEx * (1 + b);
   lines.margin = price - spent;
   return { price, lines };
 }
