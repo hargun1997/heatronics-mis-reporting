@@ -4,10 +4,12 @@
 // read from production.heatronics.in) and the SKU's Amazon economics (from the
 // Seller Central "Revenue and fees" report uploaded here).
 //
-// GST is inverted: we sell at 5% and buy almost everything at 18% (materials,
-// Amazon fees, ads). So every purchase is counted with its 18% GST, and the 5%
-// GST on the sale is paid out of those input credits, costing nothing extra
-// unless the credits fall short. Credit left over is lost (not refunded).
+// The price is read as a waterfall: selling price − 5% GST on the sale = net
+// sales; net sales − product cost − Amazon fees − returns − ads (all before GST)
+// − GST stuck = margin. GST is inverted: we buy almost everything at 18%
+// (materials, Amazon fees, ads) and sell at 5%, so the input GST exceeds the
+// sale GST; the excess is "stuck" (not refunded) and is a real cost. The target
+// margin is a share of net sales (the price without GST).
 // ----------------------------------------------------------------------------
 
 export interface FloorSku {
@@ -37,7 +39,7 @@ export interface FloorGlobal {
   storage: number; // storage per unit sold
   removal: number; // removal fee per unsellable return
   minSample: number; // below this many units sold, use the average return rate
-  margin: number; // target profit as a share of the GST-inclusive selling price
+  margin: number; // target profit as a share of net sales (selling price without GST)
   buyGst: number; // GST paid on materials, Amazon fees and ads (input credit)
 }
 
@@ -173,18 +175,39 @@ export interface Lines {
   credit: number; // input GST left over after paying the sale GST: lost, already inside the costs
   outGst: number; // GST on the sale (5%)
   inGst: number; // GST inside the costs (18%)
+  // waterfall, all before GST
+  net: number; // selling price − GST on the sale
+  costEx: number; // materials + conversion
+  amazonEx: number; // FBA, inbound, storage, referral, closing
+  returnsEx: number; // fees wasted on returns + lost unit when unsellable
+  adsEx: number; // ad spend
+  stuck: number; // input GST the sale GST can't use up (lost)
 }
 
-/** Same lines grouped the way the page shows them. */
-export interface Groups { cost: number; amazon: number; returns: number; ads: number; gst: number; margin: number }
-export const groupLines = (l: Lines): Groups => ({
-  cost: l.cost,
-  amazon: l.fba + l.placement + l.transport + l.storage + l.referral + l.closing,
-  returns: l.returns + l.unsellable,
-  ads: l.ads,
-  gst: l.gst,
+/** The waterfall the page and PDF show: price → GST → net sales → costs (before GST) → GST stuck → margin. */
+export interface Groups { price: number; saleGst: number; net: number; cost: number; amazon: number; returns: number; ads: number; stuck: number; margin: number }
+export const groupLines = (l: Lines, price: number): Groups => ({
+  price,
+  saleGst: l.outGst,
+  net: l.net,
+  cost: l.costEx,
+  amazon: l.amazonEx,
+  returns: l.returnsEx,
+  ads: l.adsEx,
+  stuck: l.stuck,
   margin: l.margin,
 });
+export const WATERFALL: { k: keyof Groups; label: string; sign: '' | '−' | '=' }[] = [
+  { k: 'price', label: 'Selling price', sign: '' },
+  { k: 'saleGst', label: 'GST on the sale', sign: '−' },
+  { k: 'net', label: 'Net sales', sign: '=' },
+  { k: 'cost', label: 'Product cost', sign: '−' },
+  { k: 'amazon', label: 'Amazon fees', sign: '−' },
+  { k: 'returns', label: 'Returns', sign: '−' },
+  { k: 'ads', label: 'Ads', sign: '−' },
+  { k: 'stuck', label: 'GST stuck', sign: '−' },
+  { k: 'margin', label: 'Margin', sign: '=' },
+];
 
 /** Target margin from settings; older saved settings have none. */
 export const marginOf = (st: FloorSettings) => (Number.isFinite(st.global.margin) ? st.global.margin : DEFAULT_GLOBAL.margin);
@@ -198,8 +221,8 @@ export const costIn = (p: ProductCost | null | undefined): CostIn | null =>
 export const grossCost = (c: CostIn, st: FloorSettings) => c.material * (1 + buyGstOf(st)) + c.conversion;
 
 /**
- * Lowest GST-inclusive price that leaves `margin` (share of the price) after product cost,
- * Amazon fees, returns, ads and any GST not covered by input credits. margin = 0 gives break-even.
+ * Lowest GST-inclusive price that leaves `margin` (share of net sales) after product cost,
+ * Amazon fees, returns, ads and the GST stuck by the inverted duty. margin = 0 gives break-even.
  */
 export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: number | null, tacos: number, margin = marginOf(st)): { price: number; lines: Lines } {
   const g = st.global;
@@ -214,13 +237,14 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
   const net = 1 / (1 + g.gst);
   const ads = tacos * (1 + b); // ad spend is billed with 18% GST on top
   // ads + margin (+ referral) can eat the whole price: then no price works
-  const lo = 1 - ads - margin;
+  const lo = 1 - ads - margin * net; // margin is taken on net sales (price without GST)
   const hi = lo - x.refPct;
   let price = Infinity;
   let above = false;
   let extra = 0; // sale GST the input credits don't cover
   let inGst = 0;
   let outGst = 0;
+  let amazon = 0;
   for (let i = 0; i < 30; i++) {
     price = lo > 0 ? (base + extra + g.closeLo) / lo : Infinity;
     above = false;
@@ -230,7 +254,7 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     }
     if (!Number.isFinite(price)) break;
     // Amazon fees (incl. their GST): fulfilment, inbound, storage, referral, closing, wasted on returns, removal
-    const amazon = x.fba + inbound + (above ? x.refPct * price + g.closeHi : g.closeLo) + k * (x.fba + x.admin) + k * u * (inbound + g.removal);
+    amazon = x.fba + inbound + (above ? x.refPct * price + g.closeHi : g.closeLo) + k * (x.fba + x.admin) + k * u * (inbound + g.removal);
     inGst = (amazon * b) / (1 + b) + b * c.material * (1 + k * u) + b * tacos * price;
     outGst = price - price * net;
     const next = Math.max(0, outGst - inGst);
@@ -253,7 +277,17 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     credit: Math.max(0, inGst - outGst),
     outGst,
     inGst,
+    net: price * net,
+    costEx: c.material + c.conversion,
+    amazonEx: 0,
+    returnsEx: 0,
+    adsEx: tacos * price,
+    stuck: Math.max(0, inGst - outGst),
   };
+  // split Amazon's charges (incl. GST) into regular fees and those caused by returns, before GST
+  const retFees = k * (x.fba + x.admin) + k * u * (inbound + g.removal);
+  lines.returnsEx = retFees / (1 + b) + k * u * (c.material + c.conversion);
+  lines.amazonEx = (amazon - retFees) / (1 + b);
   const spent = lines.cost + lines.fba + lines.placement + lines.transport + lines.storage + lines.referral + lines.closing + lines.returns + lines.unsellable + lines.ads + lines.gst;
   lines.margin = price - spent;
   return { price, lines };

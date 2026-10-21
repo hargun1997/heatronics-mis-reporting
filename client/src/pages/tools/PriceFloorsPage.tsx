@@ -10,13 +10,12 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Modal } from '../../components/ui/overlays';
 import { downloadFloorsReport } from '../../utils/priceFloorsExport';
 import {
-  COLS,
   DEFAULT_SETTINGS,
   SELLER_CENTRAL_REPORTS,
-  TACOS,
   buyGstOf,
   costIn,
   grossCost,
+  WATERFALL,
   groupLines,
   marginOf,
   mergeReport,
@@ -29,7 +28,6 @@ import {
   type FeeReport,
   type FloorSettings,
   type FloorSku,
-  type Groups,
   type ProductCost,
 } from '../../utils/priceFloors';
 import { FeeReportError, parseFeeReport } from '../../utils/sellerCentralFees';
@@ -178,8 +176,8 @@ export function PriceFloorsPage() {
         </div>
 
         <SectionCard
-          title="Lowest price per product"
-          description={`Where each rupee of that price goes. Costs include their ${fmtPct(buyGstOf(settings))} GST; the ${fmtPct(settings.global.gst)} on the sale is paid from those credits. Returns at each product's own rate, all resellable. Room = today's average price minus the lowest price.`}
+          title="Pricing guide"
+          description={`Price at ${fmtPct(m)} margin on net sales for each ad spend. Never sell below break-even. Open a product below for its waterfall.`}
           className="overflow-hidden"
         >
           <div className="-mt-1 mb-4 flex flex-wrap items-center gap-3">
@@ -340,7 +338,7 @@ function MarginInput({ value, onSave }: { value: number; onSave: (v: number) => 
       <span className="relative">
         <input
           inputMode="decimal"
-          aria-label="Target margin, percent of the selling price"
+          aria-label="Target margin, percent of net sales"
           className="h-11 w-20 rounded-lg border border-slate-200 bg-white pl-3 pr-7 text-right text-[14px] tabular-nums focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
           value={v}
           onChange={(e) => setV(e.target.value)}
@@ -353,39 +351,27 @@ function MarginInput({ value, onSave }: { value: number; onSave: (v: number) => 
   );
 }
 
-const GROUP_ROWS: [keyof Groups, string][] = [
-  ['cost', 'Product cost'],
-  ['amazon', 'Amazon fees'],
-  ['returns', 'Returns'],
-  ['ads', 'Ads'],
-  ['gst', 'GST still to pay'],
-  ['margin', 'Margin'],
-];
+const LEVELS = [0.05, 0.1, 0.15];
+const same = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
+/** What to do with today's price, given the price needed at the selected ad spend. */
+function ActionCell({ need, asp }: { need: number | null; asp: number }) {
+  if (need == null || !Number.isFinite(need) || !asp) return <span className="text-slate-400">—</span>;
+  return need > asp
+    ? <span className="font-semibold text-rose-700">Raise to {rs(need)}</span>
+    : <span className="font-semibold text-emerald-700">OK<span className="block text-xs font-normal">can drop up to {share(asp - need, asp)}</span></span>;
+}
+
+/** Lowest price at the target margin for each ad-spend level, per product. */
 function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: FloorSettings; t: number; hasCosts: boolean }) {
-  const m = marginOf(settings);
   const out = rows.map((r) => {
+    const prices = r.c ? LEVELS.map((lv) => solve(r.x, settings, r.c!, 0, lv).price) : null;
+    const ft = r.c ? solve(r.x, settings, r.c, 0, t).price : null;
     const be = r.c ? solve(r.x, settings, r.c, 0, t, 0).price : null;
-    const res = r.c ? solve(r.x, settings, r.c, 0, t) : null;
-    const ft = res ? res.price : null;
-    return { ...r, be, ft, g: res ? groupLines(res.lines) : null, room: ft != null && Number.isFinite(ft) && r.x.asp ? r.x.asp - ft : null };
+    return { ...r, prices, ft, be };
   });
-  // Room as ₹ and as the % off today's price it allows (or the % increase it needs)
-  const room = (v: number | null, asp: number) =>
-    v == null ? <span className="text-slate-400">—</span> : (
-      <span className={`font-semibold ${v < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-        {v < 0 ? `▼ ${rs(-v)} short` : `▲ ${rs(v)}`}
-        <span className="block text-xs font-normal">{v < 0 ? `raise ${share(-v, asp)}` : `${share(v, asp)} off possible`}</span>
-      </span>
-    );
-  // ₹ with its share of the lowest price underneath
-  const part = (v: number | undefined, price: number | null) => (
-    <>
-      {rs(v)}
-      {v != null && price != null && Number.isFinite(price) && <span className="block text-xs text-slate-400">{share(v, price)}</span>}
-    </>
-  );
-  const td = 'px-3 py-3 text-right tabular-nums text-slate-600';
+  const cell = (p: number, asp: number, on: boolean) =>
+    `px-3 py-3 text-right tabular-nums ${p > asp ? 'bg-rose-50 text-rose-700' : on ? 'bg-brand-50 font-bold text-slate-900' : 'text-slate-700'}`;
   return (
     <>
       <ul className="-mx-5 -mb-5 divide-y border-t border-slate-100 divide-slate-100 md:hidden">
@@ -395,16 +381,16 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
               <span className="text-[14px] font-semibold text-slate-900">{r.x.name}</span>
               <span className="tabular-nums text-[15px] font-bold">{rs(r.ft)}</span>
             </div>
-            {r.g ? (
+            {r.prices ? (
               <div className="mt-1 text-[13px] tabular-nums text-slate-500">
-                Cost {rs(r.g.cost)} ({share(r.g.cost, r.ft!)}) · Amazon {rs(r.g.amazon)} ({share(r.g.amazon, r.ft!)}) · Returns {rs(r.g.returns)} ({share(r.g.returns, r.ft!)}) · Ads {rs(r.g.ads)} ({share(r.g.ads, r.ft!)}) · GST to pay {rs(r.g.gst)} · Margin {rs(r.g.margin)} ({share(r.g.margin, r.ft!)})
+                {LEVELS.map((lv, i) => `${Math.round(lv * 100)}% ads ${rs(r.prices![i])}`).join(' · ')}
               </div>
             ) : (
               <div className="mt-1 text-[13px] text-slate-500">{hasCosts ? 'Not linked to a product cost' : 'Costs not loaded'}</div>
             )}
             <div className="mt-1 flex items-baseline justify-between gap-3 text-[13px] text-slate-500">
-              <span>Selling at {rs(r.x.asp)} · break-even {rs(r.be)}</span>
-              {room(r.room, r.x.asp)}
+              <span>Selling at {rs(r.x.asp)} · don't go below {rs(r.be)}</span>
+              <ActionCell need={r.ft} asp={r.x.asp} />
             </div>
           </li>
         ))}
@@ -414,16 +400,10 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
           <thead className="bg-slate-50 text-left text-[12px] text-slate-500">
             <tr>
               <th className="py-3 pl-5 pr-3 font-semibold">Product</th>
-              <th className="px-3 py-3 text-right font-semibold">Selling at</th>
-              <th className="px-3 py-3 text-right font-semibold">Product cost</th>
-              <th className="px-3 py-3 text-right font-semibold">Amazon fees</th>
-              <th className="px-3 py-3 text-right font-semibold">Returns</th>
-              <th className="px-3 py-3 text-right font-semibold">Ads {Math.round(t * 100)}%</th>
-              <th className="px-3 py-3 text-right font-semibold">GST to pay</th>
-              <th className="px-3 py-3 text-right font-semibold">Margin {fmtPct(m)}</th>
-              <th className="px-3 py-3 text-right font-semibold">Lowest price</th>
-              <th className="px-3 py-3 text-right font-semibold">Break-even</th>
-              <th className="py-3 pl-3 pr-5 text-right font-semibold">Room vs today</th>
+              <th className="px-3 py-3 text-right font-semibold">Selling at today</th>
+              <th className="px-3 py-3 text-right font-semibold">Don't go below</th>
+              {LEVELS.map((lv) => <th key={lv} className={`px-3 py-3 text-right font-semibold ${same(lv, t) ? 'text-brand-700' : ''}`}>At {Math.round(lv * 100)}% ads</th>)}
+              <th className="py-3 pl-3 pr-5 text-right font-semibold">Action ({Math.round(t * 100)}% ads)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -433,19 +413,18 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
                   <span className="font-semibold text-slate-900">{r.x.name}</span>
                   {!r.p && hasCosts && <span className="ml-2 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">not linked</span>}
                   <span className="block text-xs text-slate-500">
-                    returns {pct(returnRate(r.x, settings))}{r.x.sold < settings.global.minSample ? ' (avg)' : ''} · actual ads {pct(r.x.tacos)}
+                    returns {pct(returnRate(r.x, settings))} · actual ads {pct(r.x.tacos)}
                   </span>
                 </td>
                 <td className="px-3 py-3 text-right tabular-nums">{rs(r.x.asp)}</td>
-                <td className={td}>{part(r.g?.cost, r.ft)}</td>
-                <td className={td}>{part(r.g?.amazon, r.ft)}</td>
-                <td className={td}>{part(r.g?.returns, r.ft)}</td>
-                <td className={td}>{part(r.g?.ads, r.ft)}</td>
-                <td className={td}>{part(r.g?.gst, r.ft)}</td>
-                <td className={td}>{part(r.g?.margin, r.ft)}</td>
-                <td className="px-3 py-3 text-right tabular-nums font-bold">{rs(r.ft)}</td>
-                <td className={td}>{rs(r.be)}</td>
-                <td className="py-3 pl-3 pr-5 text-right tabular-nums">{room(r.room, r.x.asp)}</td>
+                <td className="px-3 py-3 text-right tabular-nums text-slate-600">{rs(r.be)}</td>
+                {LEVELS.map((lv, i) => (
+                  <td key={lv} className={r.prices ? cell(r.prices[i], r.x.asp, same(lv, t)) : 'px-3 py-3 text-right text-slate-400'}>
+                    {r.prices ? rs(r.prices[i]) : '—'}
+                    {r.prices && r.prices[i] > r.x.asp && <span className="sr-only"> (above today's price)</span>}
+                  </td>
+                ))}
+                <td className="py-3 pl-3 pr-5 text-right tabular-nums"><ActionCell need={r.ft} asp={r.x.asp} /></td>
               </tr>
             ))}
           </tbody>
@@ -456,81 +435,31 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
 }
 
 function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: number }) {
-  const [view, setView] = useState<'grid' | 'cost'>('grid');
-  const cost = r.cost!;
-  const ci = r.c!;
-  const m = marginOf(settings);
-  const b = buyGstOf(settings);
-  const ft = solve(r.x, settings, ci, 0, t).price;
-  const res = COLS.map((c) => solve(r.x, settings, ci, c.u, t));
-  const now = res[1].lines;
+  const res = solve(r.x, settings, r.c!, 0, t);
+  const g = groupLines(res.lines, res.price);
   return (
-    <Disclosure
-      title={r.x.name}
-      subtitle={`Lowest ${rs(ft)} at ${fmtPct(m)} margin, ${Math.round(t * 100)}% ads · selling at ${rs(r.x.asp)} · cost ${rs(cost)} · returns ${pct(returnRate(r.x, settings))}`}
-    >
-      <div className="mb-3 mt-2">
-        <SegmentedControl size="sm" aria-label="View" value={view} onChange={setView} options={[{ id: 'grid', label: 'By ad spend' }, { id: 'cost', label: 'Where the money goes' }]} />
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-[13.5px]">
-          <thead className="bg-slate-50 text-right text-[12px] text-slate-500">
-            <tr>
-              <th className="py-2 pl-3 pr-3 text-left font-semibold">{view === 'grid' ? 'Ad spend' : `₹ per unit, ${Math.round(t * 100)}% ads`}</th>
-              {COLS.map((c) => <th key={c.label} className="px-3 py-2 font-semibold">{c.label}</th>)}
+    <Disclosure title={r.x.name} subtitle={`${rs(res.price)} at ${Math.round(t * 100)}% ads · selling at ${rs(r.x.asp)}`}>
+      <table className="mt-2 w-full max-w-md text-[14px]">
+        <thead className="text-right text-[12px] text-slate-500">
+          <tr><th className="py-1.5 text-left font-semibold">Per unit, {Math.round(t * 100)}% ads</th><th className="py-1.5 font-semibold">₹</th><th className="py-1.5 font-semibold">% of net sales</th></tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {WATERFALL.map(({ k, label, sign }) => (
+            <tr key={k} className={sign === '=' || k === 'price' ? 'font-semibold text-slate-900' : 'text-slate-600'}>
+              <td className="py-2"><span className="mr-1.5 inline-block w-3 text-slate-400">{sign}</span>{label}{k === 'saleGst' ? ` ${fmtPct(settings.global.gst)}` : ''}</td>
+              <td className="py-2 text-right tabular-nums">{rs(g[k])}</td>
+              <td className="py-2 text-right tabular-nums text-slate-500">{k === 'price' || k === 'saleGst' ? '' : share(g[k], g.net)}</td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {view === 'grid'
-              ? TACOS.map((tt) => (
-                <tr key={tt} className={Math.abs(tt - t) < 1e-9 ? 'bg-brand-50 font-semibold' : ''}>
-                  <td className="py-2 pl-3 pr-3 tabular-nums">{Math.round(tt * 100)}%</td>
-                  {COLS.map((c) => {
-                    const p = solve(r.x, settings, ci, c.u, tt).price;
-                    const over = p > r.x.asp;
-                    return (
-                      <td key={c.label} className={`px-3 py-2 text-right tabular-nums ${over ? 'bg-rose-50 text-rose-700' : ''}`}>
-                        {rs(p)}{over && <span className="sr-only"> (above today's price)</span>}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
-              : (
-                <>
-                  {GROUP_ROWS.map(([k, label]) => (
-                    <tr key={k}>
-                      <td className="py-2 pl-3 pr-3">{label}{k === 'margin' ? ` (${fmtPct(m)})` : ''}</td>
-                      {res.map((x, i) => {
-                        const v = groupLines(x.lines)[k];
-                        return (
-                          <td key={i} className="px-3 py-2 text-right tabular-nums text-slate-600">
-                            {!Number.isFinite(v) ? '—' : Math.round(v) ? Math.round(v).toLocaleString('en-IN') : '–'}
-                            {Number.isFinite(v) && Math.round(v) !== 0 && <span className="ml-1.5 text-xs text-slate-400">{share(v, x.price)}</span>}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                  <tr className="border-t-2 border-slate-800 bg-brand-50 font-bold">
-                    <td className="py-2 pl-3 pr-3">Lowest price, incl. GST</td>
-                    {res.map((x, i) => <td key={i} className="px-3 py-2 text-right tabular-nums">{rs(x.price)}</td>)}
-                  </tr>
-                </>
-              )}
-          </tbody>
-        </table>
-      </div>
-      <p className="mt-3 text-xs text-slate-500">
-        Red cells are above today's price of {rs(r.x.asp)}. Product cost {rs(cost)} for {r.x.item} = materials {rs(ci.material)} + {fmtPct(b)} GST + conversion {rs(ci.conversion)}. Amazon fees = FBA, inbound, storage, referral and closing; fees and ads include {fmtPct(b)} GST. Returns = wasted fees on returned units, plus the lost unit when it can't be resold.
-        {' '}GST: the {fmtPct(settings.global.gst)} on the sale ({rs(now.outGst)} at the all-resellable price) is paid from the {rs(now.inGst)} of input GST in the costs, so nothing extra is paid{now.credit > 0.5 ? `; ${rs(now.credit)} of credit is left over and lost` : ''}. ASIN {r.x.asin}.
-      </p>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 text-xs text-slate-500">Costs are before GST. GST stuck = GST paid on purchases ({fmtPct(buyGstOf(settings))}) minus GST on the sale; it can't be used, so it's a cost.</p>
     </Disclosure>
   );
 }
 
 const GLOBAL_FIELDS: [keyof FloorSettings['global'], string, string][] = [
-  ['margin', 'Target margin', '% of the selling price, after every cost'],
+  ['margin', 'Target margin', '% of net sales (price without GST), after every cost'],
   ['gst', 'GST on our sale', '% charged to the customer'],
   ['buyGst', 'GST on purchases', '% on materials, Amazon fees and ads'],
   ['placement', 'Inbound placement', '₹ per unit, when a SKU has no inbound of its own'],
@@ -687,7 +616,7 @@ function DownloadPicker({ open, onClose, rows, onDownload }: { open: boolean; on
       open={open}
       onClose={onClose}
       title="Download price floors report"
-      subtitle="Pick the products to include. You get a PDF with the summary, where the money goes, prices by ad spend and the inputs used."
+      subtitle="Pick the products to include. You get a PDF: the pricing guide on page 1, then a waterfall for each product."
       footer={
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
           <span className="text-sm text-slate-500">{picked.size} of {withCost.length} picked</span>
