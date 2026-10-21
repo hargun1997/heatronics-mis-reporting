@@ -1,12 +1,12 @@
-// PDF report for the Amazon price floors tool, for the products the user picks.
-// Page 1: summary (where each rupee of the lowest price goes). Then two products
-// per page (where the money goes + lowest price by ad spend). Last: inputs used.
+// Pricing guide PDF for the team, for the products the user picks.
+// Page 1: one row per product (don't go below, price at each ad spend, action).
+// Page 2 on: a short waterfall per product, six to a page.
 // jsPDF's built-in fonts have no ₹ sign, so amounts are written "Rs".
 
 import { jsPDF } from 'jspdf';
 import {
-  COLS, TACOS, buyGstOf, costIn, grossCost, groupLines, marginOf, returnRate, solve,
-  type CostsSnapshot, type FloorSettings, type FloorSku, type Groups, type ProductCost,
+  WATERFALL, costIn, groupLines, marginOf, solve,
+  type CostsSnapshot, type FloorSettings, type FloorSku, type ProductCost,
 } from './priceFloors';
 
 export interface ExportInput {
@@ -34,7 +34,6 @@ const H = 210;
 const M = 12;
 
 const rs = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? '-' : `Rs ${Math.round(v).toLocaleString('en-IN')}`);
-const num = (v: number) => (!Number.isFinite(v) ? '-' : Math.round(v) ? Math.round(v).toLocaleString('en-IN') : '-');
 /** v as a whole-number share of the price. */
 const sh = (v: number, price: number) => (price > 0 && Number.isFinite(price) && Number.isFinite(v) ? `${Math.round((v / price) * 100)}%` : '-');
 const pc = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? '-' : `${Math.round(v * 1000) / 10}%`);
@@ -90,156 +89,103 @@ function header(doc: jsPDF, title: string, source: string) {
   return M + 15;
 }
 
-const GROUPS: [keyof Groups, string][] = [
-  ['cost', 'Product cost'],
-  ['amazon', 'Amazon fees'],
-  ['returns', 'Returns'],
-  ['ads', 'Ads'],
-  ['gst', 'GST still to pay'],
-  ['margin', 'Margin'],
-];
+const LEVELS = [0.05, 0.1, 0.15];
 
-export function downloadFloorsReport({ skus, settings, products, costs, feeReport, tacos }: ExportInput) {
-  const doc = buildFloorsPdf({ skus, settings, products, costs, feeReport, tacos });
-  if (!doc.written) return doc;
-  doc.pdf.save(doc.fileName);
+export function downloadFloorsReport(input: ExportInput) {
+  const doc = buildFloorsPdf(input);
+  if (doc.written) doc.pdf.save(doc.fileName);
   return doc;
 }
 
 /** Builds the PDF without saving it (used by the download and by tests). */
 export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tacos }: ExportInput) {
   const now = new Date();
-  const stamp = now.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const stamp = now.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   const costOf = (x: FloorSku) => products.find((p) => p.item === x.item) || null;
-  const rows = skus.map((x) => ({ x, p: costOf(x) })).filter((r) => r.p?.cost != null) as { x: FloorSku; p: ProductCost }[];
-  const missing = skus.filter((x) => costOf(x)?.cost == null);
+  const rows = skus.map((x) => ({ x, c: costIn(costOf(x)) })).filter((r) => r.c) as { x: FloorSku; c: NonNullable<ReturnType<typeof costIn>> }[];
+  const missing = skus.length - rows.length;
   const m = marginOf(settings);
   const t = tacos;
-  const g = settings.global;
-  const source = `Product costs: ${costs?.month || '-'} from production.heatronics.in  |  Amazon fees: ${feeReport ? feeReport.fileName : 'starting values (14 Oct report)'}  |  Generated ${stamp}`;
+  const ads = (v: number) => `${Math.round(v * 100)}% ads`;
+  const source = `Costs ${costs?.month || '-'} (production)  |  Amazon fees: ${feeReport ? feeReport.fileName : '14 Oct report'}  |  ${stamp}`;
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const fileName = `Price_floors_${rows.length === 1 ? rows[0].x.name.replace(/[^\w]+/g, '_') : `${rows.length}_products`}_${now.toISOString().slice(0, 10)}.pdf`;
-  if (!rows.length) return { pdf, fileName, written: 0, missing: missing.length };
+  const fileName = `Amazon_pricing_guide_${now.toISOString().slice(0, 10)}.pdf`;
+  if (!rows.length) return { pdf, fileName, written: 0, missing };
 
-  // ---------- Summary ----------
-  let y = header(pdf, 'Amazon lowest prices', source);
-  pdf.setFontSize(10);
-  pdf.setTextColor(...INK);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text(`Target margin ${pc(m)}  |  Ad spend ${Math.round(t * 100)}% of sales  |  Returns at each product's own rate, all resellable`, M, y);
+  // ---------- Page 1: pricing guide ----------
+  let y = header(pdf, 'Amazon pricing guide', source);
   pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(...MUTED);
-  pdf.text('Lowest price = the GST-inclusive price that still leaves the target margin after every cost. Break-even = the same with zero margin.', M, y + 5);
-  y += 9;
-  const sumCols: Col[] = [{ w: 46 }, ...Array.from({ length: 10 }, () => ({ w: 22.7, align: 'right' as const }))];
-  const sumRows: Cell[][] = rows.map(({ x, p }) => {
-    const res = solve(x, settings, costIn(p)!, 0, t);
-    const be = solve(x, settings, costIn(p)!, 0, t, 0).price;
-    const gl = groupLines(res.lines);
-    const room = Number.isFinite(res.price) ? x.asp - res.price : null;
+  pdf.setFontSize(9);
+  pdf.setTextColor(...INK);
+  pdf.text(`Prices include GST. Target margin ${pc(m)} of net sales. Never sell below "Don't go below". Action is for ${ads(t)}.`, M, y);
+  y += 4;
+  const cols: Col[] = [{ w: 62 }, { w: 32, align: 'right' }, { w: 34, align: 'right' }, ...LEVELS.map(() => ({ w: 34, align: 'right' as const })), { w: 41, align: 'right' }];
+  const body: Cell[][] = rows.map(({ x, c }) => {
+    const be = solve(x, settings, c, 0, t, 0).price;
+    const need = solve(x, settings, c, 0, t).price;
+    const ok = Number.isFinite(need) && need <= x.asp;
     return [
       { t: x.name, s: { bold: true } },
       rs(x.asp),
-      ...[gl.cost, gl.amazon, gl.returns, gl.ads, gl.gst, gl.margin].map((v) => `${rs(v)}\n${sh(v, res.price)}`),
-      { t: `${rs(res.price)}\n100%`, s: { bold: true, fill: SOFT } },
       rs(be),
-      room == null ? '-' : { t: room < 0 ? `${rs(-room)} short\nraise ${sh(-room, x.asp)}` : `+${rs(room)}\n${sh(room, x.asp)} off ok`, s: { bold: true, color: room < 0 ? BAD : GOOD } },
+      ...LEVELS.map((lv) => {
+        const p = solve(x, settings, c, 0, lv).price;
+        const on = Math.abs(lv - t) < 1e-9;
+        return { t: rs(p), s: p > x.asp ? { color: BAD, fill: BAD_BG, bold: on } : on ? { bold: true, fill: SOFT } : {} };
+      }),
+      { t: !Number.isFinite(need) ? '-' : ok ? `OK, can drop ${sh(x.asp - need, x.asp)}` : `Raise to ${rs(need)}`, s: { bold: true, color: ok ? GOOD : BAD } },
     ];
   });
-  y = table(pdf, M, y, sumCols, ['Product', 'Selling at', 'Product cost', 'Amazon fees', 'Returns', `Ads ${Math.round(t * 100)}%`, 'GST to pay', `Margin ${pc(m)}`, 'Lowest price', 'Break-even', 'Room vs today'], sumRows, 9.5);
-  y += 6;
+  y = table(pdf, M, y, cols, ['Product', 'Selling at today', "Don't go below", ...LEVELS.map((lv) => `At ${ads(lv)}`), 'Action'], body, 8.5, 9);
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   pdf.setTextColor(...MUTED);
-  const notes = [
-    `Product cost = materials + ${pc(buyGstOf(settings))} GST on them + conversion (overheads per unit) from production. Amazon fees = FBA, inbound, storage, referral and closing, including their GST. Ads include ${pc(buyGstOf(settings))} GST.`,
-    `GST is inverted: we buy at ${pc(buyGstOf(settings))} and sell at ${pc(g.gst)}, so the sale GST is paid out of the input GST already counted in the costs. "GST to pay" is only what those credits don't cover (usually nothing); leftover credit is lost.`,
-    'Returns = the FBA and refund admin fees wasted on returned units, spread over the units that stay sold. Percentages are shares of the lowest price. Room = today\'s average selling price minus the lowest price, and how much % off today\'s price that allows.',
-  ];
-  if (missing.length) notes.push(`No product cost for: ${missing.map((x) => `${x.name} (${x.item || 'not linked'})`).join(', ')}.`);
-  pdf.text(notes.flatMap((n) => pdf.splitTextToSize(n, W - M * 2) as string[]), M, y);
+  pdf.text([
+    "Don't go below = break-even (zero margin). Red = needs more than today's price. Waterfalls for each product from page 2.",
+    ...(missing ? [`${missing} product${missing > 1 ? 's' : ''} left out: no product cost yet.`] : []),
+  ], M, y + 6);
 
-  // ---------- Per product, two per page ----------
-  const half = (W - M * 2 - 8) / 2;
-  const colsHalf: Col[] = [{ w: half - 5 * 20.5 }, ...COLS.map(() => ({ w: 20.5, align: 'right' as const }))];
-  rows.forEach(({ x, p }, i) => {
-    if (i % 2 === 0) { pdf.addPage(); y = header(pdf, 'By product', source); } else y += 8;
-    const res = COLS.map((c) => solve(x, settings, costIn(p)!, c.u, t));
-    // band
+  // ---------- Page 2 on: waterfalls, 3 across × 2 down ----------
+  const gap = 8;
+  const bw = (W - M * 2 - gap * 2) / 3;
+  const wcols: Col[] = [{ w: bw - 48 }, { w: 24, align: 'right' }, { w: 24, align: 'right' }];
+  rows.forEach(({ x, c }, i) => {
+    const slot = i % 6;
+    if (slot === 0) { pdf.addPage(); header(pdf, `Waterfall per unit at ${ads(t)}`, source); }
+    const bx = M + (slot % 3) * (bw + gap);
+    let by = M + 18 + Math.floor(slot / 3) * 88;
+    const res = solve(x, settings, c, 0, t);
+    const g = groupLines(res.lines, res.price);
     pdf.setFillColor(...BRAND);
-    pdf.rect(M, y, W - M * 2, 8, 'F');
+    pdf.rect(bx, by, bw, 7, 'F');
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
+    pdf.setFontSize(9.5);
     pdf.setTextColor(255, 255, 255);
-    pdf.text(x.name, M + 2.5, y + 5.4);
+    pdf.text(x.name, bx + 2, by + 4.8);
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8.5);
-    pdf.text(`Selling at ${rs(x.asp)}  |  cost ${rs(grossCost(costIn(p)!, settings))} incl. GST (${x.item})  |  returns ${pc(returnRate(x, settings))}${x.sold < g.minSample ? ' (average)' : ''}  |  actual ads ${pc(x.tacos)}  |  ASIN ${x.asin}`, W - M - 2.5, y + 5.4, { align: 'right' });
-    y += 11;
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9);
-    pdf.setTextColor(...INK);
-    pdf.text(`Where the money goes (Rs per unit and % of price, ${Math.round(t * 100)}% ads, ${pc(m)} margin)`, M, y + 3);
-    pdf.text(`Lowest price by ad spend (${pc(m)} margin)`, M + half + 8, y + 3);
-    const ty = y + 5;
-    const gRows: Cell[][] = [
-      ...GROUPS.map(([k, label]) => [k === 'margin' ? `${label} (${pc(m)})` : label, ...res.map((r) => { const v = groupLines(r.lines)[k]; return num(v) === '-' ? '-' : `${num(v)} (${sh(v, r.price)})`; })] as Cell[]),
-      [{ t: 'Lowest price', s: { bold: true } }, ...res.map((r) => ({ t: rs(r.price), s: { bold: true, fill: SOFT } }))],
-    ];
-    const y1 = table(pdf, M, ty, colsHalf, ['', ...COLS.map((c) => c.label)], gRows, 6.2, 7.8);
-    const tRows: Cell[][] = TACOS.map((tt) => [
-      { t: `${Math.round(tt * 100)}% ads`, s: Math.abs(tt - t) < 1e-9 ? { bold: true } : {} },
-      ...COLS.map((c) => {
-        const pr = solve(x, settings, costIn(p)!, c.u, tt).price;
-        const over = pr > x.asp;
-        return { t: rs(pr), s: over ? { color: BAD, fill: BAD_BG } : Math.abs(tt - t) < 1e-9 ? { bold: true, fill: SOFT } : {} };
-      }),
-    ]);
-    const y2 = table(pdf, M + half + 8, ty, colsHalf, ['', ...COLS.map((c) => c.label)], tRows, 6.2, 7.8);
-    y = Math.max(y1, y2) + 3;
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(7.5);
-    pdf.setTextColor(...MUTED);
-    pdf.text(`Red = above today's price of ${rs(x.asp)}. Unsellable columns also lose the unit, its inbound and the removal fee.`, M, y + 2);
-    y += 4;
-  });
-
-  // ---------- Inputs ----------
-  pdf.addPage();
-  y = header(pdf, 'Inputs used', source);
-  const gl: Cell[][] = [
-    ['Target margin', pc(m)],
-    ['GST on our sale', pc(g.gst)],
-    ['GST on purchases (materials, Amazon fees, ads)', pc(buyGstOf(settings))],
-    ['Referral and higher closing fee start at', rs(g.band)],
-    ['Closing fee below / above that price', `Rs ${g.closeLo.toFixed(2)} / Rs ${g.closeHi.toFixed(2)}`],
-    ['Inbound per unit (when a product has none of its own)', `Rs ${(g.placement + g.transport).toFixed(2)}`],
-    ['Storage per unit sold', `Rs ${g.storage.toFixed(2)}`],
-    ['Removal fee per unsellable return', `Rs ${g.removal.toFixed(2)}`],
-    ['Average return rate used below', `${g.minSample} units sold`],
-  ];
-  if (costs?.conversion) gl.push(['Conversion (from production)', `${rs(costs.conversion.total)} overheads over ${costs.conversion.units ? Math.round(costs.conversion.units).toLocaleString('en-IN') : '-'} units (${costs.conversion.basis})`]);
-  y = table(pdf, M, y, [{ w: 90 }, { w: 110 }], ['Fee rates and settings', 'Value'], gl) + 6;
-  const inCols: Col[] = [{ w: 44 }, { w: 26 }, { w: 20 }, ...Array.from({ length: 10 }, () => ({ w: 18.3, align: 'right' as const }))];
-  table(pdf, M, y, inCols,
-    ['Product', 'ASIN', 'Item', 'Materials', 'Conversion', 'Avg price', 'Units sold', 'Returned', 'FBA fee', 'Refund admin', 'Referral %', 'Inbound', 'Actual ads'],
-    skus.map((x) => {
-      const pp = costOf(x);
+    pdf.setFontSize(8);
+    pdf.text(`today ${rs(x.asp)}`, bx + bw - 2, by + 4.8, { align: 'right' });
+    by += 7;
+    const wrows: Cell[][] = WATERFALL.map(({ k, label, sign }) => {
+      const total = sign === '=' || k === 'price';
+      const st = total ? { bold: true, fill: k === 'margin' || k === 'price' ? SOFT : undefined } : {};
       return [
-        { t: x.name, s: { bold: true } }, x.asin, x.item || '-', rs(pp?.material), rs(pp?.conversion), rs(x.asp), String(x.sold), String(x.returned),
-        x.fba.toFixed(2), x.admin.toFixed(2), pc(x.refPct), (x.inbound ?? g.placement + g.transport).toFixed(2), pc(x.tacos),
+        { t: `${sign ? `${sign === '−' ? '-' : sign} ` : ''}${label}${k === 'saleGst' ? ` ${pc(settings.global.gst)}` : ''}`, s: st },
+        { t: rs(g[k]), s: st },
+        { t: k === 'price' || k === 'saleGst' ? '' : sh(g[k], g.net), s: { ...st, color: total ? INK : MUTED } },
       ];
-    }));
+    });
+    table(pdf, bx, by, wcols, ['', 'Rs', '% of net'], wrows, 7, 8.5);
+  });
+  pdf.setFont('helvetica', 'normal');
 
-  // page numbers
   const n = pdf.getNumberOfPages();
   for (let i = 1; i <= n; i++) {
     pdf.setPage(i);
-    pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7.5);
     pdf.setTextColor(...MUTED);
-    pdf.text(`Heatronics  |  Amazon price floors  |  page ${i} of ${n}`, W - M, H - 6, { align: 'right' });
+    if (i > 1) pdf.text(`Costs before GST. GST stuck = ${pc(settings.global.buyGst ?? 0.18)} GST paid on materials, Amazon fees and ads minus the ${pc(settings.global.gst)} GST on the sale; it cannot be used, so it is a cost.`, M, H - 6);
+    pdf.text(`Heatronics  |  page ${i} of ${n}`, W - M, H - 6, { align: 'right' });
   }
-  return { pdf, fileName, written: rows.length, missing: missing.length };
+  return { pdf, fileName, written: rows.length, missing };
 }
