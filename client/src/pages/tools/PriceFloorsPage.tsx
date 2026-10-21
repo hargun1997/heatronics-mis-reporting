@@ -138,16 +138,18 @@ export function PriceFloorsPage() {
           }} setNote={setNote} />
           <SourceCard
             title="Priced below their floor"
-            line={<span className={below.length ? 'text-rose-700' : 'text-emerald-700'}>{below.length} of {priced.length}</span>}
+            line={priced.length ? <span className={below.length ? 'text-rose-700' : 'text-emerald-700'}>{below.length} of {priced.length}</span> : <span className="text-slate-400">—</span>}
             sub={`At ${Math.round(t * 100)}% ad spend, returns resellable`}
-            foot={unmapped.length ? <span className="text-amber-700">{unmapped.length} SKU{unmapped.length > 1 ? 's' : ''} not linked to a product cost</span> : 'Every SKU has a product cost'}
+            foot={!products.length ? 'Waiting for product costs' : unmapped.length ? <span className="text-amber-700">{unmapped.length} SKU{unmapped.length > 1 ? 's' : ''} not linked to a product cost</span> : 'Every SKU has a product cost'}
           />
         </div>
 
         <SectionCard
           title="Floor per product"
           description="Returns at each product's own rate, all resellable. Room = today's average price minus the floor."
-          actions={
+          className="overflow-hidden"
+        >
+          <div className="-mt-1 mb-4 overflow-x-auto">
             <SegmentedControl
               size="sm"
               aria-label="Ad spend"
@@ -155,10 +157,8 @@ export function PriceFloorsPage() {
               onChange={setTacos}
               options={[0, 0.05, 0.1, 0.15, 0.2].map((v) => ({ id: String(v), label: `${Math.round(v * 100)}% ads` }))}
             />
-          }
-          className="overflow-hidden"
-        >
-          <SummaryTable rows={rows} settings={settings} t={t} />
+          </div>
+          <SummaryTable rows={rows} settings={settings} t={t} hasCosts={products.length > 0} />
         </SectionCard>
 
         <div className="space-y-2">
@@ -250,8 +250,8 @@ function UploadCard({ state, settings, onSaved, setNote }: {
       ) : (
         <>
           <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{latest ? when(latest.uploadedAt) : 'Starting values'}</div>
-          <div className="mt-1.5 text-sm text-slate-600">{latest ? latest.fileName : 'From the 14 Oct fee report. Upload a fresh one to refresh fees, prices and returns.'}</div>
-          <label className="mt-auto inline-flex h-11 cursor-pointer items-center justify-center rounded-xl bg-brand-500 px-4 pt-0 text-sm font-semibold text-white hover:bg-brand-600 focus-within:ring-2 focus-within:ring-brand-400">
+          <div className="mb-4 mt-1.5 text-sm text-slate-600">{latest ? latest.fileName : 'From the 14 Oct fee report. Upload a fresh one to refresh fees, prices and returns.'}</div>
+          <label className="mt-auto inline-flex h-11 translate-y-0 cursor-pointer items-center justify-center rounded-xl bg-brand-500 px-4 pt-0 text-sm font-semibold text-white hover:bg-brand-600 focus-within:ring-2 focus-within:ring-brand-400">
             <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
             {busy ? 'Reading…' : 'Upload fee report'}
           </label>
@@ -262,7 +262,7 @@ function UploadCard({ state, settings, onSaved, setNote }: {
   );
 }
 
-function SummaryTable({ rows, settings, t }: { rows: Row[]; settings: FloorSettings; t: number }) {
+function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: FloorSettings; t: number; hasCosts: boolean }) {
   const out = rows.map((r) => {
     const f0 = r.cost != null ? solve(r.x, settings, r.cost, 0, 0).price : null;
     const ft = r.cost != null ? solve(r.x, settings, r.cost, 0, t).price : null;
@@ -272,7 +272,7 @@ function SummaryTable({ rows, settings, t }: { rows: Row[]; settings: FloorSetti
     v == null ? <span className="text-slate-400">—</span> : <span className={`font-semibold ${v < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{v < 0 ? `▼ ${rs(-v)} short` : `▲ ${rs(v)}`}</span>;
   return (
     <>
-      <ul className="-mx-5 -my-5 divide-y divide-slate-100 md:hidden">
+      <ul className="-mx-5 -mb-5 divide-y border-t border-slate-100 divide-slate-100 md:hidden">
         {out.map((r) => (
           <li key={r.x.asin} className="px-5 py-3">
             <div className="flex items-baseline justify-between gap-3">
@@ -280,13 +280,13 @@ function SummaryTable({ rows, settings, t }: { rows: Row[]; settings: FloorSetti
               <span className="tabular-nums text-[15px] font-bold">{rs(r.ft)}</span>
             </div>
             <div className="mt-1 flex items-baseline justify-between gap-3 text-[13px] text-slate-500">
-              <span>Selling at {rs(r.x.asp)} · cost {r.cost != null ? rs(r.cost) : 'not linked'}</span>
+              <span>Selling at {rs(r.x.asp)} · cost {r.cost != null ? rs(r.cost) : hasCosts ? 'not linked' : 'not loaded'}</span>
               {room(r.room)}
             </div>
           </li>
         ))}
       </ul>
-      <div className="-mx-5 -my-5 hidden overflow-x-auto md:block">
+      <div className="-mx-5 -mb-5 hidden overflow-x-auto border-t border-slate-100 md:block">
         <table className="w-full text-[14px]">
           <thead className="bg-slate-50 text-left text-[12px] text-slate-500">
             <tr>
@@ -306,7 +306,7 @@ function SummaryTable({ rows, settings, t }: { rows: Row[]; settings: FloorSetti
               <tr key={r.x.asin} className="hover:bg-slate-50">
                 <td className="py-3 pl-5 pr-3">
                   <span className="font-semibold text-slate-900">{r.x.name}</span>
-                  {!r.p && <span className="ml-2 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">not linked</span>}
+                  {!r.p && hasCosts && <span className="ml-2 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">not linked</span>}
                 </td>
                 <td className="px-3 py-3 text-right tabular-nums">{rs(r.x.asp)}</td>
                 <td className="px-3 py-3 text-right tabular-nums text-slate-600">{rs(r.p?.material)}</td>
