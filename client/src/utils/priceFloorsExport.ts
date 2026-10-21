@@ -5,7 +5,7 @@
 
 import { jsPDF } from 'jspdf';
 import {
-  COLS, TACOS, groupLines, marginOf, returnRate, solve,
+  COLS, TACOS, buyGstOf, costIn, grossCost, groupLines, marginOf, returnRate, solve,
   type CostsSnapshot, type FloorSettings, type FloorSku, type Groups, type ProductCost,
 } from './priceFloors';
 
@@ -93,7 +93,7 @@ const GROUPS: [keyof Groups, string][] = [
   ['amazon', 'Amazon fees'],
   ['returns', 'Returns'],
   ['ads', 'Ads'],
-  ['gst', 'GST on the sale'],
+  ['gst', 'GST still to pay'],
   ['margin', 'Margin'],
 ];
 
@@ -132,8 +132,8 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   y += 9;
   const sumCols: Col[] = [{ w: 46 }, ...Array.from({ length: 10 }, () => ({ w: 22.7, align: 'right' as const }))];
   const sumRows: Cell[][] = rows.map(({ x, p }) => {
-    const res = solve(x, settings, p.cost!, 0, t);
-    const be = solve(x, settings, p.cost!, 0, t, 0).price;
+    const res = solve(x, settings, costIn(p)!, 0, t);
+    const be = solve(x, settings, costIn(p)!, 0, t, 0).price;
     const gl = groupLines(res.lines);
     const room = Number.isFinite(res.price) ? x.asp - res.price : null;
     return [
@@ -144,13 +144,14 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
       room == null ? '-' : { t: room < 0 ? `${rs(-room)} short` : `+${rs(room)}`, s: { bold: true, color: room < 0 ? BAD : GOOD } },
     ];
   });
-  y = table(pdf, M, y, sumCols, ['Product', 'Selling at', 'Product cost', 'Amazon fees', 'Returns', `Ads ${Math.round(t * 100)}%`, 'GST', `Margin ${pc(m)}`, 'Lowest price', 'Break-even', 'Room'], sumRows, 7);
+  y = table(pdf, M, y, sumCols, ['Product', 'Selling at', 'Product cost', 'Amazon fees', 'Returns', `Ads ${Math.round(t * 100)}%`, 'GST to pay', `Margin ${pc(m)}`, 'Lowest price', 'Break-even', 'Room'], sumRows, 7);
   y += 6;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   pdf.setTextColor(...MUTED);
   const notes = [
-    'Product cost = materials + conversion (overheads per unit) from production. Amazon fees = FBA, inbound, storage, referral and closing, including the 18% GST Amazon charges (a cost to us).',
+    `Product cost = materials + ${pc(buyGstOf(settings))} GST on them + conversion (overheads per unit) from production. Amazon fees = FBA, inbound, storage, referral and closing, including their GST. Ads include ${pc(buyGstOf(settings))} GST.`,
+    `GST is inverted: we buy at ${pc(buyGstOf(settings))} and sell at ${pc(g.gst)}, so the sale GST is paid out of the input GST already counted in the costs. "GST to pay" is only what those credits don't cover (usually nothing); leftover credit is lost.`,
     'Returns = the FBA and refund admin fees wasted on returned units, spread over the units that stay sold. Room = today\'s average selling price minus the lowest price.',
   ];
   if (missing.length) notes.push(`No product cost for: ${missing.map((x) => `${x.name} (${x.item || 'not linked'})`).join(', ')}.`);
@@ -161,7 +162,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   const colsHalf: Col[] = [{ w: half - 5 * 18.5 }, ...COLS.map(() => ({ w: 18.5, align: 'right' as const }))];
   rows.forEach(({ x, p }, i) => {
     if (i % 2 === 0) { pdf.addPage(); y = header(pdf, 'By product', source); } else y += 8;
-    const res = COLS.map((c) => solve(x, settings, p.cost!, c.u, t));
+    const res = COLS.map((c) => solve(x, settings, costIn(p)!, c.u, t));
     // band
     pdf.setFillColor(...BRAND);
     pdf.rect(M, y, W - M * 2, 8, 'F');
@@ -171,7 +172,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
     pdf.text(x.name, M + 2.5, y + 5.4);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
-    pdf.text(`Selling at ${rs(x.asp)}  |  cost ${rs(p.cost)} (${x.item})  |  returns ${pc(returnRate(x, settings))}${x.sold < g.minSample ? ' (average)' : ''}  |  actual ads ${pc(x.tacos)}  |  ASIN ${x.asin}`, W - M - 2.5, y + 5.4, { align: 'right' });
+    pdf.text(`Selling at ${rs(x.asp)}  |  cost ${rs(grossCost(costIn(p)!, settings))} incl. GST (${x.item})  |  returns ${pc(returnRate(x, settings))}${x.sold < g.minSample ? ' (average)' : ''}  |  actual ads ${pc(x.tacos)}  |  ASIN ${x.asin}`, W - M - 2.5, y + 5.4, { align: 'right' });
     y += 11;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
@@ -187,7 +188,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
     const tRows: Cell[][] = TACOS.map((tt) => [
       { t: `${Math.round(tt * 100)}% ads`, s: Math.abs(tt - t) < 1e-9 ? { bold: true } : {} },
       ...COLS.map((c) => {
-        const pr = solve(x, settings, p.cost!, c.u, tt).price;
+        const pr = solve(x, settings, costIn(p)!, c.u, tt).price;
         const over = pr > x.asp;
         return { t: rs(pr), s: over ? { color: BAD, fill: BAD_BG } : Math.abs(tt - t) < 1e-9 ? { bold: true, fill: SOFT } : {} };
       }),
@@ -206,7 +207,8 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   y = header(pdf, 'Inputs used', source);
   const gl: Cell[][] = [
     ['Target margin', pc(m)],
-    ['GST on the sale', pc(g.gst)],
+    ['GST on our sale', pc(g.gst)],
+    ['GST on purchases (materials, Amazon fees, ads)', pc(buyGstOf(settings))],
     ['Referral and higher closing fee start at', rs(g.band)],
     ['Closing fee below / above that price', `Rs ${g.closeLo.toFixed(2)} / Rs ${g.closeHi.toFixed(2)}`],
     ['Inbound per unit (when a product has none of its own)', `Rs ${(g.placement + g.transport).toFixed(2)}`],
@@ -216,13 +218,13 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   ];
   if (costs?.conversion) gl.push(['Conversion (from production)', `${rs(costs.conversion.total)} overheads over ${costs.conversion.units ? Math.round(costs.conversion.units).toLocaleString('en-IN') : '-'} units (${costs.conversion.basis})`]);
   y = table(pdf, M, y, [{ w: 90 }, { w: 110 }], ['Fee rates and settings', 'Value'], gl) + 6;
-  const inCols: Col[] = [{ w: 44 }, { w: 26 }, { w: 20 }, ...Array.from({ length: 9 }, () => ({ w: 20.3, align: 'right' as const }))];
+  const inCols: Col[] = [{ w: 44 }, { w: 26 }, { w: 20 }, ...Array.from({ length: 10 }, () => ({ w: 18.3, align: 'right' as const }))];
   table(pdf, M, y, inCols,
-    ['Product', 'ASIN', 'Item', 'Product cost', 'Avg price', 'Units sold', 'Returned', 'FBA fee', 'Refund admin', 'Referral %', 'Inbound', 'Actual ads'],
+    ['Product', 'ASIN', 'Item', 'Materials', 'Conversion', 'Avg price', 'Units sold', 'Returned', 'FBA fee', 'Refund admin', 'Referral %', 'Inbound', 'Actual ads'],
     skus.map((x) => {
       const pp = costOf(x);
       return [
-        { t: x.name, s: { bold: true } }, x.asin, x.item || '-', rs(pp?.cost), rs(x.asp), String(x.sold), String(x.returned),
+        { t: x.name, s: { bold: true } }, x.asin, x.item || '-', rs(pp?.material), rs(pp?.conversion), rs(x.asp), String(x.sold), String(x.returned),
         x.fba.toFixed(2), x.admin.toFixed(2), pc(x.refPct), (x.inbound ?? g.placement + g.transport).toFixed(2), pc(x.tacos),
       ];
     }));
