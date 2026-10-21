@@ -22,6 +22,7 @@ import ownershipRoutes from './routes/ownership.js';
 import workRoutes from './routes/work.js';
 import reportRoutes from './routes/report.js';
 import bookingAssistantRoutes from './routes/bookingAssistant.js';
+import priceFloorsRoutes from './routes/priceFloors.js';
 import { refreshMailConfig } from './services/mailer.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,6 +57,7 @@ app.use('/api/ownership', ownershipRoutes);
 app.use('/api/work', workRoutes);
 app.use('/api/report', reportRoutes);
 app.use('/api/booking-assistant', bookingAssistantRoutes);
+app.use('/api/price-floors', priceFloorsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
