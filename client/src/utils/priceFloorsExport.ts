@@ -5,7 +5,7 @@
 
 import { jsPDF } from 'jspdf';
 import {
-  WATERFALL, costIn, groupLines, marginOf, solve,
+  assumptionsLine, costIn, waterfallRows, groupLines, solve,
   type CostsSnapshot, type FloorSettings, type FloorSku, type ProductCost,
 } from './priceFloors';
 
@@ -104,7 +104,6 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   const costOf = (x: FloorSku) => products.find((p) => p.item === x.item) || null;
   const rows = skus.map((x) => ({ x, c: costIn(costOf(x)) })).filter((r) => r.c) as { x: FloorSku; c: NonNullable<ReturnType<typeof costIn>> }[];
   const missing = skus.length - rows.length;
-  const m = marginOf(settings);
   const t = tacos;
   const ads = (v: number) => `${Math.round(v * 100)}% ads`;
   const source = `Costs ${costs?.month || '-'} (production)  |  Amazon fees: ${feeReport ? feeReport.fileName : '14 Oct report'}  |  ${stamp}`;
@@ -117,7 +116,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(...INK);
-  pdf.text(`Prices include GST. Target margin ${pc(m)} of net sales. Never sell below "Don't go below". Action is for ${ads(t)}.`, M, y);
+  pdf.text(`Prices include GST and ${assumptionsLine(settings)} (shares of net sales). Never sell below "Don't go below". Action is for ${ads(t)}.`, M, y);
   y += 4;
   const cols: Col[] = [{ w: 62 }, { w: 32, align: 'right' }, { w: 34, align: 'right' }, ...LEVELS.map(() => ({ w: 34, align: 'right' as const })), { w: 41, align: 'right' }];
   const body: Cell[][] = rows.map(({ x, c }) => {
@@ -166,7 +165,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
     pdf.setFontSize(8);
     pdf.text(`today ${rs(x.asp)}`, bx + bw - 2, by + 4.8, { align: 'right' });
     by += 7;
-    const wrows: Cell[][] = WATERFALL.map(({ k, label, sign }) => {
+    const wrows: Cell[][] = waterfallRows(settings).map(({ k, label, sign }) => {
       const total = sign === '=' || k === 'price';
       const st = total ? { bold: true, fill: k === 'margin' || k === 'price' ? SOFT : undefined } : {};
       return [
@@ -184,7 +183,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
     pdf.setPage(i);
     pdf.setFontSize(7.5);
     pdf.setTextColor(...MUTED);
-    if (i > 1) pdf.text(`Costs before GST. GST stuck = ${pc(settings.global.buyGst ?? 0.18)} GST paid on materials, Amazon fees and ads minus the ${pc(settings.global.gst)} GST on the sale; it cannot be used, so it is a cost.`, M, H - 6);
+    if (i > 1 && settings.global.stuckOn !== false) pdf.text(`Costs before GST. GST stuck = ${pc(settings.global.buyGst ?? 0.18)} GST paid on materials, Amazon fees and ads minus the ${pc(settings.global.gst)} GST on the sale; it cannot be used, so it is a cost.`, M, H - 6);
     pdf.text(`Heatronics  |  page ${i} of ${n}`, W - M, H - 6, { align: 'right' });
   }
   return { pdf, fileName, written: rows.length, missing };

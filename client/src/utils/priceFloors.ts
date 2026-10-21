@@ -43,6 +43,9 @@ export interface FloorGlobal {
   buyGst: number; // GST paid on materials, Amazon fees and ads (input credit)
   reseller: number; // reseller's (3P seller's) margin, share of net sales
   packing: number; // packing, share of net sales (before GST; GST added at buyGst)
+  resellerOn?: boolean; // false = leave the reseller margin out
+  packingOn?: boolean; // false = leave packing out
+  stuckOn?: boolean; // false = treat input GST as fully recoverable (no GST stuck)
 }
 
 export interface FloorSettings {
@@ -205,6 +208,22 @@ export const groupLines = (l: Lines, price: number): Groups => ({
   stuck: l.stuck,
   margin: l.margin,
 });
+/** Waterfall rows, leaving out the lines switched off in settings. */
+export const waterfallRows = (st: FloorSettings) => {
+  const g = st.global;
+  return WATERFALL.filter(({ k }) => !((k === 'reseller' && g.resellerOn === false) || (k === 'packing' && g.packingOn === false) || (k === 'stuck' && g.stuckOn === false)));
+};
+/** One line naming what the prices include, for the page and the PDF. */
+export const assumptionsLine = (st: FloorSettings) => {
+  const g = st.global;
+  const p = (v: number) => `${Math.round(v * 1000) / 10}%`;
+  return [
+    `margin ${p(marginOf(st))}`,
+    g.resellerOn === false ? '3P margin off' : `3P margin ${p(g.reseller ?? DEFAULT_GLOBAL.reseller)}`,
+    g.packingOn === false ? 'packing off' : `packing ${p(g.packing ?? DEFAULT_GLOBAL.packing)}`,
+    g.stuckOn === false ? 'GST stuck ignored' : 'GST stuck counted',
+  ].join(' · ');
+};
 export const WATERFALL: { k: keyof Groups; label: string; sign: '' | '−' | '=' }[] = [
   { k: 'price', label: 'Selling price', sign: '' },
   { k: 'saleGst', label: 'GST on the sale', sign: '−' },
@@ -247,8 +266,8 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
   const net = 1 / (1 + g.gst);
   const ads = tacos * (1 + b); // ad spend is billed with 18% GST on top
   // ads + margin (+ referral) can eat the whole price: then no price works
-  const rsl = Number.isFinite(g.reseller) ? g.reseller : DEFAULT_GLOBAL.reseller;
-  const pk = Number.isFinite(g.packing) ? g.packing : DEFAULT_GLOBAL.packing;
+  const rsl = g.resellerOn === false ? 0 : Number.isFinite(g.reseller) ? g.reseller : DEFAULT_GLOBAL.reseller;
+  const pk = g.packingOn === false ? 0 : Number.isFinite(g.packing) ? g.packing : DEFAULT_GLOBAL.packing;
   // margin, reseller margin and packing are shares of net sales (price without GST); packing also carries GST
   const lo = 1 - ads - (margin + rsl) * net - pk * net * (1 + b);
   const hi = lo - x.refPct;
@@ -270,7 +289,8 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     amazon = x.fba + inbound + (above ? x.refPct * price + g.closeHi : g.closeLo) + k * (x.fba + x.admin) + k * u * (inbound + g.removal);
     inGst = (amazon * b) / (1 + b) + b * c.material * (1 + k * u) + b * tacos * price + b * pk * net * price;
     outGst = price - price * net;
-    const next = Math.max(0, outGst - inGst);
+    // GST stuck counted: credits only offset the sale GST. Ignored: the whole credit is recovered.
+    const next = g.stuckOn === false ? outGst - inGst : Math.max(0, outGst - inGst);
     if (Math.abs(next - extra) < 0.005) { extra = next; break; }
     extra = next;
   }
@@ -295,7 +315,7 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     amazonEx: 0,
     returnsEx: 0,
     adsEx: tacos * price,
-    stuck: Math.max(0, inGst - outGst),
+    stuck: g.stuckOn === false ? 0 : Math.max(0, inGst - outGst),
     resellerEx: rsl * net * price,
     packingEx: pk * net * price,
   };

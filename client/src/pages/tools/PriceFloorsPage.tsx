@@ -16,7 +16,8 @@ import {
   buyGstOf,
   costIn,
   grossCost,
-  WATERFALL,
+  assumptionsLine,
+  waterfallRows,
   groupLines,
   marginOf,
   mergeReport,
@@ -108,15 +109,16 @@ export function PriceFloorsPage() {
   const m = marginOf(settings);
   const priced = rows.filter((r) => r.cost != null);
   const below = priced.filter((r) => solve(r.x, settings, r.c!, 0, t).price > r.x.asp);
-  const saveMargin = async (v: number) => {
-    const next = { ...settings, global: { ...settings.global, margin: v } };
+  const g = settings.global;
+  const saveGlobal = async (patch: Partial<FloorSettings['global']>, what: string) => {
+    const next = { ...settings, global: { ...settings.global, ...patch } };
     setState((st) => (st ? { ...st, settings: next } : st));
     try {
       const r = await api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: next });
       setState((st) => (st ? { ...st, settings: r.settings } : st));
-      setNote({ tone: 'good', text: `Target margin set to ${Math.round(v * 1000) / 10}%.` });
+      setNote({ tone: 'good', text: `${what} saved.` });
     } catch (e) {
-      setNote({ tone: 'bad', text: `Couldn't save the margin: ${e instanceof Error ? e.message : String(e)}` });
+      setNote({ tone: 'bad', text: `Couldn't save: ${e instanceof Error ? e.message : String(e)}` });
     }
   };
   const unmapped = rows.filter((r) => !r.p);
@@ -178,7 +180,7 @@ export function PriceFloorsPage() {
 
         <SectionCard
           title="Pricing guide"
-          description={`Price at ${fmtPct(m)} margin on net sales for each ad spend. Never sell below break-even. Open a product below for its waterfall.`}
+          description={`Prices include ${assumptionsLine(settings)}. Never sell below break-even. Open a product below for its waterfall.`}
           className="overflow-hidden"
         >
           <div className="-mt-1 mb-4 flex flex-wrap items-center gap-3">
@@ -191,7 +193,27 @@ export function PriceFloorsPage() {
                 options={[0, 0.05, 0.1, 0.15, 0.2].map((v) => ({ id: String(v), label: `${Math.round(v * 100)}% ads` }))}
               />
             </div>
-            <MarginInput key={m} value={m} onSave={saveMargin} />
+            <PctInput key={`m${m}`} label="Target margin" value={m} onSave={(v) => saveGlobal({ margin: v }, `Target margin ${fmtPct(v)}`)} />
+            <PctInput
+              key={`r${g.reseller}${g.resellerOn}`}
+              label="3P margin"
+              value={g.reseller ?? DEFAULT_GLOBAL.reseller}
+              on={g.resellerOn !== false}
+              onToggle={(on) => saveGlobal({ resellerOn: on }, on ? '3P margin on' : '3P margin off')}
+              onSave={(v) => saveGlobal({ reseller: v }, `3P margin ${fmtPct(v)}`)}
+            />
+            <PctInput
+              key={`p${g.packing}${g.packingOn}`}
+              label="Packing"
+              value={g.packing ?? DEFAULT_GLOBAL.packing}
+              on={g.packingOn !== false}
+              onToggle={(on) => saveGlobal({ packingOn: on }, on ? 'Packing on' : 'Packing off')}
+              onSave={(v) => saveGlobal({ packing: v }, `Packing ${fmtPct(v)}`)}
+            />
+            <label className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[14px] font-semibold text-slate-700">
+              <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={g.stuckOn !== false} onChange={(e) => saveGlobal({ stuckOn: e.target.checked }, e.target.checked ? 'GST stuck counted' : 'GST stuck ignored')} />
+              Count GST stuck
+            </label>
           </div>
           <SummaryTable rows={rows} settings={settings} t={t} hasCosts={products.length > 0} />
         </SectionCard>
@@ -326,29 +348,37 @@ const fmtPct = (v: number) => `${Math.round(v * 1000) / 10}%`;
 const share = (v: number, price: number) => (price > 0 && Number.isFinite(price) && Number.isFinite(v) ? `${Math.round((v / price) * 100)}%` : '—');
 
 /** Target margin, typed as a percent; saves on Enter or when the field loses focus. */
-function MarginInput({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+/** A percent input that saves on Enter or blur, with an optional on/off switch. */
+function PctInput({ label, value, onSave, on, onToggle }: { label: string; value: number; onSave: (v: number) => void; on?: boolean; onToggle?: (on: boolean) => void }) {
   const [v, setV] = useState(String(Math.round(value * 1000) / 10));
+  const off = on === false;
   const commit = () => {
     const n = Number(v.replace(/[^\d.]/g, ''));
     if (!Number.isFinite(n) || n < 0 || n > 60) { setV(String(Math.round(value * 1000) / 10)); return; }
     if (Math.abs(n / 100 - value) > 1e-9) onSave(n / 100);
   };
   return (
-    <label className="flex items-center gap-2 text-[14px] font-semibold text-slate-700">
-      Target margin
-      <span className="relative">
-        <input
-          inputMode="decimal"
-          aria-label="Target margin, percent of net sales"
-          className="h-11 w-20 rounded-lg border border-slate-200 bg-white pl-3 pr-7 text-right text-[14px] tabular-nums focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
-          value={v}
-          onChange={(e) => setV(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-        />
-        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">%</span>
-      </span>
-    </label>
+    <div className={`flex items-center gap-2 rounded-xl border px-2.5 py-1 ${off ? 'border-slate-200 bg-slate-50' : 'border-slate-200 bg-white'}`}>
+      {onToggle && (
+        <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={!off} onChange={(e) => onToggle(e.target.checked)} aria-label={`Include ${label}`} />
+      )}
+      <label className={`flex items-center gap-2 text-[14px] font-semibold ${off ? 'text-slate-400' : 'text-slate-700'}`}>
+        {label}
+        <span className="relative">
+          <input
+            inputMode="decimal"
+            disabled={off}
+            aria-label={`${label}, percent of net sales`}
+            className="h-10 w-[4.5rem] rounded-lg border border-slate-200 bg-white pl-2.5 pr-6 text-right text-[14px] tabular-nums focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-slate-100"
+            value={v}
+            onChange={(e) => setV(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+          />
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+        </span>
+      </label>
+    </div>
   );
 }
 
@@ -445,7 +475,7 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
           <tr><th className="py-1.5 text-left font-semibold">Per unit, {Math.round(t * 100)}% ads</th><th className="py-1.5 font-semibold">₹</th><th className="py-1.5 font-semibold">% of net sales</th></tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {WATERFALL.map(({ k, label, sign }) => (
+          {waterfallRows(settings).map(({ k, label, sign }) => (
             <tr key={k} className={sign === '=' || k === 'price' ? 'font-semibold text-slate-900' : 'text-slate-600'}>
               <td className="py-2"><span className="mr-1.5 inline-block w-3 text-slate-400">{sign}</span>{label}{k === 'saleGst' ? ` ${fmtPct(settings.global.gst)}` : ''}</td>
               <td className="py-2 text-right tabular-nums">{rs(g[k])}</td>
@@ -459,7 +489,8 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
   );
 }
 
-const GLOBAL_FIELDS: [keyof FloorSettings['global'], string, string][] = [
+type NumKey = Exclude<keyof FloorSettings['global'], 'resellerOn' | 'packingOn' | 'stuckOn'>;
+const GLOBAL_FIELDS: [NumKey, string, string][] = [
   ['margin', 'Target margin', '% of net sales (price without GST), after every cost'],
   ['gst', 'GST on our sale', '% charged to the customer'],
   ['buyGst', 'GST on purchases', '% on materials, Amazon fees and ads'],
@@ -474,7 +505,7 @@ const GLOBAL_FIELDS: [keyof FloorSettings['global'], string, string][] = [
   ['removal', 'Removal fee', '₹ per unsellable return'],
   ['minSample', 'Average return rate below', 'units sold'],
 ];
-const PCT_FIELDS = new Set<keyof FloorSettings['global']>(['margin', 'gst', 'buyGst', 'reseller', 'packing']);
+const PCT_FIELDS = new Set<NumKey>(['margin', 'gst', 'buyGst', 'reseller', 'packing']);
 const SKU_FIELDS: [keyof FloorSku, string][] = [
   ['asp', 'Avg price ₹'],
   ['sold', 'Units sold'],
