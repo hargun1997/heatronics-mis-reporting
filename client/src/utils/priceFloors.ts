@@ -35,6 +35,7 @@ export interface FloorGlobal {
   storage: number; // storage per unit sold
   removal: number; // removal fee per unsellable return
   minSample: number; // below this many units sold, use the average return rate
+  margin: number; // target profit as a share of the GST-inclusive selling price
 }
 
 export interface FloorSettings {
@@ -105,6 +106,7 @@ export const DEFAULT_GLOBAL: FloorGlobal = {
   storage: 23.03,
   removal: 11.8,
   minSample: 30,
+  margin: 0.08,
 };
 
 const s = (asin: string, name: string, sku: string, item: string, asp: number, sold: number, returned: number, fba: number, admin: number, refPct: number): FloorSku => ({
@@ -163,10 +165,28 @@ export interface Lines {
   unsellable: number;
   ads: number;
   gst: number;
+  margin: number;
 }
 
-/** Lowest GST-inclusive price with zero profit, given the full unit cost. */
-export function solve(x: FloorSku, st: FloorSettings, cost: number, unsellable: number | null, tacos: number): { price: number; lines: Lines } {
+/** Same lines grouped the way the page shows them. */
+export interface Groups { cost: number; amazon: number; returns: number; ads: number; gst: number; margin: number }
+export const groupLines = (l: Lines): Groups => ({
+  cost: l.cost,
+  amazon: l.fba + l.placement + l.transport + l.storage + l.referral + l.closing,
+  returns: l.returns + l.unsellable,
+  ads: l.ads,
+  gst: l.gst,
+  margin: l.margin,
+});
+
+/** Target margin from settings; older saved settings have none. */
+export const marginOf = (st: FloorSettings) => (Number.isFinite(st.global.margin) ? st.global.margin : DEFAULT_GLOBAL.margin);
+
+/**
+ * Lowest GST-inclusive price that leaves `margin` (share of the price) after product cost,
+ * Amazon fees, returns, ads and GST. margin = 0 gives the break-even price.
+ */
+export function solve(x: FloorSku, st: FloorSettings, cost: number, unsellable: number | null, tacos: number, margin = marginOf(st)): { price: number; lines: Lines } {
   const g = st.global;
   const r = unsellable === null ? 0 : Math.min(returnRate(x, st), 0.9);
   const u = unsellable || 0;
@@ -175,15 +195,16 @@ export function solve(x: FloorSku, st: FloorSettings, cost: number, unsellable: 
   const inbound = sent + g.storage;
   const base = cost + x.fba + inbound + k * (x.fba + x.admin) + k * u * (cost + inbound + g.removal);
   const net = 1 / (1 + g.gst);
-  let price = (base + g.closeLo) / (net - tacos);
+  // ads + margin (+ referral) can eat the whole price: then no price works
+  const lo = net - tacos - margin;
+  const hi = lo - x.refPct;
+  let price = lo > 0 ? (base + g.closeLo) / lo : Infinity;
   let above = false;
   if (price >= g.band) {
-    price = Math.max(g.band, (base + g.closeHi) / (net - tacos - x.refPct));
+    price = hi > 0 ? Math.max(g.band, (base + g.closeHi) / hi) : Infinity;
     above = true;
   }
-  return {
-    price,
-    lines: {
+  const lines = {
       cost,
       fba: x.fba,
       placement: x.inbound != null ? 0 : g.placement,
@@ -195,8 +216,11 @@ export function solve(x: FloorSku, st: FloorSettings, cost: number, unsellable: 
       unsellable: k * u * (cost + inbound + g.removal),
       ads: tacos * price,
       gst: price - price * net,
-    },
+      margin: 0,
   };
+  const spent = lines.cost + lines.fba + lines.placement + lines.transport + lines.storage + lines.referral + lines.closing + lines.returns + lines.unsellable + lines.ads + lines.gst;
+  lines.margin = price - spent;
+  return { price, lines };
 }
 
 /**

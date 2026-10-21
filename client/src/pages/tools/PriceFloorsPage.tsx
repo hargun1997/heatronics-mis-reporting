@@ -1,4 +1,4 @@
-// Amazon price floors — lowest break-even Amazon price per SKU.
+// Amazon price floors — lowest Amazon price per SKU that still leaves the target margin.
 // Product cost comes from production.heatronics.in; Amazon economics from the
 // Seller Central "Revenue and fees" report uploaded here.
 
@@ -14,6 +14,8 @@ import {
   DEFAULT_SETTINGS,
   SELLER_CENTRAL_REPORTS,
   TACOS,
+  groupLines,
+  marginOf,
   mergeReport,
   pct,
   returnRate,
@@ -23,7 +25,7 @@ import {
   type FeeReport,
   type FloorSettings,
   type FloorSku,
-  type Lines,
+  type Groups,
   type ProductCost,
 } from '../../utils/priceFloors';
 import { FeeReportError, parseFeeReport } from '../../utils/sellerCentralFees';
@@ -98,15 +100,27 @@ export function PriceFloorsPage() {
   };
 
   const t = Number(tacos);
+  const m = marginOf(settings);
   const priced = rows.filter((r) => r.cost != null);
   const below = priced.filter((r) => solve(r.x, settings, r.cost!, 0, t).price > r.x.asp);
+  const saveMargin = async (v: number) => {
+    const next = { ...settings, global: { ...settings.global, margin: v } };
+    setState((st) => (st ? { ...st, settings: next } : st));
+    try {
+      const r = await api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: next });
+      setState((st) => (st ? { ...st, settings: r.settings } : st));
+      setNote({ tone: 'good', text: `Target margin set to ${Math.round(v * 1000) / 10}%.` });
+    } catch (e) {
+      setNote({ tone: 'bad', text: `Couldn't save the margin: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  };
   const unmapped = rows.filter((r) => !r.p);
 
   return (
     <>
       <PageHeader
         title="Amazon price floors"
-        description="The lowest Amazon price per product that still breaks even, from production's latest cost and your Amazon fee report."
+        description="The lowest Amazon price per product that still leaves your target margin, from production's latest cost and your Amazon fee report."
         icon={icon}
         crumbs={[{ label: 'Tools', to: '/tools' }, { label: 'Amazon price floors' }]}
         actions={
@@ -136,7 +150,7 @@ export function PriceFloorsPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <SourceCard
             title="Product costs"
-            line={costs?.month ? `${monthName(costs.month)} · materials + conversion` : 'Not loaded yet'}
+            line={costs?.month ? `${monthName(costs.month)} · full cost per unit` : 'Not loaded yet'}
             sub={
               costs?.error
                 ? <span className="text-rose-700">Last refresh failed: {costs.error}{costs.month ? ' (showing the last good costs)' : ''}</span>
@@ -150,33 +164,36 @@ export function PriceFloorsPage() {
             setState((st) => (st ? { ...st, settings: s, reports: [r, ...st.reports.filter((x) => x.id !== r.id)] } : st));
           }} setNote={setNote} />
           <SourceCard
-            title="Priced below their floor"
+            title="Selling below target"
             line={priced.length ? <span className={below.length ? 'text-rose-700' : 'text-emerald-700'}>{below.length} of {priced.length}</span> : <span className="text-slate-400">—</span>}
-            sub={`At ${Math.round(t * 100)}% ad spend, returns resellable`}
+            sub={`At ${fmtPct(m)} margin and ${Math.round(t * 100)}% ad spend, returns resellable`}
             foot={!products.length ? 'Waiting for product costs' : unmapped.length ? <span className="text-amber-700">{unmapped.length} SKU{unmapped.length > 1 ? 's' : ''} not linked to a product cost</span> : 'Every SKU has a product cost'}
           />
         </div>
 
         <SectionCard
-          title="Floor per product"
-          description="Returns at each product's own rate, all resellable. Room = today's average price minus the floor."
+          title="Lowest price per product"
+          description="Where each rupee of that price goes. Returns at each product's own rate, all resellable. Room = today's average price minus the lowest price."
           className="overflow-hidden"
         >
-          <div className="-mt-1 mb-4 overflow-x-auto">
-            <SegmentedControl
-              size="sm"
-              aria-label="Ad spend"
-              value={tacos}
-              onChange={setTacos}
-              options={[0, 0.05, 0.1, 0.15, 0.2].map((v) => ({ id: String(v), label: `${Math.round(v * 100)}% ads` }))}
-            />
+          <div className="-mt-1 mb-4 flex flex-wrap items-center gap-3">
+            <div className="overflow-x-auto">
+              <SegmentedControl
+                size="sm"
+                aria-label="Ad spend"
+                value={tacos}
+                onChange={setTacos}
+                options={[0, 0.05, 0.1, 0.15, 0.2].map((v) => ({ id: String(v), label: `${Math.round(v * 100)}% ads` }))}
+              />
+            </div>
+            <MarginInput key={m} value={m} onSave={saveMargin} />
           </div>
           <SummaryTable rows={rows} settings={settings} t={t} hasCosts={products.length > 0} />
         </SectionCard>
 
         <div className="space-y-2">
           <h2 className="text-sm font-bold text-slate-900">By product</h2>
-          {priced.map((r) => <SkuDetail key={r.x.asin} r={r} settings={settings} />)}
+          {priced.map((r) => <SkuDetail key={r.x.asin} r={r} settings={settings} t={t} />)}
           {!priced.length && <p className="text-sm text-slate-500">No product costs yet. Refresh costs, or link SKUs to products in Settings below.</p>}
         </div>
 
@@ -188,9 +205,9 @@ export function PriceFloorsPage() {
         onClose={() => setPicker(false)}
         rows={rows}
         onDownload={(skus) => {
-          const r = downloadFloorsReport({ skus, settings, products, costs, feeReport: state?.reports[0] || null });
+          const r = downloadFloorsReport({ skus, settings, products, costs, feeReport: state?.reports[0] || null, tacos: t });
           setPicker(false);
-          setNote({ tone: r.written ? 'good' : 'bad', text: r.written ? `Report downloaded for ${r.written} product${r.written > 1 ? 's' : ''}.` : 'None of the picked products has a cost yet, so there was nothing to put in the report.' });
+          setNote({ tone: r.written ? 'good' : 'bad', text: r.written ? `PDF downloaded for ${r.written} product${r.written > 1 ? 's' : ''}.` : 'None of the picked products has a cost yet, so there was nothing to put in the report.' });
         }}
       />}
     </>
@@ -299,14 +316,55 @@ function UploadCard({ state, settings, onSaved, setNote }: {
   );
 }
 
+const fmtPct = (v: number) => `${Math.round(v * 1000) / 10}%`;
+
+/** Target margin, typed as a percent; saves on Enter or when the field loses focus. */
+function MarginInput({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+  const [v, setV] = useState(String(Math.round(value * 1000) / 10));
+  const commit = () => {
+    const n = Number(v.replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(n) || n < 0 || n > 60) { setV(String(Math.round(value * 1000) / 10)); return; }
+    if (Math.abs(n / 100 - value) > 1e-9) onSave(n / 100);
+  };
+  return (
+    <label className="flex items-center gap-2 text-[14px] font-semibold text-slate-700">
+      Target margin
+      <span className="relative">
+        <input
+          inputMode="decimal"
+          aria-label="Target margin, percent of the selling price"
+          className="h-11 w-20 rounded-lg border border-slate-200 bg-white pl-3 pr-7 text-right text-[14px] tabular-nums focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
+          value={v}
+          onChange={(e) => setV(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        />
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">%</span>
+      </span>
+    </label>
+  );
+}
+
+const GROUP_ROWS: [keyof Groups, string][] = [
+  ['cost', 'Product cost'],
+  ['amazon', 'Amazon fees'],
+  ['returns', 'Returns'],
+  ['ads', 'Ads'],
+  ['gst', 'GST on the sale'],
+  ['margin', 'Margin'],
+];
+
 function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: FloorSettings; t: number; hasCosts: boolean }) {
+  const m = marginOf(settings);
   const out = rows.map((r) => {
-    const f0 = r.cost != null ? solve(r.x, settings, r.cost, 0, 0).price : null;
-    const ft = r.cost != null ? solve(r.x, settings, r.cost, 0, t).price : null;
-    return { ...r, f0, ft, room: ft != null && r.x.asp ? r.x.asp - ft : null };
+    const be = r.cost != null ? solve(r.x, settings, r.cost, 0, t, 0).price : null;
+    const res = r.cost != null ? solve(r.x, settings, r.cost, 0, t) : null;
+    const ft = res ? res.price : null;
+    return { ...r, be, ft, g: res ? groupLines(res.lines) : null, room: ft != null && Number.isFinite(ft) && r.x.asp ? r.x.asp - ft : null };
   });
   const room = (v: number | null) =>
     v == null ? <span className="text-slate-400">—</span> : <span className={`font-semibold ${v < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{v < 0 ? `▼ ${rs(-v)} short` : `▲ ${rs(v)}`}</span>;
+  const td = 'px-3 py-3 text-right tabular-nums text-slate-600';
   return (
     <>
       <ul className="-mx-5 -mb-5 divide-y border-t border-slate-100 divide-slate-100 md:hidden">
@@ -316,8 +374,15 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
               <span className="text-[14px] font-semibold text-slate-900">{r.x.name}</span>
               <span className="tabular-nums text-[15px] font-bold">{rs(r.ft)}</span>
             </div>
+            {r.g ? (
+              <div className="mt-1 text-[13px] tabular-nums text-slate-500">
+                Cost {rs(r.g.cost)} · Amazon {rs(r.g.amazon)} · Returns {rs(r.g.returns)} · Ads {rs(r.g.ads)} · GST {rs(r.g.gst)} · Margin {rs(r.g.margin)}
+              </div>
+            ) : (
+              <div className="mt-1 text-[13px] text-slate-500">{hasCosts ? 'Not linked to a product cost' : 'Costs not loaded'}</div>
+            )}
             <div className="mt-1 flex items-baseline justify-between gap-3 text-[13px] text-slate-500">
-              <span>Selling at {rs(r.x.asp)} · cost {r.cost != null ? rs(r.cost) : hasCosts ? 'not linked' : 'not loaded'}</span>
+              <span>Selling at {rs(r.x.asp)} · break-even {rs(r.be)}</span>
               {room(r.room)}
             </div>
           </li>
@@ -329,12 +394,14 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
             <tr>
               <th className="py-3 pl-5 pr-3 font-semibold">Product</th>
               <th className="px-3 py-3 text-right font-semibold">Selling at</th>
-              <th className="px-3 py-3 text-right font-semibold">Materials</th>
-              <th className="px-3 py-3 text-right font-semibold">Conversion</th>
-              <th className="px-3 py-3 text-right font-semibold">Return rate</th>
-              <th className="px-3 py-3 text-right font-semibold">Actual ads</th>
-              <th className="px-3 py-3 text-right font-semibold">Floor, no ads</th>
-              <th className="px-3 py-3 text-right font-semibold">Floor at {Math.round(t * 100)}%</th>
+              <th className="px-3 py-3 text-right font-semibold">Product cost</th>
+              <th className="px-3 py-3 text-right font-semibold">Amazon fees</th>
+              <th className="px-3 py-3 text-right font-semibold">Returns</th>
+              <th className="px-3 py-3 text-right font-semibold">Ads {Math.round(t * 100)}%</th>
+              <th className="px-3 py-3 text-right font-semibold">GST</th>
+              <th className="px-3 py-3 text-right font-semibold">Margin {fmtPct(m)}</th>
+              <th className="px-3 py-3 text-right font-semibold">Lowest price</th>
+              <th className="px-3 py-3 text-right font-semibold">Break-even</th>
               <th className="py-3 pl-3 pr-5 text-right font-semibold">Room</th>
             </tr>
           </thead>
@@ -344,17 +411,19 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
                 <td className="py-3 pl-5 pr-3">
                   <span className="font-semibold text-slate-900">{r.x.name}</span>
                   {!r.p && hasCosts && <span className="ml-2 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">not linked</span>}
+                  <span className="block text-xs text-slate-500">
+                    returns {pct(returnRate(r.x, settings))}{r.x.sold < settings.global.minSample ? ' (avg)' : ''} · actual ads {pct(r.x.tacos)}
+                  </span>
                 </td>
                 <td className="px-3 py-3 text-right tabular-nums">{rs(r.x.asp)}</td>
-                <td className="px-3 py-3 text-right tabular-nums text-slate-600">{rs(r.p?.material)}</td>
-                <td className="px-3 py-3 text-right tabular-nums text-slate-600">{rs(r.p?.conversion)}</td>
-                <td className="px-3 py-3 text-right tabular-nums text-slate-600">
-                  {pct(returnRate(r.x, settings))}
-                  {r.x.sold < settings.global.minSample && <span className="ml-1 text-xs text-slate-400">avg</span>}
-                </td>
-                <td className="px-3 py-3 text-right tabular-nums text-slate-600">{pct(r.x.tacos)}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{rs(r.f0)}</td>
+                <td className={td}>{rs(r.g?.cost)}</td>
+                <td className={td}>{rs(r.g?.amazon)}</td>
+                <td className={td}>{rs(r.g?.returns)}</td>
+                <td className={td}>{rs(r.g?.ads)}</td>
+                <td className={td}>{rs(r.g?.gst)}</td>
+                <td className={td}>{rs(r.g?.margin)}</td>
                 <td className="px-3 py-3 text-right tabular-nums font-bold">{rs(r.ft)}</td>
+                <td className={td}>{rs(r.be)}</td>
                 <td className="py-3 pl-3 pr-5 text-right tabular-nums">{room(r.room)}</td>
               </tr>
             ))}
@@ -365,43 +434,32 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
   );
 }
 
-const LINE_ROWS: [keyof Lines, string][] = [
-  ['cost', 'Product cost (materials + conversion)'],
-  ['fba', 'FBA fulfilment fee'],
-  ['placement', 'Inbound placement'],
-  ['transport', 'Inbound transport'],
-  ['storage', 'Storage'],
-  ['referral', 'Referral fee'],
-  ['closing', 'Closing fee'],
-  ['returns', 'Returns: wasted FBA fee + refund admin'],
-  ['unsellable', 'Unsellable returns: lost unit, inbound, removal'],
-];
-
-function SkuDetail({ r, settings }: { r: Row; settings: FloorSettings }) {
+function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: number }) {
   const [view, setView] = useState<'grid' | 'cost'>('grid');
   const cost = r.cost!;
-  const f10 = solve(r.x, settings, cost, 0, 0.1).price;
-  const res = COLS.map((c) => solve(r.x, settings, cost, c.u, 0));
+  const m = marginOf(settings);
+  const ft = solve(r.x, settings, cost, 0, t).price;
+  const res = COLS.map((c) => solve(r.x, settings, cost, c.u, t));
   return (
     <Disclosure
       title={r.x.name}
-      subtitle={`Floor ${rs(f10)} at 10% ads · selling at ${rs(r.x.asp)} · cost ${rs(cost)} · returns ${pct(returnRate(r.x, settings))}`}
+      subtitle={`Lowest ${rs(ft)} at ${fmtPct(m)} margin, ${Math.round(t * 100)}% ads · selling at ${rs(r.x.asp)} · cost ${rs(cost)} · returns ${pct(returnRate(r.x, settings))}`}
     >
       <div className="mb-3 mt-2">
-        <SegmentedControl size="sm" aria-label="View" value={view} onChange={setView} options={[{ id: 'grid', label: 'By ad spend' }, { id: 'cost', label: 'Cost breakdown' }]} />
+        <SegmentedControl size="sm" aria-label="View" value={view} onChange={setView} options={[{ id: 'grid', label: 'By ad spend' }, { id: 'cost', label: 'Where the money goes' }]} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[13.5px]">
           <thead className="bg-slate-50 text-right text-[12px] text-slate-500">
             <tr>
-              <th className="py-2 pl-3 pr-3 text-left font-semibold">{view === 'grid' ? 'Ad spend' : '₹ per unit sold, no ads'}</th>
+              <th className="py-2 pl-3 pr-3 text-left font-semibold">{view === 'grid' ? 'Ad spend' : `₹ per unit, ${Math.round(t * 100)}% ads`}</th>
               {COLS.map((c) => <th key={c.label} className="px-3 py-2 font-semibold">{c.label}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {view === 'grid'
               ? TACOS.map((tt) => (
-                <tr key={tt} className={tt === 0.1 ? 'bg-brand-50 font-semibold' : ''}>
+                <tr key={tt} className={Math.abs(tt - t) < 1e-9 ? 'bg-brand-50 font-semibold' : ''}>
                   <td className="py-2 pl-3 pr-3 tabular-nums">{Math.round(tt * 100)}%</td>
                   {COLS.map((c) => {
                     const p = solve(r.x, settings, cost, c.u, tt).price;
@@ -416,16 +474,15 @@ function SkuDetail({ r, settings }: { r: Row; settings: FloorSettings }) {
               ))
               : (
                 <>
-                  {LINE_ROWS.map(([k, label]) => (
+                  {GROUP_ROWS.map(([k, label]) => (
                     <tr key={k}>
-                      <td className="py-2 pl-3 pr-3">{label}</td>
-                      {res.map((x, i) => <td key={i} className="px-3 py-2 text-right tabular-nums text-slate-600">{Math.round(x.lines[k]) ? Math.round(x.lines[k]).toLocaleString('en-IN') : '–'}</td>)}
+                      <td className="py-2 pl-3 pr-3">{label}{k === 'margin' ? ` (${fmtPct(m)})` : ''}</td>
+                      {res.map((x, i) => {
+                        const v = groupLines(x.lines)[k];
+                        return <td key={i} className="px-3 py-2 text-right tabular-nums text-slate-600">{!Number.isFinite(v) ? '—' : Math.round(v) ? Math.round(v).toLocaleString('en-IN') : '–'}</td>;
+                      })}
                     </tr>
                   ))}
-                  <tr>
-                    <td className="py-2 pl-3 pr-3">GST on the sale ({pct(settings.global.gst)})</td>
-                    {res.map((x, i) => <td key={i} className="px-3 py-2 text-right tabular-nums text-slate-600">{Math.round(x.lines.gst).toLocaleString('en-IN')}</td>)}
-                  </tr>
                   <tr className="border-t-2 border-slate-800 bg-brand-50 font-bold">
                     <td className="py-2 pl-3 pr-3">Lowest price, incl. GST</td>
                     {res.map((x, i) => <td key={i} className="px-3 py-2 text-right tabular-nums">{rs(x.price)}</td>)}
@@ -436,13 +493,14 @@ function SkuDetail({ r, settings }: { r: Row; settings: FloorSettings }) {
         </table>
       </div>
       <p className="mt-3 text-xs text-slate-500">
-        Red cells are above today's price of {rs(r.x.asp)}. Cost = materials {rs(r.p?.material)}{r.p?.conversion ? ` + conversion ${rs(r.p.conversion)}` : ''} for {r.x.item}. ASIN {r.x.asin}.
+        Red cells are above today's price of {rs(r.x.asp)}. Product cost {rs(cost)} for {r.x.item} (materials and conversion). Amazon fees = FBA, inbound, storage, referral and closing, with their 18% GST. Returns = wasted fees on returned units, plus the lost unit when it can't be resold. ASIN {r.x.asin}.
       </p>
     </Disclosure>
   );
 }
 
 const GLOBAL_FIELDS: [keyof FloorSettings['global'], string, string][] = [
+  ['margin', 'Target margin', '% of the selling price, after every cost'],
   ['placement', 'Inbound placement', '₹ per unit, when a SKU has no inbound of its own'],
   ['transport', 'Inbound transport', '₹ per unit, when a SKU has no inbound of its own'],
   ['storage', 'Storage', '₹ per unit sold'],
@@ -498,7 +556,12 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
           {GLOBAL_FIELDS.map(([k, label, unit]) => (
             <label key={k} className="block text-[13px] font-semibold text-slate-600">
               {label}
-              <input inputMode="decimal" className={inputCls} value={s.global[k]} onChange={(e) => setS({ ...s, global: { ...s.global, [k]: num(e.target.value) } })} />
+              <input
+                inputMode="decimal"
+                className={inputCls}
+                value={k === 'margin' ? Math.round(marginOf(s) * 1000) / 10 : s.global[k]}
+                onChange={(e) => setS({ ...s, global: { ...s.global, [k]: k === 'margin' ? num(e.target.value) / 100 : num(e.target.value) } })}
+              />
               <span className="mt-1 block text-xs font-normal text-slate-500">{unit}</span>
             </label>
           ))}
@@ -591,7 +654,7 @@ function DownloadPicker({ open, onClose, rows, onDownload }: { open: boolean; on
       open={open}
       onClose={onClose}
       title="Download price floors report"
-      subtitle="Pick the products to include. You get an Excel file with the summary, floors by ad spend, cost breakdown and the inputs used."
+      subtitle="Pick the products to include. You get a PDF with the summary, where the money goes, prices by ad spend and the inputs used."
       footer={
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
           <span className="text-sm text-slate-500">{picked.size} of {withCost.length} picked</span>
@@ -603,7 +666,7 @@ function DownloadPicker({ open, onClose, rows, onDownload }: { open: boolean; on
               onClick={() => onDownload(rows.filter((r) => picked.has(r.x.asin)).map((r) => r.x))}
               className="h-11 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
             >
-              Download Excel
+              Download PDF
             </button>
           </div>
         </div>
