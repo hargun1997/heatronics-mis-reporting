@@ -103,6 +103,12 @@ export interface MonthlyMIS {
   tallyLines?: TallyBucketLine[];
   /** Named residues between the connector channel/SKU view and Tally's authority. */
   channelRecon?: ChannelRecon;
+  /**
+   * Set only when the continuous channel taxonomy folded this month's keys
+   * (OEM→B2B, Offline→GT): the net revenue by its ORIGINAL channel, so
+   * estimates that depend on the source channel (orders ÷ AOV) stay exact.
+   */
+  rawNetByChannel?: Partial<Record<SalesChannel, number>>;
   /** Live months only: actual order counts per channel from the connector facts. */
   ordersByChannel?: Partial<Record<SalesChannel, number>>;
   /**

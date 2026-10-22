@@ -16,7 +16,7 @@ import { SALES_CHANNELS, DISCOUNT_DATA, D2C_REPEATS, AMAZON_REPEATS, type Monthl
 import type { PeriodAgg, Granularity } from '../../data/misDeck/liveAnalytics';
 import { REAL_ROWS, toPeriodMIS, liveLikeForLike, shortKey } from '../../data/misDeck/liveViews';
 import {
-  arrProjection, channelMix, channelHHI, topChannel, channelsAbove, channelObservations, ordersByChannel, CHANNEL_AOV,
+  arrProjection, channelMix, channelHHI, topChannel, channelsAbove, channelObservations, CHANNEL_AOV,
 } from '../../data/misDeck/analytics';
 import { Fold, Pills, BlendToggle, BlendNote, Delta, fairGrowth, Note, TableBox, useLiveView } from './shared';
 import { yearAgoOf, scopeLine } from './deckTabs';
@@ -190,7 +190,7 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
   period: PeriodAgg; periods: PeriodAgg[]; months: MonthlyMIS[];
   monthly: PeriodAgg[]; quarterly: PeriodAgg[]; yearly: PeriodAgg[]; gran: Granularity;
 }) {
-  const { chName, chColor } = useLiveView();
+  const { chName, chColor, merged } = useLiveView();
   const chans = channelsIn(periods);
   const names = chans.map(chName);
   const colors = Object.fromEntries(chans.map((c) => [chName(c), chColor(c)]));
@@ -204,10 +204,15 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
   // Orders: actual where every member month carries connector order counts, else net revenue ÷ AOV.
   const orderRows = periods.map((p) => {
     const actual = p.ordersMonths > 0 && p.ordersMonths === p.members.length;
-    const est = ordersByChannel(toPeriodMIS(p));
-    return { actual, v: Object.fromEntries(chans.map((c) => [c, actual ? (p.ordersByChannel[c] ?? 0) : est[c]])) as Record<string, number> };
+    // Estimates are priced per SOURCE channel (OEM ₹325 even when shown as B2B (OEM)).
+    return { actual, v: Object.fromEntries(chans.map((c) => [c, actual ? (p.ordersByChannel[c] ?? 0) : (p.estOrdersByChannel[c] ?? 0)])) as Record<string, number> };
   });
   const anyActual = orderRows.some((r) => r.actual);
+  // AOVs actually applied: the SOURCE channels behind the shown periods.
+  const aovChans = SALES_CHANNELS.filter((c) => periods.some((p) => {
+    const raw = months.filter((m) => p.members.includes(m.key)).reduce((s, m) => s + ((m.rawNetByChannel ?? m.netByChannel)[c] ?? 0), 0);
+    return raw > 0;
+  }));
   const orderLines = chans.map((c) => ({ name: chName(c), color: chColor(c), values: orderRows.map((r) => r.v[c] ?? 0) }));
 
   // Channel growth over time — own MoM / QoQ / YoY basis, equal frames only.
@@ -252,7 +257,8 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
         <Note>
           {anyActual && <>Periods with actual orders: {periods.filter((_, i) => orderRows[i].actual).map((p) => p.label).join(', ')}. </>}
           Estimates use a fixed AOV per channel, so an estimated trend tracks revenue. AOV assumed:{' '}
-          {chans.map((c) => `${chName(c)} ₹${CHANNEL_AOV[c].toLocaleString('en-IN')}`).join(' · ')} (D2C = Shopify storefront).
+          {aovChans.map((c) => `${c} ₹${CHANNEL_AOV[c].toLocaleString('en-IN')}`).join(' · ')} (D2C = Shopify storefront).
+          {merged && aovChans.some((c) => c === 'OEM' || c === 'Offline') && ' OEM / Offline history keeps its own AOV inside B2B (OEM) / GT (Offline).'}
         </Note>
       </Fold>
       <Fold id="cm-growth" secondary title="Channel growth over time"

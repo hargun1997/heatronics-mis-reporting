@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react';
 import { Modal } from '../ui';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
-import { aggregatePeriods, type Granularity } from '../../data/misDeck/liveAnalytics';
+import { aggregatePeriods, monthLabel, type Granularity } from '../../data/misDeck/liveAnalytics';
 import { exportLiveMis, liveSheetCount, LIVE_EXPORT_EVERYTHING, type LiveExportOptions } from '../../utils/liveMisExport';
 import { downloadLivePdf, type PdfSection } from '../../utils/liveMisPdf';
 
@@ -147,7 +147,7 @@ export function LivePdfModal({ deck, open, onClose, blended, merged }: {
               <button type="button" className="text-[11px] text-slate-500" onClick={() => setMonthKeys([])}>Clear</button>
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-              {deck.periods.map((k) => <button key={k} type="button" className={chip(monthKeys.includes(k))} onClick={() => setMonthKeys(toggle(monthKeys, k))}>{k}</button>)}
+              {deck.periods.map((k) => <button key={k} type="button" className={chip(monthKeys.includes(k))} onClick={() => setMonthKeys(toggle(monthKeys, k))}>{monthLabel(k)}</button>)}
             </div>
           </div>
         )}

@@ -19,15 +19,15 @@
 // ----------------------------------------------------------------------------
 
 import type { MonthlyMIS, SalesChannel } from './misDeckData';
-import { SALES_CHANNELS, VERTICALS, VERTICAL_BY_CHANNEL, DISCOUNT_DATA } from './misDeckData';
+import { SALES_CHANNELS, VERTICALS, VERTICAL_BY_CHANNEL, DISCOUNT_DATA, D2C_AD_SPEND, AMAZON_AD_SPEND } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
 import type { CompletenessLevel, LiveDeckData, PeriodCompleteness } from './liveDeck';
 import {
-  aggregatePeriods, monthLabel, FACTORY_PCT,
+  aggregatePeriods, monthLabel, FACTORY_PCT, CHANNEL_FOLD,
   type PeriodAgg, type PnlColumn,
 } from './liveAnalytics';
 import {
-  channelAdWeight, fyBlendedGMRates, blendedMonths, ordersByChannel, channelPnl,
+  channelAdWeight, fyBlendedGMRates, blendedMonths, channelPnl,
   type PeriodMIS, type SkuAgg,
 } from './analytics';
 import type { MisEntity, MisPoint } from './misSheet';
@@ -133,7 +133,7 @@ export function blendRatesNote(rates: Map<string, number>): string {
 
 // ---- Continuous channel taxonomy (G6) -------------------------------------
 
-const UNIFY: Partial<Record<SalesChannel, SalesChannel>> = { OEM: 'B2B', Offline: 'GT' };
+const UNIFY = CHANNEL_FOLD;
 const uni = (ch: SalesChannel): SalesChannel => UNIFY[ch] ?? ch;
 function uniRec(r: Partial<Record<SalesChannel, number>> | undefined): Partial<Record<SalesChannel, number>> {
   const out: Partial<Record<SalesChannel, number>> = {};
@@ -154,6 +154,7 @@ export function unifyChannels(deck: LiveDeckData): LiveDeckData {
   const mapLines = (lines?: TallyBucketLine[]) => lines?.map((l) => ({ ...l, byChannel: uniRec(l.byChannel) }));
   const months = deck.months.map((m) => ({
     ...m,
+    rawNetByChannel: m.rawNetByChannel ?? m.netByChannel,
     netByChannel: uniRec(m.netByChannel),
     grossByChannel: uniRec(m.grossByChannel),
     returnsByChannel: uniRec(m.returnsByChannel),
@@ -416,13 +417,40 @@ export function aggregateRange(
 // ---- MIS Sheet (G34/G35) ---------------------------------------------------
 
 const DISC_BY_KEY = new Map(DISCOUNT_DATA.map((d) => [d.key, d.discount]));
+const MIS_KEYS: (keyof MisPoint)[] = [
+  'qty', 'grossRevenue', 'channelMargin', 'returns', 'gst', 'ssClaim', 'discounts', 'netRevenue', 'cogs', 'grossMargin',
+  'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
+  'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
+];
+// Cascade fields gated by completeness: a period total is blank when any month is.
+const GATED: (keyof MisPoint)[] = ['cogs', 'grossMargin', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'otherExpense', 'ebitda'];
+
+/**
+ * Sum MIS points across months — the legacy sumPoints (nulls stay null when
+ * nothing is present), except a completeness-gated cascade row is blank for the
+ * total when ANY month is blank (a partial sum would read as a real figure).
+ */
+export function sumMisPoints(points: MisPoint[]): MisPoint {
+  const out = {} as MisPoint;
+  for (const k of MIS_KEYS) {
+    const vals = points.map((p) => p[k]);
+    if (GATED.includes(k) && vals.some((v) => v === null)) { out[k] = null; continue; }
+    const nums = vals.filter((v): v is number => v !== null);
+    out[k] = nums.length ? nums.reduce((a, b) => a + b, 0) : null;
+  }
+  return out;
+}
 
 /**
  * One MIS-format point (₹, costs as positive magnitudes) for a live period —
- * company or one channel. Rows below the period's completeness are null (blank),
- * never 0. Gross / returns / GST only where every member month carries them.
- * Channel points use the MIS-anchored channel split (falls back to the legacy
- * revenue-share split when the period has no SKU cells).
+ * company or one channel — reproducing the legacy MIS Sheet (misSheet.ts):
+ *   • per MONTH: company lines from the month; a channel uses the legacy
+ *     channelPnl() with ad-spend S&M (the legacy D2C / Amazon ad feeds on
+ *     locked/published months, the SKU cells' measured ad on live months);
+ *     qty = estimated orders (net ÷ AOV, by source channel) or actual connector
+ *     orders where the month reports them;
+ *   • a multi-month period (FY total, range) = the SUM of its monthly points.
+ * Rows below a month's completeness level are null (blank), never 0.
  */
 export function liveMisPoint(
   p: PeriodAgg,
@@ -430,17 +458,16 @@ export function liveMisPoint(
   cells: SkuCell[],
   completeness: Record<string, PeriodCompleteness>,
 ): MisPoint {
-  const real = (row: string) => isReal(p.level, row);
-  const v = (row: string, x: number) => (real(row) ? x : null);
+  if (p.members.length > 1) {
+    const months = p.memberAggs ?? aggregatePeriods([], completeness, 'month');
+    return sumMisPoints(months.map((m) => liveMisPoint(m, entity, cells, completeness)));
+  }
+  const key = p.members[0];
+  const v = (row: string, x: number) => (isReal(p.level, row) ? x : null);
   const legacyP = toPeriodMIS(p);
-  const est = ordersByChannel(legacyP);
-  const actualOrders = p.ordersMonths === p.members.length && p.ordersMonths > 0;
-  const qtyOf = (ch?: SalesChannel) => {
-    if (ch) return Math.round(actualOrders ? (p.ordersByChannel[ch] ?? 0) : est[ch]);
-    return Math.round(SALES_CHANNELS.reduce((s, c) => s + (actualOrders ? (p.ordersByChannel[c] ?? 0) : est[c]), 0));
-  };
-  const disc = p.members.reduce((s, k) => s + (DISC_BY_KEY.get(k) ?? 0), 0);
-  const hasDisc = p.members.some((k) => DISC_BY_KEY.has(k));
+  const actualOrders = p.ordersMonths === 1;
+  const ordersOf = (ch: SalesChannel) => (actualOrders ? (p.ordersByChannel[ch] ?? 0) : (p.estOrdersByChannel[ch] ?? 0));
+  const disc = DISC_BY_KEY.get(key) ?? null;
   const blank = {
     channelMargin: null, ssClaim: null, payroll: null, profFee: null, otherIncome: null,
     openingCash: null, funding: null, closingCash: null, cashBurn: null, ebitdaBurn: null, runway: null,
@@ -448,11 +475,11 @@ export function liveMisPoint(
   if (entity === 'company') {
     return {
       ...blank,
-      qty: qtyOf(),
-      grossRevenue: p.hasBuildUp ? p.totalGrossRevenue : null,
+      qty: Math.round(SALES_CHANNELS.reduce((s, c) => s + ordersOf(c), 0)),
+      grossRevenue: p.totalGrossRevenue || null,
       returns: p.hasBuildUp ? p.totalReturns : null,
-      gst: p.hasBuildUp && p.totalTaxes ? Math.abs(p.totalTaxes) : null,
-      discounts: hasDisc ? disc : null,
+      gst: p.totalTaxes ? Math.abs(p.totalTaxes) : null,
+      discounts: disc,
       netRevenue: p.netRevenue,
       cogs: v('cogm', p.cogm), grossMargin: v('gross_margin', p.grossMargin),
       logistics: v('channel_fulfilment', p.channelFulfillment), cm1: v('cm1', p.cm1),
@@ -462,30 +489,27 @@ export function liveMisPoint(
     };
   }
   const ch = entity;
-  const anchored = anchoredChannelPnl(p, cells, completeness);
-  const fallback = anchored.length === 0
-    ? channelPnl(legacyP).find((x) => x.channel === ch)
-    : null;
-  const a = anchored.find((x) => x.channel === ch);
-  const r = a ?? (fallback ? {
-    revenue: fallback.netRevenue, cogm: fallback.cogm, grossMargin: fallback.grossMargin,
-    channelFulfillment: fallback.channelFulfillment, cm1: fallback.cm1, salesMarketing: fallback.salesMarketing,
-    cm2: fallback.cm2, platformCosts: fallback.platformCosts, cm3: fallback.cm3, opex: fallback.opex, ebitda: fallback.ebitda,
-  } : null);
+  const comp = completeness[key];
+  const fromFeeds = comp?.locked || comp?.published;
+  const adOf = (c: SalesChannel) => cells.reduce((s, x) => (x.m === key && x.ch === c ? s + (x.ad ?? 0) : s), 0);
+  const marketing = fromFeeds
+    ? { d2c: D2C_AD_SPEND[key] || 0, amazon: AMAZON_AD_SPEND[key] || 0 }
+    : { d2c: adOf('D2C'), amazon: adOf('Amazon') };
+  const r = channelPnl(legacyP, marketing).find((x) => x.channel === ch)!;
   const share = p.netRevenue ? Math.max(0, p.netByChannel[ch] ?? 0) / p.netRevenue : 0;
   return {
     ...blank,
-    qty: qtyOf(ch),
-    grossRevenue: p.hasBuildUp ? (p.grossByChannel[ch] ?? null) : null,
-    returns: p.hasBuildUp ? (p.returnsByChannel[ch] ?? null) : null,
-    gst: p.hasBuildUp && p.totalTaxes ? Math.abs(p.totalTaxes) * share : null,
-    discounts: ch === 'D2C' && hasDisc ? disc : null,
+    qty: Math.round(ordersOf(ch)),
+    grossRevenue: p.grossByChannel[ch] ?? null,
+    returns: p.returnsByChannel[ch] ?? null,
+    gst: p.totalTaxes ? Math.abs(p.totalTaxes) * share : null,
+    discounts: ch === 'D2C' ? disc : null,
     netRevenue: p.netByChannel[ch] ?? 0,
-    cogs: r ? v('cogm', r.cogm) : null, grossMargin: r ? v('gross_margin', r.grossMargin) : null,
-    logistics: r ? v('channel_fulfilment', r.channelFulfillment) : null, cm1: r ? v('cm1', r.cm1) : null,
-    marketing: r ? v('sales_marketing', r.salesMarketing) : null, cm2: r ? v('cm2', r.cm2) : null,
-    branding: r ? v('platform_payment', r.platformCosts) : null, cm3: r ? v('cm3', r.cm3) : null,
-    otherExpense: r ? v('opex', r.opex) : null, ebitda: r ? v('ebitda', r.ebitda) : null,
+    cogs: v('cogm', r.cogm), grossMargin: v('gross_margin', r.grossMargin),
+    logistics: v('channel_fulfilment', r.channelFulfillment), cm1: v('cm1', r.cm1),
+    marketing: v('sales_marketing', r.salesMarketing), cm2: v('cm2', r.cm2),
+    branding: v('platform_payment', r.platformCosts), cm3: v('cm3', r.cm3),
+    otherExpense: v('opex', r.opex), ebitda: v('ebitda', r.ebitda),
   };
 }
 

@@ -12,6 +12,10 @@ import { SALES_CHANNELS, VERTICALS, VERTICAL_BY_CHANNEL } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
 import type { CompletenessLevel, PeriodCompleteness } from './liveDeck';
 import type { ChannelRecon, TallyBucketLine } from '../monthClose/schema';
+import { CHANNEL_AOV } from './analytics';
+
+/** The continuous-taxonomy fold: legacy channel → forward channel (G6). */
+export const CHANNEL_FOLD: Partial<Record<SalesChannel, SalesChannel>> = { OEM: 'B2B', Offline: 'GT' };
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 // Factory overhead added to product COGS at view time (matches the deck).
@@ -94,6 +98,14 @@ export interface PeriodAgg {
   totalTaxes: number;
   /** True when EVERY member month carries its gross/returns/GST build-up. */
   hasBuildUp: boolean;
+  /**
+   * Estimated orders per channel = Σ over SOURCE channels of max(0, net) ÷ that
+   * channel's AOV (the legacy deck's ordersByChannel), summed into the shown
+   * channel key — so folding OEM→B2B never re-prices OEM revenue at B2B's AOV.
+   */
+  estOrdersByChannel: Partial<Record<SalesChannel, number>>;
+  /** For a multi-month period: each member month aggregated on its own (ascending). */
+  memberAggs?: PeriodAgg[];
   /** Actual orders per channel (connector facts), summed over the members that report them. */
   ordersByChannel: Partial<Record<SalesChannel, number>>;
   /** Member months that carry actual order counts. */
@@ -125,6 +137,7 @@ export function aggregatePeriods(
   // merged across member months rather than repeated.
   const tallyByBucket = new Map<string, Map<string, TallyBucketLine>>();
   const reconByBucket = new Map<string, ChannelRecon>();
+  const rawByBucket = new Map<string, Partial<Record<SalesChannel, number>>>();
   const asc = [...months].sort((a, b) => a.key.localeCompare(b.key));
 
   for (const m of asc) {
@@ -142,11 +155,14 @@ export function aggregatePeriods(
         level: 'full', hasTally: true,
         cogmLines: {}, opexLines: {}, nonOpLines: {},
         grossByChannel: {}, returnsByChannel: {}, totalGrossRevenue: 0, totalReturns: 0, totalTaxes: 0, hasBuildUp: true,
-        ordersByChannel: {}, ordersMonths: 0, published: false, locked: true,
+        ordersByChannel: {}, ordersMonths: 0, published: false, locked: true, estOrdersByChannel: {},
       };
       buckets.set(key, b);
     }
     b.members.push(m.key);
+    const raw = rawByBucket.get(key) ?? {};
+    for (const [ch, v] of Object.entries(m.rawNetByChannel ?? m.netByChannel) as [SalesChannel, number][]) raw[ch] = (raw[ch] ?? 0) + v;
+    rawByBucket.set(key, raw);
     for (const ch of SALES_CHANNELS) {
       if (m.netByChannel[ch]) b.netByChannel[ch] = r2((b.netByChannel[ch] ?? 0) + (m.netByChannel[ch] ?? 0));
     }
@@ -178,17 +194,16 @@ export function aggregatePeriods(
     addLines(b.nonOpLines, m.nonOpLines);
 
     // Revenue build-up: only months whose source carries gross / returns / GST.
-    if (m.totalGrossRevenue) {
-      for (const ch of SALES_CHANNELS) {
-        if (m.grossByChannel?.[ch]) b.grossByChannel[ch] = r2((b.grossByChannel[ch] ?? 0) + (m.grossByChannel[ch] ?? 0));
-        if (m.returnsByChannel?.[ch]) b.returnsByChannel[ch] = r2((b.returnsByChannel[ch] ?? 0) + (m.returnsByChannel[ch] ?? 0));
-      }
-      b.totalGrossRevenue = r2(b.totalGrossRevenue + m.totalGrossRevenue);
-      b.totalReturns = r2(b.totalReturns + m.totalReturns);
-      b.totalTaxes = r2(b.totalTaxes + m.totalTaxes);
-    } else {
-      b.hasBuildUp = false;
+    // Summed as carried (the MIS Sheet reads them like the legacy sheet);
+    // `hasBuildUp` says whether every member actually carries a gross figure.
+    for (const ch of SALES_CHANNELS) {
+      if (m.grossByChannel?.[ch] !== undefined) b.grossByChannel[ch] = r2((b.grossByChannel[ch] ?? 0) + (m.grossByChannel[ch] ?? 0));
+      if (m.returnsByChannel?.[ch] !== undefined) b.returnsByChannel[ch] = r2((b.returnsByChannel[ch] ?? 0) + (m.returnsByChannel[ch] ?? 0));
     }
+    b.totalGrossRevenue = r2(b.totalGrossRevenue + (m.totalGrossRevenue || 0));
+    b.totalReturns = r2(b.totalReturns + (m.totalReturns || 0));
+    b.totalTaxes = r2(b.totalTaxes + (m.totalTaxes || 0));
+    if (!m.totalGrossRevenue) b.hasBuildUp = false;
     if (m.ordersByChannel) {
       b.ordersMonths += 1;
       for (const ch of SALES_CHANNELS) {
@@ -223,10 +238,25 @@ export function aggregatePeriods(
     b.ebitda = r2(b.cm3 - b.opex);
     b.netIncome = r2(b.ebitda - b.nonOperating - b.costOfFundraising);
     b.tallyLines = [...(tallyByBucket.get(b.key)?.values() ?? [])];
+    const est: Partial<Record<SalesChannel, number>> = {};
+    for (const [ch, v] of Object.entries(rawByBucket.get(b.key) ?? {}) as [SalesChannel, number][]) {
+      const aov = CHANNEL_AOV[ch];
+      if (!aov) continue;
+      const k = CHANNEL_FOLD[ch] && b.netByChannel[ch] === undefined ? CHANNEL_FOLD[ch]! : ch;
+      est[k] = (est[k] ?? 0) + Math.max(0, v) / aov;
+    }
+    b.estOrdersByChannel = est;
     b.channelRecon = reconByBucket.get(b.key) ?? { revenueResidue: {}, cogmVariance: 0 };
   }
 
-  return [...buckets.values()].sort((a, b) => a.members[0].localeCompare(b.members[0]));
+  const out = [...buckets.values()].sort((a, b) => a.members[0].localeCompare(b.members[0]));
+  // Multi-month periods keep their member months, each aggregated alone — for
+  // views (the MIS Sheet) whose period total is the SUM of monthly figures.
+  if (out.some((b) => b.members.length > 1)) {
+    const byMonth = new Map(aggregatePeriods(asc, completeness, 'month').map((p) => [p.key, p]));
+    for (const b of out) if (b.members.length > 1) b.memberAggs = b.members.map((k) => byMonth.get(k)!).filter(Boolean);
+  }
+  return out;
 }
 
 /** Sum one month's Tally bucket line into the period's running set, by line key. */
@@ -247,8 +277,9 @@ function mergeTallyLine(into: Map<string, TallyBucketLine>, line: TallyBucketLin
   }
 }
 
+/** value ÷ net revenue as an unrounded fraction (display rounds once, like the legacy deck). */
 export function marginPct(value: number, net: number): number | null {
-  return net ? r2((value / net) * 100) / 100 : null;
+  return net ? value / net : null;
 }
 
 // ---- Channel / SKU rollups (from SkuCell, to CM2) --------------------------

@@ -14,13 +14,13 @@ import XLSX from 'xlsx-js-style';
 import type { LiveDeckData } from '../data/misDeck/liveDeck';
 import { SALES_CHANNELS, type MonthlyMIS, type SalesChannel } from '../data/misDeck/misDeckData';
 import {
-  aggregatePeriods, FACTORY_PCT, monthLabel, scopeOf, type Granularity, type PeriodAgg,
+  aggregatePeriods, FACTORY_PCT, monthLabel, scopeOf, CHANNEL_FOLD, type Granularity, type PeriodAgg,
 } from '../data/misDeck/liveAnalytics';
 import {
   REAL_ROWS, anchoredChannelPnl, blendLiveMonths, blendRatesNote, channelName, liveFiscalYears,
   liveMisPoint, liveSkuChannelMatrix, toPeriodMIS, unifyChannels, aggregateRange,
 } from '../data/misDeck/liveViews';
-import { channelMix, ordersByChannel, CHANNEL_AOV, topChannel } from '../data/misDeck/analytics';
+import { channelMix, CHANNEL_AOV, topChannel, cagr } from '../data/misDeck/analytics';
 import {
   S, MARGIN, cell, round2, setCols, signed, generateLineDetailSheet, generateRepeatsSheet, generateDiscountSheet,
   type Style,
@@ -65,7 +65,8 @@ export function liveSheetCount(o: LiveExportOptions): number {
 // ---- Helpers ---------------------------------------------------------------
 
 const real = (p: PeriodAgg, row: string) => REAL_ROWS[p.level].has(row);
-const LEVEL_TXT = (p: PeriodAgg) => (p.locked ? 'Locked' : p.published ? 'Published' : p.level === 'full' ? 'Full close' : p.level === 'contribution' ? 'To CM2' : 'Top line');
+const fyStartOf = (k: string) => { const [y, m] = k.split('-').map(Number); return m >= 4 ? y : y - 1; };
+const LEVEL_TXT = (p: PeriodAgg) => (p.level === 'full' ? (p.locked ? 'Locked' : p.published ? 'Published' : 'Full close') : p.level === 'contribution' ? 'To CM2' : 'Top line');
 const pct3 = (n: number) => round2(n * 1000) / 1000;
 const BLANK: Style = { ...S.num };
 
@@ -204,20 +205,31 @@ function summarySheet(deck: LiveDeckData, monthly: PeriodAgg[], yearly: PeriodAg
   const ttm = monthly.slice(-12).reduce((s, p) => s + p.netRevenue, 0);
   const ttmPrior = monthly.slice(-24, -12).reduce((s, p) => s + p.netRevenue, 0);
   band(row++, 'Headline', S.header, nCols);
+  // Same headline rows (and labels) as the legacy deck's Summary, on the live months.
+  const fullYears = yearly.filter((y) => y.members.length >= 12);
+  const fyFirst = fullYears[0] ?? yearly[0], fyLast = fullYears[fullYears.length - 1] ?? yearly[yearly.length - 1];
+  const sk = (y: PeriodAgg) => fyStartOf(y.members[0]);
+  const cagrFY = fyFirst && fyLast ? cagr(fyFirst.netRevenue, fyLast.netRevenue, Math.max(1, sk(fyLast) - sk(fyFirst))) : null;
+  const pctOfLatest = (row: string, v: (p: PeriodAgg) => number) => (latest && real(latest, row) && latest.netRevenue ? v(latest) / latest.netRevenue : '');
   kv('Months of data', monthly.length, 'num');
-  kv('Latest month', latest ? `${toPeriodMIS(latest).longLabel} (${LEVEL_TXT(latest)})` : '—');
-  kv('Fully closed through', deck.completeThrough ? toPeriodMIS(monthly.find((p) => p.key === deck.completeThrough)!).longLabel : '—');
+  kv('Latest month', latest ? toPeriodMIS(latest).longLabel : '—');
   kv('Latest net revenue', latest ? round2(latest.netRevenue) : '', 'num');
   kv('MoM revenue growth', latest && prev?.netRevenue ? (latest.netRevenue - prev.netRevenue) / Math.abs(prev.netRevenue) : '', 'pct');
   kv('YoY revenue growth', latest && yAgo?.netRevenue ? (latest.netRevenue - yAgo.netRevenue) / Math.abs(yAgo.netRevenue) : '', 'pct');
   kv('Trailing-12-month revenue', round2(ttm), 'num');
   kv('TTM growth vs prior 12m', ttmPrior ? (ttm - ttmPrior) / Math.abs(ttmPrior) : '', 'pct');
-  if (closed) {
-    kv(`Gross margin % (${closed.label})`, closed.netRevenue ? closed.grossMargin / closed.netRevenue : '', 'pct');
-    kv(`EBITDA % (${closed.label})`, closed.netRevenue ? closed.ebitda / closed.netRevenue : '', 'pct');
-    kv(`Net income % (${closed.label})`, closed.netRevenue ? closed.netIncome / closed.netRevenue : '', 'pct');
-  }
+  kv('Revenue CAGR (full FYs)', cagrFY ?? '', 'pct');
+  kv('Latest gross margin %', pctOfLatest('gross_margin', (p) => p.grossMargin), 'pct');
+  kv('Latest EBITDA %', pctOfLatest('ebitda', (p) => p.ebitda), 'pct');
+  kv('Latest net income %', pctOfLatest('net_income', (p) => p.netIncome), 'pct');
   if (latest) { const t = topChannel(toPeriodMIS(latest)); kv('Top channel (latest)', `${channelName(t.channel, merged)} (${(t.share * 100).toFixed(0)}%)`); }
+  // Live extras
+  kv('Latest month completeness', latest ? LEVEL_TXT(latest) : '—');
+  kv('Fully closed through', deck.completeThrough ? toPeriodMIS(monthly.find((p) => p.key === deck.completeThrough)!).longLabel : '—');
+  if (closed && closed !== latest) {
+    kv(`Gross margin % (${closed.label}, last full close)`, closed.netRevenue ? closed.grossMargin / closed.netRevenue : '', 'pct');
+    kv(`EBITDA % (${closed.label}, last full close)`, closed.netRevenue ? closed.ebitda / closed.netRevenue : '', 'pct');
+  }
   row++;
   band(row++, 'Financial-Year Summary', S.header, nCols);
   ['FY', 'Months', 'Net Revenue', 'Gross Margin %', 'EBITDA %', 'Net Income %', 'Top Channel'].forEach((h, i) => put(row, i, h, S.header));
@@ -419,12 +431,18 @@ function ordersSheet(monthly: PeriodAgg[], merged: boolean): XLSX.WorkSheet {
   const actual = monthly.map((p) => p.ordersMonths === p.members.length && p.ordersMonths > 0);
   monthly.forEach((_, i) => put(row, i + 2, actual[i] ? 'actual' : 'est.', { ...S.label, alignment: { horizontal: 'center' } }));
   row++;
-  const est = monthly.map((p) => ordersByChannel(toPeriodMIS(p)));
+  // Estimates priced per SOURCE channel (OEM ₹325 even inside B2B (OEM)) — the fold is a pure rename.
+  const est = monthly.map((p) => p.estOrdersByChannel);
   const colTot = new Array(monthly.length).fill(0);
   for (const c of chans) {
-    put(row, 0, channelName(c, merged), S.label); put(row, 1, CHANNEL_AOV[c], S.num);
+    put(row, 0, channelName(c, merged), S.label);
+    const src = Object.entries(CHANNEL_FOLD).find(([, to]) => to === c)?.[0] as SalesChannel | undefined;
+    // A folded row priced at its source AOV in some months (OEM history inside B2B (OEM)).
+    const folded = merged && src && monthly.some((p) => Math.abs((p.estOrdersByChannel[c] ?? 0) - Math.max(0, p.netByChannel[c] ?? 0) / CHANNEL_AOV[c]) > 0.5);
+    if (folded && src) put(row, 1, `${src} ${CHANNEL_AOV[src]} / ${c} ${CHANNEL_AOV[c]}`, S.label);
+    else put(row, 1, CHANNEL_AOV[c], S.num);
     let t = 0;
-    monthly.forEach((p, i) => { const v = Math.round(actual[i] ? (p.ordersByChannel[c] ?? 0) : est[i][c]); t += v; colTot[i] += v; put(row, i + 2, v, S.num); });
+    monthly.forEach((p, i) => { const v = Math.round(actual[i] ? (p.ordersByChannel[c] ?? 0) : (est[i][c] ?? 0)); t += v; colTot[i] += v; put(row, i + 2, v, S.num); });
     put(row, nCols - 1, t, S.total);
     row++;
   }
@@ -529,8 +547,8 @@ export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions): 
   }
   if (o.includeChannelRevenue) XLSX.utils.book_append_sheet(wb, channelRevenueSheet(actualMonthly, o.mergeChannels), 'Channel Revenue');
   if (o.includeChannelPnl) {
-    const yearly = aggregatePeriods(plMonths, deck.completeness, 'year');
-    XLSX.utils.book_append_sheet(wb, channelPnlSheet(deck, yearly, o.mergeChannels), 'Channel P&L');
+    // Channel P&L stays on actual COGM (as the legacy sheet does, blend or not).
+    XLSX.utils.book_append_sheet(wb, channelPnlSheet(deck, actualYearly, o.mergeChannels), 'Channel P&L');
     XLSX.utils.book_append_sheet(wb, skuChannelSheet(deck, o.mergeChannels), 'SKU x Channel');
   }
   if (o.includeOrders) XLSX.utils.book_append_sheet(wb, ordersSheet(actualMonthly, o.mergeChannels), 'Channel Orders');

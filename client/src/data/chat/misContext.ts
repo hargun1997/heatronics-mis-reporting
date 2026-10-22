@@ -14,13 +14,23 @@ export interface MisContext {
   throughLabel: string;
 }
 
-function serialiseMonths(list: MonthlyMIS[]) {
+/**
+ * `cofInsideNonOp`: the published static months book Cost of Fundraising INSIDE
+ * nonOperating; the live deck (after its splice normalisation) and the month
+ * close keep it separate. Serialise both the same way — nonOperating excluding
+ * fundraising, plus costOfFundraising when non-zero — so every block agrees and
+ * netIncome = ebitda − nonOperating − costOfFundraising.
+ */
+function serialiseMonths(list: MonthlyMIS[], cofInsideNonOp = true) {
   return list.map((m) => ({
     month: m.label,
     netRevenue: r(m.netRevenue), cogm: r(m.cogm), grossMargin: r(m.grossMargin),
     channelFulfillment: r(m.channelFulfillment), cm1: r(m.cm1), salesMarketing: r(m.salesMarketing),
     cm2: r(m.cm2), platformCosts: r(m.platformCosts), cm3: r(m.cm3), opex: r(m.opex),
-    ebitda: r(m.ebitda), nonOperating: r(m.nonOperating), netIncome: r(m.netIncome),
+    ebitda: r(m.ebitda),
+    nonOperating: r(m.nonOperating - (cofInsideNonOp ? (m.costOfFundraising ?? 0) : 0)),
+    ...(m.costOfFundraising ? { costOfFundraising: r(m.costOfFundraising) } : {}),
+    netIncome: r(m.netIncome),
     netByChannel: Object.fromEntries(Object.entries(m.netByChannel).map(([k, v]) => [k, r(v as number)])),
     ...(m.marketingByPlatform && Object.keys(m.marketingByPlatform).length
       ? { marketingByPlatform: Object.fromEntries(Object.entries(m.marketingByPlatform).map(([k, v]) => [k, r(v)])) }
@@ -30,7 +40,7 @@ function serialiseMonths(list: MonthlyMIS[]) {
 }
 
 const SCHEMA_LINE =
-  'Each month: netRevenue, cogm (cost of goods manufactured), grossMargin, channelFulfillment, cm1, salesMarketing, cm2, platformCosts, cm3, opex, ebitda, nonOperating, netIncome, netByChannel (net revenue split by channel), and marketingByPlatform (salesMarketing split by ad platform — Google / Meta / Amazon / Flipkart / Other — when available). "note" marks a restated month.';
+  'Each month: netRevenue, cogm (cost of goods manufactured), grossMargin, channelFulfillment, cm1, salesMarketing, cm2, platformCosts, cm3, opex, ebitda, nonOperating (interest / D&A / tax, EXCLUDING fundraising), costOfFundraising (one-time capital-raising cost, only when non-zero; netIncome = ebitda − nonOperating − costOfFundraising), netIncome, netByChannel (net revenue split by channel), and marketingByPlatform (salesMarketing split by ad platform — Google / Meta / Amazon / Flipkart / Other — when available). "note" marks a restated month.';
 
 export function buildMisContext(): MisContext {
   const months = serialiseMonths([...MONTHLY_MIS]);
@@ -63,7 +73,7 @@ export function buildLiveMisContext(deck: LiveDeckData | null): MisContext {
   const liveMonths = (deck?.months ?? []).map((m) => {
     const comp = deck?.completeness[m.key];
     return {
-      ...serialiseMonths([m])[0],
+      ...serialiseMonths([m], false)[0],
       key: m.key,
       completeness: comp?.level ?? 'topline', // full | contribution | topline
       newerThanPublished: m.key > staticLast,

@@ -58,6 +58,8 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 // Tabs that don't use the period controls (they carry their own scope).
 const NO_PERIOD: Tab[] = ['runrate', 'repeats', 'missheet'];
+// Tabs that show the Actual|Blended toggle + note; all others always use actual COGM.
+const BLEND_TABS: Tab[] = ['overview', 'profit', 'pnl'];
 
 type Grain = DeckGran | 'range';
 const DECK_GRAINS: { id: Grain; label: string }[] = [
@@ -131,7 +133,11 @@ export function LiveMisPage() {
     return merged ? unifyChannels(d) : d;
   }, [deck, showLive, merged]);
   const blend = useMemo(() => (view ? blendLiveMonths(view.months, view.completeness) : null), [view]);
-  const months = useMemo(() => (view ? (blended && blend ? blend.months : view.months) : []), [view, blend, blended]);
+  // Blended COGM applies only on the tabs that carry the Actual|Blended toggle and
+  // its note (Overview, Profitability, P&L) — like the legacy deck, every other
+  // tab (Channel P&L, Revenue & Growth, SKU, Channel Mix …) stays on actual COGM.
+  const blendTab = BLEND_TABS.includes(tab);
+  const months = useMemo(() => (view ? (blended && blendTab && blend ? blend.months : view.months) : []), [view, blend, blended, blendTab]);
   const completeness = useMemo(() => view?.completeness ?? {}, [view]);
 
   const aggGran: DeckGran = gran === 'range' ? 'month' : gran;
