@@ -22,6 +22,7 @@ import type { MonthlyMIS, SalesChannel } from './misDeckData';
 import { SALES_CHANNELS, MONTHLY_MIS } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
 import { SKU_CELLS } from './skuChannelPnl';
+import { reclassifyEarlyAmazon, decomposeLegacyCell } from './analytics';
 import type { DailyFact } from '../liveMis/facts';
 import {
   emptySession,
@@ -60,6 +61,21 @@ export interface PeriodCompleteness {
   reconcileResidual: number | null;
   /** True for frozen legacy months (≤ the live boundary) taken from the static deck. */
   locked?: boolean;
+  /**
+   * True for a month at/after the live boundary that is shown from the
+   * PUBLISHED static MIS (the legacy deck's own month) because no full live
+   * close exists for it yet. A full Tally-backed live build always replaces it.
+   */
+  published?: boolean;
+  /**
+   * Set on a published month when a live, not-yet-full build also exists for
+   * it (facts only / to CM2). The published full month is shown by default;
+   * the live partial is kept in `LiveDeckData.alternates` and can be swapped in
+   * with `preferLivePartials()` — never silently.
+   */
+  livePartial?: { level: CompletenessLevel; netRevenue: number };
+  /** Set on a live partial month that has a published full month it replaced (prefer: 'live'). */
+  publishedAvailable?: boolean;
 }
 
 // The seam: months before this are frozen legacy (the published static deck);
@@ -86,6 +102,12 @@ export interface LiveDeckData {
   periods: string[];
   /** Amazon traffic & conversion per month (from the Business Report), for display only. */
   traffic: Record<string, TrafficRow[]>;
+  /**
+   * The month build NOT shown for a period that has both a published full month
+   * and a live partial: under prefer 'published' this holds the live partial,
+   * under prefer 'live' the published month. Swap with preferLivePartials().
+   */
+  alternates: Record<string, BuiltMonth>;
 }
 
 // ---- Store payloads (mirror of server ExtractedReport) ---------------------
@@ -189,13 +211,24 @@ const PLATFORM_FEE_SOURCES = new Set<string>(['easebuzz', 'shopflo', 'snapmint',
 
 // ---- Build one month -------------------------------------------------------
 
+/** Actual order counts per channel from the facts (sources that report orders). */
+function ordersByChannelOf(facts: DailyFact[]): Partial<Record<SalesChannel, number>> | undefined {
+  const out: Partial<Record<SalesChannel, number>> = {};
+  for (const f of facts) {
+    if (!f.orders) continue;
+    const ch = toSalesChannel(f.channel);
+    if (ch) out[ch] = (out[ch] ?? 0) + f.orders;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 const MONTH_LABELS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function periodLabel(periodKey: string): string {
   const [y, m] = periodKey.split('-').map(Number);
   return `${MONTH_LABELS[m] ?? m} ${y}`;
 }
 
-interface BuiltMonth {
+export interface BuiltMonth {
   month: MonthlyMIS;
   skuCells: SkuCell[];
   completeness: PeriodCompleteness;
@@ -422,9 +455,20 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     const tallyLines = tagTallyLines(c.tallyLines, tags, c.netByChannel);
     const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, FACTORY_PCT);
 
+    // Non-Operating broken into its Tally ledgers (finance cost, depreciation,
+    // income tax …) — the contributors the close folded onto that line. View-side
+    // detail for the P&L drill; the headline nonOperating is unchanged.
+    const nonOpLines: Record<string, number> = {};
+    for (const pk of c.lines['nl_nonoperating']?.contributors ?? []) {
+      const label = pk.node.name;
+      nonOpLines[label] = r2((nonOpLines[label] ?? 0) - Math.abs(pk.node.amount));
+    }
+
     const month: MonthlyMIS = {
       key: periodKey, label: periodLabel(periodKey),
       month: Number(periodKey.split('-')[1]), year: Number(periodKey.split('-')[0]),
+      ordersByChannel: ordersByChannelOf(allFacts),
+      nonOpLines: Object.keys(nonOpLines).length ? nonOpLines : undefined,
       netByChannel: c.netByChannel, grossByChannel: {}, returnsByChannel: {},
       totalGrossRevenue: 0, totalReturns: 0, totalTaxes: 0,
       netRevenue: c.netRevenue, interBranch: 0, turnover: 0,
@@ -477,6 +521,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
   const month: MonthlyMIS = {
     key: periodKey, label: periodLabel(periodKey),
     month: Number(periodKey.split('-')[1]), year: Number(periodKey.split('-')[0]),
+    ordersByChannel: ordersByChannelOf(allFacts),
     netByChannel, grossByChannel: {}, returnsByChannel: {},
     totalGrossRevenue: 0, totalReturns: 0, totalTaxes: 0,
     netRevenue, interBranch: 0, turnover: 0,
@@ -502,7 +547,55 @@ const isBomReport = (rep: ExtractedReport) => (rep.payload?.bomCosts?.length ?? 
 const factMonth = (f: DailyFact): string | null =>
   f.date && /^\d{4}-\d{2}/.test(f.date) ? f.date.slice(0, 7) : null;
 
-export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[] = []): LiveDeckData {
+export interface BuildLiveDeckOptions {
+  /**
+   * For a month at/after the live boundary that has BOTH a published full month
+   * (static MIS) and a live build that is not yet a full close: 'published'
+   * (default) shows the published full month and keeps the live partial as an
+   * alternate; 'live' shows the live partial and keeps the published month as
+   * the alternate. A full live close always wins either way.
+   */
+  prefer?: 'published' | 'live';
+}
+
+// ---- The published static history, normalised to the live conventions ------
+//
+//  • G1: pre-Oct-2024 "Amazon" revenue is OEM (Amazon launched Oct 2024) —
+//    the same reclassification the legacy deck applies at its base.
+//  • G7: static months carry Cost of Fundraising INSIDE nonOperating; the
+//    month-close engine (and aggregatePeriods) treat them as separate lines.
+//    Carve CoF out of nonOperating so both conventions mean the same thing.
+function normaliseStaticMonth(m: MonthlyMIS): MonthlyMIS {
+  const r = reclassifyEarlyAmazon(m);
+  const cof = r.costOfFundraising ?? 0;
+  return cof ? { ...r, nonOperating: r2(r.nonOperating - cof), costOfFundraising: cof } : r;
+}
+
+//  • G2/G3: a published SKU cell's `oth` still holds the revenue-allocated ad
+//    spend. Split it the way the legacy deck does: cf stays in `oth`, the
+//    measured ad (product-mix split) moves to `ad`, contribution re-derived.
+function normaliseStaticCell(c: SkuCell): SkuCell {
+  const { cf, ad } = decomposeLegacyCell(c);
+  return { ...c, oth: r2(cf), ad: r2(ad), con: r2(c.rev - c.cogs - cf - ad) };
+}
+
+let STATIC_MONTHS: MonthlyMIS[] | null = null;
+let STATIC_CELLS: Map<string, SkuCell[]> | null = null;
+function staticHistory(): { months: MonthlyMIS[]; cellsByMonth: Map<string, SkuCell[]> } {
+  if (!STATIC_MONTHS || !STATIC_CELLS) {
+    STATIC_MONTHS = MONTHLY_MIS.map(normaliseStaticMonth).sort((a, b) => a.key.localeCompare(b.key));
+    STATIC_CELLS = new Map();
+    for (const c of SKU_CELLS) {
+      const arr = STATIC_CELLS.get(c.m) ?? [];
+      arr.push(normaliseStaticCell(c));
+      STATIC_CELLS.set(c.m, arr);
+    }
+  }
+  return { months: STATIC_MONTHS, cellsByMonth: STATIC_CELLS };
+}
+
+export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[] = [], opts: BuildLiveDeckOptions = {}): LiveDeckData {
+  const prefer = opts.prefer ?? 'published';
   // The BOM is a period-independent cost book (standard cost per finished good),
   // so it must be available to EVERY month, not only its upload period. Split it
   // out and share it across all periods; keep one per connector:slot (latest).
@@ -557,33 +650,70 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   const livePeriods = [...new Set([...ledgerByPeriod.keys(), ...factsByMonth.keys()])]
     .sort()
     .filter((p) => p >= LIVE_BOUNDARY);
-  const months: MonthlyMIS[] = [];
-  const skuCells: SkuCell[] = [];
-  const completeness: Record<string, PeriodCompleteness> = {};
-
+  const built = new Map<string, BuiltMonth>();
   for (const periodKey of livePeriods) {
     // Ledgers for this month + the shared BOM cost book.
     const reps = [...(ledgerByPeriod.get(periodKey) ?? []), ...bomReports];
-    const built = buildMonth(periodKey, reps, factsByMonth.get(periodKey) ?? []);
-    months.push(built.month);
-    skuCells.push(...built.skuCells);
-    completeness[periodKey] = built.completeness;
+    built.set(periodKey, buildMonth(periodKey, reps, factsByMonth.get(periodKey) ?? []));
   }
 
-  // Splice in the frozen legacy history (≤ the boundary) from the published
-  // static deck, so the Live MIS is one continuous timeline: locked past +
-  // live FY26-27. Legacy months are fully closed by definition.
-  const legacyMonths = MONTHLY_MIS.filter((m) => m.key < LIVE_BOUNDARY);
-  for (const lm of legacyMonths) {
-    completeness[lm.key] = {
-      periodKey: lm.key, hasTally: true, cogmReal: true, level: 'full', locked: true,
-      sources: ['legacy'], through: null, reconcileResidual: 0,
+  // Splice the published static MIS in:
+  //  • before the boundary → frozen, locked history;
+  //  • at/after the boundary → the published month is the FALLBACK for any month
+  //    with no full live close (G5). A full live close replaces it; a live partial
+  //    never silently does — see BuildLiveDeckOptions.prefer.
+  const { months: staticMonths, cellsByMonth } = staticHistory();
+  const months: MonthlyMIS[] = [];
+  const skuCells: SkuCell[] = [];
+  const completeness: Record<string, PeriodCompleteness> = {};
+  const alternates: Record<string, BuiltMonth> = {};
+  const take = (b: BuiltMonth) => {
+    months.push(b.month);
+    skuCells.push(...b.skuCells);
+    completeness[b.month.key] = b.completeness;
+  };
+
+  for (const sm of staticMonths) {
+    const locked = sm.key < LIVE_BOUNDARY;
+    const pub: BuiltMonth = {
+      month: sm,
+      skuCells: cellsByMonth.get(sm.key) ?? [],
+      completeness: {
+        periodKey: sm.key, hasTally: true, cogmReal: true, level: 'full',
+        sources: [locked ? 'legacy' : 'published'], through: null,
+        reconcileResidual: locked ? 0 : null,
+        ...(locked ? { locked: true } : { published: true }),
+      },
     };
+    if (locked) { take(pub); continue; }
+    const live = built.get(sm.key);
+    if (!live) { take(pub); continue; }
+    built.delete(sm.key);
+    if (live.completeness.level === 'full') { take(live); continue; }
+    if (prefer === 'live') {
+      take({ ...live, completeness: { ...live.completeness, publishedAvailable: true } });
+      alternates[sm.key] = pub;
+    } else {
+      take({ ...pub, completeness: { ...pub.completeness, livePartial: { level: live.completeness.level, netRevenue: live.month.netRevenue } } });
+      alternates[sm.key] = { ...live, completeness: { ...live.completeness, publishedAvailable: true } };
+    }
   }
-  const legacyCells = SKU_CELLS.filter((c) => c.m < LIVE_BOUNDARY);
+  // Live months the published MIS never had (after its last month).
+  for (const b of built.values()) take(b);
 
-  const allMonths = [...legacyMonths, ...months].sort((a, b) => a.key.localeCompare(b.key));
-  const allCells = [...legacyCells, ...skuCells];
+  return finishDeck(months, skuCells, completeness, alternates, factsByMonth);
+}
+
+/** Sort, compute the contiguous "complete through" floor, and attach traffic. */
+function finishDeck(
+  monthsIn: MonthlyMIS[],
+  skuCells: SkuCell[],
+  completeness: Record<string, PeriodCompleteness>,
+  alternates: Record<string, BuiltMonth>,
+  factsByMonth: Map<string, DailyFact[]> | null,
+  trafficIn?: Record<string, TrafficRow[]>,
+): LiveDeckData {
+  const allMonths = [...monthsIn].sort((a, b) => a.key.localeCompare(b.key));
   const periods = [...new Set(allMonths.map((m) => m.key))].sort();
 
   // "Complete through" is the end of the CONTIGUOUS run of fully-closed months
@@ -602,8 +732,8 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
 
   // Amazon traffic & conversion per month, aggregated per SKU from the Business
   // Report facts (inert to the P&L — revenue/fees are 0). Display only.
-  const traffic: Record<string, TrafficRow[]> = {};
-  for (const [pk, facts] of factsByMonth) {
+  const traffic: Record<string, TrafficRow[]> = trafficIn ?? {};
+  for (const [pk, facts] of factsByMonth ?? []) {
     const byKey = new Map<string, TrafficRow>();
     for (const f of facts) {
       if (f.source !== 'amazonbiz') continue;
@@ -617,7 +747,33 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
     if (byKey.size) traffic[pk] = [...byKey.values()].sort((a, b) => b.sessions - a.sessions);
   }
 
-  return { months: allMonths, skuCells: allCells, completeness, completeThrough, periods, traffic };
+  return { months: allMonths, skuCells, completeness, completeThrough, periods, traffic, alternates };
+}
+
+/**
+ * Swap every alternate in: published ⇄ live partial for the months that have
+ * both. Used by the Live MIS "Show live partials" switch; completeThrough is
+ * recomputed so the floor stays honest.
+ */
+export function swapAlternates(deck: LiveDeckData): LiveDeckData {
+  const keys = new Set(Object.keys(deck.alternates));
+  if (keys.size === 0) return deck;
+  const months = deck.months.filter((m) => !keys.has(m.key));
+  const cells = deck.skuCells.filter((c) => !keys.has(c.m));
+  const completeness = { ...deck.completeness };
+  const alternates: Record<string, BuiltMonth> = {};
+  for (const k of keys) {
+    const alt = deck.alternates[k];
+    alternates[k] = {
+      month: deck.months.find((m) => m.key === k)!,
+      skuCells: deck.skuCells.filter((c) => c.m === k),
+      completeness: deck.completeness[k],
+    };
+    months.push(alt.month);
+    cells.push(...alt.skuCells);
+    completeness[k] = alt.completeness;
+  }
+  return finishDeck(months, cells, completeness, alternates, null, deck.traffic);
 }
 
 /** "2026-03" → "2026-04", rolling the year at December. */
@@ -641,10 +797,10 @@ async function fetchLiveFacts(reports: ExtractedReport[]): Promise<DailyFact[]> 
   return Array.isArray(res.facts) ? res.facts : [];
 }
 
-export async function loadLiveDeck(): Promise<LiveDeckData> {
+export async function loadLiveDeck(opts: BuildLiveDeckOptions = {}): Promise<LiveDeckData> {
   const reports = await fetchExtractedReports();
   // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck;
   // never fail the whole load if the live pull is unavailable.
   const liveFacts = await fetchLiveFacts(reports).catch(() => [] as DailyFact[]);
-  return buildLiveDeck(reports, liveFacts);
+  return buildLiveDeck(reports, liveFacts, opts);
 }

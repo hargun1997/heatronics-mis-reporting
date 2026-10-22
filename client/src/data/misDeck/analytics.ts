@@ -115,7 +115,7 @@ function aggregate(records: MonthlyMIS[], key: string, label: string, longLabel:
 // Reclassify pre-Oct-2024 "Amazon" revenue as OEM (Amazon launched Oct 2024; the
 // earlier marketplace revenue was OEM). Applied at the base so EVERY channel view —
 // Channel Mix, Overview, Growth, Channel P&L and SKU × Channel — agrees on the split.
-function reclassifyEarlyAmazon(m: MonthlyMIS): MonthlyMIS {
+export function reclassifyEarlyAmazon(m: MonthlyMIS): MonthlyMIS {
   const preLaunch = m.year < 2024 || (m.year === 2024 && m.month < 10);
   if (!preLaunch) return m;
   const move = (obj: Partial<Record<SalesChannel, number>>): Partial<Record<SalesChannel, number>> => {
@@ -194,9 +194,9 @@ export function seriesFor(g: Granularity, src: MonthlyMIS[] = monthsAsc): Period
 // smoothed.
 
 /** Revenue-weighted gross-margin fraction per fiscal year. */
-export function fyBlendedGMRates(): Map<string, number> {
+export function fyBlendedGMRates(src: MonthlyMIS[] = monthsAsc): Map<string, number> {
   const acc = new Map<string, { gm: number; nr: number }>();
-  for (const r of monthsAsc) {
+  for (const r of src) {
     const key = fiscalYear(r.month, r.year).key;
     const cur = acc.get(key) ?? { gm: 0, nr: 0 };
     cur.gm += r.grossMargin;
@@ -209,9 +209,8 @@ export function fyBlendedGMRates(): Map<string, number> {
 }
 
 /** Months restated so each carries its fiscal year's blended GM% (in proportion to revenue). */
-export function blendedMonths(): MonthlyMIS[] {
-  const rates = fyBlendedGMRates();
-  return monthsAsc.map((r) => {
+export function blendedMonths(src: MonthlyMIS[] = monthsAsc, rates: Map<string, number> = fyBlendedGMRates(src)): MonthlyMIS[] {
+  return src.map((r) => {
     const rate = rates.get(fiscalYear(r.month, r.year).key) ?? (r.netRevenue ? r.grossMargin / r.netRevenue : 0);
     const blendedGM = r.netRevenue * rate;
     const delta = blendedGM - r.grossMargin; // >0 if the blend lifts this month's GM
@@ -337,8 +336,8 @@ export interface ChannelShift {
 }
 
 /** Compares the first vs the last quarter that carry channel data. */
-export function channelShifts(): { early: PeriodMIS; late: PeriodMIS; shifts: ChannelShift[] } | null {
-  const q = quarterlySeries().filter((p) => SALES_CHANNELS.some((c) => p.netByChannel[c] > 0));
+export function channelShifts(series: PeriodMIS[] = quarterlySeries()): { early: PeriodMIS; late: PeriodMIS; shifts: ChannelShift[] } | null {
+  const q = series.filter((p) => SALES_CHANNELS.some((c) => p.netByChannel[c] > 0));
   if (q.length < 2) return null;
   const early = q[0], late = q[q.length - 1];
   const em = channelMix(early), lm = channelMix(late);
@@ -355,9 +354,9 @@ export function channelShifts(): { early: PeriodMIS; late: PeriodMIS; shifts: Ch
 }
 
 /** Auto-generated, data-driven channel observations. */
-export function channelObservations(): string[] {
+export function channelObservations(series?: PeriodMIS[]): string[] {
   const out: string[] = [];
-  const data = channelShifts();
+  const data = channelShifts(series);
   if (!data) return out;
   const { early, late, shifts } = data;
 
@@ -609,8 +608,7 @@ export interface ArrProjection {
  * on top of each of the last 12 actual months to project the next 12 (preserving seasonality).
  * Forward ARR is the sum of that projected next-12-month revenue.
  */
-export function arrProjection(): ArrProjection {
-  const months = monthlySeries();
+export function arrProjection(months: PeriodMIS[] = monthlySeries()): ArrProjection {
   const last = months[months.length - 1];
 
   // --- MoM: geometric mean over the last 3 months (needs 4 points → 3 ratios) ---
@@ -1036,6 +1034,17 @@ function cellNewAd(c: SkuCell): number {
   return rd > 0 ? tot * (Math.max(0, c.rev) / rd) : 0;
 }
 
+/**
+ * Split a published SKU cell's raw `oth` bucket into its two real parts:
+ * `cf` = channel & fulfilment (oth minus the revenue-allocated ad baked into it)
+ * and `ad` = the measured ad spend (product-mix split of the channel-month ad
+ * total). Exactly what finalizeAgg() does per cell — exported so the Live MIS
+ * splice reads the same S&M / C&F split as this deck.
+ */
+export function decomposeLegacyCell(c: SkuCell): { cf: number; ad: number } {
+  return { cf: c.oth - cellOldAd(c), ad: cellNewAd(c) };
+}
+
 const ALL_SKU_MONTHS = [...new Set(SKU_CELLS.map((c) => c.m))].sort();
 
 export function skuChannelMatrix(g: Granularity, period: PeriodMIS): SkuChannelMatrix {
@@ -1096,7 +1105,7 @@ export const SKU_COVERAGE = { first: ALL_SKU_MONTHS[0], last: ALL_SKU_MONTHS[ALL
 // exactly as booked — only the split across channels changes.
 
 /** Real ad spend for a channel over a set of months (weights the S&M split). */
-function channelAdWeight(ch: SalesChannel, months: string[]): number {
+export function channelAdWeight(ch: SalesChannel, months: string[]): number {
   let w = 0;
   for (const m of months) {
     if (ch === 'Amazon') w += AMAZON_AD_MONTHLY[m] ?? 0;
