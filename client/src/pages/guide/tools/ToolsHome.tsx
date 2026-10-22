@@ -56,6 +56,14 @@ export function ToolsHome() {
             badge="New"
           />
           <NavCard
+            to="/tools/round-planner"
+            title="Round planner"
+            description="Cap table and dilution through Aneesha joining, the Hyperscale Round, the Feb 2027 CCPS conversion and Round 2 — hover to see who sold what, with the CS working against the signed SSSHA."
+            icon={iconConvert}
+            accent="violet"
+            badge="New"
+          />
+          <NavCard
             to="/tools/amazon-to-tranzact"
             title="Amazon → Tranzact"
             description="Convert the Amazon FBA Inventory Ledger into a Tranzact Physical Stock Reconciliation upload."

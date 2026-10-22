@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heatronics Round Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: three step cards for settings (join → round 1 → round 2), then ownership table, round maths, Aneesha's costs. Light only. */
+:root{--bg:#FAFAF8;--surface:#FFFFFF;--ink:#111113;--muted:#5A5650;--line:#E4E1DC;--soft:#F3F1EE;--accent:#C9541F;--ok:#2E7A52;--ok-soft:#E4F2EA;--bad:#B23B2E;--bad-soft:#F9E4E1;color-scheme:light;
+--display:"Archivo","Helvetica Neue",Arial,sans-serif;--body:"IBM Plex Sans","Segoe UI",Roboto,Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:18px;padding-block:24px 56px;display:flex;flex-direction:column;gap:20px}
+h1{font:800 clamp(24px,3.4vw,30px) var(--display);margin:0}
+h2{font:700 17px var(--display);margin:0 0 12px}
+.sub{color:var(--muted);margin:4px 0 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+.steps{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:820px){.steps{grid-template-columns:minmax(0,1fr)}}
+.step h2{display:flex;gap:8px;align-items:baseline}
+.step h2 span{font:600 12px var(--mono);color:var(--accent)}
+.ctls{display:flex;flex-direction:column}
+.ctl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--soft)}
+.ctl:last-child{border-bottom:0}
+.ctl label{font-size:14px}
+.ctl .in{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--bg);flex:none}
+.ctl input:focus-visible{outline:none}
+.ctl .in:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+.ctl input{font:500 14px var(--mono);text-align:right;padding:6px 4px 6px 8px;border:0;background:transparent;color:var(--ink);width:64px;outline:none}
+.ctl .u{font:12px var(--mono);color:var(--muted);padding-right:8px;min-width:34px}
+.blk{margin:0 -18px;padding:12px 18px 14px;border-top:1px solid var(--line)}
+.blk .bh{font:600 12px var(--body);letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;gap:8px}
+.blk .bh::before{content:"";width:8px;height:8px;border-radius:2px;background:currentColor}
+.blk.eq .bh{color:#C9541F}.blk.sc .bh{color:#2F6F8F}.blk.dt .bh{color:#6B5A2E}
+.blk.sc{background:#F4F8FA}.blk.dt{background:#FAF8F2}
+.blk:last-child{margin-bottom:-18px;border-radius:0 0 10px 10px}
+.ctl .u{white-space:nowrap}
+.inv .nm{font:500 14px var(--body);padding:6px 9px}
+.inv.fx .nm{color:var(--muted)}
+.inv.sum{border-top:1px solid var(--ink);margin-top:10px;padding-top:6px}
+.inv.sum .nm,.inv.sum .rest{font-weight:600;color:var(--ink)}
+.sub2{font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+details.more summary{cursor:pointer;font-weight:600;color:var(--accent)}
+details.more .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 24px;margin-top:14px}
+@media (max-width:820px){details.more .grid{grid-template-columns:minmax(0,1fr)}}
+input:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{padding:6px 12px;border-radius:99px;font-size:14px;font-weight:500}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.reset{margin-left:auto;border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:6px 12px;font:500 13px var(--body);cursor:pointer}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:14px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;vertical-align:middle;overflow-wrap:anywhere}
+th:first-child,td:first-child{text-align:left}
+#own col.c0{width:30%}
+#rounds col.c0{width:36%}
+thead th{font:600 12px var(--body);color:var(--muted);letter-spacing:.02em;padding-bottom:9px}
+td .p{font-weight:500}
+td .s{font:12px var(--mono);color:var(--muted);margin-left:8px;display:inline-block;min-width:52px;text-align:right}
+@media (max-width:700px){td .s{display:block;margin-left:0}}
+tr.hl td{background:var(--soft);font-weight:600}
+tr.tot td{font-weight:600;border-top:2px solid var(--ink);border-bottom:0}
+tr.gap td{border-bottom:2px solid var(--line)}
+tr.grp td{font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);padding-top:14px;border-bottom:1px solid var(--line)}
+td.dash{color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px}
+@media (max-width:820px){.two{grid-template-columns:minmax(0,1fr)}}
+dl{display:grid;grid-template-columns:1fr auto;gap:8px 16px;margin:0;font-size:14px}
+dt{color:var(--muted)}dd{margin:0;text-align:right;font-family:var(--mono)}
+dt.t,dd.t{color:var(--ink);font-weight:600;border-top:1px solid var(--line);padding-top:8px}
+.note{font-size:13px;color:var(--muted);margin:0}
+td.tip{position:relative;cursor:help}
+td.tip:hover{background:rgba(200,80,40,.07)}
+td.tip:hover::after{content:attr(data-tip);position:absolute;right:0;bottom:calc(100% + 6px);z-index:5;width:max-content;max-width:320px;white-space:pre-line;text-align:left;background:#2b2622;color:#fff;font:500 12px/1.4 'IBM Plex Sans',system-ui,sans-serif;padding:7px 10px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
+.r1d{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 28px}
+@media (max-width:820px){.r1d{grid-template-columns:minmax(0,1fr)}}
+.r1d h3{font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+.inv{display:grid;grid-template-columns:minmax(0,1fr) 84px 26px;gap:6px;align-items:center;margin-bottom:6px}
+.inv input{font:500 14px var(--body);padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%;min-width:0}
+.inv input[type=number]{font-family:var(--mono);text-align:right}
+.inv .rest{font:500 13px var(--mono);text-align:right;color:var(--muted)}
+.inv button,.add{border:1px solid var(--line);background:var(--surface);border-radius:6px;cursor:pointer;font:500 13px var(--body);color:var(--muted)}
+.inv button{height:30px}
+.add{padding:5px 10px;margin-top:4px}
+.hint{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin-top:12px}
+.chk input{accent-color:var(--accent);margin-top:3px}
+.cs h2{margin-bottom:4px}
+.cs .lead{color:var(--muted);font-size:14px;margin:0 0 6px}
+.cs .stp{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
+.cs h3{font:700 15px var(--display);margin:0 0 10px;display:flex;gap:10px;align-items:baseline}
+.cs h3 b{font:600 12px var(--mono);color:var(--accent)}
+.wk{table-layout:auto;margin-bottom:10px}
+.wk td{text-align:left;vertical-align:top;padding:6px 10px}
+.wk td:nth-child(2){font:13px var(--mono);color:var(--muted)}
+.wk td:last-child{text-align:right;font-weight:600;white-space:nowrap}
+.wk td.src{font:12px var(--body);color:var(--muted);text-align:left;font-weight:400;white-space:normal}
+.wk tr.tot td{border-top:2px solid var(--ink)}
+.wk th{text-align:left}.wk th:last-child{text-align:right}
+.ck{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-direction:column;gap:7px;font-size:14px}
+.ck li{display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:start}
+.tg{font:600 11px var(--body);letter-spacing:.03em;text-transform:uppercase;padding:3px 0;border-radius:4px;text-align:center}
+.tg.ok{background:var(--ok-soft);color:var(--ok)}.tg.need{background:#FCEFD9;color:#8A5A00}.tg.file{background:var(--soft);color:var(--muted)}.tg.flag{background:var(--bad-soft);color:var(--bad)}
+.ck small{display:block;color:var(--muted);font-size:12.5px}
+.sublab{font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+@media (max-width:700px){.ck li{grid-template-columns:1fr}.wk td:nth-child(2){display:none}}
+
+details.fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .15s;flex:none;margin-right:2px}
+details.fold[open]>summary::before{transform:rotate(45deg)}
+details.fold>summary h2,details.fold>summary h3{margin:0}
+details.fold>summary .hint2{margin-left:auto;font-size:12.5px;color:var(--muted)}
+details.card[open]>summary{margin-bottom:12px}
+.cs details.stp>summary{padding:2px 0}
+.cs details.stp[open]>summary{margin-bottom:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-left:auto}
+.seg button{border:0;background:var(--surface);padding:5px 12px;font:500 13px var(--body);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
+.blk.sf{background:#F7F4FB}.blk.sf .bh{color:#6A4C93}
+.blk.cv{background:#F3F8F4}.blk.cv .bh{color:#2E7A52}
+.blk .note2{font-size:12.5px;color:var(--muted);margin:4px 0 0}
+#own col.c0{width:24%}
+#own tbody tr:nth-child(-n+4) td.tip:hover::after{bottom:auto;top:calc(100% + 6px)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div><h1>Heatronics Round Planner</h1><p class="sub">Set each step. Opening numbers come from the signed SSSHA (19-Mar-2026), the CA-certified shareholder list (05-Jun-2026) and the 29-Jun-2026 allotment. Share prices are rounded up to the rupee and share counts down, the way a company secretary would. Hover any cell in the ownership table to see which shares changed hands.</p></div>
+
+  <form class="steps" id="f" onsubmit="return false" autocomplete="off">
+    <div class="card step"><h2><span>1</span>Aneesha joins</h2><div class="ctls" id="s1"></div></div>
+    <div class="card step"><h2><span>2</span>Hyperscale Round (Seed)</h2>
+      <section class="blk eq"><div class="bh">Primary — new shares, cash into the company</div><div class="ctls" id="s2"></div>
+        <div class="sub2">Who puts in the equity raise · lead takes the rest</div><div class="inv fx"><span class="nm">Aneesha</span><span class="rest" id="aneAmt"></span><span></span></div><div id="invs"></div><button type="button" class="add" id="addInv">+ Add investor</button>
+        <div class="inv sum"><span class="nm">Total</span><span class="rest" id="invTot"></span><span></span></div>
+        <p class="note2" id="cnNote"></p></section>
+      <section class="blk sf"><div class="bh">Secondary — founders sell</div><div class="ctls" id="s2f"></div><p class="note2">Jagjit sells first, down to his floor; then Hargun. Bought by the lead at the round price.</p></section>
+      <section class="blk sc"><div class="bh">Secondary — angels &amp; VCs sell</div><div class="ctls" id="s2s"></div><p class="note2">Angel Round 1 (CN) and Pre-Seed holders, in proportion to holdings. Bought by the lead at the round price.</p></section>
+      <section class="blk dt"><div class="bh">Venture debt — loan, plus warrants</div><div class="ctls" id="s2d"></div></section></div>
+    <div class="card step"><h2><span>3</span>Feb 2027 → Round 2</h2>
+      <section class="blk cv"><div class="bh">Feb 2027 — Pre-Seed CCPS convert</div><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></section>
+      <section class="blk eq"><div class="bh">Round 2 — new shares</div><div class="ctls" id="s3"></div></section></div>
+  </form>
+
+  <div class="bar"><span id="checks" class="bar" aria-live="polite"></span><button type="button" class="reset" id="reset">Reset</button></div>
+
+  <details class="card fold" open><summary><h2>Who owns what</h2><span class="seg" role="group" aria-label="Show"><button type="button" data-v="pct" aria-pressed="true">%</button><button type="button" data-v="sh" aria-pressed="false">Shares</button><button type="button" data-v="chg" aria-pressed="false">Change</button></span></summary><div class="tw"><table id="own"></table></div></details>
+
+  <details class="card fold" open><summary><h2>Who puts in what, and when</h2></summary><div class="tw"><table id="rounds"></table></div></details>
+
+  <details class="card fold cs" open><summary><h2>Company secretary's working</h2><span class="hint2">step-by-step share maths, checked against the signed SSSHA</span></summary><div id="cs"></div></details>
+
+  <p class="note">Taxes are not included. Fixed: MSOP to Aneesha 2.5% from the ESOP pool, exercised at ₹10. Angel notes convert at the Hyperscale Round at the ₹18 Cr pre-money cap (₹14,342 a share, per the SSSHA). Pre-Seed CCPS convert in Feb 2027 at a valuation set by 2026 revenue: the ₹23 Cr floor at ₹12.5 Cr or less, otherwise ₹28 Cr × revenue ÷ ₹15 Cr, capped at ₹28 Cr.</p>
+</div>
+<script>
+(function(){
+// Opening position: signed SSSHA (19-Mar-2026), CA-certified shareholder list (05-Jun-2026), 26 CCPS to Karthik Natarajan (29-Jun-2026)
+const BASE={H:6000,J:4000,ESOP:1226,AR1:522,PS:954};
+const T0=BASE.H+BASE.J+BASE.ESOP+BASE.AR1+BASE.PS, CR=1e7, FACE=10, CNP=14342, PSP=19576, MSOP=2.5;
+const C={
+ s1:[{id:'stk',label:'Her stake at joining',min:10,max:45,step:0.5,v:33,unit:'%'},
+     {id:'jkeep',label:'Jagjit keeps at least',min:0,max:31,step:0.5,v:2.5,unit:'%'},
+     {id:'px',label:'Price she pays per share',min:10,max:30000,step:10,v:10,unit:'₹'}],
+ s2:[{id:'pre1',label:'Pre-money valuation',min:10,max:150,step:0.5,v:50,unit:'₹ Cr'},
+     {id:'R1',label:'Total equity raise',min:1,max:20,step:0.25,v:8,unit:'₹ Cr'},
+     {id:'cap',label:"Aneesha's primary",min:0,max:3,step:0.05,v:1,unit:'₹ Cr'}],
+ s2f:[{id:'fsec',label:'Founder secondary',min:0,max:5,step:0.1,v:0,unit:'₹ Cr'}],
+ s2s:[{id:'sec',label:'Angel/VC secondary',min:0,max:5,step:0.1,v:1,unit:'₹ Cr'}],
+ s2d:[{id:'debt',label:'Venture debt',min:0,max:10,step:0.25,v:2.5,unit:'₹ Cr'},
+     {id:'wcov',label:'Warrants',min:0,max:30,step:1,v:10,unit:'% of debt'}],
+ s3c:[{id:'rev',label:'2026 revenue',min:0,max:40,step:0.5,v:12.5,unit:'₹ Cr'}],
+ s3:[{id:'pre2',label:'Pre-money valuation',min:20,max:300,step:5,v:120,unit:'₹ Cr'},
+     {id:'R2',label:'Total equity raise',min:0,max:50,step:0.5,v:22,unit:'₹ Cr'}]};
+const ALL=[].concat(...Object.values(C));
+const INV0=[{n:'Hyperscale (lead)'},{n:'Atrium',a:1}];
+let INV=INV0.map(x=>({...x})), VIEW='pct';
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ctl=c=>`<div class="ctl"><label for="n_${c.id}">${c.label}</label><span class="in"><input type="number" id="n_${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.v}"><span class="u">${c.unit}</span></span></div>`;
+for(const k in C) document.getElementById(k).innerHTML=C[k].map(ctl).join('');
+ALL.forEach(c=>document.getElementById('n_'+c.id).addEventListener('input',render));
+function drawInv(){
+  document.getElementById('invs').innerHTML=INV.map((x,i)=>`<div class="inv"><input aria-label="Investor name" data-i="${i}" data-k="n" value="${esc(x.n)}">`+
+   (i===0?`<span class="rest" id="leadAmt"></span><span></span>`:`<input type="number" aria-label="Amount in ₹ Cr" data-i="${i}" data-k="a" min="0" step="0.25" value="${x.a}"><button type="button" aria-label="Remove" data-rm="${i}">×</button>`)+`</div>`).join('');
+  document.getElementById('addInv').style.display=INV.length>=6?'none':'';
+}
+document.getElementById('invs').addEventListener('input',e=>{const t=e.target,i=+t.dataset.i;if(isNaN(i))return;
+  if(t.dataset.k==='n')INV[i].n=t.value;else{const v=parseFloat(t.value);INV[i].a=isFinite(v)?Math.max(0,v):0}render()});
+document.getElementById('invs').addEventListener('click',e=>{const r=e.target.dataset.rm;if(r===undefined)return;INV.splice(+r,1);drawInv();render()});
+document.getElementById('addInv').onclick=()=>{INV.push({n:'Investor '+(INV.length+1),a:0.5});drawInv();render()};
+document.getElementById('reset').onclick=()=>{ALL.forEach(c=>{document.getElementById('n_'+c.id).value=c.v});INV=INV0.map(x=>({...x}));drawInv();render()};
+document.querySelector('.seg').addEventListener('click',e=>{const v=e.target.dataset&&e.target.dataset.v;if(!v)return;e.preventDefault();VIEW=v;
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));render()});
+const V=id=>{const x=parseFloat(document.getElementById('n_'+id).value);return isFinite(x)?x:0};
+const fP=x=>(x*100).toFixed(1)+'%', fS=x=>Math.round(x).toLocaleString('en-IN'), ru=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+const fR=n=>{const a=Math.abs(n),g=n<0?'−':'';if(a>=CR*0.9995)return g+'₹'+(a/CR).toFixed(2)+' Cr';if(a>=1e5)return g+'₹'+(a/1e5).toFixed(1)+' L';return g+'₹'+Math.round(a).toLocaleString('en-IN')};
+
+function model(){
+  const I={};ALL.forEach(c=>I[c.id]=V(c.id));
+  // 1 · Aneesha joins
+  let A=Math.round(T0*I.stk/100);
+  const G=Math.min(BASE.ESOP,Math.round(T0*MSOP/100),A);
+  let S=A-G; const jFloor=Math.round(T0*I.jkeep/100);
+  let Sh=0,Sj=S; const jMax=Math.max(0,BASE.J-jFloor);
+  if(Sj>jMax){Sj=jMax;Sh=S-Sj}
+  const short=Sh>BASE.H; if(short){Sh=BASE.H;Sj=Math.min(BASE.J,S-Sh)}
+  S=Sh+Sj; A=G+S; const px=Math.max(FACE,I.px), paid=S*px;
+  const join={H:BASE.H-Sh,J:BASE.J-Sj,A,E:BASE.ESOP-G,C:BASE.AR1,P:BASE.PS,W:0,R2:0};
+  // 2 · Hyperscale Round
+  const pre1=I.pre1*CR, rawP1=pre1/T0, p1=Math.ceil(rawP1-1e-9), R1=I.R1*CR;
+  const prim=I.cap*CR, Pj=Math.floor(prim/p1), primA=Pj*p1;
+  const coSum=INV.slice(1).reduce((s,x)=>s+(x.a||0)*CR,0);
+  const lead=Math.max(0,R1-prim-coSum), over=prim+coSum>R1+1;
+  const inv=INV.map((x,i)=>{const amt=i===0?lead:(x.a||0)*CR, n=Math.floor(amt/p1);return {name:x.n||('Investor '+(i+1)),amt,n,act:n*p1}});
+  const newInv=inv.reduce((s,x)=>s+x.n,0), eqIn=primA+inv.reduce((s,x)=>s+x.act,0);
+  // founder secondary: Jagjit first down to floor, then Hargun
+  const fsN=Math.floor(I.fsec*CR/p1); let fsJ=Math.min(fsN,Math.max(0,join.J-jFloor)), fsH=Math.min(fsN-fsJ,join.H); const fsCut=fsJ+fsH<fsN;
+  // angel/VC secondary, pro rata CN vs Pre-Seed
+  const pC=BASE.AR1/(BASE.AR1+BASE.PS);
+  let secC=Math.floor(I.sec*CR*pC/p1), secP=Math.floor(I.sec*CR*(1-pC)/p1);
+  const secCut=secC>join.C||secP>join.P; secC=Math.min(secC,join.C); secP=Math.min(secP,join.P);
+  const debt=I.debt*CR, wVal=debt*I.wcov/100, W=Math.floor(wVal/p1);
+  const newR1=Pj+newInv, post1=T0+newR1+W;
+  const hs={H:join.H-fsH,J:join.J-fsJ,A:A+Pj,E:join.E,C:join.C-secC,P:join.P-secP,W,R2:0,inv:inv.map((x,i)=>x.n+(i===0?fsJ+fsH+secC+secP:0))};
+  // 3a · Feb 2027 CCPS conversion
+  const Vconv=I.rev<=12.5?23e7:Math.max(23e7,Math.min(28e7,28e7*I.rev/15)), cp=PSP*Vconv/23e7, ratio=PSP/cp;
+  const Pc=Math.floor(hs.P*ratio), secPc=Math.floor(secP*ratio);
+  const conv={...hs,P:Pc,inv:hs.inv.map((v,i)=>i===0?v-secP+secPc:v)};
+  const tot=o=>o.H+o.J+o.A+o.E+o.C+o.P+o.W+o.R2+o.inv.reduce((s,x)=>s+x,0);
+  const postC=tot(conv);
+  // 3b · Round 2
+  const R2=I.R2*CR, pre2=I.pre2*CR, rawP2=pre2/postC, p2=Math.ceil(rawP2-1e-9), N2=Math.floor(R2/p2), post2=postC+N2;
+  const r2={...conv,R2:N2};
+  const z=inv.map(()=>0);
+  const st={today:{H:BASE.H,J:BASE.J,A:0,E:BASE.ESOP,C:BASE.AR1,P:BASE.PS,W:0,R2:0,inv:z},join:{...join,inv:z},hs,conv,r2};
+  return {I,T0,jFloor,A,G,S,Sh,Sj,short,px,paid,pre1,rawP1,p1,R1,prim,Pj,primA,inv,lead,over,newInv,eqIn,fsN,fsJ,fsH,fsCut,pC,secC,secP,secCut,debt,wVal,W,newR1,post1,
+    Vconv,cp,ratio,Pc,secPc,postC,R2,pre2,rawP2,p2,N2,post2,st,tot};
+}
+// what moved, per stage and holder (for hovers)
+function moves(M){
+  const n=fS, mv={join:{},hs:{},conv:{},r2:{}}, add=(s,k,t)=>{(mv[s][k]=mv[s][k]||[]).push(t)};
+  if(M.Sj) {add('join','J',`Sold ${n(M.Sj)} to Aneesha at ${ru(M.px)} (${ru(M.Sj*M.px)})`)}
+  if(M.Sh) {add('join','H',`Sold ${n(M.Sh)} to Aneesha at ${ru(M.px)} (${ru(M.Sh*M.px)})`)}
+  add('join','A',`Bought ${n(M.Sj)} from Jagjit${M.Sh?` + ${n(M.Sh)} from Hargun`:''} at ${ru(M.px)}`);
+  if(M.G){add('join','A',`${n(M.G)} MSOP options from the ESOP pool`);add('join','E',`${n(M.G)} options granted to Aneesha (MSOP)`)}
+  const p=ru(M.p1);
+  add('hs','A',`Subscribed ${n(M.Pj)} new shares at ${p} (${ru(M.primA)})`);
+  M.inv.forEach((x,i)=>{const k='i'+i;add('hs',k,`Subscribed ${n(x.n)} new shares at ${p} (${ru(x.act)})`);
+    if(i===0){if(M.fsJ)add('hs',k,`Bought ${n(M.fsJ)} from Jagjit at ${p}`);if(M.fsH)add('hs',k,`Bought ${n(M.fsH)} from Hargun at ${p}`);
+      if(M.secC)add('hs',k,`Bought ${n(M.secC)} from Angel Round 1 (CN) holders at ${p}`);if(M.secP)add('hs',k,`Bought ${n(M.secP)} Pre-Seed CCPS at ${p}`)}});
+  if(M.fsJ)add('hs','J',`Sold ${n(M.fsJ)} to ${M.inv[0].name} at ${p} (${ru(M.fsJ*M.p1)})`);
+  if(M.fsH)add('hs','H',`Sold ${n(M.fsH)} to ${M.inv[0].name} at ${p} (${ru(M.fsH*M.p1)})`);
+  add('hs','C',`Notes converted: ₹75,00,000 ÷ ${ru(CNP)} (₹18 Cr cap) = ${n(BASE.AR1)} equity shares`);
+  if(M.secC)add('hs','C',`Sold ${n(M.secC)} to ${M.inv[0].name} at ${p} (${ru(M.secC*M.p1)})`);
+  if(M.secP)add('hs','P',`Sold ${n(M.secP)} CCPS to ${M.inv[0].name} at ${p} (${ru(M.secP*M.p1)})`);
+  if(M.W)add('hs','W',`${M.I.wcov}% × ${fR(M.debt)} = ${ru(M.wVal)} ÷ ${p} = ${n(M.W)} warrant shares`);
+  const r=M.ratio.toFixed(4);
+  add('conv','P',M.ratio===1?`CCPS convert 1:1 at the ₹23 Cr floor`:`CCPS convert at ₹${(M.Vconv/CR).toFixed(2)} Cr (price ${ru(M.cp)}): ×${r} → ${n(M.Pc)} equity shares`);
+  if(M.secP)add('conv','i0',M.ratio===1?`${n(M.secP)} Pre-Seed CCPS bought convert 1:1`:`${n(M.secP)} Pre-Seed CCPS bought convert to ${n(M.secPc)}`);
+  add('r2','R2',`Subscribed ${n(M.N2)} new shares at ${ru(M.p2)} (${ru(M.N2*M.p2)})`);
+  return mv;
+}
+function render(){
+  const M=model(), st=M.st, tot=M.tot, mv=moves(M);
+  document.getElementById('leadAmt').textContent=fR(M.lead);document.getElementById('aneAmt').textContent=fR(M.prim);document.getElementById('invTot').textContent=fR(M.R1>M.prim+0?Math.max(M.R1,M.prim):M.prim);
+  document.getElementById('cnNote').textContent=`Angel notes convert here: ₹75L ÷ ₹14,342 (₹18 Cr cap) = ${fS(BASE.AR1)} shares. Round price ${ru(M.p1)} a share.`;
+  document.getElementById('convNote').textContent=M.ratio===1?`At ₹12.5 Cr revenue or less, CCPS convert 1:1 (₹23 Cr floor): ${fS(M.st.hs.P)} shares.`:`Converts at ₹${(M.Vconv/CR).toFixed(2)} Cr → ${fS(M.Pc)} shares instead of ${fS(M.st.hs.P)}.`;
+  const FMIN=70, f1=(st.hs.H+st.hs.J+st.hs.A)/tot(st.hs), ok=f1>=FMIN/100-1e-9;
+  document.getElementById('checks').innerHTML=
+   `<span class="pill ${ok?'ok':'bad'}">Founders after Hyperscale Round: ${fP(f1)} ${ok?'✓ meets':'— below'} ${FMIN}%</span>`+
+   (M.over?`<span class="pill bad">Aneesha's primary + other investors exceed the equity raise — lead gets nothing</span>`:'')+
+   (M.secCut?`<span class="pill bad">Angel/VC secondary is more than they hold — capped</span>`:'')+
+   (M.fsCut?`<span class="pill bad">Founder secondary capped by Jagjit's floor and Hargun's holding</span>`:'')+
+   (M.short?`<span class="pill bad">Not enough Hargun/Jagjit shares for this stake</span>`:'');
+  const cols=[['Today','today'],['Aneesha joins','join'],['Hyperscale Round','hs'],['CCPS convert · Feb 27','conv'],['Round 2','r2']];
+  const NM={today:'today',join:'Aneesha joined',hs:'the Hyperscale Round',conv:'the CCPS conversion'};
+  const rows=[['Hargun','H',o=>o.H],['Jagjit','J',o=>o.J],['Aneesha','A',o=>o.A],['Founders total','F',o=>o.H+o.J+o.A,1],['ESOP pool','E',o=>o.E,3],['Angel Round 1 (CN)','C',o=>o.C],['Pre-Seed (CCPS)','P',o=>o.P]]
+    .concat(M.inv.map((x,i)=>[esc(x.name),'i'+i,o=>o.inv[i]]))
+    .concat([['Venture-debt warrants','W',o=>o.W],['Round 2 investors','R2',o=>o.R2],['Total shares','T',o=>tot(o),2]]);
+  const sign=v=>v>0?`<span class="up">+${fS(v)}</span>`:v<0?`<span class="dn">−${fS(-v)}</span>`:'<span class="dash">0</span>';
+  const tip=(key,f,s,v,o)=>{const i=cols.findIndex(c=>c[1]===s);
+    if(i<1){return key==='C'?` class="tip" data-tip="${esc('₹75,00,000 of notes, not yet shares.\nCounted as the '+fS(BASE.AR1)+' shares they convert into at the ₹18 Cr cap.')}"`:''}
+    const pn=NM[cols[i-1][1]], po=st[cols[i-1][1]], pv=f(po), a=pv/tot(po), b=v/tot(o), dp=(b-a)*100, ds=v-pv;
+    let t=!pv?`New: ${fP(b)} · ${fS(v)} shares`:Math.abs(dp)<0.005&&!ds?`No change since ${pn} (${fP(a)})`:`Since ${pn}: ${fP(a)} → ${fP(b)} (${dp>=0?'+':'−'}${Math.abs(dp).toFixed(1)} pts)\nShares: ${fS(pv)} → ${fS(v)}${ds?` (${ds>0?'+':'−'}${fS(Math.abs(ds))})`:''}`;
+    const lines=key==='F'?[].concat(mv[s].H||[],mv[s].J||[],mv[s].A||[]):(mv[s][key]||[]);
+    if(lines.length) t+='\n• '+lines.join('\n• ');
+    else if(pv&&!ds&&dp<-0.005) t+='\n• Diluted by new shares; none sold';
+    return ` class="tip" data-tip="${esc(t)}"`};
+  document.getElementById('own').innerHTML='<colgroup><col class="c0"><col><col><col><col><col></colgroup><thead><tr><th></th>'+cols.map(c=>`<th>${c[0]}</th>`).join('')+'</tr></thead><tbody>'+
+   rows.map(([l,key,f,h])=>{const cls=h===1?'hl':h===2?'tot':h===3?'gap':'';
+     return `<tr class="${cls}"><td>${l}</td>`+cols.map(([_,s],ci)=>{const o=st[s],v=f(o);
+     if(h===2){if(VIEW==='chg'&&ci>0)return `<td>${sign(v-f(st[cols[ci-1][1]]))}</td>`;return `<td>${fS(v)}</td>`}
+     if(VIEW==='chg'){if(ci===0)return v?`<td${tip(key,f,s,v,o)}>${fS(v)}</td>`:'<td class="dash">–</td>';
+       const pv=f(st[cols[ci-1][1]]);if(!v&&!pv)return '<td class="dash">–</td>';return `<td${tip(key,f,s,v,o)}>${sign(v-pv)}</td>`}
+     if(!v)return '<td class="dash">–</td>';
+     return VIEW==='sh'?`<td${tip(key,f,s,v,o)}><span class="p">${fS(v)}</span><span class="s">${fP(v/tot(o))}</span></td>`:`<td${tip(key,f,s,v,o)}><span class="p">${fP(v/tot(o))}</span><span class="s">${fS(v)}</span></td>`}).join('')+'</tr>'}).join('')+'</tbody>';
+  const R=(t,a,b,c,cls)=>`<tr class="${cls||''}"><td>${t}</td><td>${a}</td><td>${b}</td><td>${c}</td></tr>`;
+  const d='<span class="dash">–</span>', G=t=>`<tr class="grp"><td colspan="4">${t}</td></tr>`, sm=(a,b,z)=>z?d:`${a}<span class="s">${b}</span>`;
+  const nm=esc(M.inv[0].name);
+  document.getElementById('rounds').innerHTML='<colgroup><col class="c0"><col><col><col></colgroup><thead><tr><th></th><th>1 · Aneesha joins</th><th>2 · Hyperscale Round</th><th>3 · Round 2</th></tr></thead><tbody>'+
+   G('Primary — cash into the company')+
+   R('Aneesha',d,sm(fR(M.primA),fS(M.Pj)+' sh',!M.Pj),d)+
+   M.inv.map(x=>R(esc(x.name),d,sm(fR(x.act),fS(x.n)+' sh',!x.n),d)).join('')+
+   R('Round 2 investors',d,d,sm(fR(M.N2*M.p2),fS(M.N2)+' sh',!M.N2))+
+   R('Total equity in',d,fR(M.eqIn),fR(M.N2*M.p2),'hl')+
+   G('Venture debt (not equity)')+
+   R('Debt',d,fR(M.debt),d)+
+   R(`Warrants (${M.I.wcov}% of debt)`,d,sm(fR(M.wVal),fS(M.W)+' sh',!M.W),d)+
+   G('Secondary — founders sell (cash to the seller, not the company)')+
+   R(`Jagjit → Aneesha at ${ru(M.px)}`,sm(fR(M.Sj*M.px),fS(M.Sj)+' sh',!M.Sj),d,d)+
+   R(`Hargun → Aneesha at ${ru(M.px)}`,sm(fR(M.Sh*M.px),fS(M.Sh)+' sh',!M.Sh),d,d)+
+   R(`Jagjit → ${nm}`,d,sm(fR(M.fsJ*M.p1),fS(M.fsJ)+' sh',!M.fsJ),d)+
+   R(`Hargun → ${nm}`,d,sm(fR(M.fsH*M.p1),fS(M.fsH)+' sh',!M.fsH),d)+
+   G('Secondary — angels &amp; VCs sell')+
+   R(`Angel Round 1 (CN) → ${nm}`,d,sm(fR(M.secC*M.p1),fS(M.secC)+' sh',!M.secC),d)+
+   R(`Pre-Seed → ${nm}`,d,sm(fR(M.secP*M.p1),fS(M.secP)+' sh',!M.secP),d)+
+   G('Other share movements')+
+   R('MSOP to Aneesha from the ESOP pool',fS(M.G)+' options',d,d)+
+   R('Angel notes convert (₹18 Cr cap)',d,fS(BASE.AR1)+' sh',d)+
+   R('Pre-Seed CCPS convert (Feb 2027)',d,d,M.ratio===1?'1:1':`${fS(M.st.hs.P)} → ${fS(M.Pc)}`)+
+   G('Valuation')+
+   R('Pre-money',d,fR(M.pre1),fR(M.pre2))+
+   R('Price per share',d,ru(M.p1),ru(M.p2))+
+   R('Post-money (equity)',d,fR(M.pre1+M.eqIn),fR(M.pre2+M.N2*M.p2))+
+   R('Dilution incl. warrants',d,fP((M.newR1+M.W)/M.post1),fP(M.N2/M.post2),'hl')+'</tbody>';
+  renderCS(M);
+}
+function renderCS(M){
+  const st=M.st,tot=M.tot, n=fS;
+  const T=(rows,head)=>`<div class="tw"><table class="wk">${head?`<thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`:''}<tbody>${rows.map(r=>`<tr class="${r[3]||''}"><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div>`;
+  const CK=items=>`<ul class="ck">${items.map(([t,l,x])=>`<li><span class="tg ${t}">${{ok:'OK',need:'Consent',file:'Filing',flag:'Check'}[t]}</span><span>${l}${x?`<small>${x}</small>`:''}</span></li>`).join('')}</ul>`;
+  const prev=[...document.querySelectorAll('#cs details.stp')].map(x=>x.open); let si=0;
+  const STEP=(k,title,inner,open)=>{const o=prev.length?prev[si]:open;si++;return `<details class="stp fold"${o?' open':''}><summary><h3><b>${k}</b>${title}</h3></summary>${inner}</details>`};
+  const I=M.I, T0=M.T0, p1=M.p1, p2=M.p2, inv=M.inv, nm0=esc(inv[0].name);
+  const cashR1=M.eqIn, ppPS=Math.floor(BASE.PS/T0*M.newR1);
+  const jPct=M.Sj/BASE.J, hPct=M.Sh/BASE.H;
+  const pref=BASE.PS+M.newR1+M.W, prefOk=pref<=10000;
+  const intEx=7500000*0.06*134/365, intSh=Math.floor(intEx/CNP);
+  let h='';
+  h+=STEP('STEP 0','Opening register (fully diluted)',T([
+   ['Hargun Singh Chawla — equity','SSSHA Sch. B; shareholder list 05-Jun-26',n(BASE.H)],
+   ['Jagjit Singh Chawla — equity','2,000 own + 2,000 from Harleen Chawla (transfer 22-Sep-26)',n(BASE.J)],
+   ['ESOP pool — unissued options','SSSHA cl. 11.7 and Sch. E item 10: approved pool of 1,226',n(BASE.ESOP)],
+   ['Angel Round 1 — ₹75L notes (Jitender Mohan, Mandeep Anand, Deepak Kumar Gupta)','as-if converted: ₹75,00,000 ÷ ₹14,342 (₹18 Cr cap)',n(BASE.AR1)],
+   ['Pre-Seed — Seed Series CCPS','928 per list 05-Jun-26 + 26 to Karthik Natarajan, 29-Jun-26 (PAS-3 SRN AC4552114); 1:1 at the floor',n(BASE.PS)],
+   ['Total fully diluted shares','',n(T0),'tot']])+
+   CK([['flag','Your Oct-2026 cap table shows the ESOP pool as 1,283 and Pre-Seed as 928.','The signed SSSHA approves 1,226 (a bigger pool needs FPC-A consent, Sch. E item 10), and Karthik Natarajan\'s 26 CCPS allotted on 29-Jun-26 are missing from it. This working uses 1,226 and 954.']]),true);
+  h+=STEP('STEP 1','Aneesha joins',T([
+   ['Target stake',`${I.stk}% × ${n(T0)}`,n(M.A)+' sh'],
+   ['From the ESOP pool (MSOP)',`${MSOP}% × ${n(T0)}`,n(M.G)+' sh'],
+   ['By transfer from founders',`${n(M.A)} − ${n(M.G)}`,n(M.S)+' sh'],
+   ['Jagjit keeps at least',`${I.jkeep}% × ${n(T0)} = ${n(M.jFloor)}; can sell ${n(BASE.J)} − ${n(M.jFloor)}`,n(BASE.J-M.jFloor)+' sh'],
+   ['From Jagjit',`${fP(jPct)} of his ${n(BASE.J)}`,n(M.Sj)+' sh'],
+   ['From Hargun',`rest of the transfer · ${fP(hPct)} of his ${n(BASE.H)}`,n(M.Sh)+' sh'],
+   [`Consideration at ${ru(M.px)} a share`,`Jagjit ${ru(M.Sj*M.px)} · Hargun ${ru(M.Sh*M.px)}`,ru(M.paid)],
+   ['Stamp duty on transfer','0.015% of consideration',ru(Math.ceil(M.paid*0.00015))],
+   ['Aneesha after joining',`${n(M.A)} ÷ ${n(T0)}`,fP(M.A/T0),'tot']])+
+   `<div class="sublab">SSSHA checks and filings</div>`+CK([
+   ['need',`Jagjit's transfer is ${fP(jPct)} of his shares, above the 5% permitted transfer — needs FPC-A's prior written consent.`,'Cl. 13.1(d); permitted transfers are capped at 5% of a founder/KMP\'s shares as on the closing date (cl. 1.1.81).'],
+   [hPct<=0.05?'ok':'need',`Hargun's transfer is ${fP(hPct)} of his shares.`,hPct<=0.05?'Within the 5% permitted transfer (cl. 1.1.81), so no consent, ROFR or tag-along applies.':'Above 5%, so FPC-A consent, ROFR and tag-along apply (cl. 13.1(d)).'],
+   ['need','Investors\' right of first refusal and tag-along must be waived in writing.','Cl. 13.2–13.3: investors can otherwise buy the same shares at the same price before Aneesha.'],
+   ['need','MSOP to a co-founder: the ESOP pool is for employees other than founders.',`Cl. 11.7; an ESOP scheme or policy needs FPC-A consent (Sch. E items 10–11), a special resolution and MGT-14. The simpler route: Hargun transfers these ${n(M.G)} shares too.`],
+   ['flag','Founder vesting already runs for 5 years under the SSSHA.','Cl. 13.1(b)–(c): 20% after year 1, then quarterly. Write Aneesha\'s 3-year clawback into her deed of adherence and founder agreement so the two don\'t conflict.'],
+   ['ok','No need to re-sign the SSSHA — Aneesha signs a Deed of Adherence.','Sch. N; cl. 13.2(e).'],
+   ['file','Share transfer, register and beneficial-owner filings.','Demat transfer through the depository (ISIN active) or SH-4 · register of members update · BEN-1 from Aneesha and BEN-2 within 30 days (she holds >10%) · DIR-12 if she joins the board.']]));
+  const r2rows=[['Aneesha',M.prim,M.Pj,M.primA]].concat(inv.map(x=>[esc(x.name),x.amt,x.n,x.act]));
+  h+=STEP('STEP 2','Hyperscale Round (Seed)',
+   `<div class="sublab">Price</div>`+T([
+   ['Pre-money fully diluted shares','incl. ESOP pool and the 522 note-conversion shares',n(T0)],
+   ['Price per share',`${fR(M.pre1)} ÷ ${n(T0)} = ₹${M.rawP1.toLocaleString('en-IN',{maximumFractionDigits:2})}, rounded up`,ru(p1)],
+   ['Face value + premium','',`₹10 + ${ru(p1-10)}`]])+
+   `<div class="sublab">Angel notes convert</div>`+T([
+   ['Conversion price','lower of ₹18 Cr cap price (₹14,342 per SSSHA) and round price; no 30% discount (Tranches II–III never closed)',ru(CNP)],
+   ['Shares','₹75,00,000 ÷ ₹14,342 = 522.9, rounded down',n(BASE.AR1)+' sh'],
+   ['Each holder','₹25,00,000 ÷ ₹14,342 → 174 × 3',n(174*3)+' sh']])+
+   `<div class="sublab">Primary — shares = amount ÷ price, rounded down</div>`+
+   T(r2rows.map(([a,amt,sh,act])=>[a,`${ru(amt)} ÷ ${ru(p1)}`,`${n(sh)} sh · ${ru(act)}`]).concat([['Total new shares','',`${n(M.newR1)} sh · ${ru(cashR1)}`,'tot']]),['Subscriber','Working','Shares · amount'])+
+   `<div class="sublab">Secondary — founders sell</div>`+T([
+   ['Founder secondary',`${fR(I.fsec*CR)} ÷ ${ru(p1)}, rounded down`,n(M.fsN)+' sh'],
+   ['From Jagjit',`down to his ${n(M.jFloor)} floor`,n(M.fsJ)+' sh'],
+   ['From Hargun','rest',n(M.fsH)+' sh']])+
+   `<div class="sublab">Secondary — angels &amp; VCs sell</div>`+T([
+   ['Angel/VC secondary',`${fR(I.sec*CR)} split ${fP(M.pC)} CN / ${fP(1-M.pC)} Pre-Seed, ÷ ${ru(p1)}`,`${n(M.secC)} + ${n(M.secP)} sh`],
+   ['Paid to sellers','',ru((M.secC+M.secP)*p1)]])+
+   `<div class="sublab">Venture-debt warrants</div>`+T([
+   ['Warrant shares',`${I.wcov}% × ${fR(M.debt)} = ${ru(M.wVal)} ÷ ${ru(p1)}, rounded down`,n(M.W)+' sh'],
+   ['Post-money fully diluted shares',`${n(T0)} + ${n(M.newR1)} + ${n(M.W)}`,n(M.post1),'tot'],
+   ['Dilution to existing holders',`${n(M.newR1+M.W)} ÷ ${n(M.post1)}`,fP((M.newR1+M.W)/M.post1)]])+
+   `<div class="sublab">SSSHA checks and filings</div>`+CK([
+   [p1>=PSP?'ok':'flag',`Anti-dilution: round price ${ru(p1)} vs Pre-Seed price ₹19,576.`,p1>=PSP?'At or above, so no weighted-average adjustment (cl. 17, Sch. D).':'Below — Pre-Seed CCPS get a weighted-average adjustment (cl. 17, Sch. D).'],
+   [M.pre1>=46e7?'ok':'flag',`Protection right: pre-money ${fR(M.pre1)} vs ₹46 Cr (2× the Pre-Seed ₹23 Cr floor).`,M.pre1>=46e7?'At or above (and Hyperscale invests more than 2× the Pre-Seed amount), so the new investors may get superior rights.':`Below ₹46 Cr, so ${nm0}'s rights can't be superior to Pre-Seed's unless IPV/FirstPort waive (Sch. O).`],
+   ['need',`Pre-emptive right: Pre-Seed holders can take their pro-rata ${fP(BASE.PS/T0)} — about ${n(ppPS)} of the ${n(M.newR1)} new shares — and IPV can facilitate first.`,'Cl. 15 and 16: issue the First Issuance Notice (30 business days) or get written waivers.'],
+   ['flag','Angel notes: interest and timing.',`6% simple interest starts about 17-Nov-2026 and converts with principal: closing on 31-Mar-2027 adds about ${ru(intEx)} → ${n(intSh)} more shares, unless paid in cash (Sch. P, cl. 2). The notes expect the round within 12 months of Tranche I — get a written extension (Sch. P, cl. 5).`],
+   [M.fsN?'need':'ok',M.fsN?`Founder secondary: ${n(M.fsJ+M.fsH)} shares to ${nm0}.`:'No founder secondary.',M.fsN?'Above 5% of a founder\'s shares needs FPC-A consent, ROFR and tag-along waivers (cl. 13.1(d), 13.2–13.3); the buyer signs a deed of adherence.':''],
+   ['need','Angel/VC secondary: CN holders\' and Pre-Seed co-investors\' sales go through the investors\' ROFR and tag-along; IPV Group (FirstPort, IPV) can transfer freely.',`Cl. 13.2, Sch. O. ${nm0} signs a deed of adherence; 0.015% stamp duty.`],
+   ['need','FPC-A consent for the issue, new series rights, AoA changes, investor board seat, the debt and the warrants.','Sch. E items 1, 2, 3, 4 and 22(a).'],
+   [prefOk?'ok':'flag',`Authorised preference capital: 10,000 shares; after this round ${n(pref)} in use (if Seed and warrants are CCPS).`,prefOk?'Enough headroom; no SH-7 needed.':'Increase authorised capital (SH-7) first.'],
+   ['file','Issue and allotment filings.','Registered-valuer report · board meeting + EGM special resolution (Sec. 42, 62(1)(c)) · MGT-14 within 30 days · PAS-4 offer letters and PAS-5 record · separate bank account · allot within 60 days · PAS-3 within 15 days of allotment · CHG-1 if the debt is secured · new SHA (or amendment) with the lead.']]));
+  h+=STEP('STEP 3','Feb 2027 — Pre-Seed CCPS convert',T([
+   ['Conversion valuation',I.rev<=12.5?`revenue ₹${I.rev} Cr ≤ ₹12.5 Cr, so the ₹23 Cr floor`:`₹28 Cr × ${I.rev} ÷ ₹15 Cr revenue, capped at ₹28 Cr`,'₹'+(M.Vconv/CR).toFixed(2)+' Cr'],
+   ['Conversion price',`₹19,576 × ${(M.Vconv/CR).toFixed(2)} ÷ 23`,ru(M.cp)],
+   ['Equity shares per CCPS',`₹19,576 ÷ ${ru(M.cp)}`,M.ratio.toFixed(4)],
+   ['Pre-Seed holders',`${n(st.hs.P)} CCPS × ${M.ratio.toFixed(4)}, rounded down`,n(M.Pc)+' sh'],
+   [`${nm0}'s secondary CCPS`,`${n(M.secP)} × ${M.ratio.toFixed(4)}, rounded down`,n(M.secPc)+' sh'],
+   ['Fully diluted shares after conversion',`${n(M.post1)} − ${n(M.post1-M.postC)}`,n(M.postC),'tot']])+
+   CK([['flag','Revenue window: the SSSHA measures revenue to 28-Feb-2027; the term sheet says calendar 2026.','Sch. O vs term sheet item 1. Conversion is 1:1 at ₹12.5 Cr or less; the SSSHA\'s own example (₹13 Cr → ₹24.27 Cr) matches ₹28 Cr × revenue ÷ ₹15 Cr.']]));
+  h+=STEP('STEP 4','Round 2',T([
+   ['Pre-money fully diluted shares','after the CCPS conversion, incl. warrants',n(M.postC)],
+   ['Price per share',`${fR(M.pre2)} ÷ ${n(M.postC)} = ₹${M.rawP2.toLocaleString('en-IN',{maximumFractionDigits:2})}, rounded up`,ru(p2)],
+   ['New shares',`${fR(M.R2)} ÷ ${ru(p2)}, rounded down`,`${n(M.N2)} sh · ${ru(M.N2*p2)}`],
+   ['Post-money fully diluted shares',`${n(M.postC)} + ${n(M.N2)}`,n(M.post2),'tot'],
+   ['Dilution to existing holders',`${n(M.N2)} ÷ ${n(M.post2)}`,fP(M.N2/M.post2)]]));
+  const fin=[['Hargun',st.r2.H],['Jagjit',st.r2.J],['Aneesha',st.r2.A],['ESOP pool (unissued)',st.r2.E],['Angel Round 1 (CN)',st.r2.C],['Pre-Seed',st.r2.P]].concat(inv.map((x,i)=>[esc(x.name),st.r2.inv[i]])).concat([['Venture-debt warrants',st.r2.W],['Round 2 investors',st.r2.R2]]);
+  const sum=fin.reduce((s,x)=>s+x[1],0);
+  h+=STEP('STEP 5','Closing register after Round 2 (fully diluted)',
+   T(fin.map(([a,v])=>[a,fP(v/sum),n(v)]).concat([['Total',sum===M.post2?'✓ ties to Step 4':'✗ does not tie',n(sum),'tot']]),['Holder','%','Shares']),true);
+  document.getElementById('cs').innerHTML=h;
+}
+drawInv();render();
+})();
+</script>
+<script>
+// Tell the MIS page (if embedded) how tall this page is, so it shows without an inner scrollbar.
+(function(){if(window.parent===window)return;const post=()=>parent.postMessage({type:'round-planner-height',height:Math.ceil(document.querySelector('.wrap').getBoundingClientRect().bottom+window.scrollY)},'*');
+new ResizeObserver(post).observe(document.body);window.addEventListener('load',post);post();})();
+</script>
+</body>
+</html>
