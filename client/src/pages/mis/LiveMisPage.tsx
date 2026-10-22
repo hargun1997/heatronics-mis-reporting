@@ -1,12 +1,14 @@
 // ----------------------------------------------------------------------------
-// Live MIS — the legacy deck's structure, computed live from the durable
-// uploads. Overview / P&L / Channels / SKU / SKU×Channel mirror the published
-// deck; the Run-rate tab keeps the always-on connector fact stream. Numbers are
-// real through each month's completeness level (full close / to CM2 / top line);
-// the "complete through" floor is the latest fully-closed month.
+// Live MIS — every report of the legacy deck, computed live from the durable
+// uploads: Overview, Revenue & Growth, Channel Mix, Profitability, P&L, Channel
+// P&L, SKU, SKU×Channel, Units, Repeats and the MIS Sheet; the Run-rate tab keeps
+// the always-on connector fact stream. Numbers are real through each month's
+// completeness level (full close / to CM2 / top line); the "complete through"
+// floor is the latest fully-closed month.
 // ----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { PageHeader, SectionCard, KpiTile, SegmentedControl } from '../../components/ui';
 import { inr } from '../../components/mis-deck/charts';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
@@ -20,10 +22,18 @@ import {
 import { computeFreshness } from '../../data/liveMis/freshness';
 import { listConnectors, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
 import { FreshnessHeadline, FreshnessTable } from '../../components/mis/FreshnessTable';
-import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
-import { exportLiveMis } from '../../utils/liveMisExport';
+import { loadLiveDeck, swapAlternates, LIVE_BOUNDARY, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran } from '../../data/misDeck/liveAnalytics';
-import { OverviewTab, PnlTab, ChannelsTab, SkuTab, SkuChannelTab, SkuUnitsTab, LevelBadge } from '../../components/liveMis/deckTabs';
+import {
+  blendLiveMonths, unifyChannels, rangeKeys, rangePresetLabel, aggregateRange, type RangePreset,
+} from '../../data/misDeck/liveViews';
+import {
+  OverviewTab, PnlTab, ChannelsTab, SkuTab, SkuChannelTab, SkuUnitsTab, LevelBadge, type PnlDisplay,
+} from '../../components/liveMis/deckTabs';
+import { RevenueGrowthTab, ChannelMixTab, ProfitabilityTab, RepeatsTab } from '../../components/liveMis/reportTabs';
+import { LiveMisSheetTab } from '../../components/liveMis/LiveMisSheetTab';
+import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExportModals';
+import { LiveViewProvider, Pills } from '../../components/liveMis/shared';
 
 const iconLive = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -31,19 +41,29 @@ const iconLive = (
   </svg>
 );
 
-type Tab = 'overview' | 'pnl' | 'channels' | 'sku' | 'skuchannel' | 'units' | 'runrate';
+type Tab = 'overview' | 'growth' | 'mix' | 'profit' | 'pnl' | 'channels' | 'sku' | 'skuchannel' | 'units' | 'repeats' | 'missheet' | 'runrate';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
+  { id: 'growth', label: 'Revenue & Growth' },
+  { id: 'mix', label: 'Channel Mix' },
+  { id: 'profit', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
-  { id: 'channels', label: 'Channels' },
+  { id: 'channels', label: 'Channel P&L' },
   { id: 'sku', label: 'SKU' },
   { id: 'skuchannel', label: 'SKU × Channel' },
   { id: 'units', label: 'Units sold' },
+  { id: 'repeats', label: 'Repeats' },
+  { id: 'missheet', label: 'MIS Sheet' },
   { id: 'runrate', label: 'Run-rate' },
 ];
-const DECK_GRAINS: { id: DeckGran; label: string }[] = [
-  { id: 'month', label: 'Monthly' }, { id: 'quarter', label: 'Quarterly' }, { id: 'year', label: 'Yearly' },
+// Tabs that don't use the period controls (they carry their own scope).
+const NO_PERIOD: Tab[] = ['runrate', 'repeats', 'missheet'];
+
+type Grain = DeckGran | 'range';
+const DECK_GRAINS: { id: Grain; label: string }[] = [
+  { id: 'month', label: 'Monthly' }, { id: 'quarter', label: 'Quarterly' }, { id: 'year', label: 'Yearly' }, { id: 'range', label: 'Range' },
 ];
+const RANGE_PRESETS: RangePreset[] = ['last3', 'last6', 'last12', 'ytd', 'fy_current', 'fy_previous', 'custom'];
 
 // Heatronics runs an Apr–Mar fiscal year, so a month's FY starts in the April on
 // or before it: Apr 2025 → Mar 2026 is "FY25–26".
@@ -53,6 +73,15 @@ const fyStartOf = (monthKey: string): number => {
   return m >= 4 ? y : y - 1;
 };
 const fyLabel = (startY: number): string => `FY${String(startY).slice(2)}–${String((startY + 1) % 100).padStart(2, '0')}`;
+
+/** A per-browser view preference (a convenience only — the page works without storage). */
+function usePref<T extends string>(key: string, fallback: T): [T, (v: T) => void] {
+  const [v, setV] = useState<T>(() => {
+    try { return (localStorage.getItem(`livemis:${key}`) as T | null) ?? fallback; } catch { return fallback; }
+  });
+  const set = (n: T) => { setV(n); try { localStorage.setItem(`livemis:${key}`, n); } catch { /* private mode */ } };
+  return [v, set];
+}
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -70,10 +99,21 @@ export function LiveMisPage() {
   const [deck, setDeck] = useState<LiveDeckData | null>(null);
   const [deckLoading, setDeckLoading] = useState(false);
   const [deckError, setDeckError] = useState<string | null>(null);
-  const [gran, setGran] = useState<DeckGran>('month');
+  const [gran, setGran] = useState<Grain>('month');
   const [periodKey, setPeriodKey] = useState<string>('');
-  const [pnlPct, setPnlPct] = useState(false);
+  const [display, setDisplay] = useState<PnlDisplay>('both');
   const [fy, setFy] = useState<string>('all');
+  // COGM basis: Actual by default — the Live MIS ties to Tally month by month
+  // (the legacy investor deck defaulted to Blended; the toggle is one click).
+  const [blendPref, setBlendPref] = usePref<'actual' | 'blended'>('cogm', 'actual');
+  const [chanPref, setChanPref] = usePref<'continuous' | 'booked'>('channels', 'continuous');
+  const [showLive, setShowLive] = useState(false);
+  const [preset, setPreset] = useState<RangePreset>('last12');
+  const [custom, setCustom] = useState<string[]>([]);
+  const [excelOpen, setExcelOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const blended = blendPref === 'blended';
+  const merged = chanPref === 'continuous';
 
   const loadDeck = useCallback(async () => {
     setDeckLoading(true); setDeckError(null);
@@ -83,59 +123,93 @@ export function LiveMisPage() {
   }, []);
   useEffect(() => { void loadDeck(); }, [loadDeck]);
 
-  const periods = useMemo(
-    () => (deck ? aggregatePeriods(deck.months, deck.completeness, gran) : []),
-    [deck, gran],
-  );
+  // The deck as viewed: live partials swapped in on request, then the continuous
+  // channel taxonomy (G6). Raw `deck` stays the source of truth.
+  const view = useMemo(() => {
+    if (!deck) return null;
+    const d = showLive ? swapAlternates(deck) : deck;
+    return merged ? unifyChannels(d) : d;
+  }, [deck, showLive, merged]);
+  const blend = useMemo(() => (view ? blendLiveMonths(view.months, view.completeness) : null), [view]);
+  const months = useMemo(() => (view ? (blended && blend ? blend.months : view.months) : []), [view, blend, blended]);
+  const completeness = useMemo(() => view?.completeness ?? {}, [view]);
+
+  const aggGran: DeckGran = gran === 'range' ? 'month' : gran;
+  const allPeriods = useMemo(() => aggregatePeriods(months, completeness, aggGran), [months, completeness, aggGran]);
+  const monthly = useMemo(() => aggregatePeriods(months, completeness, 'month'), [months, completeness]);
+  const quarterly = useMemo(() => aggregatePeriods(months, completeness, 'quarter'), [months, completeness]);
+  const yearly = useMemo(() => aggregatePeriods(months, completeness, 'year'), [months, completeness]);
   // Fiscal years present in the data, newest first — drives the Year filter.
   const fys = useMemo(() => {
     const ys = new Set<number>();
-    for (const p of deck?.periods ?? []) if (isMonthKey(p)) ys.add(fyStartOf(p));
+    for (const p of view?.periods ?? []) if (isMonthKey(p)) ys.add(fyStartOf(p));
     return [...ys].sort((a, b) => b - a);
-  }, [deck]);
-  // The periods actually shown — scoped to one fiscal year unless "All".
+  }, [view]);
+  const isRange = gran === 'range';
+  // Range grain: one aggregated period over the chosen months.
+  const selKeys = useMemo(() => (view && isRange ? rangeKeys(preset, view.periods, custom) : []), [view, isRange, preset, custom]);
+  const rangeAgg = useMemo(
+    () => (view && isRange ? aggregateRange(months, completeness, selKeys, rangePresetLabel(preset, view.periods)) : null),
+    [view, isRange, months, completeness, selKeys, preset],
+  );
+  // The periods actually shown — scoped to one fiscal year unless "All"; in
+  // range mode, the range's own months.
   const shownPeriods = useMemo(() => {
-    if (fy === 'all') return periods;
+    if (isRange) return monthly.filter((p) => selKeys.includes(p.key));
+    if (fy === 'all') return allPeriods;
     const start = Number(fy);
-    return periods.filter((p) => (p.members ?? [p.key]).some((mk) => isMonthKey(mk) && fyStartOf(mk) === start));
-  }, [periods, fy]);
+    return allPeriods.filter((p) => p.members.some((mk) => isMonthKey(mk) && fyStartOf(mk) === start));
+  }, [isRange, monthly, selKeys, allPeriods, fy]);
   const selected = useMemo(
-    () => shownPeriods.find((p) => p.key === periodKey) ?? shownPeriods[shownPeriods.length - 1],
-    [shownPeriods, periodKey],
+    () => (isRange ? rangeAgg ?? undefined : shownPeriods.find((p) => p.key === periodKey) ?? shownPeriods[shownPeriods.length - 1]),
+    [isRange, rangeAgg, shownPeriods, periodKey],
   );
   const periodKeys = useMemo(() => new Set(selected?.members ?? []), [selected]);
+  const pnlCols = useMemo(() => (isRange && rangeAgg ? [...shownPeriods, rangeAgg] : shownPeriods), [isRange, rangeAgg, shownPeriods]);
   // Amazon traffic (Business Report) for the selected period — aggregated per SKU
   // across the period's months. Overview-only; never part of the P&L.
   const trafficRows = useMemo(() => {
-    if (!deck || !selected) return [];
+    if (!view || !selected) return [];
     const byKey = new Map<string, { sku: string; name: string; sessions: number; pageViews: number; units: number }>();
     for (const mk of selected.members) {
-      for (const r of deck.traffic[mk] ?? []) {
+      for (const r of view.traffic[mk] ?? []) {
         const e = byKey.get(r.sku) ?? { sku: r.sku, name: r.name, sessions: 0, pageViews: 0, units: 0 };
         e.sessions += r.sessions; e.pageViews += r.pageViews; e.units += r.units;
         byKey.set(r.sku, e);
       }
     }
     return [...byKey.values()];
-  }, [deck, selected]);
+  }, [view, selected]);
+
+  const ctx = useMemo(() => ({
+    merged, blended, setBlended: (b: boolean) => setBlendPref(b ? 'blended' : 'actual'), rates: blend?.rates ?? new Map<string, number>(),
+  }), [merged, blended, blend, setBlendPref]);
+  const showControls = !NO_PERIOD.includes(tab) && view && allPeriods.length > 0;
 
   return (
-    <>
+    <LiveViewProvider value={ctx}>
       <PageHeader
         title="Live MIS"
         accent="brand"
         icon={iconLive}
-        description="The MIS, live from your uploads — same structure as the published deck. Each month is real through its completeness level; the full P&L lands once its Tally P&L is in."
+        description="The MIS, live from your uploads — every report of the published deck. Each month is real through its completeness level; the full P&L lands once its Tally P&L is in."
         crumbs={[
           { label: 'Reporting', to: '/reporting' },
           { label: 'MIS Reporting', to: '/reporting/mis' },
           { label: 'Live MIS' },
         ]}
         actions={
-          <div className="flex items-center gap-2">
-            <button onClick={() => deck && exportLiveMis(deck)} disabled={!deck || deckLoading}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/reporting/mis/rulebook" className="px-2.5 py-1 rounded-lg text-slate-600 text-[11px] hover:bg-white/70 underline-offset-2 hover:underline">
+              How it’s calculated
+            </Link>
+            <button onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading}
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
               Export Excel
+            </button>
+            <button onClick={() => setPdfOpen(true)} disabled={!deck || deckLoading}
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
+              Export PDF
             </button>
             <button onClick={() => void loadDeck()} disabled={deckLoading}
               className="px-2.5 py-1 rounded-lg bg-brand-600 text-white text-[11px] hover:bg-brand-700 disabled:opacity-40">
@@ -145,9 +219,12 @@ export function LiveMisPage() {
         }
       />
 
+      {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} blended={blended} merged={merged} />}
+      {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} blended={blended} merged={merged} />}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Completeness floor */}
-        {deck && <CompletenessBanner deck={deck} />}
+        {deck && view && <CompletenessBanner deck={view} raw={deck} showLive={showLive} setShowLive={setShowLive} />}
         {deckError && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{deckError}</div>}
 
         {/* Tab bar */}
@@ -161,14 +238,14 @@ export function LiveMisPage() {
           ))}
         </div>
 
-        {/* Deck-tab controls (period + granularity) */}
-        {tab !== 'runrate' && deck && periods.length > 0 && (
-          <div className="flex flex-wrap items-end gap-4">
+        {/* Deck-tab controls (grain, year / range, period, channel naming) */}
+        {showControls && (
+          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
             <Field label="Grain">
               <SegmentedControl size="sm" aria-label="Granularity" options={DECK_GRAINS}
                 value={gran} onChange={(v) => { setGran(v); setPeriodKey(''); }} />
             </Field>
-            {fys.length > 1 && (
+            {!isRange && fys.length > 1 && (
               <Field label="Year">
                 <select value={fy} onChange={(e) => { setFy(e.target.value); setPeriodKey(''); }}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
@@ -177,7 +254,15 @@ export function LiveMisPage() {
                 </select>
               </Field>
             )}
-            {tab !== 'pnl' && (
+            {isRange && view && (
+              <Field label="Range">
+                <select value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
+                  {RANGE_PRESETS.map((p) => <option key={p} value={p}>{rangePresetLabel(p, view.periods)}</option>)}
+                </select>
+              </Field>
+            )}
+            {!isRange && tab !== 'pnl' && (
               <Field label="Period">
                 <select value={selected?.key ?? ''} onChange={(e) => setPeriodKey(e.target.value)}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
@@ -185,46 +270,80 @@ export function LiveMisPage() {
                 </select>
               </Field>
             )}
-            {tab === 'pnl' && (
-              <Field label="Show">
-                <SegmentedControl size="sm" aria-label="Value mode"
-                  options={[{ id: 'inr', label: '₹' }, { id: 'pct', label: '% of rev' }]}
-                  value={pnlPct ? 'pct' : 'inr'} onChange={(v) => setPnlPct(v === 'pct')} />
-              </Field>
-            )}
+            <Field label="Channels">
+              <Pills label="Channel naming" value={chanPref} onChange={setChanPref}
+                options={[{ id: 'continuous', label: 'Continuous' }, { id: 'booked', label: 'As booked' }]} />
+            </Field>
           </div>
+        )}
+        {showControls && isRange && view && preset === 'custom' && (
+          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+            <div className="flex items-center gap-3 mb-1.5 text-xs">
+              <span className="font-medium text-slate-600">Months</span>
+              <button type="button" className="text-brand-600" onClick={() => setCustom([...view.periods])}>Select all</button>
+              <button type="button" className="text-slate-500" onClick={() => setCustom([])}>Clear</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+              {view.periods.map((k) => {
+                const on = custom.includes(k);
+                return (
+                  <button key={k} type="button" onClick={() => setCustom(on ? custom.filter((x) => x !== k) : [...custom, k])}
+                    className={`px-2 py-0.5 rounded-md text-[11px] border ${on ? 'bg-brand-50 text-brand-700 border-brand-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+                    {monthLabel(k)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {showControls && isRange && selected && (
+          <p className="text-xs text-slate-500">Showing <span className="font-medium text-slate-700">{selected.label}</span>: {selected.members.map(monthLabel).join(', ')} — aggregated; completeness is the lowest month’s.</p>
         )}
 
         {/* Tab content */}
         {tab === 'runrate' ? (
           <RunRateTab />
-        ) : !deck ? (
+        ) : tab === 'repeats' ? (
+          <RepeatsTab />
+        ) : !view ? (
           <p className="text-sm text-slate-400 py-8 text-center">{deckLoading ? 'Loading the MIS…' : 'No data yet.'}</p>
-        ) : shownPeriods.length === 0 ? (
+        ) : tab === 'missheet' ? (
+          <LiveMisSheetTab deck={view} />
+        ) : allPeriods.length === 0 ? (
           <NoData />
+        ) : !selected ? (
+          <p className="text-sm text-slate-400 py-8 text-center">{isRange ? 'Pick at least one month for the range.' : 'No period in this selection.'}</p>
         ) : (
-          <SectionCard title={TABS.find((t) => t.id === tab)!.label}>
-            {tab === 'overview' && selected && <OverviewTab period={selected} periods={shownPeriods} traffic={trafficRows} />}
-            {tab === 'pnl' && <PnlTab periods={shownPeriods} showPct={pnlPct} />}
-            {tab === 'channels' && selected && <ChannelsTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
-            {tab === 'sku' && selected && <SkuTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
-            {tab === 'skuchannel' && selected && <SkuChannelTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
-            {tab === 'units' && selected && <SkuUnitsTab period={selected} cells={deck.skuCells} periodKeys={periodKeys} />}
-          </SectionCard>
+          <div>
+            {tab === 'overview' && <OverviewTab period={selected} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} traffic={trafficRows} isRange={isRange} />}
+            {tab === 'growth' && <RevenueGrowthTab monthly={monthly} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} completeThrough={view.completeThrough} />}
+            {tab === 'mix' && <ChannelMixTab period={selected} periods={shownPeriods} months={view.months} monthly={monthly} quarterly={quarterly} yearly={yearly} gran={aggGran} />}
+            {tab === 'profit' && <ProfitabilityTab period={selected} periods={shownPeriods} gran={aggGran} />}
+            {tab === 'pnl' && <PnlTab periods={pnlCols} months={months} completeness={completeness} gran={isRange ? 'month' : aggGran} display={display} setDisplay={setDisplay} />}
+            {tab === 'channels' && <ChannelsTab period={selected} periods={shownPeriods} cells={view.skuCells} periodKeys={periodKeys} completeness={completeness} />}
+            {tab === 'sku' && <SectionCard title="SKU P&L"><SkuTab period={selected} cells={view.skuCells} periodKeys={periodKeys} /></SectionCard>}
+            {tab === 'skuchannel' && <SkuChannelTab period={selected} cells={view.skuCells} periodKeys={periodKeys} />}
+            {tab === 'units' && <SectionCard title="Units sold"><SkuUnitsTab period={selected} cells={view.skuCells} periodKeys={periodKeys} /></SectionCard>}
+          </div>
         )}
       </div>
-    </>
+    </LiveViewProvider>
   );
 }
 
-function CompletenessBanner({ deck }: { deck: LiveDeckData }) {
+function CompletenessBanner({ deck, raw, showLive, setShowLive }: {
+  deck: LiveDeckData; raw: LiveDeckData; showLive: boolean; setShowLive: (v: boolean) => void;
+}) {
   const through = deck.completeThrough;
   const latest = deck.periods[deck.periods.length - 1];
+  const published = deck.periods.filter((k) => deck.completeness[k]?.published);
+  const altKeys = Object.keys(raw.alternates).sort();
+  const span = (ks: string[]) => (ks.length === 1 ? monthLabel(ks[0]) : `${monthLabel(ks[0])}–${monthLabel(ks[ks.length - 1])}`);
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
       {through ? (
         <span className="text-slate-600">
-          MIS <span className="font-semibold text-emerald-700">fully closed through {monthLabel(through)}</span>
+          MIS <span className="font-semibold text-slate-900">fully closed through {monthLabel(through)}</span>
         </span>
       ) : (
         <span className="text-amber-700 font-medium">No month is fully closed yet — upload a Tally P&amp;L to complete a month.</span>
@@ -234,11 +353,29 @@ function CompletenessBanner({ deck }: { deck: LiveDeckData }) {
       )}
       <span className="text-slate-400 flex items-center gap-1.5">
         <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 text-[10px] font-medium text-slate-500">Locked</span>
-        history through Mar 2026 · live from Apr 2026
+        history through {monthLabel(prevMonth(LIVE_BOUNDARY))} · live from {monthLabel(LIVE_BOUNDARY)}
       </span>
-      <span className="text-slate-400 ml-auto">{deck.periods.length} month{deck.periods.length === 1 ? '' : 's'} with data</span>
+      {published.length > 0 && (
+        <span className="text-slate-400 flex items-center gap-1.5">
+          <LevelBadge level="full" published /> {span(published)} from the published MIS until a full live close replaces {published.length === 1 ? 'it' : 'them'}
+        </span>
+      )}
+      {altKeys.length > 0 && (
+        <label className="flex items-center gap-1.5 text-slate-600 cursor-pointer">
+          <input type="checkbox" checked={showLive} onChange={(e) => setShowLive(e.target.checked)} />
+          Show live partials for {span(altKeys)} instead of the published months
+        </label>
+      )}
+      <span className="text-slate-400 sm:ml-auto">{deck.periods.length} month{deck.periods.length === 1 ? '' : 's'} with data</span>
     </div>
   );
+}
+
+function prevMonth(pk: string): string {
+  let [y, m] = pk.split('-').map(Number);
+  m -= 1;
+  if (m < 1) { m = 12; y -= 1; }
+  return `${y}-${String(m).padStart(2, '0')}`;
 }
 
 function NoData() {
