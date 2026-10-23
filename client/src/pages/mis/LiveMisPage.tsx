@@ -105,9 +105,9 @@ export function LiveMisPage() {
   const [periodKey, setPeriodKey] = useState<string>('');
   const [display, setDisplay] = useState<PnlDisplay>('both');
   const [fy, setFy] = useState<string>('all');
-  // COGM basis: Actual by default — the Live MIS ties to Tally month by month
-  // (the legacy investor deck defaulted to Blended; the toggle is one click).
-  const [blendPref, setBlendPref] = usePref<'actual' | 'blended'>('cogm', 'actual');
+  // COGM basis: Blended by default, as the legacy deck (owner's call, Oct 2026);
+  // Actual (ties to Tally month by month) is one click and remembered.
+  const [blendPref, setBlendPref] = usePref<'actual' | 'blended'>('cogm', 'blended');
   const [chanPref, setChanPref] = usePref<'continuous' | 'booked'>('channels', 'continuous');
   const [showLive, setShowLive] = useState(false);
   const [preset, setPreset] = useState<RangePreset>('last12');
