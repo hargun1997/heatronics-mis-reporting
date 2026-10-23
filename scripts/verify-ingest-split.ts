@@ -95,7 +95,10 @@ console.log('\n2. buildLiveDeck — a multi-month report populates each month');
     fact('2026-06-10', 1000), fact('2026-07-10', 2000), fact('2026-09-10', 3000),
   ];
   const reports = [{ connectorId: 'amazon', slotId: 'unified-transaction', periodKey: '2026-09', payload: { facts } }];
-  const deck = buildLiveDeck(reports, []);
+  // prefer 'live': Jun/Jul 2026 also exist in the published static MIS, which the
+  // deck shows by default over a facts-only partial (G5). This guard is about
+  // fact routing, so it asks for the live builds.
+  const deck = buildLiveDeck(reports, [], { prefer: 'live' });
   const byKey = new Map(deck.months.map((m) => [m.key, m]));
   ok(byKey.has('2026-06') && byKey.has('2026-07') && byKey.has('2026-09'), 'all three live months built from one report');
   ok(r0(byKey.get('2026-06')!.netByChannel.Amazon ?? 0) === 1000, 'Jun Amazon net = ₹1000 (routed by fact date)');
@@ -110,7 +113,7 @@ console.log('\n2. buildLiveDeck — a multi-month report populates each month');
   const jun = [{ connectorId: 'amazon', slotId: 'unified-transaction', periodKey: '2026-06', payload: { facts: [fact('2026-06-10', 1000)] } }];
   const jul = [{ connectorId: 'amazon', slotId: 'unified-transaction', periodKey: '2026-07', payload: { facts: [fact('2026-07-10', 2000)] } }];
   const sep = [{ connectorId: 'amazon', slotId: 'unified-transaction', periodKey: '2026-09', payload: { facts: [fact('2026-09-10', 9999)] } }];
-  const deck = buildLiveDeck([...jun, ...jul, ...sep], []);
+  const deck = buildLiveDeck([...jun, ...jul, ...sep], [], { prefer: 'live' });
   const byKey = new Map(deck.months.map((m) => [m.key, m]));
   ok(r0(byKey.get('2026-06')!.netByChannel.Amazon ?? 0) === 1000, 'per-month commits: Jun intact (₹1000)');
   ok(r0(byKey.get('2026-09')!.netByChannel.Amazon ?? 0) === 9999, 'per-month commits: Sep overwritten to ₹9999');

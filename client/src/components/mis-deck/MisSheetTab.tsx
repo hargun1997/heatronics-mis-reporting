@@ -96,7 +96,7 @@ export function MisSheetTab() {
             {fiscalYears.map((f, i) => <option key={f.key} value={i}>{f.name}</option>)}
           </select>
           <button
-            onClick={downloadMisFormat}
+            onClick={() => downloadMisFormat()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

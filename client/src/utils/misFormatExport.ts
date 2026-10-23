@@ -13,7 +13,25 @@ import {
   sumPoints,
   misFiscalYears,
   type MisEntity,
+  type MisPoint,
 } from '../data/misDeck/misSheet';
+
+/**
+ * Where the MIS-format numbers come from. The legacy deck's static MIS is the
+ * default; the Live MIS passes its own source (live months, completeness-gated
+ * points) so both write the SAME workbook layout and round-trip through
+ * parseMisFormat().
+ */
+export interface MisFormatSource {
+  fiscalYears: { name: string; months: { key: string; label: string }[] }[];
+  /** One MIS point (₹) for a set of month keys (one month, or an FY total). */
+  point: (monthKeys: string[], entity: MisEntity) => MisPoint;
+  /** Channels stacked on the "Channel" sheet. */
+  channels: MisEntity[];
+  label: (entity: MisEntity) => string;
+  title?: string;
+  fileName?: string;
+}
 
 const LAC = 1e5;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -35,9 +53,9 @@ const S = {
 interface Col { label: string; total: boolean; monthKeys: string[] }
 
 /** Columns = each fiscal year's months, followed by that FY's total. */
-function buildColumns(): Col[] {
+function buildColumns(src: MisFormatSource): Col[] {
   const cols: Col[] = [];
-  for (const fy of misFiscalYears()) {
+  for (const fy of src.fiscalYears) {
     for (const m of fy.months) cols.push({ label: m.label, total: false, monthKeys: [m.key] });
     cols.push({ label: `${fy.name} Total`, total: true, monthKeys: fy.months.map((m) => m.key) });
   }
@@ -55,9 +73,18 @@ function pointForKeys(monthKeys: string[], entity: MisEntity) {
   return pts.length === 1 ? pts[0] : sumPoints(pts);
 }
 
+function legacySource(): MisFormatSource {
+  return {
+    fiscalYears: misFiscalYears().map((fy) => ({ name: fy.name, months: fy.months.map((m) => ({ key: m.key, label: m.label })) })),
+    point: pointForKeys,
+    channels: [...SALES_CHANNELS],
+    label: (e) => (e === 'company' ? 'Company' : channelLabel(e)),
+  };
+}
+
 /** Render one entity's block (header + rows) into ws starting at `startRow`. */
 function writeBlock(
-  ws: XLSX.WorkSheet, startRow: number, cols: Col[], entity: MisEntity, heading: string,
+  ws: XLSX.WorkSheet, startRow: number, cols: Col[], entity: MisEntity, heading: string, src: MisFormatSource,
 ): number {
   let row = startRow;
   const put = (r: number, c: number, v: string | number, s: Style) => {
@@ -75,7 +102,7 @@ function writeBlock(
   row++;
 
   // Rows.
-  const points = cols.map((col) => pointForKeys(col.monthKeys, entity));
+  const points = cols.map((col) => src.point(col.monthKeys, entity));
   for (const def of MIS_SHEET_ROWS) {
     put(row, 0, def.label, def.bold ? S.labelBold : S.label);
     cols.forEach((col, i) => {
@@ -96,14 +123,15 @@ function writeBlock(
   return row;
 }
 
-export function downloadMisFormat(): void {
+/** The MIS-format workbook (P&L Summary + Channel sheets), without saving. */
+export function buildMisFormatWorkbook(src: MisFormatSource = legacySource()): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
-  const cols = buildColumns();
+  const cols = buildColumns(src);
   const nCols = cols.length + 1;
 
   // P&L Summary (company)
   const summary: XLSX.WorkSheet = {};
-  let r = writeBlock(summary, 0, cols, 'company', 'HEATRONICS MIS · Company P&L (₹ Lac)');
+  const r = writeBlock(summary, 0, cols, 'company', src.title ?? 'HEATRONICS MIS · Company P&L (₹ Lac)', src);
   summary['!ref'] = `A1:${XLSX.utils.encode_cell({ r, c: nCols - 1 })}`;
   summary['!cols'] = [{ wch: 26 }, ...cols.map(() => ({ wch: 11 }))];
   XLSX.utils.book_append_sheet(wb, summary, 'P&L Summary');
@@ -111,18 +139,22 @@ export function downloadMisFormat(): void {
   // Channel (each channel stacked)
   const channel: XLSX.WorkSheet = {};
   let cr = 0;
-  for (const c of SALES_CHANNELS) {
-    cr = writeBlock(channel, cr, cols, c, channelLabel(c));
+  for (const c of src.channels) {
+    cr = writeBlock(channel, cr, cols, c, src.label(c), src);
     cr += 1; // spacer between channels
   }
   channel['!ref'] = `A1:${XLSX.utils.encode_cell({ r: cr, c: nCols - 1 })}`;
   channel['!cols'] = [{ wch: 26 }, ...cols.map(() => ({ wch: 11 }))];
   XLSX.utils.book_append_sheet(wb, channel, 'Channel');
+  return wb;
+}
 
+export function downloadMisFormat(src?: MisFormatSource): void {
+  const wb = buildMisFormatWorkbook(src);
   const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   saveAs(
     new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-    `Heatronics_MIS_Sheet_${new Date().toISOString().split('T')[0]}.xlsx`,
+    src?.fileName ?? `Heatronics_MIS_Sheet_${new Date().toISOString().split('T')[0]}.xlsx`,
   );
 }
 

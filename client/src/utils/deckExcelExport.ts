@@ -89,7 +89,7 @@ export const EXPORT_EVERYTHING: DeckExportOptions = {
 // STYLES
 // ============================================
 
-const C = {
+export const C = {
   headerBg: '1E3A5F',
   headerText: 'FFFFFF',
   sectionBg: '2C5282',
@@ -110,14 +110,14 @@ const C = {
   border: 'DEE2E6',
 };
 
-type Style = NonNullable<XLSX.CellObject['s']>;
+export type Style = NonNullable<XLSX.CellObject['s']>;
 
 const NUM_FMT = '#,##0';
 const PCT_FMT = '0.0%';
 
 const border = { bottom: { style: 'thin', color: { rgb: C.border } } };
 
-const S: Record<string, Style> = {
+export const S: Record<string, Style> = {
   title: {
     font: { bold: true, sz: 15, color: { rgb: C.headerText }, name: 'Calibri' },
     fill: { fgColor: { rgb: C.headerBg }, patternType: 'solid' },
@@ -176,7 +176,7 @@ function marginStyles(bg: string, text: string, sz = 10): { label: Style; num: S
   };
 }
 
-const MARGIN = {
+export const MARGIN = {
   net: marginStyles(C.grossBg, C.grossText, 11),
   gross: marginStyles(C.grossBg, C.grossText),
   cm1: marginStyles(C.cm1Bg, C.cm1Text),
@@ -190,20 +190,20 @@ const MARGIN = {
 // HELPERS
 // ============================================
 
-function cell(v: string | number, s: Style): XLSX.CellObject {
+export function cell(v: string | number, s: Style): XLSX.CellObject {
   return { v, t: typeof v === 'number' ? 'n' : 's', s };
 }
 
-function round2(n: number): number {
+export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-function setCols(ws: XLSX.WorkSheet, widths: number[]): void {
+export function setCols(ws: XLSX.WorkSheet, widths: number[]): void {
   ws['!cols'] = widths.map((w) => ({ wch: w }));
 }
 
 /** Negative number gets red text; everything else keeps the base style. */
-function signed(value: number, base: Style): Style {
+export function signed(value: number, base: Style): Style {
   if (value < 0) {
     return { ...base, font: { ...(base.font || {}), color: { rgb: C.negText } } };
   }
@@ -481,7 +481,7 @@ function generateChannelSheet(series: PeriodMIS[]): XLSX.WorkSheet {
 // LINE DETAIL SHEET (COGM / OpEx)
 // ============================================
 
-function generateLineDetailSheet(
+export function generateLineDetailSheet(
   months: MonthlyMIS[],
   linesKey: 'cogmLines' | 'opexLines',
   title: string,
@@ -943,7 +943,7 @@ function generateOrdersSheet(months: PeriodMIS[]): XLSX.WorkSheet {
 // REPEATS SHEET (Shopify D2C + Amazon)
 // ============================================
 
-function generateRepeatsSheet(): XLSX.WorkSheet {
+export function generateRepeatsSheet(): XLSX.WorkSheet {
   const ws: XLSX.WorkSheet = {};
   const merges: XLSX.Range[] = [];
   const nCols = 9;
@@ -1007,7 +1007,7 @@ function generateRepeatsSheet(): XLSX.WorkSheet {
 // DISCOUNTS SHEET (monthly discounts & total sales)
 // ============================================
 
-function generateDiscountSheet(): XLSX.WorkSheet {
+export function generateDiscountSheet(): XLSX.WorkSheet {
   const ws: XLSX.WorkSheet = {};
   const merges: XLSX.Range[] = [];
   const nCols = 4;
