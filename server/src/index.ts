@@ -25,6 +25,7 @@ import bookingAssistantRoutes from './routes/bookingAssistant.js';
 import priceFloorsRoutes from './routes/priceFloors.js';
 import expensesRoutes from './routes/expenses.js';
 import { refreshMailConfig } from './services/mailer.js';
+import { htxGate } from './htxGate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,16 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(helmet({
   contentSecurityPolicy: false // Disable for development with React
+}));
+// Heatronics login: every page and API needs a portal.heatronics.in login (see htxGate.ts).
+app.use(htxGate({
+  portal: 'mis',
+  host: 'mis.heatronics.in',
+  openPaths: [
+    '/api/work/reminders/run',      // hourly GitHub Actions cron (.github/workflows/task-reminders.yml)
+    '/api/ownership/reminders/run', // reminder scheduler
+    '/api/expenses',                // read by production.heatronics.in; checks EXPENSES_API_TOKEN when set
+  ],
 }));
 app.use(cors());
 app.use(morgan('combined'));
