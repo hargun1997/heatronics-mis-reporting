@@ -669,9 +669,179 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   <div class="callout warn"><b>Rule:</b> never clear a Shopify sale directly against the bank. It always goes through its receivable and then its collector (Easebuzz / Snapmint / ShipRocket Collection), and the bank receipt empties the collector.</div>
 </section>
 
+<!-- 6L -->
+<section class="chapter" id="c6l">
+  <div class="chhead"><span class="chno">6A</span><div><h2>Amazon ledgers explained</h2><p class="lede">One Amazon order touches eight kinds of ledger. Each has one job. Once you know the job, every balance tells you what is missing.</p></div></div>
+
+  <div class="callout info"><b>The idea in one line:</b> the <b>MTR</b> says what Amazon sold for us, the <b>settlement</b> says what Amazon paid us and what it kept, the <b>bank</b> says the money arrived, and Amazon's <b>GST invoices</b> say what Amazon charged us. Each document feeds its own ledger, and each control ledger should come back to zero once the next document arrives.</div>
+
+  <h3 id="c6l-map">The map: where every amount goes</h3>
+  <figure class="diagram">
+  <svg viewBox="0 0 1000 600" role="img" aria-label="Amazon ledger map. MTR sales debit Amazon Seller A/c and credit Amazon Sales and GST output. The settlement moves order money from Seller A/c to Amazon Settlement, withholds fees into Amazon Expenses (Creditors) and TDS/TCS into TDS (Amazon) and TCS (Amazon), and posts ads and FBA charges to Cost of Advertising and FBA heads. Amazon Bank Transfer moves the payout from Settlement to Amazon Bank, and the bank import moves it to Central Bank CC. Amazon's GST invoices credit Amazon Expenses (Creditors). The monthly JV debits the creditor and credits Cost of Advertising so ads are counted once." style="color:var(--ink);font-family:var(--f-body)">
+    <defs><marker id="ahl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+    <g font-size="12.5" fill="currentColor">
+      <rect x="20" y="20" width="300" height="70" rx="8" fill="none" stroke="currentColor" stroke-width="1.2"/><text x="170" y="48" text-anchor="middle" font-weight="700">Amazon Sales + GST Output-&lt;STATE&gt;</text><text x="170" y="68" text-anchor="middle" font-size="11.5" opacity=".8">revenue, and GST for the GSTIN that shipped</text>
+      <rect x="560" y="20" width="420" height="70" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="770" y="44" text-anchor="middle" font-weight="600">Reports that feed it</text><text x="770" y="64" text-anchor="middle" font-size="11.5" opacity=".8">MTR-B2C / MTR-B2B → sales · Settlement → middle row · invoices → creditor</text><text x="770" y="80" text-anchor="middle" font-size="11.5" opacity=".8">bank statement → bank · STR → stock transfers only (no money)</text>
+
+      <rect x="20" y="200" width="210" height="80" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--accent-soft)"/><text x="125" y="232" text-anchor="middle" font-weight="700">Amazon Seller A/c</text><text x="125" y="252" text-anchor="middle" font-size="11.5">what Amazon owes per order</text><text x="125" y="268" text-anchor="middle" font-size="11" opacity=".8">should be: small Dr</text>
+      <rect x="290" y="200" width="210" height="80" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--accent-soft)"/><text x="395" y="232" text-anchor="middle" font-weight="700">Amazon Settlement</text><text x="395" y="252" text-anchor="middle" font-size="11.5">one payout statement</text><text x="395" y="268" text-anchor="middle" font-size="11" opacity=".8">should be: 0 per settlement</text>
+      <rect x="560" y="200" width="190" height="80" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--accent-soft)"/><text x="655" y="232" text-anchor="middle" font-weight="700">Amazon Bank</text><text x="655" y="252" text-anchor="middle" font-size="11.5">money on its way</text><text x="655" y="268" text-anchor="middle" font-size="11" opacity=".8">should be: in-transit only</text>
+      <rect x="800" y="200" width="180" height="80" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--ok-soft)"/><text x="890" y="236" text-anchor="middle" font-weight="700">Central Bank CC</text><text x="890" y="256" text-anchor="middle" font-size="11.5">money arrived</text>
+
+      <rect x="20" y="380" width="210" height="80" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--accent-soft)"/><text x="125" y="410" text-anchor="middle" font-weight="700">Amazon Expenses</text><text x="125" y="426" text-anchor="middle" font-weight="700">(Creditors)</text><text x="125" y="446" text-anchor="middle" font-size="11" opacity=".8">should be: ≈ 0</text>
+      <rect x="460" y="380" width="260" height="80" rx="10" stroke="currentColor" stroke-width="1.2" style="fill:var(--bad-soft)"/><text x="590" y="408" text-anchor="middle" font-weight="700">Cost of Advertising</text><text x="590" y="426" text-anchor="middle" font-size="11.5">FBA Inbound Pickup · FBA storage</text><text x="590" y="446" text-anchor="middle" font-size="11" opacity=".8">should be: 0 after the JV</text>
+      <rect x="20" y="510" width="210" height="70" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="125" y="538" text-anchor="middle" font-weight="600">Amazon GST invoices</text><text x="125" y="558" text-anchor="middle" font-size="11.5" opacity=".8">fees and ads (booked by hand)</text>
+      <rect x="290" y="510" width="230" height="70" rx="10" stroke="currentColor" stroke-width="1.2" fill="none"/><text x="405" y="538" text-anchor="middle" font-weight="700">TDS (Amazon) · TCS (Amazon)</text><text x="405" y="558" text-anchor="middle" font-size="11.5" opacity=".8">tax Amazon withheld; we claim it</text>
+
+      <text x="135" y="140" font-size="11.5">MTR sale: Dr Seller A/c</text><text x="135" y="156" font-size="11.5">Cr Amazon Sales + GST</text>
+      <text x="234" y="230" font-size="11" text-anchor="start">order</text><text x="234" y="244" font-size="11">money</text>
+      <text x="504" y="230" font-size="11">payout</text>
+      <text x="754" y="230" font-size="11">bank</text><text x="754" y="244" font-size="11">import</text>
+      <text x="20" y="318" font-size="11.5">fees kept back</text><text x="20" y="334" font-size="11.5">(Amazon Commission)</text>
+      <text x="252" y="440" font-size="11.5">TDS/TCS kept back</text>
+      <text x="470" y="320" font-size="11.5">ads &amp; FBA charges</text><text x="470" y="336" font-size="11.5">deducted in settlement</text>
+      <text x="135" y="490" font-size="11.5">Purchase-Expense</text>
+      <text x="244" y="398" font-size="11.5" font-weight="600" style="fill:var(--ok)">monthly JV</text><text x="244" y="414" font-size="11" style="fill:var(--ok)">cancels the double</text>
+    </g>
+    <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ahl)">
+      <line x1="125" y1="90" x2="125" y2="198"/>
+      <line x1="230" y1="252" x2="288" y2="252"/>
+      <line x1="500" y1="252" x2="558" y2="252"/>
+      <line x1="750" y1="252" x2="798" y2="252"/>
+      <line x1="125" y1="280" x2="125" y2="378"/>
+      <polyline points="200,280 200,350 330,350 330,508"/>
+      <line x1="440" y1="280" x2="530" y2="378"/>
+      <line x1="125" y1="510" x2="125" y2="462"/>
+    </g>
+    <g stroke-width="1.6" fill="none" stroke-dasharray="6 4" marker-end="url(#ahl)" style="stroke:var(--ok);color:var(--ok)">
+      <line x1="232" y1="440" x2="458" y2="440"/>
+    </g>
+  </svg>
+  <figcaption>Arrows show where an amount goes next. Orange boxes are control ledgers: they hold money only until the next document arrives, so each should come back to zero (or close to it).</figcaption>
+  </figure>
+
+  <h3 id="c6l-cast">Every Amazon ledger and its one job</h3>
+  <div class="tw"><table>
+    <tr><th>Ledger</th><th>Think of it as</th><th>Debited (Dr) when</th><th>Credited (Cr) when</th><th>Posted by</th><th>Healthy balance</th></tr>
+    <tr><td><b>Amazon Sales</b><br><small>Sales Accounts › Ecommerce Sales</small></td><td>Revenue from Amazon orders, before GST</td><td>A customer return (Credit Note-Amazon)</td><td>Every MTR sale</td><td>MTR import (option 2)</td><td>Cr = net Amazon sales; ties to MTR totals</td></tr>
+    <tr><td><b>IGST / CGST / SGST Output-&lt;STATE&gt;</b><br><small>Duties &amp; Taxes</small></td><td>GST we owe on Amazon sales, per GSTIN</td><td>Returns</td><td>Every MTR sale</td><td>MTR import</td><td>Cr; goes into GSTR-1 / 3B of that state</td></tr>
+    <tr><td><b>Amazon Seller A/c</b><br><small>control (receivable)</small></td><td>Amazon's IOU: what Amazon owes us for each order, <i>including</i> GST</td><td>MTR sale (gross incl. GST); refunds clawed back in a settlement</td><td>Order money in the settlement; fees kept back (Amazon Commission); TDS/TCS kept back; returns (credit note)</td><td>MTR + settlement imports</td><td>Small Dr = orders sold but not yet settled</td></tr>
+    <tr><td><b>Amazon Settlement</b><br><small>control</small></td><td>One Amazon payout statement (roughly weekly)</td><td>Order money arriving into that payout</td><td>Ads / FBA / other charges deducted; refunds; the payout leaving to Amazon Bank</td><td>Settlement import</td><td>0 for every completed settlement</td></tr>
+    <tr><td><b>Amazon Bank</b><br><small>control</small></td><td>Money Amazon has sent but our bank hasn't shown yet</td><td>Amazon Bank Transfer (payout)</td><td>The receipt when the bank statement is imported</td><td>Settlement import, then bank import</td><td>Only payouts in transit at month end</td></tr>
+    <tr><td><b>Central Bank CC</b><br><small>Bank OD A/c</small></td><td>Our actual bank</td><td>Amazon payout lands</td><td>—</td><td>Bank import</td><td>Matches the bank statement (BRS)</td></tr>
+    <tr><td><b>Amazon Expenses (Creditors)</b><br><small>Sundry Creditors › Amazon Creditors</small></td><td>What we owe Amazon per its GST invoices</td><td>Fees Amazon already kept back (Amazon Commission); the monthly JV</td><td>Every Amazon fee or ads GST invoice we book</td><td>Settlement import + accountant (invoices, JV)</td><td>≈ 0; a Cr left over = invoice charged but not yet deducted, or JV missing</td></tr>
+    <tr><td><b>Amazon fee ledgers, Amazon Ads</b><br><small>Channel Fees · Sales &amp; Marketing</small></td><td>The real expense, net of GST</td><td>Booking the GST invoice</td><td>—</td><td>Accountant (Purchase-Expense)</td><td>Dr = the month's true fee and ad cost</td></tr>
+    <tr><td><b>Input IGST</b> on those invoices</td><td>GST credit we can claim</td><td>Booking the GST invoice</td><td>GST set-off</td><td>Accountant</td><td>Matches GSTR-2B</td></tr>
+    <tr><td><b>Cost of Advertising, FBA Inbound Pickup Service, FBA storage fee - Amazon</b><br><small>Indirect Expenses (root), auto-created</small></td><td>A <i>shadow</i> of the same ads/FBA charges, as Amazon deducted them in the settlement</td><td>Settlement import</td><td>The monthly JV</td><td>Settlement import + JV</td><td>0 after the JV. Never an expense on its own.</td></tr>
+    <tr><td><b>TDS (Amazon)</b>, <b>TCS-IGST/CGST/SGST (Amazon)</b><br><small>Current Assets</small></td><td>Tax Amazon withheld from our payouts (194-O TDS, GST TCS); we get it back</td><td>Amazon TDS-TCS voucher in the settlement import</td><td>Claimed in the return / GST cash ledger</td><td>Settlement import</td><td>Dr; ties to 26AS and GSTR-2A TCS</td></tr>
+    <tr><td><b>Sales-STR / Purchase-STR-&lt;STATE&gt;</b>, GST Stock Transfer</td><td>Amazon moving our stock between its warehouses in different states (one GSTIN "sells" to another)</td><td colspan="2">Both sides of every STR row; no customer, no money, no Amazon control ledger</td><td>STR import</td><td>GST output in one state = input in the other</td></tr>
+  </table></div>
+  <div class="callout info"><b>Where is GST on Amazon Seller A/c?</b> It isn't a separate line there. Seller A/c holds the <i>gross</i> order value (price incl. GST). The GST is split out in the same sales voucher to the Output ledger of the GSTIN that shipped the order, which is why each GSTIN has its own voucher type (Sales-Amazon-HARYANA, -KARNATAKA, …). B2B and B2C MTR rows work the same way; B2B rows just carry the buyer's GSTIN.</div>
+
+  <h3 id="c6l-reports">Which report creates which voucher</h3>
+  <div class="tw"><table>
+    <tr><th>Document (order to import)</th><th>Voucher it creates</th><th>Dr</th><th>Cr</th></tr>
+    <tr><td>1 · MTR-B2C, MTR-B2B (sale rows)</td><td>Sales-Amazon-&lt;STATE&gt;</td><td>Amazon Seller A/c</td><td>Amazon Sales + GST Output-&lt;STATE&gt;</td></tr>
+    <tr><td>1 · MTR (return rows)</td><td>Credit Note-Amazon-&lt;STATE&gt;</td><td>Amazon Sales + GST Output</td><td>Amazon Seller A/c</td></tr>
+    <tr><td>2 · STR</td><td>Sales-STR / Purchase-STR</td><td colspan="2">GST stock transfer between our own GSTINs</td></tr>
+    <tr><td>3 · Settlement (Transaction report)</td><td>Amazon Settlement</td><td>Amazon Settlement (order money)<br>Cost of Advertising / FBA heads (charges)</td><td>Amazon Seller A/c (order money)<br>Amazon Settlement (charges)</td></tr>
+    <tr><td>3 · Settlement</td><td>Amazon Commission</td><td>Amazon Expenses (Creditors)</td><td>Amazon Seller A/c</td></tr>
+    <tr><td>3 · Settlement</td><td>Amazon TDS-TCS</td><td>TDS (Amazon); TCS-… (Amazon)</td><td>Amazon Seller A/c</td></tr>
+    <tr><td>3 · Settlement</td><td>Amazon Bank Transfer</td><td>Amazon Bank</td><td>Amazon Settlement</td></tr>
+    <tr><td>4 · Bank statement</td><td>Receipt</td><td>Central Bank CC</td><td>Amazon Bank</td></tr>
+    <tr><td>5 · Fee invoices (Tax Document Library), ads invoices (Advertising Invoice History)</td><td>Purchase-Expense (by hand)</td><td>Fee / Amazon Ads ledger + Input IGST</td><td>Amazon Expenses (Creditors)</td></tr>
+    <tr><td>6 · Month end</td><td>Journal (the Amazon JV)</td><td>Amazon Expenses (Creditors)</td><td>Cost of Advertising, FBA Inbound Pickup, settlement part of FBA storage</td></tr>
+  </table></div>
+  <p>Order matters: MTR before Settlement, because the settlement can only clear orders that already exist in Seller A/c (it matches them by Amazon order ID, see <a href="#s4">S4</a>).</p>
+
+  <h3 id="c6l-example">One order, start to finish</h3>
+  <div class="callout warn"><b>Illustration.</b> Round, made-up numbers so the arithmetic is easy to follow. The voucher types and ledgers are the real ones; the amounts, the fee and the TDS/TCS figures are not.</div>
+  <p>A customer buys a heating pad for <b>₹1,050</b> (₹1,000 + 5% GST). Amazon keeps <b>₹200</b> of fees (incl. GST) and <b>₹6</b> of TDS/TCS from that order. In the same payout it also deducts <b>₹300</b> of ad spend. So the payout is 1,050 − 200 − 6 − 300 = <b>₹544</b>.</p>
+  <div class="tgrid">
+    <div class="jes">
+      <div class="je"><h4>① MTR sale<span>Sales-Amazon-HARYANA</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Seller A/c</span><span class="a">1,050</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Sales</span><span class="a">1,000</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">IGST Output-HARYANA</span><span class="a">50</span></div></div>
+      <div class="je"><h4>② Settlement: order money<span>Amazon Settlement</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Settlement</span><span class="a">844</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Seller A/c</span><span class="a">844</span></div></div>
+      <div class="je"><h4>③ Settlement: fees kept back<span>Amazon Commission</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">200</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Seller A/c</span><span class="a">200</span></div></div>
+      <div class="je"><h4>④ Settlement: tax kept back<span>Amazon TDS-TCS</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">TDS (Amazon) + TCS (Amazon)</span><span class="a">6</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Seller A/c</span><span class="a">6</span></div></div>
+    </div>
+    <div class="jes">
+      <div class="je"><h4>⑤ Settlement: ads deducted<span>Amazon Settlement</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Cost of Advertising</span><span class="a">300</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Settlement</span><span class="a">300</span></div></div>
+      <div class="je"><h4>⑥ Payout leaves Amazon<span>Amazon Bank Transfer</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Bank</span><span class="a">544</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Settlement</span><span class="a">544</span></div></div>
+      <div class="je"><h4>⑦ Money lands<span>Receipt (bank import)</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Central Bank CC</span><span class="a">544</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Bank</span><span class="a">544</span></div></div>
+    </div>
+    <div class="jes">
+      <div class="je"><h4>⑧ Fee GST invoice<span>Purchase-Expense</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon fee ledger</span><span class="a">169.49</span></div>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Input IGST 18%</span><span class="a">30.51</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">200</span></div></div>
+      <div class="je"><h4>⑨ Ads GST invoice<span>Purchase-Expense</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Ads</span><span class="a">254.24</span></div>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Input IGST 18%</span><span class="a">45.76</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">300</span></div></div>
+      <div class="je"><h4>⑩ Month-end JV<span>Journal</span></h4>
+        <div class="ln d"><span class="s">Dr</span><span class="nm">Amazon Expenses (Creditors)</span><span class="a">300</span></div>
+        <div class="ln c"><span class="s">Cr</span><span class="nm">Cost of Advertising</span><span class="a">300</span></div></div>
+    </div>
+  </div>
+  <p><b>Why ⑩ exists.</b> After ⑤ and ⑨ the same ₹300 of ads is in the P&amp;L twice: once as <code>Cost of Advertising</code> (from the settlement) and again as <code>Amazon Ads</code> + GST (from the invoice). The fee in ③/⑧ doesn't have this problem because the plugin already posts fees kept back against the creditor. Ads and FBA charges are posted to expense heads instead, so the JV moves them onto the creditor. The invoice side stays, because it is the one with the GST credit and the TDS.</p>
+  <div class="tgrid">
+    <div class="tacc"><div class="t">Amazon Seller A/c</div><div class="b"><div><span class="lab">DR</span>① 1,050</div><div><span class="lab">CR</span>② 844 · ③ 200 · ④ 6</div></div><div class="bal">Balance <b>0</b>: order fully settled</div></div>
+    <div class="tacc"><div class="t">Amazon Settlement</div><div class="b"><div><span class="lab">DR</span>② 844</div><div><span class="lab">CR</span>⑤ 300 · ⑥ 544</div></div><div class="bal">Balance <b>0</b>: payout complete</div></div>
+    <div class="tacc"><div class="t">Amazon Bank</div><div class="b"><div><span class="lab">DR</span>⑥ 544</div><div><span class="lab">CR</span>⑦ 544</div></div><div class="bal">Balance <b>0</b>: money arrived</div></div>
+    <div class="tacc"><div class="t">Amazon Expenses (Creditors)</div><div class="b"><div><span class="lab">DR</span>③ 200 · ⑩ 300</div><div><span class="lab">CR</span>⑧ 200 · ⑨ 300</div></div><div class="bal">Balance <b>0</b>: every invoice paid by deduction</div></div>
+    <div class="tacc"><div class="t">Cost of Advertising</div><div class="b"><div><span class="lab">DR</span>⑤ 300</div><div><span class="lab">CR</span>⑩ 300</div></div><div class="bal">Balance <b>0</b>: no double count</div></div>
+    <div class="tacc"><div class="t">P&amp;L result</div><div class="b"><div><span class="lab">INCOME</span>Sales 1,000</div><div><span class="lab">EXPENSE</span>Fees 169.49 · Ads 254.24</div></div><div class="bal">GST credit 76.27 · TDS/TCS 6 to claim</div></div>
+  </div>
+
+  <h3 id="c6l-returns">Returns, refunds and stock transfers</h3>
+  <ul>
+    <li><b>Customer return:</b> the MTR return row creates a Credit Note-Amazon: Dr Amazon Sales + GST Output, Cr Amazon Seller A/c. When Amazon claws the money back in a settlement, Seller A/c is debited and Amazon Settlement credited (a smaller payout). The two cancel in Seller A/c.</li>
+    <li><b>Refunded fees:</b> on a return Amazon usually gives back part of the fee. Expect it to reverse the fee lines above (Dr Seller A/c, Cr Amazon Expenses (Creditors)). <i>To confirm on a real returned order's settlement.</i></li>
+    <li><b>STR (stock transfer):</b> Amazon moves stock from, say, a Haryana warehouse to a Karnataka one. For GST that is a supply between our own GSTINs, so the STR import books Sales-STR-HARYANA and Purchase-STR-KARNATAKA. No customer, no money, no Seller A/c. Output GST in one state becomes input in the other.</li>
+  </ul>
+
+  <h3 id="c6l-checks">Reading the balances: what a wrong one means</h3>
+  <div class="tw"><table>
+    <tr><th>Ledger</th><th>Should be</th><th>If it isn't, look for</th></tr>
+    <tr><td>Amazon Seller A/c</td><td>Small Dr (orders not yet settled)</td><td><b>Cr:</b> a settlement imported twice, or an MTR month or GSTIN missing. <b>Large Dr:</b> a settlement not imported.</td></tr>
+    <tr><td>Amazon Settlement</td><td>0 per settlement</td><td>A settlement imported without its Bank Transfer, or imported twice.</td></tr>
+    <tr><td>Amazon Bank</td><td>Only payouts in transit</td><td><b>Dr:</b> bank receipt not matched to Amazon Bank (booked to another ledger). <b>Cr:</b> bank receipt booked but the settlement not imported.</td></tr>
+    <tr><td>Amazon Expenses (Creditors)</td><td>≈ 0</td><td><b>Cr:</b> monthly JV not passed, or an invoice booked twice. <b>Dr:</b> an Amazon invoice not booked yet.</td></tr>
+    <tr><td>Cost of Advertising, FBA Inbound Pickup, FBA storage (settlement part)</td><td>0 after JV</td><td>Any balance = the JV for that month is missing.</td></tr>
+    <tr><td>TDS (Amazon)</td><td>Ties to 26AS (194-O)</td><td>Ads TDS we deducted (194C) mixed in; keep that in TDS Receivable - 194C (Ads).</td></tr>
+  </table></div>
+  <p>Current balances and the open fixes are in the findings table (chapter 18). The month's import and JV steps are tasks <a href="#c16-m1-amazon">M1</a> and <a href="#c16-m4-platform-invoices">M4</a>.</p>
+
+  <h3 id="c6l-faq">Common questions</h3>
+  <div class="faq">
+    <details><summary>Why are there both Amazon Ads and Cost of Advertising?</summary><p>They are the same spend seen from two documents. Amazon Ads comes from the GST invoice (correct: net of GST, with TDS). Cost of Advertising comes from the settlement deduction. Keep Amazon Ads; the monthly JV empties Cost of Advertising.</p></details>
+    <details><summary>Who created Cost of Advertising, FBA Inbound Pickup Service and the FBA storage ledgers?</summary><p>The settlement import, automatically, the first time it met that charge type. That's why they sit at the root of Indirect Expenses instead of under the MIS groups.</p></details>
+    <details><summary>FBA storage is in both invoices and settlements. What do I reverse?</summary><p>Only the part that came from the settlement. The invoice part is real expense. Open the ledger and filter by voucher type Amazon Settlement to see that part.</p></details>
+    <details><summary>Why don't fees need the JV?</summary><p>The plugin posts fees kept back from orders (Amazon Commission) against Amazon Expenses (Creditors), so the invoice and the deduction meet in the creditor and cancel. Ads and FBA charges go to expense heads instead, which is why they need the JV.</p></details>
+    <details><summary>Why is GST not shown on Amazon Seller A/c?</summary><p>Seller A/c is what Amazon owes us, which is the full price incl. GST. The GST is split into the state's Output ledger in the same voucher.</p></details>
+    <details><summary>Amazon Bank vs Central Bank CC: why two?</summary><p>Amazon Bank holds a payout from the day Amazon sends it until our bank statement shows it. At month end its balance = payouts in transit. Without it, the settlement and the bank would never match on dates.</p></details>
+  </div>
+</section>
+
 <!-- 6 -->
 <section class="chapter" id="c6">
   <div class="chhead"><span class="chno">06</span><div><h2>Amazon</h2><p class="lede">Amazon issues the sales invoices (MTR). Money moves Seller A/c → Settlement → Amazon Bank → bank. Fees and ads are deducted at source, and Amazon also sends GST invoices for them.</p></div></div>
+  <div class="callout info"><b>New to the Amazon ledgers?</b> Read <a href="#c6l">Amazon ledgers explained</a> first: what each ledger is for, which report fills it, and one order traced end to end.</div>
   <div class="flowline"><span class="p">MTR B2C/B2B</span><span class="ar">Sales-Amazon-STATE →</span><span class="p c">Amazon Seller A/c</span><span class="ar">Amazon Settlement →</span><span class="p c">Amazon Settlement</span><span class="ar">Bank Transfer →</span><span class="p c">Amazon Bank</span><span class="ar">Receipt →</span><span class="p b">Central Bank CC</span></div>
   <div class="spec">
     <dl class="facts">
