@@ -136,6 +136,7 @@ export const COLLECTIONS: CollectionDef[] = [
     accent: 'brand',
     icon: ['M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z'],
     articles: [
+      { chapter: 'c6l', title: 'Amazon ledgers explained (start here)', summary: 'What each Amazon ledger is for, which report fills it, one order traced end to end, and what a wrong balance means.' },
       { chapter: 'c6', title: 'Amazon: how sales and settlements are booked', summary: 'MTR sales, the Seller A/c → Settlement → Bank chain, fees, ads and the monthly JV.' },
       { chapter: 'c5', title: 'Shopify D2C: prepaid, COD and their collectors', summary: 'One sale, two receivables (prepaid / COD), three collectors (Easebuzz, Snapmint, Shiprocket).' },
       { chapter: 'c25', title: 'Blinkit: quick-commerce invoicing and payment', summary: 'Invoiced from Tranzact (Blinkit series), paid on credit terms into the Central Bank CC.' },
