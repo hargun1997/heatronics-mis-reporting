@@ -257,9 +257,10 @@ export function envCredentials(id: string, fieldKeys: string[]): Credentials {
 }
 
 /**
- * What a connector actually runs with: shared Heatronics secrets (the ones Ops
- * uses, see sharedSecrets.ts) < values saved on the Connectors page < env.
- * Blank saved fields never mask a shared value.
+ * What a connector actually runs with: values saved on the Connectors page <
+ * shared Heatronics secrets (the ones Ops uses, see sharedSecrets.ts) < env.
+ * The shared secrets are the one source of truth across portals, so an old
+ * token saved here can never mask the working one Ops uses.
  */
 export async function getEffectiveCredentials(
   id: string,
@@ -271,7 +272,7 @@ export async function getEffectiveCredentials(
   ]);
   const stored: Credentials = {};
   for (const [k, v] of Object.entries(storedRaw ?? {})) if ((v ?? '').trim()) stored[k] = v;
-  return { ...shared, ...stored, ...envCredentials(id, fieldKeys) };
+  return { ...stored, ...shared, ...envCredentials(id, fieldKeys) };
 }
 
 /** True when this connector is running on the shared Heatronics secrets. */

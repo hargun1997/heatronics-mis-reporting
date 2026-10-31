@@ -29,7 +29,8 @@ const TOKEN_URL = `${BASE}/oauth-service/oauth/token?grant_type=client_credentia
 const WINDOW_DAYS = 15;
 const PAGE_SIZE = 20; // Flipkart: 1–20
 const MAX_PER_FILTER = 5000; // Flipkart: maxDataRetrievalAllowed
-const PULL_BUDGET_MS = Number(process.env.FLIPKART_PULL_MS) || 90_000;
+// Kept short: the Live MIS page waits on this. Finished windows are cached, so each pull goes further.
+const PULL_BUDGET_MS = Number(process.env.FLIPKART_PULL_MS) || 20_000;
 
 const POST_DISPATCH = ['SHIPPED', 'DELIVERED', 'PICKUP_COMPLETE'];
 const PRE_DISPATCH = ['APPROVED', 'PACKING_IN_PROGRESS', 'PACKED', 'FORM_FAILED', 'READY_TO_DISPATCH'];
@@ -192,13 +193,17 @@ async function pull(creds: Credentials, fromISO: string, toISO: string): Promise
   const trace: string[] = [];
   const deadline = Date.now() + PULL_BUDGET_MS;
   const all: Item[] = [];
-  const wins = windows(fromISO, toISO);
+  const wins = windows(fromISO, toISO).reverse(); // newest first, so a short budget fills the latest dates
   let calls = 0;
+  let cached = 0;
+  let firstError: Error | null = null;
+  // Fail loudly when the app can't log in at all, instead of reporting "ok" with no rows.
+  await accessToken(creds);
   for (const w of wins) {
     for (const f of FILTERS) {
       const k = `${(creds.appId || '').trim()}|${f.label}|${w.start}|${w.end}`;
       const hit = done.get(k);
-      if (hit && Date.now() - hit.at < 15 * 60_000) { all.push(...hit.items); continue; }
+      if (hit && Date.now() - hit.at < 15 * 60_000) { all.push(...hit.items); cached++; continue; }
       if (Date.now() > deadline) {
         warnings.push(`Flipkart: ran out of time before ${w.start}…${w.end} (${f.label}) — pull again to finish (done windows are cached).`);
         continue;
@@ -209,10 +214,13 @@ async function pull(creds: Credentials, fromISO: string, toISO: string): Promise
         done.set(k, { items, at: Date.now() });
         all.push(...items);
       } catch (e) {
+        firstError ??= e instanceof Error ? e : new Error(String(e));
         warnings.push(`Flipkart ${f.label} ${w.start}…${w.end}: ${e instanceof Error ? e.message : 'failed'}`);
       }
     }
   }
+  // Nothing read at all and something failed → the source is down, not empty.
+  if (calls === 0 && cached === 0 && firstError) throw firstError;
   // One row per order item; the most recently updated copy wins (an item can move between searches).
   const by = new Map<string, Item>();
   for (const i of all) { const c = by.get(i.orderItemId); if (!c || i.updatedAt >= c.updatedAt) by.set(i.orderItemId, i); }
