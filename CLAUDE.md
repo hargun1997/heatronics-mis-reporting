@@ -15,7 +15,7 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   (project gen-lang-client-0101319357, read with the Cloud Run identity, 5-min cache): Amazon `spapi-lwa-client-id|secret`,
   `spapi-refresh-token-in`; Amazon Ads `adsapi-lwa-client-id|secret`, `adsapi-refresh-token-in`; Google Ads `google-ads-*`
   (customer default 4927002413); Meta `meta-access-token`, `meta-ad-account-id`; Flipkart `flipkart-app-id|secret`;
-  Shiprocket `shiprocket-email|password`. Precedence: shared < saved on the Connectors page < `CONNECTOR_<ID>_<FIELD>` env.
+  Shiprocket `shiprocket-email|password`. Precedence: saved on the Connectors page < shared < `CONNECTOR_<ID>_<FIELD>` env (shared wins so a stale saved token never masks it).
   Never put values in code — this repo is public.
 - Amazon Ads (`sources/amazonAds.ts`) and Flipkart (`sources/flipkart.ts`) are ports of Ops' clients and are READ ONLY
   (a guard runs before every request). Amazon Ads reports are async: a pull waits ≤ `AMAZON_ADS_WAIT_MS` (45 s) and finishes

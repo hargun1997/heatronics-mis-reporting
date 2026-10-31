@@ -6,7 +6,7 @@
 // account, which already has secretAccessor on these. So the MIS picks them up
 // with no setup: a connector that has nothing saved on the Connectors page
 // fills its fields from here. Precedence (lowest → highest):
-//   shared secret  <  value saved on the Connectors page  <  CONNECTOR_<ID>_<FIELD> env
+//   value saved on the Connectors page  <  shared secret  <  CONNECTOR_<ID>_<FIELD> env
 //
 // Values never leave the server; the routes only report whether a field is set.
 // A missing or unreadable secret just leaves that field blank.
