@@ -15,6 +15,7 @@ import {
   removeCredentials,
   saveCredentials,
   storeStatus,
+  usesSharedSecrets,
 } from '../connectors/credentialStore.js';
 import { NotImplementedError, type ConnectorDef, type Credentials } from '../connectors/types.js';
 
@@ -37,13 +38,13 @@ const h = (fn: AsyncHandler) => (req: Request, res: Response) => {
   });
 };
 
-/** Connected when every required field is satisfied by stored or env creds. */
-async function connectionStatus(c: ConnectorDef): Promise<{ connected: boolean; viaEnv: boolean }> {
+/** Connected when every required field is satisfied by shared, stored or env creds. */
+async function connectionStatus(c: ConnectorDef): Promise<{ connected: boolean; viaEnv: boolean; viaShared: boolean }> {
   const creds = await getEffectiveCredentials(c.id, fieldKeys(c));
   const required = c.credentialFields.filter((f) => !f.optional);
   const connected = required.every((f) => (creds[f.key] || '').trim());
   const env = envCredentials(c.id, fieldKeys(c));
-  return { connected, viaEnv: Object.keys(env).length > 0 };
+  return { connected, viaEnv: Object.keys(env).length > 0, viaShared: await usesSharedSecrets(c.id) };
 }
 
 /** Public shape of a connector — safe to send to the browser (no secrets). */
@@ -144,43 +145,45 @@ router.post('/facts', h(async (req, res) => {
     return res.status(400).json({ error: 'from and to must be YYYY-MM-DD with from <= to.' });
   }
 
-  const facts = [];
-  const sources = [];
-  const warnings: string[] = [];
-
-  for (const c of CONNECTORS) {
-    if (!c.fetchFacts) continue; // source cannot date its data — not a run-rate feed
-    const creds = await getEffectiveCredentials(c.id, fieldKeys(c));
-    if (Object.keys(creds).length === 0) {
-      sources.push({ id: c.id, label: c.label, ok: false, count: 0, error: 'not connected' });
-      continue;
-    }
-    try {
-      const result = await c.fetchFacts(creds, from, to);
-      facts.push(...result.facts);
-      warnings.push(...result.warnings);
-      // Coverage: the span of dates this source actually returned, so the UI
-      // can show how current each connector is ("data through …").
-      const dates = result.facts.map((f) => f.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
-      sources.push({
-        id: c.id,
-        label: c.label,
-        ok: true,
-        count: result.facts.length,
-        from: dates[0] ?? null,
-        through: dates[dates.length - 1] ?? null,
-        trace: result.trace ?? [],
-      });
-    } catch (err) {
-      sources.push({
-        id: c.id,
-        label: c.label,
-        ok: false,
-        count: 0,
-        error: err instanceof Error ? err.message : 'fetch failed',
-      });
-    }
-  }
+  // Every source pulls in parallel: the slow ones (Amazon Ads reports, Flipkart
+  // paging) cap their own wait, so the whole call stays well inside Cloud Run's
+  // request timeout instead of adding up source by source.
+  const results = await Promise.all(
+    CONNECTORS.filter((c) => c.fetchFacts).map(async (c) => {
+      const creds = await getEffectiveCredentials(c.id, fieldKeys(c));
+      if (Object.keys(creds).length === 0) {
+        return { source: { id: c.id, label: c.label, ok: false, count: 0, error: 'not connected' }, facts: [], warnings: [] };
+      }
+      try {
+        const result = await c.fetchFacts!(creds, from, to);
+        // Coverage: the span of dates this source actually returned, so the UI
+        // can show how current each connector is ("data through …").
+        const dates = result.facts.map((f) => f.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+        return {
+          source: {
+            id: c.id,
+            label: c.label,
+            ok: true,
+            count: result.facts.length,
+            from: dates[0] ?? null,
+            through: dates[dates.length - 1] ?? null,
+            trace: result.trace ?? [],
+          },
+          facts: result.facts,
+          warnings: result.warnings,
+        };
+      } catch (err) {
+        return {
+          source: { id: c.id, label: c.label, ok: false, count: 0, error: err instanceof Error ? err.message : 'fetch failed' },
+          facts: [],
+          warnings: [],
+        };
+      }
+    }),
+  );
+  const facts = results.flatMap((r) => r.facts);
+  const sources = results.map((r) => r.source);
+  const warnings = results.flatMap((r) => r.warnings);
 
   res.json({ from, to, sources, facts, warnings });
 }));

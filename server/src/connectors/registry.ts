@@ -17,6 +17,7 @@ import amazon from './sources/amazon.js';
 import meta from './sources/meta.js';
 import googleAds from './sources/googleAds.js';
 import amazonAds from './sources/amazonAds.js';
+import flipkart from './sources/flipkart.js';
 
 interface ScaffoldSpec {
   id: string;
@@ -49,19 +50,6 @@ function scaffold(spec: ScaffoldSpec): ConnectorDef {
     },
   };
 }
-
-const flipkart = scaffold({
-  id: 'flipkart',
-  label: 'Flipkart Seller',
-  group: 'marketplace',
-  fetchMode: 'api',
-  mode: 'manual-upload',
-  note: 'Flipkart Seller API. Client-credentials OAuth (app id + secret → token). Pull feeds SkuRow[] and settlement/commission cross-checks.',
-  credentialFields: [
-    { key: 'appId', label: 'Application ID', type: 'text', help: 'Flipkart Seller API app credentials.' },
-    { key: 'appSecret', label: 'Application secret', type: 'password' },
-  ],
-});
 
 const blinkit = scaffold({
   id: 'blinkit',
