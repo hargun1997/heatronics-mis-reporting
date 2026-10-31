@@ -194,11 +194,15 @@ async function pull(creds: Credentials, fromISO: string, toISO: string): Promise
   const all: Item[] = [];
   const wins = windows(fromISO, toISO);
   let calls = 0;
+  let cached = 0;
+  let firstError: Error | null = null;
+  // Fail loudly when the app can't log in at all, instead of reporting "ok" with no rows.
+  await accessToken(creds);
   for (const w of wins) {
     for (const f of FILTERS) {
       const k = `${(creds.appId || '').trim()}|${f.label}|${w.start}|${w.end}`;
       const hit = done.get(k);
-      if (hit && Date.now() - hit.at < 15 * 60_000) { all.push(...hit.items); continue; }
+      if (hit && Date.now() - hit.at < 15 * 60_000) { all.push(...hit.items); cached++; continue; }
       if (Date.now() > deadline) {
         warnings.push(`Flipkart: ran out of time before ${w.start}…${w.end} (${f.label}) — pull again to finish (done windows are cached).`);
         continue;
@@ -209,10 +213,13 @@ async function pull(creds: Credentials, fromISO: string, toISO: string): Promise
         done.set(k, { items, at: Date.now() });
         all.push(...items);
       } catch (e) {
+        firstError ??= e instanceof Error ? e : new Error(String(e));
         warnings.push(`Flipkart ${f.label} ${w.start}…${w.end}: ${e instanceof Error ? e.message : 'failed'}`);
       }
     }
   }
+  // Nothing read at all and something failed → the source is down, not empty.
+  if (calls === 0 && cached === 0 && firstError) throw firstError;
   // One row per order item; the most recently updated copy wins (an item can move between searches).
   const by = new Map<string, Item>();
   for (const i of all) { const c = by.get(i.orderItemId); if (!c || i.updatedAt >= c.updatedAt) by.set(i.orderItemId, i); }
