@@ -487,7 +487,7 @@ function ArticlePanel({
 
       {hasToc && wide && (
         <aside className="w-[200px] flex-shrink-0" aria-label="On this page">
-          <div className="sticky top-[8.5rem] max-h-[calc(100vh-10rem)] overflow-y-auto">
+          <div className="sticky top-[calc(8.5rem+var(--htx-bar-h,0px))] max-h-[calc(100vh-10rem-var(--htx-bar-h,0px))] overflow-y-auto">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600">On this page</div>
             <OnThisPage a={a} active={activeHeading} jump={jump} />
           </div>
@@ -661,7 +661,7 @@ function Reader({
   return (
     <div className={isOpen ? 'min-h-[calc(100vh-3.5rem)] bg-white' : 'hidden'} aria-label="Accounts Handbook reader">
       {/* Bar: Back · breadcrumb · search · contents (sticks under the app header) */}
-      <div className="sticky top-14 z-30 flex h-14 items-center gap-1.5 border-b border-slate-200 bg-white/95 px-2 backdrop-blur sm:gap-2 sm:px-4">
+      <div className="sticky top-[calc(3.5rem+var(--htx-bar-h,0px))] z-30 flex h-14 items-center gap-1.5 border-b border-slate-200 bg-white/95 px-2 backdrop-blur sm:gap-2 sm:px-4">
         <button type="button" onClick={back} className={`${barBtn} border border-slate-200 text-slate-800 hover:bg-slate-50`}>
           <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
           Back

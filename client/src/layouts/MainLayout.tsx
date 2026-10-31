@@ -215,7 +215,7 @@ export function MainLayout() {
 
   return (
     <div className="min-h-screen text-slate-900 flex flex-col app-ground">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+      <header className="sticky top-[var(--htx-bar-h,0px)] z-40 border-b border-slate-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/80">
         <div className="h-14 px-3 sm:px-4 flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setMobileOpen(true)}
@@ -258,7 +258,7 @@ export function MainLayout() {
 
       <div className="flex flex-1 min-h-0">
         <aside
-          className={`hidden lg:block flex-shrink-0 border-r border-slate-200 bg-white sticky top-14 self-start h-[calc(100vh-3.5rem)] overflow-y-auto transition-[width] duration-200 ${
+          className={`hidden lg:block flex-shrink-0 border-r border-slate-200 bg-white sticky top-[calc(3.5rem+var(--htx-bar-h,0px))] self-start h-[calc(100vh-3.5rem-var(--htx-bar-h,0px))] overflow-y-auto transition-[width] duration-200 ${
             mini ? 'w-[64px]' : 'w-[232px]'
           }`}
         >

@@ -26,6 +26,7 @@ import priceFloorsRoutes from './routes/priceFloors.js';
 import expensesRoutes from './routes/expenses.js';
 import { refreshMailConfig } from './services/mailer.js';
 import { htxGate } from './htxGate.js';
+import { portalManifest } from './portalManifest.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,10 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet({
   contentSecurityPolicy: false // Disable for development with React
 }));
+// Public API list for the portal's Systems map — before the login gate on purpose (static, no data).
+app.get('/.well-known/portal.json', (_req, res) => {
+  res.set('Cache-Control', 'public, max-age=60').json(portalManifest);
+});
 // Heatronics login: every page and API needs a portal.heatronics.in login (see htxGate.ts).
 app.use(htxGate({
   portal: 'mis',
