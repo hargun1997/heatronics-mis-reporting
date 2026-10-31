@@ -18,8 +18,9 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   Shiprocket `shiprocket-email|password`. Precedence: saved on the Connectors page < shared < `CONNECTOR_<ID>_<FIELD>` env (shared wins so a stale saved token never masks it).
   Never put values in code — this repo is public.
 - Amazon Ads (`sources/amazonAds.ts`) and Flipkart (`sources/flipkart.ts`) are ports of Ops' clients and are READ ONLY
-  (a guard runs before every request). Amazon Ads reports are async: a pull waits ≤ `AMAZON_ADS_WAIT_MS` (45 s) and finishes
-  on the next pull. Flipkart has no fees in its API — the settlement upload stays for the close.
+  (a guard runs before every request). Amazon Ads reports are async: a pull waits ≤ `AMAZON_ADS_WAIT_MS` (12 s), only asks for days
+  Amazon keeps (SP 94 d, SB/SD 59 d) and finishes the rest in the background. Flipkart waits ≤ `FLIPKART_PULL_MS` (20 s),
+  newest windows first. Both feed `/api/connectors/facts`, which the Live MIS page awaits on load — keep them fast. Flipkart has no fees in its API — the settlement upload stays for the close.
 - API versions: `GOOGLE_ADS_API_VERSION` (default v25), `META_GRAPH_VERSION` (default v25.0), same env names as Ops.
 - `/api/connectors/facts` runs every source in parallel. Upload slots stay (`mode: 'manual-upload'`) because the close still
   needs settlement fees and per-product ad splits the APIs don't give.

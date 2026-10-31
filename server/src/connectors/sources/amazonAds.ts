@@ -12,9 +12,9 @@
 //
 // Reports are asynchronous (create → poll → download gzip JSON) and take from
 // seconds to a few minutes. So a pull waits at most ADS_WAIT_MS; anything still
-// processing is remembered by report id and picked up on the next pull (Amazon
-// also answers 425 "duplicate of <id>" for the same request, which we reuse).
-// Finished windows are cached in memory for 30 min.
+// processing keeps going in the background and is picked up on the next pull
+// (Amazon also answers 425 "duplicate of <id>" for the same request, which we
+// reuse). Finished windows are cached in memory (6 h once settled).
 // ----------------------------------------------------------------------------
 
 import { gunzipSync } from 'node:zlib';
@@ -34,7 +34,8 @@ const TOKEN_HOSTS: Record<string, string> = {
   fe: 'https://api.amazon.co.jp/auth/o2/token',
 };
 const REPORT_CT = 'application/vnd.createasyncreportrequest.v3+json';
-const ADS_WAIT_MS = Number(process.env.AMAZON_ADS_WAIT_MS) || 45_000;
+// Kept short: the Live MIS page waits on this. Unfinished reports keep going in the background.
+const ADS_WAIT_MS = Number(process.env.AMAZON_ADS_WAIT_MS) || 12_000;
 const MAX_SPAN_DAYS = 31;
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -215,67 +216,115 @@ function toDays(type: AdType, rows: any[]): DayRow[] {
 
 interface PullResult { days: Map<string, DayRow & { byType: Record<AdType, number> }>; warnings: string[]; trace: string[]; complete: boolean }
 
+/** How far back Amazon keeps each report type (Ops' historyDays, less a safety day). */
+const LOOKBACK_DAYS: Record<AdType, number> = { SP: 94, SB: 59, SD: 59 };
+const DAY = 86_400_000;
+const istToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+const addDays = (ymd: string, n: number) => new Date(Date.parse(`${ymd}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
+
+/** Finished windows: 6 h once Amazon has stopped restating them (> 3 days old), else 30 min. */
+function cacheFresh(j: Job, at: number): boolean {
+  const settled = j.end < addDays(istToday(), -3);
+  return Date.now() - at < (settled ? 6 * 3_600_000 : 30 * 60_000);
+}
+
+/** Map with a concurrency cap (Amazon Ads throttles bursts with 429). */
+async function inBatches<T>(items: T[], n: number, fn: (t: T) => Promise<void>): Promise<void> {
+  for (let i = 0; i < items.length; i += n) await Promise.all(items.slice(i, i + n).map(fn));
+}
+
+/**
+ * Move every job as far as `deadline` allows: reuse cached rows, create missing
+ * reports, poll the in-flight ones, download the finished ones. Returns the rows
+ * it has and how many jobs are still unfinished.
+ */
+async function advance(creds: Credentials, jobs: Job[], deadline: number, warnings: string[] | null): Promise<{ results: Map<string, DayRow[]>; left: number }> {
+  const results = new Map<string, DayRow[]>();
+  let open: { job: Job; reportId: string | null }[] = [];
+  for (const j of jobs) {
+    const k = jobKey(j);
+    const hit = done.get(k);
+    if (hit && cacheFresh(j, hit.at)) { results.set(k, hit.rows); continue; }
+    const p = pending.get(k);
+    open.push({ job: j, reportId: p && Date.now() - p.at < 2 * 3_600_000 ? p.reportId : null });
+  }
+  for (let round = 0; open.length && Date.now() < deadline; round++) {
+    const still: typeof open = [];
+    await inBatches(open, 4, async (o) => {
+      const k = jobKey(o.job);
+      if (Date.now() >= deadline) { still.push(o); return; }
+      try {
+        if (!o.reportId) {
+          o.reportId = await createReport(creds, o.job);
+          pending.set(k, { reportId: o.reportId, at: Date.now() });
+          still.push(o);
+          return;
+        }
+        const st = await adsRequest<{ status?: string; url?: string; failureReason?: string }>(creds, `/reporting/reports/${encodeURIComponent(o.reportId)}`, { profileId: o.job.profileId });
+        if (st.status === 'COMPLETED' && st.url) {
+          const rows = toDays(o.job.type, await download(st.url));
+          results.set(k, rows);
+          done.set(k, { rows, at: Date.now() });
+          pending.delete(k);
+        } else if (st.status === 'FAILED') {
+          warnings?.push(`${o.job.type} report ${o.job.start}…${o.job.end} failed: ${st.failureReason || 'no reason given'}`);
+          pending.delete(k);
+          done.set(k, { rows: [], at: Date.now() });
+          results.set(k, []);
+        } else {
+          still.push(o);
+        }
+      } catch (e) {
+        // A type a profile doesn't run (e.g. SD on a vendor profile) is a note, not a failure;
+        // cache the empty answer so it isn't re-asked on every load.
+        warnings?.push(`${o.job.type} ${o.job.start}…${o.job.end} (profile ${o.job.profileId}): ${e instanceof Error ? e.message : 'report refused'}`);
+        if (!o.reportId) { done.set(k, { rows: [], at: Date.now() }); results.set(k, []); }
+        else still.push(o);
+      }
+    });
+    open = still;
+    if (!open.length || Date.now() + 3000 > deadline) break;
+    await sleep(Math.min(3000 + round * 2000, 15_000));
+  }
+  return { results, left: open.length };
+}
+
+/** One background finisher per job set, so the next pull finds the reports ready. */
+const finishing = new Set<string>();
+function finishInBackground(creds: Credentials, jobs: Job[]): void {
+  const key = jobs.map(jobKey).join(',');
+  if (finishing.has(key)) return;
+  finishing.add(key);
+  void advance(creds, jobs, Date.now() + 10 * 60_000, null)
+    .catch(() => undefined)
+    .finally(() => finishing.delete(key));
+}
+
 async function pull(creds: Credentials, fromISO: string, toISO: string): Promise<PullResult> {
+  const t0 = Date.now();
   const warnings: string[] = [];
   const trace: string[] = [];
   const profs = await profiles(creds);
   if (!profs.length) throw new Error('No Amazon.in advertising profile on this Ads login (countryCode IN).');
   trace.push(`Authenticated; ${profs.length} Amazon.in profile(s): ${profs.map((p) => `${p.name || p.profileId} (${p.type || '?'})`).join(', ')}`);
 
+  // Only ask for days Amazon still keeps; older months come from the uploads.
+  const today = istToday();
   const jobs: Job[] = [];
-  for (const p of profs) for (const w of windows(fromISO, toISO)) for (const t of Object.keys(REPORTS) as AdType[]) jobs.push({ profileId: p.profileId, type: t, ...w });
-
-  const now = Date.now();
-  const results = new Map<string, DayRow[]>();
-  const live: { job: Job; reportId: string }[] = [];
-  for (const j of jobs) {
-    const k = jobKey(j);
-    const hit = done.get(k);
-    if (hit && now - hit.at < 30 * 60_000) { results.set(k, hit.rows); continue; }
-    const p = pending.get(k);
-    try {
-      const reportId = p && now - p.at < 2 * 3_600_000 ? p.reportId : await createReport(creds, j);
-      pending.set(k, { reportId, at: p?.at ?? now });
-      live.push({ job: j, reportId });
-    } catch (e) {
-      // A type a profile doesn't run (e.g. SD on a vendor profile) is a note, not a failure.
-      warnings.push(`${j.type} ${j.start}…${j.end} (profile ${j.profileId}): ${e instanceof Error ? e.message : 'report refused'}`);
-      results.set(k, []);
-    }
+  let clipped = false;
+  for (const t of Object.keys(REPORTS) as AdType[]) {
+    const floor = addDays(today, -LOOKBACK_DAYS[t]);
+    const from = fromISO < floor ? floor : fromISO;
+    if (from !== fromISO) clipped = true;
+    if (from > toISO) continue;
+    for (const p of profs) for (const w of windows(from, toISO)) jobs.push({ profileId: p.profileId, type: t, ...w });
   }
-  trace.push(`Reports: ${jobs.length - live.length} cached/skipped, ${live.length} requested or in flight`);
+  if (clipped) trace.push(`Asked only for the days Amazon keeps (Sponsored Products ${LOOKBACK_DAYS.SP} d, Brands/Display ${LOOKBACK_DAYS.SB} d); earlier months come from uploads`);
 
-  const deadline = Date.now() + ADS_WAIT_MS;
-  let waiting = live;
-  for (let round = 0; waiting.length; round++) {
-    const still: typeof live = [];
-    for (const w of waiting) {
-      const k = jobKey(w.job);
-      try {
-        const st = await adsRequest<{ status?: string; url?: string; failureReason?: string }>(creds, `/reporting/reports/${encodeURIComponent(w.reportId)}`, { profileId: w.job.profileId });
-        if (st.status === 'COMPLETED' && st.url) {
-          const rows = toDays(w.job.type, await download(st.url));
-          results.set(k, rows);
-          done.set(k, { rows, at: Date.now() });
-          pending.delete(k);
-        } else if (st.status === 'FAILED') {
-          warnings.push(`${w.job.type} report ${w.job.start}…${w.job.end} failed: ${st.failureReason || 'no reason given'}`);
-          pending.delete(k);
-          results.set(k, []);
-        } else {
-          still.push(w);
-        }
-      } catch (e) {
-        warnings.push(`${w.job.type} report status: ${e instanceof Error ? e.message : 'failed'}`);
-        still.push(w);
-      }
-    }
-    waiting = still;
-    if (!waiting.length || Date.now() + 5000 > deadline) break;
-    await sleep(Math.min(5000 + round * 2000, 15_000));
-  }
-  if (waiting.length) {
-    warnings.push(`Amazon Ads: ${waiting.length} report(s) still processing at Amazon — pull again in a minute or two to complete these dates.`);
+  const { results, left } = await advance(creds, jobs, t0 + ADS_WAIT_MS, warnings);
+  if (left) {
+    finishInBackground(creds, jobs);
+    warnings.push(`Amazon Ads: ${left} of ${jobs.length} report(s) still being prepared by Amazon — they finish in the background; reload in a few minutes for complete spend.`);
   }
 
   const days = new Map<string, DayRow & { byType: Record<AdType, number> }>();
@@ -286,8 +335,8 @@ async function pull(creds: Credentials, fromISO: string, toISO: string): Promise
       days.set(r.date, a);
     }
   }
-  trace.push(`Extracted ${days.size} day(s) of spend${waiting.length ? ' (partial)' : ''}`);
-  return { days, warnings, trace, complete: waiting.length === 0 };
+  trace.push(`${jobs.length - left}/${jobs.length} report(s) ready; ${days.size} day(s) of spend${left ? ' (partial)' : ''}`);
+  return { days, warnings, trace, complete: left === 0 };
 }
 
 // ---- connector ----------------------------------------------------------------
