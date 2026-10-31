@@ -10,7 +10,8 @@ import { monthBounds } from '../types.js';
 import { type ConnectorSource } from '../schema.js';
 import type { DailyFact, FactResult } from '../facts.js';
 
-const API_VERSION = 'v21.0';
+// Same Graph version as Ops (META_GRAPH_VERSION overrides).
+const API_VERSION = process.env.META_GRAPH_VERSION || 'v25.0';
 const BASE = `https://graph.facebook.com/${API_VERSION}`;
 
 function account(creds: Credentials): string {

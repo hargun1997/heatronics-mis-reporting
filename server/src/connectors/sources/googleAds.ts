@@ -11,7 +11,8 @@ import { monthBounds } from '../types.js';
 import { type ConnectorSource } from '../schema.js';
 import type { DailyFact, FactResult } from '../facts.js';
 
-const API_VERSION = 'v18';
+// v18 is sunset; Ops runs v25 (GOOGLE_ADS_API_VERSION overrides, same env name as Ops).
+const API_VERSION = process.env.GOOGLE_ADS_API_VERSION || 'v25';
 const ADS_BASE = `https://googleads.googleapis.com/${API_VERSION}`;
 
 const digits = (s: string) => (s || '').replace(/[^0-9]/g, '');
@@ -52,16 +53,16 @@ async function accessToken(creds: Credentials): Promise<string> {
 async function searchStream(creds: Credentials, query: string): Promise<Record<string, unknown>[]> {
   const customerId = digits(creds.customerId || '');
   if (!customerId) throw new Error('Google Ads customerId is required (10 digits, no dashes).');
+  // Optional: the Heatronics Cloud project holds API access itself (as in Ops); sent only when set.
   const devToken = (creds.developerToken || '').trim();
-  if (!devToken) throw new Error('Google Ads developerToken is required.');
   const loginCustomerId = digits(creds.loginCustomerId || '');
 
   const token = await accessToken(creds);
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
-    'developer-token': devToken,
     'Content-Type': 'application/json',
   };
+  if (devToken) headers['developer-token'] = devToken;
   if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
 
   const res = await fetch(`${ADS_BASE}/customers/${customerId}/googleAds:searchStream`, {
@@ -85,7 +86,7 @@ const googleAds: ConnectorDef = {
   mode: 'manual-upload',
   implemented: true,
   credentialFields: [
-    { key: 'developerToken', label: 'Developer token', type: 'password', help: 'Google Ads → API Center. Needs Google approval.' },
+    { key: 'developerToken', label: 'Developer token', type: 'password', optional: true, help: 'Optional — the Heatronics Cloud project has API access (as in Ops). Shared secret google-ads-developer-token if set.' },
     { key: 'clientId', label: 'OAuth client ID', type: 'text', placeholder: '…apps.googleusercontent.com' },
     { key: 'clientSecret', label: 'OAuth client secret', type: 'password' },
     { key: 'refreshToken', label: 'Refresh token', type: 'password', help: 'From authorising the OAuth client with the adwords scope.' },

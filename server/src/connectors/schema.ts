@@ -33,7 +33,7 @@ export interface LedgerNode {
 }
 
 // Mirrors the client's SkuPlatform union.
-export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'offline' | 'oem';
+export type SkuPlatform = 'amazon' | 'shopify' | 'blinkit' | 'shiprocket' | 'flipkart' | 'gt' | 'b2b' | 'offline' | 'oem';
 
 export interface SkuRow {
   platform: SkuPlatform;

@@ -19,6 +19,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { Credentials } from './types.js';
+import { sharedCredentials } from './sharedSecrets.js';
 
 const LOCAL_FILE =
   process.env.CONNECTOR_STORE_FILE ||
@@ -255,12 +256,27 @@ export function envCredentials(id: string, fieldKeys: string[]): Credentials {
   return out;
 }
 
+/**
+ * What a connector actually runs with: shared Heatronics secrets (the ones Ops
+ * uses, see sharedSecrets.ts) < values saved on the Connectors page < env.
+ * Blank saved fields never mask a shared value.
+ */
 export async function getEffectiveCredentials(
   id: string,
   fieldKeys: string[],
 ): Promise<Credentials> {
-  const stored = (await getCredentials(id)) ?? {};
-  return { ...stored, ...envCredentials(id, fieldKeys) };
+  const [shared, storedRaw] = await Promise.all([
+    sharedCredentials(id),
+    getCredentials(id).catch(() => null),
+  ]);
+  const stored: Credentials = {};
+  for (const [k, v] of Object.entries(storedRaw ?? {})) if ((v ?? '').trim()) stored[k] = v;
+  return { ...shared, ...stored, ...envCredentials(id, fieldKeys) };
+}
+
+/** True when this connector is running on the shared Heatronics secrets. */
+export async function usesSharedSecrets(id: string): Promise<boolean> {
+  return Object.keys(await sharedCredentials(id)).length > 0;
 }
 
 export interface StoreStatus {
