@@ -797,8 +797,18 @@ async function fetchLiveFacts(reports: ExtractedReport[]): Promise<DailyFact[]> 
   return Array.isArray(res.facts) ? res.facts : [];
 }
 
+/** Current month in IST, 'YYYY-MM'. */
+function currentIstMonth(): string {
+  return new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 7);
+}
+
 export async function loadLiveDeck(opts: BuildLiveDeckOptions = {}): Promise<LiveDeckData> {
-  const reports = await fetchExtractedReports();
+  // A full-year Tally P&L upload also carries the months still to come (only the
+  // opening/closing stock carry-forward, or a post-dated voucher). Those are not
+  // months the business has had, so they never enter the deck — otherwise Live
+  // MIS, Send report and AI insights open on a future month showing ₹0.
+  const thisMonth = currentIstMonth();
+  const reports = (await fetchExtractedReports()).filter((r) => !/^\d{4}-\d{2}$/.test(r.periodKey) || r.periodKey <= thisMonth);
   // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck;
   // never fail the whole load if the live pull is unavailable.
   const liveFacts = await fetchLiveFacts(reports).catch(() => [] as DailyFact[]);
