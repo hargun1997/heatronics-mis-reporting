@@ -150,6 +150,7 @@ async function postCommit(slot: ReportSlot, staged: StagedUpload, mc: MonthCommi
           period: staged.extracted.period,
           bomCosts: staged.extracted.bomCosts,
           invoice: staged.extracted.invoice,
+          trialBalance: staged.extracted.trialBalance,
         },
       }),
     }),

@@ -72,3 +72,21 @@ test('schedule: from the 15th, Mon–Sat 10:00–19:00 IST; every 20 min until l
   const early = st({ months: { '2026-10': '2026-11-10T06:00:00Z' } }); // taken before the 15th → not final
   assert.equal(scheduledDue(at('2026-11-16T11:00:00+05:30'), early).due, true);
 });
+
+test('Trial Balance XML → closing Dr / Cr per group, ledgers kept apart, ties checked (made-up figures)', async () => {
+  const { parseTbXml, tbEnvelope } = await import('../src/connectors/tally/tb.js');
+  const { assertTallyReadOnly } = await import('../src/connectors/sources/tally.js');
+  assert.doesNotThrow(() => assertTallyReadOnly(tbEnvelope('2026-10', 'X')));
+  const row = (n: string, dr: string, cr: string, ledger = false) =>
+    `${ledger ? '<BSNAME>' : ''}<DSPACCNAME><DSPDISPNAME>${n}</DSPDISPNAME></DSPACCNAME>${ledger ? '</BSNAME>' : ''}<DSPACCINFO><DSPCLDRAMT><DSPCLDRAMTA>${dr}</DSPCLDRAMTA></DSPCLDRAMT><DSPCLCRAMT><DSPCLCRAMTA>${cr}</DSPCLCRAMTA></DSPCLCRAMT></DSPACCINFO>`;
+  const xml = `<ENVELOPE>${row('Capital Account', '', '500.00')}${row('Current Assets', '-700.00', '')}${row('Bank', '-200.00', '', true)}${row('Sales Accounts', '', '400.00')}${row('Indirect Expenses', '-200.00', '')}${row('Suspense', '', '')}</ENVELOPE>`;
+  const tb = parseTbXml(xml, '2026-10');
+  assert.equal(tb.rows.length, 5);
+  assert.equal(tb.rows.find((r) => r.name === 'Bank')?.level, 'ledger');
+  assert.equal(tb.totalDebit, 900);
+  assert.equal(tb.totalCredit, 900);
+  assert.equal(tb.difference, 0);
+  assert.deepEqual(tb.warnings, []);
+  assert.match(parseTbXml(`<ENVELOPE>${row('A', '-10', '')}</ENVELOPE>`, '2026-10').warnings[0], /doesn't tie/);
+  assert.match(parseTbXml('<ENVELOPE/>', '2026-10').warnings[0], /raw answer was kept/);
+});

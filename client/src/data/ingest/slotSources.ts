@@ -63,6 +63,8 @@ interface PullResult {
   facts?: DailyFact[];
   /** Tally P&L slot: one month's ledger rows + Nett Profit. */
   tallyMonth?: { period: string; periodLabel: string; ledgerRows: { name: string; depth: number; amount: number; confidence: number }[]; nettProfit: number | null; asOf: string };
+  /** Tally Trial Balance slot. */
+  trialBalance?: NonNullable<Extracted['trialBalance']>;
   /** BOM pricing slot: finished-good unit costs (same rows the BOM upload reader keeps). */
   bomCosts?: BomCostRow[];
   rows?: unknown[][];
@@ -165,6 +167,24 @@ export function stagePull(
     return staged;
   }
 
+  if (result.trialBalance) {
+    const tb = result.trialBalance;
+    const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+    items.push({ id: 'read', label: 'Pulled from Tally', status: 'pass', detail: `${pull.via} · copy from ${new Date(tb.asOf).toLocaleString('en-IN')}` });
+    items.push({ id: 'rows', label: 'Trial Balance rows', status: tb.rows.length > 0 ? 'pass' : 'fail', detail: `${tb.rows.filter((r) => r.level === 'group').length} groups, ${tb.rows.filter((r) => r.level === 'ledger').length} ledgers` });
+    items.push({ id: 'ties', label: 'Debit = Credit', status: Math.abs(tb.difference) < 1 ? 'pass' : 'warn', detail: `Dr ${inr(tb.totalDebit)} · Cr ${inr(tb.totalCredit)}${Math.abs(tb.difference) < 1 ? '' : ` · difference ${inr(tb.difference)}`}` });
+    for (const w of result.warnings) items.push({ id: `w-${items.length}`, label: 'Source note', status: 'warn', detail: w });
+    const extracted: Extracted = { facts: [], rowCount: tb.rows.length, through: null, trialBalance: tb, trace };
+    const overall = items.some((i) => i.status === 'fail') ? 'fail' : items.some((i) => i.status === 'warn') ? 'warn' : 'pass';
+    const fileName = `api-pull-${slot.connectorId}-${slot.slotId}-${periodKey}.json`;
+    const snapshot = JSON.stringify({ via: pull.via, periodKey, pulledAt: pull.pulledAt, trace: result.trace, warnings: result.warnings, trialBalance: tb }, null, 1);
+    return {
+      checks: { items, overall }, extracted, fileName, mimeType: 'application/json',
+      rawFiles: [{ base64: toBase64Utf8(snapshot), name: fileName, mimeType: 'application/json' }],
+      periodKey,
+    };
+  }
+
   if (result.bomCosts) {
     // BOM pricing: unit costs, not facts — staged exactly like runBomChecks' output.
     const bomCosts = result.bomCosts;
@@ -244,7 +264,7 @@ export async function pullAndCommit(slot: ReportSlot, info: SlotSourceInfo, peri
     }
     // Same commit path as a dropped file.
     const metas = await commitReportMonths(slot, staged, periodKey);
-    return { ok: true, detail: staged.extracted.bomCosts ? `${staged.extracted.bomCosts.length} finished-good costs saved` : `${staged.extracted.facts.length} facts saved`, metas };
+    return { ok: true, detail: staged.extracted.trialBalance ? `Trial Balance saved (${staged.extracted.trialBalance.rows.length} rows)` : staged.extracted.bomCosts ? `${staged.extracted.bomCosts.length} finished-good costs saved` : `${staged.extracted.facts.length} facts saved`, metas };
   } catch (e) {
     return { ok: false, detail: e instanceof Error ? e.message : 'Pull failed.' };
   }

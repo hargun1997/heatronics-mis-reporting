@@ -52,6 +52,8 @@ export interface ExtractedPayload {
   ledgerRows?: unknown[];
   nettProfit?: number | null;
   period?: string | null;
+  /** Tally Trial Balance pull — a record + check; never read as P&L. */
+  trialBalance?: unknown;
 }
 
 /** One committed report's full extracted payload, tagged with where it sits. */
