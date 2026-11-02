@@ -142,6 +142,9 @@ td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
 .kpi .kv{font:800 24px/1.15 var(--display);margin-top:2px}
 .kpi .ks{font:12px var(--mono);color:var(--muted);margin-top:2px}
 .kpi.hi{background:#FBF3EE}.kpi.hi .kv{color:var(--accent)}
+.kpi.rd{background:var(--soft)}.kpi.rd .kv{font-size:20px}
+.kpi.rd.key .kv{color:var(--ink)}.kpi.rd.key{background:#F1EEE9}
+.krow{grid-column:1/-1;padding:7px 16px;font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);background:var(--surface)}
 .kcap{grid-column:1/-1;padding:8px 16px;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
 .kcap b{color:var(--ink);font-weight:600}
 .tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -443,8 +446,12 @@ function renderSummaries(M){
   const st=M.st, tot=M.tot, h=st.hs, T1=tot(h), t=x=>fP(x/T1), set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
   const d0=(k,f)=>{const a=f(st.today)/tot(st.today), b=f(h)/T1, dp=(b-a)*100;return Math.abs(dp)<0.05?'no change':`${dp>0?'+':'−'}${Math.abs(dp).toFixed(1)} pts since today`};
   const tiles=[['Hargun',o=>o.H,1],['Aneesha',o=>o.A,1],['Jagjit',o=>o.J],['Founders total',o=>o.H+o.J+o.A],['ESOP pool',o=>o.E],['New investors',o=>o.inv.reduce((s,x)=>s+x,0)]];
-  document.getElementById('kpis').innerHTML=tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${d0(l,f)}</div></div>`).join('')+
-    `<div class="kcap"><span>After the <b>Hyperscale Round</b></span><span>Pre-money <b>${fR(M.pre1)}</b></span><span>Price <b>${ru(M.p1)}</b>/share</span><span>Post-money <b>${fR(M.pre1+M.eqIn)}</b></span><span>Fully diluted <b>${fS(T1)}</b> shares</span><span>After Round 2: Hargun <b>${fP(st.r2.H/tot(st.r2))}</b> · Aneesha <b>${fP(st.r2.A/tot(st.r2))}</b></span></div>`;
+  const dil1=(M.newR1+M.W)/M.post1, dil2=M.N2/M.post2;
+  const rt=[['Pre-money',fR(M.pre1),`${fS(M.Tp)} shares before the round`,1],['Equity raise',fR(M.R1),`${fS(M.newR1)} new shares at ${ru(M.p1)}`],['Post-money',fR(M.pre1+M.eqIn),`${fS(M.post1)} shares after`],
+    ['Dilution this round',fP(dil1),`${fS(M.newR1+M.W)} new${M.W?' incl. warrants':''} ÷ ${fS(M.post1)}`,1],['Price per share',ru(M.p1),`notes convert at ${ru(M.cnp)}${M.cnDisc?' (30% off)':' (cap)'}`],['Round 2 dilution',fP(dil2),`${fR(M.R2)} at ${fR(M.pre2)} pre`]];
+  document.getElementById('kpis').innerHTML=`<div class="krow">Hyperscale Round (Seed)</div>`+rt.map(([l,v,sub,key])=>`<div class="kpi rd${key?' key':''}"><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${sub}</div></div>`).join('')+
+    `<div class="krow">Who owns what after the Hyperscale Round</div>`+tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${d0(l,f)}</div></div>`).join('')+
+    `<div class="kcap"><span>After Round 2: Hargun <b>${fP(st.r2.H/tot(st.r2))}</b> · Aneesha <b>${fP(st.r2.A/tot(st.r2))}</b> · founders <b>${fP((st.r2.H+st.r2.J+st.r2.A)/tot(st.r2))}</b></span></div>`;
   set('sv1',`pool ${fP(M.ePost)} after round · Aneesha ${MODE==='post'?M.I.stkPost+'% after round':M.I.stk+'% at joining'} · Jagjit floor ${M.I.jkeep}% · ₹${M.I.px}/sh${M.useMsop?' · MSOP on':''}`);
   set('sv2',`${fR(M.R1)} at ${fR(M.pre1)} pre · secondary ${fR((M.I.fsec+M.I.sec)*CR)} · debt ${fR(M.debt)}`);
   set('sv3',`2026 revenue ₹${M.I.rev} Cr · Round 2 ${fR(M.R2)} at ${fR(M.pre2)} pre`);
