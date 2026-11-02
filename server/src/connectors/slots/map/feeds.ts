@@ -41,6 +41,11 @@ export function easebuzzPayoutFacts(payouts: Record<string, unknown>[], periodKe
   const facts: DailyFact[] = [...byDate.entries()].sort().map(([date, fees]) => ({ source: 'easebuzz', channel: 'D2C', date, revenue: 0, units: 0, orders: 0, fees }));
   const total = r2(facts.reduce((s, f) => s + f.fees, 0));
   const warnings: string[] = [];
+  if (n > 0 && total === 0) {
+    // Field names only (never values): tells which keys Easebuzz's answer really uses.
+    const keys = [...new Set(payouts.slice(0, 3).flatMap((p) => Object.keys(p ?? {})))].slice(0, 40);
+    warnings.push(`Easebuzz returned ${n} settlement(s) but no fee field was recognised — fields: ${keys.join(', ')}.`);
+  }
   if (undated) warnings.push(`${undated} payout(s) had no readable settlement date and were skipped.`);
   if (outside) warnings.push(`${outside} payout(s) dated outside ${periodKey} were left out.`);
   return {
