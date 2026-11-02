@@ -140,13 +140,13 @@ td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
   <div><h1>Heatronics Round Planner</h1><p class="sub">Set each step. Opening numbers come from the signed SSSHA (19-Mar-2026), the CA-certified shareholder list (05-Jun-2026) and the 29-Jun-2026 allotment. Share prices are rounded up to the rupee and share counts down, the way a company secretary would. Hover any cell in the ownership table to see which shares changed hands.</p></div>
 
   <form class="steps" id="f" onsubmit="return false" autocomplete="off">
-    <div class="card step"><h2><span>1</span>Aneesha joins</h2><div class="mode"><span>Set her stake</span><span class="seg" id="modeSeg" role="group" aria-label="Set her stake"><button type="button" data-m="join" aria-pressed="true">At joining</button><button type="button" data-m="post" aria-pressed="false">After round</button></span></div><div class="ctls" id="s1"></div><p class="note2" id="stkNote"></p></div>
+    <div class="card step"><h2><span>1</span>Aneesha joins</h2><div class="mode"><span>Set her stake</span><span class="seg" id="modeSeg" role="group" aria-label="Set her stake"><button type="button" data-m="join" aria-pressed="true">At joining</button><button type="button" data-m="post" aria-pressed="false">After round</button></span></div><div class="ctls" id="s1"></div><label class="chk"><input type="checkbox" id="msop"> Take 2.5% of her stake from the agreed ESOP pool (MSOP) instead of from founders</label><p class="note2" id="stkNote"></p></div>
     <div class="card step"><h2><span>2</span>Hyperscale Round (Seed)</h2>
       <section class="blk eq"><div class="bh">Primary — new shares, cash into the company</div><div class="ctls" id="s2"></div>
         <div class="sub2">Who puts in the equity raise · lead takes the rest</div><div class="inv fx"><span class="nm">Aneesha</span><span class="rest" id="aneAmt"></span><span></span></div><div id="invs"></div><button type="button" class="add" id="addInv">+ Add investor</button>
         <div class="inv sum"><span class="nm">Total</span><span class="rest" id="invTot"></span><span></span></div>
         <p class="note2" id="cnNote"></p></section>
-      <section class="blk es"><div class="bh">ESOP pool — top up before the round</div><div class="ctls" id="s2e"></div><p class="note2" id="esopNote"></p></section>
+      <section class="blk es"><div class="bh">ESOP pool — resize at the round</div><div class="ctls" id="s2e"></div><p class="note2" id="esopNote"></p></section>
       <section class="blk sf"><div class="bh">Secondary — founders sell</div><div class="ctls" id="s2f"></div><p class="note2">Jagjit sells first, down to his floor; then Hargun. Bought by the lead at the round price.</p></section>
       <section class="blk sc"><div class="bh">Secondary — angels &amp; VCs sell</div><div class="ctls" id="s2s"></div><p class="note2">Angel Round 1 (CN) and Pre-Seed holders, in proportion to holdings. Bought by the lead at the round price.</p></section>
       <section class="blk dt"><div class="bh">Venture debt — loan, plus warrants</div><div class="ctls" id="s2d"></div></section></div>
@@ -163,7 +163,7 @@ td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
 
   <details class="card fold cs" open><summary><h2>Company secretary's working</h2><span class="hint2">step-by-step share maths, checked against the signed SSSHA</span></summary><div id="cs"></div></details>
 
-  <p class="note">Taxes are not included. Fixed: MSOP to Aneesha 2.5% from the ESOP pool, exercised at ₹10. Angel notes convert at the Hyperscale Round at the ₹18 Cr pre-money cap (₹14,342 a share, per the SSSHA). Pre-Seed CCPS convert in Feb 2027 at a valuation set by 2026 revenue: the ₹23 Cr floor at ₹12.5 Cr or less, otherwise ₹28 Cr × revenue ÷ ₹15 Cr, capped at ₹28 Cr.</p>
+  <p class="note">Taxes are not included. The ESOP pool (1,226) is agreed in the SSSHA but not yet created; Aneesha's MSOP from it is optional (off by default). Angel notes convert at the Hyperscale Round at the ₹18 Cr pre-money cap (₹14,342 a share, per the SSSHA). Pre-Seed CCPS convert in Feb 2027 at a valuation set by 2026 revenue: the ₹23 Cr floor at ₹12.5 Cr or less, otherwise ₹28 Cr × revenue ÷ ₹15 Cr, capped at ₹28 Cr.</p>
 </div>
 <script>
 (function(){
@@ -171,14 +171,14 @@ td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
 const BASE={H:6000,J:4000,ESOP:1226,AR1:522,PS:954};
 const T0=BASE.H+BASE.J+BASE.ESOP+BASE.AR1+BASE.PS, CR=1e7, FACE=10, CNP=14342, PSP=19576, MSOP=2.5;
 const C={
- s1:[{id:'stk',label:'Her stake at joining',min:5,max:45,step:0.5,v:33,unit:'%'},
+ s1:[{id:'stk',label:'Her stake at joining',min:5,max:45,step:0.5,v:30,unit:'%'},
      {id:'stkPost',label:'Her stake after Hyperscale Round',min:5,max:60,step:0.5,v:30,unit:'%'},
      {id:'jkeep',label:'Jagjit keeps at least',min:0,max:31,step:0.5,v:2.5,unit:'%'},
      {id:'px',label:'Price she pays per share',min:10,max:30000,step:10,v:10,unit:'₹'}],
  s2:[{id:'pre1',label:'Pre-money valuation',min:10,max:150,step:0.5,v:50,unit:'₹ Cr'},
      {id:'R1',label:'Total equity raise',min:1,max:20,step:0.25,v:8,unit:'₹ Cr'},
      {id:'cap',label:"Aneesha's primary",min:0,max:3,step:0.05,v:1,unit:'₹ Cr'}],
- s2e:[{id:'esopPost',label:'ESOP pool after the round',min:0,max:30,step:0.5,v:0,unit:'%'}],
+ s2e:[{id:'esopPost',label:'ESOP pool after the round',min:0,max:30,step:0.5,v:5,unit:'%'}],
  s2f:[{id:'fsec',label:'Founder secondary',min:0,max:5,step:0.1,v:0,unit:'₹ Cr'}],
  s2s:[{id:'sec',label:'Angel/VC secondary',min:0,max:5,step:0.1,v:1,unit:'₹ Cr'}],
  s2d:[{id:'debt',label:'Venture debt',min:0,max:10,step:0.25,v:2.5,unit:'₹ Cr'},
@@ -193,6 +193,7 @@ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const ctl=c=>`<div class="ctl" id="row_${c.id}"><label for="n_${c.id}">${c.label}</label><span class="in"><input type="number" id="n_${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.v}"><span class="u">${c.unit}</span></span></div>`;
 for(const k in C) document.getElementById(k).innerHTML=C[k].map(ctl).join('');
 ALL.forEach(c=>document.getElementById('n_'+c.id).addEventListener('input',()=>{TOUCHED=true;render()}));
+document.getElementById('msop').addEventListener('change',()=>{TOUCHED=true;render()});
 function drawInv(){
   document.getElementById('invs').innerHTML=INV.map((x,i)=>`<div class="inv"><input aria-label="Investor name" data-i="${i}" data-k="n" value="${esc(x.n)}">`+
    (i===0?`<span class="rest" id="leadAmt"></span><span></span>`:`<input type="number" aria-label="Amount in ₹ Cr" data-i="${i}" data-k="a" min="0" step="0.25" value="${x.a}"><button type="button" aria-label="Remove" data-rm="${i}">×</button>`)+`</div>`).join('');
@@ -203,12 +204,13 @@ document.getElementById('invs').addEventListener('input',e=>{const t=e.target,i=
 document.getElementById('invs').addEventListener('click',e=>{const r=e.target.dataset.rm;if(r===undefined)return;INV.splice(+r,1);drawInv();render()});
 document.getElementById('addInv').onclick=()=>{INV.push({n:'Investor '+(INV.length+1),a:0.5});drawInv();render()};
 // ---- defaults: built-in values, or the set saved on the MIS server (shared by everyone who opens the planner) ----
-const FACTORY={v:1,mode:'join',inputs:Object.fromEntries(ALL.map(c=>[c.id,c.v])),inv:INV0.map(x=>({...x}))};
-const state=()=>({v:1,mode:MODE,inputs:Object.fromEntries(ALL.map(c=>[c.id,V(c.id)])),inv:INV.map((x,i)=>i?{n:x.n,a:x.a||0}:{n:x.n})});
+const FACTORY={v:1,mode:'join',inputs:{...Object.fromEntries(ALL.map(c=>[c.id,c.v])),msop:0},inv:INV0.map(x=>({...x}))};
+const state=()=>({v:1,mode:MODE,inputs:{...Object.fromEntries(ALL.map(c=>[c.id,V(c.id)])),msop:document.getElementById('msop').checked?1:0},inv:INV.map((x,i)=>i?{n:x.n,a:x.a||0}:{n:x.n})});
 function setMode(m){MODE=m==='post'?'post':'join';document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===MODE));
   document.getElementById('row_stk').style.display=MODE==='join'?'':'none';document.getElementById('row_stkPost').style.display=MODE==='post'?'':'none'}
 function apply(s){if(!s||typeof s!=='object')return;const inp=s.inputs||{};
   ALL.forEach(c=>{const x=Number(inp[c.id]);document.getElementById('n_'+c.id).value=isFinite(x)&&inp[c.id]!==null&&inp[c.id]!==''?x:c.v});
+  document.getElementById('msop').checked=Number(inp.msop)===1;
   setMode(s.mode);
   INV=Array.isArray(s.inv)&&s.inv.length?s.inv.slice(0,6).map((x,i)=>i?{n:String(x.n||'Investor '+(i+1)).slice(0,60),a:Math.max(0,Number(x.a)||0)}:{n:String(x.n||'Lead').slice(0,60)}):INV0.map(x=>({...x}));
   drawInv();render()}
@@ -239,18 +241,21 @@ function model(){
   const pre1=I.pre1*CR, R1=I.R1*CR, prim=I.cap*CR, debt=I.debt*CR, wVal=debt*I.wcov/100;
   const coSum=INV.slice(1).reduce((s,x)=>s+(x.a||0)*CR,0);
   const lead=Math.max(0,R1-prim-coSum), over=prim+coSum>R1+1;
-  const price=X=>{const Tp=T0+X, rawP1=pre1/Tp, p1=Math.ceil(rawP1-1e-9), Pj=Math.floor(prim/p1);
+  // X>0: new options added (pre-money, lowers the price). X<0: the agreed pool is cut and the freed
+  // options go to Hargun as shares — a swap inside the pre-money, so the price and everyone else's stake don't move.
+  const price=X=>{const Tp=T0+Math.max(0,X), rawP1=pre1/Tp, p1=Math.ceil(rawP1-1e-9), Pj=Math.floor(prim/p1);
     const inv=INV.map((x,i)=>{const amt=i===0?lead:(x.a||0)*CR, n=Math.floor(amt/p1);return {name:x.n||('Investor '+(i+1)),amt,n,act:n*p1}});
     const newInv=inv.reduce((s,x)=>s+x.n,0), W=Math.floor(wVal/p1), newR1=Pj+newInv;
     return {X,Tp,rawP1,p1,Pj,inv,newInv,W,newR1,post1:Tp+newR1+W}};
-  const tA=Math.min(60,Math.max(0,I.stkPost))/100, tE=Math.min(30,Math.max(0,I.esopPost))/100, G0=Math.min(BASE.ESOP,Math.round(T0*MSOP/100));
+  const useMsop=document.getElementById('msop').checked;
+  const tA=Math.min(60,Math.max(0,I.stkPost))/100, tE=Math.min(30,Math.max(0,I.esopPost))/100, G0=useMsop?Math.min(BASE.ESOP,Math.round(T0*MSOP/100)):0;
   let P=price(0), A=0, G=0;
   for(let k=0;k<40;k++){
     // 1 · Aneesha's shares at joining: set directly, or worked back from her stake after the round
     A=MODE==='post'?Math.max(0,Math.round(tA*P.post1)-P.Pj):Math.round(T0*I.stk/100);
     G=Math.min(G0,A);
-    const E0=BASE.ESOP-G, rest=P.post1-P.X;
-    const nx=tE>0?Math.max(0,Math.ceil((tE*rest-E0)/(1-tE)-1e-9)):0;
+    const E0=BASE.ESOP-G, rest=P.post1-Math.max(0,P.X);
+    const nx=tE<=0?0:(()=>{const up=Math.ceil((tE*rest-E0)/(1-tE)-1e-9);return up>0?up:Math.ceil(tE*P.post1-1e-9)-E0})();
     if(nx===P.X)break; P=price(nx);
   }
   const {X,Tp,rawP1,p1,Pj,inv,newInv,W,newR1,post1}=P, primA=Pj*p1, eqIn=primA+inv.reduce((s,x)=>s+x.act,0);
@@ -266,7 +271,8 @@ function model(){
   const pC=BASE.AR1/(BASE.AR1+BASE.PS);
   let secC=Math.floor(I.sec*CR*pC/p1), secP=Math.floor(I.sec*CR*(1-pC)/p1);
   const secCut=secC>join.C||secP>join.P; secC=Math.min(secC,join.C); secP=Math.min(secP,join.P);
-  const hs={H:join.H-fsH,J:join.J-fsJ,A:A+Pj,E:join.E+X,C:join.C-secC,P:join.P-secP,W,R2:0,inv:inv.map((x,i)=>x.n+(i===0?fsJ+fsH+secC+secP:0))};
+  const toH=Math.max(0,-X);
+  const hs={H:join.H-fsH+toH,J:join.J-fsJ,A:A+Pj,E:join.E+X,C:join.C-secC,P:join.P-secP,W,R2:0,inv:inv.map((x,i)=>x.n+(i===0?fsJ+fsH+secC+secP:0))};
   // 3a · Feb 2027 CCPS conversion
   const Vconv=I.rev<=12.5?23e7:Math.max(23e7,Math.min(28e7,28e7*I.rev/15)), cp=PSP*Vconv/23e7, ratio=PSP/cp;
   const Pc=Math.floor(hs.P*ratio), secPc=Math.floor(secP*ratio);
@@ -279,7 +285,7 @@ function model(){
   const z=inv.map(()=>0);
   const st={today:{H:BASE.H,J:BASE.J,A:0,E:BASE.ESOP,C:BASE.AR1,P:BASE.PS,W:0,R2:0,inv:z},join:{...join,inv:z},hs,conv,r2};
   const aPost=hs.A/post1, ePost=hs.E/post1, aShort=MODE==='post'&&(short||Math.round(tA*post1)-Pj<0);
-  return {I,T0,X,Tp,aPost,ePost,tA,tE,aShort,jFloor,A,G,S,Sh,Sj,short,px,paid,pre1,rawP1,p1,R1,prim,Pj,primA,inv,lead,over,newInv,eqIn,fsN,fsJ,fsH,fsCut,pC,secC,secP,secCut,debt,wVal,W,newR1,post1,
+  return {I,T0,X,toH,useMsop,Tp,aPost,ePost,tA,tE,aShort,jFloor,A,G,S,Sh,Sj,short,px,paid,pre1,rawP1,p1,R1,prim,Pj,primA,inv,lead,over,newInv,eqIn,fsN,fsJ,fsH,fsCut,pC,secC,secP,secCut,debt,wVal,W,newR1,post1,
     Vconv,cp,ratio,Pc,secPc,postC,R2,pre2,rawP2,p2,N2,post2,st,tot};
 }
 // what moved, per stage and holder (for hovers)
@@ -299,7 +305,8 @@ function moves(M){
   add('hs','C',`Notes converted: ₹75,00,000 ÷ ${ru(CNP)} (₹18 Cr cap) = ${n(BASE.AR1)} equity shares`);
   if(M.secC)add('hs','C',`Sold ${n(M.secC)} to ${M.inv[0].name} at ${p} (${ru(M.secC*M.p1)})`);
   if(M.secP)add('hs','P',`Sold ${n(M.secP)} CCPS to ${M.inv[0].name} at ${p} (${ru(M.secP*M.p1)})`);
-  if(M.X)add('hs','E',`Pool topped up by ${n(M.X)} new options before the round (in the pre-money), to ${fP(M.ePost)} after it`);
+  if(M.X>0)add('hs','E',`Pool topped up by ${n(M.X)} new options before the round (in the pre-money), to ${fP(M.ePost)} after it`);
+  if(M.X<0){add('hs','E',`Agreed pool cut by ${n(-M.X)} options, to ${fP(M.ePost)} after the round`);add('hs','H',`+${n(-M.X)} shares from the unused ESOP pool`)}
   if(M.W)add('hs','W',`${M.I.wcov}% × ${fR(M.debt)} = ${ru(M.wVal)} ÷ ${p} = ${n(M.W)} warrant shares`);
   const r=M.ratio.toFixed(4);
   add('conv','P',M.ratio===1?`CCPS convert 1:1 at the ₹23 Cr floor`:`CCPS convert at ₹${(M.Vconv/CR).toFixed(2)} Cr (price ${ru(M.cp)}): ×${r} → ${n(M.Pc)} equity shares`);
@@ -313,9 +320,11 @@ function render(){
   document.getElementById('stkNote').textContent=MODE==='post'
     ?`→ ${fS(M.A)} shares at joining (${fP(M.A/M.T0)}), plus ${fS(M.Pj)} from her primary = ${fP(M.aPost)} after the round. Hargun and Jagjit's shares adjust to fit.`
     :`→ ${fP(M.aPost)} after the Hyperscale Round (${fS(M.A)} + ${fS(M.Pj)} primary shares).`;
-  document.getElementById('esopNote').textContent=M.X
+  document.getElementById('esopNote').textContent=M.X<0
+    ?`Agreed pool cut from ${fS(BASE.ESOP-M.G)} to ${fS(M.st.hs.E)} options (${fP(M.ePost)} after the round). The ${fS(-M.X)} freed options go to Hargun as shares — a swap inside the pre-money, so the price and everyone else's stake stay the same.`
+    :M.X
     ?`${fS(M.X)} new options added before the round, so the pool is ${fP(M.ePost)} (${fS(M.st.hs.E)}) after it. They sit in the pre-money, so the price drops to ${ru(M.p1)} and every existing holder is diluted, founders included.`
-    :`No top-up. Pool after the round: ${fP(M.ePost)} (${fS(M.st.hs.E)} options, after Aneesha's ${fS(M.G)} MSOP). Set a target above this to top it up.`;
+    :`Pool unchanged: ${fP(M.ePost)} after the round (${fS(M.st.hs.E)} options${M.G?`, after Aneesha's ${fS(M.G)} MSOP`:''}). Set a target to resize it; 0 leaves it as agreed.`;
   document.getElementById('cnNote').textContent=`Angel notes convert here: ₹75L ÷ ₹14,342 (₹18 Cr cap) = ${fS(BASE.AR1)} shares. Round price ${ru(M.p1)} a share.`;
   document.getElementById('convNote').textContent=M.ratio===1?`At ₹12.5 Cr revenue or less, CCPS convert 1:1 (₹23 Cr floor): ${fS(M.st.hs.P)} shares.`:`Converts at ₹${(M.Vconv/CR).toFixed(2)} Cr → ${fS(M.Pc)} shares instead of ${fS(M.st.hs.P)}.`;
   const FMIN=70, f1=(st.hs.H+st.hs.J+st.hs.A)/tot(st.hs), ok=f1>=FMIN/100-1e-9;
@@ -370,7 +379,7 @@ function render(){
    R(`Pre-Seed → ${nm}`,d,sm(fR(M.secP*M.p1),fS(M.secP)+' sh',!M.secP),d)+
    G('Other share movements')+
    R('MSOP to Aneesha from the ESOP pool',fS(M.G)+' options',d,d)+
-   R('ESOP pool top-up (before the round, in the pre-money)',d,M.X?fS(M.X)+' options':d,d)+
+   R(M.X<0?'ESOP pool cut — freed options to Hargun as shares':'ESOP pool top-up (before the round, in the pre-money)',d,M.X?fS(Math.abs(M.X))+(M.X<0?' sh':' options'):d,d)+
    R('Angel notes convert (₹18 Cr cap)',d,fS(BASE.AR1)+' sh',d)+
    R('Pre-Seed CCPS convert (Feb 2027)',d,d,M.ratio===1?'1:1':`${fS(M.st.hs.P)} → ${fS(M.Pc)}`)+
    G('Valuation')+
@@ -402,7 +411,7 @@ function renderCS(M){
    CK([['flag','Your Oct-2026 cap table shows the ESOP pool as 1,283 and Pre-Seed as 928.','The signed SSSHA approves 1,226 (a bigger pool needs FPC-A consent, Sch. E item 10), and Karthik Natarajan\'s 26 CCPS allotted on 29-Jun-26 are missing from it. This working uses 1,226 and 954.']]),true);
   h+=STEP('STEP 1','Aneesha joins',T([
    MODE==='post'?['Shares at joining',`worked back: ${I.stkPost}% × ${n(M.post1)} post-round shares − ${n(M.Pj)} from her primary`,n(M.A)+' sh']:['Target stake',`${I.stk}% × ${n(T0)}`,n(M.A)+' sh'],
-   ['From the ESOP pool (MSOP)',`${MSOP}% × ${n(T0)}`,n(M.G)+' sh'],
+   ['From the ESOP pool (MSOP)',M.useMsop?`${MSOP}% × ${n(T0)}`:'off — the pool is agreed in the SSSHA but not yet created, so all of it comes from founders',n(M.G)+' sh'],
    ['By transfer from founders',`${n(M.A)} − ${n(M.G)}`,n(M.S)+' sh'],
    ['Jagjit keeps at least',`${I.jkeep}% × ${n(T0)} = ${n(M.jFloor)}; can sell ${n(BASE.J)} − ${n(M.jFloor)}`,n(BASE.J-M.jFloor)+' sh'],
    ['From Jagjit',`${fP(jPct)} of his ${n(BASE.J)}`,n(M.Sj)+' sh'],
@@ -414,6 +423,7 @@ function renderCS(M){
    ['need',`Jagjit's transfer is ${fP(jPct)} of his shares, above the 5% permitted transfer — needs FPC-A's prior written consent.`,'Cl. 13.1(d); permitted transfers are capped at 5% of a founder/KMP\'s shares as on the closing date (cl. 1.1.81).'],
    [hPct<=0.05?'ok':'need',`Hargun's transfer is ${fP(hPct)} of his shares.`,hPct<=0.05?'Within the 5% permitted transfer (cl. 1.1.81), so no consent, ROFR or tag-along applies.':'Above 5%, so FPC-A consent, ROFR and tag-along apply (cl. 13.1(d)).'],
    ['need','Investors\' right of first refusal and tag-along must be waived in writing.','Cl. 13.2–13.3: investors can otherwise buy the same shares at the same price before Aneesha.'],
+   ...(M.useMsop?[]:[['ok','Pool not yet created: her whole stake comes by transfer from Jagjit (to his floor) then Hargun.','No ESOP scheme, MSOP grant or MGT-14 needed for her.']]),
    ['need','MSOP to a co-founder: the ESOP pool is for employees other than founders.',`Cl. 11.7; an ESOP scheme or policy needs FPC-A consent (Sch. E items 10–11), a special resolution and MGT-14. The simpler route: Hargun transfers these ${n(M.G)} shares too.`],
    ['flag','Founder vesting already runs for 5 years under the SSSHA.','Cl. 13.1(b)–(c): 20% after year 1, then quarterly. Write Aneesha\'s 3-year clawback into her deed of adherence and founder agreement so the two don\'t conflict.'],
    ['ok','No need to re-sign the SSSHA — Aneesha signs a Deed of Adherence.','Sch. N; cl. 13.2(e).'],
@@ -424,7 +434,12 @@ function renderCS(M){
    ['Pre-money fully diluted shares',M.X?`${n(T0)} + ${n(M.X)} ESOP top-up; incl. the 522 note-conversion shares`:'incl. ESOP pool and the 522 note-conversion shares',n(M.Tp)],
    ['Price per share',`${fR(M.pre1)} ÷ ${n(M.Tp)} = ₹${M.rawP1.toLocaleString('en-IN',{maximumFractionDigits:2})}, rounded up`,ru(p1)],
    ['Face value + premium','',`₹10 + ${ru(p1-10)}`]])+
-   (M.X?`<div class="sublab">ESOP pool top-up</div>`+T([
+   (M.X<0?`<div class="sublab">ESOP pool resized — freed options to Hargun</div>`+T([
+   ['Target pool after the round',`${I.esopPost}% × ${n(M.post1)} post-round shares, rounded up`,n(M.st.hs.E)],
+   ['Agreed pool before the round',`${n(BASE.ESOP)}${M.G?` − ${n(M.G)} MSOP`:''}`,n(BASE.ESOP-M.G)],
+   ['Freed options → Hargun as shares',`${n(BASE.ESOP-M.G)} − ${n(M.st.hs.E)}; fully diluted count unchanged, so the price stays ${ru(p1)}`,n(-M.X)+' sh'],
+   ['Pool after the round',`${n(M.st.hs.E)} ÷ ${n(M.post1)}`,fP(M.ePost),'tot']]):'')+
+   (M.X>0?`<div class="sublab">ESOP pool top-up</div>`+T([
    ['Target pool after the round',`${I.esopPost}% of the post-round shares`,fP(M.tE)],
    ['Pool before the top-up',`${n(BASE.ESOP)} − ${n(M.G)} MSOP to Aneesha`,n(BASE.ESOP-M.G)],
    ['New options created',`(${I.esopPost}% × (${n(M.post1)} − top-up) − ${n(BASE.ESOP-M.G)}) ÷ (1 − ${I.esopPost}%), rounded up`,n(M.X)],
@@ -451,7 +466,8 @@ function renderCS(M){
    [M.pre1>=46e7?'ok':'flag',`Protection right: pre-money ${fR(M.pre1)} vs ₹46 Cr (2× the Pre-Seed ₹23 Cr floor).`,M.pre1>=46e7?'At or above (and Hyperscale invests more than 2× the Pre-Seed amount), so the new investors may get superior rights.':`Below ₹46 Cr, so ${nm0}'s rights can't be superior to Pre-Seed's unless IPV/FirstPort waive (Sch. O).`],
    ['need',`Pre-emptive right: Pre-Seed holders can take their pro-rata ${fP(BASE.PS/M.Tp)} — about ${n(ppPS)} of the ${n(M.newR1)} new shares — and IPV can facilitate first.`,'Cl. 15 and 16: issue the First Issuance Notice (30 business days) or get written waivers.'],
    ['flag','Angel notes: interest and timing.',`6% simple interest starts about 17-Nov-2026 and converts with principal: closing on 31-Mar-2027 adds about ${ru(intEx)} → ${n(intSh)} more shares, unless paid in cash (Sch. P, cl. 2). The notes expect the round within 12 months of Tranche I — get a written extension (Sch. P, cl. 5).`],
-   ...(M.X?[['need',`ESOP top-up of ${n(M.X)} options takes the pool above the approved 1,226.`,'Needs FPC-A consent (Sch. E item 10), a special resolution and MGT-14; the scheme is amended before allotment. Done in the pre-money, so it dilutes all existing holders, not the new investors.']]:[]),
+   ...(M.X<0?[['need',`Pool cut to ${n(M.st.hs.E)} and ${n(-M.X)} shares allotted to Hargun.`,'The pool is only agreed in the SSSHA (cl. 11.7, Sch. E item 10), so cutting it is an SSSHA amendment with FPC-A consent. The shares to Hargun are a fresh allotment (or sweat equity): registered-valuer report, special resolution, PAS-3, and tax on any gap to fair value. Agree it in the Hyperscale term sheet so the new investors price on this register.']]:[]),
+   ...(M.X>0?[['need',`ESOP top-up of ${n(M.X)} options takes the pool above the approved 1,226.`,'Needs FPC-A consent (Sch. E item 10), a special resolution and MGT-14; the scheme is amended before allotment. Done in the pre-money, so it dilutes all existing holders, not the new investors.']]:[]),
    [M.fsN?'need':'ok',M.fsN?`Founder secondary: ${n(M.fsJ+M.fsH)} shares to ${nm0}.`:'No founder secondary.',M.fsN?'Above 5% of a founder\'s shares needs FPC-A consent, ROFR and tag-along waivers (cl. 13.1(d), 13.2–13.3); the buyer signs a deed of adherence.':''],
    ['need','Angel/VC secondary: CN holders\' and Pre-Seed co-investors\' sales go through the investors\' ROFR and tag-along; IPV Group (FirstPort, IPV) can transfer freely.',`Cl. 13.2, Sch. O. ${nm0} signs a deed of adherence; 0.015% stamp duty.`],
    ['need','FPC-A consent for the issue, new series rights, AoA changes, investor board seat, the debt and the warrants.','Sch. E items 1, 2, 3, 4 and 22(a).'],
