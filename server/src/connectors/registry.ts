@@ -18,6 +18,8 @@ import meta from './sources/meta.js';
 import googleAds from './sources/googleAds.js';
 import amazonAds from './sources/amazonAds.js';
 import flipkart from './sources/flipkart.js';
+import shiprocket from './sources/shiprocket.js';
+import easebuzz from './sources/easebuzz.js';
 
 interface ScaffoldSpec {
   id: string;
@@ -63,43 +65,16 @@ const blinkit = scaffold({
   ],
 });
 
-const shiprocket = scaffold({
-  id: 'shiprocket',
-  label: 'Shiprocket',
-  group: 'logistics',
-  fetchMode: 'api',
-  mode: 'manual-upload',
-  note: 'Shiprocket API. Email + password mint a JWT. Pull feeds freight outward and RTO; it carries no SKU, so it lands on freight, not products.',
-  credentialFields: [
-    { key: 'email', label: 'API user email', type: 'text', help: 'A dedicated Shiprocket API user is recommended.' },
-    { key: 'password', label: 'API user password', type: 'password' },
-  ],
-});
-
 const delhivery = scaffold({
   id: 'delhivery',
   label: 'Delhivery',
   group: 'logistics',
-  fetchMode: 'api',
+  fetchMode: 'file',
   mode: 'manual-upload',
-  note: 'Delhivery API. Token per client/warehouse. Pull feeds outbound freight billing and RTO/NDR.',
+  note: 'Delhivery One has no published API for the wallet / transactions report, so the close takes the wallet report as an upload. A token saved here is kept for a future pull.',
   credentialFields: [
     { key: 'apiToken', label: 'API token', type: 'password', help: 'Delhivery One → Settings → API.' },
     { key: 'clientName', label: 'Client / warehouse name', type: 'text', optional: true },
-  ],
-});
-
-const easebuzz = scaffold({
-  id: 'easebuzz',
-  label: 'Easebuzz',
-  group: 'payments',
-  fetchMode: 'api',
-  mode: 'manual-upload',
-  note: 'Easebuzz payment gateway. Merchant key + salt. Pull feeds payment-gateway fees and cash/settlement reconciliation against D2C.',
-  credentialFields: [
-    { key: 'merchantKey', label: 'Merchant key', type: 'text' },
-    { key: 'salt', label: 'Salt', type: 'password' },
-    { key: 'env', label: 'Environment', type: 'text', placeholder: 'prod', optional: true, help: 'prod or test. Default prod.' },
   ],
 });
 
@@ -109,7 +84,7 @@ const snapmint = scaffold({
   group: 'payments',
   fetchMode: 'file',
   mode: 'manual-upload',
-  note: 'Snapmint BNPL. Public pull API is thin — settlement comes by report/webhook. Pull feeds revenue-by-tender, subvention and finance cost.',
+  note: 'Snapmint BNPL. No API or scheduled export — the Group Settlement report arrives by email and is uploaded on the close page (subvention + fees → Platform & Payment).',
   credentialFields: [
     { key: 'merchantId', label: 'Merchant ID', type: 'text' },
     { key: 'apiKey', label: 'API key', type: 'password', optional: true },
@@ -133,9 +108,9 @@ const tranzact = scaffold({
   id: 'tranzact',
   label: 'Tranzact (ERP / BOM)',
   group: 'book',
-  fetchMode: 'api',
+  fetchMode: 'file',
   mode: 'manual-upload',
-  note: 'Tranzact ERP. Pull feeds BomCost[] (standard cost per finished good) and stock movement — the per-unit COGS behind SKU margin.',
+  note: 'Tranzact has no API. Its Sales Invoice Register arrives as a daily Google Sheet (Recurring Report) that the close reads itself; the All BOMs export is emailed and imported monthly by a Claude task (18th) — upload it here.',
   credentialFields: [
     { key: 'apiToken', label: 'API token', type: 'password', help: 'Tranzact → Settings → API access.' },
   ],

@@ -18,6 +18,9 @@ import {
   usesSharedSecrets,
 } from '../connectors/credentialStore.js';
 import { NotImplementedError, type ConnectorDef, type Credentials } from '../connectors/types.js';
+import { FEED_TASKS, SLOT_SOURCES, slotSource } from '../connectors/slots/catalog.js';
+import { lastPulls, pullState, runPull } from '../connectors/slots/jobs.js';
+import type { SlotSourceDef } from '../connectors/slots/types.js';
 
 const router = Router();
 
@@ -79,6 +82,57 @@ router.get('/', h(async (_req, res) => {
 router.post('/refresh-store', h(async (_req, res) => {
   refreshStore();
   res.json({ store: await storeStatus() });
+}));
+
+// ---- Close slots: how each report slot is fed, and "Pull now" -------------
+
+/** Effective credentials for a slot's pull + which required fields are missing. */
+async function slotCreds(def: SlotSourceDef): Promise<{ creds: Credentials; missing: string[] }> {
+  const cid = def.credsFrom ?? def.connectorId;
+  const c = getConnector(cid);
+  const creds = await getEffectiveCredentials(cid, c ? fieldKeys(c) : def.needs ?? []);
+  const missing = (def.needs ?? []).filter((k) => !(creds[k] || '').trim());
+  return { creds, missing };
+}
+
+// Every slot's source (api / sheet / claude_task / upload) + the feeding tasks.
+router.get('/slots', h(async (_req, res) => {
+  const last = lastPulls();
+  const slots = await Promise.all(SLOT_SOURCES.map(async (d) => {
+    const pullable = Boolean(d.pull);
+    const connected = pullable ? (await slotCreds(d)).missing.length === 0 : false;
+    return {
+      connectorId: d.connectorId, slotId: d.slotId, source: d.source, via: d.via, line: d.line,
+      claudeTask: d.claudeTask ?? null, parserId: d.parserId ?? null, pullable, connected,
+      connectHint: d.connectHint ?? null, lastPull: last[`${d.connectorId}|${d.slotId}`] ?? null,
+    };
+  }));
+  res.json({ slots, tasks: FEED_TASKS });
+}));
+
+// Pull one slot for one month. Body: { periodKey: "YYYY-MM", force?: boolean, waitMs?: number }.
+// Answers { status: done | running | failed | not_connected, … }; poll while running.
+router.post('/slots/:connectorId/:slotId/pull', h(async (req, res) => {
+  const def = slotSource(req.params.connectorId, req.params.slotId);
+  if (!def) return res.status(404).json({ error: 'No such slot.' });
+  if (!def.pull) return res.status(400).json({ error: `${def.via}: ${def.line}` });
+  const periodKey = String(req.body?.periodKey ?? '').trim();
+  if (!/^\d{4}-\d{2}$/.test(periodKey)) return res.status(400).json({ error: 'periodKey must be "YYYY-MM".' });
+  const { creds, missing } = await slotCreds(def);
+  if (missing.length) {
+    return res.json({ status: 'not_connected', detail: def.connectHint ?? `Not connected — missing ${missing.join(', ')}.` });
+  }
+  const waitMs = Math.max(0, Math.min(Number(req.body?.waitMs ?? 25_000) || 0, 25_000));
+  const state = await runPull(def, creds, periodKey, { force: Boolean(req.body?.force), waitMs });
+  res.json({ ...state, via: def.via, parserId: def.parserId ?? null });
+}));
+
+// Poll a running pull without starting a new one.
+router.get('/slots/:connectorId/:slotId/pull/:periodKey', h(async (req, res) => {
+  const def = slotSource(req.params.connectorId, req.params.slotId);
+  if (!def) return res.status(404).json({ error: 'No such slot.' });
+  const state = pullState(def, req.params.periodKey);
+  res.json(state ? { ...state, via: def.via, parserId: def.parserId ?? null } : { status: 'none' });
 }));
 
 router.get('/:id', h(async (req, res) => {

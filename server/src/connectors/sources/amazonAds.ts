@@ -139,20 +139,25 @@ async function profiles(creds: Credentials): Promise<Profile[]> {
 
 // ---- reports ----------------------------------------------------------------
 
-type AdType = 'SP' | 'SB' | 'SD';
-const REPORTS: Record<AdType, { adProduct: string; reportTypeId: string; columns: string[]; sales: string; orders: string }> = {
-  SP: { adProduct: 'SPONSORED_PRODUCTS', reportTypeId: 'spCampaigns', columns: ['date', 'cost', 'sales14d', 'purchases14d'], sales: 'sales14d', orders: 'purchases14d' },
-  SB: { adProduct: 'SPONSORED_BRANDS', reportTypeId: 'sbCampaigns', columns: ['date', 'cost', 'sales', 'purchases'], sales: 'sales', orders: 'purchases' },
-  SD: { adProduct: 'SPONSORED_DISPLAY', reportTypeId: 'sdCampaigns', columns: ['date', 'cost', 'sales', 'purchases'], sales: 'sales', orders: 'purchases' },
+// SPP = Sponsored Products "Advertised product" (per SKU) — the close slot's report; the
+// other three are the campaign-level daily spend the Live MIS reads.
+type AdType = 'SP' | 'SB' | 'SD' | 'SPP';
+type CampaignType = 'SP' | 'SB' | 'SD';
+const CAMPAIGN_TYPES: CampaignType[] = ['SP', 'SB', 'SD'];
+const REPORTS: Record<AdType, { adProduct: string; reportTypeId: string; groupBy: string[]; columns: string[]; sales: string; orders: string }> = {
+  SP: { adProduct: 'SPONSORED_PRODUCTS', reportTypeId: 'spCampaigns', groupBy: ['campaign'], columns: ['date', 'cost', 'sales14d', 'purchases14d'], sales: 'sales14d', orders: 'purchases14d' },
+  SB: { adProduct: 'SPONSORED_BRANDS', reportTypeId: 'sbCampaigns', groupBy: ['campaign'], columns: ['date', 'cost', 'sales', 'purchases'], sales: 'sales', orders: 'purchases' },
+  SD: { adProduct: 'SPONSORED_DISPLAY', reportTypeId: 'sdCampaigns', groupBy: ['campaign'], columns: ['date', 'cost', 'sales', 'purchases'], sales: 'sales', orders: 'purchases' },
+  SPP: { adProduct: 'SPONSORED_PRODUCTS', reportTypeId: 'spAdvertisedProduct', groupBy: ['advertiser'], columns: ['date', 'advertisedSku', 'advertisedAsin', 'cost'], sales: '', orders: '' },
 };
 
 interface DayRow { date: string; spend: number; sales: number; orders: number }
 interface Job { profileId: string; type: AdType; start: string; end: string }
 const jobKey = (j: Job) => `${j.profileId}|${j.type}|${j.start}|${j.end}`;
 
-/** In-flight report ids (2 h) and finished rows (30 min), per profile × type × window. */
+/** In-flight report ids (2 h) and finished raw report rows (see cacheFresh), per profile × type × window. */
 const pending = new Map<string, { reportId: string; at: number }>();
-const done = new Map<string, { rows: DayRow[]; at: number }>();
+const done = new Map<string, { rows: any[]; at: number }>();
 
 function windows(fromISO: string, toISO: string): { start: string; end: string }[] {
   const out: { start: string; end: string }[] = [];
@@ -174,7 +179,7 @@ async function createReport(creds: Credentials, j: Job): Promise<string> {
     name: `mis ${j.type} ${j.profileId} ${j.start}..${j.end}`,
     startDate: j.start,
     endDate: j.end,
-    configuration: { adProduct: d.adProduct, groupBy: ['campaign'], columns: d.columns, reportTypeId: d.reportTypeId, timeUnit: 'DAILY', format: 'GZIP_JSON' },
+    configuration: { adProduct: d.adProduct, groupBy: d.groupBy, columns: d.columns, reportTypeId: d.reportTypeId, timeUnit: 'DAILY', format: 'GZIP_JSON' },
   };
   try {
     const r = await adsRequest<{ reportId?: string }>(creds, '/reporting/reports', { method: 'POST', profileId: j.profileId, body, contentType: REPORT_CT });
@@ -214,10 +219,10 @@ function toDays(type: AdType, rows: any[]): DayRow[] {
   return [...by.values()];
 }
 
-interface PullResult { days: Map<string, DayRow & { byType: Record<AdType, number> }>; warnings: string[]; trace: string[]; complete: boolean }
+interface PullResult { days: Map<string, DayRow & { byType: Record<CampaignType, number> }>; warnings: string[]; trace: string[]; complete: boolean }
 
 /** How far back Amazon keeps each report type (Ops' historyDays, less a safety day). */
-const LOOKBACK_DAYS: Record<AdType, number> = { SP: 94, SB: 59, SD: 59 };
+const LOOKBACK_DAYS: Record<AdType, number> = { SP: 94, SB: 59, SD: 59, SPP: 94 };
 const DAY = 86_400_000;
 const istToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
 const addDays = (ymd: string, n: number) => new Date(Date.parse(`${ymd}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
@@ -238,8 +243,8 @@ async function inBatches<T>(items: T[], n: number, fn: (t: T) => Promise<void>):
  * reports, poll the in-flight ones, download the finished ones. Returns the rows
  * it has and how many jobs are still unfinished.
  */
-async function advance(creds: Credentials, jobs: Job[], deadline: number, warnings: string[] | null): Promise<{ results: Map<string, DayRow[]>; left: number }> {
-  const results = new Map<string, DayRow[]>();
+async function advance(creds: Credentials, jobs: Job[], deadline: number, warnings: string[] | null): Promise<{ results: Map<string, any[]>; left: number }> {
+  const results = new Map<string, any[]>();
   let open: { job: Job; reportId: string | null }[] = [];
   for (const j of jobs) {
     const k = jobKey(j);
@@ -262,7 +267,7 @@ async function advance(creds: Credentials, jobs: Job[], deadline: number, warnin
         }
         const st = await adsRequest<{ status?: string; url?: string; failureReason?: string }>(creds, `/reporting/reports/${encodeURIComponent(o.reportId)}`, { profileId: o.job.profileId });
         if (st.status === 'COMPLETED' && st.url) {
-          const rows = toDays(o.job.type, await download(st.url));
+          const rows = await download(st.url);
           results.set(k, rows);
           done.set(k, { rows, at: Date.now() });
           pending.delete(k);
@@ -312,7 +317,7 @@ async function pull(creds: Credentials, fromISO: string, toISO: string): Promise
   const today = istToday();
   const jobs: Job[] = [];
   let clipped = false;
-  for (const t of Object.keys(REPORTS) as AdType[]) {
+  for (const t of CAMPAIGN_TYPES) {
     const floor = addDays(today, -LOOKBACK_DAYS[t]);
     const from = fromISO < floor ? floor : fromISO;
     if (from !== fromISO) clipped = true;
@@ -327,9 +332,10 @@ async function pull(creds: Credentials, fromISO: string, toISO: string): Promise
     warnings.push(`Amazon Ads: ${left} of ${jobs.length} report(s) still being prepared by Amazon — they finish in the background; reload in a few minutes for complete spend.`);
   }
 
-  const days = new Map<string, DayRow & { byType: Record<AdType, number> }>();
+  const days = new Map<string, DayRow & { byType: Record<CampaignType, number> }>();
   for (const j of jobs) {
-    for (const r of results.get(jobKey(j)) ?? []) {
+    if (j.type === 'SPP') continue;
+    for (const r of toDays(j.type, results.get(jobKey(j)) ?? [])) {
       const a = days.get(r.date) ?? { date: r.date, spend: 0, sales: 0, orders: 0, byType: { SP: 0, SB: 0, SD: 0 } };
       a.spend += r.spend; a.sales += r.sales; a.orders += r.orders; a.byType[j.type] += r.spend;
       days.set(r.date, a);
@@ -337,6 +343,55 @@ async function pull(creds: Credentials, fromISO: string, toISO: string): Promise
   }
   trace.push(`${jobs.length - left}/${jobs.length} report(s) ready; ${days.size} day(s) of spend${left ? ' (partial)' : ''}`);
   return { days, warnings, trace, complete: left === 0 };
+}
+
+// ---- close slot: Advertised Product report for one month --------------------
+
+/**
+ * Sponsored Products advertised-product rows (per SKU) for the month, plus the
+ * Sponsored Brands / Display spend that the upload carries as SKU-less rows.
+ * Read only (POST /reporting/reports + GETs). Refuses a month Amazon no longer
+ * keeps (SP 94 days, SB/SD 59 days) — those months stay a manual upload.
+ */
+export async function pullAdvertisedProduct(
+  creds: Credentials,
+  periodKey: string,
+  deadline: number,
+): Promise<{ spRows: any[]; channel: { SB: number; SD: number }; profiles: string[]; reports: number }> {
+  const { startISO, endISO } = monthBounds(periodKey);
+  const from = startISO.slice(0, 10);
+  const today = istToday();
+  const to = endISO.slice(0, 10) < today ? endISO.slice(0, 10) : addDays(today, -1);
+  if (to < from) throw new Error(`${periodKey} has no finished day yet.`);
+  for (const t of ['SPP', 'SB', 'SD'] as AdType[]) {
+    const floor = addDays(today, -LOOKBACK_DAYS[t]);
+    if (from < floor) {
+      throw new Error(`Amazon Ads keeps ${t === 'SPP' ? 'Sponsored Products' : 'Brands / Display'} reports for ${LOOKBACK_DAYS[t]} days only, so ${periodKey} can't be pulled — upload the Advertised Product report for it.`);
+    }
+  }
+  const profs = await profiles(creds);
+  if (!profs.length) throw new Error('No Amazon.in advertising profile on this Ads login (countryCode IN).');
+  const jobs: Job[] = [];
+  for (const p of profs) for (const t of ['SPP', 'SB', 'SD'] as AdType[]) jobs.push({ profileId: p.profileId, type: t, start: from, end: to });
+  const warnings: string[] = [];
+  const { results, left } = await advance(creds, jobs, deadline, warnings);
+  if (left) {
+    finishInBackground(creds, jobs);
+    throw new Error(`Amazon is still preparing ${left} of ${jobs.length} report(s) — Pull again in a few minutes.`);
+  }
+  const spRows: any[] = [];
+  const channel = { SB: 0, SD: 0 };
+  for (const j of jobs) {
+    const rows = results.get(jobKey(j)) ?? [];
+    if (j.type === 'SPP') spRows.push(...rows);
+    else if (j.type === 'SB' || j.type === 'SD') channel[j.type] += rows.reduce((s, r) => s + num(r?.cost), 0);
+  }
+  if (warnings.length) {
+    // A refused SB / SD report on a profile that doesn't run that ad type is fine; a refused SP report is not.
+    const spFail = warnings.find((w) => w.startsWith('SPP'));
+    if (spFail) throw new Error(`Advertised-product report refused: ${spFail}`);
+  }
+  return { spRows, channel, profiles: profs.map((p) => p.name || p.profileId), reports: jobs.length };
 }
 
 // ---- connector ----------------------------------------------------------------

@@ -9,7 +9,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listConnectors, MODE_LABEL, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
 import { getIngestStatus, listIngestReports, refreshIngestStore } from '../../data/ingest/ingestClient';
 import { chatStatus } from '../../data/chat/chatClient';
-import { slotsFor } from '../../data/ingest/catalog';
+import { ALL_SLOTS, slotsFor } from '../../data/ingest/catalog';
+import { listSlotSources, pullAndCommit, slotKey, type SlotSourceInfo } from '../../data/ingest/slotSources';
 import type { IngestReportMeta, IngestStoreStatus } from '../../data/ingest/types';
 import { LIVE_BOUNDARY } from '../../data/misDeck/liveDeck';
 import { IngestStepper } from './IngestStepper';
@@ -134,6 +135,74 @@ function CoveragePanel({ reports, connectors }: { reports: IngestReportMeta[]; c
   );
 }
 
+/**
+ * One button for every automatic slot (API / sheet) of a month: pull each, and
+ * save the ones whose checks pass cleanly. Anything that fails or warns stays
+ * for review in its slot below (with the upload box as fallback).
+ */
+function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSourceInfo>; onDone: () => void }) {
+  const [month, setMonth] = useState(lastMonth());
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState<{ label: string; ok: boolean; detail: string }[]>([]);
+  const auto = ALL_SLOTS.filter((s) => sources.get(slotKey(s.connectorId, s.slotId))?.pullable);
+  const ready = auto.filter((s) => sources.get(slotKey(s.connectorId, s.slotId))?.connected);
+  const manual = ALL_SLOTS.filter((s) => {
+    const src = sources.get(slotKey(s.connectorId, s.slotId));
+    return src && (src.source === 'upload' || src.source === 'claude_task');
+  });
+  if (auto.length === 0) return null;
+
+  const run = async () => {
+    setRunning(true); setResults([]);
+    const out: { label: string; ok: boolean; detail: string }[] = [];
+    // Two at a time: Amazon's slow pulls don't hold up the quick ones.
+    for (let i = 0; i < ready.length; i += 2) {
+      const batch = await Promise.all(ready.slice(i, i + 2).map(async (slot) => {
+        const r = await pullAndCommit(slot, sources.get(slotKey(slot.connectorId, slot.slotId))!, month);
+        return { label: slot.label, ok: r.ok, detail: r.detail };
+      }));
+      out.push(...batch);
+      setResults([...out]);
+    }
+    setRunning(false);
+    onDone();
+  };
+
+  return (
+    <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4 space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <h3 className="text-sm font-semibold text-slate-800">Automatic sources</h3>
+        <span className="text-[11px] text-slate-500">{auto.length} report(s) fill themselves by API or the Tranzact sheet ({ready.length} connected) · {manual.length} stay manual or come from a Claude task</span>
+        <div className="ml-auto flex items-center gap-2">
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="px-2 py-1 rounded-lg border border-slate-200 text-xs" />
+          <button onClick={() => void run()} disabled={running || ready.length === 0 || !/^\d{4}-\d{2}$/.test(month)}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40">
+            {running ? 'Pulling…' : `Pull & save all for ${monthName(month)}`}
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {auto.map((s) => {
+          const src = sources.get(slotKey(s.connectorId, s.slotId))!;
+          return (
+            <span key={slotKey(s.connectorId, s.slotId)} title={src.line} className={`text-[11px] px-2 py-0.5 rounded-md border ${src.connected ? 'border-slate-200 bg-white text-slate-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+              {s.label}{src.connected ? '' : ' · not connected'}
+            </span>
+          );
+        })}
+      </div>
+      {results.length > 0 && (
+        <ul className="text-[11px] space-y-0.5">
+          {results.map((r, i) => (
+            <li key={i} className={r.ok ? 'text-emerald-700' : 'text-amber-800'}>{r.ok ? '✓' : '!'} <span className="font-medium">{r.label}</span> — {r.detail}</li>
+          ))}
+        </ul>
+      )}
+      <p className="text-[10px] text-slate-500">Only clean pulls are saved; anything that needs a look stays in its slot below. Manual uploads are marked <span className="font-medium text-amber-800">Manual upload</span> with the reason.</p>
+    </div>
+  );
+}
+
 export function IngestWorkspace() {
   const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
   const [reports, setReports] = useState<IngestReportMeta[]>([]);
@@ -141,6 +210,7 @@ export function IngestWorkspace() {
   const [claudeLive, setClaudeLive] = useState<boolean | null>(null);
   const [selected, setSelected] = useState<string>('');
   const [rechecking, setRechecking] = useState(false);
+  const [sources, setSources] = useState<Map<string, SlotSourceInfo>>(new Map());
 
   const reloadReports = useCallback(async () => {
     try { setReports(await listIngestReports()); } catch { /* keep prior */ }
@@ -153,6 +223,9 @@ export function IngestWorkspace() {
     }).catch(() => {});
     getIngestStatus().then((r) => setStore(r.store)).catch(() => {});
     chatStatus().then((s) => setClaudeLive(s.configured)).catch(() => setClaudeLive(false));
+    listSlotSources()
+      .then((r) => setSources(new Map(r.slots.map((x) => [slotKey(x.connectorId, x.slotId), x]))))
+      .catch(() => {});
     void reloadReports();
   }, [reloadReports]);
 
@@ -188,6 +261,8 @@ export function IngestWorkspace() {
     <div className="space-y-5">
       {/* "Where we are" — the live window month by month */}
       <CoveragePanel reports={reports} connectors={connectors} />
+
+      <AutoPullPanel sources={sources} onDone={reloadReports} />
 
       {/* Status strip: Claude API (reads Tally screenshots + Ask the MIS) + store durability */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
@@ -270,6 +345,7 @@ export function IngestWorkspace() {
               slot={slot}
               existing={latest.get(`${sel.id}|${slot.slotId}`)}
               onCommitted={reloadReports}
+              source={sources.get(slotKey(sel.id, slot.slotId))}
             />
           ))}
 

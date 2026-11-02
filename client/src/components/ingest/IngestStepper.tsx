@@ -10,6 +10,8 @@ import { inr } from '../mis-deck/charts';
 import { Modal } from '../ui/overlays';
 import { commitReportMonths, monthBreakdown, restageTallyMonth, runChecks } from '../../data/ingest/ingestClient';
 import type { IngestReportMeta, ReportSlot, StagedUpload } from '../../data/ingest/types';
+import { pulledFrom, pullSlot, slotSourceLine, stagePull, type SlotSourceInfo } from '../../data/ingest/slotSources';
+import { SlotSourceBadge } from './SlotSourceBadge';
 
 const iconSteps = (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -89,6 +91,13 @@ function monthName(periodKey: string): string {
   return `${MONTH_ABBR[Number(m)] ?? m} ${y}`;
 }
 
+/** Last full month, "YYYY-MM" — the default month for a pull. */
+function lastMonthKey(): string {
+  const d = new Date();
+  const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
+  return `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 function stepIndex(stage: Stage): number {
   switch (stage) {
     case 'idle': return 0;
@@ -103,10 +112,13 @@ export function IngestStepper({
   slot,
   existing,
   onCommitted,
+  source,
 }: {
   slot: ReportSlot;
   existing?: IngestReportMeta;
   onCommitted: () => void;
+  /** How this slot is fed (server slot catalog); absent while loading. */
+  source?: SlotSourceInfo;
 }) {
   const [stage, setStage] = useState<Stage>(existing ? 'ingested' : 'idle');
   const [staged, setStaged] = useState<StagedUpload | null>(null);
@@ -118,6 +130,8 @@ export function IngestStepper({
   const [howOpen, setHowOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
+  const [pulling, setPulling] = useState<string | null>(null);
+  const canPull = Boolean(source?.pullable);
 
   const wired = slot.kind === 'vision' || slot.kind === 'bom' || slot.kind === 'invoice' || slot.kind === 'tally-xlsx' || Boolean(slot.parserId);
   // These connectors are read by Claude on the server (Tally screenshots, Shopflo
@@ -155,6 +169,31 @@ export function IngestStepper({
     if (files && files.length > 0) void onFiles(files);
   };
   const uploadLabel = committed ? 'Replace' : slot.kind === 'vision' ? 'Upload screenshot(s)' : slot.kind === 'invoice' ? 'Upload PDF' : slot.kind === 'tally-xlsx' ? 'Upload P&L Excel' : multiple ? 'Upload file(s)' : 'Upload file';
+
+  // "Pull now": the slot's own API / sheet source → the same staged review as a file.
+  // A failed pull leaves the upload box as the fallback.
+  const doPull = async () => {
+    if (!source) return;
+    const month = /^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey();
+    const before: Stage = committed ? 'ingested' : 'idle';
+    setPicked([]); setStaged(null); setAck(false); setError(null);
+    setStage('checking'); setPulling(`Pulling ${monthName(month)} from ${source.via}…`);
+    try {
+      const pull = await pullSlot(slot, month, {
+        force: true,
+        onWait: (sec) => setPulling(`Pulling ${monthName(month)} from ${source.via}… ${sec}s (long pulls keep running on the server)`),
+      });
+      const s = stagePull(slot, month, pull, source.source);
+      setStaged(s);
+      setPeriod(month);
+      setStage(s.checks.overall === 'fail' ? 'failed' : 'review');
+    } catch (e) {
+      setError(`Pull failed: ${e instanceof Error ? e.message : 'unknown error'} — upload the file instead.`);
+      setStage(before);
+    } finally {
+      setPulling(null);
+    }
+  };
 
   // Tally P&L Excel can carry several months; changing the period re-stages the
   // chosen month (ledgers, Nett Profit, reconciliation) without re-reading.
@@ -206,10 +245,16 @@ export function IngestStepper({
             {slot.kind === 'vision' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">screenshot → AI</span>}
             {slot.kind === 'invoice' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">PDF → AI</span>}
             {usesAI && <AiBadge />}
+            {source && <SlotSourceBadge info={source} />}
           </div>
+          {source && <p className="text-[11px] text-slate-500 mt-0.5 max-w-xl">{slotSourceLine(source)}</p>}
           {committed && (
             <p className="text-[11px] text-emerald-700 mt-0.5">
-              Ingested · {committedCount > 1 ? `${committedCount} months` : committed.periodKey}{committed.through ? ` · through ${committed.through}` : ''} · {committed.rowCount} rows · {committed.fileName}
+              Ingested · {committedCount > 1 ? `${committedCount} months` : committed.periodKey}{committed.through ? ` · through ${committed.through}` : ''} · {committed.rowCount} rows · {
+                pulledFrom(committed)
+                  ? `${pulledFrom(committed) === 'sheet' ? 'From' : 'Pulled from'} ${source?.via ?? 'the source'} on ${new Date(committed.savedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`
+                  : committed.fileName
+              }
             </p>
           )}
         </div>
@@ -260,6 +305,19 @@ export function IngestStepper({
           >
             {iconSteps} How to export{slot.exportUrl ? ' · link' : ''}
           </button>
+          {canPull && source && (
+            <button
+              onClick={() => void doPull()}
+              disabled={!source.connected || stage === 'checking' || stage === 'saving'}
+              title={source.connected ? `Pull ${monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())} from ${source.via}` : source.connectHint ?? 'Not connected'}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
+            >
+              Pull now · {monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())}
+            </button>
+          )}
+          {canPull && source && !source.connected && (
+            <span className="text-[11px] text-amber-700">{source.connectHint ?? 'Not connected'}</span>
+          )}
         </div>
 
         {/* Always-visible drop box — click to browse or drag files onto it. Stays
@@ -273,7 +331,7 @@ export function IngestStepper({
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
             </svg>
             <span className="text-sm font-medium text-slate-700">
-              {dragging ? 'Drop to upload' : stage === 'ingested' ? 'Replace or add another month' : uploadLabel}
+              {dragging ? 'Drop to upload' : stage === 'ingested' ? 'Replace or add another month' : canPull ? `Or upload the file (fallback) · ${uploadLabel}` : uploadLabel}
             </span>
             <span className="text-[11px] text-slate-500">Drag {multiple ? 'files' : 'a file'} here or click to browse · {slot.accept}</span>
             <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
@@ -302,7 +360,8 @@ export function IngestStepper({
 
         <ExportHelpModal slot={slot} open={howOpen} onClose={() => setHowOpen(false)} />
 
-        {stage === 'checking' && (
+        {stage === 'checking' && pulling && <p className="text-xs text-sky-700">{pulling}</p>}
+        {stage === 'checking' && !pulling && (
           usesAI
             ? <AiWorking label={slot.kind === 'vision' ? 'reading the screenshot' : 'reading the invoice'} />
             : <p className="text-xs text-slate-500">Running checks through the file…</p>

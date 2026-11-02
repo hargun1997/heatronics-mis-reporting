@@ -47,6 +47,12 @@ const SHARED: Record<string, Record<string, { secret?: string; fallback?: string
     email: { secret: 'shiprocket-email' },
     password: { secret: 'shiprocket-password' },
   },
+  // Optional — created by Hargun when the payout API is turned on; absent = "Not connected".
+  easebuzz: {
+    merchantKey: { secret: 'easebuzz-merchant-key' },
+    salt: { secret: 'easebuzz-salt' },
+    merchantEmail: { secret: 'easebuzz-merchant-email' },
+  },
 };
 
 /** Which connectors can be fed from shared secrets (for the console badge). */

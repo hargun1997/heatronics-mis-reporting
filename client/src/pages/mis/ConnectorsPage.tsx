@@ -32,6 +32,9 @@ import {
   type StoreStatus,
 } from '../../data/monthClose/connectorsClient';
 import { emptySession, type MonthCloseSession, type UploadedSource } from '../../data/monthClose/schema';
+import { ALL_SLOTS } from '../../data/ingest/catalog';
+import { listSlotSources, slotKey, slotSourceLine, type FeedTask, type SlotSourceInfo, type SlotSourceKind } from '../../data/ingest/slotSources';
+import { SlotSourceBadge } from '../../components/ingest/SlotSourceBadge';
 
 const CLOSE_SESSION_KEY = 'heatronics.monthClose.session';
 const DEFAULT_PERIOD = '2026-08'; // the next month to close after Jul 2026
@@ -91,6 +94,76 @@ function StatCount({ label, count, tone }: { label: string; count: number; tone:
         <span className={`w-2 h-2 rounded-full ${dot[tone]}`} />{label}
       </div>
       <div className="font-display text-[26px] font-extrabold tabular-nums mt-1.5">{count}</div>
+    </div>
+  );
+}
+
+const SOURCE_ORDER: SlotSourceKind[] = ['api', 'sheet', 'claude_task', 'upload'];
+const SOURCE_HEAD: Record<SlotSourceKind, string> = {
+  api: 'Pulled by the MIS connectors (API)',
+  sheet: 'Read from the Tranzact daily Google Sheet',
+  claude_task: 'Filled by a Claude scheduled task',
+  upload: 'Manual uploads — and why',
+};
+
+/**
+ * Every month-end close report, grouped by how it is fed: API pull, Tranzact
+ * sheet, Claude task, or manual upload (with the reason). Plus the scheduled
+ * jobs that feed data across the portals.
+ */
+function CloseSourcesPanel() {
+  const [slots, setSlots] = useState<SlotSourceInfo[]>([]);
+  const [tasks, setTasks] = useState<FeedTask[]>([]);
+  useEffect(() => {
+    listSlotSources().then((r) => { setSlots(r.slots); setTasks(r.tasks); }).catch(() => {});
+  }, []);
+  if (slots.length === 0) return null;
+  const label = new Map(ALL_SLOTS.map((s) => [slotKey(s.connectorId, s.slotId), s.label]));
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-slate-800">Month-end close: how each report is fed</h3>
+          <p className="text-[11px] text-slate-500">Automatic slots have “Pull now” on the <Link to="/reporting/mis/ingest" className="text-brand-600 hover:underline">close page</Link> and keep the upload as a fallback.</p>
+        </div>
+        {SOURCE_ORDER.filter((k) => slots.some((s) => s.source === k)).map((k) => (
+          <div key={k}>
+            <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-1.5">{SOURCE_HEAD[k]}</div>
+            <ul className="divide-y divide-slate-100">
+              {slots.filter((s) => s.source === k).map((s) => (
+                <li key={slotKey(s.connectorId, s.slotId)} className="py-1.5 flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3">
+                  <span className="sm:w-64 shrink-0 text-[12px] font-medium text-slate-700">{label.get(slotKey(s.connectorId, s.slotId)) ?? s.slotId} <span className="text-slate-400 font-normal">· {s.connectorId}</span></span>
+                  <span className="flex-1 text-[12px] text-slate-500">
+                    <SlotSourceBadge info={s} />{' '}
+                    {slotSourceLine(s)}
+                    {s.lastPull && <span className={s.lastPull.ok ? 'text-emerald-700' : 'text-rose-600'}> · last pull {s.lastPull.periodKey} {new Date(s.lastPull.at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}{s.lastPull.ok ? '' : ` failed: ${s.lastPull.error ?? ''}`}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-2xl border border-violet-200 bg-violet-50/40 p-4 space-y-3">
+        <div>
+          <h3 className="text-sm font-bold text-slate-800">Scheduled feeds</h3>
+          <p className="text-[11px] text-slate-500">Jobs that fill data without anyone downloading a file.</p>
+        </div>
+        <ul className="space-y-3">
+          {tasks.map((t) => (
+            <li key={t.name} className="text-[12px]">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-semibold text-slate-800">{t.name}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${t.kind === 'claude_task' ? 'bg-violet-50 text-violet-800 border-violet-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                  {t.kind === 'claude_task' ? 'Claude scheduled task' : 'Tranzact Recurring Report (not a Claude task)'}
+                </span>
+              </div>
+              <div className="text-slate-500">{t.when} — {t.what}</div>
+              <div className="text-slate-400">→ {t.feeds}</div>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -178,6 +251,8 @@ export function ConnectorsPage() {
             )}
           </div>
         </div>
+
+        <CloseSourcesPanel />
 
         {error && (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>
