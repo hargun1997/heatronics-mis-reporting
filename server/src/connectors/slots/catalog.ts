@@ -11,6 +11,7 @@ import { downloadReportDocument, spapiCreateReport, spapiGet } from '../sources/
 import { productionCosts } from '../sources/production.js';
 import { pollTally, readTallySnapshot, readTallyState } from '../tally/snapshots.js';
 import { pullAdvertisedProduct } from '../sources/amazonAds.js';
+import { opsAdsMonth, type OpsAdsMonth } from '../sources/opsAdsStore.js';
 import { payoutsForMonth } from '../sources/easebuzz.js';
 import { searchStream } from '../sources/googleAds.js';
 import { metaInsights } from '../sources/meta.js';
@@ -75,11 +76,38 @@ async function amazonFinances(ctx: PullContext): Promise<SlotPull> {
 
 // ---- Amazon Ads: advertised product ------------------------------------------
 
+/**
+ * Ops' stored copy first (it pulls the same reports daily; a fresh month-long report from Amazon can stay "pending" for
+ * hours). Complete = every table holds the month's last finished day. Otherwise Amazon directly; if Amazon is still
+ * preparing, Ops' partial copy with a warning (so "Pull & save all" doesn't save it).
+ */
 async function amazonAdsProduct(ctx: PullContext): Promise<SlotPull> {
-  const r = await pullAdvertisedProduct(ctx.creds, ctx.periodKey, ctx.deadline);
-  const out = amazonAdsProductFacts(r.spRows, r.channel, ctx.periodKey);
-  out.trace.unshift(`Amazon Ads reporting v3 (read only): ${r.reports} report(s) across ${r.profiles.join(', ')}`);
-  return out;
+  const { first, last } = monthDays(ctx.periodKey);
+  const e0 = rangeEnd(ctx.periodKey);
+  const end = e0 === last ? e0 : addDays(e0, -1); // running month: Ops holds through yesterday
+  let ops: OpsAdsMonth | null = null;
+  let opsWhy = '';
+  try { ops = await opsAdsMonth(first, end); } catch (e) { opsWhy = e instanceof Error ? e.message : String(e); }
+  const covered = (d: string | null) => d == null || d >= end;
+  const opsDone = ops && ops.spRows.length > 0 && ops.through.SP != null && ops.through.SP >= end && covered(ops.through.SB) && covered(ops.through.SD);
+  if (ops && opsDone) {
+    const out = amazonAdsProductFacts(ops.spRows, ops.channel, ctx.periodKey);
+    out.trace.unshift(`Amazon Ads from Ops' stored daily reports (BigQuery, read only): ${first} → ${end}, ${ops.profiles} profile(s), ${ops.spRows.length} SP product-day row(s)`);
+    return out;
+  }
+  try {
+    const r = await pullAdvertisedProduct(ctx.creds, ctx.periodKey, ctx.deadline);
+    const out = amazonAdsProductFacts(r.spRows, r.channel, ctx.periodKey);
+    out.trace.unshift(`Amazon Ads reporting v3 (read only): ${r.reports} report(s) across ${r.profiles.join(', ')}`);
+    if (!ops) out.trace.push(`Ops' stored copy not used: ${opsWhy || 'not available'}`);
+    return out;
+  } catch (e) {
+    if (!ops || !ops.spRows.length) throw e;
+    const out = amazonAdsProductFacts(ops.spRows, ops.channel, ctx.periodKey);
+    out.trace.unshift(`Amazon Ads from Ops' stored daily reports (BigQuery): ${first} → ${end}`);
+    out.warnings.push(`Partial: Ops has SP through ${ops.through.SP}, SB through ${ops.through.SB ?? '—'}, SD through ${ops.through.SD ?? '—'}; Amazon direct: ${e instanceof Error ? e.message : String(e)}`);
+    return out;
+  }
 }
 
 // ---- Meta: ad level × product ------------------------------------------------
@@ -266,7 +294,7 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
     pull: googleProducts },
   { connectorId: 'amazonads', slotId: 'ad-spend', source: 'api', via: 'Amazon Ads API',
     needs: ['clientId', 'clientSecret', 'refreshToken'], connectHint: 'Shared secrets adsapi-*.',
-    line: 'Pulled from Amazon Ads reporting v3 (spAdvertisedProduct + SB/SD totals). Amazon keeps ~94 days (SB/SD 59); older months stay an upload.',
+    line: "Read from Ops' stored Amazon Ads reports (same reporting v3 reports, pulled daily), else Amazon directly. Amazon keeps ~94 days (SB/SD 59); older months stay an upload.",
     pull: amazonAdsProduct },
 
   // Logistics

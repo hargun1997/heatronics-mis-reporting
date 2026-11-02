@@ -48,9 +48,13 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     report). Settlement reports (`GET_V2_SETTLEMENT_REPORT_DATA_FLAT_FILE_V2`) are NOT used (windows straddle months). Unverified
     against a live month: whether the IN report's "selling fees" include GST on fees exactly as the fee events do — reconcile the
     first pulled month with its upload.
-  - Amazon Ads · Advertised Product → reporting v3 `spAdvertisedProduct` (groupBy advertiser, DAILY) + `sbCampaigns` /
+  - Amazon Ads · Advertised Product → FIRST Ops' stored copy (`sources/opsAdsStore.ts`: BigQuery dataset `ops`, asia-south1,
+    `ads_sp_product` sku / asin / cost per day + `ads_sb_campaign` / `ads_sd_campaign` cost; one SELECT via jobs.query,
+    `assertSelectOnly`; Cloud Run identity, scope bigquery.readonly) when every table holds the month's last finished day
+    (running month: yesterday). Else reporting v3 `spAdvertisedProduct` (groupBy advertiser, DAILY) + `sbCampaigns` /
     `sdCampaigns` totals (SKU-less channel spend, as the upload) via `pullAdvertisedProduct()` in `sources/amazonAds.ts` (same
-    guard: GET or POST /reporting/reports). Months older than Amazon keeps (SP 94 d, SB/SD 59 d) are refused → upload.
+    guard: GET or POST /reporting/reports) — a fresh month-long report sat "pending" for hours on 2 Nov 2026; if Amazon is still
+    preparing, Ops' partial copy comes back with a warning. Months older than Amazon keeps (SP 94 d, SB/SD 59 d) are refused → upload.
   - Meta · campaign × ad set × product → Graph `GET /act_…/insights` `level=ad&breakdowns=product_id` + `level=account` total;
     residual = total − product rows (spread by revenue, as the upload). `metaInsights()` (GET insights only). The product_id value
     format ("<id>, <name>") is assumed equal to Ads Manager's export — unverified.
