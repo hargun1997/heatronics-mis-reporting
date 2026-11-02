@@ -28,7 +28,7 @@ function endpoint(creds: Credentials): string {
 }
 
 /** Tally wants dates as YYYYMMDD. */
-function tallyDates(periodKey: string): { from: string; to: string } {
+export function tallyDates(periodKey: string): { from: string; to: string } {
   const [y, m] = periodKey.split('-').map((n) => parseInt(n, 10));
   if (!y || !m) throw new Error(`Bad period "${periodKey}" — expected YYYY-MM.`);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -61,7 +61,7 @@ function trialBalanceEnvelope(creds: Credentials, periodKey: string): string {
 </ENVELOPE>`;
 }
 
-function companyListEnvelope(): string {
+export function companyListEnvelope(): string {
   return `<ENVELOPE>
   <HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER>
   <BODY><EXPORTDATA><REQUESTDESC>
@@ -71,15 +71,28 @@ function companyListEnvelope(): string {
 </ENVELOPE>`;
 }
 
-function escapeXml(s: string): string {
+export function escapeXml(s: string): string {
   return s.replace(/[<>&'"]/g, (c) =>
     ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[c] as string,
   );
 }
 
-async function post(creds: Credentials, xml: string): Promise<string> {
+/**
+ * READ ONLY: the MIS only ever asks Tally to EXPORT (reports, collections). An import / voucher /
+ * alter request would write into the books, so anything that isn't a plain Export Data envelope is refused.
+ */
+export function assertTallyReadOnly(xml: string): void {
+  const req = /<TALLYREQUEST>\s*([^<]*?)\s*<\/TALLYREQUEST>/i.exec(xml)?.[1] ?? '';
+  if (!/^export(\s+data)?$/i.test(req)) throw new Error(`Blocked: Tally request "${req || '?'}" is not a read-only export.`);
+  if (/<\s*(IMPORTDATA|TALLYMESSAGE|VOUCHER|ACTION\s*=)/i.test(xml) || /ACTION\s*=\s*"(Create|Alter|Delete)/i.test(xml)) {
+    throw new Error('Blocked: the Tally request carries data to import — the MIS only reads.');
+  }
+}
+
+export async function post(creds: Credentials, xml: string, timeoutMs = 30000): Promise<string> {
+  assertTallyReadOnly(xml);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(endpoint(creds), {
       method: 'POST',
@@ -93,8 +106,7 @@ async function post(creds: Credentials, xml: string): Promise<string> {
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error(
-        'Tally did not respond within 30s. Check it is running, the company is loaded, ' +
-          'and the host/port is reachable from this server (Tally Cloud must expose port 9000).',
+        `Tally did not respond within ${Math.round(timeoutMs / 1000)}s. Is Tally open on the cloud machine with the company loaded?`,
       );
     }
     throw err;
@@ -103,7 +115,7 @@ async function post(creds: Credentials, xml: string): Promise<string> {
   }
 }
 
-const decode = (s: string) =>
+export const decode = (s: string) =>
   s
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -113,7 +125,7 @@ const decode = (s: string) =>
     .trim();
 
 /** Rupees out of a Tally amount tag: credits parenthesised or suffixed. */
-function amount(raw: string | undefined): number {
+export function amount(raw: string | undefined): number {
   if (!raw) return 0;
   let s = decode(raw);
   let sign = 1;

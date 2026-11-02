@@ -14,6 +14,7 @@ import expenseBookingRoutes from './routes/expenseBooking.js';
 import sopVisualsRoutes from './routes/sopVisuals.js';
 import monthCloseRoutes from './routes/monthClose.js';
 import connectorRoutes from './routes/connectors.js';
+import tallyRoutes from './routes/tally.js';
 import ingestRoutes from './routes/ingest.js';
 import chatRoutes from './routes/chat.js';
 import usageRoutes from './routes/usage.js';
@@ -51,6 +52,7 @@ app.use(htxGate({
     '/api/work/reminders/run',      // hourly GitHub Actions cron (.github/workflows/task-reminders.yml)
     '/api/ownership/reminders/run', // reminder scheduler
     '/api/expenses',                // read by production.heatronics.in; checks EXPENSES_API_TOKEN when set
+    '/api/tally/poll',              // GitHub Actions every 30 min (.github/workflows/tally-poll.yml); status only, no figures
   ],
 }));
 app.use(cors());
@@ -67,6 +69,7 @@ app.use('/api/expense-booking', expenseBookingRoutes);
 app.use('/api/sop-visuals', sopVisualsRoutes);
 app.use('/api/month-close', monthCloseRoutes);
 app.use('/api/connectors', connectorRoutes);
+app.use('/api/tally', tallyRoutes);
 app.use('/api/ingest', ingestRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/usage', usageRoutes);

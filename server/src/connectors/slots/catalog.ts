@@ -9,6 +9,7 @@
 
 import { downloadReportDocument, spapiCreateReport, spapiGet } from '../sources/amazon.js';
 import { productionCosts } from '../sources/production.js';
+import { pollTally, readTallySnapshot, readTallyState } from '../tally/snapshots.js';
 import { pullAdvertisedProduct } from '../sources/amazonAds.js';
 import { payoutsForMonth } from '../sources/easebuzz.js';
 import { searchStream } from '../sources/googleAds.js';
@@ -188,12 +189,40 @@ async function amazonBusinessReport(ctx: PullContext): Promise<SlotPull> {
   }
 }
 
+// ---- Tally P&L (stored snapshot; Tally answers only while open on the cloud machine) -------------
+
+async function tallyPnl(ctx: PullContext): Promise<SlotPull> {
+  let snap = await readTallySnapshot(ctx.periodKey);
+  if (!snap) {
+    await pollTally(ctx.creds, { force: true });
+    snap = await readTallySnapshot(ctx.periodKey);
+  }
+  if (!snap) {
+    const st = await readTallyState();
+    const seen = st.lastOkAt ? new Date(st.lastOkAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'never';
+    throw new Error(`No Tally P&L stored for ${ctx.periodKey} yet: Tally isn't open on the cloud machine (last reached: ${seen}). Open Tally once, or upload the P&L Excel.`);
+  }
+  const age = new Date(snap.asOf).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const warnings = [...snap.warnings];
+  const end = Date.parse(`${ctx.periodKey}-01T00:00:00+05:30`);
+  const monthEnd = new Date(end); monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+  if (Date.parse(snap.asOf) < monthEnd.getTime() + 5 * 86_400_000) warnings.push(`Tally copy from ${age} — entries posted after that are not in it. Pull again after the books are final.`);
+  return {
+    tallyMonth: { period: snap.period, periodLabel: snap.periodLabel, ledgerRows: snap.ledgerRows, nettProfit: snap.nettProfit, asOf: snap.asOf },
+    rowCount: snap.ledgerRows.length,
+    trace: [`Tally P&L ${snap.periodLabel} as of ${age} (read only, stored copy)`, `${snap.ledgerRows.length} ledgers, Nett Profit ${snap.nettProfit == null ? 'not found' : `₹${Math.round(snap.nettProfit).toLocaleString('en-IN')}`}`],
+    warnings,
+  };
+}
+
 // ---- The catalog ----------------------------------------------------------------
 
 export const SLOT_SOURCES: SlotSourceDef[] = [
   // Book of record
-  { connectorId: 'tally', slotId: 'pnl', source: 'upload', via: 'Manual upload',
-    line: "Tally on cloud doesn't expose its XML port yet — ask Thakur Hardsoft to open port 9000 to us." },
+  { connectorId: 'tally', slotId: 'pnl', source: 'api', via: 'Tally (cloud, read only)',
+    needs: ['host'], connectHint: 'Not connected — add the Tally host + port on the Connectors page (Tally card).',
+    line: "Read from Tally on the cloud machine whenever it is open (checked every 30 min) and stored, so the close doesn't need Tally open. The Excel upload stays the fallback.",
+    pull: tallyPnl },
   { connectorId: 'tally', slotId: 'trial-balance', source: 'upload', via: 'Manual upload', line: 'Optional screenshot, read by Claude.' },
   { connectorId: 'tranzact', slotId: 'bom', source: 'api', via: 'Production portal',
     needs: [], credsFrom: 'production',

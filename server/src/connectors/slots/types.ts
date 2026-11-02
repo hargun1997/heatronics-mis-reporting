@@ -37,6 +37,8 @@ export interface SlotPull {
   facts?: DailyFact[];
   /** Finished-good unit costs (the BOM pricing slot). */
   bomCosts?: BomCostRow[];
+  /** Tally P&L slot: one month's ledger rows + Nett Profit (same as the P&L Excel reader). */
+  tallyMonth?: { period: string; periodLabel: string; ledgerRows: { name: string; depth: number; amount: number; confidence: number }[]; nettProfit: number | null; asOf: string };
   /** Header + data rows for the client parser (sheet slots). */
   rows?: unknown[][];
   /** Rows / items read from the source (for the checks line). */

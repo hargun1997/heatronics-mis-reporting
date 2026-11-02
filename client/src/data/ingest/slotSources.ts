@@ -13,7 +13,7 @@
 import * as XLSX from 'xlsx';
 import { UPLOAD_PARSERS } from '../liveMis/uploadParsers';
 import type { DailyFact } from '../liveMis/facts';
-import { commitReportMonths } from './ingestClient';
+import { commitReportMonths, stageTallyMonth } from './ingestClient';
 import type { BomCostRow, CheckItem, Extracted, IngestReportMeta, ReportSlot, StagedUpload } from './types';
 
 export type SlotSourceKind = 'api' | 'sheet' | 'claude_task' | 'upload';
@@ -61,6 +61,8 @@ export const slotKey = (connectorId: string, slotId: string) => `${connectorId}|
 /** What a finished pull hands back (server SlotPull). */
 interface PullResult {
   facts?: DailyFact[];
+  /** Tally P&L slot: one month's ledger rows + Nett Profit. */
+  tallyMonth?: { period: string; periodLabel: string; ledgerRows: { name: string; depth: number; amount: number; confidence: number }[]; nettProfit: number | null; asOf: string };
   /** BOM pricing slot: finished-good unit costs (same rows the BOM upload reader keeps). */
   bomCosts?: BomCostRow[];
   rows?: unknown[][];
@@ -147,6 +149,20 @@ export function stagePull(
     } else {
       facts = [];
     }
+  }
+
+  if (result.tallyMonth) {
+    const tm = result.tallyMonth;
+    const fileName = `api-pull-${slot.connectorId}-${slot.slotId}-${periodKey}.json`;
+    const snapshot = JSON.stringify({ via: pull.via, periodKey, pulledAt: pull.pulledAt, trace: result.trace, warnings: result.warnings, tallyMonth: tm }, null, 1);
+    const staged = stageTallyMonth(
+      { fileName, mimeType: 'application/json', rawFiles: [{ base64: toBase64Utf8(snapshot), name: fileName, mimeType: 'application/json' }] },
+      { period: tm.period, periodLabel: tm.periodLabel, ledgerRows: tm.ledgerRows, nettProfit: tm.nettProfit },
+    );
+    for (const w of result.warnings) staged.checks.items.push({ id: `w-${staged.checks.items.length}`, label: 'Source note', status: 'warn', detail: w });
+    if (result.warnings.length && staged.checks.overall === 'pass') staged.checks.overall = 'warn';
+    staged.extracted.trace = [...(staged.extracted.trace ?? []), ...result.trace];
+    return staged;
   }
 
   if (result.bomCosts) {
