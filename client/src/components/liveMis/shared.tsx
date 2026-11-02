@@ -8,7 +8,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
-import { readFold, writeFold, useDensity } from '../../hooks/useDensity';
+import { readFold, writeFold } from '../../hooks/useDensity';
 import { CHANNEL_COLORS, pctSigned } from '../mis-deck/charts';
 import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
 import { blendRatesNote, channelName } from '../../data/misDeck/liveViews';
@@ -49,21 +49,22 @@ export const VERTICAL_COLORS: Record<string, string> = {
 
 /**
  * A titled, foldable block. Remembers open/closed per browser; in the global
- * compact density, secondary sections (`secondary`) start folded.
+ * compact density sections used to start folded; now every section starts open (legacy parity).
  */
 export function Fold({
-  id, title, meta, actions, secondary = false, children,
+  id, title, meta, actions, children,
 }: {
   id: string;
   title: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
+  /** Kept for callers; every section now starts open. */
   secondary?: boolean;
   children: ReactNode;
 }) {
-  const [density] = useDensity();
   const key = `livemis:${id}`;
-  const [open, setOpen] = useState(() => readFold(key, !(secondary && density === 'compact')));
+  // Every section starts open (as the legacy deck showed everything); a fold the viewer chose is remembered.
+  const [open, setOpen] = useState(() => readFold(key, true));
   const flip = () => { setOpen(!open); writeFold(key, !open); };
   return (
     <section className="rounded-xl border border-slate-200 bg-white">

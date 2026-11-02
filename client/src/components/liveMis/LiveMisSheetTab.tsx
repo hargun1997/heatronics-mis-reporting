@@ -6,7 +6,9 @@
 // ----------------------------------------------------------------------------
 
 import { useMemo, useRef, useState } from 'react';
-import { MIS_SHEET_ROWS, type MisEntity } from '../../data/misDeck/misSheet';
+import { useStatements } from './useStatements';
+import { misCashRows } from '../../data/statements/statements';
+import { MIS_SHEET_ROWS, type MisEntity, type MisPoint } from '../../data/misDeck/misSheet';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import { liveFiscalYears } from '../../data/misDeck/liveViews';
 import { downloadMisFormat, parseMisFormat, type ImportedMis } from '../../utils/misFormatExport';
@@ -31,11 +33,21 @@ export function LiveMisSheetTab({ deck }: { deck: LiveDeckData }) {
   const [imported, setImported] = useState<ImportedMis | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const stmts = useStatements();
   if (!fys.length) return <p className="text-sm text-slate-400 py-6 text-center">No months yet.</p>;
   const fy = fys[Math.min(fyIdx ?? defaultFy, fys.length - 1)];
+  // Cash rows (opening / closing cash, equity raised, burn, runway) from Tally's month-end balance sheets (company only).
+  const flows = stmts.built?.flows ?? [];
+  const withCash = (keys: string[], point: MisPoint): MisPoint => {
+    if (entity !== 'company') return point;
+    const rows = keys.map((k) => misCashRows(flows, k));
+    if (rows.some((r) => !r)) return point;
+    const rs = rows as NonNullable<(typeof rows)[number]>[];
+    return { ...point, openingCash: rs[0].openingCash, closingCash: rs[rs.length - 1].closingCash, funding: rs.reduce((a, r) => a + r.funding, 0), cashBurn: rs.reduce((a, r) => a + r.cashBurn, 0), runway: rs[rs.length - 1].runway };
+  };
   const columns = [
-    ...fy.months.map((m) => ({ label: m.label, point: src.point([m.key], entity) })),
-    { label: `${fy.name} Total`, point: src.point(fy.months.map((m) => m.key), entity) },
+    ...fy.months.map((m) => ({ label: m.label, point: withCash([m.key], src.point([m.key], entity)) })),
+    { label: `${fy.name} Total`, point: withCash(fy.months.map((m) => m.key), src.point(fy.months.map((m) => m.key), entity)) },
   ];
   const entities: { id: MisEntity; label: string }[] = [{ id: 'company', label: 'Company (All)' }, ...src.channels.map((c) => ({ id: c, label: chName(c) }))];
 

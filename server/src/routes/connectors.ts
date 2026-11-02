@@ -5,6 +5,7 @@
 // report only whether a connector is configured, never the stored values.
 // ----------------------------------------------------------------------------
 
+import { cachedFacts } from '../connectors/factsCache.js';
 import { Router, type Request, type Response } from 'express';
 import { CONNECTORS, getConnector } from '../connectors/registry.js';
 import {
@@ -199,6 +200,7 @@ router.post('/facts', h(async (req, res) => {
     return res.status(400).json({ error: 'from and to must be YYYY-MM-DD with from <= to.' });
   }
 
+  const force = req.body?.force === true;
   // Every source pulls in parallel: the slow ones (Amazon Ads reports, Flipkart
   // paging) cap their own wait, so the whole call stays well inside Cloud Run's
   // request timeout instead of adding up source by source.
@@ -209,7 +211,8 @@ router.post('/facts', h(async (req, res) => {
         return { source: { id: c.id, label: c.label, ok: false, count: 0, error: 'not connected' }, facts: [], warnings: [] };
       }
       try {
-        const result = await c.fetchFacts!(creds, from, to);
+        // Through the per-month cache (connectors/factsCache.ts): stale months come back at once and refresh behind.
+        const result = await cachedFacts(c.id, from, to, (f, t) => c.fetchFacts!(creds, f, t), { force });
         // Coverage: the span of dates this source actually returned, so the UI
         // can show how current each connector is ("data through …").
         const dates = result.facts.map((f) => f.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
@@ -222,6 +225,8 @@ router.post('/facts', h(async (req, res) => {
             from: dates[0] ?? null,
             through: dates[dates.length - 1] ?? null,
             trace: result.trace ?? [],
+            cachedAt: result.cachedAt,
+            refreshing: result.refreshing,
           },
           facts: result.facts,
           warnings: result.warnings,

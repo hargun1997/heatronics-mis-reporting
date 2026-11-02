@@ -530,7 +530,10 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     ebitda: 0, netIncome: 0, cogm,
     channelFulfillment, salesMarketing, platformCosts, opex: 0, nonOperating: 0,
     marketingByPlatform: buildMarketingByPlatform(salesMarketing),
-    costOfFundraising: 0, cogmLines: {}, opexLines: {},
+    costOfFundraising: 0,
+    // COGM drill for a month without Tally yet: the two parts it is built from.
+    cogmLines: cogmReal ? { 'SKU COGS (BOM × units)': r2(sku.totalCogs ?? 0), [`Factory overheads (${Math.round(FACTORY_PCT * 100)}% of net revenue)`]: r2(FACTORY_PCT * netRevenue) } : {},
+    opexLines: {},
   };
   return {
     month, skuCells,
@@ -786,7 +789,7 @@ function nextMonthKey(pk: string): string {
 }
 
 /** Live connector facts over a window covering the uploaded months (Shopify D2C today). */
-async function fetchLiveFacts(reports: ExtractedReport[]): Promise<DailyFact[]> {
+async function fetchLiveFacts(reports: ExtractedReport[], force = false): Promise<DailyFact[]> {
   const today = new Date().toISOString().slice(0, 10);
   let from = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
   const months = reports.map((r) => r.periodKey).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
@@ -794,7 +797,7 @@ async function fetchLiveFacts(reports: ExtractedReport[]): Promise<DailyFact[]> 
     const earliest = `${months[0]}-01`;
     if (earliest < from) from = earliest;
   }
-  const res = await fetchFacts(from, today);
+  const res = await fetchFacts(from, today, force);
   return Array.isArray(res.facts) ? res.facts : [];
 }
 
@@ -803,15 +806,30 @@ function currentIstMonth(): string {
   return new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 7);
 }
 
-export async function loadLiveDeck(opts: BuildLiveDeckOptions = {}): Promise<LiveDeckData> {
+// One load per browser tab, shared by every page that needs the deck (Live MIS, the floating chat, AI insights,
+// Send report, Data issues): reused for 2 minutes, or until a page asks for a fresh one (Refresh = force).
+let deckPromise: { at: number; key: string; p: Promise<LiveDeckData> } | null = null;
+const DECK_REUSE_MS = 120_000;
+
+export async function loadLiveDeck(opts: BuildLiveDeckOptions & { force?: boolean } = {}): Promise<LiveDeckData> {
+  const { force, ...build } = opts;
+  const key = JSON.stringify(build);
+  if (!force && deckPromise && deckPromise.key === key && Date.now() - deckPromise.at < DECK_REUSE_MS) return deckPromise.p;
+  const p = loadLiveDeckNow(build, !!force);
+  deckPromise = { at: Date.now(), key, p };
+  p.catch(() => { if (deckPromise?.p === p) deckPromise = null; });
+  return p;
+}
+
+async function loadLiveDeckNow(opts: BuildLiveDeckOptions, force: boolean): Promise<LiveDeckData> {
   // A full-year Tally P&L upload also carries the months still to come (only the
   // opening/closing stock carry-forward, or a post-dated voucher). Those are not
   // months the business has had, so they never enter the deck — otherwise Live
   // MIS, Send report and AI insights open on a future month showing ₹0.
   const thisMonth = currentIstMonth();
   const reports = (await fetchExtractedReports()).filter((r) => !/^\d{4}-\d{2}$/.test(r.periodKey) || r.periodKey <= thisMonth);
-  // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck;
-  // never fail the whole load if the live pull is unavailable.
-  const liveFacts = await fetchLiveFacts(reports).catch(() => [] as DailyFact[]);
+  // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck; served from the server's
+  // per-month facts cache (stale months refresh in the background). Never fail the whole load on it.
+  const liveFacts = await fetchLiveFacts(reports, force).catch(() => [] as DailyFact[]);
   return buildLiveDeck(reports, liveFacts, opts);
 }

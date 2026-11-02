@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { PageHeader, SectionCard, KpiTile, SegmentedControl } from '../../components/ui';
 import { inr } from '../../components/mis-deck/charts';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
+import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
 import {
   clearUpload, loadUploads, parseUpload, saveUpload, uploadedFacts,
   UPLOAD_PARSERS, type UploadStore,
@@ -41,13 +42,15 @@ const iconLive = (
   </svg>
 );
 
-type Tab = 'overview' | 'growth' | 'mix' | 'profit' | 'pnl' | 'channels' | 'sku' | 'skuchannel' | 'units' | 'repeats' | 'missheet' | 'runrate';
+type Tab = 'overview' | 'growth' | 'mix' | 'profit' | 'pnl' | 'bs' | 'cashflow' | 'channels' | 'sku' | 'skuchannel' | 'units' | 'repeats' | 'missheet' | 'runrate';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'growth', label: 'Revenue & Growth' },
   { id: 'mix', label: 'Channel Mix' },
   { id: 'profit', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
+  { id: 'bs', label: 'Balance Sheet' },
+  { id: 'cashflow', label: 'Cash Flow' },
   { id: 'channels', label: 'Channel P&L' },
   { id: 'sku', label: 'SKU' },
   { id: 'skuchannel', label: 'SKU × Channel' },
@@ -57,7 +60,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'runrate', label: 'Run-rate' },
 ];
 // Tabs that don't use the period controls (they carry their own scope).
-const NO_PERIOD: Tab[] = ['runrate', 'repeats', 'missheet'];
+const NO_PERIOD: Tab[] = ['runrate', 'repeats', 'missheet', 'bs', 'cashflow'];
 // Tabs that show the Actual|Blended toggle + note; all others always use actual COGM.
 const BLEND_TABS: Tab[] = ['overview', 'profit', 'pnl'];
 
@@ -117,9 +120,9 @@ export function LiveMisPage() {
   const blended = blendPref === 'blended';
   const merged = chanPref === 'continuous';
 
-  const loadDeck = useCallback(async () => {
+  const loadDeck = useCallback(async (force = false) => {
     setDeckLoading(true); setDeckError(null);
-    try { setDeck(await loadLiveDeck()); }
+    try { setDeck(await loadLiveDeck({ force })); }
     catch (e) { setDeckError(e instanceof Error ? e.message : 'Could not load the MIS.'); }
     finally { setDeckLoading(false); }
   }, []);
@@ -209,6 +212,9 @@ export function LiveMisPage() {
             <Link to="/reporting/mis/rulebook" className="px-2.5 py-1 rounded-lg text-slate-600 text-[11px] hover:bg-white/70 underline-offset-2 hover:underline">
               How it’s calculated
             </Link>
+            <Link to="/reporting/mis/ingest" className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50">
+              Close the month
+            </Link>
             <button onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading}
               className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
               Export Excel
@@ -217,7 +223,7 @@ export function LiveMisPage() {
               className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
               Export PDF
             </button>
-            <button onClick={() => void loadDeck()} disabled={deckLoading}
+            <button onClick={() => void loadDeck(true)} disabled={deckLoading} title="Re-pull every live source now (otherwise they refresh by themselves every 15 min)"
               className="px-2.5 py-1 rounded-lg bg-cta text-on-cta text-[11px] hover:bg-cta-hover disabled:opacity-40">
               {deckLoading ? 'Loading…' : 'Refresh'}
             </button>
@@ -311,6 +317,10 @@ export function LiveMisPage() {
           <RunRateTab />
         ) : tab === 'repeats' ? (
           <RepeatsTab />
+        ) : tab === 'bs' ? (
+          <BalanceSheetTab />
+        ) : tab === 'cashflow' ? (
+          <CashFlowTab />
         ) : !view ? (
           <p className="text-sm text-slate-400 py-8 text-center">{deckLoading ? 'Loading the MIS…' : 'No data yet.'}</p>
         ) : tab === 'missheet' ? (

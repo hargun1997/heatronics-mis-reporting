@@ -15,7 +15,7 @@
 
 import { Router, type Request, type Response } from 'express';
 import { getEffectiveCredentials } from '../connectors/credentialStore.js';
-import { pollTally, readTallyState } from '../connectors/tally/snapshots.js';
+import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../connectors/tally/snapshots.js';
 import { latestMonths, pullBooks, readBooks, readBooksState, readMasters, readVouchers } from '../connectors/tally/bookStore.js';
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport } from '../connectors/tally/books.js';
 import { claudeChat, isClaudeConfigured } from '../services/claudeClient.js';
@@ -42,6 +42,28 @@ router.get('/status', h(async (_req, res) => {
 
 router.post('/pull', h(async (_req, res) => {
   res.json(await pollTally(await creds(), { force: true, skipBooks: true }));
+}));
+
+// ---------------------------------------------------------------- statements (Live Balance Sheet / Cash Flow)
+// The stored month-end Trial Balances + the month's P&L copy (closing stock, depreciation, Nett Profit); the client
+// builds the statements (client/src/data/statements/statements.ts).
+router.get('/statements', h(async (_req, res) => {
+  const s = await readTallyState();
+  const periods = [...new Set([...Object.keys(s.tbMonths ?? {}), ...Object.keys(s.months)])].sort().slice(-24);
+  const months = await Promise.all(periods.map(async (period) => {
+    const [tb, pnl] = await Promise.all([readTallyTb(period), readTallySnapshot(period)]);
+    const rows = pnl?.ledgerRows ?? [];
+    const stock = rows.find((r) => /^closing stock$/i.test(r.name));
+    return {
+      period,
+      asOf: tb?.asOf ?? pnl?.asOf ?? null,
+      tb: tb ? { rows: tb.rows, difference: tb.difference } : null,
+      closingStock: stock ? Math.abs(stock.amount) : null,
+      depreciation: rows.filter((r) => /depreciat/i.test(r.name)).reduce((a, r) => a + Math.abs(r.amount), 0),
+      nettProfit: pnl?.nettProfit ?? null,
+    };
+  }));
+  res.json({ months, lastOkAt: s.lastOkAt, connected: Boolean(((await creds()).host || '').trim()) });
 }));
 
 // ---------------------------------------------------------------- books

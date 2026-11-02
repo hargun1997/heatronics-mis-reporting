@@ -32,16 +32,18 @@ test('home is Live MIS; sub-routes and old addresses find their page', () => {
   assert.equal(whereIs('/reporting/mis/chat')?.page.id, 'insights');
   assert.equal(whereIs('/tasks')?.page.id, 'tasks');
   assert.equal(whereIs('/tasks/settings')?.page.id, 'people');
-  assert.equal(whereIs('/tools')?.page.id, 'tools');
+  assert.equal(whereIs('/tools')?.page.id, 'toolshub');
   assert.equal(whereIs('/tools/round-planner')?.page.id, 'rounds');
   assert.equal(whereIs('/tools/invoice-booking')?.page.id, 'booking');
-  assert.equal(whereIs('/tools/amazon-to-tranzact')?.page.id, 'tools');
+  assert.equal(whereIs('/tools/amazon-to-tranzact')?.page.id, 'tranzact');
+  assert.equal(whereIs('/reporting/mis/send')?.page.id, 'send');
   assert.equal(whereIs('/handbook/c4')?.page.id, 'handbook');
   assert.equal(whereIs('/nowhere'), null);
 });
 
 test('breadcrumbs: Section › Page', () => {
-  assert.deepEqual(breadcrumbsFor('/reporting/mis/send'), [{ label: 'Reporting', href: '/reporting/mis/live' }, { label: 'Send report', href: undefined }]);
+  assert.deepEqual(breadcrumbsFor('/reporting/mis/insights'), [{ label: 'Reporting', href: '/reporting/mis/live' }, { label: 'AI insights', href: undefined }]);
+  assert.deepEqual(breadcrumbsFor('/booking-assistant'), [{ label: 'Tools', href: '/tools' }, { label: 'Book an invoice', href: undefined }]);
   assert.deepEqual(breadcrumbsFor('/planning'), [{ label: 'Planning', href: undefined }, { label: '5-year plan', href: undefined }]);
 });
 
@@ -55,8 +57,9 @@ test('"More" pages (tasks, old pages …) stay out of the sidebar but are in the
   assert.equal(searchPalette(idx, 'plan')[0]?.id, 'plan');
 });
 
-test('sidebar stays small: ≤ 4 sections, ≤ 12 pages in all', () => {
+test('sidebar stays small: ≤ 5 sections, ≤ 13 pages in all; every tool sits under Tools', () => {
   const s = sidebarSections();
-  assert.ok(s.length <= 4);
-  assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 12);
+  assert.ok(s.length <= 5);
+  assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 13);
+  assert.deepEqual(s.find((x) => x.id === 'tools')?.pages.map((p) => p.id), ['send', 'booking', 'floors', 'tranzact']);
 });

@@ -291,7 +291,22 @@ export async function saveReport(input: CommitInput): Promise<IngestReportMeta> 
   }
   await r.backend.putText(`${prefix}extracted.json`, JSON.stringify(input.extracted));
   await r.backend.putText(`${prefix}meta.json`, JSON.stringify(meta));
+  await bumpIngestVersion();
   return meta;
+}
+
+// ---- Extracted-report cache -------------------------------------------------
+// readAllExtracted reads every ingest/*/extracted.json (75 objects ≈ 2.5 s on GCS, 2 Nov 2026) on every Live MIS
+// load. Each save / delete writes a new version marker; an instance keeps the last read and re-reads only when the
+// marker changed (one small GET) — so every instance sees a commit at once.
+const VERSION_KEY = 'meta/ingest-version.txt';
+let extractedCache: { version: string; reports: ExtractedReport[] } | null = null;
+let extractedLoad: Promise<ExtractedReport[]> | null = null;
+
+async function bumpIngestVersion(): Promise<void> {
+  const r = await resolveStore();
+  await r.backend.putText(VERSION_KEY, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  extractedCache = null;
 }
 
 /** Every committed report's metadata, across all connectors and periods. */
@@ -362,6 +377,18 @@ export async function listExtractedFacts(): Promise<unknown[]> {
  */
 export async function readAllExtracted(): Promise<ExtractedReport[]> {
   const r = await resolveStore();
+  const version = (await r.backend.getText(VERSION_KEY)) || 'none';
+  if (extractedCache && extractedCache.version === version) return extractedCache.reports;
+  if (!extractedLoad) {
+    extractedLoad = readAllExtractedNow()
+      .then((reports) => { extractedCache = { version, reports }; return reports; })
+      .finally(() => { extractedLoad = null; });
+  }
+  return extractedLoad;
+}
+
+async function readAllExtractedNow(): Promise<ExtractedReport[]> {
+  const r = await resolveStore();
   const keys = (await r.backend.list('ingest/')).filter((k) => k.endsWith('/extracted.json'));
   const reports = await Promise.all(
     keys.map(async (k) => {
@@ -385,6 +412,7 @@ export async function readAllExtracted(): Promise<ExtractedReport[]> {
 export async function deleteReport(connectorId: string, slotId: string, periodKey: string): Promise<void> {
   const r = await resolveStore();
   await r.backend.deletePrefix(prefixFor(connectorId, slotId, periodKey));
+  await bumpIngestVersion();
 }
 
 export interface IngestStoreStatus {
