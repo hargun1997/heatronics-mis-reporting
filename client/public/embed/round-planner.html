@@ -233,7 +233,8 @@ const C={
      {id:'px',label:'Price she pays per share',min:10,max:30000,step:10,v:10,unit:'₹'}],
  s2:[{id:'pre1',label:'Pre-money valuation',min:10,max:150,step:0.5,v:50,unit:'₹ Cr'},
      {id:'R1',label:'Total equity raise',min:1,max:20,step:0.25,v:8,unit:'₹ Cr'},
-     {id:'cap',label:"Aneesha's primary",min:0,max:3,step:0.05,v:1,unit:'₹ Cr'}],
+     {id:'cap',label:"Aneesha's primary",min:0,max:3,step:0.05,v:1,unit:'₹ Cr'},
+     {id:'dcap',label:'Cap round dilution at',min:0,max:50,step:0.5,v:0,unit:'%'}],
  s2e:[{id:'esopPost',label:'ESOP pool after the round',min:0,max:30,step:0.5,v:5,unit:'%'}],
  s2f:[{id:'fsec',label:'Founder secondary',min:0,max:5,step:0.1,v:0,unit:'₹ Cr'}],
  s2s:[{id:'sec',label:'Angel/VC secondary',min:0,max:5,step:0.1,v:1,unit:'₹ Cr'}],
@@ -295,7 +296,21 @@ const V=id=>{const x=parseFloat(document.getElementById('n_'+id).value);return i
 const fP=x=>(x*100).toFixed(1)+'%', fS=x=>Math.round(x).toLocaleString('en-IN'), ru=n=>'₹'+Math.round(n).toLocaleString('en-IN');
 const fR=n=>{const a=Math.abs(n),g=n<0?'−':'';if(a>=CR*0.9995)return g+'₹'+(a/CR).toFixed(2)+' Cr';if(a>=1e5)return g+'₹'+(a/1e5).toFixed(1)+' L';return g+'₹'+Math.round(a).toLocaleString('en-IN')};
 
+// Dilution cap: if set, the equity raise is cut (largest raise that keeps round dilution at or under
+// the cap). The lead's cheque takes the cut; Aneesha and co-investors stay as entered.
 function model(ov){
+  ov=ov||{};const cap=('dcap' in ov?ov.dcap:V('dcap')), ask=('R1' in ov?ov.R1:V('R1'));
+  if(!(cap>0)){const M=modelRaw(ov);M.capInfo=null;return M}
+  const at=r=>modelRaw({...ov,R1:r});
+  let M=at(ask);
+  if(M.dil1<=cap/100+1e-9){M.capInfo={ask,cap,cut:false};return M}
+  let lo=0,hi=ask;for(let k=0;k<40;k++){const mid=(lo+hi)/2;if(at(mid).dil1<=cap/100+1e-9)lo=mid;else hi=mid}
+  const r=Math.floor(lo*100)/100;M=at(r);
+  // pre-money that would fit the full ask under the cap
+  let plo=('pre1' in ov?ov.pre1:V('pre1')),phi=500;for(let k=0;k<40;k++){const mid=(plo+phi)/2;if(modelRaw({...ov,R1:ask,pre1:mid}).dil1<=cap/100+1e-9)phi=mid;else plo=mid}
+  M.capInfo={ask,cap,cut:true,r,needPre:Math.ceil(phi*2)/2};return M;
+}
+function modelRaw(ov){
   const I={};ALL.forEach(c=>I[c.id]=ov&&c.id in ov?ov[c.id]:V(c.id));
   // 2 · Hyperscale Round pricing, with an optional ESOP top-up (X new options) created before the round,
   // so the pool hits its target after the round. The top-up sits in the pre-money, so it lowers the price.
@@ -399,7 +414,7 @@ function render(){
     ?`${fS(BASE.ESOP)} → ${fS(M.Eag)} options before she joins; dilutes every holder.`
     :`As agreed: ${fS(M.Eag)} options. 0 = no resize.`;
   const dP=Math.ceil(M.p1*(1-CN_DISC)-1e-9);
-  document.getElementById('priceNote').textContent=`Round price ${ru(M.p1)}/sh · ${fS(M.Tp)} pre-money shares.`;
+  document.getElementById('priceNote').textContent=(M.capInfo&&M.capInfo.cut?`Dilution cap ${M.capInfo.cap}%: raise cut ₹${M.capInfo.ask} Cr → ${fR(M.R1)} (lead takes the cut); the full ₹${M.capInfo.ask} Cr needs ₹${M.capInfo.needPre} Cr+ pre. `:M.capInfo?`Dilution cap ${M.capInfo.cap}%: the full ₹${M.capInfo.ask} Cr fits (${fP(M.dil1)}). `:'')+`Round price ${ru(M.p1)}/sh · ${fS(M.Tp)} pre-money shares.`;
   document.getElementById('cnRows').innerHTML=[
     ['Notes outstanding','₹75L · 3 angels (₹25L each)'],
     ['Cap valuation',`₹18.00 Cr → ${ru(CNP)}/sh`],
@@ -413,6 +428,7 @@ function render(){
   const FMIN=70, f1=(st.hs.H+st.hs.J+st.hs.A)/tot(st.hs), ok=f1>=FMIN/100-1e-9;
   document.getElementById('checks').innerHTML=
    `<span class="pill ${ok?'ok':'bad'}">Founders after Hyperscale Round: ${fP(f1)} ${ok?'✓ meets':'— below'} ${FMIN}%</span>`+
+   (M.capInfo&&M.capInfo.cut?`<span class="pill bad">Dilution capped at ${M.capInfo.cap}% → raise ${fR(M.R1)} instead of ₹${M.capInfo.ask} Cr</span>`:'')+
    (M.over?`<span class="pill bad">Aneesha's primary + other investors exceed the equity raise — lead gets nothing</span>`:'')+
    (M.secCut?`<span class="pill bad">Angel/VC secondary is more than they hold — capped</span>`:'')+
    (M.fsCut?`<span class="pill bad">Founder secondary capped by Jagjit's floor and Hargun's holding</span>`:'')+
@@ -489,7 +505,7 @@ function renderCmp(M){
   const grp=t=>`<tr class="grp"><td colspan="${vals.length+1}">${t}</td></tr>`;
   document.getElementById('cmp').innerHTML=`<colgroup><col class="c0">${vals.map(()=>'<col>').join('')}</colgroup><thead><tr><th></th>${vals.map(v=>`<th${cc(v)}>₹${v} Cr pre</th>`).join('')}</tr></thead><tbody>`+
    grp('Hyperscale Round')+
-   row('Equity raise',m=>fR(m.R1))+
+   row(M.capInfo?`Equity raise (dilution ≤ ${M.capInfo.cap}%)`:'Equity raise',m=>m.capInfo&&m.capInfo.cut?{c:'bad',t:`${fR(m.R1)} (of ₹${m.capInfo.ask} Cr)`}:fR(m.R1),M.capInfo?'hl':'')+
    row('Post-money',m=>fR(m.pre1+m.eqIn))+
    row('Price per share',m=>ru(m.p1))+
    row('Round dilution',m=>fP(m.dil1),'hl')+
@@ -517,7 +533,7 @@ function renderSummaries(M){
   const d0=(k,f)=>{const a=f(st.today)/tot(st.today), b=f(h)/T1, dp=(b-a)*100;return Math.abs(dp)<0.05?'no change':`${dp>0?'+':'−'}${Math.abs(dp).toFixed(1)} pts`};
   const tiles=[['Hargun',o=>o.H,1],['Aneesha',o=>o.A,1],['Jagjit',o=>o.J],['Founders total',o=>o.H+o.J+o.A],['ESOP pool',o=>o.E],['New investors',o=>o.inv.reduce((s,x)=>s+x,0)]];
   const dil1=M.dil1, dil2=M.N2/M.post2;
-  const rt=[['Pre-money',fR(M.pre1),`${fS(M.Tp)} sh`,1],['Raise',fR(M.R1),`at ${ru(M.p1)}/sh`],['Post-money',fR(M.pre1+M.eqIn),`${fS(M.post1)} sh`],
+  const rt=[['Pre-money',fR(M.pre1),`${fS(M.Tp)} sh`,1],['Raise',fR(M.R1),M.capInfo&&M.capInfo.cut?`capped · ask ₹${M.capInfo.ask} Cr`:`at ${ru(M.p1)}/sh`],['Post-money',fR(M.pre1+M.eqIn),`${fS(M.post1)} sh`],
     ['Round dilution',fP(dil1),`${fS(M.newAll)} new sh`,1],['Angels convert at',M.cnDisc?`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr`:'₹18.00 Cr',`${M.cnDisc?'30% off':'cap'} · ${fS(M.cnSh)} sh`],['Series A dilution',fP(dil2),`₹${M.I.R2} Cr at ₹${M.I.pre2} Cr`]];
   document.getElementById('kpis').innerHTML=`<div class="krow">Hyperscale Round</div>`+rt.map(([l,v,sub,key])=>`<div class="kpi rd${key?' key':''}"><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${sub}</div></div>`).join('')+
     `<div class="krow">After the round · change since today</div>`+tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${d0(l,f)}</div></div>`).join('')+
@@ -525,7 +541,7 @@ function renderSummaries(M){
   set('sv1',`pool ${fP(M.ePost)} after round · Aneesha ${MODE==='post'?M.I.stkPost+'% after round':M.I.stk+'% at joining'} · Jagjit floor ${M.I.jkeep}% · ₹${M.I.px}/sh${M.useMsop?' · MSOP on':''}`);
   set('sv2',`${fR(M.R1)} at ${fR(M.pre1)} pre · angel notes → ${fS(M.cnSh)} sh at ${ru(M.cnp)} (${M.cnDisc?'30% off':'cap'}) · secondary ${fR((M.I.fsec+M.I.sec)*CR)} · debt ${fR(M.debt)}`);
   set('sv3',`2026 revenue ₹${M.I.rev} Cr · Series A ${fR(M.R2)} at ${fR(M.pre2)} pre`);
-  set('bv_eq',`${fR(M.R1)} · ${ru(M.p1)}/sh`);
+  set('bv_eq',`${fR(M.R1)}${M.capInfo&&M.capInfo.cut?' (capped)':''} · ${ru(M.p1)}/sh`);
   set('bv_cn',`at ${M.cnDisc?'₹'+(M.pre1*(1-CN_DISC)/CR).toFixed(2)+' Cr':'₹18 Cr cap'} · ${fS(M.cnSh)} sh`);
   set('bv_es',M.poolCut?`${fS(BASE.ESOP)} → ${fS(M.Eag)}`:'as agreed');
   set('bv_sf',M.I.fsec?fR(M.I.fsec*CR):'none');
