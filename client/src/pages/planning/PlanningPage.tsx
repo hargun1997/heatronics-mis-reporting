@@ -6,7 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionCard } from '../../components/ui/Card';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { runPlan, type Plan, type PlanResult } from '../../data/planning/engine';
-import { basePlan, BASE_SOURCE_URL } from '../../data/planning/basePlan';
+import { basePlan, upgradePlan, BASE_SOURCE_URL } from '../../data/planning/basePlan';
 import { LeverPanel } from '../../components/planning/LeverPanel';
 import { FyTable } from '../../components/planning/FyTable';
 import { RevenueBars, CashCurve, MiniStat } from '../../components/planning/charts';
@@ -14,12 +14,13 @@ import { RevenueTab } from '../../components/planning/RevenueTab';
 import { CostsTab } from '../../components/planning/CostsTab';
 import { PnlGrid } from '../../components/planning/PnlGrid';
 import { CashTab } from '../../components/planning/CashTab';
+import { CustomersTab } from '../../components/planning/CustomersTab';
 import { NumInput } from '../../components/planning/inputs';
 import { money, pct } from '../../components/planning/fmt';
 import { downloadPlanWorkbook } from '../../utils/planningExport';
 
 interface Saved { id: string; name: string; note: string; updatedAt: string; updatedBy: string | null }
-type Tab = 'overview' | 'revenue' | 'costs' | 'monthly' | 'cash';
+type Tab = 'overview' | 'customers' | 'revenue' | 'costs' | 'monthly' | 'cash';
 
 const DRAFT_KEY = 'planning-draft-v1';
 const icon = (
@@ -45,7 +46,7 @@ function loadDraft(): Draft | null {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw) as Draft;
-    return d?.plan?.version === 1 && typeof d.clean === 'string' ? d : null;
+    return d?.plan?.version === 1 && typeof d.clean === 'string' ? { ...d, plan: upgradePlan(d.plan), clean: JSON.stringify(upgradePlan(JSON.parse(d.clean) as Plan)) } : null;
   } catch { return null; }
 }
 function saveDraft(d: Draft) {
@@ -87,7 +88,8 @@ export function PlanningPage() {
     }
     try {
       const s = await api<{ plan: Plan }>(`/api/planning/scenarios/${id}`);
-      setPlan(s.plan); setSelected(id); setCleanJson(JSON.stringify(s.plan));
+      const pl = upgradePlan(s.plan);
+      setPlan(pl); setSelected(id); setCleanJson(JSON.stringify(pl));
     } catch (e) { flash((e as Error).message, true); }
   };
 
@@ -95,7 +97,7 @@ export function PlanningPage() {
     setCompareId(id);
     if (id === 'none') { setComparePlan(null); return; }
     if (id === 'base') { setComparePlan(basePlan()); return; }
-    try { setComparePlan((await api<{ plan: Plan }>(`/api/planning/scenarios/${id}`)).plan); }
+    try { setComparePlan(upgradePlan((await api<{ plan: Plan }>(`/api/planning/scenarios/${id}`)).plan)); }
     catch (e) { flash((e as Error).message, true); }
   };
 
@@ -173,7 +175,7 @@ export function PlanningPage() {
 
         <div className="-mx-1 overflow-x-auto px-1 [&_button]:whitespace-nowrap">
         <SegmentedControl<Tab>
-          options={[{ id: 'overview', label: '5-year view' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }]}
+          options={[{ id: 'overview', label: '5-year view' }, { id: 'customers', label: 'Products & customers' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }]}
           value={tab} onChange={setTab} aria-label="Planner view"
         />
         </div>
@@ -221,6 +223,7 @@ export function PlanningPage() {
             </div>
           </div>
         )}
+        {tab === 'customers' && <CustomersTab plan={plan} r={result} update={update} />}
         {tab === 'revenue' && <RevenueTab plan={plan} r={result} update={update} />}
         {tab === 'costs' && <CostsTab plan={plan} r={result} update={update} />}
         {tab === 'monthly' && <PnlGrid r={result} />}

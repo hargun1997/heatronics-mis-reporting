@@ -46,6 +46,11 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
   add('Revenue (incl. Apr–Sep ’26 actuals entered)', ys.map((y) => y.revenueWithActuals), false, true);
   for (const ch of CHANNELS) add(`  ${CHANNEL_NAMES[ch]}`, ys.map((y) => y.revenueByChannel[ch]));
   add('Growth YoY', ys.map((y, i) => (i && (ys[i - 1].months === 12 || ys[i - 1].revenueWithActuals > ys[i - 1].revenue) ? y.revenueWithActuals / ys[i - 1].revenueWithActuals - 1 : NaN)), true);
+  if (plan.d2c?.mode === 'cohorts') {
+    sum.push(['D2C new buyers', ...ys.map((y) => Math.round(y.d2cNewCustomers))]);
+    sum.push(['D2C repeat orders', ...ys.map((y) => Math.round(y.d2cRepeatOrders))]);
+    add('D2C repeat share of revenue', ys.map((y) => y.d2cRepeatRevenue / ((y.d2cNewRevenue + y.d2cRepeatRevenue) || 1)), true);
+  }
   add('Gross margin %', ys.map((y) => y.grossProfit / y.revenue), true);
   add('CM3 %', ys.map((y) => y.cm3 / y.revenue), true);
   add('EBITDA', ys.map((y) => y.ebitdaWithActuals), false, true);
@@ -112,7 +117,14 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
   for (const ch of CHANNELS) a.push([`18-month plan volume × — ${CHANNEL_NAMES[ch]}`, L.baseVolume[ch]]);
   a.push(['Price change / year (from FY29)', L.aspGrowthPct], ['Raw material % change / year', L.cogsDeltaPerYear], ['ROAS gain / year', L.roasGainPct],
     ['Inflation on fixed costs / year', L.inflationPct], ['Team growth / year', L.teamGrowthPct], ['Brand & creative % of revenue (0 = fixed lines)', L.brandPctOfRevenue],
-    ['Tax method', L.taxMode === 'fy' ? 'By FY, losses carried forward' : 'As the sheet (each profitable month)']);
+    ['Tax method', L.taxMode === 'fy' ? 'By FY, losses carried forward' : 'As the sheet (each profitable month)'],
+    ['Seasonality after the base', L.seasonShape === 'history' ? 'Learned curves per product' : "The sheet's last-year month shape"]);
+  if (plan.d2c) {
+    const d = plan.d2c;
+    a.push(['D2C model', d.mode === 'cohorts' ? 'Customers: new buyers × AOV + repeats' : 'Units (as sheet)'], ['D2C learned from', `${d.source}, as of ${d.asOf}`],
+      ['Same-month 2nd order', d.sameMonth], ['Next-month reorder', d.nextMonth], ['Months 2–11 repeat / month', d.monthly], ['Year 2+ repeat / month', d.yearly],
+      ['Yearly fade', d.yearlyFade], ['Repeat boost', d.repeatBoost], ['AOV new buyers ₹', Math.round(d.aovNew)], ['AOV repeat ₹', Math.round(d.aovRepeat)]);
+  }
   for (const p of plan.products.filter((x) => x.on)) a.push([`New product: ${p.name}`, `₹${p.asp}, launch ${ms[p.launchMonth - 1]?.label}, ${p.launchUnits}/mo, ramp ${Math.round(p.rampPct * 100)}% MoM, then ${Math.round(p.steadyPct * 100)}% YoY`]);
   for (const e of plan.events) a.push([`${e.kind === 'equity' ? 'Equity' : e.kind === 'debtDrawn' ? 'Debt drawn' : 'Debt repaid'} ${ms[e.month - 1]?.label}`, `₹${r2(e.amount / CRORE)} Cr ${e.note}`]);
   XLSX.utils.book_append_sheet(wb, sheet(a, { widths: [50, 60] }), 'Assumptions');

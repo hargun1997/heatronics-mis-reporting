@@ -127,3 +127,12 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 - After the base: units = same month a year earlier × (1 + channel growth for that FY); lines with `repeat` run as in the same
   calendar month of the base's last 12 months; fixed amounts get inflation (+ team growth for people groups).
 - Saved scenarios: `/api/planning/scenarios` (objectStore `planning-index` + `planning-scenario-<id>`), shared by everyone.
+- D2C customer model (`plan.d2c`, default mode `cohorts`): D2C revenue = new buyers × AOV + repeat orders by cohort
+  (same-month, next-month, months 2–11, year 2+ with fade, × seasonality × boost). In base months new buyers are back-solved
+  from the sheet's D2C revenue (so parity holds); after the base they grow with the D2C growth lever. After the base, D2C ROAS
+  lines pay for new-buyer revenue only (scaled by the same-month base year's new share). Rates are learned in
+  `data/planning/history.ts` (seed = Shopify analytics pulled 2 Nov 2026; AOV at order time, before returns).
+- `POST /api/planning/history/refresh` pages every Shopify order (READ ONLY, fields id/created_at/cancelled_at/test/total_price/
+  customer) → `planning-d2c-history` (monthly new vs repeat + cohorts; NO customer ids stored; orders > ₹2 lakh skipped).
+- Seasonality per SKU (`plan.skuSeason`) is learned from the sheet's "Units : Last Year" rows; lever `seasonShape: 'history'`
+  makes FY29+ = last FY total × growth spread by those curves. Old saved scenarios are upgraded by `upgradePlan()`.

@@ -3,7 +3,8 @@
 // Levers for the first 18 months are neutral, so Base reproduces the sheet exactly.
 
 import raw from './base-plan.json';
-import { defaultRepeat, type Channel, type ExpenseLine, type Levers, type NewProduct, type Plan } from './engine';
+import { calOf, defaultRepeat, toIndex, type Channel, type ExpenseLine, type Levers, type NewProduct, type Plan } from './engine';
+import { SEED_AS_OF, SEED_HISTORY, SEED_SOURCE, d2cModelFrom, fitD2C } from './history';
 
 const even = (a: number, d: number, f = 0, g = 0, p = 0): Record<Channel, number> => ({ A: a, D: d, F: f, G: g, P: p });
 
@@ -23,6 +24,7 @@ export const DEFAULT_LEVERS: Levers = {
   teamGrowthPct: 0.15,
   brandPctOfRevenue: 0,
   taxMode: 'sheet',
+  seasonShape: 'plan',
   fy27H1Revenue: 0,
   fy27H1Ebitda: 0,
 };
@@ -31,15 +33,38 @@ export const DEFAULT_LEVERS: Levers = {
 export const DEFAULT_PRODUCTS: NewProduct[] = [
   {
     id: 'p-cream', name: 'Pain relief cream', on: false, asp: 450, launchMonth: 5, // Feb-27
-    launchUnits: 0, rampPct: 0.15, steadyPct: 0.5, split: even(0.4, 0.5, 0.1), cogsPct: 0.3,
+    launchUnits: 0, rampPct: 0.15, steadyPct: 0.5, split: even(0.4, 0.5, 0.1), cogsPct: 0.3, seasonRef: 'flat',
   },
   {
     id: 'p-rollon', name: 'Pain relief roll-on', on: false, asp: 300, launchMonth: 7, // Apr-27
-    launchUnits: 0, rampPct: 0.15, steadyPct: 0.5, split: even(0.4, 0.5, 0.1), cogsPct: 0.3,
+    launchUnits: 0, rampPct: 0.15, steadyPct: 0.5, split: even(0.4, 0.5, 0.1), cogsPct: 0.3, seasonRef: 'flat',
   },
 ];
 
-type RawPlan = Omit<Plan, 'name' | 'products' | 'levers' | 'version'> & { version: number };
+type RawPlan = Omit<Plan, 'name' | 'products' | 'levers' | 'version' | 'skuSeason' | 'd2c'> & { version: number };
+
+/**
+ * Seasonality per SKU from the sheet's "Units : Last Year" rows — the actual units of Oct-25 → Sep-26,
+ * all channels. SKUs with too little history (new launches) borrow the whole range's curve.
+ */
+export function learnSkuSeason(r: Pick<Plan, 'units' | 'skus' | 'startMonth'>): Record<string, number[]> {
+  const n = Math.min(12, r.units.length);
+  const all = Array(12).fill(0);
+  const per: number[][] = r.skus.map(() => Array(12).fill(0));
+  for (let m = 1; m <= n; m++) {
+    const c = calOf(r.startMonth, m);
+    r.skus.forEach((_, s) => {
+      const ly = r.units[m - 1][s].reduce((a, cell) => a + cell[0], 0);
+      per[s][c] += ly; all[c] += ly;
+    });
+  }
+  const out: Record<string, number[]> = {};
+  r.skus.forEach((sku, s) => {
+    const tot = per[s].reduce((a, x) => a + x, 0);
+    out[sku.id] = tot >= 200 ? toIndex(per[s]) : toIndex(all);
+  });
+  return out;
+}
 
 export function basePlan(): Plan {
   const r = structuredClone(raw) as unknown as RawPlan;
@@ -51,6 +76,20 @@ export function basePlan(): Plan {
     lines,
     products: structuredClone(DEFAULT_PRODUCTS),
     levers: structuredClone(DEFAULT_LEVERS),
+    skuSeason: learnSkuSeason(r),
+    d2c: d2cModelFrom(SEED_HISTORY, fitD2C(SEED_HISTORY), SEED_SOURCE, SEED_AS_OF),
+  };
+}
+
+/** Fill fields newer than a saved plan (customer model, seasonality) from Base, so old scenarios still open. */
+export function upgradePlan(p: Plan): Plan {
+  const b = basePlan();
+  return {
+    ...p,
+    skuSeason: p.skuSeason ?? b.skuSeason,
+    d2c: p.d2c ?? { ...b.d2c, mode: 'units' }, // older scenarios were built on units; keep their numbers
+    levers: { ...b.levers, ...p.levers },
+    products: p.products.map((x) => ({ seasonRef: 'flat', ...x })),
   };
 }
 

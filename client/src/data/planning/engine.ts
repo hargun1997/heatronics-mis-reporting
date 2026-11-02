@@ -73,6 +73,47 @@ export interface NewProduct {
   split: Record<Channel, number>;
   /** this product's own raw-material cost as % of its revenue (else the plan's COGS % lines apply) */
   cogsPct: number | null;
+  /** seasonality to apply: 'flat', or a SKU id whose curve it borrows */
+  seasonRef?: string;
+}
+
+/** One month of D2C order history (aggregates only — no customer data). */
+export interface D2CHistoryMonth {
+  month: string; // YYYY-MM
+  newCustomers: number;
+  repeatOrders: number;
+  newSales: number;
+  repeatSales: number;
+}
+
+/**
+ * D2C as customers: new buyers × AOV, plus repeat orders from everyone who bought before.
+ * Repeat orders in a month = season(month) × boost × (
+ *     sameMonth × new buyers this month
+ *   + nextMonth × new buyers last month
+ *   + monthly   × new buyers 2–11 months ago
+ *   + yearly × fade^(years−1) × new buyers 12+ months ago )
+ * The rates are learned from Shopify order history (see history.ts) and can be overridden.
+ */
+export interface D2CModel {
+  mode: 'units' | 'cohorts';
+  /** Jan..Dec index, mean 1 */
+  season: number[];
+  sameMonth: number;
+  nextMonth: number;
+  monthly: number;
+  yearly: number;
+  yearlyFade: number;
+  /** scale every repeat rate (loyalty, hCoins, reminders): 1 = as learned */
+  repeatBoost: number;
+  /** realised order value (after returns / RTO), ₹ incl. GST */
+  aovNew: number;
+  aovRepeat: number;
+  history: D2CHistoryMonth[];
+  source: string;
+  asOf: string;
+  /** how the rates were set: 'learned' from history, or 'edited' */
+  fit: { r2: number | null; note: string };
 }
 
 export interface Levers {
@@ -99,6 +140,8 @@ export interface Levers {
   /** Apr–Sep '26 actuals (₹), so FY27 shows the whole year. */
   fy27H1Revenue: number;
   fy27H1Ebitda: number;
+  /** After the base: 'plan' = repeat the sheet's last-year month shape; 'history' = last FY's total × growth spread by each SKU's seasonality. */
+  seasonShape?: 'plan' | 'history';
 }
 
 export interface Plan {
@@ -116,6 +159,9 @@ export interface Plan {
   events: CashEvent[];
   products: NewProduct[];
   levers: Levers;
+  /** Jan..Dec seasonality index per SKU id (mean 1), learned from last year's actual units */
+  skuSeason: Record<string, number[]>;
+  d2c: D2CModel;
 }
 
 // ---- calendar helpers ------------------------------------------------------------
@@ -124,6 +170,18 @@ export function monthLabel(startMonth: string, m: number): string {
   const [y, mo] = startMonth.split('-').map(Number);
   const d = new Date(Date.UTC(y, mo - 1 + (m - 1), 1));
   return d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }) + '-' + String(d.getUTCFullYear()).slice(2);
+}
+
+/** Calendar month of m, 0 = Jan. */
+export function calOf(startMonth: string, m: number): number {
+  const [, mo] = startMonth.split('-').map(Number);
+  return (mo - 1 + (m - 1)) % 12;
+}
+
+/** Normalise 12 numbers to mean 1 (flat if they are all zero). */
+export function toIndex(v: number[]): number[] {
+  const mean = v.reduce((a, x) => a + x, 0) / 12;
+  return mean > 0 ? v.map((x) => x / mean) : Array(12).fill(1);
 }
 
 /** Indian FY of month m, e.g. "FY27" for Apr-26 … Mar-27. */
@@ -145,6 +203,11 @@ export interface MonthResult {
   revenueByChannel: Record<Channel, number>;
   revenueBySku: Record<string, number>;
   grossRevenue: number;
+  /** D2C customer view (cohort mode; zeros in units mode) */
+  d2cNewCustomers: number;
+  d2cRepeatOrders: number;
+  d2cNewRevenue: number;
+  d2cRepeatRevenue: number;
   /** expense per group name (positive = cost) */
   groups: Record<string, number>;
   /** expense per line id */
@@ -189,6 +252,10 @@ export interface YearResult {
   units: number;
   revenue: number;
   revenueByChannel: Record<Channel, number>;
+  d2cNewCustomers: number;
+  d2cRepeatOrders: number;
+  d2cNewRevenue: number;
+  d2cRepeatRevenue: number;
   grossProfit: number;
   cm3: number;
   ebitda: number;
@@ -260,6 +327,19 @@ export function runPlan(plan: Plan): PlanResult {
   // ---- 1. units & revenue --------------------------------------------------------
   // u[m][sku][ch] total units (base levered, then extended)
   const u: number[][][] = [];
+  const fyMonths = new Map<string, number[]>(); // FY → its month indices (1-based)
+  for (let m = 1; m <= H; m++) {
+    const fy = fyOf(plan.startMonth, m);
+    if (!fyMonths.has(fy)) fyMonths.set(fy, []);
+    fyMonths.get(fy)!.push(m);
+  }
+  const prevFyTotal = (fy: string, s: number, c: number): number => {
+    const prev = 'FY' + String(Number(fy.slice(2)) - 1).padStart(2, '0');
+    const ms = fyMonths.get(prev) ?? [];
+    if (!ms.length) return 0;
+    const sum = ms.reduce((a, mm) => a + u[mm - 1][s][c], 0);
+    return (sum * 12) / ms.length; // a part year is annualised
+  };
   for (let m = 1; m <= H; m++) {
     const row: number[][] = [];
     for (let s = 0; s < nSku; s++) {
@@ -270,8 +350,16 @@ export function runPlan(plan: Plan): PlanResult {
           const cell = plan.units[m - 1][s][c];
           per.push((cell[0] + cell[1] + cell[2]) * (L.baseVolume[ch] ?? 1));
         } else {
-          const g = L.growth[fyOf(plan.startMonth, m)]?.[ch] ?? 0;
-          per.push(u[m - 13][s][c] * (1 + g));
+          const fy = fyOf(plan.startMonth, m);
+          const g = L.growth[fy]?.[ch] ?? 0;
+          if (L.seasonShape === 'history') {
+            // last FY's total for this SKU × channel, grown, spread by the SKU's seasonality
+            const prev = prevFyTotal(fy, s, c);
+            const idx = plan.skuSeason?.[plan.skus[s].id]?.[calOf(plan.startMonth, m)] ?? 1;
+            per.push((prev / 12) * (1 + g) * idx);
+          } else {
+            per.push(u[m - 13][s][c] * (1 + g));
+          }
         }
       }
       row.push(per);
@@ -283,9 +371,32 @@ export function runPlan(plan: Plan): PlanResult {
   const productUnits = (p: NewProduct, m: number): number => {
     if (!p.on || m < p.launchMonth) return 0;
     const k = m - p.launchMonth; // 0 at launch
-    if (k < 12) return p.launchUnits * Math.pow(1 + p.rampPct, k);
+    const season = p.seasonRef && p.seasonRef !== 'flat' ? plan.skuSeason?.[p.seasonRef]?.[calOf(plan.startMonth, m)] ?? 1 : 1;
+    if (k < 12) return p.launchUnits * Math.pow(1 + p.rampPct, k) * season;
     const peak = p.launchUnits * Math.pow(1 + p.rampPct, 11);
-    return peak * Math.pow(1 + p.steadyPct, (k - 11) / 12);
+    return peak * Math.pow(1 + p.steadyPct, (k - 11) / 12) * season;
+  };
+
+  // ---- D2C as customers --------------------------------------------------------------
+  const D = plan.d2c;
+  const cohorts = D?.mode === 'cohorts';
+  const [sy, sm] = plan.startMonth.split('-').map(Number);
+  const histNew = new Map<number, number>(); // month offset (≤ 0) → new customers before the plan
+  for (const h of D?.history ?? []) {
+    const [y, mo] = h.month.split('-').map(Number);
+    const off = (y * 12 + mo) - (sy * 12 + sm) + 1; // 1 = startMonth
+    if (off <= 0) histNew.set(off, h.newCustomers);
+  }
+  const histMin = Math.min(0, ...histNew.keys());
+  const newC: number[] = []; // newC[m] for m ≥ 1
+  const newAt = (i: number) => (i >= 1 ? newC[i] ?? 0 : histNew.get(i) ?? 0);
+  const newShare: number[] = []; // newShare[m] = new-customer share of D2C revenue (base months)
+  /** repeat orders in month m from buyers of earlier months (excludes same-month repeats) */
+  const repeatFromEarlier = (m: number): number => {
+    let r = D.nextMonth * newAt(m - 1);
+    for (let k = 2; k <= 11; k++) r += D.monthly * newAt(m - k);
+    for (let k = 12; m - k >= histMin; k++) r += D.yearly * Math.pow(D.yearlyFade, Math.floor(k / 12) - 1) * newAt(m - k);
+    return r;
   };
 
   const months: MonthResult[] = [];
@@ -319,6 +430,42 @@ export function runPlan(plan: Plan): PlanResult {
       }
       unitsBySku[sku.id] = su; revenueBySku[sku.id] = sr; units += su;
     }
+    // D2C: rebuild the channel from customers, keeping the month's SKU mix
+    let d2cNewCustomers = 0, d2cRepeatOrders = 0, d2cNewRevenue = 0, d2cRepeatRevenue = 0;
+    if (cohorts) {
+      const planD = revenueByChannel.D;
+      const S = (D.season[calOf(plan.startMonth, m)] ?? 1) * D.repeatBoost;
+      const aovN = D.aovNew * aspF, aovR = D.aovRepeat * aspF;
+      const earlier = S * repeatFromEarlier(m);
+      if (m <= B) {
+        // back-solve the new buyers the sheet's D2C revenue needs, given repeats already coming
+        newC[m] = Math.max(0, (planD - earlier * aovR) / (aovN + D.sameMonth * S * aovR));
+      } else {
+        const g = L.growth[fyOf(plan.startMonth, m)]?.D ?? 0;
+        newC[m] = newC[m - 12] * (1 + g);
+      }
+      d2cNewCustomers = newC[m];
+      d2cRepeatOrders = earlier + D.sameMonth * S * newC[m];
+      d2cNewRevenue = d2cNewCustomers * aovN;
+      d2cRepeatRevenue = d2cRepeatOrders * aovR;
+      const total = d2cNewRevenue + d2cRepeatRevenue;
+      newShare[m] = total > 0 ? d2cNewRevenue / total : 1;
+      const f = planD > 0 ? total / planD : 0;
+      if (planD > 0 && Math.abs(f - 1) > 1e-12) {
+        const ci = CHANNELS.indexOf('D');
+        for (let s = 0; s < nSku; s++) {
+          const sku = plan.skus[s];
+          const q = u[m - 1][s][ci];
+          unitsBySku[sku.id] += q * (f - 1);
+          revenueBySku[sku.id] += q * sku.asp * aspF * (f - 1);
+          units += q * (f - 1);
+        }
+      } else if (planD <= 0 && total > 0) {
+        revenueBySku['d2c-repeat'] = total; // repeat buyers in a month the plan sells nothing on D2C
+      }
+      revenueByChannel.D = total;
+    }
+
     let ownCogs = 0;
     let ownCogsRevenue = 0;
     for (const p of plan.products) {
@@ -353,7 +500,15 @@ export function runPlan(plan: Plan): PlanResult {
         else if (l.type === 'Annual') v = (k - l.start) % 12 === 0 ? l.amount * fixedF : 0;
         else if (l.type in ROAS_BASE) {
           const roas = l.amount * (m > B ? Math.pow(1 + L.roasGainPct, n) : 1);
-          v = roas > 0 ? revenueByChannel[ROAS_BASE[l.type]] / roas : 0;
+          let base = revenueByChannel[ROAS_BASE[l.type]];
+          if (cohorts && ROAS_BASE[l.type] === 'D' && m > B) {
+            // the sheet's ROAS is blended (new + repeat); after the base, ads pay for new buyers only,
+            // at the same-month base year's new-buyer share
+            const ks = m - 12 * Math.ceil((m - B) / 12);
+            const share = newShare[ks] ?? 1;
+            base = share > 0 ? d2cNewRevenue / share : base;
+          }
+          v = roas > 0 ? base / roas : 0;
         } else if (l.type in PCT_BASE) {
           const b = PCT_BASE[l.type];
           let base = b === 'ALL' ? grossRevenue : revenueByChannel[b];
@@ -381,7 +536,7 @@ export function runPlan(plan: Plan): PlanResult {
     const capex = plan.groups.filter((x) => x.section === 'capex').reduce((a, x) => a + g(x.name), 0);
     pre.push({
       m, label: monthLabel(plan.startMonth, m), fy: fyOf(plan.startMonth, m), units, unitsBySku,
-      revenueByChannel, revenueBySku, grossRevenue, groups, lines, revenueDeductions, netRevenue, cogs,
+      revenueByChannel, revenueBySku, grossRevenue, d2cNewCustomers, d2cRepeatOrders, d2cNewRevenue, d2cRepeatRevenue, groups, lines, revenueDeductions, netRevenue, cogs,
       grossProfit, opex, da: g('Depreciation & Amortisation'), banking: g('Banking Charges'),
       fundraiseCosts: g('Fundraise Costs'), capex,
     });
@@ -471,9 +626,11 @@ export function runPlan(plan: Plan): PlanResult {
   for (const mr of months) {
     let y = years.find((x) => x.fy === mr.fy);
     if (!y) {
-      y = { fy: mr.fy, months: 0, units: 0, revenue: 0, revenueByChannel: zeroCh(), grossProfit: 0, cm3: 0, ebitda: 0, pat: 0, capex: 0, netCashFlow: 0, closingCash: 0, endDebt: 0, revenueWithActuals: 0, ebitdaWithActuals: 0 };
+      y = { fy: mr.fy, months: 0, units: 0, revenue: 0, revenueByChannel: zeroCh(), d2cNewCustomers: 0, d2cRepeatOrders: 0, d2cNewRevenue: 0, d2cRepeatRevenue: 0, grossProfit: 0, cm3: 0, ebitda: 0, pat: 0, capex: 0, netCashFlow: 0, closingCash: 0, endDebt: 0, revenueWithActuals: 0, ebitdaWithActuals: 0 };
       years.push(y);
     }
+    y.d2cNewCustomers += mr.d2cNewCustomers; y.d2cRepeatOrders += mr.d2cRepeatOrders;
+    y.d2cNewRevenue += mr.d2cNewRevenue; y.d2cRepeatRevenue += mr.d2cRepeatRevenue;
     y.months++; y.units += mr.units; y.revenue += mr.netRevenue; y.grossProfit += mr.grossProfit;
     y.cm3 += mr.cm3; y.ebitda += mr.ebitda; y.pat += mr.pat; y.capex += mr.capex; y.netCashFlow += mr.netCashFlow;
     y.closingCash = mr.closingCash; y.endDebt = mr.debt;
