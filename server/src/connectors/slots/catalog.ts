@@ -13,12 +13,12 @@ import { payoutsForMonth } from '../sources/easebuzz.js';
 import { searchStream } from '../sources/googleAds.js';
 import { metaInsights } from '../sources/meta.js';
 import { readSheet, TRANZACT_SHEETS } from '../sources/sheets.js';
-import { statementLines } from '../sources/shiprocket.js';
+import { computedCharges } from '../sources/shiprocket.js';
 import { computedFreight } from '../sources/delhivery.js';
 import { amazonAdsProductFacts, googleCampaignFacts, googleProductFacts, metaProductFacts, type GadsRow, type MetaProductRow } from './map/ads.js';
 import { financesToFacts, type FinWindow } from './map/amazonFinances.js';
 import { addDays, monthDays, rangeEnd } from './map/common.js';
-import { easebuzzPayoutFacts, shiprocketStatementFacts, tranzactSheetForMonth } from './map/feeds.js';
+import { easebuzzPayoutFacts, tranzactSheetForMonth } from './map/feeds.js';
 import type { FeedTask, PullContext, SlotPull, SlotSourceDef } from './types.js';
 
 // ---- Amazon SP-API Finances (0.5 rps, burst 30 — Amazon's published usage plan) --------
@@ -117,12 +117,7 @@ async function googleProducts(ctx: PullContext): Promise<SlotPull> {
 // ---- Shiprocket, Easebuzz, Tranzact -----------------------------------------
 
 async function shiprocketPassbook(ctx: PullContext): Promise<SlotPull> {
-  const { first } = monthDays(ctx.periodKey);
-  const end = rangeEnd(ctx.periodKey);
-  const { rows, pages } = await statementLines(ctx.creds, first, end, ctx.deadline);
-  const out = shiprocketStatementFacts(rows, ctx.periodKey);
-  out.trace.unshift(`Shiprocket wallet statement API (read only), ${first} → ${end}, ${pages} page(s)`);
-  return out;
+  return computedCharges(ctx.creds, ctx.periodKey, ctx.deadline);
 }
 
 async function easebuzzSettlements(ctx: PullContext): Promise<SlotPull> {
@@ -193,9 +188,9 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
     pull: amazonAdsProduct },
 
   // Logistics
-  { connectorId: 'shiprocket', slotId: 'passbook', source: 'api', via: 'Shiprocket API',
+  { connectorId: 'shiprocket', slotId: 'passbook', source: 'api', via: 'Shiprocket API (computed)',
     needs: ['email', 'password'], connectHint: 'Shared secrets shiprocket-email + shiprocket-password.',
-    line: 'Pulled from the Shiprocket wallet statement (passbook) API for the month.',
+    line: 'Computed from shipment charges (freight + COD + RTO), not the wallet statement — compare with the passbook once. Dated on the AWB assign day (RTO on the RTO day).',
     pull: shiprocketPassbook },
   { connectorId: 'delhivery', slotId: 'wallet', source: 'api', via: 'Delhivery API (computed)',
     needs: ['apiToken', 'feedToken'],

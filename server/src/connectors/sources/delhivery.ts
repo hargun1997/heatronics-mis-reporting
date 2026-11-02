@@ -16,6 +16,13 @@
 //      (header Authorization: Token …; params as used by several public client
 //      libraries — Delhivery's own docs need a Delhivery One login: unverified).
 //
+// Pacing (Nov 2026: the calculator answered 429 "Request was throttled. Expected
+// available in 6 seconds."): per-pull pacers, tracking 2/s and the calculator
+// 1 call per 2 s, each doubling its gap after a 429; a 429 waits Retry-After or
+// the "available in N seconds" of the body and retries ≤ 4 times. One call per
+// distinct lane × weight × status × mode. When the job budget runs out the AWBs
+// left are booked at the same-direction average of the priced ones (warning).
+//
 // Credentials (shared secrets, sharedSecrets.ts): delhivery-api-token (Delhivery
 // One API token, same as the Warranty Manager's DELHIVERY_API_TOKEN) and
 // warranty-feed-token (= FEED_TOKEN in warranty-manager-env). Missing = "Not
@@ -60,33 +67,108 @@ export function assertDelhiveryReadOnly(method: string, url: string, feed = DEFA
   throw new Error(`Blocked: GET ${u.origin}${u.pathname} is not Delhivery tracking, the charge calculator or the warranty feed.`);
 }
 
-function pacer(rate: number) {
-  let next = 0;
-  return async (deadline: number) => {
-    const now = Date.now();
-    const at = Math.max(now, next);
-    if (at > deadline) throw new Error('Delhivery pricing ran out of time — Pull again (nothing was saved).');
-    next = at + 1000 / rate;
-    if (at > now) await new Promise((r) => setTimeout(r, at - now));
-  };
+/** The pull budget ran out before this call could be made (or finish). */
+export class BudgetOut extends Error {
+  constructor(what: string) { super(`${what}: pull budget ran out`); this.name = 'BudgetOut'; }
 }
-// Delhivery publishes no limit we can see; stay gentle (2 req/s shared by tracking + charges).
-const pace = pacer(2);
 
-async function getJson(url: string, headers: Record<string, string>, feed: string, label: string, tries = 3): Promise<unknown> {
-  assertDelhiveryReadOnly('GET', url, feed);
-  for (let i = 0; ; i++) {
-    const res = await fetch(url, { headers: { Accept: 'application/json', ...headers }, signal: AbortSignal.timeout(20_000) });
-    const text = await res.text();
-    if ((res.status === 429 || res.status >= 500) && i < tries - 1) {
-      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
-      continue;
-    }
-    if (res.status === 401 || res.status === 403) throw new Error(`${label} refused the token (${res.status}).`);
-    if (!res.ok) throw new Error(`${label} ${res.status}: ${text.replace(/token=[^&\s"]+/gi, 'token=…').slice(0, 200)}`);
-    try { return text ? JSON.parse(text) : {}; } catch { throw new Error(`${label} answered non-JSON (${res.status}).`); }
+/** Injected in tests (no network, fake clock); real fetch / setTimeout / Date.now otherwise. */
+export interface DlDeps {
+  fetch?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+  now?: () => number;
+}
+
+/** Leave this much of the budget for assembling the answer. */
+const RESERVE_MS = 3_000;
+const MAX_429_RETRIES = 4;
+const MAX_5XX_TRIES = 3;
+
+/**
+ * Wait asked by a 429: Retry-After (seconds or an HTTP date), else Delhivery's
+ * "Expected available in N seconds." in the body, else 5 s. Plus 250 ms slack.
+ */
+export function retryAfterMs(retryAfter: string | null | undefined, body: string, now = Date.now()): number {
+  const ra = (retryAfter ?? '').trim();
+  if (ra) {
+    if (/^\d+(\.\d+)?$/.test(ra)) return Math.ceil(parseFloat(ra) * 1000) + 250;
+    const t = Date.parse(ra);
+    if (!Number.isNaN(t)) return Math.max(0, t - now) + 250;
+  }
+  const m = body.match(/available in\s+(\d+(?:\.\d+)?)\s*(?:s\b|sec|second)/i);
+  if (m) return Math.ceil(parseFloat(m[1]) * 1000) + 250;
+  return 5_000;
+}
+
+/** Spaces calls `interval` ms apart; doubles it (≤ max) after a 429. */
+export class Pacer {
+  private next = 0;
+  constructor(public interval: number, private readonly max: number, private readonly clock: Required<Pick<DlDeps, 'now' | 'sleep'>>) {}
+  async wait(deadline: number, what: string): Promise<void> {
+    const now = this.clock.now();
+    const at = Math.max(now, this.next);
+    if (at > deadline - RESERVE_MS) throw new BudgetOut(what);
+    this.next = at + this.interval;
+    if (at > now) await this.clock.sleep(at - now);
+  }
+  backoff(waitMs = 0): void {
+    this.interval = Math.min(this.max, this.interval * 2);
+    this.next = Math.max(this.next, this.clock.now() + waitMs);
   }
 }
+
+/** Per-pull client: its own pacers (tracking 2/s, charge calculator 1 per 2 s, both back off on 429). */
+export function dlClient(deps: DlDeps = {}) {
+  const clock = {
+    now: deps.now ?? (() => Date.now()),
+    sleep: deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))),
+  };
+  const f = deps.fetch ?? fetch;
+  const tracking = new Pacer(500, 10_000, clock);
+  const charges = new Pacer(2_000, 16_000, clock);
+  const stats = { calls: 0, throttled: 0, waitedMs: 0 };
+
+  async function getJson(url: string, headers: Record<string, string>, feed: string, label: string, pacer: Pacer | null, deadline: number): Promise<unknown> {
+    assertDelhiveryReadOnly('GET', url, feed);
+    let n429 = 0, n5xx = 0;
+    for (;;) {
+      if (pacer) await pacer.wait(deadline, label);
+      else if (clock.now() > deadline - RESERVE_MS) throw new BudgetOut(label);
+      const left = deadline - clock.now();
+      let res: Response;
+      try {
+        stats.calls += 1;
+        res = await f(url, { headers: { Accept: 'application/json', ...headers }, signal: AbortSignal.timeout(Math.max(1_000, Math.min(20_000, left))) });
+      } catch (e) {
+        if (clock.now() >= deadline - RESERVE_MS) throw new BudgetOut(label);
+        throw e;
+      }
+      const text = await res.text();
+      if (res.status === 429) {
+        stats.throttled += 1;
+        if (n429 >= MAX_429_RETRIES) throw new Error(`${label} 429: still throttled after ${MAX_429_RETRIES} retries.`);
+        n429 += 1;
+        const wait = retryAfterMs(res.headers.get('retry-after'), text, clock.now());
+        pacer?.backoff(wait);
+        if (clock.now() + wait > deadline - RESERVE_MS) throw new BudgetOut(label);
+        stats.waitedMs += wait;
+        if (!pacer) await clock.sleep(wait);
+        continue;
+      }
+      if (res.status >= 500 && ++n5xx < MAX_5XX_TRIES) {
+        const wait = 1_500 * n5xx;
+        if (clock.now() + wait > deadline - RESERVE_MS) throw new BudgetOut(label);
+        await clock.sleep(wait);
+        continue;
+      }
+      if (res.status === 401 || res.status === 403) throw new Error(`${label} refused the token (${res.status}).`);
+      if (!res.ok) throw new Error(`${label} ${res.status}: ${text.replace(/token=[^&\s"]+/gi, 'token=…').slice(0, 200)}`);
+      try { return text ? JSON.parse(text) : {}; } catch { throw new Error(`${label} answered non-JSON (${res.status}).`); }
+    }
+  }
+  return { getJson, tracking, charges, stats, now: clock.now };
+}
+export type DlClient = ReturnType<typeof dlClient>;
 
 function need(creds: Credentials, key: 'apiToken' | 'feedToken'): string {
   const v = (creds[key] || '').trim();
@@ -97,9 +179,9 @@ function need(creds: Credentials, key: 'apiToken' | 'feedToken'): string {
 }
 
 /** The month's Delhivery AWBs from the Warranty Manager (non-PII rows). */
-export async function warrantyFeed(creds: Credentials, periodKey: string): Promise<{ rows: WarrantyFeedRow[]; undated: number }> {
+export async function warrantyFeed(creds: Credentials, periodKey: string, c: DlClient = dlClient(), deadline = c.now() + 60_000): Promise<{ rows: WarrantyFeedRow[]; undated: number }> {
   const origin = feedOrigin(creds);
-  const j = (await getJson(`${origin}${FEED_PATH}?month=${encodeURIComponent(periodKey)}`, { 'x-feed-token': need(creds, 'feedToken') }, origin, 'Warranty feed')) as { rows?: WarrantyFeedRow[]; undated?: number };
+  const j = (await c.getJson(`${origin}${FEED_PATH}?month=${encodeURIComponent(periodKey)}`, { 'x-feed-token': need(creds, 'feedToken') }, origin, 'Warranty feed', null, deadline)) as { rows?: WarrantyFeedRow[]; undated?: number };
   const rows = (Array.isArray(j.rows) ? j.rows : []).map((r) => ({
     awb: String(r.awb ?? '').trim(), direction: r.direction === 'reverse' ? 'reverse' as const : 'forward' as const,
     createdAt: String(r.createdAt ?? ''), orderId: r.orderId, sheetRow: r.sheetRow ?? null,
@@ -108,58 +190,112 @@ export async function warrantyFeed(creds: Credentials, periodKey: string): Promi
   return { rows, undated: Number(j.undated) || 0 };
 }
 
-/** Tracking summaries for these AWBs (batched, paced; only whitelisted fields kept). */
-export async function trackMany(creds: Credentials, awbs: string[], deadline: number): Promise<Map<string, TrackSummary>> {
+/**
+ * Tracking summaries for these AWBs (batched, paced; only whitelisted fields
+ * kept). When the budget runs out the AWBs not reached come back in `left`.
+ */
+export async function trackMany(creds: Credentials, awbs: string[], deadline: number, c: DlClient = dlClient()): Promise<{ tracks: Map<string, TrackSummary>; left: string[] }> {
   const token = need(creds, 'apiToken');
-  const out = new Map<string, TrackSummary>();
+  const tracks = new Map<string, TrackSummary>();
   const uniq = [...new Set(awbs)];
   for (let i = 0; i < uniq.length; i += TRACK_BATCH) {
-    await pace(deadline);
-    const q = new URLSearchParams({ waybill: uniq.slice(i, i + TRACK_BATCH).join(','), token });
-    const j = (await getJson(`${DELHIVERY_HOST}${TRACK_PATH}?${q}`, {}, DEFAULT_FEED_URL, 'Delhivery tracking')) as { ShipmentData?: unknown[] };
+    const batch = uniq.slice(i, i + TRACK_BATCH);
+    const q = new URLSearchParams({ waybill: batch.join(','), token });
+    let j: { ShipmentData?: unknown[] };
+    try {
+      j = (await c.getJson(`${DELHIVERY_HOST}${TRACK_PATH}?${q}`, {}, DEFAULT_FEED_URL, 'Delhivery tracking', c.tracking, deadline)) as typeof j;
+    } catch (e) {
+      if (e instanceof BudgetOut) return { tracks, left: uniq.slice(i) };
+      throw e;
+    }
     for (const e of Array.isArray(j.ShipmentData) ? j.ShipmentData : []) {
       const t = trackSummary(e);
-      if (t) out.set(t.awb, t);
+      if (t) tracks.set(t.awb, t);
     }
   }
-  return out;
+  return { tracks, left: [] };
 }
 
-/** One charge-calculator answer → ₹ (null = no price). */
-export async function chargeFor(creds: Credentials, q: ChargeQuery, deadline: number): Promise<number | null> {
+/** One charge-calculator answer → ₹ (null = no price). Throws BudgetOut when out of time. */
+export async function chargeFor(creds: Credentials, q: ChargeQuery, deadline: number, c: DlClient = dlClient()): Promise<number | null> {
   const token = need(creds, 'apiToken');
-  await pace(deadline);
   const p = new URLSearchParams({ md: q.md, ss: q.ss, d_pin: q.d_pin, o_pin: q.o_pin, cgm: String(q.cgm), pt: q.pt });
-  return chargeAmount(await getJson(`${DELHIVERY_HOST}${CHARGES_PATH}?${p}`, { Authorization: `Token ${token}` }, DEFAULT_FEED_URL, 'Delhivery charge calculator'));
+  return chargeAmount(await c.getJson(`${DELHIVERY_HOST}${CHARGES_PATH}?${p}`, { Authorization: `Token ${token}` }, DEFAULT_FEED_URL, 'Delhivery charge calculator', c.charges, deadline));
 }
 
-/** The close slot pull: feed → tracking → charges → wallet-parser facts. */
-export async function computedFreight(creds: Credentials, periodKey: string, deadline: number): Promise<SlotPull> {
+/**
+ * The close slot pull: feed → tracking → charges → wallet-parser facts.
+ * Out of budget: what was priced is kept; the AWBs left are booked at the
+ * average priced ₹ of the same direction (an estimate, said in a warning).
+ */
+export async function computedFreight(creds: Credentials, periodKey: string, deadline: number, deps: DlDeps = {}): Promise<SlotPull> {
+  const c = dlClient(deps);
   const mode = (creds.mode || 'S').trim().toUpperCase() === 'E' ? 'E' : 'S';
-  const { rows, undated } = await warrantyFeed(creds, periodKey);
-  const tracks = await trackMany(creds, rows.map((r) => r.awb), deadline);
+  const { rows, undated } = await warrantyFeed(creds, periodKey, c, deadline);
+  need(creds, 'apiToken');
+  const { tracks, left: untracked } = await trackMany(creds, rows.map((r) => r.awb), deadline, c);
+  const notReached = new Set(untracked);
   const counts: Record<string, number> = {};
   const bump = (k: string) => { counts[k] = (counts[k] ?? 0) + 1; };
   const cache = new Map<string, number | null>();
   const priced: PricedAwb[] = [];
+  const byDir: Record<'forward' | 'reverse', number[]> = { forward: [], reverse: [] };
+  const leftover: WarrantyFeedRow[] = [];
+  let outOfTime = notReached.size > 0;
   for (const row of rows) {
+    if (notReached.has(row.awb)) { leftover.push(row); continue; }
     const plan = chargePlan(row, tracks.get(row.awb) ?? null, mode);
     if (!plan.charge) { bump(plan.reason); continue; }
     const k = JSON.stringify(plan.query);
-    if (!cache.has(k)) cache.set(k, await chargeFor(creds, plan.query, deadline));
+    if (!cache.has(k)) {
+      if (outOfTime) { leftover.push(row); continue; }
+      try {
+        cache.set(k, await chargeFor(creds, plan.query, deadline, c));
+      } catch (e) {
+        if (!(e instanceof BudgetOut)) throw e;
+        outOfTime = true;
+        leftover.push(row);
+        continue;
+      }
+    }
     const amount = cache.get(k);
     if (amount == null || !(amount > 0)) { bump('no_price'); continue; }
     if (plan.estimated.length) bump('estimated');
     priced.push({ awb: row.awb, date: istDay(row.createdAt), amount });
+    byDir[row.direction].push(amount);
   }
+
+  // Budget fallback: average of the priced AWBs of the same direction (else all priced).
+  const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((s, x) => s + x, 0) / xs.length) * 100) / 100 : null);
+  const all = [...byDir.forward, ...byDir.reverse];
+  const avgOf = { forward: avg(byDir.forward) ?? avg(all), reverse: avg(byDir.reverse) ?? avg(all) };
+  let booked = 0, bookedSum = 0;
+  for (const row of leftover) {
+    const a = avgOf[row.direction];
+    if (a == null) continue;
+    priced.push({ awb: row.awb, date: istDay(row.createdAt), amount: a });
+    booked += 1;
+    bookedSum += a;
+  }
+
   const out = delhiveryFreightFacts(priced, periodKey, counts);
   out.rowCount = rows.length;
   out.trace.unshift(
     `Warranty Manager feed: ${rows.length} Delhivery AWB(s) created in ${periodKey}${undated ? ` (+${undated} with no date, not placed)` : ''}`,
-    `Delhivery tracking (read only): ${tracks.size} of ${new Set(rows.map((r) => r.awb)).size} found; charge calculator: ${cache.size} distinct lane × weight × status call(s), mode ${mode === 'E' ? 'Express' : 'Surface'}`,
+    `Delhivery tracking (read only): ${tracks.size} of ${new Set(rows.map((r) => r.awb)).size} found${notReached.size ? ` (${notReached.size} not reached in time)` : ''}; charge calculator: ${cache.size} distinct lane × weight × status call(s), mode ${mode === 'E' ? 'Express' : 'Surface'}`,
+    `Delhivery calls: ${c.stats.calls}${c.stats.throttled ? `, ${c.stats.throttled} throttled (429) — waited ${Math.round(c.stats.waitedMs / 1000)} s and slowed down` : ''}`,
   );
+  if (leftover.length) {
+    const avgTxt = (['forward', 'reverse'] as const).filter((d) => leftover.some((r) => r.direction === d) && avgOf[d] != null)
+      .map((d) => `${d} ₹${avgOf[d]}`).join(', ');
+    out.warnings.push(booked
+      ? `The pull ran out of time: ${leftover.length} AWB(s) were left unpriced; ${booked} of them are booked at the average priced charge (${avgTxt}) = ₹${Math.round(bookedSum).toLocaleString('en-IN')} — an ESTIMATE. Pull again to price them.`
+      : `The pull ran out of time: ${leftover.length} AWB(s) were left unpriced and nothing was priced to average from — Pull again.`);
+    out.trace.push(`Budget fallback: ${leftover.length} AWB(s) unpriced${booked ? `, ${booked} booked at the same-direction average (estimate)` : ''}`);
+  }
   if (undated) out.warnings.push(`${undated} Delhivery AWB(s) in the warranty sheet have no stage date and could not be placed in a month.`);
-  out.note = 'Computed freight (Delhivery tracking + charge calculator), not the wallet ledger — compare with the wallet once. Weight disputes, re-attempts and adhoc debits / credits are only in the wallet report.';
+  out.note = 'Computed freight (Delhivery tracking + charge calculator), not the wallet ledger — compare with the wallet once. Weight disputes, re-attempts and adhoc debits / credits are only in the wallet report.'
+    + (leftover.length ? ' Some AWBs are booked at an average (pull ran out of time) — see warnings.' : '');
   return out;
 }
 

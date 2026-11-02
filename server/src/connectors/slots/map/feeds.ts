@@ -1,71 +1,11 @@
 // ----------------------------------------------------------------------------
-// Shiprocket statement, Easebuzz payouts and the Tranzact Sales Invoice sheet →
+// Easebuzz payouts and the Tranzact Sales Invoice sheet →
 // the slot outputs their uploads give. Pure; tests in server/test/slots.test.ts.
 // ----------------------------------------------------------------------------
 
 import type { DailyFact } from '../../facts.js';
 import type { SlotPull } from '../types.js';
-import { inr, isoDay, num, r2, shiprocketChannel, str } from './common.js';
-
-// ---- Shiprocket wallet statement (passbook) ---------------------------------
-
-/** GET /v1/external/account/details/statement row (fields per Shiprocket's API spec; read defensively). */
-export interface ShiprocketStatementRow {
-  channel_order_id?: string;
-  order_id?: string | number;
-  awb_code?: string;
-  description?: string;
-  charge?: string;
-  action?: string;
-  debit_amount?: string | number;
-  credit_amount?: string | number;
-  created_at?: string;
-}
-
-/** COD / wallet money moving — not a cost. Same rule as the passbook parser. */
-const SHIPROCKET_WALLET = /^(freight charges deducted against cod|bank referenceno)/i;
-
-/**
- * The passbook parser books every debit (a negative Amount) as freight by day ×
- * channel and skips credits (recharges, COD remittances, refunds) and the
- * wallet / COD transfer lines. The statement API returns the same lines with a
- * debit and a credit column, so a debit here = a negative Amount there.
- */
-export function shiprocketStatementFacts(rows: ShiprocketStatementRow[], periodKey: string): SlotPull {
-  const byKey = new Map<string, number>();
-  let wallet = 0, moneyIn = 0, undated = 0, outside = 0, used = 0;
-  for (const r of rows) {
-    const desc = str(r.description) || str(r.charge) || str(r.action);
-    if (SHIPROCKET_WALLET.test(desc)) { wallet += 1; continue; }
-    const debit = num(r.debit_amount);
-    if (debit <= 0) { moneyIn += 1; continue; }
-    const date = isoDay(r.created_at);
-    if (!date) { undated += 1; continue; }
-    if (date.slice(0, 7) !== periodKey) { outside += 1; continue; }
-    const channel = shiprocketChannel(str(r.channel_order_id));
-    const k = `${date}|${channel}`;
-    byKey.set(k, (byKey.get(k) ?? 0) + debit);
-    used += 1;
-  }
-  const facts: DailyFact[] = [...byKey.entries()].map(([k, fees]) => {
-    const [date, channel] = k.split('|');
-    return { source: 'shiprocket', channel, date, revenue: 0, units: 0, orders: 0, fees: r2(fees) };
-  });
-  const total = facts.reduce((s, f) => s + f.fees, 0);
-  const warnings: string[] = [];
-  if (undated) warnings.push(`${undated} statement line(s) had no readable date and were skipped.`);
-  if (outside) warnings.push(`${outside} line(s) dated outside ${periodKey} were left out.`);
-  return {
-    facts,
-    rowCount: rows.length,
-    trace: [
-      `Read ${rows.length} wallet statement line(s); excluded ${wallet} wallet/COD transfer(s) + ${moneyIn} money-in line(s) (recharges / remittances / credits)`,
-      `${used} debit(s) by day × channel → ${facts.length} facts, total ${inr(total)}`,
-    ],
-    warnings,
-    emptyOk: facts.length === 0,
-  };
-}
+import { inr, isoDay, num, r2, str } from './common.js';
 
 // ---- Easebuzz payouts (settlements) -----------------------------------------
 
