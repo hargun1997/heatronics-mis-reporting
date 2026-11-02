@@ -4,14 +4,21 @@
 // confidence: 1} per ledger + Nett Profit, so the month close consumes a live
 // pull exactly like the file. Pure; tests in server/test/tally.test.ts.
 //
-// The request is Tally's own "Profit and Loss" report, exploded to ledgers, for
-// one calendar month. Tally answers with repeating
-//   <DSPACCNAME><DSPDISPNAME>name</DSPDISPNAME></DSPACCNAME>
-//   <PLAMT><PLSUBAMT>ledger figure</PLSUBAMT><BSMAINAMT>group figure</BSMAINAMT></PLAMT>
-// pairs (the same two columns the Excel export has: ledger and group). The tag
-// set is Tally's default TDL; a different shape degrades to "no rows" and the
-// close page falls back to the upload. The first live pull keeps the raw XML
-// (tally/raw-last) so the parser can be matched to it.
+// Request: Tally's own "Profit and Loss" report, exploded, for one month. The
+// answer (TallyPrime 7.0, Heatronics, checked live 2 Nov 2026) is a
+// flat sequence under <ENVELOPE>:
+//   <DSPACCNAME>name</DSPACCNAME> <PLAMT><PLSUBAMT/><BSMAINAMT>1000.00</BSMAINAMT></PLAMT>
+//        → a top-level P&L group (Sales Accounts, Cost of Sales, Indirect Incomes, Indirect Expenses);
+//          income positive, expense negative.
+//   <DSPACCNAME>name</DSPACCNAME> <PLAMT><PLSUBAMT>-500.00</PLSUBAMT><BSMAINAMT/></PLAMT>
+//        → a line inside the group (Opening Stock, Add: Purchase Accounts, Less: Closing Stock, Direct Expenses).
+//   <BSNAME><DSPACCNAME>name</DSPACCNAME></BSNAME> <BSAMT><BSSUBAMT>250.00</BSSUBAMT>…</BSAMT>
+//        → a ledger under the line / group above it.
+// There is no Nett Profit row: Nett Profit = Σ of the top-level group figures.
+// Amounts carry the group's sign, so the figure the Excel shows = value × sign(group): an expense is positive
+// under an expense group, a contra ledger (a refund under expenses) negative, Closing Stock positive.
+// A line whose ledgers follow it is not booked itself (its ledgers are). Purchase Accounts comes collapsed: it is
+// split like the Excel reader does (Stock Transfer leg = the Stock Transfers sale, rest Raw Material Purchases).
 // ----------------------------------------------------------------------------
 
 import { decode, escapeXml, tallyDates } from '../sources/tally.js';
@@ -47,67 +54,92 @@ export function pnlEnvelope(periodKey: string, company?: string): string {
 </ENVELOPE>`;
 }
 
-/** "1,23,456.00" / "-1234" / "(1234)" / "1234 Cr" → signed number (null = empty cell). */
+/** "1000.00" / "-1,234.00" / "(1234)" → signed number; empty → null. */
 function num(raw: string | undefined): number | null {
   if (raw == null) return null;
   const s = decode(raw);
   if (!s) return null;
-  let sign = 1;
-  if (/^-/.test(s) || /^\(.*\)$/.test(s)) sign = -1;
-  const n = parseFloat(s.replace(/[(),₹\s-]/g, '').replace(/(dr|cr)$/i, ''));
-  return Number.isFinite(n) ? sign * Math.abs(n) : null;
+  const neg = /^-/.test(s) || /^\(.*\)$/.test(s);
+  const n = parseFloat(s.replace(/[(),₹\s-]/g, ''));
+  return Number.isFinite(n) ? (neg ? -n : n) : null;
 }
 
 /** Same renames the Excel reader applies, so the ledgers map identically. */
 function renameLedger(name: string): string {
   const n = name.replace(/\s+/g, ' ').trim();
-  if (/^(less:\s*)?closing stock/i.test(n)) return 'Closing Stock';
-  if (/^(add:\s*)?opening stock/i.test(n)) return 'Opening Stock';
+  if (/^(less:?\s*)?closing stock/i.test(n)) return 'Closing Stock';
+  if (/^(add:?\s*)?opening stock/i.test(n)) return 'Opening Stock';
   if (/^shipping-amazon-/i.test(n)) return 'Other Income';
   if (/^shipping refund/i.test(n)) return 'Other Income';
-  return n.replace(/^(add|less):\s*/i, '');
+  return n.replace(/^(add|less):?\s+/i, '');
 }
 
-const SKIP = /^(gross (profit|loss)|nett (profit|loss)|total|c\/o|b\/f)/i;
+const r2 = (n: number) => Math.round(n * 100) / 100;
+type Item =
+  | { kind: 'group'; name: string; main: number }
+  | { kind: 'line'; name: string; sub: number }
+  | { kind: 'ledger'; name: string; sub: number | null };
 
-/**
- * Tally shows a ledger in the P&L with the sign of its nature: a ledger opposite to its group (a return under Sales,
- * a credit under an expense group) is negative there. XML amounts carry Dr / Cr signs instead, so a ledger whose sign
- * differs from its group's is negated relative to the group — the figure the Excel export shows.
- */
+/** Flatten the answer into groups / lines / ledgers in order. */
+function items(xml: string): Item[] {
+  const out: Item[] = [];
+  const re = /<BSNAME>\s*<DSPACCNAME>([\s\S]*?)<\/DSPACCNAME>\s*<\/BSNAME>\s*<BSAMT>([\s\S]*?)<\/BSAMT>|<DSPACCNAME>([\s\S]*?)<\/DSPACCNAME>\s*<PLAMT>([\s\S]*?)<\/PLAMT>/g;
+  const tag = (s: string, t: string) => new RegExp(`<${t}>([\\s\\S]*?)</${t}>`).exec(s)?.[1];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    if (m[1] != null) {
+      const name = decode(tag(m[1], 'DSPDISPNAME') ?? '');
+      if (name) out.push({ kind: 'ledger', name, sub: num(tag(m[2], 'BSSUBAMT')) ?? num(tag(m[2], 'BSMAINAMT')) });
+    } else {
+      const name = decode(tag(m[3], 'DSPDISPNAME') ?? '');
+      const main = num(tag(m[4], 'BSMAINAMT'));
+      const sub = num(tag(m[4], 'PLSUBAMT'));
+      if (!name) continue;
+      if (main != null) out.push({ kind: 'group', name, main });
+      else if (sub != null) out.push({ kind: 'line', name, sub });
+    }
+  }
+  return out;
+}
+
 export function parsePnlXml(xml: string, periodKey: string): TallyPnlMonth {
   const warnings: string[] = [];
+  const list = items(xml);
   const ledgerRows: TallyLedgerRow[] = [];
-  let nettProfit: number | null = null;
-  const re = /<DSPACCNAME>([\s\S]*?)<\/DSPACCNAME>\s*<PLAMT>([\s\S]*?)<\/PLAMT>/g;
-  let m: RegExpExecArray | null;
-  let groupSign = 1;
-  let any = false;
-  while ((m = re.exec(xml)) !== null) {
-    any = true;
-    const name = decode(/<DSPDISPNAME>([\s\S]*?)<\/DSPDISPNAME>/.exec(m[1])?.[1] ?? '');
-    const sub = num(/<PLSUBAMT>([\s\S]*?)<\/PLSUBAMT>/.exec(m[2])?.[1]);
-    const main = num(/<BSMAINAMT>([\s\S]*?)<\/BSMAINAMT>/.exec(m[2])?.[1]);
-    if (!name) continue;
-    if (/^nett (profit|loss)/i.test(name)) {
-      const v = main ?? sub;
-      if (v != null) nettProfit = Math.abs(v) * (/loss/i.test(name) ? -1 : 1);
+  let sign = 1;
+  let net = 0;
+  let groups = 0;
+  let purchases: number | null = null;
+  for (let i = 0; i < list.length; i++) {
+    const it = list[i];
+    if (it.kind === 'group') {
+      groups += 1;
+      net += it.main;
+      sign = it.main < 0 ? -1 : 1;
       continue;
     }
-    if (SKIP.test(name)) continue;
-    if (sub == null) {
-      // A group line (main figure only). Stock lines carry their value here and are ledgers in the Excel too.
-      if (main != null && /opening stock|closing stock/i.test(name)) {
-        ledgerRows.push({ name: renameLedger(name), depth: 1, amount: Math.abs(main), confidence: 1 });
-      }
-      if (main != null && main !== 0) groupSign = Math.sign(main);
+    if (it.kind === 'line') {
+      if (list[i + 1]?.kind === 'ledger') continue; // its ledgers carry the figure
+      const shown = r2(it.sub * sign);
+      if (/purchase accounts/i.test(it.name)) { purchases = shown; continue; }
+      ledgerRows.push({ name: renameLedger(it.name), depth: 1, amount: shown, confidence: 1 });
       continue;
     }
-    const shown = Math.sign(sub) === groupSign || sub === 0 ? Math.abs(sub) : -Math.abs(sub);
-    ledgerRows.push({ name: renameLedger(name), depth: 1, amount: Math.round(shown * 100) / 100, confidence: 1 });
+    if (it.sub == null || it.sub === 0) continue;
+    ledgerRows.push({ name: renameLedger(it.name), depth: 1, amount: r2(it.sub * sign), confidence: 1 });
   }
-  if (!any) warnings.push('Tally answered, but not with the P&L rows this reader knows (DSPACCNAME / PLAMT). The raw answer was kept — upload the P&L Excel for this month and share it so the reader can be matched.');
-  else if (!ledgerRows.length) warnings.push('Tally sent the P&L without ledger-level rows — is the report collapsed? (EXPLODEFLAG)');
-  if (nettProfit == null && any) warnings.push('No Nett Profit / Nett Loss line in the answer.');
-  return { period: periodKey, periodLabel: periodLabel(periodKey), ledgerRows, nettProfit, warnings };
+  if (purchases != null) {
+    // Purchase Accounts arrives as one line: split the Stock-Transfer inward leg back out, as the Excel reader does.
+    const strOut = ledgerRows.find((x) => x.name.toLowerCase() === 'stock transfers')?.amount ?? 0;
+    if (strOut !== 0) {
+      ledgerRows.push({ name: 'Stock Transfer', depth: 1, amount: strOut, confidence: 1 });
+      ledgerRows.push({ name: 'Raw Material Purchases', depth: 1, amount: r2(purchases - strOut), confidence: 1 });
+      warnings.push('Purchase Accounts comes as one line from Tally — the Stock-Transfer inward leg was split from the Stock Transfers sale.');
+    } else {
+      ledgerRows.push({ name: 'Raw Material Purchases', depth: 1, amount: purchases, confidence: 1 });
+    }
+  }
+  if (!list.length) warnings.push('Tally answered, but not with the P&L rows this reader knows. The raw answer was kept — upload the P&L Excel for this month.');
+  else if (!groups) warnings.push('No P&L group totals in the answer — Nett Profit could not be worked out.');
+  return { period: periodKey, periodLabel: periodLabel(periodKey), ledgerRows, nettProfit: groups ? r2(net) : null, warnings };
 }

@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------------
 // Tally snapshots — Tally only answers while TallyPrime is open on the cloud
 // machine (Thakur Hardsoft) with the company loaded. So the MIS checks every
-// ~30 min in working hours from the 10th (GitHub Actions → POST /api/tally/poll, open path, no data
+// ~30 min in working hours from the 15th (GitHub Actions → POST /api/tally/poll, open path, no data
 // in the answer; gate = scheduledDue) and, whenever Tally is reachable, stores the month's P&L (this month,
 // last month, and up to 2 older months not stored yet, last 12). The close's
 // Tally P&L slot then reads the stored copy, so Tally need not be open at close
@@ -50,22 +50,22 @@ export function monthsToPull(now: number, stored: Record<string, string>): strin
 }
 
 /**
- * When a scheduled check may run (founder, 2 Nov 2026): from the 10th of the month (books for last month are final by then),
+ * When a scheduled check may run (founder, 2 Nov 2026): from the 15th of the month (books for last month are final by then),
  * Monday–Saturday, 10:00–19:00 IST (working hours, when Tally is likely open). Every 20 min until last month has a copy taken
- * on or after this month's 10th; after that once a day (to refresh this month so far). "Pull now" ignores all of this.
+ * on or after this month's 15th; after that once a day (to refresh this month so far). "Pull now" ignores all of this.
  */
 export function scheduledDue(now: number, state: TallyState): { due: boolean; why: string } {
   const ist = new Date(now + 5.5 * 3_600_000);
   const day = ist.getUTCDate(), hour = ist.getUTCHours(), dow = ist.getUTCDay();
-  if (day < 10) return { due: false, why: 'Before the 10th: last month is not final yet.' };
+  if (day < 15) return { due: false, why: 'Before the 15th: last month is not final yet.' };
   if (dow === 0) return { due: false, why: 'Sunday.' };
   if (hour < 10 || hour >= 19) return { due: false, why: 'Outside 10:00–19:00 IST.' };
   const cur = istMonth(now);
-  const tenth = Date.parse(`${cur}-10T00:00:00+05:30`);
+  const cutoff = Date.parse(`${cur}-15T00:00:00+05:30`);
   const lastAsOf = state.months[addMonths(cur, -1)];
-  const finalTaken = lastAsOf != null && Date.parse(lastAsOf) >= tenth;
+  const finalTaken = lastAsOf != null && Date.parse(lastAsOf) >= cutoff;
   const since = state.lastTryAt ? now - Date.parse(state.lastTryAt) : Infinity;
-  if (!finalTaken) return since >= MIN_GAP_MS ? { due: true, why: 'Last month not taken since the 10th.' } : { due: false, why: 'Checked less than 20 min ago.' };
+  if (!finalTaken) return since >= MIN_GAP_MS ? { due: true, why: 'Last month not taken since the 15th.' } : { due: false, why: 'Checked less than 20 min ago.' };
   const okDay = state.lastOkAt ? new Date(Date.parse(state.lastOkAt) + 5.5 * 3_600_000).toISOString().slice(0, 10) : null;
   return okDay === ist.toISOString().slice(0, 10) ? { due: false, why: 'Already taken today.' } : since >= MIN_GAP_MS ? { due: true, why: 'Daily refresh.' } : { due: false, why: 'Checked less than 20 min ago.' };
 }
