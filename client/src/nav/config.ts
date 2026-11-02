@@ -46,6 +46,7 @@ export const NAV: NavSection[] = [
     label: 'Accounts',
     pages: [
       { id: 'booking', label: 'Book an invoice', href: '/booking-assistant', icon: 'booking', also: ['/tools/invoice-booking', '/tools/expense-booking'], hint: 'Which ledger, voucher and GST for an invoice', words: 'invoice ledger voucher tally expense booking assistant suggester' },
+      { id: 'tally', label: 'Tally health', href: '/tally', icon: 'tally', hint: 'Problems in the books and how to fix them in Tally; ask about Tally', words: 'tally ledgers vouchers day book gst gstin errors duplicate ask' },
       { id: 'handbook', label: 'Accounts Handbook', href: '/handbook', icon: 'book', also: ['/guide'], hint: 'SOPs, ledgers and how we book', words: 'sop guide policy ledgers' },
     ],
   },

@@ -15,6 +15,7 @@ import type { Credentials } from '../types.js';
 import { readJson, writeJson } from '../../ingest/objectStore.js';
 import { companyListEnvelope, decode, post } from '../sources/tally.js';
 import { parsePnlXml, pnlEnvelope, type TallyPnlMonth } from './pnl.js';
+import { pullBooks } from './bookStore.js';
 
 export interface TallySnapshot extends TallyPnlMonth { asOf: string }
 export interface TallyState {
@@ -71,7 +72,7 @@ export function scheduledDue(now: number, state: TallyState): { due: boolean; wh
 }
 
 /** One poll. `force` skips the 20-minute gap (signed-in Pull now). Never throws: the answer is a status. */
-export async function pollTally(creds: Credentials, opts: { force?: boolean; now?: number } = {}): Promise<{ status: 'skipped' | 'down' | 'ok' | 'not_connected'; detail: string; months?: string[] }> {
+export async function pollTally(creds: Credentials, opts: { force?: boolean; now?: number; skipBooks?: boolean } = {}): Promise<{ status: 'skipped' | 'down' | 'ok' | 'not_connected'; detail: string; months?: string[] }> {
   const now = opts.now ?? Date.now();
   if (!(creds.host || '').trim()) return { status: 'not_connected', detail: 'Add the Tally host + port on the Connectors page (Tally card).' };
   const state = await readTallyState();
@@ -108,5 +109,11 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
   if (done.length) state.lastOkAt = state.lastTryAt;
   state.lastError = failed;
   await writeJson('tally/state', state);
-  return { status: done.length ? 'ok' : 'down', detail: done.length ? `Stored P&L for ${done.join(', ')}${failed ? ` (stopped: ${failed})` : ''}` : `Tally answered the check but not the P&L: ${failed}`, months: done };
+  // While Tally is open, also refresh the stored books (masters daily, Day Books) in what is left of ~4 min.
+  let books = '';
+  if (done.length && !failed && !opts.skipBooks) {
+    const b = await pullBooks(creds, { now, budgetMs: 230_000 - (Date.now() - now) });
+    books = b.masters || b.months.length ? `; books: ${[b.masters ? 'masters' : '', ...b.months].filter(Boolean).join(', ')}` : '';
+  }
+  return { status: done.length ? 'ok' : 'down', detail: done.length ? `Stored P&L for ${done.join(', ')}${failed ? ` (stopped: ${failed})` : ''}${books}` : `Tally answered the check but not the P&L: ${failed}`, months: done };
 }
