@@ -26,6 +26,8 @@ export interface NavSection {
   pages: NavPage[];
   /** Not in the sidebar (palette only). */
   hidden?: boolean;
+  /** Where the section's breadcrumb links (default: its first page). */
+  href?: string;
 }
 
 export const HOME = '/reporting/mis/live';
@@ -38,14 +40,12 @@ export const NAV: NavSection[] = [
       { id: 'live', label: 'Live MIS', href: '/reporting/mis/live', icon: 'live', hint: 'This month and last, P&L by channel', words: 'mis dashboard p&l revenue margin run rate' },
       { id: 'ingest', label: 'Month-end close', href: '/reporting/mis/ingest', icon: 'upload', hint: 'Pull or upload each report for the month', words: 'upload data close month end pull reports slots ingest' },
       { id: 'insights', label: 'AI insights', href: '/reporting/mis/insights', icon: 'ai', also: ['/reporting/mis/chat'], hint: 'Ask about the numbers', words: 'chat claude ask analysis' },
-      { id: 'send', label: 'Send report', href: '/reporting/mis/send', icon: 'send', hint: 'Email the monthly MIS', words: 'email investors board' },
     ],
   },
   {
     id: 'accounts',
     label: 'Accounts',
     pages: [
-      { id: 'booking', label: 'Book an invoice', href: '/booking-assistant', icon: 'booking', also: ['/tools/invoice-booking', '/tools/expense-booking'], hint: 'Which ledger, voucher and GST for an invoice', words: 'invoice ledger voucher tally expense booking assistant suggester' },
       { id: 'tally', label: 'Tally health', href: '/tally', icon: 'tally', hint: 'Problems in the books and how to fix them in Tally; ask about Tally', words: 'tally ledgers vouchers day book gst gstin errors duplicate ask' },
       { id: 'handbook', label: 'Accounts Handbook', href: '/handbook', icon: 'book', also: ['/guide'], hint: 'SOPs, ledgers and how we book', words: 'sop guide policy ledgers' },
     ],
@@ -56,7 +56,17 @@ export const NAV: NavSection[] = [
     pages: [
       { id: 'plan', label: '5-year plan', href: '/planning', icon: 'plan', hint: 'Projection & deployment plan, levers and scenarios', words: 'projection forecast budget fundraise cash runway' },
       { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution', words: 'equity dilution cap table investors' },
+    ],
+  },
+  {
+    id: 'tools',
+    label: 'Tools',
+    href: '/tools',
+    pages: [
+      { id: 'send', label: 'Send report', href: '/reporting/mis/send', icon: 'send', hint: 'Email the monthly MIS', words: 'email investors board' },
+      { id: 'booking', label: 'Book an invoice', href: '/booking-assistant', icon: 'booking', also: ['/tools/invoice-booking', '/tools/expense-booking'], hint: 'Which ledger, voucher and GST for an invoice', words: 'invoice ledger voucher tally expense booking assistant suggester' },
       { id: 'floors', label: 'Amazon price floors', href: '/tools/price-floors', icon: 'floors', hint: 'Lowest price per SKU that still makes money', words: 'pricing margin asin' },
+      { id: 'tranzact', label: 'Amazon → Tranzact', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'FBA inventory ledger → Tranzact stock reconciliation upload', words: 'fba inventory ledger stock reconciliation converter' },
     ],
   },
   {
@@ -74,7 +84,7 @@ export const NAV: NavSection[] = [
     hidden: true,
     pages: [
       { id: 'issues', label: 'Data issues', href: '/reporting/mis/issues', icon: 'issues', hint: 'What the close checks flagged', words: 'errors warnings checks' },
-      { id: 'tools', label: 'Tools', href: '/tools', icon: 'tools', exact: true, also: ['/tools/amazon-to-tranzact'], hint: 'Amazon → Tranzact and other converters', words: 'utilities converter' },
+      { id: 'toolshub', label: 'All tools', href: '/tools', icon: 'tools', exact: true, hint: 'Every tool on one page', words: 'utilities converter tools' },
       { id: 'tasks', label: 'Tasks', href: '/tasks', icon: 'tasks', exact: true, also: ['/work', '/compliance', '/task-tracker', '/tracker'], hint: 'Compliance and close tasks', words: 'todo deadlines gst tds roc' },
       { id: 'people', label: 'People & reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails', words: 'team owners settings' },
       { id: 'deck', label: 'MIS deck (old)', href: '/reporting/mis/deck', icon: 'old', hint: 'The first MIS deck', words: 'legacy deck' },
@@ -110,9 +120,9 @@ export function whereIs(path: string): Where | null {
 export function breadcrumbsFor(path: string): Crumb[] {
   const w = whereIs(path);
   if (!w) return [];
-  const first = w.section.pages[0];
+  const first = w.section.href ?? w.section.pages[0].href;
   return [
-    { label: w.section.label, href: first.id === w.page.id ? undefined : first.href },
+    { label: w.section.label, href: first === w.page.href ? undefined : first },
     { label: w.page.label, href: clean(path) === w.page.href ? undefined : w.page.href },
   ];
 }
