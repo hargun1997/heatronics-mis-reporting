@@ -152,9 +152,10 @@ async function shiprocketPassbook(ctx: PullContext): Promise<SlotPull> {
 }
 
 async function easebuzzSettlements(ctx: PullContext): Promise<SlotPull> {
-  const { payouts, days } = await payoutsForMonth(ctx.creds, ctx.periodKey, ctx.deadline);
+  const { payouts, days, calls, warnings } = await payoutsForMonth(ctx.creds, ctx.periodKey, ctx.deadline);
   const out = easebuzzPayoutFacts(payouts, ctx.periodKey);
-  out.trace.unshift(`Easebuzz settlements enquiry (read only), one call for ${days} day(s), ${payouts.length} settlement(s)`);
+  out.trace.unshift(`Easebuzz settlements enquiry (read only), ${calls} call(s) for ${days} day(s) (a full answer of 20 is split and asked again), ${payouts.length} settlement(s)`);
+  out.warnings.push(...warnings);
   return out;
 }
 

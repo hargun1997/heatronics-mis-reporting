@@ -73,7 +73,9 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     the passbook debits carry is UNVERIFIED. Note: the passbook parser counts debits only (refund credits are skipped as money in).
   - Easebuzz · Settlement / MDR → settlements API from Easebuzz's own PHP kit (easebuzz/paywitheasebuzz-php-lib `payout.php`):
     `POST https://dashboard.easebuzz.in/settlements/v1/retrieve`, JSON `{merchant_key, hash, payout_date: {start_date, end_date}
-    (DD-MM-YYYY), merchant_email?}`, hash = SHA-512 `key|start_date|end_date|salt` (email not hashed), ONE call per month. Shared
+    (DD-MM-YYYY), merchant_email?}`, hash = SHA-512 `key|start_date|end_date|salt` (email not hashed). Easebuzz answers at most
+    20 settlements per call (live: every month came back with exactly 20, the newest) → `payoutsSplit` halves any range that answers
+    20 and asks again (down to one day; a full single day = warning), deduped by payout id. Shared
     secrets `easebuzz-merchant-key`, `easebuzz-salt` (+ optional `easebuzz-merchant-email`); missing = "Not connected". Answer
     field names UNVERIFIED (mapper reads several key names).
   - Tranzact · BOM pricing → `api` from the Production portal: `GET https://production.heatronics.in/api/costs?month=` (machine
