@@ -58,7 +58,7 @@ export function RevenueTab({ plan, r, update }: { plan: Plan; r: PlanResult; upd
       <SectionCard
         title="New products"
         description="Lines not in the sheet's unit grid. Units ramp month-on-month for the first year, then grow year-on-year. Own COGS % replaces the plan's raw-material % for that product."
-        actions={<button onClick={addProduct} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700">Add product</button>}
+        actions={<button onClick={addProduct} className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover">Add product</button>}
       >
         <div className="space-y-3">
           {plan.products.map((p, i) => (

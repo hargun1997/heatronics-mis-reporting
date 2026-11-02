@@ -176,7 +176,7 @@ function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSourceInf
         <div className="ml-auto flex items-center gap-2">
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="px-2 py-1 rounded-lg border border-slate-200 text-xs" />
           <button onClick={() => void run()} disabled={running || ready.length === 0 || !/^\d{4}-\d{2}$/.test(month)}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40">
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40">
             {running ? 'Pulling…' : `Pull & save all for ${monthName(month)}`}
           </button>
         </div>

@@ -1,4 +1,14 @@
 /** @type {import('tailwindcss').Config} */
+// Colours are CSS-variable tokens (src/index.css, design-system/heatronics-mis/MASTER.md), the same set as
+// Heatronics Ops: light / dark switch without touching components.
+//   slate / gray / stone = the neutral scale (n-*), white = the card surface,
+//   brand = accent (indigo: active state, links, focus, data), heat = the brand mark,
+//   cta / on-cta = the one primary action per screen.
+// Old colour names (indigo, purple, green, yellow, rose, pink, sky, cyan, teal) map onto the token scales so
+// they follow the theme too.
+const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+const scale = (p) => Object.fromEntries(SHADES.map((s) => [s, v(`${p}-${s}`)]));
 export default {
   content: [
     "./index.html",
@@ -7,59 +17,58 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Heatronics primary face (website, everything) and display face.
-        sans: ['Archivo', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
-        display: ['"Archivo Expanded"', 'Archivo', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ["'Inter Variable'", 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ["'Inter Variable'", 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ["'JetBrains Mono Variable'", 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
-        'mis-green': '#10B981',
-        'mis-yellow': '#F59E0B',
-        'mis-red': '#EF4444',
-        'mis-blue': '#3B82F6',
-        // Categorical data palette — one hue per channel, distinct in hue AND
-        // lightness, deliberately kept off brand orange (reserved for actions).
+        white: v('surface'),
+        scrim: 'rgb(2 6 23 / <alpha-value>)',
+        surface: v('surface'),
+        slate: scale('n'), gray: scale('n'), stone: scale('n'), zinc: scale('n'), neutral: scale('n'),
+        heat: scale('heat'),
+        cta: { DEFAULT: v('cta'), hover: v('cta-hover') },
+        'on-cta': v('on-cta'),
+        accent: { ...scale('accent'), DEFAULT: v('accent-600') },
+        brand: scale('accent'), indigo: scale('accent'),
+        red: scale('red'), rose: scale('red'), pink: scale('red'),
+        amber: scale('amber'), yellow: scale('amber'),
+        emerald: scale('emerald'), green: scale('emerald'), teal: scale('emerald'),
+        blue: scale('blue'), sky: scale('blue'), cyan: scale('blue'),
+        violet: scale('violet'), purple: scale('violet'), fuchsia: scale('violet'),
+        orange: scale('orange'),
+        nav: { bg: v('nav-bg'), hover: v('nav-hover'), active: v('nav-active'), border: v('nav-border'), fg: v('nav-fg'), muted: v('nav-fg-muted'), strong: v('nav-fg-strong'), accent: v('nav-accent') },
+        'mis-green': v('emerald-500'),
+        'mis-yellow': v('amber-500'),
+        'mis-red': v('red-500'),
+        'mis-blue': v('blue-500'),
+        // Categorical data palette — one hue per channel (charts, chips).
         channel: {
           oem:     '#2563EB',
           d2c:     '#0E7490',
           amazon:  '#D97706',
           offline: '#7C3AED',
-          blinkit: '#475569',
-        },
-        // Heatronics brand orange — anchored on the logo's #FE4705.
-        brand: {
-          50:  '#fff3ed',
-          100: '#ffe3d4',
-          200: '#ffc4a9',
-          300: '#ff9d72',
-          400: '#ff6c38',
-          500: '#fe4705',
-          600: '#e13a00',
-          700: '#ba2f06',
-          800: '#93270c',
-          900: '#79230d',
+          blinkit: '#64748B',
         },
       },
       boxShadow: {
-        'soft': '0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px 0 rgba(15, 23, 42, 0.04)',
-        'card': '0 1px 2px rgba(15,23,42,0.04), 0 6px 16px -8px rgba(15, 23, 42, 0.12)',
-        'card-lg': '0 1px 2px rgba(15,23,42,0.05), 0 14px 34px -14px rgba(15, 23, 42, 0.22)',
-        'drawer': '-24px 0 60px -24px rgba(15, 23, 42, 0.35)',
-        'drawer-left': '24px 0 60px -24px rgba(15, 23, 42, 0.35)',
-        'overlay': '0 30px 70px -20px rgba(15, 23, 42, 0.5)',
-        'popover': '0 20px 50px -16px rgba(15, 23, 42, 0.4)',
+        soft: 'var(--shadow-card)',
+        card: 'var(--shadow-card)',
+        'card-lg': '0 1px 2px rgb(15 23 42 / 0.05), 0 8px 24px -12px rgb(15 23 42 / 0.18)',
+        drawer: '-24px 0 60px -24px rgb(2 6 23 / 0.35)',
+        'drawer-left': '24px 0 60px -24px rgb(2 6 23 / 0.35)',
+        overlay: '0 30px 70px -20px rgb(2 6 23 / 0.5)',
+        popover: '0 20px 50px -16px rgb(2 6 23 / 0.4)',
       },
       backgroundImage: {
-        // Signature Heatronics gradient — used on primary actions, the logo
-        // tile and accents. Warm, directional, built off the logo orange.
-        'brand-gradient': 'linear-gradient(135deg, #ff6c38 0%, #fe4705 55%, #e13a00 100%)',
-        'brand-soft': 'linear-gradient(135deg, #fff5ef 0%, #ffffff 68%)',
-        // Raised card surface — a barely-there top-down sheen so white cards
-        // read as objects, not flat paint.
-        'surface': 'linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%)',
-        'surface-tint': 'linear-gradient(180deg, #f7f9fc 0%, #ffffff 70%)',
-        // Dark contrast panel for hero/stat bands that break up the white.
-        'ink-panel': 'linear-gradient(135deg, #243244 0%, #0f172a 100%)',
+        // Kept as names so old classes still render; flat token fills now (no gradients, MASTER.md).
+        'brand-gradient': 'linear-gradient(rgb(var(--cta)), rgb(var(--cta)))',
+        'brand-soft': 'none',
+        surface: 'none',
+        'surface-tint': 'none',
+        'ink-panel': 'linear-gradient(rgb(var(--n-900)), rgb(var(--n-900)))',
       },
+      transitionDuration: { DEFAULT: '150ms' },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
         'scale-in': { from: { opacity: '0', transform: 'translateY(6px) scale(.98)' }, to: { opacity: '1', transform: 'translateY(0) scale(1)' } },

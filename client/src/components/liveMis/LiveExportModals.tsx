@@ -30,7 +30,7 @@ const GRANS: { id: Granularity; label: string }[] = [
 ];
 
 const chip = (on: boolean) => `px-3 py-1.5 rounded-lg text-xs border transition-colors ${on ? 'bg-brand-50 text-brand-700 border-brand-200 font-medium' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`;
-const btnPrimary = 'px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40';
+const btnPrimary = 'px-4 py-2 rounded-lg bg-cta text-on-cta text-sm font-medium hover:bg-cta-hover disabled:opacity-40';
 const btnGhost = 'px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800';
 
 export function LiveExcelModal({ deck, open, onClose, blended, merged }: {
@@ -54,7 +54,7 @@ export function LiveExcelModal({ deck, open, onClose, blended, merged }: {
       </>}>
       <div className="space-y-4">
         <button type="button" disabled={busy} onClick={() => void run({ ...LIVE_EXPORT_EVERYTHING, blendCogm: o.blendCogm, mergeChannels: o.mergeChannels })}
-          className="w-full text-left rounded-xl bg-brand-600 hover:bg-brand-700 text-white px-4 py-3 disabled:opacity-60">
+          className="w-full text-left rounded-xl bg-cta hover:bg-cta-hover text-on-cta px-4 py-3 disabled:opacity-60">
           <span className="block font-semibold">Export Everything</span>
           <span className="block text-xs text-white/80">Every month, quarter and FY, channel P&amp;L, SKU × channel, orders, repeats, discounts, COGM / OpEx detail, marketing, units and SKU cells</span>
         </button>

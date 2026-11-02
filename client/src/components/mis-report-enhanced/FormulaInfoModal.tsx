@@ -50,7 +50,7 @@ export function FormulaInfoModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-scrim/60 z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-lg w-full border border-slate-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
@@ -152,7 +152,7 @@ export function InfoTooltip({ title, description, isOpen, onClose }: InfoTooltip
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-scrim/40 z-[100] flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="bg-white rounded-lg shadow-xl max-w-sm w-full border border-slate-200 p-4"
         onClick={(e) => e.stopPropagation()}

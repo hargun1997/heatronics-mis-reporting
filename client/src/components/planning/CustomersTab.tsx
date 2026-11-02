@@ -109,7 +109,7 @@ function D2CCard({ plan, r, update }: { plan: Plan; r: PlanResult; update: Updat
         </div>
         <div className="flex flex-wrap gap-2">
           {newer && learned && (
-            <button onClick={apply} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700">
+            <button onClick={apply} className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover">
               Use Shopify cohorts ({stored!.asOf})
             </button>
           )}
@@ -246,7 +246,7 @@ function SeasonCard({ plan, update }: { plan: Plan; update: Update }) {
   ];
   // Oct first, the way the business sees the year
   const order = [9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8];
-  const tint = (x: number) => `rgba(254,71,5,${Math.min(0.85, Math.max(0, x / 4))})`;
+  const tint = (x: number) => `rgb(var(--accent-600) / ${Math.min(0.85, Math.max(0, x / 4))})`;
   return (
     <SectionCard
       title="Seasonality"
@@ -356,7 +356,7 @@ function Spark({ v, base }: { v: number[]; base: number }) {
   const bw = W / v.length;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="h-[26px] w-[300px]" aria-hidden="true">
-      {v.map((x, i) => <rect key={i} x={i * bw} width={Math.max(1, bw - 1)} y={H - (x / max) * H} height={(x / max) * H} fill={i >= base ? '#fdba74' : '#fe4705'} />)}
+      {v.map((x, i) => <rect key={i} x={i * bw} width={Math.max(1, bw - 1)} y={H - (x / max) * H} height={(x / max) * H} fill={i >= base ? 'rgb(var(--accent-300))' : 'rgb(var(--accent-600))'} />)}
     </svg>
   );
 }

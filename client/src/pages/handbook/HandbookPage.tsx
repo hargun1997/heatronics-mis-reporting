@@ -487,7 +487,7 @@ function ArticlePanel({
 
       {hasToc && wide && (
         <aside className="w-[200px] flex-shrink-0" aria-label="On this page">
-          <div className="sticky top-[calc(8.5rem+var(--htx-bar-h,0px))] max-h-[calc(100vh-10rem-var(--htx-bar-h,0px))] overflow-y-auto">
+          <div className="sticky top-[calc(var(--app-top)+5rem+var(--htx-bar-h,0px))] max-h-[calc(100vh-10rem-var(--htx-bar-h,0px))] overflow-y-auto">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600">On this page</div>
             <OnThisPage a={a} active={activeHeading} jump={jump} />
           </div>
@@ -510,7 +510,7 @@ function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: ()
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Screenshot" className="fixed inset-0 z-[60] flex flex-col bg-slate-900/85 p-3 sm:p-6" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label="Screenshot" className="fixed inset-0 z-[60] flex flex-col bg-scrim/85 p-3 sm:p-6" onClick={onClose}>
       <div className="flex justify-end">
         <button
           ref={closeRef}
@@ -659,9 +659,9 @@ function Reader({
   const barBtn = `inline-flex min-h-[40px] flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold ${focusRing}`;
 
   return (
-    <div className={isOpen ? 'min-h-[calc(100vh-3.5rem)] bg-white' : 'hidden'} aria-label="Accounts Handbook reader">
+    <div className={isOpen ? 'min-h-[calc(100vh-var(--app-top))] bg-white' : 'hidden'} aria-label="Accounts Handbook reader">
       {/* Bar: Back · breadcrumb · search · contents (sticks under the app header) */}
-      <div className="sticky top-[calc(3.5rem+var(--htx-bar-h,0px))] z-30 flex h-14 items-center gap-1.5 border-b border-slate-200 bg-white/95 px-2 backdrop-blur sm:gap-2 sm:px-4">
+      <div className="sticky top-[calc(var(--app-top)+var(--htx-bar-h,0px))] z-30 flex h-14 items-center gap-1.5 border-b border-slate-200 bg-white/95 px-2 backdrop-blur sm:gap-2 sm:px-4">
         <button type="button" onClick={back} className={`${barBtn} border border-slate-200 text-slate-800 hover:bg-slate-50`}>
           <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
           Back
@@ -707,10 +707,10 @@ function Reader({
       <div className="flex">
         {shown && navOpen && (
           <>
-            <div className="fixed inset-0 top-28 z-30 bg-slate-900/30 lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />
+            <div className="fixed inset-0 top-[calc(var(--app-top)+3.5rem+var(--htx-bar-h,0px))] z-30 bg-scrim/30 lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />
             <aside
               id="hb-contents"
-              className="fixed bottom-0 left-0 top-28 z-40 w-[min(300px,85vw)] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white shadow-drawer-left lg:sticky lg:z-0 lg:h-[calc(100vh-7rem)] lg:w-[268px] lg:flex-shrink-0 lg:self-start lg:bg-slate-50/60 lg:shadow-none"
+              className="fixed bottom-0 left-0 top-[calc(var(--app-top)+3.5rem+var(--htx-bar-h,0px))] z-40 w-[min(300px,85vw)] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white shadow-drawer-left lg:sticky lg:z-0 lg:h-[calc(100vh-3.5rem-var(--htx-bar-h,0px))] lg:top-[calc(3.5rem+var(--htx-bar-h,0px))] lg:w-[268px] lg:flex-shrink-0 lg:self-start lg:bg-slate-50/60 lg:shadow-none"
             >
               <ReaderNav view={shown} open={openFromNav} />
             </aside>
@@ -841,7 +841,7 @@ function Home({ open, openHref, compact }: { open: OpenFn; openHref: (href: stri
   };
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] bg-white">
+    <div className="min-h-[calc(100vh-var(--app-top))] bg-white">
       <div className={`mx-auto max-w-[960px] px-4 sm:px-6 ${compact ? 'py-6' : 'py-8 sm:py-12'}`}>
         <h1 className="text-[28px] font-bold leading-tight tracking-tight text-slate-900 sm:text-[32px]">Accounts Handbook</h1>
         <p className="mt-1.5 text-[15.5px] text-slate-600">Search for a job, or pick one below.</p>

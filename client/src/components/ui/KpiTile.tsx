@@ -21,8 +21,8 @@ interface KpiTileProps {
 
 const toneWrap: Record<KpiTone, string> = {
   default:  'border-slate-200/80 bg-surface',
-  warning:  'border-amber-200 bg-gradient-to-b from-amber-50 to-white',
-  critical: 'border-rose-200 bg-gradient-to-b from-rose-50 to-white',
+  warning:  'border-amber-200 bg-amber-50/40',
+  critical: 'border-rose-200 bg-rose-50/40',
 };
 
 const toneValue: Record<KpiTone, string> = {
@@ -32,7 +32,7 @@ const toneValue: Record<KpiTone, string> = {
 };
 
 const toneAccent: Record<KpiTone, string> = {
-  default:  '#fe4705',
+  default:  '',
   warning:  '#d97706',
   critical: '#dc2626',
 };
@@ -54,7 +54,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = '#2563EB', tone = 'default', accent }: KpiTileProps) {
+export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'rgb(var(--accent-600))', tone = 'default', accent }: KpiTileProps) {
   const deltaColor = !delta
     ? ''
     : delta.good === undefined
@@ -66,14 +66,10 @@ export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = '#
   const bar = accent ?? toneAccent[tone];
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border p-4 pt-[18px] shadow-card ${toneWrap[tone]}`}>
-      <span
-        aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-[3px]"
-        style={{ background: `linear-gradient(90deg, ${bar} 0%, ${bar} 55%, transparent 100%)` }}
-      />
+    <div className={`relative overflow-hidden rounded-xl border p-4 shadow-card ${toneWrap[tone]}`}>
+      {bar && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px]" style={{ background: bar }} />}
       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={`font-display font-extrabold tabular-nums mt-2 text-[26px] leading-none ${toneValue[tone]}`}>
+      <div className={`font-semibold tracking-[-0.02em] tabular-nums mt-2 text-[26px] leading-none ${toneValue[tone]}`}>
         {value}
         {unit && <span className="text-base font-bold text-slate-400 ml-1">{unit}</span>}
       </div>

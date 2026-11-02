@@ -310,7 +310,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
   };
 
   return (
-    <div className="fixed inset-0 bg-white/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-white/40 flex items-center justify-center z-[100] p-4">
       <div className="bg-white rounded-xl border border-slate-200 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">

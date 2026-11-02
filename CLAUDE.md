@@ -10,6 +10,13 @@ Endpoints that skip the login (machine callers with their own token): `/api/work
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 
 
+## Design & menu
+- Same design system as Ops: `design-system/heatronics-mis/MASTER.md` (tokens in `client/src/index.css`, Tailwind names
+  map onto them: slate/gray = neutral, white = surface, brand = accent indigo, `bg-cta text-on-cta` = the one primary
+  action; light / dark / system theme). No gradients, no raw hex in components, scrims `bg-scrim/x`.
+- Menu = `client/src/nav/config.ts` only (sidebar `components/shell/AppNav.tsx`, ⌘K `CommandPalette`, breadcrumbs in
+  `PageHeader`). Adding a page = a route in `App.tsx` + a line in nav/config; `server/test/nav.test.ts` checks both.
+
 ## Live connectors & shared secrets
 - `server/src/connectors/sharedSecrets.ts`: connectors fill blank fields from the SAME Secret Manager entries Ops uses
   (project gen-lang-client-0101319357, read with the Cloud Run identity, 5-min cache): Amazon `spapi-lwa-client-id|secret`,

@@ -156,7 +156,7 @@ export function PlanningPage() {
             {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Unsaved changes</span>}
-          <button disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-40">
+          <button disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-40">
             {selected === 'base' ? 'Save as scenario' : 'Save'}
           </button>
           {selected !== 'base' && <button disabled={busy} onClick={() => save(true)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Save as new</button>}
