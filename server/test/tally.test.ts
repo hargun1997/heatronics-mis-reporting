@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assertTallyReadOnly, companyListEnvelope } from '../src/connectors/sources/tally.js';
-import { monthsToPull } from '../src/connectors/tally/snapshots.js';
+import { monthsToPull, scheduledDue } from '../src/connectors/tally/snapshots.js';
 import { parsePnlXml, pnlEnvelope } from '../src/connectors/tally/pnl.js';
 
 test('Tally guard: exports only', () => {
@@ -44,4 +44,20 @@ test('poll months: this + last month always, then up to 2 older ones not stored'
   const now = Date.parse('2026-11-02T14:00:00Z');
   assert.deepEqual(monthsToPull(now, {}), ['2026-11', '2026-10', '2026-09', '2026-08']);
   assert.deepEqual(monthsToPull(now, { '2026-09': 'x', '2026-08': 'x' }), ['2026-11', '2026-10', '2026-07', '2026-06']);
+});
+
+test('schedule: from the 10th, Mon–Sat 10:00–19:00 IST; every 20 min until last month is final, then daily', () => {
+  const st = (o = {}) => ({ lastTryAt: null, lastOkAt: null, lastError: null, company: null, months: {}, ...o });
+  const at = (iso: string) => Date.parse(iso);
+  assert.equal(scheduledDue(at('2026-11-02T08:00:00+05:30'), st()).due, false); // before 10:00 and before the 10th
+  assert.equal(scheduledDue(at('2026-11-09T12:00:00+05:30'), st()).due, false); // 9th
+  assert.equal(scheduledDue(at('2026-11-15T12:00:00+05:30'), st()).due, false); // Sunday
+  assert.equal(scheduledDue(at('2026-11-10T19:30:00+05:30'), st()).due, false); // after 19:00
+  assert.equal(scheduledDue(at('2026-11-10T11:00:00+05:30'), st()).due, true);
+  assert.equal(scheduledDue(at('2026-11-10T11:00:00+05:30'), st({ lastTryAt: '2026-11-10T05:20:00Z' })).due, false); // 10:50 IST
+  const final = st({ months: { '2026-10': '2026-11-10T05:30:00Z' }, lastOkAt: '2026-11-10T05:30:00Z', lastTryAt: '2026-11-10T05:30:00Z' });
+  assert.equal(scheduledDue(at('2026-11-10T16:00:00+05:30'), final).due, false); // already taken today
+  assert.equal(scheduledDue(at('2026-11-11T11:00:00+05:30'), final).due, true);  // daily refresh
+  const early = st({ months: { '2026-10': '2026-11-03T06:00:00Z' } }); // taken before the 10th → not final
+  assert.equal(scheduledDue(at('2026-11-10T11:00:00+05:30'), early).due, true);
 });
