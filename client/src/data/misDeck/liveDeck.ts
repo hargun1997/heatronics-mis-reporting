@@ -484,7 +484,10 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     return {
       month, skuCells,
       completeness: {
-        periodKey, hasTally: true, cogmReal: true, level: 'full',
+        periodKey, hasTally: true, cogmReal: true,
+        // A month is only closed once Tally has its sales posted; a month with books
+        // but no revenue yet (e.g. the current one) stays open.
+        level: c.netRevenue > 0 ? 'full' : (cogmReal ? 'contribution' : 'topline'),
         sources: [...contributors], through,
         reconcileResidual: c.reconciliation.residual,
       },
