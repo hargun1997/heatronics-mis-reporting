@@ -111,8 +111,18 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     the sheet yet" (fail check, upload fallback). Product Price & Inventory / Purchase Invoice Register ids are in `TRANZACT_SHEETS`
     (not read yet).
 - **Claude task (indirect):** the BOM costs Production serves come from the "Portal feeds: Mac Chrome" Claude task (its Tranzact part runs on the 18th).
-- **Manual uploads (reason shown on the slot):** Tally P&L (Tally on cloud doesn't expose its XML port yet — ask Thakur Hardsoft to
-  open port 9000), Tally trial balance (optional screenshot), Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
+  - Tally · P&L → `api`, READ ONLY, from STORED snapshots (Tally answers only while TallyPrime is open on Thakur Hardsoft's cloud
+    with the company loaded). `.github/workflows/tally-poll.yml` POSTs `/api/tally/poll` (open path, status only) every 30 min Mon–Sat;
+    `tally/snapshots.ts scheduledDue` lets it run only from the 15th, 10:00–19:00 IST, every 20 min until last month has a copy taken on /
+    after the 15th, then once a day. Each poll stores this month, last month and ≤ 2 older unstored months (last 12) as
+    `tally/pnl-<YYYY-MM>` (+ `tally/state`, `tally/raw-last`). Request = Tally's "Profit and Loss" report exploded
+    (`tally/pnl.ts`); every request passes `assertTallyReadOnly` (Export only). Real answer shape (checked on July 2026): group =
+    DSPACCNAME + PLAMT/BSMAINAMT, line = DSPACCNAME + PLAMT/PLSUBAMT, ledger = BSNAME + BSAMT/BSSUBAMT; amounts carry the group's
+    sign (shown = value × sign of group; contras negative); no Nett Profit row → Σ group totals; Purchase Accounts collapsed → split
+    into Stock Transfer (= Stock Transfers sale) + Raw Material Purchases like the Excel reader. The slot reads the snapshot (a forced
+    poll if none), warns when the copy was taken < 5 days after month end. Host / port / company on the Connectors → Tally card (never
+    in the repo). `POST /api/tally/pull` = signed-in Pull now.
+- **Manual uploads (reason shown on the slot):** Tally trial balance (optional screenshot), Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data), Shopify variant sales (fallback only —
   Shopify is live).

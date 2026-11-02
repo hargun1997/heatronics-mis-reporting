@@ -494,6 +494,13 @@ function tallyStage(base: StageBase, months: TallyMonthExtract[], pick: TallyMon
   return { ...base, periodKey: pick.period, extracted, checks: { items, overall: overallOf(items) } };
 }
 
+/** A live Tally pull (stored snapshot) staged exactly like the P&L Excel for that month. */
+export function stageTallyMonth(base: StageBase, month: TallyMonthExtract): StagedUpload {
+  const staged = tallyStage(base, [month], month);
+  staged.checks.items[0] = { id: 'read', label: 'P&L read (Tally, live)', status: 'pass', detail: `Tally ${month.periodLabel}` };
+  return staged;
+}
+
 /** Re-stage a Tally upload for a different month the operator picked (no re-read). */
 export function restageTallyMonth(staged: StagedUpload, period: string): StagedUpload {
   const months = staged.extracted.tallyMonths;

@@ -1,0 +1,23 @@
+# Tally P&L snapshots. Tally (TallyPrime on Thakur Hardsoft's cloud machine) only answers while it is open,
+# so the MIS checks it every 30 min in working hours (Mon–Sat 10:00–19:00 IST) from the 15th of each month — when
+# last month's books are final — and, when it answers, stores last month's and this month's P&L (read only).
+# The endpoint answers a status only (no figures); the app applies the same gate (snapshots.ts scheduledDue).
+name: Tally snapshot
+
+on:
+  schedule:
+    - cron: '13,43 4-13 * * 1-6'   # UTC = 09:43–19:13 IST, Mon–Sat; the app skips days before the 15th
+  workflow_dispatch:
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Ask the MIS to check Tally
+        env:
+          APP_URL: ${{ vars.MIS_APP_URL || 'https://heatronics-mis-tool-559416687588.europe-west1.run.app' }}
+        run: |
+          curl -fsS --retry 2 --retry-delay 20 --max-time 300 \
+            -X POST "$APP_URL/api/tally/poll" -H 'Content-Type: application/json' -d '{}'
+          echo
