@@ -130,6 +130,12 @@ details.card[open]>summary{margin-bottom:12px}
 td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
 .blk.sf{background:#F7F4FB}.blk.sf .bh{color:#6A4C93}
 .blk.cv{background:#F3F8F4}.blk.cv .bh{color:#2E7A52}
+.cmpbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;font-size:14px}
+.cmpbar input{font:500 14px var(--mono);padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);min-width:200px;flex:1;max-width:340px}
+.cmpbar .note{flex-basis:100%}
+#cmp th.cur,#cmp td.cur{background:#FBF3EE}
+#cmp td.ok{color:var(--ok);font-weight:600}#cmp td.bad{color:var(--bad);font-weight:600}
+#cmp col.c0{width:30%}
 .blk.cn{background:#F2F5FB}.blk.cn .bh{color:#3B5BA9}
 .rows{display:flex;flex-direction:column}
 .rows .r{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05);font-size:14px}
@@ -205,6 +211,10 @@ details.blk:last-child:not([open]){padding-bottom:14px}
 
   <details class="card fold" data-k="t_own" open><summary><h2>Who owns what</h2><span class="seg" id="viewSeg" role="group" aria-label="Show"><button type="button" data-v="pct" aria-pressed="true">%</button><button type="button" data-v="sh" aria-pressed="false">Shares</button><button type="button" data-v="chg" aria-pressed="false">Change in %</button></span></summary><div class="tw"><table id="own"></table></div></details>
 
+  <details class="card fold" data-k="t_cmp" open><summary><h2>Compare valuations</h2><span class="hint2">Hyperscale pre-money side by side · everything else as set above</span></summary>
+    <div class="cmpbar"><label for="cmpVals">Pre-money values (₹ Cr)</label><input id="cmpVals" value="23, 30, 40, 50" inputmode="decimal" aria-describedby="cmpHint"><button type="button" class="btn" id="cmpAdd">+ Add current</button><p class="note" id="cmpHint">Up to 6 values, separated by commas. The highlighted column is the pre-money set in Step 2.</p></div>
+    <div class="tw"><table id="cmp"></table></div></details>
+
   <details class="card fold" data-k="t_rnd"><summary><h2>Who puts in what, and when</h2></summary><div class="tw"><table id="rounds"></table></div></details>
 
   <details class="card fold cs" data-k="t_cs"><summary><h2>Company secretary's working</h2><span class="hint2">step-by-step share maths, checked against the signed SSSHA</span></summary><div id="cs"></div></details>
@@ -250,11 +260,12 @@ document.getElementById('invs').addEventListener('input',e=>{const t=e.target,i=
 document.getElementById('invs').addEventListener('click',e=>{const r=e.target.dataset.rm;if(r===undefined)return;INV.splice(+r,1);drawInv();render()});
 document.getElementById('addInv').onclick=()=>{INV.push({n:'Investor '+(INV.length+1),a:0.5});drawInv();render()};
 // ---- defaults: built-in values, or the set saved on the MIS server (shared by everyone who opens the planner) ----
-const FACTORY={v:1,mode:'join',inputs:{...Object.fromEntries(ALL.map(c=>[c.id,c.v])),msop:0},inv:INV0.map(x=>({...x}))};
-const state=()=>({v:1,mode:MODE,inputs:{...Object.fromEntries(ALL.map(c=>[c.id,V(c.id)])),msop:document.getElementById('msop').checked?1:0},inv:INV.map((x,i)=>i?{n:x.n,a:x.a||0}:{n:x.n})});
+const FACTORY={v:1,mode:'join',inputs:{...Object.fromEntries(ALL.map(c=>[c.id,c.v])),msop:0},inv:INV0.map(x=>({...x})),cmp:[23,30,40,50]};
+const state=()=>({v:1,mode:MODE,inputs:{...Object.fromEntries(ALL.map(c=>[c.id,V(c.id)])),msop:document.getElementById('msop').checked?1:0},inv:INV.map((x,i)=>i?{n:x.n,a:x.a||0}:{n:x.n}),cmp:cmpVals()});
 function setMode(m){MODE=m==='post'?'post':'join';document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===MODE));
   document.getElementById('row_stk').style.display=MODE==='join'?'':'none';document.getElementById('row_stkPost').style.display=MODE==='post'?'':'none'}
 function apply(s){if(!s||typeof s!=='object')return;const inp=s.inputs||{};
+  document.getElementById('cmpVals').value=(Array.isArray(s.cmp)&&s.cmp.length?s.cmp:FACTORY.cmp).join(', ');
   ALL.forEach(c=>{const x=Number(inp[c.id]);document.getElementById('n_'+c.id).value=isFinite(x)&&inp[c.id]!==null&&inp[c.id]!==''?x:c.v});
   document.getElementById('msop').checked=Number(inp.msop)===1;
   setMode(s.mode);
@@ -274,14 +285,16 @@ document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target
   const M=model();if(m==='post'&&MODE!=='post')document.getElementById('n_stkPost').value=(Math.round(M.aPost*2000)/20).toFixed(1).replace(/\.0$/,'');
   if(m==='join'&&MODE!=='join')document.getElementById('n_stk').value=(Math.round(M.A/M.T0*2000)/20).toFixed(1).replace(/\.0$/,'');
   TOUCHED=true;setMode(m);render()});
+document.getElementById('cmpVals').addEventListener('input',()=>{TOUCHED=true;renderCmp(model())});
+document.getElementById('cmpAdd').onclick=()=>{const e=document.getElementById('cmpVals'),v=V('pre1');const xs=cmpVals();if(!xs.includes(v)){xs.push(v);xs.sort((a,b)=>a-b);e.value=xs.slice(0,6).join(', ')}TOUCHED=true;renderCmp(model())};
 document.getElementById('viewSeg').addEventListener('click',e=>{const v=e.target.dataset&&e.target.dataset.v;if(!v)return;e.preventDefault();VIEW=v;
   document.querySelectorAll('#viewSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));render()});
 const V=id=>{const x=parseFloat(document.getElementById('n_'+id).value);return isFinite(x)?x:0};
 const fP=x=>(x*100).toFixed(1)+'%', fS=x=>Math.round(x).toLocaleString('en-IN'), ru=n=>'₹'+Math.round(n).toLocaleString('en-IN');
 const fR=n=>{const a=Math.abs(n),g=n<0?'−':'';if(a>=CR*0.9995)return g+'₹'+(a/CR).toFixed(2)+' Cr';if(a>=1e5)return g+'₹'+(a/1e5).toFixed(1)+' L';return g+'₹'+Math.round(a).toLocaleString('en-IN')};
 
-function model(){
-  const I={};ALL.forEach(c=>I[c.id]=V(c.id));
+function model(ov){
+  const I={};ALL.forEach(c=>I[c.id]=ov&&c.id in ov?ov[c.id]:V(c.id));
   // 2 · Hyperscale Round pricing, with an optional ESOP top-up (X new options) created before the round,
   // so the pool hits its target after the round. The top-up sits in the pre-money, so it lowers the price.
   const pre1=I.pre1*CR, R1=I.R1*CR, prim=I.cap*CR, debt=I.debt*CR, wVal=debt*I.wcov/100;
@@ -407,7 +420,7 @@ function render(){
   const NM={today:'today',join:'the pool resize and Aneesha joining',hs:'the Hyperscale Round',conv:'the CCPS conversion'};
   const rows=[['Hargun','H',o=>o.H],['Jagjit','J',o=>o.J],['Aneesha','A',o=>o.A],['Founders total','F',o=>o.H+o.J+o.A,1],['ESOP pool','E',o=>o.E,3],['Angel Round 1 (CN)','C',o=>o.C],['Pre-Seed (CCPS)','P',o=>o.P]]
     .concat(M.inv.map((x,i)=>[esc(x.name),'i'+i,o=>o.inv[i]]))
-    .concat([['Venture-debt warrants','W',o=>o.W],['Series A investors','R2',o=>o.R2],['Total shares','T',o=>tot(o),2]]);
+    .concat([['Venture-debt warrants','W',o=>o.W],['Series A investors','R2',o=>o.R2],['Investors total','I',o=>o.C+o.P+o.W+o.R2+o.inv.reduce((s,x)=>s+x,0),1],['Total shares','T',o=>tot(o),2]]);
   const sign=v=>v>0?`<span class="up">+${fS(v)}</span>`:v<0?`<span class="dn">−${fS(-v)}</span>`:'<span class="dash">0</span>';
   const tip=(key,f,s,v,o)=>{const i=cols.findIndex(c=>c[1]===s);
     if(i<1){return key==='C'?` class="tip" data-tip="${esc('₹75,00,000 of notes, not yet shares.\nCounted as the '+fS(BASE.AR1)+' shares they convert into at the ₹18 Cr cap; at the round they convert at the lower of the cap and 30% off the round price.')}"`:''}
@@ -457,6 +470,35 @@ function render(){
    R('Post-money (equity)',d,fR(M.pre1+M.eqIn),fR(M.pre2+M.N2*M.p2))+
    R('Dilution incl. warrants',d,fP((M.newR1+M.W)/M.post1),fP(M.N2/M.post2),'hl')+'</tbody>';
   renderCS(M);
+  renderCmp(M);
+}
+const cmpVals=()=>[...new Set(document.getElementById('cmpVals').value.split(/[,\s]+/).map(Number).filter(x=>isFinite(x)&&x>0&&x<1000))].slice(0,6);
+function renderCmp(M){
+  const vals=cmpVals(), cur=M.I.pre1;
+  if(!vals.length){document.getElementById('cmp').innerHTML='<tbody><tr><td class="dash">Enter one or more pre-money values above.</td></tr></tbody>';return}
+  const Ms=vals.map(v=>Math.abs(v-cur)<1e-9?M:model({pre1:v}));
+  const inv=o=>o.C+o.P+o.W+o.R2+o.inv.reduce((s,x)=>s+x,0), F=o=>o.H+o.J+o.A;
+  const hs=(m,f)=>fP(f(m.st.hs)/m.tot(m.st.hs)), r2=(m,f)=>fP(f(m.st.r2)/m.tot(m.st.r2));
+  const cc=v=>Math.abs(v-cur)<1e-9?' class="cur"':'';
+  const row=(l,fn,cls)=>`<tr class="${cls||''}"><td>${l}</td>${Ms.map((m,i)=>{const r=fn(m);return typeof r==='object'?`<td class="${r.c}${Math.abs(vals[i]-cur)<1e-9?' cur':''}">${r.t}</td>`:`<td${cc(vals[i])}>${r}</td>`}).join('')}</tr>`;
+  const grp=t=>`<tr class="grp"><td colspan="${vals.length+1}">${t}</td></tr>`;
+  document.getElementById('cmp').innerHTML=`<colgroup><col class="c0">${vals.map(()=>'<col>').join('')}</colgroup><thead><tr><th></th>${vals.map(v=>`<th${cc(v)}>₹${v} Cr pre</th>`).join('')}</tr></thead><tbody>`+
+   grp('Hyperscale Round')+
+   row('Equity raise',m=>fR(m.R1))+
+   row('Post-money',m=>fR(m.pre1+m.eqIn))+
+   row('Price per share',m=>ru(m.p1))+
+   row('Dilution this round',m=>fP((m.newR1+m.W)/m.post1),'hl')+
+   row('Angel notes convert',m=>`${fS(m.cnSh)} sh at ${ru(m.cnp)} · ${m.cnDisc?'30% off':'cap'}`)+
+   grp('Who owns what after the Hyperscale Round')+
+   row('Hargun',m=>hs(m,o=>o.H))+row('Aneesha',m=>hs(m,o=>o.A))+row('Jagjit',m=>hs(m,o=>o.J))+
+   row('Founders total',m=>hs(m,F),'hl')+
+   row('ESOP pool',m=>hs(m,o=>o.E))+
+   row('Investors total',m=>hs(m,inv),'hl')+
+   row('Founders ≥ 70%',m=>{const f=F(m.st.hs)/m.tot(m.st.hs);const ok=f>=0.7-1e-9;return {c:ok?'ok':'bad',t:`${ok?'✓':'✗'} ${(f*100).toFixed(2)}%`}})+
+   row("Hargun's shares at the round price",m=>fR(m.st.hs.H*m.p1))+
+   grp('After Series A (proposed)')+
+   row('Hargun',m=>r2(m,o=>o.H))+row('Founders total',m=>r2(m,F),'hl')+row('Investors total',m=>r2(m,inv))+
+   '</tbody>';
 }
 function renderSummaries(M){
   const st=M.st, tot=M.tot, h=st.hs, T1=tot(h), t=x=>fP(x/T1), set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};

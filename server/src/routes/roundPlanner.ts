@@ -11,7 +11,7 @@ import { readJson, writeJson } from '../ingest/objectStore.js';
 const router = Router();
 const KEY = 'round-planner-defaults';
 
-interface Defaults { v: 1; mode: 'join' | 'post'; inputs: Record<string, number>; inv: { n: string; a?: number }[] }
+interface Defaults { v: 1; mode: 'join' | 'post'; inputs: Record<string, number>; inv: { n: string; a?: number }[]; cmp: number[] }
 interface Stored { defaults: Defaults | null; updatedAt: string | null }
 
 type AsyncHandler = (req: Request, res: Response) => Promise<unknown>;
@@ -22,7 +22,7 @@ const h = (fn: AsyncHandler) => (req: Request, res: Response) => {
   });
 };
 
-// Keep only what the planner uses: numeric inputs with short ids, up to 6 investors.
+// Keep only what the planner uses: numeric inputs with short ids, up to 6 investors, up to 6 comparison valuations.
 function clean(raw: unknown): Defaults | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
@@ -39,7 +39,8 @@ function clean(raw: unknown): Defaults | null {
     const n = String(o.n ?? '').trim().slice(0, 60) || `Investor ${i + 1}`;
     return i === 0 ? { n } : { n, a: Math.max(0, Number(o.a) || 0) };
   });
-  return { v: 1, mode: r.mode === 'post' ? 'post' : 'join', inputs, inv };
+  const cmp = (Array.isArray(r.cmp) ? r.cmp : []).map(Number).filter((x) => Number.isFinite(x) && x > 0 && x < 1000).slice(0, 6);
+  return { v: 1, mode: r.mode === 'post' ? 'post' : 'join', inputs, inv, cmp };
 }
 
 router.get('/defaults', h(async (_req, res) => {
