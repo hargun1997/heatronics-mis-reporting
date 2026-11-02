@@ -30,10 +30,12 @@ export function easebuzzPayoutFacts(payouts: Record<string, unknown>[], periodKe
     if (!date) { undated += 1; continue; }
     if (date.slice(0, 7) !== periodKey) { outside += 1; continue; }
     const fee = r2(
-      num(pick(p, 'service_charge', 'total_service_charge')) +
-      num(pick(p, 'service_tax', 'gst', 'total_service_tax', 'gst_amount')) +
-      num(pick(p, 'express_service_charge')) +
-      num(pick(p, 'express_service_tax')),
+      // Live answer (2 Nov 2026): service_charge_amount, service_tax_amount, express_service_charge_amount,
+      // express_service_tax_amount (+ payout_actual_date, payout_id). Older names kept as fallbacks.
+      num(pick(p, 'service_charge_amount', 'service_charge', 'total_service_charge')) +
+      num(pick(p, 'service_tax_amount', 'service_tax', 'gst', 'total_service_tax', 'gst_amount')) +
+      num(pick(p, 'express_service_charge_amount', 'express_service_charge')) +
+      num(pick(p, 'express_service_tax_amount', 'express_service_tax')),
     );
     byDate.set(date, r2((byDate.get(date) ?? 0) + fee));
     n += 1;
