@@ -133,35 +133,70 @@ td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
 .blk .note2{font-size:12.5px;color:var(--muted);margin:4px 0 0}
 #own col.c0{width:24%}
 #own tbody tr:nth-child(-n+4) td.tip:hover::after{bottom:auto;top:calc(100% + 6px)}
+/* results strip */
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;padding:0;overflow:hidden}
+@media (max-width:820px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:480px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{padding:12px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.kpi .kl{font:600 11px var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.kpi .kv{font:800 24px/1.15 var(--display);margin-top:2px}
+.kpi .ks{font:12px var(--mono);color:var(--muted);margin-top:2px}
+.kpi.hi{background:#FBF3EE}.kpi.hi .kv{color:var(--accent)}
+.kcap{grid-column:1/-1;padding:8px 16px;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.kcap b{color:var(--ink);font-weight:600}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tools .lnk{border:0;background:none;color:var(--accent);font:600 13px var(--body);cursor:pointer;padding:4px 2px}
+/* collapsible steps and blocks */
+details.step>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+details.step>summary::-webkit-details-marker{display:none}
+details.step>summary h2{margin:0}
+details.step>summary::after{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s;margin-left:auto;flex:none}
+details.step:not([open])>summary::after{transform:rotate(-45deg)}
+details.step[open]>summary{margin-bottom:12px}
+details.step .sv{flex-basis:100%;order:3;font:12.5px var(--mono);color:var(--muted)}
+details.step>summary::after{order:2}
+details.step[open] .sv{display:none}
+details.blk>summary{list-style:none;cursor:pointer}
+details.blk>summary::-webkit-details-marker{display:none}
+details.blk>summary.bh{margin-bottom:0}
+details.blk[open]>summary.bh{margin-bottom:4px}
+details.blk>summary .bv{margin-left:auto;white-space:nowrap;padding-left:8px;font:500 12px var(--mono);color:var(--muted);text-transform:none;letter-spacing:0}
+details.blk>summary::after{content:"";width:6px;height:6px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s;flex:none;margin-left:8px}
+details.blk:not([open])>summary::after{transform:rotate(-45deg)}
+details.blk:not([open]){padding-bottom:12px}
+details.blk:last-child:not([open]){padding-bottom:14px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div><h1>Heatronics Round Planner</h1><p class="sub">Set each step. Opening numbers come from the signed SSSHA (19-Mar-2026), the CA-certified shareholder list (05-Jun-2026) and the 29-Jun-2026 allotment. Share prices are rounded up to the rupee and share counts down, the way a company secretary would. Hover any cell in the ownership table to see which shares changed hands.</p></div>
 
+  <div class="card kpis" id="kpis" aria-live="polite"></div>
+  <div class="bar"><span class="tools"><button type="button" class="lnk" id="openAll">Expand all</button><button type="button" class="lnk" id="closeAll">Collapse all</button></span><span class="acts"><span id="saveMsg" aria-live="polite"></span><button type="button" class="reset" id="reset">Reset</button><button type="button" class="btn" id="factory">Built-in values</button><button type="button" class="btn pri" id="save">Save as default</button></span></div>
+
   <form class="steps" id="f" onsubmit="return false" autocomplete="off">
-    <div class="card step"><h2><span>1</span>Aneesha joins</h2><div class="mode"><span>Set her stake</span><span class="seg" id="modeSeg" role="group" aria-label="Set her stake"><button type="button" data-m="join" aria-pressed="true">At joining</button><button type="button" data-m="post" aria-pressed="false">After round</button></span></div><div class="ctls" id="s1"></div><label class="chk"><input type="checkbox" id="msop"> Take 2.5% of her stake from the agreed ESOP pool (MSOP) instead of from founders</label><p class="note2" id="stkNote"></p></div>
-    <div class="card step"><h2><span>2</span>Hyperscale Round (Seed)</h2>
-      <section class="blk eq"><div class="bh">Primary — new shares, cash into the company</div><div class="ctls" id="s2"></div>
+    <details class="card step" data-k="st1" open><summary><h2><span>1</span>Aneesha joins</h2><span class="sv" id="sv1"></span></summary><div class="mode"><span>Set her stake</span><span class="seg" id="modeSeg" role="group" aria-label="Set her stake"><button type="button" data-m="join" aria-pressed="true">At joining</button><button type="button" data-m="post" aria-pressed="false">After round</button></span></div><div class="ctls" id="s1"></div><label class="chk"><input type="checkbox" id="msop"> Take 2.5% of her stake from the agreed ESOP pool (MSOP) instead of from founders</label><p class="note2" id="stkNote"></p></details>
+    <details class="card step" data-k="st2" open><summary><h2><span>2</span>Hyperscale Round (Seed)</h2><span class="sv" id="sv2"></span></summary>
+      <details class="blk eq" data-k="b_eq" open><summary class="bh">Primary — new shares, cash in<span class="bv" id="bv_eq"></span></summary><div class="ctls" id="s2"></div>
         <div class="sub2">Who puts in the equity raise · lead takes the rest</div><div class="inv fx"><span class="nm">Aneesha</span><span class="rest" id="aneAmt"></span><span></span></div><div id="invs"></div><button type="button" class="add" id="addInv">+ Add investor</button>
         <div class="inv sum"><span class="nm">Total</span><span class="rest" id="invTot"></span><span></span></div>
-        <p class="note2" id="cnNote"></p></section>
-      <section class="blk es"><div class="bh">ESOP pool — resize at the round</div><div class="ctls" id="s2e"></div><p class="note2" id="esopNote"></p></section>
-      <section class="blk sf"><div class="bh">Secondary — founders sell</div><div class="ctls" id="s2f"></div><p class="note2">Jagjit sells first, down to his floor; then Hargun. Bought by the lead at the round price.</p></section>
-      <section class="blk sc"><div class="bh">Secondary — angels &amp; VCs sell</div><div class="ctls" id="s2s"></div><p class="note2">Angel Round 1 (CN) and Pre-Seed holders, in proportion to holdings. Bought by the lead at the round price.</p></section>
-      <section class="blk dt"><div class="bh">Venture debt — loan, plus warrants</div><div class="ctls" id="s2d"></div></section></div>
-    <div class="card step"><h2><span>3</span>Feb 2027 → Round 2</h2>
-      <section class="blk cv"><div class="bh">Feb 2027 — Pre-Seed CCPS convert</div><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></section>
-      <section class="blk eq"><div class="bh">Round 2 — new shares</div><div class="ctls" id="s3"></div></section></div>
+        <p class="note2" id="cnNote"></p></details>
+      <details class="blk es" data-k="b_es" open><summary class="bh">ESOP pool — resize at the round<span class="bv" id="bv_es"></span></summary><div class="ctls" id="s2e"></div><p class="note2" id="esopNote"></p></details>
+      <details class="blk sf" data-k="b_sf"><summary class="bh">Secondary — founders sell<span class="bv" id="bv_sf"></span></summary><div class="ctls" id="s2f"></div><p class="note2">Jagjit sells first, down to his floor; then Hargun. Bought by the lead at the round price.</p></details>
+      <details class="blk sc" data-k="b_sc"><summary class="bh">Secondary — angels &amp; VCs sell<span class="bv" id="bv_sc"></span></summary><div class="ctls" id="s2s"></div><p class="note2">Angel Round 1 (CN) and Pre-Seed holders, in proportion to holdings. Bought by the lead at the round price.</p></details>
+      <details class="blk dt" data-k="b_dt"><summary class="bh">Venture debt — loan + warrants<span class="bv" id="bv_dt"></span></summary><div class="ctls" id="s2d"></div></details></details>
+    <details class="card step" data-k="st3" open><summary><h2><span>3</span>Feb 2027 → Round 2</h2><span class="sv" id="sv3"></span></summary>
+      <details class="blk cv" data-k="b_cv" open><summary class="bh">Feb 2027 — CCPS convert<span class="bv" id="bv_cv"></span></summary><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></details>
+      <details class="blk eq" data-k="b_r2" open><summary class="bh">Round 2 — new shares<span class="bv" id="bv_r2"></span></summary><div class="ctls" id="s3"></div></details></details>
   </form>
 
-  <div class="bar"><span id="checks" class="bar" aria-live="polite"></span><span class="acts"><span id="saveMsg" aria-live="polite"></span><button type="button" class="reset" id="reset">Reset</button><button type="button" class="btn" id="factory">Built-in values</button><button type="button" class="btn pri" id="save">Save as default</button></span></div>
+  <div class="bar"><span id="checks" class="bar" aria-live="polite"></span></div>
 
-  <details class="card fold" open><summary><h2>Who owns what</h2><span class="seg" id="viewSeg" role="group" aria-label="Show"><button type="button" data-v="pct" aria-pressed="true">%</button><button type="button" data-v="sh" aria-pressed="false">Shares</button><button type="button" data-v="chg" aria-pressed="false">Change</button></span></summary><div class="tw"><table id="own"></table></div></details>
+  <details class="card fold" data-k="t_own" open><summary><h2>Who owns what</h2><span class="seg" id="viewSeg" role="group" aria-label="Show"><button type="button" data-v="pct" aria-pressed="true">%</button><button type="button" data-v="sh" aria-pressed="false">Shares</button><button type="button" data-v="chg" aria-pressed="false">Change</button></span></summary><div class="tw"><table id="own"></table></div></details>
 
-  <details class="card fold" open><summary><h2>Who puts in what, and when</h2></summary><div class="tw"><table id="rounds"></table></div></details>
+  <details class="card fold" data-k="t_rnd"><summary><h2>Who puts in what, and when</h2></summary><div class="tw"><table id="rounds"></table></div></details>
 
-  <details class="card fold cs" open><summary><h2>Company secretary's working</h2><span class="hint2">step-by-step share maths, checked against the signed SSSHA</span></summary><div id="cs"></div></details>
+  <details class="card fold cs" data-k="t_cs"><summary><h2>Company secretary's working</h2><span class="hint2">step-by-step share maths, checked against the signed SSSHA</span></summary><div id="cs"></div></details>
 
   <p class="note">Taxes are not included. The ESOP pool (1,226) is agreed in the SSSHA but not yet created; Aneesha's MSOP from it is optional (off by default). Angel notes convert at the Hyperscale Round at the ₹18 Cr pre-money cap (₹14,342 a share, per the SSSHA). Pre-Seed CCPS convert in Feb 2027 at a valuation set by 2026 revenue: the ₹23 Cr floor at ₹12.5 Cr or less, otherwise ₹28 Cr × revenue ÷ ₹15 Cr, capped at ₹28 Cr.</p>
 </div>
@@ -317,6 +352,7 @@ function moves(M){
 function render(){
   const M=model(), st=M.st, tot=M.tot, mv=moves(M);
   document.getElementById('leadAmt').textContent=fR(M.lead);document.getElementById('aneAmt').textContent=fR(M.prim);document.getElementById('invTot').textContent=fR(M.R1>M.prim+0?Math.max(M.R1,M.prim):M.prim);
+  renderSummaries(M);
   document.getElementById('stkNote').textContent=MODE==='post'
     ?`→ ${fS(M.A)} shares at joining (${fP(M.A/M.T0)}), plus ${fS(M.Pj)} from her primary = ${fP(M.aPost)} after the round. Hargun and Jagjit's shares adjust to fit.`
     :`→ ${fP(M.aPost)} after the Hyperscale Round (${fS(M.A)} + ${fS(M.Pj)} primary shares).`;
@@ -388,6 +424,23 @@ function render(){
    R('Post-money (equity)',d,fR(M.pre1+M.eqIn),fR(M.pre2+M.N2*M.p2))+
    R('Dilution incl. warrants',d,fP((M.newR1+M.W)/M.post1),fP(M.N2/M.post2),'hl')+'</tbody>';
   renderCS(M);
+}
+function renderSummaries(M){
+  const st=M.st, tot=M.tot, h=st.hs, T1=tot(h), t=x=>fP(x/T1), set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
+  const d0=(k,f)=>{const a=f(st.today)/tot(st.today), b=f(h)/T1, dp=(b-a)*100;return Math.abs(dp)<0.05?'no change':`${dp>0?'+':'−'}${Math.abs(dp).toFixed(1)} pts since today`};
+  const tiles=[['Hargun',o=>o.H,1],['Aneesha',o=>o.A,1],['Jagjit',o=>o.J],['Founders total',o=>o.H+o.J+o.A],['ESOP pool',o=>o.E],['New investors',o=>o.inv.reduce((s,x)=>s+x,0)]];
+  document.getElementById('kpis').innerHTML=tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${fS(f(h))} sh · ${d0(l,f)}</div></div>`).join('')+
+    `<div class="kcap"><span>After the <b>Hyperscale Round</b></span><span>Pre-money <b>${fR(M.pre1)}</b></span><span>Price <b>${ru(M.p1)}</b>/share</span><span>Post-money <b>${fR(M.pre1+M.eqIn)}</b></span><span>Fully diluted <b>${fS(T1)}</b> shares</span><span>After Round 2: Hargun <b>${fP(st.r2.H/tot(st.r2))}</b> · Aneesha <b>${fP(st.r2.A/tot(st.r2))}</b></span></div>`;
+  set('sv1',`${MODE==='post'?M.I.stkPost+'% after round':M.I.stk+'% at joining'} · Jagjit floor ${M.I.jkeep}% · ₹${M.I.px}/sh${M.useMsop?' · MSOP on':''}`);
+  set('sv2',`${fR(M.R1)} at ${fR(M.pre1)} pre · pool ${fP(M.ePost)} · secondary ${fR((M.I.fsec+M.I.sec)*CR)} · debt ${fR(M.debt)}`);
+  set('sv3',`2026 revenue ₹${M.I.rev} Cr · Round 2 ${fR(M.R2)} at ${fR(M.pre2)} pre`);
+  set('bv_eq',`${fR(M.R1)} · ${ru(M.p1)}/sh`);
+  set('bv_es',M.X<0?`${fP(M.ePost)} · ${fS(-M.X)} to Hargun`:M.X>0?`${fP(M.ePost)} · +${fS(M.X)}`:`${fP(M.ePost)} as agreed`);
+  set('bv_sf',M.I.fsec?fR(M.I.fsec*CR):'none');
+  set('bv_sc',M.I.sec?fR(M.I.sec*CR):'none');
+  set('bv_dt',M.I.debt?`${fR(M.debt)} · ${M.I.wcov}% warrants`:'none');
+  set('bv_cv',M.ratio===1?'1:1 at ₹23 Cr floor':`₹${(M.Vconv/CR).toFixed(1)} Cr`);
+  set('bv_r2',`${fR(M.R2)} at ${fR(M.pre2)}`);
 }
 function renderCS(M){
   const st=M.st,tot=M.tot, n=fS;
@@ -494,6 +547,12 @@ function renderCS(M){
   document.getElementById('cs').innerHTML=h;
 }
 drawInv();setMode('join');render();
+// remember which sections are open (this browser only)
+const FOLD='rp-fold-v1';let fold={};try{fold=JSON.parse(localStorage.getItem(FOLD)||'{}')||{}}catch(e){}
+const folds=()=>[...document.querySelectorAll('details[data-k]')];
+folds().forEach(d=>{if(d.dataset.k in fold)d.open=!!fold[d.dataset.k];d.addEventListener('toggle',()=>{fold[d.dataset.k]=d.open;try{localStorage.setItem(FOLD,JSON.stringify(fold))}catch(e){}})});
+document.getElementById('openAll').onclick=()=>folds().forEach(d=>d.open=true);
+document.getElementById('closeAll').onclick=()=>folds().filter(d=>d.classList.contains('step')||d.classList.contains('blk')).forEach(d=>d.open=false);
 // load the saved defaults (unless someone has already started editing)
 fetch('/api/round-planner/defaults',{credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(j=>{
   if(!j||!j.defaults)return;SAVED=j.defaults;
