@@ -1,5 +1,5 @@
 import {
-  Activity, Archive, BookOpen, CalendarRange, CheckSquare, Database, FileUp, IndianRupee, ListChecks,
+  Activity, Archive, BookCheck, BookOpen, CalendarRange, CheckSquare, Database, FileUp, IndianRupee, ListChecks,
   ReceiptText, Send, ShieldAlert, Sparkles, TrendingUp, Users, Wrench, type LucideIcon,
 } from 'lucide-react';
 import type { NavIconName } from '../../nav/config';
@@ -20,6 +20,6 @@ export const NAV_ICON: Record<NavIconName, LucideIcon> = {
   sources: Database,
   rules: ListChecks,
   people: Users,
-  tally: ListChecks,
+  tally: BookCheck,
   old: Archive,
 };

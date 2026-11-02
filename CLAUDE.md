@@ -135,6 +135,13 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     into Stock Transfer (= Stock Transfers sale) + Raw Material Purchases like the Excel reader. The slot reads the snapshot (a forced
     poll if none), warns when the copy was taken < 5 days after month end. Host / port / company on the Connectors → Tally card (never
     in the repo). `POST /api/tally/pull` = signed-in Pull now.
+- **Tally books (Tally health page `/tally`, READ ONLY):** `connectors/tally/books.ts` (pure: Day Book + "List of Accounts"
+  Ledgers / Groups / Stock Items envelopes — Export Data only, `assertTallyReadOnly`; tolerant parsers; `tallyHealth` rules with
+  "how to fix in TallyPrime"; voucher search) + `bookStore.ts` (`tally/masters`, `tally/books-<YYYY-MM>`, `tally/books-state`,
+  `tally/raw-books` sample). The scheduled poll refreshes them after the P&L (masters daily, Day Books ≤ 6 h old for this + last
+  month, then backfill to 12 months) within ~4 min; "Pull Tally now" on the page forces it. Routes `/api/tally/books/*` incl.
+  `ask` (Claude grounded in health + matching vouchers + ledger list + Hargun's booking pattern). The XML shape of the Day Book /
+  masters answers is UNVERIFIED until the first live pull — check `tally/raw-books`.
 - **Manual uploads (reason shown on the slot):** Tally trial balance (optional screenshot), Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data), Shopify variant sales (fallback only —

@@ -28,6 +28,7 @@ import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
 import { PriceFloorsPage } from './pages/tools/PriceFloorsPage';
 import { RoundPlannerPage } from './pages/tools/RoundPlannerPage';
 import { PlanningPage } from './pages/planning/PlanningPage';
+import { TallyPage } from './pages/tally/TallyPage';
 
 function App() {
   return (
@@ -104,6 +105,7 @@ function App() {
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />
           <Route path="planning" element={<PlanningPage />} />
+          <Route path="tally" element={<TallyPage />} />
 
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />
