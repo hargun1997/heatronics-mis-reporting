@@ -157,3 +157,26 @@ test('Business Plan + Overview match the sheet: Exit ARR, The Ask 12M/18M, deplo
   }
   close(r.months[3].gstRefund, check.gstRefund[3], 'GST refund M4');
 });
+
+test('Shopify bulk export: JSONL lines → orders (gids stripped), waits for the export, keeps going if one is already running', async () => {
+  const { bulkLineToOrder, __test } = await import('../src/planning/shopifyHistory.ts');
+  assert.deepEqual(bulkLineToOrder('{"id":"gid://shopify/Order/11","createdAt":"2025-01-02T10:00:00+05:30","cancelledAt":null,"test":false,"totalPriceSet":{"shopMoney":{"amount":"1299.00"}},"customer":{"id":"gid://shopify/Customer/7"}}'),
+    { id: '11', created_at: '2025-01-02T10:00:00+05:30', cancelled_at: null, test: false, total_price: '1299.00', customer: { id: '7' } });
+  assert.equal(bulkLineToOrder('{"id":"gid://shopify/LineItem/1","__parentId":"gid://shopify/Order/11"}'), null);
+  assert.equal(bulkLineToOrder(''), null);
+  assert.equal(bulkLineToOrder('{"id":"gid://shopify/Order/12","customer":null}')?.customer, null);
+
+  const calls: string[] = [];
+  let polls = 0;
+  const gql = async (q: string) => {
+    calls.push(q.includes('bulkOperationRunQuery') ? 'run' : 'poll');
+    if (q.includes('bulkOperationRunQuery')) return { data: { bulkOperationRunQuery: { bulkOperation: null, userErrors: [{ message: 'A bulk query operation for this app and shop is already in progress' }] } } };
+    polls++;
+    return { data: { currentBulkOperation: polls < 2 ? { status: 'RUNNING' } : { status: 'COMPLETED', url: 'https://x/file.jsonl' } } };
+  };
+  const file = ['{"id":"gid://shopify/Order/1","createdAt":"2025-01-01T00:00:00Z","customer":{"id":"gid://shopify/Customer/1"},"totalPriceSet":{"shopMoney":{"amount":"100"}}}', '{"id":"gid://shopify/Order/2","createdAt":"2025-02-01T00:00:00Z","customer":{"id":"gid://shopify/Customer/1"},"totalPriceSet":{"shopMoney":{"amount":"100"}}}', ''].join('\n');
+  const orders = await __test.pullShopifyHistoryBulk(gql, async () => file, Date.now() + 60_000, async () => {});
+  assert.deepEqual(calls, ['run', 'poll', 'poll']);
+  assert.equal(orders.length, 2);
+  await assert.rejects(__test.pullShopifyHistoryBulk(async (q: string) => (q.includes('bulkOperationRunQuery') ? { data: { bulkOperationRunQuery: { userErrors: [] } } } : { data: { currentBulkOperation: { status: 'RUNNING' } } }), async () => '', Date.now() - 1, async () => {}), /still preparing/);
+});

@@ -83,8 +83,80 @@ export function aggregateOrders(orders: RawOrder[], asOf: string, source = 'Shop
   return { source, asOf, orders: kept.length, customers: first.size, skipped, history, cohorts: cohortList };
 }
 
-/** Page every order since SINCE (read only). */
+// Bulk query (the fast path): one read-only GraphQL bulk operation returns every order since SINCE as a JSONL file —
+// no paging. REST paging needed ~10 s a page (the customer object is large) and stopped at 9,000 orders on 2 Nov 2026.
+// bulkOperationRunQuery only RUNS A QUERY (Shopify's bulk export); nothing in the store changes.
+const BULK_QUERY = `{
+  orders(query: "created_at:>=2024-01-01") {
+    edges { node { id createdAt cancelledAt test totalPriceSet { shopMoney { amount } } customer { id } } }
+  }
+}`;
+const RUN = `mutation($q: String!) { bulkOperationRunQuery(query: $q) { bulkOperation { id status } userErrors { field message } } }`;
+const CURRENT = `{ currentBulkOperation(type: QUERY) { id status errorCode objectCount url } }`;
+
+type Gql = (query: string, variables?: Record<string, unknown>) => Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+/** gid://shopify/Order/123 → "123" */
+const gidTail = (g: unknown) => (typeof g === 'string' ? g.slice(g.lastIndexOf('/') + 1) : g == null ? undefined : String(g));
+
+/** One JSONL line of the bulk file → the same RawOrder the REST path builds (pure, tested). */
+export function bulkLineToOrder(line: string): RawOrder | null {
+  if (!line.trim()) return null;
+  let o: { id?: string; createdAt?: string; cancelledAt?: string | null; test?: boolean; totalPriceSet?: { shopMoney?: { amount?: string } }; customer?: { id?: string } | null; __parentId?: string };
+  try { o = JSON.parse(line); } catch { return null; }
+  if (!o.id || o.__parentId || !String(o.id).includes('/Order/')) return null;
+  const cid = gidTail(o.customer?.id);
+  return { id: gidTail(o.id)!, created_at: o.createdAt, cancelled_at: o.cancelledAt ?? null, test: !!o.test, total_price: o.totalPriceSet?.shopMoney?.amount, customer: cid ? { id: cid } : null };
+}
+
+async function pullShopifyHistoryBulk(gql: Gql, download: (url: string) => Promise<string>, deadline: number, sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))): Promise<RawOrder[]> {
+  const run = await gql(RUN, { q: BULK_QUERY });
+  const errs: { message: string }[] = run?.data?.bulkOperationRunQuery?.userErrors ?? [];
+  // "already in progress" = an earlier refresh's export is still running: wait for that one.
+  if (errs.length && !errs.some((e) => /in progress/i.test(e.message))) throw new Error(`Shopify bulk export refused: ${errs.map((e) => e.message).join('; ')}`);
+  if (run?.errors?.length) throw new Error(`Shopify bulk export failed: ${run.errors.map((e: { message: string }) => e.message).join('; ')}`);
+  for (;;) {
+    if (Date.now() > deadline) throw new Error('Shopify is still preparing the order export — refresh again in a few minutes (it carries on).');
+    await sleep(4000);
+    const cur = (await gql(CURRENT))?.data?.currentBulkOperation;
+    if (!cur) continue;
+    if (cur.status === 'COMPLETED') {
+      if (!cur.url) return []; // no orders
+      const text = await download(cur.url);
+      return text.split('\n').map(bulkLineToOrder).filter((x): x is RawOrder => !!x);
+    }
+    if (['FAILED', 'CANCELED', 'CANCELLED', 'EXPIRED'].includes(cur.status)) throw new Error(`Shopify bulk export ${cur.status.toLowerCase()}${cur.errorCode ? ` (${cur.errorCode})` : ''}`);
+  }
+}
+
+/** Every order since SINCE (read only): bulk export first, REST paging if the bulk API is not allowed. */
 export async function pullShopifyHistory(creds: Credentials, deadline: number): Promise<D2CHistory> {
+  const token = await resolveToken(creds);
+  const gql: Gql = async (query, variables) => {
+    const res = await fetch(`${base(creds)}/graphql.json`, { method: 'POST', headers: { ...headers(token), 'Content-Type': 'application/json' }, body: JSON.stringify({ query, variables }) });
+    if (!res.ok) throw new Error(`Shopify GraphQL ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    return res.json();
+  };
+  const download = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Shopify export download failed (${res.status})`);
+    return res.text();
+  };
+  let orders: RawOrder[];
+  try {
+    orders = await pullShopifyHistoryBulk(gql, download, deadline);
+  } catch (e) {
+    if (/still preparing/.test((e as Error).message)) throw e;
+    return pullShopifyHistoryRest(creds, deadline); // bulk API not allowed for this app / failed: the slow path
+  }
+  const asOf = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  return aggregateOrders(orders, asOf, `Shopify orders — every order since Jan 2024 (${orders.length.toLocaleString('en-IN')}, bulk export)`);
+}
+
+export const __test = { pullShopifyHistoryBulk };
+
+/** Fallback: page every order since SINCE over REST (read only; slow — ~10 s a page with the customer field). */
+async function pullShopifyHistoryRest(creds: Credentials, deadline: number): Promise<D2CHistory> {
   const token = await resolveToken(creds);
   const orders: RawOrder[] = [];
   let pageInfo: string | null = null;
