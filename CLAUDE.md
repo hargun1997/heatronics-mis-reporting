@@ -15,7 +15,8 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   (project gen-lang-client-0101319357, read with the Cloud Run identity, 5-min cache): Amazon `spapi-lwa-client-id|secret`,
   `spapi-refresh-token-in`; Amazon Ads `adsapi-lwa-client-id|secret`, `adsapi-refresh-token-in`; Google Ads `google-ads-*`
   (customer default 4927002413); Meta `meta-access-token`, `meta-ad-account-id`; Flipkart `flipkart-app-id|secret`;
-  Shiprocket `shiprocket-email|password`; Easebuzz `easebuzz-merchant-key|salt|merchant-email` (optional). Precedence: saved on the Connectors page < shared < `CONNECTOR_<ID>_<FIELD>` env (shared wins so a stale saved token never masks it).
+  Shiprocket `shiprocket-email|password`; Easebuzz `easebuzz-merchant-key|salt|merchant-email` (optional); Delhivery `delhivery-api-token` +
+  `warranty-feed-token` (optional; = the Warranty Manager's DELHIVERY_API_TOKEN / FEED_TOKEN). Precedence: saved on the Connectors page < shared < `CONNECTOR_<ID>_<FIELD>` env (shared wins so a stale saved token never masks it).
   Never put values in code — this repo is public.
 - Amazon Ads (`sources/amazonAds.ts`) and Flipkart (`sources/flipkart.ts`) are ports of Ops' clients and are READ ONLY
   (a guard runs before every request). Amazon Ads reports are async: a pull waits ≤ `AMAZON_ADS_WAIT_MS` (12 s), only asks for days
@@ -62,6 +63,23 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     payout_date DD-MM-YYYY, hash = SHA-512 `key|email|date|salt`), one call per day. Optional shared secrets
     `easebuzz-merchant-key`, `easebuzz-salt`, `easebuzz-merchant-email`; missing = "Not connected — add key + salt". Endpoint, hash
     order and answer field names UNVERIFIED (mapper reads several key names).
+  - Delhivery · Wallet report → `api`, COMPUTED freight (Delhivery has no wallet / ledger API): "Computed freight (Delhivery
+    tracking + charge calculator), not the wallet ledger — compare with the wallet once". `sources/delhivery.ts`
+    `computedFreight`: (1) the month's Delhivery AWBs from the Warranty Manager `GET https://warranty.heatronics.in/api/feeds/
+    delhivery-shipments?month=YYYY-MM` (header `x-feed-token`; non-PII rows: awb, direction forward|reverse, createdAt, orderId,
+    sheetRow, originPin, destinationPin, paymentMode, declaredWeightG; `feedUrl` overrides the host) → (2) tracking `GET
+    track.delhivery.com/api/v1/packages/json/?waybill=a,b,…&token=` (≤ 50 per call — batch size unverified; same call the
+    Warranty Manager makes live) → whitelisted `trackSummary` (status, charged weight, picked up, consignee PIN only) → (3)
+    charge calculator `GET /api/kinko/v1/invoice/charges/.json?md=S|E&ss=Delivered|RTO|DTO&d_pin&o_pin&cgm&pt=Pre-paid`
+    (header `Authorization: Token`; params from public client libraries, Delhivery's docs are behind a login: UNVERIFIED),
+    `total_amount` (GST incl.) else `gross_amount`, one call per distinct query. Paced 2 req/s. Rules (`map/delhivery.ts
+    chargePlan`): cancelled / not picked up = no freight; forward RTO → ss=RTO, else Delivered (in transit = estimate, warned);
+    reverse pickup → ss=DTO (customer pin → return warehouse pin); weight = charged weight, else product weight, else 500 g.
+    Facts = the wallet parser's (`parseDelhivery`): source `delhivery`, D2C, net ₹ per IST day of the label's creation, in
+    `fees`. Guard `assertDelhiveryReadOnly`: GET only, to exactly those two Delhivery paths + the feed path (create / edit /
+    cancel / pickup / waybill refused, test). Missing token = "Not connected — create secret delhivery-api-token". Not in the
+    estimate: weight disputes, re-attempts, adhoc wallet debits / credits; AWBs the warranty sheet no longer holds (a regenerated
+    label replaces the old AWB). Reconcile the first month with the wallet upload.
   - Tranzact · Sales Invoice Register (GT / B2B) → `sheet`: Google Sheets v4 `spreadsheets.values.get` (GET only,
     `sources/sheets.ts`) of sheet `1Ze3E5WLTMUaVkTOvtOsbuh0caj4IT6-Eze8nsAB1gPQ` (Drive folder "Tranzact feed", shared as Viewer
     with 559416687588-compute@developer.gserviceaccount.com), token from the metadata server with scope spreadsheets.readonly (no
@@ -74,6 +92,6 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 - **Manual uploads (reason shown on the slot):** Tally P&L (Tally on cloud doesn't expose its XML port yet — ask Thakur Hardsoft to
   open port 9000), Tally trial balance (optional screenshot), Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month),
-  Delhivery wallet (no published API), Amazon Business Report (optional; only a createReport), Shopify variant sales (fallback only —
+  Amazon Business Report (optional; only a createReport), Shopify variant sales (fallback only —
   Shopify is live).
 - Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).

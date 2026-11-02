@@ -14,6 +14,7 @@ import { searchStream } from '../sources/googleAds.js';
 import { metaInsights } from '../sources/meta.js';
 import { readSheet, TRANZACT_SHEETS } from '../sources/sheets.js';
 import { statementLines } from '../sources/shiprocket.js';
+import { computedFreight } from '../sources/delhivery.js';
 import { amazonAdsProductFacts, googleCampaignFacts, googleProductFacts, metaProductFacts, type GadsRow, type MetaProductRow } from './map/ads.js';
 import { financesToFacts, type FinWindow } from './map/amazonFinances.js';
 import { addDays, monthDays, rangeEnd } from './map/common.js';
@@ -138,6 +139,10 @@ async function tranzactSales(ctx: PullContext): Promise<SlotPull> {
   return out;
 }
 
+async function delhiveryFreight(ctx: PullContext): Promise<SlotPull> {
+  return computedFreight(ctx.creds, ctx.periodKey, ctx.deadline);
+}
+
 // ---- The catalog ----------------------------------------------------------------
 
 export const SLOT_SOURCES: SlotSourceDef[] = [
@@ -192,8 +197,11 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
     needs: ['email', 'password'], connectHint: 'Shared secrets shiprocket-email + shiprocket-password.',
     line: 'Pulled from the Shiprocket wallet statement (passbook) API for the month.',
     pull: shiprocketPassbook },
-  { connectorId: 'delhivery', slotId: 'wallet', source: 'upload', via: 'Manual upload',
-    line: 'Delhivery One publishes no API for the wallet / transactions report.' },
+  { connectorId: 'delhivery', slotId: 'wallet', source: 'api', via: 'Delhivery API (computed)',
+    needs: ['apiToken', 'feedToken'],
+    connectHint: 'Not connected — create secret delhivery-api-token (and warranty-feed-token = FEED_TOKEN in warranty-manager-env).',
+    line: 'Computed freight (Delhivery tracking + charge calculator), not the wallet ledger — compare with the wallet once',
+    pull: delhiveryFreight },
 
   // Payments & checkout
   { connectorId: 'easebuzz', slotId: 'settlement', source: 'api', via: 'Easebuzz payout API',

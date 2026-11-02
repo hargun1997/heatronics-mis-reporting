@@ -38,6 +38,11 @@ export const portalManifest = {
       "portal": "production",
       "api": "product-costs",
       "purpose": "Product costs for Amazon price floors"
+    },
+    {
+      "portal": "warranty",
+      "api": "delhivery-shipments",
+      "purpose": "Delhivery AWBs of the month for the computed freight close slot"
     }
   ],
   "external": [
@@ -53,6 +58,9 @@ export const portalManifest = {
     "Meta Graph",
     "Google Ads",
     "Shopify",
+    "Shiprocket",
+    "Easebuzz",
+    "Delhivery",
     "Tally"
   ]
 } as const;

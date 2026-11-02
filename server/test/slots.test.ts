@@ -20,6 +20,8 @@ import { SLOT_SOURCES } from '../src/connectors/slots/catalog.js';
 import { assertShiprocketReadOnly } from '../src/connectors/sources/shiprocket.js';
 import { assertEasebuzzReadOnly } from '../src/connectors/sources/easebuzz.js';
 import { assertSheetsReadOnly } from '../src/connectors/sources/sheets.js';
+import { assertDelhiveryReadOnly, feedOrigin } from '../src/connectors/sources/delhivery.js';
+import { chargeAmount, chargePlan, delhiveryFreightFacts, gramsOf, istDay, trackSummary, type WarrantyFeedRow } from '../src/connectors/slots/map/delhivery.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -298,5 +300,92 @@ test('every client report slot has exactly one source; api/sheet slots can pull,
     if (s.source === 'claude_task') assert.ok(s.claudeTask);
   }
   const manual = SLOT_SOURCES.filter((s) => s.source === 'upload').map((s) => s.connectorId);
-  for (const c of ['tally', 'flipkart', 'flipkartads', 'blinkit', 'snapmint', 'shopflo', 'delhivery']) assert.ok(manual.includes(c), `${c} stays manual`);
+  for (const c of ['tally', 'flipkart', 'flipkartads', 'blinkit', 'snapmint', 'shopflo']) assert.ok(manual.includes(c), `${c} stays manual`);
+  const dl = SLOT_SOURCES.find((x) => x.connectorId === 'delhivery' && x.slotId === 'wallet')!;
+  assert.equal(dl.source, 'api');
+  assert.match(dl.line, /^Computed freight \(Delhivery tracking \+ charge calculator\), not the wallet ledger/);
+  assert.match(dl.connectHint!, /create secret delhivery-api-token/);
+});
+
+// ---- Delhivery computed freight ≡ wallet report upload ------------------------------
+
+const dlTrack = (awb: string, status: string, statusType: string, extra: Record<string, unknown> = {}) => ({
+  Shipment: { AWB: awb, Status: { Status: status, StatusType: statusType }, Consignee: { Name: 'Asha', Address1: ['12 MG Road'], PinCode: 411001, Telephone1: '98' }, ...extra },
+});
+
+test('Delhivery tracking is whitelisted; charge plan per status / direction', () => {
+  const t = trackSummary(dlTrack('3096001', 'Delivered', 'DL', { ChargedWeight: 760, PickUpDate: '2026-10-03T10:00:00' }))!;
+  assert.deepEqual(Object.keys(t).sort(), ['awb', 'chargedWeightG', 'consigneePin', 'pickedUp', 'status', 'statusType']);
+  assert.ok(!JSON.stringify(t).includes('Asha') && !JSON.stringify(t).includes('MG Road'));
+  assert.equal(t.consigneePin, '411001');
+  assert.equal(gramsOf(1.2), 1200);
+  assert.equal(gramsOf('500.0'), 500);
+  assert.equal(gramsOf(null), null);
+
+  const fwd: WarrantyFeedRow = { awb: '3096001', direction: 'forward', createdAt: '2026-10-02T20:00:00Z', originPin: '201301', destinationPin: null, declaredWeightG: 760 };
+  const p = chargePlan(fwd, t);
+  assert.ok(p.charge);
+  if (p.charge) assert.deepEqual(p.query, { md: 'S', ss: 'Delivered', o_pin: '201301', d_pin: '411001', cgm: 760, pt: 'Pre-paid' });
+
+  const rev: WarrantyFeedRow = { awb: '3096002', direction: 'reverse', createdAt: '2026-10-05T05:00:00Z', originPin: '560001', destinationPin: '201304', declaredWeightG: 1500 };
+  const rp = chargePlan(rev, trackSummary(dlTrack('3096002', 'In Transit', 'UD', { PickUpDate: '2026-10-06' }))!);
+  assert.ok(rp.charge);
+  if (rp.charge) { assert.equal(rp.query.ss, 'DTO'); assert.equal(rp.query.cgm, 1500); assert.equal(rp.query.o_pin, '560001'); assert.ok(rp.estimated.length); }
+
+  const rto = chargePlan(fwd, trackSummary(dlTrack('3096001', 'RTO', 'RT', { PickUpDate: '2026-10-03' }))!);
+  assert.ok(rto.charge && rto.query.ss === 'RTO');
+  assert.deepEqual(chargePlan(fwd, trackSummary(dlTrack('3096001', 'Canceled', 'CN'))!), { charge: false, reason: 'cancelled' });
+  assert.deepEqual(chargePlan(fwd, trackSummary(dlTrack('3096001', 'Manifested', 'UD'))!), { charge: false, reason: 'not_picked_up' });
+  assert.deepEqual(chargePlan({ ...rev, originPin: null }, trackSummary(dlTrack('3096002', 'DTO', 'DL', { PickUpDate: 'x' }))!), { charge: false, reason: 'no_pincode' });
+  assert.deepEqual(chargePlan(fwd, null), { charge: false, reason: 'not_tracked' });
+
+  assert.equal(chargeAmount([{ gross_amount: 148, total_amount: 174.64 }]), 174.64);
+  assert.equal(chargeAmount({ gross_amount: '148' }), 148);
+  assert.equal(chargeAmount([]), null);
+  assert.equal(istDay('2026-10-31T20:00:00Z'), '2026-11-01');
+});
+
+test('Delhivery computed freight ≡ wallet report upload (Deductions sheet)', () => {
+  const priced = [
+    { awb: '3096001', date: '2026-10-03', amount: 174.64 },
+    { awb: '3096002', date: '2026-10-03', amount: 98.1 },
+    { awb: '3096003', date: '2026-10-11', amount: 210 },
+    { awb: '3096004', date: '2026-11-01', amount: 50 },
+  ];
+  const api = delhiveryFreightFacts(priced, '2026-10', { cancelled: 2, estimated: 1 });
+  const file = parse('delhivery', {
+    Deductions: [
+      ['AWB', 'Date & Time', 'Miles', 'Description'],
+      ['3096001', '2026-10-03 10:00:00', 174.64, 'Forward freight'],
+      ['3096002', '2026-10-03 18:00:00', 98.1, 'Reverse freight'],
+      ['3096003', '2026-10-11 09:00:00', 210, 'Forward freight'],
+    ],
+    Refunds: [['AWB', 'Date & Time', 'Miles']],
+  });
+  assert.deepEqual(norm(api.facts!), norm(file.facts));
+  assert.equal(api.facts!.find((f) => f.date === '2026-10-03')!.fees, 272.74);
+  assert.match(api.warnings.join(' '), /outside 2026-10/);
+  assert.match(api.warnings.join(' '), /estimates/);
+  assert.match(api.trace.join(' '), /2 cancelled/);
+  assert.equal(delhiveryFreightFacts([], '2026-10').emptyOk, true);
+});
+
+test('Delhivery guard: only GET tracking, charges and the warranty feed', () => {
+  assert.doesNotThrow(() => assertDelhiveryReadOnly('GET', 'https://track.delhivery.com/api/v1/packages/json/?waybill=1,2&token=x'));
+  assert.doesNotThrow(() => assertDelhiveryReadOnly('GET', 'https://track.delhivery.com/api/kinko/v1/invoice/charges/.json?md=S&ss=DTO'));
+  assert.doesNotThrow(() => assertDelhiveryReadOnly('GET', 'https://warranty.heatronics.in/api/feeds/delhivery-shipments?month=2026-10'));
+  for (const [m, u] of [
+    ['POST', 'https://track.delhivery.com/api/cmu/create.json'],
+    ['GET', 'https://track.delhivery.com/api/cmu/create.json'],
+    ['POST', 'https://track.delhivery.com/api/p/edit'],
+    ['GET', 'https://track.delhivery.com/api/p/edit?waybill=1&cancellation=true'],
+    ['POST', 'https://track.delhivery.com/fm/request/new/'],
+    ['GET', 'https://track.delhivery.com/waybill/api/bulk/json/?count=5'],
+    ['POST', 'https://track.delhivery.com/api/kinko/v1/invoice/charges/.json'],
+    ['GET', 'https://staging-express.delhivery.com/api/v1/packages/json/'],
+    ['GET', 'https://warranty.heatronics.in/api/requests'],
+    ['GET', 'https://evil.example/api/feeds/delhivery-shipments'],
+  ]) assert.throws(() => assertDelhiveryReadOnly(m, u), /Blocked/, `${m} ${u}`);
+  assert.equal(feedOrigin({}), 'https://warranty.heatronics.in');
+  assert.throws(() => feedOrigin({ feedUrl: 'http://warranty.heatronics.in' }), /https/);
 });

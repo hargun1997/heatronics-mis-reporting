@@ -20,6 +20,7 @@ import amazonAds from './sources/amazonAds.js';
 import flipkart from './sources/flipkart.js';
 import shiprocket from './sources/shiprocket.js';
 import easebuzz from './sources/easebuzz.js';
+import delhivery from './sources/delhivery.js';
 
 interface ScaffoldSpec {
   id: string;
@@ -62,19 +63,6 @@ const blinkit = scaffold({
   note: 'Blinkit has no open pull API — the month comes from the payout ZIP (order-charges workbook). Credentials here are for a brand-portal token if/when one is available; otherwise use the payout upload.',
   credentialFields: [
     { key: 'apiToken', label: 'Brand portal token', type: 'password', optional: true, help: 'Optional — leave blank and use the payout ZIP upload.' },
-  ],
-});
-
-const delhivery = scaffold({
-  id: 'delhivery',
-  label: 'Delhivery',
-  group: 'logistics',
-  fetchMode: 'file',
-  mode: 'manual-upload',
-  note: 'Delhivery One has no published API for the wallet / transactions report, so the close takes the wallet report as an upload. A token saved here is kept for a future pull.',
-  credentialFields: [
-    { key: 'apiToken', label: 'API token', type: 'password', help: 'Delhivery One → Settings → API.' },
-    { key: 'clientName', label: 'Client / warehouse name', type: 'text', optional: true },
   ],
 });
 
