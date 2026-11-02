@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { PageHeader, SectionCard, KpiTile, SegmentedControl } from '../../components/ui';
 import { inr } from '../../components/mis-deck/charts';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
+import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
 import {
   clearUpload, loadUploads, parseUpload, saveUpload, uploadedFacts,
   UPLOAD_PARSERS, type UploadStore,
@@ -41,13 +42,15 @@ const iconLive = (
   </svg>
 );
 
-type Tab = 'overview' | 'growth' | 'mix' | 'profit' | 'pnl' | 'channels' | 'sku' | 'skuchannel' | 'units' | 'repeats' | 'missheet' | 'runrate';
+type Tab = 'overview' | 'growth' | 'mix' | 'profit' | 'pnl' | 'bs' | 'cashflow' | 'channels' | 'sku' | 'skuchannel' | 'units' | 'repeats' | 'missheet' | 'runrate';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'growth', label: 'Revenue & Growth' },
   { id: 'mix', label: 'Channel Mix' },
   { id: 'profit', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
+  { id: 'bs', label: 'Balance Sheet' },
+  { id: 'cashflow', label: 'Cash Flow' },
   { id: 'channels', label: 'Channel P&L' },
   { id: 'sku', label: 'SKU' },
   { id: 'skuchannel', label: 'SKU × Channel' },
@@ -57,7 +60,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'runrate', label: 'Run-rate' },
 ];
 // Tabs that don't use the period controls (they carry their own scope).
-const NO_PERIOD: Tab[] = ['runrate', 'repeats', 'missheet'];
+const NO_PERIOD: Tab[] = ['runrate', 'repeats', 'missheet', 'bs', 'cashflow'];
 // Tabs that show the Actual|Blended toggle + note; all others always use actual COGM.
 const BLEND_TABS: Tab[] = ['overview', 'profit', 'pnl'];
 
@@ -314,6 +317,10 @@ export function LiveMisPage() {
           <RunRateTab />
         ) : tab === 'repeats' ? (
           <RepeatsTab />
+        ) : tab === 'bs' ? (
+          <BalanceSheetTab />
+        ) : tab === 'cashflow' ? (
+          <CashFlowTab />
         ) : !view ? (
           <p className="text-sm text-slate-400 py-8 text-center">{deckLoading ? 'Loading the MIS…' : 'No data yet.'}</p>
         ) : tab === 'missheet' ? (
