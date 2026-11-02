@@ -71,8 +71,9 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
   const pct = (v: number) => marginPct(v, period.netRevenue);
   const costs = period.cogm + period.channelFulfillment + period.salesMarketing + period.platformCosts + period.opex;
 
-  // Trend series across the shown history (muted where a period isn't real yet).
-  const trend = periods;
+  // Trend series across the shown history (muted where a period isn't real yet); monthly = the last 24 months,
+  // as the legacy deck, so "All years" stays readable.
+  const trend = periods.length > 24 && periods.every((p) => p.members.length === 1) ? periods.slice(-24) : periods;
   const labels = trend.map((p) => p.label);
   const realV = (p: PeriodAgg, key: string, v: number): number | null => (isRealRow(p.level, key) ? v : null);
   const moneySeries: LineSeries[] = [
@@ -305,7 +306,8 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
     const out: Record<string, DrillLine[]> = {};
     const ledger = (field: 'cogmLines' | 'opexLines', gate: string): DrillLine[] => {
       const keys: string[] = [];
-      for (const p of cols) for (const k of Object.keys(p[field])) if (!keys.includes(k)) keys.push(k);
+      // TOTAL… rows are the sum already shown on the row itself (legacy dropped them too).
+      for (const p of cols) for (const k of Object.keys(p[field])) if (!keys.includes(k) && !/^total/i.test(k)) keys.push(k);
       return keys.map((k) => ({ key: k, label: k, gate, value: (p) => (k in p[field] ? p[field][k] : null) }));
     };
     out.cogm = ledger('cogmLines', 'cogm');

@@ -473,8 +473,18 @@ export function liveMisPoint(
     openingCash: null, funding: null, closingCash: null, cashBurn: null, ebitdaBurn: null, runway: null,
   };
   if (entity === 'company') {
+    // Payroll / Professional fee / Other income split out of OpEx from the month's Tally ledger lines
+    // (compute.ts OPEX_LABELS), when the month reaches EBITDA; Other Expense is the rest.
+    const L = p.opexLines ?? {};
+    const opexReal = isReal(p.level, 'opex') && Object.keys(L).length > 0;
+    const payroll = L['Payroll (Employee Cost – Indirect)'] ?? 0;
+    const profFee = L['Professional Fees'] ?? 0;
+    const oiLine = L['Other Income (Indirect Incomes)'] ?? 0; // signed as an expense line (income negative)
+    const ebitdaReal = isReal(p.level, 'ebitda');
     return {
       ...blank,
+      ...(opexReal ? { payroll, profFee, otherIncome: -oiLine } : {}),
+      ebitdaBurn: ebitdaReal ? (p.ebitda < 0 ? -p.ebitda : 0) : null,
       qty: Math.round(SALES_CHANNELS.reduce((s, c) => s + ordersOf(c), 0)),
       grossRevenue: p.totalGrossRevenue || null,
       returns: p.hasBuildUp ? p.totalReturns : null,
@@ -485,7 +495,7 @@ export function liveMisPoint(
       logistics: v('channel_fulfilment', p.channelFulfillment), cm1: v('cm1', p.cm1),
       marketing: v('sales_marketing', p.salesMarketing), cm2: v('cm2', p.cm2),
       branding: v('platform_payment', p.platformCosts), cm3: v('cm3', p.cm3),
-      otherExpense: v('opex', p.opex), ebitda: v('ebitda', p.ebitda),
+      otherExpense: opexReal ? p.opex - payroll - profFee - oiLine : v('opex', p.opex), ebitda: v('ebitda', p.ebitda),
     };
   }
   const ch = entity;

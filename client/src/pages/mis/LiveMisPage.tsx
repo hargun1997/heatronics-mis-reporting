@@ -117,9 +117,9 @@ export function LiveMisPage() {
   const blended = blendPref === 'blended';
   const merged = chanPref === 'continuous';
 
-  const loadDeck = useCallback(async () => {
+  const loadDeck = useCallback(async (force = false) => {
     setDeckLoading(true); setDeckError(null);
-    try { setDeck(await loadLiveDeck()); }
+    try { setDeck(await loadLiveDeck({ force })); }
     catch (e) { setDeckError(e instanceof Error ? e.message : 'Could not load the MIS.'); }
     finally { setDeckLoading(false); }
   }, []);
@@ -209,6 +209,9 @@ export function LiveMisPage() {
             <Link to="/reporting/mis/rulebook" className="px-2.5 py-1 rounded-lg text-slate-600 text-[11px] hover:bg-white/70 underline-offset-2 hover:underline">
               How it’s calculated
             </Link>
+            <Link to="/reporting/mis/ingest" className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50">
+              Close the month
+            </Link>
             <button onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading}
               className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
               Export Excel
@@ -217,7 +220,7 @@ export function LiveMisPage() {
               className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
               Export PDF
             </button>
-            <button onClick={() => void loadDeck()} disabled={deckLoading}
+            <button onClick={() => void loadDeck(true)} disabled={deckLoading} title="Re-pull every live source now (otherwise they refresh by themselves every 15 min)"
               className="px-2.5 py-1 rounded-lg bg-cta text-on-cta text-[11px] hover:bg-cta-hover disabled:opacity-40">
               {deckLoading ? 'Loading…' : 'Refresh'}
             </button>

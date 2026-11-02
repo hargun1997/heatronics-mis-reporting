@@ -25,11 +25,11 @@ export interface FactsResponse {
   warnings: string[];
 }
 
-export async function fetchFacts(from: string, to: string): Promise<FactsResponse> {
+export async function fetchFacts(from: string, to: string, force = false): Promise<FactsResponse> {
   const res = await fetch('/api/connectors/facts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to }),
+    body: JSON.stringify({ from, to, ...(force ? { force: true } : {}) }),
   });
   const body = (await res.json().catch(() => ({}))) as FactsResponse & { error?: string };
   if (!res.ok) throw new Error(body.error || `Facts request failed (${res.status}).`);
