@@ -399,9 +399,10 @@ function render(){
   document.getElementById('priceNote').textContent=`Round price ${ru(M.p1)} a share (${fR(M.pre1)} ÷ ${fS(M.Tp)} pre-money shares, incl. the converted notes).`;
   document.getElementById('cnRows').innerHTML=[
     ['Notes outstanding','₹75L · 3 angels (₹25L each)'],
-    ['Cap price (₹18 Cr pre-money)',ru(CNP)],
-    ['30% off the round price',ru(dP)],
-    ['Conversion price — the lower',`${ru(M.cnp)} · ${M.cnDisc?'discount':'cap'}`,1],
+    ['Cap valuation',`₹18.00 Cr → ${ru(CNP)}/sh`],
+    ['30% off the round',`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr → ${ru(dP)}/sh`],
+    ['Converts at (the lower)',cnVal(M),1],
+    ['Conversion price',`${ru(M.cnp)}/sh`],
     ['Equity shares',`${fS(M.cnSh)} (${fS(Math.floor(CN_EACH/M.cnp))} × 3)`,1],
     ['Stake after the round',fP(M.st.hs.C/M.post1)]].map(([l,v,k])=>`<div class="r${k?' k':''}"><span>${l}</span><b>${v}</b></div>`).join('');
   document.getElementById('cnNote').textContent=`Triggered by the Hyperscale Round (₹3 Cr+ from an institutional VC, Sch. P). ${M.cnDisc?`30% off the round price is below the cap, so they get ${fS(M.cnX)} more shares than at the cap.`:'The cap price is lower than 30% off, so the cap applies.'} 6% interest from mid-Nov 2026 converts with principal unless paid in cash (not included here).`;
@@ -472,6 +473,7 @@ function render(){
   renderCS(M);
   renderCmp(M);
 }
+const cnVal=m=>m.cnDisc?`₹${(m.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr (30% off ₹${(m.pre1/CR).toFixed(2)} Cr)`:'₹18.00 Cr (cap)';
 const cmpVals=()=>[...new Set(document.getElementById('cmpVals').value.split(/[,\s]+/).map(Number).filter(x=>isFinite(x)&&x>0&&x<1000))].slice(0,6);
 function renderCmp(M){
   const vals=cmpVals(), cur=M.I.pre1;
@@ -488,7 +490,8 @@ function renderCmp(M){
    row('Post-money',m=>fR(m.pre1+m.eqIn))+
    row('Price per share',m=>ru(m.p1))+
    row('Dilution this round',m=>fP((m.newR1+m.W)/m.post1),'hl')+
-   row('Angel notes convert',m=>`${fS(m.cnSh)} sh at ${ru(m.cnp)} · ${m.cnDisc?'30% off':'cap'}`)+
+   row('Angel notes convert at (valuation)',m=>m.cnDisc?`₹${(m.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr · 30% off`:'₹18.00 Cr · cap','hl')+
+   row('Angel notes — shares',m=>`${fS(m.cnSh)} sh at ${ru(m.cnp)}`)+
    grp('Who owns what after the Hyperscale Round')+
    row('Hargun',m=>hs(m,o=>o.H))+row('Aneesha',m=>hs(m,o=>o.A))+row('Jagjit',m=>hs(m,o=>o.J))+
    row('Founders total',m=>hs(m,F),'hl')+
@@ -506,7 +509,7 @@ function renderSummaries(M){
   const tiles=[['Hargun',o=>o.H,1],['Aneesha',o=>o.A,1],['Jagjit',o=>o.J],['Founders total',o=>o.H+o.J+o.A],['ESOP pool',o=>o.E],['New investors',o=>o.inv.reduce((s,x)=>s+x,0)]];
   const dil1=(M.newR1+M.W)/M.post1, dil2=M.N2/M.post2;
   const rt=[['Pre-money',fR(M.pre1),`${fS(M.Tp)} shares before the round`,1],['Equity raise',fR(M.R1),`${fS(M.newR1)} new shares at ${ru(M.p1)}`],['Post-money',fR(M.pre1+M.eqIn),`${fS(M.post1)} shares after`],
-    ['Dilution this round',fP(dil1),`${fS(M.newR1+M.W)} new${M.W?' incl. warrants':''} ÷ ${fS(M.post1)}`,1],['Angel notes convert',`${fS(M.cnSh)} sh`,`at ${ru(M.cnp)} (${M.cnDisc?'30% off the round':'₹18 Cr cap'}) · round ${ru(M.p1)}/sh`],['Series A dilution',fP(dil2),`${fR(M.R2)} at ${fR(M.pre2)} pre`]];
+    ['Dilution this round',fP(dil1),`${fS(M.newR1+M.W)} new${M.W?' incl. warrants':''} ÷ ${fS(M.post1)}`,1],['Angel notes convert at',M.cnDisc?`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr`:'₹18.00 Cr',`${M.cnDisc?'30% off the round':'the cap'} · ${fS(M.cnSh)} sh at ${ru(M.cnp)}`],['Series A dilution',fP(dil2),`${fR(M.R2)} at ${fR(M.pre2)} pre`]];
   document.getElementById('kpis').innerHTML=`<div class="krow">Hyperscale Round (Seed)</div>`+rt.map(([l,v,sub,key])=>`<div class="kpi rd${key?' key':''}"><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${sub}</div></div>`).join('')+
     `<div class="krow">Who owns what after the Hyperscale Round</div>`+tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${d0(l,f)}</div></div>`).join('')+
     `<div class="kcap"><span>After Series A (proposed): Hargun <b>${fP(st.r2.H/tot(st.r2))}</b> · Aneesha <b>${fP(st.r2.A/tot(st.r2))}</b> · founders <b>${fP((st.r2.H+st.r2.J+st.r2.A)/tot(st.r2))}</b></span></div>`;
@@ -514,7 +517,7 @@ function renderSummaries(M){
   set('sv2',`${fR(M.R1)} at ${fR(M.pre1)} pre · angel notes → ${fS(M.cnSh)} sh at ${ru(M.cnp)} (${M.cnDisc?'30% off':'cap'}) · secondary ${fR((M.I.fsec+M.I.sec)*CR)} · debt ${fR(M.debt)}`);
   set('sv3',`2026 revenue ₹${M.I.rev} Cr · Series A ${fR(M.R2)} at ${fR(M.pre2)} pre`);
   set('bv_eq',`${fR(M.R1)} · ${ru(M.p1)}/sh`);
-  set('bv_cn',`${fS(M.cnSh)} sh at ${ru(M.cnp)}`);
+  set('bv_cn',`at ${M.cnDisc?'₹'+(M.pre1*(1-CN_DISC)/CR).toFixed(2)+' Cr':'₹18 Cr cap'} · ${fS(M.cnSh)} sh`);
   set('bv_es',M.poolCut?`${fS(BASE.ESOP)} → ${fS(M.Eag)}`:'as agreed');
   set('bv_sf',M.I.fsec?fR(M.I.fsec*CR):'none');
   set('bv_sc',M.I.sec?fR(M.I.sec*CR):'none');
