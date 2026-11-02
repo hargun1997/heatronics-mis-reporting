@@ -184,7 +184,7 @@ details.blk:last-child:not([open]){padding-bottom:14px}
 </head>
 <body>
 <div class="wrap">
-  <div><h1>Heatronics Round Planner</h1><p class="sub">Set each step. Opening numbers come from the signed SSSHA (19-Mar-2026), the CA-certified shareholder list (05-Jun-2026) and the 29-Jun-2026 allotment. Share prices are rounded up to the rupee and share counts down, the way a company secretary would. Hover any cell in the ownership table to see which shares changed hands. "Shares" shows share counts, "%" shows fully diluted stakes, "Change in %" shows the move since the previous step.</p></div>
+  <div><h1>Heatronics Round Planner</h1><p class="sub">Cap table from today to Series A, checked against the signed SSSHA. Hover any cell in the tables to see what moved.</p></div>
 
   <div class="card kpis" id="kpis" aria-live="polite"></div>
   <div class="bar"><span class="tools"><button type="button" class="lnk" id="openAll">Expand all</button><button type="button" class="lnk" id="closeAll">Collapse all</button></span><span class="acts"><span id="saveMsg" aria-live="polite"></span><button type="button" class="reset" id="reset">Reset</button><button type="button" class="btn" id="factory">Built-in values</button><button type="button" class="btn pri" id="save">Save as default</button></span></div>
@@ -199,8 +199,8 @@ details.blk:last-child:not([open]){padding-bottom:14px}
         <div class="inv sum"><span class="nm">Total</span><span class="rest" id="invTot"></span><span></span></div>
         <p class="note2" id="priceNote"></p></details>
       <details class="blk cn" data-k="b_cn" open><summary class="bh">Angel Round 1 notes convert<span class="bv" id="bv_cn"></span></summary><div class="rows" id="cnRows"></div><p class="note2" id="cnNote"></p></details>
-      <details class="blk sf" data-k="b_sf"><summary class="bh">Secondary — founders sell<span class="bv" id="bv_sf"></span></summary><div class="ctls" id="s2f"></div><p class="note2">Jagjit sells first, down to his floor; then Hargun. Bought by the lead at the round price.</p></details>
-      <details class="blk sc" data-k="b_sc"><summary class="bh">Secondary — angels &amp; VCs sell<span class="bv" id="bv_sc"></span></summary><div class="ctls" id="s2s"></div><p class="note2">Angel Round 1 (CN) and Pre-Seed holders, in proportion to holdings. Bought by the lead at the round price.</p></details>
+      <details class="blk sf" data-k="b_sf"><summary class="bh">Secondary — founders sell<span class="bv" id="bv_sf"></span></summary><div class="ctls" id="s2f"></div><p class="note2">Jagjit first (to his floor), then Hargun · bought by the lead at the round price.</p></details>
+      <details class="blk sc" data-k="b_sc"><summary class="bh">Secondary — angels &amp; VCs sell<span class="bv" id="bv_sc"></span></summary><div class="ctls" id="s2s"></div><p class="note2">Angels and Pre-Seed, pro rata · bought by the lead at the round price.</p></details>
       <details class="blk dt" data-k="b_dt"><summary class="bh">Venture debt — loan + warrants<span class="bv" id="bv_dt"></span></summary><div class="ctls" id="s2d"></div></details></details>
     <details class="card step" data-k="st3" open><summary><h2><span>3</span>Feb 2027 → Series A</h2><span class="sv" id="sv3"></span></summary>
       <details class="blk cv" data-k="b_cv" open><summary class="bh">Pre-Seed CCPS convert<span class="bv" id="bv_cv"></span></summary><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></details>
@@ -211,15 +211,15 @@ details.blk:last-child:not([open]){padding-bottom:14px}
 
   <details class="card fold" data-k="t_own" open><summary><h2>Who owns what</h2><span class="seg" id="viewSeg" role="group" aria-label="Show"><button type="button" data-v="pct" aria-pressed="true">%</button><button type="button" data-v="sh" aria-pressed="false">Shares</button><button type="button" data-v="chg" aria-pressed="false">Change in %</button></span></summary><div class="tw"><table id="own"></table></div></details>
 
-  <details class="card fold" data-k="t_cmp" open><summary><h2>Compare valuations</h2><span class="hint2">Hyperscale pre-money side by side · everything else as set above</span></summary>
-    <div class="cmpbar"><label for="cmpVals">Pre-money values (₹ Cr)</label><input id="cmpVals" value="23, 30, 40, 50" inputmode="decimal" aria-describedby="cmpHint"><button type="button" class="btn" id="cmpAdd">+ Add current</button><p class="note" id="cmpHint">Up to 6 values, separated by commas. The highlighted column is the pre-money set in Step 2.</p></div>
+  <details class="card fold" data-k="t_cmp" open><summary><h2>Compare valuations</h2><span class="hint2">Hyperscale pre-money side by side</span></summary>
+    <div class="cmpbar"><span class="seg" id="cmpSeg" role="group" aria-label="Cap table at" style="margin-left:0"><button type="button" data-s="hs" aria-pressed="true">After Hyperscale</button><button type="button" data-s="r2" aria-pressed="false">After Series A</button></span><label for="cmpVals">Pre-money (₹ Cr)</label><input id="cmpVals" value="23, 30, 40, 50" inputmode="decimal" ><button type="button" class="btn" id="cmpAdd">+ Add current</button></div>
     <div class="tw"><table id="cmp"></table></div></details>
 
   <details class="card fold" data-k="t_rnd"><summary><h2>Who puts in what, and when</h2></summary><div class="tw"><table id="rounds"></table></div></details>
 
-  <details class="card fold cs" data-k="t_cs"><summary><h2>Company secretary's working</h2><span class="hint2">step-by-step share maths, checked against the signed SSSHA</span></summary><div id="cs"></div></details>
+  <details class="card fold cs" data-k="t_cs"><summary><h2>Company secretary's working</h2></summary><div id="cs"></div></details>
 
-  <p class="note">Taxes are not included. The ESOP pool (1,226) is only a number agreed in the SSSHA — no scheme, grants or shares — so it can be resized before Aneesha joins with FPC-A's consent and no shares moving. Aneesha's MSOP from it is optional (off by default). Angel notes convert at the Hyperscale Round at the lower of the ₹18 Cr pre-money cap (₹14,342 a share) and 30% off the round price (Sch. P). Pre-Seed CCPS convert in Feb 2027 at a valuation set by 2026 revenue: the ₹23 Cr floor at ₹12.5 Cr or less, otherwise ₹28 Cr × revenue ÷ ₹15 Cr, capped at ₹28 Cr.</p>
+  <p class="note">Taxes not included. Sources: signed SSSHA (19-Mar-26), shareholder list (05-Jun-26), 29-Jun-26 allotment.</p>
 </div>
 <script>
 (function(){
@@ -244,7 +244,7 @@ const C={
      {id:'R2',label:'Total equity raise',min:0,max:50,step:0.5,v:22,unit:'₹ Cr'}]};
 const ALL=[].concat(...Object.values(C));
 const INV0=[{n:'Hyperscale (lead)'},{n:'Atrium',a:1}];
-let INV=INV0.map(x=>({...x})), VIEW='pct', MODE='join', TOUCHED=false, SAVED=null;
+let CMPST='hs', INV=INV0.map(x=>({...x})), VIEW='pct', MODE='join', TOUCHED=false, SAVED=null;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ctl=c=>`<div class="ctl" id="row_${c.id}"><label for="n_${c.id}">${c.label}</label><span class="in"><input type="number" id="n_${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.v}"><span class="u">${c.unit}</span></span></div>`;
 for(const k in C) document.getElementById(k).innerHTML=C[k].map(ctl).join('');
@@ -285,6 +285,7 @@ document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target
   const M=model();if(m==='post'&&MODE!=='post')document.getElementById('n_stkPost').value=(Math.round(M.aPost*2000)/20).toFixed(1).replace(/\.0$/,'');
   if(m==='join'&&MODE!=='join')document.getElementById('n_stk').value=(Math.round(M.A/M.T0*2000)/20).toFixed(1).replace(/\.0$/,'');
   TOUCHED=true;setMode(m);render()});
+document.getElementById('cmpSeg').addEventListener('click',e=>{const v=e.target.dataset&&e.target.dataset.s;if(!v)return;CMPST=v;document.querySelectorAll('#cmpSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===v));renderCmp(model())});
 document.getElementById('cmpVals').addEventListener('input',()=>{TOUCHED=true;renderCmp(model())});
 document.getElementById('cmpAdd').onclick=()=>{const e=document.getElementById('cmpVals'),v=V('pre1');const xs=cmpVals();if(!xs.includes(v)){xs.push(v);xs.sort((a,b)=>a-b);e.value=xs.slice(0,6).join(', ')}TOUCHED=true;renderCmp(model())};
 document.getElementById('viewSeg').addEventListener('click',e=>{const v=e.target.dataset&&e.target.dataset.v;if(!v)return;e.preventDefault();VIEW=v;
@@ -353,8 +354,9 @@ function model(ov){
   const r2={...conv,R2:N2};
   const z=inv.map(()=>0);
   const st={today:{H:BASE.H,J:BASE.J,A:0,E:BASE.ESOP,C:BASE.AR1,P:BASE.PS,W:0,R2:0,inv:z},join:{...join,inv:z},hs,conv,r2};
+  const newAll=newR1+W+cnX, dil1=newAll/post1;
   const aPost=hs.A/post1, ePost=hs.E/post1, aShort=MODE==='post'&&(short||Math.round(tA*post1)-Pj<0);
-  return {I,T0:Tm,Eag,poolCut,cnX,cnp,cnDisc,cnSh,useMsop,Tp,aPost,ePost,tA,tE,aShort,jFloor,A,G,S,Sh,Sj,short,px,paid,pre1,rawP1,p1,R1,prim,Pj,primA,inv,lead,over,newInv,eqIn,fsN,fsJ,fsH,fsCut,pC,secC,secP,secCut,debt,wVal,W,newR1,post1,
+  return {newAll,dil1,I,T0:Tm,Eag,poolCut,cnX,cnp,cnDisc,cnSh,useMsop,Tp,aPost,ePost,tA,tE,aShort,jFloor,A,G,S,Sh,Sj,short,px,paid,pre1,rawP1,p1,R1,prim,Pj,primA,inv,lead,over,newInv,eqIn,fsN,fsJ,fsH,fsCut,pC,secC,secP,secCut,debt,wVal,W,newR1,post1,
     Vconv,cp,ratio,Pc,secPc,postC,R2,pre2,rawP2,p2,N2,post2,st,tot};
 }
 // what moved, per stage and holder (for hovers)
@@ -391,12 +393,12 @@ function render(){
     ?`→ ${fS(M.A)} shares at joining (${fP(M.A/M.T0)}), plus ${fS(M.Pj)} from her primary = ${fP(M.aPost)} after the round.`
     :`→ ${fP(M.aPost)} after the Hyperscale Round (${fS(M.A)} + ${fS(M.Pj)} primary shares).`;
   document.getElementById('esopNote').textContent=M.poolCut>0
-    ?`The pool is only a number in the SSSHA, so it is cut before she joins: ${fS(BASE.ESOP)} → ${fS(M.Eag)} options, ${fP(M.ePost)} after the round. No shares are issued or moved — Hargun keeps his ${fS(BASE.H)}, and his stake goes up because there is less pool.`
+    ?`${fS(BASE.ESOP)} → ${fS(M.Eag)} options before she joins (FPC-A consent). No shares issued or moved; Hargun keeps ${fS(BASE.H)}.`
     :M.poolCut<0
-    ?`Agreed pool raised before she joins: ${fS(BASE.ESOP)} → ${fS(M.Eag)} options, ${fP(M.ePost)} after the round. More pool dilutes every holder, founders included.`
-    :`Pool as agreed: ${fS(M.Eag)} options, ${fP(M.ePost)} after the round. Set a target to resize it; 0 leaves it as agreed.`;
+    ?`${fS(BASE.ESOP)} → ${fS(M.Eag)} options before she joins; dilutes every holder.`
+    :`As agreed: ${fS(M.Eag)} options. 0 = no resize.`;
   const dP=Math.ceil(M.p1*(1-CN_DISC)-1e-9);
-  document.getElementById('priceNote').textContent=`Round price ${ru(M.p1)} a share (${fR(M.pre1)} ÷ ${fS(M.Tp)} pre-money shares, incl. the converted notes).`;
+  document.getElementById('priceNote').textContent=`Round price ${ru(M.p1)}/sh · ${fS(M.Tp)} pre-money shares.`;
   document.getElementById('cnRows').innerHTML=[
     ['Notes outstanding','₹75L · 3 angels (₹25L each)'],
     ['Cap valuation',`₹18.00 Cr → ${ru(CNP)}/sh`],
@@ -405,7 +407,7 @@ function render(){
     ['Conversion price',`${ru(M.cnp)}/sh`],
     ['Equity shares',`${fS(M.cnSh)} (${fS(Math.floor(CN_EACH/M.cnp))} × 3)`,1],
     ['Stake after the round',fP(M.st.hs.C/M.post1)]].map(([l,v,k])=>`<div class="r${k?' k':''}"><span>${l}</span><b>${v}</b></div>`).join('');
-  document.getElementById('cnNote').textContent=`Triggered by the Hyperscale Round (₹3 Cr+ from an institutional VC, Sch. P). ${M.cnDisc?`30% off the round price is below the cap, so they get ${fS(M.cnX)} more shares than at the cap.`:'The cap price is lower than 30% off, so the cap applies.'} 6% interest from mid-Nov 2026 converts with principal unless paid in cash (not included here).`;
+  document.getElementById('cnNote').textContent=`Converts at the Hyperscale Round (Sch. P)${M.cnX?` · ${fS(M.cnX)} more shares than at the cap`:''}. 6% interest from Nov-26 not included.`;
   document.getElementById('convNote').textContent=M.ratio===1?`At ₹12.5 Cr revenue or less, CCPS convert 1:1 (₹23 Cr floor): ${fS(M.st.hs.P)} shares.`:`Converts at ₹${(M.Vconv/CR).toFixed(2)} Cr → ${fS(M.Pc)} shares instead of ${fS(M.st.hs.P)}.`;
   const FMIN=70, f1=(st.hs.H+st.hs.J+st.hs.A)/tot(st.hs), ok=f1>=FMIN/100-1e-9;
   document.getElementById('checks').innerHTML=
@@ -416,7 +418,7 @@ function render(){
    (M.short||M.aShort?`<span class="pill bad">Not enough Hargun/Jagjit shares for this stake</span>`:'')+
    (M.Sh&&!M.short?`<span class="pill bad">Jagjit hits his ${M.I.jkeep}% floor — Hargun also transfers ${fS(M.Sh)} shares. Lower the floor or her stake to keep it Jagjit-only.</span>`:'')+
    (!M.Sh&&M.Sj?`<span class="pill ok">All ${fS(M.Sj)} of Aneesha's shares come from Jagjit</span>`:'')+
-   `<span class="pill ok">Aneesha after Hyperscale Round: ${fP(M.aPost)}</span><span class="pill ok">ESOP pool after: ${fP(M.ePost)}</span>`;
+   '';
   const cols=[['Today','today'],['Aneesha joins','join'],['Hyperscale Round','hs'],['CCPS convert · Feb 27','conv'],['Series A (proposed)','r2']];
   const NM={today:'today',join:'the pool resize and Aneesha joining',hs:'the Hyperscale Round',conv:'the CCPS conversion'};
   const rows=[['Hargun','H',o=>o.H],['Jagjit','J',o=>o.J],['Aneesha','A',o=>o.A],['Founders total','F',o=>o.H+o.J+o.A,1],['ESOP pool','E',o=>o.E,3],['Angel Round 1 (CN)','C',o=>o.C],['Pre-Seed (CCPS)','P',o=>o.P]]
@@ -469,7 +471,7 @@ function render(){
    R('Pre-money',d,fR(M.pre1),fR(M.pre2))+
    R('Price per share',d,ru(M.p1),ru(M.p2))+
    R('Post-money (equity)',d,fR(M.pre1+M.eqIn),fR(M.pre2+M.N2*M.p2))+
-   R('Dilution incl. warrants',d,fP((M.newR1+M.W)/M.post1),fP(M.N2/M.post2),'hl')+'</tbody>';
+   R('Round dilution',d,fP(M.dil1),fP(M.N2/M.post2),'hl')+'</tbody>';
   renderCS(M);
   renderCmp(M);
 }
@@ -480,7 +482,7 @@ function renderCmp(M){
   if(!vals.length){document.getElementById('cmp').innerHTML='<tbody><tr><td class="dash">Enter one or more pre-money values above.</td></tr></tbody>';return}
   const Ms=vals.map(v=>Math.abs(v-cur)<1e-9?M:model({pre1:v}));
   const inv=o=>o.C+o.P+o.W+o.R2+o.inv.reduce((s,x)=>s+x,0), F=o=>o.H+o.J+o.A;
-  const hs=(m,f)=>fP(f(m.st.hs)/m.tot(m.st.hs)), r2=(m,f)=>fP(f(m.st.r2)/m.tot(m.st.r2));
+  const stg=m=>CMPST==='hs'?m.st.hs:m.st.r2, pc=(m,f)=>{const o=stg(m),v=f(o);return v?fP(v/m.tot(o)):'–'};
   const cc=v=>Math.abs(v-cur)<1e-9?' class="cur"':'';
   const row=(l,fn,cls)=>`<tr class="${cls||''}"><td>${l}</td>${Ms.map((m,i)=>{const r=fn(m);return typeof r==='object'?`<td class="${r.c}${Math.abs(vals[i]-cur)<1e-9?' cur':''}">${r.t}</td>`:`<td${cc(vals[i])}>${r}</td>`}).join('')}</tr>`;
   const grp=t=>`<tr class="grp"><td colspan="${vals.length+1}">${t}</td></tr>`;
@@ -489,30 +491,36 @@ function renderCmp(M){
    row('Equity raise',m=>fR(m.R1))+
    row('Post-money',m=>fR(m.pre1+m.eqIn))+
    row('Price per share',m=>ru(m.p1))+
-   row('Dilution this round',m=>fP((m.newR1+m.W)/m.post1),'hl')+
+   row('Round dilution',m=>fP(m.dil1),'hl')+
+   row('Series A dilution',m=>fP(m.N2/m.post2))+
    row('Angel notes convert at (valuation)',m=>m.cnDisc?`₹${(m.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr · 30% off`:'₹18.00 Cr · cap','hl')+
    row('Angel notes — shares',m=>`${fS(m.cnSh)} sh at ${ru(m.cnp)}`)+
-   grp('Who owns what after the Hyperscale Round')+
-   row('Hargun',m=>hs(m,o=>o.H))+row('Aneesha',m=>hs(m,o=>o.A))+row('Jagjit',m=>hs(m,o=>o.J))+
-   row('Founders total',m=>hs(m,F),'hl')+
-   row('ESOP pool',m=>hs(m,o=>o.E))+
-   row('Investors total',m=>hs(m,inv),'hl')+
-   row('Founders ≥ 70%',m=>{const f=F(m.st.hs)/m.tot(m.st.hs);const ok=f>=0.7-1e-9;return {c:ok?'ok':'bad',t:`${ok?'✓':'✗'} ${(f*100).toFixed(2)}%`}})+
+   grp(CMPST==='hs'?'Cap table after the Hyperscale Round':'Cap table after Series A (proposed)')+
+   row('Hargun',m=>pc(m,o=>o.H))+row('Jagjit',m=>pc(m,o=>o.J))+row('Aneesha',m=>pc(m,o=>o.A))+
+   row('Founders total',m=>pc(m,F),'hl')+
+   row('Founders diluted since Aneesha joined',m=>fP(1-(F(stg(m))/m.tot(stg(m)))/(F(m.st.join)/m.tot(m.st.join))))+
+   row('ESOP pool',m=>pc(m,o=>o.E))+
+   row('Angel Round 1 (CN)',m=>pc(m,o=>o.C))+row('Pre-Seed (CCPS)',m=>pc(m,o=>o.P))+
+   M.inv.map((x,k)=>row(esc(x.name),m=>pc(m,o=>o.inv[k]))).join('')+
+   row('Venture-debt warrants',m=>pc(m,o=>o.W))+
+   (CMPST==='r2'?row('Series A investors',m=>pc(m,o=>o.R2)):'')+
+   row('Investors total',m=>pc(m,inv),'hl')+
+   row('Total shares',m=>fS(m.tot(stg(m))),'tot')+
+   grp('Checks')+
+   row('Founders ≥ 70% after Hyperscale',m=>{const f=F(m.st.hs)/m.tot(m.st.hs);const ok=f>=0.7-1e-9;return {c:ok?'ok':'bad',t:`${ok?'✓':'✗'} ${(f*100).toFixed(2)}%`}})+
    row("Hargun's shares at the round price",m=>fR(m.st.hs.H*m.p1))+
-   grp('After Series A (proposed)')+
-   row('Hargun',m=>r2(m,o=>o.H))+row('Founders total',m=>r2(m,F),'hl')+row('Investors total',m=>r2(m,inv))+
    '</tbody>';
 }
 function renderSummaries(M){
   const st=M.st, tot=M.tot, h=st.hs, T1=tot(h), t=x=>fP(x/T1), set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
   const d0=(k,f)=>{const a=f(st.today)/tot(st.today), b=f(h)/T1, dp=(b-a)*100;return Math.abs(dp)<0.05?'no change':`${dp>0?'+':'−'}${Math.abs(dp).toFixed(1)} pts since today`};
   const tiles=[['Hargun',o=>o.H,1],['Aneesha',o=>o.A,1],['Jagjit',o=>o.J],['Founders total',o=>o.H+o.J+o.A],['ESOP pool',o=>o.E],['New investors',o=>o.inv.reduce((s,x)=>s+x,0)]];
-  const dil1=(M.newR1+M.W)/M.post1, dil2=M.N2/M.post2;
+  const dil1=M.dil1, dil2=M.N2/M.post2;
   const rt=[['Pre-money',fR(M.pre1),`${fS(M.Tp)} shares before the round`,1],['Equity raise',fR(M.R1),`${fS(M.newR1)} new shares at ${ru(M.p1)}`],['Post-money',fR(M.pre1+M.eqIn),`${fS(M.post1)} shares after`],
-    ['Dilution this round',fP(dil1),`${fS(M.newR1+M.W)} new${M.W?' incl. warrants':''} ÷ ${fS(M.post1)}`,1],['Angel notes convert at',M.cnDisc?`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr`:'₹18.00 Cr',`${M.cnDisc?'30% off the round':'the cap'} · ${fS(M.cnSh)} sh at ${ru(M.cnp)}`],['Series A dilution',fP(dil2),`${fR(M.R2)} at ${fR(M.pre2)} pre`]];
+    ['Round dilution',fP(dil1),`${fS(M.newAll)} new shares ÷ ${fS(M.post1)}`,1],['Angel notes convert at',M.cnDisc?`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr`:'₹18.00 Cr',`${M.cnDisc?'30% off the round':'the cap'} · ${fS(M.cnSh)} sh at ${ru(M.cnp)}`],['Series A dilution',fP(dil2),`${fR(M.R2)} at ${fR(M.pre2)} pre`]];
   document.getElementById('kpis').innerHTML=`<div class="krow">Hyperscale Round (Seed)</div>`+rt.map(([l,v,sub,key])=>`<div class="kpi rd${key?' key':''}"><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${sub}</div></div>`).join('')+
     `<div class="krow">Who owns what after the Hyperscale Round</div>`+tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${d0(l,f)}</div></div>`).join('')+
-    `<div class="kcap"><span>After Series A (proposed): Hargun <b>${fP(st.r2.H/tot(st.r2))}</b> · Aneesha <b>${fP(st.r2.A/tot(st.r2))}</b> · founders <b>${fP((st.r2.H+st.r2.J+st.r2.A)/tot(st.r2))}</b></span></div>`;
+    (()=>{const F=o=>(o.H+o.J+o.A)/tot(o), H=o=>o.H/tot(o), A=o=>o.A/tot(o);return `<div class="kcap"><span>Today → Hyperscale → Series A</span><span>Founders <b>${fP(F(st.today))} → ${fP(F(h))} → ${fP(F(st.r2))}</b></span><span>Hargun <b>${fP(H(st.today))} → ${fP(H(h))} → ${fP(H(st.r2))}</b></span><span>Aneesha <b>${fP(A(st.join))} → ${fP(A(h))} → ${fP(A(st.r2))}</b></span><span>Total dilution to Series A <b>${fP(1-(F(st.r2)/F(st.join)))}</b> of founders' stake</span></div>`})();
   set('sv1',`pool ${fP(M.ePost)} after round · Aneesha ${MODE==='post'?M.I.stkPost+'% after round':M.I.stk+'% at joining'} · Jagjit floor ${M.I.jkeep}% · ₹${M.I.px}/sh${M.useMsop?' · MSOP on':''}`);
   set('sv2',`${fR(M.R1)} at ${fR(M.pre1)} pre · angel notes → ${fS(M.cnSh)} sh at ${ru(M.cnp)} (${M.cnDisc?'30% off':'cap'}) · secondary ${fR((M.I.fsec+M.I.sec)*CR)} · debt ${fR(M.debt)}`);
   set('sv3',`2026 revenue ₹${M.I.rev} Cr · Series A ${fR(M.R2)} at ${fR(M.pre2)} pre`);
@@ -598,7 +606,7 @@ function renderCS(M){
    `<div class="sublab">Venture-debt warrants</div>`+T([
    ['Warrant shares',`${I.wcov}% × ${fR(M.debt)} = ${ru(M.wVal)} ÷ ${ru(p1)}, rounded down`,n(M.W)+' sh'],
    ['Post-money fully diluted shares',`${n(M.Tp)} + ${n(M.newR1)} + ${n(M.W)}`,n(M.post1),'tot'],
-   ['Dilution to existing holders',`${n(M.newR1+M.W)} ÷ ${n(M.post1)}`,fP((M.newR1+M.W)/M.post1)]])+
+   ['Round dilution',`(${n(M.newR1)} new + ${n(M.W)} warrants${M.cnX?` + ${n(M.cnX)} extra note shares`:''}) ÷ ${n(M.post1)}`,fP(M.dil1)]])+
    `<div class="sublab">SSSHA checks and filings</div>`+CK([
    [p1>=PSP?'ok':'flag',`Anti-dilution: round price ${ru(p1)} vs Pre-Seed price ₹19,576.`,p1>=PSP?'At or above, so no weighted-average adjustment (cl. 17, Sch. D).':'Below — Pre-Seed CCPS get a weighted-average adjustment (cl. 17, Sch. D).'],
    [M.pre1>=46e7?'ok':'flag',`Protection right: pre-money ${fR(M.pre1)} vs ₹46 Cr (2× the Pre-Seed ₹23 Cr floor).`,M.pre1>=46e7?'At or above (and Hyperscale invests more than 2× the Pre-Seed amount), so the new investors may get superior rights.':`Below ₹46 Cr, so ${nm0}'s rights can't be superior to Pre-Seed's unless IPV/FirstPort waive (Sch. O).`],
