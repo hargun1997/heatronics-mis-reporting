@@ -212,7 +212,7 @@ details.blk:last-child:not([open]){padding-bottom:14px}
   <details class="card fold" data-k="t_own" open><summary><h2>Who owns what</h2><span class="seg" id="viewSeg" role="group" aria-label="Show"><button type="button" data-v="pct" aria-pressed="true">%</button><button type="button" data-v="sh" aria-pressed="false">Shares</button><button type="button" data-v="chg" aria-pressed="false">Change in %</button></span></summary><div class="tw"><table id="own"></table></div></details>
 
   <details class="card fold" data-k="t_cmp" open><summary><h2>Compare valuations</h2><span class="hint2">Hyperscale pre-money side by side</span></summary>
-    <div class="cmpbar"><span class="seg" id="cmpSeg" role="group" aria-label="Cap table at" style="margin-left:0"><button type="button" data-s="hs" aria-pressed="true">After Hyperscale</button><button type="button" data-s="r2" aria-pressed="false">After Series A</button></span><label for="cmpVals">Pre-money (₹ Cr)</label><input id="cmpVals" value="23, 30, 40, 50" inputmode="decimal" ><button type="button" class="btn" id="cmpAdd">+ Add current</button></div>
+    <div class="cmpbar"><span class="seg" id="cmpSeg" role="group" aria-label="Cap table at" style="margin-left:0"><button type="button" data-s="hs" aria-pressed="true">After Hyperscale</button><button type="button" data-s="r2" aria-pressed="false">After Series A</button></span><span class="seg" id="cmpUnit" role="group" aria-label="Show" style="margin-left:0"><button type="button" data-u="pct" aria-pressed="true">%</button><button type="button" data-u="sh" aria-pressed="false">Shares</button></span><label for="cmpVals">Pre-money (₹ Cr)</label><input id="cmpVals" value="23, 30, 40, 50" inputmode="decimal" ><button type="button" class="btn" id="cmpAdd">+ Add current</button></div>
     <div class="tw"><table id="cmp"></table></div></details>
 
   <details class="card fold" data-k="t_rnd"><summary><h2>Who puts in what, and when</h2></summary><div class="tw"><table id="rounds"></table></div></details>
@@ -244,7 +244,7 @@ const C={
      {id:'R2',label:'Total equity raise',min:0,max:50,step:0.5,v:22,unit:'₹ Cr'}]};
 const ALL=[].concat(...Object.values(C));
 const INV0=[{n:'Hyperscale (lead)'},{n:'Atrium',a:1}];
-let CMPST='hs', INV=INV0.map(x=>({...x})), VIEW='pct', MODE='join', TOUCHED=false, SAVED=null;
+let CMPU='pct', CMPST='hs', INV=INV0.map(x=>({...x})), VIEW='pct', MODE='join', TOUCHED=false, SAVED=null;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ctl=c=>`<div class="ctl" id="row_${c.id}"><label for="n_${c.id}">${c.label}</label><span class="in"><input type="number" id="n_${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.v}"><span class="u">${c.unit}</span></span></div>`;
 for(const k in C) document.getElementById(k).innerHTML=C[k].map(ctl).join('');
@@ -285,6 +285,7 @@ document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target
   const M=model();if(m==='post'&&MODE!=='post')document.getElementById('n_stkPost').value=(Math.round(M.aPost*2000)/20).toFixed(1).replace(/\.0$/,'');
   if(m==='join'&&MODE!=='join')document.getElementById('n_stk').value=(Math.round(M.A/M.T0*2000)/20).toFixed(1).replace(/\.0$/,'');
   TOUCHED=true;setMode(m);render()});
+document.getElementById('cmpUnit').addEventListener('click',e=>{const v=e.target.dataset&&e.target.dataset.u;if(!v)return;CMPU=v;document.querySelectorAll('#cmpUnit button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.u===v));renderCmp(model())});
 document.getElementById('cmpSeg').addEventListener('click',e=>{const v=e.target.dataset&&e.target.dataset.s;if(!v)return;CMPST=v;document.querySelectorAll('#cmpSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===v));renderCmp(model())});
 document.getElementById('cmpVals').addEventListener('input',()=>{TOUCHED=true;renderCmp(model())});
 document.getElementById('cmpAdd').onclick=()=>{const e=document.getElementById('cmpVals'),v=V('pre1');const xs=cmpVals();if(!xs.includes(v)){xs.push(v);xs.sort((a,b)=>a-b);e.value=xs.slice(0,6).join(', ')}TOUCHED=true;renderCmp(model())};
@@ -482,7 +483,7 @@ function renderCmp(M){
   if(!vals.length){document.getElementById('cmp').innerHTML='<tbody><tr><td class="dash">Enter one or more pre-money values above.</td></tr></tbody>';return}
   const Ms=vals.map(v=>Math.abs(v-cur)<1e-9?M:model({pre1:v}));
   const inv=o=>o.C+o.P+o.W+o.R2+o.inv.reduce((s,x)=>s+x,0), F=o=>o.H+o.J+o.A;
-  const stg=m=>CMPST==='hs'?m.st.hs:m.st.r2, pc=(m,f)=>{const o=stg(m),v=f(o);return v?fP(v/m.tot(o)):'–'};
+  const stg=m=>CMPST==='hs'?m.st.hs:m.st.r2, pc=(m,f)=>{const o=stg(m),v=f(o);return v?(CMPU==='sh'?fS(v):fP(v/m.tot(o))):'–'};
   const cc=v=>Math.abs(v-cur)<1e-9?' class="cur"':'';
   const row=(l,fn,cls)=>`<tr class="${cls||''}"><td>${l}</td>${Ms.map((m,i)=>{const r=fn(m);return typeof r==='object'?`<td class="${r.c}${Math.abs(vals[i]-cur)<1e-9?' cur':''}">${r.t}</td>`:`<td${cc(vals[i])}>${r}</td>`}).join('')}</tr>`;
   const grp=t=>`<tr class="grp"><td colspan="${vals.length+1}">${t}</td></tr>`;
