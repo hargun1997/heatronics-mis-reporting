@@ -25,6 +25,28 @@ function token(creds: Credentials): string {
   return t;
 }
 
+/**
+ * Every insights row for `params` on the ad account, following paging. READ
+ * ONLY: GET on graph.facebook.com /act_…/insights only (asserted before each call).
+ */
+export async function metaInsights(creds: Credentials, params: Record<string, string>, maxPages = 100): Promise<Record<string, unknown>[]> {
+  const q = new URLSearchParams({ ...params, limit: params.limit ?? '500', access_token: token(creds) });
+  let url: string | null = `${BASE}/${account(creds)}/insights?${q.toString()}`;
+  const out: Record<string, unknown>[] = [];
+  for (let page = 0; url && page < maxPages; page++) {
+    if (!/^https:\/\/graph\.facebook\.com\/[^/]+\/act_\d+\/insights\?/.test(url)) throw new Error('Blocked: Meta calls are read only (insights GET).');
+    const res: Response = await fetch(url);
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+      throw new Error(`Meta insights failed (${res.status}): ${body.error?.message ?? ''}`);
+    }
+    const body = (await res.json()) as { data?: Record<string, unknown>[]; paging?: { next?: string } };
+    out.push(...(body.data ?? []));
+    url = body.paging?.next ?? null;
+  }
+  return out;
+}
+
 const num = (v: unknown) => {
   const n = parseFloat(String(v ?? ''));
   return Number.isFinite(n) ? n : 0;

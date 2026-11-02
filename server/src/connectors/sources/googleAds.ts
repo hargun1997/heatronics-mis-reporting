@@ -50,7 +50,8 @@ async function accessToken(creds: Credentials): Promise<string> {
   return body.access_token;
 }
 
-async function searchStream(creds: Credentials, query: string): Promise<Record<string, unknown>[]> {
+/** READ ONLY: the one endpoint this file calls is googleAds:searchStream (a GAQL query) — never :mutate. */
+export async function searchStream(creds: Credentials, query: string): Promise<Record<string, unknown>[]> {
   const customerId = digits(creds.customerId || '');
   if (!customerId) throw new Error('Google Ads customerId is required (10 digits, no dashes).');
   // Optional: the Heatronics Cloud project holds API access itself (as in Ops); sent only when set.
@@ -65,7 +66,9 @@ async function searchStream(creds: Credentials, query: string): Promise<Record<s
   if (devToken) headers['developer-token'] = devToken;
   if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
 
-  const res = await fetch(`${ADS_BASE}/customers/${customerId}/googleAds:searchStream`, {
+  const url = `${ADS_BASE}/customers/${customerId}/googleAds:searchStream`;
+  if (!/\/googleAds:searchStream$/.test(url)) throw new Error('Blocked: Google Ads calls are read only (searchStream).');
+  const res = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify({ query }),

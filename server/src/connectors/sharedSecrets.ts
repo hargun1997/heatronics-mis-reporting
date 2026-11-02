@@ -47,6 +47,18 @@ const SHARED: Record<string, Record<string, { secret?: string; fallback?: string
     email: { secret: 'shiprocket-email' },
     password: { secret: 'shiprocket-password' },
   },
+  // Optional — created by Hargun when the payout API is turned on; absent = "Not connected".
+  easebuzz: {
+    merchantKey: { secret: 'easebuzz-merchant-key' },
+    salt: { secret: 'easebuzz-salt' },
+    merchantEmail: { secret: 'easebuzz-merchant-email' },
+  },
+  // Optional — Delhivery One API token (same value as the Warranty Manager's DELHIVERY_API_TOKEN) and the
+  // Warranty Manager feed token (= FEED_TOKEN in warranty-manager-env). Absent = "Not connected".
+  delhivery: {
+    apiToken: { secret: 'delhivery-api-token' },
+    feedToken: { secret: 'warranty-feed-token' },
+  },
 };
 
 /** Which connectors can be fed from shared secrets (for the console badge). */

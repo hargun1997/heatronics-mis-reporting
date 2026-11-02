@@ -71,13 +71,21 @@ async function lwaToken(creds: Credentials): Promise<string> {
   return body.access_token;
 }
 
-async function spapiGet(creds: Credentials, path: string): Promise<unknown> {
-  const token = await lwaToken(creds);
-  const res = await fetch(`${host(creds)}${path}`, { headers: { 'x-amz-access-token': token } });
-  if (!res.ok) {
-    throw new Error(`Amazon SP-API ${res.status}: ${(await res.text()).slice(0, 300)}`);
+/** GET only — every SP-API call the MIS makes is a read (Sales, Finances, Reports list/download). */
+export async function spapiGet(creds: Credentials, path: string, retries = 0): Promise<unknown> {
+  for (let i = 0; ; i++) {
+    const token = await lwaToken(creds);
+    const res = await fetch(`${host(creds)}${path}`, { headers: { 'x-amz-access-token': token } });
+    if ((res.status === 429 || res.status >= 500) && i < retries) {
+      const ra = Number(res.headers.get('retry-after'));
+      await new Promise((r) => setTimeout(r, Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 10_000) : 2000 * 2 ** i));
+      continue;
+    }
+    if (!res.ok) {
+      throw new Error(`Amazon SP-API ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    }
+    return res.json();
   }
-  return res.json();
 }
 
 /** Day after an ISO date (orderMetrics interval end is exclusive). */
