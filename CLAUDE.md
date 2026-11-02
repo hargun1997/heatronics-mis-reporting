@@ -110,7 +110,7 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     month, Document Date written ISO (day-first for DD-MM-YYYY), then the client's `parseTranzactSales`. Empty sheet = "No data in
     the sheet yet" (fail check, upload fallback). Product Price & Inventory / Purchase Invoice Register ids are in `TRANZACT_SHEETS`
     (not read yet).
-- **Claude task (indirect):** the BOM costs Production serves come from the "Tranzact monthly BOM + template import" task (18th).
+- **Claude task (indirect):** the BOM costs Production serves come from the "Portal feeds: Mac Chrome" Claude task (its Tranzact part runs on the 18th).
 - **Manual uploads (reason shown on the slot):** Tally P&L (Tally on cloud doesn't expose its XML port yet — ask Thakur Hardsoft to
   open port 9000), Tally trial balance (optional screenshot), Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
