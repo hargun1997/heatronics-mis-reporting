@@ -11,7 +11,7 @@ import { getUsage, usd, type UsageResponse } from '../data/chat/usageClient';
 
 const REFRESH_MS = 180_000; // 3 min
 
-export function ClaudeStatusPill({ compact = false }: { compact?: boolean }) {
+export function ClaudeStatusPill({ compact = false, dark = false }: { compact?: boolean; dark?: boolean }) {
   const [live, setLive] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
 
@@ -26,7 +26,7 @@ export function ClaudeStatusPill({ compact = false }: { compact?: boolean }) {
     return () => { alive = false; clearInterval(t); };
   }, []);
 
-  const dot = live ? 'bg-emerald-500' : live === false ? 'bg-amber-500' : 'bg-slate-300';
+  const dot = live ? 'bg-emerald-500' : live === false ? 'bg-amber-500' : 'bg-slate-400';
   // Always show today's spend once usage has loaded — even $0.00 — so the menu
   // bar reliably answers "how much have we spent today".
   const spend = usage ? usd(usage.today?.costUsd ?? 0) : null;
@@ -38,7 +38,8 @@ export function ClaudeStatusPill({ compact = false }: { compact?: boolean }) {
       to="/reporting/mis/insights"
       title={title}
       className={
-        'inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/60 hover:bg-slate-50 transition-colors ' +
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ' +
+        (dark ? 'border-nav-border bg-nav-hover/60 hover:bg-nav-hover [&_*]:!text-nav-fg ' : 'border-slate-200 bg-white/60 hover:bg-slate-50 ') +
         (compact ? 'px-2 py-0.5' : 'px-2.5 py-1')
       }
     >

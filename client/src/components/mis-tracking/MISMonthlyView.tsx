@@ -752,7 +752,7 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
                     Export to PDF
                   </button>
                 </div>
-                <div className="fixed inset-0 z-40" onClick={() => setShowExportDropdown(false)} />
+                <div className="fixed inset-0 z-[100]" onClick={() => setShowExportDropdown(false)} />
               </>
             )}
           </div>
@@ -1240,7 +1240,7 @@ function MarginRow({
 
 export function AlgorithmGuideModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-scrim/60 backdrop-blur-sm">
       <div className="bg-white rounded-xl border border-slate-200 max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="bg-slate-100 px-6 py-4 border-b border-slate-200 flex items-center justify-between">

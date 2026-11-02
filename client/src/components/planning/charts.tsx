@@ -79,7 +79,7 @@ export function CashCurve({ r, compare }: { r: PlanResult; compare?: PlanResult 
         {r.base < ms.length && <line x1={xOf(r.base - 0.5)} x2={xOf(r.base - 0.5)} y1={padT} y2={H - padB} stroke="#cbd5e1" strokeDasharray="3 3" />}
         {compare && <path d={path(cmpSeries)} fill="none" stroke="#0f172a" strokeWidth="1.25" strokeDasharray="4 3" />}
         <path d={path(series[1])} fill="none" stroke="#94a3b8" strokeWidth="1.5" />
-        <path d={path(series[0])} fill="none" stroke="#fe4705" strokeWidth="2.25" />
+        <path d={path(series[0])} fill="none" stroke="rgb(var(--accent-600))" strokeWidth="2.25" />
         {ms.map((m, i) => m.equity > 0 && (
           <circle key={m.m} cx={xOf(i)} cy={yOf(series[0][i])} r="4" fill="#10b981"><title>{m.label}: equity ₹{cr(m.equity)} Cr</title></circle>
         ))}

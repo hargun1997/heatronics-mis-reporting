@@ -140,7 +140,7 @@ export function MisChatPage() {
                 className="flex-1 resize-none px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-400 focus:outline-none disabled:bg-slate-50"
               />
               <button onClick={() => void ask(input)} disabled={loading || !input.trim() || configured === false}
-                className="px-3.5 py-2 text-sm rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40">
+                className="px-3.5 py-2 text-sm rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40">
                 Send
               </button>
             </div>

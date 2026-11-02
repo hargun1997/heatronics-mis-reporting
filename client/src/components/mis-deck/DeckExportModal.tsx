@@ -86,7 +86,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-scrim/40 flex items-center justify-center z-[100] p-4">
       <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
@@ -109,7 +109,7 @@ export function DeckExportModal({ onClose }: DeckExportModalProps) {
           <button
             onClick={() => run(exportEverythingToExcel)}
             disabled={busy}
-            className="w-full flex items-center gap-3 p-4 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-60 transition-colors text-left"
+            className="w-full flex items-center gap-3 p-4 rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-60 transition-colors text-left"
           >
             <span className="shrink-0">{iconExcel}</span>
             <span className="flex-1">

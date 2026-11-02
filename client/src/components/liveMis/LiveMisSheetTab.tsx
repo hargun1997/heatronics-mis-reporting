@@ -63,7 +63,7 @@ export function LiveMisSheetTab({ deck }: { deck: LiveDeckData }) {
         </select>
         <div className="flex flex-wrap gap-2 sm:ml-auto">
           <button type="button" onClick={() => downloadMisFormat(src)}
-            className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700">Download (this format)</button>
+            className="px-3 py-1.5 rounded-lg bg-cta text-on-cta text-xs font-medium hover:bg-cta-hover">Download (this format)</button>
           <button type="button" onClick={() => fileRef.current?.click()}
             className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50">Import Excel</button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"

@@ -126,7 +126,7 @@ export function ExportButton({ transactions, misReport, heads, disabled }: Expor
       {/* Click outside to close */}
       {showDropdown && (
         <div
-          className="fixed inset-0 z-40"
+          className="fixed inset-0 z-[100]"
           onClick={() => setShowDropdown(false)}
         />
       )}

@@ -10,6 +10,13 @@ Endpoints that skip the login (machine callers with their own token): `/api/work
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 
 
+## Design & menu
+- Same design system as Ops: `design-system/heatronics-mis/MASTER.md` (tokens in `client/src/index.css`, Tailwind names
+  map onto them: slate/gray = neutral, white = surface, brand = accent indigo, `bg-cta text-on-cta` = the one primary
+  action; light / dark / system theme). No gradients, no raw hex in components, scrims `bg-scrim/x`.
+- Menu = `client/src/nav/config.ts` only (sidebar `components/shell/AppNav.tsx`, ⌘K `CommandPalette`, breadcrumbs in
+  `PageHeader`). Adding a page = a route in `App.tsx` + a line in nav/config; `server/test/nav.test.ts` checks both.
+
 ## Live connectors & shared secrets
 - `server/src/connectors/sharedSecrets.ts`: connectors fill blank fields from the SAME Secret Manager entries Ops uses
   (project gen-lang-client-0101319357, read with the Cloud Run identity, 5-min cache): Amazon `spapi-lwa-client-id|secret`,
@@ -136,6 +143,13 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     included, so a TB never enters the P&L cascade).
   - Shopify · Sales by variant → `api`: the connector's own `fetchFacts` (orders by day × variant, read only) for the month,
     committed so the close is frozen (an upload / pull for source+month wins over the live facts in `buildLiveDeck`).
+- **Tally books (Tally health page `/tally`, READ ONLY):** `connectors/tally/books.ts` (pure: Day Book + "List of Accounts"
+  Ledgers / Groups / Stock Items envelopes — Export Data only, `assertTallyReadOnly`; tolerant parsers; `tallyHealth` rules with
+  "how to fix in TallyPrime"; voucher search) + `bookStore.ts` (`tally/masters`, `tally/books-<YYYY-MM>`, `tally/books-state`,
+  `tally/raw-books` sample). The scheduled poll refreshes them after the P&L (masters daily, Day Books ≤ 6 h old for this + last
+  month, then backfill to 12 months) within ~4 min; "Pull Tally now" on the page forces it. Routes `/api/tally/books/*` incl.
+  `ask` (Claude grounded in health + matching vouchers + ledger list + Hargun's booking pattern). The XML shape of the Day Book /
+  masters answers is UNVERIFIED until the first live pull — check `tally/raw-books`.
 - **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).

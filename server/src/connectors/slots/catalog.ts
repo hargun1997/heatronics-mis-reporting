@@ -224,7 +224,7 @@ async function amazonBusinessReport(ctx: PullContext): Promise<SlotPull> {
 async function tallyPnl(ctx: PullContext): Promise<SlotPull> {
   let snap = await readTallySnapshot(ctx.periodKey);
   if (!snap) {
-    await pollTally(ctx.creds, { force: true });
+    await pollTally(ctx.creds, { force: true, skipBooks: true });
     snap = await readTallySnapshot(ctx.periodKey);
   }
   if (!snap) {

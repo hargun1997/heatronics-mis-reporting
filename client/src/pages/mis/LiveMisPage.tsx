@@ -218,7 +218,7 @@ export function LiveMisPage() {
               Export PDF
             </button>
             <button onClick={() => void loadDeck()} disabled={deckLoading}
-              className="px-2.5 py-1 rounded-lg bg-brand-600 text-white text-[11px] hover:bg-brand-700 disabled:opacity-40">
+              className="px-2.5 py-1 rounded-lg bg-cta text-on-cta text-[11px] hover:bg-cta-hover disabled:opacity-40">
               {deckLoading ? 'Loading…' : 'Refresh'}
             </button>
           </div>
@@ -491,7 +491,7 @@ function RunRateTab() {
           <div className="flex items-center gap-3 text-[11px] text-slate-400">
             {fetchedAt && <span>updated {fetchedAt.toLocaleTimeString()}</span>}
             <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> auto</label>
-            <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40">{loading ? 'Pulling…' : 'Refresh'}</button>
+            <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40">{loading ? 'Pulling…' : 'Refresh'}</button>
           </div>
         }>
         <div className="flex flex-wrap items-end gap-4">

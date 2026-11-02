@@ -1,91 +1,431 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================================
+   Design tokens — the same set as Heatronics Ops (design-system/heatronics-mis/MASTER.md).
+   Every Tailwind colour the MIS uses (slate / gray = neutral, white = surface, brand = accent,
+   heat, cta, red, amber, emerald, blue, violet, orange …) reads an RGB triplet below, so one
+   switch flips the whole app between light and dark. Theme: system by default; [data-theme]
+   (sidebar "Theme" button) overrides.
+   ============================================================================================ */
 :root {
-  font-family: 'Archivo', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   color-scheme: light;
+  --surface: 255 255 255;
+  --n-50: 247 248 250;
+  --n-100: 241 243 246;
+  --n-200: 227 231 237;
+  --n-300: 203 210 220;
+  --n-400: 148 160 178;
+  --n-500: 91 107 130;           /* #5B6B82: AA (≥ 4.5:1) on page bg, chips and table heads (was #64748B, 4.28–4.48) */
+  --n-600: 71 85 105;
+  --n-700: 51 65 85;
+  --n-800: 30 41 59;
+  --n-900: 15 23 42;
+  --n-950: 2 6 23;
+  --heat-50: 255 247 237;
+  --heat-100: 255 237 213;
+  --heat-200: 254 215 170;
+  --heat-300: 253 186 116;
+  --heat-400: 251 146 60;
+  --heat-500: 249 115 22;
+  --heat-600: 234 88 12;
+  --heat-700: 194 65 12;
+  --heat-800: 154 52 18;
+  --heat-900: 124 45 18;
+  --heat-950: 67 20 7;
+  --accent-50: 238 242 255;
+  --accent-100: 224 231 255;
+  --accent-200: 199 210 254;
+  --accent-300: 165 180 252;
+  --accent-400: 129 140 248;
+  --accent-500: 99 102 241;
+  --accent-600: 79 70 229;
+  --accent-700: 67 56 202;
+  --accent-800: 55 48 163;
+  --accent-900: 49 46 129;
+  --accent-950: 30 27 75;
+  --red-50: 254 242 242;
+  --red-100: 254 226 226;
+  --red-200: 254 202 202;
+  --red-300: 252 165 165;
+  --red-400: 248 113 113;
+  --red-500: 239 68 68;
+  --red-600: 220 38 38;
+  --red-700: 185 28 28;
+  --red-800: 153 27 27;
+  --red-900: 127 29 29;
+  --red-950: 69 10 10;
+  --amber-50: 255 251 235;
+  --amber-100: 254 243 199;
+  --amber-200: 253 230 138;
+  --amber-300: 252 211 77;
+  --amber-400: 251 191 36;
+  --amber-500: 245 158 11;
+  --amber-600: 217 119 6;
+  --amber-700: 180 83 9;
+  --amber-800: 146 64 14;
+  --amber-900: 120 53 15;
+  --amber-950: 69 26 3;
+  --emerald-50: 236 253 245;
+  --emerald-100: 209 250 229;
+  --emerald-200: 167 243 208;
+  --emerald-300: 110 231 183;
+  --emerald-400: 52 211 153;
+  --emerald-500: 16 185 129;
+  --emerald-600: 5 150 105;
+  --emerald-700: 4 120 87;
+  --emerald-800: 6 95 70;
+  --emerald-900: 6 78 59;
+  --emerald-950: 2 44 34;
+  --blue-50: 239 246 255;
+  --blue-100: 219 234 254;
+  --blue-200: 191 219 254;
+  --blue-300: 147 197 253;
+  --blue-400: 96 165 250;
+  --blue-500: 59 130 246;
+  --blue-600: 37 99 235;
+  --blue-700: 29 78 216;
+  --blue-800: 30 64 175;
+  --blue-900: 30 58 138;
+  --blue-950: 23 37 84;
+  --violet-50: 245 243 255;
+  --violet-100: 237 233 254;
+  --violet-200: 221 214 254;
+  --violet-300: 196 181 253;
+  --violet-400: 167 139 250;
+  --violet-500: 139 92 246;
+  --violet-600: 124 58 237;
+  --violet-700: 109 40 217;
+  --violet-800: 91 33 182;
+  --violet-900: 76 29 149;
+  --violet-950: 46 16 101;
+  --orange-50: 255 247 237;
+  --orange-100: 255 237 213;
+  --orange-200: 254 215 170;
+  --orange-300: 253 186 116;
+  --orange-400: 251 146 60;
+  --orange-500: 249 115 22;
+  --orange-600: 234 88 12;
+  --orange-700: 194 65 12;
+  --orange-800: 154 52 18;
+  --orange-900: 124 45 18;
+  --orange-950: 67 20 7;
+  /* The one primary action per screen (Button primary): heat, AA with its text in both themes */
+  --cta: 194 65 12;          /* #C2410C, white text 5.2:1 */
+  --cta-hover: 154 52 18;
+  --on-cta: 255 255 255;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: 17 26 43;
+    --n-50: 11 18 32;
+    --n-100: 19 28 46;
+    --n-200: 31 42 62;
+    --n-300: 44 58 82;
+    --n-400: 75 91 118;
+    --n-500: 140 154 176;          /* #8C9AB0: AA on every dark surface incl. stone-200 */
+    --n-600: 166 178 197;
+    --n-700: 198 207 220;
+    --n-800: 222 228 236;
+    --n-900: 241 244 248;
+    --n-950: 255 255 255;
+    --heat-50: 67 20 7;
+    --heat-100: 124 45 18;
+    --heat-200: 154 52 18;
+    --heat-300: 194 65 12;
+    --heat-400: 234 88 12;
+    --heat-500: 249 115 22;
+    --heat-600: 251 146 60;
+    --heat-700: 253 186 116;
+    --heat-800: 254 215 170;
+    --heat-900: 255 237 213;
+    --heat-950: 255 247 237;
+    --accent-50: 30 27 75;
+    --accent-100: 49 46 129;
+    --accent-200: 55 48 163;
+    --accent-300: 67 56 202;
+    --accent-400: 79 70 229;
+    --accent-500: 99 102 241;
+    --accent-600: 129 140 248;
+    --accent-700: 165 180 252;
+    --accent-800: 199 210 254;
+    --accent-900: 224 231 255;
+    --accent-950: 238 242 255;
+    --red-50: 69 10 10;
+    --red-100: 127 29 29;
+    --red-200: 153 27 27;
+    --red-300: 185 28 28;
+    --red-400: 220 38 38;
+    --red-500: 239 68 68;
+    --red-600: 248 113 113;
+    --red-700: 252 165 165;
+    --red-800: 254 202 202;
+    --red-900: 254 226 226;
+    --red-950: 254 242 242;
+    --amber-50: 69 26 3;
+    --amber-100: 120 53 15;
+    --amber-200: 146 64 14;
+    --amber-300: 180 83 9;
+    --amber-400: 217 119 6;
+    --amber-500: 245 158 11;
+    --amber-600: 251 191 36;
+    --amber-700: 252 211 77;
+    --amber-800: 253 230 138;
+    --amber-900: 254 243 199;
+    --amber-950: 255 251 235;
+    --emerald-50: 2 44 34;
+    --emerald-100: 6 78 59;
+    --emerald-200: 6 95 70;
+    --emerald-300: 4 120 87;
+    --emerald-400: 5 150 105;
+    --emerald-500: 16 185 129;
+    --emerald-600: 52 211 153;
+    --emerald-700: 110 231 183;
+    --emerald-800: 167 243 208;
+    --emerald-900: 209 250 229;
+    --emerald-950: 236 253 245;
+    --blue-50: 23 37 84;
+    --blue-100: 30 58 138;
+    --blue-200: 30 64 175;
+    --blue-300: 29 78 216;
+    --blue-400: 37 99 235;
+    --blue-500: 59 130 246;
+    --blue-600: 96 165 250;
+    --blue-700: 147 197 253;
+    --blue-800: 191 219 254;
+    --blue-900: 219 234 254;
+    --blue-950: 239 246 255;
+    --violet-50: 46 16 101;
+    --violet-100: 76 29 149;
+    --violet-200: 91 33 182;
+    --violet-300: 109 40 217;
+    --violet-400: 124 58 237;
+    --violet-500: 139 92 246;
+    --violet-600: 167 139 250;
+    --violet-700: 196 181 253;
+    --violet-800: 221 214 254;
+    --violet-900: 237 233 254;
+    --violet-950: 245 243 255;
+    --orange-50: 67 20 7;
+    --orange-100: 124 45 18;
+    --orange-200: 154 52 18;
+    --orange-300: 194 65 12;
+    --orange-400: 234 88 12;
+    --orange-500: 249 115 22;
+    --orange-600: 251 146 60;
+    --orange-700: 253 186 116;
+    --orange-800: 254 215 170;
+    --orange-900: 255 237 213;
+    --orange-950: 255 247 237;
+    --cta: 251 146 60;        /* #FB923C, near-black text 8.3:1 */
+    --cta-hover: 253 186 116;
+    --on-cta: 26 15 7;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --cta: 251 146 60; --cta-hover: 253 186 116; --on-cta: 26 15 7;
+  --surface: 17 26 43;
+  --n-50: 11 18 32;
+  --n-100: 19 28 46;
+  --n-200: 31 42 62;
+  --n-300: 44 58 82;
+  --n-400: 75 91 118;
+  --n-500: 140 154 176;
+  --n-600: 166 178 197;
+  --n-700: 198 207 220;
+  --n-800: 222 228 236;
+  --n-900: 241 244 248;
+  --n-950: 255 255 255;
+  --heat-50: 67 20 7;
+  --heat-100: 124 45 18;
+  --heat-200: 154 52 18;
+  --heat-300: 194 65 12;
+  --heat-400: 234 88 12;
+  --heat-500: 249 115 22;
+  --heat-600: 251 146 60;
+  --heat-700: 253 186 116;
+  --heat-800: 254 215 170;
+  --heat-900: 255 237 213;
+  --heat-950: 255 247 237;
+  --accent-50: 30 27 75;
+  --accent-100: 49 46 129;
+  --accent-200: 55 48 163;
+  --accent-300: 67 56 202;
+  --accent-400: 79 70 229;
+  --accent-500: 99 102 241;
+  --accent-600: 129 140 248;
+  --accent-700: 165 180 252;
+  --accent-800: 199 210 254;
+  --accent-900: 224 231 255;
+  --accent-950: 238 242 255;
+  --red-50: 69 10 10;
+  --red-100: 127 29 29;
+  --red-200: 153 27 27;
+  --red-300: 185 28 28;
+  --red-400: 220 38 38;
+  --red-500: 239 68 68;
+  --red-600: 248 113 113;
+  --red-700: 252 165 165;
+  --red-800: 254 202 202;
+  --red-900: 254 226 226;
+  --red-950: 254 242 242;
+  --amber-50: 69 26 3;
+  --amber-100: 120 53 15;
+  --amber-200: 146 64 14;
+  --amber-300: 180 83 9;
+  --amber-400: 217 119 6;
+  --amber-500: 245 158 11;
+  --amber-600: 251 191 36;
+  --amber-700: 252 211 77;
+  --amber-800: 253 230 138;
+  --amber-900: 254 243 199;
+  --amber-950: 255 251 235;
+  --emerald-50: 2 44 34;
+  --emerald-100: 6 78 59;
+  --emerald-200: 6 95 70;
+  --emerald-300: 4 120 87;
+  --emerald-400: 5 150 105;
+  --emerald-500: 16 185 129;
+  --emerald-600: 52 211 153;
+  --emerald-700: 110 231 183;
+  --emerald-800: 167 243 208;
+  --emerald-900: 209 250 229;
+  --emerald-950: 236 253 245;
+  --blue-50: 23 37 84;
+  --blue-100: 30 58 138;
+  --blue-200: 30 64 175;
+  --blue-300: 29 78 216;
+  --blue-400: 37 99 235;
+  --blue-500: 59 130 246;
+  --blue-600: 96 165 250;
+  --blue-700: 147 197 253;
+  --blue-800: 191 219 254;
+  --blue-900: 219 234 254;
+  --blue-950: 239 246 255;
+  --violet-50: 46 16 101;
+  --violet-100: 76 29 149;
+  --violet-200: 91 33 182;
+  --violet-300: 109 40 217;
+  --violet-400: 124 58 237;
+  --violet-500: 139 92 246;
+  --violet-600: 167 139 250;
+  --violet-700: 196 181 253;
+  --violet-800: 221 214 254;
+  --violet-900: 237 233 254;
+  --violet-950: 245 243 255;
+  --orange-50: 67 20 7;
+  --orange-100: 124 45 18;
+  --orange-200: 154 52 18;
+  --orange-300: 194 65 12;
+  --orange-400: 234 88 12;
+  --orange-500: 249 115 22;
+  --orange-600: 251 146 60;
+  --orange-700: 253 186 116;
+  --orange-800: 254 215 170;
+  --orange-900: 255 237 213;
+  --orange-950: 255 247 237;
 }
 
+:root {
+  /* Sidebar (always dark, both themes) */
+  --nav-bg: 11 18 32;          /* #0B1220 */
+  --nav-hover: 23 32 51;       /* #172033 */
+  --nav-active: 30 41 66;      /* #1E2942 */
+  --nav-border: 30 41 59;      /* #1E293B */
+  --nav-fg: 203 213 225;       /* #CBD5E1 */
+  --nav-fg-muted: 139 152 174; /* #8B98AE: AA on the sidebar incl. hover / active rows */
+  --nav-fg-strong: 255 255 255;
+  --nav-accent: 129 140 248;   /* indigo-400 bar on navy (AA on #0B1220) */
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
+  --radius-card: 12px;
+}
+:root[data-theme="dark"] { --nav-bg: 7 12 22; --nav-hover: 19 28 46; --nav-active: 27 38 62; --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --nav-bg: 7 12 22; --nav-hover: 19 28 46; --nav-active: 27 38 62; --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02); }
+}
+
+/* Height of the phone / tablet top bar (none on desktop: the sidebar is beside the page). */
+:root { --app-top: 3.5rem; }
+@media (min-width: 1024px) { :root { --app-top: 0px; } }
+html { scroll-padding-top: 5rem; }
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #eef1f7;
-  color: #0f172a; /* slate-900 */
+  background: rgb(var(--n-50));
+  color: rgb(var(--n-900));
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+#root { min-height: 100vh; }
+@layer base {
+  /* Form controls follow the theme even when a page gives them no background. */
+  select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea { background-color: rgb(var(--surface)); color: inherit; }
+  input::placeholder, textarea::placeholder { color: rgb(var(--n-500)); }
+  :focus-visible { outline-color: rgb(var(--accent-500)); }
+}
+h1, h2, h3 { letter-spacing: -0.015em; }
+::selection { background: rgb(var(--accent-200)); }
 
-#root {
-  min-height: 100vh;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-/* App ground — a gently tinted, slightly-deeper canvas with warm/cool depth
-   so white cards read as objects instead of dissolving into the page. */
-.app-ground {
-  background:
-    radial-gradient(48rem 34rem at 4% -12%, rgba(254, 71, 5, 0.10), transparent 60%),
-    radial-gradient(44rem 36rem at 104% -6%, rgba(37, 99, 235, 0.08), transparent 60%),
-    linear-gradient(180deg, #eef1f7 0%, #e8ecf3 55%, #eaedf4 100%);
-  background-attachment: fixed;
-}
+/* Scrollbars */
+* { scrollbar-width: thin; scrollbar-color: rgb(var(--n-300)) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgb(var(--n-300)); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--n-400)); }
+.nav-scroll { scrollbar-color: rgb(var(--nav-border)) transparent; }
 
-/* Primary action — the signature brand gradient with a soft lift. */
-.btn-brand {
-  background-image: linear-gradient(135deg, #ff6c38 0%, #fe4705 55%, #e13a00 100%);
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(225, 58, 0, 0.25), 0 8px 18px -8px rgba(254, 71, 5, 0.55);
-  transition: filter 0.15s ease, box-shadow 0.15s ease;
+/* Sidebar shell (layouts/AppNav.tsx): content clears the fixed rail on desktop. */
+@media (min-width: 1024px) {
+  .app-content { padding-left: 15.5rem; }
+  html[data-nav="collapsed"] .app-content { padding-left: 4rem; }
+  .app-fixed-bottom { left: 15.5rem !important; }
+  html[data-nav="collapsed"] .app-fixed-bottom { left: 4rem !important; }
 }
-.btn-brand:hover { filter: brightness(1.04) saturate(1.03); }
-.btn-brand:active { filter: brightness(0.97); }
-.btn-brand:disabled { filter: grayscale(0.4) opacity(0.5); box-shadow: none; }
+.app-content { overflow-x: clip; position: relative; }
+@media print { .app-content { padding-left: 0 !important; } }
 
-/* Custom scrollbar (light) */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+/* Old class names kept working: the page ground is flat now, and .btn-brand is the one primary action. */
+.app-ground { background: rgb(var(--n-50)); }
+.btn-brand { background: rgb(var(--cta)); color: rgb(var(--on-cta)); transition: background-color .15s ease; }
+.btn-brand:hover { background: rgb(var(--cta-hover)); }
+.btn-brand:disabled { opacity: .5; }
 
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
+/* Charts (recharts) follow the theme */
+.recharts-default-tooltip { background: rgb(var(--surface)) !important; border: 1px solid rgb(var(--n-200)) !important; border-radius: 10px !important; color: rgb(var(--n-900)); box-shadow: 0 8px 24px rgb(2 6 23 / 0.12); }
+.recharts-cartesian-axis-tick-value { fill: rgb(var(--n-500)); }
+.recharts-cartesian-grid line { stroke: rgb(var(--n-200)); }
 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
+/* Sidebar sub-trees */
+.nav-sub { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 150ms ease-out, visibility 150ms; visibility: hidden; }
+.nav-sub[data-open="true"] { grid-template-rows: 1fr; visibility: visible; }
+.nav-sub > div { overflow: hidden; min-height: 0; }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+[role="region"][tabindex="0"]:focus-visible { outline: 2px solid rgb(var(--accent-500)); outline-offset: 2px; }
 
-/* Table row animations */
-.transaction-row {
-  transition: background-color 0.15s ease;
-}
-
-.transaction-row:hover {
-  background-color: #f8fafc;
-}
-
-/* Classification status colors (light palette) */
-.status-classified {
-  background-color: #ecfdf5; /* emerald-50 */
-}
-
-.status-suggested {
-  background-color: #fffbeb; /* amber-50 */
-}
-
-.status-unclassified {
-  background-color: #ffffff;
-}
-
-/* Custom dropdown styling */
+.transaction-row { transition: background-color 0.15s ease; }
+.transaction-row:hover { background-color: rgb(var(--n-50)); }
+.status-classified { background-color: rgb(var(--emerald-50)); }
+.status-suggested { background-color: rgb(var(--amber-50)); }
+.status-unclassified { background-color: rgb(var(--surface)); }
 .classification-dropdown {
-  @apply border border-slate-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white;
+  @apply border border-slate-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent bg-white;
 }
 
 /* Print styles for MIS report */
@@ -128,31 +468,13 @@ body {
 
 /* Soft dashed divider */
 .divider-dashed {
-  background-image: linear-gradient(to right, #cbd5e1 50%, transparent 50%);
+  background-image: linear-gradient(to right, rgb(var(--n-300)) 50%, transparent 50%);
   background-size: 8px 1px;
   background-repeat: repeat-x;
   height: 1px;
 }
 
-/* Tasks pages — set for reading: IBM Plex Sans (body) + Plex Mono (dates and
-   figures), near-black text, tabular numbers. */
-.tasks-ui {
-  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  color: #0b1220;
-  font-feature-settings: 'tnum' 1, 'lnum' 1;
-  -webkit-font-smoothing: antialiased;
-}
-.tasks-ui .font-display,
-.tasks-ui .font-sans,
-.tasks-ui h1,
-.tasks-ui h2,
-.tasks-ui h3 {
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
-  letter-spacing: -0.005em;
-}
-.tasks-ui h1 { font-weight: 700; }
-.tasks-ui .font-mono {
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-.tasks-ui input::placeholder,
-.tasks-ui textarea::placeholder { color: #64748b; }
+
+/* Tasks pages: same face as the rest of the app now (Inter); class kept for tabular figures. */
+.tasks-ui { font-feature-settings: 'tnum' 1, 'lnum' 1; }
+.tasks-ui input::placeholder, .tasks-ui textarea::placeholder { color: rgb(var(--n-500)); }

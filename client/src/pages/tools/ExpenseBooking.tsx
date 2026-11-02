@@ -591,7 +591,7 @@ export function ExpenseBooking() {
         <button
           onClick={onSubmit}
           disabled={loading || !master}
-          className="w-full rounded-lg bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white font-medium py-3 text-sm"
+          className="w-full rounded-lg bg-cta hover:bg-cta-hover disabled:bg-slate-300 text-on-cta font-medium py-3 text-sm"
         >
           {loading ? 'Asking AI…' : 'Get booking instructions'}
         </button>
@@ -603,7 +603,7 @@ export function ExpenseBooking() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={saveCurrentToQueue}
-                className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium py-2.5 text-sm"
+                className="rounded-lg bg-cta hover:bg-cta-hover text-on-cta font-medium py-2.5 text-sm"
               >
                 Save to queue ({queue.length + 1})
               </button>
@@ -1043,7 +1043,7 @@ function ExportFooter({ queue, master }: { queue: QueueItem[]; master: TallyMast
         <button
           type="button"
           onClick={generateAndDownload}
-          className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 text-sm"
+          className="rounded-lg bg-cta hover:bg-cta-hover text-on-cta font-medium py-2 text-sm"
         >
           Download Tally XML
         </button>

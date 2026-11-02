@@ -57,8 +57,8 @@ export function Drawer({
     : 'left-0 shadow-drawer-left animate-drawer-in-left';
 
   return createPortal(
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-900/45 animate-fade-in" onClick={onClose} aria-hidden="true" />
+    <div className="fixed inset-0 z-[100]">
+      <div className="absolute inset-0 bg-scrim/45 animate-fade-in" onClick={onClose} aria-hidden="true" />
       <aside
         role="dialog"
         aria-modal="true"
@@ -116,8 +116,8 @@ export function Modal({ open, onClose, title, subtitle, icon, footer, width = 52
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/45 animate-fade-in" onClick={onClose} aria-hidden="true" />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-scrim/45 animate-fade-in" onClick={onClose} aria-hidden="true" />
       <div
         role="dialog"
         aria-modal="true"

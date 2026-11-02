@@ -1,9 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
+import { HOME } from './nav/config';
 
 // Top-level pages
-import { Home } from './pages/Home';
-import { Reporting } from './pages/Reporting';
 import { MISDeck } from './pages/mis/MISDeck';
 import { MonthClosePage } from './pages/mis/MonthClosePage';
 import { ConnectorsPage } from './pages/mis/ConnectorsPage';
@@ -29,20 +28,20 @@ import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
 import { PriceFloorsPage } from './pages/tools/PriceFloorsPage';
 import { RoundPlannerPage } from './pages/tools/RoundPlannerPage';
 import { PlanningPage } from './pages/planning/PlanningPage';
+import { TallyPage } from './pages/tally/TallyPage';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainLayout />}>
-          {/* Landing page → MIS Reporting deck */}
-          <Route index element={<Navigate to="/reporting/mis" replace />} />
-          {/* Original home dashboard, still reachable directly */}
-          <Route path="home" element={<Home />} />
-
-          {/* Top-level sections */}
-          <Route path="reporting" element={<Reporting />} />
-          <Route path="reporting/mis" element={<MISDeck />} />
+          {/* Landing page → Live MIS (the menu lives in nav/config.ts; server/test/nav.test.ts checks it against these routes) */}
+          <Route index element={<Navigate to={HOME} replace />} />
+          <Route path="home" element={<Navigate to={HOME} replace />} />
+          <Route path="reporting" element={<Navigate to={HOME} replace />} />
+          <Route path="reporting/mis" element={<Navigate to={HOME} replace />} />
+          {/* Old pages: out of the menu, still reachable from ⌘K */}
+          <Route path="reporting/mis/deck" element={<MISDeck />} />
           <Route path="reporting/mis/close" element={<MonthClosePage />} />
           <Route path="reporting/mis/connectors" element={<ConnectorsPage />} />
           <Route path="reporting/mis/ingest" element={<IngestPage />} />
@@ -68,8 +67,8 @@ function App() {
           <Route path="task-tracker" element={<Navigate to="/tasks" replace />} />
 
           {/* Old MIS Reporting view is retired — superseded by the new MIS Reporting deck */}
-          <Route path="mis-tracking" element={<Navigate to="/reporting/mis" replace />} />
-          <Route path="mis-tracking/*" element={<Navigate to="/reporting/mis" replace />} />
+          <Route path="mis-tracking" element={<Navigate to={HOME} replace />} />
+          <Route path="mis-tracking/*" element={<Navigate to={HOME} replace />} />
 
           {/* Old Guide / SOP routes → the handbook section that replaced each page */}
           <Route path="guide" element={<HandbookRedirect anchor="c0" />} />
@@ -106,6 +105,7 @@ function App() {
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />
           <Route path="planning" element={<PlanningPage />} />
+          <Route path="tally" element={<TallyPage />} />
 
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />
@@ -117,7 +117,7 @@ function App() {
           <Route path="tracker/*" element={<Navigate to="/tasks" replace />} />
 
           {/* Catch-all → home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to={HOME} replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

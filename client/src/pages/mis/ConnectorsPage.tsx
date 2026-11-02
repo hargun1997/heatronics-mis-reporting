@@ -424,7 +424,7 @@ function ConnectorCard({
             <button
               onClick={save}
               disabled={busy !== null}
-              className="flex-1 px-3 py-2.5 text-sm font-bold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
+              className="flex-1 px-3 py-2.5 text-sm font-bold rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40"
             >
               {busy === 'save' ? 'Saving…' : 'Save'}
             </button>

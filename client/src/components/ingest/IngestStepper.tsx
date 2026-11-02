@@ -310,7 +310,7 @@ export function IngestStepper({
               onClick={() => void doPull()}
               disabled={!source.connected || stage === 'checking' || stage === 'saving'}
               title={source.connected ? `Pull ${monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())} from ${source.via}` : source.connectHint ?? 'Not connected'}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40"
             >
               Pull now · {monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())}
             </button>
@@ -408,7 +408,7 @@ export function IngestStepper({
               </label>
             )}
             <button onClick={save} disabled={!canSave}
-              className="px-3 py-1.5 text-xs rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-40">
+              className="px-3 py-1.5 text-xs rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40">
               {breakdown.length > 1 ? `Save & ingest ${breakdown.length} months` : 'Save & ingest into MIS'}
             </button>
           </div>
