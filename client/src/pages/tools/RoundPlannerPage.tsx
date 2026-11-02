@@ -1,5 +1,5 @@
 // Round planner — cap table across Aneesha joining, the Hyperscale Round, the Feb 2027
-// Pre-Seed CCPS conversion and Round 2, with the company secretary's working.
+// Pre-Seed CCPS conversion and the proposed Series A, with the company secretary's working.
 // The planner is a self-contained page in public/embed/round-planner.html, embedded here.
 
 import { useEffect, useRef, useState } from 'react';
@@ -30,7 +30,7 @@ export function RoundPlannerPage() {
     <>
       <PageHeader
         title="Round planner"
-        description="Cap table from today through Aneesha joining, the Hyperscale Round, the Feb 2027 CCPS conversion and Round 2 — with the company secretary's working against the signed SSSHA."
+        description="Cap table from today through Aneesha joining, the Hyperscale Round, the Feb 2027 CCPS conversion and the proposed Series A — with the company secretary's working against the signed SSSHA."
         icon={icon}
         accent="violet"
         actions={<a href="/embed/round-planner.html" target="_blank" rel="noreferrer" className="text-sm font-medium text-brand-700 hover:underline">Open full page ↗</a>}

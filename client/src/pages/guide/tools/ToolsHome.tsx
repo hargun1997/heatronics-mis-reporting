@@ -58,7 +58,7 @@ export function ToolsHome() {
           <NavCard
             to="/tools/round-planner"
             title="Round planner"
-            description="Cap table and dilution through Aneesha joining, the Hyperscale Round, the Feb 2027 CCPS conversion and Round 2 — hover to see who sold what, with the CS working against the signed SSSHA."
+            description="Cap table and dilution through Aneesha joining, the Hyperscale Round, the Feb 2027 CCPS conversion and the proposed Series A — hover to see who sold what, with the CS working against the signed SSSHA."
             icon={iconConvert}
             accent="violet"
             badge="New"
