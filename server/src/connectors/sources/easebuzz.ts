@@ -75,14 +75,50 @@ export async function payoutsBetween(creds: Credentials, fromIso: string, toIso:
   return list;
 }
 
-/** Every settlement paid out in the month (one enquiry; the month so far for the running month). */
-export async function payoutsForMonth(creds: Credentials, periodKey: string, deadline: number): Promise<{ payouts: Record<string, unknown>[]; days: number }> {
+/** Easebuzz answers at most this many settlements per enquiry (seen live, Aug–Oct 2026: always exactly 20). */
+export const EASEBUZZ_PAGE = 20;
+
+const payoutKey = (p: Record<string, unknown>) =>
+  String(p.payout_id ?? p.bank_transaction_id ?? p.id ?? JSON.stringify(p));
+
+/**
+ * Every settlement between two IST days. A full answer (EASEBUZZ_PAGE rows) may be cut off, so that range is split
+ * in two and each half asked again, down to single days. Deduped by payout id. `fetchRange` is injectable for tests.
+ */
+export async function payoutsSplit(
+  fetchRange: (from: string, to: string) => Promise<Record<string, unknown>[]>,
+  from: string,
+  to: string,
+  deadline: number,
+): Promise<{ payouts: Record<string, unknown>[]; calls: number; warnings: string[] }> {
+  const seen = new Map<string, Record<string, unknown>>();
+  const warnings: string[] = [];
+  let calls = 0;
+  const walk = async (f: string, t: string): Promise<void> => {
+    if (Date.now() > deadline) throw new Error('Easebuzz enquiry ran out of time — Pull again.');
+    const list = await fetchRange(f, t);
+    calls += 1;
+    if (list.length >= EASEBUZZ_PAGE && f < t) {
+      const span = Math.round((Date.parse(t) - Date.parse(f)) / 86_400_000);
+      const mid = addDays(f, Math.floor(span / 2));
+      await walk(f, mid);
+      await walk(addDays(mid, 1), t);
+      return;
+    }
+    if (list.length >= EASEBUZZ_PAGE) warnings.push(`${f}: Easebuzz returned ${list.length} settlements for one day (its page limit) — some may be missing; check that day against the dashboard.`);
+    for (const p of list) seen.set(payoutKey(p), p);
+  };
+  await walk(from, to);
+  return { payouts: [...seen.values()], calls, warnings };
+}
+
+/** Every settlement paid out in the month (the month so far for the running month). */
+export async function payoutsForMonth(creds: Credentials, periodKey: string, deadline: number): Promise<{ payouts: Record<string, unknown>[]; days: number; calls: number; warnings: string[] }> {
   const { first, last } = monthDays(periodKey);
   const end = last < istToday() ? last : istToday();
-  if (Date.now() > deadline) throw new Error('Easebuzz enquiry ran out of time — Pull again.');
-  const payouts = await payoutsBetween(creds, first, end);
+  const r = await payoutsSplit((f, t) => payoutsBetween(creds, f, t), first, end, deadline);
   const days = Math.round((Date.parse(end) - Date.parse(first)) / 86_400_000) + 1;
-  return { payouts, days };
+  return { ...r, days };
 }
 
 const easebuzz: ConnectorDef = {
