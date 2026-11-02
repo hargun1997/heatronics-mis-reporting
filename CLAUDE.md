@@ -117,3 +117,13 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   billing data), Shopify variant sales (fallback only —
   Shopify is live).
 - Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).
+
+## 5-year plan (`/planning`)
+- Port of the Google Sheet "Heatronics Projection and Deployment Plan" (1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE), run live
+  and extended Oct-26 → Mar-31. Engine `client/src/data/planning/engine.ts` (pure); Base = `base-plan.json`, written by
+  `scripts/import-projection-plan.py <sheet.xlsx>` (re-run after the sheet changes; it also writes `base-plan-check.json`).
+- `server/test/planning.test.ts` proves Base gives the sheet's own numbers for M1–M18 at an 18-month horizon (revenue, CM1–3,
+  EBITDA, PAT, GST asset, inventory, NWC, cash, 12M/18M peak deficit). Keep it green when touching the engine.
+- After the base: units = same month a year earlier × (1 + channel growth for that FY); lines with `repeat` run as in the same
+  calendar month of the base's last 12 months; fixed amounts get inflation (+ team growth for people groups).
+- Saved scenarios: `/api/planning/scenarios` (objectStore `planning-index` + `planning-scenario-<id>`), shared by everyone.

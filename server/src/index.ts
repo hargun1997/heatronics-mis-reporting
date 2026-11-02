@@ -24,6 +24,7 @@ import reportRoutes from './routes/report.js';
 import bookingAssistantRoutes from './routes/bookingAssistant.js';
 import priceFloorsRoutes from './routes/priceFloors.js';
 import roundPlannerRoutes from './routes/roundPlanner.js';
+import planningRoutes from './routes/planning.js';
 import expensesRoutes from './routes/expenses.js';
 import { refreshMailConfig } from './services/mailer.js';
 import { htxGate } from './htxGate.js';
@@ -77,6 +78,7 @@ app.use('/api/report', reportRoutes);
 app.use('/api/booking-assistant', bookingAssistantRoutes);
 app.use('/api/price-floors', priceFloorsRoutes);
 app.use('/api/round-planner', roundPlannerRoutes);
+app.use('/api/planning', planningRoutes);
 app.use('/api/expenses', expensesRoutes);
 
 // Health check
