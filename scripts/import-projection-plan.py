@@ -124,6 +124,41 @@ for m in range(N):
         if v:
             events.append({'id': f'{kind}{m + 1}', 'kind': kind, 'month': m + 1, 'amount': v, 'note': ''})
 
+# ---- Business Plan + Overview: words and the few inputs they hold -------------------
+bp, ov = wbv['Business Plan'], wbv['Overview']
+assumptions, risks = [], []
+for r in range(39, 52):
+    a, v, b = (bp.cell(r, c).value for c in (1, 2, 3))
+    if a:
+        assumptions.append({'id': f'a{r}', 'assumption': str(a), 'value': str(v or ''), 'basis': str(b or '')})
+for r in range(53, 70):
+    k = bp.cell(r, 1).value
+    mit = next((bp.cell(r, c).value for c in range(2, 9) if bp.cell(r, c).value), '')
+    if k:
+        risks.append({'id': f'r{r}', 'risk': str(k), 'mitigation': str(mit or '')})
+themes, theme = [], None
+for r in range(12, 41):
+    t, ms, mm = ov.cell(r, 1).value, ov.cell(r, 3).value, ov.cell(r, 9).value
+    if t:
+        theme = str(t).strip()
+    if ms:
+        themes.append({'id': f't{r}', 'theme': theme, 'milestone': str(ms).strip(), 'month': int(num(mm) or 1)})
+team = []
+for r in range(12, 41):
+    cells = [str(ov.cell(r, c).value).strip() for c in range(14, 25) if ov.cell(r, c).value not in (None, '')]
+    if cells:
+        team.append(' → '.join(cells))
+business = {
+    'assumptions': assumptions,
+    'risks': risks,
+    'themes': themes,
+    'team': '\n'.join(team),
+    'contingency12': num(cf['C76'].value),
+    # Exit ARR (Revenue Planning K54): revenue of the 3 months before the plan's 12M exit, a year earlier (Jul–Sep '26 actual)
+    'exitPriorL3M': num(rp['K54'].value),
+    'exitGrowthCap': 2.0,
+}
+
 plan = {
     'version': 1,
     'source': 'Heatronics Projection and Deployment Plan (Google Sheet 1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE)',
@@ -135,6 +170,7 @@ plan = {
     'lines': lines,
     'cash': cash,
     'events': events,
+    'business': business,
 }
 (OUT / 'base-plan.json').write_text(json.dumps(plan, separators=(',', ':')))
 
@@ -149,6 +185,12 @@ check = {
     'cumulativeCash': cf_row(62), 'closingCash': cf_row(69),
     'peakDeficit12Cr': num(cv['C73'].value), 'peakDeficit18Cr': num(cv['D73'].value),
     'equityRequired18Cr': num(cv['D79'].value),
+    'equityRequired12Cr': num(cv['C79'].value),
+    'exitArr12Cr': num(wbv['1. Revenue Planning']['K57'].value),
+    'exitArr18Cr': num(wbv['1. Revenue Planning']['L57'].value),
+    'deploymentByTheme18': {str(ov.cell(r, 2).value): num(ov.cell(r, 22).value) for r in range(79, 87)},
+    'deploymentByTheme12': {str(ov.cell(r, 2).value): num(ov.cell(r, 21).value) for r in range(79, 87)},
+    'gstClaimable': cf_row(16), 'gstRefund': cf_row(17), 'gstStuck': cf_row(18),
 }
 (OUT / 'base-plan-check.json').write_text(json.dumps(check, indent=0))
 print(f'{len(skus)} SKUs, {len(lines)} expense lines, {len(events)} cash events -> {OUT}')

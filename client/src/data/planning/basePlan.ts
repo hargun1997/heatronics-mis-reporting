@@ -87,6 +87,8 @@ export function upgradePlan(p: Plan): Plan {
   return {
     ...p,
     skuSeason: p.skuSeason ?? b.skuSeason,
+    business: p.business ?? b.business,
+    cash: { ...b.cash, ...p.cash },
     d2c: p.d2c ?? { ...b.d2c, mode: 'units' }, // older scenarios were built on units; keep their numbers
     levers: { ...b.levers, ...p.levers },
     products: p.products.map((x) => ({ seasonRef: 'flat', ...x })),

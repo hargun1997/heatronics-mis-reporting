@@ -140,3 +140,20 @@ test('Shopify history: first order = new buyer, later orders = repeats in the ri
   assert.deepEqual(h.skipped, { cancelled: 1, test: 0, outlier: 1 });
   assert.equal(JSON.stringify(h).includes('"7"') || JSON.stringify(h).includes('c7'), false, 'no customer ids leave the aggregate');
 });
+
+test('Business Plan + Overview match the sheet: Exit ARR, The Ask 12M/18M, deployment by theme', async () => {
+  const { exitArr, theAsk, deployment } = await import('../../client/src/data/planning/summary.ts');
+  const p = sheetHorizon();
+  const r = runPlan(p);
+  close(exitArr(p, r, 12).arr / 1e7 * 1e6, check.exitArr12Cr * 1e6, 'Exit ARR 12M');
+  close(exitArr(p, r, 18).arr / 1e7 * 1e6, check.exitArr18Cr * 1e6, 'Exit ARR 18M');
+  close(theAsk(p, r, 12, p.business.contingency12).equityRequired / 1e7 * 1e6, check.equityRequired12Cr * 1e6, 'equity 12M');
+  close(theAsk(p, r, 18, p.cash.contingencyPct).equityRequired / 1e7 * 1e6, check.equityRequired18Cr * 1e6, 'equity 18M');
+  for (const [n, key] of [[12, 'deploymentByTheme12'], [18, 'deploymentByTheme18']] as const) {
+    const d = deployment(p, r, n);
+    for (const [theme, v] of Object.entries(check[key] as Record<string, number>)) {
+      close(d.themes.find((t) => t.theme === theme)?.total ?? 0, v, `${theme} ${n}M`);
+    }
+  }
+  close(r.months[3].gstRefund, check.gstRefund[3], 'GST refund M4');
+});

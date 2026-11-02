@@ -71,7 +71,12 @@ export function CostsTab({ plan, r, update }: { plan: Plan; r: PlanResult; updat
                         <div className="flex items-center gap-2">
                           <input type="checkbox" checked={!l.off} onChange={(e) => set(l.id, (x) => { x.off = !e.target.checked; })} className="accent-brand-600" title="Include this line" />
                           <input value={l.name} onChange={(e) => set(l.id, (x) => { x.name = e.target.value; })} className="w-64 rounded border border-transparent px-1 py-0.5 hover:border-slate-200 focus:border-slate-300" aria-label="Line name" />
-                          {l.milestone && <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] text-violet-700" title={l.theme ?? ''}>{l.milestone}</span>}
+                          <select value={l.milestone ?? ''} title={l.theme ? `Theme: ${l.theme}` : 'Tag with a milestone to count it as capital deployment'}
+                            onChange={(e) => set(l.id, (x) => { const ms = plan.business.themes.find((t) => t.milestone === e.target.value); x.milestone = ms ? ms.milestone : null; x.theme = ms ? ms.theme : null; })}
+                            className={`max-w-[160px] rounded border px-1 py-0.5 text-[11px] ${l.milestone ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-transparent text-slate-400 hover:border-slate-200'}`} aria-label="Milestone">
+                            <option value="">{l.milestone ? 'No milestone' : '+ milestone'}</option>
+                            {plan.business.themes.map((t) => <option key={t.id} value={t.milestone}>{t.milestone} · {t.theme}</option>)}
+                          </select>
                         </div>
                       </td>
                       <td className="px-2 py-1">

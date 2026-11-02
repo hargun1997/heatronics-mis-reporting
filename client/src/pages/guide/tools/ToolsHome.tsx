@@ -56,6 +56,14 @@ export function ToolsHome() {
             badge="New"
           />
           <NavCard
+            to="/planning"
+            title="5-year plan"
+            description="The Projection & Deployment Plan, live to FY31: unit plan, expense calendar, P&L, GST, cash and The Ask — with levers, D2C customers & repeats, seasonality, scenarios and Excel export."
+            icon={iconConvert}
+            accent="brand"
+            badge="New"
+          />
+          <NavCard
             to="/tools/round-planner"
             title="Round planner"
             description="Cap table and dilution through Aneesha joining, the Hyperscale Round, the Feb 2027 CCPS conversion and the proposed Series A — hover to see who sold what, with the CS working against the signed SSSHA."

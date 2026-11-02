@@ -56,6 +56,24 @@ const CASH: Row[] = [
   { label: 'Closing debt', get: (m) => m.debt, kind: 'end' },
 ];
 
+const GST: Row[] = [
+  { label: 'Taxable turnover (ex-GST)', get: (m) => m.taxableTurnover },
+  { label: 'Output GST @ 5%', get: (m) => m.outputGst, strong: true },
+  { label: 'ITC on goods (refundable)', get: (m) => m.itcGoods },
+  { label: 'ITC on services & capex (not refundable)', get: (m) => m.itcServices },
+  { label: 'Set off — services & capex first', get: (m) => m.gstSetOffServices },
+  { label: 'Set off — goods', get: (m) => m.gstSetOffGoods },
+  { label: 'Refund claimable — goods', get: (m) => m.gstClaimable },
+  { label: 'Refund received (lagged)', get: (m) => m.gstRefund },
+  { label: 'ITC stuck — services & capex', get: (m) => m.gstStuck },
+  { label: 'Written off to P&L', get: (m) => m.gstWrittenOff },
+  { label: 'Closing GST asset', get: (m) => m.gstAsset, kind: 'end', strong: true },
+  { label: 'Inventory', get: () => 0, head: true },
+  { label: 'COGS at standard margin', get: (m) => m.stdCogs },
+  { label: 'Closing inventory (forward cover)', get: (m) => m.inventory, kind: 'end' },
+  { label: 'Inventory purchase (cash out)', get: (m) => m.inventoryPurchase, strong: true },
+];
+
 function agg(ms: MonthResult[], row: Row): number {
   if (row.kind === 'end') return row.get(ms[ms.length - 1]);
   const s = ms.reduce((a, m) => a + row.get(m), 0);
@@ -64,9 +82,9 @@ function agg(ms: MonthResult[], row: Row): number {
 }
 
 export function PnlGrid({ r }: { r: PlanResult }) {
-  const [view, setView] = useState<'pnl' | 'cash'>('pnl');
+  const [view, setView] = useState<'pnl' | 'cash' | 'gst'>('pnl');
   const [grain, setGrain] = useState<'month' | 'fy'>('month');
-  const rows = view === 'pnl' ? PNL : CASH;
+  const rows = view === 'pnl' ? PNL : view === 'cash' ? CASH : GST;
   const cols: { key: string; label: string; ms: MonthResult[]; fy: boolean; ext: boolean }[] = [];
   for (const y of r.years) {
     const ms = r.months.filter((m) => m.fy === y.fy);
@@ -80,7 +98,7 @@ export function PnlGrid({ r }: { r: PlanResult }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <SegmentedControl options={[{ id: 'pnl', label: 'P&L' }, { id: 'cash', label: 'Cash & working capital' }]} value={view} onChange={setView} size="sm" />
+        <SegmentedControl options={[{ id: 'pnl', label: 'P&L' }, { id: 'cash', label: 'Cash & working capital' }, { id: 'gst', label: 'GST & inventory' }]} value={view} onChange={setView} size="sm" />
         <SegmentedControl options={[{ id: 'month', label: 'Months + FY' }, { id: 'fy', label: 'FY only' }]} value={grain} onChange={setGrain} size="sm" />
         <span className="text-[12px] text-slate-500">₹ lakh · shaded months come from the levers (after the 18-month sheet) · *part year</span>
       </div>

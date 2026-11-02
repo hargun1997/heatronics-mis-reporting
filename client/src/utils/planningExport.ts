@@ -3,6 +3,7 @@
 import XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 import { CHANNELS, CHANNEL_NAMES, type MonthResult, type Plan, type PlanResult } from '../data/planning/engine';
+import { deployment, headline, theAsk } from '../data/planning/summary';
 
 const LAC = 1e5;
 const CRORE = 1e7;
@@ -67,6 +68,57 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
   sum.push(['Lowest closing cash (₹ Cr)', r2(r.minClosingCash / CRORE)]);
   XLSX.utils.book_append_sheet(wb, sheet(sum, { pctRows, boldRows: bold, widths: [44, 14, 14, 14, 14, 14] }), '5-year summary');
 
+  // ---- business plan (the sheet's Business Plan tab) ----
+  if (plan.business) {
+    const B = plan.business;
+    const spans = [12, 18, r.months.length].filter((n, i, a) => n <= r.months.length && a.indexOf(n) === i);
+    const label = (n: number) => (n === 12 ? '12 months' : n === 18 ? '18 months' : 'Full plan');
+    const conts = spans.map((n) => (n === 12 ? B.contingency12 : plan.cash.contingencyPct));
+    const hs = spans.map((n) => headline(plan, r, n));
+    const as = spans.map((n, i) => theAsk(plan, r, n, conts[i]));
+    const bp: (string | number | null)[][] = [['Headline (₹ Cr)', ...spans.map(label)]];
+    const bpPct = new Set<number>(), bpBold = new Set<number>();
+    const put = (l: string, v: number[], isPct = false, bold = false) => { bp.push([l, ...v.map((x) => (isPct ? x : r2(x / CRORE)))]); if (isPct) bpPct.add(bp.length - 1); if (bold) bpBold.add(bp.length - 1); };
+    put('Revenue', hs.map((h) => h.revenue), false, true);
+    bp.push(['Units', ...hs.map((h) => Math.round(h.units))]);
+    put('Gross margin', hs.map((h) => h.grossMargin), true);
+    put('Contribution (CM3)', hs.map((h) => h.cm3Pct), true);
+    put('EBITDA', hs.map((h) => h.ebitda));
+    put('EBITDA %', hs.map((h) => h.ebitdaPct), true);
+    put('Exit ARR', hs.map((h) => h.exitArr), false, true);
+    bp.push([]); bp.push(['THE ASK (₹ Cr)', ...spans.map(label)]); bpBold.add(bp.length - 1);
+    put('Peak cash deficit', as.map((a) => a.peakDeficit));
+    put('Contingency buffer', as.map((a) => a.contingency), true);
+    put('Total funding need', as.map((a) => a.fundingNeed));
+    put('less venture debt', as.map((a) => -a.ventureDebt));
+    put('EQUITY REQUIRED', as.map((a) => a.equityRequired), false, true);
+    put('of which inventory (peak)', as.map((a) => a.inventoryPeak));
+    put('of which GST asset (peak)', as.map((a) => a.gstAssetPeak));
+    bp.push([]); bp.push(['USE OF FUNDS (₹ Cr)', ...spans.map(label)]); bpBold.add(bp.length - 1);
+    const deps = spans.map((n) => deployment(plan, r, n));
+    for (const t of deps[deps.length - 1].themes) put(t.theme, deps.map((d) => d.themes.find((x) => x.theme === t.theme)?.total ?? 0));
+    put('Total tagged deployment', deps.map((d) => d.themes.reduce((a, x) => a + x.total, 0)), false, true);
+    bp.push([]); bp.push(['KEY ASSUMPTIONS', 'Value', 'Basis']); bpBold.add(bp.length - 1);
+    for (const a of B.assumptions) bp.push([a.assumption, a.value, a.basis]);
+    bp.push([]); bp.push(['KEY RISKS', 'Mitigation']); bpBold.add(bp.length - 1);
+    for (const x of B.risks) bp.push([x.risk, x.mitigation]);
+    bp.push([]); bp.push(['THEMES & MILESTONES', 'Milestone', 'Month']); bpBold.add(bp.length - 1);
+    for (const t of B.themes) bp.push([t.theme, t.milestone, r.months[t.month - 1]?.label ?? '']);
+    if (B.team) { bp.push([]); bp.push(['TEAM STRUCTURE']); bpBold.add(bp.length - 1); for (const line of B.team.split('\n')) bp.push([line]); }
+    XLSX.utils.book_append_sheet(wb, sheet(bp, { pctRows: bpPct, boldRows: bpBold, widths: [44, 22, 22, 22] }), 'Business plan');
+
+    const n18 = Math.min(18, r.months.length);
+    const d = deployment(plan, r, n18);
+    const dep: (string | number | null)[][] = [['₹ lakh — milestone', 'Theme', ...d.months, 'Total']];
+    for (const x of d.milestones) dep.push([x.key, x.theme, ...x.byMonth.map((v) => r2(v / LAC)), r2(x.total / LAC)]);
+    dep.push([]);
+    for (const x of d.themes) dep.push([x.key, '(theme)', ...x.byMonth.map((v) => r2(v / LAC)), r2(x.total / LAC)]);
+    dep.push(['Total key deployment', '', ...d.tagged.map((v) => r2(v / LAC)), r2(d.tagged.reduce((a, v) => a + v, 0) / LAC)]);
+    dep.push(['Total spend (all costs)', '', ...d.totalSpend.map((v) => r2(v / LAC)), r2(d.totalSpend.reduce((a, v) => a + v, 0) / LAC)]);
+    dep.push(['Business as usual (untagged)', '', ...d.untagged.map((v) => r2(v / LAC)), r2(d.untagged.reduce((a, v) => a + v, 0) / LAC)]);
+    XLSX.utils.book_append_sheet(wb, sheet(dep, { widths: [30, 28, ...d.months.map(() => 10), 12] }), 'Capital deployment');
+  }
+
   // ---- monthly P&L + cash (₹ lakh) ----
   const ms = r.months;
   const monthly: (string | number | null)[][] = [['₹ lakh', ...ms.map((m) => m.label)]];
@@ -104,6 +156,12 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
   row('Debt drawn − repaid', (m) => m.debtNet);
   row('Closing cash', (m) => m.closingCash, { bold: true });
   row('Inventory', (m) => m.inventory);
+  row('Inventory purchase', (m) => m.inventoryPurchase);
+  row('Output GST', (m) => m.outputGst);
+  row('ITC goods (refundable)', (m) => m.itcGoods);
+  row('ITC services & capex', (m) => m.itcServices);
+  row('GST refund received', (m) => m.gstRefund);
+  row('GST stuck (services)', (m) => m.gstStuck);
   row('GST asset', (m) => m.gstAsset);
   row('Net working capital', (m) => m.nwc);
   row('Closing debt', (m) => m.debt);

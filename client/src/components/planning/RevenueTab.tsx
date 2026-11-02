@@ -5,6 +5,7 @@ import { SectionCard } from '../ui/Card';
 import { CH_COLOR, cr, int } from './fmt';
 import { NumInput } from './inputs';
 import type { Update } from './LeverPanel';
+import { RevenueSummary, UnitPlanEditor } from './UnitPlanEditor';
 
 const EXT_FYS = ['FY29', 'FY30', 'FY31'];
 
@@ -24,6 +25,8 @@ export function RevenueTab({ plan, r, update }: { plan: Plan; r: PlanResult; upd
 
   return (
     <div className="space-y-5">
+      <UnitPlanEditor plan={plan} r={r} update={update} />
+      <RevenueSummary plan={plan} r={r} />
       <SectionCard title="Unit growth by channel" description="Year-on-year, vs the same month a year earlier. FY27–FY28 come from the 18-month sheet; these drive FY29 onwards.">
         <div className="overflow-x-auto">
           <table className="text-[13px]">

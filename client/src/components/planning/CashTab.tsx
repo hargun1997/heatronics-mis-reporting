@@ -70,9 +70,22 @@ export function CashTab({ plan, r, update }: { plan: Plan; r: PlanResult; update
             );
           })}
         </div>
-        {c.interestSteps?.length > 0 && (
-          <p className="mt-3 text-[12px] text-slate-500">Interest rate steps from the sheet: {c.interestSteps.map((s) => `${pct(s.rate, 2)} from ${r.months[s.month - 1]?.label}`).join(', ')}.</p>
-        )}
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-slate-600">
+          <span className="font-semibold text-slate-700">Interest rate</span>
+          <span>{pct(c.interestRate, 2)} from {r.months[0].label}</span>
+          {(c.interestSteps ?? []).map((st, i) => (
+            <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2 py-1">
+              then
+              <NumInput unit="pct" value={st.rate} min={0} max={1} width="w-16" title="Interest rate" onChange={(v) => update((p) => { p.cash.interestSteps[i].rate = v; })} />
+              from
+              <select value={st.month} onChange={(e) => update((p) => { p.cash.interestSteps[i].month = Number(e.target.value); })} className="rounded-md border border-slate-200 px-1 py-0.5 text-[12px]">
+                {monthOpts.map((o) => <option key={o.m} value={o.m}>{o.label}</option>)}
+              </select>
+              <button onClick={() => update((p) => { p.cash.interestSteps.splice(i, 1); })} className="text-slate-400 hover:text-rose-600" aria-label="Remove rate step">✕</button>
+            </span>
+          ))}
+          <button onClick={() => update((p) => { (p.cash.interestSteps ??= []).push({ month: 13, rate: p.cash.interestRate }); })} className="text-[12px] font-semibold text-brand-700 hover:underline">+ rate change</button>
+        </div>
       </SectionCard>
 
       <SectionCard title="Working capital, GST & tax" description="Same mechanics as the sheet's Cash Flow & Fundraise tab.">

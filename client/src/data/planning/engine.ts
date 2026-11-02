@@ -144,6 +144,20 @@ export interface Levers {
   seasonShape?: 'plan' | 'history';
 }
 
+/** The sheet's Business Plan + Overview: words, milestones and the few inputs they hold. */
+export interface BusinessPlan {
+  assumptions: { id: string; assumption: string; value: string; basis: string }[];
+  risks: { id: string; risk: string; mitigation: string }[];
+  /** themes & milestones; a cost line tagged with a milestone counts as deployment against it */
+  themes: { id: string; theme: string; milestone: string; month: number }[];
+  team: string;
+  /** contingency buffer on the 12-month peak deficit (the 18-month one is cash.contingencyPct) */
+  contingency12: number;
+  /** revenue of the 3 months a year before the 12M exit (Jul–Sep '26 actual), for Exit ARR */
+  exitPriorL3M: number;
+  exitGrowthCap: number;
+}
+
 export interface Plan {
   version: 1;
   name: string;
@@ -162,6 +176,7 @@ export interface Plan {
   /** Jan..Dec seasonality index per SKU id (mean 1), learned from last year's actual units */
   skuSeason: Record<string, number[]>;
   d2c: D2CModel;
+  business: BusinessPlan;
 }
 
 // ---- calendar helpers ------------------------------------------------------------
@@ -229,9 +244,18 @@ export interface MonthResult {
   tax: number;
   pat: number;
   capex: number;
-  // cash
+  // cash — GST schedule (inverted duty)
+  taxableTurnover: number;
+  outputGst: number;
+  itcGoods: number;
+  itcServices: number;
+  gstSetOffServices: number;
+  gstSetOffGoods: number;
+  gstClaimable: number;
+  gstStuck: number;
   gstAsset: number;
   gstRefund: number;
+  stdCogs: number;
   inventory: number;
   inventoryPurchase: number;
   receivables: number;
@@ -410,7 +434,7 @@ export function runPlan(plan: Plan): PlanResult {
   const stdCogs: number[] = [];
 
   // first pass needs every month's revenue for forward inventory cover, so compute P&L for all months first
-  const pre: Omit<MonthResult, 'gstAsset' | 'gstRefund' | 'inventory' | 'inventoryPurchase' | 'receivables' | 'payables' | 'nwc' | 'nwcChange' | 'debt' | 'netCashFlow' | 'cumulativeCash' | 'equity' | 'debtNet' | 'closingCash' | 'interest' | 'tax' | 'pbt' | 'pat' | 'gstWrittenOff' | 'cm1' | 'cm2' | 'cm3' | 'ebitda' | 'ebit'>[] = [];
+  const pre: Omit<MonthResult, 'gstAsset' | 'gstRefund' | 'taxableTurnover' | 'outputGst' | 'itcGoods' | 'itcServices' | 'gstSetOffServices' | 'gstSetOffGoods' | 'gstClaimable' | 'gstStuck' | 'stdCogs' | 'inventory' | 'inventoryPurchase' | 'receivables' | 'payables' | 'nwc' | 'nwcChange' | 'debt' | 'netCashFlow' | 'cumulativeCash' | 'equity' | 'debtNet' | 'closingCash' | 'interest' | 'tax' | 'pbt' | 'pat' | 'gstWrittenOff' | 'cm1' | 'cm2' | 'cm3' | 'ebitda' | 'ebit'>[] = [];
 
   for (let m = 1; m <= H; m++) {
     const aspF = Math.pow(1 + L.aspGrowthPct, yearsAfter(m));
@@ -585,8 +609,8 @@ export function runPlan(plan: Plan): PlanResult {
       fyPbt += pbt;
       const fyEnd = i === H - 1 || pre[i + 1].fy !== p.fy;
       if (fyEnd) {
-        const taxable = fyPbt - fyLossPool;
-        if (taxable > 0) { tax = taxable * c.taxRate; fyLossPool = 0; } else { fyLossPool = -taxable; }
+        const fyTaxable = fyPbt - fyLossPool;
+        if (fyTaxable > 0) { tax = fyTaxable * c.taxRate; fyLossPool = 0; } else { fyLossPool = -fyTaxable; }
         fyPbt = 0;
       }
     } else {
@@ -616,6 +640,8 @@ export function runPlan(plan: Plan): PlanResult {
 
     months.push({
       ...p, gstWrittenOff: writtenOff, cm1, cm2, cm3, ebitda, ebit, interest, pbt, tax, pat,
+      taxableTurnover: taxable, outputGst: outGst, itcGoods, itcServices, gstSetOffServices: setOffServices, gstSetOffGoods: setOffGoods,
+      gstClaimable: claimable, gstStuck: stuck, stdCogs: stdCogs[i],
       gstAsset, gstRefund: refund, inventory, inventoryPurchase, receivables, payables, nwc, nwcChange,
       debt, netCashFlow, cumulativeCash: cumulative, equity, debtNet: drawn - repaid, closingCash: cash,
     });
