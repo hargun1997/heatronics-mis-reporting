@@ -329,7 +329,8 @@ test('every client report slot has exactly one source; api/sheet slots can pull,
     if (s.source === 'claude_task') assert.ok(s.claudeTask);
   }
   const manual = SLOT_SOURCES.filter((s) => s.source === 'upload').map((s) => s.connectorId);
-  for (const c of ['tally', 'flipkart', 'flipkartads', 'blinkit', 'snapmint', 'shopflo']) assert.ok(manual.includes(c), `${c} stays manual`);
+  for (const c of ['flipkart', 'flipkartads', 'blinkit', 'snapmint', 'shopflo']) assert.ok(manual.includes(c), `${c} stays manual`);
+  for (const k of ['tally|pnl', 'tally|trial-balance', 'shopify|variant-sales']) assert.equal(SLOT_SOURCES.find((x) => `${x.connectorId}|${x.slotId}` === k)?.source, 'api', `${k} is automatic`);
   const dl = SLOT_SOURCES.find((x) => x.connectorId === 'delhivery' && x.slotId === 'wallet')!;
   assert.equal(dl.source, 'api');
   assert.match(dl.line, /^Computed freight \(Delhivery tracking \+ charge calculator\), not the wallet ledger/);

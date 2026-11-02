@@ -251,7 +251,8 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
   // by their own month in buildLiveDeck and arrive via monthFacts.)
   for (const rep of reports) {
     const p = rep.payload || {};
-    const ledgerRows = Array.isArray(p.ledgerRows) ? p.ledgerRows : [];
+    // A Trial Balance (screenshot or pull) is a record, never the P&L: its rows must not enter the cascade.
+    const ledgerRows = rep.slotId === 'trial-balance' ? [] : Array.isArray(p.ledgerRows) ? p.ledgerRows : [];
     const bomCosts = Array.isArray(p.bomCosts) ? p.bomCosts : [];
     if (!ledgerRows.length && !bomCosts.length) continue;
     contributors.add(rep.connectorId);

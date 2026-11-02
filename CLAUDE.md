@@ -128,10 +128,17 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     into Stock Transfer (= Stock Transfers sale) + Raw Material Purchases like the Excel reader. The slot reads the snapshot (a forced
     poll if none), warns when the copy was taken < 5 days after month end. Host / port / company on the Connectors → Tally card (never
     in the repo). `POST /api/tally/pull` = signed-in Pull now.
-- **Manual uploads (reason shown on the slot):** Tally trial balance (optional screenshot), Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
+  - Tally · Trial Balance → `api`, stored by the SAME poll after each month's P&L (`tally/tb.ts`: "Trial Balance" exploded,
+    closing DSPCLDRAMTA / DSPCLCRAMTA per DSPACCNAME, checked live 2 Nov 2026; exploded ledgers come UNWRAPPED after their group, so the poll asks twice — EXPLODEFLAG No = group names + totals, Yes = groups + ledgers, a name in the groups set = group;
+    Dr ≠ Cr or no rows = warning) as `tally/tb-<YYYY-MM>` (+ `tally/tb-raw-last`). A TB that doesn't
+    tie shows as a warning (the live Oct 2026 one didn't). A TB failure never undoes the P&L copy. The pull returns
+    `trialBalance` (staged + committed as a record; `liveDeck` ignores any ledgerRows on the trial-balance slot, screenshot
+    included, so a TB never enters the P&L cascade).
+  - Shopify · Sales by variant → `api`: the connector's own `fetchFacts` (orders by day × variant, read only) for the month,
+    committed so the close is frozen (an upload / pull for source+month wins over the live facts in `buildLiveDeck`).
+- **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
-  billing data), Shopify variant sales (fallback only —
-  Shopify is live).
+  billing data).
 - Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).
 
 ## 5-year plan (`/planning`)

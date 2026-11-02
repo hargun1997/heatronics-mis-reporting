@@ -86,6 +86,8 @@ export interface Extracted {
   invoice?: InvoiceSummary;
   /** Tally P&L Excel path only — every period in the export, for the month picker. */
   tallyMonths?: TallyMonthExtract[];
+  /** Tally Trial Balance pull only — a record + check, never read as P&L. */
+  trialBalance?: { period: string; rows: { name: string; level: 'group' | 'ledger'; debit: number; credit: number }[]; totalDebit: number; totalCredit: number; difference: number; asOf: string };
   /** Months the upload confirms are zero-activity (parsed OK, no rows) — still ingested, marking the month covered. */
   emptyMonths?: string[];
 }

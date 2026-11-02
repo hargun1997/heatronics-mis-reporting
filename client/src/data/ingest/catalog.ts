@@ -25,7 +25,8 @@ const SLOTS: ReportSlot[] = [
     connectorId: 'tally', slotId: 'trial-balance', label: 'Trial Balance (optional)', required: false,
     accept: '.png,.jpg,.jpeg,.webp', kind: 'vision',
     exportSteps: [
-      'Tally Prime → Gateway → Trial Balance',
+      'Pulled from Tally automatically with the P&L — no upload needed normally.',
+      'Fallback: Tally Prime → Gateway → Trial Balance',
       'Set period, F12 → Detailed',
       'Screenshot the screen (one per screen if it scrolls)',
     ],
@@ -132,10 +133,10 @@ const SLOTS: ReportSlot[] = [
 
   // ---- D2C (live) ----
   {
-    connectorId: 'shopify', slotId: 'variant-sales', label: 'Sales by variant (manual fallback)', required: false,
+    connectorId: 'shopify', slotId: 'variant-sales', label: 'Sales by variant', required: false,
     accept: '.csv', kind: 'xlsx',
     exportSteps: [
-      'Shopify is pulled live by API — no upload needed normally.',
+      'Pulled from Shopify by API ("Pull now") — no upload needed normally.',
       'Fallback: Analytics → Reports → Sales by product variant → export CSV',
     ],
     note: 'Only needed if the live pull is unavailable.',

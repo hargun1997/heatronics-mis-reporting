@@ -15,8 +15,10 @@ import type { Credentials } from '../types.js';
 import { readJson, writeJson } from '../../ingest/objectStore.js';
 import { companyListEnvelope, decode, post } from '../sources/tally.js';
 import { parsePnlXml, pnlEnvelope, type TallyPnlMonth } from './pnl.js';
+import { parseTbXml, tbEnvelope, type TallyTbMonth } from './tb.js';
 
 export interface TallySnapshot extends TallyPnlMonth { asOf: string }
+export interface TallyTbSnapshot extends TallyTbMonth { asOf: string }
 export interface TallyState {
   lastTryAt: string | null;
   lastOkAt: string | null;
@@ -30,6 +32,7 @@ export const MIN_GAP_MS = 20 * 60_000;
 
 export const readTallyState = () => readJson<TallyState>('tally/state', EMPTY);
 export const readTallySnapshot = (period: string) => readJson<TallySnapshot | null>(`tally/pnl-${period}`, null);
+export const readTallyTb = (period: string) => readJson<TallyTbSnapshot | null>(`tally/tb-${period}`, null);
 
 const istMonth = (now: number) => new Date(now + 5.5 * 3_600_000).toISOString().slice(0, 7);
 function addMonths(p: string, n: number): string {
@@ -91,6 +94,7 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
   }
   const done: string[] = [];
   let failed: string | null = null;
+  let tbFailed: string | null = null;
   for (const period of monthsToPull(now, state.months)) {
     try {
       const xml = await post(creds, pnlEnvelope(period, creds.company), 60_000);
@@ -100,6 +104,16 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
       await writeJson(`tally/pnl-${period}`, snap);
       state.months[period] = state.lastTryAt;
       done.push(period);
+      // Trial Balance for the same month: a failure here never undoes the P&L copy.
+      try {
+        const groupsXml = await post(creds, tbEnvelope(period, creds.company, false), 60_000);
+        const groups = new Set(parseTbXml(groupsXml, period).rows.map((r) => r.name));
+        const tbXml = await post(creds, tbEnvelope(period, creds.company, true), 60_000);
+        if (done.length === 1) await writeJson('tally/tb-raw-last', { period, at: state.lastTryAt, xml: tbXml.slice(0, 400_000) });
+        await writeJson(`tally/tb-${period}`, { ...parseTbXml(tbXml, period, groups), asOf: state.lastTryAt } satisfies TallyTbSnapshot);
+      } catch (e) {
+        tbFailed = `${period}: ${e instanceof Error ? e.message : String(e)}`;
+      }
     } catch (e) {
       failed = `${period}: ${e instanceof Error ? e.message : String(e)}`;
       break; // Tally closed mid-run: keep what we have
@@ -108,5 +122,5 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
   if (done.length) state.lastOkAt = state.lastTryAt;
   state.lastError = failed;
   await writeJson('tally/state', state);
-  return { status: done.length ? 'ok' : 'down', detail: done.length ? `Stored P&L for ${done.join(', ')}${failed ? ` (stopped: ${failed})` : ''}` : `Tally answered the check but not the P&L: ${failed}`, months: done };
+  return { status: done.length ? 'ok' : 'down', detail: done.length ? `Stored P&L + Trial Balance for ${done.join(', ')}${tbFailed ? ` (Trial Balance failed: ${tbFailed})` : ''}${failed ? ` (stopped: ${failed})` : ''}` : `Tally answered the check but not the P&L: ${failed}`, months: done };
 }
