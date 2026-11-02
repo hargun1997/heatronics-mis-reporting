@@ -71,7 +71,7 @@ async function lwaToken(creds: Credentials): Promise<string> {
   return body.access_token;
 }
 
-/** GET only — every SP-API call the MIS makes is a read (Sales, Finances, Reports list/download). */
+/** GET — every SP-API read the MIS makes (Sales, Finances, report status / documents). */
 export async function spapiGet(creds: Credentials, path: string, retries = 0): Promise<unknown> {
   for (let i = 0; ; i++) {
     const token = await lwaToken(creds);
@@ -86,6 +86,41 @@ export async function spapiGet(creds: Credentials, path: string, retries = 0): P
     }
     return res.json();
   }
+}
+
+/** The ONE SP-API write the MIS makes: requesting a report (createReport). Nothing else is ever POSTed. */
+const CREATE_REPORT_PATH = '/reports/2021-06-30/reports';
+export function assertSpapiPostAllowed(path: string): void {
+  if (path !== CREATE_REPORT_PATH) throw new Error(`Blocked: SP-API POST ${path} — the MIS only requests reports.`);
+}
+
+/** POST createReport (one call; used for the Business Report slot once a month). */
+export async function spapiCreateReport(creds: Credentials, body: Record<string, unknown>): Promise<string> {
+  assertSpapiPostAllowed(CREATE_REPORT_PATH);
+  const token = await lwaToken(creds);
+  const res = await fetch(`${host(creds)}${CREATE_REPORT_PATH}`, {
+    method: 'POST',
+    headers: { 'x-amz-access-token': token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, marketplaceIds: [marketplace(creds)] }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Amazon createReport ${res.status}: ${text.slice(0, 300)}`);
+  const id = (JSON.parse(text) as { reportId?: string }).reportId;
+  if (!id) throw new Error('Amazon createReport returned no reportId.');
+  return id;
+}
+
+/** Download a report document (presigned S3 URL from getReportDocument), gunzipped when Amazon compressed it. */
+export async function downloadReportDocument(doc: { url?: string; compressionAlgorithm?: string }): Promise<string> {
+  if (!doc.url || !/^https:\/\/[^/]+\.amazonaws\.com\//.test(doc.url)) throw new Error('Amazon report document has no download URL.');
+  const res = await fetch(doc.url);
+  if (!res.ok) throw new Error(`Amazon report download ${res.status}.`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (doc.compressionAlgorithm === 'GZIP') {
+    const { gunzipSync } = await import('node:zlib');
+    return gunzipSync(buf).toString('utf8');
+  }
+  return buf.toString('utf8');
 }
 
 /** Day after an ISO date (orderMetrics interval end is exclusive). */

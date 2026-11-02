@@ -56,13 +56,32 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     format ("<id>, <name>") is assumed equal to Ads Manager's export — unverified.
   - Google Ads · Campaign report / Shopping products → `googleAds:searchStream` (guarded: never `:mutate`): `campaign`
     cost_micros total, and `shopping_performance_view` cost per `segments.product_item_id` (variant = last `_` part).
-  - Shiprocket · Wallet passbook → `GET /v1/external/account/details/statement?from&to&page&per_page` (+ login POST only;
-    `sources/shiprocket.ts`). Debits by day × channel; credits, recharges and COD transfers excluded (passbook rule). Path + fields
-    from Shiprocket's API spec (api-evangelist mirror), unverified live.
-  - Easebuzz · Settlement / MDR → `POST https://dashboard.easebuzz.in/payout/v1/retrieve` (form: merchant_key, merchant_email,
-    payout_date DD-MM-YYYY, hash = SHA-512 `key|email|date|salt`), one call per day. Optional shared secrets
-    `easebuzz-merchant-key`, `easebuzz-salt`, `easebuzz-merchant-email`; missing = "Not connected — add key + salt". Endpoint, hash
-    order and answer field names UNVERIFIED (mapper reads several key names).
+  - Shiprocket · Wallet passbook → `api`, COMPUTED from shipment charges: "Computed from shipment charges (freight + COD + RTO),
+    not the wallet statement — compare with the passbook once". The wallet statement API (`/account/details/statement`) was
+    dropped: live for Oct 2026 it gave one money-in line and 0 debits. `sources/shiprocket.ts computedCharges`: `GET /v1/external/
+    orders?page&per_page=100&from&to&sort=ASC&sort_by=id` (Ops' live D2C call; + login POST only, guard: GETs) for orders created
+    from 20 days before the month to its end → `map/shiprocket.ts`: per order `awb_data.charges` (Ops' sr_shipments fields):
+    freight_charges (else applied_weight_amount / the shipment's freight_charges), cod_charges, charged_weight_amount_rto (else
+    rto_charges / applied_weight_amount_rto), booked once per order on its first shipment with an AWB. Dated: freight + COD on the
+    AWB assign day (else pickup, else order created; IST), RTO on the RTO initiated day (else AWB day, warned). No AWB / cancelled
+    before pickup (status 8 / 16) = no charge. Facts = the passbook parser's (day × channel from the Channel Order Id suffix,
+    `fees`). Not in it: weight-dispute debits, refunds / credits, adhoc wallet lines; whether the API amounts include the 18 % GST
+    the passbook debits carry is UNVERIFIED. Note: the passbook parser counts debits only (refund credits are skipped as money in).
+  - Easebuzz · Settlement / MDR → settlements API from Easebuzz's own PHP kit (easebuzz/paywitheasebuzz-php-lib `payout.php`):
+    `POST https://dashboard.easebuzz.in/settlements/v1/retrieve`, JSON `{merchant_key, hash, payout_date: {start_date, end_date}
+    (DD-MM-YYYY), merchant_email?}`, hash = SHA-512 `key|start_date|end_date|salt` (email not hashed), ONE call per month. Shared
+    secrets `easebuzz-merchant-key`, `easebuzz-salt` (+ optional `easebuzz-merchant-email`); missing = "Not connected". Answer
+    field names UNVERIFIED (mapper reads several key names).
+  - Tranzact · BOM pricing → `api` from the Production portal: `GET https://production.heatronics.in/api/costs?month=` (machine
+    endpoint; Bearer = optional shared secret `production-costs-token`; `sources/production.ts`, guard GET /api/costs only; a month
+    without costs falls back to Production's newest, warned). `map/costs.ts productionBomCosts`: FG-… items → `bomCosts` rows
+    (`fgId`, `bomNumber`, `bomName`, `costPerUnit` = `material` = the BOM at its parts' latest purchase invoices, ex-GST; conversion
+    NOT added — Tally holds overheads). The pull returns `bomCosts` (SlotPull), staged like `runBomChecks`. Differs from the upload:
+    invoice prices instead of Tranzact default prices.
+  - Amazon · Business Report → `api`: ONE SP-API `createReport` GET_SALES_AND_TRAFFIC_REPORT (dateGranularity MONTH,
+    asinGranularity CHILD, the month in IST) per month asked; report id held 2 h in memory so a re-pull reuses it; polled every
+    15 s; document gunzipped. `assertSpapiPostAllowed`: createReport is the ONLY SP-API POST the MIS makes (test). Rows
+    (`map/costs.ts salesTrafficRows`, header the `amazonbiz` reader knows) go through the client's Business Report reader.
   - Delhivery · Wallet report → `api`, COMPUTED freight (Delhivery has no wallet / ledger API): "Computed freight (Delhivery
     tracking + charge calculator), not the wallet ledger — compare with the wallet once". `sources/delhivery.ts`
     `computedFreight`: (1) the month's Delhivery AWBs from the Warranty Manager `GET https://warranty.heatronics.in/api/feeds/
@@ -72,7 +91,11 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     Warranty Manager makes live) → whitelisted `trackSummary` (status, charged weight, picked up, consignee PIN only) → (3)
     charge calculator `GET /api/kinko/v1/invoice/charges/.json?md=S|E&ss=Delivered|RTO|DTO&d_pin&o_pin&cgm&pt=Pre-paid`
     (header `Authorization: Token`; params from public client libraries, Delhivery's docs are behind a login: UNVERIFIED),
-    `total_amount` (GST incl.) else `gross_amount`, one call per distinct query. Paced 2 req/s. Rules (`map/delhivery.ts
+    `total_amount` (GST incl.) else `gross_amount`, one call per distinct query (lane × weight × status × mode).
+    Paced per pull (`dlClient`): tracking 2/s, calculator 1 per 2 s, each doubling its gap after a 429; a 429 waits Retry-After or
+    the body's "available in N seconds" and retries ≤ 4 times. Budget (SLOT_PULL_BUDGET_MS, 3 s reserve) runs out → priced AWBs
+    kept, the AWBs left booked at the same-direction average of the priced ones (warning "… left unpriced … ESTIMATE"); tests
+    inject fetch + a fake clock. Rules (`map/delhivery.ts
     chargePlan`): cancelled / not picked up = no freight; forward RTO → ss=RTO, else Delivered (in transit = estimate, warned);
     reverse pickup → ss=DTO (customer pin → return warehouse pin); weight = charged weight, else product weight, else 500 g.
     Facts = the wallet parser's (`parseDelhivery`): source `delhivery`, D2C, net ₹ per IST day of the label's creation, in
@@ -87,11 +110,10 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     month, Document Date written ISO (day-first for DD-MM-YYYY), then the client's `parseTranzactSales`. Empty sheet = "No data in
     the sheet yet" (fail check, upload fallback). Product Price & Inventory / Purchase Invoice Register ids are in `TRANZACT_SHEETS`
     (not read yet).
-- **Claude task:** Tranzact · BOM pricing — "Tranzact monthly BOM + template import" (18th, Production portal); MIS has no
-  cross-portal read yet, so upload it here.
+- **Claude task (indirect):** the BOM costs Production serves come from the "Tranzact monthly BOM + template import" task (18th).
 - **Manual uploads (reason shown on the slot):** Tally P&L (Tally on cloud doesn't expose its XML port yet — ask Thakur Hardsoft to
   open port 9000), Tally trial balance (optional screenshot), Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
-  ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month),
-  Amazon Business Report (optional; only a createReport), Shopify variant sales (fallback only —
+  ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
+  billing data), Shopify variant sales (fallback only —
   Shopify is live).
 - Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).

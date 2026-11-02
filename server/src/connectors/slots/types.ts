@@ -23,10 +23,20 @@ import type { Credentials } from '../types.js';
 
 export type SlotSourceKind = 'api' | 'sheet' | 'claude_task' | 'upload';
 
+/** One finished good's per-unit cost (the BOM pricing slot; same shape as the client's BomCostRow). */
+export interface BomCostRow {
+  fgId: string;
+  bomNumber: string;
+  bomName: string;
+  costPerUnit: number;
+}
+
 /** What one pull of one slot for one month produced. */
 export interface SlotPull {
   /** Facts in the client parser's exact shape (api slots). */
   facts?: DailyFact[];
+  /** Finished-good unit costs (the BOM pricing slot). */
+  bomCosts?: BomCostRow[];
   /** Header + data rows for the client parser (sheet slots). */
   rows?: unknown[][];
   /** Rows / items read from the source (for the checks line). */
