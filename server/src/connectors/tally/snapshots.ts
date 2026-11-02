@@ -26,6 +26,8 @@ export interface TallyState {
   lastError: string | null;
   company: string | null;
   months: Record<string, string>; // period → asOf
+  /** Months with a stored Trial Balance (period → asOf), for the Balance Sheet / Cash Flow backfill. */
+  tbMonths?: Record<string, string>;
 }
 
 const EMPTY: TallyState = { lastTryAt: null, lastOkAt: null, lastError: null, company: null, months: {} };
@@ -74,6 +76,16 @@ export function scheduledDue(now: number, state: TallyState): { due: boolean; wh
   return okDay === ist.toISOString().slice(0, 10) ? { due: false, why: 'Already taken today.' } : since >= MIN_GAP_MS ? { due: true, why: 'Daily refresh.' } : { due: false, why: 'Checked less than 20 min ago.' };
 }
 
+/** Trial Balance at the end of `period` (groups-only answer first, so exploded children are told apart). */
+async function pullTb(creds: Credentials, period: string, state: TallyState, keepRaw: boolean): Promise<void> {
+  const groupsXml = await post(creds, tbEnvelope(period, creds.company, false), 60_000);
+  const groups = new Set(parseTbXml(groupsXml, period).rows.map((r) => r.name));
+  const tbXml = await post(creds, tbEnvelope(period, creds.company, true), 60_000);
+  if (keepRaw) await writeJson('tally/tb-raw-last', { period, at: state.lastTryAt, xml: tbXml.slice(0, 400_000) });
+  await writeJson(`tally/tb-${period}`, { ...parseTbXml(tbXml, period, groups), asOf: state.lastTryAt ?? new Date().toISOString() } satisfies TallyTbSnapshot);
+  state.tbMonths = { ...(state.tbMonths ?? {}), [period]: state.lastTryAt! };
+}
+
 /** One poll. `force` skips the 20-minute gap (signed-in Pull now). Never throws: the answer is a status. */
 export async function pollTally(creds: Credentials, opts: { force?: boolean; now?: number; skipBooks?: boolean } = {}): Promise<{ status: 'skipped' | 'down' | 'ok' | 'not_connected'; detail: string; months?: string[] }> {
   const now = opts.now ?? Date.now();
@@ -107,17 +119,22 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
       done.push(period);
       // Trial Balance for the same month: a failure here never undoes the P&L copy.
       try {
-        const groupsXml = await post(creds, tbEnvelope(period, creds.company, false), 60_000);
-        const groups = new Set(parseTbXml(groupsXml, period).rows.map((r) => r.name));
-        const tbXml = await post(creds, tbEnvelope(period, creds.company, true), 60_000);
-        if (done.length === 1) await writeJson('tally/tb-raw-last', { period, at: state.lastTryAt, xml: tbXml.slice(0, 400_000) });
-        await writeJson(`tally/tb-${period}`, { ...parseTbXml(tbXml, period, groups), asOf: state.lastTryAt } satisfies TallyTbSnapshot);
+        await pullTb(creds, period, state, done.length === 1);
       } catch (e) {
         tbFailed = `${period}: ${e instanceof Error ? e.message : String(e)}`;
       }
     } catch (e) {
       failed = `${period}: ${e instanceof Error ? e.message : String(e)}`;
       break; // Tally closed mid-run: keep what we have
+    }
+  }
+  // Balance Sheet / Cash Flow need a Trial Balance for every month (and the one before): fill up to 3 of the last 13
+  // months that have a P&L copy but no TB yet.
+  if (done.length && !failed) {
+    const cur = istMonth(now);
+    const want = Array.from({ length: 13 }, (_, i) => addMonths(cur, -i)).filter((p) => !state.tbMonths?.[p] && !done.includes(p)).slice(0, 3);
+    for (const p of want) {
+      try { await pullTb(creds, p, state, false); } catch (e) { tbFailed = `${p}: ${e instanceof Error ? e.message : String(e)}`; break; }
     }
   }
   if (done.length) state.lastOkAt = state.lastTryAt;

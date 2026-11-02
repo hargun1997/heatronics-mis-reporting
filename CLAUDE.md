@@ -150,6 +150,14 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   month, then backfill to 12 months) within ~4 min; "Pull Tally now" on the page forces it. Routes `/api/tally/books/*` incl.
   `ask` (Claude grounded in health + matching vouchers + ledger list + Hargun's booking pattern). The XML shape of the Day Book /
   masters answers is UNVERIFIED until the first live pull — check `tally/raw-books`.
+- **Live Balance Sheet + Cash Flow** (Live MIS tabs, READ ONLY): the poll also back-fills a Trial Balance for up to 3 of
+  the last 13 months per run (`state.tbMonths`). `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
+  depreciation, Nett Profit); pure builder `client/src/data/statements/statements.ts` (BS from Tally's primary groups + closing
+  stock + FY profit to date; indirect cash flow from consecutive BSs, sections sum to Δ cash & bank; `misCashRows` fills the MIS
+  Sheet cash rows). Tests `server/test/statements.test.ts`.
+- **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
+  served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
+  delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
 - **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).

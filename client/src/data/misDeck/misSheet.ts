@@ -107,7 +107,7 @@ export const MIS_SHEET_ROWS: MisSheetRow[] = [
   { label: 'Closing Cash Balance (Cr)', get: (p) => p.closingCash },
   { label: 'Total Cash Burn', get: (p) => p.cashBurn },
   { label: 'EBITDA Burn', get: (p) => p.ebitdaBurn },
-  { label: 'Runway (Qtr)', get: (p) => p.runway },
+  { label: 'Runway (Qtr)', count: true, get: (p) => p.runway },
 ];
 
 // ----------------------------------------------------------------------------
