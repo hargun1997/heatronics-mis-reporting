@@ -10,18 +10,18 @@
 :root{--bg:#FAFAF8;--surface:#FFFFFF;--ink:#111113;--muted:#5A5650;--line:#E4E1DC;--soft:#F3F1EE;--accent:#C9541F;--ok:#2E7A52;--ok-soft:#E4F2EA;--bad:#B23B2E;--bad-soft:#F9E4E1;color-scheme:light;
 --display:"Archivo","Helvetica Neue",Arial,sans-serif;--body:"IBM Plex Sans","Segoe UI",Roboto,Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
-.wrap{max-width:1100px;margin:0 auto;padding-inline:18px;padding-block:24px 56px;display:flex;flex-direction:column;gap:20px}
-h1{font:800 clamp(24px,3.4vw,30px) var(--display);margin:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--body)}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:18px;padding-block:16px 40px;display:flex;flex-direction:column;gap:14px}
+h1{font:800 clamp(20px,2.6vw,24px) var(--display);margin:0}
 h2{font:700 17px var(--display);margin:0 0 12px}
-.sub{color:var(--muted);margin:4px 0 0}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+.sub{color:var(--muted);margin:2px 0 0;font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:0}
 .steps{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
 @media (max-width:820px){.steps{grid-template-columns:minmax(0,1fr)}}
 .step h2{display:flex;gap:8px;align-items:baseline}
 .step h2 span{font:600 12px var(--mono);color:var(--accent)}
 .ctls{display:flex;flex-direction:column}
-.ctl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--soft)}
+.ctl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:5px 0;border-bottom:1px solid var(--soft)}
 .ctl:last-child{border-bottom:0}
 .ctl label{font-size:14px}
 .ctl .in{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--bg);flex:none}
@@ -29,12 +29,12 @@ h2{font:700 17px var(--display);margin:0 0 12px}
 .ctl .in:focus-within{outline:2px solid var(--accent);outline-offset:1px}
 .ctl input{font:500 14px var(--mono);text-align:right;padding:6px 4px 6px 8px;border:0;background:transparent;color:var(--ink);width:64px;outline:none}
 .ctl .u{font:12px var(--mono);color:var(--muted);padding-right:8px;min-width:34px}
-.blk{margin:0 -18px;padding:12px 18px 14px;border-top:1px solid var(--line)}
+.blk{margin:0 -16px;padding:10px 16px 12px;border-top:1px solid var(--line)}
 .blk .bh{font:600 12px var(--body);letter-spacing:.04em;text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;gap:8px}
 .blk .bh::before{content:"";width:8px;height:8px;border-radius:2px;background:currentColor}
 .blk.eq .bh{color:#C9541F}.blk.sc .bh{color:#2F6F8F}.blk.dt .bh{color:#6B5A2E}
 .blk.sc{background:#F4F8FA}.blk.dt{background:#FAF8F2}
-.blk:last-child{margin-bottom:-18px;border-radius:0 0 10px 10px}
+.blk:last-child{margin-bottom:-14px;border-radius:0 0 10px 10px}
 .ctl .u{white-space:nowrap}
 .inv .nm{font:500 14px var(--body);padding:6px 9px}
 .inv.fx .nm{color:var(--muted)}
@@ -149,15 +149,15 @@ td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
 .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;padding:0;overflow:hidden}
 @media (max-width:820px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:480px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.kpi{padding:12px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
-.kpi .kl{font:600 11px var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
-.kpi .kv{font:800 24px/1.15 var(--display);margin-top:2px}
-.kpi .ks{font:12px var(--mono);color:var(--muted);margin-top:2px}
+.kpi{padding:7px 12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.kpi .kl{font:600 10px var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .kv{font:800 17px/1.2 var(--display);margin-top:1px;white-space:nowrap}
+.kpi .ks{font:11px var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi.hi{background:#FBF3EE}.kpi.hi .kv{color:var(--accent)}
-.kpi.rd{background:var(--soft)}.kpi.rd .kv{font-size:20px}
+.kpi.rd{background:var(--soft)}.kpi.rd .kv{font-size:16px}
 .kpi.rd.key .kv{color:var(--ink)}.kpi.rd.key{background:#F1EEE9}
-.krow{grid-column:1/-1;padding:7px 16px;font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);background:var(--surface)}
-.kcap{grid-column:1/-1;padding:8px 16px;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.krow{grid-column:1/-1;padding:4px 12px;font:600 10px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);background:var(--surface)}
+.kcap{grid-column:1/-1;padding:6px 12px;font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
 .kcap b{color:var(--ink);font-weight:600}
 .tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .tools .lnk{border:0;background:none;color:var(--accent);font:600 13px var(--body);cursor:pointer;padding:4px 2px}
@@ -191,20 +191,20 @@ details.blk:last-child:not([open]){padding-bottom:14px}
 
   <form class="steps" id="f" onsubmit="return false" autocomplete="off">
     <details class="card step" data-k="st1" open><summary><h2><span>1</span>Pool resize + Aneesha</h2><span class="sv" id="sv1"></span></summary>
-      <details class="blk es" data-k="b_es" open><summary class="bh">ESOP pool — resize first<span class="bv" id="bv_es"></span></summary><div class="ctls" id="s2e"></div><p class="note2" id="esopNote"></p></details>
-      <div class="sub2">Aneesha joins</div><div class="mode"><span>Set her stake</span><span class="seg" id="modeSeg" role="group" aria-label="Set her stake"><button type="button" data-m="join" aria-pressed="true">At joining</button><button type="button" data-m="post" aria-pressed="false">After round</button></span></div><div class="ctls" id="s1"></div><label class="chk"><input type="checkbox" id="msop"> Take 2.5% of her stake from the agreed ESOP pool (MSOP) instead of from founders</label><p class="note2" id="stkNote"></p></details>
+      <details class="blk es" data-k="b_es" open><summary class="bh">ESOP pool<span class="bv" id="bv_es"></span></summary><div class="ctls" id="s2e"></div><p class="note2" id="esopNote"></p></details>
+      <div class="sub2">Aneesha joins</div><div class="mode"><span>Set her stake</span><span class="seg" id="modeSeg" role="group" aria-label="Set her stake"><button type="button" data-m="join" aria-pressed="true">At joining</button><button type="button" data-m="post" aria-pressed="false">After round</button></span></div><div class="ctls" id="s1"></div><label class="chk"><input type="checkbox" id="msop"> 2.5% of her stake from the ESOP pool (MSOP)</label><p class="note2" id="stkNote"></p></details>
     <details class="card step" data-k="st2" open><summary><h2><span>2</span>Hyperscale Round (Seed)</h2><span class="sv" id="sv2"></span></summary>
-      <details class="blk eq" data-k="b_eq" open><summary class="bh">Primary — new shares, cash in<span class="bv" id="bv_eq"></span></summary><div class="ctls" id="s2"></div>
+      <details class="blk eq" data-k="b_eq" open><summary class="bh">Primary — cash in<span class="bv" id="bv_eq"></span></summary><div class="ctls" id="s2"></div>
         <div class="sub2">Who puts in the equity raise · lead takes the rest</div><div class="inv fx"><span class="nm">Aneesha</span><span class="rest" id="aneAmt"></span><span></span></div><div id="invs"></div><button type="button" class="add" id="addInv">+ Add investor</button>
         <div class="inv sum"><span class="nm">Total</span><span class="rest" id="invTot"></span><span></span></div>
         <p class="note2" id="priceNote"></p></details>
-      <details class="blk cn" data-k="b_cn" open><summary class="bh">Angel Round 1 notes convert<span class="bv" id="bv_cn"></span></summary><div class="rows" id="cnRows"></div><p class="note2" id="cnNote"></p></details>
+      <details class="blk cn" data-k="b_cn" open><summary class="bh">Angel notes convert<span class="bv" id="bv_cn"></span></summary><div class="rows" id="cnRows"></div><p class="note2" id="cnNote"></p></details>
       <details class="blk sf" data-k="b_sf"><summary class="bh">Secondary — founders sell<span class="bv" id="bv_sf"></span></summary><div class="ctls" id="s2f"></div><p class="note2">Jagjit first (to his floor), then Hargun · bought by the lead at the round price.</p></details>
       <details class="blk sc" data-k="b_sc"><summary class="bh">Secondary — angels &amp; VCs sell<span class="bv" id="bv_sc"></span></summary><div class="ctls" id="s2s"></div><p class="note2">Angels and Pre-Seed, pro rata · bought by the lead at the round price.</p></details>
       <details class="blk dt" data-k="b_dt"><summary class="bh">Venture debt — loan + warrants<span class="bv" id="bv_dt"></span></summary><div class="ctls" id="s2d"></div></details></details>
     <details class="card step" data-k="st3" open><summary><h2><span>3</span>Feb 2027 → Series A</h2><span class="sv" id="sv3"></span></summary>
-      <details class="blk cv" data-k="b_cv" open><summary class="bh">Pre-Seed CCPS convert<span class="bv" id="bv_cv"></span></summary><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></details>
-      <details class="blk eq" data-k="b_r2" open><summary class="bh">Series A — new shares<span class="bv" id="bv_r2"></span></summary><div class="ctls" id="s3"></div></details></details>
+      <details class="blk cv" data-k="b_cv" open><summary class="bh">CCPS convert<span class="bv" id="bv_cv"></span></summary><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></details>
+      <details class="blk eq" data-k="b_r2" open><summary class="bh">Series A<span class="bv" id="bv_r2"></span></summary><div class="ctls" id="s3"></div></details></details>
   </form>
 
   <div class="bar"><span id="checks" class="bar" aria-live="polite"></span></div>
@@ -513,14 +513,14 @@ function renderCmp(M){
 }
 function renderSummaries(M){
   const st=M.st, tot=M.tot, h=st.hs, T1=tot(h), t=x=>fP(x/T1), set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
-  const d0=(k,f)=>{const a=f(st.today)/tot(st.today), b=f(h)/T1, dp=(b-a)*100;return Math.abs(dp)<0.05?'no change':`${dp>0?'+':'−'}${Math.abs(dp).toFixed(1)} pts since today`};
+  const d0=(k,f)=>{const a=f(st.today)/tot(st.today), b=f(h)/T1, dp=(b-a)*100;return Math.abs(dp)<0.05?'no change':`${dp>0?'+':'−'}${Math.abs(dp).toFixed(1)} pts`};
   const tiles=[['Hargun',o=>o.H,1],['Aneesha',o=>o.A,1],['Jagjit',o=>o.J],['Founders total',o=>o.H+o.J+o.A],['ESOP pool',o=>o.E],['New investors',o=>o.inv.reduce((s,x)=>s+x,0)]];
   const dil1=M.dil1, dil2=M.N2/M.post2;
-  const rt=[['Pre-money',fR(M.pre1),`${fS(M.Tp)} shares before the round`,1],['Equity raise',fR(M.R1),`${fS(M.newR1)} new shares at ${ru(M.p1)}`],['Post-money',fR(M.pre1+M.eqIn),`${fS(M.post1)} shares after`],
-    ['Round dilution',fP(dil1),`${fS(M.newAll)} new shares ÷ ${fS(M.post1)}`,1],['Angel notes convert at',M.cnDisc?`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr`:'₹18.00 Cr',`${M.cnDisc?'30% off the round':'the cap'} · ${fS(M.cnSh)} sh at ${ru(M.cnp)}`],['Series A dilution',fP(dil2),`${fR(M.R2)} at ${fR(M.pre2)} pre`]];
-  document.getElementById('kpis').innerHTML=`<div class="krow">Hyperscale Round (Seed)</div>`+rt.map(([l,v,sub,key])=>`<div class="kpi rd${key?' key':''}"><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${sub}</div></div>`).join('')+
-    `<div class="krow">Who owns what after the Hyperscale Round</div>`+tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${d0(l,f)}</div></div>`).join('')+
-    (()=>{const F=o=>(o.H+o.J+o.A)/tot(o), H=o=>o.H/tot(o), A=o=>o.A/tot(o);return `<div class="kcap"><span>Today → Hyperscale → Series A</span><span>Founders <b>${fP(F(st.today))} → ${fP(F(h))} → ${fP(F(st.r2))}</b></span><span>Hargun <b>${fP(H(st.today))} → ${fP(H(h))} → ${fP(H(st.r2))}</b></span><span>Aneesha <b>${fP(A(st.join))} → ${fP(A(h))} → ${fP(A(st.r2))}</b></span><span>Total dilution to Series A <b>${fP(1-(F(st.r2)/F(st.join)))}</b> of founders' stake</span></div>`})();
+  const rt=[['Pre-money',fR(M.pre1),`${fS(M.Tp)} sh`,1],['Raise',fR(M.R1),`at ${ru(M.p1)}/sh`],['Post-money',fR(M.pre1+M.eqIn),`${fS(M.post1)} sh`],
+    ['Round dilution',fP(dil1),`${fS(M.newAll)} new sh`,1],['Angels convert at',M.cnDisc?`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr`:'₹18.00 Cr',`${M.cnDisc?'30% off':'cap'} · ${fS(M.cnSh)} sh`],['Series A dilution',fP(dil2),`₹${M.I.R2} Cr at ₹${M.I.pre2} Cr`]];
+  document.getElementById('kpis').innerHTML=`<div class="krow">Hyperscale Round</div>`+rt.map(([l,v,sub,key])=>`<div class="kpi rd${key?' key':''}"><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${sub}</div></div>`).join('')+
+    `<div class="krow">After the round · change since today</div>`+tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${d0(l,f)}</div></div>`).join('')+
+    (()=>{const F=o=>(o.H+o.J+o.A)/tot(o), H=o=>o.H/tot(o), A=o=>o.A/tot(o);return `<div class="kcap"><span>Today → Seed → Series A</span><span>Founders <b>${fP(F(st.today))} → ${fP(F(h))} → ${fP(F(st.r2))}</b></span><span>Hargun <b>${fP(H(st.today))} → ${fP(H(h))} → ${fP(H(st.r2))}</b></span><span>Aneesha <b>${fP(A(st.join))} → ${fP(A(h))} → ${fP(A(st.r2))}</b></span><span>Founders diluted to Series A <b>${fP(1-(F(st.r2)/F(st.join)))}</b></span></div>`})();
   set('sv1',`pool ${fP(M.ePost)} after round · Aneesha ${MODE==='post'?M.I.stkPost+'% after round':M.I.stk+'% at joining'} · Jagjit floor ${M.I.jkeep}% · ₹${M.I.px}/sh${M.useMsop?' · MSOP on':''}`);
   set('sv2',`${fR(M.R1)} at ${fR(M.pre1)} pre · angel notes → ${fS(M.cnSh)} sh at ${ru(M.cnp)} (${M.cnDisc?'30% off':'cap'}) · secondary ${fR((M.I.fsec+M.I.sec)*CR)} · debt ${fR(M.debt)}`);
   set('sv3',`2026 revenue ₹${M.I.rev} Cr · Series A ${fR(M.R2)} at ${fR(M.pre2)} pre`);
