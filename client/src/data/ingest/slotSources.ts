@@ -13,8 +13,8 @@
 import * as XLSX from 'xlsx';
 import { UPLOAD_PARSERS } from '../liveMis/uploadParsers';
 import type { DailyFact } from '../liveMis/facts';
-import { commitReportMonths, derivePeriod } from './ingestClient';
-import type { CheckItem, Extracted, IngestReportMeta, ReportSlot, StagedUpload } from './types';
+import { commitReportMonths } from './ingestClient';
+import type { BomCostRow, CheckItem, Extracted, IngestReportMeta, ReportSlot, StagedUpload } from './types';
 
 export type SlotSourceKind = 'api' | 'sheet' | 'claude_task' | 'upload';
 
@@ -61,6 +61,8 @@ export const slotKey = (connectorId: string, slotId: string) => `${connectorId}|
 /** What a finished pull hands back (server SlotPull). */
 interface PullResult {
   facts?: DailyFact[];
+  /** BOM pricing slot: finished-good unit costs (same rows the BOM upload reader keeps). */
+  bomCosts?: BomCostRow[];
   rows?: unknown[][];
   rowCount: number;
   trace: string[];
@@ -147,6 +149,23 @@ export function stagePull(
     }
   }
 
+  if (result.bomCosts) {
+    // BOM pricing: unit costs, not facts — staged exactly like runBomChecks' output.
+    const bomCosts = result.bomCosts;
+    items.push({ id: 'read', label: 'Pulled from the API', status: 'pass', detail: `${pull.via} · ${new Date(pull.pulledAt).toLocaleString('en-IN')}` });
+    items.push({ id: 'costs', label: 'Finished-good costs extracted', status: bomCosts.length > 0 ? 'pass' : 'fail', detail: `${bomCosts.length} finished goods costed` });
+    for (const w of result.warnings) items.push({ id: `w-${items.length}`, label: 'Source note', status: 'warn', detail: w });
+    const extracted: Extracted = { facts: [], rowCount: bomCosts.length, through: null, bomCosts, trace: result.note ? [...trace, result.note] : trace };
+    const overall = items.some((i) => i.status === 'fail') ? 'fail' : items.some((i) => i.status === 'warn') ? 'warn' : 'pass';
+    const fileName = `api-pull-${slot.connectorId}-${slot.slotId}-${periodKey}.json`;
+    const snapshot = JSON.stringify({ via: pull.via, periodKey, pulledAt: pull.pulledAt, trace: result.trace, warnings: result.warnings, bomCosts }, null, 1);
+    return {
+      checks: { items, overall }, extracted, fileName, mimeType: 'application/json',
+      rawFiles: [{ base64: toBase64Utf8(snapshot), name: fileName, mimeType: 'application/json' }],
+      periodKey,
+    };
+  }
+
   const sourceLabel = kind === 'sheet' ? 'Read from the sheet' : 'Pulled from the API';
   items.push({ id: 'read', label: sourceLabel, status: 'pass', detail: `${pull.via} · ${result.rowCount} source row(s) · ${new Date(pull.pulledAt).toLocaleString('en-IN')}` });
   const inMonth = facts.filter((f) => !isISODate(f.date) || f.date.slice(0, 7) === periodKey);
@@ -183,7 +202,8 @@ export function stagePull(
     fileName,
     mimeType: 'application/json',
     rawFiles: [{ base64: toBase64Utf8(snapshot), name: fileName, mimeType: 'application/json' }],
-    periodKey: facts.length ? derivePeriod(extracted) : periodKey,
+    // Facts are already limited to the month asked (undated traffic rows are dated to it on commit).
+    periodKey,
   };
 }
 
@@ -208,7 +228,7 @@ export async function pullAndCommit(slot: ReportSlot, info: SlotSourceInfo, peri
     }
     // Same commit path as a dropped file.
     const metas = await commitReportMonths(slot, staged, periodKey);
-    return { ok: true, detail: `${staged.extracted.facts.length} facts saved`, metas };
+    return { ok: true, detail: staged.extracted.bomCosts ? `${staged.extracted.bomCosts.length} finished-good costs saved` : `${staged.extracted.facts.length} facts saved`, metas };
   } catch (e) {
     return { ok: false, detail: e instanceof Error ? e.message : 'Pull failed.' };
   }

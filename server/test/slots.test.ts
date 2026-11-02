@@ -18,6 +18,9 @@ import { easebuzzHashInput, easebuzzPayoutFacts, tranzactSheetForMonth } from '.
 import { SR_KIND_LABEL, shiprocketChargeFacts, shiprocketChargeLines, srDay } from '../src/connectors/slots/map/shiprocket.js';
 import { isoDay, rangeEnd } from '../src/connectors/slots/map/common.js';
 import { SLOT_SOURCES } from '../src/connectors/slots/catalog.js';
+import { productionBomCosts, salesTrafficRows } from '../src/connectors/slots/map/costs.js';
+import { assertProductionReadOnly, costsUrl } from '../src/connectors/sources/production.js';
+import { assertSpapiPostAllowed } from '../src/connectors/sources/amazon.js';
 import { assertShiprocketReadOnly } from '../src/connectors/sources/shiprocket.js';
 import { assertEasebuzzReadOnly } from '../src/connectors/sources/easebuzz.js';
 import { assertSheetsReadOnly } from '../src/connectors/sources/sheets.js';
@@ -244,7 +247,7 @@ test('Easebuzz payouts ≡ Settlement History upload; hash input order', () => {
     ['Total Settlements', '', 12000, '', '', '', ''],
   ] });
   assert.deepEqual(norm(api.facts!), norm(file.facts));
-  assert.equal(easebuzzHashInput(['KEY', 'a@b.in', '02-10-2026'], 'SALT'), 'KEY|a@b.in|02-10-2026|SALT');
+  assert.equal(easebuzzHashInput(['KEY', '01-10-2026', '31-10-2026'], 'SALT'), 'KEY|01-10-2026|31-10-2026|SALT');
 });
 
 // ---- Tranzact daily sheet → the Tranzact parser ------------------------------------
@@ -304,7 +307,7 @@ test('read-only guards refuse writes', () => {
   assert.doesNotThrow(() => assertShiprocketReadOnly('GET', 'https://apiv2.shiprocket.in/v1/external/orders?page=1&per_page=100&from=2026-09-11&to=2026-10-31'));
   assert.throws(() => assertShiprocketReadOnly('POST', 'https://apiv2.shiprocket.in/v1/external/orders/cancel'));
   assert.throws(() => assertShiprocketReadOnly('GET', 'https://evil.example/v1/external/orders'));
-  assert.doesNotThrow(() => assertEasebuzzReadOnly('POST', 'https://dashboard.easebuzz.in/payout/v1/retrieve'));
+  assert.doesNotThrow(() => assertEasebuzzReadOnly('POST', 'https://dashboard.easebuzz.in/settlements/v1/retrieve'));
   assert.throws(() => assertEasebuzzReadOnly('POST', 'https://dashboard.easebuzz.in/transaction/v1/refund'));
   assert.doesNotThrow(() => assertSheetsReadOnly('GET', 'https://sheets.googleapis.com/v4/spreadsheets/abc_1/values/A%3AZZ'));
   assert.throws(() => assertSheetsReadOnly('POST', 'https://sheets.googleapis.com/v4/spreadsheets/abc/values/A1:append'));
@@ -485,4 +488,59 @@ test('Delhivery budget runs out: priced AWBs kept, the rest booked at the same-d
   assert.match(w, /ran out of time: 2 AWB\(s\) were left unpriced; 2 of them are booked at the average priced charge \(forward ₹100\)/);
   assert.match(w, /ESTIMATE/);
   assert.match(out.note!, /average/);
+});
+
+// ---- Production costs → BOM pricing ------------------------------------------------
+
+test('Production costs map to the BOM upload rows (FG only, material cost, newest-month warning)', () => {
+  const out = productionBomCosts([
+    { item: 'FG-0012', name: 'hCore Bed Warmer Single', bom: 'BOM-0040', material: 812.456 },
+    { item: 'fg-0003', name: 'hCore Knee', bom: null, material: 450 },
+    { item: 'SFG-0101', name: 'Controller PCB', bom: 'BOM-0101', material: 120 },
+    { item: 'FG-0099', name: 'No cost yet', bom: 'BOM-0099', material: null },
+  ], '2026-10', '2026-11');
+  assert.deepEqual(out.bomCosts, [
+    { fgId: 'FG-0003', bomNumber: 'FG-0003', bomName: 'hCore Knee', costPerUnit: 450 },
+    { fgId: 'FG-0012', bomNumber: 'BOM-0040', bomName: 'hCore Bed Warmer Single', costPerUnit: 812.46 },
+  ]);
+  assert.equal(out.facts, undefined);
+  assert.ok(out.warnings.some((w) => w.includes('2026-10 costs')));
+  assert.ok(out.warnings.some((w) => w.includes('FG-0099')));
+});
+
+test('Production guard: GET /api/costs only', () => {
+  assert.doesNotThrow(() => assertProductionReadOnly('GET', 'https://production.heatronics.in/api/costs?month=2026-10'));
+  assert.throws(() => assertProductionReadOnly('POST', 'https://production.heatronics.in/api/costs'));
+  assert.throws(() => assertProductionReadOnly('GET', 'https://production.heatronics.in/api/tranzact/overheads'));
+  assert.equal(costsUrl({}, '2026-10'), 'https://production.heatronics.in/api/costs?month=2026-10');
+});
+
+// ---- Amazon Sales & Traffic report → Business Report reader -------------------------
+
+test('Sales & Traffic report rows run through the Business Report reader like the upload', () => {
+  const report = {
+    reportSpecification: { reportType: 'GET_SALES_AND_TRAFFIC_REPORT' },
+    salesAndTrafficByAsin: [
+      { parentAsin: 'B0P', childAsin: 'B0C1', sku: 'HC-BW-S', salesByAsin: { unitsOrdered: 12, orderedProductSales: { amount: 23988, currencyCode: 'INR' } }, trafficByAsin: { sessions: 400, pageViews: 610 } },
+      { parentAsin: 'B0P', childAsin: 'B0C2', sku: 'HC-KN', salesByAsin: { unitsOrdered: 0 }, trafficByAsin: { browserSessions: 30, mobileAppSessions: 20, browserPageViews: 40, mobileAppPageViews: 25 } },
+      { parentAsin: 'B0P', childAsin: 'B0C3', sku: 'HC-OLD', salesByAsin: { unitsOrdered: 0 }, trafficByAsin: { sessions: 0, pageViews: 0 } },
+    ],
+  };
+  const out = salesTrafficRows(report, '2026-10');
+  const viaPull = parse('amazonbiz', { Sheet1: out.rows! });
+  const upload = parse('amazonbiz', { Sheet1: [
+    ['(Parent) ASIN', '(Child) ASIN', 'Title', 'SKU', 'Sessions - Total', 'Page Views - Total', 'Units Ordered'],
+    ['B0P', 'B0C1', '', 'HC-BW-S', 400, 610, 12],
+    ['B0P', 'B0C2', '', 'HC-KN', 50, 65, 0],
+  ] });
+  assert.deepEqual(viaPull.facts, upload.facts);
+  assert.equal(viaPull.facts.length, 2);
+  assert.equal(viaPull.facts[0].sessions, 400);
+  assert.equal(salesTrafficRows({ salesAndTrafficByAsin: [] }, '2026-10').emptyOk, true);
+});
+
+test('SP-API: the only POST the MIS may make is createReport', () => {
+  assert.doesNotThrow(() => assertSpapiPostAllowed('/reports/2021-06-30/reports'));
+  assert.throws(() => assertSpapiPostAllowed('/solicitations/v1/orders/1/solicitations/productReviewAndSellerFeedback'));
+  assert.throws(() => assertSpapiPostAllowed('/listings/2021-08-01/items/X/SKU'));
 });

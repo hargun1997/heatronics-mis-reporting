@@ -55,6 +55,10 @@ const SHARED: Record<string, Record<string, { secret?: string; fallback?: string
   },
   // Optional — Delhivery One API token (same value as the Warranty Manager's DELHIVERY_API_TOKEN) and the
   // Warranty Manager feed token (= FEED_TOKEN in warranty-manager-env). Absent = "Not connected".
+  // Optional — Production's COSTS_API_TOKEN (the same secret Ops sends to production.heatronics.in/api/costs).
+  production: {
+    costsToken: { secret: 'production-costs-token' },
+  },
   delhivery: {
     apiToken: { secret: 'delhivery-api-token' },
     feedToken: { secret: 'warranty-feed-token' },

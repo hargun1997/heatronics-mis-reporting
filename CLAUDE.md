@@ -67,10 +67,21 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     before pickup (status 8 / 16) = no charge. Facts = the passbook parser's (day × channel from the Channel Order Id suffix,
     `fees`). Not in it: weight-dispute debits, refunds / credits, adhoc wallet lines; whether the API amounts include the 18 % GST
     the passbook debits carry is UNVERIFIED. Note: the passbook parser counts debits only (refund credits are skipped as money in).
-  - Easebuzz · Settlement / MDR → `POST https://dashboard.easebuzz.in/payout/v1/retrieve` (form: merchant_key, merchant_email,
-    payout_date DD-MM-YYYY, hash = SHA-512 `key|email|date|salt`), one call per day. Optional shared secrets
-    `easebuzz-merchant-key`, `easebuzz-salt`, `easebuzz-merchant-email`; missing = "Not connected — add key + salt". Endpoint, hash
-    order and answer field names UNVERIFIED (mapper reads several key names).
+  - Easebuzz · Settlement / MDR → settlements API from Easebuzz's own PHP kit (easebuzz/paywitheasebuzz-php-lib `payout.php`):
+    `POST https://dashboard.easebuzz.in/settlements/v1/retrieve`, JSON `{merchant_key, hash, payout_date: {start_date, end_date}
+    (DD-MM-YYYY), merchant_email?}`, hash = SHA-512 `key|start_date|end_date|salt` (email not hashed), ONE call per month. Shared
+    secrets `easebuzz-merchant-key`, `easebuzz-salt` (+ optional `easebuzz-merchant-email`); missing = "Not connected". Answer
+    field names UNVERIFIED (mapper reads several key names).
+  - Tranzact · BOM pricing → `api` from the Production portal: `GET https://production.heatronics.in/api/costs?month=` (machine
+    endpoint; Bearer = optional shared secret `production-costs-token`; `sources/production.ts`, guard GET /api/costs only; a month
+    without costs falls back to Production's newest, warned). `map/costs.ts productionBomCosts`: FG-… items → `bomCosts` rows
+    (`fgId`, `bomNumber`, `bomName`, `costPerUnit` = `material` = the BOM at its parts' latest purchase invoices, ex-GST; conversion
+    NOT added — Tally holds overheads). The pull returns `bomCosts` (SlotPull), staged like `runBomChecks`. Differs from the upload:
+    invoice prices instead of Tranzact default prices.
+  - Amazon · Business Report → `api`: ONE SP-API `createReport` GET_SALES_AND_TRAFFIC_REPORT (dateGranularity MONTH,
+    asinGranularity CHILD, the month in IST) per month asked; report id held 2 h in memory so a re-pull reuses it; polled every
+    15 s; document gunzipped. `assertSpapiPostAllowed`: createReport is the ONLY SP-API POST the MIS makes (test). Rows
+    (`map/costs.ts salesTrafficRows`, header the `amazonbiz` reader knows) go through the client's Business Report reader.
   - Delhivery · Wallet report → `api`, COMPUTED freight (Delhivery has no wallet / ledger API): "Computed freight (Delhivery
     tracking + charge calculator), not the wallet ledger — compare with the wallet once". `sources/delhivery.ts`
     `computedFreight`: (1) the month's Delhivery AWBs from the Warranty Manager `GET https://warranty.heatronics.in/api/feeds/
@@ -99,11 +110,10 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     month, Document Date written ISO (day-first for DD-MM-YYYY), then the client's `parseTranzactSales`. Empty sheet = "No data in
     the sheet yet" (fail check, upload fallback). Product Price & Inventory / Purchase Invoice Register ids are in `TRANZACT_SHEETS`
     (not read yet).
-- **Claude task:** Tranzact · BOM pricing — "Tranzact monthly BOM + template import" (18th, Production portal); MIS has no
-  cross-portal read yet, so upload it here.
+- **Claude task (indirect):** the BOM costs Production serves come from the "Tranzact monthly BOM + template import" task (18th).
 - **Manual uploads (reason shown on the slot):** Tally P&L (Tally on cloud doesn't expose its XML port yet — ask Thakur Hardsoft to
   open port 9000), Tally trial balance (optional screenshot), Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
-  ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month),
-  Amazon Business Report (optional; only a createReport), Shopify variant sales (fallback only —
+  ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
+  billing data), Shopify variant sales (fallback only —
   Shopify is live).
 - Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).

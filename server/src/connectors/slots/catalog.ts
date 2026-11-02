@@ -7,7 +7,8 @@
 // Manager credentials, sharedSecrets.ts) — never on another portal's database.
 // ----------------------------------------------------------------------------
 
-import { spapiGet } from '../sources/amazon.js';
+import { downloadReportDocument, spapiCreateReport, spapiGet } from '../sources/amazon.js';
+import { productionCosts } from '../sources/production.js';
 import { pullAdvertisedProduct } from '../sources/amazonAds.js';
 import { payoutsForMonth } from '../sources/easebuzz.js';
 import { searchStream } from '../sources/googleAds.js';
@@ -19,6 +20,7 @@ import { amazonAdsProductFacts, googleCampaignFacts, googleProductFacts, metaPro
 import { financesToFacts, type FinWindow } from './map/amazonFinances.js';
 import { addDays, monthDays, rangeEnd } from './map/common.js';
 import { easebuzzPayoutFacts, tranzactSheetForMonth } from './map/feeds.js';
+import { productionBomCosts, salesTrafficRows } from './map/costs.js';
 import type { FeedTask, PullContext, SlotPull, SlotSourceDef } from './types.js';
 
 // ---- Amazon SP-API Finances (0.5 rps, burst 30 — Amazon's published usage plan) --------
@@ -123,7 +125,7 @@ async function shiprocketPassbook(ctx: PullContext): Promise<SlotPull> {
 async function easebuzzSettlements(ctx: PullContext): Promise<SlotPull> {
   const { payouts, days } = await payoutsForMonth(ctx.creds, ctx.periodKey, ctx.deadline);
   const out = easebuzzPayoutFacts(payouts, ctx.periodKey);
-  out.trace.unshift(`Easebuzz payout enquiry (read only), one call per day × ${days} day(s), ${payouts.length} payout(s)`);
+  out.trace.unshift(`Easebuzz settlements enquiry (read only), one call for ${days} day(s), ${payouts.length} settlement(s)`);
   return out;
 }
 
@@ -138,6 +140,54 @@ async function delhiveryFreight(ctx: PullContext): Promise<SlotPull> {
   return computedFreight(ctx.creds, ctx.periodKey, ctx.deadline);
 }
 
+// ---- Production portal: finished-good unit costs (BOM pricing slot) ----------------
+
+async function productionBom(ctx: PullContext): Promise<SlotPull> {
+  const got = await productionCosts(ctx.creds, ctx.periodKey);
+  const out = productionBomCosts(got.products, got.month, ctx.periodKey);
+  out.trace.unshift('Read production.heatronics.in /api/costs (read only)');
+  return out;
+}
+
+// ---- Amazon Sales & Traffic report (Business Report slot) ---------------------------
+// ONE createReport per month asked (GET_SALES_AND_TRAFFIC_REPORT, child ASIN, whole month). The report id
+// is kept per month for 2 h, so a pull that runs out of time picks the same report up next time instead
+// of requesting another. Amazon's createReport limit is shared with Ops; one call a month is negligible.
+
+const bizReports = new Map<string, { id: string; at: number }>();
+
+async function amazonBusinessReport(ctx: PullContext): Promise<SlotPull> {
+  const { first } = monthDays(ctx.periodKey);
+  const end = rangeEnd(ctx.periodKey);
+  const key = `${ctx.periodKey}|${end}`;
+  let held = bizReports.get(key);
+  if (!held || Date.now() - held.at > 2 * 3_600_000) {
+    const id = await spapiCreateReport(ctx.creds, {
+      reportType: 'GET_SALES_AND_TRAFFIC_REPORT',
+      dataStartTime: `${first}T00:00:00+05:30`,
+      dataEndTime: `${end}T23:59:59+05:30`,
+      reportOptions: { dateGranularity: 'MONTH', asinGranularity: 'CHILD' },
+    });
+    held = { id, at: Date.now() };
+    bizReports.set(key, held);
+  }
+  for (;;) {
+    const r = (await spapiGet(ctx.creds, `/reports/2021-06-30/reports/${encodeURIComponent(held.id)}`, 3)) as { processingStatus?: string; reportDocumentId?: string };
+    if (r.processingStatus === 'DONE' && r.reportDocumentId) {
+      const doc = (await spapiGet(ctx.creds, `/reports/2021-06-30/documents/${encodeURIComponent(r.reportDocumentId)}`, 3)) as { url?: string; compressionAlgorithm?: string };
+      const out = salesTrafficRows(JSON.parse(await downloadReportDocument(doc)), ctx.periodKey);
+      out.trace.unshift(`Amazon SP-API Sales & Traffic report ${held.id} (${first} → ${end}, by child ASIN)`);
+      return out;
+    }
+    if (r.processingStatus === 'CANCELLED' || r.processingStatus === 'FATAL') {
+      bizReports.delete(key);
+      throw new Error(`Amazon ${r.processingStatus === 'CANCELLED' ? 'cancelled' : 'could not build'} the Sales & Traffic report — Pull again later.`);
+    }
+    if (Date.now() + 20_000 > ctx.deadline) throw new Error('Amazon is still preparing the Sales & Traffic report — Pull again in a few minutes (the same report is reused).');
+    await new Promise((res) => setTimeout(res, 15_000));
+  }
+}
+
 // ---- The catalog ----------------------------------------------------------------
 
 export const SLOT_SOURCES: SlotSourceDef[] = [
@@ -145,9 +195,10 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
   { connectorId: 'tally', slotId: 'pnl', source: 'upload', via: 'Manual upload',
     line: "Tally on cloud doesn't expose its XML port yet — ask Thakur Hardsoft to open port 9000 to us." },
   { connectorId: 'tally', slotId: 'trial-balance', source: 'upload', via: 'Manual upload', line: 'Optional screenshot, read by Claude.' },
-  { connectorId: 'tranzact', slotId: 'bom', source: 'claude_task', via: 'Claude task',
-    claudeTask: 'Tranzact monthly BOM + template import',
-    line: 'Tranzact monthly import task, 18th (Production portal). Tranzact only emails the All BOMs export, so upload it here until the MIS reads it from Production.' },
+  { connectorId: 'tranzact', slotId: 'bom', source: 'api', via: 'Production portal',
+    needs: [], credsFrom: 'production',
+    line: "Unit cost per finished good from production.heatronics.in (each BOM at its parts' latest purchase invoices, ex-GST). Production reads the Tranzact BOMs from the monthly Claude task (18th) and the daily Tranzact sheets.",
+    pull: productionBom },
   { connectorId: 'tranzact', slotId: 'sales', source: 'sheet', via: 'Tranzact daily sheet', parserId: 'tranzact', needs: [],
     line: 'From the Tranzact daily Google Sheet "Sales Invoice Register (Item-wise)" (Recurring Report), filtered to the month.',
     pull: tranzactSales },
@@ -157,8 +208,10 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
     needs: ['lwaClientId', 'lwaClientSecret', 'refreshToken'], connectHint: 'Shared secrets spapi-* (app needs the Finance and Accounting role).',
     line: 'Pulled from Amazon SP-API Finances (listFinancialEvents) — the events the Unified Transaction report is built from.',
     pull: amazonFinances },
-  { connectorId: 'amazon', slotId: 'business-report', source: 'upload', via: 'Manual upload',
-    line: 'Optional. Traffic by child item is only an SP-API createReport (Sales & Traffic), which the MIS does not run.' },
+  { connectorId: 'amazon', slotId: 'business-report', source: 'api', via: 'Amazon SP-API Reports',
+    parserId: 'amazonbiz', needs: ['lwaClientId', 'lwaClientSecret', 'refreshToken'], connectHint: 'Shared secrets spapi-* (app needs the Brand Analytics or Selling Partner Insights role).',
+    line: 'Pulled from Amazon SP-API Sales & Traffic report (by child ASIN, whole month) — the data behind the Business Report.',
+    pull: amazonBusinessReport },
   { connectorId: 'flipkart', slotId: 'settlement', source: 'upload', via: 'Manual upload',
     line: "Flipkart API approval pending; its API has no fees / settlement data." },
   { connectorId: 'flipkartads', slotId: 'ad-spend', source: 'upload', via: 'Manual upload',
@@ -200,8 +253,8 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
 
   // Payments & checkout
   { connectorId: 'easebuzz', slotId: 'settlement', source: 'api', via: 'Easebuzz payout API',
-    needs: ['merchantKey', 'salt'], connectHint: 'Not connected — add key + salt (shared secrets easebuzz-merchant-key, easebuzz-salt, easebuzz-merchant-email).',
-    line: 'Pulled from the Easebuzz payout (settlement) API, one enquiry per day of the month.',
+    needs: ['merchantKey', 'salt'], connectHint: 'Not connected — create the shared secrets easebuzz-merchant-key + easebuzz-salt (Easebuzz dashboard → Settings → API keys), or paste them on the Connectors page.',
+    line: 'Pulled from the Easebuzz settlements API (one enquiry for the month): service charge + GST + express fees.',
     pull: easebuzzSettlements },
   { connectorId: 'shopflo', slotId: 'invoice', source: 'upload', via: 'Manual upload', line: 'One PDF a month (or a billing-history screenshot), read by Claude.' },
   { connectorId: 'snapmint', slotId: 'settlement', source: 'upload', via: 'Manual upload', line: 'No API or scheduled export; the report arrives by email.' },
@@ -216,7 +269,7 @@ export const FEED_TASKS: FeedTask[] = [
   { name: 'Shopflo daily feed', kind: 'claude_task', when: 'Daily, ~11:00 IST',
     what: 'Reads Shopflo checkout analytics with the Shopflo connector (read only) and writes the feed files.', feeds: 'Ops (ops.heatronics.in → D2C → Checkout)' },
   { name: 'Tranzact monthly BOM + template import', kind: 'claude_task', when: 'Monthly, 18th, 10:19 IST',
-    what: "Requests the All BOMs + Product Edit template exports in Tranzact and posts the emailed download links.", feeds: 'Production (production.heatronics.in → Monthly cleanup). MIS BOM pricing: upload until it reads from there.' },
+    what: "Requests the All BOMs + Product Edit template exports in Tranzact and posts the emailed download links.", feeds: 'Production (production.heatronics.in → Monthly cleanup) → MIS BOM pricing (read from Production).' },
   { name: 'Tranzact daily Google Sheets', kind: 'tranzact_recurring', when: 'Daily (Tranzact Recurring Reports)',
     what: 'Sales Invoice Register, Product Price & Inventory and Purchase Invoice Register written to the "Tranzact feed" Drive folder.', feeds: 'MIS (Tranzact Sales Invoice Register slot), Production, Ops' },
 ];
