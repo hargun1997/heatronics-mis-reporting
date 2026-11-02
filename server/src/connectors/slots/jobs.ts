@@ -31,14 +31,21 @@ export async function runPull(def: SlotSourceDef, creds: Credentials, periodKey:
   if (!def.pull) throw new Error('This slot has no automatic pull.');
   const k = key(def, periodKey);
   let job = jobs.get(k);
-  const fresh = job && (job.state.status === 'running'
+  // A job past its budget (+1 min) is treated as dead: a hung request must never block the slot.
+  const stuck = job?.state.status === 'running' && Date.now() - Date.parse(job.state.startedAt) > JOB_BUDGET_MS + 60_000;
+  const fresh = job && !stuck && (job.state.status === 'running'
     || (job.state.status === 'done' && Date.now() - Date.parse(job.state.pulledAt) < REUSE_MS && !opts.force));
   if (!job || !fresh) {
     const startedAt = new Date().toISOString();
     const j: Job = { state: { status: 'running', startedAt }, promise: Promise.resolve() };
-    j.promise = def.pull({ creds, periodKey, deadline: Date.now() + JOB_BUDGET_MS })
-      .then((result) => { j.state = { status: 'done', startedAt, pulledAt: new Date().toISOString(), result }; })
-      .catch((err: unknown) => { j.state = { status: 'failed', startedAt, failedAt: new Date().toISOString(), error: err instanceof Error ? err.message : String(err) }; });
+    // Hard stop at budget + 30 s even if the source ignores its deadline (e.g. a request that never answers).
+    const watchdog = new Promise<never>((_, reject) => {
+      const t = setTimeout(() => reject(new Error('The pull took too long and was stopped — Pull again (or upload the file).')), JOB_BUDGET_MS + 30_000);
+      (t as unknown as { unref?: () => void }).unref?.();
+    });
+    j.promise = Promise.race([def.pull({ creds, periodKey, deadline: Date.now() + JOB_BUDGET_MS }), watchdog])
+      .then((result) => { if (j.state.status !== 'running') return; j.state = { status: 'done', startedAt, pulledAt: new Date().toISOString(), result }; })
+      .catch((err: unknown) => { if (j.state.status !== 'running') return; j.state = { status: 'failed', startedAt, failedAt: new Date().toISOString(), error: err instanceof Error ? err.message : String(err) }; });
     jobs.set(k, j);
     job = j;
   }
