@@ -266,10 +266,10 @@ export function slotSource(connectorId: string, slotId: string): SlotSourceDef |
 
 /** Scheduled jobs that feed data into the Heatronics portals (shown on the Connectors page). */
 export const FEED_TASKS: FeedTask[] = [
-  { name: 'Shopflo daily feed', kind: 'claude_task', when: 'Daily, ~11:00 IST',
+  { name: 'Portal feeds: cloud', kind: 'claude_task', when: 'Daily, ~11:00 IST',
     what: 'Reads Shopflo checkout analytics with the Shopflo connector (read only) and writes the feed files.', feeds: 'Ops (ops.heatronics.in → D2C → Checkout)' },
-  { name: 'Tranzact monthly BOM + template import', kind: 'claude_task', when: 'Monthly, 18th, 10:19 IST',
-    what: "Requests the All BOMs + Product Edit template exports in Tranzact and posts the emailed download links.", feeds: 'Production (production.heatronics.in → Monthly cleanup) → MIS BOM pricing (read from Production).' },
+  { name: 'Portal feeds: Mac Chrome', kind: 'claude_task', when: 'Daily, ~10:15 IST (Tranzact part on the 18th)',
+    what: "In Hargun's Mac Chrome: daily Amazon LIS lists into Ops; on the 18th requests the All BOMs + Product Edit template exports in Tranzact and posts the emailed download links to Production.", feeds: 'Production (production.heatronics.in → Monthly cleanup) → MIS BOM pricing (read from Production).' },
   { name: 'Tranzact daily Google Sheets', kind: 'tranzact_recurring', when: 'Daily (Tranzact Recurring Reports)',
     what: 'Sales Invoice Register, Product Price & Inventory and Purchase Invoice Register written to the "Tranzact feed" Drive folder.', feeds: 'MIS (Tranzact Sales Invoice Register slot), Production, Ops' },
 ];
