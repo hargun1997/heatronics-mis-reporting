@@ -34,26 +34,28 @@ test('home is Live MIS; sub-routes and old addresses find their page', () => {
   assert.equal(whereIs('/tasks/settings')?.page.id, 'people');
   assert.equal(whereIs('/tools')?.page.id, 'tools');
   assert.equal(whereIs('/tools/round-planner')?.page.id, 'rounds');
-  assert.equal(whereIs('/tools/invoice-booking')?.page.id, 'tools');
+  assert.equal(whereIs('/tools/invoice-booking')?.page.id, 'booking');
+  assert.equal(whereIs('/tools/amazon-to-tranzact')?.page.id, 'tools');
   assert.equal(whereIs('/handbook/c4')?.page.id, 'handbook');
   assert.equal(whereIs('/nowhere'), null);
 });
 
 test('breadcrumbs: Section › Page', () => {
-  assert.deepEqual(breadcrumbsFor('/reporting/mis/issues'), [{ label: 'Reporting', href: '/reporting/mis/live' }, { label: 'Data issues', href: undefined }]);
+  assert.deepEqual(breadcrumbsFor('/reporting/mis/send'), [{ label: 'Reporting', href: '/reporting/mis/live' }, { label: 'Send report', href: undefined }]);
   assert.deepEqual(breadcrumbsFor('/planning'), [{ label: 'Planning', href: undefined }, { label: '5-year plan', href: undefined }]);
 });
 
-test('old pages stay out of the sidebar but are in the palette', () => {
-  assert.ok(!sidebarSections().some((s) => s.id === 'old'));
+test('"More" pages (tasks, old pages …) stay out of the sidebar but are in the palette', () => {
+  assert.ok(!sidebarSections().some((s) => s.id === 'more'));
+  assert.ok(paletteIndex().some((i) => i.id === 'tasks'));
   const idx = paletteIndex();
   assert.ok(idx.some((i) => i.id === 'deck'));
   assert.equal(searchPalette(idx, 'connectors')[0]?.id, 'sources');
   assert.equal(searchPalette(idx, 'plan')[0]?.id, 'plan');
 });
 
-test('sidebar stays small: ≤ 5 sections, ≤ 6 pages each', () => {
+test('sidebar stays small: ≤ 4 sections, ≤ 12 pages in all', () => {
   const s = sidebarSections();
-  assert.ok(s.length <= 5);
-  for (const x of s) assert.ok(x.pages.length <= 6, x.label);
+  assert.ok(s.length <= 4);
+  assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 12);
 });

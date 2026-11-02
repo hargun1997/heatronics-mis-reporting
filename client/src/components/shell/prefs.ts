@@ -56,7 +56,8 @@ export function pushRecent(s: Saved) {
 }
 
 export type Theme = 'system' | 'light' | 'dark';
-function readTheme(): Theme { const t = store.get(K.theme); return t === 'light' || t === 'dark' ? t : 'system'; }
+// Light unless someone picks Dark (or System) with the theme button.
+function readTheme(): Theme { const t = store.get(K.theme); return t === 'dark' || t === 'system' ? t : 'light'; }
 /** Applied before React renders (main.tsx) so there is no flash. */
 export function applyStoredTheme() {
   const t = readTheme();
@@ -75,6 +76,6 @@ export function useTheme() {
     window.addEventListener(EVT, r);
     return () => window.removeEventListener(EVT, r);
   }, []);
-  const next = useCallback(() => apply(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system'), [apply, theme]);
+  const next = useCallback(() => apply(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'), [apply, theme]);
   return { theme, next, set: apply };
 }

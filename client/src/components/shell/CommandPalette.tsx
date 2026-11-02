@@ -44,13 +44,13 @@ function Palette({ close }: { close: () => void }) {
     const here = whereIs(path);
     const commands: Row[] = [
       ...(here ? [{ id: 'cmd-pin', label: isPinned(path) ? `Unpin “${here.page.label}”` : `Pin “${here.page.label}” to the sidebar`, group: 'Commands', icon: 'cmd' as const, run: () => { toggle({ href: path, label: here.page.label, context: here.section.label }); close(); } }] : []),
-      { id: 'cmd-theme', label: 'Switch theme (system → light → dark)', group: 'Commands', icon: 'cmd', run: () => { nextTheme(); close(); } },
+      { id: 'cmd-theme', label: 'Switch theme (light → dark → system)', group: 'Commands', icon: 'cmd', run: () => { nextTheme(); close(); } },
       { id: 'cmd-rail', label: 'Collapse or expand the sidebar', group: 'Commands', icon: 'cmd', run: () => { window.dispatchEvent(new Event('mis:rail')); close(); } },
     ];
     if (!q.trim()) {
       for (const p of pins) out.push({ id: `pin:${p.href}`, label: p.label, hint: p.context || undefined, group: 'Pinned', icon: 'pin', run: (nt) => go(p.href, nt) });
       for (const r of recents.filter((r) => r.href !== path && !pins.some((p) => p.href === r.href)).slice(0, 5)) out.push({ id: `recent:${r.href}`, label: r.label, hint: r.context || undefined, group: 'Recent', icon: 'recent', run: (nt) => go(r.href, nt) });
-      for (const it of INDEX.filter((i) => i.section !== 'Old pages').slice(0, 8)) out.push({ id: it.id, label: it.label, hint: it.hint, group: 'Go to', icon: 'page', run: (nt) => go(it.href, nt) });
+      for (const it of INDEX.filter((i) => i.section !== 'More').slice(0, 8)) out.push({ id: it.id, label: it.label, hint: it.hint, group: 'Go to', icon: 'page', run: (nt) => go(it.href, nt) });
       out.push(...commands);
       return out;
     }

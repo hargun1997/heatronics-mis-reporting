@@ -32,8 +32,9 @@ All colour is CSS variables in `client/src/index.css` (copied from Ops' `app/glo
 | `nav-*` | `--nav-*` | sidebar only (dark in both themes) |
 | `scrim` | fixed | modal / drawer backdrop (`bg-scrim/50`) — never `bg-slate-900/x`, which flips light in dark mode |
 
-- **Dark theme:** follows `prefers-color-scheme`; the sidebar theme button cycles System → Light → Dark
-  (`localStorage mis.theme`, applied before React renders in `main.tsx`). Scales mirror (50 ↔ 950).
+- **Theme:** Light by default (founder, 2 Nov 2026: not dark-only). The sidebar theme button cycles Light → Dark → System
+  (`localStorage mis.theme`, applied before React renders in `main.tsx`). Dark scales mirror (50 ↔ 950). The sidebar is navy
+  in both themes, as in Ops.
 - Channel colours (`channel-*`) stay fixed hex: they are categorical data, identical in both themes.
 - Status always pairs colour with a label, icon or ▲/▼.
 
@@ -54,14 +55,16 @@ All colour is CSS variables in `client/src/index.css` (copied from Ops' `app/glo
   menu in a component. `server/test/nav.test.ts` fails when a page route is missing from the menu or a menu page has no
   route.
 - **Sidebar** (`components/shell/AppNav.tsx`, port of Ops' AppNav): dark, 248px, collapsible to a 64px icon rail
-  (remembered). **Two levels only — section → page**: Reporting · Accounts · Planning, and Admin at the bottom (Data
-  sources, Data rulebook, People & reminders) with the Claude status pill, Compact and Theme. "Search or jump to… ⌘K"
+  (remembered). **Two levels only — section → page, kept small (≤ 12 pages, test)**: Reporting (Live MIS, Month-end close,
+  AI insights, Send report) · Accounts (Book an invoice, Tally health, Accounts Handbook) · Planning (5-year plan, Round
+  planner, Amazon price floors), and Admin at the bottom (Data sources, Data rulebook) with the Claude status pill,
+  Compact and Theme. Everything else (Data issues, Tools, Tasks, People & reminders, old pages) is in ⌘K under "More". "Search or jump to… ⌘K"
   at the top, **Pinned** pages under it (pin from any page title). Active page: `nav-active` fill + 3px indigo bar.
   Keyboard: ↑ ↓ Home End.
 - **Phones / tablets (< 1024 px):** light top bar (Menu, brand, Claude, Search) + the same list in a modal drawer.
   `--app-top` (3.5rem / 0 on desktop) is the height of that bar for sticky page headers.
 - **Home** = Live MIS (`HOME` in nav/config). Old pages (MIS deck, Month close) are out of the sidebar, reachable from
-  ⌘K under "Old pages" until they are deleted.
+  ⌘K under "More" until they are deleted.
 - **Page template** (`components/ui/PageHeader`): breadcrumbs Section › Page (from the menu) · icon tile (accent-50) ·
   title + Pin · optional `status` chip · one-line purpose (≤ 80ch) · actions (one primary). Then the content in
   `max-w-7xl` (wide planners may break out).

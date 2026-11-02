@@ -19,7 +19,7 @@ export function IngestPage() {
   return (
     <>
       <PageHeader
-        title="Upload data"
+        title="Month-end close"
         accent="brand"
         icon={iconLayers}
         description="Pick a source, follow the steps to export its report, then upload — the file is checked, you review what was read, and it's saved and ingested into the MIS. Green dots are up to date; orange need a fresh report."
