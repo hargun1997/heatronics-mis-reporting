@@ -237,7 +237,8 @@ test('Easebuzz payouts ≡ Settlement History upload; hash input order', () => {
   const api = easebuzzPayoutFacts([
     { payout_id: 'P1', payout_actual_date: '2026-10-02 10:00:00', service_charge: '120.00', service_tax: '21.60', settlement_amount: '9858.40' },
     { payout_id: 'P2', payout_actual_date: '2026-10-02 18:00:00', service_charge: 30, service_tax: 5.4, express_service_charge: 10, express_service_tax: 1.8 },
-    { payout_id: 'P3', payout_actual_date: '05-10-2026', service_charge: 50, service_tax: 9 },
+    // Field names of the live settlements answer (2 Nov 2026).
+    { payout_id: 'P3', payout_actual_date: '05-10-2026', service_charge_amount: 50, service_tax_amount: 9, express_service_charge_amount: 0, express_service_tax_amount: 0 },
   ], '2026-10');
   const file = parse('easebuzz', { Sheet1: [
     ['Settlement Id', 'Settlement Date', 'Total Amount', 'Service Charge', 'GST', 'Express Service Charge', 'Express Service Tax'],
