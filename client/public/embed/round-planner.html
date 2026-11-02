@@ -197,7 +197,7 @@ details.blk:last-child:not([open]){padding-bottom:14px}
       <details class="blk eq" data-k="b_eq" open><summary class="bh">Primary — cash in<span class="bv" id="bv_eq"></span></summary><div class="ctls" id="s2"></div>
         <div class="sub2">Who puts in the equity raise · lead takes the rest</div><div class="inv fx"><span class="nm">Aneesha</span><span class="rest" id="aneAmt"></span><span></span></div><div id="invs"></div><button type="button" class="add" id="addInv">+ Add investor</button>
         <div class="inv sum"><span class="nm">Total</span><span class="rest" id="invTot"></span><span></span></div>
-        <p class="note2" id="priceNote"></p></details>
+        <div class="mode" style="border:0;padding:2px 0 0"><span style="font-size:13px;color:var(--muted)">Cap applies to</span><span class="seg" id="dbSeg" role="group" aria-label="Cap applies to"><button type="button" data-b="fdr" aria-pressed="true">Founders</button><button type="button" data-b="h" aria-pressed="false">Hargun</button><button type="button" data-b="all" aria-pressed="false">All new shares</button></span></div><p class="note2" id="priceNote"></p></details>
       <details class="blk cn" data-k="b_cn" open><summary class="bh">Angel notes convert<span class="bv" id="bv_cn"></span></summary><div class="rows" id="cnRows"></div><p class="note2" id="cnNote"></p></details>
       <details class="blk sf" data-k="b_sf"><summary class="bh">Secondary — founders sell<span class="bv" id="bv_sf"></span></summary><div class="ctls" id="s2f"></div><p class="note2">Jagjit first (to his floor), then Hargun · bought by the lead at the round price.</p></details>
       <details class="blk sc" data-k="b_sc"><summary class="bh">Secondary — angels &amp; VCs sell<span class="bv" id="bv_sc"></span></summary><div class="ctls" id="s2s"></div><p class="note2">Angels and Pre-Seed, pro rata · bought by the lead at the round price.</p></details>
@@ -233,7 +233,8 @@ const C={
      {id:'px',label:'Price she pays per share',min:10,max:30000,step:10,v:10,unit:'₹'}],
  s2:[{id:'pre1',label:'Pre-money valuation',min:10,max:150,step:0.5,v:50,unit:'₹ Cr'},
      {id:'R1',label:'Total equity raise',min:1,max:20,step:0.25,v:8,unit:'₹ Cr'},
-     {id:'cap',label:"Aneesha's primary",min:0,max:3,step:0.05,v:1,unit:'₹ Cr'}],
+     {id:'cap',label:"Aneesha's primary",min:0,max:3,step:0.05,v:1,unit:'₹ Cr'},
+     {id:'dcap',label:'Cap round dilution at',min:0,max:50,step:0.5,v:0,unit:'%'}],
  s2e:[{id:'esopPost',label:'ESOP pool after the round',min:0,max:30,step:0.5,v:5,unit:'%'}],
  s2f:[{id:'fsec',label:'Founder secondary',min:0,max:5,step:0.1,v:0,unit:'₹ Cr'}],
  s2s:[{id:'sec',label:'Angel/VC secondary',min:0,max:5,step:0.1,v:1,unit:'₹ Cr'}],
@@ -244,7 +245,7 @@ const C={
      {id:'R2',label:'Total equity raise',min:0,max:50,step:0.5,v:22,unit:'₹ Cr'}]};
 const ALL=[].concat(...Object.values(C));
 const INV0=[{n:'Hyperscale (lead)'},{n:'Atrium',a:1}];
-let CMPU='pct', CMPST='hs', INV=INV0.map(x=>({...x})), VIEW='pct', MODE='join', TOUCHED=false, SAVED=null;
+let DBASIS='fdr', CMPU='pct', CMPST='hs', INV=INV0.map(x=>({...x})), VIEW='pct', MODE='join', TOUCHED=false, SAVED=null;
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ctl=c=>`<div class="ctl" id="row_${c.id}"><label for="n_${c.id}">${c.label}</label><span class="in"><input type="number" id="n_${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.v}"><span class="u">${c.unit}</span></span></div>`;
 for(const k in C) document.getElementById(k).innerHTML=C[k].map(ctl).join('');
@@ -261,13 +262,14 @@ document.getElementById('invs').addEventListener('click',e=>{const r=e.target.da
 document.getElementById('addInv').onclick=()=>{INV.push({n:'Investor '+(INV.length+1),a:0.5});drawInv();render()};
 // ---- defaults: built-in values, or the set saved on the MIS server (shared by everyone who opens the planner) ----
 const FACTORY={v:1,mode:'join',inputs:{...Object.fromEntries(ALL.map(c=>[c.id,c.v])),msop:0},inv:INV0.map(x=>({...x})),cmp:[23,30,40,50]};
-const state=()=>({v:1,mode:MODE,inputs:{...Object.fromEntries(ALL.map(c=>[c.id,V(c.id)])),msop:document.getElementById('msop').checked?1:0},inv:INV.map((x,i)=>i?{n:x.n,a:x.a||0}:{n:x.n}),cmp:cmpVals()});
+const state=()=>({v:1,mode:MODE,inputs:{...Object.fromEntries(ALL.map(c=>[c.id,V(c.id)])),msop:document.getElementById('msop').checked?1:0,dbasis:DBASIS==='all'?1:DBASIS==='h'?2:0},inv:INV.map((x,i)=>i?{n:x.n,a:x.a||0}:{n:x.n}),cmp:cmpVals()});
 function setMode(m){MODE=m==='post'?'post':'join';document.querySelectorAll('#modeSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===MODE));
   document.getElementById('row_stk').style.display=MODE==='join'?'':'none';document.getElementById('row_stkPost').style.display=MODE==='post'?'':'none'}
 function apply(s){if(!s||typeof s!=='object')return;const inp=s.inputs||{};
   document.getElementById('cmpVals').value=(Array.isArray(s.cmp)&&s.cmp.length?s.cmp:FACTORY.cmp).join(', ');
   ALL.forEach(c=>{const x=Number(inp[c.id]);document.getElementById('n_'+c.id).value=isFinite(x)&&inp[c.id]!==null&&inp[c.id]!==''?x:c.v});
   document.getElementById('msop').checked=Number(inp.msop)===1;
+  setBasis(Number(inp.dbasis)===1?'all':Number(inp.dbasis)===2?'h':'fdr');
   setMode(s.mode);
   INV=Array.isArray(s.inv)&&s.inv.length?s.inv.slice(0,6).map((x,i)=>i?{n:String(x.n||'Investor '+(i+1)).slice(0,60),a:Math.max(0,Number(x.a)||0)}:{n:String(x.n||'Lead').slice(0,60)}):INV0.map(x=>({...x}));
   drawInv();render()}
@@ -285,6 +287,8 @@ document.getElementById('modeSeg').addEventListener('click',e=>{const m=e.target
   const M=model();if(m==='post'&&MODE!=='post')document.getElementById('n_stkPost').value=(Math.round(M.aPost*2000)/20).toFixed(1).replace(/\.0$/,'');
   if(m==='join'&&MODE!=='join')document.getElementById('n_stk').value=(Math.round(M.A/M.T0*2000)/20).toFixed(1).replace(/\.0$/,'');
   TOUCHED=true;setMode(m);render()});
+const setBasis=b=>{DBASIS=b==='all'?'all':b==='h'?'h':'fdr';document.querySelectorAll('#dbSeg button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.b===DBASIS))};
+document.getElementById('dbSeg').addEventListener('click',e=>{const b=e.target.dataset&&e.target.dataset.b;if(!b)return;setBasis(b);TOUCHED=true;render()});
 document.getElementById('cmpUnit').addEventListener('click',e=>{const v=e.target.dataset&&e.target.dataset.u;if(!v)return;CMPU=v;document.querySelectorAll('#cmpUnit button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.u===v));renderCmp(model())});
 document.getElementById('cmpSeg').addEventListener('click',e=>{const v=e.target.dataset&&e.target.dataset.s;if(!v)return;CMPST=v;document.querySelectorAll('#cmpSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===v));renderCmp(model())});
 document.getElementById('cmpVals').addEventListener('input',()=>{TOUCHED=true;renderCmp(model())});
@@ -295,7 +299,22 @@ const V=id=>{const x=parseFloat(document.getElementById('n_'+id).value);return i
 const fP=x=>(x*100).toFixed(1)+'%', fS=x=>Math.round(x).toLocaleString('en-IN'), ru=n=>'₹'+Math.round(n).toLocaleString('en-IN');
 const fR=n=>{const a=Math.abs(n),g=n<0?'−':'';if(a>=CR*0.9995)return g+'₹'+(a/CR).toFixed(2)+' Cr';if(a>=1e5)return g+'₹'+(a/1e5).toFixed(1)+' L';return g+'₹'+Math.round(a).toLocaleString('en-IN')};
 
+// Dilution cap: if set, the equity raise is cut (largest raise that keeps round dilution at or under
+// the cap). The lead's cheque takes the cut; Aneesha and co-investors stay as entered.
 function model(ov){
+  ov=ov||{};const cap=('dcap' in ov?ov.dcap:V('dcap')), ask=('R1' in ov?ov.R1:V('R1'));
+  if(!(cap>0)){const M=modelRaw(ov);M.capInfo=null;return M}
+  const at=r=>modelRaw({...ov,R1:r});
+  let M=at(ask);
+  const met=m=>DBASIS==='all'?m.dil1:DBASIS==='h'?m.hdil:m.fdil;
+  if(met(M)<=cap/100+1e-9){M.capInfo={ask,cap,cut:false};return M}
+  let lo=0,hi=ask;for(let k=0;k<40;k++){const mid=(lo+hi)/2;if(met(at(mid))<=cap/100+1e-9)lo=mid;else hi=mid}
+  const r=Math.floor(lo*100)/100;M=at(r);
+  // pre-money that would fit the full ask under the cap
+  let plo=('pre1' in ov?ov.pre1:V('pre1')),phi=500;for(let k=0;k<40;k++){const mid=(plo+phi)/2;if(met(modelRaw({...ov,R1:ask,pre1:mid}))<=cap/100+1e-9)phi=mid;else plo=mid}
+  M.capInfo={ask,cap,cut:true,r,needPre:Math.ceil(phi*2)/2};return M;
+}
+function modelRaw(ov){
   const I={};ALL.forEach(c=>I[c.id]=ov&&c.id in ov?ov[c.id]:V(c.id));
   // 2 · Hyperscale Round pricing, with an optional ESOP top-up (X new options) created before the round,
   // so the pool hits its target after the round. The top-up sits in the pre-money, so it lowers the price.
@@ -356,8 +375,19 @@ function model(ov){
   const z=inv.map(()=>0);
   const st={today:{H:BASE.H,J:BASE.J,A:0,E:BASE.ESOP,C:BASE.AR1,P:BASE.PS,W:0,R2:0,inv:z},join:{...join,inv:z},hs,conv,r2};
   const newAll=newR1+W+cnX, dil1=newAll/post1;
+  // Founders' dilution in the round: their combined stake before (after Aneesha joins) vs after.
+  // Aneesha's primary is founder money, so it offsets dilution rather than adding to it.
+  const Fj=join.H+join.J+join.A, Fh=hs.H+hs.J+hs.A, fBefore=Fj/Tm, fAfter=Fh/post1, fdil=1-fAfter/fBefore;
+  const hBefore=join.H/Tm, hAfter=hs.H/post1, hdil=1-hAfter/hBefore;
+  const wf=(()=>{let F=Fj,T=Tm;const steps=[];const step=(l,dF,dT)=>{const a=F/T;F+=dF;T+=dT;steps.push([l,F/T-a])};
+    if(cnX)step('extra note shares',0,cnX);
+    step('new investor shares',0,newInv);
+    if(W)step('warrants',0,W);
+    if(Pj)step("Aneesha's primary",Pj,Pj);
+    if(fsJ+fsH)step('founder secondary',-(fsJ+fsH),0);
+    return steps})();
   const aPost=hs.A/post1, ePost=hs.E/post1, aShort=MODE==='post'&&(short||Math.round(tA*post1)-Pj<0);
-  return {newAll,dil1,I,T0:Tm,Eag,poolCut,cnX,cnp,cnDisc,cnSh,useMsop,Tp,aPost,ePost,tA,tE,aShort,jFloor,A,G,S,Sh,Sj,short,px,paid,pre1,rawP1,p1,R1,prim,Pj,primA,inv,lead,over,newInv,eqIn,fsN,fsJ,fsH,fsCut,pC,secC,secP,secCut,debt,wVal,W,newR1,post1,
+  return {newAll,dil1,fdil,fBefore,fAfter,hdil,hBefore,hAfter,wf,I,T0:Tm,Eag,poolCut,cnX,cnp,cnDisc,cnSh,useMsop,Tp,aPost,ePost,tA,tE,aShort,jFloor,A,G,S,Sh,Sj,short,px,paid,pre1,rawP1,p1,R1,prim,Pj,primA,inv,lead,over,newInv,eqIn,fsN,fsJ,fsH,fsCut,pC,secC,secP,secCut,debt,wVal,W,newR1,post1,
     Vconv,cp,ratio,Pc,secPc,postC,R2,pre2,rawP2,p2,N2,post2,st,tot};
 }
 // what moved, per stage and holder (for hovers)
@@ -399,7 +429,7 @@ function render(){
     ?`${fS(BASE.ESOP)} → ${fS(M.Eag)} options before she joins; dilutes every holder.`
     :`As agreed: ${fS(M.Eag)} options. 0 = no resize.`;
   const dP=Math.ceil(M.p1*(1-CN_DISC)-1e-9);
-  document.getElementById('priceNote').textContent=`Round price ${ru(M.p1)}/sh · ${fS(M.Tp)} pre-money shares.`;
+  document.getElementById('priceNote').textContent=(M.capInfo&&M.capInfo.cut?`Cap ${M.capInfo.cap}% on ${DBASIS==='all'?'all new shares':DBASIS==='h'?"Hargun's stake":"founders' stake"}: raise cut ₹${M.capInfo.ask} Cr → ${fR(M.R1)} (lead takes the cut); the full ₹${M.capInfo.ask} Cr needs ₹${M.capInfo.needPre} Cr+ pre. `:M.capInfo?`Cap ${M.capInfo.cap}% on ${DBASIS==='all'?'all new shares':DBASIS==='h'?"Hargun's stake":"founders' stake"}: the full ₹${M.capInfo.ask} Cr fits (${fP(DBASIS==='all'?M.dil1:DBASIS==='h'?M.hdil:M.fdil)}). `:'')+`Round price ${ru(M.p1)}/sh · ${fS(M.Tp)} pre-money shares.`;
   document.getElementById('cnRows').innerHTML=[
     ['Notes outstanding','₹75L · 3 angels (₹25L each)'],
     ['Cap valuation',`₹18.00 Cr → ${ru(CNP)}/sh`],
@@ -413,6 +443,7 @@ function render(){
   const FMIN=70, f1=(st.hs.H+st.hs.J+st.hs.A)/tot(st.hs), ok=f1>=FMIN/100-1e-9;
   document.getElementById('checks').innerHTML=
    `<span class="pill ${ok?'ok':'bad'}">Founders after Hyperscale Round: ${fP(f1)} ${ok?'✓ meets':'— below'} ${FMIN}%</span>`+
+   (M.capInfo&&M.capInfo.cut?`<span class="pill bad">${DBASIS==='all'?'Round':DBASIS==='h'?"Hargun's":"Founders'"} dilution capped at ${M.capInfo.cap}% → raise ${fR(M.R1)} instead of ₹${M.capInfo.ask} Cr</span>`:'')+
    (M.over?`<span class="pill bad">Aneesha's primary + other investors exceed the equity raise — lead gets nothing</span>`:'')+
    (M.secCut?`<span class="pill bad">Angel/VC secondary is more than they hold — capped</span>`:'')+
    (M.fsCut?`<span class="pill bad">Founder secondary capped by Jagjit's floor and Hargun's holding</span>`:'')+
@@ -489,10 +520,12 @@ function renderCmp(M){
   const grp=t=>`<tr class="grp"><td colspan="${vals.length+1}">${t}</td></tr>`;
   document.getElementById('cmp').innerHTML=`<colgroup><col class="c0">${vals.map(()=>'<col>').join('')}</colgroup><thead><tr><th></th>${vals.map(v=>`<th${cc(v)}>₹${v} Cr pre</th>`).join('')}</tr></thead><tbody>`+
    grp('Hyperscale Round')+
-   row('Equity raise',m=>fR(m.R1))+
+   row(M.capInfo?`Equity raise (dilution ≤ ${M.capInfo.cap}%)`:'Equity raise',m=>m.capInfo&&m.capInfo.cut?{c:'bad',t:`${fR(m.R1)} (of ₹${m.capInfo.ask} Cr)`}:fR(m.R1),M.capInfo?'hl':'')+
    row('Post-money',m=>fR(m.pre1+m.eqIn))+
    row('Price per share',m=>ru(m.p1))+
-   row('Round dilution',m=>fP(m.dil1),'hl')+
+   row("Founders' dilution this round",m=>`${fP(m.fdil)} · ${fP(m.fBefore)} → ${fP(m.fAfter)}`,'hl')+
+   row("Hargun's dilution this round",m=>`${fP(m.hdil)} · ${fP(m.hBefore)} → ${fP(m.hAfter)}`,'hl')+
+   row('Round dilution (all new shares)',m=>fP(m.dil1))+
    row('Series A dilution',m=>fP(m.N2/m.post2))+
    row('Angel notes convert at (valuation)',m=>m.cnDisc?`₹${(m.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr · 30% off`:'₹18.00 Cr · cap','hl')+
    row('Angel notes — shares',m=>`${fS(m.cnSh)} sh at ${ru(m.cnp)}`)+
@@ -517,15 +550,19 @@ function renderSummaries(M){
   const d0=(k,f)=>{const a=f(st.today)/tot(st.today), b=f(h)/T1, dp=(b-a)*100;return Math.abs(dp)<0.05?'no change':`${dp>0?'+':'−'}${Math.abs(dp).toFixed(1)} pts`};
   const tiles=[['Hargun',o=>o.H,1],['Aneesha',o=>o.A,1],['Jagjit',o=>o.J],['Founders total',o=>o.H+o.J+o.A],['ESOP pool',o=>o.E],['New investors',o=>o.inv.reduce((s,x)=>s+x,0)]];
   const dil1=M.dil1, dil2=M.N2/M.post2;
-  const rt=[['Pre-money',fR(M.pre1),`${fS(M.Tp)} sh`,1],['Raise',fR(M.R1),`at ${ru(M.p1)}/sh`],['Post-money',fR(M.pre1+M.eqIn),`${fS(M.post1)} sh`],
-    ['Round dilution',fP(dil1),`${fS(M.newAll)} new sh`,1],['Angels convert at',M.cnDisc?`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr`:'₹18.00 Cr',`${M.cnDisc?'30% off':'cap'} · ${fS(M.cnSh)} sh`],['Series A dilution',fP(dil2),`₹${M.I.R2} Cr at ₹${M.I.pre2} Cr`]];
+  const rt=[['Pre → post',fR(M.pre1),`→ ${fR(M.pre1+M.eqIn)} post`,1],['Raise',fR(M.R1),M.capInfo&&M.capInfo.cut?`capped · ask ₹${M.capInfo.ask} Cr`:`at ${ru(M.p1)}/sh`],
+    ["Founders' dilution",fP(M.fdil),`${fP(M.fBefore)} → ${fP(M.fAfter)}`,1],["Hargun's dilution",fP(M.hdil),`${fP(M.hBefore)} → ${fP(M.hAfter)}`,1],['Round dilution',fP(dil1),`all ${fS(M.newAll)} new sh`],['Angels at',M.cnDisc?`₹${(M.pre1*(1-CN_DISC)/CR).toFixed(2)} Cr`:'₹18.00 Cr',`${M.cnDisc?'30% off':'cap'} · ${fS(M.cnSh)} sh`]];
   document.getElementById('kpis').innerHTML=`<div class="krow">Hyperscale Round</div>`+rt.map(([l,v,sub,key])=>`<div class="kpi rd${key?' key':''}"><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${sub}</div></div>`).join('')+
     `<div class="krow">After the round · change since today</div>`+tiles.map(([l,f,hi])=>`<div class="kpi${hi?' hi':''}"><div class="kl">${l}</div><div class="kv">${t(f(h))}</div><div class="ks">${d0(l,f)}</div></div>`).join('')+
-    (()=>{const F=o=>(o.H+o.J+o.A)/tot(o), H=o=>o.H/tot(o), A=o=>o.A/tot(o);return `<div class="kcap"><span>Today → Seed → Series A</span><span>Founders <b>${fP(F(st.today))} → ${fP(F(h))} → ${fP(F(st.r2))}</b></span><span>Hargun <b>${fP(H(st.today))} → ${fP(H(h))} → ${fP(H(st.r2))}</b></span><span>Aneesha <b>${fP(A(st.join))} → ${fP(A(h))} → ${fP(A(st.r2))}</b></span><span>Founders diluted to Series A <b>${fP(1-(F(st.r2)/F(st.join)))}</b></span></div>`})();
+    (()=>{const F=o=>(o.H+o.J+o.A)/tot(o), H=o=>o.H/tot(o), A=o=>o.A/tot(o), pt=x=>`${x>=0?'+':'−'}${Math.abs(x*100).toFixed(1)}`;
+      const poolD=F(st.join)-F(st.today);
+      const steps=[`Founders today <b>${fP(F(st.today))}</b>`].concat(Math.abs(poolD)>5e-4?[`pool resize <b>${pt(poolD)}</b>`]:[],[`→ <b>${fP(M.fBefore)}</b> before the round`],M.wf.filter(w=>Math.abs(w[1])>5e-4).map(w=>`${w[0]} <b>${pt(w[1])}</b>`),[`→ <b>${fP(M.fAfter)}</b> after the round`,`Series A → <b>${fP(F(st.r2))}</b>`]);
+      return `<div class="kcap"><span>${steps.join(' · ')}</span></div><div class="kcap" style="padding-top:0"><span>Hargun <b>${fP(H(st.today))} → ${fP(H(h))} → ${fP(H(st.r2))}</b></span><span>Aneesha <b>${fP(A(st.join))} → ${fP(A(h))} → ${fP(A(st.r2))}</b></span><span>Dilution this round: founders <b>${fP(M.fdil)}</b> · Hargun <b>${fP(M.hdil)}</b></span><span>To Series A: founders <b>${fP(1-(F(st.r2)/M.fBefore))}</b> · Hargun <b>${fP(1-(H(st.r2)/M.hBefore))}</b> · Series A round <b>${fP(dil2)}</b></span></div>`})();
+
   set('sv1',`pool ${fP(M.ePost)} after round · Aneesha ${MODE==='post'?M.I.stkPost+'% after round':M.I.stk+'% at joining'} · Jagjit floor ${M.I.jkeep}% · ₹${M.I.px}/sh${M.useMsop?' · MSOP on':''}`);
   set('sv2',`${fR(M.R1)} at ${fR(M.pre1)} pre · angel notes → ${fS(M.cnSh)} sh at ${ru(M.cnp)} (${M.cnDisc?'30% off':'cap'}) · secondary ${fR((M.I.fsec+M.I.sec)*CR)} · debt ${fR(M.debt)}`);
   set('sv3',`2026 revenue ₹${M.I.rev} Cr · Series A ${fR(M.R2)} at ${fR(M.pre2)} pre`);
-  set('bv_eq',`${fR(M.R1)} · ${ru(M.p1)}/sh`);
+  set('bv_eq',`${fR(M.R1)}${M.capInfo&&M.capInfo.cut?' (capped)':''} · ${ru(M.p1)}/sh`);
   set('bv_cn',`at ${M.cnDisc?'₹'+(M.pre1*(1-CN_DISC)/CR).toFixed(2)+' Cr':'₹18 Cr cap'} · ${fS(M.cnSh)} sh`);
   set('bv_es',M.poolCut?`${fS(BASE.ESOP)} → ${fS(M.Eag)}`:'as agreed');
   set('bv_sf',M.I.fsec?fR(M.I.fsec*CR):'none');
