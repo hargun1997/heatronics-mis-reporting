@@ -31,7 +31,9 @@ import {
 } from '../monthClose/schema';
 import { computeClose } from '../monthClose/compute';
 import { computeSku } from '../monthClose/skuRollup';
-import { lookupSku, type Platform } from '../monthClose/skuMap';
+import { lookupSku, PRODUCTS, type Platform } from '../monthClose/skuMap';
+import { activeProductMap, bomGaps, unmappedGaps, setProductMap, type Candidate, type ProductGaps } from '../monthClose/productSuggest';
+import { setLedgerRules } from '../monthClose/ledgerRules';
 import { fetchFacts } from '../liveMis/client';
 import { accumulateTags, buildChannelRecon, tagTallyLines, toSalesChannel } from './expenseTagging';
 
@@ -108,6 +110,8 @@ export interface LiveDeckData {
    * under prefer 'live' the published month. Swap with preferLivePartials().
    */
   alternates: Record<string, BuiltMonth>;
+  /** Unmapped products and no-BOM products across the live months shown (review list on Live MIS). */
+  productGaps?: ProductGaps;
 }
 
 // ---- Store payloads (mirror of server ExtractedReport) ---------------------
@@ -232,6 +236,8 @@ export interface BuiltMonth {
   month: MonthlyMIS;
   skuCells: SkuCell[];
   completeness: PeriodCompleteness;
+  /** Unmapped ₹ and no-BOM products of this month, with suggested matches (productSuggest.ts). */
+  gaps?: ProductGaps;
 }
 
 function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: DailyFact[] = []): BuiltMonth {
@@ -291,6 +297,15 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
   // SKU layer always runs (needs skuRows + bomCosts).
   const sku = computeSku(session);
   const cogmReal = sku.hasSkuSources && sku.costBook.count > 0 && sku.totalCogs !== null;
+  // Product gaps for the review list: sales no map knows, and products priced with no BOM (never a silent 100 % margin).
+  const candidates = Object.values(PRODUCTS) as Candidate[];
+  const gaps: ProductGaps = {
+    unmapped: unmappedGaps(sku.unmapped.map((r) => ({ platform: r.platform, key: r.key, name: r.name, revenue: r.revenue, units: r.units, month: periodKey })), candidates),
+    noBom: bomGaps(
+      sku.aggregates.filter((a) => (a.cogs === null || a.costEstimated) && a.deckName !== 'Accessory (excl)')
+        .map((a) => ({ fgId: a.fgId, deckName: a.deckName, revenue: a.revenue, units: a.units, channel: a.channel, month: periodKey })),
+      candidates, new Set(Object.keys(sku.costBook.byFg)), activeProductMap()),
+  };
 
   // Per-SKU ad spend from a marketplace per-product ad report, resolved to
   // FG×channel so SKU contribution can reach a true CM2: Amazon Advertised
@@ -358,6 +373,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       m: periodKey, ch: a.channel, p: a.deckName,
       rev: a.revenue, cogs, oth: a.fees,
       con: r2(a.revenue - cogs - a.fees - ad), u: a.units, ad,
+      ...(a.cogs === null && a.deckName !== 'Accessory (excl)' ? { noCost: true } : a.costEstimated ? { costEst: true } : {}),
     };
   });
 
@@ -482,7 +498,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       tallyLines, channelRecon,
     };
     return {
-      month, skuCells,
+      month, skuCells, gaps,
       completeness: {
         periodKey, hasTally: true, cogmReal: true, level: 'full',
         sources: [...contributors], through,
@@ -536,7 +552,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     opexLines: {},
   };
   return {
-    month, skuCells,
+    month, skuCells, gaps,
     completeness: {
       periodKey, hasTally: false, cogmReal,
       level: cogmReal ? 'contribution' : 'topline',
@@ -671,7 +687,9 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   const skuCells: SkuCell[] = [];
   const completeness: Record<string, PeriodCompleteness> = {};
   const alternates: Record<string, BuiltMonth> = {};
+  const gapList: ProductGaps[] = [];
   const take = (b: BuiltMonth) => {
+    if (b.gaps) gapList.push(b.gaps);
     months.push(b.month);
     skuCells.push(...b.skuCells);
     completeness[b.month.key] = b.completeness;
@@ -705,7 +723,26 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   // Live months the published MIS never had (after its last month).
   for (const b of built.values()) take(b);
 
-  return finishDeck(months, skuCells, completeness, alternates, factsByMonth);
+  return { ...finishDeck(months, skuCells, completeness, alternates, factsByMonth), productGaps: mergeGaps(gapList) };
+}
+
+/** Combine monthly gap lists: unmapped by platform+key, no-BOM by FG (revenue summed). */
+function mergeGaps(list: ProductGaps[]): ProductGaps {
+  const um = new Map<string, ProductGaps['unmapped'][number]>();
+  const nb = new Map<string, ProductGaps['noBom'][number]>();
+  for (const g of list) {
+    for (const u of g.unmapped) {
+      const k = `${u.platform}|${u.key}`; const e = um.get(k);
+      if (!e) um.set(k, { ...u, months: [...u.months] });
+      else { e.revenue = r2(e.revenue + u.revenue); e.units += u.units; e.rows += u.rows; for (const m of u.months) if (!e.months.includes(m)) e.months.push(m); }
+    }
+    for (const b of g.noBom) {
+      const e = nb.get(b.fgId);
+      if (!e) nb.set(b.fgId, { ...b, channels: [...b.channels], months: [...b.months] });
+      else { e.revenue = r2(e.revenue + b.revenue); e.units += b.units; for (const c of b.channels) if (!e.channels.includes(c)) e.channels.push(c); for (const m of b.months) if (!e.months.includes(m)) e.months.push(m); }
+    }
+  }
+  return { unmapped: [...um.values()].sort((a, b) => b.revenue - a.revenue), noBom: [...nb.values()].sort((a, b) => b.revenue - a.revenue) };
 }
 
 /** Sort, compute the contiguous "complete through" floor, and attach traffic. */
@@ -777,7 +814,7 @@ export function swapAlternates(deck: LiveDeckData): LiveDeckData {
     cells.push(...alt.skuCells);
     completeness[k] = alt.completeness;
   }
-  return finishDeck(months, cells, completeness, alternates, null, deck.traffic);
+  return { ...finishDeck(months, cells, completeness, alternates, null, deck.traffic), productGaps: deck.productGaps };
 }
 
 /** "2026-03" → "2026-04", rolling the year at December. */
@@ -831,5 +868,12 @@ async function loadLiveDeckNow(opts: BuildLiveDeckOptions, force: boolean): Prom
   // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck; served from the server's
   // per-month facts cache (stale months refresh in the background). Never fail the whole load on it.
   const liveFacts = await fetchLiveFacts(reports, force).catch(() => [] as DailyFact[]);
+  // Editable ledger rules + founder-confirmed product mappings (stored on the server); defaults when unreadable.
+  const [rules, pmap] = await Promise.all([
+    fetch('/api/tally/ledger-rules').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch('/api/mis/product-map').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ]);
+  setLedgerRules(Array.isArray(rules?.rules) ? rules.rules : null);
+  setProductMap(pmap);
   return buildLiveDeck(reports, liveFacts, opts);
 }

@@ -8,6 +8,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Markdown } from '../../components/ui/Markdown';
 import { cx } from '../../components/shell/cx';
+import { LedgerRulesCard } from './LedgerRulesCard';
 
 type Severity = 'error' | 'warn' | 'info';
 interface Sample { date?: string; type?: string; number?: string; party?: string; ledger?: string; amount?: number; detail: string }
@@ -39,7 +40,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return j as T;
 }
 
-type Tab = 'issues' | 'ask' | 'ledgers' | 'vouchers';
+type Tab = 'issues' | 'ask' | 'ledgers' | 'vouchers' | 'rules';
 
 export function TallyPage() {
   const [tab, setTab] = useState<Tab>('issues');
@@ -87,7 +88,7 @@ export function TallyPage() {
         {status?.warnings?.map((w) => <p key={w} className="text-sm text-amber-800">{w}</p>)}
 
         <SegmentedControl aria-label="View" value={tab} onChange={setTab} options={[
-          { id: 'issues', label: `Issues${health ? ` (${health.issues.length})` : ''}` }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers' }, { id: 'vouchers', label: 'Vouchers' }]} />
+          { id: 'issues', label: `Issues${health ? ` (${health.issues.length})` : ''}` }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers' }, { id: 'vouchers', label: 'Vouchers' }, { id: 'rules', label: 'Ledger rules' }]} />
 
         {tab === 'issues' && (
           <div className="space-y-3">
@@ -108,6 +109,7 @@ export function TallyPage() {
         {tab === 'ask' && <Ask />}
         {tab === 'ledgers' && <Ledgers />}
         {tab === 'vouchers' && <Vouchers months={stored} />}
+        {tab === 'rules' && <LedgerRulesCard />}
       </div>
     </>
   );

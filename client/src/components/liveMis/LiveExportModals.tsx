@@ -9,6 +9,7 @@ import { Modal } from '../ui';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import { aggregatePeriods, monthLabel, type Granularity } from '../../data/misDeck/liveAnalytics';
 import { exportLiveMis, liveSheetCount, LIVE_EXPORT_EVERYTHING, type LiveExportOptions } from '../../utils/liveMisExport';
+import { useStatements } from './useStatements';
 import { downloadLivePdf, type PdfSection } from '../../utils/liveMisPdf';
 
 type SheetKey = Exclude<keyof LiveExportOptions, 'granularities' | 'blendCogm' | 'mergeChannels'>;
@@ -24,6 +25,9 @@ const SHEETS: { key: SheetKey; title: string; desc: string }[] = [
   { key: 'includeMarketing', title: 'Marketing by Platform', desc: 'S&M split by ad platform for live months (Live extra)' },
   { key: 'includeUnits', title: 'Units', desc: 'Units sold per product per month (Live extra)' },
   { key: 'includeSkuCells', title: 'SKU Cells', desc: 'The raw product × channel × month rows behind every SKU view (Live extra)' },
+  { key: 'includeBalanceSheet', title: 'Balance Sheet', desc: 'Month-end Balance Sheet from Tally Trial Balances, last 12 months (Live extra)' },
+  { key: 'includeCashFlow', title: 'Cash Flow', desc: 'Indirect cash flow per month from the Balance Sheets (Live extra)' },
+  { key: 'includeMisSheet', title: 'MIS Sheet', desc: 'The standard MIS Sheet, company P&L in ₹ Lac with the Tally cash rows (Live extra)' },
 ];
 const GRANS: { id: Granularity; label: string }[] = [
   { id: 'month', label: 'Monthly P&L' }, { id: 'quarter', label: 'Quarterly P&L' }, { id: 'year', label: 'FY P&L' },
@@ -37,11 +41,12 @@ export function LiveExcelModal({ deck, open, onClose, blended, merged }: {
   deck: LiveDeckData; open: boolean; onClose: () => void; blended: boolean; merged: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const stmts = useStatements();
   const [o, setO] = useState<LiveExportOptions>(() => ({ ...LIVE_EXPORT_EVERYTHING, blendCogm: blended, mergeChannels: merged }));
   const n = liveSheetCount(o);
   const run = async (opts: LiveExportOptions) => {
     setBusy(true);
-    try { await exportLiveMis(deck, opts); setTimeout(onClose, 300); }
+    try { await exportLiveMis(deck, opts, stmts.built); setTimeout(onClose, 300); }
     catch (e) { console.error('Live MIS export failed', e); alert('Failed to export the Excel file. Please try again.'); }
     finally { setBusy(false); }
   };
@@ -100,6 +105,9 @@ const SECTIONS: { id: PdfSection; title: string; desc: string }[] = [
   { id: 'fyPnl', title: 'FY P&L summaries', desc: 'One page per fiscal year: months + FY total' },
   { id: 'months', title: 'Individual months', desc: 'The P&L for the months you pick (+ their total)' },
   { id: 'channels', title: 'Channel mix', desc: 'Channel share of net revenue per fiscal year' },
+  { id: 'balanceSheet', title: 'Balance Sheet', desc: 'Month-end Balance Sheet from Tally Trial Balances (last 12 months)' },
+  { id: 'cashFlow', title: 'Cash Flow', desc: 'Indirect cash flow per month (last 12 months)' },
+  { id: 'misSheet', title: 'MIS Sheet', desc: 'The standard MIS Sheet per fiscal year selected, with the Tally cash rows' },
 ];
 
 export function LivePdfModal({ deck, open, onClose, blended, merged }: {
@@ -110,10 +118,11 @@ export function LivePdfModal({ deck, open, onClose, blended, merged }: {
   const [fyKeys, setFyKeys] = useState<string[]>(() => years.slice(-1).map((y) => y.key));
   const [monthKeys, setMonthKeys] = useState<string[]>(() => deck.periods.slice(-1));
   const [busy, setBusy] = useState(false);
+  const stmts = useStatements();
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const run = () => {
     setBusy(true);
-    try { downloadLivePdf(deck, { sections, fyKeys, monthKeys, blendCogm: blended, mergeChannels: merged }); setTimeout(onClose, 300); }
+    try { downloadLivePdf(deck, { sections, fyKeys, monthKeys, blendCogm: blended, mergeChannels: merged }, stmts.built); setTimeout(onClose, 300); }
     catch (e) { console.error('PDF export failed', e); alert('Failed to build the PDF. Please try again.'); }
     finally { setBusy(false); }
   };

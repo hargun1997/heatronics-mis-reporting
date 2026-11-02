@@ -23,6 +23,7 @@ import {
 import { computeFreshness } from '../../data/liveMis/freshness';
 import { listConnectors, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
 import { FreshnessHeadline, FreshnessTable } from '../../components/mis/FreshnessTable';
+import { ProductGapsPanel } from '../../components/liveMis/ProductGapsPanel';
 import { loadLiveDeck, swapAlternates, LIVE_BOUNDARY, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran } from '../../data/misDeck/liveAnalytics';
 import {
@@ -237,6 +238,7 @@ export function LiveMisPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Completeness floor */}
         {deck && view && <CompletenessBanner deck={view} raw={deck} showLive={showLive} setShowLive={setShowLive} />}
+        {deck?.productGaps && <ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} />}
         {deckError && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{deckError}</div>}
 
         {/* Tab bar */}

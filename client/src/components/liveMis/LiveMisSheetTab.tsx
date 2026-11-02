@@ -12,7 +12,7 @@ import { MIS_SHEET_ROWS, type MisEntity, type MisPoint } from '../../data/misDec
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import { liveFiscalYears } from '../../data/misDeck/liveViews';
 import { downloadMisFormat, parseMisFormat, type ImportedMis } from '../../utils/misFormatExport';
-import { liveMisFormatSource } from '../../utils/liveMisExport';
+import { liveMisFormatSource, misSourceWithCash } from '../../utils/liveMisExport';
 import { Fold, Note, useLiveView } from './shared';
 
 const LAC = 1e5;
@@ -74,7 +74,7 @@ export function LiveMisSheetTab({ deck }: { deck: LiveDeckData }) {
           {fys.map((f, i) => <option key={f.key} value={i}>{f.name}</option>)}
         </select>
         <div className="flex flex-wrap gap-2 sm:ml-auto">
-          <button type="button" onClick={() => downloadMisFormat(src)}
+          <button type="button" onClick={() => downloadMisFormat(misSourceWithCash(src, flows))}
             className="px-3 py-1.5 rounded-lg bg-cta text-on-cta text-xs font-medium hover:bg-cta-hover">Download (this format)</button>
           <button type="button" onClick={() => fileRef.current?.click()}
             className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50">Import Excel</button>

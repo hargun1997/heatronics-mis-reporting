@@ -155,6 +155,20 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   depreciation, Nett Profit); pure builder `client/src/data/statements/statements.ts` (BS from Tally's primary groups + closing
   stock + FY profit to date; indirect cash flow from consecutive BSs, sections sum to Δ cash & bank; `misCashRows` fills the MIS
   Sheet cash rows). Tests `server/test/statements.test.ts`.
+- **Exports + ledger rules + product gaps (3 Nov 2026):**
+  - Live MIS Excel / PDF now include Balance Sheet, Cash Flow (last 12 months, from `useStatements`) and MIS Sheet (company, cash rows via
+    `misSourceWithCash`; the MIS Sheet tab download uses it too). `buildLiveWorkbook(deck, o, statements?)`, `buildLivePdf(deck, o, statements?)`;
+    no stored Trial Balance = a sheet that says so.
+  - **Ledger name rules** `client/src/data/monthClose/ledgerRules.ts` (pure): after the seed map, `lookupLedger` tries an editable rule table
+    (Blinkit/Zepto/Instamart sales → `rev_blinkit`, Flipkart sales → `rev_flipkart`, brand agencies/shoots/influencers → `pf_platform`,
+    bankers/valuation/allotment/business development → `nl_fundraising`). Stored in objectStore `tally/ledger-rules` (`GET/PUT /api/tally/ledger-rules`,
+    which also returns ledger masters, newest P&L rows and expense-ledger voucher narrations); loaded by `loadLiveDeck`. Tally health page → "Ledger rules":
+    matched per line, unmatched sales ledgers, brand/fundraising candidates, narration hits (listed only, a ledger is never split by narration), one click
+    adds an exact-name rule. A combined "Ecommerce Sales" is never split.
+  - **Product gaps** `productSuggest.ts`: unmapped rows (B2B Tranzact items, Meta ids) and no-BOM products (`MISSING_BOM_FGS`) get name-similarity suggestions;
+    `deck.productGaps` → `ProductGapsPanel` on Live MIS; a click stores the confirmation (`mis/product-map`, `/api/mis/product-map`: `sku` overrides + `bomProxy`).
+    A product with no BOM is costed from its confirmed proxy, else ESTIMATED from the closest costed product (`costEstimated`, cell flag `costEst`/`noCost`),
+    and the month stays "uncosted" until confirmed: never a silent 100% margin.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
