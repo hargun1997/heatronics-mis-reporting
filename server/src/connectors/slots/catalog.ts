@@ -9,7 +9,8 @@
 
 import { downloadReportDocument, spapiCreateReport, spapiGet } from '../sources/amazon.js';
 import { productionCosts } from '../sources/production.js';
-import { pollTally, readTallySnapshot, readTallyState } from '../tally/snapshots.js';
+import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../tally/snapshots.js';
+import shopifyConnector from '../sources/shopify.js';
 import { pullAdvertisedProduct } from '../sources/amazonAds.js';
 import { opsAdsMonth, type OpsAdsMonth } from '../sources/opsAdsStore.js';
 import { payoutsForMonth } from '../sources/easebuzz.js';
@@ -244,15 +245,59 @@ async function tallyPnl(ctx: PullContext): Promise<SlotPull> {
   };
 }
 
+// ---- Tally Trial Balance (stored with the P&L by the same poll) ----------------------------------
+
+async function tallyTb(ctx: PullContext): Promise<SlotPull> {
+  let tb = await readTallyTb(ctx.periodKey);
+  if (!tb) {
+    await pollTally(ctx.creds, { force: true });
+    tb = await readTallyTb(ctx.periodKey);
+  }
+  if (!tb) {
+    const st = await readTallyState();
+    const seen = st.lastOkAt ? new Date(st.lastOkAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'never';
+    throw new Error(`No Tally Trial Balance stored for ${ctx.periodKey} yet: Tally isn't open on the cloud machine (last reached: ${seen}). Open Tally once, or upload the screenshot.`);
+  }
+  const age = new Date(tb.asOf).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+  return {
+    trialBalance: { period: tb.period, rows: tb.rows, totalDebit: tb.totalDebit, totalCredit: tb.totalCredit, difference: tb.difference, asOf: tb.asOf },
+    rowCount: tb.rows.length,
+    trace: [`Tally Trial Balance ${ctx.periodKey} as of ${age} (read only, stored copy)`, `${tb.rows.filter((r) => r.level === 'group').length} groups, ${tb.rows.filter((r) => r.level === 'ledger').length} ledgers · Dr ${inr(tb.totalDebit)} · Cr ${inr(tb.totalCredit)}`],
+    warnings: [...tb.warnings],
+  };
+}
+
+// ---- Shopify variant sales (the same live pull the Live MIS uses, saved for the month) -------------
+
+async function shopifyVariants(ctx: PullContext): Promise<SlotPull> {
+  const { first } = monthDays(ctx.periodKey);
+  const end = rangeEnd(ctx.periodKey);
+  if (!shopifyConnector.fetchFacts) throw new Error('Shopify live pull unavailable.');
+  const r = await shopifyConnector.fetchFacts(ctx.creds, first, end);
+  const facts = (r.facts ?? []).filter((f) => (f.date ?? '').slice(0, 7) === ctx.periodKey);
+  const rev = facts.reduce((s, f) => s + (f.revenue || 0), 0);
+  return {
+    facts,
+    rowCount: facts.length,
+    trace: [`Shopify Admin API orders (read only), ${first} → ${end}: ${facts.length} day × variant row(s), gross ₹${Math.round(rev).toLocaleString('en-IN')}`],
+    warnings: [...(r.warnings ?? [])],
+    emptyOk: true,
+  };
+}
+
 // ---- The catalog ----------------------------------------------------------------
 
 export const SLOT_SOURCES: SlotSourceDef[] = [
   // Book of record
   { connectorId: 'tally', slotId: 'pnl', source: 'api', via: 'Tally (cloud, read only)',
     needs: ['host'], connectHint: 'Not connected — add the Tally host + port on the Connectors page (Tally card).',
-    line: "Read from Tally on the cloud machine whenever it is open (checked every 30 min) and stored, so the close doesn't need Tally open. The Excel upload stays the fallback.",
+    line: "Read from Tally on the cloud machine whenever it is open (checked every 30 min in working hours from the 15th) and stored, so the close doesn't need Tally open. The Excel upload stays the fallback.",
     pull: tallyPnl },
-  { connectorId: 'tally', slotId: 'trial-balance', source: 'upload', via: 'Manual upload', line: 'Optional screenshot, read by Claude.' },
+  { connectorId: 'tally', slotId: 'trial-balance', source: 'api', via: 'Tally (cloud, read only)',
+    needs: ['host'], connectHint: 'Not connected — add the Tally host + port on the Connectors page (Tally card).',
+    line: 'Stored with the P&L by the same Tally check: closing Dr / Cr per group at the month end, checked that it ties. A record only — the close uses the P&L. The screenshot upload stays the fallback.',
+    pull: tallyTb },
   { connectorId: 'tranzact', slotId: 'bom', source: 'api', via: 'Production portal',
     needs: [], credsFrom: 'production',
     line: "Unit cost per finished good from production.heatronics.in (each BOM at its parts' latest purchase invoices, ex-GST). Production reads the Tranzact BOMs from the monthly Claude task (18th) and the daily Tranzact sheets.",
@@ -277,8 +322,10 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
   { connectorId: 'blinkit', slotId: 'order-charges', source: 'upload', via: 'Manual upload', line: 'Blinkit has no API.' },
 
   // D2C
-  { connectorId: 'shopify', slotId: 'variant-sales', source: 'upload', via: 'Fallback upload',
-    line: 'Shopify is pulled live by API (Live MIS); this upload is only the fallback.' },
+  { connectorId: 'shopify', slotId: 'variant-sales', source: 'api', via: 'Shopify Admin API',
+    needs: ['shopDomain'], connectHint: 'Not connected — add the Shopify store on the Connectors page.',
+    line: 'The same live Shopify pull the Live MIS uses (orders by day × variant), saved for the month so the close is frozen. The CSV upload stays the fallback.',
+    pull: shopifyVariants },
 
   // Marketing
   { connectorId: 'meta', slotId: 'ad-spend', source: 'api', via: 'Meta Marketing API',
