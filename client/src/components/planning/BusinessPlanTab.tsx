@@ -51,9 +51,10 @@ export function BusinessPlanTab({ plan, r, update }: { plan: Plan; r: PlanResult
             ['Contingency buffer', spans.map((s, i) => (
               <NumInput key={s.n} unit="pct" value={contingencies[i]} min={0} max={3} width="w-16" title={`Contingency ${s.label}`} onChange={(v) => setCont(s.n, v)} />
             ))],
-            ['Total funding need (₹ Cr)', asks.map((a) => cr(a.fundingNeed))],
+            ['Total funding need (₹ Cr)', asks.map((a) => cr(a.fundingNeed))], // net of any opening cash
             ['less venture debt (₹ Cr)', asks.map((a) => cr(-a.ventureDebt))],
             ['EQUITY REQUIRED (₹ Cr)', asks.map((a) => cr(a.equityRequired)), true],
+            ...(asks.some((a) => a.seed > 0) ? [['less seed round (₹ Cr)', asks.map((a) => cr(-a.seed))] as [string, string[]], ['STILL TO RAISE after seed (₹ Cr)', asks.map((a) => cr(a.equityAfterSeed)), true] as [string, string[], boolean]] : []),
             ['of which inventory (peak)', asks.map((a) => cr(a.inventoryPeak))],
             ['of which GST asset (peak)', asks.map((a) => cr(a.gstAssetPeak))],
           ]} />

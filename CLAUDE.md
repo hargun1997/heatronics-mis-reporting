@@ -181,6 +181,19 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   customer) → `planning-d2c-history` (monthly new vs repeat + cohorts; NO customer ids stored; orders > ₹2 lakh skipped).
 - Seasonality per SKU (`plan.skuSeason`) is learned from the sheet's "Units : Last Year" rows; lever `seasonShape: 'history'`
   makes FY29+ = last FY total × growth spread by those curves. Old saved scenarios are upgraded by `upgradePlan()`.
+- **Founder decisions (Nov 2026)** = `plan.fx` (`PlanFx`, engine.ts; defaults `founderFx()` in basePlan.ts; `resolveFx()`): each is a switch
+  with a test in planning.test.ts. **`fx.sheetParity` (UI "Sheet-parity mode") ignores every switch, forces monthly tax and sets placeholder
+  products aside → M1–M18 equal the sheet** (tests wrap `basePlan()` with `setSheetParity`; a plan saved before `fx` has `fx` undefined = unchanged,
+  "Apply the founder decisions" adds it). Switches: `gstServicesAsCost` (stuck services GST expensed in CM1, `gstServicesCost`; ≈ ₹12 Cr over 54 mo),
+  `revenueExGst` (P&L on ex-GST revenue, default OFF: lowers EBITDA by the output GST), GMV + ex-GST revenue always reported; `gtNetRealisation`
+  (GT revenue = list less distributor margin, margin line zeroed, %-of-revenue costs still sized on list); `seed` (₹8 Cr equity, round-cost line e378
+  = fee % × seed; the Ask shows "still to raise after the seed"); `opening` (cash, receivables, payables, inventory, GST asset, debt, accumulated
+  losses; `opening.ts openingFromTally` maps the Sep-26 balance sheet from `/api/tally/statements`, READ ONLY); `ventureDebt` (replaces the event
+  flagged `venture`: moratorium + equal instalments, own rate/fee; repayments feed `cumulativeNeed`, which sizes the Ask) and `overdraft` (interest on
+  last month's negative cash) — **placeholders carry `confirmed:false`**; tax by FY with opening accumulated losses (`levers.taxMode='fy'`);
+  `d2cDiscount` (% of D2C list revenue; Shopify history now records `total_discounts` per month, `discountPctOf`; AOV is grossed up so discounts aren't
+  taken twice); `depreciationOnce` (new capex straight-line over `lifeYears` from the next month, D&A lines no longer inflate); `skuTweaks` (hGo/hPulse
+  volume, price). Placeholder products (lotion, oil: `placeholder:true`). SKUs launched in the base's last year (hPulse, hBoots) keep their run-rate after the base.
 - Business Plan + Overview (`plan.business`, `data/planning/summary.ts`): headline 12M/18M/full, Exit ARR (TTM × min(L3M ÷ same
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,

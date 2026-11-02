@@ -78,6 +78,12 @@ export function RevenueTab({ plan, r, update }: { plan: Plan; r: PlanResult; upd
                 <span>Ramp MoM <NumInput unit="pct" value={p.rampPct} onChange={(v) => setP(i, (x) => { x.rampPct = v; })} width="w-14" title="Ramp" /></span>
                 <span>Then YoY <NumInput unit="pct" value={p.steadyPct} onChange={(v) => setP(i, (x) => { x.steadyPct = v; })} width="w-14" title="Steady growth" /></span>
                 <span>Own COGS <NumInput unit="pct" value={p.cogsPct ?? 0} onChange={(v) => setP(i, (x) => { x.cogsPct = v > 0 ? v : null; })} width="w-14" title="COGS %" /></span>
+                {p.placeholder && (
+                  <label className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800" title="Volume, price and COGS are placeholders until you confirm them">
+                    <input type="checkbox" checked={false} onChange={() => setP(i, (x) => { x.placeholder = false; })} className="accent-brand-600" />
+                    Assumption — tick when confirmed
+                  </label>
+                )}
                 <button onClick={() => update((pl) => { pl.products.splice(i, 1); })} className="ml-auto text-[12px] text-slate-400 hover:text-rose-600">Remove</button>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-slate-600">

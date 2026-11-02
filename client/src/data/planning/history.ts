@@ -64,6 +64,15 @@ function aov(h: D2CHistoryMonth[]) {
   return { aovNew: no ? ns / no : 0, aovRepeat: ro ? rs / ro : no ? ns / no : 0 };
 }
 
+/** Discounts as a share of list sales (order value after discount + discount) over the last 12 months with discount data. */
+export function discountPctOf(h: D2CHistoryMonth[]): number | null {
+  const withData = h.filter((x) => x.discounts != null).slice(-12);
+  if (!withData.length) return null;
+  const disc = withData.reduce((a, x) => a + (x.discounts ?? 0), 0);
+  const sales = withData.reduce((a, x) => a + x.newSales + x.repeatSales, 0);
+  return sales + disc > 0 ? disc / (sales + disc) : null;
+}
+
 /** Predicted repeat orders per history month for given rates (same structure as the engine). */
 export function predictRepeats(h: D2CHistoryMonth[], p: Pick<D2CModel, 'season' | 'sameMonth' | 'nextMonth' | 'monthly' | 'yearly' | 'yearlyFade'>): number[] {
   return h.map((x, i) => {
@@ -117,6 +126,8 @@ function solve(A: number[][], b: number[]): number[] | null {
 export interface FitResult {
   season: number[]; sameMonth: number; nextMonth: number; monthly: number; yearly: number; yearlyFade: number;
   aovNew: number; aovRepeat: number; r2: number; note: string;
+  /** discounts ÷ (sales + discounts) over the last 12 months that carry discounts; null = no discount data in the history */
+  discountPct: number | null;
 }
 
 /**
@@ -171,7 +182,7 @@ export function fitD2C(history: D2CHistoryMonth[], cohorts?: Cohort[]): FitResul
   };
   const r2 = r2Of(h.map((x) => x.repeatOrders), predictRepeats(h, fit));
   const note = `${how}. Seasonality from new buyers ${window || '(not enough history — flat)'}. ${observedYearly ? 'Year-2 returns measured.' : 'No cohort is a year old in a full season yet, so year-2+ returns assume the months 2–11 rate — set it yourself if you expect more winter re-buys.'}`;
-  return { ...fit, aovNew, aovRepeat, r2, note };
+  return { ...fit, aovNew, aovRepeat, r2, note, discountPct: discountPctOf(h) };
 }
 
 /** A D2C model from a fit (cohort mode on). */
@@ -179,6 +190,6 @@ export function d2cModelFrom(history: D2CHistoryMonth[], f: FitResult, source: s
   return {
     mode: 'cohorts', season: f.season, sameMonth: f.sameMonth, nextMonth: f.nextMonth, monthly: f.monthly,
     yearly: f.yearly, yearlyFade: f.yearlyFade, repeatBoost: 1, aovNew: Math.round(f.aovNew), aovRepeat: Math.round(f.aovRepeat),
-    history, source, asOf, fit: { r2: f.r2, note: f.note },
+    history, source, asOf, fit: { r2: f.r2, note: f.note }, discountPct: f.discountPct,
   };
 }
