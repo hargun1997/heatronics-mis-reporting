@@ -129,9 +129,9 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     poll if none), warns when the copy was taken < 5 days after month end. Host / port / company on the Connectors → Tally card (never
     in the repo). `POST /api/tally/pull` = signed-in Pull now.
   - Tally · Trial Balance → `api`, stored by the SAME poll after each month's P&L (`tally/tb.ts`: "Trial Balance" exploded,
-    closing DSPCLDRAMTA / DSPCLCRAMTA per DSPACCNAME; ledgers wrapped in BSNAME kept as `level: ledger`; totals from groups;
-    Dr ≠ Cr or no rows = warning) as `tally/tb-<YYYY-MM>` (+ `tally/tb-raw-last`). Shape UNVERIFIED against Heatronics' Tally
-    (closed when written) — check `tally/tb-raw-last` once. A TB failure never undoes the P&L copy. The pull returns
+    closing DSPCLDRAMTA / DSPCLCRAMTA per DSPACCNAME, checked live 2 Nov 2026; exploded ledgers come UNWRAPPED after their group, so the poll asks twice — EXPLODEFLAG No = group names + totals, Yes = groups + ledgers, a name in the groups set = group;
+    Dr ≠ Cr or no rows = warning) as `tally/tb-<YYYY-MM>` (+ `tally/tb-raw-last`). A TB that doesn't
+    tie shows as a warning (the live Oct 2026 one didn't). A TB failure never undoes the P&L copy. The pull returns
     `trialBalance` (staged + committed as a record; `liveDeck` ignores any ledgerRows on the trial-balance slot, screenshot
     included, so a TB never enters the P&L cascade).
   - Shopify · Sales by variant → `api`: the connector's own `fetchFacts` (orders by day × variant, read only) for the month,

@@ -87,6 +87,12 @@ test('Trial Balance XML → closing Dr / Cr per group, ledgers kept apart, ties 
   assert.equal(tb.totalCredit, 900);
   assert.equal(tb.difference, 0);
   assert.deepEqual(tb.warnings, []);
+  // Live shape: exploded ledgers come unwrapped right after their group → told apart by the groups-only names.
+  const flat = `<ENVELOPE>${row('Capital Account', '', '500.00')}${row('Partner A', '', '300.00')}${row('Partner B', '', '200.00')}${row('Current Assets', '-500.00', '')}${row('Bank', '-500.00', '')}</ENVELOPE>`;
+  const ex = parseTbXml(flat, '2026-10', new Set(['Capital Account', 'Current Assets']));
+  assert.deepEqual(ex.rows.map((r) => r.level), ['group', 'ledger', 'ledger', 'group', 'ledger']);
+  assert.equal(ex.totalCredit, 500);
+  assert.equal(ex.difference, 0);
   assert.match(parseTbXml(`<ENVELOPE>${row('A', '-10', '')}</ENVELOPE>`, '2026-10').warnings[0], /doesn't tie/);
   assert.match(parseTbXml('<ENVELOPE/>', '2026-10').warnings[0], /raw answer was kept/);
 });

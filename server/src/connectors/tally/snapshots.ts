@@ -106,9 +106,11 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
       done.push(period);
       // Trial Balance for the same month: a failure here never undoes the P&L copy.
       try {
-        const tbXml = await post(creds, tbEnvelope(period, creds.company), 60_000);
+        const groupsXml = await post(creds, tbEnvelope(period, creds.company, false), 60_000);
+        const groups = new Set(parseTbXml(groupsXml, period).rows.map((r) => r.name));
+        const tbXml = await post(creds, tbEnvelope(period, creds.company, true), 60_000);
         if (done.length === 1) await writeJson('tally/tb-raw-last', { period, at: state.lastTryAt, xml: tbXml.slice(0, 400_000) });
-        await writeJson(`tally/tb-${period}`, { ...parseTbXml(tbXml, period), asOf: state.lastTryAt } satisfies TallyTbSnapshot);
+        await writeJson(`tally/tb-${period}`, { ...parseTbXml(tbXml, period, groups), asOf: state.lastTryAt } satisfies TallyTbSnapshot);
       } catch (e) {
         tbFailed = `${period}: ${e instanceof Error ? e.message : String(e)}`;
       }
