@@ -94,6 +94,12 @@ export interface MonthlyMIS {
   /** Present when the month was restated to tie to an external statement. */
   restated?: string;
   /**
+   * Factory overhead inside `cogm`: Tally's booked amount (basis 'tally') or the 10%-of-revenue
+   * fallback (basis 'assumed'). Set on live-built months; static history carries the 10% convention.
+   */
+  factory?: number;
+  factoryBasis?: 'tally' | 'assumed';
+  /**
    * Tally's own below-gross-margin expense buckets (channel & fulfilment,
    * sales & marketing, platform, non-operating, fundraising), each with the
    * slice attributable to channels split from the company-wide remainder.

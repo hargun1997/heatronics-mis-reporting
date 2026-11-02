@@ -66,7 +66,7 @@ export function liveSheetCount(o: LiveExportOptions): number {
 
 const real = (p: PeriodAgg, row: string) => REAL_ROWS[p.level].has(row);
 const fyStartOf = (k: string) => { const [y, m] = k.split('-').map(Number); return m >= 4 ? y : y - 1; };
-const LEVEL_TXT = (p: PeriodAgg) => (p.level === 'full' ? (p.locked ? 'Locked' : p.published ? 'Published' : 'Full close') : p.level === 'contribution' ? 'To CM2' : 'Top line');
+const LEVEL_TXT = (p: PeriodAgg) => (p.level === 'full' ? (p.locked ? 'Locked' : p.closed ? 'Locked (closed)' : p.published ? 'Published' : 'Full close · ready to close') : p.level === 'contribution' ? 'To CM2' : 'Top line');
 const pct3 = (n: number) => round2(n * 1000) / 1000;
 const BLANK: Style = { ...S.num };
 

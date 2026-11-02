@@ -28,6 +28,12 @@ export interface DailyFact {
   fees: number;
   /** Advertising spend, from the ad-platform connectors. Positive cost. */
   spend?: number;
+  /**
+   * What `revenue` is, when the source can say: GMV = the customer-paid amount incl. GST (after discounts),
+   * netExGst = the same sales without GST (what Tally books). Omitted = the source does not split tax.
+   */
+  gmv?: number;
+  netExGst?: number;
 }
 
 export interface FactResult {
