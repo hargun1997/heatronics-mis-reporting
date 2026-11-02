@@ -130,6 +130,12 @@ details.card[open]>summary{margin-bottom:12px}
 td .up{color:var(--ok);font-weight:600}td .dn{color:var(--bad);font-weight:600}
 .blk.sf{background:#F7F4FB}.blk.sf .bh{color:#6A4C93}
 .blk.cv{background:#F3F8F4}.blk.cv .bh{color:#2E7A52}
+.blk.cn{background:#F2F5FB}.blk.cn .bh{color:#3B5BA9}
+.rows{display:flex;flex-direction:column}
+.rows .r{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05);font-size:14px}
+.rows .r:last-child{border-bottom:0}
+.rows .r b{font:500 14px var(--mono);white-space:nowrap}
+.rows .r.k b{color:#3B5BA9;font-weight:600}
 .blk .note2{font-size:12.5px;color:var(--muted);margin:4px 0 0}
 #own col.c0{width:24%}
 #own tbody tr:nth-child(-n+4) td.tip:hover::after{bottom:auto;top:calc(100% + 6px)}
@@ -185,13 +191,14 @@ details.blk:last-child:not([open]){padding-bottom:14px}
       <details class="blk eq" data-k="b_eq" open><summary class="bh">Primary — new shares, cash in<span class="bv" id="bv_eq"></span></summary><div class="ctls" id="s2"></div>
         <div class="sub2">Who puts in the equity raise · lead takes the rest</div><div class="inv fx"><span class="nm">Aneesha</span><span class="rest" id="aneAmt"></span><span></span></div><div id="invs"></div><button type="button" class="add" id="addInv">+ Add investor</button>
         <div class="inv sum"><span class="nm">Total</span><span class="rest" id="invTot"></span><span></span></div>
-        <p class="note2" id="cnNote"></p></details>
+        <p class="note2" id="priceNote"></p></details>
+      <details class="blk cn" data-k="b_cn" open><summary class="bh">Angel Round 1 notes convert<span class="bv" id="bv_cn"></span></summary><div class="rows" id="cnRows"></div><p class="note2" id="cnNote"></p></details>
       <details class="blk sf" data-k="b_sf"><summary class="bh">Secondary — founders sell<span class="bv" id="bv_sf"></span></summary><div class="ctls" id="s2f"></div><p class="note2">Jagjit sells first, down to his floor; then Hargun. Bought by the lead at the round price.</p></details>
       <details class="blk sc" data-k="b_sc"><summary class="bh">Secondary — angels &amp; VCs sell<span class="bv" id="bv_sc"></span></summary><div class="ctls" id="s2s"></div><p class="note2">Angel Round 1 (CN) and Pre-Seed holders, in proportion to holdings. Bought by the lead at the round price.</p></details>
       <details class="blk dt" data-k="b_dt"><summary class="bh">Venture debt — loan + warrants<span class="bv" id="bv_dt"></span></summary><div class="ctls" id="s2d"></div></details></details>
     <details class="card step" data-k="st3" open><summary><h2><span>3</span>Feb 2027 → Series A</h2><span class="sv" id="sv3"></span></summary>
-      <details class="blk cv" data-k="b_cv" open><summary class="bh">Feb 2027 — CCPS convert<span class="bv" id="bv_cv"></span></summary><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></details>
-      <details class="blk eq" data-k="b_r2" open><summary class="bh">Series A (proposed) — new shares<span class="bv" id="bv_r2"></span></summary><div class="ctls" id="s3"></div></details></details>
+      <details class="blk cv" data-k="b_cv" open><summary class="bh">Pre-Seed CCPS convert<span class="bv" id="bv_cv"></span></summary><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></details>
+      <details class="blk eq" data-k="b_r2" open><summary class="bh">Series A — new shares<span class="bv" id="bv_r2"></span></summary><div class="ctls" id="s3"></div></details></details>
   </form>
 
   <div class="bar"><span id="checks" class="bar" aria-live="polite"></span></div>
@@ -375,7 +382,16 @@ function render(){
     :M.poolCut<0
     ?`Agreed pool raised before she joins: ${fS(BASE.ESOP)} → ${fS(M.Eag)} options, ${fP(M.ePost)} after the round. More pool dilutes every holder, founders included.`
     :`Pool as agreed: ${fS(M.Eag)} options, ${fP(M.ePost)} after the round. Set a target to resize it; 0 leaves it as agreed.`;
-  document.getElementById('cnNote').textContent=`Round price ${ru(M.p1)} a share. Angel notes convert at the lower of the ₹18 Cr cap (₹14,342) and 30% off the round price (${ru(Math.ceil(M.p1*(1-CN_DISC)-1e-9))}): ${M.cnDisc?'the discount applies':'the cap applies'}, ₹75L ÷ ${ru(M.cnp)} = ${fS(M.cnSh)} shares.`;
+  const dP=Math.ceil(M.p1*(1-CN_DISC)-1e-9);
+  document.getElementById('priceNote').textContent=`Round price ${ru(M.p1)} a share (${fR(M.pre1)} ÷ ${fS(M.Tp)} pre-money shares, incl. the converted notes).`;
+  document.getElementById('cnRows').innerHTML=[
+    ['Notes outstanding','₹75L · 3 angels (₹25L each)'],
+    ['Cap price (₹18 Cr pre-money)',ru(CNP)],
+    ['30% off the round price',ru(dP)],
+    ['Conversion price — the lower',`${ru(M.cnp)} · ${M.cnDisc?'discount':'cap'}`,1],
+    ['Equity shares',`${fS(M.cnSh)} (${fS(Math.floor(CN_EACH/M.cnp))} × 3)`,1],
+    ['Stake after the round',fP(M.st.hs.C/M.post1)]].map(([l,v,k])=>`<div class="r${k?' k':''}"><span>${l}</span><b>${v}</b></div>`).join('');
+  document.getElementById('cnNote').textContent=`Triggered by the Hyperscale Round (₹3 Cr+ from an institutional VC, Sch. P). ${M.cnDisc?`30% off the round price is below the cap, so they get ${fS(M.cnX)} more shares than at the cap.`:'The cap price is lower than 30% off, so the cap applies.'} 6% interest from mid-Nov 2026 converts with principal unless paid in cash (not included here).`;
   document.getElementById('convNote').textContent=M.ratio===1?`At ₹12.5 Cr revenue or less, CCPS convert 1:1 (₹23 Cr floor): ${fS(M.st.hs.P)} shares.`:`Converts at ₹${(M.Vconv/CR).toFixed(2)} Cr → ${fS(M.Pc)} shares instead of ${fS(M.st.hs.P)}.`;
   const FMIN=70, f1=(st.hs.H+st.hs.J+st.hs.A)/tot(st.hs), ok=f1>=FMIN/100-1e-9;
   document.getElementById('checks').innerHTML=
@@ -456,6 +472,7 @@ function renderSummaries(M){
   set('sv2',`${fR(M.R1)} at ${fR(M.pre1)} pre · secondary ${fR((M.I.fsec+M.I.sec)*CR)} · debt ${fR(M.debt)}`);
   set('sv3',`2026 revenue ₹${M.I.rev} Cr · Series A ${fR(M.R2)} at ${fR(M.pre2)} pre`);
   set('bv_eq',`${fR(M.R1)} · ${ru(M.p1)}/sh`);
+  set('bv_cn',`${fS(M.cnSh)} sh at ${ru(M.cnp)}`);
   set('bv_es',M.poolCut?`${fS(BASE.ESOP)} → ${fS(M.Eag)}`:'as agreed');
   set('bv_sf',M.I.fsec?fR(M.I.fsec*CR):'none');
   set('bv_sc',M.I.sec?fR(M.I.sec*CR):'none');
