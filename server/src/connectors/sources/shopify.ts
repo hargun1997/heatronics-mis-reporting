@@ -26,12 +26,12 @@ function shopHost(creds: Credentials): string {
   return shop;
 }
 
-function base(creds: Credentials): string {
+export function base(creds: Credentials): string {
   const version = (creds.apiVersion || DEFAULT_VERSION).trim();
   return `https://${shopHost(creds)}/admin/api/${version}`;
 }
 
-function headers(token: string): Record<string, string> {
+export function headers(token: string): Record<string, string> {
   return { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' };
 }
 
@@ -45,7 +45,7 @@ const tokenCache = new Map<string, { token: string; expiresAt: number }>();
  * grant — the path the Dev Dashboard pushes for own-store apps since the legacy
  * custom-app flow was retired in Jan 2026.
  */
-async function resolveToken(creds: Credentials): Promise<string> {
+export async function resolveToken(creds: Credentials): Promise<string> {
   const direct = (creds.accessToken || '').trim();
   if (direct) return direct;
 
@@ -84,7 +84,7 @@ async function resolveToken(creds: Credentials): Promise<string> {
 }
 
 /** Pull the `page_info` out of a Shopify Link header's rel="next", if any. */
-function nextPageInfo(link: string | null): string | null {
+export function nextPageInfo(link: string | null): string | null {
   if (!link) return null;
   for (const part of link.split(',')) {
     const m = /<([^>]+)>;\s*rel="next"/.exec(part);

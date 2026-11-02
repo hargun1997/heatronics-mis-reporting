@@ -133,3 +133,26 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   billing data), Shopify variant sales (fallback only —
   Shopify is live).
 - Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).
+
+## 5-year plan (`/planning`)
+- Port of the Google Sheet "Heatronics Projection and Deployment Plan" (1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE), run live
+  and extended Oct-26 → Mar-31. Engine `client/src/data/planning/engine.ts` (pure); Base = `base-plan.json`, written by
+  `scripts/import-projection-plan.py <sheet.xlsx>` (re-run after the sheet changes; it also writes `base-plan-check.json`).
+- `server/test/planning.test.ts` proves Base gives the sheet's own numbers for M1–M18 at an 18-month horizon (revenue, CM1–3,
+  EBITDA, PAT, GST asset, inventory, NWC, cash, 12M/18M peak deficit). Keep it green when touching the engine.
+- After the base: units = same month a year earlier × (1 + channel growth for that FY); lines with `repeat` run as in the same
+  calendar month of the base's last 12 months; fixed amounts get inflation (+ team growth for people groups).
+- Saved scenarios: `/api/planning/scenarios` (objectStore `planning-index` + `planning-scenario-<id>`), shared by everyone.
+- D2C customer model (`plan.d2c`, default mode `cohorts`): D2C revenue = new buyers × AOV + repeat orders by cohort
+  (same-month, next-month, months 2–11, year 2+ with fade, × seasonality × boost). In base months new buyers are back-solved
+  from the sheet's D2C revenue (so parity holds); after the base they grow with the D2C growth lever. After the base, D2C ROAS
+  lines pay for new-buyer revenue only (scaled by the same-month base year's new share). Rates are learned in
+  `data/planning/history.ts` (seed = Shopify analytics pulled 2 Nov 2026; AOV at order time, before returns).
+- `POST /api/planning/history/refresh` pages every Shopify order (READ ONLY, fields id/created_at/cancelled_at/test/total_price/
+  customer) → `planning-d2c-history` (monthly new vs repeat + cohorts; NO customer ids stored; orders > ₹2 lakh skipped).
+- Seasonality per SKU (`plan.skuSeason`) is learned from the sheet's "Units : Last Year" rows; lever `seasonShape: 'history'`
+  makes FY29+ = last FY total × growth spread by those curves. Old saved scenarios are upgraded by `upgradePlan()`.
+- Business Plan + Overview (`plan.business`, `data/planning/summary.ts`): headline 12M/18M/full, Exit ARR (TTM × min(L3M ÷ same
+  3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
+  `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,
+  assumptions / risks / themes & milestones / team text. Tested against the sheet (Exit ARR, equity 12M/18M, deployment by theme).

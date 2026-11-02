@@ -48,6 +48,7 @@ const I = {
   tools: ico(['M14 7l3 3-8 8H6v-3z', 'M4 20h16']),
   close: ico('M20 6L9 17l-5-5'),
   deck: ico(['M4 5h16v14H4z', 'M4 10h16', 'M10 5v14']),
+  plan: ico(['M3 3v18h18', 'M7 15l4-4 3 3 6-7']),
 };
 
 // Ordered by how often people use them: everyday work first, MIS next,
@@ -70,6 +71,12 @@ const SECTIONS: NavSection[] = [
       { path: '/reporting/mis/issues', label: 'Data issues', icon: I.issues, match: (p) => p.startsWith('/reporting/mis/issues') },
       { path: '/reporting/mis/send', label: 'Send report', icon: I.send, match: (p) => p.startsWith('/reporting/mis/send') },
       { path: '/reporting/mis/insights', label: 'AI insights', icon: I.ai, match: (p) => p.startsWith('/reporting/mis/insights') || p.startsWith('/reporting/mis/chat') },
+    ],
+  },
+  {
+    label: 'Planning',
+    items: [
+      { path: '/planning', label: '5-year plan', icon: I.plan, match: (p) => p.startsWith('/planning') },
     ],
   },
   {
