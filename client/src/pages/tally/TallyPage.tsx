@@ -1,5 +1,5 @@
 // Tally health — what the MIS reads from Tally (READ ONLY): issues found in the stored books with how to fix each in
-// TallyPrime, "Ask about Tally" (Claude grounded in the books), and the ledger list / vouchers to look things up.
+// TallyPrime, the chart of accounts (groups → sub-groups → ledgers, hanging ledgers and where to move them), "Ask about Tally" (Claude grounded in the books), and the ledger list / vouchers to look things up.
 // Server: /api/tally/books/* (server/src/routes/tally.ts).
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Markdown } from '../../components/ui/Markdown';
 import { cx } from '../../components/shell/cx';
 import { LedgerRulesCard } from './LedgerRulesCard';
+import { ChartTab } from './ChartTab';
 
 type Severity = 'error' | 'warn' | 'info';
 interface Sample { date?: string; type?: string; number?: string; party?: string; ledger?: string; amount?: number; detail: string }
@@ -40,10 +41,12 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return j as T;
 }
 
-type Tab = 'issues' | 'ask' | 'ledgers' | 'vouchers' | 'rules';
+type Tab = 'issues' | 'chart' | 'ask' | 'ledgers' | 'vouchers' | 'rules';
+const TABS: Tab[] = ['issues', 'chart', 'ask', 'ledgers', 'vouchers', 'rules'];
 
 export function TallyPage() {
-  const [tab, setTab] = useState<Tab>('issues');
+  // ?tab= (links from Issues) opens a view
+  const [tab, setTab] = useState<Tab>(() => { try { const t = new URLSearchParams(window.location.search).get('tab') as Tab; return TABS.includes(t) ? t : 'issues'; } catch { return 'issues'; } });
   const [status, setStatus] = useState<BooksStatus | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [months, setMonths] = useState(3);
@@ -88,7 +91,7 @@ export function TallyPage() {
         {status?.warnings?.map((w) => <p key={w} className="text-sm text-amber-800">{w}</p>)}
 
         <SegmentedControl aria-label="View" value={tab} onChange={setTab} options={[
-          { id: 'issues', label: `Issues${health ? ` (${health.issues.length})` : ''}` }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers' }, { id: 'vouchers', label: 'Vouchers' }, { id: 'rules', label: 'Ledger rules' }]} />
+          { id: 'issues', label: `Issues${health ? ` (${health.issues.length})` : ''}` }, { id: 'chart', label: 'Chart of accounts' }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers' }, { id: 'vouchers', label: 'Vouchers' }, { id: 'rules', label: 'Ledger rules' }]} />
 
         {tab === 'issues' && (
           <div className="space-y-3">
@@ -106,6 +109,7 @@ export function TallyPage() {
             {health?.issues.map((i) => <IssueCard key={i.id} i={i} />)}
           </div>
         )}
+        {tab === 'chart' && <ChartTab />}
         {tab === 'ask' && <Ask />}
         {tab === 'ledgers' && <Ledgers />}
         {tab === 'vouchers' && <Vouchers months={stored} />}

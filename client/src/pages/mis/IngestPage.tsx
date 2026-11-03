@@ -19,10 +19,10 @@ export function IngestPage() {
   return (
     <>
       <PageHeader
-        title="Month-end close"
+        title="Month-end uploads"
         accent="brand"
         icon={iconLayers}
-        description="Pick a source, follow the steps to export its report, then upload — the file is checked, you review what was read, and it's saved and ingested into the MIS. Green dots are up to date; orange need a fresh report."
+        description="The Live MIS runs by itself; this page is only for the reports with no API (Flipkart settlement + ads, Blinkit, Snapmint, Shopflo) and to freeze a month's automatic pulls. A missing report shows up in Issues with a link here. Locking a month happens on Live MIS → Month close."
         crumbs={[
           { label: 'Reporting', to: '/reporting' },
           { label: 'MIS Reporting', to: '/reporting/mis' },

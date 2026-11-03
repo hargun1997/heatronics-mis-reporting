@@ -219,7 +219,9 @@ export function IngestWorkspace() {
   useEffect(() => {
     listConnectors().then((r) => {
       setConnectors(r.connectors);
-      setSelected((cur) => cur || r.connectors[0]?.id || '');
+      // #<connectorId> (links from Issues) opens that source
+      const want = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
+      setSelected((cur) => cur || (want && r.connectors.some((c) => c.id === want) ? want : '') || r.connectors[0]?.id || '');
     }).catch(() => {});
     getIngestStatus().then((r) => setStore(r.store)).catch(() => {});
     chatStatus().then((s) => setClaudeLive(s.configured)).catch(() => setClaudeLive(false));

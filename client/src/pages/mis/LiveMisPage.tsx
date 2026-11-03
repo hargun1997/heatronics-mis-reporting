@@ -35,6 +35,7 @@ import {
 import { RevenueGrowthTab, ChannelMixTab, ProfitabilityTab, RepeatsTab } from '../../components/liveMis/reportTabs';
 import { LiveMisSheetTab } from '../../components/liveMis/LiveMisSheetTab';
 import { MonthClosePanel } from '../../components/liveMis/MonthClosePanel';
+import { deckItems, rememberDeckItems } from '../../data/issues/inbox';
 import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExportModals';
 import { LiveViewProvider, Pills } from '../../components/liveMis/shared';
 
@@ -104,10 +105,17 @@ export function LiveMisPage() {
 
   // ---- Deck data (the durable-upload cascade) ----
   const [deck, setDeck] = useState<LiveDeckData | null>(null);
+  useEffect(() => {
+    if (!deck) return;
+    rememberDeckItems(deckItems(deck)); // the Issues badge counts tie breaches / product gaps without loading the deck again
+    const id = window.location.hash.slice(1);
+    if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  }, [deck]);
   const [deckLoading, setDeckLoading] = useState(false);
   const [deckError, setDeckError] = useState<string | null>(null);
   const [gran, setGran] = useState<Grain>('month');
-  const [periodKey, setPeriodKey] = useState<string>('');
+  // ?month=YYYY-MM (links from Issues) opens that month; #close / #product-gaps scroll to the panel once the deck is in
+  const [periodKey, setPeriodKey] = useState<string>(() => { try { const m = new URLSearchParams(window.location.search).get('month'); return m && /^\d{4}-\d{2}$/.test(m) ? m : ''; } catch { return ''; } });
   const [display, setDisplay] = useState<PnlDisplay>('both');
   const [fy, setFy] = useState<string>('all');
   // COGM basis: Blended by default, as the legacy deck (owner's call, Oct 2026);
@@ -239,7 +247,7 @@ export function LiveMisPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Completeness floor */}
         {deck && view && <CompletenessBanner deck={view} raw={deck} showLive={showLive} setShowLive={setShowLive} />}
-        {deck?.productGaps && <ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} />}
+        {deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
         {deckError && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{deckError}</div>}
 
         {/* Tab bar */}
@@ -312,7 +320,7 @@ export function LiveMisPage() {
           </div>
         )}
         {view && !isRange && selected && selected.members.length === 1 && view.completeness[selected.members[0]]?.level !== undefined && (
-          <MonthClosePanel periodKey={selected.members[0]} comp={view.completeness[selected.members[0]]} onChanged={() => void loadDeck(true)} />
+          <div id="close" className="scroll-mt-24"><MonthClosePanel periodKey={selected.members[0]} comp={view.completeness[selected.members[0]]} onChanged={() => void loadDeck(true)} /></div>
         )}
         {showControls && isRange && selected && (
           <p className="text-xs text-slate-500">Showing <span className="font-medium text-slate-700">{selected.label}</span>: {selected.members.map(monthLabel).join(', ')} — aggregated; completeness is the lowest month’s.</p>

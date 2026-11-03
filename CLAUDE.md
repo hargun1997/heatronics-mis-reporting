@@ -174,6 +174,20 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     `deck.productGaps` → `ProductGapsPanel` on Live MIS; a click stores the confirmation (`mis/product-map`, `/api/mis/product-map`: `sku` overrides + `bomProxy`).
     A product with no BOM is costed from its confirmed proxy, else ESTIMATED from the closest costed product (`costEstimated`, cell flag `costEst`/`noCost`),
     and the month stays "uncosted" until confirmed: never a silent 100% margin.
+- **Issues inbox (founder, 3 Nov 2026: the MIS is live, so problems are an inbox, not a month-end page):** `/reporting/mis/issues` (sidebar Reporting,
+  live open count badge `data/issues/useIssueCount.ts`). Server items `services/issuesInbox.ts serverItems` (Tally health checks, hanging ledgers one
+  item per kind, TB that doesn't tie, Tally not reached / not connected, manual-upload slots `MANUAL_SLOTS` missing for last month (only connectors
+  ever used), the anomaly scan) → `GET /api/issues/inbox` (cached 60 s) / `GET /api/issues/count`; browser items `data/issues/inbox.ts deckItems`
+  (tie breach, ready to lock, BOM from another month, unmapped products, no-BOM products; remembered per tab for the badge). Shared state
+  `issues/state` (`POST /api/issues/state {op: done|snooze|reopen, id, sig}`): Done holds until the item's `sig` changes. Each item links where to
+  fix (`/tally?tab=`, `/reporting/mis/live?month=…#close|#product-gaps`, `/reporting/mis/ingest#<connector>`). Month-end close is now
+  **Admin → Month-end uploads** (only the no-API reports + freezing pulls); Round planner moved to Tools; Data rulebook is palette-only.
+  Sidebar: every section scrolls in one list, the current page scrolled into view (the footer used to hide the last tools).
+- **Chart of accounts** (Tally health → Chart of accounts, `GET /api/tally/books/chart`, pure `connectors/tally/chart.ts`, READ ONLY): groups →
+  sub-groups → ledgers tree with closings from the newest stored TB; hanging ledgers = on a parent group with sub-groups (not Sundry Debtors /
+  Creditors / Duties & Taxes / banks), in a carry-over / old group (Busy Carryover, "- Busy"), no group, or in another channel's group; each with a
+  suggested existing group (`MOVE_RULES` by name, else the sub-group of look-alike ledgers; never across the books). Handbook c2 lists the sub-groups
+  and the moves found on 3 Nov 2026. Tests `server/test/chart.test.ts`, `issuesInbox*.test.ts`.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
