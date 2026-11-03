@@ -5,8 +5,8 @@
 name: Task reminder emails
 
 on:
-  schedule:
-    - cron: '7 * * * *'
+  # Hourly schedule switched off (3 Nov 2026: task reminders not needed now).
+  # Restore `schedule: - cron: '7 * * * *'` to turn the emails back on.
   workflow_dispatch:
 
 jobs:
