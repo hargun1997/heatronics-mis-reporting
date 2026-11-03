@@ -78,3 +78,20 @@ test('a TB that does not tie shows its difference instead of hiding it', () => {
 });
 
 const r = (n: number) => Math.round(n * 100) / 100;
+
+test('MIS Sheet splits OpEx with the right signs (opexLines are effect-signed: costs negative, income positive)', async () => {
+  const { liveMisPoint } = await import('../../client/src/data/misDeck/liveViews.ts');
+  const p = {
+    members: ['2026-04'], level: 'full', netRevenue: 1000, opex: 494, ebitda: -100, cm3: 394,
+    opexLines: { 'Payroll (Employee Cost – Indirect)': -275, 'Professional Fees': -17, 'Other Income (Indirect Incomes)': 10, 'Admin & General Expenses': -212 },
+  } as any;
+  // Only the company branch's opex split is under test; stub the rest of PeriodAgg loosely.
+  let pt: any;
+  try { pt = liveMisPoint({ ...p, netByChannel: {}, grossByChannel: {}, returnsByChannel: {}, ordersByChannel: {}, estOrdersByChannel: {}, totalGrossRevenue: 0, totalReturns: 0, totalTaxes: 0, hasBuildUp: false, cogm: 0, grossMargin: 0, channelFulfillment: 0, cm1: 0, salesMarketing: 0, cm2: 0, platformCosts: 0, ordersMonths: 1 }, 'company', [], {}); }
+  catch (e) { throw new Error(`liveMisPoint threw on the stub: ${(e as Error).message}`); }
+  assert.equal(pt.payroll, 275);
+  assert.equal(pt.profFee, 17);
+  assert.equal(pt.otherIncome, 10);
+  assert.equal(pt.otherExpense, 212);
+  assert.equal(pt.payroll + pt.profFee + pt.otherExpense - pt.otherIncome, 494);
+});
