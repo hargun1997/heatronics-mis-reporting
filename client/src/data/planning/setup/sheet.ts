@@ -35,7 +35,8 @@ export function setCellPart(p: Plan, m: number, sku: number, ch: number, part: 0
   p.units[m][sku][ch][part] = Math.max(0, Math.round(v));
 }
 
-/** ₹ per line per FY, from a run's months (the feedback columns next to each line). */
+/** ₹ per line per FY, from a run's months (the feedback columns next to each line). A group's total can exceed its lines' sum:
+ *  with the founder decisions on, the engine books product materials / D2C discounts into groups without a line. */
 export function lineTotalsByFy(r: PlanResult): Record<string, Record<string, number>> {
   const t: Record<string, Record<string, number>> = {};
   for (const m of r.months) for (const [id, v] of Object.entries(m.lines)) (t[id] ??= {})[m.fy] = (t[id][m.fy] ?? 0) + v;
@@ -47,7 +48,7 @@ export function groupTotal(r: PlanResult, group: string, fy: string): number {
   return r.months.filter((m) => m.fy === fy).reduce((a, m) => a + (m.groups[group] ?? 0), 0);
 }
 
-/** A new Expense Calendar line in `group`, inserted right after the group's last line (end of the list when the group has none). */
+/** A new Expense Calendar line in `group`, inserted right after the group's last line (first in the list when the group has none yet). */
 export function addLine(p: Plan, section: Section, group: string, id: string): ExpenseLine {
   const l: ExpenseLine = { id, name: 'New line', section, group, type: 'Monthly', amount: 0, start: 1, end: null, theme: null, milestone: null, repeat: true };
   const after = p.lines.map((x) => x.group).lastIndexOf(group);

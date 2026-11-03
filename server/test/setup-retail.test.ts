@@ -48,7 +48,7 @@ test('retail: summary for the base plan, the ₹500 Cr plan and an edited plan (
   assert.ok(s.length <= 90);
 
   // a type switched off leaves the names and the count; stores on show their openings
-  const edited = build500Cr(basePlan());
+  const edited = structuredClone(big);
   edited.growth!.retail![1].on = false;
   edited.growth!.stores.on = true;
   const e = summary(edited);

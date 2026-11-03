@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runPlan } from '../../client/src/data/planning/engine.ts';
-import { basePlan } from '../../client/src/data/planning/basePlan.ts';
+import { basePlan, setSheetParity } from '../../client/src/data/planning/basePlan.ts';
 import {
   SHEET_SECTIONS, UNIT_PARTS, addLine, cellUnits, groupTotal, lineTotalsByFy, linesOf, monthUnits, setCellPart, summary, tagMilestone,
 } from '../../client/src/data/planning/setup/sheet.ts';
@@ -45,8 +45,9 @@ test('unit grid helpers: cell = sum of its three parts, setCellPart writes whole
   assert.deepEqual(SHEET_SECTIONS.map((x) => x.id), ['revex', 'opex', 'capex', 'finex']);
 });
 
-test('line totals per FY add up to the group total per FY', () => {
+test('line totals per FY add up to the group total per FY (sheet parity: groups hold lines only)', () => {
   const p = basePlan();
+  setSheetParity(p, true); // with the founder decisions on, the engine adds product materials / D2C discounts to groups without a line
   const r = runPlan(p);
   const totals = lineTotalsByFy(r);
   for (const g of p.groups) {
@@ -74,8 +75,8 @@ test('linesOf finds by name (case-insensitive); addLine sits right after the gro
   assert.equal(p.lines.length, n + 1);
   assert.equal(p.lines[lastIdx + 1].id, 'n-test');
   assert.deepEqual({ ...l }, { id: 'n-test', name: 'New line', section: 'opex', group: g.name, type: 'Monthly', amount: 0, start: 1, end: null, theme: null, milestone: null, repeat: true });
-  // a group with no lines yet: appended at the end
+  // a group with no lines yet goes first (lastIndexOf = −1 → index 0), as the old Costs tab did
   addLine(p, 'opex', 'A brand-new group', 'n-test-2');
-  assert.equal(p.lines[p.lines.length - 1].id, 'n-test-2');
+  assert.equal(p.lines[0].id, 'n-test-2');
   assert.doesNotThrow(() => runPlan(p));
 });

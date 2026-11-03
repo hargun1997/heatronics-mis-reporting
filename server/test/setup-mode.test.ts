@@ -20,6 +20,8 @@ const close = (a: number, b: number, what: string) =>
 
 /** A plan saved before the founder decisions existed: no fx, no growth. */
 const legacyPlan = (): Plan => { const p = basePlan(); delete p.fx; delete p.growth; return p; };
+/** The example growth plan, built once (its solvers take a while). */
+const BIG = build500Cr(basePlan());
 
 test('planMode: Base is "plan"; parity on or no fx is "sheet"', () => {
   assert.equal(planMode(basePlan()), 'plan');
@@ -29,7 +31,7 @@ test('planMode: Base is "plan"; parity on or no fx is "sheet"', () => {
 });
 
 test('setPlanMode(sheet): M1–M18 closing cash equals the sheet (base-plan-check.json) at the 18-month horizon', () => {
-  const p = build500Cr(basePlan()); // products, hires, rounds and a path all present — parity must ignore every one of them
+  const p = structuredClone(BIG); // products, hires, rounds and a path all present — parity must ignore every one of them
   setPlanMode(p, 'sheet');
   p.levers.horizon = 18;
   assert.equal(planMode(p), 'sheet');
@@ -103,7 +105,7 @@ test('summary: sheet parity, then my plan with where the opening came from and t
   p.fx!.opening.source = 'manual';
   assert.equal(summary(p), 'My plan · opening typed in · Apr–Sep ’26 ₹4.2 Cr');
 
-  for (const plan of [sheet, p, build500Cr(basePlan())]) {
+  for (const plan of [sheet, p, BIG]) {
     const s = summary(plan);
     assert.ok(s.length > 0 && s.length <= 90, `summary ≤ 90 chars: "${s}" (${s.length})`);
   }

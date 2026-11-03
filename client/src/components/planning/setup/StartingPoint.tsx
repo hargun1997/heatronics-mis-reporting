@@ -1,7 +1,8 @@
 // Setup → 1 Starting point (docs/planning/ONE-SETUP.md §2.1): the plan basis (sheet parity or my plan), the example growth
 // plan, the opening balance sheet (Tally / typed / the sheet's) and the actuals already booked. Pure helpers: data/planning/setup/mode.ts.
+/* eslint-disable react-refresh/only-export-components -- the section contract (types.ts) exports `summary` and `SECTION` next to the component */
 import { useState } from 'react';
-import { monthLabel, type Plan, type PlanFx } from '../../../data/planning/engine';
+import { monthLabel, type PlanFx } from '../../../data/planning/engine';
 import { founderFx } from '../../../data/planning/basePlan';
 import { build500Cr } from '../../../data/planning/growth';
 import { monthBefore, openingFromTally } from '../../../data/planning/opening';

@@ -83,7 +83,7 @@ export function setDiscountPct(fx: NonNullable<Plan['fx']>, v: number): void {
 }
 
 /** "Use Shopify's": the discount share the history measured. False when the history has none. */
-export function useShopifyDiscount(p: Plan): boolean {
+export function applyShopifyDiscount(p: Plan): boolean {
   const v = p.d2c.discountPct;
   if (v == null || !p.fx) return false;
   p.fx.d2cDiscount.pct = v;

@@ -52,7 +52,9 @@ test('targets: switching to Revenue by year seeds every full FY from the plan; E
 
 test('targets: fit in path mode meets the ₹30 → 100 → 250 → 500 Cr path within 0.5 % and sizes rounds after the seed', () => {
   const built = build500Cr(basePlan());
+  const before = structuredClone(built);
   const { plan: p, notes } = fitToTargets(built);
+  assert.deepEqual(built, before, 'the input plan is never mutated');
   assert.equal(targetMode(p), 'path');
   assert.deepEqual(notes, [], `no FY missed: ${notes.join(' | ')}`);
   const r = runPlan(p);
@@ -64,8 +66,6 @@ test('targets: fit in path mode meets the ₹30 → 100 → 250 → 500 Cr path 
   assert.ok(p.growth!.rounds.every((x) => x.month >= p.fx!.seed.month + 3), 'every round ≥ seed month + 3');
   assert.ok(p.growth!.rounds.every((x) => !x.confirmed && x.id.startsWith('auto-')), 'sized rounds are unconfirmed placeholders');
   assert.ok(Object.keys(p.growth!.push ?? {}).length >= 4, 'push set per FY');
-  // the input plan is never mutated
-  assert.deepEqual(built, build500Cr(basePlan()).constructor === Object ? built : built);
   assert.ok(r.minClosingCash > -5 * CR, 'only the pre-round overdraft dip is negative');
 });
 
