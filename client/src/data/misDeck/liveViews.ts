@@ -23,7 +23,7 @@ import { SALES_CHANNELS, VERTICALS, VERTICAL_BY_CHANNEL, DISCOUNT_DATA, D2C_AD_S
 import type { SkuCell } from './skuChannelPnl';
 import type { CompletenessLevel, LiveDeckData, PeriodCompleteness } from './liveDeck';
 import {
-  aggregatePeriods, monthLabel, FACTORY_PCT, CHANNEL_FOLD,
+  aggregatePeriods, monthLabel, cellFactory, CHANNEL_FOLD,
   type PeriodAgg, type PnlColumn,
 } from './liveAnalytics';
 import {
@@ -177,6 +177,8 @@ export interface AnchoredRow {
   opex: number; ebitda: number;
   nonOperating: number; costOfFundraising: number; netIncome: number;
   revShare: number; cogsShare: number; smShare: number;
+  /** 'tally' = revenue and channel / marketing / platform costs come from Tally's channel ledgers; 'shares' = order-share splits. */
+  basis: 'tally' | 'shares';
 }
 
 /**
@@ -192,6 +194,11 @@ export function anchoredChannelPnl(
   cells: SkuCell[],
   completeness: Record<string, PeriodCompleteness>,
 ): AnchoredRow[] {
+  // Where Tally exists for the period, the channel's own ledgers carry the figures: revenue = Tally's channel sales,
+  // and each cost line = what the connectors attribute to the channel (tallyLines.byChannel) plus its revenue-share of
+  // the unattributed remainder, so every line still foots to Tally. Without Tally it stays the order-share split.
+  if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells, completeness);
+
   const keys = new Set(period.members);
   const sel = cells.filter((c) => keys.has(c.m));
   const chans = SALES_CHANNELS.filter((ch) => sel.some((c) => c.ch === ch));
@@ -228,14 +235,70 @@ export function anchoredChannelPnl(
     const netIncome = ebitda - nonOperating - costOfFundraising;
     return {
       channel: ch, revenue, cogm, grossMargin, channelFulfillment, cm1, salesMarketing, cm2,
-      platformCosts, cm3, opex, ebitda, nonOperating, costOfFundraising, netIncome, revShare, cogsShare, smShare,
+      platformCosts, cm3, opex, ebitda, nonOperating, costOfFundraising, netIncome, revShare, cogsShare, smShare, basis: 'shares' as const,
+    };
+  });
+}
+
+/** Channel P&L tied to Tally's channel ledgers (see anchoredChannelPnl). Exported for tests. */
+export function tallyAnchoredRows(
+  period: PeriodAgg,
+  cells: SkuCell[],
+  _completeness: Record<string, PeriodCompleteness>,
+): AnchoredRow[] {
+  const keys = new Set(period.members);
+  const sel = cells.filter((c) => keys.has(c.m));
+  const chans = SALES_CHANNELS.filter((ch) => (period.netByChannel[ch] ?? 0) !== 0 || sel.some((c) => c.ch === ch));
+  if (chans.length === 0) return [];
+  const rev = chans.map((ch) => period.netByChannel[ch] ?? 0);
+  const posRev = rev.map((v) => Math.max(0, v));
+  const totPos = posRev.reduce((a, b) => a + b, 0) || 1;
+  const revShareOf = (i: number) => posRev[i] / totPos;
+
+  // Cost attributed to each channel by Tally line group (positive = cost), and the total booked for the group.
+  const attributed = (cascade: string): number[] => chans.map((ch) =>
+    -period.tallyLines.filter((l) => l.cascadeLine === cascade).reduce((s, l) => s + (l.byChannel[ch] ?? 0), 0));
+  const spreadCost = (total: number, cascade: string, fallbackShare: (i: number) => number): number[] => {
+    const att = attributed(cascade);
+    const rest = total - att.reduce((a, b) => a + b, 0);
+    return att.map((a, i) => a + rest * fallbackShare(i));
+  };
+  const realCogs = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.cogs : s), 0)));
+  const totCogs = realCogs.reduce((a, b) => a + b, 0);
+  const cogsShareOf = (i: number) => (totCogs > 1 ? realCogs[i] / totCogs : revShareOf(i));
+
+  const fulfil = spreadCost(period.channelFulfillment, 'channel_fulfilment', revShareOf);
+  const sm = spreadCost(period.salesMarketing, 'sales_marketing', revShareOf);
+  const plat = spreadCost(period.platformCosts, 'platform_payment', revShareOf);
+
+  return chans.map((ch, i) => {
+    const revShare = revShareOf(i);
+    const cogsShare = cogsShareOf(i);
+    const revenue = rev[i];
+    const cogm = period.cogm * cogsShare;
+    const grossMargin = revenue - cogm;
+    const channelFulfillment = fulfil[i];
+    const cm1 = grossMargin - channelFulfillment;
+    const salesMarketing = sm[i];
+    const cm2 = cm1 - salesMarketing;
+    const platformCosts = plat[i];
+    const cm3 = cm2 - platformCosts;
+    const opex = period.opex * revShare;
+    const ebitda = cm3 - opex;
+    const nonOperating = period.nonOperating * revShare;
+    const costOfFundraising = period.costOfFundraising * revShare;
+    const netIncome = ebitda - nonOperating - costOfFundraising;
+    return {
+      channel: ch, revenue, cogm, grossMargin, channelFulfillment, cm1, salesMarketing, cm2,
+      platformCosts, cm3, opex, ebitda, nonOperating, costOfFundraising, netIncome,
+      revShare, cogsShare, smShare: totPos ? sm[i] / (period.salesMarketing || 1) : 0, basis: 'tally' as const,
     };
   });
 }
 
 /** The company cascade as a "total" PnlColumn (the book of record). */
 export function companyColumn(period: PeriodAgg, label = 'Total (MIS)'): PnlColumn {
-  const factory = r2(FACTORY_PCT * period.netRevenue);
+  const factory = r2(period.factory);
   return {
     key: '__company', label, kind: 'total',
     rev: period.netRevenue, cogs: r2(period.cogm - factory), factory, cogm: period.cogm, gm: period.grossMargin,
@@ -278,11 +341,11 @@ export interface LiveMatrix {
   grand: SkuAgg;
 }
 
-interface RawM { rev: number; cogs: number; cf: number; sm: number; u: number }
-const ZERO_M: RawM = { rev: 0, cogs: 0, cf: 0, sm: 0, u: 0 };
-const addM = (a: RawM, c: SkuCell): RawM => ({ rev: a.rev + c.rev, cogs: a.cogs + c.cogs, cf: a.cf + c.oth, sm: a.sm + (c.ad ?? 0), u: a.u + c.u });
+interface RawM { rev: number; cogs: number; cf: number; sm: number; u: number; fac: number }
+const ZERO_M: RawM = { rev: 0, cogs: 0, cf: 0, sm: 0, u: 0, fac: 0 };
+const addM = (a: RawM, c: SkuCell): RawM => ({ rev: a.rev + c.rev, cogs: a.cogs + c.cogs, cf: a.cf + c.oth, sm: a.sm + (c.ad ?? 0), u: a.u + c.u, fac: a.fac + cellFactory(c) });
 function finM(a: RawM): SkuAgg & { ad: number } {
-  const fac = a.rev * FACTORY_PCT;
+  const fac = a.fac;
   const con = a.rev - a.cogs - fac - a.cf - a.sm;
   return { rev: a.rev, cogs: a.cogs, fac, oth: a.cf + a.sm, cf: a.cf, sm: a.sm, ad: a.sm, con, u: a.u };
 }

@@ -41,6 +41,8 @@ const CHANNEL_ALIASES: Record<string, SalesChannel> = {
   flipkart: 'Flipkart',
   gt: 'GT', b2b: 'B2B',
   oem: 'OEM', offline: 'Offline', export: 'Export',
+  // Live connector facts label their channel by the ad platform, not the sales channel.
+  'meta ads': 'D2C', 'google ads': 'D2C', 'amazon ads': 'Amazon', 'flipkart ads': 'Flipkart',
 };
 
 /** Normalise a fact's channel to a deck channel, or null when it is outside the fixed set. */

@@ -177,6 +177,8 @@ const amazon: ConnectorDef = {
           channel: 'Amazon',
           date,
           revenue: r2(num(m.totalSales?.amount)),
+          // Sales API "total sales" is the customer-paid amount (GST inclusive); it carries no tax split.
+          gmv: r2(num(m.totalSales?.amount)),
           units: m.unitCount ?? 0,
           orders: m.orderCount ?? 0,
           fees: 0,
