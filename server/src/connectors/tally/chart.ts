@@ -45,7 +45,7 @@ const LEGACY = /carry ?over|\bbusy\b|\(old\)|\bold\b|suspense|temporary|\btemp\b
 /** Ledger names that may sit on a primary group by design. */
 const ALLOWED_TOP = /^(profit & loss a\/c|cash|opening stock|closing stock)$/i;
 /** Groups where ledgers sit directly by design even when sub-groups exist (parties, taxes, banks). */
-const DIRECT_OK = /^(sundry debtors|sundry creditors|duties & taxes|bank accounts|bank od a\/c|provisions|cash-in-hand|stock-in-hand)$/i;
+const DIRECT_OK = /^(sundry debtors|sundry creditors|duties & taxes|bank accounts|bank od a\/c|provisions|cash-in-hand|stock-in-hand|capital account|purchase accounts)$/i;
 
 /** Name → existing group (first that exists in the masters wins). Ordered: specific before general. */
 export const MOVE_RULES: { re: RegExp; to: string[]; why: string }[] = [
