@@ -28,6 +28,8 @@ test('planMode: Base is "plan"; parity on or no fx is "sheet"', () => {
   const parity = basePlan(); setSheetParity(parity, true);
   assert.equal(planMode(parity), 'sheet');
   assert.equal(planMode(legacyPlan()), 'sheet');
+  const legacyGrowth = legacyPlan(); legacyGrowth.growth = { ...BIG.growth!, on: true };
+  assert.equal(planMode(legacyGrowth), 'plan');
 });
 
 test('setPlanMode(sheet): M1–M18 closing cash equals the sheet (base-plan-check.json) at the 18-month horizon', () => {

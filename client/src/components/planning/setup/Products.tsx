@@ -129,7 +129,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               <span className="min-w-0 flex-1 text-slate-900">{x.name}{x.placeholder && !/placeholder/i.test(x.name) ? ' (placeholder)' : ''}{x.on ? '' : <span className="text-slate-500"> · off</span>}</span>
               <span className="text-[12px] tabular-nums text-slate-500">{fys.slice(-3).map((f) => `${f} ${money(byFy[x.id]?.[f]?.rev ?? 0, 1)}`).join(' · ')}</span>
               <select className="min-h-[36px] rounded-lg border border-slate-200 bg-surface px-2 text-[13px]" aria-label={`Category for ${x.name}`} value=""
-                onChange={(e) => { const id = e.target.value; if (id) setProd(x.id, (q) => { q.category = id; }); }}>
+                onChange={(e) => { const id = e.target.value; if (id) setProd(x.id, (q) => { q.category = id; q.growthLine = true; }); }}>
                 <option value="">Put in category…</option>
                 {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>

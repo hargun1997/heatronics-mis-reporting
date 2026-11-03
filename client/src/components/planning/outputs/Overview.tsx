@@ -3,6 +3,7 @@
 
 import type { Plan, PlanResult } from '../../../data/planning/engine';
 import { runRateArr } from '../../../data/planning/growth';
+import { targetMode } from '../../../data/planning/setup/targets';
 import { SectionCard } from '../../ui/Card';
 import { FyTable } from '../FyTable';
 import { CashCurve, RevenueBars } from '../charts';
@@ -22,11 +23,13 @@ export function OverviewView({ plan, result, compare, compareName }: Props) {
   const lowMonth = r.months[r.minClosingCashMonth - 1];
   const lastM = r.months[r.months.length - 1];
 
-  // exit ARR vs the Setup → Targets exit target (only meaningful when the growth layer is applied)
+  // exit ARR vs the Setup → Targets exit target (only meaningful when the growth layer is applied and the target type is Exit ARR;
+  // in "Revenue by year" mode `targetArr` is just the untouched default, so it is not a target)
   const G = plan.growth;
   const parity = !!plan.fx?.sheetParity;
   const arr = runRateArr(r);
-  const target = G && G.on && !parity && G.targetArr > 0 ? G.targetArr : null;
+  const byYear = targetMode(plan) === 'path';
+  const target = G && G.on && !parity && !byYear && G.targetArr > 0 ? G.targetArr : null;
 
   // capacity use (Setup → Capacity); 0 everywhere = no capacity set
   const peakUtil = Math.max(0, ...r.months.map((m) => m.utilisation));
@@ -43,7 +46,7 @@ export function OverviewView({ plan, result, compare, compareName }: Props) {
         <MiniStat
           label={`Exit ARR (${lastM?.label} run-rate)`}
           value={money(arr, 0)}
-          sub={target == null ? 'Last 3 months × 4 · no exit ARR target set (Setup → Targets)' : arr >= target ? `Target ${money(target, 0)} reached` : `${money(target - arr, 0)} short of ${money(target, 0)}`}
+          sub={target == null ? `Last 3 months × 4 · ${byYear && G?.on && !parity ? 'targets are set by year (Setup → Targets)' : 'no exit ARR target set (Setup → Targets)'}` : arr >= target ? `Target ${money(target, 0)} reached` : `${money(target - arr, 0)} short of ${money(target, 0)}`}
           bad={target != null && arr < target * 0.98}
         />
         <MiniStat

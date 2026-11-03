@@ -105,7 +105,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
         <div className="space-y-2">
           <SubHead>Team structure</SubHead>
-          <Note>From the Overview tab. One line per role; → for who reports into whom.</Note>
+          <Note>From the sheet’s Overview tab. One line per role; → for who reports into whom.</Note>
           <textarea value={plan.business.team} onChange={(e) => setB((b) => { b.team = e.target.value; })} rows={10}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] leading-relaxed" aria-label="Team structure" />
         </div>

@@ -93,7 +93,7 @@ export function BusinessPlanView({ plan, result }: Props) {
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
         <Milestones plan={plan} />
-        <SectionCard title="Team structure" description="From the Overview tab. One line per role; → for who reports into whom.">
+        <SectionCard title="Team structure" description="From the sheet’s Overview tab. One line per role; → for who reports into whom.">
           {B.team.trim() ? <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{B.team}</p> : <p className="text-[13px] text-slate-500">Nothing written yet (Setup → Business plan text).</p>}
         </SectionCard>
       </div>

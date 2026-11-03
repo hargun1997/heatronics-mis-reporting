@@ -48,14 +48,17 @@ export function SetupPanel({ plan, update, result }: { plan: Plan; update: Updat
 
   return (
     <section aria-labelledby="setup-h" className="overflow-hidden rounded-2xl border border-slate-200/80 bg-surface shadow-card">
-      <button type="button" aria-expanded={st.open} aria-controls="setup-body" onClick={() => setSt((s) => ({ ...s, open: !s.open }))}
-        className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-        {st.open ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" aria-hidden /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />}
-        <h2 id="setup-h" className="text-[15px] font-semibold text-slate-900">Setup</h2>
-        <span className="min-w-0 flex-1 truncate text-[12.5px] text-slate-500">{panelSummary(plan)}</span>
-        {parity && <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Sheet parity</span>}
-        <span className="text-[12px] font-medium text-accent-700">{st.open ? 'Collapse' : 'Expand'}</span>
-      </button>
+      {/* disclosure pattern: heading wraps the toggle button (a heading inside a button is invalid HTML) */}
+      <h2 className="m-0">
+        <button type="button" aria-expanded={st.open} aria-controls="setup-body" onClick={() => setSt((s) => ({ ...s, open: !s.open }))}
+          className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+          {st.open ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" aria-hidden /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />}
+          <span id="setup-h" className="text-[15px] font-semibold text-slate-900">Setup</span>
+          <span className="min-w-0 flex-1 truncate text-[12.5px] text-slate-500">{panelSummary(plan)}</span>
+          {parity && <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Sheet parity</span>}
+          <span className="text-[12px] font-medium text-accent-700">{st.open ? 'Collapse' : 'Expand'}</span>
+        </button>
+      </h2>
       {st.open && (
         <div id="setup-body" className="divide-y divide-slate-100 border-t border-slate-100">
           {SECTIONS.map((s, i) => {
@@ -63,14 +66,16 @@ export function SetupPanel({ plan, update, result }: { plan: Plan; update: Updat
             const bodyId = `setup-${s.id}`;
             return (
               <div key={s.id}>
-                <button type="button" aria-expanded={open} aria-controls={bodyId}
-                  onClick={() => setSt((cur) => ({ ...cur, sections: { ...cur.sections, [s.id]: !open } }))}
-                  className={cx('flex w-full flex-wrap items-center gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500', open ? 'bg-surface-tint/60' : 'hover:bg-slate-50')}>
-                  {open ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />}
-                  <span className="w-5 text-[12px] tabular-nums text-slate-400">{i + 1}</span>
-                  <span className="text-[13.5px] font-semibold text-slate-900">{s.title}</span>
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-slate-500">{summaries[i]}</span>
-                </button>
+                <h3 className="m-0">
+                  <button type="button" aria-expanded={open} aria-controls={bodyId}
+                    onClick={() => setSt((cur) => ({ ...cur, sections: { ...cur.sections, [s.id]: !open } }))}
+                    className={cx('flex w-full flex-wrap items-center gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500', open ? 'bg-surface-tint/60' : 'hover:bg-slate-50')}>
+                    {open ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />}
+                    <span className="w-5 text-[12px] tabular-nums text-slate-400">{i + 1}</span>
+                    <span className="text-[13.5px] font-semibold text-slate-900">{s.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-[12px] text-slate-500">{summaries[i]}</span>
+                  </button>
+                </h3>
                 {open && (
                   <div id={bodyId} className="space-y-4 px-4 pb-5 pt-3">
                     <p className="text-[12px] text-slate-500">{s.blurb}</p>

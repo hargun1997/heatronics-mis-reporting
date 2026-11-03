@@ -112,13 +112,13 @@ export function Section({ plan, update }: SetupSectionProps) {
         ) : (
           <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
             <Row label={`Opening cash (${startLabel})`}>
-              <NumInput unit="cr" value={plan.cash.openingCash} min={0} width="w-20" title="Opening cash" onChange={(v) => update((p) => { p.cash.openingCash = v; })} />
+              <NumInput unit="cr" value={plan.cash.openingCash} min={0} width="w-20" title="Opening cash" onChange={(v) => update((p) => { p.cash.openingCash = v; if (p.fx?.opening.source === 'sheet') p.fx.opening.cash = v; })} />
             </Row>
             <Row label={`Opening inventory (${startLabel})`}>
-              <NumInput unit="cr" value={plan.cash.openingInventory} min={0} width="w-20" title="Opening inventory" onChange={(v) => update((p) => { p.cash.openingInventory = v; })} />
+              <NumInput unit="cr" value={plan.cash.openingInventory} min={0} width="w-20" title="Opening inventory" onChange={(v) => update((p) => { p.cash.openingInventory = v; if (p.fx?.opening.source === 'sheet') p.fx.opening.inventory = v; })} />
             </Row>
             <Row label={`Opening debt (${startLabel})`}>
-              <NumInput unit="cr" value={plan.cash.openingDebt} min={0} width="w-20" title="Opening debt" onChange={(v) => update((p) => { p.cash.openingDebt = v; })} />
+              <NumInput unit="cr" value={plan.cash.openingDebt} min={0} width="w-20" title="Opening debt" onChange={(v) => update((p) => { p.cash.openingDebt = v; if (p.fx?.opening.source === 'sheet') p.fx.opening.debt = v; })} />
             </Row>
           </div>
         )}

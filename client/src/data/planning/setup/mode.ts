@@ -11,7 +11,9 @@ export type PlanMode = 'sheet' | 'plan';
 
 /** 'sheet' = no founder decisions yet, or sheet parity on; 'plan' = founder decisions applied and parity off. */
 export function planMode(plan: Plan): PlanMode {
-  return !plan.fx || plan.fx.sheetParity ? 'sheet' : 'plan';
+  // No fx yet (a scenario saved before the founder decisions): the engine still applies a switched-on growth layer, so say so.
+  if (!plan.fx) return plan.growth?.on ? 'plan' : 'sheet';
+  return plan.fx.sheetParity ? 'sheet' : 'plan';
 }
 
 /** Founder decisions, applied on first use (same as setup/shared.tsx `ensureFx`, kept here so node tests need no .tsx). */

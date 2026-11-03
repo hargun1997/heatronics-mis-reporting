@@ -1,5 +1,5 @@
 // Setup → 9 Targets (docs/planning/ONE-SETUP.md §2.9): where the plan should land (revenue by year, or an exit ARR) and the
-// ONE action of the whole planning page — "Fit the plan to these targets" — which is also its only `bg-cta`.
+// ONE action of the whole planning page — "Fit the plan to these targets" — which is also its only primary button.
 import { useState } from 'react';
 import type { Plan } from '../../../data/planning/engine';
 import { runRateArr } from '../../../data/planning/growth';
@@ -24,17 +24,19 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   const sheet = !plan.fx || plan.fx.sheetParity;
   const G = plan.growth;
   const linesOn = plan.products.some((x) => x.growthLine && x.on);
-  const blocked = sheet ? 'Switch Starting point to My plan' : !linesOn ? 'Add a product in Products & categories first' : null;
+  const blocked = sheet ? 'Switch Starting point to My plan' : plan.growth && !plan.growth.on ? 'The products & growth layer is switched off (Starting point → Switch it on)' : !linesOn ? 'Add a product in Products & categories first' : null;
   const set = (fn: (g: NonNullable<Plan['growth']>) => void) => update((p) => { fn(ensureGrowth(p)); });
 
   const arr = runRateArr(result);
   const target = G?.targetArr ?? 500 * CR;
   const lastM = result.months[result.months.length - 1];
 
+  // Fit from the plan as rendered (not inside the state updater: React may run that lazily at render time, after
+  // setNotes has already read an empty list), then replace the draft with the fitted plan.
   const fit = () => run('Fitting…', () => {
-    let out: string[] = [];
-    replacePlan(update, (p) => { const r = fitToTargets(p); out = r.notes; return r.plan; });
-    setNotes(out);
+    const r = fitToTargets(plan);
+    replacePlan(update, () => r.plan);
+    setNotes(r.notes);
   });
 
   return (
@@ -76,6 +78,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               })}
             </tbody>
           </table>
+          <Note>A year with no target keeps its own pace. Clearing every year's target switches to an exit ARR target.</Note>
         </div>
       ) : (
         <div className="space-y-1.5">
