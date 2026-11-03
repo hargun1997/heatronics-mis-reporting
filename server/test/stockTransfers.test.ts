@@ -9,6 +9,9 @@ const header = ['Invoice Number', 'Customer Name', 'Document Date', 'Item ID', '
 
 test('ITF / transfer series and Amazon customers are classified as stock transfers', () => {
   assert.equal(isTranzactStockTransfer('ITF/26-27/0001'), true);
+  assert.equal(isTranzactStockTransfer('Ecom/26-27/0007'), true);
+  assert.equal(isTranzactStockTransfer('ITF/CN/26-27/001'), false); // credit note, not a transfer invoice
+  assert.equal(isTranzactStockTransfer('MT/26-27/0001'), false);
   assert.equal(isTranzactStockTransfer('itf/26-27/0001'), true);
   assert.equal(isTranzactStockTransfer('GTD/26-27/0102', 'AMAZON SELLER SERVICES PVT LTD'), true);
   assert.equal(isTranzactStockTransfer('GTD/26-27/0102', 'SCIENTIFIC SURGICAL EMPORIUM'), false);

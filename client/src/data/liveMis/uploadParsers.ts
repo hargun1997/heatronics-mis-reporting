@@ -1219,25 +1219,22 @@ function parseFlipkartAds(wb: XLSX.WorkBook): ParseOutput {
 
 // ---- Tranzact Sales Invoice Register (item-wise) → GT / B2B channel×SKU ----
 
+import { tranzactSeriesFor } from '../tranzact/rules';
+
 /**
- * Internal stock transfers are NOT sales: ITF (inter-unit transfer) series, other transfer
- * series, and any invoice billed to an Amazon entity (e-com / FBA stock sent to Amazon).
- * They net out against Tally's "Stock Transfers" ledger and are reported separately.
- * (Founder, 3 Nov 2026: audited-vs-MIS gap = GST + internal stock transfers.)
+ * Internal stock transfers are NOT sales: the ITF (Internal Transfer) and Ecom (Ecommerce 3P)
+ * series, and any invoice billed to an Amazon entity. Series come from Tranzact itself
+ * (client/src/data/tranzact/rules.ts). They net against Tally's "Stock Transfers" ledger.
  */
-export const TRANZACT_TRANSFER_PREFIXES = ['ITF', 'IST', 'STF', 'TRF', 'ECOM', 'AMZ', 'FBA'];
 export function isTranzactStockTransfer(invoice: string, customer = ''): boolean {
-  const p = (invoice.split('/')[0] || '').trim().toUpperCase();
-  if (TRANZACT_TRANSFER_PREFIXES.includes(p)) return true;
+  const s = tranzactSeriesFor(invoice);
+  if (s?.treatment === 'transfer') return true;
   return /\bamazon\b/i.test(customer);
 }
 
-/** Invoice prefix → channel + fact source. OEM = B2B; GTD/GTR/PHY roll up to GT. */
 function tranzactChannel(invoice: string): { channel: string; source: string } | null {
-  const p = (invoice.split('/')[0] || '').trim().toUpperCase();
-  if (p === 'OEM') return { channel: 'B2B', source: 'tranzactb2b' };
-  if (p === 'GTD' || p === 'GTR' || p === 'PHY' || p === 'GT') return { channel: 'GT', source: 'tranzactgt' };
-  return null;
+  const s = tranzactSeriesFor(invoice);
+  return s && s.treatment === 'sale' && s.channel && s.source ? { channel: s.channel, source: s.source } : null;
 }
 
 /**
@@ -1276,7 +1273,7 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
       transferVal += num(row[ix.val]); transferInvs.add(inv); continue;
     }
     // BLK = Blinkit sales: counted from the Blinkit payout (own slot), not here, so no double count.
-    if ((inv.split('/')[0] || '').trim().toUpperCase() === 'BLK') { blinkitVal += num(row[ix.val]); continue; }
+    if (tranzactSeriesFor(inv)?.treatment === 'own-feed') { blinkitVal += num(row[ix.val]); continue; }
     const ch = tranzactChannel(inv);
     if (!ch) { skippedCh += 1; continue; }
     const item = cell(row[ix.item]).toUpperCase();
