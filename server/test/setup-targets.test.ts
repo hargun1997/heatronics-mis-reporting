@@ -10,6 +10,8 @@ import { build500Cr, emptyGrowth, ensureGrowthGroups, growthCategories, runRateA
 import { fitToTargets, setTargetMode, summary, targetMode } from '../../client/src/data/planning/setup/targets.ts';
 
 const CR = 1e7;
+/** build500Cr solves the path (≈ 15 s): built once, cloned per test. */
+const built500 = (() => { let c: Plan | null = null; return () => { c ??= build500Cr(basePlan()); return structuredClone(c); }; })();
 const withGrowth = (fn: (p: Plan) => void = () => {}) => {
   const p = basePlan();
   p.growth = { ...emptyGrowth(), on: true };
@@ -27,7 +29,7 @@ test('targets: the mode is derived — a path with FYs = path, else exit ARR', (
   assert.equal(targetMode(basePlan()), 'arr', 'no growth layer');
   assert.equal(targetMode(withGrowth()), 'arr', 'growth without a path');
   assert.equal(targetMode(withGrowth((p) => { p.growth!.path = {}; })), 'arr', 'an empty path is no path');
-  assert.equal(targetMode(build500Cr(basePlan())), 'path');
+  assert.equal(targetMode(built500()), 'path');
 });
 
 test('targets: switching to Revenue by year seeds every full FY from the plan; Exit ARR drops path and push', () => {
@@ -51,7 +53,7 @@ test('targets: switching to Revenue by year seeds every full FY from the plan; E
 });
 
 test('targets: fit in path mode meets the ₹30 → 100 → 250 → 500 Cr path within 0.5 % and sizes rounds after the seed', () => {
-  const built = build500Cr(basePlan());
+  const built = built500();
   const before = structuredClone(built);
   const { plan: p, notes } = fitToTargets(built);
   assert.deepEqual(built, before, 'the input plan is never mutated');
@@ -91,17 +93,17 @@ test('targets: exit-ARR mode with no growth line on fits nothing and says so (ro
 });
 
 test('targets: sheet parity (or a plan without fx / growth) returns the plan unchanged with the note', () => {
-  const a = build500Cr(basePlan()); setSheetParity(a, true);
+  const a = built500(); setSheetParity(a, true);
   const ra = fitToTargets(a);
   assert.deepEqual(ra.plan, a);
   assert.deepEqual(ra.notes, ['Sheet parity is on: nothing fitted.']);
-  const b = build500Cr(basePlan()); delete b.fx; // saved before the founder decisions = sheet mode
+  const b = built500(); delete b.fx; // saved before the founder decisions = sheet mode
   const rb = fitToTargets(b);
   assert.deepEqual(rb.plan, b);
   assert.deepEqual(rb.notes, ['Sheet parity is on: nothing fitted.']);
   const c = basePlan(); // My plan, no growth layer at all
   assert.deepEqual(fitToTargets(c).plan, c);
-  const d = build500Cr(basePlan()); d.growth!.on = false; // legacy scenario with the layer switched off
+  const d = built500(); d.growth!.on = false; // legacy scenario with the layer switched off
   const rd = fitToTargets(d);
   assert.deepEqual(rd.plan, d);
   assert.equal(rd.notes.length, 1);
@@ -112,7 +114,7 @@ test('targets: summary strings', () => {
   assert.equal(summary(basePlan()), 'No targets');
   assert.equal(summary(withGrowth()), 'Exit ARR ₹500 Cr target');
   assert.equal(summary(withGrowth((p) => { p.growth!.targetArr = 1250 * CR; })), 'Exit ARR ₹1,250 Cr target');
-  const built = build500Cr(basePlan());
+  const built = built500();
   assert.equal(summary(built), 'Revenue by year: FY28 ₹30 Cr → FY31 ₹500 Cr · fitted');
   const unfitted = withGrowth((p) => { p.growth!.path = { FY30: 250 * CR, FY28: 30 * CR }; });
   assert.equal(summary(unfitted), 'Revenue by year: FY28 ₹30 Cr → FY30 ₹250 Cr · not fitted yet');

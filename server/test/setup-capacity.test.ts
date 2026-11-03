@@ -11,6 +11,9 @@ import {
 } from '../../client/src/data/planning/setup/capacity.ts';
 
 const CR = 1e7;
+// build500Cr runs the path solver (slow): built once, shared by the two scenario tests
+let big: ReturnType<typeof build500Cr> | undefined;
+const scenario = () => (big ??= build500Cr(basePlan()));
 
 test('capacity summary: no growth layer = what ensureGrowth would create, nothing planned', () => {
   const p = basePlan();
@@ -33,7 +36,7 @@ test('capacity summary: counts only what is on; Σ on blocks is added to capacit
 });
 
 test('capacity summary: the ₹500 Cr scenario gives a non-empty line under 90 chars', () => {
-  const s = summary(build500Cr(basePlan()));
+  const s = summary(scenario());
   assert.ok(s.length > 0 && s.length <= 90, s);
   assert.match(s, /^[\d,]+ → [\d,]+ units\/mo · \d+ blocks · \d+ sites · \d+ running costs · \d+ capex items$/);
 });
@@ -52,7 +55,7 @@ test('peak use: the highest month, how many are over 100 %, null without capacit
 });
 
 test('peak use: reads the engine result of the ₹500 Cr scenario (first month wins a tie)', () => {
-  const r = runPlan(build500Cr(basePlan()));
+  const r = runPlan(scenario());
   const p = peakUse(r.months);
   assert.ok(p, 'the scenario sets a capacity');
   const max = Math.max(...r.months.map((m) => m.utilisation));

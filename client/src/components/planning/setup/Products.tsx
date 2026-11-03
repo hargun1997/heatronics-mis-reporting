@@ -8,7 +8,7 @@ import {
   type CategoryDef, type Channel, type NewProduct, type Plan, type ProductExpense,
 } from '../../../data/planning/engine';
 import {
-  addCategory, addProduct, byFy as byFyOf, categoriesOf, categoryOf, expenseId, growthWithCategories, orphans as orphansOf, planMode,
+  addCategory, addProduct, byFy as byFyOf, categoriesOf, expenseId, growthWithCategories, orphans as orphansOf, planMode,
   productId, removeCategory, setSkuTweak, splitSum, summary, ZERO_SPLIT,
 } from '../../../data/planning/setup/products';
 import { NumInput } from '../inputs';
