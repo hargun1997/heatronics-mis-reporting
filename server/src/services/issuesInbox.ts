@@ -112,7 +112,25 @@ export function serverItems(x: InboxInputs): InboxItem[] {
       fix: `Download it from the channel and drop it on the ${s.label} slot.`, href: `/reporting/mis/connectors?view=uploads#${s.connectorId}`, sig: 'missing' });
   }
   // MIS numbers: cross-month anomaly scan
-  for (const a of x.anomalies) out.push({ id: `scan:${a.id}`, area: 'mis', severity: a.severity, period: a.period, title: a.title, detail: a.detail, fix: 'Check the month on Live MIS; re-pull or re-upload the report behind it.', href: '/reporting/mis/live', sig: sigOf(a.title) });
+  // (future months are skipped — a month that hasn't happened can't be wrong yet — and the same check over several months is one item)
+  const thisMonth = x.today.slice(0, 7);
+  const RANK = { high: 0, medium: 1, low: 2 } as const;
+  const scan = new Map<string, InboxInputs['anomalies']>();
+  for (const a of x.anomalies) {
+    if (a.period && a.period.slice(0, 7) > thisMonth) continue;
+    const list = scan.get(a.title) ?? [];
+    list.push(a); scan.set(a.title, list);
+  }
+  for (const [title, list] of scan) {
+    const months = [...new Set(list.map((a) => a.period).filter(Boolean))].sort().reverse();
+    const worst = list.reduce((w, a) => (RANK[a.severity] < RANK[w.severity] ? a : w), list[0]);
+    const newest = list.find((a) => a.period === months[0]) ?? list[0];
+    out.push({ id: `scan:${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`, area: 'mis', severity: worst.severity, period: months[0],
+      title: months.length > 1 ? `${title} (${months.length} months)` : title,
+      detail: months.length > 1 ? `${months.join(', ')}. Newest: ${newest.detail}` : newest.detail,
+      fix: 'Check the month on Live MIS; re-pull or re-upload the report behind it.', href: months[0] ? `/reporting/mis/live?month=${months[0]}` : '/reporting/mis/live',
+      count: months.length > 1 ? months.length : undefined, sig: sigOf(months) });
+  }
   return out;
 }
 

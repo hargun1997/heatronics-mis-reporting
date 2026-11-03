@@ -28,8 +28,9 @@ const monthName = (k: string) => new Date(`${k}-01T00:00:00`).toLocaleString('en
 /** Items only the Live MIS deck knows. */
 export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps'>): InboxItem[] {
   const out: InboxItem[] = [];
+  const thisMonth = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 7);
   for (const [k, c] of Object.entries(deck.completeness ?? {})) {
-    if (c.closed || c.locked) continue;
+    if (c.closed || c.locked || k > thisMonth) continue; // a month that hasn't happened can't be wrong yet
     const tie = c.tie;
     if (tie?.breach) {
       out.push({ id: `tie:${k}`, area: 'close', severity: 'high', period: k,

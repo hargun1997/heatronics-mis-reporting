@@ -13,7 +13,9 @@ const base: InboxInputs = {
   today: '2026-11-12', health: { periods: ['2026-10'], vouchers: 10, ledgers: 5, issues: [{ id: 'dup', severity: 'error', title: 'Duplicate bills', why: 'w', fix: 'f', count: 2, samples: [] }] },
   chart, tb: { period: '2026-10', difference: 1520 }, tally: { connected: true, lastOkAt: '2026-11-01T06:00:00Z', lastError: 'fetch failed' },
   committed: new Set(['blinkit|order-charges|2026-10']), everUsed: new Set(['blinkit', 'flipkart']),
-  anomalies: [{ id: 'flat-inv', severity: 'medium', category: 'inventory', period: '2026-09', title: 'Inventory flat', detail: 'd' }],
+  anomalies: [{ id: 'flat-inv', severity: 'medium', category: 'inventory', period: '2026-09', title: 'Inventory flat', detail: 'd' },
+    { id: 'flat-inv-8', severity: 'high', category: 'inventory', period: '2026-08', title: 'Inventory flat', detail: 'd8' },
+    { id: 'future', severity: 'high', category: 'inventory', period: '2027-02', title: 'Future thing', detail: 'f' }],
 };
 
 test('server items cover books, feeds and the scan', () => {
@@ -26,7 +28,11 @@ test('server items cover books, feeds and the scan', () => {
   assert.ok(ids.includes('upload:flipkart:settlement:2026-10'));
   assert.ok(!ids.includes('upload:blinkit:order-charges:2026-10'), 'already uploaded');
   assert.ok(!ids.some((i) => i.startsWith('upload:snapmint')), 'never used → not nagged');
-  assert.ok(ids.includes('scan:flat-inv'));
+  const scan = items.filter((i) => i.id.startsWith('scan:'));
+  assert.equal(scan.length, 1, 'same check over months = one item; future months skipped');
+  assert.equal(scan[0].count, 2);
+  assert.equal(scan[0].severity, 'high', 'worst month wins');
+  assert.equal(scan[0].period, '2026-09');
   assert.equal(items.find((i) => i.id === 'upload:flipkart:settlement:2026-10')!.severity, 'medium', 'past the 10th');
   assert.equal(prevMonth('2026-01-05'), '2025-12');
 });
