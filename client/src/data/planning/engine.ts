@@ -54,7 +54,11 @@ export interface CashInputs {
   openingCash: number; contingencyPct: number; taxRate: number;
 }
 
-export interface CashEvent { id: string; kind: 'equity' | 'debtDrawn' | 'debtRepaid'; month: number; amount: number; note: string }
+export interface CashEvent {
+  id: string; kind: 'equity' | 'debtDrawn' | 'debtRepaid'; month: number; amount: number; note: string;
+  /** The sheet's venture-debt draw: replaced by the venture-debt terms in `fx.ventureDebt` when those are on. */
+  venture?: boolean;
+}
 
 /** A product added in the planner (e.g. topicals) — not in the sheet's unit grid. */
 export interface NewProduct {
@@ -75,6 +79,8 @@ export interface NewProduct {
   cogsPct: number | null;
   /** seasonality to apply: 'flat', or a SKU id whose curve it borrows */
   seasonRef?: string;
+  /** volume / price / COGS are placeholders, not founder-confirmed numbers */
+  placeholder?: boolean;
 }
 
 /** One month of D2C order history (aggregates only — no customer data). */
@@ -84,6 +90,8 @@ export interface D2CHistoryMonth {
   repeatOrders: number;
   newSales: number;
   repeatSales: number;
+  /** Shopify total_discounts of the month's orders (₹, same orders as new/repeat sales); absent in older history */
+  discounts?: number;
 }
 
 /**
@@ -110,6 +118,8 @@ export interface D2CModel {
   aovNew: number;
   aovRepeat: number;
   history: D2CHistoryMonth[];
+  /** discounts ÷ (sales + discounts) over the last 12 months of Shopify history that carry discounts; null = not measured yet */
+  discountPct?: number | null;
   source: string;
   asOf: string;
   /** how the rates were set: 'learned' from history, or 'edited' */
@@ -142,6 +152,41 @@ export interface Levers {
   fy27H1Ebitda: number;
   /** After the base: 'plan' = repeat the sheet's last-year month shape; 'history' = last FY's total × growth spread by each SKU's seasonality. */
   seasonShape?: 'plan' | 'history';
+}
+
+/**
+ * Founder decisions (Nov 2026) as switches. `sheetParity: true` ignores every switch below (they are all
+ * in their legacy position), which is what makes Base reproduce the Projection & Deployment Plan sheet for
+ * M1–M18 (server/test/planning.test.ts). Items with `confirmed: false` are placeholders, not agreed terms.
+ */
+export interface PlanFx {
+  sheetParity: boolean;
+  /** 1. services GST that cannot be set off is expensed (a cost line under CM1), not carried as an asset */
+  gstServicesAsCost: boolean;
+  /** 1. P&L revenue, EBITDA basis: false = GMV incl. GST as the sheet; true = ex-GST (GMV is still shown) */
+  revenueExGst: boolean;
+  /** 2. General Trade revenue is booked at net realisation (list price less the distributor margin) */
+  gtNetRealisation: boolean;
+  /** 3. the seed round as a funding event (equity) */
+  seed: { on: boolean; amount: number; month: number; feePct: number; confirmed: boolean; note: string };
+  /** 4. opening position at the plan start; `source` says where the numbers came from */
+  opening: {
+    on: boolean; cash: number; receivables: number; payables: number; inventory: number; gstAsset: number;
+    debt: number; accumulatedLosses: number; source: 'sheet' | 'tally' | 'manual'; asOf: string | null; note: string;
+  };
+  /** 5. venture debt with its own terms (replaces the sheet's venture draw event) */
+  ventureDebt: {
+    on: boolean; amount: number; drawMonth: number; rate: number; moratoriumMonths: number; tenorMonths: number;
+    feePct: number; confirmed: boolean;
+  };
+  /** 5. interest on a negative cash balance (an overdraft facility), separate from equity and from term debt */
+  overdraft: { on: boolean; rate: number; confirmed: boolean };
+  /** 7. D2C discounts / coupons as % of D2C list revenue, learned from Shopify total_discounts */
+  d2cDiscount: { on: boolean; pct: number; source: 'shopify' | 'manual' | 'placeholder'; asOf: string | null };
+  /** 9. depreciation of NEW capex booked once, straight-line from the month after the spend (the sheet's flat D&A lines stay for the opening assets, without inflation) */
+  depreciationOnce: { on: boolean; lifeYears: number };
+  /** 8. per-SKU volume and price tweaks (hGo, hPulse, …) */
+  skuTweaks: Record<string, { volume: number; asp: number | null }>;
 }
 
 /** The sheet's Business Plan + Overview: words, milestones and the few inputs they hold. */
@@ -177,6 +222,41 @@ export interface Plan {
   skuSeason: Record<string, number[]>;
   d2c: D2CModel;
   business: BusinessPlan;
+  /** founder decisions; absent in plans saved before them (= sheet parity) */
+  fx?: PlanFx;
+}
+
+
+export const LEGACY_FX: PlanFx = {
+  sheetParity: true,
+  gstServicesAsCost: false,
+  revenueExGst: false,
+  gtNetRealisation: false,
+  seed: { on: false, amount: 0, month: 1, feePct: 0, confirmed: false, note: '' },
+  opening: { on: false, cash: 0, receivables: 0, payables: 0, inventory: 0, gstAsset: 0, debt: 0, accumulatedLosses: 0, source: 'sheet', asOf: null, note: '' },
+  ventureDebt: { on: false, amount: 0, drawMonth: 1, rate: 0, moratoriumMonths: 0, tenorMonths: 1, feePct: 0, confirmed: false },
+  overdraft: { on: false, rate: 0, confirmed: false },
+  d2cDiscount: { on: false, pct: 0, source: 'placeholder', asOf: null },
+  depreciationOnce: { on: false, lifeYears: 5 },
+  skuTweaks: {},
+};
+
+/** The switches the engine actually uses: all legacy under sheet parity or in a plan saved before they existed. */
+export function resolveFx(plan: Pick<Plan, 'fx'>): PlanFx {
+  return plan.fx && !plan.fx.sheetParity ? plan.fx : LEGACY_FX;
+}
+
+/** Debt drawn by month n: the sheet's draw events, with the venture draw replaced by the fx terms when those are on. */
+export function debtDrawnBy(plan: Plan, n: number): number {
+  const v = resolveFx(plan).ventureDebt;
+  const events = plan.events.filter((e) => e.kind === 'debtDrawn' && e.month <= n && !(v.on && e.venture)).reduce((a, e) => a + e.amount, 0);
+  return events + (v.on && v.drawMonth <= n ? v.amount : 0);
+}
+
+/** Cash the plan starts with (the opening position when on, else the sheet's input). */
+export function openingCashOf(plan: Plan): number {
+  const fx = resolveFx(plan);
+  return fx.opening.on ? fx.opening.cash : plan.cash.openingCash;
 }
 
 // ---- calendar helpers ------------------------------------------------------------
@@ -229,6 +309,16 @@ export interface MonthResult {
   lines: Record<string, number>;
   revenueDeductions: number;
   netRevenue: number;
+  /** GMV: gross sales incl. GST, after the GT net-realisation netting, before deductions */
+  gmv: number;
+  /** revenue ex-GST (= taxable turnover) */
+  revenueExGst: number;
+  /** GT distributor margin netted out of revenue (net-realisation mode; 0 otherwise) */
+  gtMarginNetted: number;
+  /** D2C discounts / coupons deducted from the lever (0 when the lever is off) */
+  d2cDiscounts: number;
+  /** services GST that could not be set off, expensed in CM1 */
+  gstServicesCost: number;
   cogs: number;
   grossProfit: number;
   gstWrittenOff: number;
@@ -268,6 +358,15 @@ export interface MonthResult {
   equity: number;
   debtNet: number;
   closingCash: number;
+  /** term debt owed to banks (opening + sheet events) and venture debt, end of month; `debt` is their sum */
+  bankDebt: number;
+  ventureBalance: number;
+  ventureInterest: number;
+  overdraftInterest: number;
+  /** negative closing cash = overdraft drawn */
+  overdraft: number;
+  /** cumulative operating cash flow less scheduled venture principal repayments (what the Ask is sized on) */
+  cumulativeNeed: number;
 }
 
 export interface YearResult {
@@ -275,6 +374,10 @@ export interface YearResult {
   months: number;
   units: number;
   revenue: number;
+  gmv: number;
+  revenueExGst: number;
+  gstServicesCost: number;
+  d2cDiscounts: number;
   revenueByChannel: Record<Channel, number>;
   d2cNewCustomers: number;
   d2cRepeatOrders: number;
@@ -305,6 +408,9 @@ export interface PlanResult {
   minClosingCash: number;
   minClosingCashMonth: number;
   base: number;
+  /** seed equity in the plan (fx) and what the Ask needs after it */
+  seedEquity: number;
+  fxActive: boolean;
 }
 
 const zeroCh = (): Record<Channel, number> => ({ A: 0, D: 0, F: 0, G: 0, P: 0 });
@@ -322,7 +428,12 @@ const SERVICE_GROUPS = new Set([
 const COGS_GROUPS = ['Raw Material & Packaging', 'Inward Logistics', 'Factory Payroll', 'Manufacturing Overhead'];
 const PEOPLE_GROUPS = new Set(['Factory Payroll', 'Corporate Salaries', 'Employee Benefits & Statutory']);
 const BRAND_GROUPS = new Set(['Brand Marketing', 'Marketing Production & Creative']);
-const OPEX_PL_EXCLUDE = new Set(['Depreciation & Amortisation']);
+const DA_GROUP = 'Depreciation & Amortisation';
+const OPEX_PL_EXCLUDE = new Set([DA_GROUP]);
+/** The sheet's "Fundraise Cost - Current Round (5% of raise)": follows the seed amount when the seed is on. */
+const SEED_FEE_LINE = 'e378';
+/** The GT distributor margin: Channel Commission lines charged as % of GT revenue. */
+const isGtMarginLine = (l: Pick<ExpenseLine, 'group' | 'type'>) => l.group === 'Channel Commission' && l.type === '% of GT Rev';
 const RM_GROUP = 'Raw Material & Packaging';
 
 const PCT_BASE: Record<string, Channel | 'ALL'> = {
@@ -343,6 +454,9 @@ export function defaultRepeat(l: Pick<ExpenseLine, 'type' | 'theme' | 'group'>):
 
 export function runPlan(plan: Plan): PlanResult {
   const L = plan.levers;
+  const fx = resolveFx(plan);
+  const parity = !!plan.fx?.sheetParity;
+  const taxMode = parity ? 'sheet' : L.taxMode;
   const B = plan.units.length;
   const H = Math.max(B, L.horizon);
   const nSku = plan.skus.length;
@@ -357,22 +471,37 @@ export function runPlan(plan: Plan): PlanResult {
     if (!fyMonths.has(fy)) fyMonths.set(fy, []);
     fyMonths.get(fy)!.push(m);
   }
+  // first month (1-based, within the base) a SKU sells on a channel; Infinity = never
+  const firstSale: number[][] = plan.skus.map((_, s) => CHANNELS.map((__, c) => {
+    for (let m = 1; m <= B; m++) { const cell = plan.units[m - 1][s][c]; if (cell[0] + cell[1] + cell[2] > 0) return m; }
+    return Infinity;
+  }));
+  const tweakVol = (s: number) => fx.skuTweaks[plan.skus[s].id]?.volume ?? 1;
+  const aspOf = (s: number) => fx.skuTweaks[plan.skus[s].id]?.asp ?? plan.skus[s].asp;
   const prevFyTotal = (fy: string, s: number, c: number): number => {
     const prev = 'FY' + String(Number(fy.slice(2)) - 1).padStart(2, '0');
-    const ms = fyMonths.get(prev) ?? [];
+    const all = fyMonths.get(prev) ?? [];
+    // a SKU launched part-way through that year is annualised over the months it was on sale
+    // (not over the whole year: that made late launches such as hPulse almost vanish)
+    const ms = all.filter((mm) => mm >= firstSale[s][c]);
     if (!ms.length) return 0;
     const sum = ms.reduce((a, mm) => a + u[mm - 1][s][c], 0);
     return (sum * 12) / ms.length; // a part year is annualised
   };
+  const dBefore: number[] = []; // D2C unit-revenue of month m by the old rule (year-ago × growth) …
+  const dNow: number[] = [];    // … and with late launches kept at run-rate; their ratio scales new D2C buyers after the base
+  const ciD = CHANNELS.indexOf('D');
   for (let m = 1; m <= H; m++) {
     const row: number[][] = [];
+    let dOld = 0, dNew = 0;
     for (let s = 0; s < nSku; s++) {
       const per: number[] = [];
       for (let c = 0; c < CHANNELS.length; c++) {
         const ch = CHANNELS[c];
+        let oldRule: number | null = null;
         if (m <= B) {
           const cell = plan.units[m - 1][s][c];
-          per.push((cell[0] + cell[1] + cell[2]) * (L.baseVolume[ch] ?? 1));
+          per.push((cell[0] + cell[1] + cell[2]) * (L.baseVolume[ch] ?? 1) * tweakVol(s));
         } else {
           const fy = fyOf(plan.startMonth, m);
           const g = L.growth[fy]?.[ch] ?? 0;
@@ -381,19 +510,28 @@ export function runPlan(plan: Plan): PlanResult {
             const prev = prevFyTotal(fy, s, c);
             const idx = plan.skuSeason?.[plan.skus[s].id]?.[calOf(plan.startMonth, m)] ?? 1;
             per.push((prev / 12) * (1 + g) * idx);
+          } else if (m - 12 < firstSale[s][c] && firstSale[s][c] <= B) {
+            // launched within the base's last year, so the month a year ago was before launch: keep the
+            // run-rate of its last base month (re-shaped by season) until a year-ago month exists
+            const sk = plan.skuSeason?.[plan.skus[s].id];
+            const ratio = sk ? (sk[calOf(plan.startMonth, m)] ?? 1) / (sk[calOf(plan.startMonth, B)] || 1) : 1;
+            per.push(u[B - 1][s][c] * ratio);
+            oldRule = u[m - 13][s][c] * (1 + g);
           } else {
             per.push(u[m - 13][s][c] * (1 + g));
           }
         }
+        if (c === ciD && m > B) { dNew += per[c] * plan.skus[s].asp; dOld += (oldRule ?? per[c]) * plan.skus[s].asp; }
       }
       row.push(per);
     }
     u.push(row);
+    dBefore.push(dOld); dNow.push(dNew);
   }
 
   // new products: units by month (all channels)
   const productUnits = (p: NewProduct, m: number): number => {
-    if (!p.on || m < p.launchMonth) return 0;
+    if (!p.on || m < p.launchMonth || (p.placeholder && parity)) return 0; // placeholder products stand aside in sheet-parity mode
     const k = m - p.launchMonth; // 0 at launch
     const season = p.seasonRef && p.seasonRef !== 'flat' ? plan.skuSeason?.[p.seasonRef]?.[calOf(plan.startMonth, m)] ?? 1 : 1;
     if (k < 12) return p.launchUnits * Math.pow(1 + p.rampPct, k) * season;
@@ -426,7 +564,6 @@ export function runPlan(plan: Plan): PlanResult {
   const months: MonthResult[] = [];
   let gstAssetPrev = 0;
   const refundClaimable: number[] = [];
-  let debt = plan.cash.openingDebt;
   let cumulative = 0;
   let cash = plan.cash.openingCash;
   let nwcPrev = plan.cash.openingInventory;
@@ -434,13 +571,14 @@ export function runPlan(plan: Plan): PlanResult {
   const stdCogs: number[] = [];
 
   // first pass needs every month's revenue for forward inventory cover, so compute P&L for all months first
-  const pre: Omit<MonthResult, 'gstAsset' | 'gstRefund' | 'taxableTurnover' | 'outputGst' | 'itcGoods' | 'itcServices' | 'gstSetOffServices' | 'gstSetOffGoods' | 'gstClaimable' | 'gstStuck' | 'stdCogs' | 'inventory' | 'inventoryPurchase' | 'receivables' | 'payables' | 'nwc' | 'nwcChange' | 'debt' | 'netCashFlow' | 'cumulativeCash' | 'equity' | 'debtNet' | 'closingCash' | 'interest' | 'tax' | 'pbt' | 'pat' | 'gstWrittenOff' | 'cm1' | 'cm2' | 'cm3' | 'ebitda' | 'ebit'>[] = [];
+  const pre: Omit<MonthResult, 'gstAsset' | 'gstRefund' | 'taxableTurnover' | 'outputGst' | 'itcGoods' | 'itcServices' | 'gstSetOffServices' | 'gstSetOffGoods' | 'gstClaimable' | 'gstStuck' | 'stdCogs' | 'inventory' | 'inventoryPurchase' | 'receivables' | 'payables' | 'nwc' | 'nwcChange' | 'debt' | 'netCashFlow' | 'cumulativeCash' | 'equity' | 'debtNet' | 'closingCash' | 'bankDebt' | 'ventureBalance' | 'ventureInterest' | 'overdraftInterest' | 'overdraft' | 'cumulativeNeed' | 'interest' | 'tax' | 'pbt' | 'pat' | 'gstWrittenOff' | 'cm1' | 'cm2' | 'cm3' | 'ebitda' | 'ebit'>[] = [];
 
   for (let m = 1; m <= H; m++) {
     const aspF = Math.pow(1 + L.aspGrowthPct, yearsAfter(m));
     const revenueByChannel = zeroCh();
     const revenueBySku: Record<string, number> = {};
     const unitsBySku: Record<string, number> = {};
+    const gtList: Record<string, number> = {}; // GT list revenue per SKU (for net-realisation netting)
     let units = 0;
     for (let s = 0; s < nSku; s++) {
       const sku = plan.skus[s];
@@ -448,8 +586,9 @@ export function runPlan(plan: Plan): PlanResult {
       let sr = 0;
       for (let c = 0; c < CHANNELS.length; c++) {
         const q = u[m - 1][s][c];
-        const r = q * sku.asp * aspF;
+        const r = q * aspOf(s) * aspF;
         revenueByChannel[CHANNELS[c]] += r;
+        gtList[sku.id] = (gtList[sku.id] ?? 0) + (CHANNELS[c] === 'G' ? r : 0);
         su += q; sr += r;
       }
       unitsBySku[sku.id] = su; revenueBySku[sku.id] = sr; units += su;
@@ -459,14 +598,17 @@ export function runPlan(plan: Plan): PlanResult {
     if (cohorts) {
       const planD = revenueByChannel.D;
       const S = (D.season[calOf(plan.startMonth, m)] ?? 1) * D.repeatBoost;
-      const aovN = D.aovNew * aspF, aovR = D.aovRepeat * aspF;
+      // Shopify order values are after discounts; with the discount lever on, the D2C list price is grossed up
+      // by the discount % and the discount is deducted below (else it would be taken twice)
+      const gross = fx.d2cDiscount.on && fx.d2cDiscount.pct < 0.9 ? 1 / (1 - fx.d2cDiscount.pct) : 1;
+      const aovN = D.aovNew * aspF * gross, aovR = D.aovRepeat * aspF * gross;
       const earlier = S * repeatFromEarlier(m);
       if (m <= B) {
         // back-solve the new buyers the sheet's D2C revenue needs, given repeats already coming
         newC[m] = Math.max(0, (planD - earlier * aovR) / (aovN + D.sameMonth * S * aovR));
       } else {
         const g = L.growth[fyOf(plan.startMonth, m)]?.D ?? 0;
-        newC[m] = newC[m - 12] * (1 + g);
+        newC[m] = newC[m - 12] * (1 + g) * (dBefore[m - 1] > 0 ? dNow[m - 1] / dBefore[m - 1] : 1);
       }
       d2cNewCustomers = newC[m];
       d2cRepeatOrders = earlier + D.sameMonth * S * newC[m];
@@ -481,7 +623,7 @@ export function runPlan(plan: Plan): PlanResult {
           const sku = plan.skus[s];
           const q = u[m - 1][s][ci];
           unitsBySku[sku.id] += q * (f - 1);
-          revenueBySku[sku.id] += q * sku.asp * aspF * (f - 1);
+          revenueBySku[sku.id] += q * aspOf(s) * aspF * (f - 1);
           units += q * (f - 1);
         }
       } else if (planD <= 0 && total > 0) {
@@ -499,17 +641,21 @@ export function runPlan(plan: Plan): PlanResult {
       for (const ch of CHANNELS) {
         const r = q * (p.split[ch] ?? 0) * p.asp * aspF;
         revenueByChannel[ch] += r; pr += r;
+        if (ch === 'G') gtList[p.id] = (gtList[p.id] ?? 0) + r;
       }
       unitsBySku[p.id] = q; revenueBySku[p.id] = pr; units += q;
       if (p.cogsPct != null) { ownCogs += pr * p.cogsPct; ownCogsRevenue += pr; }
     }
-    const grossRevenue = CHANNELS.reduce((a, c) => a + revenueByChannel[c], 0);
+    const listRevenue = CHANNELS.reduce((a, c) => a + revenueByChannel[c], 0); // at list price, the base of every %-of-revenue line
+    const d2cList = revenueByChannel.D;
+    let gtMargin = 0;
 
     // ---- 2. expense calendar ----------------------------------------------------
     const groups: Record<string, number> = {};
     const lines: Record<string, number> = {};
     const n = yearsAfter(m);
     const brandOverride = m > B && L.brandPctOfRevenue > 0;
+    const daOnce = fx.depreciationOnce.on;
     for (const l of plan.lines) {
       if (l.off) { lines[l.id] = 0; continue; }
       const repeat = l.repeat ?? defaultRepeat(l);
@@ -517,10 +663,11 @@ export function runPlan(plan: Plan): PlanResult {
       const end = l.end ?? H;
       let v = 0;
       if (!(l.start > k || k > end) && !(brandOverride && BRAND_GROUPS.has(l.group))) {
-        const fixedF = m > B ? Math.pow(1 + L.inflationPct, n) * (PEOPLE_GROUPS.has(l.group) ? Math.pow(1 + L.teamGrowthPct, n) : 1) : 1;
-        if (l.type === 'Monthly') v = l.amount * fixedF;
+        const fixedF = m > B && !(daOnce && l.group === DA_GROUP) ? Math.pow(1 + L.inflationPct, n) * (PEOPLE_GROUPS.has(l.group) ? Math.pow(1 + L.teamGrowthPct, n) : 1) : 1;
+        const amount = fx.seed.on && l.id === SEED_FEE_LINE ? fx.seed.amount * fx.seed.feePct : l.amount;
+        if (l.type === 'Monthly') v = amount * fixedF;
         else if (l.type === 'Quarterly') v = (k - l.start) % 3 === 0 ? l.amount * fixedF : 0;
-        else if (l.type === 'One Time') v = k === l.start ? l.amount : 0;
+        else if (l.type === 'One Time') v = k === l.start ? amount : 0;
         else if (l.type === 'Annual') v = (k - l.start) % 12 === 0 ? l.amount * fixedF : 0;
         else if (l.type in ROAS_BASE) {
           const roas = l.amount * (m > B ? Math.pow(1 + L.roasGainPct, n) : 1);
@@ -535,7 +682,7 @@ export function runPlan(plan: Plan): PlanResult {
           v = roas > 0 ? base / roas : 0;
         } else if (l.type in PCT_BASE) {
           const b = PCT_BASE[l.type];
-          let base = b === 'ALL' ? grossRevenue : revenueByChannel[b];
+          let base = b === 'ALL' ? listRevenue : revenueByChannel[b];
           let rate = l.amount;
           if (l.group === RM_GROUP && b === 'ALL') {
             base -= ownCogsRevenue; // products with their own COGS % carry it separately
@@ -544,15 +691,27 @@ export function runPlan(plan: Plan): PlanResult {
           v = rate * base;
         }
       }
+      if (fx.gtNetRealisation && isGtMarginLine(l)) { gtMargin += v; v = 0; }
       lines[l.id] = v;
       groups[l.group] = (groups[l.group] ?? 0) + v;
     }
+    // General Trade at net realisation: the distributor's margin comes off revenue instead of sitting in
+    // commission. Every %-of-revenue cost line above was sized on list price, so costs don't move.
+    if (gtMargin) {
+      revenueByChannel.G -= gtMargin;
+      const gtTotal = Object.values(gtList).reduce((a, x) => a + x, 0);
+      if (gtTotal > 0) for (const id of Object.keys(gtList)) revenueBySku[id] = (revenueBySku[id] ?? 0) - gtMargin * gtList[id] / gtTotal;
+    }
+    const grossRevenue = CHANNELS.reduce((a, c) => a + revenueByChannel[c], 0);
+    // D2C discounts and coupons (Shopify-learned lever) are a revenue deduction on D2C list revenue
+    const d2cDiscounts = fx.d2cDiscount.on ? d2cList * fx.d2cDiscount.pct : 0;
+    if (d2cDiscounts) groups['Revenue Deductions'] = (groups['Revenue Deductions'] ?? 0) + d2cDiscounts;
     if (ownCogs) groups[RM_GROUP] = (groups[RM_GROUP] ?? 0) + ownCogs;
-    if (brandOverride) groups['Brand Marketing'] = (groups['Brand Marketing'] ?? 0) + grossRevenue * L.brandPctOfRevenue;
+    if (brandOverride) groups['Brand Marketing'] = (groups['Brand Marketing'] ?? 0) + (listRevenue - gtMargin) * L.brandPctOfRevenue;
 
     const g = (name: string) => groups[name] ?? 0;
     const revenueDeductions = g('Revenue Deductions');
-    const netRevenue = grossRevenue - revenueDeductions;
+    const netRevenue = fx.revenueExGst ? (grossRevenue - revenueDeductions) / (1 + plan.cash.outputGst) : grossRevenue - revenueDeductions;
     const cogs = COGS_GROUPS.reduce((a, x) => a + g(x), 0);
     const grossProfit = netRevenue - cogs;
     const opexGroups = plan.groups.filter((x) => x.section === 'opex' && !OPEX_PL_EXCLUDE.has(x.name));
@@ -560,19 +719,41 @@ export function runPlan(plan: Plan): PlanResult {
     const capex = plan.groups.filter((x) => x.section === 'capex').reduce((a, x) => a + g(x.name), 0);
     pre.push({
       m, label: monthLabel(plan.startMonth, m), fy: fyOf(plan.startMonth, m), units, unitsBySku,
+      gmv: grossRevenue, revenueExGst: 0, gtMarginNetted: gtMargin, d2cDiscounts, gstServicesCost: 0,
       revenueByChannel, revenueBySku, grossRevenue, d2cNewCustomers, d2cRepeatOrders, d2cNewRevenue, d2cRepeatRevenue, groups, lines, revenueDeductions, netRevenue, cogs,
       grossProfit, opex, da: g('Depreciation & Amortisation'), banking: g('Banking Charges'),
       fundraiseCosts: g('Fundraise Costs'), capex,
     });
-    stdCogs.push(netRevenue * (1 - plan.cash.gmStandard));
+    stdCogs.push((listRevenue - revenueDeductions) * (1 - plan.cash.gmStandard)); // physical goods: list price, whatever the P&L basis
   }
 
   // ---- 3. GST, working capital, debt, tax, cash ----------------------------------
   const c = plan.cash;
+  const op = fx.opening.on ? fx.opening : null;
+  const vd = fx.ventureDebt;
+  // venture debt terms: draw, interest-only moratorium, then equal principal instalments to the end of the tenor
+  const vDrawn = (m: number) => (vd.on && m === vd.drawMonth ? vd.amount : 0);
+  const vRepaid = (m: number) => {
+    if (!vd.on) return 0;
+    const first = vd.drawMonth + Math.max(0, vd.moratoriumMonths) + 1, last = vd.drawMonth + Math.max(1, vd.tenorMonths);
+    return m >= first && m <= last ? vd.amount / (last - first + 1) : 0;
+  };
+  // the sheet's draw flagged as the venture facility is replaced by those terms when they are on
   const ev = (kind: CashEvent['kind'], m: number) =>
-    plan.events.filter((e) => e.kind === kind && e.month === m).reduce((a, e) => a + e.amount, 0);
-  let fyLossPool = 0;
+    plan.events.filter((e) => e.kind === kind && e.month === m && !(vd.on && e.venture)).reduce((a, e) => a + e.amount, 0);
+  const seedAt = (m: number) => (fx.seed.on && m === Math.max(1, fx.seed.month) ? fx.seed.amount : 0);
+  const capexSoFar: number[] = []; // for depreciation of new capex
+  let bankDebt = op ? op.debt : plan.cash.openingDebt;
+  let ventureBal = 0;
+  let fyLossPool = taxMode === 'fy' && op ? op.accumulatedLosses : 0;
   let fyPbt = 0;
+  let cumulativeNeed = 0;
+  if (op) {
+    cash = op.cash;
+    invPrev = op.inventory;
+    gstAssetPrev = op.gstAsset;
+    nwcPrev = op.inventory + op.receivables - op.payables + op.gstAsset;
+  }
 
   for (let i = 0; i < H; i++) {
     const p = pre[i];
@@ -580,7 +761,7 @@ export function runPlan(plan: Plan): PlanResult {
     const gg = (name: string) => p.groups[name] ?? 0;
 
     // GST (inverted duty): goods ITC is refundable (lagged), services/capex ITC only sets off output
-    const taxable = p.netRevenue / (1 + c.outputGst);
+    const taxable = (p.grossRevenue - p.revenueDeductions) / (1 + c.outputGst);
     const outGst = taxable * c.outputGst;
     const goods = [...GOODS_GROUPS].reduce((a, x) => a + gg(x), 0);
     const itcGoods = goods * c.inputGstGoods;
@@ -592,20 +773,35 @@ export function runPlan(plan: Plan): PlanResult {
     refundClaimable.push(claimable);
     const refund = m - c.refundLagMonths >= 1 ? refundClaimable[m - c.refundLagMonths - 1] : 0;
     const stuck = itcServices - setOffServices;
-    const writtenOff = stuck * c.gstWriteOffPct;
+    const writtenOff = stuck * (fx.gstServicesAsCost ? 1 : c.gstWriteOffPct);
     const gstAsset = gstAssetPrev + claimable + (stuck - writtenOff) - refund;
     gstAssetPrev = gstAsset;
+
+    // depreciation: the sheet's lines, or (booked once) those lines without inflation + new capex over its life
+    capexSoFar.push(p.capex);
+    let da = p.da;
+    if (fx.depreciationOnce.on) {
+      const months = Math.max(1, fx.depreciationOnce.lifeYears * 12);
+      let sched = 0;
+      for (let j = Math.max(0, i - months); j < i; j++) sched += capexSoFar[j] / months;
+      da = p.da + sched;
+    }
 
     const cm1 = p.grossProfit - gg('Channel Commission') - writtenOff;
     const cm2 = cm1 - gg('Fulfilment & Delivery') - gg('Payment & Collection');
     const cm3 = cm2 - gg('Performance Marketing');
     const ebitda = cm3 - p.opex;
-    const ebit = ebitda - p.da;
-    const rate = (c.interestSteps ?? []).filter((x) => x.month <= m).reduce((a, x) => x.rate, c.interestRate);
-    const interest = debt * rate / 12;
-    const pbt = ebit - interest - p.banking - p.fundraiseCosts;
+    const ebit = ebitda - da;
+    const rate = (c.interestSteps ?? []).filter((x) => x.month <= m).reduce((_a, x) => x.rate, c.interestRate);
+    const bankInterest = bankDebt * rate / 12;
+    const ventureInterest = ventureBal * vd.rate / 12;
+    const overdraftInterest = fx.overdraft.on ? Math.max(0, -cash) * fx.overdraft.rate / 12 : 0;
+    const interest = bankInterest + ventureInterest + overdraftInterest;
+    const financeFee = vDrawn(m) * vd.feePct;
+    const fundraiseCosts = p.fundraiseCosts + financeFee;
+    const pbt = ebit - interest - p.banking - fundraiseCosts;
     let tax = 0;
-    if (L.taxMode === 'fy') {
+    if (taxMode === 'fy') {
       fyPbt += pbt;
       const fyEnd = i === H - 1 || pre[i + 1].fy !== p.fy;
       if (fyEnd) {
@@ -630,20 +826,23 @@ export function runPlan(plan: Plan): PlanResult {
     const nwcChange = nwcPrev - nwc;
     nwcPrev = nwc;
 
-    const drawn = ev('debtDrawn', m), repaid = ev('debtRepaid', m), equity = ev('equity', m);
-    const openingDebt = debt;
-    debt = openingDebt + drawn - repaid;
+    const drawn = ev('debtDrawn', m) + vDrawn(m), repaid = ev('debtRepaid', m) + vRepaid(m), equity = ev('equity', m) + seedAt(m);
+    bankDebt += ev('debtDrawn', m) - ev('debtRepaid', m);
+    ventureBal += vDrawn(m) - vRepaid(m);
+    const debt = bankDebt + ventureBal;
 
-    const netCashFlow = ebitda - tax - interest - p.banking - p.fundraiseCosts + nwcChange - p.capex;
+    const netCashFlow = ebitda - tax - interest - p.banking - fundraiseCosts + nwcChange - p.capex;
     cumulative += netCashFlow;
+    cumulativeNeed += netCashFlow - vRepaid(m);
     cash += netCashFlow + equity + drawn - repaid;
 
     months.push({
-      ...p, gstWrittenOff: writtenOff, cm1, cm2, cm3, ebitda, ebit, interest, pbt, tax, pat,
+      ...p, da, fundraiseCosts, gstWrittenOff: writtenOff, gstServicesCost: writtenOff, revenueExGst: taxable, cm1, cm2, cm3, ebitda, ebit, interest, pbt, tax, pat,
       taxableTurnover: taxable, outputGst: outGst, itcGoods, itcServices, gstSetOffServices: setOffServices, gstSetOffGoods: setOffGoods,
       gstClaimable: claimable, gstStuck: stuck, stdCogs: stdCogs[i],
       gstAsset, gstRefund: refund, inventory, inventoryPurchase, receivables, payables, nwc, nwcChange,
       debt, netCashFlow, cumulativeCash: cumulative, equity, debtNet: drawn - repaid, closingCash: cash,
+      bankDebt, ventureBalance: ventureBal, ventureInterest, overdraftInterest, overdraft: Math.max(0, -cash), cumulativeNeed,
     });
   }
 
@@ -652,12 +851,13 @@ export function runPlan(plan: Plan): PlanResult {
   for (const mr of months) {
     let y = years.find((x) => x.fy === mr.fy);
     if (!y) {
-      y = { fy: mr.fy, months: 0, units: 0, revenue: 0, revenueByChannel: zeroCh(), d2cNewCustomers: 0, d2cRepeatOrders: 0, d2cNewRevenue: 0, d2cRepeatRevenue: 0, grossProfit: 0, cm3: 0, ebitda: 0, pat: 0, capex: 0, netCashFlow: 0, closingCash: 0, endDebt: 0, revenueWithActuals: 0, ebitdaWithActuals: 0 };
+      y = { fy: mr.fy, months: 0, units: 0, revenue: 0, gmv: 0, revenueExGst: 0, gstServicesCost: 0, d2cDiscounts: 0, revenueByChannel: zeroCh(), d2cNewCustomers: 0, d2cRepeatOrders: 0, d2cNewRevenue: 0, d2cRepeatRevenue: 0, grossProfit: 0, cm3: 0, ebitda: 0, pat: 0, capex: 0, netCashFlow: 0, closingCash: 0, endDebt: 0, revenueWithActuals: 0, ebitdaWithActuals: 0 };
       years.push(y);
     }
     y.d2cNewCustomers += mr.d2cNewCustomers; y.d2cRepeatOrders += mr.d2cRepeatOrders;
     y.d2cNewRevenue += mr.d2cNewRevenue; y.d2cRepeatRevenue += mr.d2cRepeatRevenue;
-    y.months++; y.units += mr.units; y.revenue += mr.netRevenue; y.grossProfit += mr.grossProfit;
+    y.months++; y.units += mr.units; y.revenue += mr.netRevenue;
+    y.gmv += mr.gmv; y.revenueExGst += mr.revenueExGst; y.gstServicesCost += mr.gstServicesCost; y.d2cDiscounts += mr.d2cDiscounts; y.grossProfit += mr.grossProfit;
     y.cm3 += mr.cm3; y.ebitda += mr.ebitda; y.pat += mr.pat; y.capex += mr.capex; y.netCashFlow += mr.netCashFlow;
     y.closingCash = mr.closingCash; y.endDebt = mr.debt;
     for (const ch of CHANNELS) y.revenueByChannel[ch] += mr.revenueByChannel[ch];
@@ -670,22 +870,24 @@ export function runPlan(plan: Plan): PlanResult {
 
   let peak = 0, peakMonth = 0, minCash = Infinity, minCashMonth = 0;
   for (const mr of months) {
-    if (mr.cumulativeCash < peak) { peak = mr.cumulativeCash; peakMonth = mr.m; }
+    if (mr.cumulativeNeed < peak) { peak = mr.cumulativeNeed; peakMonth = mr.m; }
     if (mr.closingCash < minCash) { minCash = mr.closingCash; minCashMonth = mr.m; }
   }
   const peakDeficit = -peak;
-  const fundingRequired = peakDeficit * (1 + c.contingencyPct);
-  const debtDrawnTotal = plan.events.filter((e) => e.kind === 'debtDrawn' && e.month <= H).reduce((a, e) => a + e.amount, 0);
-  const equityPlanned = plan.events.filter((e) => e.kind === 'equity' && e.month <= H).reduce((a, e) => a + e.amount, 0);
+  // The Ask: peak cash need (operations, interest and scheduled venture repayments) plus contingency, less the cash we start with
+  const fundingRequired = Math.max(0, peakDeficit * (1 + c.contingencyPct) - Math.max(0, fx.opening.on ? fx.opening.cash : 0));
+  const debtDrawnTotal = debtDrawnBy(plan, H);
+  const seedEquity = fx.seed.on && fx.seed.month <= H ? fx.seed.amount : 0;
+  const equityPlanned = plan.events.filter((e) => e.kind === 'equity' && e.month <= H).reduce((a, e) => a + e.amount, 0) + seedEquity;
 
   return {
     months, years, peakDeficit, peakDeficitMonth: peakMonth, fundingRequired, debtDrawnTotal,
     equityRequired: fundingRequired - debtDrawnTotal, equityPlanned, minClosingCash: minCash,
-    minClosingCashMonth: minCashMonth, base: B,
+    minClosingCashMonth: minCashMonth, base: B, seedEquity, fxActive: fx !== LEGACY_FX,
   };
 }
 
 /** Peak cumulative deficit within the first n months (the sheet's 12M / 18M headline). */
 export function peakDeficitWithin(r: PlanResult, n: number): number {
-  return -Math.min(0, ...r.months.slice(0, n).map((x) => x.cumulativeCash));
+  return -Math.min(0, ...r.months.slice(0, n).map((x) => x.cumulativeNeed));
 }

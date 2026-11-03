@@ -9,9 +9,12 @@ import { jsPDF } from 'jspdf';
 import type { LiveDeckData } from '../data/misDeck/liveDeck';
 import { SALES_CHANNELS } from '../data/misDeck/misDeckData';
 import { aggregatePeriods, scopeOf, type PeriodAgg } from '../data/misDeck/liveAnalytics';
+import type { LiveStatements } from './liveMisExport';
+import { liveMisFormatSource, misSourceWithCash } from './liveMisExport';
+import { MIS_SHEET_ROWS } from '../data/misDeck/misSheet';
 import { REAL_ROWS, blendLiveMonths, channelName, unifyChannels, aggregateRange, longKey } from '../data/misDeck/liveViews';
 
-export type PdfSection = 'trends' | 'fyPnl' | 'months' | 'channels';
+export type PdfSection = 'trends' | 'fyPnl' | 'months' | 'channels' | 'balanceSheet' | 'cashFlow' | 'misSheet';
 
 export interface LivePdfOptions {
   sections: PdfSection[];
@@ -127,7 +130,7 @@ function trendChart(doc: jsPDF, y: number, months: PeriodAgg[]): number {
   return y + h + 14;
 }
 
-export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions): jsPDF {
+export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions, st?: LiveStatements | null): jsPDF {
   const deck = o.mergeChannels ? unifyChannels(rawDeck) : rawDeck;
   const months = o.blendCogm ? blendLiveMonths(deck.months, deck.completeness).months : deck.months;
   const monthly = aggregatePeriods(months, deck.completeness, 'month');
@@ -182,10 +185,60 @@ export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions): jsPDF {
     }), 30, 'Channel mix by fiscal year (% of net revenue)');
   }
 
+  const none = (title: string, text: string) => { const y = page(title); doc.setFontSize(9); doc.text(text, M, y + 4); };
+  const MAXC = 12;
+  if (o.sections.includes('balanceSheet')) {
+    const sheets = (st?.sheets ?? []).slice(-MAXC);
+    if (!sheets.length) none('Heatronics — Live MIS · Balance Sheet', 'No Trial Balance stored yet (Data sources → Tally → Pull now).');
+    else {
+      const y = page('Heatronics — Live MIS · Balance Sheet');
+      const rows: { cells: string[]; bold?: boolean }[] = [];
+      const sec = (title: string, pick: (b: (typeof sheets)[number]) => (typeof sheets)[number]['assets'], total: (b: (typeof sheets)[number]) => number) => {
+        rows.push({ bold: true, cells: [title.toUpperCase(), ...sheets.map(() => '')] });
+        const labels: string[] = [];
+        for (const b of sheets) for (const l of pick(b)) if (!labels.includes(l.label)) labels.push(l.label);
+        for (const lab of labels) rows.push({ cells: [`  ${lab}`, ...sheets.map((b) => { const l = pick(b).find((x) => x.label === lab); return l ? LAKH(l.amount) : '—'; })] });
+        rows.push({ bold: true, cells: [`Total ${title.toLowerCase()}`, ...sheets.map((b) => LAKH(total(b)))] });
+      };
+      sec('Equity', (b) => b.equity, (b) => b.equity.reduce((s, l) => s + l.amount, 0));
+      sec('Liabilities', (b) => b.liabilities, (b) => b.liabilities.reduce((s, l) => s + l.amount, 0));
+      sec('Assets', (b) => b.assets, (b) => b.totalAssets);
+      table(doc, y, ['Rs Lakh', ...sheets.map((b) => b.period)], rows, 60, 'Balance Sheet (Tally month-end Trial Balances)');
+    }
+  }
+
+  if (o.sections.includes('cashFlow')) {
+    const flows = (st?.flows ?? []).slice(-MAXC);
+    if (!flows.length) none('Heatronics — Live MIS · Cash Flow', 'No Cash Flow yet: it needs two consecutive month-end Trial Balances from Tally.');
+    else {
+      const y = page('Heatronics — Live MIS · Cash Flow');
+      const r = (label: string, get: (f: (typeof flows)[number]) => number, bold = false) => ({ bold, cells: [label, ...flows.map((f) => LAKH(get(f)))] });
+      table(doc, y, ['Rs Lakh', ...flows.map((f) => f.period)], [
+        r('Profit of the month', (f) => f.profit), r('Depreciation', (f) => f.depreciation),
+        ...flows[flows.length - 1].workingCapital.map((w, k) => r(`  ${w.label}`, (f) => f.workingCapital[k]?.amount ?? 0)),
+        r('Cash from operations', (f) => f.operating, true), r('Fixed assets (capex)', (f) => f.capex), r('Investments', (f) => f.investments),
+        r('Cash from investing', (f) => f.investing, true), r('Equity raised', (f) => f.equity), r('Loans & bank OD / CC', (f) => f.loans),
+        r('Cash from financing', (f) => f.financing, true), r('Other (suspense, TB differences)', (f) => f.other),
+        r('Net change in cash & bank', (f) => f.netChange, true), r('Opening cash & bank', (f) => f.openingCash), r('Closing cash & bank', (f) => f.closingCash, true),
+      ], 60, 'Cash Flow (indirect, Tally month-end Trial Balances)');
+    }
+  }
+
+  if (o.sections.includes('misSheet')) {
+    const src = misSourceWithCash(liveMisFormatSource(deck, o.mergeChannels), st?.flows ?? []);
+    const fys = src.fiscalYears.filter((f) => o.fyKeys.length === 0 || o.fyKeys.some((k) => k.replace(/^FY(\d\d)-(\d\d)$/, 'FY 20$1-$2') === f.name));
+    for (const fy of fys.length ? fys : src.fiscalYears.slice(-1)) {
+      const y = page(`Heatronics — Live MIS · MIS Sheet ${fy.name}`);
+      const cols = [...fy.months.map((m) => ({ label: m.label, pt: src.point([m.key], 'company') })), { label: 'FY total', pt: src.point(fy.months.map((m) => m.key), 'company') }];
+      const fmt = (row: (typeof MIS_SHEET_ROWS)[number], v: number | null) => (v === null || !isFinite(v) ? '—' : row.pct ? PCT(v) : row.count ? Math.round(v).toLocaleString('en-IN') : LAKH(v));
+      table(doc, y, ['Rs Lakh', ...cols.map((c) => c.label)], MIS_SHEET_ROWS.map((row) => ({ bold: row.bold, cells: [row.label, ...cols.map((c) => fmt(row, row.get(c.pt)))] })), 40, `MIS Sheet · Company (${fy.name})`);
+    }
+  }
+
   if (first) { header(doc, 'Heatronics — Live MIS', stamp); doc.text('No sections selected.', M, 30); }
   return doc;
 }
 
-export function downloadLivePdf(deck: LiveDeckData, o: LivePdfOptions): void {
-  buildLivePdf(deck, o).save(`Heatronics_Live_MIS_${new Date().toISOString().slice(0, 10)}.pdf`);
+export function downloadLivePdf(deck: LiveDeckData, o: LivePdfOptions, st?: LiveStatements | null): void {
+  buildLivePdf(deck, o, st).save(`Heatronics_Live_MIS_${new Date().toISOString().slice(0, 10)}.pdf`);
 }

@@ -23,6 +23,7 @@ import {
 import { computeFreshness } from '../../data/liveMis/freshness';
 import { listConnectors, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
 import { FreshnessHeadline, FreshnessTable } from '../../components/mis/FreshnessTable';
+import { ProductGapsPanel } from '../../components/liveMis/ProductGapsPanel';
 import { loadLiveDeck, swapAlternates, LIVE_BOUNDARY, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran } from '../../data/misDeck/liveAnalytics';
 import {
@@ -33,6 +34,7 @@ import {
 } from '../../components/liveMis/deckTabs';
 import { RevenueGrowthTab, ChannelMixTab, ProfitabilityTab, RepeatsTab } from '../../components/liveMis/reportTabs';
 import { LiveMisSheetTab } from '../../components/liveMis/LiveMisSheetTab';
+import { MonthClosePanel } from '../../components/liveMis/MonthClosePanel';
 import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExportModals';
 import { LiveViewProvider, Pills } from '../../components/liveMis/shared';
 
@@ -237,6 +239,7 @@ export function LiveMisPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Completeness floor */}
         {deck && view && <CompletenessBanner deck={view} raw={deck} showLive={showLive} setShowLive={setShowLive} />}
+        {deck?.productGaps && <ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} />}
         {deckError && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{deckError}</div>}
 
         {/* Tab bar */}
@@ -308,6 +311,9 @@ export function LiveMisPage() {
             </div>
           </div>
         )}
+        {view && !isRange && selected && selected.members.length === 1 && view.completeness[selected.members[0]]?.level !== undefined && (
+          <MonthClosePanel periodKey={selected.members[0]} comp={view.completeness[selected.members[0]]} onChanged={() => void loadDeck(true)} />
+        )}
         {showControls && isRange && selected && (
           <p className="text-xs text-slate-500">Showing <span className="font-medium text-slate-700">{selected.label}</span>: {selected.members.map(monthLabel).join(', ')} — aggregated; completeness is the lowest month’s.</p>
         )}
@@ -359,10 +365,13 @@ function CompletenessBanner({ deck, raw, showLive, setShowLive }: {
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
       {through ? (
         <span className="text-slate-600">
-          MIS <span className="font-semibold text-slate-900">fully closed through {monthLabel(through)}</span>
+          MIS <span className="font-semibold text-slate-900">closed &amp; locked through {monthLabel(through)}</span>
         </span>
       ) : (
-        <span className="text-amber-700 font-medium">No month is fully closed yet — upload a Tally P&amp;L to complete a month.</span>
+        <span className="text-amber-700 font-medium">No month is closed yet — a month counts once it is locked (Close &amp; lock).</span>
+      )}
+      {deck.periods.some((k) => deck.completeness[k]?.ready) && (
+        <span className="text-brand-700">Ready to close: {deck.periods.filter((k) => deck.completeness[k]?.ready).map(monthLabel).join(', ')}</span>
       )}
       {latest && latest !== through && (
         <span className="text-slate-400 flex items-center gap-1.5">Latest data: {monthLabel(latest)} (partial <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} />)</span>

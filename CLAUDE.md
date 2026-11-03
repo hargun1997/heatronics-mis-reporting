@@ -154,10 +154,50 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   the last 13 months per run (`state.tbMonths`). `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
   depreciation, Nett Profit); pure builder `client/src/data/statements/statements.ts` (BS from Tally's primary groups + closing
   stock + FY profit to date; indirect cash flow from consecutive BSs, sections sum to Δ cash & bank; `misCashRows` fills the MIS
-  Sheet cash rows). Tests `server/test/statements.test.ts`.
+  Sheet cash rows). Tests `server/test/statements.test.ts`. The TB is asked from 1 April (`tbEnvelope`, snapshot `basis:
+  'fy-to-date'`; a state with another `tbBasis` empties `tbMonths` so every TB is re-pulled) so P&L groups are FY-to-date; any
+  stock the TB carries as an asset (Tally's opening stock) is swapped for the P&L copy's closing stock; `parents` (Tally masters)
+  nest sub-group ledgers so nothing counts twice; April's carry-forward into P&L A/c is netted, other P&L A/c moves = "Prior-period
+  entries"; "Unexplained" ≥ ₹10,000 and monthly profit ≠ the P&L copy's Nett Profit are warned. UNVERIFIED until a live pull: what
+  the FY-start TB shows for stock (Opening Stock row vs Stock-in-Hand) and whether Detailed lists sub-groups and their ledgers.
+- **Exports + ledger rules + product gaps (3 Nov 2026):**
+  - Live MIS Excel / PDF now include Balance Sheet, Cash Flow (last 12 months, from `useStatements`) and MIS Sheet (company, cash rows via
+    `misSourceWithCash`; the MIS Sheet tab download uses it too). `buildLiveWorkbook(deck, o, statements?)`, `buildLivePdf(deck, o, statements?)`;
+    no stored Trial Balance = a sheet that says so.
+  - **Ledger name rules** `client/src/data/monthClose/ledgerRules.ts` (pure): after the seed map, `lookupLedger` tries an editable rule table
+    (Blinkit/Zepto/Instamart sales → `rev_blinkit`, Flipkart sales → `rev_flipkart`, brand agencies/shoots/influencers → `pf_platform`,
+    bankers/valuation/allotment/business development → `nl_fundraising`). Stored in objectStore `tally/ledger-rules` (`GET/PUT /api/tally/ledger-rules`,
+    which also returns ledger masters, newest P&L rows and expense-ledger voucher narrations); loaded by `loadLiveDeck`. Tally health page → "Ledger rules":
+    matched per line, unmatched sales ledgers, brand/fundraising candidates, narration hits (listed only, a ledger is never split by narration), one click
+    adds an exact-name rule. A combined "Ecommerce Sales" is never split.
+  - **Product gaps** `productSuggest.ts`: unmapped rows (B2B Tranzact items, Meta ids) and no-BOM products (`MISSING_BOM_FGS`) get name-similarity suggestions;
+    `deck.productGaps` → `ProductGapsPanel` on Live MIS; a click stores the confirmation (`mis/product-map`, `/api/mis/product-map`: `sku` overrides + `bomProxy`).
+    A product with no BOM is costed from its confirmed proxy, else ESTIMATED from the closest costed product (`costEstimated`, cell flag `costEst`/`noCost`),
+    and the month stays "uncosted" until confirmed: never a silent 100% margin.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
+- **Month close: lock, ties, BOM, factory** (Live MIS, `data/misDeck/closeTies.ts` pure + `MonthClosePanel`):
+  - **Close & lock** = shared stored lock (`close-locks` + audit `close-locks-audit` in the ingest object store; `GET /api/ingest/locks`,
+    `POST /api/ingest/locks/:YYYY-MM {action: lock|unlock, worstResidualPct, overrideReason|reason}`; `ingest/closeLocks.ts`; who = the
+    portal email when `auth/check` returns one (htxGate sets `req.htxUser`), else the self-reported name, flagged unverified).
+    Only frozen history (< `LIVE_BOUNDARY`) and locked months are `closed`; `completeThrough` = the contiguous closed run from the first
+    month (a month with no data or not locked stops it). A full Tally month (P&L with net revenue > 0; with none it is only to-CM2 / top line)
+    is `ready` until locked. Published months are not closed until locked either.
+  - **Tie** (`completeness.tie`, Tally-backed live months): Tally Nett Profit vs the cascade's net income (engine residual) + per channel
+    connector sales ex-GST vs Tally's channel sales ledgers (Amazon, D2C/Shopify, Flipkart, Blinkit, GT, B2B). Residual > 1% of net revenue
+    (`TIE_LIMIT_PCT`) = breach: locking needs a written reason (server 422 without), kept on the lock. Channels with no connector are shown, not judged.
+  - **GMV vs ex-GST**: facts may carry `gmv` (customer-paid incl. GST) and `netExGst`. Shopify `fetchFacts` fills both (`shopifyLineSales`: `taxes_included`
+    + line `tax_lines`); Amazon Sales-API facts carry `gmv` only (no tax split → ex-GST ESTIMATED at 18 %, labelled); Finances/settlement and
+    other feeds are taken as booked (Principal is ex-GST). `revenue` itself is unchanged.
+  - **Channel P&L** (`anchoredChannelPnl` → `tallyAnchoredRows`) where Tally exists: revenue = Tally channel ledgers; channel fees / marketing /
+    platform = connector-attributed `tallyLines.byChannel` + revenue share of the unattributed rest (foots to Tally); COGM by BOM-COGS share; opex and
+    non-operating by revenue share (Tally books them company-wide). Months without Tally keep the order-share split (`row.basis`).
+  - **Factory overhead** = Tally's Factory Overheads ledger where the month has it (`MonthlyMIS.factory`, `factoryBasis: 'tally'`, `SkuCell.fac`,
+    `PeriodAgg.factory`); the 10 % convention only as a labelled fallback (`'assumed'`; static history keeps 10 %). Views use `cellFactory()`.
+  - **BOM per month** (`pickBom`): each month prices COGS with its own BOM report (the slot pull's `periodKey`, `production.ts` month param), else the
+    nearest month's (tie → earlier), shown as `completeness.bom` with a note. Meta/Google live facts (`channel: 'Meta Ads' | 'Google Ads'`) now map to D2C
+    (`toSalesChannel`). MIS Sheet cash rows are labelled ₹ lakh (values were already lakh, not Cr).
 - **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).
@@ -181,6 +221,19 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   customer) → `planning-d2c-history` (monthly new vs repeat + cohorts; NO customer ids stored; orders > ₹2 lakh skipped).
 - Seasonality per SKU (`plan.skuSeason`) is learned from the sheet's "Units : Last Year" rows; lever `seasonShape: 'history'`
   makes FY29+ = last FY total × growth spread by those curves. Old saved scenarios are upgraded by `upgradePlan()`.
+- **Founder decisions (Nov 2026)** = `plan.fx` (`PlanFx`, engine.ts; defaults `founderFx()` in basePlan.ts; `resolveFx()`): each is a switch
+  with a test in planning.test.ts. **`fx.sheetParity` (UI "Sheet-parity mode") ignores every switch, forces monthly tax and sets placeholder
+  products aside → M1–M18 equal the sheet** (tests wrap `basePlan()` with `setSheetParity`; a plan saved before `fx` has `fx` undefined = unchanged,
+  "Apply the founder decisions" adds it). Switches: `gstServicesAsCost` (stuck services GST expensed in CM1, `gstServicesCost`; ≈ ₹12 Cr over 54 mo),
+  `revenueExGst` (P&L on ex-GST revenue, default ON: lowers EBITDA by the output GST), GMV + ex-GST revenue always reported; `gtNetRealisation`
+  (GT revenue = list less distributor margin, margin line zeroed, %-of-revenue costs still sized on list); `seed` (₹8 Cr equity, round-cost line e378
+  = fee % × seed; the Ask shows "still to raise after the seed"); `opening` (cash, receivables, payables, inventory, GST asset, debt, accumulated
+  losses; `opening.ts openingFromTally` maps the Sep-26 balance sheet from `/api/tally/statements`, READ ONLY); `ventureDebt` (replaces the event
+  flagged `venture`: moratorium + equal instalments, own rate/fee; repayments feed `cumulativeNeed`, which sizes the Ask) and `overdraft` (interest on
+  last month's negative cash) — **placeholders carry `confirmed:false`**; tax by FY with opening accumulated losses (`levers.taxMode='fy'`);
+  `d2cDiscount` (% of D2C list revenue; Shopify history now records `total_discounts` per month, `discountPctOf`; AOV is grossed up so discounts aren't
+  taken twice); `depreciationOnce` (new capex straight-line over `lifeYears` from the next month, D&A lines no longer inflate); `skuTweaks` (hGo/hPulse
+  volume, price). Placeholder products (lotion, oil: `placeholder:true`). SKUs launched in the base's last year (hPulse, hBoots) keep their run-rate after the base.
 - Business Plan + Overview (`plan.business`, `data/planning/summary.ts`): headline 12M/18M/full, Exit ARR (TTM × min(L3M ÷ same
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,

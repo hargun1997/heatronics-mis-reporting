@@ -35,20 +35,31 @@ function readCookie(header: string | undefined, name: string): string | null {
 }
 
 export function htxGate({ portal, host, openPaths = [] }: Opts) {
-  const cache = new Map<string, { at: number; status: number }>();
+  const cache = new Map<string, { at: number; status: number; email?: string }>();
   const open = ["/api/health", "/health", ...openPaths];
 
-  async function check(token: string): Promise<number> {
+  async function check(token: string): Promise<{ status: number; email?: string }> {
     const hit = cache.get(token);
-    if (hit && Date.now() - hit.at < TTL) return hit.status;
+    if (hit && Date.now() - hit.at < TTL) return hit;
     const r = await fetch(`${HUB}/api/auth/check?portal=${encodeURIComponent(portal)}`, {
       headers: { "x-htx-session": token },
     });
     if (r.status === 200 || r.status === 401 || r.status === 403) {
       if (cache.size > 2000) cache.clear();
-      cache.set(token, { at: Date.now(), status: r.status });
+      // The portal may name the visitor (Ops forwards it too); used only for the audit trail of month locks.
+      let email: string | undefined;
+      if (r.status === 200) {
+        try {
+          const b = (await r.json()) as { email?: unknown; user?: { email?: unknown } };
+          const e = b?.email ?? b?.user?.email;
+          if (typeof e === "string" && e.includes("@")) email = e.slice(0, 120);
+        } catch { /* body is optional */ }
+      }
+      const entry = { at: Date.now(), status: r.status, email };
+      cache.set(token, entry);
+      return entry;
     }
-    return r.status;
+    return { status: r.status };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,7 +80,9 @@ export function htxGate({ portal, host, openPaths = [] }: Opts) {
     let status = 401;
     if (token) {
       try {
-        status = await check(token);
+        const c = await check(token);
+        status = c.status;
+        req.htxUser = c.email;
       } catch {
         status = 503;
       }

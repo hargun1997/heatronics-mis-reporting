@@ -6,6 +6,7 @@ import { SectionCard } from '../ui/Card';
 import { cr, money, pct } from './fmt';
 import { NumInput } from './inputs';
 import type { Update } from './LeverPanel';
+import { FounderPanel } from './FounderPanel';
 
 const KIND: Record<CashEvent['kind'], string> = { equity: 'Equity raise', debtDrawn: 'Debt drawn', debtRepaid: 'Debt repaid' };
 
@@ -37,9 +38,11 @@ export function CashTab({ plan, r, update }: { plan: Plan; r: PlanResult; update
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Box label="Peak cumulative deficit" value={`₹${cr(r.peakDeficit)} Cr`} sub={peak ? `in ${peak.label}` : ''} />
         <Box label="Funding need (with contingency)" value={`₹${cr(r.fundingRequired)} Cr`} sub={`${pct(c.contingencyPct, 0)} buffer`} />
-        <Box label="Equity needed after debt" value={`₹${cr(r.equityRequired)} Cr`} sub={`Debt drawn ₹${cr(r.debtDrawnTotal)} Cr · equity planned ₹${cr(r.equityPlanned)} Cr`} />
+        <Box label={r.seedEquity > 0 ? "Still to raise after the seed" : "Equity needed after debt"} value={`₹${cr(Math.max(0, r.equityRequired - r.seedEquity))} Cr`} sub={`Total equity ₹${cr(r.equityRequired)} Cr${r.seedEquity > 0 ? ` less seed ₹${cr(r.seedEquity)} Cr` : ""} · debt drawn ₹${cr(r.debtDrawnTotal)} Cr`} />
         <Box label="Lowest closing cash" value={money(r.minClosingCash)} sub={low ? `${low.label}${r.minClosingCash < 0 ? ' — add or bring forward a raise' : ''}` : ''} bad={r.minClosingCash < 0} />
       </div>
+
+      <FounderPanel plan={plan} update={update} />
 
       <SectionCard
         title="Raises & debt"
@@ -65,6 +68,7 @@ export function CashTab({ plan, r, update }: { plan: Plan; r: PlanResult; update
                 </select>
                 <NumInput unit="cr" value={e.amount} min={0} width="w-20" title="Amount" onChange={(v) => update((p) => { p.events[i].amount = v; })} />
                 <input value={e.note} placeholder="Note (e.g. Seed — Hyperscale lead)" onChange={(ev) => update((p) => { p.events[i].note = ev.target.value; })} className="min-w-[220px] flex-1 rounded-md border border-slate-200 px-2 py-1 text-[13px]" />
+                {e.venture && plan.fx && !plan.fx.sheetParity && plan.fx.ventureDebt.on && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Replaced by the venture-debt terms above</span>}
                 <button onClick={() => update((p) => { p.events.splice(i, 1); })} className="text-[12px] text-slate-400 hover:text-rose-600">Remove</button>
               </div>
             );

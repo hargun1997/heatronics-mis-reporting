@@ -13,6 +13,8 @@ const g = (name: string) => (m: MonthResult) => m.groups[name] ?? 0;
 const neg = (f: (m: MonthResult) => number) => (m: MonthResult) => -f(m);
 
 const PNL: Row[] = [
+  { label: 'GMV (incl. GST)', get: (m) => m.gmv },
+  { label: 'Revenue ex-GST', get: (m) => m.revenueExGst },
   { label: 'Net revenue', get: (m) => m.netRevenue, strong: true },
   { label: 'Raw material & packaging', get: neg(g('Raw Material & Packaging')) },
   { label: 'Inward logistics', get: neg(g('Inward Logistics')) },
@@ -21,6 +23,7 @@ const PNL: Row[] = [
   { label: 'Gross profit', get: (m) => m.grossProfit, strong: true },
   { label: 'Gross margin %', get: (m) => m.grossProfit, of: (m) => m.netRevenue, kind: 'pct' },
   { label: 'Channel commission', get: neg(g('Channel Commission')) },
+  { label: 'Unrecoverable services GST', get: (m) => -m.gstServicesCost },
   { label: 'CM1', get: (m) => m.cm1, strong: true },
   { label: 'Fulfilment & delivery', get: neg(g('Fulfilment & Delivery')) },
   { label: 'Payment & collection', get: neg(g('Payment & Collection')) },
@@ -33,6 +36,8 @@ const PNL: Row[] = [
   { label: 'EBITDA %', get: (m) => m.ebitda, of: (m) => m.netRevenue, kind: 'pct' },
   { label: 'Depreciation', get: (m) => -m.da },
   { label: 'Interest', get: (m) => -m.interest },
+  { label: 'of which venture debt', get: (m) => -m.ventureInterest },
+  { label: 'of which overdraft', get: (m) => -m.overdraftInterest },
   { label: 'Bank & fundraise costs', get: (m) => -m.banking - m.fundraiseCosts },
   { label: 'Tax', get: (m) => -m.tax },
   { label: 'PAT', get: (m) => m.pat, strong: true },
@@ -54,6 +59,8 @@ const CASH: Row[] = [
   { label: 'GST asset (stuck ITC + refunds due)', get: (m) => m.gstAsset, kind: 'end' },
   { label: 'Net working capital', get: (m) => m.nwc, kind: 'end', strong: true },
   { label: 'Closing debt', get: (m) => m.debt, kind: 'end' },
+  { label: 'of which venture debt', get: (m) => m.ventureBalance, kind: 'end' },
+  { label: 'Overdraft drawn (negative cash)', get: (m) => m.overdraft, kind: 'end' },
 ];
 
 const GST: Row[] = [

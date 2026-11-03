@@ -16,7 +16,7 @@ import { readJson, writeJson } from '../../ingest/objectStore.js';
 import { companyListEnvelope, decode, post } from '../sources/tally.js';
 import { parsePnlXml, pnlEnvelope, type TallyPnlMonth } from './pnl.js';
 import { pullBooks } from './bookStore.js';
-import { parseTbXml, tbEnvelope, type TallyTbMonth } from './tb.js';
+import { parseTbXml, TB_BASIS, tbEnvelope, type TallyTbMonth } from './tb.js';
 
 export interface TallySnapshot extends TallyPnlMonth { asOf: string }
 export interface TallyTbSnapshot extends TallyTbMonth { asOf: string }
@@ -28,6 +28,8 @@ export interface TallyState {
   months: Record<string, string>; // period → asOf
   /** Months with a stored Trial Balance (period → asOf), for the Balance Sheet / Cash Flow backfill. */
   tbMonths?: Record<string, string>;
+  /** The TB basis tbMonths were taken on; a different (older) basis empties tbMonths so every TB is pulled again. */
+  tbBasis?: string;
 }
 
 const EMPTY: TallyState = { lastTryAt: null, lastOkAt: null, lastError: null, company: null, months: {} };
@@ -96,6 +98,7 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
     if (!d.due) return { status: 'skipped', detail: d.why };
   }
   state.lastTryAt = new Date(now).toISOString();
+  if (state.tbBasis !== TB_BASIS) { state.tbMonths = {}; state.tbBasis = TB_BASIS; } // month-start copies → pull again
   try {
     const list = await post(creds, companyListEnvelope(), 10_000);
     const loaded = /<SVCURRENTCOMPANY>([\s\S]*?)<\/SVCURRENTCOMPANY>/i.exec(list)?.[1];

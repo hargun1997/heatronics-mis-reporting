@@ -21,6 +21,9 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 // Factory overhead added to product COGS at view time (matches the deck).
 export const FACTORY_PCT = 0.10;
 
+/** A cell's factory overhead: Tally's actual share when its month has the ledger, else the 10% convention. */
+export const cellFactory = (c: { rev: number; fac?: number }): number => c.fac ?? FACTORY_PCT * c.rev;
+
 export type Granularity = 'month' | 'quarter' | 'year';
 /** A bucket function for custom aggregation (e.g. one "range" bucket). */
 export type BucketFn = (periodKey: string) => string;
@@ -114,6 +117,12 @@ export interface PeriodAgg {
   published: boolean;
   /** Every member month is locked history. */
   locked: boolean;
+  /** Every member month is closed (frozen history or manually locked). */
+  closed: boolean;
+  /** Factory overhead inside `cogm` (Tally's booked amount where the month has it, else 10% of net revenue). */
+  factory: number;
+  /** 'tally' = every member month uses Tally's actual; 'assumed' = none; 'mixed' = some. */
+  factoryBasis: 'tally' | 'assumed' | 'mixed';
 }
 
 /** "Dec 23" style label of the first / last member month, and the span note ("Dec 23–Mar 24 · 4m"). */
@@ -156,6 +165,7 @@ export function aggregatePeriods(
         cogmLines: {}, opexLines: {}, nonOpLines: {},
         grossByChannel: {}, returnsByChannel: {}, totalGrossRevenue: 0, totalReturns: 0, totalTaxes: 0, hasBuildUp: true,
         ordersByChannel: {}, ordersMonths: 0, published: false, locked: true, estOrdersByChannel: {},
+        closed: true, factory: 0, factoryBasis: 'tally',
       };
       buckets.set(key, b);
     }
@@ -181,6 +191,12 @@ export function aggregatePeriods(
     if (!comp?.hasTally) b.hasTally = false;
     if (comp?.published) b.published = true;
     if (!comp?.locked) b.locked = false;
+    if (!comp?.closed) b.closed = false;
+    const monthFactory = m.factory ?? FACTORY_PCT * m.netRevenue;
+    b.factory = r2(b.factory + monthFactory);
+    const mBasis = m.factoryBasis ?? 'assumed';
+    if (b.members.length === 1) b.factoryBasis = mBasis;
+    else if (b.factoryBasis !== mBasis) b.factoryBasis = 'mixed';
 
     // Ledger detail (skip the embedded TOTAL rows — the cascade line is the total).
     const addLines = (into: Record<string, number>, src?: Record<string, number>) => {
@@ -302,7 +318,7 @@ function foldCells(cells: SkuCell[], periodKeys: Set<string>): SkuCell[] {
 export function channelRollup(cells: SkuCell[], periodKeys: Set<string>): ChannelRoll[] {
   const by = new Map<SalesChannel, ChannelRoll>();
   for (const c of foldCells(cells, periodKeys)) {
-    const factory = FACTORY_PCT * c.rev;
+    const factory = cellFactory(c);
     let e = by.get(c.ch);
     if (!e) { e = { channel: c.ch, revenue: 0, cogs: 0, factory: 0, fees: 0, ad: 0, cm2: 0, units: 0 }; by.set(c.ch, e); }
     e.revenue = r2(e.revenue + c.rev);
@@ -331,7 +347,7 @@ export interface SkuRoll {
 export function skuRollup(cells: SkuCell[], periodKeys: Set<string>): SkuRoll[] {
   const by = new Map<string, SkuRoll>();
   for (const c of foldCells(cells, periodKeys)) {
-    const factory = FACTORY_PCT * c.rev;
+    const factory = cellFactory(c);
     let e = by.get(c.p);
     if (!e) { e = { product: c.p, revenue: 0, cogs: 0, factory: 0, fees: 0, ad: 0, cm2: 0, units: 0, channels: {} }; by.set(c.p, e); }
     e.revenue = r2(e.revenue + c.rev);
@@ -364,7 +380,7 @@ export function skuChannelMatrix(cells: SkuCell[], periodKeys: Set<string>, metr
     const id = `${c.p}|${c.ch}`;
     const e = agg.get(id) ?? { rev: 0, cogs: 0, factory: 0, fees: 0, ad: 0, units: 0 };
     e.rev = r2(e.rev + c.rev); e.cogs = r2(e.cogs + c.cogs);
-    e.factory = r2(e.factory + FACTORY_PCT * c.rev); e.fees = r2(e.fees + c.oth);
+    e.factory = r2(e.factory + cellFactory(c)); e.fees = r2(e.fees + c.oth);
     e.ad = r2(e.ad + (c.ad ?? 0)); e.units = r2(e.units + c.u);
     agg.set(id, e);
   }
@@ -445,7 +461,7 @@ export interface SlicePnl {
   tied: boolean;
 }
 
-interface SliceAgg { rev: number; cogs: number; fees: number; ad: number; units: number }
+interface SliceAgg { rev: number; cogs: number; fees: number; ad: number; units: number; fac: number }
 
 /** The distinct column keys available for a slice, most revenue first. */
 export function sliceOptions(
@@ -482,7 +498,8 @@ export function slicePnl(
   const agg = new Map<string, SliceAgg>();
   for (const c of sel) {
     const k = colKey(c);
-    const e = agg.get(k) ?? { rev: 0, cogs: 0, fees: 0, ad: 0, units: 0 };
+    const e = agg.get(k) ?? { rev: 0, cogs: 0, fees: 0, ad: 0, units: 0, fac: 0 };
+    e.fac = r2(e.fac + cellFactory(c));
     e.rev = r2(e.rev + c.rev);
     e.cogs = r2(e.cogs + c.cogs);
     e.fees = r2(e.fees + c.oth);
@@ -501,7 +518,7 @@ export function slicePnl(
   });
 
   const mkCol = (key: string, a: SliceAgg, kind: PnlColumn['kind'] = 'slice'): PnlColumn => {
-    const factory = r2(FACTORY_PCT * a.rev);
+    const factory = r2(a.fac);
     const cogm = r2(a.cogs + factory);
     const gm = r2(a.rev - cogm);
     const cm1 = r2(gm - a.fees);
@@ -541,7 +558,7 @@ export function slicePnl(
   }
 
   // Whole-company slice: tie to Tally. Total is Tally's own cascade; recon plugs.
-  const tallyFactory = r2(FACTORY_PCT * period.netRevenue);
+  const tallyFactory = r2(period.factory);
   const tally: PnlColumn = {
     key: '__tally', label: 'Total', kind: 'total',
     rev: period.netRevenue, cogs: r2(period.cogm - tallyFactory), factory: tallyFactory, cogm: period.cogm, gm: period.grossMargin,

@@ -4,7 +4,8 @@
 // totals) across the top. Values in ₹ Lac; percentages as real % cells.
 
 import XLSX from 'xlsx-js-style';
-import { saveAs } from 'file-saver';
+import fileSaver from 'file-saver';
+const { saveAs } = fileSaver;
 import { SALES_CHANNELS } from '../data/misDeck/misDeckData';
 import { channelLabel } from '../data/misDeck/analytics';
 import {
@@ -112,7 +113,9 @@ function writeBlock(
       } else if (def.pct) {
         put(row, i + 1, round2(raw * 1000) / 1000, S.pct);
       } else if (def.count) {
-        put(row, i + 1, Math.round(raw), col.total ? { ...S.total, numFmt: '#,##0' } : { ...S.num, numFmt: '#,##0' });
+        const dp = def.decimals ?? 0;
+        const numFmt = dp ? `#,##0.${'0'.repeat(dp)}` : '#,##0';
+        put(row, i + 1, Math.round(raw * 10 ** dp) / 10 ** dp, col.total ? { ...S.total, numFmt } : { ...S.num, numFmt });
       } else {
         const v = round2(raw / LAC);
         put(row, i + 1, v, col.total ? S.total : def.bold ? S.numBold : S.num);
