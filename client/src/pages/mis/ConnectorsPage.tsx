@@ -12,9 +12,9 @@
 // ----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { SegmentedControl } from '../../components/ui/SegmentedControl';
-import { IngestWorkspace } from '../../components/ingest/IngestWorkspace';
+import { Link } from 'react-router-dom';
+import { AutoPullPanel, CoveragePanel } from '../../components/ingest/IngestWorkspace';
+import { IngestStepper } from '../../components/ingest/IngestStepper';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Drawer } from '../../components/ui/overlays';
 import { StatusPill, type PillTone } from '../../components/ui/StatusPill';
@@ -24,22 +24,18 @@ import {
   FETCH_MODE_LABEL,
   GROUP_LABEL,
   listConnectors,
-  MODE_LABEL,
   refreshStore,
   saveCredentials,
-  syncConnector,
   testConnector,
   type ConnectorGroup,
   type ConnectorInfo,
   type StoreStatus,
 } from '../../data/monthClose/connectorsClient';
-import { emptySession, type MonthCloseSession, type UploadedSource } from '../../data/monthClose/schema';
-import { ALL_SLOTS } from '../../data/ingest/catalog';
-import { listSlotSources, slotKey, slotSourceLine, type FeedTask, type SlotSourceInfo, type SlotSourceKind } from '../../data/ingest/slotSources';
-import { SlotSourceBadge } from '../../components/ingest/SlotSourceBadge';
+import { slotsFor } from '../../data/ingest/catalog';
+import { listIngestReports } from '../../data/ingest/ingestClient';
+import type { IngestReportMeta } from '../../data/ingest/types';
+import { listSlotSources, slotKey, type SlotSourceInfo } from '../../data/ingest/slotSources';
 
-const CLOSE_SESSION_KEY = 'heatronics.monthClose.session';
-const DEFAULT_PERIOD = '2026-08'; // the next month to close after Jul 2026
 
 const GROUP_ORDER: ConnectorGroup[] = ['book', 'marketplace', 'd2c', 'marketing', 'logistics', 'payments'];
 
@@ -51,22 +47,6 @@ const iconPlug = (
 );
 
 /** Append pulled sources into the month-close session localStorage. */
-function sendToClose(periodKey: string, sources: UploadedSource[]): number {
-  let session: MonthCloseSession;
-  try {
-    session = JSON.parse(localStorage.getItem(CLOSE_SESSION_KEY) || 'null') as MonthCloseSession;
-  } catch {
-    session = null as unknown as MonthCloseSession;
-  }
-  if (!session || typeof session !== 'object') {
-    const [y, m] = periodKey.split('-').map(Number);
-    const label = `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1]} ${y}`;
-    session = emptySession(periodKey, label);
-  }
-  session.sources = [...(session.sources ?? []), ...sources];
-  localStorage.setItem(CLOSE_SESSION_KEY, JSON.stringify(session));
-  return session.sources.length;
-}
 
 /** The status read of a connector → tone + label for the pill. */
 function statusOf(c: ConnectorInfo): { tone: PillTone; label: string } {
@@ -85,99 +65,39 @@ function Monogram({ label }: { label: string }) {
   );
 }
 
-function StatCount({ label, count, tone }: { label: string; count: number; tone: PillTone }) {
-  const dot: Record<PillTone, string> = {
-    positive: 'bg-emerald-600', warning: 'bg-amber-600', critical: 'bg-rose-600',
-    info: 'bg-blue-700', neutral: 'bg-slate-400', brand: 'bg-brand-500',
-  };
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-        <span className={`w-2 h-2 rounded-full ${dot[tone]}`} />{label}
-      </div>
-      <div className="font-display text-[26px] font-extrabold tabular-nums mt-1.5">{count}</div>
-    </div>
-  );
-}
 
-const SOURCE_ORDER: SlotSourceKind[] = ['api', 'sheet', 'claude_task', 'upload'];
-const SOURCE_HEAD: Record<SlotSourceKind, string> = {
-  api: 'Pulled by the MIS connectors (API)',
-  sheet: 'Read from the Tranzact daily Google Sheet',
-  claude_task: 'Filled by a Claude scheduled task',
-  upload: 'Manual uploads — and why',
+// ---- One classification per connector (founder, 3 Nov 2026: "only three classifications per connector… why 2 sections and duplicates")
+type Feed = 'api' | 'claude' | 'manual';
+const FEED_LABEL: Record<Feed, string> = { api: 'Connected (API)', claude: 'Automated (Claude)', manual: 'Manual upload' };
+const FEED_TONE: Record<Feed, PillTone> = { api: 'info', claude: 'brand', manual: 'warning' };
+const FEED_HELP: Record<Feed, string> = {
+  api: 'Pulled by the MIS itself (API, Tally or the Tranzact daily sheet).',
+  claude: 'Filled by a Claude scheduled task; the MIS reads the result.',
+  manual: 'No API or task can fetch it: download it and drop it here each month.',
 };
+const FEED_ORDER: Feed[] = ['manual', 'claude', 'api'];
 
-/**
- * Every month-end close report, grouped by how it is fed: API pull, Tranzact
- * sheet, Claude task, or manual upload (with the reason). Plus the scheduled
- * jobs that feed data across the portals.
- */
-function CloseSourcesPanel() {
-  const [slots, setSlots] = useState<SlotSourceInfo[]>([]);
-  const [tasks, setTasks] = useState<FeedTask[]>([]);
-  useEffect(() => {
-    listSlotSources().then((r) => { setSlots(r.slots); setTasks(r.tasks); }).catch(() => {});
-  }, []);
-  if (slots.length === 0) return null;
-  const label = new Map(ALL_SLOTS.map((s) => [slotKey(s.connectorId, s.slotId), s.label]));
-  return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
-        <div>
-          <h3 className="text-sm font-bold text-slate-800">Month-end close: how each report is fed</h3>
-          <p className="text-[11px] text-slate-500">Automatic slots have “Pull now” on the <Link to="/reporting/mis/connectors?view=uploads" className="text-brand-600 hover:underline">Uploads tab</Link> and keep the upload as a fallback.</p>
-        </div>
-        {SOURCE_ORDER.filter((k) => slots.some((s) => s.source === k)).map((k) => (
-          <div key={k}>
-            <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-1.5">{SOURCE_HEAD[k]}</div>
-            <ul className="divide-y divide-slate-100">
-              {slots.filter((s) => s.source === k).map((s) => (
-                <li key={slotKey(s.connectorId, s.slotId)} className="py-1.5 flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3">
-                  <span className="sm:w-64 shrink-0 text-[12px] font-medium text-slate-700">{label.get(slotKey(s.connectorId, s.slotId)) ?? s.slotId} <span className="text-slate-400 font-normal">· {s.connectorId}</span></span>
-                  <span className="flex-1 text-[12px] text-slate-500">
-                    <SlotSourceBadge info={s} />{' '}
-                    {slotSourceLine(s)}
-                    {s.lastPull && <span className={s.lastPull.ok ? 'text-emerald-700' : 'text-rose-600'}> · last pull {s.lastPull.periodKey} {new Date(s.lastPull.at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}{s.lastPull.ok ? '' : ` failed: ${s.lastPull.error ?? ''}`}</span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-2xl border border-violet-200 bg-violet-50/40 p-4 space-y-3">
-        <div>
-          <h3 className="text-sm font-bold text-slate-800">Scheduled feeds</h3>
-          <p className="text-[11px] text-slate-500">Jobs that fill data without anyone downloading a file.</p>
-        </div>
-        <ul className="space-y-3">
-          {tasks.map((t) => (
-            <li key={t.name} className="text-[12px]">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-semibold text-slate-800">{t.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${t.kind === 'claude_task' ? 'bg-violet-50 text-violet-800 border-violet-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
-                  {t.kind === 'claude_task' ? 'Claude scheduled task' : 'Tranzact Recurring Report (not a Claude task)'}
-                </span>
-              </div>
-              <div className="text-slate-500">{t.when} — {t.what}</div>
-              <div className="text-slate-400">→ {t.feeds}</div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
+/** Manual if any of its close reports is a manual upload, else Claude if a Claude task feeds any, else API. */
+function feedOf(c: Pick<ConnectorInfo, 'id' | 'mode'>, sources: Map<string, SlotSourceInfo>): Feed {
+  const mine = [...sources.values()].filter((x) => x.connectorId === c.id);
+  if (mine.some((x) => x.source === 'upload')) return 'manual';
+  if (mine.some((x) => x.source === 'claude_task' || x.claudeTask)) return 'claude';
+  if (mine.length) return 'api';
+  return c.mode === 'live-api' ? 'api' : 'manual';
 }
 
 function ConnectionsView() {
   const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
   const [store, setStore] = useState<StoreStatus | null>(null);
   const [rechecking, setRechecking] = useState(false);
-  const [period, setPeriod] = useState(DEFAULT_PERIOD);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sources, setSources] = useState<Map<string, SlotSourceInfo>>(new Map());
+  const [reports, setReports] = useState<IngestReportMeta[]>([]);
+  const [filter, setFilter] = useState<Feed | 'all'>('all');
+  const [openId, setOpenId] = useState<string | null>(() => (typeof window !== 'undefined' ? window.location.hash.slice(1) || null : null));
 
+  const reloadReports = useCallback(async () => { try { setReports(await listIngestReports()); } catch { /* keep */ } }, []);
   const reload = useCallback(async () => {
     try {
       const data = await listConnectors();
@@ -189,116 +109,100 @@ function ConnectionsView() {
     } finally {
       setLoading(false);
     }
+    listSlotSources().then((r) => setSources(new Map(r.slots.map((x) => [slotKey(x.connectorId, x.slotId), x])))).catch(() => {});
   }, []);
+  useEffect(() => { void reload(); void reloadReports(); }, [reload, reloadReports]);
 
-  useEffect(() => { void reload(); }, [reload]);
-
+  const feeds = useMemo(() => new Map(connectors.map((c) => [c.id, feedOf(c, sources)])), [connectors, sources]);
+  const count = (f: Feed) => connectors.filter((c) => feeds.get(c.id) === f).length;
+  const shown = connectors.filter((c) => filter === 'all' || feeds.get(c.id) === filter);
   const grouped = useMemo(() => {
     const by: Record<string, ConnectorInfo[]> = {};
-    for (const c of connectors) (by[c.group] ??= []).push(c);
+    for (const c of shown) (by[c.group] ??= []).push(c);
+    for (const g of Object.keys(by)) by[g].sort((a, b) => FEED_ORDER.indexOf(feeds.get(a.id)!) - FEED_ORDER.indexOf(feeds.get(b.id)!));
     return by;
-  }, [connectors]);
+  }, [shown, feeds]);
 
-  const live = connectors.filter((c) => c.connected && c.implemented).length;
-  const pending = connectors.filter((c) => c.connected && !c.implemented).length;
-  const notSet = connectors.filter((c) => !c.connected).length;
+  const latest = useMemo(() => {
+    const m = new Map<string, IngestReportMeta>();
+    for (const r of reports) { const k = slotKey(r.connectorId, r.slotId); const cur = m.get(k); if (!cur || r.periodKey > cur.periodKey) m.set(k, r); }
+    return m;
+  }, [reports]);
+
+  const chip = (id: Feed | 'all', label: string, n: number) => (
+    <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}
+      className={'min-h-[36px] rounded-full border px-3 text-sm ' + (filter === id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400')}>
+      {label} <span className="tabular-nums opacity-70">{n}</span>
+    </button>
+  );
 
   return (
-    <>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 space-y-6">
-        <label className="flex items-center gap-2 text-xs text-slate-500">
-          <span className="font-medium text-slate-600">Month to sync</span>
-          <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="px-2.5 py-1.5 text-sm rounded-lg border border-slate-300" />
-        </label>
-        {/* Summary */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCount label="Live & feeding" count={live} tone="positive" />
-          <StatCount label="Saved · pull pending" count={pending} tone="warning" />
-          <StatCount label="Not connected" count={notSet} tone="neutral" />
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col justify-center">
-            <div className="text-xs font-semibold text-slate-600 mb-2">Credential store</div>
-            {store ? (
-              <StatusPill toneName={store.durable ? 'positive' : 'warning'} dot>
-                {store.durable ? 'Secret Manager · durable' : 'Temporary store'}
-              </StatusPill>
-            ) : (
-              <StatusPill toneName="neutral">—</StatusPill>
-            )}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+      <CoveragePanel reports={reports} connectors={connectors} />
+      <AutoPullPanel sources={sources} onDone={reloadReports} />
+
+      <div className="flex flex-wrap items-center gap-2">
+        {chip('all', 'All', connectors.length)}
+        {FEED_ORDER.map((f) => chip(f, FEED_LABEL[f], count(f)))}
+        <span className="ml-auto">
+          {store && <StatusPill toneName={store.durable ? 'positive' : 'warning'} dot>{store.durable ? 'Credentials: Secret Manager' : 'Credentials: temporary store'}</StatusPill>}
+        </span>
+      </div>
+      {filter !== 'all' && <p className="-mt-2 text-[12px] text-slate-500">{FEED_HELP[filter]}</p>}
+
+      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
+
+      {store && !store.durable && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 space-y-2">
+          <p className="font-medium">Tokens are saved to a temporary store and will be cleared on restart or redeploy.</p>
+          {store.grantHint ? (
+            <>
+              <p>Grant this service account permission to manage secrets once (Cloud Shell), then Re-check:</p>
+              <pre className="bg-amber-100 rounded p-2 overflow-x-auto whitespace-pre-wrap font-mono text-[11px]">{store.grantHint}</pre>
+              {store.secretManagerError && <p className="text-amber-700">Secret Manager said: {store.secretManagerError}</p>}
+            </>
+          ) : <p>This server isn't on GCP, so set credentials as environment variables (each drawer shows the names).</p>}
+          <button onClick={async () => { setRechecking(true); try { const r = await refreshStore(); setStore(r.store); } finally { setRechecking(false); } }}
+            disabled={rechecking} className="px-2.5 py-1 rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-100 disabled:opacity-40">
+            {rechecking ? 'Re-checking…' : 'Re-check store'}
+          </button>
+        </div>
+      )}
+
+      {loading && <p className="text-sm text-slate-400">Loading connectors…</p>}
+
+      {GROUP_ORDER.filter((g) => grouped[g]?.length).map((g) => (
+        <div key={g}>
+          <h3 className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400 mb-2.5">{GROUP_LABEL[g]}</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {grouped[g].map((c) => (
+              <ConnectorCard key={c.id} connector={c} feed={feeds.get(c.id)!} sources={sources} latest={latest}
+                open={openId === c.id} setOpen={(o) => setOpenId(o ? c.id : null)} onChanged={reload} onCommitted={reloadReports} />
+            ))}
           </div>
         </div>
-
-        <CloseSourcesPanel />
-
-        {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>
-        )}
-
-        {store && !store.durable && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 space-y-2">
-            <p className="font-medium">⚠ Tokens are saved to a temporary store and will be cleared on restart or redeploy.</p>
-            {store.grantHint ? (
-              <>
-                <p>
-                  To make saves permanent automatically (no env vars, no per-token work), grant this service account
-                  permission to manage secrets — <span className="font-medium">once</span>. A service can't grant itself
-                  access, so this is the one manual step. Run it in Cloud Shell, then click Re-check:
-                </p>
-                <pre className="bg-amber-100 rounded p-2 overflow-x-auto whitespace-pre-wrap font-mono text-[11px]">{store.grantHint}</pre>
-                {store.secretManagerError && (
-                  <p className="text-amber-700">Secret Manager said: {store.secretManagerError}</p>
-                )}
-              </>
-            ) : (
-              <p>
-                This server isn't running on GCP (or the project couldn't be detected), so Secret Manager isn't
-                available. Set credentials as environment variables instead — each connector's drawer shows the names.
-              </p>
-            )}
-            <button
-              onClick={async () => {
-                setRechecking(true);
-                try {
-                  const r = await refreshStore();
-                  setStore(r.store);
-                } finally {
-                  setRechecking(false);
-                }
-              }}
-              disabled={rechecking}
-              className="px-2.5 py-1 rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-100 disabled:opacity-40"
-            >
-              {rechecking ? 'Re-checking…' : 'Re-check store'}
-            </button>
-          </div>
-        )}
-
-        {loading && <p className="text-sm text-slate-400">Loading connectors…</p>}
-
-        {GROUP_ORDER.filter((g) => grouped[g]?.length).map((g) => (
-          <div key={g}>
-            <h3 className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400 mb-2.5">{GROUP_LABEL[g]}</h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {grouped[g].map((c) => (
-                <ConnectorCard key={c.id} connector={c} period={period} onChanged={reload} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
+      ))}
+    </div>
   );
 }
 
 function ConnectorCard({
-  connector,
-  period,
-  onChanged,
+  connector, feed, sources, latest, open, setOpen, onChanged, onCommitted,
 }: {
   connector: ConnectorInfo;
-  period: string;
+  feed: Feed;
+  sources: Map<string, SlotSourceInfo>;
+  latest: Map<string, IngestReportMeta>;
+  open: boolean;
+  setOpen: (o: boolean) => void;
   onChanged: () => Promise<void>;
+  onCommitted: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const slots = slotsFor(connector.id);
+  const manualSlots = slots.filter((x) => sources.get(slotKey(connector.id, x.slotId))?.source === 'upload');
+  const autoSlots = slots.filter((x) => !manualSlots.includes(x));
+  const hasCreds = connector.credentialFields.length > 0;
+  const lines = slots.map((x) => ({ slot: x, src: sources.get(slotKey(connector.id, x.slotId)), got: latest.get(slotKey(connector.id, x.slotId)) }));
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null);
@@ -326,37 +230,6 @@ function ConnectorCard({
     setBusy(null);
   };
 
-  const sync = async () => {
-    setBusy('sync'); setMsg(null);
-    try {
-      const r = await syncConnector(connector.id, period);
-      const n = r.sources.reduce(
-        (acc, s) => ({
-          nodes: acc.nodes + s.nodes.length,
-          sku: acc.sku + s.skuRows.length,
-          xc: acc.xc + s.crossChecks.length,
-        }),
-        { nodes: 0, sku: 0, xc: 0 },
-      );
-      const total = sendToClose(period, r.sources);
-      const parts = [
-        n.nodes && `${n.nodes} ledger rows`,
-        n.sku && `${n.sku} SKU rows`,
-        n.xc && `${n.xc} cross-checks`,
-      ].filter(Boolean).join(', ');
-      setMsg({
-        kind: r.warnings.length ? 'warn' : 'ok',
-        text: `Pulled ${parts || 'no rows'} → sent to close (${total} sources). ` +
-          (r.warnings.length ? `⚠ ${r.warnings[0]}` : ''),
-      });
-      await onChanged();
-    } catch (e) {
-      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Sync failed.' });
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const msgColor = msg?.kind === 'ok' ? 'text-emerald-700' : msg?.kind === 'warn' ? 'text-amber-700' : 'text-rose-700';
 
   return (
@@ -368,20 +241,28 @@ function ConnectorCard({
             <h4 className="text-sm font-bold text-slate-800 truncate">{connector.label}</h4>
             <span className="text-[11px] text-slate-400 uppercase tracking-wide">{GROUP_LABEL[connector.group]}</span>
           </div>
-          <StatusPill toneName={connector.mode === 'live-api' ? 'info' : 'neutral'} className="whitespace-nowrap">
-            {MODE_LABEL[connector.mode]}
-          </StatusPill>
+          <StatusPill toneName={FEED_TONE[feed]} className="whitespace-nowrap">{FEED_LABEL[feed]}</StatusPill>
         </div>
 
-        {connector.note && <p className="text-[12px] leading-snug text-slate-500 line-clamp-2">{connector.note}</p>}
+        {lines.length > 0 ? (
+          <ul className="space-y-1 text-[12px] leading-snug text-slate-600">
+            {lines.map(({ slot, src, got }) => (
+              <li key={slot.slotId}>
+                <span className="font-medium text-slate-700">{slot.label}</span>
+                {got && <span className="text-emerald-700"> · in for {got.periodKey}</span>}
+                {src && <span className="text-slate-500"> · {src.source === 'upload' ? src.line : src.via}</span>}
+              </li>
+            ))}
+          </ul>
+        ) : connector.note ? <p className="text-[12px] leading-snug text-slate-500 line-clamp-2">{connector.note}</p> : null}
 
-        <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-auto">
-          <StatusPill toneName={status.tone} dot>{status.label}</StatusPill>
+        <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 mt-auto">
+          {hasCreds ? <StatusPill toneName={status.tone} dot>{status.label}</StatusPill> : <span className="text-[11px] text-slate-400">No login needed</span>}
           <button
             onClick={() => { setOpen(true); setMsg(null); }}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+            className={'px-3 py-1.5 text-xs font-semibold rounded-lg ' + (feed === 'manual' ? 'bg-cta text-on-cta hover:bg-cta-hover' : 'border border-slate-300 text-slate-700 hover:bg-slate-50')}
           >
-            {connector.connected ? 'Manage' : 'Connect'}
+            {feed === 'manual' ? 'Upload' : connector.connected || !hasCreds ? 'Open' : 'Connect'}
           </button>
         </div>
       </div>
@@ -389,12 +270,12 @@ function ConnectorCard({
       <Drawer
         open={open}
         onClose={() => setOpen(false)}
-        width={440}
+        width={slots.length ? 640 : 440}
         icon={<Monogram label={connector.label} />}
         subtitle={`${GROUP_LABEL[connector.group]} · ${FETCH_MODE_LABEL[connector.fetchMode]}`}
         title={connector.label}
-        badges={<StatusPill toneName={status.tone} dot>{status.label}</StatusPill>}
-        footer={
+        badges={<StatusPill toneName={FEED_TONE[feed]}>{FEED_LABEL[feed]}</StatusPill>}
+        footer={!hasCreds ? undefined : 
           <div className="flex items-center gap-2.5">
             <button
               onClick={save}
@@ -430,7 +311,21 @@ function ConnectorCard({
         <div className="px-5 py-5 space-y-4">
           {connector.note && <p className="text-[13px] leading-relaxed text-slate-600">{connector.note}</p>}
 
-          <div>
+          {manualSlots.length > 0 && (
+            <div className="space-y-3">
+              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Upload each month</div>
+              {manualSlots.map((x) => <IngestStepper key={x.slotId} slot={x} existing={latest.get(slotKey(connector.id, x.slotId))} onCommitted={onCommitted} source={sources.get(slotKey(connector.id, x.slotId))} />)}
+            </div>
+          )}
+          {autoSlots.length > 0 && (
+            <div className="space-y-3">
+              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Fills automatically</div>
+              <p className="text-[12px] text-slate-500">"Pull & save all" at the top saves these. Pull one here, or upload the report by hand only if its pull fails.</p>
+              {autoSlots.map((x) => <IngestStepper key={x.slotId} slot={x} existing={latest.get(slotKey(connector.id, x.slotId))} onCommitted={onCommitted} source={sources.get(slotKey(connector.id, x.slotId))} />)}
+            </div>
+          )}
+
+          {hasCreds && <div>
             <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2.5">Credentials</div>
             <div className="space-y-3">
               {connector.credentialFields.map((f) => (
@@ -451,27 +346,9 @@ function ConnectorCard({
               ))}
             </div>
             <p className="text-[11px] text-slate-400 mt-2">Blank fields are left unchanged; passwords are never shown back.</p>
-          </div>
+          </div>}
 
-          {connector.implemented && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-slate-800">Pull {period}</div>
-                  <div className="text-[11px] text-slate-500">Fetches the month and sends it to the close.</div>
-                </div>
-                <button
-                  onClick={sync}
-                  disabled={!connector.connected || busy !== null}
-                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-800 text-white hover:bg-slate-900 disabled:opacity-40"
-                >
-                  {busy === 'sync' ? 'Syncing…' : 'Sync month'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <details className="text-[11px] text-slate-500">
+          {hasCreds && <details className="text-[11px] text-slate-500">
             <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">
               Durable option: set as environment variables instead
             </summary>
@@ -484,7 +361,7 @@ function ConnectorCard({
                 <div key={f.key}>{envVarName(connector.id, f.key)}{f.optional ? '  (optional)' : ''}</div>
               ))}
             </div>
-          </details>
+          </details>}
 
           {msg && <p className={`text-xs leading-snug ${msgColor}`}>{msg.text}</p>}
         </div>
@@ -493,25 +370,19 @@ function ConnectorCard({
   );
 }
 
-// Setup = every connector AND the report uploads in one place (founder, 3 Nov 2026: "why do we need 2 different things").
-// ?view=uploads opens the uploads (the old /reporting/mis/ingest redirects here, hash kept = the source to open).
+// Setup = one list of every data source, each tagged Connected (API) / Automated (Claude) / Manual upload (founder, 3 Nov 2026).
+// Old links ?view=uploads#<connector> still work: the hash opens that connector's drawer.
 export function ConnectorsPage() {
-  const [params, setParams] = useSearchParams();
-  const view: 'connections' | 'uploads' = params.get('view') === 'uploads' ? 'uploads' : 'connections';
-  const setView = (v: 'connections' | 'uploads') => { const n = new URLSearchParams(params); if (v === 'uploads') n.set('view', 'uploads'); else n.delete('view'); setParams(n, { replace: true }); };
   return (
     <>
       <PageHeader
         title="Setup"
         accent="brand"
         icon={iconPlug}
-        description="Every data source in one place. Connections: connect each system once (credentials stay on the server) and see how each report is fed. Uploads: the few reports with no API (Flipkart settlement + ads, Blinkit, Snapmint, Shopflo), a Pull now per source, and freezing a month. A missing report shows up in Issues."
+        description="Every data source in one list. Connected (API) and Automated (Claude) fill themselves: one Pull & save for the month. Manual upload is only for the reports nothing can fetch (Flipkart settlement + ads, Blinkit, Snapmint, Shopflo). A missing report shows up in Tasks → Fix."
         actions={<Link to="/reporting/mis/live" className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">Live MIS →</Link>}
       />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-4">
-        <SegmentedControl aria-label="Setup view" value={view} onChange={setView} options={[{ id: 'connections', label: 'Connections' }, { id: 'uploads', label: 'Uploads' }]} />
-      </div>
-      {view === 'uploads' ? <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6"><IngestWorkspace /></div> : <ConnectionsView />}
+      <ConnectionsView />
     </>
   );
 }

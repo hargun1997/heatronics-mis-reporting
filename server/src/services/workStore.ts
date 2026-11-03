@@ -477,7 +477,7 @@ export async function importSeed(
           upload: a.connectorId && a.slotId ? { connectorId: a.connectorId, slotId: a.slotId } : undefined,
           roleLabel: 'MIS uploads',
           howTo: uploadHowTo(`${a.connectorId ?? ''} ${a.label}`),
-          links: [{ label: 'Setup → Uploads', url: '/reporting/mis/connectors?view=uploads' }],
+          links: [{ label: 'Setup', url: '/reporting/mis/connectors?view=uploads' }],
           active: a.active,
           source: 'ownership',
         },

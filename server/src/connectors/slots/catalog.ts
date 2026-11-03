@@ -298,7 +298,7 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
     needs: ['host'], connectHint: 'Not connected — add the Tally host + port on the Connectors page (Tally card).',
     line: 'Stored with the P&L by the same Tally check: closing Dr / Cr per group at the month end, checked that it ties. A record only — the close uses the P&L. The screenshot upload stays the fallback.',
     pull: tallyTb },
-  { connectorId: 'tranzact', slotId: 'bom', source: 'api', via: 'Production portal',
+  { connectorId: 'tranzact', slotId: 'bom', source: 'api', via: 'Production portal', claudeTask: 'Portal feeds: Mac Chrome',
     needs: [], credsFrom: 'production',
     line: "Unit cost per finished good from production.heatronics.in (each BOM at its parts' latest purchase invoices, ex-GST). Production reads the Tranzact BOMs from the monthly Claude task (18th) and the daily Tranzact sheets.",
     pull: productionBom },
