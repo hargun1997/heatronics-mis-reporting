@@ -174,15 +174,21 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
     `deck.productGaps` → `ProductGapsPanel` on Live MIS; a click stores the confirmation (`mis/product-map`, `/api/mis/product-map`: `sku` overrides + `bomProxy`).
     A product with no BOM is costed from its confirmed proxy, else ESTIMATED from the closest costed product (`costEstimated`, cell flag `costEst`/`noCost`),
     and the month stays "uncosted" until confirmed: never a silent 100% margin.
-- **Issues inbox (founder, 3 Nov 2026: the MIS is live, so problems are an inbox, not a month-end page):** `/reporting/mis/issues` (sidebar Reporting,
-  live open count badge `data/issues/useIssueCount.ts`). Server items `services/issuesInbox.ts serverItems` (Tally health checks, hanging ledgers one
-  item per kind, TB that doesn't tie, Tally not reached / not connected, manual-upload slots `MANUAL_SLOTS` missing for last month (only connectors
-  ever used), the anomaly scan) → `GET /api/issues/inbox` (cached 60 s) / `GET /api/issues/count`; browser items `data/issues/inbox.ts deckItems`
-  (tie breach, ready to lock, BOM from another month, unmapped products, no-BOM products; remembered per tab for the badge). Shared state
-  `issues/state` (`POST /api/issues/state {op: done|snooze|reopen, id, sig}`): Done holds until the item's `sig` changes. Each item links where to
-  fix (`/tally?tab=`, `/reporting/mis/live?month=…#close|#product-gaps`, `/reporting/mis/ingest#<connector>`). Month-end close is now
-  **Setup → Uploads** (`/reporting/mis/connectors?view=uploads`; `/reporting/mis/ingest` redirects, hash kept; Setup = Connections + Uploads in one page); Round planner moved to Tools; Data rulebook is palette-only.
-  Sidebar: every section scrolls in one list, the current page scrolled into view (the footer used to hide the last tools).
+- **Tasks = the one place for accounts work (founder, 3 Nov 2026; Issues + Tally health overlapped):** `/tasks` (sidebar Accounts, first;
+  badge = open Fix items + tasks late / due today, `data/issues/useIssueCount.ts`). Views To do · **Fix** · Calendar · All tasks; To do opens with
+  the worst open Fix items (`FixPreview`), `?view=fix` = the full list (`components/issues/IssuesInbox.tsx`, one load per page `useInbox`).
+  `/reporting/mis/issues` redirects there. Fix items: server `services/issuesInbox.ts serverItems` (Tally health checks, hanging ledgers per
+  kind, TB that doesn't tie, Tally not reached, `MANUAL_SLOTS` missing for last month, the anomaly scan grouped per check, future months
+  skipped) → `GET /api/issues/inbox` / `count`; browser `data/issues/inbox.ts deckItems` (tie breach, ready to lock, BOM from another month,
+  unmapped / no-BOM products). Shared state `issues/state` (`POST /api/issues/state`): Done holds until the item's `sig` changes.
+  Tally health keeps only tools (Chart of accounts default, Ask, Ledgers, Vouchers, Ledger rules) + a line pointing to Tasks → Fix.
+  **Calendar v2** (`closeCalendar.ts`, `CALENDAR_VERSION` 2): `cal-m10-mis` = the five no-API uploads + lock (checklist); new
+  `cal-m02-stock` "Closing stock into Tally" with `live: 'amazon-stock'` → `AmazonStockPanel` on the task: `GET /api/stock/amazon?month=`
+  (`routes/stock.ts`: Ops `amz_ledger_daily_fc_latest` balances for both month ends via `sources/opsBq.ts opsQuery` + Production costs
+  incl. `conversion`) → pure `client/src/data/stock/amazonStock.ts buildValuation` (per FG via `skuToFgMapping`, sellable + unsellable +
+  FC-to-FC transit, value = units × (material + conversion), nearest earlier day warned, unmapped SKUs unvalued) + Excel. Brand account
+  only (Supernode's stock is theirs). Test `server/test/amazonStock.test.ts`. Setup = Connections + Uploads (`?view=uploads`;
+  `/reporting/mis/ingest` redirects, hash kept); Round planner under Tools; Data rulebook palette-only. Sidebar: one scrolling list, current page in view.
 - **Chart of accounts** (Tally health → Chart of accounts, `GET /api/tally/books/chart`, pure `connectors/tally/chart.ts`, READ ONLY): groups →
   sub-groups → ledgers tree with closings from the newest stored TB; hanging ledgers = on a parent group with sub-groups (not Sundry Debtors /
   Creditors / Duties & Taxes / banks), in a carry-over / old group (Busy Carryover, "- Busy"), no group, or in another channel's group; each with a

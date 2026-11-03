@@ -2,7 +2,7 @@
 // "Layout & navigation"). Reads nav/config.ts, the one source of truth. Two levels only: section → page.
 //   Top: brand, collapse, "Search or jump to… ⌘K". Then Pinned (localStorage) and every section (Admin included) in one
 //   scrolling list, the current page scrolled into view; at the bottom only Claude status + Compact + Theme.
-//   Issues carries a live open count.
+//   Tasks carries a live count (to fix + late + due today).
 // Desktop: fixed 248 px dark rail, collapsible to a 64 px icon rail (tooltips + sr-only labels).
 // < 1024 px: top bar (Menu, brand, Search) + the same list in a modal drawer (focus trapped, Esc closes,
 // focus returns to the Menu button). Keyboard: ↑ / ↓ move between items, Home / End jump.
@@ -77,9 +77,9 @@ export function AppNav() {
           {on && <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-nav-accent" aria-hidden />}
           <Icon className={cx('h-[18px] w-[18px] shrink-0', on ? 'text-nav-accent' : 'text-nav-muted group-hover/row:text-nav-fg')} aria-hidden />
           {mini ? <span className="sr-only">{p.label}</span> : <span className="min-w-0 flex-1 truncate">{p.label}</span>}
-          {p.id === 'issues' && issues && issues.open > 0 && (
+          {p.id === 'tasks' && issues && issues.open > 0 && (
             <span className={cx('rounded-full px-1.5 text-xs font-semibold tabular-nums', mini ? 'absolute right-1 top-1 min-w-[18px] text-center leading-[18px]' : 'leading-5',
-              issues.high > 0 ? 'bg-red-500 text-white' : 'bg-nav-hover text-nav-strong')} aria-label={`${issues.open} open${issues.high ? `, ${issues.high} high` : ''}`}>{issues.open}</span>
+              issues.high > 0 ? 'bg-red-500 text-white' : 'bg-nav-hover text-nav-strong')} aria-label={`${issues.open} to do or fix${issues.high ? `, ${issues.high} urgent` : ''}`}>{issues.open}</span>
           )}
         </Link>
       </li>

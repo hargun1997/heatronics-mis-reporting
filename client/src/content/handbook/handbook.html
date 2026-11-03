@@ -518,7 +518,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <tr><td>Indirect Incomes</td><td>Other Income</td></tr>
   </table></div>
   <h3 id="c2-hanging">Hanging ledgers and where they move</h3>
-  <p>A <b>hanging ledger</b> sits somewhere the MIS can't place it. Tally health finds four kinds and suggests the group each should move to (a name rule first, then the sub-group where look-alike ledgers already sit; a suggestion never moves an expense to an asset or the other way round). The same list shows as one item per kind in <a href="/reporting/mis/issues">Issues</a>.</p>
+  <p>A <b>hanging ledger</b> sits somewhere the MIS can't place it. Tally health finds four kinds and suggests the group each should move to (a name rule first, then the sub-group where look-alike ledgers already sit; a suggestion never moves an expense to an asset or the other way round). The same list shows as one item per kind in <a href="/tasks?view=fix">Tasks → Fix</a>.</p>
   <div class="tw"><table>
     <tr><th>Kind</th><th>What it means</th><th>Why it matters</th></tr>
     <tr><td>On a parent group</td><td>The ledger sits directly on a group that has sub-groups (e.g. on <i>Indirect Expenses</i> itself). Parties in Sundry Debtors / Creditors, taxes in Duties &amp; Taxes and banks are fine there.</td><td>It lands in no MIS line of its own: the cost shows as "other".</td></tr>
@@ -1440,8 +1440,8 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   <div class="chhead"><span class="chno">13c</span><div><h2>Filling the MIS</h2><p class="lede">Upload last month's reports into the Live MIS in this app, check every source is in, and read the result. Done on the 10th.</p></div></div>
 <div class="opblock">
     <header><span class="tag monthly">Monthly · 10th · ~45 min</span><h3 id="c28-overview">What this is and when</h3></header>
-    <p class="done">Done when: <a href="/reporting/mis/issues">Issues</a> has nothing open for last month and the month is locked on Live MIS → Month close.</p>
-    <div class="callout ok"><b>Since Nov 2026 the MIS runs live.</b> Amazon, Shopify, Meta, Google, Amazon Ads, Shiprocket, Delhivery, Easebuzz, the Tranzact sheet, BOM costs and Tally fill themselves. What needs a person shows in <b>Issues</b> (left menu, with a live count): a report with no API not uploaded yet, a month that doesn't tie to Tally, an unmapped product, a hanging ledger, Tally not reached. Open each, fix it at the source, and it leaves on its own. Only the reports with no API (Flipkart settlement + ads, Blinkit payout, Snapmint, Shopflo invoice) are still uploaded, on <b>Setup → Uploads</b>. The steps below are that fallback.</div>
+    <p class="done">Done when: <a href="/tasks?view=fix">Tasks → Fix</a> has nothing open for last month and the month is locked on Live MIS → Month close.</p>
+    <div class="callout ok"><b>Since Nov 2026 the MIS runs live.</b> Amazon, Shopify, Meta, Google, Amazon Ads, Shiprocket, Delhivery, Easebuzz, the Tranzact sheet, BOM costs and Tally fill themselves. What needs a person shows in <b>Tasks → Fix</b> (left menu, with a live count): a report with no API not uploaded yet, a month that doesn't tie to Tally, an unmapped product, a hanging ledger, Tally not reached. Open each, fix it at the source, and it leaves on its own. Only the reports with no API (Flipkart settlement + ads, Blinkit payout, Snapmint, Shopflo invoice) are still uploaded, on <b>Setup → Uploads</b>. The steps below are that fallback.</div>
     <p>The <b>Live MIS</b> is the management P&amp;L built from source reports: channels, SKUs, ad spend, fees and the Tally P&amp;L. Nothing is posted to Tally from here; the MIS only reads.</p>
     <ul>
       <li><b>When:</b> the 10th, after the books for the month are in: daily imports, platform settlements (1st, 3rd), expense invoices (<a href="#c27-overview">chapter 13b</a>) and bank clearing (4th). The Tally P&amp;L should reflect all of it.</li>
@@ -1568,6 +1568,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   <div class="chhead"><span class="chno">17</span><div><h2>Month-end close and reconciliations</h2></div></div>
   <div class="tw"><table>
     <tr><th>By</th><th>Close step</th><th>Evidence</th></tr>
+    <tr><td>Day 2</td><td>Closing stock entered in Tally: Amazon FBA (valued live on the Tasks item "Closing stock into Tally": Amazon’s own month-end balance per product × Production cost, material ex-GST + conversion; Excel working attached) + warehouse (Tranzact closing stock). Supernode’s stock is not ours.</td><td>Tally closing stock = Amazon panel total + Tranzact closing value</td></tr>
     <tr><td>Day 3</td><td>Tranzact pushed (Pending/Approved = 0); Shopify + Easebuzz caught up</td><td>Tranzact counts; Shopify sales report = Tally Shopify Sales</td></tr>
     <tr><td>Day 5</td><td>Amazon MTR-B2C, MTR-B2B, STR, Settlement; Shiprocket; Snapmint imported</td><td>MTR totals = Amazon Sales by GSTIN</td></tr>
     <tr><td>Day 7</td><td>TDS deposited</td><td>Challans = TDS Payable by section</td></tr>

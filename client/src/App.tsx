@@ -10,7 +10,6 @@ import { LiveMisPage } from './pages/mis/LiveMisPage';
 import { RulebookPage } from './pages/mis/RulebookPage';
 import { MisChatPage } from './pages/mis/MisChatPage';
 import { AiInsightsPage } from './pages/mis/AiInsightsPage';
-import { IssuesPage } from './pages/mis/IssuesPage';
 import { UploadsRedirect } from './pages/mis/UploadsRedirect';
 import { TasksPage } from './pages/work/TasksPage';
 import { TasksSettingsPage } from './pages/work/TasksSettingsPage';
@@ -49,7 +48,7 @@ function App() {
           <Route path="reporting/mis/live" element={<LiveMisPage />} />
           <Route path="reporting/mis/insights" element={<AiInsightsPage />} />
           <Route path="reporting/mis/chat" element={<MisChatPage />} />
-          <Route path="reporting/mis/issues" element={<IssuesPage />} />
+          <Route path="reporting/mis/issues" element={<Navigate to="/tasks?view=fix" replace />} />
           <Route path="reporting/mis/ownership" element={<Navigate to="/tasks/settings" replace />} />
           <Route path="reporting/mis/send" element={<SendReportPage />} />
           <Route path="tasks" element={<TasksPage />} />

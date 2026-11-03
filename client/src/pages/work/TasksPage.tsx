@@ -1,5 +1,6 @@
 // ============================================================================
-// TASKS — one page for all recurring work. Primary job: "what do I need to do
+// TASKS — the one place for all accounts work (founder, 3 Nov 2026): recurring tasks AND the Fix list (what the books / the
+// MIS need a person for: data/issues/*, components/issues/IssuesInbox). One page for all recurring work. Primary job: "what do I need to do
 // now, and tick it off". Everything else (schedule, how-to, owners, reminders,
 // history) sits one click away in the task's panel, the Filters popover, the
 // folded daily-email strip, or Settings (People & reminders).
@@ -25,12 +26,16 @@ import { TaskEditor } from './TaskEditor';
 import { KINDS, NO_FILTERS, buildAgenda, inHead, readLS, unownedTasks, writeLS, type Filters, type Item, type View, type Who } from './taskModel';
 import { TasksToolbar } from './TasksToolbar';
 import { TasksHeader, btnPrimary, focusRing } from './ui';
+import { useInbox } from '../../data/issues/useInbox';
+import { FixPreview, IssuesInbox } from '../../components/issues/IssuesInbox';
 
 export function TasksPage() {
   const [state, setState] = useState<WorkState | null>(null);
   const [error, setError] = useState('');
   const [seeding, setSeeding] = useState(false);
-  const [view, setView] = useState<View>('agenda');
+  // ?view=fix (old Issues links, the 10th task) opens the Fix list
+  const [view, setView] = useState<View>(() => { try { return new URLSearchParams(window.location.search).get('view') === 'fix' ? 'fix' : 'agenda'; } catch { return 'agenda'; } });
+  const inbox = useInbox();
   const [me, setMe] = useState(() => readLS('tasks:me'));
   const [who, setWhoRaw] = useState<Who>(() => (readLS('tasks:me') ? 'mine' : 'all'));
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
@@ -172,7 +177,7 @@ export function TasksPage() {
 
   const sub = !state
     ? 'What’s due, who does it, and how.'
-    : [counts.late ? `${counts.late} late` : '', `${counts.today} due today`, `${counts.week} more this week`].filter(Boolean).join(' · ');
+    : [inbox.open.length ? `${inbox.open.length} to fix` : '', counts.late ? `${counts.late} late` : '', `${counts.today} due today`, `${counts.week} more this week`].filter(Boolean).join(' · ');
 
   const header = (
     <TasksHeader title="Tasks" sub={sub}>
@@ -222,6 +227,8 @@ export function TasksPage() {
           <TasksToolbar
             view={view}
             setView={setView}
+            fixCount={inbox.open.length}
+            fixHigh={inbox.open.some((i) => i.severity === 'high')}
             who={who}
             setWho={setWho}
             me={me}
@@ -258,7 +265,11 @@ export function TasksPage() {
           </div>
         )}
 
-        {view === 'month' ? (
+        {view === 'agenda' && <FixPreview inbox={inbox} onAll={() => setView('fix')} />}
+
+        {view === 'fix' ? (
+          <IssuesInbox inbox={inbox} />
+        ) : view === 'month' ? (
           <MonthView
             state={state}
             matches={matches}

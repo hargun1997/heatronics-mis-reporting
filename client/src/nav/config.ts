@@ -38,7 +38,6 @@ export const NAV: NavSection[] = [
     label: 'Reporting',
     pages: [
       { id: 'live', label: 'Live MIS', href: '/reporting/mis/live', icon: 'live', hint: 'This month and last, P&L by channel', words: 'mis dashboard p&l revenue margin run rate' },
-      { id: 'issues', label: 'Issues', href: '/reporting/mis/issues', icon: 'issues', hint: 'Everything that needs fixing: books, feeds, MIS numbers — open and resolve', words: 'errors warnings checks problems alerts data issues hanging ledgers tie' },
       { id: 'insights', label: 'AI insights', href: '/reporting/mis/insights', icon: 'ai', also: ['/reporting/mis/chat'], hint: 'Ask about the numbers', words: 'chat claude ask analysis' },
     ],
   },
@@ -46,7 +45,8 @@ export const NAV: NavSection[] = [
     id: 'accounts',
     label: 'Accounts',
     pages: [
-      { id: 'tally', label: 'Tally health', href: '/tally', icon: 'tally', hint: 'Problems in the books and how to fix them in Tally; ask about Tally', words: 'tally ledgers vouchers day book gst gstin errors duplicate ask' },
+      { id: 'tasks', label: 'Tasks', href: '/tasks', icon: 'tasks', exact: true, also: ['/work', '/compliance', '/task-tracker', '/tracker', '/reporting/mis/issues'], hint: 'Everything to do and to fix: recurring accounts tasks + what the books and the MIS need a person for', words: 'todo deadlines gst tds roc issues fix problems errors warnings hanging ledgers tie close stock' },
+      { id: 'tally', label: 'Tally health', href: '/tally', icon: 'tally', hint: 'Chart of accounts, hanging ledgers, ledgers, vouchers, ask about Tally', words: 'tally ledgers vouchers day book gst gstin chart groups ask' },
       { id: 'handbook', label: 'Accounts Handbook', href: '/handbook', icon: 'book', also: ['/guide'], hint: 'SOPs, ledgers and how we book', words: 'sop guide policy ledgers' },
     ],
   },
@@ -66,7 +66,6 @@ export const NAV: NavSection[] = [
       { id: 'booking', label: 'Book an invoice', href: '/booking-assistant', icon: 'booking', also: ['/tools/invoice-booking', '/tools/expense-booking'], hint: 'Which ledger, voucher and GST for an invoice', words: 'invoice ledger voucher tally expense booking assistant suggester' },
       { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution', words: 'equity dilution cap table investors' },
       { id: 'floors', label: 'Amazon price floors', href: '/tools/price-floors', icon: 'floors', hint: 'Lowest price per SKU that still makes money', words: 'pricing margin asin' },
-      { id: 'tranzact', label: 'Amazon → Tranzact', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'FBA inventory ledger → Tranzact stock reconciliation upload', words: 'fba inventory ledger stock reconciliation converter' },
     ],
   },
   {
@@ -83,8 +82,8 @@ export const NAV: NavSection[] = [
     hidden: true,
     pages: [
       { id: 'rulebook', label: 'Data rulebook', href: '/reporting/mis/rulebook', icon: 'rules', hint: 'How each number is built', words: 'rules mapping definitions' },
+      { id: 'tranzact', label: 'Amazon → Tranzact (manual)', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'Old manual converter — the closing-stock task now makes the Tranzact file from live data', words: 'fba inventory ledger stock reconciliation converter' },
       { id: 'toolshub', label: 'All tools', href: '/tools', icon: 'tools', exact: true, hint: 'Every tool on one page', words: 'utilities converter tools' },
-      { id: 'tasks', label: 'Tasks', href: '/tasks', icon: 'tasks', exact: true, also: ['/work', '/compliance', '/task-tracker', '/tracker'], hint: 'Compliance and close tasks', words: 'todo deadlines gst tds roc' },
       { id: 'people', label: 'People & reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails', words: 'team owners settings' },
       { id: 'deck', label: 'MIS deck (old)', href: '/reporting/mis/deck', icon: 'old', hint: 'The first MIS deck', words: 'legacy deck' },
       { id: 'close', label: 'Month close (old)', href: '/reporting/mis/close', icon: 'old', hint: 'Replaced by Setup → Uploads + Live MIS close', words: 'legacy close manual figures' },

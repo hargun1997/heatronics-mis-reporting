@@ -10,6 +10,7 @@ import { btnGhost, btnPrimary, focusRing } from './ui';
 
 const VIEWS: { v: View; l: string }[] = [
   { v: 'agenda', l: 'To do' },
+  { v: 'fix', l: 'Fix' },
   { v: 'month', l: 'Calendar' },
   { v: 'all', l: 'All tasks' },
 ];
@@ -21,6 +22,8 @@ const chipCls = (on: boolean) =>
 export function TasksToolbar({
   view,
   setView,
+  fixCount,
+  fixHigh,
   who,
   setWho,
   me,
@@ -35,6 +38,9 @@ export function TasksToolbar({
 }: {
   view: View;
   setView: (v: View) => void;
+  /** Open items in the Fix list (badge on the tab). */
+  fixCount?: number;
+  fixHigh?: boolean;
   who: Who;
   setWho: (w: Who) => void;
   me: string;
@@ -90,6 +96,7 @@ export function TasksToolbar({
               }`}
             >
               {l}
+              {v === 'fix' && fixCount ? <span className={`ml-1.5 rounded-full px-1.5 text-xs font-semibold ${fixHigh ? 'bg-red-500 text-white' : 'bg-slate-300 text-slate-800'}`}>{fixCount}</span> : null}
             </button>
           ))}
         </div>
