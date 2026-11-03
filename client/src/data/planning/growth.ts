@@ -4,7 +4,7 @@
 // helper that sizes rounds, the dilution table, and the ₹500 Cr scenario. Every number in the
 // scenario is a PLACEHOLDER for the founder to replace.
 
-import { GROWTH_GROUPS, runPlan, type Channel, type FundingRules, type GrowthPlan, type Hire, type NewProduct, type Overhead, type Plan, type PlanResult, type RetailType } from './engine';
+import { CATEGORY_NAMES, GROWTH_GROUPS, runPlan, type CategoryDef, type Channel, type FundingRules, type GrowthPlan, type Hire, type NewProduct, type Overhead, type Plan, type PlanResult, type RetailType } from './engine';
 
 const CR = 1e7;
 const L = 1e5;
@@ -28,6 +28,7 @@ export function emptyGrowth(): GrowthPlan {
     seedPreMoney: 40 * CR, hires: [], capacity: [], capex: [], rounds: [], retail: [], overheads: [], funding: defaultFunding(),
     stores: { on: false, openings: [], matureRevenue: 6 * L, rampMonths: 6, capexPerStore: 15 * L, rentPerStore: 1.5 * L, staffPerStore: 3, staffCtc: 30_000, otherOpexPerStore: 50_000 },
     note: '',
+    categories: defaultCategories(),
   };
 }
 
@@ -301,3 +302,13 @@ export function build500Cr(from: Plan): Plan {
   p = solvePath(p).plan;
   return fundTheGap(p);
 }
+
+/** Defaults for the built-in families (placeholders; every value is editable on the category). */
+export function defaultCategories(): CategoryDef[] {
+  return [
+    { id: 'device', name: CATEGORY_NAMES.device, cogsPct: 0.35, marketingPct: 0.05, repeatPct: 0, repeatDecay: 0, inHouse: true, split: { A: 0.55, D: 0.3, F: 0.1, G: 0.05, P: 0 } },
+    { id: 'topical', name: CATEGORY_NAMES.topical, cogsPct: 0.25, marketingPct: 0.08, repeatPct: 0.15, repeatDecay: 0.85, inHouse: false, split: { A: 0.5, D: 0.4, F: 0.1, G: 0, P: 0 } },
+    { id: 'nutra', name: CATEGORY_NAMES.nutra, cogsPct: 0.3, marketingPct: 0.08, repeatPct: 0.25, repeatDecay: 0.85, inHouse: false, split: { A: 0.5, D: 0.4, F: 0.1, G: 0, P: 0 } },
+  ];
+}
+

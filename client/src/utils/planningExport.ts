@@ -4,7 +4,7 @@
 
 import XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
-import { CHANNELS, CHANNEL_NAMES, type MonthResult, type Plan, type PlanResult } from '../data/planning/engine';
+import { CHANNELS, CHANNEL_NAMES, EXPENSE_GROUP, type MonthResult, type Plan, type PlanResult } from '../data/planning/engine';
 import { dilution, roundStats, runRateArr } from '../data/planning/growth';
 import { deployment, headline, theAsk } from '../data/planning/summary';
 
@@ -301,6 +301,12 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
     const ml = (m: number | null) => (m == null ? 'end' : r.months[m - 1]?.label ?? `M${m}`);
     g.push(['New product lines', 'Family', 'Launch', 'Price ₹', 'New buyers/mo at launch', 'm/m yr 1', 'y/y after', 'Material %', 'Extra mktg %', 'Launch cost ₹', 'Tooling ₹', 'In-house', 'Repeat', 'Kept / mo', 'Placeholder']);
     for (const x of plan.products.filter((p) => p.category || p.growthLine)) g.push([x.name + (x.on ? '' : ' (off)'), x.category ?? '', ml(x.launchMonth), x.asp, Math.round(x.launchUnits), x.rampPct, x.steadyPct, x.cogsPct, x.marketingPct ?? 0, x.launchCost ?? 0, x.launchCapex ?? 0, (x.inHouse ?? x.category === 'device') ? 'yes' : 'no', x.repeatPct ?? 0, x.repeatDecay ?? 0, x.placeholder ? 'yes' : '']);
+    g.push([], ['Categories', 'Material %', 'Extra mktg %', 'Repeat', 'Kept / mo', 'In-house', 'Note']);
+    for (const c of G.categories ?? []) g.push([c.name, c.cogsPct ?? null, c.marketingPct ?? null, c.repeatPct ?? null, c.repeatDecay ?? null, c.inHouse == null ? '' : c.inHouse ? 'yes' : 'no', c.note ?? '']);
+    const typed = plan.products.filter((p) => p.unitsByFy && Object.keys(p.unitsByFy).length);
+    if (typed.length) { g.push([], ['Units typed per year', 'FY', 'Units']); for (const x of typed) for (const [fy, u] of Object.entries(x.unitsByFy!)) g.push([x.name, fy, u]); }
+    const ex = plan.products.flatMap((x) => (x.expenses ?? []).map((e) => ({ x, e })));
+    if (ex.length) { g.push([], ['Product expenses', 'Expense', 'Kind', 'Amount (₹ or % of revenue)', 'From', 'To', '+ / yr', 'P&L group']); for (const { x, e } of ex) g.push([x.name, e.label, e.kind, e.amount, ml(e.month ?? x.launchMonth), ml(e.end ?? null), e.growthPct ?? 0, e.group || EXPENSE_GROUP[e.kind]]); }
     g.push([], ['Hiring', 'Team', 'People (min)', 'From', 'To', 'CTC / month ₹', 'Grows with', '1 per']);
     for (const h of G.hires) g.push([h.role + (h.on === false ? ' (off)' : ''), h.dept, h.count, ml(h.month), ml(h.end), h.monthlyCtc, h.scale ? (h.scale.by === 'outlets' ? `outlets ${h.scale.type ?? 'all'}` : h.scale.by) : 'fixed', h.scale?.every ?? null]);
     g.push([], ['Warehouses, offices & other expenses', 'Kind', 'Group', 'From', 'To', '₹/mo or %', 'Sq ft', 'Rent ₹/sq ft', 'Running ₹/mo', 'Deposit (mo)', 'Fit-out ₹', '+ / yr']);

@@ -215,3 +215,56 @@ test('growth: roundStats gives each round its cash before, burn and runway', () 
   assert.equal(st.length, p.growth!.rounds.filter((x) => x.on).length);
   for (const s of st) { assert.ok(s.burn >= 0); assert.ok(s.runway == null || s.runway >= 1); }
 });
+
+// ---- Products cascade (founder, 3 Nov 2026): categories → products → volumes by year + product expenses ----
+const line = (o: Partial<import('../../client/src/data/planning/engine.ts').NewProduct> = {}) => ({
+  id: 'p1', name: 'Gel', on: true, category: 'topical', asp: 500, launchMonth: 20, launchUnits: 1000, rampPct: 0, steadyPct: 0,
+  split: { A: 1, D: 0, F: 0, G: 0, P: 0 }, cogsPct: null, seasonRef: 'flat', growthLine: true, ...o,
+});
+
+test('a product with no material % / marketing % / repeat takes its category default', () => {
+  const p = withGrowth((x) => { x.products.push(line()); x.growth!.categories = [{ id: 'topical', name: 'Topicals', cogsPct: 0.2, marketingPct: 0.1, repeatPct: 0, repeatDecay: 0, inHouse: false }]; });
+  const q = withGrowth((x) => { x.products.push(line({ cogsPct: 0.2, marketingPct: 0.1 })); x.growth!.categories = []; });
+  const a = runPlan(p).months[24], b = runPlan(q).months[24];
+  assert.ok(a.revenueBySku.p1 > 0);
+  assert.equal(Math.round(a.groups['Performance Marketing']), Math.round(b.groups['Performance Marketing']), 'inherited marketing = typed marketing');
+  assert.equal(Math.round(a.ebitda), Math.round(b.ebitda));
+});
+
+test('units typed per FY replace launch + ramp for that year, spread over its months on sale', () => {
+  const p = withGrowth((x) => { x.products.push(line({ launchMonth: 1, repeatPct: 0, unitsByFy: { FY29: 24000 } })); });
+  const r = runPlan(p);
+  const fy29 = r.months.filter((m) => m.fy === 'FY29');
+  const units = fy29.reduce((a, m) => a + (m.unitsBySku.p1 ?? 0), 0);
+  assert.ok(Math.abs(units - 24000) < 1, `FY29 units ${units}`);
+  const fy28 = r.months.filter((m) => m.fy === 'FY28').reduce((a, m) => a + (m.unitsBySku.p1 ?? 0), 0);
+  assert.ok(Math.abs(fy28 - 12000) < 1, 'untyped years keep launch + ramp');
+});
+
+test('product expenses: one-off in its month, capex group, monthly with yearly rise, % of its revenue', () => {
+  const base = runPlan(withGrowth((x) => { x.products.push(line()); })).months;
+  const p = withGrowth((x) => { x.products.push(line({ expenses: [
+    { id: 'a', label: 'Formulation', kind: 'oneoff', amount: 300000 },
+    { id: 'b', label: 'Moulds', kind: 'capex', amount: 200000, month: 19 },
+    { id: 'c', label: 'Brand manager', kind: 'monthly', amount: 100000, growthPct: 0.1 },
+    { id: 'd', label: 'Royalty', kind: 'pct', amount: 0.02 },
+  ] })); });
+  const g = runPlan(p).months;
+  const d = (m: number, grp: string) => (g[m - 1].groups[grp] ?? 0) - (base[m - 1].groups[grp] ?? 0);
+  assert.equal(Math.round(d(20, 'Product Development & Launch')), 300000);
+  assert.equal(Math.round(d(19, 'New Product Tooling & Moulds')), 200000);
+  assert.equal(Math.round(d(20, 'Product Running Costs')), 100000);
+  assert.equal(Math.round(d(32, 'Product Running Costs')), 110000, 'a year later +10 %');
+  assert.equal(Math.round(d(19, 'Product Running Costs')), 0, 'nothing before launch');
+  assert.equal(Math.round(d(22, 'Performance Marketing')), Math.round(g[21].revenueBySku.p1 * 0.02));
+});
+
+test('sheet parity ignores categories, typed units and product expenses', () => {
+  const p = basePlan(); setSheetParity(p, true);
+  p.growth = { ...emptyGrowth(), on: true }; ensureGrowthGroups(p);
+  p.products.push(line({ unitsByFy: { FY29: 99999 }, expenses: [{ id: 'a', label: 'x', kind: 'monthly', amount: 1e6 }] }));
+  const q = basePlan(); setSheetParity(q, true);
+  q.growth = { ...emptyGrowth(), on: true }; ensureGrowthGroups(q);
+  q.products.push(line());
+  assert.deepEqual(pick(p), pick(q), 'typed units + expenses only count with the growth layer on');
+});
