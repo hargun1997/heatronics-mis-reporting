@@ -16,6 +16,7 @@ import { PnlGrid } from '../../components/planning/PnlGrid';
 import { CashTab } from '../../components/planning/CashTab';
 import { CustomersTab } from '../../components/planning/CustomersTab';
 import { BusinessPlanTab } from '../../components/planning/BusinessPlanTab';
+import { GrowthTab } from '../../components/planning/GrowthTab';
 import { NumInput } from '../../components/planning/inputs';
 import { ParityToggle } from '../../components/planning/FounderPanel';
 import { monthBefore, openingFromTally } from '../../data/planning/opening';
@@ -23,7 +24,7 @@ import { money, pct } from '../../components/planning/fmt';
 import { downloadPlanWorkbook } from '../../utils/planningExport';
 
 interface Saved { id: string; name: string; note: string; updatedAt: string; updatedBy: string | null }
-type Tab = 'overview' | 'business' | 'customers' | 'revenue' | 'costs' | 'monthly' | 'cash';
+type Tab = 'overview' | 'growth' | 'business' | 'customers' | 'revenue' | 'costs' | 'monthly' | 'cash';
 
 const DRAFT_KEY = 'planning-draft-v1';
 const icon = (
@@ -194,7 +195,7 @@ export function PlanningPage() {
 
         <div className="-mx-1 overflow-x-auto px-1 [&_button]:whitespace-nowrap">
         <SegmentedControl<Tab>
-          options={[{ id: 'overview', label: '5-year view' }, { id: 'business', label: 'Business plan' }, { id: 'customers', label: 'Products & customers' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }]}
+          options={[{ id: 'overview', label: '5-year view' }, { id: 'growth', label: 'Growth builder' }, { id: 'business', label: 'Business plan' }, { id: 'customers', label: 'Products & customers' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }]}
           value={tab} onChange={setTab} aria-label="Planner view"
         />
         </div>
@@ -242,6 +243,7 @@ export function PlanningPage() {
             </div>
           </div>
         )}
+        {tab === 'growth' && <GrowthTab plan={plan} r={result} update={update} />}
         {tab === 'business' && <BusinessPlanTab plan={plan} r={result} update={update} />}
         {tab === 'customers' && <CustomersTab plan={plan} r={result} update={update} />}
         {tab === 'revenue' && <RevenueTab plan={plan} r={result} update={update} />}
