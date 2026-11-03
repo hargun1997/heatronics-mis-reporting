@@ -17,6 +17,8 @@ import { CashTab } from '../../components/planning/CashTab';
 import { CustomersTab } from '../../components/planning/CustomersTab';
 import { BusinessPlanTab } from '../../components/planning/BusinessPlanTab';
 import { NumInput } from '../../components/planning/inputs';
+import { ParityToggle } from '../../components/planning/FounderPanel';
+import { monthBefore, openingFromTally } from '../../data/planning/opening';
 import { money, pct } from '../../components/planning/fmt';
 import { downloadPlanWorkbook } from '../../utils/planningExport';
 
@@ -71,6 +73,21 @@ export function PlanningPage() {
 
   const refreshList = useCallback(() => api<{ scenarios: Saved[] }>('/api/planning/scenarios').then((r) => setSaved(r.scenarios)).catch(() => {}), []);
   useEffect(() => { refreshList(); }, [refreshList]);
+
+  // A fresh Base opens on the real Sep-26 balance sheet when Tally has it (a saved scenario keeps its own numbers)
+  useEffect(() => {
+    if (selected !== 'base' || draft) return;
+    fetch('/api/tally/statements').then((r) => r.json()).then((j: { months?: Parameters<typeof openingFromTally>[0][] }) => {
+      const b = basePlan();
+      const m = j.months?.find((x) => x.period === monthBefore(b.startMonth));
+      const o = m && b.fx ? openingFromTally(m, b.fx.opening) : null;
+      if (!o || !b.fx) return;
+      b.fx.opening = o.opening;
+      setPlan((cur) => (cur.fx && cur.fx.opening.source === 'sheet' ? { ...cur, fx: { ...cur.fx, opening: o.opening } } : cur));
+      setCleanJson((c) => { const q = JSON.parse(c) as Plan; if (q.fx && q.fx.opening.source === 'sheet') q.fx.opening = o.opening; return JSON.stringify(q); });
+    }).catch(() => { /* Tally not reachable: the sheet's opening values stay */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const update = useCallback((fn: (p: Plan) => void) => {
     setPlan((prev) => { const next = structuredClone(prev); fn(next); return next; });
@@ -170,6 +187,7 @@ export function PlanningPage() {
             <option value="base">Base</option>
             {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+          <ParityToggle plan={plan} update={update} />
           <button onClick={() => downloadPlanWorkbook(plan, result)} className="ml-auto rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Export Excel</button>
           {msg && <span className={`w-full text-[12px] ${msg.bad ? 'text-rose-600' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
         </div>

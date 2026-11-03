@@ -7,6 +7,8 @@ interface Row { label: string; get: (y: YearResult, i: number, all: YearResult[]
 
 const ROWS: Row[] = [
   { label: 'Revenue', get: (y) => y.revenueWithActuals, kind: 'cr', strong: true, hint: 'FY27 includes the Apr–Sep actuals you entered' },
+  { label: 'GMV (incl. GST)', get: (y) => y.gmv, kind: 'cr', hint: 'Sales at the prices customers pay, before deductions. Plan months only' },
+  { label: 'Revenue ex-GST', get: (y) => y.revenueExGst, kind: 'cr', hint: 'Net revenue with the output GST taken out. Plan months only' },
   { label: 'Growth YoY', get: (y, i, a) => (i && (a[i - 1].months === 12 || a[i - 1].revenueWithActuals > a[i - 1].revenue) ? y.revenueWithActuals / a[i - 1].revenueWithActuals - 1 : NaN), kind: 'pct', hint: 'Blank when the year before is only part-plan — enter Apr–Sep ’26 actuals to see FY28 growth' },
   { label: 'Units', get: (y) => y.units, kind: 'int' },
   { label: 'Gross margin', get: (y) => y.grossProfit / y.revenue, kind: 'pct' },
@@ -14,6 +16,7 @@ const ROWS: Row[] = [
   { label: 'EBITDA', get: (y) => y.ebitdaWithActuals, kind: 'cr', strong: true },
   { label: 'EBITDA %', get: (y) => y.ebitdaWithActuals / y.revenueWithActuals, kind: 'pct' },
   { label: 'PAT', get: (y) => y.pat, kind: 'cr', hint: 'Plan months only' },
+  { label: 'Services GST expensed', get: (y) => y.gstServicesCost, kind: 'cr', hint: 'Input GST on services that cannot be set off or refunded, booked as a cost in CM1' },
   { label: 'Capex', get: (y) => y.capex, kind: 'cr' },
   { label: 'Net cash flow', get: (y) => y.netCashFlow, kind: 'cr', hint: 'Operating + capex, before raises and debt' },
   { label: 'Closing cash', get: (y) => y.closingCash, kind: 'cr', strong: true },

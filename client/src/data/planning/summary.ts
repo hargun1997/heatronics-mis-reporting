@@ -1,7 +1,7 @@
 // The sheet's Business Plan + Overview, computed from a plan run: headline, Exit ARR, The Ask
 // (peak deficit → funding → equity), and capital deployment by theme and milestone.
 
-import { peakDeficitWithin, type Plan, type PlanResult } from './engine';
+import { debtDrawnBy, openingCashOf, peakDeficitWithin, resolveFx, type Plan, type PlanResult } from './engine';
 
 export interface Headline {
   months: number; revenue: number; units: number; grossMargin: number; cm3Pct: number;
@@ -39,7 +39,9 @@ export function headline(plan: Plan, r: PlanResult, n: number): Headline {
 
 export interface Ask {
   months: number; peakDeficit: number; peakMonth: number; contingency: number; fundingNeed: number;
-  ventureDebt: number; equityRequired: number; inventoryPeak: number; gstAssetPeak: number;
+  ventureDebt: number; equityRequired: number;
+  /** seed equity received within the window, and the equity still to raise after it (the Series A ask) */
+  seed: number; equityAfterSeed: number; openingCash: number; inventoryPeak: number; gstAssetPeak: number;
 }
 
 /** The Ask over the first n months (Cash Flow & Fundraise rows 72–80). */
@@ -47,10 +49,14 @@ export function theAsk(plan: Plan, r: PlanResult, n: number, contingency: number
   const ms = r.months.slice(0, n);
   const peakDeficit = peakDeficitWithin(r, n);
   const peakMonth = ms.reduce((a, m) => (m.cumulativeCash < (ms[a - 1]?.cumulativeCash ?? Infinity) ? m.m : a), 1);
-  const ventureDebt = plan.events.filter((e) => e.kind === 'debtDrawn' && e.month <= n).reduce((a, e) => a + e.amount, 0);
-  const fundingNeed = peakDeficit * (1 + contingency);
+  const ventureDebt = debtDrawnBy(plan, n);
+  // the peak need is measured on operating cash flow, so the cash we start with comes off it
+  const fx = resolveFx(plan);
+  const openingCash = fx.opening.on ? Math.max(0, openingCashOf(plan)) : 0;
+  const fundingNeed = Math.max(0, peakDeficit * (1 + contingency) - openingCash);
+  const seed = fx.seed.on && fx.seed.month <= n ? fx.seed.amount : 0;
   return {
-    months: ms.length, peakDeficit, peakMonth, contingency, fundingNeed, ventureDebt, equityRequired: fundingNeed - ventureDebt,
+    months: ms.length, peakDeficit, peakMonth, contingency, fundingNeed, ventureDebt, equityRequired: fundingNeed - ventureDebt, seed, equityAfterSeed: Math.max(0, fundingNeed - ventureDebt - seed), openingCash,
     inventoryPeak: Math.max(0, ...ms.map((m) => m.inventory)), gstAssetPeak: Math.max(0, ...ms.map((m) => m.gstAsset)),
   };
 }
