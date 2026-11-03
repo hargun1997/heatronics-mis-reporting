@@ -13,6 +13,8 @@ import { cr, money, pct } from '../fmt';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 import { CR, Check, Flag, MonthSelect, Note, Row, SubHead, btn, ensureFx, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt } from './shared';
 
+// The §1 skeleton exports `summary` and `SECTION` beside the component (react-refresh accepts only components).
+// eslint-disable-next-line react-refresh/only-export-components
 export { summary };
 
 const KIND: Record<CashEvent['kind'], string> = { equity: 'Equity raise', debtDrawn: 'Debt drawn', debtRepaid: 'Debt repaid' };
@@ -225,6 +227,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const SECTION: SetupSectionDef = {
   id: 'funding',
   title: 'Funding',
