@@ -36,6 +36,8 @@ import { FeeReportError, parseFeeReport } from '../../utils/sellerCentralFees';
 
 interface ReportMeta { id: string; fileName: string; uploadedAt: string; uploadedBy: string | null; skus: number }
 interface ApiState { settings: FloorSettings | null; costs: CostsSnapshot | null; reports: ReportMeta[] }
+/** GET /api/price-floors/live: the fee-report shape built from Ops' stored Amazon data (last 30 full days). */
+interface LiveSnap { report: (FeeReport & { live: { from: string; to: string; notes: string[]; feesGst: 'itemised' | 'assumed' } }) | null; at: string; error: string | null }
 
 const icon = (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -79,6 +81,29 @@ export function PriceFloorsPage() {
     }
   }, []);
   useEffect(() => { void load(); }, [load]);
+
+  // Live Amazon fees, prices, units and returns from Ops (no upload): merged into the settings once per new report.
+  const [live, setLive] = useState<LiveSnap | null>(null);
+  const [liveBusy, setLiveBusy] = useState(false);
+  const loadLive = useCallback(async (force = false) => {
+    setLiveBusy(true);
+    try { setLive(await api<LiveSnap>(`/api/price-floors/live${force ? '?force=1' : ''}`)); }
+    catch (e) { setLive({ report: null, at: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) }); }
+    finally { setLiveBusy(false); }
+  }, []);
+  useEffect(() => { void loadLive(); }, [loadLive]);
+  useEffect(() => {
+    const rep = live?.report;
+    if (!state || !rep?.rows.length) return;
+    const cur = state.settings || DEFAULT_SETTINGS;
+    const fresh = rep.rows.some((r) => r.sold && cur.skus.find((x) => x.asin === r.asin)?.reportId !== rep.id);
+    if (!fresh) return;
+    const merged = mergeReport(cur, rep).settings;
+    setState((st) => (st ? { ...st, settings: merged } : st));
+    api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: merged, by: 'live' })
+      .then((r) => setState((st) => (st ? { ...st, settings: r.settings } : st)))
+      .catch(() => { /* the merged numbers still show; saved on the next load */ });
+  }, [live, state]);
 
   const settings = state?.settings || DEFAULT_SETTINGS;
   const costs = state?.costs || null;
@@ -127,7 +152,7 @@ export function PriceFloorsPage() {
     <>
       <PageHeader
         title="Amazon price floors"
-        description="The lowest Amazon price per product that still leaves your target margin, from production's latest cost and your Amazon fee report."
+        description="The lowest Amazon price per product that still leaves your target margin, from production's latest cost and live Amazon fees, prices and returns (last 30 days)."
         icon={icon}
         crumbs={[{ label: 'Tools', to: '/tools' }, { label: 'Amazon price floors' }]}
         actions={
@@ -167,9 +192,11 @@ export function PriceFloorsPage() {
             }
             foot={<>From production.heatronics.in · fetched {when(costs?.fetchedAt)}</>}
           />
-          <UploadCard state={state} settings={settings} onSaved={(s, r) => {
-            setState((st) => (st ? { ...st, settings: s, reports: [r, ...st.reports.filter((x) => x.id !== r.id)] } : st));
-          }} setNote={setNote} />
+          <LiveCard live={live} busy={liveBusy} onRefresh={() => void loadLive(true)}>
+            <UploadCard state={state} settings={settings} onSaved={(s, r) => {
+              setState((st) => (st ? { ...st, settings: s, reports: [r, ...st.reports.filter((x) => x.id !== r.id)] } : st));
+            }} setNote={setNote} />
+          </LiveCard>
           <SourceCard
             title="Selling below target"
             line={priced.length ? <span className={below.length ? 'text-rose-700' : 'text-emerald-700'}>{below.length} of {priced.length}</span> : <span className="text-slate-400">—</span>}
@@ -257,6 +284,37 @@ function SourceCard({ title, line, sub, foot }: { title: string; line: React.Rea
       <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{line}</div>
       <div className="mt-1.5 text-sm text-slate-600">{sub}</div>
       <div className="mt-auto pt-3 text-xs text-slate-500">{foot}</div>
+    </Card>
+  );
+}
+
+/** Amazon fees card: live from Ops by default; the fee-report upload is only a fallback behind a link. */
+function LiveCard({ live, busy, onRefresh, children }: { live: LiveSnap | null; busy: boolean; onRefresh: () => void; children: React.ReactNode }) {
+  const [upload, setUpload] = useState(false);
+  const rep = live?.report;
+  if (upload || (live && !rep)) {
+    return (
+      <div className="flex flex-col">
+        {live?.error && !rep && <p className="mb-2 text-xs text-amber-800">Live fees unavailable: {live.error}. Upload a fee report meanwhile.</p>}
+        {children}
+        {rep && <button type="button" onClick={() => setUpload(false)} className="mt-1 min-h-[44px] text-left text-sm font-semibold text-brand-700 hover:underline">Back to live fees</button>}
+      </div>
+    );
+  }
+  return (
+    <Card className="flex flex-col p-5">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amazon fees, prices &amp; returns</div>
+      <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{rep ? 'Live from Amazon' : 'Loading…'}</div>
+      <div className="mt-1.5 text-sm text-slate-600">
+        {rep ? <>Via Ops, last 30 days ({rep.live.from.slice(5)} → {rep.live.to.slice(5)}): {rep.rows.length} products, {rep.totals.units.toLocaleString('en-IN')} units, {rs(rep.totals.sales)} sales.</> : 'Reading Amazon Finances events from Ops…'}
+      </div>
+      {rep?.live.notes.map((n) => <p key={n} className="mt-1 text-xs text-slate-500">{n}</p>)}
+      {live?.error && rep && <p className="mt-1 text-xs text-amber-800">Last refresh failed ({live.error}); showing the copy from {when(live.at)}.</p>}
+      <div className="mt-auto flex flex-wrap items-center gap-x-3 pt-3 text-xs text-slate-500">
+        <span>Updated {when(live?.at)}</span>
+        <button type="button" onClick={onRefresh} disabled={busy} className="min-h-[44px] font-semibold text-brand-700 hover:underline disabled:opacity-60">{busy ? 'Refreshing…' : 'Refresh'}</button>
+        <button type="button" onClick={() => setUpload(true)} className="min-h-[44px] font-semibold text-slate-600 hover:underline">Upload a fee report instead</button>
+      </div>
     </Card>
   );
 }

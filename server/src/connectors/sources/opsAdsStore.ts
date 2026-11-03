@@ -45,7 +45,8 @@ async function bqToken(): Promise<string> {
   return tok.value;
 }
 
-async function query(sql: string, params: Record<string, string>): Promise<Record<string, string | null>[]> {
+/** One read-only SELECT against Ops' BigQuery dataset (shared by every Ops-store reader). */
+export async function opsQuery(sql: string, params: Record<string, string>): Promise<Record<string, string | null>[]> {
   assertSelectOnly(sql);
   const res = await fetch(`https://bigquery.googleapis.com/bigquery/v2/projects/${PROJECT}/queries`, {
     method: 'POST',
@@ -80,14 +81,14 @@ export interface OpsAdsMonth {
 export async function opsAdsMonth(from: string, to: string): Promise<OpsAdsMonth> {
   const p = { from, to };
   const [sp, tot, thr] = await Promise.all([
-    query(
+    opsQuery(
       `SELECT CAST(date AS STRING) AS date, sku, asin, SUM(cost) AS cost
          FROM ads_sp_product WHERE date BETWEEN DATE(@from) AND DATE(@to) GROUP BY 1, 2, 3`, p),
-    query(
+    opsQuery(
       `SELECT 'SB' AS t, SUM(cost) AS cost, COUNT(DISTINCT profile_id) AS n FROM ads_sb_campaign WHERE date BETWEEN DATE(@from) AND DATE(@to)
        UNION ALL SELECT 'SD', SUM(cost), COUNT(DISTINCT profile_id) FROM ads_sd_campaign WHERE date BETWEEN DATE(@from) AND DATE(@to)
        UNION ALL SELECT 'SP', SUM(cost), COUNT(DISTINCT profile_id) FROM ads_sp_product WHERE date BETWEEN DATE(@from) AND DATE(@to)`, p),
-    query(
+    opsQuery(
       `SELECT 'SP' AS t, CAST(MAX(date) AS STRING) AS d FROM ads_sp_product
        UNION ALL SELECT 'SB', CAST(MAX(date) AS STRING) FROM ads_sb_campaign
        UNION ALL SELECT 'SD', CAST(MAX(date) AS STRING) FROM ads_sd_campaign`, {}),
