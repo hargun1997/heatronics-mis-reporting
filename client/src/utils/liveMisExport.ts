@@ -25,7 +25,9 @@ import {
   S, MARGIN, cell, round2, setCols, signed, generateLineDetailSheet, generateRepeatsSheet, generateDiscountSheet,
   type Style,
 } from './deckExcelExport';
-import type { MisFormatSource } from './misFormatExport';
+import { buildMisFormatWorkbook, type MisFormatSource } from './misFormatExport';
+import { misCashRows, type BalanceSheet, type CashFlow } from '../data/statements/statements';
+import type { MisPoint } from '../data/misDeck/misSheet';
 
 // ---- Options ---------------------------------------------------------------
 
@@ -43,6 +45,11 @@ export interface LiveExportOptions {
   includeMarketing: boolean;
   includeUnits: boolean;
   includeSkuCells: boolean;
+  /** From Tally's stored month-end Trial Balances (Live MIS tabs of the same names). */
+  includeBalanceSheet: boolean;
+  includeCashFlow: boolean;
+  /** The standard MIS Sheet (company, ₹ Lac) with the Tally cash rows filled in. */
+  includeMisSheet: boolean;
   /** Blend COGM to each FY's revenue-weighted rate on the P&L sheets. */
   blendCogm: boolean;
   /** Continuous channel taxonomy (OEM→B2B, Offline→GT). */
@@ -53,13 +60,15 @@ export const LIVE_EXPORT_EVERYTHING: LiveExportOptions = {
   includeSummary: true, granularities: ['month', 'quarter', 'year'], includeChannelRevenue: true, includeChannelPnl: true,
   includeOrders: true, includeRepeats: true, includeDiscounts: true, includeCogmDetail: true,
   includeOpexDetail: true, includeMarketing: true, includeUnits: true, includeSkuCells: true,
+  includeBalanceSheet: true, includeCashFlow: true, includeMisSheet: true,
   blendCogm: false, mergeChannels: true,
 };
 
 export function liveSheetCount(o: LiveExportOptions): number {
   return (o.includeSummary ? 1 : 0) + o.granularities.length + (o.includeChannelRevenue ? 1 : 0) + (o.includeChannelPnl ? 2 : 0)
     + (o.includeOrders ? 1 : 0) + (o.includeRepeats ? 1 : 0) + (o.includeDiscounts ? 1 : 0) + (o.includeCogmDetail ? 1 : 0)
-    + (o.includeOpexDetail ? 1 : 0) + (o.includeMarketing ? 1 : 0) + (o.includeUnits ? 1 : 0) + (o.includeSkuCells ? 1 : 0);
+    + (o.includeOpexDetail ? 1 : 0) + (o.includeMarketing ? 1 : 0) + (o.includeUnits ? 1 : 0) + (o.includeSkuCells ? 1 : 0)
+    + (o.includeBalanceSheet ? 1 : 0) + (o.includeCashFlow ? 1 : 0) + (o.includeMisSheet ? 1 : 0);
 }
 
 // ---- Helpers ---------------------------------------------------------------
@@ -520,6 +529,108 @@ function skuCellsSheet(deck: LiveDeckData, merged: boolean): XLSX.WorkSheet {
   return ws;
 }
 
+// ---- Statements (Tally month-end copies) + MIS Sheet -------------------------
+
+export interface LiveStatements { sheets: BalanceSheet[]; flows: CashFlow[] }
+
+function noteSheet(title: string, text: string): XLSX.WorkSheet {
+  const { put, band, finish } = sheetWriter();
+  band(0, title, S.title, 3);
+  put(2, 0, text, S.label);
+  return finish(3, [90]);
+}
+
+/** Balance Sheet: months as columns (newest 12), Tally's groups with their ledgers beneath, ₹. */
+export function balanceSheetSheet(all: BalanceSheet[]): XLSX.WorkSheet {
+  const sheets = all.slice(-12);
+  if (!sheets.length) return noteSheet('BALANCE SHEET', 'No Trial Balance stored yet. It is built from Tally month-end copies (Data sources → Tally → Pull now).');
+  const { put, band, finish } = sheetWriter();
+  const nCols = sheets.length + 1;
+  let row = 0;
+  band(row++, 'BALANCE SHEET (from Tally Trial Balances)', S.title, nCols);
+  band(row++, 'Tally primary groups with their ledgers; equity includes the profit of the year to date. Read-only copy, ₹.', S.subtitle, nCols);
+  row++;
+  put(row, 0, 'Particulars', S.header);
+  sheets.forEach((b, i) => put(row, i + 1, b.period, S.header));
+  row++;
+  const section = (title: string, pick: (b: BalanceSheet) => BalanceSheet['assets'], total: (b: BalanceSheet) => number) => {
+    put(row, 0, title.toUpperCase(), S.totalLabel); sheets.forEach((_, i) => put(row, i + 1, '', S.total)); row++;
+    const labels: string[] = [];
+    for (const b of sheets) for (const l of pick(b)) if (!labels.includes(l.label)) labels.push(l.label);
+    for (const lab of labels) {
+      put(row, 0, lab, S.label);
+      sheets.forEach((b, i) => { const l = pick(b).find((x) => x.label === lab); put(row, i + 1, l ? round2(l.amount) : '', S.num); });
+      row++;
+      const kids: string[] = [];
+      for (const b of sheets) for (const c of pick(b).find((x) => x.label === lab)?.children ?? []) if (!kids.includes(c.label)) kids.push(c.label);
+      for (const k of kids) {
+        put(row, 0, `   ${k}`, S.label);
+        sheets.forEach((b, i) => { const c = pick(b).find((x) => x.label === lab)?.children?.find((x) => x.label === k); put(row, i + 1, c ? round2(c.amount) : '', S.num); });
+        row++;
+      }
+    }
+    put(row, 0, `Total ${title.toLowerCase()}`, S.totalLabel);
+    sheets.forEach((b, i) => put(row, i + 1, round2(total(b)), S.total));
+    row++;
+  };
+  section('Equity', (b) => b.equity, (b) => b.equity.reduce((s, l) => s + l.amount, 0));
+  section('Liabilities', (b) => b.liabilities, (b) => b.liabilities.reduce((s, l) => s + l.amount, 0));
+  section('Assets', (b) => b.assets, (b) => b.totalAssets);
+  const warn = [...new Set(sheets.flatMap((b) => b.warnings.map((w) => `${b.period}: ${w}`)))];
+  for (const w of warn) put(row++, 0, w, S.label);
+  return finish(row, [44, ...sheets.map(() => 15)]);
+}
+
+/** Cash Flow (indirect), months as columns, ₹. */
+export function cashFlowSheet(all: CashFlow[]): XLSX.WorkSheet {
+  const flows = all.slice(-12);
+  if (!flows.length) return noteSheet('CASH FLOW', 'No Cash Flow yet: it needs two consecutive month-end Trial Balances from Tally.');
+  const { put, band, finish } = sheetWriter();
+  const nCols = flows.length + 1;
+  let row = 0;
+  band(row++, 'CASH FLOW (indirect, from Tally Trial Balances)', S.title, nCols);
+  band(row++, 'Sections sum to the change in cash & bank. Read-only copy, ₹.', S.subtitle, nCols);
+  row++;
+  put(row, 0, 'Particulars', S.header);
+  flows.forEach((f, i) => put(row, i + 1, f.period, S.header));
+  row++;
+  const line = (label: string, get: (f: CashFlow) => number, total = false) => {
+    put(row, 0, label, total ? S.totalLabel : S.label);
+    flows.forEach((f, i) => put(row, i + 1, round2(get(f)), total ? S.total : S.num));
+    row++;
+  };
+  line('Profit of the month', (f) => f.profit);
+  line('Depreciation', (f) => f.depreciation);
+  (flows[flows.length - 1].workingCapital).forEach((w, k) => line(w.label, (f) => f.workingCapital[k]?.amount ?? 0));
+  line('Cash from operations', (f) => f.operating, true);
+  line('Fixed assets (capex)', (f) => f.capex);
+  line('Investments', (f) => f.investments);
+  line('Cash from investing', (f) => f.investing, true);
+  line('Equity raised', (f) => f.equity);
+  line('Loans & bank OD / CC', (f) => f.loans);
+  line('Cash from financing', (f) => f.financing, true);
+  line('Other (suspense, TB differences)', (f) => f.other);
+  line('Net change in cash & bank', (f) => f.netChange, true);
+  line('Opening cash & bank', (f) => f.openingCash);
+  line('Closing cash & bank', (f) => f.closingCash, true);
+  return finish(row, [44, ...flows.map(() => 15)]);
+}
+
+/** A MIS-format source whose company cash rows (opening / closing / funding / burn / runway) come from the Cash Flow. */
+export function misSourceWithCash(src: MisFormatSource, flows: CashFlow[]): MisFormatSource {
+  return {
+    ...src,
+    point: (keys, entity) => {
+      const p = src.point(keys, entity);
+      if (entity !== 'company') return p;
+      const rows = keys.map((k) => misCashRows(flows, k));
+      if (rows.some((r) => !r)) return p;
+      const rs = rows as NonNullable<(typeof rows)[number]>[];
+      return { ...p, openingCash: rs[0].openingCash, closingCash: rs[rs.length - 1].closingCash, funding: rs.reduce((a, r) => a + r.funding, 0), cashBurn: rs.reduce((a, r) => a + r.cashBurn, 0), runway: rs[rs.length - 1].runway } as MisPoint;
+    },
+  };
+}
+
 // ---- Workbook ----------------------------------------------------------------
 
 const GRAN_META: Record<Granularity, { sheet: string; title: string }> = {
@@ -529,7 +640,7 @@ const GRAN_META: Record<Granularity, { sheet: string; title: string }> = {
 };
 
 /** Build the Live MIS workbook (pure — no download). */
-export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions): XLSX.WorkBook {
+export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions, st?: LiveStatements | null): XLSX.WorkBook {
   const deck = o.mergeChannels ? unifyChannels(rawDeck) : rawDeck;
   const wb = XLSX.utils.book_new();
   const blend = blendLiveMonths(deck.months, deck.completeness);
@@ -563,12 +674,20 @@ export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions): 
   if (o.includeMarketing) XLSX.utils.book_append_sheet(wb, marketingSheet(ordered), 'Marketing by Platform');
   if (o.includeUnits) XLSX.utils.book_append_sheet(wb, unitsSheet(deck), 'Units');
   if (o.includeSkuCells) XLSX.utils.book_append_sheet(wb, skuCellsSheet(deck, o.mergeChannels), 'SKU Cells');
+  if (o.includeBalanceSheet) XLSX.utils.book_append_sheet(wb, balanceSheetSheet(st?.sheets ?? []), 'Balance Sheet');
+  if (o.includeCashFlow) XLSX.utils.book_append_sheet(wb, cashFlowSheet(st?.flows ?? []), 'Cash Flow');
+  if (o.includeMisSheet) {
+    // The standard MIS Sheet blocks (P&L Summary per FY, company + channels), cash rows from the Cash Flow.
+    const mis = buildMisFormatWorkbook(misSourceWithCash(liveMisFormatSource(rawDeck, o.mergeChannels), st?.flows ?? []));
+    const name = mis.SheetNames[0];
+    if (name) XLSX.utils.book_append_sheet(wb, mis.Sheets[name], 'MIS Sheet');
+  }
   if (wb.SheetNames.length === 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['No sheets selected for export']]), 'Info');
   return wb;
 }
 
-export async function exportLiveMis(deck: LiveDeckData, o: LiveExportOptions = LIVE_EXPORT_EVERYTHING): Promise<void> {
-  const wb = buildLiveWorkbook(deck, o);
+export async function exportLiveMis(deck: LiveDeckData, o: LiveExportOptions = LIVE_EXPORT_EVERYTHING, st?: LiveStatements | null): Promise<void> {
+  const wb = buildLiveWorkbook(deck, o, st);
   const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const { saveAs } = await import('file-saver');
   saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),

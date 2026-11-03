@@ -7,7 +7,7 @@
 
 import type { SalesChannel } from './misDeckData';
 
-export interface SkuCell { m: string; ch: SalesChannel; p: string; rev: number; cogs: number; oth: number; con: number; u: number; /** live-only: per-SKU ad spend, when an ad report is ingested. */ ad?: number; /** live-only: this cell's factory overhead when the month has Tally's actual (else the views assume 10% of revenue). */ fac?: number; }
+export interface SkuCell { m: string; ch: SalesChannel; p: string; rev: number; cogs: number; oth: number; con: number; u: number; /** live-only: per-SKU ad spend, when an ad report is ingested. */ ad?: number; /** live-only: no BOM prices this product (cost 0 here, NOT a real 100 % margin). */ noCost?: boolean; /** live-only: cost estimated from the closest product's BOM, pending confirmation. */ costEst?: boolean; /** live-only: this cell's factory overhead when the month has Tally's actual (else the views assume 10% of revenue). */ fac?: number; }
 
 export const SKU_CELLS: SkuCell[] = [
   { m: "2024-10", ch: "Amazon", p: "hCore X-L Lite", rev: 420636.58, cogs: 93840.0, oth: 86443.56, con: 240353.02, u: 345.0 },

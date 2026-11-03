@@ -4,7 +4,8 @@
 // totals) across the top. Values in ₹ Lac; percentages as real % cells.
 
 import XLSX from 'xlsx-js-style';
-import { saveAs } from 'file-saver';
+import fileSaver from 'file-saver';
+const { saveAs } = fileSaver;
 import { SALES_CHANNELS } from '../data/misDeck/misDeckData';
 import { channelLabel } from '../data/misDeck/analytics';
 import {

@@ -18,7 +18,8 @@
 
 import type { SalesChannel } from '../misDeck/misDeckData';
 import type { BomCost, CostBasis, MonthCloseSession, SkuPlatform, SkuRow, UploadedSource } from './schema';
-import { hcoreTwin, lookupSku, type Platform, type SkuEntry } from './skuMap';
+import { hcoreTwin, lookupSku, PRODUCTS, type Platform, type SkuEntry } from './skuMap';
+import { activeProductMap, suggest, type Candidate } from './productSuggest';
 
 /** Which deck channel a platform's rows belong to. */
 const CHANNEL_BY_PLATFORM: Record<SkuPlatform, SalesChannel> = {
@@ -103,6 +104,10 @@ export interface SkuAggregate {
   contribution: number | null;
   /** The BOM the cost came from, for the audit trail. */
   bomNumber?: string;
+  /** Costed from another finished good's BOM (a confirmed proxy, or the closest-name suggestion). */
+  costProxyFg?: string;
+  /** True when that proxy is only a suggestion: shown as an estimate, never counted as a real COGM. */
+  costEstimated?: boolean;
   /** False when any contributing mapping is inferred rather than checked. */
   confirmed: boolean;
   /** True when any contributing row matched on a product title, not a SKU. */
@@ -135,7 +140,8 @@ export interface SkuResult {
 
 export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): SkuResult {
   const rows = session.sources.flatMap((s) => s.skuRows ?? []);
-  const overrides = session.skuOverrides ?? {};
+  const pmap = activeProductMap();
+  const overrides = { ...pmap.sku, ...(session.skuOverrides ?? {}) };
   const basis = session.costBasis ?? null;
   const costBook = buildCostBook(session.sources);
 
@@ -192,6 +198,21 @@ export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): Sk
       if (a.deckName === ACCESSORY) {
         a.cogs = 0;
         a.contribution = r2(a.revenue - a.fees);
+        continue;
+      }
+      // Never a silent 100 % margin: a confirmed proxy BOM prices it for real; otherwise the closest product by name
+      // gives an ESTIMATE (flagged; the month still counts as uncosted until the founder confirms).
+      const confirmedFg = pmap.bomProxy[a.fgId];
+      const pool = Object.values(PRODUCTS).filter((p) => p.fgId !== a.fgId && costFor(costBook, p.fgId)) as Candidate[];
+      const proxyFg = confirmedFg ?? suggest(a.deckName, pool, 1, 0.3)[0]?.fgId;
+      const pc = proxyFg ? costFor(costBook, proxyFg) : null;
+      if (pc && proxyFg) {
+        a.costPerUnit = pc.costPerUnit;
+        a.bomNumber = pc.bomNumber;
+        a.cogs = r2(pc.costPerUnit * a.units);
+        a.contribution = r2(a.revenue - a.cogs - a.fees);
+        a.costProxyFg = proxyFg;
+        a.costEstimated = !confirmedFg;
       }
       continue;
     }
@@ -205,8 +226,8 @@ export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): Sk
     (a, b) => a.channel.localeCompare(b.channel) || b.revenue - a.revenue,
   );
 
-  const costed = aggregates.filter((a) => a.cogs !== null);
-  const uncosted = aggregates.filter((a) => a.cogs === null);
+  const costed = aggregates.filter((a) => a.cogs !== null && !a.costEstimated);
+  const uncosted = aggregates.filter((a) => a.cogs === null || a.costEstimated);
 
   return {
     aggregates,

@@ -11,6 +11,8 @@
 //   GET  /api/tally/books/ledgers?q=          ledger master (+ voucher count in the stored months)
 //   GET  /api/tally/books/vouchers?period=&q= vouchers of a month, filtered
 //   POST /api/tally/books/ask {question, history?}  "Ask about Tally" (Claude, grounded in the stored books)
+//   GET/PUT /api/tally/ledger-rules   name-pattern rules (Blinkit / Flipkart sales, brand investment, fundraising) + the stored
+//                                     ledgers / P&L rows / narrations the client matches them against (health note)
 // ----------------------------------------------------------------------------
 
 import { Router, type Request, type Response } from 'express';
@@ -19,6 +21,7 @@ import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../co
 import { latestMonths, pullBooks, readBooks, readBooksState, readMasters, readVouchers } from '../connectors/tally/bookStore.js';
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport } from '../connectors/tally/books.js';
 import { claudeChat, isClaudeConfigured } from '../services/claudeClient.js';
+import { readJson, writeJson } from '../ingest/objectStore.js';
 import { BUNDLED_HISTORY } from '../services/expenseMap.js';
 
 const router = Router();
@@ -171,3 +174,50 @@ ${BUNDLED_HISTORY}`;
 }));
 
 export default router;
+
+// ---------------------------------------------------------------- ledger-name rules (client/src/data/monthClose/ledgerRules.ts)
+// The rule table is data (objectStore `tally/ledger-rules`); matching runs in the browser with the same module the close uses.
+// GET also hands over what to match: ledger master names, the newest stored P&L ledger rows, and voucher narrations on
+// expense ledgers (brand / fundraising words are looked for client-side; nothing is changed in Tally).
+const RULE_LINES = new Set(['rev_blinkit', 'rev_flipkart', 'pf_platform', 'nl_fundraising']);
+export function cleanRules(input: unknown): { rules: Record<string, unknown>[]; dropped: string[] } {
+  const rules: Record<string, unknown>[] = [];
+  const dropped: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of Array.isArray(input) ? input.slice(0, 200) : []) {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const id = String(r.id ?? '').trim().slice(0, 60);
+    const pattern = String(r.pattern ?? '').trim().slice(0, 600);
+    if (!id || !pattern || !RULE_LINES.has(String(r.line)) || seen.has(id)) { dropped.push(id || '(no id)'); continue; }
+    try { new RegExp(pattern, 'i'); if (r.group) new RegExp(String(r.group), 'i'); } catch { dropped.push(`${id} (invalid pattern)`); continue; }
+    seen.add(id);
+    rules.push({ id, line: r.line, pattern, ...(r.group ? { group: String(r.group).slice(0, 120) } : {}), ...(r.note ? { note: String(r.note).slice(0, 200) } : {}), ...(r.enabled === false ? { enabled: false } : {}) });
+  }
+  return { rules, dropped };
+}
+
+router.get('/ledger-rules', h(async (_req, res) => {
+  const [stored, masters, s] = await Promise.all([readJson<{ rules: unknown[] } | null>('tally/ledger-rules', null), readMasters(), readTallyState()]);
+  const periods = Object.keys(s.months).sort().slice(-3);
+  const pnl = (await Promise.all(periods.map(async (period) => ({ period, snap: await readTallySnapshot(period) }))))
+    .filter((x) => x.snap).map((x) => ({ period: x.period, rows: (x.snap!.ledgerRows ?? []).map((r) => ({ name: r.name, amount: r.amount })) }));
+  const books = await readVouchers(await latestMonths(3));
+  const expense = new Set((masters?.ledgers ?? []).filter((l) => /expense/i.test(`${l.primary} ${l.group}`)).map((l) => l.name));
+  const narrations = books.vouchers.filter((v) => !v.cancelled && !v.optional && v.narration.trim())
+    .flatMap((v) => v.lines.filter((l) => expense.has(l.ledger) && l.amount > 0)
+      .map((l) => ({ date: v.date, type: v.type, number: v.number, ledger: l.ledger, amount: l.amount, narration: v.narration.slice(0, 160) })))
+    .slice(0, 3000);
+  res.json({
+    rules: stored?.rules ?? null,
+    ledgers: (masters?.ledgers ?? []).map((l) => ({ name: l.name, group: l.group, primary: l.primary })),
+    pnl, narrations, mastersAt: masters?.asOf ?? null,
+  });
+}));
+
+router.put('/ledger-rules', h(async (req, res) => {
+  if (req.body?.reset === true) { await writeJson('tally/ledger-rules', { rules: null, at: new Date().toISOString() }); return res.json({ ok: true, rules: null }); }
+  const { rules, dropped } = cleanRules(req.body?.rules);
+  if (!rules.length) return res.status(400).json({ error: 'No valid rule in the request.', dropped });
+  await writeJson('tally/ledger-rules', { rules, at: new Date().toISOString() });
+  res.json({ ok: true, rules, dropped });
+}));
