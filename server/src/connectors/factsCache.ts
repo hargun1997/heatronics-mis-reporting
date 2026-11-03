@@ -35,6 +35,15 @@ export function freshFor(period: string, now: number): number {
 }
 
 const key = (source: string, period: string) => `facts-cache/${source}-${period}`;
+// Instance memory in front of the store: a warm instance answers without any storage read (~3 s of GCS reads otherwise).
+const mem = new Map<string, CachedMonth>();
+async function readMonth(k: string): Promise<CachedMonth | null> {
+  const hit = mem.get(k);
+  if (hit) return hit;
+  const d = await readJson<CachedMonth | null>(k, null);
+  if (d && Array.isArray(d.facts)) mem.set(k, d);
+  return d;
+}
 const inflight = new Map<string, Promise<void>>();
 
 /** Pull [from, to] once and store it split by month (months with no facts stored empty). */
@@ -47,6 +56,7 @@ async function pullAndStore(source: string, months: string[], fetch: (from: stri
   const at = new Date(now).toISOString();
   const by = new Map<string, CachedMonth>(months.map((p) => [p, { at, facts: [], warnings: [...r.warnings], trace: r.trace }]));
   for (const f of r.facts) by.get(f.date.slice(0, 7))?.facts.push(f);
+  for (const [p, doc] of by) mem.set(key(source, p), doc);
   await Promise.all([...by].map(([p, doc]) => writeJson(key(source, p), doc)));
   return by;
 }
@@ -61,7 +71,7 @@ export async function cachedFacts(
 ): Promise<SourceOutcome> {
   const now = opts.now ?? Date.now();
   const months = monthsBetween(from, to);
-  const docs = await Promise.all(months.map((p) => (opts.force ? Promise.resolve(null) : readJson<CachedMonth | null>(key(source, p), null))));
+  const docs = await Promise.all(months.map((p) => (opts.force ? Promise.resolve(null) : readMonth(key(source, p)))));
   const have = new Map<string, CachedMonth>();
   months.forEach((p, i) => { const d = docs[i]; if (d && Array.isArray(d.facts)) have.set(p, d); });
 

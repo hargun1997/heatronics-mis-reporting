@@ -22,6 +22,8 @@ export const TRANZACT_SHEETS = {
 
 export function assertSheetsReadOnly(method: string, url: string): void {
   if (method === 'GET' && /^https:\/\/sheets\.googleapis\.com\/v4\/spreadsheets\/[A-Za-z0-9_-]+\/values\//.test(url)) return;
+  // tab list only (sheet properties, no cell data)
+  if (method === 'GET' && /^https:\/\/sheets\.googleapis\.com\/v4\/spreadsheets\/[A-Za-z0-9_-]+\?fields=sheets\.properties/.test(url)) return;
   throw new Error(`Blocked: ${method} ${url.split('?')[0]} is not a Sheets values read.`);
 }
 
@@ -44,20 +46,45 @@ async function sheetsToken(): Promise<string> {
   return tok.value;
 }
 
-/** All values of the sheet's first tab. Dates come as serial numbers, numbers unformatted. */
-export async function readSheet(spreadsheetId: string): Promise<unknown[][]> {
-  const url =
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent('A:ZZ')}` +
-    `?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER&majorDimension=ROWS`;
+const filled = (rows: unknown[][]) => rows.filter((r) => Array.isArray(r) && r.some((c) => String(c ?? '').trim())).length;
+
+async function sheetsGet(url: string): Promise<Response> {
   assertSheetsReadOnly('GET', url);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${await sheetsToken()}` } });
-  if (res.status === 403 || res.status === 404) {
-    throw new Error(
-      `Google Sheets ${res.status}: the Tranzact sheet isn't readable by this service — share it (or the "Tranzact feed" folder) ` +
-        'as Viewer with 559416687588-compute@developer.gserviceaccount.com, and enable the Google Sheets API in the project.',
-    );
+  return fetch(url, { headers: { Authorization: `Bearer ${await sheetsToken()}` } });
+}
+
+/**
+ * All values of the tab that holds the report. Tranzact's recurring reports write into a tab of their own ("Daily <report>")
+ * next to an empty "Sheet1" and a "TranZact" access note (seen 3 Nov 2026), so every visible tab (≤ 8) is read and the one with
+ * the most filled rows wins; when the tab list can't be read, the first tab as before. Dates as serial numbers, numbers unformatted.
+ */
+export async function readSheet(spreadsheetId: string): Promise<unknown[][]> {
+  let tabs: string[] = [];
+  try {
+    const t = await sheetsGet(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties(title,index,hidden)`);
+    if (t.ok) {
+      const j = (await t.json()) as { sheets?: { properties?: { title?: string; index?: number; hidden?: boolean } }[] };
+      tabs = (j.sheets || []).map((x) => x.properties).filter((p): p is { title: string; index?: number } => !!p && !p.hidden && typeof p.title === 'string')
+        .sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).map((p) => p.title).slice(0, 8);
+    }
+  } catch { tabs = []; }
+  let best: unknown[][] = [];
+  for (const tab of tabs.length ? tabs : [null]) {
+    const range = tab ? `'${tab.replace(/'/g, "''")}'!A:ZZ` : 'A:ZZ';
+    const url =
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}` +
+      `?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER&majorDimension=ROWS`;
+    const res = await sheetsGet(url);
+    if (res.status === 403 || res.status === 404) {
+      throw new Error(
+        `Google Sheets ${res.status}: the Tranzact sheet isn't readable by this service — share it (or the "Tranzact feed" folder) ` +
+          'as Viewer with 559416687588-compute@developer.gserviceaccount.com, and enable the Google Sheets API in the project.',
+      );
+    }
+    if (!res.ok) throw new Error(`Google Sheets ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const j = (await res.json()) as { values?: unknown[][] };
+    const rows = Array.isArray(j.values) ? j.values : [];
+    if (filled(rows) > filled(best)) best = rows;
   }
-  if (!res.ok) throw new Error(`Google Sheets ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const j = (await res.json()) as { values?: unknown[][] };
-  return Array.isArray(j.values) ? j.values : [];
+  return best;
 }
