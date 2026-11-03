@@ -188,6 +188,17 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   Creditors / Duties & Taxes / banks), in a carry-over / old group (Busy Carryover, "- Busy"), no group, or in another channel's group; each with a
   suggested existing group (`MOVE_RULES` by name, else the sub-group of look-alike ledgers; never across the books). Handbook c2 lists the sub-groups
   and the moves found on 3 Nov 2026. Tests `server/test/chart.test.ts`, `issuesInbox*.test.ts`.
+- **Amazon price floors, live (`/tools/price-floors`, 3 Nov 2026):** fees, prices, units and returns come from Ops' stored Amazon data, not
+  the Seller Central upload. `services/priceFloorsLive.ts`: 4 SELECTs on Ops BigQuery via the shared `opsQuery` (`sources/opsAdsStore.ts`,
+  `assertSelectOnly`): `amz_fin_events` (kind order / refund, aggregated per order item then per seller SKU), `amz_orders_items_latest`
+  (SKU → ASIN), `ads_sp_product` (spend per ASIN), storage fees → pure `mapFloorRows` = the fee report's `ParsedSkuRow` shape per ASIN over
+  the last 30 full IST days: sales / ASP incl. GST (Principal + Tax), FBA / closing per unit charged, refund admin (RefundCommission) per
+  refund item, referral % = Commission ÷ GST-incl price of the items that paid it (only when ≥ 80 % of units did), fees incl. their GST
+  (itemised `fee_gst` ratio, else + 18 %, noted). `GET /api/price-floors/live` (cached 6 h in `price-floors-live`, `?force=1`; a failure
+  keeps the last good copy). The page merges it with the same `mergeReport` as an upload (once per new report id, then saves the
+  settings); the upload stays behind "Upload a fee report instead". Inbound placement / transport stay settings (account-level fees).
+  UNVERIFIED until the first live run: Amazon IN fee type names (FBA / closing regexes) and whether fee GST is itemised. Tests
+  `server/test/priceFloorsLive.test.ts`.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).

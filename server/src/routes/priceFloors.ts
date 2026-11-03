@@ -7,10 +7,12 @@
 //   config/price-floors-settings.json  SKU economics + product mapping + fee rates
 //   config/price-floors-reports.json   uploaded fee reports (newest first, last 24)
 //   config/price-floors-costs.json     last product-cost snapshot from production
+//   config/price-floors-live.json      last live fee report built from Ops' stored Amazon data (GET /live)
 // ----------------------------------------------------------------------------
 
 import { Router, type Request, type Response } from 'express';
 import { readJson, writeJson } from '../ingest/objectStore.js';
+import { liveFloorsReport, type LiveReport } from '../services/priceFloorsLive.js';
 
 const router = Router();
 
@@ -66,6 +68,24 @@ router.get('/', h(async (_req, res) => {
     reports: reports.map(({ rows, ...meta }) => ({ ...meta, skus: Array.isArray(rows) ? rows.length : 0 })),
     latestReport: reports[0] || null,
   });
+}));
+
+// Live fee report: the fee-report shape built from Ops' stored Amazon Finances events + SP ads (READ ONLY, last 30 full IST
+// days; services/priceFloorsLive.ts). Cached 6 h; ?force=1 rebuilds. A failure keeps the last good copy with the error.
+const LIVE_MS = 6 * 60 * 60 * 1000;
+type LiveSnap = { report: LiveReport | null; at: string; error: string | null };
+router.get('/live', h(async (req, res) => {
+  const prev = await readJson<LiveSnap | null>('price-floors-live', null);
+  if (prev?.report && !prev.error && req.query.force !== '1' && Date.now() - Date.parse(prev.at) < LIVE_MS) { res.json(prev); return; }
+  try {
+    const report = await liveFloorsReport();
+    const snap: LiveSnap = { report, at: new Date().toISOString(), error: report.rows.length ? null : 'Ops has no Amazon Finances events for the last 30 days yet.' };
+    if (report.rows.length || !prev?.report) await writeJson('price-floors-live', snap);
+    res.json(report.rows.length || !prev?.report ? snap : { ...prev, error: snap.error });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.json({ report: prev?.report ?? null, at: prev?.at ?? new Date().toISOString(), error: msg });
+  }
 }));
 
 router.post('/costs/refresh', h(async (_req, res) => {
