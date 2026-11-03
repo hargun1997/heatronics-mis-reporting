@@ -313,7 +313,8 @@ body{margin:0}
   <h3>Rules and settings we use</h3>
   <div class="tw"><table>
     <tr><th>Setting (Tranzact → Accounting Integration)</th><th>Our value</th><th>Effect</th></tr>
-    <tr><td>Accounting Rules: sales by document series</td><td>B2C → B2C Offline Sales · OEM → OEM Sales · GT Dealer / Retailer / CNF → GT - … Sales · MT → MT Sales · Physio → Physio Channel Sales · Blinkit → Blinkit Sales · Internal Transfer → Internal Transfer Sales</td><td>Picks the sales ledger by series prefix</td></tr>
+    <tr><td>Accounting Rules: sales by document series</td><td>B2C → B2C Offline Sales · OEM → OEM Sales · GT Dealer / Retailer / CNF → GT - … Sales · MT → MT Sales · Physio → Physio Channel Sales · Blinkit → Blinkit Sales · Internal Transfer and Ecommerce 3P → Internal Transfer Sales</td><td>Picks the sales ledger by series prefix (full table in chapter 4)</td></tr>
+    <tr><td>Accounting Rules: voucher types</td><td>One per sales series (Sales-OEM, Sales-GT Dealer, …, Sales-Internal Transfer), Purchase-RM / -Job Work / -Expense, plus Credit Note and Debit Note</td><td>Picks the Tally voucher type. Upload replaces all voucher rules</td></tr>
     <tr><td>Accounting Rules: purchases</td><td>Is Service = false → RM Purchases; true → Job Work Charges</td><td>Every service bill goes to Job Work Charges</td></tr>
     <tr><td>Tax ledgers</td><td>IGST/CGST/SGST Input/Output - 5 / 12 / 18%</td><td>GST lines on each voucher</td></tr>
     <tr><td>Discount / additional / round-off</td><td>Trade Discount - GT (default) / - MT; Additional Charges - Sales / - Purchase; Round-off - Sales / - Purchase</td><td>—</td></tr>
@@ -552,7 +553,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <tr><td><code>Internet &amp; Telephone</code></td><td>Purchase (services)</td><td>Taxable</td><td>—</td></tr>
     <tr><td><code>Digital Advertising</code></td><td>Purchase (services)</td><td>Taxable</td><td>Sales &amp; Marketing</td></tr>
     <tr><td><code>TDS Payable - 194C</code> / <code>- 194J</code></td><td>Journal, Payment</td><td>—</td><td>194C also covers transport contractors; 194J covers professional fees and consultancy</td></tr>
-    <tr><td>Tranzact bill series codes</td><td>—</td><td>—</td><td>Purchase RM <code>PUR-RM-YYYYMM-####</code> · Job work <code>JW-YYYYMM-####</code> · Blinkit <code>BLK-YYYYMM-####</code> · Capital goods (Tally) <code>CAP-YYYYMM-####</code></td></tr>
+    <tr><td>Tranzact bill series codes</td><td>—</td><td>—</td><td>Purchase RM <code>PUR-RM-YYYYMM-####</code> · Job work <code>JW-YYYYMM-####</code> · Sales series <code>PREFIX/26-27/####</code> (e.g. <code>BLK/26-27/00007</code>, resets each financial year) · Capital goods (Tally) <code>CAP-YYYYMM-####</code></td></tr>
   </table></div>
 </section>
 
@@ -614,9 +615,26 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <tr><td>OEM Sales Series</td><td><code>OEM Sales</code></td><td>B2C Series</td><td><code>B2C Offline Sales</code></td></tr>
     <tr><td>GT Dealer / Retailer / CNF</td><td><code>GT - Dealer / Retailer / CNF Sales</code></td><td>MT Sales Series</td><td><code>MT Sales</code></td></tr>
     <tr><td>Physio Channel Series</td><td><code>Physio Channel Sales</code></td><td>Blinkit Sales Series</td><td><code>Blinkit Sales</code></td></tr>
-    <tr><td>Internal Transfer Series</td><td><code>Internal Transfer Sales</code></td><td>Purchases: goods / service</td><td><code>RM Purchases</code> / <code>Job Work Charges</code></td></tr>
+    <tr><td>Internal Transfer Series (ITF)</td><td><code>Internal Transfer Sales</code></td><td>Ecommerce 3P (Ecom), added 3 Nov 2026</td><td><code>Internal Transfer Sales</code></td></tr>
+    <tr><td>Purchases: goods / service</td><td><code>RM Purchases</code> / <code>Job Work Charges</code></td><td colspan="2"></td></tr>
   </table></div>
-  <div class="callout warn"><b>Known gaps:</b> no series rule for Supernode (Amazon 3P), whose debtor is ₹2.93 L. Every service bill posts to Job Work Charges. "Mark Paid" and the TCS ledgers point to ledgers that don't exist in Tally (Ch 11).</div>
+  <h3 id="c4-rules-reference">Series, ledger and voucher rules (read from Tranzact, 3 Nov 2026)</h3>
+  <div class="tw"><table>
+    <tr><th>Series (prefix)</th><th>Sales ledger</th><th>Voucher type</th><th>Counts as revenue in the MIS?</th></tr>
+    <tr><td>OEM</td><td><code>OEM Sales</code></td><td>Sales-OEM</td><td>Yes</td></tr>
+    <tr><td>GTD / GTR / GTC</td><td><code>GT - Dealer / Retailer / CNF Sales</code></td><td>Sales-GT Dealer / Retailer / CNF</td><td>Yes</td></tr>
+    <tr><td>PHY</td><td><code>Physio Channel Sales</code></td><td>Sales-Physio</td><td>Yes</td></tr>
+    <tr><td>MT</td><td><code>MT Sales</code></td><td>Sales-MT</td><td>Yes</td></tr>
+    <tr><td>B2C</td><td><code>B2C Offline Sales</code></td><td>Sales-Offline-B2C</td><td>Yes</td></tr>
+    <tr><td>BLK</td><td><code>Blinkit Sales</code></td><td>Sales-Blinkit</td><td>Shown, not counted: Blinkit revenue comes from the Blinkit payout</td></tr>
+    <tr><td>ITF</td><td><code>Internal Transfer Sales</code></td><td>Sales-Internal Transfer</td><td><b>No: stock transfer</b></td></tr>
+    <tr><td>Ecom (Ecommerce 3P)</td><td><code>Internal Transfer Sales</code></td><td>Sales-Internal Transfer</td><td><b>No: stock transfer.</b> Amazon 3P stock goes to Supernode; Amazon sales are booked from the Amazon MTR journal, so counting Ecom would double count</td></tr>
+    <tr><td>Goods purchase / service bill</td><td><code>RM Purchases</code> / <code>Job Work Charges</code></td><td>Purchase-RM (Purchase-Expense for category Consumables) / Purchase-Job Work (Job Work PO series)</td><td>n/a</td></tr>
+    <tr><td>Credit note / debit note</td><td>follows the original document</td><td>Credit Note / Debit Note (general rule, added 3 Nov 2026)</td><td>Netted against the series</td></tr>
+  </table></div>
+  <div class="callout info"><b>Stock transfers are not sales.</b> Internal stock transfers (ITF and Ecom) are left out of revenue in the MIS and shown on their own line to compare with Tally's Stock Transfers ledger. The gap between audited and MIS revenue is GST plus these transfers. An invoice to a customer called Amazon is treated as a transfer even on another series.</div>
+  <div class="callout warn"><b>Changing rules in Tranzact:</b> rules are changed only by Excel (Accounting Rules → Download / Upload) and only by Hargun. A <b>ledger-rule</b> upload <b>merges</b> into the existing rules, so repeated uploads leave duplicate rows (GT Dealer and GT CNF now have 8 copies each; harmless, same mapping, no delete button). A <b>voucher-rule</b> upload <b>replaces</b> all existing voucher rules, so always upload the full set. Series are matched by series only, never by customer. A copy of the rules is kept in the MIS repo (<code>docs/knowledge/tranzact-rules.md</code>).</div>
+  <div class="callout warn"><b>Known gaps:</b> every service bill posts to Job Work Charges. "Mark Paid" and the TCS ledgers point to ledgers that don't exist in Tally (Ch 11).</div>
   <h3 id="c4-purchases">Purchases (goods)</h3>
   <div class="spec">
     <ul>
@@ -646,7 +664,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   <div class="chhead"><span class="chno">04b</span><div><h2>Blinkit (quick commerce)</h2><p class="lede">Blinkit is a quick-commerce B2B buyer. Its invoices are raised in Tranzact under the Blinkit Sales Series and reach Tally through the Chrome plugin, like any other Tranzact sale.</p></div></div>
   <div class="spec">
     <dl class="facts">
-      <div><dt>Source</dt><dd>Tranzact, Blinkit Sales Series (code <code>BLK-YYYYMM-####</code> <span class="pill warn">to confirm</span>)</dd></div>
+      <div><dt>Source</dt><dd>Tranzact, Blinkit Sales Series (prefix <code>BLK</code>, invoices <code>BLK/26-27/####</code>, resets each financial year)</dd></div>
       <div><dt>Posted by</dt><dd>TranZact Chrome plugin, daily D1 (Sales voucher type)</dd></div>
       <div><dt>Vouchers</dt><dd>Sales; Credit Note / Debit Note for deductions and returns</dd></div>
       <div><dt>Ledger</dt><dd><code>Blinkit Sales</code> (Sales Accounts → Quick Commerce)</dd></div>
@@ -669,6 +687,22 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     </div>
   </div>
   <div class="callout warn"><b>Watch:</b> Blinkit is B2B and rejects invoices without the buyer GSTIN. Disputed POs delay settlement. Flag any invoice older than 45 days for follow-up.</div>
+</section>
+
+<section class="chapter" id="c25b">
+  <div class="chhead"><span class="chno">04c</span><div><h2>Flipkart (marketplace sales through the Tally plugin)</h2><p class="lede">Flipkart is a new channel. Unlike Tranzact sales, its sales are posted by the eCom2Tally plugin from Flipkart's own reports, using the settings below (read from tally-integration.in, 3 Nov 2026).</p></div></div>
+  <div class="spec">
+    <dl class="facts">
+      <div><dt>Source</dt><dd>Flipkart Settled Transactions report (.xlsx, Seller Hub → Reports Center → Payment Reports), imported into the plugin. Fees come separately from the monthly Commission Invoice (chapter 16, Flipkart).</dd></div>
+      <div><dt>Posted by</dt><dd>eCom2Tally plugin, platform <b>Flipkart</b>, company Heatronics Medical Devices Private Limited</dd></div>
+      <div><dt>Voucher types</dt><dd>Sales: <code>Flipkart Sales</code> · Credit note: <code>Flipkart Credit Note</code></dd></div>
+      <div><dt>Ledgers</dt><dd>Customer (ecom) <code>Flipkart Seller A/c</code> · Sales <code>GST Sales (Flipkart)</code> · Shipping <code>Shipping</code> · Tax <code>CGST</code> / <code>SGST</code> / <code>IGST</code></dd></div>
+      <div><dt>Options</dt><dd>Default unit PCS. Separate voucher per GSTIN: off. %-wise sales ledger: off. %-wise GST ledger: off</dd></div>
+      <div><dt>MIS</dt><dd>Flipkart revenue comes from the settlement upload (the Flipkart API has no fees); the Tally P&amp;L ledger <code>GST Sales (Flipkart)</code> maps to the Flipkart channel</dd></div>
+    </dl>
+  </div>
+  <div class="callout warn"><b>Two Flipkart party ledgers exist in Tally.</b> The plugin posts sales to <code>Flipkart Seller A/c</code> (Sundry Debtors), but the fee JV and the ledger map use <code>Flipkart Seller Account</code> (group Flipkart Debtors). Settlements and fees therefore land in two different ledgers and neither balance is the real Flipkart receivable. Pick one (the plugin setting can be changed to the other name) and move the balance of the second into it. The plugin also types the tax ledgers as plain <code>CGST</code> / <code>SGST</code> / <code>IGST</code>, not the <code>… Output - 5%</code> ledgers used everywhere else, and %-wise ledgers are off. <span class="pill warn">to confirm with the plugin vendor</span></div>
+  <div class="callout info"><b>Checked against Tally on 3 Nov 2026 (768 ledgers read, read only):</b> <code>GST Sales (Flipkart)</code> sits under Sales Accounts; the fee ledgers <code>Fixed Fees-Flipkart</code>, <code>Flipkart Ad Services Fee</code> and <code>Flipkart -Commision Fees</code> sit under Flipkart Channel Fees; <code>Flipkart CashBack</code> is under Indirect Incomes. Tranzact's "TCS Credit" ledgers still don't exist (only <code>TCS-CGST/IGST/SGST (Amazon)</code> under TCS Receivable) and the "Mark Paid" ledger <code>Central Bank of India - Operating A/C</code> is not in Tally (the bank ledger is <code>Cash Credit Limit - [Central Bank]</code>).</div>
 </section>
 
 <!-- 5 -->
@@ -713,6 +747,58 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
 <section class="chapter" id="c6">
   <div class="chhead"><span class="chno">06</span><div><h2>Amazon</h2><p class="lede">Amazon issues the sales invoices (MTR). Money moves Seller A/c → Settlement → Amazon Bank → bank. Fees and ads are deducted at source, and Amazon also sends GST invoices for them.</p></div></div>
   <div class="flowline"><span class="p">MTR B2C/B2B</span><span class="ar">Sales-Amazon-STATE →</span><span class="p c">Amazon Seller A/c</span><span class="ar">Amazon Settlement →</span><span class="p c">Amazon Settlement</span><span class="ar">Bank Transfer →</span><span class="p c">Amazon Bank</span><span class="ar">Receipt →</span><span class="p b">Central Bank CC</span></div>
+  <figure class="diagram">
+  <svg viewBox="0 0 1000 520" role="img" aria-label="Amazon in Tally: MTR B2C, MTR B2B and STR post as sales vouchers to Amazon Seller A/c. The settlement import moves that balance to Amazon Settlement. From Amazon Settlement the payout goes to Amazon Bank and then the bank (balance sheet); the fees and ads Amazon kept go to expense ledgers such as Cost of Advertising and FBA Inbound Pickup Service. Separately Amazon Seller Services' GST invoices are booked to Amazon Expenses (Creditors). The monthly JV moves the settlement-posted expenses against the creditor so both net to zero." style="color:var(--ink);font-family:var(--f-body)">
+    <defs><marker id="ah6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+    <g font-size="12.5" fill="currentColor">
+      <text x="20" y="22" font-size="11" font-weight="700" opacity=".7">AMAZON REPORTS (MONTHLY, OPTION 2)</text>
+      <rect x="20" y="34" width="240" height="38" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="140" y="51" text-anchor="middle" font-weight="600">① MTR B2C</text><text x="140" y="65" text-anchor="middle" font-size="11" opacity=".8">Sales-Amazon-STATE</text>
+      <rect x="20" y="82" width="240" height="38" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="140" y="99" text-anchor="middle" font-weight="600">② MTR B2B</text><text x="140" y="113" text-anchor="middle" font-size="11" opacity=".8">Sales-Amazon-STATE (with buyer GSTIN)</text>
+      <rect x="20" y="130" width="240" height="38" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="140" y="147" text-anchor="middle" font-weight="600">③ STR</text><text x="140" y="161" text-anchor="middle" font-size="11" opacity=".8">Sales/Purchase-STR (between GSTINs)</text>
+      <rect x="20" y="186" width="240" height="38" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="140" y="203" text-anchor="middle" font-weight="600">④ Settlement</text><text x="140" y="217" text-anchor="middle" font-size="11" opacity=".8">Transaction report</text>
+
+      <rect x="290" y="70" width="210" height="64" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--accent-soft)"/><text x="395" y="96" text-anchor="middle" font-weight="700">Amazon Seller A/c</text><text x="395" y="115" text-anchor="middle" font-size="11.5">party for the sale (Amazon Debtors)</text>
+      <rect x="610" y="70" width="210" height="64" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--accent-soft)"/><text x="715" y="96" text-anchor="middle" font-weight="700">Amazon Settlement</text><text x="715" y="115" text-anchor="middle" font-size="11.5">each settlement closes to 0</text>
+      <rect x="860" y="70" width="120" height="64" rx="10" stroke="currentColor" stroke-width="1.4" style="fill:var(--ok-soft)"/><text x="920" y="96" text-anchor="middle" font-weight="700">Amazon Bank</text><text x="920" y="115" text-anchor="middle" font-size="11">→ Central Bank CC</text>
+      <text x="920" y="152" text-anchor="middle" font-size="11" opacity=".8">balance sheet:</text><text x="920" y="166" text-anchor="middle" font-size="11" opacity=".8">in transit only</text>
+
+      <rect x="610" y="250" width="210" height="96" rx="10" stroke="currentColor" stroke-width="1.4" fill="none"/><text x="715" y="274" text-anchor="middle" font-weight="700">Expenses kept by Amazon</text><text x="715" y="294" text-anchor="middle" font-size="11.5" font-family="var(--f-mono)">Cost of Advertising</text><text x="715" y="312" text-anchor="middle" font-size="11.5" font-family="var(--f-mono)">FBA Inbound Pickup Service</text><text x="715" y="330" text-anchor="middle" font-size="11.5" font-family="var(--f-mono)">FBA storage fee …</text>
+
+      <rect x="20" y="300" width="260" height="64" rx="8" fill="none" stroke="currentColor" stroke-dasharray="4 3"/><text x="150" y="324" text-anchor="middle" font-weight="600">Amazon Seller Services Pvt Ltd</text><text x="150" y="342" text-anchor="middle" font-size="11">GST invoices: fees, ads (Purchase-Expense)</text>
+      <rect x="340" y="300" width="210" height="64" rx="10" stroke="currentColor" stroke-width="1.6" style="fill:var(--accent-soft)"/><text x="445" y="326" text-anchor="middle" font-weight="700">Amazon Expenses (Creditors)</text><text x="445" y="345" text-anchor="middle" font-size="11.5">Amazon Creditors</text>
+      <rect x="340" y="420" width="210" height="64" rx="10" stroke="currentColor" stroke-width="1.4" style="fill:var(--ok-soft)"/><text x="445" y="446" text-anchor="middle" font-weight="700">Net zero</text><text x="445" y="465" text-anchor="middle" font-size="11.5">creditor ≈ 0 · Cost of Advertising = 0</text>
+    </g>
+    <g stroke="currentColor" stroke-width="1.4" fill="none" marker-end="url(#ah6)">
+      <polyline points="260,53 275,53 275,92 288,92"/>
+      <line x1="260" y1="101" x2="288" y2="101"/>
+      <polyline points="260,149 275,149 275,112 288,112"/>
+      <polyline points="260,205 560,205 560,128 608,128"/>
+      <line x1="500" y1="102" x2="608" y2="102"/>
+      <line x1="820" y1="102" x2="858" y2="102"/>
+      <line x1="715" y1="134" x2="715" y2="248"/>
+      <line x1="280" y1="332" x2="338" y2="332"/>
+      <polyline points="610,330 580,330 580,452 552,452"/>
+      <line x1="445" y1="364" x2="445" y2="418"/>
+    </g>
+    <g font-size="10.5" fill="currentColor" opacity=".85">
+            <text x="555" y="94" text-anchor="middle">settlement moves it</text>
+      <text x="840" y="94" text-anchor="middle">payout</text>
+      <text x="722" y="200" text-anchor="start">fees &amp; ads deducted</text>
+      <text x="309" y="324" text-anchor="middle">Cr</text>
+      <text x="586" y="398" text-anchor="start">monthly JV</text>
+      <text x="586" y="412" text-anchor="start">(Journal 53 template)</text>
+      <text x="455" y="398" text-anchor="start">payment settled</text>
+    </g>
+  </svg>
+  <figcaption>How Amazon flows through Tally (from Hargun's whiteboard, Nov 2026). Sales: the three GST reports post as voucher types to <code>Amazon Seller A/c</code>. Money: the settlement moves the balance to <code>Amazon Settlement</code>, which pays out to <code>Amazon Bank</code> and keeps fees and ads as expenses. Invoices: Amazon Seller Services' GST invoices are booked to <code>Amazon Expenses (Creditors)</code>; the monthly JV sets the settlement-posted expenses off against it, so both end at zero.</figcaption>
+  </figure>
+  <div class="callout warn"><b>Checked against Tally's ledger list (3 Nov 2026, read only):</b> the four chain ledgers exist as drawn (<code>Amazon Seller A/c</code>, <code>Amazon Settlement</code>, <code>Amazon Bank</code> under Amazon Debtors; <code>Amazon Expenses (Creditors)</code> under Amazon Creditors). Three things to fix:
+    <ul>
+      <li><code>Amazon Seller Services Pvt Ltd (Karnataka)</code> is a separate party under <b>Sundry Debtors</b>. Amazon's GST invoices belong on <code>Amazon Expenses (Creditors)</code>; move anything booked there and stop using it. <span class="pill warn">to confirm</span></li>
+      <li>The settlement-posted expense ledgers sit in Indirect Expenses (<code>Cost of Advertising</code>, <code>FBA Inbound Pickup Service</code>, <code>FBA storage fee</code>, <code>Fulfilment by Amazon (FBA) Inventory Storage Fee</code>, <code>FBA Amazon-Partnered Carrier Shipment Fee</code>, <code>FBA Inventory Reimbursement - General Adjustment</code>). Each must be cleared by the monthly JV; the Sep-26 P&amp;L still shows <code>Fulfilment by Amazon (FBA) Inventory Storage Fee</code> ₹8,978.</li>
+      <li>Storage fee has three ledgers: <code>FBA storage fee</code>, <code>FBA storage fee - Amazon</code> (Amazon Channel Fees) and <code>Fulfilment by Amazon (FBA) Inventory Storage Fee</code>. Keep one for the invoice side and one for the settlement side.</li>
+    </ul>
+  </div>
   <div class="spec">
     <dl class="facts">
       <div><dt>Source</dt><dd>MTR-B2C, MTR-B2B, STR (GST Monthly Reports); Settlement = Transaction report (Reports Repository)</dd></div>
@@ -1359,7 +1445,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <p>The <b>Live MIS</b> is the management P&amp;L built from source reports: channels, SKUs, ad spend, fees and the Tally P&amp;L. Nothing is posted to Tally from here; the MIS only reads.</p>
     <ul>
       <li><b>When:</b> the 10th, after the books for the month are in: daily imports, platform settlements (1st, 3rd), expense invoices (<a href="#c27-overview">chapter 13b</a>) and bank clearing (4th). The Tally P&amp;L should reflect all of it.</li>
-      <li><b>Where:</b> the left menu under <i>Data pipeline</i>: Data sources, Upload data, Data rulebook. Under <i>MIS</i>: Live MIS.</li>
+      <li><b>Where:</b> the left menu: <b>Setup</b> (every connector, Tally and scheduled feeds, like Setup in Ops) and Data rulebook at the bottom; Live MIS and Month-end close under <i>Reporting</i>.</li>
       <li><b>History:</b> months before Apr 2026 are locked; only the live window from Apr 2026 is filled.</li>
     </ul>
     <figure><a href="img/mis_ingest_tally.jpg" target="_blank"><img src="img/mis_ingest_tally.jpg" alt="Upload data page with the Where we are month chips, the source pills and the Tally P&amp;L upload slot" loading="lazy"></a><figcaption>Upload data. Taken on a test copy with nothing uploaded, so every month is red and the store notice reads "temporary".</figcaption></figure>
@@ -1389,8 +1475,8 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
       <tr><td>Snapmint (BNPL)</td><td>Settlement / subvention</td><td>Required</td><td>.xlsx / .csv (emailed)</td><td>Reports → Group Settlement Daily Report</td></tr>
     </table></div>
     <div class="callout warn"><b class="k">Not the same files as Tally.</b> The MIS takes Shiprocket's <b>wallet passbook</b>, not the COD remittance file used for Tally (M2). The Amazon settlement file is the same one you import in M1, so reuse it.</div>
-    <p>Every slot's <b>How to export</b> button gives the exact steps and, where known, a one-click link. Credentials on <b>Data sources</b> are set by Hargun; the accountant doesn't change them.</p>
-    <figure><a href="img/mis_connectors.jpg" target="_blank"><img src="img/mis_connectors.jpg" alt="Data sources page with a card per connector grouped by book of record, marketplaces, D2C, advertising, logistics, payments" loading="lazy"></a><figcaption>Data sources: one card per system. "Manual upload" sources are filled on Upload data; Shopify is a live API.</figcaption></figure>
+    <p>Every slot's <b>How to export</b> button gives the exact steps and, where known, a one-click link. Credentials on <b>Setup</b> are set by Hargun; the accountant doesn't change them.</p>
+    <figure><a href="img/mis_connectors.jpg" target="_blank"><img src="img/mis_connectors.jpg" alt="Setup page (was Data sources) with a card per connector grouped by book of record, marketplaces, D2C, advertising, logistics, payments" loading="lazy"></a><figcaption>Setup: one card per system. "Manual upload" sources are filled on Upload data; Shopify is a live API.</figcaption></figure>
   </div><div class="opblock">
     <header><h3 id="c28-upload">Upload a report, step by step</h3></header>
     <div class="step"><div class="no">1</div><div class="body"><h4>Open Upload data and pick the source</h4>

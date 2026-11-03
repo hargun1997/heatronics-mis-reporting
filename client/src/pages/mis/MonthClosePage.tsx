@@ -64,7 +64,7 @@ export function MonthClosePage() {
               to="/reporting/mis/connectors"
               className="px-2.5 py-1 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
             >
-              Data sources →
+              Setup →
             </Link>
             <span className="text-[11px] text-slate-400 hidden sm:block">
               Published through {last?.label ?? '—'} · next {last ? nextMonthLabel(last.key) : '—'}

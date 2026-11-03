@@ -1,0 +1,303 @@
+// Growth builder: new product lines, hiring, capacity, capex, fundraise rounds and stores, layered on
+// top of the 5-year plan (engine.ts applies them when `plan.growth.on`, never in sheet-parity mode).
+// Also: the exit run-rate ARR, a solver that scales the growth lines to a target, a "fund the gap"
+// helper that sizes rounds, the dilution table, and the ₹500 Cr scenario. Every number in the
+// scenario is a PLACEHOLDER for the founder to replace.
+
+import { GROWTH_GROUPS, runPlan, type Channel, type FundingRules, type GrowthPlan, type Hire, type NewProduct, type Overhead, type Plan, type PlanResult, type RetailType } from './engine';
+
+const CR = 1e7;
+const L = 1e5;
+const ch = (a: number, d: number, f = 0, g = 0, p = 0): Record<Channel, number> => ({ A: a, D: d, F: f, G: g, P: p });
+
+/** Exit ARR as the founder uses it: the last 3 months' P&L revenue × 4, at month e (default: the horizon's end). */
+export function runRateArr(r: PlanResult, e = r.months.length): number {
+  const ms = r.months.slice(Math.max(0, e - 3), e);
+  return ms.length ? (ms.reduce((a, m) => a + m.netRevenue, 0) * 12) / ms.length : 0;
+}
+
+/** How "Fund the gap" sizes rounds (all editable on the page). */
+export function defaultFunding(): FundingRules {
+  return { buffer: 10 * CR, runwayMonths: 12, minRound: 15 * CR, preMoneyMultiple: 4, feePct: 0.03, earliestAfterSeed: 3 };
+}
+
+/** An empty Growth builder: nothing changes until lines are added and it is switched on. */
+export function emptyGrowth(): GrowthPlan {
+  return {
+    on: false, targetArr: 500 * CR, baseCapacity: 13_000, incrementPct: 0.1, benefitsPct: 0.12, recruitPct: 0.08,
+    seedPreMoney: 40 * CR, hires: [], capacity: [], capex: [], rounds: [], retail: [], overheads: [], funding: defaultFunding(),
+    stores: { on: false, openings: [], matureRevenue: 6 * L, rampMonths: 6, capexPerStore: 15 * L, rentPerStore: 1.5 * L, staffPerStore: 3, staffCtc: 30_000, otherOpexPerStore: 50_000 },
+    note: '',
+  };
+}
+
+/** Make sure the plan carries the Growth builder's cost groups (so tables list them). */
+export function ensureGrowthGroups(p: Plan) {
+  for (const g of GROWTH_GROUPS) if (!p.groups.some((x) => x.name === g.name)) p.groups.push({ ...g });
+}
+
+// ---- the ₹500 Cr scenario --------------------------------------------------------------------
+
+/** New categories for the ₹500 Cr plan. Prices incl. GST; volumes are scaled by the solver. PLACEHOLDERS. */
+export function growthCategories(): NewProduct[] {
+  return growthCategoriesRaw().map((x) => {
+    const L0 = x.launchMonth;
+    // online channels: Amazon + D2C from launch, Flipkart 6 months later growing faster; offline after the product has reviews
+    const chStart: NewProduct['chStart'] = { A: L0, D: L0, F: L0 + 6, ...(x.split.P ? { P: L0 + 6 } : {}) };
+    const chGrowth: NewProduct['chGrowth'] = { F: 0.2 };
+    const retailStart = L0 + (x.category === 'topical' ? 6 : x.category === 'nutra' ? 9 : 12);
+    return { ...x, chStart, chGrowth, retailStart };
+  });
+}
+
+function growthCategoriesRaw(): NewProduct[] {
+  const base = { on: true, placeholder: true, growthLine: true, seasonRef: 'flat' } as const;
+  return [
+    // Online split only (Amazon / D2C / Flipkart): GT, MT and pharmacy come from the outlet plan (defaultRetail).
+    // Topicals (contract-made): the base plan's cream and roll-on, switched on, plus spray and heat patches
+    { ...base, id: 'p-cream', name: 'Pain relief cream', category: 'topical', inHouse: false, asp: 449, launchMonth: 5, launchUnits: 3000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.55, 0.35, 0.1), repeatPct: 0.15, repeatDecay: 0.85, cogsPct: 0.25, marketingPct: 0.08, launchCost: 15 * L, launchCapex: 0 },
+    { ...base, id: 'p-rollon', name: 'Pain relief roll-on', category: 'topical', inHouse: false, asp: 299, launchMonth: 7, launchUnits: 2500, rampPct: 0.15, steadyPct: 0.6, split: ch(0.55, 0.35, 0.1), repeatPct: 0.15, repeatDecay: 0.85, cogsPct: 0.25, marketingPct: 0.08, launchCost: 8 * L, launchCapex: 0 },
+    { ...base, id: 'g-spray', name: 'Pain relief spray', category: 'topical', inHouse: false, asp: 349, launchMonth: 13, launchUnits: 2000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.55, 0.35, 0.1), repeatPct: 0.15, repeatDecay: 0.85, cogsPct: 0.28, marketingPct: 0.08, launchCost: 10 * L, launchCapex: 0 },
+    { ...base, id: 'g-patch', name: 'Heat patches (pack)', category: 'topical', inHouse: false, asp: 399, launchMonth: 10, launchUnits: 2000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.55, 0.35, 0.1), repeatPct: 0.2, repeatDecay: 0.85, cogsPct: 0.3, marketingPct: 0.06, launchCost: 10 * L, launchCapex: 0 },
+    // Nutraceuticals (contract-made)
+    { ...base, id: 'g-joint', name: 'Joint support (nutra)', category: 'nutra', inHouse: false, asp: 899, launchMonth: 13, launchUnits: 1500, rampPct: 0.15, steadyPct: 0.6, split: ch(0.5, 0.4, 0.1), repeatPct: 0.35, repeatDecay: 0.9, cogsPct: 0.22, marketingPct: 0.1, launchCost: 20 * L, launchCapex: 0 },
+    { ...base, id: 'g-mag', name: 'Magnesium / recovery (nutra)', category: 'nutra', inHouse: false, asp: 699, launchMonth: 16, launchUnits: 1200, rampPct: 0.15, steadyPct: 0.6, split: ch(0.5, 0.4, 0.1), repeatPct: 0.35, repeatDecay: 0.9, cogsPct: 0.22, marketingPct: 0.1, launchCost: 12 * L, launchCapex: 0 },
+    { ...base, id: 'g-collagen', name: 'Collagen (nutra)', category: 'nutra', inHouse: false, asp: 999, launchMonth: 19, launchUnits: 1000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.5, 0.4, 0.1), repeatPct: 0.35, repeatDecay: 0.9, cogsPct: 0.22, marketingPct: 0.1, launchCost: 12 * L, launchCapex: 0 },
+    // New devices (made in-house: they use production capacity)
+    { ...base, id: 'g-massager', name: 'Massage device', category: 'device', inHouse: true, asp: 3999, launchMonth: 16, launchUnits: 400, rampPct: 0.12, steadyPct: 0.5, split: ch(0.5, 0.3, 0.15, 0.05), cogsPct: 0.38, marketingPct: 0.05, launchCost: 20 * L, launchCapex: 40 * L },
+    { ...base, id: 'g-tens', name: 'TENS / EMS device', category: 'device', inHouse: true, asp: 2999, launchMonth: 19, launchUnits: 400, rampPct: 0.12, steadyPct: 0.5, split: ch(0.45, 0.3, 0.1, 0.05, 0.1), cogsPct: 0.35, marketingPct: 0.05, launchCost: 25 * L, launchCapex: 35 * L },
+    { ...base, id: 'g-hotcold', name: 'Smart hot–cold wrap', category: 'device', inHouse: true, asp: 4999, launchMonth: 25, launchUnits: 300, rampPct: 0.12, steadyPct: 0.5, split: ch(0.45, 0.35, 0.1, 0.05, 0.05), cogsPct: 0.4, marketingPct: 0.05, launchCost: 20 * L, launchCapex: 50 * L },
+  ];
+}
+
+/** Offline distribution for the new lines: outlets added by month, offtake per outlet. PLACEHOLDERS. */
+export function defaultRetail(): RetailType[] {
+  const steps = (xs: [number, number][]) => xs.map(([month, add]) => ({ month, add }));
+  return [
+    {
+      id: 'gt', name: 'General trade (chemists & general stores, via distributors)', on: true, rampMonths: 3,
+      outlets: steps([[13, 500], [16, 1000], [19, 1500], [22, 2000], [25, 2500], [28, 3000], [31, 3500], [34, 3500], [37, 3500], [40, 3500], [43, 3000], [46, 3000], [49, 2000]]),
+      units: { topical: 6, nutra: 1, device: 0, other: 0 }, tradeMarginPct: 0.3, schemePct: 0.05, listingFee: 0, servicePerOutlet: 150,
+    },
+    {
+      id: 'mt', name: 'Modern trade (DMart, Reliance, More, Spencer’s…)', on: true, rampMonths: 3,
+      outlets: steps([[16, 100], [22, 200], [28, 300], [34, 400], [40, 400], [46, 400]]),
+      units: { topical: 15, nutra: 5, device: 1, other: 0 }, tradeMarginPct: 0.35, schemePct: 0.08, listingFee: 5000, servicePerOutlet: 800,
+    },
+    {
+      id: 'pharma', name: 'Pharmacy chains (Apollo, MedPlus, Wellness Forever…)', on: true, rampMonths: 3,
+      outlets: steps([[13, 300], [19, 700], [25, 1000], [31, 1500], [37, 1500], [43, 1500], [49, 1500]]),
+      units: { topical: 10, nutra: 4, device: 0.5, other: 0 }, tradeMarginPct: 0.28, schemePct: 0.05, listingFee: 2000, servicePerOutlet: 300,
+    },
+  ];
+}
+
+/** P&L revenue per FY. */
+export function fyRevenue(r: PlanResult): Record<string, number> {
+  return Object.fromEntries(r.years.map((y) => [y.fy, y.revenue]));
+}
+
+/**
+ * Meet the revenue path (`growth.path`, FY → P&L revenue) by setting `growth.push` FY by FY, in order: each FY's push
+ * multiplies the growth lines' new buyers in that year (their repeats carry into later years). The push never goes
+ * below 0; a year already above its target with no push, or one the lines can't reach, is listed in `missed`.
+ */
+export function solvePath(plan: Plan): { plan: Plan; missed: string[] } {
+  const p = structuredClone(plan);
+  const G = p.growth;
+  const missed: string[] = [];
+  if (!G?.path) return { plan: p, missed };
+  G.push = {};
+  const fys = Object.keys(G.path).sort();
+  for (const fy of fys) {
+    const target = G.path[fy];
+    const rev = (k: number) => { G.push![fy] = k; return runPlan(p).years.find((y) => y.fy === fy)?.revenue ?? 0; };
+    if (rev(0) >= target) { G.push[fy] = 0; missed.push(`${fy}: already ${Math.round(rev(0) / CR)} Cr with no extra push`); continue; }
+    let lo = 0, hi = 1;
+    while (rev(hi) < target && hi < 1e4) hi *= 2;
+    if (hi >= 1e4) { G.push[fy] = hi; missed.push(`${fy}: the new lines cannot reach the target`); continue; }
+    for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (rev(mid) < target) lo = mid; else hi = mid; }
+    G.push[fy] = hi;
+  }
+  return { plan: p, missed };
+}
+
+let seq = 0;
+const id = (p: string) => `${p}${Date.now().toString(36)}${(seq++).toString(36)}`;
+
+/** People, capacity, capex and stores for the ₹500 Cr plan (monthly CTC in ₹). PLACEHOLDERS. */
+/** Warehouses, office and the running costs a bigger business carries. PLACEHOLDERS. */
+export function defaultOverheads(): Overhead[] {
+  const site = (name: string, month: number, sqft: number, rentPerSqft: number, runningPerMonth: number, depositMonths: number, fitout: number): Overhead =>
+    ({ id: id('o'), name, on: true, kind: 'site', group: 'Rent & Facilities', month, end: null, amount: 0, growthPct: 0.05, sqft, rentPerSqft, runningPerMonth, depositMonths, fitout });
+  const fixed = (name: string, group: string, month: number, amount: number, growthPct: number): Overhead =>
+    ({ id: id('o'), name, on: true, kind: 'fixed', group, month, end: null, amount, growthPct });
+  const pctO = (name: string, group: string, month: number, amount: number): Overhead =>
+    ({ id: id('o'), name, on: true, kind: 'pct', group, month, end: null, amount, growthPct: 0 });
+  return [
+    site('Warehouse 2 — Noida', 10, 15_000, 28, 75_000, 6, 15 * L),
+    site('Warehouse — Bengaluru', 22, 20_000, 30, 1 * L, 6, 25 * L),
+    site('Warehouse — Bhiwandi (Mumbai)', 30, 30_000, 27, 1.5 * L, 6, 30 * L),
+    site('Warehouse — Kolkata', 40, 15_000, 22, 75_000, 6, 15 * L),
+    site('Corporate office', 19, 5_000, 90, 1 * L, 10, 40 * L),
+    fixed('Software & tools', 'Technology & Software', 7, 2 * L, 0.25),
+    fixed('Insurance', 'Insurance', 7, 0.5 * L, 0.2),
+    fixed('Licences & regulatory (FSSAI, AYUSH, CDSCO, BIS)', 'Compliance & Certification', 7, 1.5 * L, 0.15),
+    fixed('Audit, legal & advisory', 'Professional Fees', 7, 1 * L, 0.2),
+    fixed('Travel', 'Travel & Communication', 7, 2 * L, 0.25),
+    pctO('Packing material & 3PL handling', 'Fulfilment & Delivery', 7, 0.015),
+    pctO('Office & admin (scales with revenue)', 'Office & Administration', 7, 0.005),
+    pctO('Brand building (TV / print / outdoor)', 'Brand Marketing', 19, 0.03),
+  ];
+}
+
+export function growth500(): GrowthPlan {
+  const h = (role: string, dept: GrowthPlan['hires'][number]['dept'], count: number, month: number, ctc: number): Hire =>
+    ({ id: id('h'), role, dept, count, month, end: null, monthlyCtc: ctc, on: true });
+  const sc = (x: Hire, by: NonNullable<Hire['scale']>['by'], every: number, type?: string): Hire => ({ ...x, scale: { by, every, ...(type ? { type } : {}) } });
+  return {
+    ...emptyGrowth(),
+    on: true,
+    note: 'Every number here is a placeholder: replace with your own. New-buyer volumes of the new lines are pushed year by year to meet the revenue path.',
+    path: { FY28: 30 * CR, FY29: 100 * CR, FY30: 250 * CR, FY31: 500 * CR },
+    retail: defaultRetail(),
+    hires: [
+      h('Category head — Topicals', 'corporate', 1, 4, 2.5 * L), h('Category head — Nutraceuticals', 'corporate', 1, 10, 2.5 * L),
+      h('Brand & performance marketers', 'marketing', 2, 4, 1.2 * L), h('Brand & performance marketers', 'marketing', 3, 13, 1.2 * L), h('Brand & performance marketers', 'marketing', 4, 25, 1.2 * L),
+      h('Sales — GT / MT / pharmacy', 'sales', 4, 7, 0.6 * L), h('Sales — GT / MT / pharmacy', 'sales', 10, 19, 0.6 * L), h('Sales — GT / MT / pharmacy', 'sales', 20, 31, 0.6 * L),
+      h('R&D, formulation & regulatory', 'tech', 2, 4, 1.2 * L), h('R&D, formulation & regulatory', 'tech', 3, 16, 1.2 * L),
+      h('Tech & data', 'tech', 2, 10, 1.5 * L),
+      h('Supply chain & ops', 'corporate', 2, 7, 1 * L), h('Supply chain & ops', 'corporate', 3, 19, 1 * L),
+      h('Finance & HR', 'corporate', 2, 7, 1 * L), h('CFO', 'corporate', 1, 19, 4 * L),
+      h('Factory operators', 'factory', 15, 13, 0.25 * L), h('Factory operators', 'factory', 25, 25, 0.25 * L), h('Factory operators', 'factory', 40, 37, 0.25 * L),
+      // leadership as the business grows
+      h('Head of marketing', 'marketing', 1, 13, 4 * L), h('VP sales (offline)', 'sales', 1, 13, 5 * L), h('CTO', 'tech', 1, 19, 4.5 * L), h('COO', 'corporate', 1, 25, 5 * L),
+      // roles that grow with the business
+      sc(h('Customer support (1 per ₹5 Cr revenue)', 'corporate', 2, 4, 0.25 * L), 'revenue', 5),
+      sc(h('Finance, HR & admin (1 per ₹25 Cr revenue)', 'corporate', 1, 10, 0.8 * L), 'revenue', 25),
+      sc(h('Warehouse & dispatch (1 per 6,000 units / mo)', 'corporate', 4, 4, 0.18 * L), 'units', 6000),
+      sc(h('GT sales reps (1 per 600 outlets)', 'sales', 0, 13, 0.3 * L), 'outlets', 600, 'gt'),
+      sc(h('MT promoters & KAMs (1 per 25 stores)', 'sales', 0, 16, 0.2 * L), 'outlets', 25, 'mt'),
+      sc(h('Pharmacy reps (1 per 400 pharmacies)', 'sales', 0, 13, 0.35 * L), 'outlets', 400, 'pharma'),
+    ],
+    overheads: defaultOverheads(),
+    capacity: [
+      { id: id('c'), name: 'Line 2 (current factory)', on: true, month: 8, leadMonths: 3, unitsPerMonth: 15_000, capex: 1.5 * CR, monthlyOpex: 3 * L },
+      { id: id('c'), name: 'Line 3 (current factory)', on: true, month: 19, leadMonths: 3, unitsPerMonth: 20_000, capex: 2 * CR, monthlyOpex: 4 * L },
+      { id: id('c'), name: 'Plant 2', on: true, month: 28, leadMonths: 6, unitsPerMonth: 60_000, capex: 10 * CR, monthlyOpex: 18 * L },
+    ],
+    capex: [
+      { id: id('x'), name: 'ERP & data stack', on: true, group: 'Technology & Infrastructure', month: 12, amount: 50 * L },
+      { id: id('x'), name: 'Testing & QC lab', on: true, group: 'Testing & Certification Equipment', month: 18, amount: 75 * L },
+      { id: id('x'), name: 'Warehouse automation', on: true, group: 'Plant & Machinery', month: 30, amount: 1 * CR },
+    ],
+    rounds: [],
+    stores: {
+      on: false, openings: [{ month: 19, count: 2 }, { month: 25, count: 5 }, { month: 31, count: 10 }, { month: 37, count: 15 }, { month: 43, count: 20 }],
+      matureRevenue: 6 * L, rampMonths: 6, capexPerStore: 15 * L, rentPerStore: 1.5 * L, staffPerStore: 3, staffCtc: 30_000, otherOpexPerStore: 50_000,
+    },
+  };
+}
+
+/** Multiply the launch volumes of every Growth-builder product line by k. */
+function scaled(plan: Plan, k: number): Plan {
+  const p = structuredClone(plan);
+  for (const x of p.products) if (x.growthLine) x.launchUnits *= k;
+  return p;
+}
+
+/**
+ * Scale the Growth-builder product lines (launch volumes, same shape) so the exit run-rate ARR hits
+ * the target. Returns the factor and the plan; null when the lines cannot reach it (no lines on).
+ */
+export function solveForTarget(plan: Plan, target = plan.growth?.targetArr ?? 500 * CR): { k: number; plan: Plan; arr: number } | null {
+  const lines = plan.products.filter((x) => x.growthLine && x.on && x.launchUnits > 0);
+  if (!lines.length) return null;
+  const at = (k: number) => runRateArr(runPlan(scaled(plan, k)));
+  let lo = 0, hi = 1;
+  if (at(0) >= target) return { k: 0, plan: scaled(plan, 0), arr: at(0) };
+  while (at(hi) < target && hi < 1e4) hi *= 2;
+  if (hi >= 1e4) return null;
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (at(mid) < target) lo = mid; else hi = mid; }
+  const out = scaled(plan, hi);
+  return { k: hi, plan: out, arr: at(hi) };
+}
+
+/**
+ * Size fundraise rounds from the burn: each pass finds the first month (from `earliestAfterSeed` months after the seed) where cash
+ * would fall under the buffer, and raises a month earlier what keeps cash above the buffer for the next `runwayMonths`
+ * (+15 %, rounded up to ₹5 Cr, at least `minRound`). Pre-money is a placeholder: `preMoneyMultiple` × the run-rate ARR at the
+ * raise (at least ₹50 Cr). Rounds marked agreed are kept as they are; unconfirmed `auto-` rounds are replaced.
+ */
+export function fundTheGap(plan: Plan, rules?: Partial<FundingRules>): Plan {
+  const p = structuredClone(plan);
+  if (!p.growth) return p;
+  const f = { ...defaultFunding(), ...(p.growth.funding ?? {}), ...(rules ?? {}) };
+  const earliest = (p.fx?.seed.on ? p.fx.seed.month : 1) + f.earliestAfterSeed;
+  p.growth.rounds = p.growth.rounds.filter((r) => r.confirmed || !r.id.startsWith('auto-'));
+  const names = ['Series A', 'Series B', 'Series C', 'Series D', 'Series E', 'Series F'];
+  for (let i = 0; i < 6; i++) {
+    const r = runPlan(p);
+    const first = r.months.find((x) => x.m >= earliest && x.closingCash < f.buffer);
+    if (!first) break;
+    const month = Math.max(earliest, first.m - 1);
+    const window = r.months.slice(month - 1, month - 1 + f.runwayMonths);
+    const low = Math.min(...window.map((x) => x.closingCash));
+    const amount = Math.max(f.minRound, Math.ceil(((f.buffer - low) * 1.15) / (5 * CR)) * 5 * CR);
+    const pre = Math.max(50 * CR, f.preMoneyMultiple * runRateArr(r, month));
+    const n = p.growth.rounds.filter((x) => x.on).length;
+    p.growth.rounds.push({ id: `auto-${i}-${month}`, name: names[n] ?? `Round ${n + 1}`, on: true, month, amount, preMoney: Math.round(pre / CR) * CR, feePct: f.feePct, confirmed: false });
+    p.growth.rounds.sort((a, b) => a.month - b.month);
+  }
+  // name the rounds in time order
+  let k = 0;
+  for (const x of p.growth.rounds) if (x.on && x.id.startsWith('auto-')) x.name = names[k++] ?? x.name; else if (x.on) k++;
+  return p;
+}
+
+export interface RoundStat { id: string; name: string; month: number; amount: number; burn: number; runway: number | null; cashBefore: number }
+
+/** For each round: cash just before it, the average monthly burn over the next 12 months, and how many months of runway it buys. */
+export function roundStats(plan: Plan, r: PlanResult): RoundStat[] {
+  const buffer = plan.growth?.funding?.buffer ?? defaultFunding().buffer;
+  return (plan.growth?.rounds ?? []).filter((x) => x.on).map((x) => {
+    const after = r.months.slice(x.month - 1);
+    const next12 = after.slice(0, 12);
+    const burn = Math.max(0, -next12.reduce((a, m) => a + m.netCashFlow, 0) / Math.max(1, next12.length));
+    const until = after.findIndex((m, i) => i > 0 && m.closingCash < buffer);
+    return { id: x.id, name: x.name, month: x.month, amount: x.amount, burn, runway: until < 0 ? null : until, cashBefore: r.months[x.month - 2]?.closingCash ?? 0 };
+  });
+}
+
+export interface DilutionRow { name: string; month: number; amount: number; preMoney: number; postMoney: number; sold: number; existingAfter: number }
+
+/** Ownership sold per round and what today's holders keep after each one (seed first, then the rounds by month). */
+export function dilution(plan: Plan): DilutionRow[] {
+  const out: DilutionRow[] = [];
+  let keep = 1;
+  const seed = plan.fx?.seed;
+  const rows: { name: string; month: number; amount: number; preMoney: number }[] = [];
+  if (seed?.on && plan.growth) rows.push({ name: 'Seed', month: seed.month, amount: seed.amount, preMoney: plan.growth.seedPreMoney });
+  for (const r of plan.growth?.rounds ?? []) if (r.on) rows.push({ name: r.name, month: r.month, amount: r.amount, preMoney: r.preMoney });
+  rows.sort((a, b) => a.month - b.month);
+  for (const r of rows) {
+    const post = r.preMoney + r.amount;
+    const sold = post > 0 ? r.amount / post : 0;
+    keep *= 1 - sold;
+    out.push({ ...r, postMoney: post, sold, existingAfter: keep });
+  }
+  return out;
+}
+
+/** Build the ₹500 Cr scenario from a plan: categories on, people / capacity / capex, volumes solved, rounds sized. */
+export function build500Cr(from: Plan): Plan {
+  let p = structuredClone(from);
+  p.name = 'Heatronics ₹30 → 100 → 250 → 500 Cr — growth plan (placeholders)';
+  const cats = growthCategories();
+  const ids = new Set(cats.map((c) => c.id));
+  p.products = [...p.products.filter((x) => !ids.has(x.id)), ...cats];
+  p.growth = growth500();
+  ensureGrowthGroups(p);
+  p = solvePath(p).plan;
+  return fundTheGap(p);
+}
