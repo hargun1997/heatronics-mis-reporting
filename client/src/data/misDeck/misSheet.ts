@@ -68,6 +68,8 @@ export interface MisSheetRow {
   bold?: boolean;
   /** Plain count (rendered as an integer, not ₹ Lac). */
   count?: boolean;
+  /** Decimals for a count row (default 0): runway in quarters shows 1.6, not 2. */
+  decimals?: number;
   get: (pt: MisPoint) => number | null;
 }
 
@@ -107,7 +109,7 @@ export const MIS_SHEET_ROWS: MisSheetRow[] = [
   { label: 'Closing Cash Balance (₹ lakh)', get: (p) => p.closingCash },
   { label: 'Total Cash Burn', get: (p) => p.cashBurn },
   { label: 'EBITDA Burn', get: (p) => p.ebitdaBurn },
-  { label: 'Runway (Qtr)', count: true, get: (p) => p.runway },
+  { label: 'Runway (Qtr)', count: true, decimals: 1, get: (p) => p.runway },
 ];
 
 // ----------------------------------------------------------------------------

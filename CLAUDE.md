@@ -154,7 +154,12 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   the last 13 months per run (`state.tbMonths`). `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
   depreciation, Nett Profit); pure builder `client/src/data/statements/statements.ts` (BS from Tally's primary groups + closing
   stock + FY profit to date; indirect cash flow from consecutive BSs, sections sum to Δ cash & bank; `misCashRows` fills the MIS
-  Sheet cash rows). Tests `server/test/statements.test.ts`.
+  Sheet cash rows). Tests `server/test/statements.test.ts`. The TB is asked from 1 April (`tbEnvelope`, snapshot `basis:
+  'fy-to-date'`; a state with another `tbBasis` empties `tbMonths` so every TB is re-pulled) so P&L groups are FY-to-date; any
+  stock the TB carries as an asset (Tally's opening stock) is swapped for the P&L copy's closing stock; `parents` (Tally masters)
+  nest sub-group ledgers so nothing counts twice; April's carry-forward into P&L A/c is netted, other P&L A/c moves = "Prior-period
+  entries"; "Unexplained" ≥ ₹10,000 and monthly profit ≠ the P&L copy's Nett Profit are warned. UNVERIFIED until a live pull: what
+  the FY-start TB shows for stock (Opening Stock row vs Stock-in-Hand) and whether Detailed lists sub-groups and their ledgers.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).

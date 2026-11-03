@@ -111,7 +111,16 @@ interface ShopifyLineItem {
 interface ShopifyOrder {
   created_at?: string;
   taxes_included?: boolean;
+  cancelled_at?: string | null;
+  test?: boolean;
+  total_price?: string;
   line_items?: ShopifyLineItem[];
+}
+
+/** Orders above this are treated as mistakes (e.g. the 10-lakh-unit order of 11 Jun 2026) and left out. */
+export const ORDER_OUTLIER_INR = 200_000;
+export function shouldSkipOrder(o: ShopifyOrder): boolean {
+  return !!o.test || !!o.cancelled_at || (Number(o.total_price ?? 0) || 0) > ORDER_OUTLIER_INR;
 }
 
 /**
@@ -139,12 +148,13 @@ async function eachOrder(
       url.searchParams.set('created_at_min', startISO);
       url.searchParams.set('created_at_max', endISO);
       url.searchParams.set('limit', '250');
-      url.searchParams.set('fields', fields);
+      url.searchParams.set('fields', `${fields},cancelled_at,test,total_price`);
     }
     const res = await fetch(url, { headers: headers(token) });
     if (!res.ok) throw new Error(`Shopify orders request failed (${res.status}): ${await res.text()}`);
     const body = (await res.json()) as { orders?: ShopifyOrder[] };
     for (const o of body.orders ?? []) {
+      if (shouldSkipOrder(o)) continue;
       onOrder(o);
       count += 1;
     }

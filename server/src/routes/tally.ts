@@ -48,22 +48,29 @@ router.post('/pull', h(async (_req, res) => {
 // The stored month-end Trial Balances + the month's P&L copy (closing stock, depreciation, Nett Profit); the client
 // builds the statements (client/src/data/statements/statements.ts).
 router.get('/statements', h(async (_req, res) => {
-  const s = await readTallyState();
+  const [s, masters] = await Promise.all([readTallyState(), readMasters()]);
   const periods = [...new Set([...Object.keys(s.tbMonths ?? {}), ...Object.keys(s.months)])].sort().slice(-24);
   const months = await Promise.all(periods.map(async (period) => {
     const [tb, pnl] = await Promise.all([readTallyTb(period), readTallySnapshot(period)]);
     const rows = pnl?.ledgerRows ?? [];
-    const stock = rows.find((r) => /^closing stock$/i.test(r.name));
+    const stock = rows.filter((r) => /^closing stock$/i.test(r.name));
     return {
       period,
       asOf: tb?.asOf ?? pnl?.asOf ?? null,
-      tb: tb ? { rows: tb.rows, difference: tb.difference } : null,
-      closingStock: stock ? Math.abs(stock.amount) : null,
-      depreciation: rows.filter((r) => /depreciat/i.test(r.name)).reduce((a, r) => a + Math.abs(r.amount), 0),
+      tb: tb ? { rows: tb.rows, difference: tb.difference, basis: tb.basis ?? null } : null,
+      // Shown figures (pnl.ts): Closing Stock positive, an expense positive, a contra (write-back) negative → summed signed.
+      closingStock: stock.length ? stock.reduce((a, r) => a + r.amount, 0) : null,
+      depreciation: rows.filter((r) => /depreciat/i.test(r.name)).reduce((a, r) => a + r.amount, 0),
       nettProfit: pnl?.nettProfit ?? null,
     };
   }));
-  res.json({ months, lastOkAt: s.lastOkAt, connected: Boolean(((await creds()).host || '').trim()) });
+  // Parent of each group / ledger the TBs name (Tally masters, when stored), so the builder can tell a sub-group from
+  // its own ledgers when Tally lists both under a primary group (no double counting) and find bank / cash / OD by group.
+  const names = new Set(months.flatMap((m) => m.tb?.rows.map((r) => r.name) ?? []));
+  const parents: Record<string, string> = {};
+  for (const g of masters?.groups ?? []) if (g.parent) parents[g.name] = g.parent;
+  for (const l of masters?.ledgers ?? []) if (names.has(l.name) && l.group) parents[l.name] = l.group;
+  res.json({ months, parents, lastOkAt: s.lastOkAt, connected: Boolean(((await creds()).host || '').trim()) });
 }));
 
 // ---------------------------------------------------------------- books
