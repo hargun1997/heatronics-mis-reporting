@@ -420,8 +420,13 @@ test('4b. Opening position from a Tally balance sheet (Sep-26)', async () => {
 test('founder Base: switches on, flagged placeholders, and Sheet-parity mode returns the sheet', () => {
   const f = founderBase();
   assert.equal(f.fx!.sheetParity, false);
-  assert.equal(f.fx!.ventureDebt.confirmed, false);
-  assert.equal(f.fx!.overdraft.confirmed, false);
+  assert.equal(f.fx!.ventureDebt.confirmed, true);
+  assert.equal(f.fx!.ventureDebt.rate, 0.12);
+  assert.equal(f.fx!.ventureDebt.tenorMonths, 60);
+  assert.equal(f.fx!.overdraft.rate, 0.085);
+  assert.equal(f.fx!.seed.confirmed, true);
+  assert.equal(f.fx!.revenueExGst, true);
+  assert.equal(f.fx!.opening.accumulatedLosses, 1_970_000);
   assert.equal(f.fx!.seed.amount, 8e7);
   const par = founderBase(); setSheetParity(par, true); par.levers.horizon = 18;
   const r = runPlan(par);

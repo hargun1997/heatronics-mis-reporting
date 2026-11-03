@@ -185,7 +185,7 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   with a test in planning.test.ts. **`fx.sheetParity` (UI "Sheet-parity mode") ignores every switch, forces monthly tax and sets placeholder
   products aside → M1–M18 equal the sheet** (tests wrap `basePlan()` with `setSheetParity`; a plan saved before `fx` has `fx` undefined = unchanged,
   "Apply the founder decisions" adds it). Switches: `gstServicesAsCost` (stuck services GST expensed in CM1, `gstServicesCost`; ≈ ₹12 Cr over 54 mo),
-  `revenueExGst` (P&L on ex-GST revenue, default OFF: lowers EBITDA by the output GST), GMV + ex-GST revenue always reported; `gtNetRealisation`
+  `revenueExGst` (P&L on ex-GST revenue, default ON: lowers EBITDA by the output GST), GMV + ex-GST revenue always reported; `gtNetRealisation`
   (GT revenue = list less distributor margin, margin line zeroed, %-of-revenue costs still sized on list); `seed` (₹8 Cr equity, round-cost line e378
   = fee % × seed; the Ask shows "still to raise after the seed"); `opening` (cash, receivables, payables, inventory, GST asset, debt, accumulated
   losses; `opening.ts openingFromTally` maps the Sep-26 balance sheet from `/api/tally/statements`, READ ONLY); `ventureDebt` (replaces the event

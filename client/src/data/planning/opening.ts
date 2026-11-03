@@ -32,9 +32,10 @@ export function openingFromTally(month: StatementMonthIn, keep: Opening): { open
     warnings,
     opening: {
       ...keep, on: true, cash: Math.max(0, bs.cash), receivables: Math.max(0, debtors), payables: Math.max(0, creditors), inventory: Math.max(0, stock),
-      gstAsset: Math.max(0, gstAsset), debt: Math.max(0, debt), accumulatedLosses: Math.max(0, -retained),
+      gstAsset: Math.max(0, gstAsset), debt: Math.max(0, debt), // tax losses (audited ITR computation) are kept: Tally only knows book losses
+      accumulatedLosses: keep.accumulatedLosses || Math.max(0, -retained),
       source: 'tally', asOf: month.asOf ?? month.period,
-      note: `Tally balance sheet ${month.period}. Accumulated losses are book losses (P&L A/c + year to date): check them against the tax-loss register before relying on them for tax.`,
+      note: `Tally balance sheet ${month.period}. Accumulated tax losses stay at the audited FY26 figure (₹19.7 L) when set; otherwise book losses are used.`,
     },
   };
 }
