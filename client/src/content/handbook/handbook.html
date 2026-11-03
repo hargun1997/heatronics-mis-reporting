@@ -649,6 +649,22 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   <div class="callout warn"><b>Watch:</b> Blinkit is B2B and rejects invoices without the buyer GSTIN. Disputed POs delay settlement. Flag any invoice older than 45 days for follow-up.</div>
 </section>
 
+<section class="chapter" id="c25b">
+  <div class="chhead"><span class="chno">04c</span><div><h2>Flipkart (marketplace sales through the Tally plugin)</h2><p class="lede">Flipkart is a new channel. Unlike Tranzact sales, its sales are posted by the eCom2Tally plugin from Flipkart's own reports, using the settings below (read from tally-integration.in, 3 Nov 2026).</p></div></div>
+  <div class="spec">
+    <dl class="facts">
+      <div><dt>Source</dt><dd>Flipkart Settled Transactions report (.xlsx, Seller Hub → Reports Center → Payment Reports), imported into the plugin. Fees come separately from the monthly Commission Invoice (chapter 16, Flipkart).</dd></div>
+      <div><dt>Posted by</dt><dd>eCom2Tally plugin, platform <b>Flipkart</b>, company Heatronics Medical Devices Private Limited</dd></div>
+      <div><dt>Voucher types</dt><dd>Sales: <code>Flipkart Sales</code> · Credit note: <code>Flipkart Credit Note</code></dd></div>
+      <div><dt>Ledgers</dt><dd>Customer (ecom) <code>Flipkart Seller A/c</code> · Sales <code>GST Sales (Flipkart)</code> · Shipping <code>Shipping</code> · Tax <code>CGST</code> / <code>SGST</code> / <code>IGST</code></dd></div>
+      <div><dt>Options</dt><dd>Default unit PCS. Separate voucher per GSTIN: off. %-wise sales ledger: off. %-wise GST ledger: off</dd></div>
+      <div><dt>MIS</dt><dd>Flipkart revenue comes from the settlement upload (the Flipkart API has no fees); the Tally P&amp;L ledger <code>GST Sales (Flipkart)</code> maps to the Flipkart channel</dd></div>
+    </dl>
+  </div>
+  <div class="callout warn"><b>Two Flipkart party ledgers exist in Tally.</b> The plugin posts sales to <code>Flipkart Seller A/c</code> (Sundry Debtors), but the fee JV and the ledger map use <code>Flipkart Seller Account</code> (group Flipkart Debtors). Settlements and fees therefore land in two different ledgers and neither balance is the real Flipkart receivable. Pick one (the plugin setting can be changed to the other name) and move the balance of the second into it. The plugin also types the tax ledgers as plain <code>CGST</code> / <code>SGST</code> / <code>IGST</code>, not the <code>… Output - 5%</code> ledgers used everywhere else, and %-wise ledgers are off. <span class="pill warn">to confirm with the plugin vendor</span></div>
+  <div class="callout info"><b>Checked against Tally on 3 Nov 2026 (768 ledgers read, read only):</b> <code>GST Sales (Flipkart)</code> sits under Sales Accounts; the fee ledgers <code>Fixed Fees-Flipkart</code>, <code>Flipkart Ad Services Fee</code> and <code>Flipkart -Commision Fees</code> sit under Flipkart Channel Fees; <code>Flipkart CashBack</code> is under Indirect Incomes. Tranzact's "TCS Credit" ledgers still don't exist (only <code>TCS-CGST/IGST/SGST (Amazon)</code> under TCS Receivable) and the "Mark Paid" ledger <code>Central Bank of India - Operating A/C</code> is not in Tally (the bank ledger is <code>Cash Credit Limit - [Central Bank]</code>).</div>
+</section>
+
 <!-- 5 -->
 <section class="chapter" id="c5">
   <div class="chhead"><span class="chno">05</span><div><h2>Shopify D2C: Easebuzz, Snapmint, Shiprocket</h2><p class="lede">One sale, two possible receivables, three possible collectors. Each payout clears the order by bill reference.</p></div></div>
