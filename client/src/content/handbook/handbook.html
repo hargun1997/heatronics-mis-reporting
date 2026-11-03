@@ -313,7 +313,8 @@ body{margin:0}
   <h3>Rules and settings we use</h3>
   <div class="tw"><table>
     <tr><th>Setting (Tranzact → Accounting Integration)</th><th>Our value</th><th>Effect</th></tr>
-    <tr><td>Accounting Rules: sales by document series</td><td>B2C → B2C Offline Sales · OEM → OEM Sales · GT Dealer / Retailer / CNF → GT - … Sales · MT → MT Sales · Physio → Physio Channel Sales · Blinkit → Blinkit Sales · Internal Transfer → Internal Transfer Sales</td><td>Picks the sales ledger by series prefix</td></tr>
+    <tr><td>Accounting Rules: sales by document series</td><td>B2C → B2C Offline Sales · OEM → OEM Sales · GT Dealer / Retailer / CNF → GT - … Sales · MT → MT Sales · Physio → Physio Channel Sales · Blinkit → Blinkit Sales · Internal Transfer and Ecommerce 3P → Internal Transfer Sales</td><td>Picks the sales ledger by series prefix (full table in chapter 4)</td></tr>
+    <tr><td>Accounting Rules: voucher types</td><td>One per sales series (Sales-OEM, Sales-GT Dealer, …, Sales-Internal Transfer), Purchase-RM / -Job Work / -Expense, plus Credit Note and Debit Note</td><td>Picks the Tally voucher type. Upload replaces all voucher rules</td></tr>
     <tr><td>Accounting Rules: purchases</td><td>Is Service = false → RM Purchases; true → Job Work Charges</td><td>Every service bill goes to Job Work Charges</td></tr>
     <tr><td>Tax ledgers</td><td>IGST/CGST/SGST Input/Output - 5 / 12 / 18%</td><td>GST lines on each voucher</td></tr>
     <tr><td>Discount / additional / round-off</td><td>Trade Discount - GT (default) / - MT; Additional Charges - Sales / - Purchase; Round-off - Sales / - Purchase</td><td>—</td></tr>
@@ -512,7 +513,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <tr><td><code>Internet &amp; Telephone</code></td><td>Purchase (services)</td><td>Taxable</td><td>—</td></tr>
     <tr><td><code>Digital Advertising</code></td><td>Purchase (services)</td><td>Taxable</td><td>Sales &amp; Marketing</td></tr>
     <tr><td><code>TDS Payable - 194C</code> / <code>- 194J</code></td><td>Journal, Payment</td><td>—</td><td>194C also covers transport contractors; 194J covers professional fees and consultancy</td></tr>
-    <tr><td>Tranzact bill series codes</td><td>—</td><td>—</td><td>Purchase RM <code>PUR-RM-YYYYMM-####</code> · Job work <code>JW-YYYYMM-####</code> · Blinkit <code>BLK-YYYYMM-####</code> · Capital goods (Tally) <code>CAP-YYYYMM-####</code></td></tr>
+    <tr><td>Tranzact bill series codes</td><td>—</td><td>—</td><td>Purchase RM <code>PUR-RM-YYYYMM-####</code> · Job work <code>JW-YYYYMM-####</code> · Sales series <code>PREFIX/26-27/####</code> (e.g. <code>BLK/26-27/00007</code>, resets each financial year) · Capital goods (Tally) <code>CAP-YYYYMM-####</code></td></tr>
   </table></div>
 </section>
 
@@ -574,9 +575,26 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
     <tr><td>OEM Sales Series</td><td><code>OEM Sales</code></td><td>B2C Series</td><td><code>B2C Offline Sales</code></td></tr>
     <tr><td>GT Dealer / Retailer / CNF</td><td><code>GT - Dealer / Retailer / CNF Sales</code></td><td>MT Sales Series</td><td><code>MT Sales</code></td></tr>
     <tr><td>Physio Channel Series</td><td><code>Physio Channel Sales</code></td><td>Blinkit Sales Series</td><td><code>Blinkit Sales</code></td></tr>
-    <tr><td>Internal Transfer Series</td><td><code>Internal Transfer Sales</code></td><td>Purchases: goods / service</td><td><code>RM Purchases</code> / <code>Job Work Charges</code></td></tr>
+    <tr><td>Internal Transfer Series (ITF)</td><td><code>Internal Transfer Sales</code></td><td>Ecommerce 3P (Ecom), added 3 Nov 2026</td><td><code>Internal Transfer Sales</code></td></tr>
+    <tr><td>Purchases: goods / service</td><td><code>RM Purchases</code> / <code>Job Work Charges</code></td><td colspan="2"></td></tr>
   </table></div>
-  <div class="callout warn"><b>Known gaps:</b> no series rule for Supernode (Amazon 3P), whose debtor is ₹2.93 L. Every service bill posts to Job Work Charges. "Mark Paid" and the TCS ledgers point to ledgers that don't exist in Tally (Ch 11).</div>
+  <h3 id="c4-rules-reference">Series, ledger and voucher rules (read from Tranzact, 3 Nov 2026)</h3>
+  <div class="tw"><table>
+    <tr><th>Series (prefix)</th><th>Sales ledger</th><th>Voucher type</th><th>Counts as revenue in the MIS?</th></tr>
+    <tr><td>OEM</td><td><code>OEM Sales</code></td><td>Sales-OEM</td><td>Yes</td></tr>
+    <tr><td>GTD / GTR / GTC</td><td><code>GT - Dealer / Retailer / CNF Sales</code></td><td>Sales-GT Dealer / Retailer / CNF</td><td>Yes</td></tr>
+    <tr><td>PHY</td><td><code>Physio Channel Sales</code></td><td>Sales-Physio</td><td>Yes</td></tr>
+    <tr><td>MT</td><td><code>MT Sales</code></td><td>Sales-MT</td><td>Yes</td></tr>
+    <tr><td>B2C</td><td><code>B2C Offline Sales</code></td><td>Sales-Offline-B2C</td><td>Yes</td></tr>
+    <tr><td>BLK</td><td><code>Blinkit Sales</code></td><td>Sales-Blinkit</td><td>Shown, not counted: Blinkit revenue comes from the Blinkit payout</td></tr>
+    <tr><td>ITF</td><td><code>Internal Transfer Sales</code></td><td>Sales-Internal Transfer</td><td><b>No: stock transfer</b></td></tr>
+    <tr><td>Ecom (Ecommerce 3P)</td><td><code>Internal Transfer Sales</code></td><td>Sales-Internal Transfer</td><td><b>No: stock transfer.</b> Amazon 3P stock goes to Supernode; Amazon sales are booked from the Amazon MTR journal, so counting Ecom would double count</td></tr>
+    <tr><td>Goods purchase / service bill</td><td><code>RM Purchases</code> / <code>Job Work Charges</code></td><td>Purchase-RM (Purchase-Expense for category Consumables) / Purchase-Job Work (Job Work PO series)</td><td>n/a</td></tr>
+    <tr><td>Credit note / debit note</td><td>follows the original document</td><td>Credit Note / Debit Note (general rule, added 3 Nov 2026)</td><td>Netted against the series</td></tr>
+  </table></div>
+  <div class="callout info"><b>Stock transfers are not sales.</b> Internal stock transfers (ITF and Ecom) are left out of revenue in the MIS and shown on their own line to compare with Tally's Stock Transfers ledger. The gap between audited and MIS revenue is GST plus these transfers. An invoice to a customer called Amazon is treated as a transfer even on another series.</div>
+  <div class="callout warn"><b>Changing rules in Tranzact:</b> rules are changed only by Excel (Accounting Rules → Download / Upload) and only by Hargun. A <b>ledger-rule</b> upload <b>merges</b> into the existing rules, so repeated uploads leave duplicate rows (GT Dealer and GT CNF now have 8 copies each; harmless, same mapping, no delete button). A <b>voucher-rule</b> upload <b>replaces</b> all existing voucher rules, so always upload the full set. Series are matched by series only, never by customer. A copy of the rules is kept in the MIS repo (<code>docs/knowledge/tranzact-rules.md</code>).</div>
+  <div class="callout warn"><b>Known gaps:</b> every service bill posts to Job Work Charges. "Mark Paid" and the TCS ledgers point to ledgers that don't exist in Tally (Ch 11).</div>
   <h3 id="c4-purchases">Purchases (goods)</h3>
   <div class="spec">
     <ul>
@@ -606,7 +624,7 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   <div class="chhead"><span class="chno">04b</span><div><h2>Blinkit (quick commerce)</h2><p class="lede">Blinkit is a quick-commerce B2B buyer. Its invoices are raised in Tranzact under the Blinkit Sales Series and reach Tally through the Chrome plugin, like any other Tranzact sale.</p></div></div>
   <div class="spec">
     <dl class="facts">
-      <div><dt>Source</dt><dd>Tranzact, Blinkit Sales Series (code <code>BLK-YYYYMM-####</code> <span class="pill warn">to confirm</span>)</dd></div>
+      <div><dt>Source</dt><dd>Tranzact, Blinkit Sales Series (prefix <code>BLK</code>, invoices <code>BLK/26-27/####</code>, resets each financial year)</dd></div>
       <div><dt>Posted by</dt><dd>TranZact Chrome plugin, daily D1 (Sales voucher type)</dd></div>
       <div><dt>Vouchers</dt><dd>Sales; Credit Note / Debit Note for deductions and returns</dd></div>
       <div><dt>Ledger</dt><dd><code>Blinkit Sales</code> (Sales Accounts → Quick Commerce)</dd></div>
