@@ -116,7 +116,7 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
     dueDay: 1,
     arrears: true,
     howTo: 'c16-m2-shiprocket',
-    links: [{ label: 'Setup → Uploads', url: '/reporting/mis/connectors?view=uploads' }],
+    links: [{ label: 'Setup', url: '/reporting/mis/connectors?view=uploads' }],
   },
   {
     ...base,
@@ -289,7 +289,7 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
     description:
       'Everything else fills itself. Upload the five reports that have no API, clear what Tasks → Fix shows for last month, then Close & lock it on Live MIS (it must tie to Tally).',
     links: [
-      { label: 'Setup → Uploads', url: '/reporting/mis/connectors?view=uploads' },
+      { label: 'Setup', url: '/reporting/mis/connectors?view=uploads' },
       { label: 'Tasks → Fix', url: '/tasks?view=fix' },
       { label: 'Live MIS → Month close', url: '/reporting/mis/live#close' },
     ],

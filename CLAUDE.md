@@ -187,8 +187,11 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   (`routes/stock.ts`: Ops `amz_ledger_daily_fc_latest` balances for both month ends via `sources/opsBq.ts opsQuery` + Production costs
   incl. `conversion`) → pure `client/src/data/stock/amazonStock.ts buildValuation` (per FG via `skuToFgMapping`, sellable + unsellable +
   FC-to-FC transit, value = units × (material + conversion), nearest earlier day warned, unmapped SKUs unvalued) + Excel. Brand account
-  only (Supernode's stock is theirs). Test `server/test/amazonStock.test.ts`. Setup = Connections + Uploads (`?view=uploads`;
-  `/reporting/mis/ingest` redirects, hash kept); Round planner under Tools; Data rulebook palette-only. Sidebar: one scrolling list, current page in view.
+  only (Supernode's stock is theirs). Test `server/test/amazonStock.test.ts`. **Setup = ONE list** (founder, 3 Nov 2026: "three classifications per connector, no duplicates"): every connector card tagged
+  Connected (API) / Automated (Claude) / Manual upload (`feedOf` in `ConnectorsPage.tsx`: any `upload` slot → manual, else any `claude_task` /
+  `claudeTask` → Claude, else API), filter chips by tag, the card's drawer holds its upload steppers (manual first, automatic as fallback) +
+  credentials; "Where we are" + "Pull & save all" on top. No Uploads tab: `?view=uploads#<connector>` and `/reporting/mis/ingest` still open
+  that connector's drawer; Round planner under Tools; Data rulebook palette-only. Sidebar: one scrolling list, current page in view.
 - **Chart of accounts** (Tally health → Chart of accounts, `GET /api/tally/books/chart`, pure `connectors/tally/chart.ts`, READ ONLY): groups →
   sub-groups → ledgers tree with closings from the newest stored TB; hanging ledgers = on a parent group with sub-groups (not Sundry Debtors /
   Creditors / Duties & Taxes / banks), in a carry-over / old group (Busy Carryover, "- Busy"), no group, or in another channel's group; each with a

@@ -618,7 +618,7 @@ function BasisNote({ slice, dim, hasTally }: { slice: SlicePnl; dim: string; has
       {slice.tied ? (
         <>The <span className="italic">Recon → Tally</span> column carries what the connectors don’t see, so every line sums across the columns to the Tally <span className="font-medium text-slate-500">Total</span>.</>
       ) : hasTally ? 'Totals are for this slice.' : (
-        <>Upload the month’s Tally P&amp;L on the <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup → Uploads</a> page to light up CM3 and below.</>
+        <>Upload the month’s Tally P&amp;L on the <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</a> page to light up CM3 and below.</>
       )}
     </Note>
   );
@@ -969,7 +969,7 @@ export function Empty({ what }: { what: string }) {
   return (
     <p className="text-sm text-slate-400 py-6 text-center">
       No {what} for this period yet. Upload marketplace settlements and the Tranzact BOM on the{' '}
-      <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup → Uploads</a> page.
+      <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</a> page.
     </p>
   );
 }

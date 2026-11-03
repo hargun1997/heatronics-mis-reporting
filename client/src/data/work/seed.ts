@@ -67,7 +67,7 @@ const LINKS: Record<string, { label: string; url: string }[]> = {
   'acc-tds-return-q': [{ label: 'TRACES', url: 'https://www.tdscpc.gov.in/' }],
   'ops-q-26q-form16a': [{ label: 'TRACES', url: 'https://www.tdscpc.gov.in/' }],
   'acc-itr-filing': [{ label: 'Income-tax e-filing', url: 'https://www.incometax.gov.in/' }],
-  'acc-mis-close': [{ label: 'Live MIS', url: '/reporting/mis/live' }, { label: 'Setup → Uploads', url: '/reporting/mis/connectors?view=uploads' }],
+  'acc-mis-close': [{ label: 'Live MIS', url: '/reporting/mis/live' }, { label: 'Setup', url: '/reporting/mis/connectors?view=uploads' }],
   'inv-monthly-update': [{ label: 'Live MIS', url: '/reporting/mis/live' }],
   'hr-pf-challan': [{ label: 'EPFO employer portal', url: 'https://unifiedportal-emp.epfindia.gov.in/' }],
   'hr-esi-challan': [{ label: 'ESIC portal', url: 'https://www.esic.gov.in/' }],

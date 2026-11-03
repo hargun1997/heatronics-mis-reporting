@@ -61,7 +61,7 @@ type MonthState = 'complete' | 'partial' | 'none';
  * just Tally: all required sources in → green, some in → amber, none → red.
  * History before the boundary is locked legacy.
  */
-function CoveragePanel({ reports, connectors }: { reports: IngestReportMeta[]; connectors: ConnectorInfo[] }) {
+export function CoveragePanel({ reports, connectors }: { reports: IngestReportMeta[]; connectors: ConnectorInfo[] }) {
   const today = currentMonthKey();
   const end = today > LIVE_BOUNDARY ? today : LIVE_BOUNDARY;
   const months = monthRange(LIVE_BOUNDARY, end);
@@ -128,7 +128,7 @@ function CoveragePanel({ reports, connectors }: { reports: IngestReportMeta[]; c
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Complete (all required in)</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-amber-300" /> Partial (some in)</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-rose-300" /> Nothing uploaded</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-rose-300" /> Nothing in yet</span>
         <span className="text-slate-400">· Hover a month for what's missing. History before {monthName(LIVE_BOUNDARY)} is locked legacy.</span>
       </div>
     </div>
@@ -140,7 +140,7 @@ function CoveragePanel({ reports, connectors }: { reports: IngestReportMeta[]; c
  * save the ones whose checks pass cleanly. Anything that fails or warns stays
  * for review in its slot below (with the upload box as fallback).
  */
-function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSourceInfo>; onDone: () => void }) {
+export function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSourceInfo>; onDone: () => void }) {
   const [month, setMonth] = useState(lastMonth());
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<{ label: string; ok: boolean; detail: string }[]>([]);
@@ -172,7 +172,7 @@ function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSourceInf
     <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="text-sm font-semibold text-slate-800">Automatic sources</h3>
-        <span className="text-[11px] text-slate-500">{auto.length} report(s) fill themselves by API or the Tranzact sheet ({ready.length} connected) · {manual.length} stay manual or come from a Claude task</span>
+        <span className="text-[11px] text-slate-500">{auto.length} reports fill themselves ({ready.length} connected) · {manual.length} are manual uploads</span>
         <div className="ml-auto flex items-center gap-2">
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="px-2 py-1 rounded-lg border border-slate-200 text-xs" />
           <button onClick={() => void run()} disabled={running || ready.length === 0 || !/^\d{4}-\d{2}$/.test(month)}
@@ -186,7 +186,7 @@ function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSourceInf
           const src = sources.get(slotKey(s.connectorId, s.slotId))!;
           return (
             <span key={slotKey(s.connectorId, s.slotId)} title={src.line} className={`text-[11px] px-2 py-0.5 rounded-md border ${src.connected ? 'border-slate-200 bg-white text-slate-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-              {s.label}{src.connected ? '' : ' · not connected'}
+              {s.label}{src.connected ? '' : ' · connect'}
             </span>
           );
         })}
@@ -198,7 +198,7 @@ function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSourceInf
           ))}
         </ul>
       )}
-      <p className="text-[10px] text-slate-500">Only clean pulls are saved; anything that needs a look stays in its slot below. Manual uploads are marked <span className="font-medium text-amber-800">Manual upload</span> with the reason.</p>
+      <p className="text-[10px] text-slate-500">Only clean pulls are saved. A pull that needs a look (a warning or failed check) is listed here; open that source below to review it or upload the report by hand.</p>
     </div>
   );
 }
@@ -211,6 +211,9 @@ export function IngestWorkspace() {
   const [selected, setSelected] = useState<string>('');
   const [rechecking, setRechecking] = useState(false);
   const [sources, setSources] = useState<Map<string, SlotSourceInfo>>(new Map());
+  // Founder, 3 Nov 2026: Uploads lists only what still needs a person. Automatic slots fill from "Pull & save all";
+  // their upload box (the fallback) opens with "Show automatic reports too".
+  const [showAuto, setShowAuto] = useState(false);
 
   const reloadReports = useCallback(async () => {
     try { setReports(await listIngestReports()); } catch { /* keep prior */ }
@@ -256,8 +259,22 @@ export function IngestWorkspace() {
     return allFresh ? 'fresh' : 'stale';
   }, [latest, target]);
 
-  const sel = connectors.find((c) => c.id === selected);
-  const selSlots = sel ? slotsFor(sel.id) : [];
+  const loaded = sources.size > 0;
+  const isManual = useCallback((connectorId: string, slotId: string) => {
+    const src = sources.get(slotKey(connectorId, slotId));
+    return !loaded || !src || src.source === 'upload';
+  }, [sources, loaded]);
+  const manualCount = (id: string) => slotsFor(id).filter((s) => isManual(id, s.slotId)).length;
+  const shownConnectors = showAuto ? connectors : connectors.filter((c) => manualCount(c.id) > 0);
+  useEffect(() => {
+    if (!loaded || !shownConnectors.length) return;
+    if (!shownConnectors.some((c) => c.id === selected)) setSelected(shownConnectors[0].id);
+  }, [loaded, shownConnectors, selected]);
+
+  const sel = shownConnectors.find((c) => c.id === selected);
+  const allSlots = sel ? slotsFor(sel.id) : [];
+  const selSlots = showAuto ? allSlots : allSlots.filter((s) => isManual(sel!.id, s.slotId));
+  const hiddenAuto = allSlots.length - selSlots.length;
 
   return (
     <div className="space-y-5">
@@ -306,9 +323,21 @@ export function IngestWorkspace() {
         <p className="text-[11px] text-slate-400">Reports saved durably to Cloud Storage bucket <span className="font-mono">{store.bucket}</span>.</p>
       )}
 
+      {/* Manual uploads: only the reports no API, sheet or Claude task can fill */}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h3 className="text-sm font-semibold text-slate-800">{showAuto ? 'All reports (uploads as a fallback)' : 'Manual uploads'}</h3>
+        <span className="text-[11px] text-slate-500">
+          {showAuto ? 'Automatic reports are shown too: upload one only if its pull fails.' : 'Only the reports that have no API, sheet or Claude task. Everything else fills from "Pull & save all" above.'}
+        </span>
+        <label className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-slate-600">
+          <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={showAuto} onChange={(e) => setShowAuto(e.target.checked)} />
+          Show automatic reports too
+        </label>
+      </div>
+
       {/* Pill bar */}
       <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {connectors.map((c) => {
+        {shownConnectors.map((c) => {
           const st = statusFor(c);
           const active = c.id === selected;
           return (
@@ -329,12 +358,19 @@ export function IngestWorkspace() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <h3 className="text-base font-semibold text-slate-800">{sel.label}</h3>
-            <span className={'px-1.5 py-0.5 rounded text-[10px] ' + (sel.mode === 'live-api' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700')}>
-              {MODE_LABEL[sel.mode]}
-            </span>
+            {(() => {
+              const m = manualCount(sel.id);
+              const auto = m === 0 && loaded;
+              return <span className={'px-1.5 py-0.5 rounded text-[10px] ' + (auto || sel.mode === 'live-api' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800')}>
+                {auto ? 'Automatic' : sel.mode === 'live-api' ? MODE_LABEL[sel.mode] : 'Manual upload'}
+              </span>;
+            })()}
           </div>
+          {hiddenAuto > 0 && (
+            <p className="text-[11px] text-slate-500">{hiddenAuto} more {sel.label} report{hiddenAuto === 1 ? '' : 's'} fill automatically (hidden; tick "Show automatic reports too" to upload one by hand).</p>
+          )}
 
-          {sel.mode === 'live-api' ? (
+          {sel.mode === 'live-api' && showAuto ? (
             <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
               Pulled automatically via API on the Live MIS page — no upload needed.
               {selSlots.length > 0 && <span className="text-slate-400"> A manual fallback report is available below if ever needed.</span>}
