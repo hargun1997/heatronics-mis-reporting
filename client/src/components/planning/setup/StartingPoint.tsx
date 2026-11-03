@@ -1,6 +1,5 @@
 // Setup → 1 Starting point (docs/planning/ONE-SETUP.md §2.1): the plan basis (sheet parity or my plan), the example growth
 // plan, the opening balance sheet (Tally / typed / the sheet's) and the actuals already booked. Pure helpers: data/planning/setup/mode.ts.
-/* eslint-disable react-refresh/only-export-components -- the section contract (types.ts) exports `summary` and `SECTION` next to the component */
 import { useState } from 'react';
 import { monthLabel, type PlanFx } from '../../../data/planning/engine';
 import { founderFx } from '../../../data/planning/basePlan';
@@ -91,7 +90,7 @@ export function Section({ plan, update }: SetupSectionProps) {
           <SubHead>Opening position ({startLabel})</SubHead>
           {mode === 'plan' ? (
             <>
-              <span className="text-[12px] text-slate-500">{!o || o.source === 'sheet' ? 'Sheet values — replace with Tally' : o.source === 'tally' ? `From Tally, ${o.asOf ?? ''}` : 'Typed in'}</span>
+              <span className="text-[12px] text-slate-500">{!o || o.source === 'sheet' ? 'Sheet values — replace with Tally' : o.source === 'tally' ? `From Tally, ${String(o.asOf ?? '').slice(0, 10)}` : 'Typed in'}</span>
               <button type="button" className={btn} onClick={loadTally}>Load {priorLabel} from Tally</button>
               {msg && <span className="text-[12px] text-slate-500" role="status">{msg}</span>}
             </>

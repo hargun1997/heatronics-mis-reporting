@@ -48,7 +48,7 @@ export function growthSwitchedOff(plan: Plan): boolean {
 /** Where the opening balance sheet came from, in words. */
 export function openingSourceText(o: PlanFx['opening'] | undefined): string {
   if (!o || o.source === 'sheet') return 'sheet values';
-  if (o.source === 'tally') return `from Tally${o.asOf ? ` (${o.asOf})` : ''}`;
+  if (o.source === 'tally') return `from Tally${o.asOf ? ` (${String(o.asOf).slice(0, 10)})` : ''}`;
   return 'typed in';
 }
 

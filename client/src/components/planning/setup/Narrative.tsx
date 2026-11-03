@@ -1,7 +1,6 @@
 // Setup → Business plan text (docs/planning/ONE-SETUP.md §2.10): the words next to the numbers — key assumptions,
 // risks & mitigation, themes & milestones (renaming / re-theming keeps the tagged cost lines attached), team structure.
 // The read-only "From the numbers" checks live on the Business plan output view, not here.
-/* eslint-disable react-refresh/only-export-components -- a Setup section exports its SECTION def and pure summary (§1) */
 import type { BusinessPlan } from '../../../data/planning/engine';
 import { addAssumption, addMilestone, addRisk, renameMilestone, rethemeMilestone, summary, taggedLines, themesOf } from '../../../data/planning/setup/narrative';
 import { btn, MonthSelect, monthsOf, Note, SubHead, th, thr } from './shared';

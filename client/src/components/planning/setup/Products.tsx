@@ -16,7 +16,6 @@ import { cr, int, money, pct } from '../fmt';
 import { btn, lbl, MonthSelect, monthsOf, Note, rm, SubHead, txt } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 
-// eslint-disable-next-line react-refresh/only-export-components -- the section contract (types.ts) re-exports the pure summary
 export { summary };
 
 type ByFy = Record<string, { rev: number; units: number }>;
@@ -260,7 +259,6 @@ function ProductRow({ x, c, cats, skus, months, fys, byFy, open, onToggle, setPr
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- the section contract (types.ts) exports the definition object
 export const SECTION: SetupSectionDef = {
   id: 'products',
   title: 'Products & categories',

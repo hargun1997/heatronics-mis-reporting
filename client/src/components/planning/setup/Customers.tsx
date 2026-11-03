@@ -1,7 +1,6 @@
 // Setup → D2C customers & seasonality (docs/planning/ONE-SETUP.md §2.4): the customer model's inputs (mode, the
 // learned cohort rates and AOVs, the Shopify history refresh), D2C discounts, and the seasonality heatmap editor.
 // The "Plan by year" table, the base check and the history chart are output views (outputs/ProductsCustomers.tsx).
-/* eslint-disable react-refresh/only-export-components -- the section contract exports `summary` and `SECTION` beside the component */
 
 import { useEffect, useMemo, useState } from 'react';
 import type { D2CModel } from '../../../data/planning/engine';

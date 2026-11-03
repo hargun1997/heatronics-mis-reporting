@@ -10,7 +10,6 @@ import type { SetupSectionDef, SetupSectionProps } from './types';
 import { Check, MonthSelect, Note, SubHead, btn, ensureGrowth, monthsOf, newId, rm, txt } from './shared';
 import { nextOutletStep, nextStoreOpening, newRetailType, retailFyRows, storesFeedback, summary } from '../../../data/planning/setup/retail';
 
-// eslint-disable-next-line react-refresh/only-export-components -- the section contract (types.ts) re-exports the pure summary
 export { summary };
 
 type Growth = NonNullable<Plan['growth']>;
@@ -134,7 +133,6 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- the section contract (types.ts) exports the definition object
 export const SECTION: SetupSectionDef = {
   id: 'retail',
   title: 'Offline retail & stores',

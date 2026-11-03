@@ -9,7 +9,6 @@ import { CAPEX_GROUPS, baseCapacityOf, newBlock, newCapex, newExpense, newSite, 
 import { Check, MonthSelect, Note, SubHead, btn, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 
-// eslint-disable-next-line react-refresh/only-export-components -- the section contract (types.ts) re-exports the pure summary
 export { summary };
 
 type Growth = NonNullable<Plan['growth']>;
@@ -167,7 +166,6 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- the section contract (types.ts) exports the definition object
 export const SECTION: SetupSectionDef = {
   id: 'capacity',
   title: 'Capacity, sites & capex',

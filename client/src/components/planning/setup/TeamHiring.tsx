@@ -8,7 +8,6 @@ import { int, pct } from '../fmt';
 import { Check, MonthSelect, Note, btn, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 
-// eslint-disable-next-line react-refresh/only-export-components -- the section contract (types.ts) re-exports the pure summary
 export { summary };
 
 const txtWide = `w-full min-w-[140px] ${txt}`;
@@ -91,7 +90,6 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- the section contract (types.ts) exports the definition object
 export const SECTION: SetupSectionDef = {
   id: 'team',
   title: 'Team & hiring',

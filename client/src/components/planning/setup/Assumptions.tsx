@@ -1,7 +1,6 @@
 // Setup → 2 Assumptions (docs/planning/ONE-SETUP.md §2.2): the levers every product sits on, the accounting
 // switches, and working capital / GST / tax / interest. Absorbs LeverPanel, the Revenue tab's channel × FY growth
 // table, the seasonality-shape choice, the Founder-panel switches and the Cash tab's inputs (minus the opening values).
-/* eslint-disable react-refresh/only-export-components -- the section contract exports `summary` and `SECTION` next to the component */
 
 import { CHANNELS, CHANNEL_NAMES, LEGACY_FX, type Channel, type PlanFx } from '../../../data/planning/engine';
 import {

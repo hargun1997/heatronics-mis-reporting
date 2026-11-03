@@ -1,6 +1,5 @@
 // Setup → 9 Targets (docs/planning/ONE-SETUP.md §2.9): where the plan should land (revenue by year, or an exit ARR) and the
 // ONE action of the whole planning page — "Fit the plan to these targets" — which is also its only `bg-cta`.
-/* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react';
 import type { Plan } from '../../../data/planning/engine';
 import { runRateArr } from '../../../data/planning/growth';
@@ -94,6 +93,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           disabled={!!busy || !!blocked} title={blocked ?? undefined} onClick={fit}>
           {busy ?? 'Fit the plan to these targets'}
         </button>
+        {blocked && <span className="ml-2 text-[12px] text-amber-800">{blocked}</span>}
         <Note>
           Pushes the new lines' new buyers year by year until each year meets its target (or scales their launch volumes to the exit ARR), then
           re-sizes the unconfirmed rounds so cash stays above the buffer.

@@ -256,7 +256,7 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 - Seasonality per SKU (`plan.skuSeason`) is learned from the sheet's "Units : Last Year" rows; lever `seasonShape: 'history'`
   makes FY29+ = last FY total × growth spread by those curves. Old saved scenarios are upgraded by `upgradePlan()`.
 - **Founder decisions (Nov 2026)** = `plan.fx` (`PlanFx`, engine.ts; defaults `founderFx()` in basePlan.ts; `resolveFx()`): each is a switch
-  with a test in planning.test.ts. **`fx.sheetParity` (UI "Sheet-parity mode") ignores every switch, forces monthly tax and sets placeholder
+  with a test in planning.test.ts. **`fx.sheetParity` (UI: Setup → Starting point → Plan basis "Sheet parity") ignores every switch, forces monthly tax and sets placeholder
   products aside → M1–M18 equal the sheet** (tests wrap `basePlan()` with `setSheetParity`; a plan saved before `fx` has `fx` undefined = unchanged,
   "Apply the founder decisions" adds it). Switches: `gstServicesAsCost` (stuck services GST expensed in CM1, `gstServicesCost`; ≈ ₹12 Cr over 54 mo),
   `revenueExGst` (P&L on ex-GST revenue, default ON: lowers EBITDA by the output GST), GMV + ex-GST revenue always reported; `gtNetRealisation`
@@ -268,7 +268,22 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   `d2cDiscount` (% of D2C list revenue; Shopify history now records `total_discounts` per month, `discountPctOf`; AOV is grossed up so discounts aren't
   taken twice); `depreciationOnce` (new capex straight-line over `lifeYears` from the next month, D&A lines no longer inflate); `skuTweaks` (hGo/hPulse
   volume, price). Placeholder products (lotion, oil: `placeholder:true`). SKUs launched in the base's last year (hPulse, hBoots) keep their run-rate after the base.
-- **Growth builder** (`plan.growth`, tab "Growth builder", `data/planning/growth.ts` + hooks in `runPlan`; absent / off / sheet parity = no
+- **Page = ONE Setup, then outputs (founder, 3 Nov 2026: "should have just 1 setup thing...and then just outputs"; contract
+  `docs/planning/ONE-SETUP.md`):** `components/planning/setup/SetupPanel.tsx` = a collapsible card with 11 numbered collapsible sections
+  (Starting point · Assumptions · Products & categories · D2C customers & seasonality · Offline retail & stores · Team & hiring · Capacity,
+  sites & capex · Funding · Targets · Business plan text · Sheet lines), each `setup/<Section>.tsx` exporting `SECTION` (`setup/types.ts`:
+  `{id, title, blurb, Section, summary}`) with its pure helpers + `summary(plan)` in `data/planning/setup/<section>.ts` (tests
+  `server/test/setup-*.test.ts`; `setup-sections.test.ts` checks every summary). Shared pieces `setup/shared.tsx`. Every input lives in
+  Setup; the views below (`components/planning/outputs/*`: Overview, Business plan, Revenue, Costs, Monthly P&L = `PnlGrid`, Cash & funding,
+  Products & customers) are read-only (no input / `update` in them — grep-checked). ONE primary button on the page: Setup → Targets →
+  "Fit the plan to these targets" (`data/planning/setup/targets.ts fitToTargets` = `solvePath` or `solveForTarget`, then `fundTheGap`).
+  "Plan basis" (Starting point, `setup/mode.ts planMode/setPlanMode`: Sheet parity | My plan) replaced the Sheet-parity checkbox, the
+  "Growth builder on" switch and "Use my products in the plan". Funding → "Benchmarks (Indian D2C)" = `setup/fundingDefaults.ts
+  FUNDING_DEFAULTS` from `docs/planning/funding-defaults.json` (research `docs/planning/D2C-RAISE-BENCHMARKS.md`, 3 Nov 2026: Series A ≈ ₹40 Cr
+  at ₹40 Cr ARR, 3.5×; B ≈ ₹150 Cr at ₹150 Cr ARR, 4×; C ≈ ₹300 Cr at ₹350 Cr ARR, 4.5×; venture debt 25–30 % of a round); "Add these
+  rounds as a starting point" writes `bench-` rounds that `fundTheGap` keeps. Lint: `react-refresh/only-export-components` is off for
+  `setup/**` (eslint.config.js). Panel / section open state in localStorage `planning-setup-v1`.
+- **Growth layer** (`plan.growth`, `data/planning/growth.ts` + hooks in `runPlan`; absent / off / sheet parity = no
   change, test `server/test/growth.test.ts`): new product lines are `plan.products` with `category` (device | topical | nutra), `inHouse`,
   `launchCost` / `launchCapex` (launch month), `marketingPct` and `growthLine`; `hires` (dept → Factory Payroll else Corporate Salaries,
   + benefits %, one-off hiring % of a year's CTC, yearly increment); `capacity` blocks (capex in month, + units and running cost after the
@@ -281,22 +296,22 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   month with a ramp × units per outlet per family (split over that family's live growth lines), invoiced at list × (1 − trade margin) as
   `retailRevenue` (outside the 5 channels), schemes → Revenue Deductions, listing fee per new outlet → Channel Commission, servicing per
   outlet → Fulfilment & Delivery, material = list × cogsPct. `path` (FY → P&L revenue) + `solvePath` sets `push` per FY (× new buyers of
-  growth lines). `build500Cr` = the growth plan ₹30 → 100 → 250 → 500 Cr FY28–FY31 (all placeholders). Excel export mirrors the sheet:
-  Overview, Business Plan, 1. Revenue Planning, 2. Expense Calendar, 3. P&L, 4. Cash Flow & Fundraise (months + FY columns), Growth builder.
+  growth lines). `build500Cr` = the example growth plan ₹30 → 100 → 250 → 500 Cr FY28–FY31 (all placeholders; Setup → Starting point → "Load
+  the example growth plan"). Excel export mirrors the sheet: Overview, Business Plan, 1. Revenue Planning, 2. Expense Calendar, 3. P&L,
+  4. Cash Flow & Fundraise (months + FY columns), Growth builder.
   Per product `chStart` / `chGrowth` (channel starts its month, its share grows by its own rate a year; units = launch volume × live
   shares) and `retailStart`. Hires with `scale {by: revenue|units|outlets, every, type?}` = max(count, ceil(metric / every)) from last
   month's ARR / units or this month's outlets, never shrinking, hiring cost on each increase. `overheads` (site: sq ft × rent + running,
   deposit → Intangibles & Deposits, fit-out → Plant & Machinery; fixed ₹/mo escalating yearly; % of list revenue). `funding` rules feed
   `fundTheGap`; `roundStats` = cash before, burn / mo (next 12) and runway per round.
-- **Products tab** (`components/planning/ProductsTab.tsx`, founder 3 Nov 2026: "control on the projections"): one cascade = broad
-  assumptions (levers) → categories (`growth.categories: CategoryDef[]`, defaults `defaultCategories()` device / topical / nutra; add /
-  rename / remove when empty) → products in each category ("+ Add product") → per-product volumes and expenses. A product leaves a field
-  unset to inherit its category (`resolveProduct`: material %, marketing %, repeat, kept, in-house, channel split). Volume = launch + growth,
-  or `unitsByFy` (typed units per FY, spread over the months on sale × seasonality; `push` skips typed years). `expenses: ProductExpense[]`
-  (oneoff / capex in the start month, monthly from start with + % a year until `end`, pct = share of the product's revenue) → group
-  `EXPENSE_GROUP[kind]` unless set (new opex group "Product Running Costs"). Current sheet SKUs = "Current range" (skuTweaks). Sheet-parity
-  mode hides all of it: the tab shows a banner + one click "Use my products in the plan" (founder decisions on, parity off, growth on).
-  Excel: categories, typed units and product expenses on the Growth builder sheet. Tests in `server/test/growth.test.ts`.
+- **Products & categories** (Setup section; `setup/Products.tsx`, pure `data/planning/setup/products.ts`): categories
+  (`growth.categories: CategoryDef[]`, defaults `defaultCategories()` device / topical / nutra; add / rename / remove when empty) → products
+  in each ("+ Add product") → per-product volumes and expenses. A product leaves a field unset to inherit its category (`resolveProduct`:
+  material %, marketing %, repeat, kept, in-house, channel split). Volume = launch + growth, or `unitsByFy` (typed units per FY, spread over
+  the months on sale × seasonality; `push` skips typed years). `expenses: ProductExpense[]` (oneoff / capex in the start month, monthly from
+  start with + % a year until `end`, pct = share of the product's revenue) → group `EXPENSE_GROUP[kind]` unless set (opex group "Product
+  Running Costs"). Current sheet SKUs = "Current range" (skuTweaks). Excel: categories, typed units and product expenses on the Growth
+  builder sheet. Tests in `server/test/growth.test.ts`.
 - Business Plan + Overview (`plan.business`, `data/planning/summary.ts`): headline 12M/18M/full, Exit ARR (TTM × min(L3M ÷ same
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,
