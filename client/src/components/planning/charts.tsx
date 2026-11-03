@@ -31,6 +31,11 @@ export function RevenueBars({ r, compare }: { r: PlanResult; compare?: PlanResul
             segs.push(<rect key={ch} x={x} width={w} y={yOf(acc + v)} height={yOf(acc) - yOf(acc + v)} fill={CH_COLOR[ch]}><title>{CHANNEL_NAMES[ch]} ₹{v.toFixed(2)} Cr</title></rect>);
             acc += v;
           }
+          if (y.storeRevenue > 0) {
+            const v = y.storeRevenue / 1e7;
+            segs.push(<rect key="stores" x={x} width={w} y={yOf(acc + v)} height={yOf(acc) - yOf(acc + v)} className="text-slate-500" fill="currentColor"><title>Own stores ₹{v.toFixed(2)} Cr</title></rect>);
+            acc += v;
+          }
           const cmp = compare?.years.find((c) => c.fy === y.fy);
           return (
             <g key={y.fy}>
@@ -47,6 +52,7 @@ export function RevenueBars({ r, compare }: { r: PlanResult; compare?: PlanResul
           <span key={ch} className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm" style={{ background: CH_COLOR[ch] }} />{CHANNEL_NAMES[ch]}</span>
         ))}
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-300" />Apr–Sep '26 actuals</span>
+        {years.some((y) => y.storeRevenue > 0) && <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-500" />Own stores</span>}
         {compare && <span>– – compared scenario</span>}
         <span>₹ Cr · *part year</span>
       </figcaption>

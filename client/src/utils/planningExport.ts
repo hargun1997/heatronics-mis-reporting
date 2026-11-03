@@ -3,6 +3,7 @@
 import XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 import { CHANNELS, CHANNEL_NAMES, type MonthResult, type Plan, type PlanResult } from '../data/planning/engine';
+import { dilution, runRateArr } from '../data/planning/growth';
 import { deployment, headline, theAsk } from '../data/planning/summary';
 
 const LAC = 1e5;
@@ -46,6 +47,7 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
   };
   add('Revenue (incl. Apr–Sep ’26 actuals entered)', ys.map((y) => y.revenueWithActuals), false, true);
   for (const ch of CHANNELS) add(`  ${CHANNEL_NAMES[ch]}`, ys.map((y) => y.revenueByChannel[ch]));
+  if (ys.some((y) => y.storeRevenue > 0)) add('  Own stores', ys.map((y) => y.storeRevenue));
   add('Growth YoY', ys.map((y, i) => (i && (ys[i - 1].months === 12 || ys[i - 1].revenueWithActuals > ys[i - 1].revenue) ? y.revenueWithActuals / ys[i - 1].revenueWithActuals - 1 : NaN)), true);
   if (plan.d2c?.mode === 'cohorts') {
     sum.push(['D2C new buyers', ...ys.map((y) => Math.round(y.d2cNewCustomers))]);
@@ -67,6 +69,26 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
   sum.push(['Equity needed after debt (₹ Cr)', r2(r.equityRequired / CRORE)]);
   sum.push(['Lowest closing cash (₹ Cr)', r2(r.minClosingCash / CRORE)]);
   XLSX.utils.book_append_sheet(wb, sheet(sum, { pctRows, boldRows: bold, widths: [44, 14, 14, 14, 14, 14] }), '5-year summary');
+
+  // ---- Growth builder (when the scenario has one) ----
+  const G = plan.growth;
+  if (G) {
+    const g: (string | number | null)[][] = [[`Growth builder (${G.on ? 'on' : 'off'}) — target exit ARR ₹${r2(G.targetArr / CRORE)} Cr; exit run-rate ARR ₹${r2(runRateArr(r) / CRORE)} Cr`], []];
+    const ml = (m: number | null) => (m == null ? 'end' : r.months[m - 1]?.label ?? `M${m}`);
+    g.push(['New product lines', 'Family', 'Launch', 'Price ₹', 'Units/mo at launch', 'm/m yr 1', 'y/y after', 'Material %', 'Extra mktg %', 'Launch cost ₹', 'Tooling ₹', 'In-house', 'Placeholder']);
+    for (const x of plan.products.filter((p) => p.category || p.growthLine)) g.push([x.name + (x.on ? '' : ' (off)'), x.category ?? '', ml(x.launchMonth), x.asp, Math.round(x.launchUnits), x.rampPct, x.steadyPct, x.cogsPct, x.marketingPct ?? 0, x.launchCost ?? 0, x.launchCapex ?? 0, (x.inHouse ?? x.category === 'device') ? 'yes' : 'no', x.placeholder ? 'yes' : '']);
+    g.push([], ['Hiring', 'Team', 'People', 'From', 'To', 'CTC / month ₹']);
+    for (const h of G.hires) g.push([h.role + (h.on === false ? ' (off)' : ''), h.dept, h.count, ml(h.month), ml(h.end), h.monthlyCtc]);
+    g.push([], ['Capacity (today ' + G.baseCapacity + ' units/mo)', 'Capex month', 'Lead months', '+ units/mo', 'Capex ₹', 'Running ₹/mo']);
+    for (const b of G.capacity) g.push([b.name + (b.on ? '' : ' (off)'), ml(b.month), b.leadMonths, b.unitsPerMonth, b.capex, b.monthlyOpex]);
+    g.push([], ['Other capex', 'Group', 'Month', 'Amount ₹']);
+    for (const x of G.capex) g.push([x.name + (x.on ? '' : ' (off)'), x.group, ml(x.month), x.amount]);
+    g.push([], ['Rounds', 'Month', 'Amount ₹', 'Pre-money ₹', 'Sold', "Today's holders keep", 'Agreed']);
+    for (const d of dilution(plan)) g.push([d.name, ml(d.month), d.amount, d.preMoney, r2(d.sold * 100) + '%', r2(d.existingAfter * 100) + '%', d.name === 'Seed' ? 'yes' : (G.rounds.find((x) => x.name === d.name)?.confirmed ? 'yes' : 'no')]);
+    g.push([], ['Stores (' + (G.stores.on ? 'on' : 'off') + ')', 'Mature revenue ₹/mo', G.stores.matureRevenue, 'Ramp months', G.stores.rampMonths, 'Fit-out ₹', G.stores.capexPerStore, 'Rent ₹/mo', G.stores.rentPerStore]);
+    for (const o of G.stores.openings) g.push(['  opening', ml(o.month), o.count]);
+    XLSX.utils.book_append_sheet(wb, sheet(g, { widths: [36, 14, 12, 12, 14, 12, 12, 12, 12, 14, 12, 10, 12] }), 'Growth builder');
+  }
 
   // ---- business plan (the sheet's Business Plan tab) ----
   if (plan.business) {

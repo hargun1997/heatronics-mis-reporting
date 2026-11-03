@@ -234,6 +234,15 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   `d2cDiscount` (% of D2C list revenue; Shopify history now records `total_discounts` per month, `discountPctOf`; AOV is grossed up so discounts aren't
   taken twice); `depreciationOnce` (new capex straight-line over `lifeYears` from the next month, D&A lines no longer inflate); `skuTweaks` (hGo/hPulse
   volume, price). Placeholder products (lotion, oil: `placeholder:true`). SKUs launched in the base's last year (hPulse, hBoots) keep their run-rate after the base.
+- **Growth builder** (`plan.growth`, tab "Growth builder", `data/planning/growth.ts` + hooks in `runPlan`; absent / off / sheet parity = no
+  change, test `server/test/growth.test.ts`): new product lines are `plan.products` with `category` (device | topical | nutra), `inHouse`,
+  `launchCost` / `launchCapex` (launch month), `marketingPct` and `growthLine`; `hires` (dept → Factory Payroll else Corporate Salaries,
+  + benefits %, one-off hiring % of a year's CTC, yearly increment); `capacity` blocks (capex in month, + units and running cost after the
+  lead time; utilisation = in-house units ÷ capacity, core SKUs count as in-house); `capex` items; `rounds` (equity in month, fee to
+  Fundraise Costs, dilution table with the seed's `seedPreMoney`); `stores` (revenue ramp per opening, Retail Stores opex, Store Fit-out
+  capex; store revenue is outside the 5 channels: `storeRevenue`). Exit ARR here = last 3 months' P&L revenue × 4 (`runRateArr`).
+  `solveForTarget` scales growth lines' launch volumes to `targetArr`; `fundTheGap` sizes unconfirmed `auto-` rounds (≥ ₹15 Cr, next 12
+  months above ₹5 Cr, from seed month + 3, pre-money 4× run-rate ARR, placeholder). `build500Cr` = the ₹500 Cr scenario (all placeholders).
 - Business Plan + Overview (`plan.business`, `data/planning/summary.ts`): headline 12M/18M/full, Exit ARR (TTM × min(L3M ÷ same
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,
