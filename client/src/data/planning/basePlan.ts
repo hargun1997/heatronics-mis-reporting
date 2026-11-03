@@ -63,7 +63,7 @@ export function founderFx(cash: Plan['cash']): PlanFx {
     gstServicesAsCost: true,
     revenueExGst: true,
     gtNetRealisation: true,
-    seed: { on: true, amount: 8e7, month: 1, feePct: 0.05, confirmed: true, note: '₹8 Cr seed confirmed by founder (3 Nov 2026); closing month and the 5% round cost are the sheet’s.' },
+    seed: { on: true, amount: 8e7, month: 4, feePct: 0.05, confirmed: true, note: '₹8 Cr seed confirmed by founder (3 Nov 2026), closing Jan-27 (M4); the 5% round cost is the sheet’s.' },
     opening: {
       on: true, cash: cash.openingCash, receivables: 0, payables: 0, inventory: cash.openingInventory, gstAsset: 0, debt: cash.openingDebt,
       accumulatedLosses: 1_970_000, source: 'sheet', asOf: null, note: 'Sheet values; accumulated tax losses ₹19.7 L from the audited FY26 ITR computation (business loss ₹10.11 L + unabsorbed depreciation ₹9.59 L). Load the Sep-26 Tally balance sheet for the rest.',
