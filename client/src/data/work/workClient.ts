@@ -11,6 +11,8 @@ export interface TeamMember {
 
 export interface WorkTask extends ScheduleSpec {
   id: string;
+  /** Live panel shown on the task ('amazon-stock' = Amazon stock valuation for the month). */
+  live?: 'amazon-stock' | 'fix';
   title: string;
   area: string;
   description?: string;

@@ -24,6 +24,8 @@ export interface ProductionCost {
   name: string;
   bom: string | null;
   material: number | null;
+  /** Conversion (overheads) per unit, when Production serves it. */
+  conversion?: number | null;
 }
 
 export interface ProductionCosts {
@@ -71,6 +73,7 @@ export async function productionCosts(creds: Credentials, month: string): Promis
       name: String(p?.name ?? ''),
       bom: p?.bom == null ? null : String(p.bom),
       material: typeof p?.material === 'number' ? p.material : null,
+      conversion: typeof p?.conversion === 'number' ? p.conversion : null,
     })),
   };
 }

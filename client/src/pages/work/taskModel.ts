@@ -191,7 +191,7 @@ export const inHead = (t: WorkTask, h: Head) => {
 /** Active tasks with no (existing) owner. */
 export const unownedTasks = (state: WorkState) => state.tasks.filter((t) => t.active && !t.ownerIds.some((id) => state.members.some((m) => m.id === id)));
 
-export type View = 'agenda' | 'month' | 'all';
+export type View = 'agenda' | 'fix' | 'month' | 'all';
 export interface Filters {
   head: string;
   area: string;

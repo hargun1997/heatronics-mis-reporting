@@ -58,10 +58,11 @@ test('"More" pages (tasks, old pages …) stay out of the sidebar but are in the
 });
 
 test('sidebar stays small: ≤ 5 sections, ≤ 13 pages in all; every tool sits under Tools', () => {
-  // Issues sits under Reporting with a live count; Month-end uploads under Admin (founder, 3 Nov 2026)
+  // Tasks (to do + fix, live count) heads Accounts; Issues folded into it (founder, 3 Nov 2026)
   const s = sidebarSections();
   assert.ok(s.length <= 5);
   assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 13);
-  assert.deepEqual(s.find((x) => x.id === 'tools')?.pages.map((p) => p.id), ['send', 'booking', 'rounds', 'floors', 'tranzact']);
-  assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['live', 'issues', 'insights']);
+  assert.deepEqual(s.find((x) => x.id === 'tools')?.pages.map((p) => p.id), ['send', 'booking', 'rounds', 'floors']);
+  assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['live', 'insights']);
+  assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'tally', 'handbook'], 'Tasks = the one place for to-do + fix');
 });

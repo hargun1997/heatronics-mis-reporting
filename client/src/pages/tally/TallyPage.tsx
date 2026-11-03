@@ -3,11 +3,10 @@
 // Server: /api/tally/books/* (server/src/routes/tally.ts).
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, AlertTriangle, ChevronDown, Info, Loader2, RefreshCw, Send } from 'lucide-react';
+import { Loader2, RefreshCw, Send } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Markdown } from '../../components/ui/Markdown';
-import { cx } from '../../components/shell/cx';
 import { LedgerRulesCard } from './LedgerRulesCard';
 import { ChartTab } from './ChartTab';
 
@@ -27,11 +26,6 @@ const ago = (iso: string | null) => {
   const m = Math.round((Date.now() - Date.parse(iso)) / 60_000);
   return m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
 };
-const SEV: Record<Severity, { label: string; cls: string; Icon: typeof Info }> = {
-  error: { label: 'Fix', cls: 'border-red-200 bg-red-50 text-red-800', Icon: AlertCircle },
-  warn: { label: 'Check', cls: 'border-amber-200 bg-amber-50 text-amber-900', Icon: AlertTriangle },
-  info: { label: 'Tidy', cls: 'border-slate-200 bg-slate-100 text-slate-700', Icon: Info },
-};
 const btn = 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50';
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -41,15 +35,15 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return j as T;
 }
 
-type Tab = 'issues' | 'chart' | 'ask' | 'ledgers' | 'vouchers' | 'rules';
-const TABS: Tab[] = ['issues', 'chart', 'ask', 'ledgers', 'vouchers', 'rules'];
+type Tab = 'chart' | 'ask' | 'ledgers' | 'vouchers' | 'rules';
+const TABS: Tab[] = ['chart', 'ask', 'ledgers', 'vouchers', 'rules'];
 
 export function TallyPage() {
   // ?tab= (links from Issues) opens a view
-  const [tab, setTab] = useState<Tab>(() => { try { const t = new URLSearchParams(window.location.search).get('tab') as Tab; return TABS.includes(t) ? t : 'issues'; } catch { return 'issues'; } });
+  const [tab, setTab] = useState<Tab>(() => { try { const t = new URLSearchParams(window.location.search).get('tab') as Tab; return TABS.includes(t) ? t : 'chart'; } catch { return 'chart'; } });
   const [status, setStatus] = useState<BooksStatus | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
-  const [months, setMonths] = useState(3);
+  const months = 3; // Tally health checks over the newest 3 stored months (the list itself is in Tasks → Fix)
   const [pulling, setPulling] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -87,28 +81,17 @@ export function TallyPage() {
           {status && !status.connected && <span className="text-amber-800">Not connected — add the Tally host on <Link className="underline" to="/reporting/mis/connectors">Setup</Link>.</span>}
           {status?.lastError && <span className="text-amber-800" title={status.lastError}>Last pull stopped: {status.lastError.slice(0, 90)}</span>}
         </div>
+        {health && health.issues.length > 0 && (
+          <p className="text-sm text-slate-700">
+            {health.issues.length} check{health.issues.length === 1 ? '' : 's'} found problems in the books ({counts.error} to fix, {counts.warn} to check) — they are in <Link className="font-medium text-accent-700 underline" to="/tasks?view=fix">Tasks → Fix</Link> with how to fix each.
+          </p>
+        )}
         {msg && <p role="status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{msg}</p>}
         {status?.warnings?.map((w) => <p key={w} className="text-sm text-amber-800">{w}</p>)}
 
         <SegmentedControl aria-label="View" value={tab} onChange={setTab} options={[
-          { id: 'issues', label: `Issues${health ? ` (${health.issues.length})` : ''}` }, { id: 'chart', label: 'Chart of accounts' }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers' }, { id: 'vouchers', label: 'Vouchers' }, { id: 'rules', label: 'Ledger rules' }]} />
+          { id: 'chart', label: 'Chart of accounts' }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers' }, { id: 'vouchers', label: 'Vouchers' }, { id: 'rules', label: 'Ledger rules' }]} />
 
-        {tab === 'issues' && (
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
-              <span>Checked {health?.vouchers.toLocaleString('en-IN') ?? 0} vouchers in {health?.periods.join(', ') || 'no stored months'}:</span>
-              {(['error', 'warn', 'info'] as Severity[]).map((s) => <span key={s} className={cx('rounded-full border px-2 py-0.5 text-xs font-medium', SEV[s].cls)}>{SEV[s].label} {counts[s]}</span>)}
-              <label className="ml-auto flex items-center gap-2">Months
-                <select value={months} onChange={(e) => setMonths(Number(e.target.value))} className="h-9 rounded-lg border border-slate-200 px-2">
-                  {[1, 3, 6, 12].map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </label>
-            </div>
-            {health && !health.periods.length && <Empty text="No Day Book stored yet. Open TallyPrime on the cloud machine with the company loaded, then Pull Tally now." />}
-            {health?.periods.length && !health.issues.length ? <Empty text="No issues found in these months." /> : null}
-            {health?.issues.map((i) => <IssueCard key={i.id} i={i} />)}
-          </div>
-        )}
         {tab === 'chart' && <ChartTab />}
         {tab === 'ask' && <Ask />}
         {tab === 'ledgers' && <Ledgers />}
@@ -120,46 +103,6 @@ export function TallyPage() {
 }
 
 const Empty = ({ text }: { text: string }) => <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">{text}</p>;
-
-function IssueCard({ i }: { i: Issue }) {
-  const [open, setOpen] = useState(false);
-  const S = SEV[i.severity];
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-card">
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
-        className="flex w-full items-start gap-3 rounded-xl px-4 py-3 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-        <span className={cx('mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold', S.cls)}><S.Icon className="h-3.5 w-3.5" aria-hidden />{S.label}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-semibold text-slate-900">{i.title} <span className="font-normal text-slate-500">· {i.count}</span></span>
-          <span className="block text-sm text-slate-600">{i.why}</span>
-        </span>
-        <ChevronDown className={cx('mt-1 h-4 w-4 shrink-0 text-slate-400 transition-transform', open && 'rotate-180')} aria-hidden />
-      </button>
-      {open && (
-        <div className="space-y-3 border-t border-slate-200 px-4 py-3">
-          <p className="rounded-lg bg-accent-50 px-3 py-2 text-sm text-slate-800"><b>How to fix in Tally:</b> {i.fix}</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead><tr className="text-left text-xs text-slate-500"><th className="py-1 pr-3 font-semibold">Date</th><th className="pr-3 font-semibold">Voucher</th><th className="pr-3 font-semibold">Party / ledger</th><th className="pr-3 text-right font-semibold">Amount</th><th className="font-semibold">What</th></tr></thead>
-              <tbody>
-                {i.samples.map((s, k) => (
-                  <tr key={k} className="border-t border-slate-100">
-                    <td className="py-1.5 pr-3 font-mono text-xs text-slate-600">{s.date || ''}</td>
-                    <td className="pr-3 text-slate-700">{[s.type, s.number].filter(Boolean).join(' ')}</td>
-                    <td className="pr-3 text-slate-900">{s.party || s.ledger || ''}</td>
-                    <td className="pr-3 text-right tabular-nums">{s.amount != null ? inr(s.amount) : ''}</td>
-                    <td className="text-slate-600">{s.detail}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {i.count > i.samples.length && <p className="mt-1 text-xs text-slate-500">First {i.samples.length} of {i.count}.</p>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function Ask() {
   const [q, setQ] = useState('');

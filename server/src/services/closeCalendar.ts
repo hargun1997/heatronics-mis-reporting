@@ -10,7 +10,8 @@
 //   5th       attendance + salary booking
 //   6th       TDS report to the CA
 //   8th–9th   GSTR-1 data (discrepancies, e-invoice, e-way bill)
-//   10th      reports into the MIS
+//   2nd       closing stock into Tally (Amazon FBA valuation shown live)
+//   10th      no-API reports + lock the month in the MIS
 //   14th      GSTR-2B reconciliation
 //   17th      GSTR-3B data and preparation
 //
@@ -21,7 +22,9 @@
 
 import type { WorkTask } from './workStore.js';
 
-export const CALENDAR_VERSION = 1;
+// v2 (3 Nov 2026): the MIS is live, so the 10th task is only the no-API uploads + the lock; new task "Closing stock into Tally"
+// with the Amazon stock valuation shown live on it; the inbox of things to fix sits at the top of Tasks.
+export const CALENDAR_VERSION = 2;
 
 const H = (id: string) => `/handbook#${id}`;
 const BANKS = [
@@ -256,17 +259,47 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
   },
   {
     ...base,
+    id: 'cal-m02-stock',
+    title: '2nd · Closing stock into Tally (Amazon FBA + warehouse)',
+    area: 'Month-end close',
+    roleLabel: 'Accountant',
+    cadence: 'monthly',
+    dueDay: 2,
+    arrears: true,
+    howTo: 'c10',
+    live: 'amazon-stock',
+    description:
+      'Enter last month’s closing stock in Tally (it is next month’s opening). Amazon FBA stock is shown below, live: units from Amazon’s own month-end balance per SKU, valued at Production’s cost (material ex-GST + conversion). Warehouse stock comes from Tranzact’s closing stock report. Supernode’s stock is theirs (sold to them at dispatch), so it is not ours.',
+    checklist: [
+      { id: 'amazon', label: 'Amazon FBA closing stock entered', hint: 'Value from the panel below; download it as the working' },
+      { id: 'warehouse', label: 'Warehouse closing stock entered', hint: 'Tranzact → Inventory → closing stock at month end' },
+      { id: 'tranzact', label: 'Tranzact Amazon warehouse reconciled', hint: '“Tranzact file” below → Tranzact → Physical Stock Reconciliation upload (replaces the Amazon → Tranzact tool)' },
+    ],
+  },
+  {
+    ...base,
     id: 'cal-m10-mis',
-    title: '10th · Update all reports into the MIS portal',
+    title: '10th · Upload the no-API reports and lock last month in the MIS',
     area: 'Month-end close',
     roleLabel: 'Accountant',
     cadence: 'monthly',
     dueDay: 10,
     arrears: true,
-    howTo: 'c28-upload',
+    howTo: 'c28-overview',
+    description:
+      'Everything else fills itself. Upload the five reports that have no API, clear what Tasks → Fix shows for last month, then Close & lock it on Live MIS (it must tie to Tally).',
     links: [
       { label: 'Setup → Uploads', url: '/reporting/mis/connectors?view=uploads' },
-      { label: 'Live MIS', url: '/reporting/mis/live' },
+      { label: 'Tasks → Fix', url: '/tasks?view=fix' },
+      { label: 'Live MIS → Month close', url: '/reporting/mis/live#close' },
+    ],
+    checklist: [
+      { id: 'flipkart', label: 'Flipkart settled transactions', link: '/reporting/mis/connectors?view=uploads#flipkart' },
+      { id: 'flipkartads', label: 'Flipkart Ads FSN report', link: '/reporting/mis/connectors?view=uploads#flipkartads' },
+      { id: 'blinkit', label: 'Blinkit payout', link: '/reporting/mis/connectors?view=uploads#blinkit' },
+      { id: 'snapmint', label: 'Snapmint settlement', link: '/reporting/mis/connectors?view=uploads#snapmint' },
+      { id: 'shopflo', label: 'Shopflo invoice', link: '/reporting/mis/connectors?view=uploads#shopflo' },
+      { id: 'lock', label: 'Month ties to Tally and is locked', link: '/reporting/mis/live#close' },
     ],
   },
   {
