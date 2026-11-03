@@ -17,7 +17,7 @@ import { Fold, Note, useLiveView } from './shared';
 
 const LAC = 1e5;
 const fmtLac = (v: number | null) => (v === null || !isFinite(v) ? '–' : (v / LAC).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-const fmtCount = (v: number | null) => (v === null || !isFinite(v) ? '–' : Math.round(v).toLocaleString('en-IN'));
+const fmtCount = (v: number | null, dp = 0) => (v === null || !isFinite(v) ? '–' : v.toLocaleString('en-IN', { minimumFractionDigits: dp, maximumFractionDigits: dp }));
 const fmtPct = (v: number | null) => (v === null || !isFinite(v) ? '–' : `${(v * 100).toFixed(1)}%`);
 
 export function LiveMisSheetTab({ deck }: { deck: LiveDeckData }) {
@@ -101,7 +101,7 @@ export function LiveMisSheetTab({ deck }: { deck: LiveDeckData }) {
                     const raw = row.get(c.point);
                     return (
                       <td key={c.label} className={`py-1 px-2 text-right tabular-nums ${ci === columns.length - 1 ? 'font-medium bg-slate-50/60' : ''}`}>
-                        {row.pct ? fmtPct(raw) : row.count ? fmtCount(raw) : fmtLac(raw)}
+                        {row.pct ? fmtPct(raw) : row.count ? fmtCount(raw, row.decimals) : fmtLac(raw)}
                       </td>
                     );
                   })}
@@ -112,7 +112,9 @@ export function LiveMisSheetTab({ deck }: { deck: LiveDeckData }) {
         </div>
       </Fold>
       <Note>
-        Blank rows aren’t tracked (Channel Margin, SS Claim, Payroll / Professional Fee split, cash &amp; runway) or aren’t real yet
+        Cash rows (company only) come from Tally’s month-end Balance Sheets: burn = opening + equity raised − closing, runway =
+        closing cash ÷ (3 × the last 3 months’ average burn), in quarters; blank until both month ends are stored (FY total: every
+        month). Other blank rows aren’t tracked (Channel Margin, SS Claim, Payroll / Professional Fee split) or aren’t real yet
         for that month (below its completeness level). Gross revenue, returns and GST come from the months whose source carries
         them (the published MIS); live-built months leave them blank. Qty = actual connector orders where every month reports
         them, else estimated (net revenue ÷ AOV). Channel columns use the MIS-anchored split; Brand Investment = Platform &amp;

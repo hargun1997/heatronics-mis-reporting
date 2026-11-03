@@ -11,6 +11,12 @@
 // one of the groups is a group, the rest are ledgers. Totals use the groups only, so nothing counts twice. A
 // <BSNAME>-wrapped row is a ledger too. The raw exploded answer is kept at tally/tb-raw-last; Dr ≠ Cr or no rows = warning.
 // The TB is a record + a check; the close's numbers come from the P&L slot (liveDeck ignores TB rows).
+//
+// Period basis (2 Nov 2026 review): the TB is asked from the START OF THE FINANCIAL YEAR (1 April) to the month end, not
+// from the month start. Closing balances of Balance Sheet groups are "as on" the end date either way, but the P&L groups
+// and the Opening Stock line Tally shows depend on the from-date; from 1 April they are unambiguously FY-to-date (P&L
+// ledgers) and the FY's opening stock, which is what the Balance Sheet's "profit for the year to date" needs. Snapshots
+// carry `basis: TB_BASIS`; older month-start copies are re-pulled by the poll (snapshots.ts).
 // ----------------------------------------------------------------------------
 
 import { decode, escapeXml, tallyDates } from '../sources/tally.js';
@@ -24,10 +30,21 @@ export interface TallyTbMonth {
   /** Dr − Cr of the groups; 0 when the TB balances. */
   difference: number;
   warnings: string[];
+  /** TB_BASIS when asked from the FY start; absent on copies taken from the month start (before 2 Nov 2026). */
+  basis?: string;
+}
+
+export const TB_BASIS = 'fy-to-date';
+
+/** 1 April of the financial year `periodKey` (YYYY-MM) falls in, as Tally's YYYYMMDD. */
+export function fyStartDate(periodKey: string): string {
+  const [y, m] = periodKey.split('-').map(Number);
+  return `${m >= 4 ? y : y - 1}0401`;
 }
 
 export function tbEnvelope(periodKey: string, company?: string, explode = true): string {
-  const { from, to } = tallyDates(periodKey);
+  const { to } = tallyDates(periodKey);
+  const from = fyStartDate(periodKey);
   const c = (company || '').trim();
   return `<ENVELOPE>
   <HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER>
@@ -76,5 +93,5 @@ export function parseTbXml(xml: string, periodKey: string, groupNames?: Set<stri
   const warnings: string[] = [];
   if (!rows.length) warnings.push('Tally answered, but not with Trial Balance rows this reader knows. The raw answer was kept — upload the screenshot for this month.');
   else if (Math.abs(difference) >= 1) warnings.push(`Trial Balance doesn't tie: Dr ₹${totalDebit.toLocaleString('en-IN')} vs Cr ₹${totalCredit.toLocaleString('en-IN')} (difference ₹${difference.toLocaleString('en-IN')}).`);
-  return { period: periodKey, rows, totalDebit, totalCredit, difference, warnings };
+  return { period: periodKey, rows, totalDebit, totalCredit, difference, warnings, basis: TB_BASIS };
 }
