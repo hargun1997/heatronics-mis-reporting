@@ -5,7 +5,7 @@
 import XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
 import { CHANNELS, CHANNEL_NAMES, type MonthResult, type Plan, type PlanResult } from '../data/planning/engine';
-import { dilution, runRateArr } from '../data/planning/growth';
+import { dilution, roundStats, runRateArr } from '../data/planning/growth';
 import { deployment, headline, theAsk } from '../data/planning/summary';
 
 const LAC = 1e5;
@@ -301,8 +301,15 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
     const ml = (m: number | null) => (m == null ? 'end' : r.months[m - 1]?.label ?? `M${m}`);
     g.push(['New product lines', 'Family', 'Launch', 'Price ₹', 'New buyers/mo at launch', 'm/m yr 1', 'y/y after', 'Material %', 'Extra mktg %', 'Launch cost ₹', 'Tooling ₹', 'In-house', 'Repeat', 'Kept / mo', 'Placeholder']);
     for (const x of plan.products.filter((p) => p.category || p.growthLine)) g.push([x.name + (x.on ? '' : ' (off)'), x.category ?? '', ml(x.launchMonth), x.asp, Math.round(x.launchUnits), x.rampPct, x.steadyPct, x.cogsPct, x.marketingPct ?? 0, x.launchCost ?? 0, x.launchCapex ?? 0, (x.inHouse ?? x.category === 'device') ? 'yes' : 'no', x.repeatPct ?? 0, x.repeatDecay ?? 0, x.placeholder ? 'yes' : '']);
-    g.push([], ['Hiring', 'Team', 'People', 'From', 'To', 'CTC / month ₹']);
-    for (const h of G.hires) g.push([h.role + (h.on === false ? ' (off)' : ''), h.dept, h.count, ml(h.month), ml(h.end), h.monthlyCtc]);
+    g.push([], ['Hiring', 'Team', 'People (min)', 'From', 'To', 'CTC / month ₹', 'Grows with', '1 per']);
+    for (const h of G.hires) g.push([h.role + (h.on === false ? ' (off)' : ''), h.dept, h.count, ml(h.month), ml(h.end), h.monthlyCtc, h.scale ? (h.scale.by === 'outlets' ? `outlets ${h.scale.type ?? 'all'}` : h.scale.by) : 'fixed', h.scale?.every ?? null]);
+    g.push([], ['Warehouses, offices & other expenses', 'Kind', 'Group', 'From', 'To', '₹/mo or %', 'Sq ft', 'Rent ₹/sq ft', 'Running ₹/mo', 'Deposit (mo)', 'Fit-out ₹', '+ / yr']);
+    for (const o of G.overheads ?? []) g.push([o.name + (o.on ? '' : ' (off)'), o.kind, o.group, ml(o.month), ml(o.end), o.kind === 'site' ? null : o.amount, o.sqft ?? null, o.rentPerSqft ?? null, o.runningPerMonth ?? null, o.depositMonths ?? null, o.fitout ?? null, o.growthPct]);
+    if (G.funding) g.push([], ['Round sizing', 'Cash buffer ₹', G.funding.buffer, 'Runway months', G.funding.runwayMonths, 'Min round ₹', G.funding.minRound, 'Pre-money × ARR', G.funding.preMoneyMultiple, 'Fee', G.funding.feePct]);
+    g.push([], ['Round', 'Month', 'Amount ₹', 'Cash before ₹', 'Burn / mo ₹ (next 12)', 'Runway (months)']);
+    for (const x of roundStats(plan, r)) g.push([x.name, ml(x.month), x.amount, Math.round(x.cashBefore), Math.round(x.burn), x.runway ?? 'to the end']);
+    g.push([], ['Product channels', 'Channel', 'Share', 'From', '+ / yr']);
+    for (const x of plan.products.filter((p) => p.growthLine && p.on)) for (const c of CHANNELS) if ((x.split[c] ?? 0) > 0) g.push([x.name, CHANNEL_NAMES[c], x.split[c], ml(x.chStart?.[c] ?? x.launchMonth), x.chGrowth?.[c] ?? 0]);
     g.push([], ['Capacity (today ' + G.baseCapacity + ' units/mo)', 'Capex month', 'Lead months', '+ units/mo', 'Capex ₹', 'Running ₹/mo']);
     for (const b of G.capacity) g.push([b.name + (b.on ? '' : ' (off)'), ml(b.month), b.leadMonths, b.unitsPerMonth, b.capex, b.monthlyOpex]);
     g.push([], ['Other capex', 'Group', 'Month', 'Amount ₹']);

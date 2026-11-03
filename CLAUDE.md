@@ -249,6 +249,11 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   outlet → Fulfilment & Delivery, material = list × cogsPct. `path` (FY → P&L revenue) + `solvePath` sets `push` per FY (× new buyers of
   growth lines). `build500Cr` = the growth plan ₹30 → 100 → 250 → 500 Cr FY28–FY31 (all placeholders). Excel export mirrors the sheet:
   Overview, Business Plan, 1. Revenue Planning, 2. Expense Calendar, 3. P&L, 4. Cash Flow & Fundraise (months + FY columns), Growth builder.
+  Per product `chStart` / `chGrowth` (channel starts its month, its share grows by its own rate a year; units = launch volume × live
+  shares) and `retailStart`. Hires with `scale {by: revenue|units|outlets, every, type?}` = max(count, ceil(metric / every)) from last
+  month's ARR / units or this month's outlets, never shrinking, hiring cost on each increase. `overheads` (site: sq ft × rent + running,
+  deposit → Intangibles & Deposits, fit-out → Plant & Machinery; fixed ₹/mo escalating yearly; % of list revenue). `funding` rules feed
+  `fundTheGap`; `roundStats` = cash before, burn / mo (next 12) and runway per round.
 - Business Plan + Overview (`plan.business`, `data/planning/summary.ts`): headline 12M/18M/full, Exit ARR (TTM × min(L3M ÷ same
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,

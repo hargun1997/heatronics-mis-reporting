@@ -2,12 +2,12 @@
 // with the exit-ARR target, "Solve for the target" and "Fund the gap". Engine hooks: data/planning/engine.ts;
 // helpers and the ₹500 Cr scenario: data/planning/growth.ts.
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
   CATEGORY_NAMES, CHANNELS, CHANNEL_NAMES, DEPT_NAMES,
-  type Channel, type Dept, type NewProduct, type Plan, type PlanResult, type ProductCategory, type RetailType,
+  type Channel, type Dept, type Hire, type NewProduct, type Overhead, type Plan, type PlanResult, type ProductCategory, type RetailType,
 } from '../../data/planning/engine';
-import { build500Cr, defaultRetail, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, runRateArr, solvePath, solveForTarget } from '../../data/planning/growth';
+import { build500Cr, defaultFunding, defaultOverheads, defaultRetail, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, roundStats, runRateArr, solvePath, solveForTarget } from '../../data/planning/growth';
 import { SectionCard } from '../ui/Card';
 import { MiniStat } from './charts';
 import { NumInput } from './inputs';
@@ -42,6 +42,7 @@ function Check({ checked, onChange, label }: { checked: boolean; onChange: (v: b
 
 export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; update: Update }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [openLine, setOpenLine] = useState<string | null>(null);
   const G = plan.growth;
   const months = r.months.map((m) => ({ m: m.m, label: m.label }));
   const parity = !!plan.fx?.sheetParity;
@@ -62,6 +63,7 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
   const overMonths = r.months.filter((m) => m.utilisation > 1);
   const lastM = r.months[r.months.length - 1];
   const dil = useMemo(() => dilution(plan), [plan]);
+  const rstats = useMemo(() => roundStats(plan, r), [plan, r]);
   const keep = dil.length ? dil[dil.length - 1].existingAfter : 1;
 
   // exit run-rate by product family: each SKU's share of the last 3 months' gross sales × the run-rate
@@ -184,8 +186,10 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
             <tbody>
               {lines.map((x) => {
                 const splitSum = sum(CHANNELS.map((c) => x.split[c] ?? 0));
+                const open = openLine === x.id;
                 return (
-                  <tr key={x.id} className={`border-t border-slate-100 ${x.on ? '' : 'opacity-50'}`}>
+                  <Fragment key={x.id}>
+                  <tr className={`border-t border-slate-100 ${x.on ? '' : 'opacity-50'}`}>
                     <td className={td}><Check checked={x.on} onChange={(v) => setProd(x.id, (y) => { y.on = v; })} label={`${x.name} on`} /></td>
                     <td className={td}>
                       <input className={txt} value={x.name} aria-label="Line name" onChange={(e) => setProd(x.id, (y) => { y.name = e.target.value; })} />
@@ -213,8 +217,34 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
                       <td key={c} className={`${td} text-right`}><NumInput unit="pct" value={x.split[c] ?? 0} min={0} max={1} width="w-12" title={`${CHANNEL_NAMES[c]} share`} onChange={(v) => setProd(x.id, (y) => { y.split[c] = v; })} /></td>
                     ))}
                     <td className={`${td} text-right ${Math.abs(splitSum - 1) > 0.005 ? 'text-rose-600' : 'text-slate-900'}`} title={Math.abs(splitSum - 1) > 0.005 ? `Channel split adds to ${pct(splitSum, 0)}` : undefined}>{cr(mix.byId[x.id] ?? 0, 0)} Cr</td>
-                    <td className={td}><button className={rm} onClick={() => update((p) => { p.products = p.products.filter((y) => y.id !== x.id); })} aria-label={`Remove ${x.name}`}>✕</button></td>
+                    <td className={td}>
+                      <button className="rounded px-1.5 py-0.5 text-[12px] font-semibold text-brand-700 hover:underline" aria-expanded={open} onClick={() => setOpenLine(open ? null : x.id)}>{open ? 'Close' : 'Channels'}</button>
+                      <button className={rm} onClick={() => update((p) => { p.products = p.products.filter((y) => y.id !== x.id); })} aria-label={`Remove ${x.name}`}>✕</button>
+                    </td>
                   </tr>
+                  {open && (
+                    <tr className="bg-surface-tint/60">
+                      <td colSpan={15 + CHANNELS.length + 2} className="px-3 py-3">
+                        <div className="flex flex-wrap items-start gap-4 text-[12.5px] text-slate-600">
+                          {CHANNELS.map((c) => (
+                            <div key={c} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                              <div className="mb-1 font-semibold text-slate-700">{CHANNEL_NAMES[c]}</div>
+                              <div className="flex items-center gap-1">share <NumInput unit="pct" value={x.split[c] ?? 0} min={0} max={1} width="w-12" title={`${CHANNEL_NAMES[c]} share`} onChange={(v) => setProd(x.id, (y) => { y.split[c] = v; })} /></div>
+                              <div className="mt-1 flex items-center gap-1">from <MonthSelect title={`${CHANNEL_NAMES[c]} start`} value={x.chStart?.[c] ?? x.launchMonth} months={months} onChange={(m) => setProd(x.id, (y) => { y.chStart = { ...(y.chStart ?? {}), [c]: m ?? y.launchMonth }; })} /></div>
+                              <div className="mt-1 flex items-center gap-1">+ / yr <NumInput unit="pct" value={x.chGrowth?.[c] ?? 0} width="w-12" title={`${CHANNEL_NAMES[c]} extra growth a year`} onChange={(v) => setProd(x.id, (y) => { y.chGrowth = { ...(y.chGrowth ?? {}), [c]: v }; })} /></div>
+                            </div>
+                          ))}
+                          <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
+                            <div className="mb-1 font-semibold text-slate-700">GT / MT / pharmacy</div>
+                            <div className="flex items-center gap-1">in outlets from <MonthSelect title="Offline start" value={x.retailStart ?? x.launchMonth} months={months} onChange={(m) => setProd(x.id, (y) => { y.retailStart = m ?? y.launchMonth; })} /></div>
+                            <p className="mt-1 max-w-[220px] text-[11.5px] text-slate-500">Offtake per outlet is set per family in the outlet plan below.</p>
+                          </div>
+                          <p className="max-w-[320px] text-[11.5px] text-slate-500">A channel sells nothing before its start; from then its share of the line's volume grows by its own rate each year on top of the line's growth. Shares are of the online volume.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -272,7 +302,7 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
       </SectionCard>
 
       {/* hiring */}
-      <SectionCard title="Hiring plan" description={`Monthly CTC per person; ${pct(G.benefitsPct, 0)} benefits on top, a one-off hiring cost of ${pct(G.recruitPct, 0)} of a year's CTC, ${pct(G.incrementPct, 0)} increment a year. Factory roles sit in COGS.`}
+      <SectionCard title="Hiring plan" description={`Fixed roles hire their people in the From month; roles that grow with the business add one person per revenue / units / outlets step (never fewer than People). Monthly CTC per person; ${pct(G.benefitsPct, 0)} benefits on top, a one-off hiring cost of ${pct(G.recruitPct, 0)} of a year's CTC, ${pct(G.incrementPct, 0)} increment a year. Factory roles sit in COGS.`}
         actions={<div className="flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
           Benefits <NumInput unit="pct" value={G.benefitsPct} min={0} width="w-12" title="Benefits %" onChange={(v) => set((g) => { g.benefitsPct = v; })} />
           Hiring <NumInput unit="pct" value={G.recruitPct} min={0} width="w-12" title="Hiring cost %" onChange={(v) => set((g) => { g.recruitPct = v; })} />
@@ -281,7 +311,7 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
         </div>}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-[12.5px] tabular-nums">
-            <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Role</th><th className={th}>Team</th><th className={thr}>People</th><th className={th}>From</th><th className={th}>To</th><th className={thr}>CTC / month</th><th className={thr}>Year-1 cost</th><th className={th} /></tr></thead>
+            <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Role</th><th className={th}>Team</th><th className={thr}>People</th><th className={th}>From</th><th className={th}>To</th><th className={th}>Grows with</th><th className={thr}>1 per</th><th className={thr}>CTC / month</th><th className={thr}>People at end</th><th className={th} /></tr></thead>
             <tbody>
               {G.hires.map((h, i) => (
                 <tr key={h.id} className={`border-t border-slate-100 ${h.on === false ? 'opacity-50' : ''}`}>
@@ -295,8 +325,24 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
                   <td className={`${td} text-right`}><NumInput value={h.count} min={0} width="w-14" title="People" onChange={(v) => set((g) => { g.hires[i].count = Math.round(v); })} /></td>
                   <td className={td}><MonthSelect title="From" value={h.month} months={months} onChange={(m) => set((g) => { g.hires[i].month = m ?? 1; })} /></td>
                   <td className={td}><MonthSelect title="To" value={h.end} months={months} allowNone onChange={(m) => set((g) => { g.hires[i].end = m; })} /></td>
+                  <td className={td}>
+                    <select aria-label="Grows with" value={h.scale ? (h.scale.by === 'outlets' ? `outlets:${h.scale.type ?? ''}` : h.scale.by) : 'fixed'} className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[13px]"
+                      onChange={(e) => set((g) => {
+                        const v = e.target.value;
+                        if (v === 'fixed') { delete g.hires[i].scale; return; }
+                        const [by, type] = v.split(':') as [NonNullable<Hire['scale']>['by'], string | undefined];
+                        g.hires[i].scale = { by, every: g.hires[i].scale?.every ?? (by === 'revenue' ? 5 : by === 'units' ? 5000 : 500), ...(type ? { type } : {}) };
+                      })}>
+                      <option value="fixed">Fixed</option>
+                      <option value="revenue">Revenue (₹ Cr ARR)</option>
+                      <option value="units">Units / month</option>
+                      <option value="outlets:">All outlets</option>
+                      {(G.retail ?? []).map((t) => <option key={t.id} value={`outlets:${t.id}`}>{t.name.split(' (')[0]} outlets</option>)}
+                    </select>
+                  </td>
+                  <td className={`${td} text-right`}>{h.scale ? <NumInput value={h.scale.every} min={0} width="w-16" title="One person per" onChange={(v) => set((g) => { if (g.hires[i].scale) g.hires[i].scale!.every = v; })} /> : <span className="text-slate-400">–</span>}</td>
                   <td className={`${td} text-right`}><NumInput unit="lakh" value={h.monthlyCtc} min={0} width="w-16" title="CTC a month" onChange={(v) => set((g) => { g.hires[i].monthlyCtc = v; })} /></td>
-                  <td className={`${td} text-right text-slate-700`}>{money(h.count * h.monthlyCtc * 12 * (1 + G.benefitsPct), 2)}</td>
+                  <td className={`${td} text-right text-slate-700`}>{h.scale ? 'scaled' : int(h.count)}</td>
                   <td className={td}><button className={rm} aria-label={`Remove ${h.role}`} onClick={() => set((g) => { g.hires.splice(i, 1); })}>✕</button></td>
                 </tr>
               ))}
@@ -307,6 +353,61 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
           {r.years.map((y) => {
             const ms = r.months.filter((m) => m.fy === y.fy);
             return <span key={y.fy}>{y.fy}: <b>{int(ms[ms.length - 1]?.growthHeadcount ?? 0)}</b> people added</span>;
+          })}
+        </div>
+      </SectionCard>
+
+      {/* overheads */}
+      <SectionCard title="Warehouses, offices & other expenses" description="Sites cost sq ft × rent (escalating yearly) plus running cost, with a deposit and fit-out as capex in the opening month. Fixed costs grow by their rate a year; % lines follow revenue."
+        actions={<div className="flex flex-wrap gap-2">
+          <button className={btn} onClick={() => set((g) => { (g.overheads ??= []).push({ id: newId('o'), name: 'New warehouse', on: true, kind: 'site', group: 'Rent & Facilities', month: 13, end: null, amount: 0, growthPct: 0.05, sqft: 10_000, rentPerSqft: 25, runningPerMonth: 50_000, depositMonths: 6, fitout: 10e5 }); })}>Add a site</button>
+          <button className={btn} onClick={() => set((g) => { (g.overheads ??= []).push({ id: newId('o'), name: 'New expense', on: true, kind: 'fixed', group: 'Office & Administration', month: 7, end: null, amount: 50_000, growthPct: 0.1 }); })}>Add an expense</button>
+        </div>}>
+        {(G.overheads ?? []).length === 0 && <p className="px-5 py-3 text-[13px] text-slate-500">None yet. <button className="font-semibold text-brand-700 underline" onClick={() => set((g) => { g.overheads = defaultOverheads(); })}>Add warehouses, office and running costs</button></p>}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-[12.5px] tabular-nums">
+            <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Kind</th><th className={th}>Group</th><th className={th}>From</th><th className={th}>To</th><th className={thr}>₹ / mo or %</th><th className={thr}>Sq ft</th><th className={thr}>Rent ₹/sq ft</th><th className={thr}>Running / mo</th><th className={thr}>Deposit (mo)</th><th className={thr}>Fit-out</th><th className={thr}>+ / yr</th><th className={th} /></tr></thead>
+            <tbody>
+              {(G.overheads ?? []).map((o: Overhead, i) => {
+                const so = (fn: (x: Overhead) => void) => set((g) => { if (g.overheads?.[i]) fn(g.overheads[i]); });
+                const site = o.kind === 'site';
+                return (
+                  <tr key={o.id} className={`border-t border-slate-100 ${o.on ? '' : 'opacity-50'}`}>
+                    <td className={td}><Check checked={o.on} onChange={(v) => so((x) => { x.on = v; })} label={`${o.name} on`} /></td>
+                    <td className={td}><input className={txt} value={o.name} aria-label="Item" onChange={(e) => so((x) => { x.name = e.target.value; })} /></td>
+                    <td className={td}>
+                      <select aria-label="Kind" value={o.kind} className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[13px]" onChange={(e) => so((x) => { x.kind = e.target.value as Overhead['kind']; })}>
+                        <option value="site">Site (rent)</option><option value="fixed">Fixed ₹ / mo</option><option value="pct">% of revenue</option>
+                      </select>
+                    </td>
+                    <td className={td}>
+                      <select aria-label="Group" value={o.group} className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[13px]" onChange={(e) => so((x) => { x.group = e.target.value; })}>
+                        {[...new Set([o.group, ...plan.groups.filter((g) => g.section !== 'capex' && g.section !== 'finex').map((g) => g.name)])].map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                    </td>
+                    <td className={td}><MonthSelect title="From" value={o.month} months={months} onChange={(m) => so((x) => { x.month = m ?? 1; })} /></td>
+                    <td className={td}><MonthSelect title="To" value={o.end} months={months} allowNone onChange={(m) => so((x) => { x.end = m; })} /></td>
+                    <td className={`${td} text-right`}>{site ? <span className="text-slate-400">–</span> : o.kind === 'pct'
+                      ? <NumInput unit="pct" value={o.amount} min={0} width="w-14" title="% of revenue" onChange={(v) => so((x) => { x.amount = v; })} />
+                      : <NumInput unit="lakh" value={o.amount} min={0} width="w-14" title="₹ a month" onChange={(v) => so((x) => { x.amount = v; })} />}</td>
+                    <td className={`${td} text-right`}>{site ? <NumInput value={o.sqft ?? 0} min={0} width="w-20" title="Sq ft" onChange={(v) => so((x) => { x.sqft = v; })} /> : '–'}</td>
+                    <td className={`${td} text-right`}>{site ? <NumInput value={o.rentPerSqft ?? 0} min={0} width="w-14" title="Rent per sq ft a month" onChange={(v) => so((x) => { x.rentPerSqft = v; })} /> : '–'}</td>
+                    <td className={`${td} text-right`}>{site ? <NumInput unit="lakh" value={o.runningPerMonth ?? 0} min={0} width="w-16" title="Running cost a month" onChange={(v) => so((x) => { x.runningPerMonth = v; })} /> : '–'}</td>
+                    <td className={`${td} text-right`}>{site ? <NumInput value={o.depositMonths ?? 0} min={0} width="w-12" title="Deposit in months of rent" onChange={(v) => so((x) => { x.depositMonths = v; })} /> : '–'}</td>
+                    <td className={`${td} text-right`}>{site ? <NumInput unit="lakh" value={o.fitout ?? 0} min={0} width="w-16" title="Fit-out capex" onChange={(v) => so((x) => { x.fitout = v; })} /> : '–'}</td>
+                    <td className={`${td} text-right`}>{o.kind === 'pct' ? '–' : <NumInput unit="pct" value={o.growthPct} width="w-12" title="Increase a year" onChange={(v) => so((x) => { x.growthPct = v; })} />}</td>
+                    <td className={td}><button className={rm} aria-label={`Remove ${o.name}`} onClick={() => set((g) => { g.overheads!.splice(i, 1); })}>✕</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex flex-wrap gap-x-6 px-5 py-2 text-[12px] text-slate-600">
+          {r.years.map((y) => {
+            const ms = r.months.filter((m) => m.fy === y.fy);
+            const opex = ms.reduce((a, m) => a + m.opex, 0);
+            return <span key={y.fy}>{y.fy}: opex <b>{money(opex, 1)}</b> ({pct(opex / (y.revenue || 1), 0)} of revenue)</span>;
           })}
         </div>
       </SectionCard>
@@ -377,21 +478,38 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
       <SectionCard title="Fundraise rounds" description={`The ₹${cr(plan.fx?.seed.amount ?? 0, 0)} Cr seed comes from Founder decisions. Rounds add equity in their month; the fee is a fundraise cost. "Fund the gap" re-sizes the unconfirmed rounds.`}
         actions={<div className="flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
           Seed pre-money <NumInput unit="cr" value={G.seedPreMoney} min={0} width="w-16" title="Seed pre-money" onChange={(v) => set((g) => { g.seedPreMoney = v; })} />
+          <button className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-40" disabled={!!busy || !G.on} onClick={() => replace((p) => fundTheGap(p), 'fund2')}>{busy === 'fund2' ? 'Sizing…' : 'Size rounds from the burn'}</button>
           <button className={btn} onClick={() => set((g) => { g.rounds.push({ id: newId('r'), name: 'New round', on: true, month: 19, amount: 25 * CR, preMoney: 100 * CR, feePct: 0.03, confirmed: false }); })}>Add a round</button>
         </div>}>
+        {(() => {
+          const f = { ...defaultFunding(), ...(G.funding ?? {}) };
+          const setF = (k: keyof typeof f, v: number) => set((g) => { g.funding = { ...defaultFunding(), ...(g.funding ?? {}), [k]: v }; });
+          return (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-100 px-5 py-3 text-[12.5px] text-slate-600">
+              <b className="text-slate-700">How rounds are sized</b>
+              <span>keep cash above <NumInput unit="cr" value={f.buffer} min={0} width="w-14" title="Cash buffer" onChange={(v) => setF('buffer', v)} /></span>
+              <span>for the next <NumInput value={f.runwayMonths} min={3} width="w-12" title="Runway months" onChange={(v) => setF('runwayMonths', Math.round(v))} /> months</span>
+              <span>at least <NumInput unit="cr" value={f.minRound} min={0} width="w-14" title="Minimum round" onChange={(v) => setF('minRound', v)} /> a round</span>
+              <span>pre-money <NumInput unit="x" value={f.preMoneyMultiple} min={0} width="w-12" title="Pre-money multiple of run-rate ARR" onChange={(v) => setF('preMoneyMultiple', v)} /> run-rate ARR</span>
+              <span>fee <NumInput unit="pct" value={f.feePct} min={0} width="w-12" title="Round fee" onChange={(v) => setF('feePct', v)} /></span>
+              <span>first round ≥ <NumInput value={f.earliestAfterSeed} min={0} width="w-12" title="Months after the seed" onChange={(v) => setF('earliestAfterSeed', Math.round(v))} /> months after the seed</span>
+            </div>
+          );
+        })()}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-[12.5px] tabular-nums">
-            <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Round</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={thr}>Pre-money</th><th className={thr}>Fee</th><th className={th}>Agreed</th><th className={thr}>Sold</th><th className={thr}>Today's holders keep</th><th className={th} /></tr></thead>
+          <table className="w-full min-w-[1000px] text-[12.5px] tabular-nums">
+            <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Round</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={thr}>Pre-money</th><th className={thr}>Fee</th><th className={th}>Agreed</th><th className={thr} title="Closing cash the month before the round">Cash before</th><th className={thr} title="Average monthly cash burn over the 12 months after the round">Burn / mo</th><th className={thr} title="Months until cash falls under the buffer again">Runway</th><th className={thr}>Sold</th><th className={thr}>Today's holders keep</th><th className={th} /></tr></thead>
             <tbody>
               {dil.filter((d) => d.name === 'Seed').map((d) => (
                 <tr key="seed" className="border-t border-slate-100 text-slate-600">
                   <td className={td} /><td className={td}>Seed</td><td className={td}>{months.find((x) => x.m === d.month)?.label}</td>
-                  <td className={`${td} text-right`}>{money(d.amount, 1)}</td><td className={`${td} text-right`}>{money(d.preMoney, 0)}</td><td className={td} /><td className={td} />
+                  <td className={`${td} text-right`}>{money(d.amount, 1)}</td><td className={`${td} text-right`}>{money(d.preMoney, 0)}</td><td className={td} /><td className={td} /><td className={td} /><td className={td} /><td className={td} />
                   <td className={`${td} text-right`}>{pct(d.sold)}</td><td className={`${td} text-right`}>{pct(d.existingAfter)}</td><td className={td} />
                 </tr>
               ))}
               {G.rounds.map((x, i) => {
                 const d = dil.find((y) => y.name === x.name && y.month === x.month);
+                const st = rstats.find((y) => y.id === x.id);
                 return (
                   <tr key={x.id} className={`border-t border-slate-100 ${x.on ? '' : 'opacity-50'}`}>
                     <td className={td}><Check checked={x.on} onChange={(v) => set((g) => { g.rounds[i].on = v; })} label={`${x.name} on`} /></td>
@@ -401,6 +519,9 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
                     <td className={`${td} text-right`}><NumInput unit="cr" value={x.preMoney} min={0} width="w-16" title="Pre-money" onChange={(v) => set((g) => { g.rounds[i].preMoney = v; })} /></td>
                     <td className={`${td} text-right`}><NumInput unit="pct" value={x.feePct} min={0} width="w-12" title="Fee %" onChange={(v) => set((g) => { g.rounds[i].feePct = v; })} /></td>
                     <td className={td}><Check checked={x.confirmed} onChange={(v) => set((g) => { g.rounds[i].confirmed = v; })} label="Agreed (Fund the gap keeps it)" /></td>
+                    <td className={`${td} text-right ${st && st.cashBefore < 0 ? 'text-rose-600' : ''}`}>{st ? money(st.cashBefore, 1) : '–'}</td>
+                    <td className={`${td} text-right`}>{st ? money(st.burn, 2) : '–'}</td>
+                    <td className={`${td} text-right`}>{st ? (st.runway == null ? 'to the end' : `${st.runway} mo`) : '–'}</td>
                     <td className={`${td} text-right`}>{d ? pct(d.sold) : '–'}</td>
                     <td className={`${td} text-right`}>{d ? pct(d.existingAfter) : '–'}</td>
                     <td className={td}><button className={rm} aria-label={`Remove ${x.name}`} onClick={() => set((g) => { g.rounds.splice(i, 1); })}>✕</button></td>
@@ -410,7 +531,7 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
             </tbody>
           </table>
         </div>
-        <p className="px-5 py-2 text-[12px] text-slate-500">Rounds from "Fund the gap" are placeholders: at least ₹15 Cr, sized for the next 12 months, pre-money 4× the run-rate ARR at the raise (at least ₹50 Cr). Ownership ignores ESOP pools and convertibles.</p>
+        <p className="px-5 py-2 text-[12px] text-slate-500">Sizing from the burn: each round is raised a month before cash would fall under the buffer, big enough for the runway set above (+15 %, rounded to ₹5 Cr). Pre-money is a placeholder (at least ₹50 Cr); tick Agreed to keep a round as it is. Ownership ignores ESOP pools and convertibles.</p>
       </SectionCard>
 
       {/* stores */}

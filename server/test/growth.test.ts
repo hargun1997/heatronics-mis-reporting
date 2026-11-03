@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runPlan, type Plan } from '../../client/src/data/planning/engine.ts';
 import { basePlan, setSheetParity } from '../../client/src/data/planning/basePlan.ts';
-import { build500Cr, defaultRetail, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, runRateArr, solvePath, solveForTarget, growthCategories } from '../../client/src/data/planning/growth.ts';
+import { build500Cr, defaultRetail, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, roundStats, runRateArr, solvePath, solveForTarget, growthCategories } from '../../client/src/data/planning/growth.ts';
 
 const CR = 1e7;
 const withGrowth = (fn: (p: Plan) => void = () => {}) => {
@@ -126,7 +126,7 @@ test('growth: the growth plan meets the ₹30 → 100 → 250 → 500 Cr revenue
 });
 
 test('growth: consumables repeat — earlier buyers come back at the repeat rate, decaying each month', () => {
-  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 3, launchUnits: 1000, rampPct: 0, steadyPct: 0, repeatPct: 0.2, repeatDecay: 0.5 };
+  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 3, launchUnits: 1000, rampPct: 0, steadyPct: 0, repeatPct: 0.2, repeatDecay: 0.5, chStart: undefined, chGrowth: undefined, split: { A: 0.6, D: 0.4, F: 0, G: 0, P: 0 } };
   const p = withGrowth((x) => { x.products = [...x.products.filter((y) => y.id !== 'p-cream'), cream]; });
   const g = runPlan(p).months;
   const u = (m: number) => g[m - 1].unitsBySku['p-cream'];
@@ -137,7 +137,7 @@ test('growth: consumables repeat — earlier buyers come back at the repeat rate
 });
 
 test('growth: offline outlets sell the new lines at net realisation, with schemes, listing fees and servicing', () => {
-  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 2, launchUnits: 0 };
+  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 2, launchUnits: 0, retailStart: 2 };
   const t = { ...defaultRetail()[1], outlets: [{ month: 4, add: 10 }], rampMonths: 2, units: { topical: 20, nutra: 0, device: 0, other: 0 }, tradeMarginPct: 0.3, schemePct: 0.1, listingFee: 1000, servicePerOutlet: 500 };
   const p = withGrowth((x) => { x.products = [...x.products.filter((y) => y.id !== 'p-cream'), cream]; x.growth!.retail = [t]; });
   const g = runPlan(p).months, b = runPlan(basePlan()).months;
@@ -160,4 +160,58 @@ test('growth: solvePath sets a push per FY so each year meets its revenue target
   assert.equal(missed.length, 0);
   assert.ok(Math.abs(r.years.find((y) => y.fy === 'FY29')!.revenue - 60 * CR) / (60 * CR) < 0.005);
   assert.ok(Math.abs(r.years.find((y) => y.fy === 'FY30')!.revenue - 120 * CR) / (120 * CR) < 0.005);
+});
+
+test('growth: a product channel starts on its own month and grows by its own rate', () => {
+  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 3, launchUnits: 1000, rampPct: 0, steadyPct: 0, repeatPct: 0,
+    split: { A: 0.6, D: 0.4, F: 0.2, G: 0, P: 0 }, chStart: { A: 3, D: 3, F: 9 }, chGrowth: { F: 0.5 } };
+  const p = withGrowth((x) => { x.products = [...x.products.filter((y) => y.id !== 'p-cream'), cream]; });
+  const g = runPlan(p).months, b = runPlan(basePlan()).months;
+  const fk = (m: number) => g[m - 1].revenueByChannel.F - b[m - 1].revenueByChannel.F;
+  assert.ok(Math.abs(fk(8)) < 1e-6, 'Flipkart sells nothing before its start');
+  assert.ok(Math.abs(fk(9) - 1000 * 0.2 * cream.asp) < 1e-6);
+  assert.ok(Math.abs(fk(21) - 1000 * 0.2 * 1.5 * cream.asp * Math.pow(1 + basePlan().levers.aspGrowthPct, 0)) < 1e-3, '+50% a year after 12 months');
+  assert.ok(Math.abs(g[8].unitsBySku['p-cream'] - 1000 * 1.2) < 1e-6, 'units = launch volume × the live shares');
+});
+
+test('growth: roles that scale with outlets add people (and hiring cost) as outlets open, never fewer', () => {
+  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 2, launchUnits: 0, retailStart: 2 };
+  const t = { ...defaultRetail()[0], outlets: [{ month: 3, add: 1000 }, { month: 6, add: 1000 }] };
+  const p = withGrowth((x) => {
+    x.products = [...x.products.filter((y) => y.id !== 'p-cream'), cream]; x.growth!.retail = [t];
+    x.growth!.hires.push({ id: 'rep', role: 'GT reps', dept: 'sales', count: 0, month: 2, end: null, monthlyCtc: 30_000, scale: { by: 'outlets', every: 400, type: t.id } });
+  });
+  const g = runPlan(p).months;
+  assert.equal(g[2].growthHeadcount, 3, '1,000 outlets / 400 → 3 reps');
+  assert.equal(g[5].growthHeadcount, 5, '2,000 outlets → 5 reps');
+  const b = runPlan(basePlan()).months;
+  assert.ok(Math.abs((g[5].groups['Recruitment & Training'] ?? 0) - (b[5].groups['Recruitment & Training'] ?? 0) - 2 * 30_000 * 12 * 0.08) < 1e-6);
+});
+
+test('growth: overheads — a site books rent, running cost, deposit and fit-out; fixed costs escalate; % lines follow revenue', () => {
+  const p = withGrowth((x) => {
+    x.growth!.overheads = [
+      { id: 'w', name: 'WH', on: true, kind: 'site', group: 'Rent & Facilities', month: 4, end: null, amount: 0, growthPct: 0.1, sqft: 10_000, rentPerSqft: 30, runningPerMonth: 50_000, depositMonths: 6, fitout: 10e5 },
+      { id: 's', name: 'SW', on: true, kind: 'fixed', group: 'Technology & Software', month: 2, end: null, amount: 1e5, growthPct: 0.2 },
+      { id: 'a', name: 'Admin', on: true, kind: 'pct', group: 'Office & Administration', month: 1, end: null, amount: 0.01, growthPct: 0 },
+    ];
+  });
+  const g = runPlan(p).months, b = runPlan(basePlan()).months;
+  const d = (m: number, grp: string) => (g[m - 1].groups[grp] ?? 0) - (b[m - 1].groups[grp] ?? 0);
+  assert.equal(d(3, 'Rent & Facilities'), 0);
+  assert.equal(d(4, 'Rent & Facilities'), 3e5);
+  assert.ok(Math.abs(d(16, 'Rent & Facilities') - 3.3e5) < 1e-6, 'rent escalates after a year');
+  assert.equal(d(4, 'Intangibles & Deposits'), 18e5);
+  assert.equal(d(4, 'Plant & Machinery'), 10e5);
+  assert.equal(d(4, 'Utilities & Power'), 50_000);
+  assert.ok(Math.abs(d(14, 'Technology & Software') - 1.2e5) < 1e-6);
+  assert.ok(Math.abs(d(5, 'Office & Administration') - 0.01 * g[4].grossRevenue) < 0.01 * g[4].grossRevenue * 0.05, '% of (list) revenue');
+});
+
+test('growth: roundStats gives each round its cash before, burn and runway', () => {
+  const p = fundTheGap(build500Cr(basePlan()));
+  const r = runPlan(p);
+  const st = roundStats(p, r);
+  assert.equal(st.length, p.growth!.rounds.filter((x) => x.on).length);
+  for (const s of st) { assert.ok(s.burn >= 0); assert.ok(s.runway == null || s.runway >= 1); }
 });
