@@ -1,0 +1,104 @@
+{
+  "asOf": "2026-11",
+  "currency": "INR crore; multiples are pre-money / ARR; percentages are 0-1 fractions",
+  "basis": "docs/planning/D2C-RAISE-BENCHMARKS.md (compiled 3 Nov 2026; India D2C 2024-26 first, US/global consumer as a check)",
+  "rounds": [
+    {
+      "name": "Series A",
+      "arrAtRaiseCr": { "low": 20, "mid": 40, "high": 80 },
+      "sizeCr": { "low": 25, "mid": 40, "high": 100 },
+      "preMoneyArrMultiple": { "low": 2, "mid": 3.5, "high": 5 },
+      "dilution": { "low": 0.15, "mid": 0.22, "high": 0.25 },
+      "monthsAfterPrevious": 20,
+      "ventureDebtShareOfRound": 0.25,
+      "milestones": [
+        "Gross margin >= 60% on core SKUs",
+        "CM2 positive, or a dated path to it",
+        "CAC payback < 6 months (< 3 ideal)",
+        "Repeat >= 30% (30-40% within 90 days)",
+        "Two or more channels working; offline being tested",
+        "18-24 months runway after the round; exit path already discussed"
+      ],
+      "sources": [
+        "https://treelife.in/finance/venture-debt-vs-equity-funding/",
+        "https://thed2cpulse.com/?p=720",
+        "https://inc42.com/buzz/indian-startup-funding-jumps-8-yoy-to-5-7-bn-in-h1-2025",
+        "https://entrackr.com/snippets/palmonas-raises-rs-55-cr-in-series-a-round-led-by-vertex-ventures-9743288",
+        "https://entrackr.com/news/haircare-startup-moxie-beauty-raises-15-mn-in-series-a-led-by-bessemer-10913742",
+        "https://www.outlookbusiness.com/corporate/snitch-raises-340-cr-funding-valuation-jumps-to-2500-crore-to-fuel-expansion",
+        "https://backrr.com/blog/pre-seed-seed-series-a-metrics-india",
+        "https://echai.ventures/startingup/raise-or-not/how-much-of-my-company-should-i-still-own-after-seed-series-a-and-beyond"
+      ]
+    },
+    {
+      "name": "Series B",
+      "arrAtRaiseCr": { "low": 80, "mid": 150, "high": 300 },
+      "sizeCr": { "low": 80, "mid": 150, "high": 300 },
+      "preMoneyArrMultiple": { "low": 3, "mid": 4, "high": 5 },
+      "dilution": { "low": 0.12, "mid": 0.2, "high": 0.25 },
+      "monthsAfterPrevious": 20,
+      "ventureDebtShareOfRound": 0.25,
+      "milestones": [
+        "Scaling past Rs 50 Cr without breaking unit economics",
+        "Omnichannel live: offline / GT / MT a real share, stores opening",
+        "EBITDA-positive path inside 18-24 months",
+        "Second product family contributing",
+        "Brand pull (organic, unaided recall) over paid-ads arbitrage"
+      ],
+      "sources": [
+        "https://treelife.in/finance/venture-debt-vs-equity-funding/",
+        "https://inc42.com/?p=365798",
+        "https://inc42.com/buzz/d2c-fashion-brand-snitch-raises-40-mn-for-offline-expansion",
+        "https://india.entrepreneur.com/news-and-trends/these-8-d2c-brands-dominated-vc-funding-in-2025/501443",
+        "https://yourstory.com/2024/03/ultrahuman-bags-35-million-blume-ventures-steadview-capital",
+        "https://echai.ventures/d2c/d2c-scaling-1cr-100cr/how-indian-consumer-vcs-fireside-sauce-evaluate-scaling-brands",
+        "https://base.com/en-IN/blog/?p=19412"
+      ]
+    },
+    {
+      "name": "Series C",
+      "arrAtRaiseCr": { "low": 250, "mid": 350, "high": 600 },
+      "sizeCr": { "low": 180, "mid": 300, "high": 550 },
+      "preMoneyArrMultiple": { "low": 3, "mid": 4.5, "high": 7 },
+      "dilution": { "low": 0.1, "mid": 0.16, "high": 0.2 },
+      "monthsAfterPrevious": 22,
+      "ventureDebtShareOfRound": 0.3,
+      "milestones": [
+        "EBITDA positive or within reach",
+        "Offline / retail at scale (tens of stores or deep GT)",
+        "Mix diversified beyond Amazon + Meta",
+        "Category leadership in the core",
+        "IPO or strategic-exit path; secondary for early investors common"
+      ],
+      "sources": [
+        "https://entrackr.com/news/giva-raises-rs-530-cr-in-series-c-round-led-by-creaegis-9407202",
+        "https://inc42.com/buzz/giva-loss-widens-23-to-%e2%82%b972-cr-in-fy25-revenue-jumps-90/",
+        "https://startup.outlookindia.com/sector/fintech/after-raising-rs-184-crore-the-sleep-company-chases-rs-1000-crore-revenue-target-for-2025-news-10002",
+        "https://entrackr.com/news/the-sleep-company-raises-rs-480-cr-in-primary-and-secondary-funding-9631069",
+        "https://pulse.d2cinsider.com/renee-cosmetics-raises-30-mn-in-series-c-to-scale-its-d2c-beauty-playbook-at-200-mn-valuation/",
+        "https://echai.ventures/d2c/d2c-exit-acquisition/how-is-my-d2c-brand-valued-when-sold"
+      ]
+    }
+  ],
+  "ventureDebt": {
+    "tenureMonths": 30,
+    "ratePct": 14,
+    "feePct": 1.5,
+    "moratoriumMonths": 4,
+    "warrantPctFullyDiluted": 0.01,
+    "prepaymentPenaltyPct": 2,
+    "sources": [
+      "https://treelife.in/finance/venture-debt-vs-equity-funding/",
+      "https://www.equitylist.co/blog-post/venture-debt-funds-india"
+    ]
+  },
+  "notes": [
+    "Mid values are planning defaults, not market quotes: most Indian deal reports omit valuation, so multiples are stated ranges (2-4x revenue per D2C Pulse 2026, 3-6x per eChai 2026) plus two back-solved deals (Snitch A ~2x, B ~4.5-5x; GIVA C ~7.5x).",
+    "ARR at raise ranges are wide because the market moved: a targeted Series A at Rs 5-10 Cr is now called credible, while the funded 2025 names (Moxie, Snitch) raised their A at Rs 100 Cr+ ARR. Map Heatronics by ARR, not the round label.",
+    "Dilution mids equal size / (multiple x ARR + size) so the three rounds are internally consistent; India early rounds often dilute more than the Carta medians (Entrackr, Sep 2025), and the pre-A ESOP top-up is not included.",
+    "Round gaps: India seed-to-A median ~20 months (Seafund 2026); global Carta medians 26 / 30 / 29 months; the Indian D2C examples ran 13-20 months. Plan for 20, stress-test at 30.",
+    "Venture debt: 25-30% of the equity raise, 18-36 months from drawdown, 13-15% p.a. (12-18% quoted), 3-6 month interest-only moratorium, warrants 0.1-2% at last-round price, prepayment 1-3%. feePct 1.5 is an ASSUMPTION: sources say some lenders charge a processing fee but give no figure.",
+    "Hardware / health devices: no published separate multiple. Device rounds in India come smaller and later (Curapod Rs 20 Cr pre-A, Aether Rs 4.5 Cr pre-A), lean more on debt (inventory, capex), and are priced like consumer brands once margin and repeat are proven (Ultrahuman, The Sleep Company).",
+    "Figures mix revenue, net sales and ARR as the sources printed them; FX about Rs 84/$."
+  ]
+}
