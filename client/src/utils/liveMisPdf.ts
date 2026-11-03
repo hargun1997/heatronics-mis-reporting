@@ -189,7 +189,7 @@ export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions, st?: Live
   const MAXC = 12;
   if (o.sections.includes('balanceSheet')) {
     const sheets = (st?.sheets ?? []).slice(-MAXC);
-    if (!sheets.length) none('Heatronics — Live MIS · Balance Sheet', 'No Trial Balance stored yet (Data sources → Tally → Pull now).');
+    if (!sheets.length) none('Heatronics — Live MIS · Balance Sheet', 'No Trial Balance stored yet (Setup → Tally → Pull now).');
     else {
       const y = page('Heatronics — Live MIS · Balance Sheet');
       const rows: { cells: string[]; bold?: boolean }[] = [];

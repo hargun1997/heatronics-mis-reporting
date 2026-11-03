@@ -105,6 +105,7 @@ function App() {
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />
           <Route path="planning" element={<PlanningPage />} />
+          <Route path="setup" element={<Navigate to="/reporting/mis/connectors" replace />} />
           <Route path="tally" element={<TallyPage />} />
 
           {/* Back-compat redirects from old routes */}

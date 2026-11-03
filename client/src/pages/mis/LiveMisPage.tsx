@@ -554,7 +554,7 @@ function RunRateTab() {
         description={`${from} → ${to} · ${days} days${isRatio ? ' · ratio metric, not summed' : ''}`}>
         {facts.length === 0 ? (
           <p className="text-sm text-slate-400">No data for this range. Connect a dateable source (Shopify today) on the{' '}
-            <a href="/reporting/mis/connectors" className="text-emerald-700 underline">Data sources</a> page and pull.</p>
+            <a href="/reporting/mis/connectors" className="text-emerald-700 underline">Setup</a> page and pull.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">

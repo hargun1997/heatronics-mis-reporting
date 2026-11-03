@@ -543,7 +543,7 @@ function noteSheet(title: string, text: string): XLSX.WorkSheet {
 /** Balance Sheet: months as columns (newest 12), Tally's groups with their ledgers beneath, ₹. */
 export function balanceSheetSheet(all: BalanceSheet[]): XLSX.WorkSheet {
   const sheets = all.slice(-12);
-  if (!sheets.length) return noteSheet('BALANCE SHEET', 'No Trial Balance stored yet. It is built from Tally month-end copies (Data sources → Tally → Pull now).');
+  if (!sheets.length) return noteSheet('BALANCE SHEET', 'No Trial Balance stored yet. It is built from Tally month-end copies (Setup → Tally → Pull now).');
   const { put, band, finish } = sheetWriter();
   const nCols = sheets.length + 1;
   let row = 0;

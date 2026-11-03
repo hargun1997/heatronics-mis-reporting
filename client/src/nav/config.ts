@@ -73,7 +73,7 @@ export const NAV: NavSection[] = [
     id: 'admin',
     label: 'Admin',
     pages: [
-      { id: 'sources', label: 'Data sources', href: '/reporting/mis/connectors', icon: 'sources', hint: 'Connectors, Tally, scheduled feeds', words: 'connectors api amazon shopify meta google tally setup' },
+      { id: 'sources', label: 'Setup', href: '/reporting/mis/connectors', icon: 'sources', hint: 'Every connector, Tally, scheduled feeds (same as Ops Setup)', words: 'setup data sources connectors api amazon shopify meta google tally' },
       { id: 'rulebook', label: 'Data rulebook', href: '/reporting/mis/rulebook', icon: 'rules', hint: 'How each number is built', words: 'rules mapping definitions' },
     ],
   },
