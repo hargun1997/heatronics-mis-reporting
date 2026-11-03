@@ -285,6 +285,15 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   month's ARR / units or this month's outlets, never shrinking, hiring cost on each increase. `overheads` (site: sq ft × rent + running,
   deposit → Intangibles & Deposits, fit-out → Plant & Machinery; fixed ₹/mo escalating yearly; % of list revenue). `funding` rules feed
   `fundTheGap`; `roundStats` = cash before, burn / mo (next 12) and runway per round.
+- **Products tab** (`components/planning/ProductsTab.tsx`, founder 3 Nov 2026: "control on the projections"): one cascade = broad
+  assumptions (levers) → categories (`growth.categories: CategoryDef[]`, defaults `defaultCategories()` device / topical / nutra; add /
+  rename / remove when empty) → products in each category ("+ Add product") → per-product volumes and expenses. A product leaves a field
+  unset to inherit its category (`resolveProduct`: material %, marketing %, repeat, kept, in-house, channel split). Volume = launch + growth,
+  or `unitsByFy` (typed units per FY, spread over the months on sale × seasonality; `push` skips typed years). `expenses: ProductExpense[]`
+  (oneoff / capex in the start month, monthly from start with + % a year until `end`, pct = share of the product's revenue) → group
+  `EXPENSE_GROUP[kind]` unless set (new opex group "Product Running Costs"). Current sheet SKUs = "Current range" (skuTweaks). Sheet-parity
+  mode hides all of it: the tab shows a banner + one click "Use my products in the plan" (founder decisions on, parity off, growth on).
+  Excel: categories, typed units and product expenses on the Growth builder sheet. Tests in `server/test/growth.test.ts`.
 - Business Plan + Overview (`plan.business`, `data/planning/summary.ts`): headline 12M/18M/full, Exit ARR (TTM × min(L3M ÷ same
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,

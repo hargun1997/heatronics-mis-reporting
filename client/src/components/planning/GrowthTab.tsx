@@ -2,10 +2,10 @@
 // with the exit-ARR target, "Solve for the target" and "Fund the gap". Engine hooks: data/planning/engine.ts;
 // helpers and the ₹500 Cr scenario: data/planning/growth.ts.
 
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  CATEGORY_NAMES, CHANNELS, CHANNEL_NAMES, DEPT_NAMES,
-  type Channel, type Dept, type Hire, type NewProduct, type Overhead, type Plan, type PlanResult, type ProductCategory, type RetailType,
+  CATEGORY_NAMES, DEPT_NAMES,
+  type Dept, type Hire, type Overhead, type Plan, type PlanResult, type ProductCategory, type RetailType,
 } from '../../data/planning/engine';
 import { build500Cr, defaultFunding, defaultOverheads, defaultRetail, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, roundStats, runRateArr, solvePath, solveForTarget } from '../../data/planning/growth';
 import { SectionCard } from '../ui/Card';
@@ -40,9 +40,8 @@ function Check({ checked, onChange, label }: { checked: boolean; onChange: (v: b
   return <input type="checkbox" aria-label={label} title={label} checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-brand-600" />;
 }
 
-export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; update: Update }) {
+export function GrowthTab({ plan, r, update, onOpenProducts }: { plan: Plan; r: PlanResult; update: Update; onOpenProducts?: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
-  const [openLine, setOpenLine] = useState<string | null>(null);
   const G = plan.growth;
   const months = r.months.map((m) => ({ m: m.m, label: m.label }));
   const parity = !!plan.fx?.sheetParity;
@@ -99,7 +98,6 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
   }
 
   const set = (fn: (g: NonNullable<Plan['growth']>) => void) => update((p) => { if (p.growth) fn(p.growth); });
-  const setProd = (id: string, fn: (x: NewProduct) => void) => update((p) => { const x = p.products.find((y) => y.id === id); if (x) fn(x); });
   const lines = plan.products.filter((x) => x.category || x.growthLine);
   const otherProducts = plan.products.filter((x) => !x.category && !x.growthLine);
 
@@ -172,84 +170,19 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
       </SectionCard>
 
       {/* product lines */}
-      <SectionCard title="New product lines" description="Price incl. GST. Volume = new buyers a month at launch, growing month on month for a year, then year on year; consumables add repeat orders (repeat rate × buyers, kept month on month). Channel split = online, summing to 100; GT / MT / pharmacy come from the outlet plan below. Contract-made lines don't use our capacity."
-        actions={<button className={btn} onClick={() => update((p) => { p.products.push({ id: newId('g-'), name: 'New line', on: true, category: 'topical', inHouse: false, asp: 399, launchMonth: 13, launchUnits: 1000, rampPct: 0.1, steadyPct: 0.4, split: { A: 0.5, D: 0.4, F: 0.1, G: 0, P: 0 }, cogsPct: 0.3, marketingPct: 0.05, launchCost: 0, launchCapex: 0, seasonRef: 'flat', growthLine: true, placeholder: true }); })}>Add a line</button>}>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1400px] text-[12.5px] tabular-nums">
-            <thead><tr className="bg-surface-tint">
-              <th className={th}>On</th><th className={th}>Line</th><th className={th}>Family</th><th className={th}>Launch</th>
-              <th className={thr}>Price ₹</th><th className={thr}>Units/mo at launch</th><th className={thr}>m/m yr 1</th><th className={thr}>y/y after</th>
-              <th className={thr}>Material %</th><th className={thr}>Extra mktg %</th><th className={thr} title="Share of a month's buyers who buy again the next month">Repeat</th><th className={thr} title="Month-on-month retention of repeat buyers">Kept / mo</th><th className={thr}>Launch cost</th><th className={thr}>Tooling</th><th className={th}>In-house</th>
-              {CHANNELS.map((c) => <th key={c} className={thr}>{CHANNEL_NAMES[c]}</th>)}
-              <th className={thr}>Exit ARR</th><th className={th} />
-            </tr></thead>
-            <tbody>
-              {lines.map((x) => {
-                const splitSum = sum(CHANNELS.map((c) => x.split[c] ?? 0));
-                const open = openLine === x.id;
-                return (
-                  <Fragment key={x.id}>
-                  <tr className={`border-t border-slate-100 ${x.on ? '' : 'opacity-50'}`}>
-                    <td className={td}><Check checked={x.on} onChange={(v) => setProd(x.id, (y) => { y.on = v; })} label={`${x.name} on`} /></td>
-                    <td className={td}>
-                      <input className={txt} value={x.name} aria-label="Line name" onChange={(e) => setProd(x.id, (y) => { y.name = e.target.value; })} />
-                      {x.placeholder && <span className="ml-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700" title="Untick once the numbers are yours">placeholder</span>}
-                    </td>
-                    <td className={td}>
-                      <select aria-label="Family" value={x.category ?? 'other'} className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[13px]"
-                        onChange={(e) => setProd(x.id, (y) => { y.category = e.target.value as ProductCategory; })}>
-                        {(Object.keys(CATEGORY_NAMES) as ProductCategory[]).map((k) => <option key={k} value={k}>{CATEGORY_NAMES[k]}</option>)}
-                      </select>
-                    </td>
-                    <td className={td}><MonthSelect title="Launch month" value={x.launchMonth} months={months} onChange={(m) => setProd(x.id, (y) => { y.launchMonth = m ?? 1; })} /></td>
-                    <td className={`${td} text-right`}><NumInput value={x.asp} min={0} width="w-16" title="Price" onChange={(v) => setProd(x.id, (y) => { y.asp = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput value={Math.round(x.launchUnits)} min={0} width="w-20" title="Units a month at launch" onChange={(v) => setProd(x.id, (y) => { y.launchUnits = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput unit="pct" value={x.rampPct} width="w-14" title="Month-on-month growth, first year" onChange={(v) => setProd(x.id, (y) => { y.rampPct = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput unit="pct" value={x.steadyPct} width="w-14" title="Year-on-year growth after" onChange={(v) => setProd(x.id, (y) => { y.steadyPct = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput unit="pct" value={x.cogsPct ?? 0} min={0} max={1} width="w-14" title="Material cost % of revenue" onChange={(v) => setProd(x.id, (y) => { y.cogsPct = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput unit="pct" value={x.marketingPct ?? 0} min={0} width="w-14" title="Extra marketing % of revenue" onChange={(v) => setProd(x.id, (y) => { y.marketingPct = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput unit="pct" value={x.repeatPct ?? 0} min={0} max={1} width="w-12" title="Repeat rate" onChange={(v) => setProd(x.id, (y) => { y.repeatPct = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput unit="pct" value={x.repeatDecay ?? 0} min={0} max={1} width="w-12" title="Repeat buyers kept each month" onChange={(v) => setProd(x.id, (y) => { y.repeatDecay = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput unit="lakh" value={x.launchCost ?? 0} min={0} width="w-14" title="Launch cost" onChange={(v) => setProd(x.id, (y) => { y.launchCost = v; })} /></td>
-                    <td className={`${td} text-right`}><NumInput unit="lakh" value={x.launchCapex ?? 0} min={0} width="w-14" title="Tooling capex" onChange={(v) => setProd(x.id, (y) => { y.launchCapex = v; })} /></td>
-                    <td className={td}><Check checked={x.inHouse ?? x.category === 'device'} onChange={(v) => setProd(x.id, (y) => { y.inHouse = v; })} label="Made in-house" /></td>
-                    {CHANNELS.map((c: Channel) => (
-                      <td key={c} className={`${td} text-right`}><NumInput unit="pct" value={x.split[c] ?? 0} min={0} max={1} width="w-12" title={`${CHANNEL_NAMES[c]} share`} onChange={(v) => setProd(x.id, (y) => { y.split[c] = v; })} /></td>
-                    ))}
-                    <td className={`${td} text-right ${Math.abs(splitSum - 1) > 0.005 ? 'text-rose-600' : 'text-slate-900'}`} title={Math.abs(splitSum - 1) > 0.005 ? `Channel split adds to ${pct(splitSum, 0)}` : undefined}>{cr(mix.byId[x.id] ?? 0, 0)} Cr</td>
-                    <td className={td}>
-                      <button className="rounded px-1.5 py-0.5 text-[12px] font-semibold text-brand-700 hover:underline" aria-expanded={open} onClick={() => setOpenLine(open ? null : x.id)}>{open ? 'Close' : 'Channels'}</button>
-                      <button className={rm} onClick={() => update((p) => { p.products = p.products.filter((y) => y.id !== x.id); })} aria-label={`Remove ${x.name}`}>✕</button>
-                    </td>
-                  </tr>
-                  {open && (
-                    <tr className="bg-surface-tint/60">
-                      <td colSpan={15 + CHANNELS.length + 2} className="px-3 py-3">
-                        <div className="flex flex-wrap items-start gap-4 text-[12.5px] text-slate-600">
-                          {CHANNELS.map((c) => (
-                            <div key={c} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
-                              <div className="mb-1 font-semibold text-slate-700">{CHANNEL_NAMES[c]}</div>
-                              <div className="flex items-center gap-1">share <NumInput unit="pct" value={x.split[c] ?? 0} min={0} max={1} width="w-12" title={`${CHANNEL_NAMES[c]} share`} onChange={(v) => setProd(x.id, (y) => { y.split[c] = v; })} /></div>
-                              <div className="mt-1 flex items-center gap-1">from <MonthSelect title={`${CHANNEL_NAMES[c]} start`} value={x.chStart?.[c] ?? x.launchMonth} months={months} onChange={(m) => setProd(x.id, (y) => { y.chStart = { ...(y.chStart ?? {}), [c]: m ?? y.launchMonth }; })} /></div>
-                              <div className="mt-1 flex items-center gap-1">+ / yr <NumInput unit="pct" value={x.chGrowth?.[c] ?? 0} width="w-12" title={`${CHANNEL_NAMES[c]} extra growth a year`} onChange={(v) => setProd(x.id, (y) => { y.chGrowth = { ...(y.chGrowth ?? {}), [c]: v }; })} /></div>
-                            </div>
-                          ))}
-                          <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
-                            <div className="mb-1 font-semibold text-slate-700">GT / MT / pharmacy</div>
-                            <div className="flex items-center gap-1">in outlets from <MonthSelect title="Offline start" value={x.retailStart ?? x.launchMonth} months={months} onChange={(m) => setProd(x.id, (y) => { y.retailStart = m ?? y.launchMonth; })} /></div>
-                            <p className="mt-1 max-w-[220px] text-[11.5px] text-slate-500">Offtake per outlet is set per family in the outlet plan below.</p>
-                          </div>
-                          <p className="max-w-[320px] text-[11.5px] text-slate-500">A channel sells nothing before its start; from then its share of the line's volume grows by its own rate each year on top of the line's growth. Shares are of the online volume.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      <SectionCard title="Product lines" description="Products, categories, volumes, channels and each product's own expenses are set on the Products tab."
+        actions={onOpenProducts && <button className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover" onClick={onOpenProducts}>Edit products</button>}>
+        <ul className="divide-y divide-slate-100 text-[13px]">
+          {lines.map((x) => (
+            <li key={x.id} className={`flex flex-wrap items-center gap-3 px-5 py-2 ${x.on ? '' : 'opacity-50'}`}>
+              <span className="font-medium text-slate-900">{x.name}</span>
+              <span className="text-slate-500">{(G.categories ?? []).find((c) => c.id === x.category)?.name ?? CATEGORY_NAMES[x.category ?? 'other'] ?? x.category}</span>
+              <span className="text-slate-500">from {months.find((m) => m.m === x.launchMonth)?.label ?? '—'}</span>
+              <span className="ml-auto tabular-nums text-slate-700">exit ARR {cr(mix.byId[x.id] ?? 0, 0)} Cr</span>
+            </li>
+          ))}
+          {!lines.length && <li className="px-5 py-3 text-slate-500">No product lines yet.</li>}
+        </ul>
         {otherProducts.length > 0 && <p className="px-5 py-2 text-[12px] text-slate-500">Also in the plan (Products & customers tab): {otherProducts.map((x) => `${x.name}${x.on ? '' : ' (off)'}`).join(', ')}.</p>}
       </SectionCard>
 

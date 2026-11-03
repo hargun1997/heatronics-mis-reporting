@@ -103,10 +103,63 @@ export interface NewProduct {
   chGrowth?: Partial<Record<Channel, number>>;
   /** Growth builder: month this product enters GT / MT / pharmacy outlets (default its launch month) */
   retailStart?: number;
+  /** Growth builder: NEW-buyer units per FY typed by hand (e.g. { FY29: 24000 }); a year set here replaces launch + ramp for that year
+   *  (spread evenly over its months on sale × the product's season), and the revenue-path push leaves it alone */
+  unitsByFy?: Record<string, number>;
+  /** Growth builder: this product's own costs (one-off launch / tooling, monthly fixed, % of its revenue) */
+  expenses?: ProductExpense[];
 }
 
-export type ProductCategory = 'device' | 'topical' | 'nutra' | 'other';
-export const CATEGORY_NAMES: Record<ProductCategory, string> = {
+/** A product's own cost line. `month` defaults to the product's launch month; `group` to the natural plan group for the kind. */
+export interface ProductExpense {
+  id: string;
+  label: string;
+  kind: 'oneoff' | 'capex' | 'monthly' | 'pct';
+  /** ₹ (oneoff / capex / monthly) or a share of the product's revenue (pct, 0.05 = 5 %) */
+  amount: number;
+  month?: number;
+  /** last month (monthly / pct); null = to the end */
+  end?: number | null;
+  /** monthly: rise a year from its start */
+  growthPct?: number;
+  group?: string;
+}
+export const EXPENSE_GROUP: Record<ProductExpense['kind'], string> = {
+  oneoff: 'Product Development & Launch', capex: 'New Product Tooling & Moulds', monthly: 'Product Running Costs', pct: 'Performance Marketing',
+};
+
+/** A product family (user-defined). Products in it inherit any field they leave unset. */
+export interface CategoryDef {
+  id: string;
+  name: string;
+  cogsPct?: number | null;
+  marketingPct?: number;
+  repeatPct?: number;
+  repeatDecay?: number;
+  inHouse?: boolean;
+  /** default channel mix for new products in it (sums to 1) */
+  split?: Record<Channel, number>;
+  seasonRef?: string;
+  note?: string;
+}
+/** A product with its category's defaults filled in where it left a field unset (pure). */
+export function resolveProduct(p: NewProduct, cats: CategoryDef[] | undefined): NewProduct {
+  const c = cats?.find((x) => x.id === p.category);
+  if (!c) return p;
+  return {
+    ...p,
+    cogsPct: p.cogsPct ?? c.cogsPct ?? null,
+    marketingPct: p.marketingPct ?? c.marketingPct,
+    repeatPct: p.repeatPct ?? c.repeatPct,
+    repeatDecay: p.repeatDecay ?? c.repeatDecay,
+    inHouse: p.inHouse ?? c.inHouse,
+    seasonRef: p.seasonRef ?? c.seasonRef,
+  };
+}
+
+/** A category id: the built-in device / topical / nutra / other, or one the founder adds (Growth builder → Products). */
+export type ProductCategory = string;
+export const CATEGORY_NAMES: Record<string, string> = {
   device: 'Devices', topical: 'Topicals', nutra: 'Nutraceuticals', other: 'Other',
 };
 
@@ -190,11 +243,14 @@ export interface GrowthPlan {
   rounds: FundRound[];
   stores: StorePlan;
   note: string;
+  /** product families with the defaults their products inherit (Products tab); absent = the four built-in names, no defaults */
+  categories?: CategoryDef[];
 }
 /** Cost groups the Growth builder adds (present in plans that switch it on). */
 export const GROWTH_GROUPS: { name: string; section: Section }[] = [
   { name: 'Retail Stores', section: 'opex' },
   { name: 'Store Fit-out', section: 'capex' },
+  { name: 'Product Running Costs', section: 'opex' },
 ];
 
 /** One month of D2C order history (aggregates only — no customer data). */
@@ -595,6 +651,8 @@ export function runPlan(plan: Plan): PlanResult {
   const parity = !!plan.fx?.sheetParity;
   const taxMode = parity ? 'sheet' : L.taxMode;
   const G = !parity && plan.growth?.on ? plan.growth : null;
+  // Growth builder: every product with its category's defaults filled in (Products tab cascade)
+  const products = G ? plan.products.map((p) => resolveProduct(p, G.categories)) : plan.products;
   const B = plan.units.length;
   const H = Math.max(B, L.horizon);
   const nSku = plan.skus.length;
@@ -672,12 +730,17 @@ export function runPlan(plan: Plan): PlanResult {
     if (!p.on || m < p.launchMonth || (p.placeholder && parity)) return 0; // placeholder products stand aside in sheet-parity mode
     const k = m - p.launchMonth; // 0 at launch
     const season = p.seasonRef && p.seasonRef !== 'flat' ? plan.skuSeason?.[p.seasonRef]?.[calOf(plan.startMonth, m)] ?? 1 : 1;
+    const typed = G ? p.unitsByFy?.[fyOf(plan.startMonth, m)] : undefined;
+    if (typed != null) {
+      const onSale = (fyMonths.get(fyOf(plan.startMonth, m)) ?? []).filter((mm) => mm >= p.launchMonth).length || 1;
+      return (typed / onSale) * season;
+    }
     if (k < 12) return p.launchUnits * Math.pow(1 + p.rampPct, k) * season;
     const peak = p.launchUnits * Math.pow(1 + p.rampPct, 11);
     return peak * Math.pow(1 + p.steadyPct, (k - 11) / 12) * season;
   };
   // Growth builder: the FY push multiplies a growth line's NEW buyers; consumables add repeat orders from earlier buyers
-  const pushOf = (p: NewProduct, m: number) => (p.growthLine && G?.push ? G.push[fyOf(plan.startMonth, m)] ?? 1 : 1);
+  const pushOf = (p: NewProduct, m: number) => (p.growthLine && G?.push && p.unitsByFy?.[fyOf(plan.startMonth, m)] == null ? G.push[fyOf(plan.startMonth, m)] ?? 1 : 1);
   const unitCache = new Map<string, { tot: number[]; rep: number[] }>();
   const hireCount = new Map<string, number>(); // scaled roles: the most people reached so far
   const unitsOf = (p: NewProduct) => {
@@ -807,7 +870,7 @@ export function runPlan(plan: Plan): PlanResult {
     const gAdd: Record<string, number> = {}; // Growth-builder costs, added to the groups after the expense calendar
     const add = (grp: string, v: number) => { if (v) gAdd[grp] = (gAdd[grp] ?? 0) + v; };
     let inHouseUnits = 0, repeatUnits = 0;
-    for (const p of plan.products) {
+    for (const p of products) {
       if (G && p.on && m === p.launchMonth) { add('Product Development & Launch', p.launchCost ?? 0); add('New Product Tooling & Moulds', p.launchCapex ?? 0); }
       const q0 = productUnits(p, m);
       // per-channel factor: the channel's share once it has started, grown by its own rate a year (Growth builder only)
@@ -834,6 +897,18 @@ export function runPlan(plan: Plan): PlanResult {
       if (p.cogsPct != null) { ownCogs += pr * p.cogsPct; ownCogsRevenue += pr; }
       if (G && p.marketingPct) add('Performance Marketing', pr * p.marketingPct);
     }
+    // Growth builder: each product's own cost lines
+    if (G) for (const p of products) {
+      if (!p.on || !p.expenses?.length || (p.placeholder && parity)) continue;
+      for (const e of p.expenses) {
+        const st = e.month ?? p.launchMonth;
+        const grp = e.group || EXPENSE_GROUP[e.kind];
+        if (e.kind === 'oneoff' || e.kind === 'capex') { if (m === st) add(grp, e.amount); continue; }
+        if (m < st || (e.end != null && m > e.end)) continue;
+        if (e.kind === 'monthly') add(grp, e.amount * Math.pow(1 + (e.growthPct ?? 0), Math.floor((m - st) / 12)));
+        else add(grp, (revenueBySku[p.id] ?? 0) * e.amount);
+      }
+    }
     for (let s = 0; s < nSku; s++) inHouseUnits += unitsBySku[plan.skus[s].id] ?? 0; // the core SKUs are made in-house
 
     // ---- Growth builder: offline distribution of the new lines (GT, MT, pharmacy) ------------
@@ -846,7 +921,7 @@ export function runPlan(plan: Plan): PlanResult {
       for (const cat of Object.keys(t.units) as ProductCategory[]) {
         const per = t.units[cat] ?? 0;
         if (!per || !o.eff) continue;
-        const live = plan.products.filter((p) => p.on && p.growthLine && (p.category ?? 'other') === cat && m >= (p.retailStart ?? p.launchMonth) && !(p.placeholder && parity));
+        const live = products.filter((p) => p.on && p.growthLine && (p.category ?? 'other') === cat && m >= (p.retailStart ?? p.launchMonth) && !(p.placeholder && parity));
         if (!live.length) continue;
         for (const p of live) {
           const q = (o.eff * per) / live.length;
