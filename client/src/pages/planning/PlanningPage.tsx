@@ -3,29 +3,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { SectionCard } from '../../components/ui/Card';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { runPlan, type Plan, type PlanResult } from '../../data/planning/engine';
 import { basePlan, upgradePlan, BASE_SOURCE_URL } from '../../data/planning/basePlan';
-import { LeverPanel } from '../../components/planning/LeverPanel';
-import { FyTable } from '../../components/planning/FyTable';
-import { RevenueBars, CashCurve, MiniStat } from '../../components/planning/charts';
-import { RevenueTab } from '../../components/planning/RevenueTab';
-import { CostsTab } from '../../components/planning/CostsTab';
+import { SetupPanel } from '../../components/planning/setup/SetupPanel';
+import { OverviewView } from '../../components/planning/outputs/Overview';
+import { BusinessPlanView } from '../../components/planning/outputs/BusinessPlan';
+import { RevenueView } from '../../components/planning/outputs/Revenue';
+import { CostsView } from '../../components/planning/outputs/Costs';
+import { CashFundingView } from '../../components/planning/outputs/CashFunding';
+import { ProductsCustomersView } from '../../components/planning/outputs/ProductsCustomers';
 import { PnlGrid } from '../../components/planning/PnlGrid';
-import { CashTab } from '../../components/planning/CashTab';
-import { CustomersTab } from '../../components/planning/CustomersTab';
-import { BusinessPlanTab } from '../../components/planning/BusinessPlanTab';
-import { ProductsTab } from '../../components/planning/ProductsTab';
-import { GrowthTab } from '../../components/planning/GrowthTab';
-import { NumInput } from '../../components/planning/inputs';
-import { ParityToggle } from '../../components/planning/FounderPanel';
 import { monthBefore, openingFromTally } from '../../data/planning/opening';
-import { money, pct } from '../../components/planning/fmt';
 import { downloadPlanWorkbook } from '../../utils/planningExport';
 
 interface Saved { id: string; name: string; note: string; updatedAt: string; updatedBy: string | null }
-type Tab = 'overview' | 'products' | 'growth' | 'business' | 'customers' | 'revenue' | 'costs' | 'monthly' | 'cash';
+type View = 'overview' | 'business' | 'revenue' | 'costs' | 'monthly' | 'cash' | 'products';
 
 const DRAFT_KEY = 'planning-draft-v1';
 const icon = (
@@ -64,7 +57,7 @@ export function PlanningPage() {
   const [selected, setSelected] = useState<string>(draft?.selected ?? 'base');
   const [cleanJson, setCleanJson] = useState<string>(() => draft?.clean ?? JSON.stringify(basePlan()));
   const [saved, setSaved] = useState<Saved[]>([]);
-  const [tab, setTab] = useState<Tab>('overview');
+  const [view, setView] = useState<View>('overview');
   const [compareId, setCompareId] = useState<string>('base');
   const [comparePlan, setComparePlan] = useState<Plan | null>(() => basePlan());
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -149,19 +142,11 @@ export function PlanningPage() {
     } catch (e) { flash((e as Error).message, true); }
   };
 
-  const ys = result.years;
-  const fy28 = ys.find((y) => y.fy === 'FY28');
-  const last = ys[ys.length - 1];
-  const cagr = fy28 && last && last.fy !== 'FY28' ? Math.pow(last.revenueWithActuals / fy28.revenueWithActuals, 1 / (ys.indexOf(last) - ys.indexOf(fy28))) - 1 : NaN;
-  const firstPositive = ys.find((y) => y.months === 12 && y.ebitda > 0);
-  const peakMonth = result.months[result.peakDeficitMonth - 1];
-  const lowMonth = result.months[result.minClosingCashMonth - 1];
-
   return (
     <>
       <PageHeader
         title="5-year plan"
-        description="Your Projection & Deployment Plan, running live and extended to FY31. Move the levers, save scenarios, compare them, export to Excel."
+        description="Your Projection & Deployment Plan, running live and extended to FY31. Everything you can change is in Setup; everything below it is the result."
         icon={icon}
         accent="brand"
         actions={<a href={BASE_SOURCE_URL} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand-700 hover:underline">Source sheet ↗</a>}
@@ -175,7 +160,7 @@ export function PlanningPage() {
             {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Unsaved changes</span>}
-          <button disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-40">
+          <button disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
             {selected === 'base' ? 'Save as scenario' : 'Save'}
           </button>
           {selected !== 'base' && <button disabled={busy} onClick={() => save(true)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Save as new</button>}
@@ -189,69 +174,26 @@ export function PlanningPage() {
             <option value="base">Base</option>
             {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <ParityToggle plan={plan} update={update} />
           <button onClick={() => downloadPlanWorkbook(plan, result)} className="ml-auto rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Export Excel</button>
           {msg && <span className={`w-full text-[12px] ${msg.bad ? 'text-rose-600' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
         </div>
 
+        <SetupPanel plan={plan} update={update} result={result} />
+
         <div className="-mx-1 overflow-x-auto px-1 [&_button]:whitespace-nowrap">
-        <SegmentedControl<Tab>
-          options={[{ id: 'overview', label: '5-year view' }, { id: 'products', label: 'Products' }, { id: 'growth', label: 'Growth builder' }, { id: 'business', label: 'Business plan' }, { id: 'customers', label: 'D2C customers' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }]}
-          value={tab} onChange={setTab} aria-label="Planner view"
-        />
+          <SegmentedControl<View>
+            options={[{ id: 'overview', label: 'Overview' }, { id: 'business', label: 'Business plan' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }, { id: 'products', label: 'Products & customers' }]}
+            value={view} onChange={setView} aria-label="Plan output"
+          />
         </div>
 
-        {tab === 'overview' && (
-          <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-            <aside className="lg:sticky lg:top-4 lg:self-start">
-              <SectionCard title="Levers" description="Change one and everything recalculates.">
-                <LeverPanel plan={plan} update={update} />
-              </SectionCard>
-            </aside>
-            <div className="min-w-0 space-y-5">
-              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                <MiniStat label={`${last?.fy} revenue`} value={money(last?.revenueWithActuals ?? 0, 1)} sub={Number.isFinite(cagr) ? `${pct(cagr, 0)} CAGR from FY28` : undefined} />
-                <MiniStat label={`${last?.fy} EBITDA`} value={pct((last?.ebitdaWithActuals ?? 0) / (last?.revenueWithActuals || 1))} sub={`${money(last?.ebitdaWithActuals ?? 0)} · first positive full year: ${firstPositive?.fy ?? 'none'}`} bad={(last?.ebitda ?? 0) < 0} />
-                <MiniStat label="Funding need" value={money(result.fundingRequired, 1)} sub={`Peak deficit ${money(result.peakDeficit, 1)} in ${peakMonth?.label ?? '–'} + contingency`} />
-                <MiniStat label="Lowest cash" value={money(result.minClosingCash, 1)} sub={`${lowMonth?.label ?? ''} · with raises & debt on the timeline`} bad={result.minClosingCash < 0} />
-              </div>
-
-              <SectionCard
-                title="Five years at a glance"
-                description={compareResult && compareId !== 'none' ? `Small figures show the change vs ${compareName}.` : 'FY27 and FY28 come from the 18-month sheet; FY29–FY31 from the levers.'}
-                actions={
-                  <div className="flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
-                    Apr–Sep ’26 actuals
-                    <NumInput unit="cr" value={plan.levers.fy27H1Revenue} min={0} width="w-16" title="Apr–Sep 2026 actual revenue" onChange={(v) => update((p) => { p.levers.fy27H1Revenue = v; })} />
-                    <span>rev</span>
-                    <NumInput unit="cr" value={plan.levers.fy27H1Ebitda} width="w-16" title="Apr–Sep 2026 actual EBITDA" onChange={(v) => update((p) => { p.levers.fy27H1Ebitda = v; })} />
-                    <span>EBITDA</span>
-                  </div>
-                }
-              >
-                <FyTable r={result} compare={compareId !== 'none' ? compareResult : null} compareName={compareName} />
-              </SectionCard>
-
-              <div className="space-y-5">
-                <SectionCard title="Revenue by channel"><RevenueBars r={result} compare={compareId !== 'none' ? compareResult : null} /></SectionCard>
-                <SectionCard title="Cash"><CashCurve r={result} compare={compareId !== 'none' ? compareResult : null} /></SectionCard>
-              </div>
-              <p className="text-[12px] leading-relaxed text-slate-500">
-                How the years after Mar-28 are built: each SKU × channel sells the same month’s units a year earlier × (1 + that channel’s growth); prices move by the price lever.
-                Cost lines marked “repeats” run as they did in the same month of Apr-27–Mar-28, so peak-season COGS, ROAS and winter campaigns recur every year; fixed amounts rise with inflation (and team growth for people costs).
-                One-off launch, tooling and fundraise lines don’t repeat — add next launches on the Costs tab. Working capital, GST and debt work exactly as in the sheet.
-              </p>
-            </div>
-          </div>
-        )}
-        {tab === 'products' && <ProductsTab plan={plan} r={result} update={update} />}
-        {tab === 'growth' && <GrowthTab plan={plan} r={result} update={update} onOpenProducts={() => setTab('products')} />}
-        {tab === 'business' && <BusinessPlanTab plan={plan} r={result} update={update} />}
-        {tab === 'customers' && <CustomersTab plan={plan} r={result} update={update} />}
-        {tab === 'revenue' && <RevenueTab plan={plan} r={result} update={update} />}
-        {tab === 'costs' && <CostsTab plan={plan} r={result} update={update} />}
-        {tab === 'monthly' && <PnlGrid r={result} />}
-        {tab === 'cash' && <CashTab plan={plan} r={result} update={update} />}
+        {view === 'overview' && <OverviewView plan={plan} result={result} compare={compareId !== 'none' ? compareResult : null} compareName={compareName} />}
+        {view === 'business' && <BusinessPlanView plan={plan} result={result} />}
+        {view === 'revenue' && <RevenueView plan={plan} result={result} />}
+        {view === 'costs' && <CostsView plan={plan} result={result} />}
+        {view === 'monthly' && <PnlGrid r={result} />}
+        {view === 'cash' && <CashFundingView plan={plan} result={result} />}
+        {view === 'products' && <ProductsCustomersView plan={plan} result={result} />}
       </div>
     </>
   );

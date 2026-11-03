@@ -20,4 +20,9 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // 5-year plan Setup sections export `SECTION` + `summary` next to their component (docs/planning/ONE-SETUP.md §1).
+    files: ['src/components/planning/setup/**/*.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

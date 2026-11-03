@@ -1,18 +1,21 @@
-// Business plan: the sheet's "Business Plan" + "Overview" tabs, live — headline, The Ask,
-// use of funds, key assumptions, risks, themes & milestones, capital deployment, team.
+// Output view "Business plan" (docs/planning/ONE-SETUP.md §3): the sheet's Business Plan + Overview tabs, live —
+// headline, The Ask, use of funds, capital deployment, and the plan's words (assumptions, risks, themes & milestones,
+// team) as read-only lists. The text is edited in Setup → Business plan text; the numbers in Starting point / Assumptions.
 
-import { useMemo, useState } from 'react';
-import { monthLabel, type BusinessPlan, type Plan, type PlanResult } from '../../data/planning/engine';
-import { deployment, headline, theAsk } from '../../data/planning/summary';
-import { SectionCard } from '../ui/Card';
-import { SegmentedControl } from '../ui/SegmentedControl';
-import { cr, int, lakh, pct } from './fmt';
-import { NumInput } from './inputs';
-import type { Update } from './LeverPanel';
+import { useMemo, useState, type ReactNode } from 'react';
+import { monthLabel, type Plan, type PlanResult } from '../../../data/planning/engine';
+import { deployment, headline, theAsk } from '../../../data/planning/summary';
+import { SectionCard } from '../../ui/Card';
+import { SegmentedControl } from '../../ui/SegmentedControl';
+import { cr, int, lakh, pct } from '../fmt';
 
-export function BusinessPlanTab({ plan, r, update }: { plan: Plan; r: PlanResult; update: Update }) {
+interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string }
+interface Span { n: number; label: string; sub: string }
+
+export function BusinessPlanView({ plan, result }: Props) {
+  const r = result;
   const H = r.months.length;
-  const spans = [
+  const spans: Span[] = [
     { n: 12, label: `12 months`, sub: `${r.months[0].label} → ${r.months[11]?.label}` },
     { n: 18, label: `18 months`, sub: `→ ${r.months[17]?.label}` },
     ...(H > 18 ? [{ n: H, label: 'Full plan', sub: `→ ${r.months[H - 1].label}` }] : []),
@@ -20,13 +23,12 @@ export function BusinessPlanTab({ plan, r, update }: { plan: Plan; r: PlanResult
   const heads = spans.map((s) => headline(plan, r, s.n));
   const contingencies = spans.map((s) => (s.n === 12 ? plan.business.contingency12 : plan.cash.contingencyPct));
   const asks = spans.map((s, i) => theAsk(plan, r, s.n, contingencies[i]));
-  const setCont = (n: number, v: number) => update((p) => { if (n === 12) p.business.contingency12 = v; else p.cash.contingencyPct = v; });
-  const setB = (fn: (b: BusinessPlan) => void) => update((p) => fn(p.business));
+  const B = plan.business;
 
   return (
     <div className="space-y-5">
       <div className="grid gap-5 xl:grid-cols-2">
-        <SectionCard title="Headline" description="Business Plan rows 4–12. Exit ARR = trailing-12-month revenue × last-3-month growth vs a year earlier (capped at 2×).">
+        <SectionCard title="Headline" description="Business Plan rows 4–12. Exit ARR = trailing-12-month revenue × last-3-month growth vs a year earlier (capped).">
           <Table cols={spans} rows={[
             ['Revenue (₹ Cr)', heads.map((h) => cr(h.revenue))],
             ['Units', heads.map((h) => int(h.units))],
@@ -37,20 +39,16 @@ export function BusinessPlanTab({ plan, r, update }: { plan: Plan; r: PlanResult
             ['Exit ARR (₹ Cr)', heads.map((h) => cr(h.exitArr)), true],
             ['  run-rate × growth', heads.map((h) => `${cr(h.exitRunRate)} × ${h.exitGrowth.toFixed(2)}`)],
           ]} />
-          <p className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
-            Jul–Sep ’26 actual revenue (for the 12-month exit)
-            <NumInput unit="cr" value={plan.business.exitPriorL3M} min={0} width="w-16" title="Jul–Sep 26 revenue" onChange={(v) => setB((b) => { b.exitPriorL3M = v; })} />
-            · growth cap
-            <NumInput unit="x" value={plan.business.exitGrowthCap} min={1} max={5} step={0.1} width="w-14" title="Exit growth cap" onChange={(v) => setB((b) => { b.exitGrowthCap = v; })} />
+          <p className="mt-2 text-[12px] text-slate-500">
+            Jul–Sep ’26 actual revenue (for the 12-month exit) <b className="text-slate-700">₹{cr(B.exitPriorL3M)} Cr</b> · growth cap <b className="text-slate-700">{B.exitGrowthCap.toFixed(1)}×</b>
+            <span className="text-slate-400"> — Setup → Starting point / Assumptions</span>
           </p>
         </SectionCard>
 
         <SectionCard title="The Ask" description="Peak cumulative cash deficit in the period, plus a contingency buffer, less venture debt drawn in it.">
           <Table cols={spans} rows={[
             ['Peak cash deficit (₹ Cr)', asks.map((a) => `${cr(a.peakDeficit)} · ${r.months[a.peakMonth - 1]?.label ?? ''}`)],
-            ['Contingency buffer', spans.map((s, i) => (
-              <NumInput key={s.n} unit="pct" value={contingencies[i]} min={0} max={3} width="w-16" title={`Contingency ${s.label}`} onChange={(v) => setCont(s.n, v)} />
-            ))],
+            ['Contingency buffer', contingencies.map((c) => pct(c, 0))],
             ['Total funding need (₹ Cr)', asks.map((a) => cr(a.fundingNeed))], // net of any opening cash
             ['less venture debt (₹ Cr)', asks.map((a) => cr(-a.ventureDebt))],
             ['EQUITY REQUIRED (₹ Cr)', asks.map((a) => cr(a.equityRequired)), true],
@@ -58,7 +56,7 @@ export function BusinessPlanTab({ plan, r, update }: { plan: Plan; r: PlanResult
             ['of which inventory (peak)', asks.map((a) => cr(a.inventoryPeak))],
             ['of which GST asset (peak)', asks.map((a) => cr(a.gstAssetPeak))],
           ]} />
-          <p className="mt-2 text-[11px] text-slate-500">Full-plan column uses the 18-month buffer. Venture debt comes from the Cash & funding timeline.</p>
+          <p className="mt-2 text-[11px] text-slate-500">Full-plan column uses the 18-month buffer. Venture debt comes from the funding timeline (Setup → Funding); the buffers from Setup → Assumptions.</p>
         </SectionCard>
       </div>
 
@@ -66,29 +64,27 @@ export function BusinessPlanTab({ plan, r, update }: { plan: Plan; r: PlanResult
       <Deployment plan={plan} r={r} asks={asks} spans={spans} />
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <SectionCard title="Key assumptions" description="What the plan rests on — kept with the numbers so the deck and the model never drift."
-          actions={<AddBtn onClick={() => setB((b) => { b.assumptions.push({ id: rid(), assumption: '', value: '', basis: '' }); })} />}>
-          <div className="space-y-1.5">
-            {plan.business.assumptions.map((a, i) => (
-              <div key={a.id} className="grid grid-cols-[1.3fr_1fr_1.3fr_auto] gap-1.5">
-                <Txt value={a.assumption} placeholder="Assumption" onChange={(v) => setB((b) => { b.assumptions[i].assumption = v; })} bold />
-                <Txt value={a.value} placeholder="Value" onChange={(v) => setB((b) => { b.assumptions[i].value = v; })} />
-                <Txt value={a.basis} placeholder="Basis" onChange={(v) => setB((b) => { b.assumptions[i].basis = v; })} muted />
-                <Del onClick={() => setB((b) => { b.assumptions.splice(i, 1); })} />
+        <SectionCard title="Key assumptions" description="What the plan rests on — kept with the numbers so the deck and the model never drift.">
+          {B.assumptions.length === 0 && <p className="text-[13px] text-slate-500">No assumptions written yet (Setup → Business plan text).</p>}
+          <div className="divide-y divide-slate-100">
+            {B.assumptions.map((a) => (
+              <div key={a.id} className="grid grid-cols-[1.3fr_1fr_1.3fr] gap-3 py-1.5 text-[12.5px]">
+                <span className="font-semibold text-slate-800">{a.assumption || <Empty />}</span>
+                <span className="text-slate-700">{a.value || <Empty />}</span>
+                <span className="text-slate-500">{a.basis || <Empty />}</span>
               </div>
             ))}
           </div>
           <LiveChecks plan={plan} r={r} />
         </SectionCard>
 
-        <SectionCard title="Key risks & mitigation"
-          actions={<AddBtn onClick={() => setB((b) => { b.risks.push({ id: rid(), risk: '', mitigation: '' }); })} />}>
-          <div className="space-y-1.5">
-            {plan.business.risks.map((x, i) => (
-              <div key={x.id} className="grid grid-cols-[1fr_1.4fr_auto] gap-1.5">
-                <Txt value={x.risk} placeholder="Risk" onChange={(v) => setB((b) => { b.risks[i].risk = v; })} bold area />
-                <Txt value={x.mitigation} placeholder="Mitigation" onChange={(v) => setB((b) => { b.risks[i].mitigation = v; })} area />
-                <Del onClick={() => setB((b) => { b.risks.splice(i, 1); })} />
+        <SectionCard title="Key risks & mitigation">
+          {B.risks.length === 0 && <p className="text-[13px] text-slate-500">No risks written yet (Setup → Business plan text).</p>}
+          <div className="divide-y divide-slate-100">
+            {B.risks.map((x) => (
+              <div key={x.id} className="grid grid-cols-[1fr_1.4fr] gap-3 py-1.5 text-[12.5px]">
+                <span className="font-semibold text-slate-800">{x.risk || <Empty />}</span>
+                <span className="text-slate-700">{x.mitigation || <Empty />}</span>
               </div>
             ))}
           </div>
@@ -96,21 +92,20 @@ export function BusinessPlanTab({ plan, r, update }: { plan: Plan; r: PlanResult
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <Milestones plan={plan} r={r} update={update} />
-        <SectionCard title="Team structure" description="From the Overview tab. One line per role; → for who reports into whom.">
-          <textarea value={plan.business.team} onChange={(e) => setB((b) => { b.team = e.target.value; })} rows={10}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-[13px] leading-relaxed" aria-label="Team structure" />
+        <Milestones plan={plan} />
+        <SectionCard title="Team structure" description="From the sheet’s Overview tab. One line per role; → for who reports into whom.">
+          {B.team.trim() ? <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{B.team}</p> : <p className="text-[13px] text-slate-500">Nothing written yet (Setup → Business plan text).</p>}
         </SectionCard>
       </div>
     </div>
   );
 }
 
-// ---- pieces --------------------------------------------------------------------------
+// ---- pieces --------------------------------------------------------------------
 
-const rid = () => Math.random().toString(36).slice(2, 9);
+function Empty() { return <span className="text-slate-300">—</span>; }
 
-function Table({ cols, rows }: { cols: { n: number; label: string; sub: string }[]; rows: [string, React.ReactNode[], boolean?][] }) {
+function Table({ cols, rows }: { cols: Span[]; rows: [string, ReactNode[], boolean?][] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-[13px] tabular-nums">
@@ -133,7 +128,7 @@ function Table({ cols, rows }: { cols: { n: number; label: string; sub: string }
   );
 }
 
-function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks: ReturnType<typeof theAsk>[]; spans: { n: number; label: string }[] }) {
+function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks: ReturnType<typeof theAsk>[]; spans: Span[] }) {
   const deps = spans.map((s) => deployment(plan, r, s.n));
   const themes = deps[deps.length - 1].themes.map((t) => t.theme);
   const tot = (d: ReturnType<typeof deployment>, th: string) => d.themes.find((t) => t.theme === th)?.total ?? 0;
@@ -157,6 +152,7 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
                 ])}
               </tr>
             ))}
+            {themes.length === 0 && <tr><td colSpan={1 + 2 * spans.length} className="py-2 text-[12px] text-slate-500">No cost line carries a milestone yet (Setup → Sheet lines).</td></tr>}
             <tr className="bg-slate-50 font-bold">
               <td className="py-1.5 pr-3">Total tagged deployment</td>
               {deps.map((d, i) => {
@@ -171,7 +167,7 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
   );
 }
 
-function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks: ReturnType<typeof theAsk>[]; spans: { n: number; label: string }[] }) {
+function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks: ReturnType<typeof theAsk>[]; spans: Span[] }) {
   const [span, setSpan] = useState(String(spans[1]?.n ?? spans[0].n));
   const [by, setBy] = useState<'milestone' | 'theme'>('milestone');
   const n = Number(span);
@@ -182,11 +178,11 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
   return (
     <SectionCard
       title="Capital deployment"
-      description="Overview rows 42–87, per month in ₹ lakh. Tag a cost line with a milestone on the Costs tab and it shows up here; untagged spend is business as usual. Working capital is excluded."
+      description="Overview rows 42–87, per month in ₹ lakh. A cost line tagged with a milestone (Setup → Sheet lines) shows up here; untagged spend is business as usual. Working capital is excluded."
       actions={
         <div className="flex flex-wrap gap-2">
-          <SegmentedControl size="sm" value={by} onChange={setBy} options={[{ id: 'milestone', label: 'By milestone' }, { id: 'theme', label: 'By theme' }]} />
-          <SegmentedControl size="sm" value={span} onChange={setSpan} options={spans.map((s) => ({ id: String(s.n), label: s.label }))} />
+          <SegmentedControl size="sm" value={by} onChange={setBy} options={[{ id: 'milestone', label: 'By milestone' }, { id: 'theme', label: 'By theme' }]} aria-label="Deployment grouped by" />
+          <SegmentedControl size="sm" value={span} onChange={setSpan} options={spans.map((s) => ({ id: String(s.n), label: s.label }))} aria-label="Deployment period" />
         </div>
       }
     >
@@ -209,12 +205,12 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
                 <td className="bg-slate-50 px-2 text-right text-slate-500">{pct(x.total / (ask?.equityRequired || 1))}</td>
               </tr>
             ))}
-            {[['Total key deployment', d.tagged], ['Total spend (all costs)', d.totalSpend], ['Business as usual (untagged)', d.untagged]].map(([label, xs]) => (
-              <tr key={label as string} className="border-t-2 border-slate-200 font-semibold">
-                <td className="sticky left-0 z-10 whitespace-nowrap bg-surface py-1 pr-3">{label as string}</td>
-                {(xs as number[]).map((v, i) => <td key={i} className="px-1.5 text-right">{lakh(v)}</td>)}
-                <td className="bg-slate-50 px-2 text-right">{lakh(total(xs as number[]))}</td>
-                <td className="bg-slate-50 px-2 text-right text-slate-500">{pct(total(xs as number[]) / (ask?.equityRequired || 1))}</td>
+            {([['Total key deployment', d.tagged], ['Total spend (all costs)', d.totalSpend], ['Business as usual (untagged)', d.untagged]] as [string, number[]][]).map(([label, xs]) => (
+              <tr key={label} className="border-t-2 border-slate-200 font-semibold">
+                <td className="sticky left-0 z-10 whitespace-nowrap bg-surface py-1 pr-3">{label}</td>
+                {xs.map((v, i) => <td key={i} className="px-1.5 text-right">{lakh(v)}</td>)}
+                <td className="bg-slate-50 px-2 text-right">{lakh(total(xs))}</td>
+                <td className="bg-slate-50 px-2 text-right text-slate-500">{pct(total(xs) / (ask?.equityRequired || 1))}</td>
               </tr>
             ))}
           </tbody>
@@ -224,43 +220,26 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
   );
 }
 
-function Milestones({ plan, r, update }: { plan: Plan; r: PlanResult; update: Update }) {
-  const themes = [...new Set(plan.business.themes.map((t) => t.theme))];
+function Milestones({ plan }: { plan: Plan }) {
   const tagged = (ms: string) => plan.lines.filter((l) => l.milestone === ms).length;
-  const rename = (i: number, v: string) => update((p) => {
-    const old = p.business.themes[i].milestone;
-    p.business.themes[i].milestone = v;
-    for (const l of p.lines) if (l.milestone === old) l.milestone = v; // keep cost lines attached
-  });
-  const retheme = (i: number, v: string) => update((p) => {
-    const ms = p.business.themes[i].milestone;
-    p.business.themes[i].theme = v;
-    for (const l of p.lines) if (l.milestone === ms) l.theme = v;
-  });
   return (
-    <SectionCard title="Themes & milestones" description="Overview rows 10–36. Renaming a milestone or moving it to another theme updates every cost line tagged with it."
-      actions={<AddBtn onClick={() => update((p) => { p.business.themes.push({ id: rid(), theme: themes[0] ?? 'New theme', milestone: 'New milestone', month: 1 }); })} />}>
-      <datalist id="plan-themes">{themes.map((t) => <option key={t} value={t} />)}</datalist>
+    <SectionCard title="Themes & milestones" description="Overview rows 10–36. Edited in Setup → Business plan text; cost lines are tagged with a milestone in Setup → Sheet lines.">
+      {plan.business.themes.length === 0 && <p className="text-[13px] text-slate-500">No milestones yet.</p>}
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="text-[11px] uppercase tracking-wide text-slate-500">
-              <th className="py-1 text-left font-semibold">Theme</th><th className="text-left font-semibold">Milestone</th>
-              <th className="text-left font-semibold">Month</th><th className="text-right font-semibold">Cost lines</th><th />
+              <th className="py-1 pr-3 text-left font-semibold">Theme</th><th className="pr-3 text-left font-semibold">Milestone</th>
+              <th className="pr-3 text-left font-semibold">Month</th><th className="text-right font-semibold">Cost lines</th>
             </tr>
           </thead>
           <tbody>
-            {plan.business.themes.map((t, i) => (
+            {plan.business.themes.map((t) => (
               <tr key={t.id} className="border-t border-slate-100">
-                <td className="py-1 pr-2"><input list="plan-themes" value={t.theme} onChange={(e) => retheme(i, e.target.value)} className="w-56 rounded border border-slate-200 px-2 py-1" aria-label="Theme" /></td>
-                <td className="pr-2"><input value={t.milestone} onChange={(e) => rename(i, e.target.value)} className="w-52 rounded border border-slate-200 px-2 py-1 font-semibold" aria-label="Milestone" /></td>
-                <td className="pr-2">
-                  <select value={t.month} onChange={(e) => update((p) => { p.business.themes[i].month = Number(e.target.value); })} className="rounded border border-slate-200 px-1.5 py-1">
-                    {r.months.map((m) => <option key={m.m} value={m.m}>{monthLabel(plan.startMonth, m.m)}</option>)}
-                  </select>
-                </td>
+                <td className="py-1.5 pr-3 text-slate-600">{t.theme}</td>
+                <td className="pr-3 font-semibold text-slate-800">{t.milestone}</td>
+                <td className="pr-3 text-slate-600">{monthLabel(plan.startMonth, t.month)}</td>
                 <td className="text-right text-slate-500">{tagged(t.milestone)}</td>
-                <td className="pl-2 text-right"><Del onClick={() => update((p) => { p.business.themes.splice(i, 1); })} /></td>
               </tr>
             ))}
           </tbody>
@@ -284,17 +263,4 @@ function LiveChecks({ plan, r }: { plan: Plan; r: PlanResult }) {
       Amazon fees + fulfilment = {pct(amzCost / (amz || 1))} of Amazon revenue · peak GST asset ₹{cr(peak)} Cr in 18 months.
     </p>
   );
-}
-
-function Txt({ value, onChange, placeholder, bold, muted, area }: { value: string; onChange: (v: string) => void; placeholder: string; bold?: boolean; muted?: boolean; area?: boolean }) {
-  const cls = `w-full rounded border border-slate-200 px-2 py-1 text-[12.5px] ${bold ? 'font-semibold text-slate-800' : muted ? 'text-slate-500' : 'text-slate-700'}`;
-  return area
-    ? <textarea value={value} placeholder={placeholder} rows={2} onChange={(e) => onChange(e.target.value)} className={cls} aria-label={placeholder} />
-    : <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={cls} aria-label={placeholder} />;
-}
-function AddBtn({ onClick }: { onClick: () => void }) {
-  return <button onClick={onClick} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">+ Add</button>;
-}
-function Del({ onClick }: { onClick: () => void }) {
-  return <button onClick={onClick} className="px-1 text-[12px] text-slate-400 hover:text-rose-600" aria-label="Remove">✕</button>;
 }
