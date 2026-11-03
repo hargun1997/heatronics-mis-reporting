@@ -77,6 +77,10 @@ test('Trial Balance XML → closing Dr / Cr per group, ledgers kept apart, ties 
   const { parseTbXml, tbEnvelope } = await import('../src/connectors/tally/tb.js');
   const { assertTallyReadOnly } = await import('../src/connectors/sources/tally.js');
   assert.doesNotThrow(() => assertTallyReadOnly(tbEnvelope('2026-10', 'X')));
+  // Asked from the FY start (1 April) so P&L groups + Opening Stock are FY-to-date; the end date is the month end.
+  assert.match(tbEnvelope('2026-10'), /<SVFROMDATE>20260401<\/SVFROMDATE>[\s\S]*<SVTODATE>20261031<\/SVTODATE>/);
+  assert.match(tbEnvelope('2027-02'), /<SVFROMDATE>20260401<\/SVFROMDATE>[\s\S]*<SVTODATE>20270228<\/SVTODATE>/);
+  assert.match(tbEnvelope('2026-04'), /<SVFROMDATE>20260401<\/SVFROMDATE>[\s\S]*<SVTODATE>20260430<\/SVTODATE>/);
   const row = (n: string, dr: string, cr: string, ledger = false) =>
     `${ledger ? '<BSNAME>' : ''}<DSPACCNAME><DSPDISPNAME>${n}</DSPDISPNAME></DSPACCNAME>${ledger ? '</BSNAME>' : ''}<DSPACCINFO><DSPCLDRAMT><DSPCLDRAMTA>${dr}</DSPCLDRAMTA></DSPCLDRAMT><DSPCLCRAMT><DSPCLCRAMTA>${cr}</DSPCLCRAMTA></DSPCLCRAMT></DSPACCINFO>`;
   const xml = `<ENVELOPE>${row('Capital Account', '', '500.00')}${row('Current Assets', '-700.00', '')}${row('Bank', '-200.00', '', true)}${row('Sales Accounts', '', '400.00')}${row('Indirect Expenses', '-200.00', '')}${row('Suspense', '', '')}</ENVELOPE>`;
@@ -87,6 +91,7 @@ test('Trial Balance XML → closing Dr / Cr per group, ledgers kept apart, ties 
   assert.equal(tb.totalCredit, 900);
   assert.equal(tb.difference, 0);
   assert.deepEqual(tb.warnings, []);
+  assert.equal(tb.basis, 'fy-to-date');
   // Live shape: exploded ledgers come unwrapped right after their group → told apart by the groups-only names.
   const flat = `<ENVELOPE>${row('Capital Account', '', '500.00')}${row('Partner A', '', '300.00')}${row('Partner B', '', '200.00')}${row('Current Assets', '-500.00', '')}${row('Bank', '-500.00', '')}</ENVELOPE>`;
   const ex = parseTbXml(flat, '2026-10', new Set(['Capital Account', 'Current Assets']));

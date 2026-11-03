@@ -22,6 +22,9 @@ export interface DailyFact {
   /** Traffic sources only (Amazon Business Report) — never fed into the P&L. */
   sessions?: number;
   pageViews?: number;
+  /** GMV (customer-paid, incl. GST, after discounts) and the same sales ex-GST — when the source splits tax. */
+  gmv?: number;
+  netExGst?: number;
 }
 
 export type Granularity = 'day' | 'week' | 'month';

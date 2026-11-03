@@ -36,6 +36,7 @@ import { activeProductMap, bomGaps, unmappedGaps, setProductMap, type Candidate,
 import { setLedgerRules } from '../monthClose/ledgerRules';
 import { fetchFacts } from '../liveMis/client';
 import { accumulateTags, buildChannelRecon, tagTallyLines, toSalesChannel } from './expenseTagging';
+import { buildCloseTie, type CloseTie, type MonthLock } from './closeTies';
 
 // Factory overhead convention — 10% of revenue added to product COGS to form
 // COGM, matching the deck (analytics.ts FACTORY_PCT) and the committed closes.
@@ -78,6 +79,21 @@ export interface PeriodCompleteness {
   livePartial?: { level: CompletenessLevel; netRevenue: number };
   /** Set on a live partial month that has a published full month it replaced (prefer: 'live'). */
   publishedAvailable?: boolean;
+  /** Tally's Nett Profit/Loss and the net income the cascade produced from the same ledgers. */
+  tallyNett?: number | null;
+  misProfit?: number | null;
+  /** How the month agrees with Tally (profit + channel sales). Live Tally-backed months only. */
+  tie?: CloseTie;
+  /** Manual "Close & lock" record — the only kind of live month that counts as closed. */
+  manualLock?: MonthLock;
+  /** Closed = frozen legacy history OR manually locked. Drives "complete through". */
+  closed?: boolean;
+  /** Full close with Tally sales, not yet locked: waiting for Hargun's "Close & lock". */
+  ready?: boolean;
+  /** Which BOM priced this month's COGS (the month's own, else the nearest — labelled). */
+  bom?: { month: string; exact: boolean; note: string } | null;
+  /** Factory overhead inside COGM: Tally's booked amount or the labelled 10% fallback. */
+  factoryBasis?: 'tally' | 'assumed';
 }
 
 // The seam: months before this are frozen legacy (the published static deck);
@@ -98,8 +114,10 @@ export interface LiveDeckData {
   months: MonthlyMIS[];               // ascending by period
   skuCells: SkuCell[];
   completeness: Record<string, PeriodCompleteness>;
-  /** The latest month that is fully closed (level 'full') — the "complete through" floor. */
+  /** The latest month that is closed (frozen history or manually locked) with no gap before it — the "complete through" floor. */
   completeThrough: string | null;
+  /** Manual month locks, by period (shared store). */
+  locks: Record<string, MonthLock>;
   /** Raw period keys present, ascending. */
   periods: string[];
   /** Amazon traffic & conversion per month (from the Business Report), for display only. */
@@ -127,6 +145,27 @@ interface ExtractedReport {
     nettProfit?: number | null;
     period?: string | null;
   };
+}
+
+export async function fetchLocks(): Promise<Record<string, MonthLock>> {
+  const res = await fetch('/api/ingest/locks');
+  if (!res.ok) throw new Error(`Locks request failed (${res.status}).`);
+  const body = (await res.json().catch(() => ({}))) as { locks?: Record<string, MonthLock> };
+  return body.locks ?? {};
+}
+
+export interface LockResult { ok: boolean; error?: string }
+
+/** Lock or unlock a month (shared, audited server-side). Drops the cached deck so the next load sees it. */
+export async function setMonthLock(
+  periodKey: string,
+  req: { action: 'lock' | 'unlock'; worstResidualPct?: number | null; overrideReason?: string; reason?: string; by?: string },
+): Promise<LockResult> {
+  const res = await fetch(`/api/ingest/locks/${periodKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req) });
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) return { ok: false, error: body.error || `Lock request failed (${res.status}).` };
+  deckPromise = null;
+  return { ok: true };
 }
 
 export async function fetchExtractedReports(): Promise<ExtractedReport[]> {
@@ -240,7 +279,7 @@ export interface BuiltMonth {
   gaps?: ProductGaps;
 }
 
-function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: DailyFact[] = []): BuiltMonth {
+function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: DailyFact[] = [], bomInfo: PeriodCompleteness['bom'] = null): BuiltMonth {
   const session: MonthCloseSession = emptySession(periodKey, periodLabel(periodKey));
   const sources: UploadedSource[] = [];
   const allFacts: DailyFact[] = [...monthFacts];
@@ -470,7 +509,25 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     // remainder. Pure view-side: the headline cascade above is unchanged.
     const tags = accumulateTags(allFacts);
     const tallyLines = tagTallyLines(c.tallyLines, tags, c.netByChannel);
-    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, FACTORY_PCT);
+
+    // Factory overhead: Tally's booked amount where the month has the ledger (it is already inside c.cogm);
+    // the 10% convention only as a labelled fallback. Cells carry their share so every view splits COGM the same way.
+    const hasFactoryLedger = !!c.lines['cogm_factory'];
+    const factoryActual = hasFactoryLedger ? r2(Math.abs(c.cogmLines['Factory Overheads'] ?? 0)) : null;
+    const factoryBasis: 'tally' | 'assumed' = factoryActual !== null ? 'tally' : 'assumed';
+    const factoryAmount = factoryActual ?? r2(FACTORY_PCT * c.netRevenue);
+    const factoryRate = c.netRevenue > 0 ? factoryAmount / c.netRevenue : FACTORY_PCT;
+    for (const cell of skuCells) cell.fac = r2(factoryRate * cell.rev);
+    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, factoryRate);
+
+    // A month is "full" only when Tally actually booked sales; a P&L with no revenue is not a close.
+    const tallyHasSales = c.netRevenue > 0;
+    const level: CompletenessLevel = tallyHasSales ? 'full' : cogmReal ? 'contribution' : 'topline';
+    const tie = buildCloseTie({
+      periodKey, netRevenue: c.netRevenue, netByChannel: c.netByChannel,
+      tallyNett: c.reconciliation.tallyNett, misProfit: c.reconciliation.computedNet,
+      profitResidual: c.reconciliation.residual, facts: allFacts,
+    });
 
     // Non-Operating broken into its Tally ledgers (finance cost, depreciation,
     // income tax …) — the contributors the close folded onto that line. View-side
@@ -496,13 +553,16 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       platformCosts: c.platformCosts, opex: c.opex, nonOperating: c.nonOperating,
       costOfFundraising: c.costOfFundraising, cogmLines: c.cogmLines, opexLines: c.opexLines,
       tallyLines, channelRecon,
+      factory: factoryAmount, factoryBasis,
     };
     return {
       month, skuCells, gaps,
       completeness: {
-        periodKey, hasTally: true, cogmReal: true, level: 'full',
+        periodKey, hasTally: true, cogmReal: true, level,
         sources: [...contributors], through,
         reconcileResidual: c.reconciliation.residual,
+        tallyNett: c.reconciliation.tallyNett, misProfit: c.reconciliation.computedNet,
+        tie, bom: bomInfo, factoryBasis,
       },
     };
   }
@@ -548,6 +608,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     marketingByPlatform: buildMarketingByPlatform(salesMarketing),
     costOfFundraising: 0,
     // COGM drill for a month without Tally yet: the two parts it is built from.
+    factory: cogmReal ? r2(FACTORY_PCT * netRevenue) : 0, factoryBasis: 'assumed',
     cogmLines: cogmReal ? { 'SKU COGS (BOM × units)': r2(sku.totalCogs ?? 0), [`Factory overheads (${Math.round(FACTORY_PCT * 100)}% of net revenue)`]: r2(FACTORY_PCT * netRevenue) } : {},
     opexLines: {},
   };
@@ -556,18 +617,50 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     completeness: {
       periodKey, hasTally: false, cogmReal,
       level: cogmReal ? 'contribution' : 'topline',
-      sources: [...contributors], through, reconcileResidual: null,
+      sources: [...contributors], through, reconcileResidual: null, bom: bomInfo, factoryBasis: 'assumed',
     },
   };
 }
 
 // ---- Assemble --------------------------------------------------------------
 
+const monthIndex = (pk: string) => { const [y, m] = pk.split('-').map(Number); return y * 12 + m; };
+
+/**
+ * The BOM that prices a month: per connector:slot the report for that month, else the nearest month's
+ * (ties go to the earlier one, which is what the cost book looked like going into the month).
+ */
+export function pickBom(all: ExtractedReport[], periodKey: string): { reports: ExtractedReport[]; info: NonNullable<PeriodCompleteness['bom']> | null } {
+  const byKey = new Map<string, ExtractedReport[]>();
+  for (const rep of all) {
+    if (!/^\d{4}-\d{2}$/.test(rep.periodKey)) continue;
+    const k = `${rep.connectorId}:${rep.slotId}`;
+    byKey.set(k, [...(byKey.get(k) ?? []), rep]);
+  }
+  const reports: ExtractedReport[] = [];
+  let info: NonNullable<PeriodCompleteness['bom']> | null = null;
+  const at = monthIndex(periodKey);
+  for (const list of byKey.values()) {
+    const best = [...list].sort((a, b) => {
+      const da = Math.abs(monthIndex(a.periodKey) - at); const db = Math.abs(monthIndex(b.periodKey) - at);
+      return da - db || a.periodKey.localeCompare(b.periodKey);
+    })[0];
+    reports.push(best);
+    if (!info) {
+      const exact = best.periodKey === periodKey;
+      info = { month: best.periodKey, exact, note: exact ? `BOM of ${periodLabel(best.periodKey)}` : `No BOM for ${periodLabel(periodKey)} — priced with ${periodLabel(best.periodKey)}'s (nearest month)` };
+    }
+  }
+  return { reports, info };
+}
+
 const isBomReport = (rep: ExtractedReport) => (rep.payload?.bomCosts?.length ?? 0) > 0;
 const factMonth = (f: DailyFact): string | null =>
   f.date && /^\d{4}-\d{2}/.test(f.date) ? f.date.slice(0, 7) : null;
 
 export interface BuildLiveDeckOptions {
+  /** Manual month locks (GET /api/ingest/locks). Only these, and frozen history, count as closed. */
+  locks?: Record<string, MonthLock>;
   /**
    * For a month at/after the live boundary that has BOTH a published full month
    * (static MIS) and a live build that is not yet a full close: 'published'
@@ -616,17 +709,9 @@ function staticHistory(): { months: MonthlyMIS[]; cellsByMonth: Map<string, SkuC
 
 export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[] = [], opts: BuildLiveDeckOptions = {}): LiveDeckData {
   const prefer = opts.prefer ?? 'published';
-  // The BOM is a period-independent cost book (standard cost per finished good),
-  // so it must be available to EVERY month, not only its upload period. Split it
-  // out and share it across all periods; keep one per connector:slot (latest).
-  const bomByKey = new Map<string, ExtractedReport>();
-  for (const rep of reports) {
-    if (!isBomReport(rep)) continue;
-    const key = `${rep.connectorId}:${rep.slotId}`;
-    const prev = bomByKey.get(key);
-    if (!prev || rep.periodKey > prev.periodKey) bomByKey.set(key, rep);
-  }
-  const bomReports = [...bomByKey.values()];
+  // The BOM is priced per month: each month's COGS uses that month's BOM (the Production portal serves one per
+  // month); a month with none uses the nearest month's, and says so (completeness.bom). One per connector:slot.
+  const bomAll = reports.filter(isBomReport);
 
   // Ledger (Tally) reports stay period-specific — they describe one month only.
   // Facts-only reports (Amazon/Shiprocket/…) are grouped here too, but their
@@ -673,8 +758,9 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   const built = new Map<string, BuiltMonth>();
   for (const periodKey of livePeriods) {
     // Ledgers for this month + the shared BOM cost book.
-    const reps = [...(ledgerByPeriod.get(periodKey) ?? []), ...bomReports];
-    built.set(periodKey, buildMonth(periodKey, reps, factsByMonth.get(periodKey) ?? []));
+    const bom = pickBom(bomAll, periodKey);
+    const reps = [...(ledgerByPeriod.get(periodKey) ?? []), ...bom.reports];
+    built.set(periodKey, buildMonth(periodKey, reps, factsByMonth.get(periodKey) ?? [], bom.info));
   }
 
   // Splice the published static MIS in:
@@ -723,7 +809,7 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   // Live months the published MIS never had (after its last month).
   for (const b of built.values()) take(b);
 
-  return { ...finishDeck(months, skuCells, completeness, alternates, factsByMonth), productGaps: mergeGaps(gapList) };
+  return { ...finishDeck(months, skuCells, completeness, alternates, factsByMonth, undefined, opts.locks ?? {}), productGaps: mergeGaps(gapList) };
 }
 
 /** Combine monthly gap lists: unmapped by platform+key, no-BOM by FG (revenue summed). */
@@ -753,19 +839,27 @@ function finishDeck(
   alternates: Record<string, BuiltMonth>,
   factsByMonth: Map<string, DailyFact[]> | null,
   trafficIn?: Record<string, TrafficRow[]>,
+  locks: Record<string, MonthLock> = {},
 ): LiveDeckData {
   const allMonths = [...monthsIn].sort((a, b) => a.key.localeCompare(b.key));
   const periods = [...new Set(allMonths.map((m) => m.key))].sort();
 
-  // "Complete through" is the end of the CONTIGUOUS run of fully-closed months
-  // from the start. It walks the CALENDAR, not just the months present, so a hole
-  // (e.g. Apr–Aug 2026 not uploaded yet, between locked Mar and a live Sep) stops
-  // the floor — we never claim a later month is closed while an earlier one is
-  // missing or still open.
+  // Closed = frozen legacy history, or a month Hargun locked by hand ("Close & lock"). Nothing else counts:
+  // a full Tally close is only "ready to close" until it is locked. "Complete through" is the end of the
+  // CONTIGUOUS run of closed months from the start, walking the CALENDAR, so a hole (a month not locked yet)
+  // stops the floor — we never claim a later month is closed while an earlier one is open.
+  const stamped: Record<string, PeriodCompleteness> = {};
+  for (const k of periods) {
+    const c = completeness[k];
+    if (!c) continue;
+    const manualLock = locks[k];
+    const closed = !!c.locked || !!manualLock;
+    stamped[k] = { ...c, manualLock, closed, ready: !closed && c.level === 'full' };
+  }
   let completeThrough: string | null = null;
   if (periods.length) {
     let cur: string | null = periods[0];
-    while (cur && completeness[cur]?.level === 'full') {
+    while (cur && stamped[cur]?.closed) {
       completeThrough = cur;
       cur = nextMonthKey(cur);
     }
@@ -788,7 +882,7 @@ function finishDeck(
     if (byKey.size) traffic[pk] = [...byKey.values()].sort((a, b) => b.sessions - a.sessions);
   }
 
-  return { months: allMonths, skuCells, completeness, completeThrough, periods, traffic, alternates };
+  return { months: allMonths, skuCells, completeness: stamped, completeThrough, locks, periods, traffic, alternates };
 }
 
 /**
@@ -814,7 +908,7 @@ export function swapAlternates(deck: LiveDeckData): LiveDeckData {
     cells.push(...alt.skuCells);
     completeness[k] = alt.completeness;
   }
-  return { ...finishDeck(months, cells, completeness, alternates, null, deck.traffic), productGaps: deck.productGaps };
+  return { ...finishDeck(months, cells, completeness, alternates, null, deck.traffic, deck.locks), productGaps: deck.productGaps };
 }
 
 /** "2026-03" → "2026-04", rolling the year at December. */
@@ -867,13 +961,13 @@ async function loadLiveDeckNow(opts: BuildLiveDeckOptions, force: boolean): Prom
   const reports = (await fetchExtractedReports()).filter((r) => !/^\d{4}-\d{2}$/.test(r.periodKey) || r.periodKey <= thisMonth);
   // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck; served from the server's
   // per-month facts cache (stale months refresh in the background). Never fail the whole load on it.
-  const liveFacts = await fetchLiveFacts(reports, force).catch(() => [] as DailyFact[]);
-  // Editable ledger rules + founder-confirmed product mappings (stored on the server); defaults when unreadable.
-  const [rules, pmap] = await Promise.all([
+  const [liveFacts, locks, rules, pmap] = await Promise.all([
+    fetchLiveFacts(reports, force).catch(() => [] as DailyFact[]),
+    fetchLocks().catch(() => ({} as Record<string, MonthLock>)),
     fetch('/api/tally/ledger-rules').then((r) => (r.ok ? r.json() : null)).catch(() => null),
     fetch('/api/mis/product-map').then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
   setLedgerRules(Array.isArray(rules?.rules) ? rules.rules : null);
   setProductMap(pmap);
-  return buildLiveDeck(reports, liveFacts, opts);
+  return buildLiveDeck(reports, liveFacts, { ...opts, locks });
 }

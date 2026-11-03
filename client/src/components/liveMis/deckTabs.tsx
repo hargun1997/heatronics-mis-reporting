@@ -613,7 +613,7 @@ function FullPnlTable({ slice, firstCol, level, pctHeader = false }: { slice: Sl
 function BasisNote({ slice, dim, hasTally }: { slice: SlicePnl; dim: string; hasTally: boolean }) {
   return (
     <Note>
-      Each {dim} column is its own connector numbers to CM2 (channel-specific fees &amp; ad spend, BOM cost + 10% factory); CM3,
+      Each {dim} column is its own connector numbers to CM2 (channel-specific fees &amp; ad spend, BOM cost + factory overhead (Tally’s actual where booked, else 10%)); CM3,
       OPEX and finance are spread pro-rata by sales.{' '}
       {slice.tied ? (
         <>The <span className="italic">Recon → Tally</span> column carries what the connectors don’t see, so every line sums across the columns to the Tally <span className="font-medium text-slate-500">Total</span>.</>
@@ -687,11 +687,16 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
 
       {basis === 'anchored' ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-600">
+          {anchored.length > 0 && anchored.every((r) => r.basis === 'tally') && (
+            <p className="mb-1.5"><span className="font-medium text-slate-800">Tied to Tally’s channel ledgers.</span> Revenue is each channel’s own Tally sales ledger; channel fees, marketing and
+              platform costs are what the connectors attribute to the channel plus its revenue share of the rest — every line still foots to Tally. Opex and non-operating stay revenue-share
+              (Tally books them company-wide), COGM follows the real per-unit COGS of the SKU mix.</p>
+          )}
           <span className="font-medium text-slate-800">Totals hold, splits are data-driven.</span> The company P&amp;L is the book of
           record and does not move; each line is split across channels — revenue by each channel’s real revenue share,
           <span className="font-medium"> COGM by the real per-unit COGS of the SKU mix</span> sold there,
           <span className="font-medium"> Sales &amp; Marketing by each channel’s real ad spend</span> (so OEM/B2B and Offline/GT carry
-          almost none), and channel &amp; fulfilment, platform, opex and non-operating by revenue share. COGM includes the 10% factory
+          almost none), and channel &amp; fulfilment, platform, opex and non-operating by revenue share. COGM includes the factory overhead (Tally’s actual where booked, else 10%)
           cost. No reconciliation column — the Total ties to the MIS exactly.
         </div>
       ) : (
@@ -884,7 +889,7 @@ function SkuMatrix({ period, cells, periodKeys }: { period: PeriodAgg; cells: Sk
         </table>
       </div>
       <Note>
-        CM2 = revenue − COGM (product COGS + 10% factory) − channel &amp; fulfilment − ads. Ad spend is measured per product
+        CM2 = revenue − COGM (product COGS + factory overhead: Tally’s actual where booked, else 10%) − channel &amp; fulfilment − ads. Ad spend is measured per product
         (Meta/Google mapped by campaign; Amazon by advertised product). Accessory rows in italics, sorted last.
         {!cm2Real && ' This period is top line only — CM2 needs the BOM (costs) for every month in it.'}
       </Note>

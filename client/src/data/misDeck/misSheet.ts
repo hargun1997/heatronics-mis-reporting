@@ -68,6 +68,8 @@ export interface MisSheetRow {
   bold?: boolean;
   /** Plain count (rendered as an integer, not ₹ Lac). */
   count?: boolean;
+  /** Decimals for a count row (default 0): runway in quarters shows 1.6, not 2. */
+  decimals?: number;
   get: (pt: MisPoint) => number | null;
 }
 
@@ -102,12 +104,12 @@ export const MIS_SHEET_ROWS: MisSheetRow[] = [
   { label: 'Other income', get: (p) => p.otherIncome },
   { label: 'EBITDA', bold: true, get: (p) => p.ebitda },
   { label: 'EBITDA%', pct: true, get: (p) => ratio(p.ebitda, p.netRevenue) },
-  { label: 'Opening Cash Balance (Cr)', get: (p) => p.openingCash },
+  { label: 'Opening Cash Balance (₹ lakh)', get: (p) => p.openingCash },
   { label: 'Funding (equity)', get: (p) => p.funding },
-  { label: 'Closing Cash Balance (Cr)', get: (p) => p.closingCash },
+  { label: 'Closing Cash Balance (₹ lakh)', get: (p) => p.closingCash },
   { label: 'Total Cash Burn', get: (p) => p.cashBurn },
   { label: 'EBITDA Burn', get: (p) => p.ebitdaBurn },
-  { label: 'Runway (Qtr)', count: true, get: (p) => p.runway },
+  { label: 'Runway (Qtr)', count: true, decimals: 1, get: (p) => p.runway },
 ];
 
 // ----------------------------------------------------------------------------

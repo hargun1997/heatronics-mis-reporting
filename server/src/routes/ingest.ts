@@ -14,11 +14,14 @@ import {
   ingestStoreStatus,
   listReports,
   readAllExtracted,
+  readJson,
   refreshIngestStore,
   saveReport,
+  writeJson,
   type CommitInput,
   type RawFile,
 } from '../ingest/objectStore.js';
+import { applyLockRequest, LockError, type AuditStore, type LockStore } from '../ingest/closeLocks.js';
 import { ledgerVision } from '../services/ledgerVision.js';
 import { invoiceVision } from '../services/invoiceVision.js';
 import { shopfloHistoryVision } from '../services/shopfloHistoryVision.js';
@@ -158,6 +161,38 @@ router.delete('/reports/:connectorId/:slotId/:periodKey', h(async (req, res) => 
   if (!isPeriod(periodKey)) return res.status(400).json({ error: 'periodKey must be "YYYY-MM".' });
   await deleteReport(connectorId, slotId, periodKey);
   res.json({ ok: true });
+}));
+
+// ---- Month close locks (manual "Close & lock") ------------------------------
+const LOCKS = 'close-locks';
+const LOCK_AUDIT = 'close-locks-audit';
+
+router.get('/locks', h(async (_req, res) => {
+  const store = await readJson<LockStore>(LOCKS, { locks: {} });
+  const audit = await readJson<AuditStore>(LOCK_AUDIT, { entries: [] });
+  res.json({ locks: store.locks ?? {}, audit: (audit.entries ?? []).slice(-50) });
+}));
+
+router.post('/locks/:periodKey', h(async (req, res) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  const email = (req as unknown as { htxUser?: string }).htxUser;
+  const actor = email ? { by: email, verified: true } : { by: (str(body.by) ?? 'unknown').slice(0, 80), verified: false };
+  try {
+    const store = await readJson<LockStore>(LOCKS, { locks: {} });
+    const audit = await readJson<AuditStore>(LOCK_AUDIT, { entries: [] });
+    const out = applyLockRequest({ locks: store.locks ?? {} }, { entries: audit.entries ?? [] }, req.params.periodKey, {
+      action: body.action === 'unlock' ? 'unlock' : body.action === 'lock' ? 'lock' : ('' as never),
+      worstResidualPct: typeof body.worstResidualPct === 'number' ? body.worstResidualPct : null,
+      overrideReason: str(body.overrideReason), reason: str(body.reason), note: str(body.note),
+    }, actor);
+    await writeJson(LOCKS, out.store);
+    await writeJson(LOCK_AUDIT, out.audit);
+    res.json({ lock: out.lock, locks: out.store.locks });
+  } catch (e) {
+    if (e instanceof LockError) return res.status(e.status).json({ error: e.message });
+    throw e;
+  }
 }));
 
 export default router;

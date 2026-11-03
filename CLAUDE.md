@@ -154,7 +154,12 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   the last 13 months per run (`state.tbMonths`). `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
   depreciation, Nett Profit); pure builder `client/src/data/statements/statements.ts` (BS from Tally's primary groups + closing
   stock + FY profit to date; indirect cash flow from consecutive BSs, sections sum to Δ cash & bank; `misCashRows` fills the MIS
-  Sheet cash rows). Tests `server/test/statements.test.ts`.
+  Sheet cash rows). Tests `server/test/statements.test.ts`. The TB is asked from 1 April (`tbEnvelope`, snapshot `basis:
+  'fy-to-date'`; a state with another `tbBasis` empties `tbMonths` so every TB is re-pulled) so P&L groups are FY-to-date; any
+  stock the TB carries as an asset (Tally's opening stock) is swapped for the P&L copy's closing stock; `parents` (Tally masters)
+  nest sub-group ledgers so nothing counts twice; April's carry-forward into P&L A/c is netted, other P&L A/c moves = "Prior-period
+  entries"; "Unexplained" ≥ ₹10,000 and monthly profit ≠ the P&L copy's Nett Profit are warned. UNVERIFIED until a live pull: what
+  the FY-start TB shows for stock (Opening Stock row vs Stock-in-Hand) and whether Detailed lists sub-groups and their ledgers.
 - **Exports + ledger rules + product gaps (3 Nov 2026):**
   - Live MIS Excel / PDF now include Balance Sheet, Cash Flow (last 12 months, from `useStatements`) and MIS Sheet (company, cash rows via
     `misSourceWithCash`; the MIS Sheet tab download uses it too). `buildLiveWorkbook(deck, o, statements?)`, `buildLivePdf(deck, o, statements?)`;
@@ -172,6 +177,27 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
+- **Month close: lock, ties, BOM, factory** (Live MIS, `data/misDeck/closeTies.ts` pure + `MonthClosePanel`):
+  - **Close & lock** = shared stored lock (`close-locks` + audit `close-locks-audit` in the ingest object store; `GET /api/ingest/locks`,
+    `POST /api/ingest/locks/:YYYY-MM {action: lock|unlock, worstResidualPct, overrideReason|reason}`; `ingest/closeLocks.ts`; who = the
+    portal email when `auth/check` returns one (htxGate sets `req.htxUser`), else the self-reported name, flagged unverified).
+    Only frozen history (< `LIVE_BOUNDARY`) and locked months are `closed`; `completeThrough` = the contiguous closed run from the first
+    month (a month with no data or not locked stops it). A full Tally month (P&L with net revenue > 0; with none it is only to-CM2 / top line)
+    is `ready` until locked. Published months are not closed until locked either.
+  - **Tie** (`completeness.tie`, Tally-backed live months): Tally Nett Profit vs the cascade's net income (engine residual) + per channel
+    connector sales ex-GST vs Tally's channel sales ledgers (Amazon, D2C/Shopify, Flipkart, Blinkit, GT, B2B). Residual > 1% of net revenue
+    (`TIE_LIMIT_PCT`) = breach: locking needs a written reason (server 422 without), kept on the lock. Channels with no connector are shown, not judged.
+  - **GMV vs ex-GST**: facts may carry `gmv` (customer-paid incl. GST) and `netExGst`. Shopify `fetchFacts` fills both (`shopifyLineSales`: `taxes_included`
+    + line `tax_lines`); Amazon Sales-API facts carry `gmv` only (no tax split → ex-GST ESTIMATED at 18 %, labelled); Finances/settlement and
+    other feeds are taken as booked (Principal is ex-GST). `revenue` itself is unchanged.
+  - **Channel P&L** (`anchoredChannelPnl` → `tallyAnchoredRows`) where Tally exists: revenue = Tally channel ledgers; channel fees / marketing /
+    platform = connector-attributed `tallyLines.byChannel` + revenue share of the unattributed rest (foots to Tally); COGM by BOM-COGS share; opex and
+    non-operating by revenue share (Tally books them company-wide). Months without Tally keep the order-share split (`row.basis`).
+  - **Factory overhead** = Tally's Factory Overheads ledger where the month has it (`MonthlyMIS.factory`, `factoryBasis: 'tally'`, `SkuCell.fac`,
+    `PeriodAgg.factory`); the 10 % convention only as a labelled fallback (`'assumed'`; static history keeps 10 %). Views use `cellFactory()`.
+  - **BOM per month** (`pickBom`): each month prices COGS with its own BOM report (the slot pull's `periodKey`, `production.ts` month param), else the
+    nearest month's (tie → earlier), shown as `completeness.bom` with a note. Meta/Google live facts (`channel: 'Meta Ads' | 'Google Ads'`) now map to D2C
+    (`toSalesChannel`). MIS Sheet cash rows are labelled ₹ lakh (values were already lakh, not Cr).
 - **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).
