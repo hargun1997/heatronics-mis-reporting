@@ -51,7 +51,7 @@ export function FounderPanel({ plan, update }: { plan: Plan; update: Update }) {
       const want = monthBefore(plan.startMonth);
       const m = j.months?.find((x) => x.period === want);
       const o = m ? openingFromTally(m, plan.fx?.opening ?? founderFx(plan.cash).opening) : null;
-      if (!o) { setMsg(j.connected ? `No Trial Balance stored for ${want} yet — Tally health → Pull now.` : 'Tally is not connected (Data sources → Tally).'); return; }
+      if (!o) { setMsg(j.connected ? `No Trial Balance stored for ${want} yet — Tally health → Pull now.` : 'Tally is not connected (Setup → Tally).'); return; }
       set((f) => { f.opening = o.opening; });
       setMsg(`Loaded the ${want} balance sheet.${o.warnings.length ? ' ' + o.warnings[0] : ''}`);
     } catch (e) { setMsg((e as Error).message); }

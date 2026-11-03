@@ -204,14 +204,14 @@ export function ConnectorsPage() {
   return (
     <>
       <PageHeader
-        title="Data sources"
+        title="Setup"
         accent="brand"
         icon={iconPlug}
         description="Connect each system once. Credentials are stored on the server, never in the browser. Sync pulls a month and sends it to the close."
         crumbs={[
           { label: 'Reporting', to: '/reporting' },
           { label: 'MIS Reporting', to: '/reporting/mis' },
-          { label: 'Data sources' },
+          { label: 'Setup' },
         ]}
         actions={
           <div className="flex items-center gap-3">
