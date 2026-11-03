@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runPlan, type Plan } from '../../client/src/data/planning/engine.ts';
 import { basePlan, setSheetParity } from '../../client/src/data/planning/basePlan.ts';
-import { build500Cr, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, runRateArr, solveForTarget, growthCategories } from '../../client/src/data/planning/growth.ts';
+import { build500Cr, defaultRetail, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, runRateArr, solvePath, solveForTarget, growthCategories } from '../../client/src/data/planning/growth.ts';
 
 const CR = 1e7;
 const withGrowth = (fn: (p: Plan) => void = () => {}) => {
@@ -111,11 +111,53 @@ test('growth: solver scales the new lines to the exit ARR target; fund-the-gap k
   assert.ok(f.growth!.rounds.every((x) => x.month >= earliest));
 });
 
-test('growth: the ₹500 Cr scenario reaches ₹500 Cr exit ARR with its rounds after the seed', () => {
+test('growth: the growth plan meets the ₹30 → 100 → 250 → 500 Cr revenue path, rounds after the seed', () => {
   const p = build500Cr(basePlan());
   const r = runPlan(p);
-  assert.ok(Math.abs(runRateArr(r) - 500 * CR) / (500 * CR) < 0.001);
+  for (const [fy, t] of [['FY28', 30], ['FY29', 100], ['FY30', 250], ['FY31', 500]] as const) {
+    const y = r.years.find((x) => x.fy === fy)!;
+    assert.ok(Math.abs(y.revenue - t * CR) / (t * CR) < 0.005, `${fy}: ${(y.revenue / CR).toFixed(1)} Cr vs ${t}`);
+  }
   assert.ok(p.growth!.rounds.length >= 1);
+  assert.ok(p.growth!.rounds.every((x) => x.month >= p.fx!.seed.month + 3));
   assert.ok(p.products.filter((x) => x.growthLine).every((x) => x.placeholder), 'every new line is flagged a placeholder');
+  assert.ok(r.years.find((y) => y.fy === 'FY31')!.retailRevenue > 0, 'GT / MT / pharmacy sell the new lines');
   assert.ok(r.minClosingCash > -5 * CR, 'only the pre-round overdraft dip is negative');
+});
+
+test('growth: consumables repeat — earlier buyers come back at the repeat rate, decaying each month', () => {
+  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 3, launchUnits: 1000, rampPct: 0, steadyPct: 0, repeatPct: 0.2, repeatDecay: 0.5 };
+  const p = withGrowth((x) => { x.products = [...x.products.filter((y) => y.id !== 'p-cream'), cream]; });
+  const g = runPlan(p).months;
+  const u = (m: number) => g[m - 1].unitsBySku['p-cream'];
+  assert.ok(Math.abs(u(3) - 1000) < 1e-6, 'launch month = new buyers only');
+  assert.ok(Math.abs(u(4) - (1000 + 200)) < 1e-6, 'next month: +20% of the launch buyers');
+  assert.ok(Math.abs(u(5) - (1000 + 200 + 100)) < 1e-6, 'then the first cohort decays (×0.5) and the second adds 20%');
+  assert.ok(Math.abs(g[4].repeatUnits - 300) < 1e-6);
+});
+
+test('growth: offline outlets sell the new lines at net realisation, with schemes, listing fees and servicing', () => {
+  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 2, launchUnits: 0 };
+  const t = { ...defaultRetail()[1], outlets: [{ month: 4, add: 10 }], rampMonths: 2, units: { topical: 20, nutra: 0, device: 0, other: 0 }, tradeMarginPct: 0.3, schemePct: 0.1, listingFee: 1000, servicePerOutlet: 500 };
+  const p = withGrowth((x) => { x.products = [...x.products.filter((y) => y.id !== 'p-cream'), cream]; x.growth!.retail = [t]; });
+  const g = runPlan(p).months, b = runPlan(basePlan()).months;
+  const inv = (m: number) => g[m - 1].retailRevenue;
+  assert.equal(inv(3), 0);
+  assert.ok(Math.abs(inv(4) - 10 * 20 * 0.5 * cream.asp * 0.7) < 1e-6, 'half offtake in the first month of a 2-month ramp');
+  assert.ok(Math.abs(inv(5) - 10 * 20 * cream.asp * 0.7) < 1e-6);
+  assert.equal(g[3].outlets[t.id], 10);
+  const d = (m: number, grp: string) => (g[m - 1].groups[grp] ?? 0) - (b[m - 1].groups[grp] ?? 0);
+  assert.ok(Math.abs(d(4, 'Channel Commission') - 10 * 1000) < 1e-6, 'listing fee once, in the opening month');
+  assert.ok(Math.abs(d(5, 'Channel Commission')) < 1e-6);
+  assert.ok(Math.abs(d(5, 'Fulfilment & Delivery') - 10 * 500) < 1e-6);
+  assert.ok(Math.abs(d(5, 'Revenue Deductions') - inv(5) * 0.1) < 1e-6);
+});
+
+test('growth: solvePath sets a push per FY so each year meets its revenue target', () => {
+  const p = withGrowth((x) => { x.products = [...x.products.filter((y) => !['p-cream', 'p-rollon'].includes(y.id)), ...growthCategories()]; x.growth!.path = { FY29: 60 * CR, FY30: 120 * CR }; });
+  const { plan, missed } = solvePath(p);
+  const r = runPlan(plan);
+  assert.equal(missed.length, 0);
+  assert.ok(Math.abs(r.years.find((y) => y.fy === 'FY29')!.revenue - 60 * CR) / (60 * CR) < 0.005);
+  assert.ok(Math.abs(r.years.find((y) => y.fy === 'FY30')!.revenue - 120 * CR) / (120 * CR) < 0.005);
 });

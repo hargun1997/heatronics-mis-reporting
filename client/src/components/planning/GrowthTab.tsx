@@ -5,9 +5,9 @@
 import { useMemo, useState } from 'react';
 import {
   CATEGORY_NAMES, CHANNELS, CHANNEL_NAMES, DEPT_NAMES,
-  type Channel, type Dept, type NewProduct, type Plan, type PlanResult, type ProductCategory,
+  type Channel, type Dept, type NewProduct, type Plan, type PlanResult, type ProductCategory, type RetailType,
 } from '../../data/planning/engine';
-import { build500Cr, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, runRateArr, solveForTarget } from '../../data/planning/growth';
+import { build500Cr, defaultRetail, dilution, emptyGrowth, ensureGrowthGroups, fundTheGap, runRateArr, solvePath, solveForTarget } from '../../data/planning/growth';
 import { SectionCard } from '../ui/Card';
 import { MiniStat } from './charts';
 import { NumInput } from './inputs';
@@ -83,10 +83,10 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
     return (
       <SectionCard title="Growth builder" description="New product lines, hiring, capacity, capex, fundraise rounds and stores on top of this plan.">
         <div className="space-y-3 p-5 text-[13px] text-slate-600">
-          <p>Start from an empty builder, or load the ₹500 Cr exit-ARR scenario (topicals, nutraceuticals and new devices, with the people, capacity and rounds they need). Every number in it is a placeholder for you to change.</p>
+          <p>Start from an empty builder, or load the growth plan: devices, topicals and nutraceuticals sold online and through general trade, modern trade and pharmacies, with repeat purchases, the people, capacity and rounds they need, meeting ₹30 / 100 / 250 / 500 Cr revenue in FY28–FY31. Every number in it is a placeholder for you to change.</p>
           <div className="flex flex-wrap gap-2">
             <button className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-40" disabled={!!busy} onClick={() => replace((p) => build500Cr(p), '500')}>
-              {busy === '500' ? 'Building…' : 'Load the ₹500 Cr plan'}
+              {busy === '500' ? 'Building…' : 'Load the growth plan (₹30 → 100 → 250 → 500 Cr)'}
             </button>
             <button className={btn} onClick={() => update((p) => { p.growth = { ...emptyGrowth(), on: true }; ensureGrowthGroups(p); })}>Start empty</button>
           </div>
@@ -111,12 +111,15 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
         <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
         <span className="text-[12px] font-semibold text-slate-500">Exit ARR target</span>
         <NumInput unit="cr" value={G.targetArr} min={0} width="w-20" title="Exit ARR target" onChange={(v) => set((g) => { g.targetArr = v; })} />
+        <button className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-40" disabled={!!busy || !G.on || !G.path}
+          title="Push the new lines' new buyers year by year so each FY meets its revenue target below, then re-size the rounds"
+          onClick={() => replace((p) => fundTheGap(solvePath(p).plan), 'path')}>{busy === 'path' ? 'Solving…' : 'Solve the revenue path'}</button>
         <button className={btn} disabled={!!busy || !G.on} title="Scale the launch volumes of every new line (same shape) until the exit run-rate ARR equals the target"
           onClick={() => replace((p) => solveForTarget(p)?.plan ?? p, 'solve')}>{busy === 'solve' ? 'Solving…' : 'Solve for the target'}</button>
         <button className={btn} disabled={!!busy || !G.on} title="Replace the unconfirmed rounds with rounds (at least ₹15 Cr each) sized to keep cash above ₹5 Cr for the next 12 months; pre-money = 4× the run-rate ARR at the raise (placeholder)"
           onClick={() => replace((p) => fundTheGap(p), 'fund')}>{busy === 'fund' ? 'Sizing…' : 'Fund the gap'}</button>
-        <button className={btn} disabled={!!busy} onClick={() => { if (window.confirm('Replace the Growth builder and its product lines with the ₹500 Cr plan?')) replace((p) => build500Cr(p), '500'); }}>
-          {busy === '500' ? 'Building…' : 'Reload the ₹500 Cr plan'}
+        <button className={btn} disabled={!!busy} onClick={() => { if (window.confirm('Replace the Growth builder and its product lines with the growth plan (₹30 → 100 → 250 → 500 Cr)?')) replace((p) => build500Cr(p), '500'); }}>
+          {busy === '500' ? 'Building…' : 'Reload the growth plan'}
         </button>
         <button className={`${rm} ml-auto`} onClick={() => { if (window.confirm('Remove the Growth builder from this scenario? (its product lines stay, switched to plain products)')) update((p) => { delete p.growth; }); }}>Remove</button>
         {parity && <p className="w-full text-[12px] text-amber-700">Sheet-parity mode is on, so none of this is applied. Switch it off to see the growth plan.</p>}
@@ -130,6 +133,34 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
         <MiniStat label="Peak capacity use" value={pct(peakUtil, 0)} sub={overMonths.length ? `Over 100% in ${overMonths.length} month${overMonths.length === 1 ? '' : 's'} (first ${overMonths[0].label})` : `People added: ${int(lastM?.growthHeadcount ?? 0)}`} bad={peakUtil > 1} />
       </div>
 
+      <SectionCard title="Revenue path" description="Target P&L revenue per FY. “Solve the revenue path” pushes the new lines' new buyers in each year (repeats carry into the next) until each target is met. Push 1× = the volumes entered.">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-[12.5px] tabular-nums">
+            <thead><tr className="bg-surface-tint"><th className={th}>FY</th><th className={thr}>Target</th><th className={thr}>Plan revenue</th><th className={thr}>Gap</th><th className={thr}>of which GT / MT / pharmacy</th><th className={thr}>New-buyer push</th><th className={thr}>EBITDA</th><th className={thr}>Closing cash</th></tr></thead>
+            <tbody>
+              {r.years.map((y) => {
+                const t = G.path?.[y.fy];
+                const gap = t != null ? y.revenue - t : null;
+                return (
+                  <tr key={y.fy} className="border-t border-slate-100">
+                    <td className={`${td} font-semibold text-slate-700`}>{y.fy}{y.months < 12 ? ` (${y.months} mo)` : ''}</td>
+                    <td className={`${td} text-right`}>
+                      <NumInput unit="cr" value={t ?? 0} min={0} width="w-20" title={`${y.fy} revenue target`} onChange={(v) => set((g) => { g.path = { ...(g.path ?? {}) }; if (v > 0) g.path[y.fy] = v; else delete g.path[y.fy]; })} />
+                    </td>
+                    <td className={`${td} text-right text-slate-900`}>{money(y.revenue, 1)}</td>
+                    <td className={`${td} text-right ${gap != null && Math.abs(gap) > Math.max(1e5, (t ?? 0) * 0.01) ? 'text-rose-600' : 'text-slate-500'}`}>{gap == null ? '–' : money(gap, 1)}</td>
+                    <td className={`${td} text-right`}>{money(y.retailRevenue, 1)}</td>
+                    <td className={`${td} text-right`}>{G.push?.[y.fy] != null ? `${G.push[y.fy].toFixed(2)}×` : '1×'}</td>
+                    <td className={`${td} text-right ${y.ebitda < 0 ? 'text-rose-600' : ''}`}>{money(y.ebitda, 1)} <span className="text-slate-400">({pct(y.ebitda / (y.revenue || 1), 0)})</span></td>
+                    <td className={`${td} text-right ${y.closingCash < 0 ? 'text-rose-600' : ''}`}>{money(y.closingCash, 1)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
+
       <SectionCard title="Exit run-rate by product family" description="Each family's share of the last 3 months' sales × the exit ARR.">
         <div className="flex flex-wrap gap-x-6 gap-y-2 px-5 py-4 text-[13px] tabular-nums">
           {Object.entries(mix.fam).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
@@ -139,14 +170,14 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
       </SectionCard>
 
       {/* product lines */}
-      <SectionCard title="New product lines" description="Price incl. GST. Volume = units a month at launch, growing month on month for a year, then year on year. Channel split in %, summing to 100. Contract-made lines don't use our capacity."
+      <SectionCard title="New product lines" description="Price incl. GST. Volume = new buyers a month at launch, growing month on month for a year, then year on year; consumables add repeat orders (repeat rate × buyers, kept month on month). Channel split = online, summing to 100; GT / MT / pharmacy come from the outlet plan below. Contract-made lines don't use our capacity."
         actions={<button className={btn} onClick={() => update((p) => { p.products.push({ id: newId('g-'), name: 'New line', on: true, category: 'topical', inHouse: false, asp: 399, launchMonth: 13, launchUnits: 1000, rampPct: 0.1, steadyPct: 0.4, split: { A: 0.5, D: 0.4, F: 0.1, G: 0, P: 0 }, cogsPct: 0.3, marketingPct: 0.05, launchCost: 0, launchCapex: 0, seasonRef: 'flat', growthLine: true, placeholder: true }); })}>Add a line</button>}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1400px] text-[12.5px] tabular-nums">
             <thead><tr className="bg-surface-tint">
               <th className={th}>On</th><th className={th}>Line</th><th className={th}>Family</th><th className={th}>Launch</th>
               <th className={thr}>Price ₹</th><th className={thr}>Units/mo at launch</th><th className={thr}>m/m yr 1</th><th className={thr}>y/y after</th>
-              <th className={thr}>Material %</th><th className={thr}>Extra mktg %</th><th className={thr}>Launch cost</th><th className={thr}>Tooling</th><th className={th}>In-house</th>
+              <th className={thr}>Material %</th><th className={thr}>Extra mktg %</th><th className={thr} title="Share of a month's buyers who buy again the next month">Repeat</th><th className={thr} title="Month-on-month retention of repeat buyers">Kept / mo</th><th className={thr}>Launch cost</th><th className={thr}>Tooling</th><th className={th}>In-house</th>
               {CHANNELS.map((c) => <th key={c} className={thr}>{CHANNEL_NAMES[c]}</th>)}
               <th className={thr}>Exit ARR</th><th className={th} />
             </tr></thead>
@@ -173,6 +204,8 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
                     <td className={`${td} text-right`}><NumInput unit="pct" value={x.steadyPct} width="w-14" title="Year-on-year growth after" onChange={(v) => setProd(x.id, (y) => { y.steadyPct = v; })} /></td>
                     <td className={`${td} text-right`}><NumInput unit="pct" value={x.cogsPct ?? 0} min={0} max={1} width="w-14" title="Material cost % of revenue" onChange={(v) => setProd(x.id, (y) => { y.cogsPct = v; })} /></td>
                     <td className={`${td} text-right`}><NumInput unit="pct" value={x.marketingPct ?? 0} min={0} width="w-14" title="Extra marketing % of revenue" onChange={(v) => setProd(x.id, (y) => { y.marketingPct = v; })} /></td>
+                    <td className={`${td} text-right`}><NumInput unit="pct" value={x.repeatPct ?? 0} min={0} max={1} width="w-12" title="Repeat rate" onChange={(v) => setProd(x.id, (y) => { y.repeatPct = v; })} /></td>
+                    <td className={`${td} text-right`}><NumInput unit="pct" value={x.repeatDecay ?? 0} min={0} max={1} width="w-12" title="Repeat buyers kept each month" onChange={(v) => setProd(x.id, (y) => { y.repeatDecay = v; })} /></td>
                     <td className={`${td} text-right`}><NumInput unit="lakh" value={x.launchCost ?? 0} min={0} width="w-14" title="Launch cost" onChange={(v) => setProd(x.id, (y) => { y.launchCost = v; })} /></td>
                     <td className={`${td} text-right`}><NumInput unit="lakh" value={x.launchCapex ?? 0} min={0} width="w-14" title="Tooling capex" onChange={(v) => setProd(x.id, (y) => { y.launchCapex = v; })} /></td>
                     <td className={td}><Check checked={x.inHouse ?? x.category === 'device'} onChange={(v) => setProd(x.id, (y) => { y.inHouse = v; })} label="Made in-house" /></td>
@@ -188,6 +221,54 @@ export function GrowthTab({ plan, r, update }: { plan: Plan; r: PlanResult; upda
           </table>
         </div>
         {otherProducts.length > 0 && <p className="px-5 py-2 text-[12px] text-slate-500">Also in the plan (Products & customers tab): {otherProducts.map((x) => `${x.name}${x.on ? '' : ' (off)'}`).join(', ')}.</p>}
+      </SectionCard>
+
+      {/* offline distribution */}
+      <SectionCard title="General trade, modern trade & pharmacy" description="Outlets added by month; each sells units a month per product family at full offtake (after the ramp), split evenly over that family's live lines. We invoice list price less the trade margin; schemes are a revenue deduction, listing fees and servicing are channel costs."
+        actions={<button className={btn} onClick={() => set((g) => { g.retail = [...(g.retail ?? []), { ...defaultRetail()[0], id: newId('t'), name: 'New channel', outlets: [] }]; })}>Add a channel</button>}>
+        <div className="space-y-4 px-5 py-4">
+          {(G.retail ?? []).length === 0 && <p className="text-[13px] text-slate-500">No offline channels yet. <button className="font-semibold text-brand-700 underline" onClick={() => set((g) => { g.retail = defaultRetail(); })}>Add GT, MT and pharmacy</button></p>}
+          {(G.retail ?? []).map((t: RetailType, i) => {
+            const setT = (fn: (x: RetailType) => void) => set((g) => { if (g.retail?.[i]) fn(g.retail[i]); });
+            const fyRow = r.years.map((y) => {
+              const ms = r.months.filter((m) => m.fy === y.fy);
+              return { fy: y.fy, outlets: ms[ms.length - 1]?.outlets[t.id] ?? 0, inv: ms.reduce((a, m) => a + (m.retailByType[t.id] ?? 0), 0) };
+            });
+            return (
+              <div key={t.id} className={`rounded-xl border border-slate-200 p-3 ${t.on ? '' : 'opacity-60'}`}>
+                <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+                  <Check checked={t.on} onChange={(v) => setT((x) => { x.on = v; })} label={`${t.name} on`} />
+                  <input className={`${txt} max-w-[360px] font-semibold`} value={t.name} aria-label="Channel" onChange={(e) => setT((x) => { x.name = e.target.value; })} />
+                  <button className={`${rm} ml-auto`} aria-label={`Remove ${t.name}`} onClick={() => set((g) => { g.retail!.splice(i, 1); })}>✕</button>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-slate-600">
+                  <span>Units / outlet / mo: topicals <NumInput value={t.units.topical ?? 0} min={0} width="w-14" title="Topical units per outlet a month" onChange={(v) => setT((x) => { x.units.topical = v; })} /></span>
+                  <span>nutra <NumInput value={t.units.nutra ?? 0} min={0} width="w-14" title="Nutraceutical units per outlet a month" onChange={(v) => setT((x) => { x.units.nutra = v; })} /></span>
+                  <span>devices <NumInput value={t.units.device ?? 0} min={0} width="w-14" title="Device units per outlet a month" onChange={(v) => setT((x) => { x.units.device = v; })} /></span>
+                  <span>Trade margin <NumInput unit="pct" value={t.tradeMarginPct} min={0} max={0.9} width="w-12" title="Trade margin" onChange={(v) => setT((x) => { x.tradeMarginPct = v; })} /></span>
+                  <span>Schemes <NumInput unit="pct" value={t.schemePct} min={0} width="w-12" title="Schemes" onChange={(v) => setT((x) => { x.schemePct = v; })} /></span>
+                  <span>Listing fee ₹ <NumInput value={t.listingFee} min={0} width="w-16" title="Listing fee per new outlet" onChange={(v) => setT((x) => { x.listingFee = v; })} /></span>
+                  <span>Servicing ₹/outlet/mo <NumInput value={t.servicePerOutlet} min={0} width="w-16" title="Servicing cost per outlet a month" onChange={(v) => setT((x) => { x.servicePerOutlet = v; })} /></span>
+                  <span>Ramp <NumInput value={t.rampMonths} min={1} width="w-12" title="Ramp months" onChange={(v) => setT((x) => { x.rampMonths = Math.round(v); })} /> mo</span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-slate-600">
+                  <b className="text-slate-700">Outlets added</b>
+                  {t.outlets.map((o, j) => (
+                    <span key={j} className="inline-flex items-center gap-1 rounded-lg bg-surface-tint px-1.5 py-1">
+                      <MonthSelect title="Month" value={o.month} months={months} onChange={(m) => setT((x) => { x.outlets[j].month = m ?? 1; })} />
+                      +<NumInput value={o.add} min={0} width="w-16" title="Outlets added" onChange={(v) => setT((x) => { x.outlets[j].add = Math.round(v); })} />
+                      <button className={rm} aria-label="Remove" onClick={() => setT((x) => { x.outlets.splice(j, 1); })}>✕</button>
+                    </span>
+                  ))}
+                  <button className={btn} onClick={() => setT((x) => { const lastM = x.outlets[x.outlets.length - 1]?.month ?? 12; x.outlets.push({ month: Math.min(lastM + 3, months.length), add: 500 }); })}>+ outlets</button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-x-5 text-[12px] text-slate-500">
+                  {fyRow.map((x) => <span key={x.fy}>{x.fy}: <b className="text-slate-700">{int(x.outlets)}</b> outlets · {money(x.inv, 1)}</span>)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </SectionCard>
 
       {/* hiring */}

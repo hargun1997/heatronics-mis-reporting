@@ -242,7 +242,13 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   Fundraise Costs, dilution table with the seed's `seedPreMoney`); `stores` (revenue ramp per opening, Retail Stores opex, Store Fit-out
   capex; store revenue is outside the 5 channels: `storeRevenue`). Exit ARR here = last 3 months' P&L revenue × 4 (`runRateArr`).
   `solveForTarget` scales growth lines' launch volumes to `targetArr`; `fundTheGap` sizes unconfirmed `auto-` rounds (≥ ₹15 Cr, next 12
-  months above ₹5 Cr, from seed month + 3, pre-money 4× run-rate ARR, placeholder). `build500Cr` = the ₹500 Cr scenario (all placeholders).
+  months above ₹5 Cr, from seed month + 3, pre-money 4× run-rate ARR, placeholder). Consumables repeat (`repeatPct` of a month's buyers
+  reorder next month, kept `repeatDecay` a month; launch volume = NEW buyers). Offline `retail` types (GT / MT / pharmacy): outlets added by
+  month with a ramp × units per outlet per family (split over that family's live growth lines), invoiced at list × (1 − trade margin) as
+  `retailRevenue` (outside the 5 channels), schemes → Revenue Deductions, listing fee per new outlet → Channel Commission, servicing per
+  outlet → Fulfilment & Delivery, material = list × cogsPct. `path` (FY → P&L revenue) + `solvePath` sets `push` per FY (× new buyers of
+  growth lines). `build500Cr` = the growth plan ₹30 → 100 → 250 → 500 Cr FY28–FY31 (all placeholders). Excel export mirrors the sheet:
+  Overview, Business Plan, 1. Revenue Planning, 2. Expense Calendar, 3. P&L, 4. Cash Flow & Fundraise (months + FY columns), Growth builder.
 - Business Plan + Overview (`plan.business`, `data/planning/summary.ts`): headline 12M/18M/full, Exit ARR (TTM × min(L3M ÷ same
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,

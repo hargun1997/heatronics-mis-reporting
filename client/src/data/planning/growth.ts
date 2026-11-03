@@ -4,7 +4,7 @@
 // helper that sizes rounds, the dilution table, and the ₹500 Cr scenario. Every number in the
 // scenario is a PLACEHOLDER for the founder to replace.
 
-import { GROWTH_GROUPS, runPlan, type Channel, type GrowthPlan, type NewProduct, type Plan, type PlanResult } from './engine';
+import { GROWTH_GROUPS, runPlan, type Channel, type GrowthPlan, type NewProduct, type Plan, type PlanResult, type RetailType } from './engine';
 
 const CR = 1e7;
 const L = 1e5;
@@ -20,7 +20,7 @@ export function runRateArr(r: PlanResult, e = r.months.length): number {
 export function emptyGrowth(): GrowthPlan {
   return {
     on: false, targetArr: 500 * CR, baseCapacity: 13_000, incrementPct: 0.1, benefitsPct: 0.12, recruitPct: 0.08,
-    seedPreMoney: 40 * CR, hires: [], capacity: [], capex: [], rounds: [],
+    seedPreMoney: 40 * CR, hires: [], capacity: [], capex: [], rounds: [], retail: [],
     stores: { on: false, openings: [], matureRevenue: 6 * L, rampMonths: 6, capexPerStore: 15 * L, rentPerStore: 1.5 * L, staffPerStore: 3, staffCtc: 30_000, otherOpexPerStore: 50_000 },
     note: '',
   };
@@ -37,20 +37,73 @@ export function ensureGrowthGroups(p: Plan) {
 export function growthCategories(): NewProduct[] {
   const base = { on: true, placeholder: true, growthLine: true, seasonRef: 'flat' } as const;
   return [
+    // Online split only (Amazon / D2C / Flipkart): GT, MT and pharmacy come from the outlet plan (defaultRetail).
     // Topicals (contract-made): the base plan's cream and roll-on, switched on, plus spray and heat patches
-    { ...base, id: 'p-cream', name: 'Pain relief cream', category: 'topical', inHouse: false, asp: 449, launchMonth: 5, launchUnits: 3000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.45, 0.35, 0.1, 0.1), cogsPct: 0.25, marketingPct: 0.08, launchCost: 15 * L, launchCapex: 0 },
-    { ...base, id: 'p-rollon', name: 'Pain relief roll-on', category: 'topical', inHouse: false, asp: 299, launchMonth: 7, launchUnits: 2500, rampPct: 0.15, steadyPct: 0.6, split: ch(0.45, 0.35, 0.1, 0.1), cogsPct: 0.25, marketingPct: 0.08, launchCost: 8 * L, launchCapex: 0 },
-    { ...base, id: 'g-spray', name: 'Pain relief spray', category: 'topical', inHouse: false, asp: 349, launchMonth: 13, launchUnits: 2000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.45, 0.3, 0.1, 0.15), cogsPct: 0.28, marketingPct: 0.08, launchCost: 10 * L, launchCapex: 0 },
-    { ...base, id: 'g-patch', name: 'Heat patches (pack)', category: 'topical', inHouse: false, asp: 399, launchMonth: 10, launchUnits: 2000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.4, 0.35, 0.1, 0.15), cogsPct: 0.3, marketingPct: 0.06, launchCost: 10 * L, launchCapex: 0 },
+    { ...base, id: 'p-cream', name: 'Pain relief cream', category: 'topical', inHouse: false, asp: 449, launchMonth: 5, launchUnits: 3000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.55, 0.35, 0.1), repeatPct: 0.15, repeatDecay: 0.85, cogsPct: 0.25, marketingPct: 0.08, launchCost: 15 * L, launchCapex: 0 },
+    { ...base, id: 'p-rollon', name: 'Pain relief roll-on', category: 'topical', inHouse: false, asp: 299, launchMonth: 7, launchUnits: 2500, rampPct: 0.15, steadyPct: 0.6, split: ch(0.55, 0.35, 0.1), repeatPct: 0.15, repeatDecay: 0.85, cogsPct: 0.25, marketingPct: 0.08, launchCost: 8 * L, launchCapex: 0 },
+    { ...base, id: 'g-spray', name: 'Pain relief spray', category: 'topical', inHouse: false, asp: 349, launchMonth: 13, launchUnits: 2000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.55, 0.35, 0.1), repeatPct: 0.15, repeatDecay: 0.85, cogsPct: 0.28, marketingPct: 0.08, launchCost: 10 * L, launchCapex: 0 },
+    { ...base, id: 'g-patch', name: 'Heat patches (pack)', category: 'topical', inHouse: false, asp: 399, launchMonth: 10, launchUnits: 2000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.55, 0.35, 0.1), repeatPct: 0.2, repeatDecay: 0.85, cogsPct: 0.3, marketingPct: 0.06, launchCost: 10 * L, launchCapex: 0 },
     // Nutraceuticals (contract-made)
-    { ...base, id: 'g-joint', name: 'Joint support (nutra)', category: 'nutra', inHouse: false, asp: 899, launchMonth: 13, launchUnits: 1500, rampPct: 0.15, steadyPct: 0.6, split: ch(0.45, 0.4, 0.1, 0.05), cogsPct: 0.22, marketingPct: 0.1, launchCost: 20 * L, launchCapex: 0 },
-    { ...base, id: 'g-mag', name: 'Magnesium / recovery (nutra)', category: 'nutra', inHouse: false, asp: 699, launchMonth: 16, launchUnits: 1200, rampPct: 0.15, steadyPct: 0.6, split: ch(0.45, 0.4, 0.1, 0.05), cogsPct: 0.22, marketingPct: 0.1, launchCost: 12 * L, launchCapex: 0 },
-    { ...base, id: 'g-collagen', name: 'Collagen (nutra)', category: 'nutra', inHouse: false, asp: 999, launchMonth: 19, launchUnits: 1000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.45, 0.4, 0.1, 0.05), cogsPct: 0.22, marketingPct: 0.1, launchCost: 12 * L, launchCapex: 0 },
+    { ...base, id: 'g-joint', name: 'Joint support (nutra)', category: 'nutra', inHouse: false, asp: 899, launchMonth: 13, launchUnits: 1500, rampPct: 0.15, steadyPct: 0.6, split: ch(0.5, 0.4, 0.1), repeatPct: 0.35, repeatDecay: 0.9, cogsPct: 0.22, marketingPct: 0.1, launchCost: 20 * L, launchCapex: 0 },
+    { ...base, id: 'g-mag', name: 'Magnesium / recovery (nutra)', category: 'nutra', inHouse: false, asp: 699, launchMonth: 16, launchUnits: 1200, rampPct: 0.15, steadyPct: 0.6, split: ch(0.5, 0.4, 0.1), repeatPct: 0.35, repeatDecay: 0.9, cogsPct: 0.22, marketingPct: 0.1, launchCost: 12 * L, launchCapex: 0 },
+    { ...base, id: 'g-collagen', name: 'Collagen (nutra)', category: 'nutra', inHouse: false, asp: 999, launchMonth: 19, launchUnits: 1000, rampPct: 0.15, steadyPct: 0.6, split: ch(0.5, 0.4, 0.1), repeatPct: 0.35, repeatDecay: 0.9, cogsPct: 0.22, marketingPct: 0.1, launchCost: 12 * L, launchCapex: 0 },
     // New devices (made in-house: they use production capacity)
     { ...base, id: 'g-massager', name: 'Massage device', category: 'device', inHouse: true, asp: 3999, launchMonth: 16, launchUnits: 400, rampPct: 0.12, steadyPct: 0.5, split: ch(0.5, 0.3, 0.15, 0.05), cogsPct: 0.38, marketingPct: 0.05, launchCost: 20 * L, launchCapex: 40 * L },
     { ...base, id: 'g-tens', name: 'TENS / EMS device', category: 'device', inHouse: true, asp: 2999, launchMonth: 19, launchUnits: 400, rampPct: 0.12, steadyPct: 0.5, split: ch(0.45, 0.3, 0.1, 0.05, 0.1), cogsPct: 0.35, marketingPct: 0.05, launchCost: 25 * L, launchCapex: 35 * L },
     { ...base, id: 'g-hotcold', name: 'Smart hot–cold wrap', category: 'device', inHouse: true, asp: 4999, launchMonth: 25, launchUnits: 300, rampPct: 0.12, steadyPct: 0.5, split: ch(0.45, 0.35, 0.1, 0.05, 0.05), cogsPct: 0.4, marketingPct: 0.05, launchCost: 20 * L, launchCapex: 50 * L },
   ];
+}
+
+/** Offline distribution for the new lines: outlets added by month, offtake per outlet. PLACEHOLDERS. */
+export function defaultRetail(): RetailType[] {
+  const steps = (xs: [number, number][]) => xs.map(([month, add]) => ({ month, add }));
+  return [
+    {
+      id: 'gt', name: 'General trade (chemists & general stores, via distributors)', on: true, rampMonths: 3,
+      outlets: steps([[13, 500], [16, 1000], [19, 1500], [22, 2000], [25, 2500], [28, 3000], [31, 3500], [34, 3500], [37, 3500], [40, 3500], [43, 3000], [46, 3000], [49, 2000]]),
+      units: { topical: 6, nutra: 1, device: 0, other: 0 }, tradeMarginPct: 0.3, schemePct: 0.05, listingFee: 0, servicePerOutlet: 150,
+    },
+    {
+      id: 'mt', name: 'Modern trade (DMart, Reliance, More, Spencer’s…)', on: true, rampMonths: 3,
+      outlets: steps([[16, 100], [22, 200], [28, 300], [34, 400], [40, 400], [46, 400]]),
+      units: { topical: 15, nutra: 5, device: 1, other: 0 }, tradeMarginPct: 0.35, schemePct: 0.08, listingFee: 5000, servicePerOutlet: 800,
+    },
+    {
+      id: 'pharma', name: 'Pharmacy chains (Apollo, MedPlus, Wellness Forever…)', on: true, rampMonths: 3,
+      outlets: steps([[13, 300], [19, 700], [25, 1000], [31, 1500], [37, 1500], [43, 1500], [49, 1500]]),
+      units: { topical: 10, nutra: 4, device: 0.5, other: 0 }, tradeMarginPct: 0.28, schemePct: 0.05, listingFee: 2000, servicePerOutlet: 300,
+    },
+  ];
+}
+
+/** P&L revenue per FY. */
+export function fyRevenue(r: PlanResult): Record<string, number> {
+  return Object.fromEntries(r.years.map((y) => [y.fy, y.revenue]));
+}
+
+/**
+ * Meet the revenue path (`growth.path`, FY → P&L revenue) by setting `growth.push` FY by FY, in order: each FY's push
+ * multiplies the growth lines' new buyers in that year (their repeats carry into later years). The push never goes
+ * below 0; a year already above its target with no push, or one the lines can't reach, is listed in `missed`.
+ */
+export function solvePath(plan: Plan): { plan: Plan; missed: string[] } {
+  const p = structuredClone(plan);
+  const G = p.growth;
+  const missed: string[] = [];
+  if (!G?.path) return { plan: p, missed };
+  G.push = {};
+  const fys = Object.keys(G.path).sort();
+  for (const fy of fys) {
+    const target = G.path[fy];
+    const rev = (k: number) => { G.push![fy] = k; return runPlan(p).years.find((y) => y.fy === fy)?.revenue ?? 0; };
+    if (rev(0) >= target) { G.push[fy] = 0; missed.push(`${fy}: already ${Math.round(rev(0) / CR)} Cr with no extra push`); continue; }
+    let lo = 0, hi = 1;
+    while (rev(hi) < target && hi < 1e4) hi *= 2;
+    if (hi >= 1e4) { G.push[fy] = hi; missed.push(`${fy}: the new lines cannot reach the target`); continue; }
+    for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (rev(mid) < target) lo = mid; else hi = mid; }
+    G.push[fy] = hi;
+  }
+  return { plan: p, missed };
 }
 
 let seq = 0;
@@ -63,7 +116,9 @@ export function growth500(): GrowthPlan {
   return {
     ...emptyGrowth(),
     on: true,
-    note: 'Every number here is a placeholder: replace with your own. Volumes of the new lines were scaled by "Solve for the target".',
+    note: 'Every number here is a placeholder: replace with your own. New-buyer volumes of the new lines are pushed year by year to meet the revenue path.',
+    path: { FY28: 30 * CR, FY29: 100 * CR, FY30: 250 * CR, FY31: 500 * CR },
+    retail: defaultRetail(),
     hires: [
       h('Category head — Topicals', 'corporate', 1, 4, 2.5 * L), h('Category head — Nutraceuticals', 'corporate', 1, 10, 2.5 * L),
       h('Brand & performance marketers', 'marketing', 2, 4, 1.2 * L), h('Brand & performance marketers', 'marketing', 3, 13, 1.2 * L), h('Brand & performance marketers', 'marketing', 4, 25, 1.2 * L),
@@ -167,13 +222,12 @@ export function dilution(plan: Plan): DilutionRow[] {
 /** Build the ₹500 Cr scenario from a plan: categories on, people / capacity / capex, volumes solved, rounds sized. */
 export function build500Cr(from: Plan): Plan {
   let p = structuredClone(from);
-  p.name = 'Heatronics ₹500 Cr exit ARR — growth plan (placeholders)';
+  p.name = 'Heatronics ₹30 → 100 → 250 → 500 Cr — growth plan (placeholders)';
   const cats = growthCategories();
   const ids = new Set(cats.map((c) => c.id));
   p.products = [...p.products.filter((x) => !ids.has(x.id)), ...cats];
   p.growth = growth500();
   ensureGrowthGroups(p);
-  const solved = solveForTarget(p);
-  if (solved) p = solved.plan;
+  p = solvePath(p).plan;
   return fundTheGap(p);
 }
