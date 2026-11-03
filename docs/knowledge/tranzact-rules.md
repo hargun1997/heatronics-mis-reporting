@@ -18,7 +18,7 @@ Accounting Rules match on **document series only** (address, movement type, tax,
 | B2C | B2C | B2C Offline Sales | GT (for now) |
 | Blinkit Sales | BLK | Blinkit Sales | Blinkit payout slot (not counted from Tranzact) |
 | Internal Transfer | ITF | Internal Transfer Sales (= Tally Stock Transfers) | NOT revenue |
-| Ecommerce 3P | Ecom | none (no accounting rule yet) | NOT revenue (stock to Amazon / marketplaces) |
+| Ecommerce 3P | Ecom | Internal Transfer Sales (ledger rule added 3 Nov 2026) | NOT revenue (Amazon 3P stock to Supernode; Amazon Sales stays = MTR) |
 
 Credit notes: BLK/CN, GTR/CN, GTD/CN, GTC/CN, MT/CN, PHY/CN, OEM/CN, ITF/CN (+ plain CN). Other series: PO, JW (job work PO), IN (inward), GRN, PI, SQ, OC, CL (challan), SR (sales return), DN, BSF (stock transfer document), PMV / RCV (vouchers), IAP, MAJ, PSR.
 Item codes: RM- / SFG- / FG- / REJ- / Service- / EQ-.
@@ -26,6 +26,16 @@ Item codes: RM- / SFG- / FG- / REJ- / Service- / EQ-.
 ## Rules the MIS applies
 - Audited-vs-MIS gap = GST + internal stock transfers (founder, 3 Nov 2026): ITF and Ecom invoices, and any invoice billed to an Amazon entity, are stock transfers and are excluded from revenue.
 - The register trace shows each excluded total so it can be matched to Tally's Stock Transfers ledger.
+
+## Voucher rules (read 3 Nov 2026)
+Sales: B2C→Sales-Offline-B2C, ITF→Sales-Internal Transfer, OEM→Sales-OEM, PHY→Sales-Physio, MT→Sales-MT, GTC→Sales-GT CNF, GTD→Sales-GT Dealer, GTR→Sales-GT Retailer, BLK→Sales-Blinkit. Purchases: Job Work PO series→Purchase-Job Work; goods→Purchase-RM; goods in category Consumables→Purchase-Expense.
+General rules: foreign-currency documents go as INR converted; stock transfer / manual adjustment use Tranzact's price (not user input).
+Rules are edited only by Excel Download/Upload (Ledger / Voucher); an upload MERGES into the existing rules (GT Dealer and GT CNF are duplicated x8 after the 3 Nov upload; harmless, same mapping).
+
+## Gaps found
+- No VOUCHER rule for Ecommerce 3P (ledger rule exists since 3 Nov).
+- No credit-note / debit-note / sales-return rules in ledger or voucher tables (BLK/CN, GTD/CN … series).
+- Service bills (not job-work PO series) all post to Job Work Charges; Input TCS ledger is 'TCS Credit' (check it exists in Tally).
 
 ## Open points
 - BLK/26-27/00007 (31 Oct) is billed to CARE INDIA SURGICALS (a UP surgical dealer, no e-invoice), not Blinkit: probably raised in the wrong series; Tally would book it as Blinkit Sales.

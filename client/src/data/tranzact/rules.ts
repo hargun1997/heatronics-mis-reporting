@@ -25,7 +25,7 @@ export const TRANZACT_SERIES: TranzactSeries[] = [
   { name: 'B2C Series', prefix: 'B2C', ledger: 'B2C Offline Sales', treatment: 'sale', channel: 'GT', source: 'tranzactgt', note: 'Offline B2C — rolled into GT until the MIS has its own channel.' },
   { name: 'Blinkit Sales Series', prefix: 'BLK', ledger: 'Blinkit Sales', treatment: 'own-feed', note: 'Blinkit revenue + fees come from the Blinkit payout slot; shown in the Tranzact trace only.' },
   { name: 'Internal Transfer Series', prefix: 'ITF', ledger: 'Internal Transfer Sales', treatment: 'transfer', note: "= Tally 'Stock Transfers'. Not revenue." },
-  { name: 'Ecommerce 3P', prefix: 'ECOM', ledger: '', treatment: 'transfer', note: 'Stock sent to Amazon / marketplaces. No Tally accounting rule yet (these invoices stay pending approval). Not revenue.' },
+  { name: 'Ecommerce 3P', prefix: 'ECOM', ledger: 'Internal Transfer Sales', treatment: 'transfer', note: 'Amazon 3P stock to Supernode. Ledger rule added 3 Nov 2026 (founder: not revenue; Amazon Sales stays = MTR). Still no VOUCHER rule.' },
 ];
 
 /** Credit-note series use PREFIX/CN/… (BLK, GTR, GTD, GTC, MT, PHY, OEM, ITF) plus plain CN. */
