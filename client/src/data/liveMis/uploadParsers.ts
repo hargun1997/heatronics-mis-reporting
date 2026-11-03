@@ -1219,12 +1219,22 @@ function parseFlipkartAds(wb: XLSX.WorkBook): ParseOutput {
 
 // ---- Tranzact Sales Invoice Register (item-wise) → GT / B2B channel×SKU ----
 
-/** Invoice prefix → channel + fact source. OEM = B2B; GTD/GTR/PHY roll up to GT. */
+import { tranzactSeriesFor } from '../tranzact/rules';
+
+/**
+ * Internal stock transfers are NOT sales: the ITF (Internal Transfer) and Ecom (Ecommerce 3P)
+ * series, and any invoice billed to an Amazon entity. Series come from Tranzact itself
+ * (client/src/data/tranzact/rules.ts). They net against Tally's "Stock Transfers" ledger.
+ */
+export function isTranzactStockTransfer(invoice: string, customer = ''): boolean {
+  const s = tranzactSeriesFor(invoice);
+  if (s?.treatment === 'transfer') return true;
+  return /\bamazon\b/i.test(customer);
+}
+
 function tranzactChannel(invoice: string): { channel: string; source: string } | null {
-  const p = (invoice.split('/')[0] || '').trim().toUpperCase();
-  if (p === 'OEM') return { channel: 'B2B', source: 'tranzactb2b' };
-  if (p === 'GTD' || p === 'GTR' || p === 'PHY' || p === 'GT') return { channel: 'GT', source: 'tranzactgt' };
-  return null;
+  const s = tranzactSeriesFor(invoice);
+  return s && s.treatment === 'sale' && s.channel && s.source ? { channel: s.channel, source: s.source } : null;
 }
 
 /**
@@ -1242,6 +1252,7 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
   const header = (rows[hi] ?? []).map(lower);
   const ix = {
     inv: col(header, 'invoice number'),
+    cust: col(header, 'customer name'),
     date: col(header, 'document date'),
     item: col(header, 'item id'),
     desc: col(header, 'item description'),
@@ -1253,10 +1264,16 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const byKey = new Map<string, DailyFact>(); // `${source}|${date}|${fg}`
   const byCh = new Map<string, number>();
-  let skippedNoFg = 0, skippedCh = 0;
+  let skippedNoFg = 0, skippedCh = 0, transferVal = 0, blinkitVal = 0;
+  const transferInvs = new Set<string>();
   for (const row of rows.slice(hi + 1)) {
     const inv = cell(row[ix.inv]);
     if (!inv || /report ends/i.test(inv)) continue;
+    if (isTranzactStockTransfer(inv, ix.cust >= 0 ? cell(row[ix.cust]) : '')) {
+      transferVal += num(row[ix.val]); transferInvs.add(inv); continue;
+    }
+    // BLK = Blinkit sales: counted from the Blinkit payout (own slot), not here, so no double count.
+    if (tranzactSeriesFor(inv)?.treatment === 'own-feed') { blinkitVal += num(row[ix.val]); continue; }
     const ch = tranzactChannel(inv);
     if (!ch) { skippedCh += 1; continue; }
     const item = cell(row[ix.item]).toUpperCase();
@@ -1278,6 +1295,8 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
   const trace = [
     `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
     `${facts.length} channel×SKU facts: ${[...byCh.entries()].map(([c, v]) => `${c} ₹${inr(v)}`).join(', ')}`,
+    ...(transferInvs.size ? [`${transferInvs.size} internal stock-transfer invoice(s) (ITF / transfer series / Amazon-bound) ₹${inr(transferVal)} excluded from sales — compare with Tally's Stock Transfers ledger`] : []),
+    ...(blinkitVal ? [`BLK (Blinkit) invoices ₹${inr(blinkitVal)} not counted here — Blinkit revenue comes from the Blinkit payout; compare the two`] : []),
     `GT → Tally Offline Sales; B2B → Tally OEM Sales${skippedNoFg ? `; skipped ${skippedNoFg} non-FG line(s) (freight)` : ''}${skippedCh ? `; ${skippedCh} row(s) with unrecognised invoice prefix` : ''}`,
   ];
   return { facts, warning: facts.length === 0 ? 'No GT/B2B invoice rows found.' : undefined, trace };
