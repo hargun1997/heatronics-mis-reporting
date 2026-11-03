@@ -84,7 +84,7 @@ export function TallyPage() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
           <span>Ledgers {status?.ledgers ? <b className="text-slate-900">{status.ledgers}</b> : '—'} · taken {ago(status?.mastersAt ?? null)}</span>
           <span>Day Books: {stored.length ? stored.slice(0, 6).map((p) => <span key={p} className="mr-1 rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700" title={`Taken ${ago(status!.months[p])}`}>{p}</span>) : 'none yet'}</span>
-          {status && !status.connected && <span className="text-amber-800">Not connected — add the Tally host on <Link className="underline" to="/reporting/mis/connectors">Data sources</Link>.</span>}
+          {status && !status.connected && <span className="text-amber-800">Not connected — add the Tally host on <Link className="underline" to="/reporting/mis/connectors">Setup</Link>.</span>}
           {status?.lastError && <span className="text-amber-800" title={status.lastError}>Last pull stopped: {status.lastError.slice(0, 90)}</span>}
         </div>
         {msg && <p role="status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{msg}</p>}

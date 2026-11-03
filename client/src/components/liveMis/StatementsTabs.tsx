@@ -23,7 +23,7 @@ function Empty({ data, what }: { data: Resp | null; what: string }) {
     <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">
       No {what} yet. It is built from Tally's month-end Trial Balance, which the MIS stores whenever TallyPrime is open on the cloud
       machine (last reached {when(data?.lastOkAt)}).{' '}
-      {data && !data.connected ? <>Add the Tally host on <Link className="underline" to="/reporting/mis/connectors">Data sources</Link>.</> : <>Open Tally, then press Pull now on the Tally card in <Link className="underline" to="/reporting/mis/connectors">Data sources</Link>.</>}
+      {data && !data.connected ? <>Add the Tally host on <Link className="underline" to="/reporting/mis/connectors">Setup</Link>.</> : <>Open Tally, then press Pull now on the Tally card in <Link className="underline" to="/reporting/mis/connectors">Setup</Link>.</>}
     </div>
   );
 }

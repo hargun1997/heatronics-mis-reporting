@@ -109,7 +109,7 @@ export function serverItems(x: InboxInputs): InboxItem[] {
     if (x.committed.has(`${s.connectorId}|${s.slotId}|${last}`)) continue;
     out.push({ id: `upload:${s.connectorId}:${s.slotId}:${last}`, area: 'feeds', severity: day > s.dueDay ? 'medium' : 'low', period: last,
       title: `${s.label} for ${last} not uploaded`, detail: 'No API for this report: it comes in by hand.',
-      fix: `Download it from the channel and drop it on the ${s.label} slot.`, href: `/reporting/mis/ingest?month=${last}#${s.connectorId}`, sig: 'missing' });
+      fix: `Download it from the channel and drop it on the ${s.label} slot.`, href: `/reporting/mis/connectors?view=uploads#${s.connectorId}`, sig: 'missing' });
   }
   // MIS numbers: cross-month anomaly scan
   for (const a of x.anomalies) out.push({ id: `scan:${a.id}`, area: 'mis', severity: a.severity, period: a.period, title: a.title, detail: a.detail, fix: 'Check the month on Live MIS; re-pull or re-upload the report behind it.', href: '/reporting/mis/live', sig: sigOf(a.title) });

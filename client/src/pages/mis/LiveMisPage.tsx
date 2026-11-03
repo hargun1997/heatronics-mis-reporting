@@ -222,7 +222,7 @@ export function LiveMisPage() {
             <Link to="/reporting/mis/rulebook" className="px-2.5 py-1 rounded-lg text-slate-600 text-[11px] hover:bg-white/70 underline-offset-2 hover:underline">
               How it’s calculated
             </Link>
-            <Link to="/reporting/mis/ingest" className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50">
+            <Link to="/reporting/mis/connectors?view=uploads" className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50">
               Close the month
             </Link>
             <button onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading}
@@ -416,7 +416,7 @@ function NoData() {
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center">
       <p className="text-sm text-slate-500">No uploads have been ingested yet.</p>
       <p className="text-xs text-slate-400 mt-1">
-        Head to <a href="/reporting/mis/ingest" className="text-brand-600 underline">Upload data</a> to upload each source,
+        Head to <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup → Uploads</a> to upload each source,
         or see the <a href="/reporting/mis/rulebook" className="text-brand-600 underline">Data rulebook</a> for what feeds what.
       </p>
     </div>
@@ -562,7 +562,7 @@ function RunRateTab() {
         description={`${from} → ${to} · ${days} days${isRatio ? ' · ratio metric, not summed' : ''}`}>
         {facts.length === 0 ? (
           <p className="text-sm text-slate-400">No data for this range. Connect a dateable source (Shopify today) on the{' '}
-            <a href="/reporting/mis/connectors" className="text-emerald-700 underline">Data sources</a> page and pull.</p>
+            <a href="/reporting/mis/connectors" className="text-emerald-700 underline">Setup</a> page and pull.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">

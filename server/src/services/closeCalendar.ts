@@ -113,7 +113,7 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
     dueDay: 1,
     arrears: true,
     howTo: 'c16-m2-shiprocket',
-    links: [{ label: 'Upload data', url: '/reporting/mis/ingest' }],
+    links: [{ label: 'Setup → Uploads', url: '/reporting/mis/connectors?view=uploads' }],
   },
   {
     ...base,
@@ -265,7 +265,7 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
     arrears: true,
     howTo: 'c28-upload',
     links: [
-      { label: 'Upload data', url: '/reporting/mis/ingest' },
+      { label: 'Setup → Uploads', url: '/reporting/mis/connectors?view=uploads' },
       { label: 'Live MIS', url: '/reporting/mis/live' },
     ],
   },

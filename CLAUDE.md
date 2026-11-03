@@ -181,7 +181,7 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   (tie breach, ready to lock, BOM from another month, unmapped products, no-BOM products; remembered per tab for the badge). Shared state
   `issues/state` (`POST /api/issues/state {op: done|snooze|reopen, id, sig}`): Done holds until the item's `sig` changes. Each item links where to
   fix (`/tally?tab=`, `/reporting/mis/live?month=…#close|#product-gaps`, `/reporting/mis/ingest#<connector>`). Month-end close is now
-  **Admin → Month-end uploads** (only the no-API reports + freezing pulls); Round planner moved to Tools; Data rulebook is palette-only.
+  **Setup → Uploads** (`/reporting/mis/connectors?view=uploads`; `/reporting/mis/ingest` redirects, hash kept; Setup = Connections + Uploads in one page); Round planner moved to Tools; Data rulebook is palette-only.
   Sidebar: every section scrolls in one list, the current page scrolled into view (the footer used to hide the last tools).
 - **Chart of accounts** (Tally health → Chart of accounts, `GET /api/tally/books/chart`, pure `connectors/tally/chart.ts`, READ ONLY): groups →
   sub-groups → ledgers tree with closings from the newest stored TB; hanging ledgers = on a parent group with sub-groups (not Sundry Debtors /

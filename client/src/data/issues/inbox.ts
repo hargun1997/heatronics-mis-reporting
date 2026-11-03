@@ -42,7 +42,7 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
         detail: `Tally is in and it ties (worst ${tie?.worstResidualPct?.toFixed(1) ?? '0'}%).`, fix: 'Review it once on Live MIS and press Close & lock.',
         href: `/reporting/mis/live?month=${k}#close`, sig: 'ready' });
     }
-    if (c.bom && !c.bom.exact) out.push({ id: `bom:${k}`, area: 'products', severity: 'low', period: k, title: `${monthName(k)} is costed with another month's BOM`, detail: c.bom.note, fix: 'Pull the BOM pricing for the month (Production portal) on Month-end close.', href: `/reporting/mis/ingest?month=${k}#tranzact`, sig: sig(c.bom.month) });
+    if (c.bom && !c.bom.exact) out.push({ id: `bom:${k}`, area: 'products', severity: 'low', period: k, title: `${monthName(k)} is costed with another month's BOM`, detail: c.bom.note, fix: 'Pull the BOM pricing for the month (Production portal) on Setup → Uploads.', href: `/reporting/mis/connectors?view=uploads#tranzact`, sig: sig(c.bom.month) });
   }
   const g = deck.productGaps;
   if (g?.unmapped?.length) {

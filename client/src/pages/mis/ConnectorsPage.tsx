@@ -12,7 +12,9 @@
 // ----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { IngestWorkspace } from '../../components/ingest/IngestWorkspace';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Drawer } from '../../components/ui/overlays';
 import { StatusPill, type PillTone } from '../../components/ui/StatusPill';
@@ -124,7 +126,7 @@ function CloseSourcesPanel() {
       <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
         <div>
           <h3 className="text-sm font-bold text-slate-800">Month-end close: how each report is fed</h3>
-          <p className="text-[11px] text-slate-500">Automatic slots have “Pull now” on the <Link to="/reporting/mis/ingest" className="text-brand-600 hover:underline">close page</Link> and keep the upload as a fallback.</p>
+          <p className="text-[11px] text-slate-500">Automatic slots have “Pull now” on the <Link to="/reporting/mis/connectors?view=uploads" className="text-brand-600 hover:underline">Uploads tab</Link> and keep the upload as a fallback.</p>
         </div>
         {SOURCE_ORDER.filter((k) => slots.some((s) => s.source === k)).map((k) => (
           <div key={k}>
@@ -168,7 +170,7 @@ function CloseSourcesPanel() {
   );
 }
 
-export function ConnectorsPage() {
+function ConnectionsView() {
   const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
   const [store, setStore] = useState<StoreStatus | null>(null);
   const [rechecking, setRechecking] = useState(false);
@@ -203,38 +205,11 @@ export function ConnectorsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Data sources"
-        accent="brand"
-        icon={iconPlug}
-        description="Connect each system once. Credentials are stored on the server, never in the browser. Sync pulls a month and sends it to the close."
-        crumbs={[
-          { label: 'Reporting', to: '/reporting' },
-          { label: 'MIS Reporting', to: '/reporting/mis' },
-          { label: 'Data sources' },
-        ]}
-        actions={
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="font-medium text-slate-600">Month to sync</span>
-              <input
-                type="month"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="px-2.5 py-1.5 text-sm rounded-lg border border-slate-300"
-              />
-            </label>
-            <Link
-              to="/reporting/mis/live"
-              className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
-            >
-              Live MIS →
-            </Link>
-          </div>
-        }
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 space-y-6">
+        <label className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="font-medium text-slate-600">Month to sync</span>
+          <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} className="px-2.5 py-1.5 text-sm rounded-lg border border-slate-300" />
+        </label>
         {/* Summary */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCount label="Live & feeding" count={live} tone="positive" />
@@ -514,6 +489,29 @@ function ConnectorCard({
           {msg && <p className={`text-xs leading-snug ${msgColor}`}>{msg.text}</p>}
         </div>
       </Drawer>
+    </>
+  );
+}
+
+// Setup = every connector AND the report uploads in one place (founder, 3 Nov 2026: "why do we need 2 different things").
+// ?view=uploads opens the uploads (the old /reporting/mis/ingest redirects here, hash kept = the source to open).
+export function ConnectorsPage() {
+  const [params, setParams] = useSearchParams();
+  const view: 'connections' | 'uploads' = params.get('view') === 'uploads' ? 'uploads' : 'connections';
+  const setView = (v: 'connections' | 'uploads') => { const n = new URLSearchParams(params); if (v === 'uploads') n.set('view', 'uploads'); else n.delete('view'); setParams(n, { replace: true }); };
+  return (
+    <>
+      <PageHeader
+        title="Setup"
+        accent="brand"
+        icon={iconPlug}
+        description="Every data source in one place. Connections: connect each system once (credentials stay on the server) and see how each report is fed. Uploads: the few reports with no API (Flipkart settlement + ads, Blinkit, Snapmint, Shopflo), a Pull now per source, and freezing a month. A missing report shows up in Issues."
+        actions={<Link to="/reporting/mis/live" className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">Live MIS →</Link>}
+      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-4">
+        <SegmentedControl aria-label="Setup view" value={view} onChange={setView} options={[{ id: 'connections', label: 'Connections' }, { id: 'uploads', label: 'Uploads' }]} />
+      </div>
+      {view === 'uploads' ? <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6"><IngestWorkspace /></div> : <ConnectionsView />}
     </>
   );
 }

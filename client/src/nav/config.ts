@@ -73,8 +73,7 @@ export const NAV: NavSection[] = [
     id: 'admin',
     label: 'Admin',
     pages: [
-      { id: 'sources', label: 'Data sources', href: '/reporting/mis/connectors', icon: 'sources', hint: 'Connectors, Tally, scheduled feeds', words: 'connectors api amazon shopify meta google tally setup' },
-      { id: 'ingest', label: 'Month-end uploads', href: '/reporting/mis/ingest', icon: 'upload', hint: 'Pull or upload each report for a month (manual reports: Flipkart, Blinkit, Snapmint, Shopflo)', words: 'upload data close month end pull reports slots ingest' },
+      { id: 'sources', label: 'Setup', href: '/reporting/mis/connectors', icon: 'sources', also: ['/reporting/mis/ingest'], hint: 'Connections + report uploads in one place', words: 'connectors api amazon shopify meta google tally setup data sources upload month end close pull reports slots ingest' },
     ],
   },
   {
@@ -88,7 +87,7 @@ export const NAV: NavSection[] = [
       { id: 'tasks', label: 'Tasks', href: '/tasks', icon: 'tasks', exact: true, also: ['/work', '/compliance', '/task-tracker', '/tracker'], hint: 'Compliance and close tasks', words: 'todo deadlines gst tds roc' },
       { id: 'people', label: 'People & reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails', words: 'team owners settings' },
       { id: 'deck', label: 'MIS deck (old)', href: '/reporting/mis/deck', icon: 'old', hint: 'The first MIS deck', words: 'legacy deck' },
-      { id: 'close', label: 'Month close (old)', href: '/reporting/mis/close', icon: 'old', hint: 'Replaced by Month-end uploads + Live MIS close', words: 'legacy close manual figures' },
+      { id: 'close', label: 'Month close (old)', href: '/reporting/mis/close', icon: 'old', hint: 'Replaced by Setup → Uploads + Live MIS close', words: 'legacy close manual figures' },
     ],
   },
 ];
