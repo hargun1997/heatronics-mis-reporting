@@ -1267,7 +1267,7 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
   const r2 = (n: number) => Math.round(n * 100) / 100;
   const byKey = new Map<string, DailyFact>(); // `${source}|${date}|${fg}`
   const byCh = new Map<string, number>();
-  let skippedNoFg = 0, skippedCh = 0, transferVal = 0;
+  let skippedNoFg = 0, skippedCh = 0, transferVal = 0, blinkitVal = 0;
   const transferInvs = new Set<string>();
   for (const row of rows.slice(hi + 1)) {
     const inv = cell(row[ix.inv]);
@@ -1275,6 +1275,8 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
     if (isTranzactStockTransfer(inv, ix.cust >= 0 ? cell(row[ix.cust]) : '')) {
       transferVal += num(row[ix.val]); transferInvs.add(inv); continue;
     }
+    // BLK = Blinkit sales: counted from the Blinkit payout (own slot), not here, so no double count.
+    if ((inv.split('/')[0] || '').trim().toUpperCase() === 'BLK') { blinkitVal += num(row[ix.val]); continue; }
     const ch = tranzactChannel(inv);
     if (!ch) { skippedCh += 1; continue; }
     const item = cell(row[ix.item]).toUpperCase();
@@ -1297,6 +1299,7 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
     `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
     `${facts.length} channel×SKU facts: ${[...byCh.entries()].map(([c, v]) => `${c} ₹${inr(v)}`).join(', ')}`,
     ...(transferInvs.size ? [`${transferInvs.size} internal stock-transfer invoice(s) (ITF / transfer series / Amazon-bound) ₹${inr(transferVal)} excluded from sales — compare with Tally's Stock Transfers ledger`] : []),
+    ...(blinkitVal ? [`BLK (Blinkit) invoices ₹${inr(blinkitVal)} not counted here — Blinkit revenue comes from the Blinkit payout; compare the two`] : []),
     `GT → Tally Offline Sales; B2B → Tally OEM Sales${skippedNoFg ? `; skipped ${skippedNoFg} non-FG line(s) (freight)` : ''}${skippedCh ? `; ${skippedCh} row(s) with unrecognised invoice prefix` : ''}`,
   ];
   return { facts, warning: facts.length === 0 ? 'No GT/B2B invoice rows found.' : undefined, trace };
