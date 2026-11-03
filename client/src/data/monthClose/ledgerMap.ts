@@ -12,6 +12,7 @@
 // ----------------------------------------------------------------------------
 
 import type { LedgerNode } from './schema';
+import { activeLedgerRules, matchLedgerRule } from './ledgerRules';
 
 /** Lowercase, collapse whitespace, drop punctuation Tally varies between exports. */
 export function normaliseLedger(name: string): string {
@@ -228,6 +229,11 @@ export function lookupLedger(
 
   if (IGNORE_PATTERNS.some((re) => re.test(own))) return { lineKey: 'ignore', fromOverride: false };
 
+  // Name-pattern rules (ledgerRules.ts, editable on the Tally health page): Blinkit / Flipkart sales, brand
+  // investment, fundraising booked under a ledger name the seed map does not know.
+  const rule = matchLedgerRule(node.name, null, activeLedgerRules());
+  if (rule) return { lineKey: rule.line, fromOverride: false };
+
   return { lineKey: null, fromOverride: false };
 }
 
@@ -299,4 +305,14 @@ function descendantsOf<T extends { node: LedgerNode }>(rows: T[], i: number): T[
   const out: T[] = [];
   for (let j = i + 1; j < rows.length && rows[j].node.depth > base; j++) out.push(rows[j]);
   return out;
+}
+
+/** The seed map's line for a ledger name (exact, "Add:/Less:" prefix stripped, or ignore pattern) — null if unknown. */
+export function exactLineOf(name: string, map: Record<string, string> = SEED_LEDGER_MAP): string | null {
+  const own = normaliseLedger(name);
+  const stripped = own.replace(/^(add|less) /, '');
+  if (map[own]) return map[own];
+  if (map[stripped]) return map[stripped];
+  if (IGNORE_PATTERNS.some((re) => re.test(own))) return 'ignore';
+  return null;
 }

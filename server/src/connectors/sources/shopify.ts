@@ -106,10 +106,21 @@ interface ShopifyLineItem {
   quantity?: number;
   price?: string;
   total_discount?: string;
+  tax_lines?: { price?: string }[];
 }
 interface ShopifyOrder {
   created_at?: string;
+  taxes_included?: boolean;
+  cancelled_at?: string | null;
+  test?: boolean;
+  total_price?: string;
   line_items?: ShopifyLineItem[];
+}
+
+/** Orders above this are treated as mistakes (e.g. the 10-lakh-unit order of 11 Jun 2026) and left out. */
+export const ORDER_OUTLIER_INR = 200_000;
+export function shouldSkipOrder(o: ShopifyOrder): boolean {
+  return !!o.test || !!o.cancelled_at || (Number(o.total_price ?? 0) || 0) > ORDER_OUTLIER_INR;
 }
 
 /**
@@ -137,12 +148,13 @@ async function eachOrder(
       url.searchParams.set('created_at_min', startISO);
       url.searchParams.set('created_at_max', endISO);
       url.searchParams.set('limit', '250');
-      url.searchParams.set('fields', fields);
+      url.searchParams.set('fields', `${fields},cancelled_at,test,total_price`);
     }
     const res = await fetch(url, { headers: headers(token) });
     if (!res.ok) throw new Error(`Shopify orders request failed (${res.status}): ${await res.text()}`);
     const body = (await res.json()) as { orders?: ShopifyOrder[] };
     for (const o of body.orders ?? []) {
+      if (shouldSkipOrder(o)) continue;
       onOrder(o);
       count += 1;
     }
@@ -150,6 +162,20 @@ async function eachOrder(
     pages += 1;
   } while (pageInfo && pages < 200);
   return { pages, count };
+}
+
+/**
+ * One line's sales three ways. Shopify India prices are usually GST-inclusive (`taxes_included`): then `revenue`
+ * (price × qty − discount) is GMV and GST is inside it; otherwise it is already ex-GST and the tax lines add on top.
+ * `revenue` stays as the MIS has always read it; gmv / netExGst are what the close tie compares to Tally (ex-GST).
+ */
+export function shopifyLineSales(order: { taxes_included?: boolean }, li: { price?: string; quantity?: number; total_discount?: string; tax_lines?: { price?: string }[] }) {
+  const revenue = num(li.price) * num(li.quantity) - num(li.total_discount);
+  const tax = (li.tax_lines ?? []).reduce((s, t) => s + num(t.price), 0);
+  const included = order.taxes_included !== false; // Shopify India default; an explicit false means tax is on top
+  return included
+    ? { revenue, gmv: revenue, netExGst: revenue - tax }
+    : { revenue, gmv: revenue + tax, netExGst: revenue };
 }
 
 const num = (v: unknown) => {
@@ -297,7 +323,7 @@ const shopify: ConnectorDef = {
     const orderDays = new Map<string, Set<string>>(); // day -> order ids, to count orders
 
     const token = await resolveToken(creds);
-    const { pages } = await eachOrder(creds, token, startISO, endISO, 'id,created_at,line_items', (order) => {
+    const { pages } = await eachOrder(creds, token, startISO, endISO, 'id,created_at,taxes_included,line_items', (order) => {
       const day = (order.created_at ?? '').slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
       const oid = String((order as { id?: unknown }).id ?? Math.random());
@@ -305,7 +331,7 @@ const shopify: ConnectorDef = {
 
       for (const li of order.line_items ?? []) {
         const qty = num(li.quantity);
-        const gross = num(li.price) * qty - num(li.total_discount);
+        const { revenue: gross, gmv, netExGst } = shopifyLineSales(order, li);
         const sku = (li.sku ?? '').trim();
         const title = (li.title ?? li.name ?? '').trim() || '(untitled)';
         const key = sku || title;
@@ -323,9 +349,13 @@ const shopify: ConnectorDef = {
             units: 0,
             orders: 0,
             fees: 0,
+            gmv: 0,
+            netExGst: 0,
           };
           byDaySku.set(id, fact);
         }
+        fact.gmv = Math.round(((fact.gmv ?? 0) + gmv) * 100) / 100;
+        fact.netExGst = Math.round(((fact.netExGst ?? 0) + netExGst) * 100) / 100;
         fact.revenue = Math.round((fact.revenue + gross) * 100) / 100;
         fact.units += qty;
       }

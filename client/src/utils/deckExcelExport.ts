@@ -12,7 +12,8 @@
  */
 
 import XLSX from 'xlsx-js-style';
-import { saveAs } from 'file-saver';
+import fileSaver from 'file-saver';
+const { saveAs } = fileSaver;
 import {
   MONTHLY_MIS,
   FY_SUMMARY,
