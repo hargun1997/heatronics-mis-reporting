@@ -38,7 +38,7 @@ export const NAV: NavSection[] = [
     label: 'Reporting',
     pages: [
       { id: 'live', label: 'Live MIS', href: '/reporting/mis/live', icon: 'live', hint: 'This month and last, P&L by channel', words: 'mis dashboard p&l revenue margin run rate' },
-      { id: 'ingest', label: 'Month-end close', href: '/reporting/mis/ingest', icon: 'upload', hint: 'Pull or upload each report for the month', words: 'upload data close month end pull reports slots ingest' },
+      { id: 'issues', label: 'Issues', href: '/reporting/mis/issues', icon: 'issues', hint: 'Everything that needs fixing: books, feeds, MIS numbers — open and resolve', words: 'errors warnings checks problems alerts data issues hanging ledgers tie' },
       { id: 'insights', label: 'AI insights', href: '/reporting/mis/insights', icon: 'ai', also: ['/reporting/mis/chat'], hint: 'Ask about the numbers', words: 'chat claude ask analysis' },
     ],
   },
@@ -55,7 +55,6 @@ export const NAV: NavSection[] = [
     label: 'Planning',
     pages: [
       { id: 'plan', label: '5-year plan', href: '/planning', icon: 'plan', hint: 'Projection & deployment plan, levers and scenarios', words: 'projection forecast budget fundraise cash runway' },
-      { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution', words: 'equity dilution cap table investors' },
     ],
   },
   {
@@ -65,6 +64,7 @@ export const NAV: NavSection[] = [
     pages: [
       { id: 'send', label: 'Send report', href: '/reporting/mis/send', icon: 'send', hint: 'Email the monthly MIS', words: 'email investors board' },
       { id: 'booking', label: 'Book an invoice', href: '/booking-assistant', icon: 'booking', also: ['/tools/invoice-booking', '/tools/expense-booking'], hint: 'Which ledger, voucher and GST for an invoice', words: 'invoice ledger voucher tally expense booking assistant suggester' },
+      { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution', words: 'equity dilution cap table investors' },
       { id: 'floors', label: 'Amazon price floors', href: '/tools/price-floors', icon: 'floors', hint: 'Lowest price per SKU that still makes money', words: 'pricing margin asin' },
       { id: 'tranzact', label: 'Amazon → Tranzact', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'FBA inventory ledger → Tranzact stock reconciliation upload', words: 'fba inventory ledger stock reconciliation converter' },
     ],
@@ -73,8 +73,7 @@ export const NAV: NavSection[] = [
     id: 'admin',
     label: 'Admin',
     pages: [
-      { id: 'sources', label: 'Setup', href: '/reporting/mis/connectors', icon: 'sources', hint: 'Every connector, Tally, scheduled feeds (same as Ops Setup)', words: 'setup data sources connectors api amazon shopify meta google tally' },
-      { id: 'rulebook', label: 'Data rulebook', href: '/reporting/mis/rulebook', icon: 'rules', hint: 'How each number is built', words: 'rules mapping definitions' },
+      { id: 'sources', label: 'Setup', href: '/reporting/mis/connectors', icon: 'sources', also: ['/reporting/mis/ingest'], hint: 'Connections + report uploads in one place', words: 'connectors api amazon shopify meta google tally setup data sources upload month end close pull reports slots ingest' },
     ],
   },
   {
@@ -83,12 +82,12 @@ export const NAV: NavSection[] = [
     label: 'More',
     hidden: true,
     pages: [
-      { id: 'issues', label: 'Data issues', href: '/reporting/mis/issues', icon: 'issues', hint: 'What the close checks flagged', words: 'errors warnings checks' },
+      { id: 'rulebook', label: 'Data rulebook', href: '/reporting/mis/rulebook', icon: 'rules', hint: 'How each number is built', words: 'rules mapping definitions' },
       { id: 'toolshub', label: 'All tools', href: '/tools', icon: 'tools', exact: true, hint: 'Every tool on one page', words: 'utilities converter tools' },
       { id: 'tasks', label: 'Tasks', href: '/tasks', icon: 'tasks', exact: true, also: ['/work', '/compliance', '/task-tracker', '/tracker'], hint: 'Compliance and close tasks', words: 'todo deadlines gst tds roc' },
       { id: 'people', label: 'People & reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails', words: 'team owners settings' },
       { id: 'deck', label: 'MIS deck (old)', href: '/reporting/mis/deck', icon: 'old', hint: 'The first MIS deck', words: 'legacy deck' },
-      { id: 'close', label: 'Month close (old)', href: '/reporting/mis/close', icon: 'old', hint: 'Replaced by Month-end close', words: 'legacy close manual figures' },
+      { id: 'close', label: 'Month close (old)', href: '/reporting/mis/close', icon: 'old', hint: 'Replaced by Setup → Uploads + Live MIS close', words: 'legacy close manual figures' },
     ],
   },
 ];

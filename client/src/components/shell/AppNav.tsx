@@ -1,7 +1,8 @@
 // Global navigation — a port of Ops' components/ui/AppNav.tsx (design-system/heatronics-mis/MASTER.md
 // "Layout & navigation"). Reads nav/config.ts, the one source of truth. Two levels only: section → page.
-//   Top: brand, collapse, "Search or jump to… ⌘K". Then Pinned (localStorage), the sections, and at the
-//   bottom Admin + Claude status + Compact + Theme.
+//   Top: brand, collapse, "Search or jump to… ⌘K". Then Pinned (localStorage) and every section (Admin included) in one
+//   scrolling list, the current page scrolled into view; at the bottom only Claude status + Compact + Theme.
+//   Issues carries a live open count.
 // Desktop: fixed 248 px dark rail, collapsible to a 64 px icon rail (tooltips + sr-only labels).
 // < 1024 px: top bar (Menu, brand, Search) + the same list in a modal drawer (focus trapped, Esc closes,
 // focus returns to the Menu button). Keyboard: ↑ / ↓ move between items, Home / End jump.
@@ -16,6 +17,7 @@ import { useOverlay } from './useOverlay';
 import { cx } from './cx';
 import { useDensity } from '../../hooks/useDensity';
 import { ClaudeStatusPill } from '../ClaudeStatusPill';
+import { useIssueCount } from '../../data/issues/useIssueCount';
 
 const ring = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-accent focus-visible:ring-offset-2 focus-visible:ring-offset-nav-bg';
 const isMac = () => { try { return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent); } catch { return false; } };
@@ -44,8 +46,13 @@ export function AppNav() {
 
   const sections = sidebarSections();
   const here = whereIs(path);
-  const main = sections.filter((s) => s.id !== 'admin');
-  const admin = sections.find((s) => s.id === 'admin');
+  const main = sections;
+  const issues = useIssueCount();
+  useEffect(() => {
+    // the current page always visible in the rail (a long menu used to hide the last tools under the footer)
+    const t = setTimeout(() => document.querySelector<HTMLElement>('aside [data-nav-item][aria-current="page"]')?.scrollIntoView({ block: 'nearest' }), 50);
+    return () => clearTimeout(t);
+  }, [path, collapsed]);
   const toggleRail = () => setCollapsed((c) => { store.set(K.collapsed, c ? '0' : '1'); return !c; });
 
   const onKey = (e: RKeyboardEvent<HTMLElement>) => {
@@ -70,6 +77,10 @@ export function AppNav() {
           {on && <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-nav-accent" aria-hidden />}
           <Icon className={cx('h-[18px] w-[18px] shrink-0', on ? 'text-nav-accent' : 'text-nav-muted group-hover/row:text-nav-fg')} aria-hidden />
           {mini ? <span className="sr-only">{p.label}</span> : <span className="min-w-0 flex-1 truncate">{p.label}</span>}
+          {p.id === 'issues' && issues && issues.open > 0 && (
+            <span className={cx('rounded-full px-1.5 text-xs font-semibold tabular-nums', mini ? 'absolute right-1 top-1 min-w-[18px] text-center leading-[18px]' : 'leading-5',
+              issues.high > 0 ? 'bg-red-500 text-white' : 'bg-nav-hover text-nav-strong')} aria-label={`${issues.open} open${issues.high ? `, ${issues.high} high` : ''}`}>{issues.open}</span>
+          )}
         </Link>
       </li>
     );
@@ -132,7 +143,6 @@ export function AppNav() {
         ))}
       </div>
       <div className="border-t border-nav-border px-2 py-2">
-        {admin && <ul className="space-y-0.5" aria-label="Admin">{admin.pages.map((p) => row(p, mini))}</ul>}
         {mini ? <>
           {footBtn(true, () => setDensity(density === 'compact' ? 'comfortable' : 'compact'), <Rows3 className="h-[18px] w-[18px] text-nav-muted" aria-hidden />, 'Compact', density === 'compact' ? 'on' : 'off', density === 'compact')}
           {footBtn(true, nextTheme, themeIcon, 'Theme', theme)}

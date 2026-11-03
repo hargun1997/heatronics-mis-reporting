@@ -9,6 +9,7 @@
 //   POST /api/tally/books/pull {periods?}     pull masters + Day Books now (≤ ~2.5 min)
 //   GET  /api/tally/books/health?months=3     Tally health checks over the newest stored months
 //   GET  /api/tally/books/ledgers?q=          ledger master (+ voucher count in the stored months)
+//   GET  /api/tally/books/chart               groups → sub-groups → ledgers tree + hanging ledgers with where to move them
 //   GET  /api/tally/books/vouchers?period=&q= vouchers of a month, filtered
 //   POST /api/tally/books/ask {question, history?}  "Ask about Tally" (Claude, grounded in the stored books)
 //   GET/PUT /api/tally/ledger-rules   name-pattern rules (Blinkit / Flipkart sales, brand investment, fundraising) + the stored
@@ -20,6 +21,7 @@ import { getEffectiveCredentials } from '../connectors/credentialStore.js';
 import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../connectors/tally/snapshots.js';
 import { latestMonths, pullBooks, readBooks, readBooksState, readMasters, readVouchers } from '../connectors/tally/bookStore.js';
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport } from '../connectors/tally/books.js';
+import { buildChart, closingByLedger, type ChartReport } from '../connectors/tally/chart.js';
 import { claudeChat, isClaudeConfigured } from '../services/claudeClient.js';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import { BUNDLED_HISTORY } from '../services/expenseMap.js';
@@ -101,7 +103,7 @@ router.post('/books/pull', h(async (req, res) => {
   res.json({ status: r.error && !r.masters && !r.months.length ? 'down' : 'ok', ...r });
 }));
 
-async function health(months: number): Promise<HealthReport & { asOf: Record<string, string>; mastersAt: string | null }> {
+export async function health(months: number): Promise<HealthReport & { asOf: Record<string, string>; mastersAt: string | null }> {
   const periods = await latestMonths(months);
   const [{ vouchers, periods: have }, masters, s] = await Promise.all([readVouchers(periods), readMasters(), readBooksState()]);
   const ist = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
@@ -123,6 +125,21 @@ router.get('/books/ledgers', h(async (req, res) => {
     .filter((l) => !q || `${l.name} ${l.group} ${l.gstin}`.toLowerCase().includes(q))
     .map((l) => ({ ...l, vouchers: used.get(l.name) || 0 }));
   res.json({ asOf: m?.asOf ?? null, periods, total: m?.ledgers.length ?? 0, rows: rows.slice(0, 500) });
+}));
+
+/** The chart of accounts with closings from the newest stored Trial Balance (also read by /api/issues). */
+export async function chartReport(): Promise<(ChartReport & { mastersAt: string | null; tbPeriod: string | null }) | null> {
+  const [m, s] = await Promise.all([readMasters(), readTallyState()]);
+  if (!m?.groups?.length) return null;
+  const tbPeriod = Object.keys(s.tbMonths ?? {}).sort().pop() ?? null;
+  const tb = tbPeriod ? await readTallyTb(tbPeriod) : null;
+  return { ...buildChart(m, tb ? closingByLedger(tb.rows) : null), mastersAt: m.asOf ?? null, tbPeriod: tb ? tbPeriod : null };
+}
+
+router.get('/books/chart', h(async (_req, res) => {
+  const r = await chartReport();
+  if (!r) return res.json({ tree: [], hanging: [], emptyGroups: [], summary: null, mastersAt: null, tbPeriod: null });
+  res.json(r);
 }));
 
 router.get('/books/vouchers', h(async (req, res) => {

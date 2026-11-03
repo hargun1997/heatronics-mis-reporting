@@ -7,11 +7,11 @@ import { MISDeck } from './pages/mis/MISDeck';
 import { MonthClosePage } from './pages/mis/MonthClosePage';
 import { ConnectorsPage } from './pages/mis/ConnectorsPage';
 import { LiveMisPage } from './pages/mis/LiveMisPage';
-import { IngestPage } from './pages/mis/IngestPage';
 import { RulebookPage } from './pages/mis/RulebookPage';
 import { MisChatPage } from './pages/mis/MisChatPage';
 import { AiInsightsPage } from './pages/mis/AiInsightsPage';
 import { IssuesPage } from './pages/mis/IssuesPage';
+import { UploadsRedirect } from './pages/mis/UploadsRedirect';
 import { TasksPage } from './pages/work/TasksPage';
 import { TasksSettingsPage } from './pages/work/TasksSettingsPage';
 import { SendReportPage } from './pages/mis/SendReportPage';
@@ -44,7 +44,7 @@ function App() {
           <Route path="reporting/mis/deck" element={<MISDeck />} />
           <Route path="reporting/mis/close" element={<MonthClosePage />} />
           <Route path="reporting/mis/connectors" element={<ConnectorsPage />} />
-          <Route path="reporting/mis/ingest" element={<IngestPage />} />
+          <Route path="reporting/mis/ingest" element={<UploadsRedirect />} />
           <Route path="reporting/mis/rulebook" element={<RulebookPage />} />
           <Route path="reporting/mis/live" element={<LiveMisPage />} />
           <Route path="reporting/mis/insights" element={<AiInsightsPage />} />

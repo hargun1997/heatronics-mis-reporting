@@ -1,189 +1,118 @@
-// ----------------------------------------------------------------------------
-// Data Issues — a cross-month health scan of everything uploaded. Catches the
-// things that are each individually valid to store but don't make sense across
-// months: flat inventory (closing == opening), a cost centre that dropped to
-// zero, a channel that stopped earning, a missing month, a big revenue swing.
-//
-// The scan runs server-side over the committed store (GET /api/issues) so it's
-// the same logic a daily scheduler would run. "Ask Claude to review" sends the
-// findings + the live P&L to the model for a plain-English second opinion.
-// ----------------------------------------------------------------------------
-
-import { useEffect, useMemo, useState } from 'react';
+// Issues — the one inbox of things that need a person, now that the MIS runs live: books (Tally health checks, hanging
+// ledgers, a Trial Balance that doesn't tie), feeds (Tally not reached, a manual report not in), MIS numbers (cross-month
+// scan) and the Live MIS's own items (tie breaches, unmapped products, products without a BOM, months ready to lock).
+// Each item says what is wrong, how to fix it and links to where. Done holds until the item changes; Snooze for N days.
+// Server: GET /api/issues/inbox + POST /api/issues/state (shared by everyone). Sidebar badge: useIssueCount.
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AlertCircle, AlertTriangle, ArrowRight, Check, Clock, Info, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { SectionCard } from '../../components/ui/Card';
-import { Markdown } from '../../components/ui/Markdown';
-import { fetchIssues, type AnomalyScanResult, type Issue, type IssueSeverity } from '../../data/issues/issuesClient';
-import { buildLiveMisContext } from '../../data/chat/misContext';
-import { chatStatus, sendChat } from '../../data/chat/chatClient';
-import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { cx } from '../../components/shell/cx';
+import { loadLiveDeck } from '../../data/misDeck/liveDeck';
+import { AREA_LABEL, deckItems, fetchInbox, postIssueState, rememberDeckItems, sortItems, statusOf, type InboxArea, type InboxItem, type InboxSeverity, type IssueState } from '../../data/issues/inbox';
 
-const iconShield = (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 3h.01" />
-  </svg>
+const icon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z" /><path d="M12 8v4m0 3h.01" /></svg>
 );
-
-const SEV: Record<IssueSeverity, { label: string; dot: string; chip: string; ring: string }> = {
-  high: { label: 'High', dot: 'bg-rose-500', chip: 'text-rose-700 bg-rose-50 border-rose-200', ring: 'border-l-rose-400' },
-  medium: { label: 'Medium', dot: 'bg-amber-500', chip: 'text-amber-700 bg-amber-50 border-amber-200', ring: 'border-l-amber-400' },
-  low: { label: 'Low', dot: 'bg-slate-400', chip: 'text-slate-600 bg-slate-50 border-slate-200', ring: 'border-l-slate-300' },
+const SEV: Record<InboxSeverity, { label: string; cls: string; bar: string; Icon: typeof Info }> = {
+  high: { label: 'Fix now', cls: 'border-red-200 bg-red-50 text-red-800', bar: 'border-l-red-500', Icon: AlertCircle },
+  medium: { label: 'Check', cls: 'border-amber-200 bg-amber-50 text-amber-900', bar: 'border-l-amber-500', Icon: AlertTriangle },
+  low: { label: 'Tidy', cls: 'border-slate-200 bg-slate-100 text-slate-700', bar: 'border-l-slate-300', Icon: Info },
 };
+const btn = 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50';
+type View = 'open' | 'snoozed' | 'done';
 
 export function IssuesPage() {
-  const [data, setData] = useState<AnomalyScanResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [server, setServer] = useState<InboxItem[] | null>(null);
+  const [deck, setDeck] = useState<InboxItem[] | null>(null);
+  const [state, setState] = useState<IssueState>({});
+  const [view, setView] = useState<View>('open');
+  const [area, setArea] = useState<InboxArea | 'all'>('all');
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const [deck, setDeck] = useState<LiveDeckData | null>(null);
-  const [configured, setConfigured] = useState<boolean | null>(null);
-  const [review, setReview] = useState<string | null>(null);
-  const [reviewing, setReviewing] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-
-  const run = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await fetchIssues());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Scan failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void run();
-    loadLiveDeck().then(setDeck).catch(() => setDeck(null));
-    chatStatus().then((s) => setConfigured(s.configured)).catch(() => setConfigured(false));
+  const load = useCallback(async (fresh = false) => {
+    setBusy(true); setErr(null);
+    try { const r = await fetchInbox(fresh); setServer(r.items); setState(r.state); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+    loadLiveDeck({ force: fresh }).then((d) => { const it = deckItems(d); setDeck(it); rememberDeckItems(it); }).catch(() => setDeck([]));
   }, []);
+  useEffect(() => { void load(); }, [load]);
 
-  const grouped = useMemo(() => {
-    const g: Record<IssueSeverity, Issue[]> = { high: [], medium: [], low: [] };
-    for (const i of data?.issues ?? []) g[i.severity].push(i);
-    return g;
-  }, [data]);
+  const all = useMemo(() => [...(server ?? []), ...(deck ?? [])].sort(sortItems), [server, deck]);
+  const now = new Date().toISOString();
+  const by = (v: View) => all.filter((i) => statusOf(i, state, now) === v);
+  const shown = by(view).filter((i) => area === 'all' || i.area === area);
+  const open = by('open');
+  const areaCount = (a: InboxArea) => by(view).filter((i) => i.area === a).length;
 
-  const total = data?.issues.length ?? 0;
-
-  const askClaude = async () => {
-    if (reviewing || configured === false || !data) return;
-    setReviewing(true); setReviewError(null); setReview(null);
-    try {
-      const { context } = buildLiveMisContext(deck);
-      const list = data.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.period} — ${i.title}: ${i.detail}`).join('\n');
-      const prompt =
-        'Below are automated data-quality findings from the MIS, plus the live P&L for context. ' +
-        'For each finding, say in one or two lines whether it looks like a real problem or an expected pattern, ' +
-        'and what to check or upload to resolve it. Then give a short overall read on data health. ' +
-        'Be concrete and cite months/numbers.\n\nFINDINGS:\n' + (list || '(none)');
-      setReview(await sendChat(context, [{ role: 'user', content: prompt }]));
-    } catch (e) {
-      setReviewError(e instanceof Error ? e.message : 'Review failed.');
-    } finally {
-      setReviewing(false);
-    }
+  const act = async (i: InboxItem, op: 'done' | 'snooze' | 'reopen', days?: number) => {
+    try { setState(await postIssueState({ op, id: i.id, sig: i.sig, days })); } catch (e) { setErr((e as Error).message); }
   };
 
   return (
     <>
-      <PageHeader
-        title="Data Issues"
-        accent="brand"
-        icon={iconShield}
-        description="A cross-month health scan of everything uploaded — flat inventory, a cost centre gone to zero, a channel that stopped earning, missing months, big swings."
-        crumbs={[
-          { label: 'Reporting', to: '/reporting' },
-          { label: 'MIS Reporting', to: '/reporting/mis' },
-          { label: 'Data Issues' },
-        ]}
-      />
+      <PageHeader title="Issues" icon={icon}
+        description="Everything in the MIS and the books that needs a person: what is wrong, how to fix it, and where. Fixed at the source, an item leaves on its own; Done hides it until it changes."
+        actions={<button type="button" onClick={() => void load(true)} disabled={busy} className={btn}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}Check again</button>} />
+      <div className="mx-auto max-w-5xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          <span><b className="text-slate-900">{open.length}</b> open</span>
+          {(['high', 'medium', 'low'] as InboxSeverity[]).map((s) => {
+            const n = open.filter((i) => i.severity === s).length;
+            return n ? <span key={s} className={cx('rounded-full border px-2 py-0.5 text-xs font-medium', SEV[s].cls)}>{SEV[s].label} {n}</span> : null;
+          })}
+          {deck === null && <span className="text-xs text-slate-500">· loading Live MIS checks…</span>}
+        </div>
+        {err && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>}
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => void run()}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-500 text-white text-sm font-medium px-3.5 py-2 hover:bg-brand-600 disabled:opacity-50"
-          >
-            {loading ? (
-              <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-white/60 border-t-transparent animate-spin" />
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M5 9a7 7 0 0112-3m2 9a7 7 0 01-12 3" /></svg>
-            )}
-            Run scan now
-          </button>
-          <button
-            onClick={() => void askClaude()}
-            disabled={reviewing || configured === false || loading || total === 0}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 text-sm font-medium px-3.5 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-            title={configured === false ? 'Claude API key not set on the server' : 'Ask Claude to review these findings'}
-          >
-            <svg className="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            Ask Claude to review
-          </button>
-          {data && (
-            <span className="text-[11px] text-slate-400">
-              Scanned {new Date(data.scannedAt).toLocaleString('en-IN')} · {data.monthsCovered.length} month{data.monthsCovered.length === 1 ? '' : 's'} covered
-            </span>
-          )}
+          <SegmentedControl aria-label="Status" value={view} onChange={setView} options={[
+            { id: 'open', label: `Open (${open.length})` }, { id: 'snoozed', label: `Snoozed (${by('snoozed').length})` }, { id: 'done', label: `Done (${by('done').length})` }]} />
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Area">
+            {(['all', 'books', 'close', 'products', 'feeds', 'mis'] as const).map((a) => {
+              const n = a === 'all' ? by(view).length : areaCount(a);
+              if (a !== 'all' && !n) return null;
+              return <button key={a} type="button" aria-pressed={area === a} onClick={() => setArea(a)}
+                className={cx('h-9 rounded-full border px-3 text-sm', area === a ? 'border-accent-500 bg-accent-50 font-medium text-accent-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
+                {a === 'all' ? 'All' : AREA_LABEL[a]} <span className="tabular-nums text-slate-500">{n}</span></button>;
+            })}
+          </div>
         </div>
 
-        {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
-
-        {!loading && !error && total === 0 && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-8 text-center">
-            <div className="text-emerald-700 font-semibold">No issues found</div>
-            <p className="text-sm text-emerald-700/80 mt-1">Every uploaded month looks internally consistent across the rules we check.</p>
-          </div>
-        )}
-
-        {total > 0 && (
-          <div className="flex gap-2">
-            {(['high', 'medium', 'low'] as IssueSeverity[]).map((s) => grouped[s].length > 0 && (
-              <span key={s} className={`inline-flex items-center gap-1.5 text-xs font-medium rounded-full border px-2.5 py-1 ${SEV[s].chip}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${SEV[s].dot}`} />{grouped[s].length} {SEV[s].label.toLowerCase()}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {(['high', 'medium', 'low'] as IssueSeverity[]).map((s) => grouped[s].length > 0 && (
-          <div key={s} className="space-y-2">
-            {grouped[s].map((i) => (
-              <div key={i.id} className={`rounded-xl border border-slate-200 border-l-4 ${SEV[s].ring} bg-white px-4 py-3`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 border ${SEV[s].chip}`}>{SEV[s].label}</span>
-                  <span className="text-[11px] text-slate-400">{i.category}</span>
-                  <span className="ml-auto text-[11px] text-slate-400 tabular-nums">{i.period}</span>
-                </div>
-                <div className="text-sm font-medium text-slate-800">{i.title}</div>
-                <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">{i.detail}</div>
-              </div>
-            ))}
-          </div>
-        ))}
-
-        {(reviewing || review || reviewError) && (
-          <SectionCard title="Claude’s review" description="A plain-English second opinion on the findings above.">
-            {reviewing && (
-              <div className="text-sm text-slate-500 flex items-center gap-2">
-                <span className="inline-block w-3 h-3 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-                Reading the findings and the P&amp;L…
-              </div>
-            )}
-            {reviewError && <p className="text-xs text-rose-700">{reviewError}</p>}
-            {review && !reviewing && <Markdown text={review} />}
-          </SectionCard>
-        )}
-
-        <p className="text-[10px] text-slate-400">
-          The scan reads the committed store across all months. The same check can run automatically every day once a scheduler and
-          mailer are configured — see the deploy notes.
-        </p>
+        {server === null && !err ? <p className="py-10 text-center text-sm text-slate-500"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden />Checking the books and feeds…</p>
+          : !shown.length ? <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-600">{view === 'open' ? 'Nothing open. The MIS and the books are clean.' : `Nothing ${view}.`}</p>
+          : <ul className="space-y-2">{shown.map((i) => <Row key={i.id} i={i} st={state[i.id]?.status === view ? state[i.id] : undefined} view={view} act={act} />)}</ul>}
       </div>
     </>
+  );
+}
+
+function Row({ i, st, view, act }: { i: InboxItem; st?: IssueState[string]; view: View; act: (i: InboxItem, op: 'done' | 'snooze' | 'reopen', days?: number) => void }) {
+  const S = SEV[i.severity];
+  const internal = i.href.startsWith('/');
+  return (
+    <li className={cx('rounded-xl border border-l-4 border-slate-200 bg-white p-4 shadow-card', S.bar)}>
+      <div className="flex flex-wrap items-start gap-3">
+        <S.Icon className={cx('mt-0.5 h-5 w-5 shrink-0', i.severity === 'high' ? 'text-red-600' : i.severity === 'medium' ? 'text-amber-600' : 'text-slate-500')} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[15px] font-semibold text-slate-900">{i.title}</h2>
+            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{AREA_LABEL[i.area]}</span>
+          </div>
+          {i.detail && <p className="mt-1 text-sm text-slate-600">{i.detail}</p>}
+          <p className="mt-1.5 text-sm text-slate-800"><span className="font-medium">Fix: </span>{i.fix}</p>
+          {st && <p className="mt-1 text-xs text-slate-500">{st.status === 'done' ? 'Marked done' : `Snoozed until ${new Date(st.until!).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`} by {st.by}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {internal ? <Link to={i.href} className={cx(btn, 'border-accent-200 text-accent-700')}>Open<ArrowRight className="h-4 w-4" aria-hidden /></Link> : null}
+          {view === 'open' ? <>
+            <button type="button" className={btn} onClick={() => act(i, 'snooze', 7)} title="Hide for 7 days"><Clock className="h-4 w-4" aria-hidden />Snooze 7 d</button>
+            <button type="button" className={btn} onClick={() => act(i, 'done')} title="Hide until this item changes"><Check className="h-4 w-4" aria-hidden />Done</button>
+          </> : <button type="button" className={btn} onClick={() => act(i, 'reopen')}><RotateCcw className="h-4 w-4" aria-hidden />Reopen</button>}
+        </div>
+      </div>
+    </li>
   );
 }

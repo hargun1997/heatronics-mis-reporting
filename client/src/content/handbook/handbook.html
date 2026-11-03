@@ -475,7 +475,7 @@ body{margin:0}
 
 <!-- 2 -->
 <section class="chapter" id="c2">
-  <div class="chhead"><span class="chno">02</span><div><h2>Chart of accounts: the groups that matter</h2><p class="lede">The channel control accounts sit under Sundry Debtors as sub-groups. Fee and ad ledgers sit under Indirect Expenses.</p></div></div>
+  <div class="chhead"><span class="chno">02</span><div><h2>Chart of accounts: the groups that matter</h2><p class="lede">The channel control accounts sit under Sundry Debtors as sub-groups; fee and ad ledgers sit in their sub-groups under Indirect Expenses. Every ledger goes in its most specific sub-group; the live tree and the hanging ledgers are in Tally health.</p></div></div>
   <div class="tree">Sundry Debtors
 ├─ D2C Debtors
 │   ├─ Shopify Prepaid Receivable      ← Shopify prepaid sales
@@ -504,6 +504,46 @@ Indirect Expenses
 Bank OD A/c → Cash Credit Limit - [Central Bank]      Bank Accounts → ICICI CC, HDFC, Central Current, Easebuzz Wire
 Duties &amp; Taxes → GST Input · GST Output · GST Stock Transfer (state-wise) · TDS Payable (by section) · GST Payable (by state)
 Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) · Suspense</div>
+  <h3 id="c2-full-tree">Every group and sub-group (live, 3 Nov 2026)</h3>
+  <p>The tree above shows the control accounts. The full chart, as Tally holds it today (111 groups, 768 ledgers), opens live in <a href="/tally?tab=chart">Tally health → Chart of accounts</a>: every group, its sub-groups and its ledgers, with the closing balance from the newest Trial Balance. This is the sub-group list it showed on 3 Nov 2026; a new ledger goes in the most specific sub-group, never on the parent.</p>
+  <div class="tw"><table>
+    <tr><th>Primary group</th><th>Sub-groups a ledger goes in</th></tr>
+    <tr><td>Capital Account · Loans (Liability)</td><td>Capital Account · Bank OD A/c · Directors Loan · Secured Loans · Unsecured Loans</td></tr>
+    <tr><td>Current Liabilities</td><td>Sundry Creditors (goods) · Service Creditors (services, professionals) · Amazon Creditors · Manf. Employees · Office Employee - Sundry Cred · Employee Liabilities · Labour Statutory · Provisions · Duties &amp; Taxes · GST Input · GST Output · GST Payable (All GST) · GST Stock Transfer · Deferred GST</td></tr>
+    <tr><td>Current Assets</td><td>Sundry Debtors (B2B parties) · Amazon Debtors · D2C Debtors · Flipkart Debtors · Bank Accounts · Cash-in-Hand · Stock-in-Hand · Deposits (Asset) · Loans &amp; Advances (Asset) · Tax Assets</td></tr>
+    <tr><td>Fixed Assets</td><td>Plant and Machinery · Computer and IT Equipment · Office Equipments · Furniture and Furnishings · Vehicles and Transport (+ Busy Carryover and Office Equipment (Old): to be emptied)</td></tr>
+    <tr><td>Sales Accounts</td><td>Ecommerce Sales · Blinkit Sales · General Trade (GT) Sales · Modern Trade (MT) Sales · OEM Sales · Offline Sales · Internal Transfer Sales</td></tr>
+    <tr><td>Direct Expenses</td><td>Manufacturing Costs · Factory Overheads · Inward Freight · Employee Cost - Direct</td></tr>
+    <tr><td>Indirect Expenses</td><td>Amazon Channel Fees · Amazon Damage Refunds · Flipkart Channel Fees · Blinkit Channel Fees · OEM Channel Fees · Channel Fees &amp; Commissions · D2C Logistics · D2C Payment Gateway · D2C Checkout · D2C Communication Fees · D2C Platform Subscriptions · D2C Marketing · Ecommerce Marketing · Quick Commerce Marketing · OEM Marketing · Offline Marketing · Brand &amp; Content Marketing · After-Sales &amp; Warranty · Admin &amp; General Expenses · Operations Platform Subscriptions · Compliance &amp; Certification · Professional Fees - CA · Professional Fees - CS · Legal Fees · Bank Charges · Finance Costs · Employee Cost - Indirect · Directors' Remuneration · Financial Adjustments</td></tr>
+    <tr><td>Indirect Incomes</td><td>Other Income</td></tr>
+  </table></div>
+  <h3 id="c2-hanging">Hanging ledgers and where they move</h3>
+  <p>A <b>hanging ledger</b> sits somewhere the MIS can't place it. Tally health finds four kinds and suggests the group each should move to (a name rule first, then the sub-group where look-alike ledgers already sit; a suggestion never moves an expense to an asset or the other way round). The same list shows as one item per kind in <a href="/reporting/mis/issues">Issues</a>.</p>
+  <div class="tw"><table>
+    <tr><th>Kind</th><th>What it means</th><th>Why it matters</th></tr>
+    <tr><td>On a parent group</td><td>The ledger sits directly on a group that has sub-groups (e.g. on <i>Indirect Expenses</i> itself). Parties in Sundry Debtors / Creditors, taxes in Duties &amp; Taxes and banks are fine there.</td><td>It lands in no MIS line of its own: the cost shows as "other".</td></tr>
+    <tr><td>Carry-over / old group</td><td>In <i>Busy Carryover</i>, an "(Old)" or suspense-type group, or named "… - Busy".</td><td>Migrated from Busy and never placed; depreciation and the asset register miss it.</td></tr>
+    <tr><td>No group</td><td>The ledger has no parent at all.</td><td>Left out of every report.</td></tr>
+    <tr><td>Other channel's group</td><td>The name says one channel (Amazon, Flipkart, Blinkit, D2C, OEM) but it sits in another channel's group.</td><td>Its money shows on the wrong channel P&amp;L.</td></tr>
+  </table></div>
+  <p>Found on 3 Nov 2026, with the move:</p>
+  <div class="tw"><table>
+    <tr><th>Ledger</th><th>Now under</th><th>Move to</th></tr>
+    <tr><td>FBA storage fee · Fulfilment by Amazon (FBA) Inventory Storage Fee · FBA Inbound Pickup Service · FBA Amazon-Partnered Carrier Shipment Fee</td><td>Indirect Expenses</td><td>Amazon Channel Fees</td></tr>
+    <tr><td>Freight Charges- Delhivery One · Freight Outward Exp.- Porter/ Transport</td><td>Indirect Expenses</td><td>D2C Logistics</td></tr>
+    <tr><td>Interest On TDS (Late Payment)</td><td>Indirect Expenses</td><td>Finance Costs</td></tr>
+    <tr><td>NSDL Service Exp. · Govt Fee</td><td>Indirect Expenses</td><td>Compliance &amp; Certification</td></tr>
+    <tr><td>Machine Repair &amp; Maint · Dyeing Expenses</td><td>Indirect Expenses</td><td>Factory Overheads (Direct Expenses)</td></tr>
+    <tr><td>Insurance Exp. · Conveyance Expenses · Office Expenses · Admin Expenses · Miscellanous Expenses</td><td>Indirect Expenses</td><td>Admin &amp; General Expenses</td></tr>
+    <tr><td>Laptop · Computers · CCTV · Accounting Software · LG LED TV (all "- Busy")</td><td>Busy Carryover</td><td>Computer and IT Equipment</td></tr>
+    <tr><td>Cutting / Sealing machine · Hot Air Gun · Micro Ohms Meter · Electric Screw Driver · Hand Pallet Truck (all "- Busy") · DIE upper / middle / lower</td><td>Busy Carryover · Fixed Assets</td><td>Plant and Machinery</td></tr>
+    <tr><td>Air Conditioner · Inverter · Batteries · Water Dispenser · Coffee Machine (all "- Busy")</td><td>Busy Carryover · Fixed Assets</td><td>Office Equipments</td></tr>
+    <tr><td>Furniture and Fixture · Ceiling Fan (both "- Busy") · Metal Shelving Rack · Trolly</td><td>Busy Carryover · Fixed Assets</td><td>Furniture and Furnishings</td></tr>
+    <tr><td>Car - Busy</td><td>Busy Carryover</td><td>Vehicles and Transport</td></tr>
+    <tr><td>CA Saurabh Kumar</td><td>Current Liabilities</td><td>Service Creditors</td></tr>
+    <tr><td>GST Sales (Flipkart)</td><td>Sales Accounts</td><td>Ecommerce Sales</td></tr>
+  </table></div>
+  <div class="callout info"><b>How to move a ledger:</b> TallyPrime → Alt+G → Alter → Ledger → pick it → change <b>Under</b> to the new group → Ctrl+A. Its old vouchers move with it (a group change re-states past months, so do it before a month is locked in the MIS). Then Tally health → Pull Tally now; the item leaves Issues by itself. Never create a new ledger on a parent group: pick the sub-group first, and add a sub-group (Alt+G → Create → Group) when none fits.</div>
   <h3 id="c2-app-ledger-reference">Other ledgers and bill series (to confirm)</h3>
   <p>The MIS app's ledger reference lists these as well. They don't conflict with the tree above, but they haven't been checked against the Tally ledger list. Confirm the exact names before using them.</p>
   <div class="tw"><table>
@@ -1400,8 +1440,9 @@ Current Assets → TCS Receivable (Amazon) · TDS Receivable → TDS (Amazon) ·
   <div class="chhead"><span class="chno">13c</span><div><h2>Filling the MIS</h2><p class="lede">Upload last month's reports into the Live MIS in this app, check every source is in, and read the result. Done on the 10th.</p></div></div>
 <div class="opblock">
     <header><span class="tag monthly">Monthly · 10th · ~45 min</span><h3 id="c28-overview">What this is and when</h3></header>
-    <p class="done">Done when: the month's chip under "Where we are" is green (all required reports in) and the month shows in Live MIS.</p>
-    <p>The <b>Live MIS</b> is the management P&amp;L built from source reports: channels, SKUs, ad spend, fees and the Tally P&amp;L. It is filled by uploading one report per source per month on <b>Reporting → MIS Reporting → Upload data</b>. Nothing is posted to Tally from here; the MIS only reads.</p>
+    <p class="done">Done when: <a href="/reporting/mis/issues">Issues</a> has nothing open for last month and the month is locked on Live MIS → Month close.</p>
+    <div class="callout ok"><b>Since Nov 2026 the MIS runs live.</b> Amazon, Shopify, Meta, Google, Amazon Ads, Shiprocket, Delhivery, Easebuzz, the Tranzact sheet, BOM costs and Tally fill themselves. What needs a person shows in <b>Issues</b> (left menu, with a live count): a report with no API not uploaded yet, a month that doesn't tie to Tally, an unmapped product, a hanging ledger, Tally not reached. Open each, fix it at the source, and it leaves on its own. Only the reports with no API (Flipkart settlement + ads, Blinkit payout, Snapmint, Shopflo invoice) are still uploaded, on <b>Setup → Uploads</b>. The steps below are that fallback.</div>
+    <p>The <b>Live MIS</b> is the management P&amp;L built from source reports: channels, SKUs, ad spend, fees and the Tally P&amp;L. Nothing is posted to Tally from here; the MIS only reads.</p>
     <ul>
       <li><b>When:</b> the 10th, after the books for the month are in: daily imports, platform settlements (1st, 3rd), expense invoices (<a href="#c27-overview">chapter 13b</a>) and bank clearing (4th). The Tally P&amp;L should reflect all of it.</li>
       <li><b>Where:</b> the left menu: <b>Setup</b> (every connector, Tally and scheduled feeds, like Setup in Ops) and Data rulebook at the bottom; Live MIS and Month-end close under <i>Reporting</i>.</li>

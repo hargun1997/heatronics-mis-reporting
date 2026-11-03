@@ -94,7 +94,7 @@ export const COLLECTIONS: CollectionDef[] = [
           'Banks, statutory dates, close': { title: 'M5 · Banks, statutory dates and close', summary: 'Import and reconcile the three banks, file on time, check every clearing ledger.' },
         },
       },
-      { chapter: 'c28', title: 'Fill the Live MIS (10th)', summary: 'Upload each source’s report on Upload data, check every month chip is green, then read the Live MIS.' },
+      { chapter: 'c28', title: 'Keep the Live MIS clean (Issues) + manual uploads', summary: 'The MIS fills itself; work the Issues inbox, upload the few reports with no API, then lock the month.' },
       { chapter: 'c10', title: 'Month-end close checklist and reconciliations', summary: 'The tie-outs that must hold before the month is closed and the MIS sent.' },
       { chapter: 'c17', title: 'Quarterly tasks and fixing errors', summary: 'Quarterly returns, plus what to do when an import or a ledger goes wrong.' },
     ],
@@ -215,7 +215,7 @@ export const COLLECTIONS: CollectionDef[] = [
     accent: 'sky',
     icon: ['M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'],
     articles: [
-      { chapter: 'c2', title: 'Chart of accounts: the groups that matter', summary: 'Where each control ledger sits and which ledgers need regrouping.' },
+      { chapter: 'c2', title: 'Chart of accounts: every group, sub-group and hanging ledger', summary: 'Where each ledger sits, the full sub-group list, and where hanging ledgers move (live in Tally health).' },
       { chapter: 'c3', title: 'Voucher types and what posts them', summary: 'Every voucher type in use, which system creates it, and its standard entry.' },
       { chapter: 'c21', title: 'Control ledgers: what clears each one', summary: 'Each clearing ledger, what debits it, what credits it, and its expected balance.' },
       { chapter: 'c20', title: 'Links: portals and report downloads', summary: 'Every login and report page used in this handbook.' },
