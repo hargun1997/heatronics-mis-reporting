@@ -283,6 +283,14 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   at ₹40 Cr ARR, 3.5×; B ≈ ₹150 Cr at ₹150 Cr ARR, 4×; C ≈ ₹300 Cr at ₹350 Cr ARR, 4.5×; venture debt 25–30 % of a round); "Add these
   rounds as a starting point" writes `bench-` rounds that `fundTheGap` keeps. Lint: `react-refresh/only-export-components` is off for
   `setup/**` (eslint.config.js). Panel / section open state in localStorage `planning-setup-v1`.
+- **Pain-care plan (founder, 3 Nov 2026)** = `data/planning/painCare.ts buildPainCarePlan(base)` (Setup → Starting point → "Load the pain-care plan",
+  then Save as scenario; test `server/test/painCare.test.ts`): "Zanskar route" for 12 months — online only (Amazon, Flipkart, D2C incl. quick
+  commerce, which rides in the D2C share), topicals (cream Feb-27, roll-on Apr-27, oil Jul-27) + hGo as the only device launch, sheet device
+  volumes ×1.2 / hGo ×1.5 (`skuTweaks`); new lines' `chStart.G/P` and `retailStart` = `NEXT_ROUND_MONTH` (16 = Jan-28, the next round); GT /
+  pharmacy+physio / MT outlets, new devices (TENS M22, massager M28, hot–cold M34), nutra and the offline team from that month; branding ₹50 L
+  (placeholder) + ₹17.5 L capex in Q1; path FY29 100 → FY30 250 → FY31 500 Cr (FY28 left to the launches: a target there makes `solvePath` zero
+  the topicals); Series A `bench-a` ₹35 Cr at M16 priced at 3.5 × trailing-12-month net revenue (≥ ₹50 Cr), the rest by `fundTheGap`. Known: cash
+  bottoms ≈ −₹6 Cr in Nov-27 before the round — needs a bridge / earlier close.
 - **Growth layer** (`plan.growth`, `data/planning/growth.ts` + hooks in `runPlan`; absent / off / sheet parity = no
   change, test `server/test/growth.test.ts`): new product lines are `plan.products` with `category` (device | topical | nutra), `inHouse`,
   `launchCost` / `launchCapex` (launch month), `marketingPct` and `growthLine`; `hires` (dept → Factory Payroll else Corporate Salaries,
