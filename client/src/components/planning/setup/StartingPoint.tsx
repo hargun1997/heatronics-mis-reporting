@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { monthLabel, type PlanFx } from '../../../data/planning/engine';
 import { founderFx } from '../../../data/planning/basePlan';
+import { buildPainCarePlan } from '../../../data/planning/painCare';
 import { build500Cr } from '../../../data/planning/growth';
 import { monthBefore, openingFromTally } from '../../../data/planning/opening';
 import { growthSwitchedOff, planMode, setPlanMode, summary, type PlanMode } from '../../../data/planning/setup/mode';
@@ -58,6 +59,10 @@ export function Section({ plan, update }: SetupSectionProps) {
     if (!window.confirm('Replace products, hires, capacity, rounds and targets with the example growth plan (₹30 → 100 → 250 → 500 Cr, every number a placeholder)?')) return;
     run('Building…', () => replacePlan(update, build500Cr));
   };
+  const loadPainCare = () => {
+    if (!window.confirm('Replace products, hires, capacity, rounds and targets with the pain-care plan (online first for 12 months, offline from the next round)?')) return;
+    run('Building…', () => replacePlan(update, buildPainCarePlan));
+  };
 
   return (
     <div className="space-y-5">
@@ -82,6 +87,13 @@ export function Section({ plan, update }: SetupSectionProps) {
           {busy ?? 'Load the example growth plan'}
         </button>
         <Note>₹30 → 100 → 250 → 500 Cr in FY28–FY31, every number a placeholder to change.</Note>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" className={btn} disabled={!!busy || mode === 'sheet'} onClick={loadPainCare}
+          title={mode === 'sheet' ? 'Switch the plan basis to My plan first' : 'Replace products, hires, capacity, rounds and targets with the pain-care plan'}>
+          {busy ?? 'Load the pain-care plan (Nov 2026)'}
+        </button>
+        <Note>Online only for 12 months (Amazon, Flipkart, D2C incl. quick commerce; topicals + hGo, devices pushed), GT / pharmacy / physio and new devices from the Jan-28 round; ₹100 → 250 → 500 Cr FY29–FY31. Then “Save as scenario”.</Note>
       </div>
 
       {/* 3. opening position */}
