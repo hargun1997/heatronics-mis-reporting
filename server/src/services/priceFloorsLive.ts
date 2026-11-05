@@ -117,7 +117,8 @@ export function mapFloorRows(x: LiveInputs, window: { from: string; to: string }
       sales: r2(sales),
       asp: asp ? r2(asp) : null,
       fba: fbaU > 0 ? r2((Math.abs(sum(o, 'fba')) * gross) / fbaU) : null,
-      pick: fbaU > 0 && sum(o, 'pick') ? r2((Math.abs(sum(o, 'pick')) * gross) / fbaU) : null,
+      // pick & pack = every FBA fee that isn't weight-based; only shown when both parts were charged
+      pick: fbaU > 0 && sum(o, 'pick') && Math.abs(sum(o, 'pick')) < Math.abs(sum(o, 'fba')) - 0.5 ? r2((Math.abs(sum(o, 'pick')) * gross) / fbaU) : null,
       admin: adminItems > 0 ? r2((Math.abs(sum(r, 'admin')) * gross) / adminItems) : null,
       refPct: refPct ? r4(refPct) : null,
       closing: closeU > 0 ? r2((Math.abs(sum(o, 'closing')) * gross) / closeU) : null,
@@ -157,7 +158,7 @@ WITH it AS (
     SUM(IF(category = 'gst' AND charge_type = 'Tax', amount, 0)) AS tax,
     SUM(IF(category = 'fee' AND charge_type = 'Commission', amount, 0)) AS commission,
     SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'^fba|fulfil|pickandpack|weightbased|weight_based'), amount, 0)) AS fba,
-    SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'pick'), amount, 0)) AS pick,
+    SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'^fba|fulfil|pickandpack|weightbased|weight_based') AND NOT REGEXP_CONTAINS(LOWER(charge_type), r'weight'), amount, 0)) AS pick,
     SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'closing'), amount, 0)) AS closing,
     SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'refundcommission|refund.?admin'), amount, 0)) AS admin,
     SUM(IF(category = 'fee', amount, 0)) AS fee_all,
