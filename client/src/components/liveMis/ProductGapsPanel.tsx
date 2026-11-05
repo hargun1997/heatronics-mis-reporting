@@ -2,6 +2,7 @@
 // products that sell with no BOM. Each row shows the ₹ and the closest match by name; one click confirms it
 // (stored: POST /api/mis/product-map) and the deck reloads. Nothing is applied until confirmed.
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
@@ -10,6 +11,8 @@ const btn = 'rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-
 export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDeckData['productGaps']>; onChanged: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Collapsed by default (founder, 5 Nov 2026: the list was pushing the MIS below the fold); the same items sit in Tasks → Fix.
+  const [open, setOpen] = useState(false);
   const um = gaps.unmapped, nb = gaps.noBom.filter((b) => !b.proxyConfirmed);
   if (!um.length && !nb.length) return null;
   const save = async (id: string, body: object) => {
@@ -22,16 +25,22 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
   };
   const norm = (k: string) => k.toUpperCase().replace(/[^A-Z0-9]+/g, '');
   return (
-    <section aria-label="Products needing a decision" className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-3">
-      <div>
+    <section aria-label="Products needing a decision" className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-2.5 space-y-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <h3 className="text-sm font-semibold text-slate-900">Products needing a decision</h3>
-        <p className="text-xs text-slate-600">
-          {um.length ? <>{inr(um.reduce((s, u) => s + u.revenue, 0))} of sales sit on {um.length} unmapped item{um.length === 1 ? '' : 's'} (not in any product). </> : null}
-          {nb.length ? <>{nb.length} product{nb.length === 1 ? '' : 's'} sell with no BOM ({inr(nb.reduce((s, b) => s + b.revenue, 0))}); their margin is an estimate from the closest product until you confirm, never 100%.</> : null}
-        </p>
+        <span className="text-slate-600">
+          {um.length ? <>{um.length} unmapped item{um.length === 1 ? '' : 's'} ({inr(um.reduce((s, u) => s + u.revenue, 0))} of sales)</> : null}
+          {um.length && nb.length ? ' · ' : ''}
+          {nb.length ? <>{nb.length} product{nb.length === 1 ? '' : 's'} with no BOM ({inr(nb.reduce((s, b) => s + b.revenue, 0))}, margin estimated)</> : null}
+        </span>
+        <span className="ml-auto flex items-center gap-2">
+          <Link to="/tasks?view=fix" className="font-medium text-accent-700 hover:underline">Also in Tasks → Fix</Link>
+          <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={btn}>{open ? 'Hide' : 'Review here'}</button>
+        </span>
       </div>
+      {open && <p className="text-xs text-slate-600">Each row shows the closest product by name; one click confirms the mapping (nothing is applied until confirmed). Until then an unmapped item is left out of product margins and a no-BOM product is costed from its closest product, never at 100%.</p>}
       {err && <p role="alert" className="text-xs text-rose-700">{err}</p>}
-      {um.length > 0 && (
+      {open && um.length > 0 && (
         <div className="overflow-x-auto"><table className="w-full text-xs">
           <thead><tr className="text-left text-slate-500"><th className="py-1 pr-2">Item</th><th className="pr-2">From</th><th className="pr-2 text-right">Sales</th><th>Closest products (confirm one)</th></tr></thead>
           <tbody>{um.slice(0, 40).map((u) => (
@@ -47,7 +56,7 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
             </tr>))}</tbody>
         </table></div>
       )}
-      {nb.length > 0 && (
+      {open && nb.length > 0 && (
         <div className="overflow-x-auto"><table className="w-full text-xs">
           <thead><tr className="text-left text-slate-500"><th className="py-1 pr-2">No BOM for</th><th className="pr-2 text-right">Sales</th><th>Use the BOM of</th></tr></thead>
           <tbody>{nb.slice(0, 40).map((b) => (
