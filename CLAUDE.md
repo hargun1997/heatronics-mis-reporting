@@ -208,6 +208,13 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   settings); the upload stays behind "Upload a fee report instead". Inbound placement / transport stay settings (account-level fees).
   UNVERIFIED until the first live run: Amazon IN fee type names (FBA / closing regexes) and whether fee GST is itemised. Tests
   `server/test/priceFloorsLive.test.ts`.
+- **Live MIS = five tabs of expandable sections (founder, 5 Nov 2026: "expandable … declutter … the P&L is the MIS"):** `pages/mis/LiveMisPage.tsx`
+  Overview (Headline · Revenue & growth · Run-rate — whole business) · **P&L** (the MIS sheet `LiveMisSheetTab` with Show ₹ Lac | % of net
+  revenue and Basis Actual | Blended — ONE basis switch drives the Margin ladder & cost structure, Detailed P&L and By channel sections below
+  it; "Download (this format)" writes what is shown, `MisFormatSource.percent`) · Channels (Channel mix · SKU × channel) · Products (SKU P&L ·
+  Units sold) · Statements (Balance sheet · Cash flow; no period bar). `Section` in `components/liveMis/shared.tsx` (open state in localStorage
+  `mis-live-folds-v1`, first section of a tab open). Old tab ids (`?tab=missheet` …) map in `LEGACY_TABS`; `/reporting/mis/deck` redirects
+  here (MISDeck.tsx deleted). Data freshness + uploads live on Setup only; repeat purchase / cohorts live in Ops → D2C → Customers (one link line).
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).

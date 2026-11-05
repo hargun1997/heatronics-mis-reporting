@@ -32,6 +32,8 @@ export interface MisFormatSource {
   label: (entity: MisEntity) => string;
   title?: string;
   fileName?: string;
+  /** Write every ₹ row as a % of that column's Net Revenue (as the Live MIS "% of net revenue" view); ratio and count rows unchanged. */
+  percent?: boolean;
 }
 
 const LAC = 1e5;
@@ -98,7 +100,7 @@ function writeBlock(
   row++;
 
   // Header row.
-  put(row, 0, 'Particulars in INR Lac', S.head);
+  put(row, 0, src.percent ? 'Particulars in % of Net Revenue' : 'Particulars in INR Lac', S.head);
   cols.forEach((col, i) => put(row, i + 1, col.total ? 'Grand Total' : col.label, S.head));
   row++;
 
@@ -116,6 +118,10 @@ function writeBlock(
         const dp = def.decimals ?? 0;
         const numFmt = dp ? `#,##0.${'0'.repeat(dp)}` : '#,##0';
         put(row, i + 1, Math.round(raw * 10 ** dp) / 10 ** dp, col.total ? { ...S.total, numFmt } : { ...S.num, numFmt });
+      } else if (src.percent) {
+        const nr = points[i].netRevenue;
+        if (!nr) put(row, i + 1, '', S.label);
+        else put(row, i + 1, round2((raw / nr) * 1000) / 1000, col.total ? { ...S.total, numFmt: '0.0%' } : def.bold ? { ...S.pct, font: { bold: true, sz: 10 } } : S.pct);
       } else {
         const v = round2(raw / LAC);
         put(row, i + 1, v, col.total ? S.total : def.bold ? S.numBold : S.num);
