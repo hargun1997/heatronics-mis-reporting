@@ -26,6 +26,8 @@ export interface FloorSku {
   refPct: number; // referral fee above the band, share of the GST-inclusive price
   tacos: number | null; // actual ad spend ÷ sales in the report period
   inbound: number | null; // inbound transport + placement per unit sent in, when the report charged it
+  /** FBA storage per unit sold for this SKU (its box size); null = the account average in settings. */
+  storage?: number | null;
   reportId: string | null; // report the numbers last came from
 }
 
@@ -252,6 +254,17 @@ export const buyGstOf = (st: FloorSettings) => (Number.isFinite(st.global.buyGst
 export interface CostIn { material: number; conversion: number }
 export const costIn = (p: ProductCost | null | undefined): CostIn | null =>
   p?.cost == null ? null : { material: p.material ?? p.cost - (p.conversion ?? 0), conversion: p.conversion ?? 0 };
+/**
+ * GST lost to the inverted duty (buy at 18%, sell at 5%). Credits pay the sale GST first; the rest is refunded only
+ * for GOODS (materials): Rule 89(5) refund = goods credit − sale GST × goods ÷ all credit. So what stays stuck is the
+ * services' share: serv − sale GST × serv ÷ (goods + serv). Off = treat every credit as recovered.
+ */
+export function stuckOf(goods: number, serv: number, outGst: number, on?: boolean) {
+  const all = goods + serv;
+  if (on === false || all <= outGst || all <= 0) return 0;
+  return Math.max(0, serv - (outGst * serv) / all);
+}
+
 /** Product cost with the GST paid on materials. */
 export const grossCost = (c: CostIn, st: FloorSettings) => c.material * (1 + buyGstOf(st)) + c.conversion;
 
@@ -267,7 +280,8 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
   const u = unsellable || 0;
   const k = r / (1 - r);
   const sent = x.inbound ?? g.placement + g.transport;
-  const inbound = sent + g.storage;
+  const store = x.storage ?? g.storage;
+  const inbound = sent + store;
   const base = cost + x.fba + inbound + k * (x.fba + x.admin) + k * u * (cost + inbound + g.removal);
   const net = 1 / (1 + g.gst);
   const ads = tacos * (1 + b); // ad spend is billed with 18% GST on top
@@ -283,6 +297,7 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
   let inGst = 0;
   let outGst = 0;
   let amazon = 0;
+  let stuck = 0;
   for (let i = 0; i < 30; i++) {
     price = lo > 0 ? (base + extra + g.closeLo) / lo : Infinity;
     above = false;
@@ -293,10 +308,13 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     if (!Number.isFinite(price)) break;
     // Amazon fees (incl. their GST): fulfilment, inbound, storage, referral, closing, wasted on returns, removal
     amazon = x.fba + inbound + (above ? x.refPct * price + g.closeHi : g.closeLo) + k * (x.fba + x.admin) + k * u * (inbound + g.removal);
-    inGst = (amazon * b) / (1 + b) + b * c.material * (1 + k * u) + b * tacos * price + b * pk * net * price;
+    const goods = b * c.material * (1 + k * u); // GST on materials
+    const serv = (amazon * b) / (1 + b) + b * tacos * price + b * pk * net * price; // GST on Amazon fees, ads, packing
+    inGst = goods + serv;
     outGst = price - price * net;
-    // GST stuck counted: credits only offset the sale GST. Ignored: the whole credit is recovered.
-    const next = g.stuckOn === false ? outGst - inGst : Math.max(0, outGst - inGst);
+    stuck = stuckOf(goods, serv, outGst, g.stuckOn);
+    // net GST cost on top of the GST already inside the costs: sale GST − credits used − refund (= − inGst + outGst + stuck)
+    const next = outGst - inGst + stuck;
     if (Math.abs(next - extra) < 0.005) { extra = next; break; }
     extra = next;
   }
@@ -305,7 +323,7 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     fba: x.fba,
     placement: x.inbound != null ? 0 : g.placement,
     transport: x.inbound != null ? x.inbound : g.transport,
-    storage: g.storage,
+    storage: store,
     referral: above ? x.refPct * price : 0,
     closing: above ? g.closeHi : g.closeLo,
     returns: k * (x.fba + x.admin),
@@ -321,7 +339,7 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
     amazonEx: 0,
     returnsEx: 0,
     adsEx: tacos * price,
-    stuck: g.stuckOn === false ? 0 : Math.max(0, inGst - outGst),
+    stuck,
     resellerEx: rsl * net * price,
     packingEx: pk * net * price,
   };

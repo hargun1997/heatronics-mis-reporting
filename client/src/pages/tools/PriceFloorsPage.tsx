@@ -239,7 +239,7 @@ export function PriceFloorsPage() {
             />
             <label className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[14px] font-semibold text-slate-700">
               <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={g.stuckOn !== false} onChange={(e) => saveGlobal({ stuckOn: e.target.checked }, e.target.checked ? 'GST stuck counted' : 'GST stuck ignored')} />
-              Count GST stuck
+              Count GST stuck on Amazon fees and ads
             </label>
           </div>
           <SummaryTable rows={rows} settings={settings} t={t} hasCosts={products.length > 0} />
@@ -542,7 +542,7 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
           ))}
         </tbody>
       </table>
-      <p className="mt-3 text-xs text-slate-500">Costs are before GST. GST stuck = GST paid on purchases ({fmtPct(buyGstOf(settings))}) minus GST on the sale; it can't be used, so it's a cost.</p>
+      <p className="mt-3 text-xs text-slate-500">Costs are before GST. GST stuck = the part of the {fmtPct(buyGstOf(settings))} GST on Amazon fees, ads and packing the 5% sale GST can't use. GST on materials comes back as the inverted-duty refund (goods only), so it isn't counted.</p>
     </Disclosure>
   );
 }
@@ -554,9 +554,9 @@ const GLOBAL_FIELDS: [NumKey, string, string][] = [
   ['buyGst', 'GST on purchases', '% on materials, Amazon fees and ads'],
   ['reseller', 'Reseller margin', '% of net sales kept by the 3P seller'],
   ['packing', 'Packing', '% of net sales, before GST'],
-  ['placement', 'Inbound placement', '₹ per unit, when a SKU has no inbound of its own'],
-  ['transport', 'Inbound transport', '₹ per unit, when a SKU has no inbound of its own'],
-  ['storage', 'Storage', '₹ per unit sold'],
+  ['placement', 'Inbound placement', '₹ per unit, when a SKU has no freight of its own'],
+  ['transport', 'Freight to FC (ATS)', '₹ per unit, when a SKU has no freight of its own; own transport is costed at the ATS rate'],
+  ['storage', 'Storage', '₹ per unit sold, when a SKU has none of its own (by box size)'],
   ['closeLo', 'Closing fee below band', '₹'],
   ['closeHi', 'Closing fee above band', '₹'],
   ['band', 'Referral starts at', '₹ price'],
@@ -623,7 +623,7 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
         {s.skus.map((x, i) => (
           <fieldset key={x.asin} className="rounded-xl border border-slate-200 p-4">
             <legend className="px-1 text-[14px] font-bold text-slate-900">{x.name} <span className="font-normal text-slate-500">· {x.asin}</span></legend>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-9">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-10">
               <label className="col-span-2 block text-[12px] font-semibold text-slate-500">
                 Product in Tranzact
                 <select className={inputCls} value={x.item} onChange={(e) => setSku(i, 'item', e.target.value)}>
@@ -632,13 +632,23 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
                 </select>
               </label>
               <label className="block text-[12px] font-semibold text-slate-500">
-                Inbound ₹/unit
+                Freight to FC ₹/unit (ATS)
                 <input
                   inputMode="decimal"
-                  placeholder="default"
+                  placeholder={`avg ₹${s.global.placement + s.global.transport}`}
                   className={inputCls}
                   value={x.inbound ?? ''}
                   onChange={(e) => setSku(i, 'inbound', e.target.value.trim() === '' ? (null as unknown as number) : num(e.target.value))}
+                />
+              </label>
+              <label className="block text-[12px] font-semibold text-slate-500">
+                Storage ₹/unit
+                <input
+                  inputMode="decimal"
+                  placeholder={`avg ₹${s.global.storage}`}
+                  className={inputCls}
+                  value={x.storage ?? ''}
+                  onChange={(e) => setSku(i, 'storage', e.target.value.trim() === '' ? (null as unknown as number) : num(e.target.value))}
                 />
               </label>
               {SKU_FIELDS.map(([k, label]) => (
