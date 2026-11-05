@@ -49,6 +49,17 @@ const when = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthName = (m?: string) => (m ? `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}` : '—');
+/** Which overheads month and pace Production used, with a few ₹ per unit examples. */
+const convLine = (c: NonNullable<CostsSnapshot['conversion']>) => {
+  const lakh = (v: number) => `₹${(v / 100000).toFixed(2)} L`;
+  const pace = c.pace === 'actual' && c.floorDays ? `÷ ${Math.round(c.floorDays * 10) / 10} floor-days of real output` : '÷ 26 days ÷ units a day';
+  const ex = (c.types || []).filter((t) => t.perUnit).slice(0, 3).map((t) => `${t.type} ₹${Math.round(t.perUnit!)}`).join(' · ');
+  return (
+    <>
+      Overheads {lakh(c.total)} ({monthName(c.overheadsMonth)}) {pace}{ex ? ` · ${ex}` : ''}. Set in Production → Settings → Overheads &amp; pace.
+    </>
+  );
+};
 
 async function api<T>(url: string, body?: unknown, method?: string): Promise<T> {
   const res = await fetch(url, {
