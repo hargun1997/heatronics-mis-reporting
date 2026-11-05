@@ -148,6 +148,6 @@ test('Excel export carries Balance Sheet, Cash Flow and MIS Sheet; PDF has the t
   // without stored statements the sheets say so instead of being blank
   const none = buildLiveWorkbook(deck, LIVE_EXPORT_EVERYTHING, null);
   assert.match(JSON.stringify(none.Sheets['Balance Sheet']), /No Trial Balance stored yet/);
-  const doc = buildLivePdf(deck, { sections: ['balanceSheet', 'cashFlow', 'misSheet'], fyKeys: [], monthKeys: [], blendCogm: false, mergeChannels: true }, st);
+  const doc = buildLivePdf(deck, { sections: ['balanceSheet', 'cashFlow', 'misSheet'], fyKeys: [], monthKeys: [], normaliseCogm: false, mergeChannels: true }, st);
   assert.ok(doc.getNumberOfPages() >= 3);
 });

@@ -2,9 +2,10 @@
 // Live MIS → P&L: the MIS sheet itself — the company / channel P&L in the
 // standard MIS format (₹ Lac, months of an FY + FY total), built on the live
 // months. Two toolbar switches (founder, 5 Nov 2026): Show ₹ Lac | % of net
-// revenue, and Basis Actual | Blended (the FY-blended COGM restatement the old
-// Profitability tab used — the SAME switch drives the margin ladder and the
-// detailed P&L below it). "Download (this format)" writes exactly what is
+// revenue, and Basis Actual | Normalised (COGM = BOM cost of units sold +
+// factory overhead, Tally's purchase-timing difference as the "Stock build /
+// drawdown" memo line under GM% — the SAME switch drives the margin ladder and
+// the detailed P&L below it). "Download (this format)" writes exactly what is
 // shown; Import Excel round-trips a ₹ download. Rows below a month's
 // completeness level are blank, never 0.
 // ----------------------------------------------------------------------------
@@ -13,13 +14,13 @@ import { useMemo, useRef, useState } from 'react';
 import { SegmentedControl } from '../ui';
 import { useStatements } from './useStatements';
 import { misCashRows } from '../../data/statements/statements';
-import { MIS_SHEET_ROWS, type MisEntity, type MisPoint } from '../../data/misDeck/misSheet';
+import { MIS_SHEET_ROWS, MIS_SHEET_ROWS_NORMALISED, type MisEntity, type MisPoint } from '../../data/misDeck/misSheet';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import type { MonthlyMIS } from '../../data/misDeck/misDeckData';
 import { liveFiscalYears } from '../../data/misDeck/liveViews';
 import { downloadMisFormat, parseMisFormat, type ImportedMis } from '../../utils/misFormatExport';
 import { liveMisFormatSource, misSourceWithCash } from '../../utils/liveMisExport';
-import { BlendNote, Fold, Note, useLiveView } from './shared';
+import { BASIS_OPTIONS, CogmBasisNote, Fold, Note, useLiveView } from './shared';
 
 const LAC = 1e5;
 const fmtLac = (v: number | null) => (v === null || !isFinite(v) ? '–' : (v / LAC).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -28,16 +29,17 @@ const fmtPct = (v: number | null) => (v === null || !isFinite(v) ? '–' : `${(v
 
 export type SheetShow = 'lac' | 'pct';
 
-export function LiveMisSheetTab({ deck, blendedMonths }: {
+export function LiveMisSheetTab({ deck, normalisedMonths }: {
   deck: LiveDeckData;
-  /** The deck's months restated to FY-blended COGM (null until computed); used when Basis = Blended. */
-  blendedMonths: MonthlyMIS[] | null;
+  /** The deck's months on the normalised COGM basis (null until computed); used when Basis = Normalised. */
+  normalisedMonths: MonthlyMIS[] | null;
 }) {
-  const { merged, chName, blended, setBlended } = useLiveView();
-  const useBlend = blended && !!blendedMonths;
+  const { merged, chName, basis, setBasis } = useLiveView();
+  const normalised = basis === 'normalised' && !!normalisedMonths;
+  const rows = normalised ? MIS_SHEET_ROWS_NORMALISED : MIS_SHEET_ROWS;
   const src = useMemo(
-    () => liveMisFormatSource(useBlend ? { ...deck, months: blendedMonths! } : deck, merged),
-    [deck, blendedMonths, useBlend, merged],
+    () => ({ ...liveMisFormatSource(normalised ? { ...deck, months: normalisedMonths! } : deck, merged), rows }),
+    [deck, normalisedMonths, normalised, merged, rows],
   );
   const fys = useMemo(() => liveFiscalYears(deck.months), [deck]);
   const defaultFy = useMemo(() => {
@@ -69,7 +71,7 @@ export function LiveMisSheetTab({ deck, blendedMonths }: {
   const entities: { id: MisEntity; label: string }[] = [{ id: 'company', label: 'Company (All)' }, ...src.channels.map((c) => ({ id: c, label: chName(c) }))];
   const pct = show === 'pct';
   // % view: every ₹ row ÷ that column's Net Revenue; ratio rows and counts stay as they are.
-  const cellText = (row: (typeof MIS_SHEET_ROWS)[number], point: MisPoint) => {
+  const cellText = (row: (typeof rows)[number], point: MisPoint) => {
     const raw = row.get(point);
     if (row.pct) return fmtPct(raw);
     if (row.count) return fmtCount(raw, row.decimals);
@@ -81,8 +83,8 @@ export function LiveMisSheetTab({ deck, blendedMonths }: {
   const onDownload = () => downloadMisFormat({
     ...misSourceWithCash(src, flows),
     percent: pct,
-    title: `HEATRONICS LIVE MIS · Company P&L (${pct ? '% of net revenue' : '₹ Lac'}${useBlend ? ', blended COGM' : ''})`,
-    fileName: `Heatronics_Live_MIS_Sheet_${pct ? 'pct' : 'lac'}_${useBlend ? 'blended' : 'actual'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    title: `HEATRONICS LIVE MIS · Company P&L (${pct ? '% of net revenue' : '₹ Lac'}${normalised ? ', normalised COGM' : ''})`,
+    fileName: `Heatronics_Live_MIS_Sheet_${pct ? 'pct' : 'lac'}_${normalised ? 'normalised' : 'actual'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
   });
 
   const onImport = async (file: File) => {
@@ -120,8 +122,7 @@ export function LiveMisSheetTab({ deck, blendedMonths }: {
         </div>
         <div className="text-xs text-slate-500">
           <span className="block mb-1">Basis</span>
-          <SegmentedControl size="sm" aria-label="COGM basis" value={blended ? 'blended' : 'actual'} onChange={(v) => setBlended(v === 'blended')}
-            options={[{ id: 'actual', label: 'Actual' }, { id: 'blended', label: 'Blended' }]} />
+          <SegmentedControl size="sm" aria-label="COGM basis" value={basis} onChange={setBasis} options={BASIS_OPTIONS} />
         </div>
         <div className="flex flex-wrap gap-2 sm:ml-auto">
           <button type="button" onClick={onDownload}
@@ -144,8 +145,8 @@ export function LiveMisSheetTab({ deck, blendedMonths }: {
             </tr>
           </thead>
           <tbody>
-            {MIS_SHEET_ROWS.map((row) => (
-              <tr key={row.label} className={`border-b border-slate-50 ${row.bold ? 'font-semibold text-slate-800' : row.pct ? 'text-slate-500 italic' : 'text-slate-600'}`}>
+            {rows.map((row) => (
+              <tr key={row.label} data-row={row.memo ? 'stock-variance' : undefined} className={`border-b border-slate-50 ${row.bold ? 'font-semibold text-slate-800' : row.pct || row.memo ? 'text-slate-500 italic' : 'text-slate-600'}`}>
                 <td className="py-1 px-3 text-left sticky left-0 bg-white">{row.label}</td>
                 {columns.map((c, ci) => (
                   <td key={c.label} className={`py-1 px-2 text-right tabular-nums ${ci === columns.length - 1 ? 'font-medium bg-slate-50/60' : ''}`}>
@@ -157,9 +158,10 @@ export function LiveMisSheetTab({ deck, blendedMonths }: {
           </tbody>
         </table>
       </div>
-      <BlendNote />
+      <CogmBasisNote />
       <Note>
         {pct ? 'Every ₹ line is shown as a % of that column’s Net Revenue; ratio rows (GM%, CM1% …) and counts (Qty, Runway) are unchanged. ' : 'Costs positive, margins signed. '}
+        {normalised ? 'Stock build / drawdown is a signed memo line (positive = Tally charged more COGM than was sold), outside the cascade: EBITDA + Σ memo = EBITDA as booked. ' : ''}
         Cash rows (company only) come from Tally’s month-end Balance Sheets: burn = opening + equity raised − closing, runway =
         closing cash ÷ (3 × the last 3 months’ average burn), in quarters; blank until both month ends are stored (FY total: every
         month). Other blank rows aren’t tracked (Channel Margin, SS Claim, Payroll / Professional Fee split) or aren’t real yet

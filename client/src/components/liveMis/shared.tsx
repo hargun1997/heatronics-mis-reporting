@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------------
 // Live MIS — shared view plumbing: the page-level view context (channel
-// naming, Actual|Blended), foldable sections that respect the global compact
+// naming, COGM basis Actual|Normalised), foldable sections that respect the global compact
 // density, and the small toggles / badges every Live tab uses. Direction is
 // carried by the arrow, not by red/green (the legacy deck's rule).
 // ----------------------------------------------------------------------------
@@ -11,21 +11,23 @@ import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { CHANNEL_COLORS, pctSigned } from '../mis-deck/charts';
 import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
-import { blendRatesNote, channelName } from '../../data/misDeck/liveViews';
+import { channelName } from '../../data/misDeck/liveViews';
 
 // ---- View context ----------------------------------------------------------
+
+export type CogmBasis = 'actual' | 'normalised';
 
 export interface LiveView {
   /** Continuous channel taxonomy (OEM→B2B, Offline→GT) is on. */
   merged: boolean;
-  /** FY-blended COGM is on (else actual). */
-  blended: boolean;
-  setBlended: (b: boolean) => void;
-  /** Per-FY blended GM% rates (legacy keys "FY 2025-26"). */
-  rates: Map<string, number>;
+  /** COGM basis: 'actual' (as booked in Tally) or 'normalised' (BOM cost of units sold + factory overhead). */
+  basis: CogmBasis;
+  setBasis: (b: CogmBasis) => void;
+  /** The normalised basis's explanation + which months stay as booked (normaliseLiveMonths().note). */
+  basisNote: string;
 }
 
-const LiveViewCtx = createContext<LiveView>({ merged: true, blended: false, setBlended: () => {}, rates: new Map() });
+const LiveViewCtx = createContext<LiveView>({ merged: true, basis: 'actual', setBasis: () => {}, basisNote: '' });
 export const LiveViewProvider = LiveViewCtx.Provider;
 export function useLiveView(): LiveView & { chName: (ch: string) => string; chColor: (ch: string) => string } {
   const v = useContext(LiveViewCtx);
@@ -156,27 +158,22 @@ export function Pills<T extends string>({ value, onChange, options, label }: {
   );
 }
 
-export function BlendToggle() {
-  const { blended, setBlended } = useLiveView();
-  return (
-    <Pills label="COGM basis" value={blended ? 'b' : 'a'} onChange={(v) => setBlended(v === 'b')}
-      options={[{ id: 'a', label: 'Actual' }, { id: 'b', label: 'Blended' }]} />
-  );
+export const BASIS_OPTIONS: { id: CogmBasis; label: string }[] = [{ id: 'actual', label: 'Actual' }, { id: 'normalised', label: 'Normalised' }];
+
+/** The COGM basis switch (Actual | Normalised) as header pills — the one switch the P&L and Overview headline share. */
+export function CogmBasisToggle() {
+  const { basis, setBasis } = useLiveView();
+  return <Pills label="COGM basis" value={basis} onChange={setBasis} options={BASIS_OPTIONS} />;
 }
 
-/** Explains the Blended view and lists the per-FY rates. Shown when Blended is on. */
-export function BlendNote() {
-  const { blended, rates } = useLiveView();
-  if (!blended) return null;
+/** One-line explanation of the Normalised basis + the months kept as booked. Shown only when Normalised is on. */
+export function CogmBasisNote() {
+  const { basis, basisNote } = useLiveView();
+  if (basis !== 'normalised' || !basisNote) return null;
   return (
-    <div className="rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-xs text-slate-600">
-      <span className="font-medium text-brand-700">Blended COGM (FY-level).</span> COGM is booked on purchase/consumption
-      timing, so monthly gross margin is noisy. This view restates each month’s COGM to its fiscal year’s revenue-weighted
-      GM% (in proportion to that month’s revenue) and cascades the change through CM1–Net Income; channel, marketing,
-      platform, opex and non-operating stay as booked. Full fiscal years are unchanged. Only months whose COGM is real
-      (to CM2 or a full close) are blended or used for the rate.
-      <span className="block mt-1 text-slate-500">Blended GM% by FY: {blendRatesNote(rates) || '—'}</span>
-    </div>
+    <p className="rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-xs text-slate-600" data-testid="basis-note">
+      {basisNote}
+    </p>
   );
 }
 

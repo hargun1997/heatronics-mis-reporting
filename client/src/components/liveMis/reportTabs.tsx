@@ -373,10 +373,13 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
   const full = lp.level === 'full';
   const steps = WF.filter((s) => !(s.skipZero && s.value === 0)).map(({ label, value, type }) => ({ label, value, type }));
   const c = (p: PeriodAgg, row: string, v: number) => (real(p, row) && p.netRevenue ? pctStr(v / p.netRevenue) : '—');
-  const { blended } = useLiveView();
+  const { basis } = useLiveView();
+  const normalised = basis === 'normalised';
+  // Normalised basis: the signed stock build / drawdown memo (% of net revenue), only where the period was restated.
+  const memo = (p: PeriodAgg) => (normalised && real(p, 'gross_margin') && p.normalisedMonths > 0 && p.netRevenue ? pctSigned(p.stockVariance / p.netRevenue) : '—');
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-500">Margins &amp; unit economics · {scopeLine(periods, gran)} · {blended ? 'blended COGM (the Basis switch above)' : 'actual COGM (the Basis switch above)'}</p>
+      <p className="text-xs text-slate-500">Margins &amp; unit economics · {scopeLine(periods, gran)} · {normalised ? 'normalised COGM (the Basis switch above)' : 'actual COGM (the Basis switch above)'}</p>
       <Fold id="pr-ladder" title="Margin ladder over time" meta="Gross margin → CM1 → CM2 → EBITDA → Net income (% of net revenue)"
         actions={<label className="flex items-center gap-1.5 text-xs text-slate-500"><input type="checkbox" checked={cm3} onChange={(e) => setCm3(e.target.checked)} /> show CM3</label>}>
         <LineChart labels={periods.map((p) => p.label)} series={series} percent valueFormat={(v) => pctStr(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
@@ -391,7 +394,7 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
             <thead>
               <tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
                 <th className="py-1.5 pr-3 font-medium sticky left-0 bg-white">Period</th>
-                {['COGM', 'Channel', 'S&M', 'Platform', 'OpEx', 'EBITDA %', 'Net %'].map((h) => <th key={h} className="py-1.5 px-2 text-right font-medium">{h}</th>)}
+                {['COGM', ...(normalised ? ['Stock build / drawdown'] : []), 'Channel', 'S&M', 'Platform', 'OpEx', 'EBITDA %', 'Net %'].map((h) => <th key={h} className="py-1.5 px-2 text-right font-medium">{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -399,6 +402,7 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
                 <tr key={p.key} className="border-b border-slate-50 hover:bg-slate-50">
                   <td className="py-1.5 pr-3 font-medium text-slate-700 sticky left-0 bg-white">{p.label}</td>
                   <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{c(p, 'cogm', p.cogm)}</td>
+                  {normalised && <td className="py-1.5 px-2 text-right tabular-nums text-slate-500 italic" title="Memo, outside the cascade: Tally charged this much more (+) or less (−) COGM than the BOM cost of what was sold">{memo(p)}</td>}
                   <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{c(p, 'channel_fulfilment', p.channelFulfillment)}</td>
                   <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{c(p, 'sales_marketing', p.salesMarketing)}</td>
                   <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{c(p, 'platform_payment', p.platformCosts)}</td>

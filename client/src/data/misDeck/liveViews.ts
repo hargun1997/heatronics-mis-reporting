@@ -11,7 +11,9 @@
 //                            legacy helpers (marginsOf, channelMix, channelHHI,
 //                            topChannel, ordersByChannel, arrProjection,
 //                            channelObservations, channelPnl …) run unchanged.
-//   • blendLiveMonths()      legacy blendedMonths() over the cogm-real months.
+//   • normaliseLiveMonths()  the normalised COGM basis (BOM cost of units sold +
+//                            factory overhead; Tally's purchase-timing difference
+//                            as the "Stock build / drawdown" memo line).
 //   • unifyChannels()        one continuous channel series across the seam.
 //   • anchoredChannelPnl()   legacy channelPnlAnchored() on live periods.
 //   • liveSkuChannelMatrix() legacy skuChannelMatrix() on live cells.
@@ -105,13 +107,11 @@ export function toPeriodMIS(a: PeriodAgg): PeriodMIS {
   };
 }
 
-// ---- Actual | Blended COGM (G11) ------------------------------------------
+// ---- Actual | Normalised COGM --------------------------------------------
 
 /**
- * The legacy deck's FY-blended COGM, over the live months. Rates are each FY's
- * revenue-weighted GM% — computed ONLY over months whose COGM is real (level
- * contribution or full), and only those months are restated. A full FY is
- * unchanged by construction.
+ * @deprecated FY-level blend (one revenue-weighted GM% stamped on every month of the FY) — retired 5 Nov 2026
+ * for normaliseLiveMonths(): it flattened GM% all year and hid mix. Kept only until the next cleanup.
  */
 export function blendLiveMonths(
   months: MonthlyMIS[],
@@ -123,12 +123,105 @@ export function blendLiveMonths(
   return { months: months.map((m) => blended.get(m.key) ?? m), rates };
 }
 
-/** "FY25-26 59.7% · FY26-27 51.9%" from the legacy-keyed rate map. */
+/** @deprecated with blendLiveMonths. "FY25-26 59.7% · FY26-27 51.9%" from the legacy-keyed rate map. */
 export function blendRatesNote(rates: Map<string, number>): string {
   return [...rates.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([fy, r]) => `${fy.replace(/^FY (\d\d)(\d\d)-(\d\d)$/, 'FY$2-$3')} ${(r * 100).toFixed(1)}%`)
     .join(' · ');
+}
+
+export interface NormalisedMonths {
+  /** Every month, in the input order: restated where it could be, as booked where it could not. */
+  months: MonthlyMIS[];
+  /** One or two sentences for the page / export: the definition, then which months stay as booked. */
+  note: string;
+  /** Month keys kept as booked (no BOM costing for them), ascending. */
+  skipped: string[];
+  /** Month key → number of products whose cost is estimated / missing in a restated month. */
+  estimated: Record<string, number>;
+}
+
+/** The one-line definition shown with the Normalised basis everywhere (page note, export subtitles). */
+export const NORMALISED_DEFINITION =
+  'Normalised: COGM = units sold × BOM cost + factory overhead, so GM moves with revenue and mix; Tally\'s purchase-timing difference is shown as Stock build / drawdown.';
+
+/** "Dec 23–Mar 26, Jun 26" — consecutive month keys folded into ranges. */
+export function monthSpans(keys: string[]): string {
+  const asc = [...keys].sort();
+  const idx = (k: string) => { const [y, m] = k.split('-').map(Number); return y * 12 + m; };
+  const out: string[] = [];
+  let start = 0;
+  for (let i = 1; i <= asc.length; i++) {
+    if (i < asc.length && idx(asc[i]) === idx(asc[i - 1]) + 1) continue;
+    out.push(start === i - 1 ? monthLabel(asc[start]) : `${monthLabel(asc[start])}–${monthLabel(asc[i - 1])}`);
+    start = i;
+  }
+  return out.join(', ');
+}
+
+/**
+ * The normalised COGM basis (founder, 5 Nov 2026: "we should see some normalisation with revenue").
+ *
+ * Normalised COGM for a month = BOM standard cost of what was sold + factory overhead. A live Tally month carries
+ * `channelRecon.cogmVariance` = Tally COGM − (Σ SkuCell COGS + factory), so the month is restated by exactly that
+ * delta: cogm − v, grossMargin + v and every margin below (CM1 … net income) + v; everything else stays actual. The
+ * delta itself is kept on the month as `stockVariance` (the "Stock build / drawdown (purchase timing)" memo line),
+ * so a full year still reconciles: Σ normalised net income − Σ stockVariance = Tally net income.
+ *
+ * A month that cannot be normalised stays AS BOOKED and is listed in `skipped` (never an FY average): static
+ * history / published months (no BOM costing behind them), top-line months, months without a recon, and months
+ * whose every SKU cell has no BOM cost. A facts-only month (no Tally, costed to CM2) is already on this basis:
+ * its COGM IS the BOM cost + factory, so it is kept with a variance of 0. Pass the deck (or its cells) so the
+ * no-cost / estimated-cost checks can run; without it only the recon rules apply.
+ */
+export function normaliseLiveMonths(
+  months: MonthlyMIS[],
+  completeness: Record<string, PeriodCompleteness>,
+  deck?: Pick<LiveDeckData, 'skuCells'> | null,
+): NormalisedMonths {
+  const cellsByMonth = new Map<string, SkuCell[]>();
+  for (const c of deck?.skuCells ?? []) cellsByMonth.set(c.m, [...(cellsByMonth.get(c.m) ?? []), c]);
+  const skipped: string[] = [];
+  const estimated: Record<string, number> = {};
+  const out = months.map((m) => {
+    const comp = completeness[m.key];
+    const level = comp?.level ?? 'topline';
+    const skip = () => { skipped.push(m.key); return m; };
+    if (level === 'topline' || comp?.locked || comp?.published) return skip();
+    const cells = cellsByMonth.get(m.key);
+    if (cells) {
+      const costed = cells.filter((c) => !c.noCost && c.p !== 'Accessory (excl)');
+      if (costed.length === 0) return skip();
+      const est = new Set(cells.filter((c) => c.noCost || c.costEst).map((c) => c.p));
+      if (est.size) estimated[m.key] = est.size;
+    }
+    if (!m.channelRecon) {
+      // Facts-only month costed to CM2: COGM is already BOM × units + factory (liveDeck), nothing to move.
+      if (comp && !comp.hasTally && level === 'contribution') return { ...m, stockVariance: 0 };
+      return skip();
+    }
+    const v = r2(m.channelRecon.cogmVariance);
+    return {
+      ...m,
+      cogm: r2(m.cogm - v),
+      grossMargin: r2(m.grossMargin + v),
+      cm1: r2(m.cm1 + v),
+      cm2: r2(m.cm2 + v),
+      cm3: r2(m.cm3 + v),
+      ebitda: r2(m.ebitda + v),
+      netIncome: r2(m.netIncome + v),
+      stockVariance: v,
+    };
+  });
+  skipped.sort();
+  const estMonths = Object.keys(estimated).sort();
+  const parts = [NORMALISED_DEFINITION];
+  if (skipped.length) parts.push(`${monthSpans(skipped)} shown as booked — no BOM costing for ${skipped.length === 1 ? 'it' : 'them'}.`);
+  if (estMonths.length) {
+    parts.push(`Cost estimated for ${estMonths.map((k) => `${estimated[k]} product${estimated[k] === 1 ? '' : 's'} in ${monthLabel(k)}`).join(', ')}.`);
+  }
+  return { months: out, note: parts.join(' '), skipped, estimated };
 }
 
 // ---- Continuous channel taxonomy (G6) -------------------------------------
@@ -197,7 +290,7 @@ export function anchoredChannelPnl(
   // Where Tally exists for the period, the channel's own ledgers carry the figures: revenue = Tally's channel sales,
   // and each cost line = what the connectors attribute to the channel (tallyLines.byChannel) plus its revenue-share of
   // the unattributed remainder, so every line still foots to Tally. Without Tally it stays the order-share split.
-  if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells, completeness);
+  if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells);
 
   const keys = new Set(period.members);
   const sel = cells.filter((c) => keys.has(c.m));
@@ -241,11 +334,7 @@ export function anchoredChannelPnl(
 }
 
 /** Channel P&L tied to Tally's channel ledgers (see anchoredChannelPnl). Exported for tests. */
-export function tallyAnchoredRows(
-  period: PeriodAgg,
-  cells: SkuCell[],
-  _completeness: Record<string, PeriodCompleteness>,
-): AnchoredRow[] {
+export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[]): AnchoredRow[] {
   const keys = new Set(period.members);
   const sel = cells.filter((c) => keys.has(c.m));
   const chans = SALES_CHANNELS.filter((ch) => (period.netByChannel[ch] ?? 0) !== 0 || sel.some((c) => c.ch === ch));
@@ -482,7 +571,7 @@ export function aggregateRange(
 const DISC_BY_KEY = new Map(DISCOUNT_DATA.map((d) => [d.key, d.discount]));
 const MIS_KEYS: (keyof MisPoint)[] = [
   'qty', 'grossRevenue', 'channelMargin', 'returns', 'gst', 'ssClaim', 'discounts', 'netRevenue', 'cogs', 'grossMargin',
-  'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
+  'stockVariance', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
   'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
 ];
 // Cascade fields gated by completeness: a period total is blank when any month is.
@@ -532,9 +621,11 @@ export function liveMisPoint(
   const ordersOf = (ch: SalesChannel) => (actualOrders ? (p.ordersByChannel[ch] ?? 0) : (p.estOrdersByChannel[ch] ?? 0));
   const disc = DISC_BY_KEY.get(key) ?? null;
   const blank = {
-    channelMargin: null, ssClaim: null, payroll: null, profFee: null, otherIncome: null,
+    channelMargin: null, ssClaim: null, stockVariance: null, payroll: null, profFee: null, otherIncome: null,
     openingCash: null, funding: null, closingCash: null, cashBurn: null, ebitdaBurn: null, runway: null,
   };
+  // Normalised COGM basis: the month's stock build / drawdown memo (null on the actual basis / an as-booked month).
+  const stockVariance = p.normalisedMonths > 0 && isReal(p.level, 'cogm') ? p.stockVariance : null;
   if (entity === 'company') {
     // Payroll / Professional fee / Other income split out of OpEx from the month's Tally ledger lines
     // (compute.ts OPEX_LABELS), when the month reaches EBITDA; Other Expense is the rest.
@@ -555,7 +646,7 @@ export function liveMisPoint(
       gst: p.totalTaxes ? Math.abs(p.totalTaxes) : null,
       discounts: disc,
       netRevenue: p.netRevenue,
-      cogs: v('cogm', p.cogm), grossMargin: v('gross_margin', p.grossMargin),
+      cogs: v('cogm', p.cogm), grossMargin: v('gross_margin', p.grossMargin), stockVariance,
       logistics: v('channel_fulfilment', p.channelFulfillment), cm1: v('cm1', p.cm1),
       marketing: v('sales_marketing', p.salesMarketing), cm2: v('cm2', p.cm2),
       branding: v('platform_payment', p.platformCosts), cm3: v('cm3', p.cm3),
@@ -580,6 +671,8 @@ export function liveMisPoint(
     discounts: ch === 'D2C' ? disc : null,
     netRevenue: p.netByChannel[ch] ?? 0,
     cogs: v('cogm', r.cogm), grossMargin: v('gross_margin', r.grossMargin),
+    // The memo follows the channel's share of (normalised) COGM — the same split channelPnl gave its COGM.
+    stockVariance: stockVariance !== null && p.cogm ? r2(stockVariance * (r.cogm / p.cogm)) : stockVariance !== null ? 0 : null,
     logistics: v('channel_fulfilment', r.channelFulfillment), cm1: v('cm1', r.cm1),
     marketing: v('sales_marketing', r.salesMarketing), cm2: v('cm2', r.cm2),
     branding: v('platform_payment', r.platformCosts), cm3: v('cm3', r.cm3),

@@ -2,7 +2,7 @@
 // Live MIS — five tabs, each a stack of expandable sections (founder, 5 Nov 2026:
 // "expandable … declutter … the P&L is the MIS"):
 //   Overview   Headline · Revenue & growth · Run-rate (whole business)
-//   P&L        the MIS sheet (₹ Lac | % of net revenue, Actual | Blended COGM) ·
+//   P&L        the MIS sheet (₹ Lac | % of net revenue, COGM basis Actual | Normalised) ·
 //              Margin ladder & cost structure · Detailed P&L · By channel
 //   Channels   Channel mix · SKU × channel
 //   Products   SKU P&L · Units sold
@@ -25,7 +25,7 @@ import { ProductGapsPanel } from '../../components/liveMis/ProductGapsPanel';
 import { loadLiveDeck, swapAlternates, LIVE_BOUNDARY, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran, type PeriodAgg } from '../../data/misDeck/liveAnalytics';
 import {
-  blendLiveMonths, unifyChannels, rangeKeys, rangePresetLabel, aggregateRange, type RangePreset,
+  normaliseLiveMonths, unifyChannels, rangeKeys, rangePresetLabel, aggregateRange, type RangePreset,
 } from '../../data/misDeck/liveViews';
 import {
   OverviewTab, PnlTab, ChannelsTab, SkuTab, SkuChannelTab, SkuUnitsTab, LevelBadge, type PnlDisplay,
@@ -35,7 +35,7 @@ import { LiveMisSheetTab } from '../../components/liveMis/LiveMisSheetTab';
 import { MonthClosePanel } from '../../components/liveMis/MonthClosePanel';
 import { deckItems, rememberDeckItems } from '../../data/issues/inbox';
 import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExportModals';
-import { LiveViewProvider, Pills, Section } from '../../components/liveMis/shared';
+import { LiveViewProvider, Pills, Section, type CogmBasis } from '../../components/liveMis/shared';
 
 const iconLive = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -63,8 +63,8 @@ const isTab = (v: string | null | undefined): v is Tab => !!v && TABS.some((t) =
 const resolveTab = (v: string | null | undefined): Tab | null => (isTab(v) ? v : v && LEGACY_TABS[v] ? LEGACY_TABS[v] : null);
 // Tabs that don't use the period controls (Statements carries its own months).
 const NO_PERIOD: Tab[] = ['statements'];
-// Tabs on which the Actual|Blended COGM basis applies (Overview's headline, the whole P&L tab); the rest stay on actual COGM.
-const BLEND_TABS: Tab[] = ['overview', 'pnl'];
+// Tabs on which the Actual|Normalised COGM basis applies (Overview's headline, the whole P&L tab); the rest stay on actual COGM.
+const BASIS_TABS: Tab[] = ['overview', 'pnl'];
 
 type Grain = DeckGran | 'range';
 const DECK_GRAINS: { id: Grain; label: string }[] = [
@@ -135,17 +135,16 @@ export function LiveMisPage() {
   const [periodKey, setPeriodKey] = useState<string>(() => { try { const m = new URLSearchParams(window.location.search).get('month'); return m && /^\d{4}-\d{2}$/.test(m) ? m : ''; } catch { return ''; } });
   const [display, setDisplay] = useState<PnlDisplay>('both');
   const [fy, setFy] = useState<string>('all');
-  // COGM basis: Blended by default, as the legacy deck (owner's call, Oct 2026);
-  // Actual (ties to Tally month by month) is one click and remembered. ONE switch
-  // (on the P&L sheet / Overview headline) drives every section of that tab.
-  const [blendPref, setBlendPref] = usePref<'actual' | 'blended'>('cogm', 'blended');
+  // COGM basis: Normalised by default (founder, 5 Nov 2026: GM should move with revenue and mix — the flat FY
+  // blend is retired); Actual (ties to Tally month by month) is one click and remembered. ONE switch (on the
+  // P&L sheet / Overview headline) drives every section of that tab.
+  const [basis, setBasis] = usePref<CogmBasis>('basis', 'normalised');
   const [chanPref, setChanPref] = usePref<'continuous' | 'booked'>('channels', 'continuous');
   const [showLive, setShowLive] = useState(false);
   const [preset, setPreset] = useState<RangePreset>('last12');
   const [custom, setCustom] = useState<string[]>([]);
   const [excelOpen, setExcelOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
-  const blended = blendPref === 'blended';
   const merged = chanPref === 'continuous';
 
   const loadDeck = useCallback(async (force = false) => {
@@ -163,9 +162,9 @@ export function LiveMisPage() {
     const d = showLive ? swapAlternates(deck) : deck;
     return merged ? unifyChannels(d) : d;
   }, [deck, showLive, merged]);
-  const blend = useMemo(() => (view ? blendLiveMonths(view.months, view.completeness) : null), [view]);
-  const blendTab = BLEND_TABS.includes(tab);
-  const months = useMemo(() => (view ? (blended && blendTab && blend ? blend.months : view.months) : []), [view, blend, blended, blendTab]);
+  const normalised = useMemo(() => (view ? normaliseLiveMonths(view.months, view.completeness, view) : null), [view]);
+  const basisTab = BASIS_TABS.includes(tab);
+  const months = useMemo(() => (view ? (basis === 'normalised' && basisTab && normalised ? normalised.months : view.months) : []), [view, normalised, basis, basisTab]);
   const completeness = useMemo(() => view?.completeness ?? {}, [view]);
 
   const aggGran: DeckGran = gran === 'range' ? 'month' : gran;
@@ -215,9 +214,7 @@ export function LiveMisPage() {
     return [...byKey.values()];
   }, [view, selected]);
 
-  const ctx = useMemo(() => ({
-    merged, blended, setBlended: (b: boolean) => setBlendPref(b ? 'blended' : 'actual'), rates: blend?.rates ?? new Map<string, number>(),
-  }), [merged, blended, blend, setBlendPref]);
+  const ctx = useMemo(() => ({ merged, basis, setBasis, basisNote: normalised?.note ?? '' }), [merged, basis, setBasis, normalised]);
   const showControls = !NO_PERIOD.includes(tab) && view && allPeriods.length > 0;
 
   // A section that needs the deck: loading / no data / no period fallbacks, else its content.
@@ -267,8 +264,8 @@ export function LiveMisPage() {
         }
       />
 
-      {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} blended={blended} merged={merged} />}
-      {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} blended={blended} merged={merged} />}
+      {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} />}
+      {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Completeness floor */}
@@ -374,8 +371,8 @@ export function LiveMisPage() {
         {tab === 'pnl' && (
           <>
             <Section id="pnl-sheet" title="MIS sheet" defaultOpen
-              meta="Months of a fiscal year + FY total · Company or one channel · ₹ Lac or % of net revenue · Actual or Blended COGM">
-              {withDeck(() => <LiveMisSheetTab deck={view!} blendedMonths={blend?.months ?? null} />)}
+              meta="Months of a fiscal year + FY total · Company or one channel · ₹ Lac or % of net revenue · COGM Actual or Normalised">
+              {withDeck(() => <LiveMisSheetTab deck={view!} normalisedMonths={normalised?.months ?? null} />)}
             </Section>
             <Section id="pnl-ladder" title="Margin ladder & cost structure"
               meta={`GM → CM1 → CM2 → EBITDA → Net income over time · P&L bridge for ${selLabel} · cost lines as % of net revenue · follows the Basis switch`}>

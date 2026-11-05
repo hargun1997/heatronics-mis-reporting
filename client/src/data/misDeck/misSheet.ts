@@ -34,6 +34,12 @@ export interface MisPoint {
   netRevenue: number | null;
   cogs: number | null;
   grossMargin: number | null;
+  /**
+   * Normalised COGM basis only (memo): Tally's booked COGM − (BOM cost of the units sold + factory overhead) for
+   * the period; positive = stock built / purchase timing, negative = drawdown. null on the actual basis and for
+   * months that could not be normalised.
+   */
+  stockVariance: number | null;
   logistics: number | null;
   cm1: number | null;
   marketing: number | null;
@@ -55,7 +61,7 @@ export interface MisPoint {
 
 const MIS_POINT_KEYS: (keyof MisPoint)[] = [
   'qty', 'grossRevenue', 'channelMargin', 'returns', 'gst', 'ssClaim', 'discounts',
-  'netRevenue', 'cogs', 'grossMargin', 'logistics', 'cm1', 'marketing', 'cm2',
+  'netRevenue', 'cogs', 'grossMargin', 'stockVariance', 'logistics', 'cm1', 'marketing', 'cm2',
   'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
   'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
 ];
@@ -70,6 +76,8 @@ export interface MisSheetRow {
   count?: boolean;
   /** Decimals for a count row (default 0): runway in quarters shows 1.6, not 2. */
   decimals?: number;
+  /** Memo line (signed, outside the cascade), rendered muted / italic. */
+  memo?: boolean;
   get: (pt: MisPoint) => number | null;
 }
 
@@ -112,6 +120,14 @@ export const MIS_SHEET_ROWS: MisSheetRow[] = [
   { label: 'Runway (Qtr)', count: true, decimals: 1, get: (p) => p.runway },
 ];
 
+/** The memo line the normalised COGM basis adds right under GM% (Live MIS). */
+export const STOCK_VARIANCE_ROW: MisSheetRow = {
+  label: 'Stock build / drawdown (purchase timing)', memo: true, get: (p) => p.stockVariance,
+};
+
+/** MIS_SHEET_ROWS with the stock build / drawdown memo line under GM% — the normalised COGM basis. */
+export const MIS_SHEET_ROWS_NORMALISED: MisSheetRow[] = MIS_SHEET_ROWS.flatMap((r) => (r.label === 'GM%' ? [r, STOCK_VARIANCE_ROW] : [r]));
+
 // ----------------------------------------------------------------------------
 
 const monthByKey = new Map(MONTHLY_MIS.map((m) => [m.key, m]));
@@ -119,7 +135,7 @@ const discByKey = new Map(DISCOUNT_DATA.map((d) => [d.key, d.discount]));
 const monthsSeries = monthlySeries();
 
 const EMPTY_CASH = {
-  channelMargin: null, ssClaim: null, payroll: null, profFee: null, otherIncome: null,
+  channelMargin: null, ssClaim: null, stockVariance: null, payroll: null, profFee: null, otherIncome: null,
   openingCash: null, funding: null, closingCash: null, cashBurn: null, ebitdaBurn: null, runway: null,
 } as const;
 

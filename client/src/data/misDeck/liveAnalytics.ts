@@ -123,6 +123,13 @@ export interface PeriodAgg {
   factory: number;
   /** 'tally' = every member month uses Tally's actual; 'assumed' = none; 'mixed' = some. */
   factoryBasis: 'tally' | 'assumed' | 'mixed';
+  /**
+   * Normalised COGM basis only: Σ of the member months' `stockVariance` (Tally COGM − BOM cost of units sold −
+   * factory overhead; positive = stock built). 0 and `normalisedMonths` 0 on the actual basis.
+   */
+  stockVariance: number;
+  /** Member months restated to the normalised COGM basis (carry `stockVariance`). */
+  normalisedMonths: number;
 }
 
 /** "Dec 23" style label of the first / last member month, and the span note ("Dec 23–Mar 24 · 4m"). */
@@ -165,7 +172,7 @@ export function aggregatePeriods(
         cogmLines: {}, opexLines: {}, nonOpLines: {},
         grossByChannel: {}, returnsByChannel: {}, totalGrossRevenue: 0, totalReturns: 0, totalTaxes: 0, hasBuildUp: true,
         ordersByChannel: {}, ordersMonths: 0, published: false, locked: true, estOrdersByChannel: {},
-        closed: true, factory: 0, factoryBasis: 'tally',
+        closed: true, factory: 0, factoryBasis: 'tally', stockVariance: 0, normalisedMonths: 0,
       };
       buckets.set(key, b);
     }
@@ -197,6 +204,10 @@ export function aggregatePeriods(
     const mBasis = m.factoryBasis ?? 'assumed';
     if (b.members.length === 1) b.factoryBasis = mBasis;
     else if (b.factoryBasis !== mBasis) b.factoryBasis = 'mixed';
+    if (m.stockVariance !== undefined) {
+      b.stockVariance = r2(b.stockVariance + m.stockVariance);
+      b.normalisedMonths += 1;
+    }
 
     // Ledger detail (skip the embedded TOTAL rows — the cascade line is the total).
     const addLines = (into: Record<string, number>, src?: Record<string, number>) => {

@@ -134,7 +134,7 @@ const monthsAsc = [...MONTHLY_MIS]
   .sort((a, b) => a.year - b.year || a.month - b.month);
 
 // The series builders take an explicit source array so the same aggregation can
-// be reused for the actual months (default) and for the blended-GM months.
+// be reused for the actual months (default) and for any restated set of months.
 export function monthlySeries(src: MonthlyMIS[] = monthsAsc): PeriodMIS[] {
   return src.map((r) =>
     aggregate([r], r.key, r.label.replace(/ 20/, " '"), r.label, r.year * 100 + r.month),
@@ -181,19 +181,16 @@ export function seriesFor(g: Granularity, src: MonthlyMIS[] = monthsAsc): Period
 }
 
 // ----------------------------------------------------------------------------
-// Blended gross margin
+// FY-blended gross margin — RETIRED (5 Nov 2026)
 // ----------------------------------------------------------------------------
 //
-// The company books COGM on purchase/consumption timing rather than matched to
-// each month's sales, so the *actual* monthly GM% swings wildly (~14%–84%).
-// The "blended" view replaces each month's noisy COGM with one implied by a
-// revenue-weighted GM% for that month's fiscal year, applied in proportion to
-// the month's net revenue. Everything below GM (CM1/2/3, EBITDA, Net Income)
-// shifts by the same delta; channel/marketing/opex/non-operating stay actual.
-// By construction, a full fiscal year is unchanged — only sub-annual noise is
-// smoothed.
+// Stamped one revenue-weighted FY GM% on every month of the fiscal year, so GM%
+// was flat all year and mix was hidden. The Live MIS now uses the normalised
+// COGM basis (liveViews.normaliseLiveMonths: BOM cost of units sold + factory
+// overhead, purchase-timing difference as a memo line). Nothing in the UI or
+// the exports calls these any more; they stay until the next cleanup.
 
-/** Revenue-weighted gross-margin fraction per fiscal year. */
+/** @deprecated Retired with the FY blend — revenue-weighted gross-margin fraction per fiscal year. */
 export function fyBlendedGMRates(src: MonthlyMIS[] = monthsAsc): Map<string, number> {
   const acc = new Map<string, { gm: number; nr: number }>();
   for (const r of src) {
@@ -208,7 +205,7 @@ export function fyBlendedGMRates(src: MonthlyMIS[] = monthsAsc): Map<string, num
   return rates;
 }
 
-/** Months restated so each carries its fiscal year's blended GM% (in proportion to revenue). */
+/** @deprecated Retired with the FY blend — months restated so each carries its fiscal year's blended GM%. */
 export function blendedMonths(src: MonthlyMIS[] = monthsAsc, rates: Map<string, number> = fyBlendedGMRates(src)): MonthlyMIS[] {
   return src.map((r) => {
     const rate = rates.get(fiscalYear(r.month, r.year).key) ?? (r.netRevenue ? r.grossMargin / r.netRevenue : 0);
@@ -227,7 +224,7 @@ export function blendedMonths(src: MonthlyMIS[] = monthsAsc, rates: Map<string, 
   });
 }
 
-/** Period series with the blended-GM restatement applied. Yearly ≈ actual by construction. */
+/** @deprecated Retired with the FY blend — period series with the blended-GM restatement applied. */
 export function seriesForBlended(g: Granularity): PeriodMIS[] {
   return seriesFor(g, blendedMonths());
 }
@@ -866,11 +863,8 @@ for (const m of monthsAsc) {
   for (const c of SALES_CHANNELS) MODEL_REV_BY_MONTH[c][m.key] = Math.max(0, m.netByChannel[c] || 0);
 }
 
-// Channels with real per-channel COST feeds (marketplace fees + ad spend).
-const FEED_CHANNELS: SalesChannel[] = ['D2C', 'Amazon', 'Blinkit'];
 // Direct / wholesale channels — model revenue, COGS only (no marketplace fees or ads).
 const DIRECT_CHANNELS: SalesChannel[] = ['OEM', 'Offline'];
-const ACTUAL_CHANNELS: SalesChannel[] = [...FEED_CHANNELS, ...DIRECT_CHANNELS];
 
 /**
  * Channel-level contribution P&L from real per-channel costs.

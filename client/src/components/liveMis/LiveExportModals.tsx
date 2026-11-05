@@ -11,8 +11,9 @@ import { aggregatePeriods, monthLabel, type Granularity } from '../../data/misDe
 import { exportLiveMis, liveSheetCount, LIVE_EXPORT_EVERYTHING, type LiveExportOptions } from '../../utils/liveMisExport';
 import { useStatements } from './useStatements';
 import { downloadLivePdf, type PdfSection } from '../../utils/liveMisPdf';
+import type { CogmBasis } from './shared';
 
-type SheetKey = Exclude<keyof LiveExportOptions, 'granularities' | 'blendCogm' | 'mergeChannels'>;
+type SheetKey = Exclude<keyof LiveExportOptions, 'granularities' | 'normaliseCogm' | 'mergeChannels'>;
 const SHEETS: { key: SheetKey; title: string; desc: string }[] = [
   { key: 'includeSummary', title: 'Summary', desc: 'Headline KPIs and a financial-year summary table' },
   { key: 'includeChannelRevenue', title: 'Channel Revenue', desc: 'Net revenue and mix % per channel, by month' },
@@ -37,12 +38,12 @@ const chip = (on: boolean) => `px-3 py-1.5 rounded-lg text-xs border transition-
 const btnPrimary = 'px-4 py-2 rounded-lg bg-cta text-on-cta text-sm font-medium hover:bg-cta-hover disabled:opacity-40';
 const btnGhost = 'px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800';
 
-export function LiveExcelModal({ deck, open, onClose, blended, merged }: {
-  deck: LiveDeckData; open: boolean; onClose: () => void; blended: boolean; merged: boolean;
+export function LiveExcelModal({ deck, open, onClose, basis, merged }: {
+  deck: LiveDeckData; open: boolean; onClose: () => void; basis: CogmBasis; merged: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const stmts = useStatements();
-  const [o, setO] = useState<LiveExportOptions>(() => ({ ...LIVE_EXPORT_EVERYTHING, blendCogm: blended, mergeChannels: merged }));
+  const [o, setO] = useState<LiveExportOptions>(() => ({ ...LIVE_EXPORT_EVERYTHING, normaliseCogm: basis === 'normalised', mergeChannels: merged }));
   const n = liveSheetCount(o);
   const run = async (opts: LiveExportOptions) => {
     setBusy(true);
@@ -58,7 +59,7 @@ export function LiveExcelModal({ deck, open, onClose, blended, merged }: {
         <button type="button" disabled={busy || !n} onClick={() => void run(o)} className={btnPrimary}>{busy ? 'Exporting…' : 'Export selected'}</button>
       </>}>
       <div className="space-y-4">
-        <button type="button" disabled={busy} onClick={() => void run({ ...LIVE_EXPORT_EVERYTHING, blendCogm: o.blendCogm, mergeChannels: o.mergeChannels })}
+        <button type="button" disabled={busy} onClick={() => void run({ ...LIVE_EXPORT_EVERYTHING, normaliseCogm: o.normaliseCogm, mergeChannels: o.mergeChannels })}
           className="w-full text-left rounded-xl bg-cta hover:bg-cta-hover text-on-cta px-4 py-3 disabled:opacity-60">
           <span className="block font-semibold">Export Everything</span>
           <span className="block text-xs text-white/80">Every month, quarter and FY, channel P&amp;L, SKU × channel, orders, repeats, discounts, COGM / OpEx detail, marketing, units and SKU cells</span>
@@ -77,9 +78,9 @@ export function LiveExcelModal({ deck, open, onClose, blended, merged }: {
             </div>
           </div>
           <label className="flex items-start gap-2.5 text-sm cursor-pointer">
-            <input type="checkbox" className="mt-1" checked={o.blendCogm} onChange={() => setO({ ...o, blendCogm: !o.blendCogm })} />
-            <span><span className="font-medium text-slate-800">Blend COGM to FY rate</span>
-              <span className="block text-xs text-slate-500">Smooths month-to-month COGM booking noise on the P&amp;L sheets; full FYs unchanged. COGM Detail stays actual.</span></span>
+            <input type="checkbox" className="mt-1" checked={o.normaliseCogm} onChange={() => setO({ ...o, normaliseCogm: !o.normaliseCogm })} />
+            <span><span className="font-medium text-slate-800">Normalised COGM</span>
+              <span className="block text-xs text-slate-500">P&amp;L and MIS sheets price COGM as units sold × BOM cost + factory overhead; Tally's purchase-timing difference is a "Stock build / drawdown" memo line. Months with no BOM costing stay as booked (noted). COGM Detail stays as booked.</span></span>
           </label>
           <label className="flex items-start gap-2.5 text-sm cursor-pointer">
             <input type="checkbox" className="mt-1" checked={o.mergeChannels} onChange={() => setO({ ...o, mergeChannels: !o.mergeChannels })} />
@@ -110,8 +111,8 @@ const SECTIONS: { id: PdfSection; title: string; desc: string }[] = [
   { id: 'misSheet', title: 'MIS Sheet', desc: 'The standard MIS Sheet per fiscal year selected, with the Tally cash rows' },
 ];
 
-export function LivePdfModal({ deck, open, onClose, blended, merged }: {
-  deck: LiveDeckData; open: boolean; onClose: () => void; blended: boolean; merged: boolean;
+export function LivePdfModal({ deck, open, onClose, basis, merged }: {
+  deck: LiveDeckData; open: boolean; onClose: () => void; basis: CogmBasis; merged: boolean;
 }) {
   const years = useMemo(() => aggregatePeriods(deck.months, deck.completeness, 'year'), [deck]);
   const [sections, setSections] = useState<PdfSection[]>(['trends', 'fyPnl']);
@@ -122,14 +123,14 @@ export function LivePdfModal({ deck, open, onClose, blended, merged }: {
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const run = () => {
     setBusy(true);
-    try { downloadLivePdf(deck, { sections, fyKeys, monthKeys, blendCogm: blended, mergeChannels: merged }, stmts.built); setTimeout(onClose, 300); }
+    try { downloadLivePdf(deck, { sections, fyKeys, monthKeys, normaliseCogm: basis === 'normalised', mergeChannels: merged }, stmts.built); setTimeout(onClose, 300); }
     catch (e) { console.error('PDF export failed', e); alert('Failed to build the PDF. Please try again.'); }
     finally { setBusy(false); }
   };
   return (
     <Modal open={open} onClose={onClose} width={600} title="Export PDF" subtitle="A printable report built from the Live MIS"
       footer={<>
-        <span className="mr-auto text-xs text-slate-500">{blended ? 'Blended' : 'Actual'} COGM · {merged ? 'continuous' : 'as-booked'} channels</span>
+        <span className="mr-auto text-xs text-slate-500">{basis === 'normalised' ? 'Normalised' : 'Actual'} COGM · {merged ? 'continuous' : 'as-booked'} channels</span>
         <button type="button" onClick={onClose} className={btnGhost}>Cancel</button>
         <button type="button" disabled={busy || sections.length === 0} onClick={run} className={btnPrimary}>{busy ? 'Building…' : 'Download PDF'}</button>
       </>}>
