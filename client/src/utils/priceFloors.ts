@@ -71,7 +71,13 @@ export interface CostsSnapshot {
   month: string;
   generated: string;
   data_to: string;
-  conversion: { overheadsMonth: string; carried: boolean; total: number; units: number | null; basis: string; alloc: string } | null;
+  conversion: {
+    overheadsMonth: string; carried: boolean; total: number; units: number | null; basis: string; alloc: string;
+    /** standard = units a day typed in Production; actual = what was really made (last 3 full months) */
+    pace?: 'standard' | 'actual';
+    floorDays?: number | null;
+    types?: { type: string; perDay: number; madePerDay?: number | null; perUnit?: number | null }[];
+  } | null;
   products: ProductCost[];
   fetchedAt: string;
   source: string;
