@@ -93,6 +93,79 @@ export const portalManifest = {
       "path": "/api/ownership/reminders/run",
       "auth": "open",
       "purpose": "Ownership reminder emails (scheduler)"
+    },
+    {
+      "id": "tally-vouchers",
+      "method": "GET",
+      "path": "/api/tally/books/vouchers?period=<period>&q=<q>",
+      "auth": "session",
+      "purpose": "Tally vouchers",
+      "mcp": {
+        "tool": "mis_get_vouchers",
+        "description": "Tally Day Book vouchers for a month (type, number, date, party, narration, ledger lines), filtered by a search word (party, ledger, narration). Up to 400 rows.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "period": {
+              "type": "string",
+              "description": "YYYY-MM"
+            },
+            "q": {
+              "type": "string",
+              "description": "Search word"
+            }
+          },
+          "required": [
+            "period"
+          ]
+        },
+        "returns": "Voucher rows"
+      }
+    },
+    {
+      "id": "tally-ledgers",
+      "method": "GET",
+      "path": "/api/tally/books/ledgers?q=<q>",
+      "auth": "session",
+      "purpose": "Tally ledgers",
+      "mcp": {
+        "tool": "mis_get_ledgers",
+        "description": "Tally ledger masters with their groups and balances, filtered by a search word.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string"
+            }
+          }
+        },
+        "returns": "Ledger rows"
+      }
+    },
+    {
+      "id": "tally-health",
+      "method": "GET",
+      "path": "/api/tally/books/health?months=<months>",
+      "auth": "session",
+      "purpose": "Tally book health",
+      "mcp": {
+        "tool": "mis_get_books_health",
+        "description": "Tally health checks over recent months: wrong groups, missing narrations, odd vouchers, with how to fix each in TallyPrime.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "months": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            }
+          }
+        },
+        "returns": "Checks with fixes"
+      }
     }
   ],
   "consumes": [
