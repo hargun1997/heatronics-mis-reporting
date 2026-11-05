@@ -1,43 +1,41 @@
 // ----------------------------------------------------------------------------
-// Live MIS — every report of the legacy deck, computed live from the durable
-// uploads: Overview, Revenue & Growth, Channel Mix, Profitability, P&L, Channel
-// P&L, SKU, SKU×Channel, Units, Repeats and the MIS Sheet; the Run-rate tab keeps
-// the always-on connector fact stream. Numbers are real through each month's
-// completeness level (full close / to CM2 / top line); the "complete through"
-// floor is the latest fully-closed month.
+// Live MIS — five tabs, each a stack of expandable sections (founder, 5 Nov 2026:
+// "expandable … declutter … the P&L is the MIS"):
+//   Overview   Headline · Revenue & growth · Run-rate (whole business)
+//   P&L        the MIS sheet (₹ Lac | % of net revenue, Actual | Blended COGM) ·
+//              Margin ladder & cost structure · Detailed P&L · By channel
+//   Channels   Channel mix · SKU × channel
+//   Products   SKU P&L · Units sold
+//   Statements Balance sheet · Cash flow (Tally's stored month-end Trial Balances)
+// Numbers are real through each month's completeness level (full close / to CM2
+// / top line); the "complete through" floor is the latest locked month. Data
+// freshness and report uploads live in Setup; repeat purchase / cohorts in Ops.
 // ----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { PageHeader, SectionCard, KpiTile, SegmentedControl } from '../../components/ui';
+import { PageHeader, KpiTile, SegmentedControl } from '../../components/ui';
 import { inr } from '../../components/mis-deck/charts';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
 import {
-  clearUpload, loadUploads, parseUpload, saveUpload, uploadedFacts,
-  UPLOAD_PARSERS, type UploadStore,
-} from '../../data/liveMis/uploadParsers';
-import {
   periodsIn, rollup, totals, type Dimension, type Granularity as RrGranularity, type MetricKey,
 } from '../../data/liveMis/facts';
-import { computeFreshness } from '../../data/liveMis/freshness';
-import { listConnectors, type ConnectorInfo } from '../../data/monthClose/connectorsClient';
-import { FreshnessHeadline, FreshnessTable } from '../../components/mis/FreshnessTable';
 import { ProductGapsPanel } from '../../components/liveMis/ProductGapsPanel';
 import { loadLiveDeck, swapAlternates, LIVE_BOUNDARY, type LiveDeckData } from '../../data/misDeck/liveDeck';
-import { aggregatePeriods, monthLabel, type Granularity as DeckGran } from '../../data/misDeck/liveAnalytics';
+import { aggregatePeriods, monthLabel, type Granularity as DeckGran, type PeriodAgg } from '../../data/misDeck/liveAnalytics';
 import {
   blendLiveMonths, unifyChannels, rangeKeys, rangePresetLabel, aggregateRange, type RangePreset,
 } from '../../data/misDeck/liveViews';
 import {
   OverviewTab, PnlTab, ChannelsTab, SkuTab, SkuChannelTab, SkuUnitsTab, LevelBadge, type PnlDisplay,
 } from '../../components/liveMis/deckTabs';
-import { RevenueGrowthTab, ChannelMixTab, ProfitabilityTab, RepeatsTab } from '../../components/liveMis/reportTabs';
+import { RevenueGrowthTab, ChannelMixTab, ProfitabilityTab } from '../../components/liveMis/reportTabs';
 import { LiveMisSheetTab } from '../../components/liveMis/LiveMisSheetTab';
 import { MonthClosePanel } from '../../components/liveMis/MonthClosePanel';
 import { deckItems, rememberDeckItems } from '../../data/issues/inbox';
 import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExportModals';
-import { LiveViewProvider, Pills } from '../../components/liveMis/shared';
+import { LiveViewProvider, Pills, Section } from '../../components/liveMis/shared';
 
 const iconLive = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -45,27 +43,28 @@ const iconLive = (
   </svg>
 );
 
-type Tab = 'overview' | 'growth' | 'mix' | 'profit' | 'pnl' | 'bs' | 'cashflow' | 'channels' | 'sku' | 'skuchannel' | 'units' | 'repeats' | 'missheet' | 'runrate';
+type Tab = 'overview' | 'pnl' | 'channels' | 'products' | 'statements';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'growth', label: 'Revenue & Growth' },
-  { id: 'mix', label: 'Channel Mix' },
-  { id: 'profit', label: 'Profitability' },
   { id: 'pnl', label: 'P&L' },
-  { id: 'bs', label: 'Balance Sheet' },
-  { id: 'cashflow', label: 'Cash Flow' },
-  { id: 'channels', label: 'Channel P&L' },
-  { id: 'sku', label: 'SKU' },
-  { id: 'skuchannel', label: 'SKU × Channel' },
-  { id: 'units', label: 'Units sold' },
-  { id: 'repeats', label: 'Repeats' },
-  { id: 'missheet', label: 'MIS Sheet' },
-  { id: 'runrate', label: 'Run-rate' },
+  { id: 'channels', label: 'Channels' },
+  { id: 'products', label: 'Products' },
+  { id: 'statements', label: 'Statements' },
 ];
-// Tabs that don't use the period controls (they carry their own scope).
-const NO_PERIOD: Tab[] = ['runrate', 'repeats', 'missheet', 'bs', 'cashflow'];
-// Tabs that show the Actual|Blended toggle + note; all others always use actual COGM.
-const BLEND_TABS: Tab[] = ['overview', 'profit', 'pnl'];
+// Old tab ids (links, bookmarks, the remembered tab) → where that content now lives.
+const LEGACY_TABS: Record<string, Tab> = {
+  growth: 'overview', runrate: 'overview', repeats: 'overview',
+  profit: 'pnl', missheet: 'pnl', channels: 'pnl',
+  mix: 'channels', skuchannel: 'channels',
+  sku: 'products', units: 'products',
+  bs: 'statements', cashflow: 'statements',
+};
+const isTab = (v: string | null | undefined): v is Tab => !!v && TABS.some((t) => t.id === v);
+const resolveTab = (v: string | null | undefined): Tab | null => (isTab(v) ? v : v && LEGACY_TABS[v] ? LEGACY_TABS[v] : null);
+// Tabs that don't use the period controls (Statements carries its own months).
+const NO_PERIOD: Tab[] = ['statements'];
+// Tabs on which the Actual|Blended COGM basis applies (Overview's headline, the whole P&L tab); the rest stay on actual COGM.
+const BLEND_TABS: Tab[] = ['overview', 'pnl'];
 
 type Grain = DeckGran | 'range';
 const DECK_GRAINS: { id: Grain; label: string }[] = [
@@ -91,6 +90,24 @@ function usePref<T extends string>(key: string, fallback: T): [T, (v: T) => void
   return [v, set];
 }
 
+/** The tab to open: ?tab= (old ids mapped), else the remembered one, else Overview. */
+function useTab(): [Tab, (t: Tab) => void] {
+  const [pref, setPref] = usePref<string>('tab', 'overview');
+  const [tab, setTabState] = useState<Tab>(() => {
+    try { const q = resolveTab(new URLSearchParams(window.location.search).get('tab')); if (q) return q; } catch { /* no window */ }
+    return resolveTab(pref) ?? 'overview';
+  });
+  const setTab = (t: Tab) => {
+    setTabState(t); setPref(t);
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('tab', t);
+      window.history.replaceState(window.history.state, '', u);
+    } catch { /* no history */ }
+  };
+  return [tab, setTab];
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="text-xs text-slate-500">
@@ -101,7 +118,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function LiveMisPage() {
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useTab();
 
   // ---- Deck data (the durable-upload cascade) ----
   const [deck, setDeck] = useState<LiveDeckData | null>(null);
@@ -119,7 +136,8 @@ export function LiveMisPage() {
   const [display, setDisplay] = useState<PnlDisplay>('both');
   const [fy, setFy] = useState<string>('all');
   // COGM basis: Blended by default, as the legacy deck (owner's call, Oct 2026);
-  // Actual (ties to Tally month by month) is one click and remembered.
+  // Actual (ties to Tally month by month) is one click and remembered. ONE switch
+  // (on the P&L sheet / Overview headline) drives every section of that tab.
   const [blendPref, setBlendPref] = usePref<'actual' | 'blended'>('cogm', 'blended');
   const [chanPref, setChanPref] = usePref<'continuous' | 'booked'>('channels', 'continuous');
   const [showLive, setShowLive] = useState(false);
@@ -146,9 +164,6 @@ export function LiveMisPage() {
     return merged ? unifyChannels(d) : d;
   }, [deck, showLive, merged]);
   const blend = useMemo(() => (view ? blendLiveMonths(view.months, view.completeness) : null), [view]);
-  // Blended COGM applies only on the tabs that carry the Actual|Blended toggle and
-  // its note (Overview, Profitability, P&L) — like the legacy deck, every other
-  // tab (Channel P&L, Revenue & Growth, SKU, Channel Mix …) stays on actual COGM.
   const blendTab = BLEND_TABS.includes(tab);
   const months = useMemo(() => (view ? (blended && blendTab && blend ? blend.months : view.months) : []), [view, blend, blended, blendTab]);
   const completeness = useMemo(() => view?.completeness ?? {}, [view]);
@@ -205,13 +220,24 @@ export function LiveMisPage() {
   }), [merged, blended, blend, setBlendPref]);
   const showControls = !NO_PERIOD.includes(tab) && view && allPeriods.length > 0;
 
+  // A section that needs the deck: loading / no data / no period fallbacks, else its content.
+  const withDeck = (render: () => ReactNode) => {
+    if (!view) return <p className="text-sm text-slate-400 py-6 text-center">{deckLoading ? 'Loading the MIS…' : 'No data yet.'}</p>;
+    if (allPeriods.length === 0) return <NoData />;
+    return render();
+  };
+  const withPeriod = (render: (sel: PeriodAgg, v: LiveDeckData) => ReactNode) => withDeck(() => (
+    selected ? render(selected, view!) : <p className="text-sm text-slate-400 py-6 text-center">{isRange ? 'Pick at least one month for the range.' : 'No period in this selection.'}</p>
+  ));
+  const selLabel = selected ? selected.label : '—';
+
   return (
     <LiveViewProvider value={ctx}>
       <PageHeader
         title="Live MIS"
         accent="brand"
         icon={iconLive}
-        description="The MIS, live from your uploads — every report of the published deck. Each month is real through its completeness level; the full P&L lands once its Tally P&L is in."
+        description="The MIS, live from your uploads. Each month is real through its completeness level; the full P&L lands once its Tally P&L is in."
         crumbs={[
           { label: 'Reporting', to: '/reporting' },
           { label: 'MIS Reporting', to: '/reporting/mis' },
@@ -251,9 +277,9 @@ export function LiveMisPage() {
         {deckError && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{deckError}</div>}
 
         {/* Tab bar */}
-        <div className="flex gap-1 border-b border-slate-200 overflow-x-auto no-scrollbar">
+        <div className="flex gap-1 border-b border-slate-200 overflow-x-auto no-scrollbar" role="tablist" aria-label="Live MIS views">
           {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
               className={'px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ' +
                 (tab === t.id ? 'border-brand-500 text-brand-700 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700')}>
               {t.label}
@@ -261,7 +287,7 @@ export function LiveMisPage() {
           ))}
         </div>
 
-        {/* Deck-tab controls (grain, year / range, period, channel naming) */}
+        {/* Period controls (grain, year / range, period, channel naming) — once, for every tab but Statements */}
         {showControls && (
           <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
             <Field label="Grain">
@@ -285,7 +311,7 @@ export function LiveMisPage() {
                 </select>
               </Field>
             )}
-            {!isRange && tab !== 'pnl' && (
+            {!isRange && (
               <Field label="Period">
                 <select value={selected?.key ?? ''} onChange={(e) => setPeriodKey(e.target.value)}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
@@ -326,35 +352,82 @@ export function LiveMisPage() {
           <p className="text-xs text-slate-500">Showing <span className="font-medium text-slate-700">{selected.label}</span>: {selected.members.map(monthLabel).join(', ')} — aggregated; completeness is the lowest month’s.</p>
         )}
 
-        {/* Tab content */}
-        {tab === 'runrate' ? (
-          <RunRateTab />
-        ) : tab === 'repeats' ? (
-          <RepeatsTab />
-        ) : tab === 'bs' ? (
-          <BalanceSheetTab />
-        ) : tab === 'cashflow' ? (
-          <CashFlowTab />
-        ) : !view ? (
-          <p className="text-sm text-slate-400 py-8 text-center">{deckLoading ? 'Loading the MIS…' : 'No data yet.'}</p>
-        ) : tab === 'missheet' ? (
-          <LiveMisSheetTab deck={view} />
-        ) : allPeriods.length === 0 ? (
-          <NoData />
-        ) : !selected ? (
-          <p className="text-sm text-slate-400 py-8 text-center">{isRange ? 'Pick at least one month for the range.' : 'No period in this selection.'}</p>
-        ) : (
-          <div>
-            {tab === 'overview' && <OverviewTab period={selected} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} traffic={trafficRows} isRange={isRange} />}
-            {tab === 'growth' && <RevenueGrowthTab monthly={monthly} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} completeThrough={view.completeThrough} />}
-            {tab === 'mix' && <ChannelMixTab period={selected} periods={shownPeriods} months={view.months} monthly={monthly} quarterly={quarterly} yearly={yearly} gran={aggGran} />}
-            {tab === 'profit' && <ProfitabilityTab period={selected} periods={shownPeriods} gran={aggGran} />}
-            {tab === 'pnl' && <PnlTab periods={pnlCols} months={months} completeness={completeness} gran={isRange ? 'month' : aggGran} display={display} setDisplay={setDisplay} />}
-            {tab === 'channels' && <ChannelsTab period={selected} periods={shownPeriods} cells={view.skuCells} periodKeys={periodKeys} completeness={completeness} />}
-            {tab === 'sku' && <SectionCard title="SKU P&L"><SkuTab period={selected} cells={view.skuCells} periodKeys={periodKeys} /></SectionCard>}
-            {tab === 'skuchannel' && <SkuChannelTab period={selected} cells={view.skuCells} periodKeys={periodKeys} />}
-            {tab === 'units' && <SectionCard title="Units sold"><SkuUnitsTab period={selected} cells={view.skuCells} periodKeys={periodKeys} /></SectionCard>}
-          </div>
+        {/* ---- Overview ---- */}
+        {tab === 'overview' && (
+          <>
+            <Section id="ov-headline" title="Headline" defaultOpen
+              meta={`Snapshot for ${selLabel} · KPIs, revenue & margin trends, channel mix, P&L bridge`}>
+              {withPeriod((sel) => <OverviewTab period={sel} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} traffic={trafficRows} isRange={isRange} />)}
+            </Section>
+            <Section id="ov-growth" title="Revenue & growth"
+              meta="ARR & forward projection · discounts · revenue trajectory by channel · period-over-period and YoY growth">
+              {withDeck(() => <RevenueGrowthTab monthly={monthly} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} completeThrough={view!.completeThrough} />)}
+            </Section>
+            <Section id="ov-runrate" title="Run-rate — whole business"
+              meta="Every connector's daily facts, all channels together · MRR, MER, orders · by day, week or month">
+              <RunRateTab />
+            </Section>
+          </>
+        )}
+
+        {/* ---- P&L (this IS the MIS) ---- */}
+        {tab === 'pnl' && (
+          <>
+            <Section id="pnl-sheet" title="MIS sheet" defaultOpen
+              meta="Months of a fiscal year + FY total · Company or one channel · ₹ Lac or % of net revenue · Actual or Blended COGM">
+              {withDeck(() => <LiveMisSheetTab deck={view!} blendedMonths={blend?.months ?? null} />)}
+            </Section>
+            <Section id="pnl-ladder" title="Margin ladder & cost structure"
+              meta={`GM → CM1 → CM2 → EBITDA → Net income over time · P&L bridge for ${selLabel} · cost lines as % of net revenue · follows the Basis switch`}>
+              {withPeriod((sel) => <ProfitabilityTab period={sel} periods={shownPeriods} gran={aggGran} />)}
+            </Section>
+            <Section id="pnl-detail" title="Detailed P&L (expandable lines)"
+              meta="Every shown period as a column · click a line to drill into ledgers, ad platforms and the revenue build-up · metric trends">
+              {withDeck(() => <PnlTab periods={pnlCols} months={months} completeness={completeness} gran={isRange ? 'month' : aggGran} display={display} setDisplay={setDisplay} />)}
+            </Section>
+            <Section id="pnl-channels" title="By channel"
+              meta={`Channel P&L for ${selLabel} · MIS-anchored or bottom-up · channels or verticals · revenue by channel over time`}>
+              {withPeriod((sel, v) => <ChannelsTab period={sel} periods={shownPeriods} cells={v.skuCells} periodKeys={periodKeys} completeness={completeness} />)}
+            </Section>
+          </>
+        )}
+
+        {/* ---- Channels ---- */}
+        {tab === 'channels' && (
+          <>
+            <Section id="ch-mix" title="Channel mix" defaultOpen
+              meta="Share of net revenue by channel · channel revenue, orders and growth over time · like-for-like YoY · FY mix">
+              {withPeriod((sel, v) => <ChannelMixTab period={sel} periods={shownPeriods} months={v.months} monthly={monthly} quarterly={quarterly} yearly={yearly} gran={aggGran} />)}
+            </Section>
+            <Section id="ch-skuchannel" title="SKU × channel"
+              meta={`Products × channels for ${selLabel} · contribution, revenue, marketing, CM2 or units · full P&L per SKU or per channel`}>
+              {withPeriod((sel, v) => <SkuChannelTab period={sel} cells={v.skuCells} periodKeys={periodKeys} />)}
+            </Section>
+          </>
+        )}
+
+        {/* ---- Products ---- */}
+        {tab === 'products' && (
+          <>
+            <Section id="pr-sku" title="SKU P&L" defaultOpen meta={`Full P&L per product for ${selLabel} · % of revenue under each column`}>
+              {withPeriod((sel, v) => <SkuTab period={sel} cells={v.skuCells} periodKeys={periodKeys} />)}
+            </Section>
+            <Section id="pr-units" title="Units sold" meta={`Units per product and channel for ${selLabel}`}>
+              {withPeriod((sel, v) => <SkuUnitsTab period={sel} cells={v.skuCells} periodKeys={periodKeys} />)}
+            </Section>
+          </>
+        )}
+
+        {/* ---- Statements ---- */}
+        {tab === 'statements' && (
+          <>
+            <Section id="st-bs" title="Balance sheet" defaultOpen meta="Month-end balance sheets from Tally's stored Trial Balances · ₹ lakh · last 12 months">
+              <BalanceSheetTab />
+            </Section>
+            <Section id="st-cf" title="Cash flow" meta="Indirect cash flow between consecutive month ends · operations, investing, financing · ₹ lakh">
+              <CashFlowTab />
+            </Section>
+          </>
         )}
       </div>
     </LiveViewProvider>
@@ -413,18 +486,19 @@ function prevMonth(pk: string): string {
 
 function NoData() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center">
+    <div className="px-4 py-8 text-center">
       <p className="text-sm text-slate-500">No uploads have been ingested yet.</p>
       <p className="text-xs text-slate-400 mt-1">
-        Head to <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</a> to upload each source,
-        or see the <a href="/reporting/mis/rulebook" className="text-brand-600 underline">Data rulebook</a> for what feeds what.
+        Head to <Link to="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</Link> to upload each source,
+        or see the <Link to="/reporting/mis/rulebook" className="text-brand-600 underline">Data rulebook</Link> for what feeds what.
       </p>
     </div>
   );
 }
 
 // ============================================================================
-// Run-rate tab — the always-on connector fact stream (daily/weekly/monthly).
+// Run-rate — the always-on connector fact stream for the WHOLE business
+// (daily / weekly / monthly). Freshness and uploads live in Setup.
 // ============================================================================
 
 const RR_GRAINS: { id: RrGranularity; label: string }[] = [
@@ -461,10 +535,6 @@ function RunRateTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
-  const [uploads, setUploads] = useState<UploadStore>(() => loadUploads());
-  const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
-
-  useEffect(() => { listConnectors().then((r) => setConnectors(r.connectors)).catch(() => {}); }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -480,12 +550,7 @@ function RunRateTab() {
     return () => clearInterval(t);
   }, [auto]);
 
-  const facts = useMemo(() => {
-    const up = uploadedFacts(uploads).filter((f) => f.date >= from && f.date <= to);
-    const uploaded = new Set(Object.keys(uploads));
-    const apiFacts = (data?.facts ?? []).filter((f) => !uploaded.has(f.source));
-    return [...apiFacts, ...up];
-  }, [data, uploads, from, to]);
+  const facts = useMemo(() => data?.facts ?? [], [data]);
 
   const metricDef = RR_METRICS.find((m) => m.id === metric)!;
   const isRatio = metric === 'aov' || metric === 'mer';
@@ -509,117 +574,78 @@ function RunRateTab() {
   }, [buckets, dim, metric, isRatio]);
 
   const days = daysBetween(from, to);
-  const rr = { MRR: (sum.revenue / days) * 30 };
+  const mrr = (sum.revenue / days) * 30;
 
   return (
-    <div className="space-y-5">
-      <SectionCard title="View" description="Date range, run-rate grain, and how to slice it."
-        actions={
-          <div className="flex items-center gap-3 text-[11px] text-slate-400">
-            {fetchedAt && <span>updated {fetchedAt.toLocaleTimeString()}</span>}
-            <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> auto</label>
-            <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40">{loading ? 'Pulling…' : 'Refresh'}</button>
-          </div>
-        }>
-        <div className="flex flex-wrap items-end gap-4">
-          <Field label="From">
-            <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" />
-          </Field>
-          <Field label="To">
-            <input type="date" value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" />
-          </Field>
-          <Field label="Run-rate"><SegmentedControl size="sm" aria-label="Run-rate grain" options={RR_GRAINS} value={gran} onChange={setGran} /></Field>
-          <Field label="Slice by"><SegmentedControl size="sm" aria-label="Slice by" options={RR_DIMS} value={dim} onChange={setDim} /></Field>
-          <Field label="Metric">
-            <select value={metric} onChange={(e) => setMetric(e.target.value as MetricKey)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
-              {RR_METRICS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select>
-          </Field>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+        <Field label="From">
+          <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" />
+        </Field>
+        <Field label="To">
+          <input type="date" value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm" />
+        </Field>
+        <Field label="Run-rate"><SegmentedControl size="sm" aria-label="Run-rate grain" options={RR_GRAINS} value={gran} onChange={setGran} /></Field>
+        <Field label="Slice by"><SegmentedControl size="sm" aria-label="Slice by" options={RR_DIMS} value={dim} onChange={setDim} /></Field>
+        <Field label="Metric">
+          <select value={metric} onChange={(e) => setMetric(e.target.value as MetricKey)} className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
+            {RR_METRICS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+        </Field>
+        <div className="flex items-center gap-3 text-[11px] text-slate-400 sm:ml-auto pb-1">
+          {fetchedAt && <span>updated {fetchedAt.toLocaleTimeString()}</span>}
+          <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> auto</label>
+          <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40">{loading ? 'Pulling…' : 'Pull again'}</button>
         </div>
-      </SectionCard>
+      </div>
 
       {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiTile label="Revenue" value={inr(sum.revenue)} />
+        <KpiTile label="Revenue" value={inr(sum.revenue)} sub={`${days} days`} />
+        <KpiTile label="MRR" value={inr(mrr)} sub="30-day run-rate" />
         <KpiTile label="Ad spend" value={inr(sum.spend)} />
         <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="rev / spend" />
-        <KpiTile label="Net" value={inr(sum.net)} />
+        <KpiTile label="Net" value={inr(sum.net)} sub="rev − fees" />
         <KpiTile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
-        <KpiTile label="MRR" value={inr(rr.MRR)} sub="30-day run-rate" />
       </div>
 
-      {data && (
-        <SectionCard title="Data freshness"
-          description="Every connector, how current it is, and the date the whole MIS is live through — the system is only as current as its stalest source."
-          actions={<FreshnessHeadline fresh={computeFreshness(connectors, data.facts, uploads)} />}>
-          <FreshnessTable fresh={computeFreshness(connectors, data.facts, uploads)} onRemoveUpload={(id) => setUploads({ ...clearUpload(id) })} />
-          <UploadReport onUpload={(s) => setUploads({ ...s })} />
-        </SectionCard>
-      )}
-
-      <SectionCard title={`${RR_GRAINS.find((g) => g.id === gran)!.label} ${metricDef.label} by ${RR_DIMS.find((d) => d.id === dim)!.label.toLowerCase()}`}
-        description={`${from} → ${to} · ${days} days${isRatio ? ' · ratio metric, not summed' : ''}`}>
+      <div>
+        <p className="text-xs text-slate-500 mb-2">
+          <span className="font-medium text-slate-700">{RR_GRAINS.find((g) => g.id === gran)!.label} {metricDef.label} by {RR_DIMS.find((d) => d.id === dim)!.label.toLowerCase()}</span>
+          {' '}· {from} → {to}{isRatio ? ' · ratio metric, not summed' : ''}
+        </p>
         {facts.length === 0 ? (
           <p className="text-sm text-slate-400">No data for this range. Connect a dateable source (Shopify today) on the{' '}
-            <a href="/reporting/mis/connectors" className="text-emerald-700 underline">Setup</a> page and pull.</p>
+            <Link to="/reporting/mis/connectors" className="text-brand-600 underline">Setup</Link> page and pull.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-xs border-collapse">
               <thead><tr className="text-[10px] text-slate-400 border-b border-slate-200">
-                <th className="py-1.5 pr-3 text-left font-medium sticky left-0 bg-white">{RR_DIMS.find((d) => d.id === dim)!.label}</th>
+                <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">{RR_DIMS.find((d) => d.id === dim)!.label}</th>
                 {periods.map((p) => <th key={p} className="py-1.5 px-2 text-right font-medium whitespace-nowrap">{p}</th>)}
-                {!isRatio && <th className="py-1.5 pl-3 text-right font-semibold">Total</th>}
+                {!isRatio && <th className="py-1.5 pl-3 pr-3 text-right font-semibold">Total</th>}
               </tr></thead>
               <tbody>
                 {rows.map((key) => (
                   <tr key={key} className="border-b border-slate-50">
-                    <td className="py-1.5 pr-3 text-slate-700 font-medium sticky left-0 bg-white max-w-[220px] truncate" title={key}>{key}</td>
+                    <td className="py-1.5 px-3 text-slate-700 font-medium sticky left-0 bg-white max-w-[220px] truncate" title={key}>{key}</td>
                     {periods.map((p) => { const v = cell.get(`${key}||${p}`); return <td key={p} className="py-1.5 px-2 text-right tabular-nums text-slate-600">{v == null ? '·' : fmt(v)}</td>; })}
-                    {!isRatio && <td className="py-1.5 pl-3 text-right tabular-nums font-semibold text-slate-800">{fmt(rowTotals.get(key) ?? 0)}</td>}
+                    {!isRatio && <td className="py-1.5 pl-3 pr-3 text-right tabular-nums font-semibold text-slate-800">{fmt(rowTotals.get(key) ?? 0)}</td>}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </SectionCard>
+      </div>
 
       {data && data.warnings.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 space-y-1">
           {data.warnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
         </div>
       )}
-    </div>
-  );
-}
-
-function UploadReport({ onUpload }: { onUpload: (store: UploadStore) => void }) {
-  const [sourceId, setSourceId] = useState(UPLOAD_PARSERS[0]?.sourceId ?? '');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
-  const parser = UPLOAD_PARSERS.find((p) => p.sourceId === sourceId);
-  const onFile = async (file: File | undefined) => {
-    if (!file || !parser) return;
-    setBusy(true); setMsg(null);
-    try { const rec = await parseUpload(parser, file); onUpload(saveUpload(rec)); setMsg({ kind: 'ok', text: `Loaded ${rec.facts.length} days from ${file.name}.` }); }
-    catch (e) { setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Could not read the file.' }); }
-    finally { setBusy(false); }
-  };
-  return (
-    <div className="mt-3 border-t border-slate-100 pt-3">
-      <p className="text-[11px] text-slate-500 mb-2"><span className="font-medium text-slate-600">Upload a report</span> for a source with no financial API (e.g. Shiprocket's passbook). It parses into daily facts and merges above.</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200">
-          {UPLOAD_PARSERS.map((p) => <option key={p.sourceId} value={p.sourceId}>{p.label}</option>)}
-        </select>
-        <label className="px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer">
-          {busy ? 'Reading…' : 'Choose file'}
-          <input type="file" accept={parser?.accept} className="hidden" onChange={(e) => void onFile(e.target.files?.[0])} />
-        </label>
-        {parser && <span className="text-[10px] text-slate-400">{parser.hint}</span>}
-      </div>
-      {msg && <p className={'mt-1.5 text-[11px] ' + (msg.kind === 'ok' ? 'text-emerald-700' : 'text-rose-700')}>{msg.text}</p>}
+      <p className="text-[11px] text-slate-400">Which connector is current, and report uploads for sources with no API, are on <Link to="/reporting/mis/connectors" className="underline underline-offset-2">Setup</Link>.</p>
     </div>
   );
 }

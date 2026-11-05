@@ -64,7 +64,7 @@ All colour is CSS variables in `client/src/index.css` (copied from Ops' `app/glo
   Keyboard: ↑ ↓ Home End.
 - **Phones / tablets (< 1024 px):** light top bar (Menu, brand, Claude, Search) + the same list in a modal drawer.
   `--app-top` (3.5rem / 0 on desktop) is the height of that bar for sticky page headers.
-- **Home** = Live MIS (`HOME` in nav/config). Old pages (MIS deck, Month close) are out of the sidebar, reachable from
+- **Home** = Live MIS (`HOME` in nav/config). Old pages (Month close) are out of the sidebar, reachable from
   ⌘K under "More" until they are deleted.
 - **Page template** (`components/ui/PageHeader`): breadcrumbs Section › Page (from the menu) · icon tile (accent-50) ·
   title + Pin · optional `status` chip · one-line purpose (≤ 80ch) · actions (one primary). Then the content in

@@ -85,7 +85,6 @@ export const NAV: NavSection[] = [
       { id: 'tranzact', label: 'Amazon → Tranzact (manual)', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'Old manual converter — the closing-stock task now makes the Tranzact file from live data', words: 'fba inventory ledger stock reconciliation converter' },
       { id: 'toolshub', label: 'All tools', href: '/tools', icon: 'tools', exact: true, hint: 'Every tool on one page', words: 'utilities converter tools' },
       { id: 'people', label: 'People & reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails', words: 'team owners settings' },
-      { id: 'deck', label: 'MIS deck (old)', href: '/reporting/mis/deck', icon: 'old', hint: 'The first MIS deck', words: 'legacy deck' },
       { id: 'close', label: 'Month close (old)', href: '/reporting/mis/close', icon: 'old', hint: 'Replaced by Setup + Live MIS close', words: 'legacy close manual figures' },
     ],
   },

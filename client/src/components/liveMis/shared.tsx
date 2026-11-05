@@ -87,6 +87,56 @@ export function Fold({
   );
 }
 
+// ---- Top-level tab section (Live MIS five-tab layout, founder 5 Nov 2026) ---
+//
+// Each Live MIS tab is a stack of these: a card with a title, a one-line meta
+// and a chevron; the body renders only when open. Open / closed is remembered
+// per section in ONE localStorage key (`mis-live-folds-v1`, a JSON map), so a
+// reset is one key. Defaults come from the caller (first section of a tab open).
+
+const SECTION_KEY = 'mis-live-folds-v1';
+function readSections(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(SECTION_KEY);
+    const v: unknown = raw ? JSON.parse(raw) : null;
+    return v && typeof v === 'object' ? (v as Record<string, boolean>) : {};
+  } catch { return {}; }
+}
+function writeSection(id: string, open: boolean) {
+  try { localStorage.setItem(SECTION_KEY, JSON.stringify({ ...readSections(), [id]: open })); } catch { /* private mode */ }
+}
+
+export function Section({ id, title, meta, defaultOpen = false, actions, children }: {
+  id: string;
+  title: ReactNode;
+  /** One line under the title: what the section holds / its scope. */
+  meta?: ReactNode;
+  defaultOpen?: boolean;
+  /** Shown in the header while open (toggles, small buttons). */
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(() => readSections()[id] ?? defaultOpen);
+  const flip = () => { setOpen(!open); writeSection(id, !open); };
+  const bodyId = `section-${id}`;
+  return (
+    <section className="rounded-2xl border border-slate-200/80 bg-surface shadow-card">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3">
+        <button type="button" onClick={flip} aria-expanded={open} aria-controls={bodyId}
+          className="flex min-w-0 flex-1 items-center gap-2.5 text-left rounded-lg -mx-1 px-1 py-1 hover:bg-slate-50 focus-visible:ring-2 ring-accent-500 outline-none">
+          <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? '' : '-rotate-90'}`} aria-hidden />
+          <span className="min-w-0">
+            <span className="block text-base font-semibold text-slate-900 leading-6">{title}</span>
+            {meta != null && <span className="block text-xs text-slate-500 truncate">{meta}</span>}
+          </span>
+        </button>
+        {open && actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+      {open && <div id={bodyId} className="border-t border-slate-200/70 px-4 sm:px-5 py-4">{children}</div>}
+    </section>
+  );
+}
+
 // ---- Toggles ---------------------------------------------------------------
 
 /** Compact pill toggle (slate track, white chip) — used inside section headers. */

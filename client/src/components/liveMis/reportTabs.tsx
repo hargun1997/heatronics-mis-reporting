@@ -1,24 +1,25 @@
 // ----------------------------------------------------------------------------
-// Live MIS report tabs that the legacy deck had and Live lacked: Revenue &
-// Growth, Channel Mix, Profitability and Repeats. Each runs the legacy deck's
-// own math (analytics.ts) over the live periods via liveViews.toPeriodMIS, and
-// respects completeness: a line that isn't real for a period is left out
-// (null point / "—"), never shown as 0.
+// Live MIS report sections that the legacy deck had and Live lacked: Revenue &
+// Growth (Overview), Channel Mix (Channels) and Profitability (P&L → Margin
+// ladder & cost structure). Each runs the legacy deck's own math (analytics.ts)
+// over the live periods via liveViews.toPeriodMIS, and respects completeness: a
+// line that isn't real for a period is left out (null point / "—"), never shown
+// as 0. Repeat purchase / cohorts moved to Ops (D2C → Customers), founder 5 Nov 2026.
 // ----------------------------------------------------------------------------
 
 import { useMemo, useState } from 'react';
 import { KpiTile } from '../ui';
 import {
   inr, pctStr, pctSigned, LineChart, StackedBarChart, GrowthBarChart, WaterfallChart, Legend,
-  SERIES_COLORS, CHANNEL_COLORS, type WaterfallStep,
+  SERIES_COLORS, type WaterfallStep,
 } from '../mis-deck/charts';
-import { SALES_CHANNELS, DISCOUNT_DATA, D2C_REPEATS, AMAZON_REPEATS, type MonthlyMIS, type SalesChannel } from '../../data/misDeck/misDeckData';
+import { SALES_CHANNELS, DISCOUNT_DATA, type MonthlyMIS, type SalesChannel } from '../../data/misDeck/misDeckData';
 import type { PeriodAgg, Granularity } from '../../data/misDeck/liveAnalytics';
-import { REAL_ROWS, toPeriodMIS, liveLikeForLike, shortKey } from '../../data/misDeck/liveViews';
+import { REAL_ROWS, toPeriodMIS, liveLikeForLike } from '../../data/misDeck/liveViews';
 import {
   arrProjection, channelMix, channelHHI, topChannel, channelsAbove, channelObservations, CHANNEL_AOV,
 } from '../../data/misDeck/analytics';
-import { Fold, Pills, BlendToggle, BlendNote, Delta, fairGrowth, Note, TableBox, useLiveView } from './shared';
+import { Fold, Pills, Delta, fairGrowth, Note, TableBox, useLiveView } from './shared';
 import { yearAgoOf, scopeLine } from './deckTabs';
 
 const real = (p: PeriodAgg, row: string) => REAL_ROWS[p.level].has(row);
@@ -43,6 +44,13 @@ export function RevenueGrowthTab({ monthly, periods, allPeriods, gran, completeT
       <ArrSection monthly={monthly} completeThrough={completeThrough} />
       <DiscountSection />
       <TrajectorySection periods={periods} allPeriods={allPeriods} gran={gran} />
+      <p className="text-xs text-slate-500">
+        Repeat purchase and cohorts live in{' '}
+        <a href="https://ops.heatronics.in/d2c/customers" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-slate-800">
+          Ops → D2C → Customers
+        </a>{' '}
+        (and Amazon → Customers).
+      </p>
     </div>
   );
 }
@@ -365,13 +373,10 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
   const full = lp.level === 'full';
   const steps = WF.filter((s) => !(s.skipZero && s.value === 0)).map(({ label, value, type }) => ({ label, value, type }));
   const c = (p: PeriodAgg, row: string, v: number) => (real(p, row) && p.netRevenue ? pctStr(v / p.netRevenue) : '—');
+  const { blended } = useLiveView();
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">Margins &amp; unit economics · {scopeLine(periods, gran)}</p>
-        <BlendToggle />
-      </div>
-      <BlendNote />
+      <p className="text-xs text-slate-500">Margins &amp; unit economics · {scopeLine(periods, gran)} · {blended ? 'blended COGM (the Basis switch above)' : 'actual COGM (the Basis switch above)'}</p>
       <Fold id="pr-ladder" title="Margin ladder over time" meta="Gross margin → CM1 → CM2 → EBITDA → Net income (% of net revenue)"
         actions={<label className="flex items-center gap-1.5 text-xs text-slate-500"><input type="checkbox" checked={cm3} onChange={(e) => setCm3(e.target.checked)} /> show CM3</label>}>
         <LineChart labels={periods.map((p) => p.label)} series={series} percent valueFormat={(v) => pctStr(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
@@ -400,118 +405,6 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
                   <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{c(p, 'opex', p.opex)}</td>
                   <td className="py-1.5 px-2 text-right tabular-nums font-medium text-slate-800">{c(p, 'ebitda', p.ebitda)}</td>
                   <td className="py-1.5 px-2 text-right tabular-nums text-slate-700">{c(p, 'net_income', p.netIncome)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableBox>
-      </Fold>
-    </div>
-  );
-}
-
-// ============================================================================
-// Repeats (static repeat-purchase feeds — Shopify D2C + Amazon)
-// ============================================================================
-
-const D2C_COLOR = CHANNEL_COLORS.D2C;
-const AMZ_COLOR = CHANNEL_COLORS.Amazon;
-const fmt2 = (v: number) => v.toFixed(2);
-
-export function RepeatsTab() {
-  const allKeys = [...new Set([...D2C_REPEATS.map((r) => r.key), ...AMAZON_REPEATS.map((r) => r.key)])].sort();
-  const d2c = new Map(D2C_REPEATS.map((r) => [r.key, r]));
-  const amz = new Map(AMAZON_REPEATS.map((r) => [r.key, r]));
-  const cmp = [
-    { name: 'Shopify (D2C)', color: D2C_COLOR, values: allKeys.map((k) => d2c.get(k)?.repeatRate ?? null) },
-    { name: 'Amazon', color: AMZ_COLOR, values: allKeys.map((k) => amz.get(k)?.repeatCustomerShare ?? null) },
-  ];
-  const dL = D2C_REPEATS.map((r) => shortKey(r.key));
-  const aL = AMAZON_REPEATS.map((r) => shortKey(r.key));
-  const lastD = D2C_REPEATS[D2C_REPEATS.length - 1]?.key, lastA = AMAZON_REPEATS[AMAZON_REPEATS.length - 1]?.key;
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-600">
-        Repeat purchases come from each channel’s own repeat-purchase report — a <span className="font-medium">static feed</span>{' '}
-        through {lastD ? shortKey(lastD) : '—'} (Shopify) and {lastA ? shortKey(lastA) : '—'} (Amazon). The live connectors don’t
-        carry customer-level history yet, so these aren’t rebuilt from uploads. * = partial month.
-      </div>
-      <Fold id="rp-cmp" title="Repeat rate — Shopify vs Amazon" meta="Share of customers who are repeat buyers, per channel, month by month">
-        <LineChart labels={allKeys.map(shortKey)} series={cmp} percent valueFormat={(v) => pctStr(v)} yFormat={(v) => `${Math.round(v * 100)}%`} height={260} />
-        <div className="mt-2"><Legend items={cmp.map((s) => ({ label: s.name, color: s.color }))} /></div>
-        <Note>
-          Definitions differ by source: Shopify’s rate is the share of a month’s new cohort that later reordered (recent months
-          read low — less elapsed time); Amazon’s is the share of that month’s active customers who were repeat buyers. Compare
-          trends, not exact levels.
-        </Note>
-      </Fold>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Fold id="rp-d2c-rate" secondary title="Shopify · repeat rate" meta="Share of each month’s cohort that reordered">
-          <LineChart labels={dL} series={[{ name: 'Repeat rate', color: D2C_COLOR, values: D2C_REPEATS.map((r) => r.repeatRate) }]} percent valueFormat={(v) => pctStr(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
-        </Fold>
-        <Fold id="rp-d2c-freq" secondary title="Shopify · purchase frequency" meta="Orders per buyer">
-          <LineChart labels={dL} series={[{ name: 'Frequency', color: SERIES_COLORS[1], values: D2C_REPEATS.map((r) => r.freq) }]} valueFormat={fmt2} yFormat={fmt2} />
-        </Fold>
-      </div>
-      <Fold id="rp-d2c-basket" secondary title="Shopify · products & units per customer">
-        <LineChart labels={dL} valueFormat={fmt2} yFormat={fmt2} series={[
-          { name: 'Avg products/customer', color: SERIES_COLORS[0], values: D2C_REPEATS.map((r) => r.avgProducts) },
-          { name: 'Avg units/customer', color: SERIES_COLORS[2], values: D2C_REPEATS.map((r) => r.avgUnits) },
-        ]} />
-        <div className="mt-2"><Legend items={[{ label: 'Avg products/customer', color: SERIES_COLORS[0] }, { label: 'Avg units/customer', color: SERIES_COLORS[2] }]} /></div>
-      </Fold>
-      <Fold id="rp-d2c-table" title="Shopify (D2C) monthly detail" meta={`${D2C_REPEATS.length} months`}>
-        <TableBox>
-          <table className="w-full text-xs whitespace-nowrap">
-            <thead>
-              <tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
-                {['Month', 'Buyers', 'Orders', 'AOV', 'Freq', 'Repeat %', 'Avg products'].map((h, i) => <th key={h} className={`py-1.5 ${i === 0 ? 'pr-3' : 'px-2 text-right'} font-medium`}>{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {D2C_REPEATS.map((r) => (
-                <tr key={r.key} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="py-1.5 pr-3 font-medium text-slate-700">{shortKey(r.key)}{r.partial ? ' *' : ''}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmtCountFull(r.buyers)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmtCountFull(r.orders)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{inr(r.aov)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmt2(r.freq)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums font-medium text-slate-800">{pctStr(r.repeatRate)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmt2(r.avgProducts)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableBox>
-      </Fold>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Fold id="rp-amz-share" secondary title="Amazon · repeat customer share" meta="Repeat customers ÷ total customers">
-          <LineChart labels={aL} series={[{ name: 'Repeat customer share', color: AMZ_COLOR, values: AMAZON_REPEATS.map((r) => r.repeatCustomerShare) }]} percent valueFormat={(v) => pctStr(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
-        </Fold>
-        <Fold id="rp-amz-sales" secondary title="Amazon · repeat order sales" meta="₹ sales from repeat orders">
-          <LineChart labels={aL} series={[{ name: 'Repeat sales', color: SERIES_COLORS[3], values: AMAZON_REPEATS.map((r) => r.repeatSales) }]} />
-        </Fold>
-      </div>
-      <Fold id="rp-amz-table" title="Amazon monthly detail" meta={`${AMAZON_REPEATS.length} months`}>
-        <TableBox>
-          <table className="w-full text-xs whitespace-nowrap">
-            <thead>
-              <tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
-                {['Month', 'Orders', 'Customers', 'Repeat cust.', 'Repeat cust. %', 'Repeat sales', 'Repeat sales %'].map((h, i) => <th key={h} className={`py-1.5 ${i === 0 ? 'pr-3' : 'px-2 text-right'} font-medium`}>{h}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {AMAZON_REPEATS.map((r) => (
-                <tr key={r.key} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="py-1.5 pr-3 font-medium text-slate-700">{shortKey(r.key)}{r.partial ? ' *' : ''}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmtCountFull(r.orders)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmtCountFull(r.customers)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{fmtCountFull(r.repeatCustomers)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums font-medium text-slate-800">{pctStr(r.repeatCustomerShare)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{inr(r.repeatSales)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{pctStr(r.repeatSalesShare)}</td>
                 </tr>
               ))}
             </tbody>

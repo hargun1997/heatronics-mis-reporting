@@ -51,7 +51,8 @@ test('"More" pages (tasks, old pages …) stay out of the sidebar but are in the
   assert.ok(!sidebarSections().some((s) => s.id === 'more'));
   assert.ok(paletteIndex().some((i) => i.id === 'tasks'));
   const idx = paletteIndex();
-  assert.ok(idx.some((i) => i.id === 'deck'));
+  assert.ok(idx.some((i) => i.id === 'close'));
+  assert.ok(!idx.some((i) => i.id === 'deck'), 'the old MIS deck is gone (redirects to Live MIS)');
   assert.equal(searchPalette(idx, 'connectors')[0]?.id, 'sources');
   assert.equal(searchPalette(idx, 'tally')[0]?.id, 'tally');
   assert.equal(searchPalette(idx, 'plan')[0]?.id, 'plan');

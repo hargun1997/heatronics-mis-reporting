@@ -3,7 +3,6 @@ import { MainLayout } from './layouts/MainLayout';
 import { HOME } from './nav/config';
 
 // Top-level pages
-import { MISDeck } from './pages/mis/MISDeck';
 import { MonthClosePage } from './pages/mis/MonthClosePage';
 import { ConnectorsPage } from './pages/mis/ConnectorsPage';
 import { LiveMisPage } from './pages/mis/LiveMisPage';
@@ -40,7 +39,8 @@ function App() {
           <Route path="reporting" element={<Navigate to={HOME} replace />} />
           <Route path="reporting/mis" element={<Navigate to={HOME} replace />} />
           {/* Old pages: out of the menu, still reachable from ⌘K */}
-          <Route path="reporting/mis/deck" element={<MISDeck />} />
+          {/* The old MIS deck is retired — Live MIS has every one of its reports */}
+          <Route path="reporting/mis/deck" element={<Navigate to="/reporting/mis/live" replace />} />
           <Route path="reporting/mis/close" element={<MonthClosePage />} />
           <Route path="reporting/mis/connectors" element={<ConnectorsPage />} />
           <Route path="reporting/mis/ingest" element={<UploadsRedirect />} />

@@ -382,14 +382,10 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">{desc} Column scope under each heading; partial periods are annotated.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <BlendToggle />
-          <Pills label="Show" value={display} onChange={setDisplay}
-            options={[{ id: 'amount', label: '₹' }, { id: 'percent', label: '% Rev' }, { id: 'both', label: '₹ + %' }]} />
-        </div>
+        <p className="text-xs text-slate-500">{desc} Column scope under each heading; partial periods are annotated. COGM basis = the Basis switch on the MIS sheet above.</p>
+        <Pills label="Show" value={display} onChange={setDisplay}
+          options={[{ id: 'amount', label: '₹' }, { id: 'percent', label: '% Rev' }, { id: 'both', label: '₹ + %' }]} />
       </div>
-      <BlendNote />
 
       <div ref={scrollRef} className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-xs border-collapse">
