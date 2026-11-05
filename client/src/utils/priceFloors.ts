@@ -82,9 +82,41 @@ export interface CostsSnapshot {
     types?: { type: string; perDay: number; madePerDay?: number | null; perUnit?: number | null }[];
   } | null;
   products: ProductCost[];
+  /** product & packing specs from Production (Settings → Product specs) */
+  specs?: ProductSpec[];
   fetchedAt: string;
   source: string;
   error?: string | null;
+}
+
+/** One product's box and carton, as Production serves it (/api/costs → specs). */
+export interface ProductSpec { item: string; name?: string; box?: string; L: number; B: number; H: number; kg: number; perCarton: number; cL: number; cB: number; cH: number; asin?: string; route?: string; cm3?: number }
+
+/** ATS ₹ per master carton of 65 × 44 × 35 cm, read off the fee report (X Lite ₹14.43 × 25, X-L Lite ₹38.11 × 10). */
+export const ATS_PER_CTN = 370;
+const CTN_REF = 65 * 44 * 35;
+
+/**
+ * Fill each SKU's storage and freight to FC from Production's specs, where the SKU has no value of its own:
+ * storage = the account's storage per unit × this box's volume ÷ the sold-weighted average box volume;
+ * freight = ATS per carton scaled by the master carton's volume ÷ pieces per carton (no carton: box volume ÷ 85% fill).
+ */
+export function withSpecs(st: FloorSettings, specs?: ProductSpec[] | null): FloorSettings {
+  if (!specs?.length) return st;
+  const by = new Map(specs.map((s) => [s.item, s]));
+  const cm3 = (s: ProductSpec) => s.cm3 || s.L * s.B * s.H;
+  let v = 0, n = 0;
+  for (const x of st.skus) { const s = by.get(x.item); if (s && cm3(s) > 0 && x.sold > 0) { v += cm3(s) * x.sold; n += x.sold; } }
+  const avg = n ? v / n : 0;
+  const skus = st.skus.map((x) => {
+    const s = by.get(x.item);
+    if (!s || !(cm3(s) > 0)) return x;
+    const storage = x.storage ?? (avg ? Math.round((st.global.storage * cm3(s) / avg) * 100) / 100 : null);
+    const ctn = s.cL * s.cB * s.cH;
+    const inbound = x.inbound ?? Math.round((ctn > 0 && s.perCarton > 0 ? (ATS_PER_CTN * ctn) / CTN_REF / s.perCarton : (ATS_PER_CTN * cm3(s)) / 0.85 / CTN_REF) * 100) / 100;
+    return { ...x, storage, inbound };
+  });
+  return { ...st, skus };
 }
 
 export interface FeeReport {

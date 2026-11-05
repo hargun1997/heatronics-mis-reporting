@@ -53,3 +53,18 @@ test('detail lines add up to their waterfall rows', async () => {
     }
   }
 });
+
+test('withSpecs fills storage and freight from Production specs, keeps own values', async () => {
+  const { withSpecs, ATS_PER_CTN } = await import('../../client/src/utils/priceFloors.js');
+  const s = { ...st(), skus: [{ ...sku, inbound: null, storage: null }, { ...sku, asin: 'B', item: 'FG-0038', sold: 100, inbound: 38.11, storage: null }] };
+  const specs = [
+    { item: 'FG-0039', L: 27.5, B: 14.7, H: 9.5, kg: 0.63, perCarton: 25, cL: 65, cB: 44, cH: 35 },
+    { item: 'FG-0038', L: 33.5, B: 24, H: 9.5, kg: 0.88, perCarton: 10, cL: 65, cB: 44, cH: 35 },
+  ];
+  const out = withSpecs(s, specs);
+  assert.equal(out.skus[0].inbound, Math.round((ATS_PER_CTN / 25) * 100) / 100);
+  assert.equal(out.skus[1].inbound, 38.11); // its own value wins
+  const avg = (27.5 * 14.7 * 9.5 * 100 + 33.5 * 24 * 9.5 * 100) / 200;
+  assert.ok(Math.abs(out.skus[0].storage! - (s.global.storage * 27.5 * 14.7 * 9.5) / avg) < 0.01);
+  assert.equal(withSpecs(s, []).skus[0].inbound, null);
+});

@@ -18,6 +18,7 @@ import {
   grossCost,
   assumptionsLine,
   waterfallRows,
+  withSpecs,
   detailLines,
   groupLines,
   marginOf,
@@ -119,14 +120,16 @@ export function PriceFloorsPage() {
 
   const settings = state?.settings || DEFAULT_SETTINGS;
   const costs = state?.costs || null;
+  // what the prices use: the saved settings plus storage / freight per SKU from Production's product specs
+  const calc = useMemo(() => withSpecs(settings, costs?.specs), [settings, costs]);
   const products = useMemo(() => (costs?.products || []) as ProductCost[], [costs]);
   const rows: Row[] = useMemo(
-    () => settings.skus.map((x) => {
+    () => calc.skus.map((x) => {
       const p = products.find((q) => q.item === x.item) || null;
       const c = costIn(p);
       return { x, p, c, cost: c ? grossCost(c, settings) : null };
     }),
-    [settings, products],
+    [calc, settings, products],
   );
 
   const refreshCosts = async () => {
@@ -145,7 +148,7 @@ export function PriceFloorsPage() {
   const t = Number(tacos);
   const m = marginOf(settings);
   const priced = rows.filter((r) => r.cost != null);
-  const below = priced.filter((r) => solve(r.x, settings, r.c!, 0, t).price > r.x.asp);
+  const below = priced.filter((r) => solve(r.x, calc, r.c!, 0, t).price > r.x.asp);
   const g = settings.global;
   const saveGlobal = async (patch: Partial<FloorSettings['global']>, what: string) => {
     const next = { ...settings, global: { ...settings.global, ...patch } };
@@ -254,12 +257,12 @@ export function PriceFloorsPage() {
               Count GST stuck on Amazon fees and ads
             </label>
           </div>
-          <SummaryTable rows={rows} settings={settings} t={t} hasCosts={products.length > 0} />
+          <SummaryTable rows={rows} settings={calc} t={t} hasCosts={products.length > 0} />
         </SectionCard>
 
         <div className="space-y-2">
           <h2 className="text-sm font-bold text-slate-900">By product</h2>
-          {priced.map((r) => <SkuDetail key={r.x.asin} r={r} settings={settings} t={t} />)}
+          {priced.map((r) => <SkuDetail key={r.x.asin} r={r} settings={calc} t={t} />)}
           {!priced.length && <p className="text-sm text-slate-500">No product costs yet. Refresh costs, or link SKUs to products in Settings below.</p>}
         </div>
 
@@ -271,7 +274,7 @@ export function PriceFloorsPage() {
         onClose={() => setPicker(false)}
         rows={rows}
         onDownload={(skus) => {
-          const r = downloadFloorsReport({ skus, settings, products, costs, feeReport: state?.reports[0] || null, tacos: t });
+          const r = downloadFloorsReport({ skus, settings: calc, products, costs, feeReport: state?.reports[0] || null, tacos: t });
           setPicker(false);
           setNote({ tone: r.written ? 'good' : 'bad', text: r.written ? `PDF downloaded for ${r.written} product${r.written > 1 ? 's' : ''}.` : 'None of the picked products has a cost yet, so there was nothing to put in the report.' });
         }}
