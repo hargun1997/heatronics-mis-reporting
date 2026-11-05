@@ -21,7 +21,8 @@ export interface FloorSku {
   asp: number; // average selling price incl. GST
   sold: number; // units shipped in the report period
   returned: number; // units refunded in the report period
-  fba: number; // FBA fulfilment fee per unit
+  fba: number; // FBA fulfilment fee per unit (pick & pack + weight handling, incl. GST)
+  pick?: number | null; // pick & pack part of fba, when known
   admin: number; // refund admin fee per return
   refPct: number; // referral fee above the band, share of the GST-inclusive price
   tacos: number | null; // actual ad spend ÷ sales in the report period
@@ -106,6 +107,8 @@ export interface ParsedSkuRow {
   sales: number;
   asp: number | null;
   fba: number | null;
+  /** pick & pack part of `fba` (incl. GST), when the source splits it */
+  pick?: number | null;
   admin: number | null;
   refPct: number | null;
   closing: number | null;
@@ -199,6 +202,22 @@ export interface Lines {
   stuck: number; // input GST the sale GST can't use up (lost)
   resellerEx: number; // reseller margin
   packingEx: number; // packing, before GST
+}
+
+/** The detail lines under a waterfall row (all before GST), for the SKU breakdown. */
+export function detailLines(l: Lines, x: FloorSku, st: FloorSettings, c: CostIn): Partial<Record<keyof Groups, [string, number][]>> {
+  const g1 = 1 + buyGstOf(st);
+  const pick = x.pick != null && x.pick > 0 && x.pick <= x.fba ? x.pick : null;
+  const lostOnReturns = l.returns / g1;
+  const fba: [string, number][] = pick != null
+    ? [['FBA pick & pack', pick / g1], ['FBA weight handling', (x.fba - pick) / g1]]
+    : [['FBA fee (pick & pack + weight handling)', x.fba / g1]];
+  const unsellable = l.returnsEx - lostOnReturns;
+  return {
+    cost: [['Materials (parts list)', c.material], ['Factory overheads', c.conversion]],
+    amazon: [...fba, ['Referral fee', l.referral / g1], ['Closing fee', l.closing / g1], ['Freight to FC (ATS)', (l.placement + l.transport) / g1], ['Storage', l.storage / g1]],
+    returns: [['FBA fee + refund admin lost on returns', lostOnReturns], ...(unsellable > 0.5 ? [['Unsellable returns', unsellable] as [string, number]] : [])],
+  };
 }
 
 /** The waterfall the page and PDF show: price → GST → net sales → costs (before GST) → GST stuck → margin. */
@@ -373,6 +392,7 @@ export function mergeReport(st: FloorSettings, rep: FeeReport): { settings: Floo
     x.returned = r.returned;
     if (r.asp) x.asp = r.asp;
     if (r.fba != null) x.fba = r.fba;
+    if (r.pick != null) x.pick = r.pick;
     if (r.admin != null) x.admin = r.admin;
     if (r.refPct != null) x.refPct = r.refPct;
     if (r.inbound != null) x.inbound = r.inbound;

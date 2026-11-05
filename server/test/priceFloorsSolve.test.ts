@@ -39,3 +39,17 @@ test('per-SKU storage replaces the average', () => {
   assert.ok(big.price > a);
   assert.equal(big.lines.storage, 80);
 });
+
+test('detail lines add up to their waterfall rows', async () => {
+  const { detailLines, groupLines } = await import('../../client/src/utils/priceFloors.js');
+  for (const x of [sku, { ...sku, pick: 60, asp: 1500 }]) {
+    const s = st({ stuckOn: false });
+    const { price, lines } = solve(x, s, c, 0.25, 0.1);
+    const g = groupLines(lines, price);
+    const d = detailLines(lines, x, s, c);
+    for (const k of ['cost', 'amazon', 'returns'] as const) {
+      const sum = (d[k] || []).reduce((a, [, v]) => a + v, 0);
+      assert.ok(Math.abs(sum - g[k]) < 0.01, `${k}: ${sum} vs ${g[k]}`);
+    }
+  }
+});

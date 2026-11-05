@@ -27,6 +27,8 @@ export interface SkuAgg {
   refUnits: number;
   refBase: number;
   fba: number;
+  /** pick & pack part of fba (Amazon IN fee type names with "pick"); 0 when not split */
+  pick?: number;
   fbaUnits: number;
   closing: number;
   closeUnits: number;
@@ -46,7 +48,7 @@ export interface LiveInputs {
 }
 export interface LiveRow {
   asin: string; name: string; sku: string; sold: number; returned: number; sales: number; asp: number | null;
-  fba: number | null; admin: number | null; refPct: number | null; closing: number | null; inbound: number | null; ads: number; tacos: number | null;
+  fba: number | null; pick?: number | null; admin: number | null; refPct: number | null; closing: number | null; inbound: number | null; ads: number; tacos: number | null;
 }
 export interface LiveReport {
   id: string;
@@ -115,6 +117,7 @@ export function mapFloorRows(x: LiveInputs, window: { from: string; to: string }
       sales: r2(sales),
       asp: asp ? r2(asp) : null,
       fba: fbaU > 0 ? r2((Math.abs(sum(o, 'fba')) * gross) / fbaU) : null,
+      pick: fbaU > 0 && sum(o, 'pick') ? r2((Math.abs(sum(o, 'pick')) * gross) / fbaU) : null,
       admin: adminItems > 0 ? r2((Math.abs(sum(r, 'admin')) * gross) / adminItems) : null,
       refPct: refPct ? r4(refPct) : null,
       closing: closeU > 0 ? r2((Math.abs(sum(o, 'closing')) * gross) / closeU) : null,
@@ -154,6 +157,7 @@ WITH it AS (
     SUM(IF(category = 'gst' AND charge_type = 'Tax', amount, 0)) AS tax,
     SUM(IF(category = 'fee' AND charge_type = 'Commission', amount, 0)) AS commission,
     SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'^fba|fulfil|pickandpack|weightbased|weight_based'), amount, 0)) AS fba,
+    SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'pick'), amount, 0)) AS pick,
     SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'closing'), amount, 0)) AS closing,
     SUM(IF(category = 'fee' AND REGEXP_CONTAINS(LOWER(charge_type), r'refundcommission|refund.?admin'), amount, 0)) AS admin,
     SUM(IF(category = 'fee', amount, 0)) AS fee_all,
@@ -163,7 +167,7 @@ WITH it AS (
   GROUP BY 1, 2, 3)
 SELECT kind, sku, COUNT(*) AS items, SUM(ABS(units)) AS units, SUM(principal) AS principal, SUM(tax) AS tax,
   SUM(commission) AS commission, SUM(IF(commission < 0, units, 0)) AS ref_units, SUM(IF(commission < 0, principal + tax, 0)) AS ref_base,
-  SUM(fba) AS fba, SUM(IF(fba < 0, units, 0)) AS fba_units, SUM(closing) AS closing, SUM(IF(closing < 0, units, 0)) AS close_units,
+  SUM(fba) AS fba, SUM(pick) AS pick, SUM(IF(fba < 0, units, 0)) AS fba_units, SUM(closing) AS closing, SUM(IF(closing < 0, units, 0)) AS close_units,
   SUM(admin) AS admin, COUNTIF(admin < 0) AS admin_items, SUM(fee_all) AS fee_all, SUM(fee_gst) AS fee_gst
 FROM it GROUP BY 1, 2`;
 
@@ -189,7 +193,7 @@ export async function liveFloorsReport(window = liveWindow()): Promise<LiveRepor
   return mapFloorRows({
     skus: skus.map((r) => ({
       kind: r.kind === 'refund' ? 'refund' : 'order', sku: String(r.sku), items: n(r.items), units: n(r.units), principal: n(r.principal), tax: n(r.tax),
-      commission: n(r.commission), refUnits: n(r.ref_units), refBase: n(r.ref_base), fba: n(r.fba), fbaUnits: n(r.fba_units), closing: n(r.closing),
+      commission: n(r.commission), refUnits: n(r.ref_units), refBase: n(r.ref_base), fba: n(r.fba), pick: n(r.pick), fbaUnits: n(r.fba_units), closing: n(r.closing),
       closeUnits: n(r.close_units), admin: n(r.admin), adminItems: n(r.admin_items), feeAll: n(r.fee_all), feeGst: n(r.fee_gst),
     })),
     asinOf, adsByAsin, storage: n(storage[0]?.amount),

@@ -2,7 +2,7 @@
 // Product cost comes from production.heatronics.in; Amazon economics from the
 // Seller Central "Revenue and fees" report uploaded here.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card, SectionCard } from '../../components/ui/Card';
 import { Disclosure } from '../../components/ui/Disclosure';
@@ -18,6 +18,7 @@ import {
   grossCost,
   assumptionsLine,
   waterfallRows,
+  detailLines,
   groupLines,
   marginOf,
   mergeReport,
@@ -537,6 +538,7 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
 function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: number }) {
   const res = solve(r.x, settings, r.c!, 0, t);
   const g = groupLines(res.lines, res.price);
+  const d = detailLines(res.lines, r.x, settings, r.c!);
   return (
     <Disclosure title={r.x.name} subtitle={`${rs(res.price)} at ${Math.round(t * 100)}% ads · selling at ${rs(r.x.asp)}`}>
       <table className="mt-2 w-full max-w-md text-[14px]">
@@ -545,15 +547,24 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
         </thead>
         <tbody className="divide-y divide-slate-100">
           {waterfallRows(settings).map(({ k, label, sign }) => (
-            <tr key={k} className={sign === '=' || k === 'price' ? 'font-semibold text-slate-900' : 'text-slate-600'}>
-              <td className="py-2"><span className="mr-1.5 inline-block w-3 text-slate-400">{sign}</span>{label}{k === 'saleGst' ? ` ${fmtPct(settings.global.gst)}` : ''}</td>
-              <td className="py-2 text-right tabular-nums">{rs(g[k])}</td>
-              <td className="py-2 text-right tabular-nums text-slate-500">{k === 'price' || k === 'saleGst' ? '' : share(g[k], g.net)}</td>
-            </tr>
+            <Fragment key={k}>
+              <tr className={sign === '=' || k === 'price' ? 'font-semibold text-slate-900' : 'text-slate-700'}>
+                <td className="py-2"><span className="mr-1.5 inline-block w-3 text-slate-400">{sign}</span>{label}{k === 'saleGst' ? ` ${fmtPct(settings.global.gst)}` : ''}</td>
+                <td className="py-2 text-right tabular-nums">{rs(g[k])}</td>
+                <td className="py-2 text-right tabular-nums text-slate-500">{k === 'price' || k === 'saleGst' ? '' : share(g[k], g.net)}</td>
+              </tr>
+              {(d[k] || []).map(([name, v]) => (
+                <tr key={k + name} className="text-[14px] text-slate-500">
+                  <td className="py-1.5 pl-8">{name}</td>
+                  <td className="py-1.5 text-right tabular-nums">{rs(v)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{share(v, g.net)}</td>
+                </tr>
+              ))}
+            </Fragment>
           ))}
         </tbody>
       </table>
-      <p className="mt-3 text-xs text-slate-500">Costs are before GST. GST stuck = the part of the {fmtPct(buyGstOf(settings))} GST on Amazon fees, ads and packing the 5% sale GST can't use. GST on materials comes back as the inverted-duty refund (goods only), so it isn't counted.</p>
+      <p className="mt-3 text-xs text-slate-500">Costs are before GST. {settings.global.stuckOn === false ? 'All input GST (materials, Amazon fees, ads) is taken as refunded, so no GST is a cost.' : `GST stuck = the part of the ${fmtPct(buyGstOf(settings))} GST on Amazon fees, ads and packing the 5% sale GST can't use; GST on materials comes back as the inverted-duty refund.`}</p>
     </Disclosure>
   );
 }
