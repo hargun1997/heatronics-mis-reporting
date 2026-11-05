@@ -162,7 +162,7 @@ export function PriceFloorsPage() {
               costs?.error
                 ? <span className="text-rose-700">Last refresh failed: {costs.error}{costs.month ? ' (showing the last good costs)' : ''}</span>
                 : costs?.conversion
-                  ? `Conversion: ₹${Math.round(costs.conversion.total).toLocaleString('en-IN')} overheads over ${costs.conversion.units ? Math.round(costs.conversion.units).toLocaleString('en-IN') : '—'} units (${costs.conversion.basis})`
+                  ? convLine(costs.conversion)
                   : 'No overheads entered in production, so costs are materials only'
             }
             foot={<>From production.heatronics.in · fetched {when(costs?.fetchedAt)}</>}
