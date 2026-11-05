@@ -15,6 +15,7 @@ import {
   misFiscalYears,
   type MisEntity,
   type MisPoint,
+  type MisSheetRow,
 } from '../data/misDeck/misSheet';
 
 /**
@@ -34,6 +35,8 @@ export interface MisFormatSource {
   fileName?: string;
   /** Write every ₹ row as a % of that column's Net Revenue (as the Live MIS "% of net revenue" view); ratio and count rows unchanged. */
   percent?: boolean;
+  /** The rows to write (default MIS_SHEET_ROWS; the normalised COGM basis adds its memo line). */
+  rows?: MisSheetRow[];
 }
 
 const LAC = 1e5;
@@ -50,6 +53,8 @@ const S = {
   num: { font: { sz: 10 }, alignment: { horizontal: 'right' }, numFmt: '#,##0.00' },
   numBold: { font: { bold: true, sz: 10 }, alignment: { horizontal: 'right' }, numFmt: '#,##0.00' },
   pct: { font: { italic: true, sz: 10, color: { rgb: '555555' } }, alignment: { horizontal: 'right' }, numFmt: '0.0%' },
+  memo: { font: { italic: true, sz: 10, color: { rgb: '555555' } }, alignment: { horizontal: 'right' }, numFmt: '#,##0.00;-#,##0.00' },
+  memoLabel: { font: { italic: true, sz: 10, color: { rgb: '555555' } }, alignment: { horizontal: 'left' } },
   total: { font: { bold: true, sz: 10 }, fill: { fgColor: { rgb: 'E9ECEF' }, patternType: 'solid' }, alignment: { horizontal: 'right' }, numFmt: '#,##0.00' },
 } satisfies Record<string, Style>;
 
@@ -106,8 +111,8 @@ function writeBlock(
 
   // Rows.
   const points = cols.map((col) => src.point(col.monthKeys, entity));
-  for (const def of MIS_SHEET_ROWS) {
-    put(row, 0, def.label, def.bold ? S.labelBold : S.label);
+  for (const def of src.rows ?? MIS_SHEET_ROWS) {
+    put(row, 0, def.label, def.bold ? S.labelBold : def.memo ? S.memoLabel : S.label);
     cols.forEach((col, i) => {
       const raw = def.get(points[i]);
       if (raw === null) {
@@ -124,7 +129,7 @@ function writeBlock(
         else put(row, i + 1, round2((raw / nr) * 1000) / 1000, col.total ? { ...S.total, numFmt: '0.0%' } : def.bold ? { ...S.pct, font: { bold: true, sz: 10 } } : S.pct);
       } else {
         const v = round2(raw / LAC);
-        put(row, i + 1, v, col.total ? S.total : def.bold ? S.numBold : S.num);
+        put(row, i + 1, v, col.total ? S.total : def.bold ? S.numBold : def.memo ? S.memo : S.num);
       }
     });
     row++;

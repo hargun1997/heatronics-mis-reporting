@@ -210,11 +210,23 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   `server/test/priceFloorsLive.test.ts`.
 - **Live MIS = five tabs of expandable sections (founder, 5 Nov 2026: "expandable … declutter … the P&L is the MIS"):** `pages/mis/LiveMisPage.tsx`
   Overview (Headline · Revenue & growth · Run-rate — whole business) · **P&L** (the MIS sheet `LiveMisSheetTab` with Show ₹ Lac | % of net
-  revenue and Basis Actual | Blended — ONE basis switch drives the Margin ladder & cost structure, Detailed P&L and By channel sections below
-  it; "Download (this format)" writes what is shown, `MisFormatSource.percent`) · Channels (Channel mix · SKU × channel) · Products (SKU P&L ·
-  Units sold) · Statements (Balance sheet · Cash flow; no period bar). `Section` in `components/liveMis/shared.tsx` (open state in localStorage
-  `mis-live-folds-v1`, first section of a tab open). Old tab ids (`?tab=missheet` …) map in `LEGACY_TABS`; `/reporting/mis/deck` redirects
-  here (MISDeck.tsx deleted). Data freshness + uploads live on Setup only; repeat purchase / cohorts live in Ops → D2C → Customers (one link line).
+  revenue and **Basis Actual | Normalised** — ONE basis switch (`LiveView.basis`, default normalised) drives the Margin ladder & cost structure,
+  Detailed P&L and By channel sections below it; "Download (this format)" writes what is shown, `MisFormatSource.percent` / `rows`) · Channels
+  (Channel mix · SKU × channel) · Products (SKU P&L · Units sold) · Statements (Balance sheet · Cash flow; no period bar). `Section` in
+  `components/liveMis/shared.tsx` (open state in localStorage `mis-live-folds-v1`, first section of a tab open). Old tab ids (`?tab=missheet` …)
+  map in `LEGACY_TABS`; `/reporting/mis/deck` redirects here (MISDeck.tsx deleted). Data freshness + uploads live on Setup only; repeat purchase /
+  cohorts live in Ops → D2C → Customers (one link line).
+  - **Normalised COGM basis (founder, 5 Nov 2026: "we should see some normalisation with revenue" — the flat FY blend is retired):** pure
+    `liveViews.ts normaliseLiveMonths(months, completeness, deck?)` → `{months, note, skipped, estimated}`. Normalised COGM for a month = BOM cost
+    of the units sold + factory overhead, i.e. the live month restated by its `channelRecon.cogmVariance` (Tally COGM − Σ SkuCell COGS − factory):
+    `cogm − v`, GM / CM1 / CM2 / CM3 / EBITDA / net income `+ v`, everything else actual; `v` is kept on the month as `stockVariance` (summed into
+    `PeriodAgg.stockVariance` / `normalisedMonths`) and shown as the signed memo line **"Stock build / drawdown (purchase timing)"** (positive =
+    stock built) under GM% on the MIS sheet (`MIS_SHEET_ROWS_NORMALISED`, `MisPoint.stockVariance`), in the Detailed P&L, the cost-structure
+    table and the Excel / PDF P&L + MIS sheets (`normaliseCogm` option), so a full year still reconciles: Σ normalised net income − Σ memo = Tally
+    net income. **As-booked fallback, never an FY average:** static history / published months, top-line months, months without a recon and
+    months whose every SKU cell has no BOM cost stay as booked and are named in the note ("Dec 23–Jul 26 shown as booked — no BOM costing for
+    them"); a facts-only month costed to CM2 is already on this basis (variance 0). `blendLiveMonths` / `blendedMonths` / `fyBlendedGMRates`
+    are `@deprecated` and unused. Tests `server/test/normalisedCogm.test.ts`.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).

@@ -11,8 +11,8 @@ import { SALES_CHANNELS } from '../data/misDeck/misDeckData';
 import { aggregatePeriods, scopeOf, type PeriodAgg } from '../data/misDeck/liveAnalytics';
 import type { LiveStatements } from './liveMisExport';
 import { liveMisFormatSource, misSourceWithCash } from './liveMisExport';
-import { MIS_SHEET_ROWS } from '../data/misDeck/misSheet';
-import { REAL_ROWS, blendLiveMonths, channelName, unifyChannels, aggregateRange, longKey } from '../data/misDeck/liveViews';
+import { MIS_SHEET_ROWS, MIS_SHEET_ROWS_NORMALISED } from '../data/misDeck/misSheet';
+import { REAL_ROWS, normaliseLiveMonths, channelName, unifyChannels, aggregateRange, longKey } from '../data/misDeck/liveViews';
 
 export type PdfSection = 'trends' | 'fyPnl' | 'months' | 'channels' | 'balanceSheet' | 'cashFlow' | 'misSheet';
 
@@ -22,7 +22,8 @@ export interface LivePdfOptions {
   fyKeys: string[];
   /** Months ("2026-07") for the individual-months section. */
   monthKeys: string[];
-  blendCogm: boolean;
+  /** Normalised COGM (BOM cost of units sold + factory; Stock build / drawdown as a memo line) instead of as booked. */
+  normaliseCogm: boolean;
   mergeChannels: boolean;
 }
 
@@ -30,10 +31,11 @@ export interface LivePdfOptions {
 const LAKH = (v: number) => (Math.round(v / 1e3) / 100 || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const PCT = (v: number | null) => (v == null || !isFinite(v) ? '—' : `${(v * 100).toFixed(1)}%`);
 
-const PNL: { label: string; row: string; get: (p: PeriodAgg) => number; bold?: boolean }[] = [
+const PNL: { label: string; row: string; get: (p: PeriodAgg) => number; bold?: boolean; memo?: boolean }[] = [
   { label: 'Net Revenue', row: 'net_revenue', get: (p) => p.netRevenue, bold: true },
   { label: '  Less: COGM', row: 'cogm', get: (p) => -p.cogm },
   { label: 'Gross Margin', row: 'gross_margin', get: (p) => p.grossMargin, bold: true },
+  { label: '  Memo: Stock build / drawdown', row: 'gross_margin', get: (p) => p.stockVariance, memo: true },
   { label: '  Less: Channel & Fulfilment', row: 'channel_fulfilment', get: (p) => -p.channelFulfillment },
   { label: 'CM1', row: 'cm1', get: (p) => p.cm1, bold: true },
   { label: '  Less: Sales & Marketing', row: 'sales_marketing', get: (p) => -p.salesMarketing },
@@ -86,10 +88,10 @@ function table(doc: jsPDF, y: number, head: string[], rows: { cells: string[]; b
   return y + 3;
 }
 
-function pnlRows(cols: PeriodAgg[]): { cells: string[]; bold?: boolean }[] {
-  const rows = PNL.map((l) => ({
+function pnlRows(cols: PeriodAgg[], normalised: boolean): { cells: string[]; bold?: boolean }[] {
+  const rows = PNL.filter((l) => normalised || !l.memo).map((l) => ({
     bold: l.bold,
-    cells: [l.label, ...cols.map((p) => (REAL_ROWS[p.level].has(l.row) ? LAKH(l.get(p)) : '—'))],
+    cells: [l.label, ...cols.map((p) => (REAL_ROWS[p.level].has(l.row) && (!l.memo || p.normalisedMonths > 0) ? LAKH(l.get(p)) : '—'))],
   }));
   for (const [label, row, f] of [['GM %', 'gross_margin', (p: PeriodAgg) => p.grossMargin], ['EBITDA %', 'ebitda', (p: PeriodAgg) => p.ebitda], ['Net margin %', 'net_income', (p: PeriodAgg) => p.netIncome]] as const) {
     rows.push({ bold: false, cells: [label, ...cols.map((p) => (REAL_ROWS[p.level].has(row) && p.netRevenue ? PCT(f(p) / p.netRevenue) : '—'))] });
@@ -132,11 +134,18 @@ function trendChart(doc: jsPDF, y: number, months: PeriodAgg[]): number {
 
 export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions, st?: LiveStatements | null): jsPDF {
   const deck = o.mergeChannels ? unifyChannels(rawDeck) : rawDeck;
-  const months = o.blendCogm ? blendLiveMonths(deck.months, deck.completeness).months : deck.months;
+  const norm = o.normaliseCogm ? normaliseLiveMonths(deck.months, deck.completeness, deck) : null;
+  const months = norm ? norm.months : deck.months;
   const monthly = aggregatePeriods(months, deck.completeness, 'month');
   const yearly = aggregatePeriods(months, deck.completeness, 'year');
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const stamp = `${new Date().toISOString().slice(0, 10)} · ${o.blendCogm ? 'blended COGM' : 'actual COGM'} · Rs Lakh`;
+  const stamp = `${new Date().toISOString().slice(0, 10)} · ${norm ? 'normalised COGM' : 'actual COGM'} · Rs Lakh`;
+  const basisNote = (y: number) => {
+    if (!norm) return;
+    doc.setFontSize(7); doc.setTextColor(...SLATE);
+    doc.text(doc.splitTextToSize(norm.note, W - 2 * M) as string[], M, Math.min(y, H - 10));
+    doc.setTextColor(0, 0, 0);
+  };
   let first = true;
   const page = (title: string) => { if (!first) doc.addPage(); first = false; header(doc, title, stamp); return 24; };
 
@@ -161,7 +170,7 @@ export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions, st?: Live
     for (const fy of yearly.filter((p) => o.fyKeys.length === 0 || o.fyKeys.includes(p.key))) {
       const y = page(`Heatronics — Live MIS · ${fy.label} P&L`);
       const cols = [...monthly.filter((m) => fy.members.includes(m.key)), { ...fy, label: `${fy.label} Total` }];
-      table(doc, y, ['Particulars (Rs L)', ...cols.map((c) => c.label)], pnlRows(cols), 44, `${fy.label} P&L summary · ${scopeOf(fy)}`);
+      basisNote(table(doc, y, ['Particulars (Rs L)', ...cols.map((c) => c.label)], pnlRows(cols, !!norm), 44, `${fy.label} P&L summary · ${scopeOf(fy)}`));
     }
   }
 
@@ -171,7 +180,7 @@ export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions, st?: Live
     const cols = [...sel, ...(range && sel.length > 1 ? [{ ...range, label: 'Selected total' }] : [])];
     for (let i = 0; i < cols.length; i += 12) {
       const y = page('Heatronics — Live MIS · Selected months');
-      table(doc, y, ['Particulars (Rs L)', ...cols.slice(i, i + 12).map((c) => c.label)], pnlRows(cols.slice(i, i + 12)), 44, 'Individual months P&L');
+      basisNote(table(doc, y, ['Particulars (Rs L)', ...cols.slice(i, i + 12).map((c) => c.label)], pnlRows(cols.slice(i, i + 12), !!norm), 44, 'Individual months P&L'));
     }
   }
 
@@ -225,13 +234,14 @@ export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions, st?: Live
   }
 
   if (o.sections.includes('misSheet')) {
-    const src = misSourceWithCash(liveMisFormatSource(deck, o.mergeChannels), st?.flows ?? []);
+    const src = misSourceWithCash(liveMisFormatSource(norm ? { ...deck, months } : deck, o.mergeChannels), st?.flows ?? []);
+    const rows = norm ? MIS_SHEET_ROWS_NORMALISED : MIS_SHEET_ROWS;
     const fys = src.fiscalYears.filter((f) => o.fyKeys.length === 0 || o.fyKeys.some((k) => k.replace(/^FY(\d\d)-(\d\d)$/, 'FY 20$1-$2') === f.name));
     for (const fy of fys.length ? fys : src.fiscalYears.slice(-1)) {
       const y = page(`Heatronics — Live MIS · MIS Sheet ${fy.name}`);
       const cols = [...fy.months.map((m) => ({ label: m.label, pt: src.point([m.key], 'company') })), { label: 'FY total', pt: src.point(fy.months.map((m) => m.key), 'company') }];
       const fmt = (row: (typeof MIS_SHEET_ROWS)[number], v: number | null) => (v === null || !isFinite(v) ? '—' : row.pct ? PCT(v) : row.count ? Math.round(v).toLocaleString('en-IN') : LAKH(v));
-      table(doc, y, ['Rs Lakh', ...cols.map((c) => c.label)], MIS_SHEET_ROWS.map((row) => ({ bold: row.bold, cells: [row.label, ...cols.map((c) => fmt(row, row.get(c.pt)))] })), 40, `MIS Sheet · Company (${fy.name})`);
+      basisNote(table(doc, y, ['Rs Lakh', ...cols.map((c) => c.label)], rows.map((row) => ({ bold: row.bold, cells: [row.label, ...cols.map((c) => fmt(row, row.get(c.pt)))] })), 40, `MIS Sheet · Company (${fy.name}${norm ? ', normalised COGM' : ''})`));
     }
   }
 

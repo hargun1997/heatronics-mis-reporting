@@ -26,7 +26,7 @@ import {
 import { topChannel } from '../../data/misDeck/analytics';
 import type { CascadeLine } from '../../data/monthClose/schema';
 import {
-  Fold, Pills, BlendToggle, BlendNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
+  Fold, Pills, CogmBasisToggle, CogmBasisNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
   useLiveView, VERTICAL_COLORS,
 } from './shared';
 
@@ -118,9 +118,9 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500">Snapshot for <span className="font-medium text-slate-700">{period.label}</span>{n > 1 ? ` · ${scopeOf(period)}` : ''}</p>
-        <BlendToggle />
+        <CogmBasisToggle />
       </div>
-      <BlendNote />
+      <CogmBasisNote />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Net Revenue" value={inr(period.netRevenue)}
@@ -242,7 +242,7 @@ function AmazonTraffic({ rows, label }: { rows: TrafficRow[]; label: string }) {
 
 export type PnlDisplay = 'amount' | 'percent' | 'both';
 
-interface PnlRow { k: string; label: string; title?: string; get: (p: PeriodAgg) => number; kind: 'rev' | 'cost' | 'margin' }
+interface PnlRow { k: string; label: string; title?: string; get: (p: PeriodAgg) => number; kind: 'rev' | 'cost' | 'margin' | 'memo' }
 export const PNL_ROWS: PnlRow[] = [
   { k: 'net_revenue', label: 'Net Revenue', get: (p) => p.netRevenue, kind: 'rev' },
   { k: 'cogm', label: 'COGM', get: (p) => -p.cogm, kind: 'cost' },
@@ -259,6 +259,15 @@ export const PNL_ROWS: PnlRow[] = [
   { k: 'non_operating', label: 'Non-Operating (interest / D&A / tax)', get: (p) => -p.nonOperating, kind: 'cost' },
   { k: 'net_income', label: 'Net Income', get: (p) => p.netIncome, kind: 'margin' },
 ];
+/** Normalised COGM basis: the signed memo line under Gross Margin (Tally COGM − BOM cost of units sold − factory). */
+const STOCK_ROW: PnlRow = {
+  k: 'stock_variance', label: 'Stock build / drawdown (purchase timing)', kind: 'memo',
+  title: 'Memo, outside the cascade: Tally charged this much more (+) or less (−) COGM than the BOM cost of the units sold. Gross Margin + this = Gross Margin as booked.',
+  get: (p) => p.stockVariance,
+};
+const PNL_ROWS_NORMALISED: PnlRow[] = PNL_ROWS.flatMap((r) => (r.k === 'gross_margin' ? [r, STOCK_ROW] : [r]));
+/** A memo row is real only where the period was actually normalised (otherwise it reads "—"). */
+const rowReal = (p: PeriodAgg, row: PnlRow) => (row.kind === 'memo' ? isRealRow(p.level, 'gross_margin') && p.normalisedMonths > 0 : isRealRow(p.level, row.k));
 
 // Cost rows that drill into Tally's own ledger buckets (live months).
 const PNL_TALLY: Record<string, CascadeLine[]> = {
@@ -266,7 +275,7 @@ const PNL_TALLY: Record<string, CascadeLine[]> = {
   platform_payment: ['platform_payment'],
   cost_of_fundraising: ['cost_of_fundraising'],
 };
-const MKT_ORDER = ['Google Ads', 'Meta (FB / Instagram)', 'Amazon Ads', 'Flipkart Ads', 'Other / Blended'];
+const MKT_ORDER = ['Google Ads', 'Meta (FB / Instagram)', 'Amazon Ads', 'Flipkart Ads', 'Other / Unattributed'];
 
 interface DrillLine { key: string; label: string; value: (p: PeriodAgg) => number | null; strong?: boolean; gate?: string }
 
@@ -280,15 +289,16 @@ function colScope(p: PeriodAgg, gran: Granularity): string | null {
 
 export function PnlTab({ periods, months, completeness, gran, display, setDisplay }: {
   periods: PeriodAgg[];
-  /** All months (blend applied) — for the Metric trends chart's own grain. */
+  /** All months (on the chosen COGM basis) — for the Metric trends chart's own grain. */
   months: MonthlyMIS[];
   completeness: Record<string, PeriodCompleteness>;
   gran: Granularity;
   display: PnlDisplay;
   setDisplay: (d: PnlDisplay) => void;
 }) {
-  const { chName } = useLiveView();
+  const { chName, basis } = useLiveView();
   const cols = periods;
+  const rows = basis === 'normalised' ? PNL_ROWS_NORMALISED : PNL_ROWS;
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
@@ -405,15 +415,15 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
             </tr>
           </thead>
           <tbody>
-            {PNL_ROWS.map((row) => {
+            {rows.map((row) => {
               const lines = drills[row.k] ?? [];
               const canExpand = lines.length > 0;
               const isOpen = expanded.has(row.k);
-              const strong = row.kind !== 'cost';
+              const strong = row.kind !== 'cost' && row.kind !== 'memo';
               return (
                 <Fragment key={row.k}>
-                  <tr className={`border-b border-slate-50 ${row.kind === 'margin' ? 'bg-slate-50/60' : ''}`}>
-                    <td title={row.title} className={`py-1.5 px-3 sticky left-0 bg-white ${strong ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
+                  <tr data-row={row.k} className={`border-b border-slate-50 ${row.kind === 'margin' ? 'bg-slate-50/60' : row.kind === 'memo' ? 'italic' : ''}`}>
+                    <td title={row.title} className={`py-1.5 px-3 sticky left-0 bg-white ${strong ? 'font-semibold text-slate-800' : row.kind === 'memo' ? 'text-slate-500' : 'text-slate-600'}`}>
                       {canExpand ? (
                         <button onClick={() => toggle(row.k)} className="inline-flex items-center gap-1 text-left hover:text-slate-900" aria-expanded={isOpen}>
                           <span className="text-slate-400 w-2 inline-block">{isOpen ? '▾' : '▸'}</span>
@@ -422,8 +432,8 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
                       ) : <>{row.kind === 'cost' ? '− ' : ''}{row.label}</>}
                     </td>
                     {cols.map((p) => (
-                      <td key={p.key} className={`py-1.5 px-2 text-right tabular-nums align-top ${strong ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
-                        {isRealRow(p.level, row.k) ? cell(row.get(p), p, strong) : <span className="text-slate-300">—</span>}
+                      <td key={p.key} className={`py-1.5 px-2 text-right tabular-nums align-top ${strong ? 'font-semibold text-slate-800' : row.kind === 'memo' ? 'text-slate-500' : 'text-slate-600'}`}>
+                        {rowReal(p, row) ? cell(row.get(p), p, strong) : <span className="text-slate-300">—</span>}
                       </td>
                     ))}
                   </tr>
@@ -447,6 +457,7 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
         ▸ Click a line to drill in — Net Revenue into its gross → returns → GST build-up (where the month’s source carries
         it), COGM and Operating Expenses into their ledger lines, Sales &amp; Marketing into the ad platforms, and the other
         cost lines into Tally’s own ledger buckets (live months). Non-Operating lists its Tally ledgers with an EBT subtotal.
+        {basis === 'normalised' && ' Stock build / drawdown is a signed memo outside the cascade (positive = Tally charged more COGM than the BOM cost of what was sold); Gross Margin + memo = Gross Margin as booked.'}
       </Note>
 
       <MetricTrends months={months} completeness={completeness} />
@@ -848,7 +859,7 @@ function SkuMatrix({ period, cells, periodKeys }: { period: PeriodAgg; cells: Sk
       <div className="grid grid-cols-3 gap-3">
         <KpiTile label="Revenue" value={inr(mx.grand.rev)} />
         <KpiTile label="Contribution" value={cm2Real ? inr(mx.grand.con) : '—'} sub={`${nonAcc} products × ${mx.channels.length} channels`} />
-        <KpiTile label="Blended CM %" value={cm2Real && mx.grand.rev > 0 ? pctStr(mx.grand.con / mx.grand.rev) : '—'} />
+        <KpiTile label="Overall CM %" value={cm2Real && mx.grand.rev > 0 ? pctStr(mx.grand.con / mx.grand.rev) : '—'} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Pills label="Metric" value={metric} onChange={setMetric}

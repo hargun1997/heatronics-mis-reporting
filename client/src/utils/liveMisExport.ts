@@ -17,8 +17,8 @@ import {
   aggregatePeriods, FACTORY_PCT, monthLabel, scopeOf, CHANNEL_FOLD, type Granularity, type PeriodAgg,
 } from '../data/misDeck/liveAnalytics';
 import {
-  REAL_ROWS, anchoredChannelPnl, blendLiveMonths, blendRatesNote, channelName, liveFiscalYears,
-  liveMisPoint, liveSkuChannelMatrix, toPeriodMIS, unifyChannels, aggregateRange,
+  REAL_ROWS, anchoredChannelPnl, normaliseLiveMonths, channelName, liveFiscalYears,
+  liveMisPoint, liveSkuChannelMatrix, toPeriodMIS, unifyChannels, aggregateRange, type NormalisedMonths,
 } from '../data/misDeck/liveViews';
 import { channelMix, CHANNEL_AOV, topChannel, cagr } from '../data/misDeck/analytics';
 import {
@@ -27,7 +27,7 @@ import {
 } from './deckExcelExport';
 import { buildMisFormatWorkbook, type MisFormatSource } from './misFormatExport';
 import { misCashRows, type BalanceSheet, type CashFlow } from '../data/statements/statements';
-import type { MisPoint } from '../data/misDeck/misSheet';
+import { MIS_SHEET_ROWS_NORMALISED, type MisPoint } from '../data/misDeck/misSheet';
 
 // ---- Options ---------------------------------------------------------------
 
@@ -50,8 +50,11 @@ export interface LiveExportOptions {
   includeCashFlow: boolean;
   /** The standard MIS Sheet (company, ₹ Lac) with the Tally cash rows filled in. */
   includeMisSheet: boolean;
-  /** Blend COGM to each FY's revenue-weighted rate on the P&L sheets. */
-  blendCogm: boolean;
+  /**
+   * Normalised COGM on the P&L and MIS sheets: BOM cost of the units sold + factory overhead, Tally's purchase-timing
+   * difference as the "Stock build / drawdown" memo line (months with no BOM costing stay as booked, noted).
+   */
+  normaliseCogm: boolean;
   /** Continuous channel taxonomy (OEM→B2B, Offline→GT). */
   mergeChannels: boolean;
 }
@@ -61,7 +64,7 @@ export const LIVE_EXPORT_EVERYTHING: LiveExportOptions = {
   includeOrders: true, includeRepeats: true, includeDiscounts: true, includeCogmDetail: true,
   includeOpexDetail: true, includeMarketing: true, includeUnits: true, includeSkuCells: true,
   includeBalanceSheet: true, includeCashFlow: true, includeMisSheet: true,
-  blendCogm: false, mergeChannels: true,
+  normaliseCogm: false, mergeChannels: true,
 };
 
 export function liveSheetCount(o: LiveExportOptions): number {
@@ -110,7 +113,7 @@ function sheetWriter() {
 
 // ---- P&L sheet (periods as columns) ----------------------------------------
 
-interface Line { label: string; row: string; value: (p: PeriodAgg) => number; styles: { label: Style; num: Style }; pct: Style; margin?: boolean }
+interface Line { label: string; row: string; value: (p: PeriodAgg) => number; styles: { label: Style; num: Style }; pct: Style; margin?: boolean; memo?: boolean }
 
 const PL_LINES: (Line | 'spacer')[] = [
   { label: 'NET REVENUE', row: 'net_revenue', value: (p) => p.netRevenue, styles: { label: MARGIN.net.label, num: MARGIN.net.num }, pct: MARGIN.net.pct },
@@ -140,8 +143,16 @@ function pctName(label: string): string {
   return s === s.toUpperCase() ? s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\bCm(\d)\b/, 'CM$1').replace(/\bEbitda\b/, 'EBITDA').replace(/\bCogm\b/, 'COGM') : s;
 }
 
-function plSheet(series: PeriodAgg[], gran: Granularity, title: string, subtitle: string): XLSX.WorkSheet {
+const ITALIC_LABEL: Style = { ...S.label, font: { ...(S.label.font || {}), italic: true } };
+/** Normalised basis only: the signed memo line under Gross Margin (blank where the period was not restated). */
+const STOCK_LINE: Line = {
+  label: 'Memo: Stock build / drawdown (purchase timing)', row: 'gross_margin', value: (p) => p.stockVariance,
+  styles: { label: ITALIC_LABEL, num: { ...S.num, font: { ...(S.num.font || {}), italic: true } } }, pct: S.pct, memo: true,
+};
+
+function plSheet(series: PeriodAgg[], gran: Granularity, title: string, subtitle: string, normalised = false): XLSX.WorkSheet {
   const { put, band, finish } = sheetWriter();
+  const lines = normalised ? PL_LINES.flatMap((l) => (l !== 'spacer' && l.row === 'gross_margin' ? [l, STOCK_LINE] : [l])) : PL_LINES;
   const nCols = series.length + 2;
   let row = 0;
   band(row++, title, S.title, nCols);
@@ -166,13 +177,14 @@ function plSheet(series: PeriodAgg[], gran: Granularity, title: string, subtitle
   row += 2;
 
   const totalNet = series.reduce((s, p) => s + p.netRevenue, 0) || 1;
-  for (const line of PL_LINES) {
+  const lineReal = (p: PeriodAgg, line: Line) => real(p, line.row) && (!line.memo || p.normalisedMonths > 0);
+  for (const line of lines) {
     if (line === 'spacer') { row++; continue; }
     put(row, 0, line.label, line.styles.label);
-    const allReal = series.every((p) => real(p, line.row));
+    const allReal = series.every((p) => lineReal(p, line));
     let total = 0;
     series.forEach((p, i) => {
-      if (!real(p, line.row)) { put(row, i + 1, '', BLANK); return; }
+      if (!lineReal(p, line)) { put(row, i + 1, '', BLANK); return; }
       const v = round2(line.value(p));
       total += v;
       put(row, i + 1, v, signed(v, line.styles.num));
@@ -180,9 +192,9 @@ function plSheet(series: PeriodAgg[], gran: Granularity, title: string, subtitle
     if (allReal) put(row, nCols - 1, round2(total), signed(total, { ...line.styles.num, fill: S.total.fill, font: { ...(line.styles.num.font || {}), bold: true } }));
     else put(row, nCols - 1, '', S.total);
     row++;
-    put(row, 0, `   ${pctName(line.label)} % of Net Revenue`, { ...S.label, font: { ...(S.label.font || {}), italic: true } });
+    put(row, 0, `   ${pctName(line.label.replace(/^Memo:\s*/, ''))} % of Net Revenue`, ITALIC_LABEL);
     series.forEach((p, i) => {
-      if (!real(p, line.row) || !p.netRevenue) { put(row, i + 1, '', BLANK); return; }
+      if (!lineReal(p, line) || !p.netRevenue) { put(row, i + 1, '', BLANK); return; }
       put(row, i + 1, line.row === 'net_revenue' ? 1 : pct3(line.value(p) / p.netRevenue), line.pct);
     });
     if (allReal) put(row, nCols - 1, line.row === 'net_revenue' ? 1 : pct3(total / totalNet), { ...line.pct, font: { ...(line.pct.font || {}), bold: true } });
@@ -471,7 +483,7 @@ function marketingSheet(months: MonthlyMIS[]): XLSX.WorkSheet {
   const nCols = ms.length + 2;
   let row = 0;
   band(row++, 'SALES & MARKETING BY AD PLATFORM', S.title, Math.max(nCols, 4));
-  band(row++, 'Live months: S&M rebuilt from the connector ad facts, with a blended "Other" bucket that foots to the P&L line. Locked/published months carry no split.', S.subtitle, Math.max(nCols, 4));
+  band(row++, 'Live months: S&M rebuilt from the connector ad facts, with an unattributed "Other" bucket that foots to the P&L line. Locked/published months carry no split.', S.subtitle, Math.max(nCols, 4));
   row++;
   put(row, 0, 'Platform', S.header);
   ms.forEach((m, i) => put(row, i + 1, monthLabel(m.key), S.header));
@@ -643,22 +655,22 @@ const GRAN_META: Record<Granularity, { sheet: string; title: string }> = {
 export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions, st?: LiveStatements | null): XLSX.WorkBook {
   const deck = o.mergeChannels ? unifyChannels(rawDeck) : rawDeck;
   const wb = XLSX.utils.book_new();
-  const blend = blendLiveMonths(deck.months, deck.completeness);
-  const plMonths = o.blendCogm ? blend.months : deck.months;
+  const norm: NormalisedMonths | null = o.normaliseCogm ? normaliseLiveMonths(deck.months, deck.completeness, deck) : null;
+  const plMonths = norm ? norm.months : deck.months;
   const actualMonthly = aggregatePeriods(deck.months, deck.completeness, 'month');
   const actualYearly = aggregatePeriods(deck.months, deck.completeness, 'year');
-  const sub = o.blendCogm
-    ? `COGM blended to each FY's revenue-weighted rate (cogm-real months only; GM% by FY: ${blendRatesNote(blend.rates)}) · blanks = below that period's completeness · ₹`
+  const sub = norm
+    ? `${norm.note} · blanks = below that period's completeness · ₹`
     : 'Net Revenue → COGM → Gross Margin → CM1 → CM2 → CM3 → EBITDA → Net Income · actual COGM · blanks = below that period\'s completeness · ₹';
 
   if (o.includeSummary) XLSX.utils.book_append_sheet(wb, summarySheet(deck, actualMonthly, actualYearly, o.mergeChannels), 'Summary');
   for (const g of o.granularities) {
     const series = aggregatePeriods(plMonths, deck.completeness, g);
-    if (series.length) XLSX.utils.book_append_sheet(wb, plSheet(series, g, GRAN_META[g].title, sub), GRAN_META[g].sheet);
+    if (series.length) XLSX.utils.book_append_sheet(wb, plSheet(series, g, GRAN_META[g].title, sub, !!norm), GRAN_META[g].sheet);
   }
   if (o.includeChannelRevenue) XLSX.utils.book_append_sheet(wb, channelRevenueSheet(actualMonthly, o.mergeChannels), 'Channel Revenue');
   if (o.includeChannelPnl) {
-    // Channel P&L stays on actual COGM (as the legacy sheet does, blend or not).
+    // Channel P&L stays on actual COGM (as the legacy sheet does, whichever basis).
     XLSX.utils.book_append_sheet(wb, channelPnlSheet(deck, actualYearly, o.mergeChannels), 'Channel P&L');
     XLSX.utils.book_append_sheet(wb, skuChannelSheet(deck, o.mergeChannels), 'SKU x Channel');
   }
@@ -667,7 +679,7 @@ export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions, s
   if (o.includeDiscounts) XLSX.utils.book_append_sheet(wb, generateDiscountSheet(), 'Discounts');
   const ordered = [...deck.months].sort((a, b) => a.key.localeCompare(b.key));
   if (o.includeCogmDetail) {
-    const extra = o.blendCogm ? ' NOTE: the P&L sheets use FY-blended COGM, so these actual line totals will not tie to the P&L COGM month by month.' : '';
+    const extra = norm ? ' NOTE: the P&L sheets use normalised COGM (BOM cost of units sold + factory), so these booked ledger totals differ from the P&L COGM by the Stock build / drawdown memo line.' : '';
     XLSX.utils.book_append_sheet(wb, generateLineDetailSheet(ordered, 'cogmLines', 'COGM DETAIL — Cost of Goods Manufactured', extra), 'COGM Detail');
   }
   if (o.includeOpexDetail) XLSX.utils.book_append_sheet(wb, generateLineDetailSheet(ordered, 'opexLines', 'OPEX DETAIL — Operating Expenses'), 'OpEx Detail');
@@ -677,8 +689,11 @@ export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions, s
   if (o.includeBalanceSheet) XLSX.utils.book_append_sheet(wb, balanceSheetSheet(st?.sheets ?? []), 'Balance Sheet');
   if (o.includeCashFlow) XLSX.utils.book_append_sheet(wb, cashFlowSheet(st?.flows ?? []), 'Cash Flow');
   if (o.includeMisSheet) {
-    // The standard MIS Sheet blocks (P&L Summary per FY, company + channels), cash rows from the Cash Flow.
-    const mis = buildMisFormatWorkbook(misSourceWithCash(liveMisFormatSource(rawDeck, o.mergeChannels), st?.flows ?? []));
+    // The standard MIS Sheet blocks (P&L Summary per FY, company + channels), cash rows from the Cash Flow; on the
+    // normalised basis the months are restated and the Stock build / drawdown memo line sits under GM%.
+    const misDeck = norm ? { ...rawDeck, months: normaliseLiveMonths(rawDeck.months, rawDeck.completeness, rawDeck).months } : rawDeck;
+    const misSrc = liveMisFormatSource(misDeck, o.mergeChannels);
+    const mis = buildMisFormatWorkbook(misSourceWithCash(norm ? { ...misSrc, rows: MIS_SHEET_ROWS_NORMALISED, title: 'HEATRONICS LIVE MIS · Company P&L (₹ Lac, normalised COGM)' } : misSrc, st?.flows ?? []));
     const name = mis.SheetNames[0];
     if (name) XLSX.utils.book_append_sheet(wb, mis.Sheets[name], 'MIS Sheet');
   }
@@ -722,7 +737,7 @@ export function liveMisFormatSource(deck: LiveDeckData, merged: boolean): MisFor
 function liveMisPointEmpty() {
   return {
     qty: null, grossRevenue: null, channelMargin: null, returns: null, gst: null, ssClaim: null, discounts: null, netRevenue: null,
-    cogs: null, grossMargin: null, logistics: null, cm1: null, marketing: null, cm2: null, branding: null, cm3: null, payroll: null,
+    cogs: null, grossMargin: null, stockVariance: null, logistics: null, cm1: null, marketing: null, cm2: null, branding: null, cm3: null, payroll: null,
     profFee: null, otherExpense: null, otherIncome: null, ebitda: null, openingCash: null, funding: null, closingCash: null,
     cashBurn: null, ebitdaBurn: null, runway: null,
   };

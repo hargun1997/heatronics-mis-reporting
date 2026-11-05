@@ -110,6 +110,14 @@ export interface MonthlyMIS {
   /** Named residues between the connector channel/SKU view and Tally's authority. */
   channelRecon?: ChannelRecon;
   /**
+   * Set ONLY on a month restated to the normalised COGM basis (liveViews
+   * normaliseLiveMonths): Tally's booked COGM − (BOM cost of the units sold +
+   * factory overhead). Positive = Tally charged more than was sold (stock
+   * built / purchase timing); negative = drawdown. The month's cogm / margins
+   * already exclude it; it is shown as the memo line "Stock build / drawdown".
+   */
+  stockVariance?: number;
+  /**
    * Set only when the continuous channel taxonomy folded this month's keys
    * (OEM→B2B, Offline→GT): the net revenue by its ORIGINAL channel, so
    * estimates that depend on the source channel (orders ÷ AOV) stay exact.

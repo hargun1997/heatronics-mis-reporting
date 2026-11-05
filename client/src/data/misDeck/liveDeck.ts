@@ -496,7 +496,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     const other = r2(smTotal - attributed);
     // Keep a blended remainder (agency fees, offline, unattributed) so the split
     // foots to the real S&M line; ignore sub-rupee rounding dust.
-    if (Math.abs(other) >= 1) out['Other / Blended'] = other;
+    if (Math.abs(other) >= 1) out['Other / Unattributed'] = other;
     return out;
   };
 

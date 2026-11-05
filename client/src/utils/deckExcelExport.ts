@@ -16,7 +16,6 @@ import fileSaver from 'file-saver';
 const { saveAs } = fileSaver;
 import {
   MONTHLY_MIS,
-  FY_SUMMARY,
   SALES_CHANNELS,
   MIS_SOURCE_FILE,
   MIS_GENERATED_AT,
@@ -27,14 +26,10 @@ import {
 } from '../data/misDeck/misDeckData';
 import {
   seriesFor,
-  seriesForBlended,
-  fyBlendedGMRates,
   monthlySeries,
   yearlySeries,
   marginsOf,
   channelMix,
-  channelPnl,
-  adSpendForPeriod,
   ordersByChannel,
   channelLabel,
   CHANNEL_AOV,
@@ -44,7 +39,6 @@ import {
   FACTORY_PCT,
   type PeriodMIS,
   type Granularity,
-  type ChannelPnlRow,
 } from '../data/misDeck/analytics';
 
 // ============================================
@@ -65,12 +59,6 @@ export interface DeckExportOptions {
   /** Monthly discounts & total sales (storefront). */
   includeDiscounts: boolean;
   includeCogmDetail: boolean;
-  /**
-   * Blend COGM to each fiscal year's revenue-weighted rate on the P&L cascade
-   * sheets (smooths the month-to-month COGM booking-timing noise). The COGM
-   * Detail sheet always stays on actual figures.
-   */
-  blendCogm: boolean;
 }
 
 /** Everything on, every granularity — the "Export Everything" preset. */
@@ -83,7 +71,6 @@ export const EXPORT_EVERYTHING: DeckExportOptions = {
   includeRepeats: true,
   includeDiscounts: true,
   includeCogmDetail: true,
-  blendCogm: true,
 };
 
 // ============================================
@@ -649,23 +636,7 @@ function keyToLabel(key: string): string {
   return `${MONTHS3[(m || 1) - 1]} '${String((y || 0) % 100).padStart(2, '0')}`;
 }
 
-const CH_PL_LINES: { label: string; key: keyof ChannelPnlRow; kind: 'rev' | 'cost' | 'margin'; m?: keyof typeof MARGIN }[] = [
-  { label: 'NET REVENUE', key: 'netRevenue', kind: 'rev', m: 'net' },
-  { label: 'Less: COGM', key: 'cogm', kind: 'cost' },
-  { label: 'GROSS MARGIN', key: 'grossMargin', kind: 'margin', m: 'gross' },
-  { label: 'Less: Channel & Fulfillment', key: 'channelFulfillment', kind: 'cost' },
-  { label: 'CM1 (Contribution Margin 1)', key: 'cm1', kind: 'margin', m: 'cm1' },
-  { label: 'Less: Sales & Marketing', key: 'salesMarketing', kind: 'cost' },
-  { label: 'CM2 (Contribution Margin 2)', key: 'cm2', kind: 'margin', m: 'cm2' },
-  { label: 'Less: Brand Investment', key: 'platformCosts', kind: 'cost' },
-  { label: 'CM3 (Contribution Margin 3)', key: 'cm3', kind: 'margin', m: 'cm3' },
-  { label: 'Less: Operating Expenses', key: 'opex', kind: 'cost' },
-  { label: 'EBITDA', key: 'ebitda', kind: 'margin', m: 'ebitda' },
-  { label: 'Less: Non-Operating (Int/Dep/Amort/Tax)', key: 'nonOperating', kind: 'cost' },
-  { label: 'NET INCOME', key: 'netIncome', kind: 'margin', m: 'netIncome' },
-];
-
-function generateChannelPnlSheet(blend: boolean): XLSX.WorkSheet {
+function generateChannelPnlSheet(): XLSX.WorkSheet {
   const ws: XLSX.WorkSheet = {};
   const merges: XLSX.Range[] = [];
   const nCols = SALES_CHANNELS.length + 2; // Particulars + channels + Total
@@ -763,7 +734,7 @@ function generateSkuChannelSheet(): XLSX.WorkSheet {
   const cellMap = new Map<string, Agg>();
   const prodTot = new Map<string, Agg>();
   const chanTot = new Map<string, Agg>();
-  let grand: Agg = zero();
+  const grand: Agg = zero();
   const add = (m: Map<string, Agg>, k: string, s: Agg) => {
     const a = m.get(k) ?? zero();
     a.rev += s.rev; a.cogs += s.cogs; a.fac += s.fac; a.cf += s.cf; a.sm += s.sm; a.con += s.con;
@@ -1071,25 +1042,19 @@ const GRAN_TITLE: Record<Granularity, { sheet: string; title: string }> = {
 const PL_SUBTITLE =
   'Net Revenue → COGM → Gross Margin → CM1 → CM2 → CM3 → EBITDA → Net Income · all values in ₹';
 
-function blendedFyNote(): string {
-  const rates = Array.from(fyBlendedGMRates().entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([fy, r]) => `${fy.replace('FY ', 'FY')} ${Math.round(r * 100)}%`)
-    .join(' · ');
-  return `COGM blended to each fiscal year's revenue-weighted rate (GM% by FY: ${rates}) · all values in ₹`;
-}
-
+// The static deck is as-booked history: its months carry no BOM costing, so the normalised COGM basis (Live MIS) does
+// not apply here and the retired FY blend is gone.
 export async function exportDeckToExcel(options: DeckExportOptions): Promise<void> {
   const wb = XLSX.utils.book_new();
   const monthsAsc = [...MONTHLY_MIS].sort((a, b) => a.year - b.year || a.month - b.month);
-  const plSubtitle = options.blendCogm ? blendedFyNote() : PL_SUBTITLE;
+  const plSubtitle = PL_SUBTITLE;
 
   if (options.includeSummary) {
     XLSX.utils.book_append_sheet(wb, generateSummarySheet(), 'Summary');
   }
 
   for (const g of options.granularities) {
-    const series = options.blendCogm ? seriesForBlended(g) : seriesFor(g);
+    const series = seriesFor(g);
     if (series.length === 0) continue;
     const meta = GRAN_TITLE[g];
     XLSX.utils.book_append_sheet(wb, generatePLSheet(series, meta.title, plSubtitle), meta.sheet);
@@ -1100,7 +1065,7 @@ export async function exportDeckToExcel(options: DeckExportOptions): Promise<voi
   }
 
   if (options.includeChannelPnl) {
-    XLSX.utils.book_append_sheet(wb, generateChannelPnlSheet(options.blendCogm), 'Channel P&L');
+    XLSX.utils.book_append_sheet(wb, generateChannelPnlSheet(), 'Channel P&L');
     XLSX.utils.book_append_sheet(wb, generateSkuChannelSheet(), 'SKU x Channel');
   }
 
@@ -1117,12 +1082,9 @@ export async function exportDeckToExcel(options: DeckExportOptions): Promise<voi
   }
 
   if (options.includeCogmDetail) {
-    const extra = options.blendCogm
-      ? ' NOTE: the P&L sheets use FY-blended COGM, so these actual line-item totals will not tie to the P&L COGM month by month.'
-      : '';
     XLSX.utils.book_append_sheet(
       wb,
-      generateLineDetailSheet(monthsAsc, 'cogmLines', 'COGM DETAIL — Cost of Goods Manufactured', extra),
+      generateLineDetailSheet(monthsAsc, 'cogmLines', 'COGM DETAIL — Cost of Goods Manufactured'),
       'COGM Detail',
     );
   }
