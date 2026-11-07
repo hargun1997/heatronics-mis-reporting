@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { basePlan } from '../../client/src/data/planning/basePlan.ts';
 import { runPlan } from '../../client/src/data/planning/engine.ts';
-import { buildPainCarePlan, NEXT_ROUND_MONTH } from '../../client/src/data/planning/painCare.ts';
+import { buildPainCarePlan, NEXT_ROUND_MONTH, SERIES_B_MONTH } from '../../client/src/data/planning/painCare.ts';
 
 const CR = 1e7;
 const P = buildPainCarePlan(basePlan());
@@ -35,10 +35,14 @@ test('pain-care plan: only hGo (a sheet SKU) launches as a device in year 1; new
   assert.ok(P.products.filter((x) => x.on && x.category === 'topical' && x.launchMonth <= 12).length >= 2, 'topicals in year 1');
 });
 
-test('pain-care plan: the next round is a benchmark Series A at the round month, sized from trailing revenue', () => {
+test('pain-care plan: founder round sizes — Series A ₹30 Cr at the round month, Series B ₹100 Cr 18 months later', () => {
   const a = P.growth!.rounds.find((r) => r.id === 'bench-a')!;
+  const b = P.growth!.rounds.find((r) => r.id === 'bench-b')!;
   assert.equal(a.month, NEXT_ROUND_MONTH);
-  assert.equal(a.amount, 35 * CR);
+  assert.equal(a.amount, 30 * CR);
+  assert.equal(b.month, SERIES_B_MONTH);
+  assert.equal(b.amount, 100 * CR);
+  assert.equal(P.fx!.seed.amount, 8 * CR);
   assert.ok(a.preMoney >= 50 * CR && a.preMoney < 300 * CR, `pre ${a.preMoney / CR}`);
   assert.equal(a.confirmed, false);
   // fundTheGap kept it and sized the rest after it

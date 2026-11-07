@@ -15,6 +15,10 @@ const ch = (a: number, d: number, f = 0, g = 0, p = 0) => ({ A: a, D: d, F: f, G
 
 /** The next round: Jan-28 (M16) — 12 months after the seed closes (Jan-27, M4); the benchmarks say ~20 months, but year-1 burn needs it then. */
 export const NEXT_ROUND_MONTH = 16;
+/** Founder round sizes (7 Nov 2026): Series A ₹30 Cr at the next round, Series B ₹100 Cr 18 months later (Jul-29). */
+export const SERIES_A_CR = 30;
+export const SERIES_B_CR = 100;
+export const SERIES_B_MONTH = NEXT_ROUND_MONTH + 18;
 
 function products(): NewProduct[] {
   const base = { on: true, placeholder: true, growthLine: true, seasonRef: 'flat' } as const;
@@ -121,7 +125,15 @@ export function buildPainCarePlan(from: Plan): Plan {
   const r = runPlan(p);
   // pre-money = 3.5 × trailing-12-month revenue at the round (a winter run-rate alone would flatter it)
   const ttm = r.months.slice(Math.max(0, R - 12), R).reduce((a, m) => a + m.netRevenue, 0);
-  p.growth!.rounds = [{ id: 'bench-a', name: 'Series A (next round)', on: true, month: R, amount: 35 * CR, preMoney: Math.max(50 * CR, Math.round(3.5 * ttm / CR) * CR), feePct: 0.03, confirmed: false }];
+  // founder round sizes (7 Nov 2026): seed ₹8 Cr Jan-27 (fx.seed), Series A ₹30 Cr 12 months later, Series B ₹100 Cr 18 months after the A
+  const preB = 4 * r.months.slice(SERIES_B_MONTH - 13, SERIES_B_MONTH - 1).reduce((a, m) => a + m.netRevenue, 0);
+  p.growth!.rounds = [
+    { id: 'bench-a', name: 'Series A', on: true, month: R, amount: SERIES_A_CR * CR, preMoney: Math.max(50 * CR, Math.round(3.5 * ttm / CR) * CR), feePct: 0.03, confirmed: false },
+    { id: 'bench-b', name: 'Series B', on: true, month: SERIES_B_MONTH, amount: SERIES_B_CR * CR, preMoney: Math.max(150 * CR, Math.round(preB / CR) * CR), feePct: 0.03, confirmed: false },
+  ];
   p.growth!.funding = { ...defaultFunding(), ...p.growth!.funding, earliestAfterSeed: R - 4 };
-  return fundTheGap(p);
+  const out = fundTheGap(p);
+  // a gap fundTheGap fills between the A and the B is a bridge, not a lettered round
+  for (const x of out.growth!.rounds) if (x.id.startsWith('auto-') && x.month > R && x.month < SERIES_B_MONTH) x.name = 'Bridge (A extension)';
+  return out;
 }
