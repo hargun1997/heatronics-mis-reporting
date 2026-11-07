@@ -216,6 +216,48 @@ test('growth: roundStats gives each round its cash before, burn and runway', () 
   for (const s of st) { assert.ok(s.burn >= 0); assert.ok(s.runway == null || s.runway >= 1); }
 });
 
+test('growth: roundStats counts each round\'s runway on its own cash (the later rounds switched off)', () => {
+  const p = withGrowth();
+  p.growth!.funding = { ...p.growth!.funding!, buffer: 5 * CR };
+  p.growth!.rounds = [
+    { id: 'a', name: 'A', on: true, month: 6, amount: 20 * CR, preMoney: 80 * CR, feePct: 0, confirmed: false },
+    { id: 'b', name: 'B', on: true, month: 20, amount: 200 * CR, preMoney: 400 * CR, feePct: 0, confirmed: false },
+  ];
+  const st = roundStats(p, runPlan(p));
+  const alone = structuredClone(p); alone.growth!.rounds[1].on = false;
+  const cash = runPlan(alone).months;
+  const until = cash.slice(5).findIndex((m, i) => i > 0 && m.closingCash < 5 * CR);
+  assert.equal(st[0].runway, until < 0 ? null : until);
+  assert.ok(st[0].runway != null, 'the A alone runs out inside the plan (the B no longer hides it)');
+});
+
+test('growth: offline outlets never sell a product before its launch month, whatever its retail start', () => {
+  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 6, launchUnits: 0, retailStart: 2 };
+  const t = { ...defaultRetail()[1], outlets: [{ month: 3, add: 10 }], rampMonths: 1, units: { topical: 20, nutra: 0, device: 0, other: 0 } };
+  const p = withGrowth((x) => { x.products = [...x.products.filter((y) => y.id !== 'p-cream'), cream]; x.growth!.retail = [t]; });
+  const g = runPlan(p).months;
+  for (let m = 1; m < 6; m++) assert.equal(g[m - 1].retailRevenue, 0, `M${m}`);
+  assert.ok(g[5].retailRevenue > 0);
+});
+
+test('growth: leanUntil — SKU tweaks, product marketing % and the growth lines\' ROAS ads wait until the month after', () => {
+  const cream = { ...growthCategories().find((c) => c.id === 'p-cream')!, launchMonth: 2, launchUnits: 1000, rampPct: 0, marketingPct: 0.1, chStart: undefined, chGrowth: undefined, retailStart: undefined };
+  const mk = (lean?: number) => withGrowth((x) => {
+    x.products = [...x.products.filter((y) => !y.placeholder && y.id !== 'p-cream'), cream];
+    x.fx!.skuTweaks = { s8: { volume: 2, asp: null } };
+    if (lean) x.growth!.leanUntil = lean;
+  });
+  const plain = basePlan(); plain.products = plain.products.filter((y) => !y.placeholder);
+  const b = runPlan(plain).months, on = runPlan(mk(4)).months, off = runPlan(mk()).months;
+  for (let m = 1; m <= 4; m++) {
+    assert.equal(on[m - 1].groups['Performance Marketing'], b[m - 1].groups['Performance Marketing'], `M${m} marketing as without the lines`);
+    assert.equal(on[m - 1].unitsBySku.s8, b[m - 1].unitsBySku.s8, `M${m} hGo untweaked`);
+  }
+  assert.ok(off[2].groups['Performance Marketing'] > b[2].groups['Performance Marketing'], 'without a lean phase the line markets at once');
+  assert.ok(on[4].groups['Performance Marketing'] > b[4].groups['Performance Marketing'], 'from the month after, it does');
+  assert.equal(on[4].unitsBySku.s8, off[4].unitsBySku.s8);
+});
+
 // ---- Products cascade (founder, 3 Nov 2026): categories → products → volumes by year + product expenses ----
 const line = (o: Partial<import('../../client/src/data/planning/engine.ts').NewProduct> = {}) => ({
   id: 'p1', name: 'Gel', on: true, category: 'topical', asp: 500, launchMonth: 20, launchUnits: 1000, rampPct: 0, steadyPct: 0,

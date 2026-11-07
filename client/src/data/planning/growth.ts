@@ -258,14 +258,26 @@ export function fundTheGap(plan: Plan, rules?: Partial<FundingRules>): Plan {
 
 export interface RoundStat { id: string; name: string; month: number; amount: number; burn: number; runway: number | null; cashBefore: number }
 
-/** For each round: cash just before it, the average monthly burn over the next 12 months, and how many months of runway it buys. */
+/**
+ * For each round: cash just before it, the average monthly burn over the next 12 months, and how many months of runway it buys.
+ * Runway is counted on a run with every LATER round switched off (else the next round's cash always tops it up and the runway
+ * reads "to the end" for every round): months from the round until cash falls under the funding buffer; null = never in the plan.
+ */
 export function roundStats(plan: Plan, r: PlanResult): RoundStat[] {
   const buffer = plan.growth?.funding?.buffer ?? defaultFunding().buffer;
-  return (plan.growth?.rounds ?? []).filter((x) => x.on).map((x) => {
+  const on = (plan.growth?.rounds ?? []).filter((x) => x.on);
+  return on.map((x) => {
     const after = r.months.slice(x.month - 1);
     const next12 = after.slice(0, 12);
     const burn = Math.max(0, -next12.reduce((a, m) => a + m.netCashFlow, 0) / Math.max(1, next12.length));
-    const until = after.findIndex((m, i) => i > 0 && m.closingCash < buffer);
+    const later = on.some((y) => y.month > x.month);
+    let alone = r;
+    if (later) {
+      const p = structuredClone(plan);
+      p.growth!.rounds = p.growth!.rounds.map((y) => (y.on && y.month > x.month ? { ...y, on: false } : y));
+      alone = runPlan(p);
+    }
+    const until = alone.months.slice(x.month - 1).findIndex((m, i) => i > 0 && m.closingCash < buffer);
     return { id: x.id, name: x.name, month: x.month, amount: x.amount, burn, runway: until < 0 ? null : until, cashBefore: r.months[x.month - 2]?.closingCash ?? 0 };
   });
 }
