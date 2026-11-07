@@ -56,6 +56,14 @@ export function ToolsHome() {
             badge="New"
           />
           <NavCard
+            to="/tools/bulk-payments"
+            title="Bulk payments (ICICI)"
+            description="Upload the CIB payee list, make the Bulk Payee Registration file, and make a bulk payment file. Files only: you upload and authorise in CIB."
+            icon={iconConvert}
+            accent="brand"
+            badge="New"
+          />
+          <NavCard
             to="/planning"
             title="5-year plan"
             description="The Projection & Deployment Plan, live to FY31: unit plan, expense calendar, P&L, GST, cash and The Ask — with levers, D2C customers & repeats, seasonality, scenarios and Excel export."
