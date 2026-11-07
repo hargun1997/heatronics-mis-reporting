@@ -208,6 +208,19 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   settings); the upload stays behind "Upload a fee report instead". Inbound placement / transport stay settings (account-level fees).
   UNVERIFIED until the first live run: Amazon IN fee type names (FBA / closing regexes) and whether fee GST is itemised. Tests
   `server/test/priceFloorsLive.test.ts`.
+- **Bulk payments (ICICI) (`/tools/bulk-payments`, founder 7 Nov 2026): FILES ONLY — no bank API, never moves money**; the accounts team
+  uploads in ICICI CIB (BizPay360) and a second user authorises there. Formats in ONE place `client/src/data/payments/iciciFormats.ts`:
+  payee export ("Manage Bene", BIFF8 .xls, sheet CounterPartyListUX3, header row found by text "Bene Name" + "Account Number", junk rows
+  / page footers skipped, accounts kept as text; "Not Available" IFSC = ICICI payee) parsed in the browser (`payees.ts parsePayeeRows`,
+  `workbook.ts readPayeeWorkbook`); Bulk Payee Registration = Bene_Reg_Format (BNF_NAME, "BENE_ NICK_NAME" with the space, BENE_ACC_NO,
+  BENE_IFSC, BENE_EMAIL, BENE_MOBILE; all text cells; nick ≤ 20 UNVERIFIED); **bulk PAYMENT format = PLACEHOLDER `PAYMENT_FORMAT`
+  (`verified: false`, ICICI customised bulk columns PYMT_PROD_TYPE_CODE … ADDL_INFO5) — confirm in BizPay360 → File Format Settings
+  and run "Validate File for Upload" before "Payment File Upload"**. Mode default (`batch.ts defaultMode`): ICIC IFSC / ICICI Bank → FT,
+  ≥ ₹2 lakh → RTGS, else NEFT; only Active payees payable. Storage (ingest objectStore): `payments/payees` (FULL account numbers — needed
+  for the files; the signed-in page gets them, the UI shows ••••1234; never log them), `payments/batch-<id>` + `payments/batches-index`
+  (records only, no bank status; who = `req.htxUser`, else self-reported, flagged). Routes `server/src/routes/payments.ts`
+  (`GET/PUT /api/payments/payees`, `GET/POST /api/payments/batches`, `GET /api/payments/batches/:id`). Debit account in localStorage
+  `mis.payments.debitAccount` only. Tests `server/test/payments.test.ts` (synthetic data; the repo is public — never commit real payees).
 - **Live MIS = five tabs of expandable sections (founder, 5 Nov 2026: "expandable … declutter … the P&L is the MIS"):** `pages/mis/LiveMisPage.tsx`
   Overview (Headline · Revenue & growth · Run-rate — whole business) · **P&L** (the MIS sheet `LiveMisSheetTab` with Show ₹ Lac | % of net
   revenue and **Basis Actual | Normalised** — ONE basis switch (`LiveView.basis`, default normalised) drives the Margin ladder & cost structure,

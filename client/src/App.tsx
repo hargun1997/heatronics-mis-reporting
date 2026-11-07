@@ -24,6 +24,7 @@ import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
 import { ExpenseBooking } from './pages/tools/ExpenseBooking';
 import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
 import { PriceFloorsPage } from './pages/tools/PriceFloorsPage';
+import { BulkPaymentsPage } from './pages/tools/BulkPaymentsPage';
 import { RoundPlannerPage } from './pages/tools/RoundPlannerPage';
 import { PlanningPage } from './pages/planning/PlanningPage';
 import { TallyPage } from './pages/tally/TallyPage';
@@ -102,6 +103,7 @@ function App() {
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
           <Route path="tools/expense-booking" element={<ExpenseBooking />} />
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
+          <Route path="tools/bulk-payments" element={<BulkPaymentsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />
           <Route path="planning" element={<PlanningPage />} />
           <Route path="setup" element={<Navigate to="/reporting/mis/connectors" replace />} />

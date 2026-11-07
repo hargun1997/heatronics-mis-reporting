@@ -4,7 +4,7 @@
 
 export type NavIconName =
   | 'live' | 'upload' | 'issues' | 'ai' | 'send' | 'tasks' | 'booking' | 'book' | 'tools'
-  | 'plan' | 'rounds' | 'floors' | 'sources' | 'rules' | 'people' | 'tally' | 'old';
+  | 'plan' | 'rounds' | 'floors' | 'payments' | 'sources' | 'rules' | 'people' | 'tally' | 'old';
 
 export interface NavPage {
   id: string;
@@ -66,6 +66,7 @@ export const NAV: NavSection[] = [
       { id: 'booking', label: 'Book an invoice', href: '/booking-assistant', icon: 'booking', also: ['/tools/invoice-booking', '/tools/expense-booking'], hint: 'Which ledger, voucher and GST for an invoice', words: 'invoice ledger voucher tally expense booking assistant suggester' },
       { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution', words: 'equity dilution cap table investors' },
       { id: 'floors', label: 'Amazon price floors', href: '/tools/price-floors', icon: 'floors', hint: 'Lowest price per SKU that still makes money', words: 'pricing margin asin' },
+      { id: 'payments', label: 'Bulk payments (ICICI)', href: '/tools/bulk-payments', icon: 'payments', hint: 'Payee list, bulk payee file and bulk payment file for ICICI CIB', words: 'icici cib bizpay360 bank transfer neft rtgs imps vendor payout beneficiary bene payee upload file' },
     ],
   },
   {
