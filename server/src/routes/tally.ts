@@ -22,6 +22,7 @@ import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../co
 import { latestMonths, pullBooks, readBooks, readBooksState, readMasters, readVouchers } from '../connectors/tally/bookStore.js';
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport } from '../connectors/tally/books.js';
 import { buildChart, closingByLedger, type ChartReport } from '../connectors/tally/chart.js';
+import { ceoSummary } from '../connectors/tally/ceoSummary.js';
 import { claudeChat, isClaudeConfigured } from '../services/claudeClient.js';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import { BUNDLED_HISTORY } from '../services/expenseMap.js';
@@ -76,6 +77,18 @@ router.get('/statements', h(async (_req, res) => {
   for (const g of masters?.groups ?? []) if (g.parent) parents[g.name] = g.parent;
   for (const l of masters?.ledgers ?? []) if (names.has(l.name) && l.group) parents[l.name] = l.group;
   res.json({ months, parents, lastOkAt: s.lastOkAt, connected: Boolean(((await creds()).host || '').trim()) });
+}));
+
+// ---------------------------------------------------------------- CEO summary (MCP gateway + Ops' CEO agent)
+// Monthly sales / costs / profit + cash, debtors, creditors from the stored TBs and P&L copies (no Tally call).
+router.get('/summary', h(async (_req, res) => {
+  const s = await readTallyState();
+  const periods = [...new Set([...Object.keys(s.tbMonths ?? {}), ...Object.keys(s.months)])].sort().slice(-14);
+  const months = await Promise.all(periods.map(async (period) => {
+    const [tb, pnl] = await Promise.all([readTallyTb(period), readTallySnapshot(period)]);
+    return { period, tb: tb ? { rows: tb.rows, difference: tb.difference, basis: tb.basis ?? null } : null, pnl: pnl ? { nettProfit: pnl.nettProfit, ledgerRows: pnl.ledgerRows } : null };
+  }));
+  res.json({ ...ceoSummary(months), lastOkAt: s.lastOkAt, unit: 'INR' });
 }));
 
 // ---------------------------------------------------------------- books

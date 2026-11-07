@@ -27,6 +27,19 @@ export const portalManifest = {
       }
     },
     {
+      "id": "books-summary",
+      "method": "GET",
+      "path": "/api/tally/summary",
+      "auth": "session",
+      "purpose": "Monthly sales, costs, net profit, cash, debtors and creditors from the stored Tally copies",
+      "mcp": {
+        "tool": "mis_get_summary",
+        "description": "Start here for money questions: one row per month (last 13) from Tally: sales, other income, purchases, direct and indirect expenses, net profit, closing stock, cash and bank, overdraft, net cash, debtors, creditors, loans, GST payable; plus last month's biggest expense ledgers. ₹, no adding up needed.",
+        "access": "read",
+        "returns": "months[] + topExpenses + notes"
+      }
+    },
+    {
       "id": "statements",
       "method": "GET",
       "path": "/api/tally/statements",
