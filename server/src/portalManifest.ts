@@ -34,9 +34,104 @@ export const portalManifest = {
       "purpose": "Monthly sales, costs, net profit, cash, debtors and creditors from the stored Tally copies",
       "mcp": {
         "tool": "mis_get_summary",
-        "description": "Start here for money questions: one row per month (last 13) from Tally: sales, other income, purchases, direct and indirect expenses, net profit, closing stock, cash and bank, overdraft, net cash, debtors, creditors, loans, GST payable; plus last month's biggest expense ledgers. ₹, no adding up needed.",
+        "description": "Start here for money questions (Cash Overwatch): one row per month (last 13) from Tally: sales, other income, purchases, direct and indirect expenses, net profit, closing stock, cash and bank, overdraft, net cash, debtors, creditors, loans, GST payable; plus fy (FY-to-date sales, gross margin, EBITDA, net profit vs last FY), channels (sales per channel ledger, 6 months, MoM), costs (opex buckets, MoM, % of sales), balance (cash per bank, OD, debtors, creditors, stock, loans, GST), cashflow (last 3 months), close (locked / ready / open, tie, uploads), watch (things to watch with ₹ and a reason), topExpenses. ₹, no adding up needed; null = not in the books yet.",
         "access": "read",
-        "returns": "months[] + topExpenses + notes"
+        "returns": "months[] + fy + channels + costs + balance + cashflow[] + close[] + watch[] + topExpenses + notes"
+      }
+    },
+    {
+      "id": "channel-pnl",
+      "method": "GET",
+      "path": "/api/tally/channel-pnl?months=<months>",
+      "auth": "session",
+      "purpose": "Monthly sales per channel ledger and opex by bucket from the stored Tally P&L copies",
+      "mcp": {
+        "tool": "mis_get_channel_pnl",
+        "description": "Call for 'how did each channel / vertical do in the books' or 'what are we spending on': Tally sales per channel ledger (Amazon, D2C, Flipkart, Blinkit, GT, B2B, Export) per month with MoM and share, and opex by bucket (employee, marketing, channel fees, logistics, rent & factory, professional, finance, depreciation) per month with MoM and % of sales. As booked in Tally. ₹.",
+        "access": "read",
+        "input": { "type": "object", "properties": { "months": { "type": "integer", "minimum": 2, "maximum": 13, "description": "How many months back (default 6)" } } },
+        "returns": "channels{months[], momPct, sharePct} + costs{months[], momPct}"
+      }
+    },
+    {
+      "id": "cashflow",
+      "method": "GET",
+      "path": "/api/tally/cashflow",
+      "auth": "session",
+      "purpose": "Indirect cash flow of the last 3 months from consecutive stored Trial Balances",
+      "mcp": {
+        "tool": "mis_get_cashflow",
+        "description": "Call for 'where did the cash go' or burn questions: per month (last 3) profit, depreciation, working-capital change, operating / investing / financing / other, net change, opening and closing cash & bank. From Tally's month-end Trial Balances. ₹.",
+        "access": "read",
+        "returns": "cashflow[] + netCash"
+      }
+    },
+    {
+      "id": "balance-sheet",
+      "method": "GET",
+      "path": "/api/tally/balance-sheet",
+      "auth": "session",
+      "purpose": "Newest balance sheet figures and FY-to-date P&L from the stored Trial Balance",
+      "mcp": {
+        "tool": "mis_get_balance_sheet",
+        "description": "Call for the cash situation: cash per bank ledger, overdraft, net cash, receivables, payables, inventory, loans, GST net, fixed assets, working capital at the newest Trial Balance; plus fy = FY-to-date sales, COGS, gross margin, EBITDA proxy, net profit and the same for last FY (YoY). ₹; null where the books lack it.",
+        "access": "read",
+        "returns": "balance + fy{current, lastFy, yoyPct}"
+      }
+    },
+    {
+      "id": "close-status",
+      "method": "GET",
+      "path": "/api/tally/close-status?months=<months>",
+      "auth": "session",
+      "purpose": "Month-close status per month: lock, tie residual, channel sales vs connectors, missing uploads, Tally copy age",
+      "mcp": {
+        "tool": "mis_get_close_status",
+        "description": "Call for 'is the month closed / are the books tied': per month (last 4) locked | ready | open, who locked and the tie residual %, Tally channel sales vs connector sales gap ₹ per channel, manual uploads still missing, when the Tally P&L copy was taken and whether the Trial Balance ties.",
+        "access": "read",
+        "input": { "type": "object", "properties": { "months": { "type": "integer", "minimum": 1, "maximum": 12 } } },
+        "returns": "close[]"
+      }
+    },
+    {
+      "id": "ledger-trend",
+      "method": "GET",
+      "path": "/api/tally/ledger-trend?ledger=<ledger>",
+      "auth": "session",
+      "purpose": "Monthly amounts of a Tally P&L ledger across the stored copies",
+      "mcp": {
+        "tool": "mis_get_ledger_trend",
+        "description": "Call when asked about one ledger over time ('how has Cost of Advertising moved', 'rent by month'): every P&L ledger whose name contains the word, monthly amounts (last 13 months) and the total. ₹ as booked.",
+        "access": "read",
+        "input": { "type": "object", "properties": { "ledger": { "type": "string", "description": "Part of the Tally ledger name" } }, "required": ["ledger"] },
+        "returns": "ledgers[{ledger, months[], total}]"
+      }
+    },
+    {
+      "id": "expenses-month",
+      "method": "GET",
+      "path": "/api/tally/expenses?month=<month>",
+      "auth": "session",
+      "purpose": "Biggest expense ledgers of one month with the month before",
+      "mcp": {
+        "tool": "mis_get_expenses",
+        "description": "Call for 'what did we spend on in <month>': the 25 biggest expense ledgers of that month (default the newest with a Tally copy), each with its bucket and the month before's figure. ₹ as booked.",
+        "access": "read",
+        "input": { "type": "object", "properties": { "month": { "type": "string", "description": "YYYY-MM" } } },
+        "returns": "rows[{ledger, amount, before, bucket}] + total"
+      }
+    },
+    {
+      "id": "watchlist",
+      "method": "GET",
+      "path": "/api/tally/watchlist",
+      "auth": "session",
+      "purpose": "Things to watch in the books: runway, debtors, creditors, GST, ties, channel drops, copy age, uploads",
+      "mcp": {
+        "tool": "mis_get_watchlist",
+        "description": "Call for 'anything to worry about in the books / cash': rule-based items with severity, ₹ / %, and a one-line reason — cash runway at the last 3 months' outflow, debtors up > 20% MoM, creditors > 2× monthly purchases, GST payable spike, a locked month with a tie breach, a Trial Balance that does not tie, a channel ledger down > 25% MoM, a P&L copy taken too soon after month end or missing, manual uploads missing, Tally vs connector sales gaps.",
+        "access": "read",
+        "returns": "watch[]"
       }
     },
     {
