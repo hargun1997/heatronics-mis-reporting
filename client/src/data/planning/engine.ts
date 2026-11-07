@@ -237,6 +237,9 @@ export interface GrowthPlan {
   recruitPct: number;
   /** pre-money of the ₹8 Cr seed, for the dilution table (placeholder until agreed) */
   seedPreMoney: number;
+  /** lean phase: through this month the business runs as today — the SKU volume tweaks wait until the month after, the
+   *  growth lines carry no product marketing % and their sales don't feed the sheet's ROAS ad lines (absent = no lean phase) */
+  leanUntil?: number;
   hires: Hire[];
   capacity: CapacityBlock[];
   capex: CapexItem[];
@@ -350,7 +353,9 @@ export interface PlanFx {
     feePct: number; confirmed: boolean;
   };
   /** 5. interest on a negative cash balance (an overdraft facility), separate from equity and from term debt */
-  overdraft: { on: boolean; rate: number; confirmed: boolean };
+  overdraft: { on: boolean; rate: number; confirmed: boolean;
+    /** sanctioned limit (₹, positive); cash below −limit is an unfunded gap (`overdraftOverLimit`). Absent = no limit checked */
+    limit?: number };
   /** 7. D2C discounts / coupons as % of D2C list revenue, learned from Shopify total_discounts */
   d2cDiscount: { on: boolean; pct: number; source: 'shopify' | 'manual' | 'placeholder'; asOf: string | null };
   /** 9. depreciation of NEW capex booked once, straight-line from the month after the spend (the sheet's flat D&A lines stay for the opening assets, without inflation) */
@@ -537,6 +542,8 @@ export interface MonthResult {
   overdraftInterest: number;
   /** negative closing cash = overdraft drawn */
   overdraft: number;
+  /** overdraft drawn beyond `fx.overdraft.limit` (0 when no limit is set): money the plan has not found */
+  overdraftOverLimit: number;
   /** cumulative operating cash flow less scheduled venture principal repayments (what the Ask is sized on) */
   cumulativeNeed: number;
   /** Growth builder (zeros when it is off) */
@@ -672,7 +679,8 @@ export function runPlan(plan: Plan): PlanResult {
     for (let m = 1; m <= B; m++) { const cell = plan.units[m - 1][s][c]; if (cell[0] + cell[1] + cell[2] > 0) return m; }
     return Infinity;
   }));
-  const tweakVol = (s: number) => fx.skuTweaks[plan.skus[s].id]?.volume ?? 1;
+  const leanUntil = G?.leanUntil ?? 0;
+  const tweakVol = (s: number, m: number) => (m <= leanUntil ? 1 : fx.skuTweaks[plan.skus[s].id]?.volume ?? 1);
   const aspOf = (s: number) => fx.skuTweaks[plan.skus[s].id]?.asp ?? plan.skus[s].asp;
   const prevFyTotal = (fy: string, s: number, c: number): number => {
     const prev = 'FY' + String(Number(fy.slice(2)) - 1).padStart(2, '0');
@@ -697,7 +705,7 @@ export function runPlan(plan: Plan): PlanResult {
         let oldRule: number | null = null;
         if (m <= B) {
           const cell = plan.units[m - 1][s][c];
-          per.push((cell[0] + cell[1] + cell[2]) * (L.baseVolume[ch] ?? 1) * tweakVol(s));
+          per.push((cell[0] + cell[1] + cell[2]) * (L.baseVolume[ch] ?? 1) * tweakVol(s, m));
         } else {
           const fy = fyOf(plan.startMonth, m);
           const g = L.growth[fy]?.[ch] ?? 0;
@@ -804,7 +812,7 @@ export function runPlan(plan: Plan): PlanResult {
   const stdCogs: number[] = [];
 
   // first pass needs every month's revenue for forward inventory cover, so compute P&L for all months first
-  const pre: Omit<MonthResult, 'gstAsset' | 'gstRefund' | 'taxableTurnover' | 'outputGst' | 'itcGoods' | 'itcServices' | 'gstSetOffServices' | 'gstSetOffGoods' | 'gstClaimable' | 'gstStuck' | 'stdCogs' | 'inventory' | 'inventoryPurchase' | 'receivables' | 'payables' | 'nwc' | 'nwcChange' | 'debt' | 'netCashFlow' | 'cumulativeCash' | 'equity' | 'debtNet' | 'closingCash' | 'bankDebt' | 'ventureBalance' | 'ventureInterest' | 'overdraftInterest' | 'overdraft' | 'cumulativeNeed' | 'roundEquity' | 'interest' | 'tax' | 'pbt' | 'pat' | 'gstWrittenOff' | 'cm1' | 'cm2' | 'cm3' | 'ebitda' | 'ebit'>[] = [];
+  const pre: Omit<MonthResult, 'gstAsset' | 'gstRefund' | 'taxableTurnover' | 'outputGst' | 'itcGoods' | 'itcServices' | 'gstSetOffServices' | 'gstSetOffGoods' | 'gstClaimable' | 'gstStuck' | 'stdCogs' | 'inventory' | 'inventoryPurchase' | 'receivables' | 'payables' | 'nwc' | 'nwcChange' | 'debt' | 'netCashFlow' | 'cumulativeCash' | 'equity' | 'debtNet' | 'closingCash' | 'bankDebt' | 'ventureBalance' | 'ventureInterest' | 'overdraftInterest' | 'overdraft' | 'overdraftOverLimit' | 'cumulativeNeed' | 'roundEquity' | 'interest' | 'tax' | 'pbt' | 'pat' | 'gstWrittenOff' | 'cm1' | 'cm2' | 'cm3' | 'ebitda' | 'ebit'>[] = [];
 
   for (let m = 1; m <= H; m++) {
     const aspF = Math.pow(1 + L.aspGrowthPct, yearsAfter(m));
@@ -870,6 +878,7 @@ export function runPlan(plan: Plan): PlanResult {
     const gAdd: Record<string, number> = {}; // Growth-builder costs, added to the groups after the expense calendar
     const add = (grp: string, v: number) => { if (v) gAdd[grp] = (gAdd[grp] ?? 0) + v; };
     let inHouseUnits = 0, repeatUnits = 0;
+    const growthByChannel = zeroCh(); // the growth lines' own channel revenue (kept out of the ROAS ad base in the lean phase)
     for (const p of products) {
       if (G && p.on && m === p.launchMonth) { add('Product Development & Launch', p.launchCost ?? 0); add('New Product Tooling & Moulds', p.launchCapex ?? 0); }
       const q0 = productUnits(p, m);
@@ -891,11 +900,12 @@ export function runPlan(plan: Plan): PlanResult {
         const ch = CHANNELS[ci];
         const r = q0 * fac[ci] * p.asp * aspF;
         revenueByChannel[ch] += r; pr += r;
+        if (p.growthLine) growthByChannel[ch] += r;
         if (ch === 'G') gtList[p.id] = (gtList[p.id] ?? 0) + r;
       }
       unitsBySku[p.id] = q; revenueBySku[p.id] = pr; units += q;
       if (p.cogsPct != null) { ownCogs += pr * p.cogsPct; ownCogsRevenue += pr; }
-      if (G && p.marketingPct) add('Performance Marketing', pr * p.marketingPct);
+      if (G && p.marketingPct && m > leanUntil) add('Performance Marketing', pr * p.marketingPct);
     }
     // Growth builder: each product's own cost lines
     if (G) for (const p of products) {
@@ -921,7 +931,7 @@ export function runPlan(plan: Plan): PlanResult {
       for (const cat of Object.keys(t.units) as ProductCategory[]) {
         const per = t.units[cat] ?? 0;
         if (!per || !o.eff) continue;
-        const live = products.filter((p) => p.on && p.growthLine && (p.category ?? 'other') === cat && m >= (p.retailStart ?? p.launchMonth) && !(p.placeholder && parity));
+        const live = products.filter((p) => p.on && p.growthLine && (p.category ?? 'other') === cat && m >= Math.max(p.retailStart ?? 0, p.launchMonth) && !(p.placeholder && parity)); // never before its launch
         if (!live.length) continue;
         for (const p of live) {
           const q = (o.eff * per) / live.length;
@@ -1019,11 +1029,12 @@ export function runPlan(plan: Plan): PlanResult {
         const amount = fx.seed.on && l.id === SEED_FEE_LINE ? fx.seed.amount * fx.seed.feePct : l.amount;
         if (l.type === 'Monthly') v = amount * fixedF;
         else if (l.type === 'Quarterly') v = (k - l.start) % 3 === 0 ? l.amount * fixedF : 0;
-        else if (l.type === 'One Time') v = k === l.start ? amount : 0;
+        // the seed's round cost is paid when the seed closes, not in the line's sheet month
+        else if (l.type === 'One Time') v = (fx.seed.on && l.id === SEED_FEE_LINE ? m === Math.max(1, fx.seed.month) : k === l.start) ? amount : 0;
         else if (l.type === 'Annual') v = (k - l.start) % 12 === 0 ? l.amount * fixedF : 0;
         else if (l.type in ROAS_BASE) {
           const roas = l.amount * (m > B ? Math.pow(1 + L.roasGainPct, n) : 1);
-          let base = revenueByChannel[ROAS_BASE[l.type]];
+          let base = revenueByChannel[ROAS_BASE[l.type]] - (m <= leanUntil ? growthByChannel[ROAS_BASE[l.type]] : 0);
           if (cohorts && ROAS_BASE[l.type] === 'D' && m > B) {
             // the sheet's ROAS is blended (new + repeat); after the base, ads pay for new buyers only,
             // at the same-month base year's new-buyer share
@@ -1199,7 +1210,8 @@ export function runPlan(plan: Plan): PlanResult {
       gstClaimable: claimable, gstStuck: stuck, stdCogs: stdCogs[i],
       gstAsset, gstRefund: refund, inventory, inventoryPurchase, receivables, payables, nwc, nwcChange,
       debt, netCashFlow, cumulativeCash: cumulative, equity, debtNet: drawn - repaid, closingCash: cash,
-      bankDebt, ventureBalance: ventureBal, ventureInterest, overdraftInterest, overdraft: Math.max(0, -cash), cumulativeNeed, roundEquity,
+      bankDebt, ventureBalance: ventureBal, ventureInterest, overdraftInterest, overdraft: Math.max(0, -cash),
+      overdraftOverLimit: fx.overdraft.on && fx.overdraft.limit != null ? Math.max(0, -cash - fx.overdraft.limit) : 0, cumulativeNeed, roundEquity,
     });
   }
 
