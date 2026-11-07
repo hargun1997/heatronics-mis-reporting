@@ -12,6 +12,9 @@
 //   GET  /api/tally/books/chart               groups → sub-groups → ledgers tree + hanging ledgers with where to move them
 //   GET  /api/tally/books/vouchers?period=&q= vouchers of a month, filtered
 //   POST /api/tally/books/ask {question, history?}  "Ask about Tally" (Claude, grounded in the stored books)
+//   GET  /api/tally/summary             CEO summary (v1 months + v2 Cash Overwatch blocks); ?fresh=1 skips the 60 s cache
+//   GET  /api/tally/channel-pnl|cashflow|balance-sheet|close-status|ledger-trend?ledger=|expenses?month=|watchlist
+//                                        the v2 blocks one at a time (MCP tools mis_get_*), stored copies only
 //   GET/PUT /api/tally/ledger-rules   name-pattern rules (Blinkit / Flipkart sales, brand investment, fundraising) + the stored
 //                                     ledgers / P&L rows / narrations the client matches them against (health note)
 // ----------------------------------------------------------------------------
@@ -23,6 +26,8 @@ import { latestMonths, pullBooks, readBooks, readBooksState, readMasters, readVo
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport } from '../connectors/tally/books.js';
 import { buildChart, closingByLedger, type ChartReport } from '../connectors/tally/chart.js';
 import { ceoSummary } from '../connectors/tally/ceoSummary.js';
+import { balanceOut, ceoSummaryV2, channelsOut, closeOut, costsOut, expensesOf, fyOut, ledgerTrend, watchOut } from '../connectors/tally/ceoSummaryV2.js';
+import { summaryInput } from '../connectors/tally/ceoSummaryLoad.js';
 import { claudeChat, isClaudeConfigured } from '../services/claudeClient.js';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import { BUNDLED_HISTORY } from '../services/expenseMap.js';
@@ -81,14 +86,57 @@ router.get('/statements', h(async (_req, res) => {
 
 // ---------------------------------------------------------------- CEO summary (MCP gateway + Ops' CEO agent)
 // Monthly sales / costs / profit + cash, debtors, creditors from the stored TBs and P&L copies (no Tally call).
-router.get('/summary', h(async (_req, res) => {
-  const s = await readTallyState();
-  const periods = [...new Set([...Object.keys(s.tbMonths ?? {}), ...Object.keys(s.months)])].sort().slice(-14);
-  const months = await Promise.all(periods.map(async (period) => {
-    const [tb, pnl] = await Promise.all([readTallyTb(period), readTallySnapshot(period)]);
-    return { period, tb: tb ? { rows: tb.rows, difference: tb.difference, basis: tb.basis ?? null } : null, pnl: pnl ? { nettProfit: pnl.nettProfit, ledgerRows: pnl.ledgerRows } : null };
-  }));
-  res.json({ ...ceoSummary(months), lastOkAt: s.lastOkAt, unit: 'INR' });
+// v1 fields (months, topExpenses, notes) unchanged; v2 (ceoSummaryV2.ts) adds fy, channels, costs, balance, cashflow,
+// close, watch, amazonStock next to them — the "Cash Overwatch" blocks (founder, 7 Nov 2026).
+router.get('/summary', h(async (req, res) => {
+  const x = await summaryInput(req.query.fresh === '1');
+  const v1 = ceoSummary(x.months.slice(-14));
+  const v2 = ceoSummaryV2(x);
+  res.json({ ...v1, ...v2, notes: [...v1.notes, ...v2.notes], lastOkAt: x.lastOkAt, unit: 'INR' });
+}));
+
+// ---------------------------------------------------------------- Cash Overwatch pieces (MCP tools mis_get_*; all signed in, stored data only)
+router.get('/channel-pnl', h(async (req, res) => {
+  const x = await summaryInput();
+  const keep = Math.min(13, Math.max(2, Number(req.query.months) || 6));
+  res.json({ channels: channelsOut(x.months, x.rules ?? null, keep), costs: costsOut(x.months, x.rules ?? null, keep), lastOkAt: x.lastOkAt, unit: 'INR' });
+}));
+router.get('/cashflow', h(async (_req, res) => {
+  const x = await summaryInput();
+  const { balance, cashflow } = balanceOut(x.months, x.parents);
+  res.json({ cashflow, netCash: balance?.netCash ?? null, period: balance?.period ?? null, lastOkAt: x.lastOkAt, unit: 'INR' });
+}));
+router.get('/balance-sheet', h(async (_req, res) => {
+  const x = await summaryInput();
+  const { balance } = balanceOut(x.months, x.parents);
+  res.json({ balance, fy: fyOut(x.months, x.parents), lastOkAt: x.lastOkAt, unit: 'INR' });
+}));
+router.get('/close-status', h(async (req, res) => {
+  const x = await summaryInput();
+  res.json({ close: closeOut(x, Math.min(12, Math.max(1, Number(req.query.months) || 4))), today: x.today, unit: 'INR' });
+}));
+router.get('/ledger-trend', h(async (req, res) => {
+  const ledger = String(req.query.ledger || '').trim().slice(0, 120);
+  if (!ledger) return res.status(400).json({ error: 'ledger=<part of a Tally ledger name>' });
+  const x = await summaryInput();
+  res.json({ query: ledger, ledgers: ledgerTrend(x.months, ledger), unit: 'INR' });
+}));
+router.get('/expenses', h(async (req, res) => {
+  const x = await summaryInput();
+  const withPnl = x.months.filter((m) => m.pnl?.ledgerRows.length).map((m) => m.period).sort();
+  const month = String(req.query.month || withPnl[withPnl.length - 1] || '');
+  if (!PERIOD.test(month)) return res.status(400).json({ error: 'month=YYYY-MM' });
+  const r = expensesOf(x.months, month);
+  if (!r) return res.json({ period: month, rows: [], total: null, note: `No Tally P&L copy for ${month}. Months with one: ${withPnl.join(', ') || 'none'}.`, unit: 'INR' });
+  res.json({ ...r, unit: 'INR' });
+}));
+router.get('/watchlist', h(async (_req, res) => {
+  const x = await summaryInput();
+  const channels = channelsOut(x.months, x.rules ?? null);
+  const costs = costsOut(x.months, x.rules ?? null);
+  const { balance, cashflow } = balanceOut(x.months, x.parents);
+  const close = closeOut(x);
+  res.json({ watch: watchOut(x, { channels, balance, cashflow, close, costs }), today: x.today, unit: 'INR' });
 }));
 
 // ---------------------------------------------------------------- books
