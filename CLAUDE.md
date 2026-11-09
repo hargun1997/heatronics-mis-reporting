@@ -300,6 +300,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   - **BOM per month** (`pickBom`): each month prices COGS with its own BOM report (the slot pull's `periodKey`, `production.ts` month param), else the
     nearest month's (tie → earlier), shown as `completeness.bom` with a note. Meta/Google live facts (`channel: 'Meta Ads' | 'Google Ads'`) now map to D2C
     (`toSalesChannel`). MIS Sheet cash rows are labelled ₹ lakh (values were already lakh, not Cr).
+- **Why it moved** (Live MIS Overview section `ov-why`, 9 Nov 2026): pure `client/src/data/misDeck/bridge.ts buildBridge()` = EBITDA bridge month vs previous month / same month last year: volume · price & product mix · channel mix · returns · other revenue, then BOM cost · stock timing (normalised basis, `stockVariance`) · factory · channel fees · ads (by platform) · payment fees · opex, in ₹ lakh with sign; steps sum to the change ("Other / rounding" if not). Missing = `not_enough_data` / unsplit step, never 0. `topReasons()` = 3 lines ≤ 10 words, no LLM. View `components/liveMis/WhyItMoved.tsx` + `whyData.ts`. Client-only (the deck is built in the browser), so the page saves the pure bridge output (numbers only) via `POST /api/mis/bridge` (`routes/misBridge.ts`, `services/bridgeSnapshot.ts`: whitelist + 60k cap, objectStore `mis/bridge-latest` + `mis/bridge-<YYYY-MM>`, one write per content hash); `GET /api/mis/bridge?month=` = MCP `mis_get_margin_bridge` (null when none, `asOf` = last save). Tests `server/test/bridge.test.ts`, `bridgeSnapshot.test.ts`.
 - **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).
@@ -394,6 +395,17 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,
   assumptions / risks / themes & milestones / team text. Tested against the sheet (Exit ARR, equity 12M/18M, deployment by theme).
+- **Plan vs actual (Planning → "Plan vs actual", 9 Nov 2026):** the Base (or a saved) plan is the budget, Live MIS months are the actuals.
+  Pure `client/src/data/planning/planVsActual.ts` (byte-identical copy `server/src/planning/planVsActual.ts`, test-checked): per month plan, actual,
+  gap ₹ / %, status (within 5% = on track / behind / ahead), no data = null never 0, the running month shown but not counted, year to date, exit
+  ARR pace (last 3 closed months × 4 vs plan, gap carried to FY end), behind list. Deck side `planVsActualLive.ts` (normalised basis; units from
+  SkuCells). View `components/planning/outputs/PlanVsActual.tsx`. Server: `GET /api/planning/vs-actual?scenario=` (MCP `mis_get_plan_vs_actual`);
+  Base plan months = generated `server/src/planning/basePlanMonths.ts` (`node --import tsx scripts/export-base-plan-months.ts`; test fails when stale);
+  a saved scenario carries `summary` months written by the Planning page on Save (older scenarios: open + Save once); actuals = what the browser last
+  stored (`POST /api/planning/actuals`, written when the view opens), because the deck is built client side. Tests `server/test/planVsActual.test.ts`.
+
+## Morning page (`/today`, 9 Nov 2026)
+`GET /api/today` (`routes/today.ts`, pure `services/morningBrief.ts`, test `test/morningBrief.test.ts`; manifest tool `mis_get_morning_brief`): status (act / watch / ok), 5 tiles (net cash, months of cash, sales, to fix, tasks late), "Needs you" (Tally watch items + open Fix items + late / due-today tasks, high first), "What changed" vs the last saved day, "Coming up". Stored data only, no AI. The first read of each IST day saves ONE small snapshot `morning/snap-<day>` (+ `morning/index`, last 45 days). Page `pages/today/TodayPage.tsx`; sidebar Reporting → Today (Live MIS stays the Reporting breadcrumb target).
 
 ## Cash runway (`/accounts/cash-runway`, 9 Nov 2026)
 `GET /api/cash/runway` (`routes/cash.ts`, pure `services/cashRunway.ts`, test `test/cashRunway.test.ts`; manifest tool `mis_get_cash_runway`): net cash now (newest TB, bank − overdraft) moved forward 13 weeks at the last ≤ 3 months' net cash change — Usual (average), Worst month repeats, Best month repeats — plus GST payable (`balance.gstNet` > 0) paid in full on each 20th. Week each case goes below zero / reaches the overdraft limit. `PUT /api/cash/settings {odLimit}` (store `cash/settings`). Stored books only; NOT a sales forecast (says so on the page).

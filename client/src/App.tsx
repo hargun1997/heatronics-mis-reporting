@@ -23,6 +23,7 @@ import { InvoiceBookingSuggester } from './pages/guide/tools/InvoiceBookingSugge
 import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
 import { ExpenseBooking } from './pages/tools/ExpenseBooking';
 import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
+import { TodayPage } from './pages/today/TodayPage';
 import { CashRunwayPage } from './pages/cash/CashRunwayPage';
 import { PriceFloorsPage } from './pages/tools/PriceFloorsPage';
 import { BulkPaymentsPage } from './pages/tools/BulkPaymentsPage';
@@ -104,6 +105,7 @@ function App() {
           <Route path="tools/invoice-booking" element={<InvoiceBookingSuggester />} />
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
           <Route path="tools/expense-booking" element={<ExpenseBooking />} />
+          <Route path="today" element={<TodayPage />} />
           <Route path="accounts/cash-runway" element={<CashRunwayPage />} />
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
           <Route path="tools/bulk-payments" element={<BulkPaymentsPage />} />

@@ -66,6 +66,12 @@ async function items(force = false) {
   return cache.items;
 }
 
+/** Server Fix items still open (not done / snoozed). Shared with the Morning page. */
+export async function openFixItems(): Promise<InboxItem[]> {
+  const [all, state] = await Promise.all([items(), readJson<IssueState>(STATE, {})]);
+  return openItems(all, state, new Date().toISOString());
+}
+
 router.get('/inbox', h(async (req, res) => {
   const [all, state] = await Promise.all([items(req.query.fresh === '1'), readJson<IssueState>(STATE, {})]);
   res.json({ items: all, state, at: new Date().toISOString() });

@@ -65,6 +65,6 @@ test('sidebar stays small: ≤ 5 sections, ≤ 15 pages in all; every tool sits 
   assert.ok(s.length <= 5);
   assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 15);
   assert.deepEqual(s.find((x) => x.id === 'tools')?.pages.map((p) => p.id), ['send', 'booking', 'rounds', 'floors', 'payments']);
-  assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['live', 'insights']);
+  assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['today', 'live', 'insights']);
   assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'cash', 'tally', 'tds', 'handbook'], 'Tasks = the one place for to-do + fix');
 });
