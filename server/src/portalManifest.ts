@@ -288,6 +288,20 @@ export const portalManifest = {
         "input": { "type": "object", "properties": { "months": { "type": "integer", "minimum": 1, "maximum": 24, "description": "How many months back, default 6" } } },
         "returns": "months[] newest first with usd / inr / calls and vendors, models, purposes"
       }
+    },
+    {
+      "id": "plan-vs-actual",
+      "method": "GET",
+      "path": "/api/planning/vs-actual",
+      "auth": "session",
+      "purpose": "The pinned plan of record against the Tally books, month by month and FY to date",
+      "mcp": {
+        "tool": "mis_get_plan_vs_actual",
+        "description": "Use for 'are we on plan', 'plan vs actual', 'how far behind the budget are we': per month sales (plan revenue ex-GST vs Tally sales), profit (plan PAT vs Tally Nett Profit) and cash (plan closing cash vs net cash) with gap ₹ / % and ahead / on track (±5 %) / behind, plus FY-to-date totals and a one-line verdict. Plan = the scenario pinned as plan of record on the 5-year plan page.",
+        "access": "read",
+        "input": { "type": "object", "properties": {} },
+        "returns": "record, line, ytd {fy, months, revenue, profit}, rows[] {period, revenue, profit, cash: {plan, actual, gap, gapPct, verdict}}"
+      }
     }
   ],
   "consumes": [

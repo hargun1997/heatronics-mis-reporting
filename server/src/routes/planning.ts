@@ -13,6 +13,9 @@ import { readJson, writeJson } from '../ingest/objectStore.js';
 import { getConnector } from '../connectors/registry.js';
 import { getEffectiveCredentials } from '../connectors/credentialStore.js';
 import { pullShopifyHistory, type D2CHistory } from '../planning/shopifyHistory.js';
+import { summaryInput } from '../connectors/tally/ceoSummaryLoad.js';
+import { ceoSummary } from '../connectors/tally/ceoSummary.js';
+import { cleanRecord, planVsActual, type PlanRecord } from '../services/planVsActual.js';
 
 const router = Router();
 const INDEX = 'planning-index';
@@ -126,6 +129,23 @@ router.post('/history/refresh', h(async (_req, res) => {
   await Promise.race([histJob.promise, new Promise((r) => setTimeout(r, WAIT_MS))]);
   const stored = histJob.state.status === 'done' ? await readJson<D2CHistory | null>(HISTORY_KEY, null) : null;
   res.json({ job: histJob.state, history: stored });
+}));
+
+// ---------------------------------------------------------------- plan of record + plan vs actual (MCP mis_get_plan_vs_actual)
+//   config/planning-record.json  the pinned plan's monthly targets (revenue ex-GST, PAT, closing cash) — posted by the planner page
+const RECORD = 'planning-record';
+router.get('/record', h(async (_req, res) => { res.json({ record: await readJson<PlanRecord | null>(RECORD, null) }); }));
+router.put('/record', h(async (req, res) => {
+  let rec: PlanRecord;
+  const by = (req as { htxUser?: string }).htxUser ?? who(req);
+  try { rec = cleanRecord(req.body, by, new Date().toISOString()); } catch (e) { res.status(400).json({ error: (e as Error).message }); return; }
+  await writeJson(RECORD, rec);
+  res.json({ record: { name: rec.name, pinnedAt: rec.pinnedAt, by: rec.by, months: rec.months.length } });
+}));
+router.get('/vs-actual', h(async (req, res) => {
+  const [rec, x] = await Promise.all([readJson<PlanRecord | null>(RECORD, null), summaryInput(req.query.fresh === '1')]);
+  const months = ceoSummary(x.months.slice(-24), 24).months;
+  res.set('Cache-Control', 'no-store').json(planVsActual(rec, months.map((m) => ({ period: m.period, sales: m.sales, nettProfit: m.nettProfit, netCash: m.netCash }))));
 }));
 
 export default router;
