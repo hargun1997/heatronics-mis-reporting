@@ -302,6 +302,20 @@ export const portalManifest = {
         "input": { "type": "object", "properties": { "months": { "type": "integer", "minimum": 1, "maximum": 24, "description": "How many months back, default 6" } } },
         "returns": "months[] newest first with usd / inr / calls and vendors, models, purposes"
       }
+    },
+    {
+      "id": "margin-bridge",
+      "method": "GET",
+      "path": "/api/mis/bridge?month=<month>",
+      "auth": "session",
+      "purpose": "Why the month's EBITDA moved: contribution bridge vs last month and last year, saved by the Live MIS page",
+      "mcp": {
+        "tool": "mis_get_margin_bridge",
+        "description": "Use for 'why did profit / EBITDA move' or 'what changed vs last month': the saved Live MIS bridge for a month: EBITDA change in ₹ lakh split into volume, price and mix, channel mix, returns, BOM cost, stock timing, factory, channel fees, ads (by platform), payment fees and opex, plus the top 3 reasons, vs last month and vs the same month last year. Saved when someone opens Live MIS, so check asOf; null = no bridge saved or not enough data.",
+        "access": "read",
+        "input": { "type": "object", "properties": { "month": { "type": "string", "description": "YYYY-MM, default the newest saved" } } },
+        "returns": "month, asOf, previous{steps[], reasons[], delta} and lastYear{...}; null when none"
+      }
     }
   ],
   "consumes": [
