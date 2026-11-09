@@ -182,7 +182,7 @@ export function PriceFloorsPage() {
           <button
             type="button"
             onClick={() => setPicker(true)}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
           >
             Download report
           </button>
@@ -303,7 +303,7 @@ function Banner({ tone, children, onClose }: { tone: 'good' | 'bad'; children: R
 function SourceCard({ title, line, sub, foot }: { title: string; line: React.ReactNode; sub: React.ReactNode; foot: React.ReactNode }) {
   return (
     <Card className="flex flex-col p-5">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{title}</div>
+      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{title}</div>
       <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{line}</div>
       <div className="mt-1.5 text-sm text-slate-600">{sub}</div>
       <div className="mt-auto pt-3 text-xs text-slate-500">{foot}</div>
@@ -326,7 +326,7 @@ function LiveCard({ live, busy, onRefresh, children }: { live: LiveSnap | null; 
   }
   return (
     <Card className="flex flex-col p-5">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amazon fees, prices &amp; returns</div>
+      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amazon fees, prices &amp; returns</div>
       <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{rep ? 'Live from Amazon' : 'Loading…'}</div>
       <div className="mt-1.5 text-sm text-slate-600">
         {rep ? <>Via Ops, last 30 days ({rep.live.from.slice(5)} → {rep.live.to.slice(5)}): {rep.rows.length} products, {rep.totals.units.toLocaleString('en-IN')} units, {rs(rep.totals.sales)} sales.</> : 'Reading Amazon Finances events from Ops…'}
@@ -382,7 +382,7 @@ function UploadCard({ state, settings, onSaved, setNote }: {
   };
   return (
     <Card className="flex flex-col p-5">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amazon fees</div>
+      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amazon fees</div>
       {preview ? (
         <>
           <div className="mt-2 text-sm text-slate-700">
@@ -390,7 +390,7 @@ function UploadCard({ state, settings, onSaved, setNote }: {
             {' '}{preview.updated.length} match your SKUs{preview.added.length ? `, ${preview.added.length} are new` : ''}.
           </div>
           <div className="mt-auto flex flex-wrap gap-2 pt-3">
-            <button type="button" onClick={save} disabled={busy} className="h-11 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60">
+            <button type="button" onClick={save} disabled={busy} className="h-11 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60">
               {busy ? 'Saving…' : 'Use this report'}
             </button>
             <button type="button" onClick={() => setPreview(null)} className="h-11 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
@@ -515,7 +515,7 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
           </li>
         ))}
       </ul>
-      <div className="-mx-5 -mb-5 hidden overflow-x-auto border-t border-slate-100 md:block">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="-mx-5 -mb-5 hidden overflow-x-auto border-t border-slate-100 md:block">
         <table className="w-full text-[14px]">
           <thead className="bg-slate-50 text-left text-[12px] text-slate-500">
             <tr>
@@ -732,7 +732,7 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
           </fieldset>
         ))}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={save} disabled={!dirty || busy} className="h-11 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
+          <button type="button" onClick={save} disabled={!dirty || busy} className="h-11 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
             {busy ? 'Saving…' : 'Save settings'}
           </button>
           {dirty && <button type="button" onClick={() => setS(settings)} className="h-11 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">Undo changes</button>}
@@ -794,7 +794,7 @@ function DownloadPicker({ open, onClose, rows, onDownload }: { open: boolean; on
               type="button"
               disabled={!picked.size}
               onClick={() => onDownload(rows.filter((r) => picked.has(r.x.asin)).map((r) => r.x))}
-              className="h-11 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
+              className="h-11 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
             >
               Download PDF
             </button>

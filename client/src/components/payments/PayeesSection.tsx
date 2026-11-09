@@ -78,7 +78,7 @@ export function PayeesSection({ list, onSaved }: { list: PayeeList | null; onSav
           </div>
           <div className="max-h-[420px] overflow-auto rounded-lg border border-slate-200">
             <table className="w-full text-[13px]">
-              <thead className="sticky top-0 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 bg-slate-50 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 <tr><th className="px-3 py-2">Name</th><th className="px-3 py-2">Short name</th><th className="px-3 py-2">Bank</th><th className="px-3 py-2">Account</th><th className="px-3 py-2">IFSC</th><th className="px-3 py-2">Status</th></tr>
               </thead>
               <tbody>

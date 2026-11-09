@@ -55,7 +55,7 @@ export function SetupPanel({ plan, update, result }: { plan: Plan; update: Updat
           {st.open ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" aria-hidden /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />}
           <span id="setup-h" className="text-[15px] font-semibold text-slate-900">Setup</span>
           <span className="min-w-0 flex-1 truncate text-[12.5px] text-slate-500">{panelSummary(plan)}</span>
-          {parity && <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Sheet parity</span>}
+          {parity && <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-amber-800">Sheet parity</span>}
           <span className="text-[12px] font-medium text-accent-700">{st.open ? 'Collapse' : 'Expand'}</span>
         </button>
       </h2>

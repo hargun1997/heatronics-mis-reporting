@@ -64,7 +64,7 @@ export function Lever({
         className="mt-1.5 w-full accent-brand-600"
         aria-label={label}
       />
-      {hint && <p className="text-[11px] leading-snug text-slate-500">{hint}</p>}
+      {hint && <p className="text-xs sm:text-[11px] leading-snug text-slate-500">{hint}</p>}
     </div>
   );
 }

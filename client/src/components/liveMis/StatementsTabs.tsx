@@ -45,7 +45,7 @@ function Warnings({ items }: { items: string[] }) {
 function Kpi({ k, v, sub }: { k: string; v: number; sub: string }) {
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-card">
-      <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-slate-500" title={`${k} · ${sub}`}>{k} · {sub}</div>
+      <div className="truncate text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500" title={`${k} · ${sub}`}>{k} · {sub}</div>
       <div className={`mt-1 text-lg font-semibold tabular-nums sm:text-xl ${v <= -500 ? 'text-red-700' : 'text-slate-900'}`}>₹{lakh(v)} L</div>
     </div>
   );
@@ -107,8 +107,8 @@ export function BalanceSheetTab() {
                 </tr>
                 {(grand.get(k) ?? []).map((gk) => (
                   <tr key={`${k}/${gk}`} className="text-slate-400">
-                    <td className={`${stick} py-0.5 pl-14 pr-2 text-left text-[11px]`}>{gk}</td>
-                    {sheets.map((b) => { const v = child(b, k)?.children?.find((x) => x.label === gk)?.amount; return <td key={b.period} className={`${td} text-[11px] ${neg(v)}`}>{lakh(v)}</td>; })}
+                    <td className={`${stick} py-0.5 pl-14 pr-2 text-left text-xs sm:text-[11px]`}>{gk}</td>
+                    {sheets.map((b) => { const v = child(b, k)?.children?.find((x) => x.label === gk)?.amount; return <td key={b.period} className={`${td} text-xs sm:text-[11px] ${neg(v)}`}>{lakh(v)}</td>; })}
                   </tr>
                 ))}
               </Fragment>

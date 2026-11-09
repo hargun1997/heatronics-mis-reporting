@@ -35,7 +35,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
             Tally master
             {!state.loading && hasMaster && (
               <span
-                className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${
+                className={`inline-block px-1.5 py-0.5 rounded text-xs sm:text-[11px] font-medium uppercase tracking-wider ${
                   isOverride ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
                 }`}
               >
@@ -50,7 +50,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
                 ? `${ledgerCount} ledgers · ${voucherCount} voucher types · ${ccCount} cost centres`
                 : 'Not loaded — upload your Tally master to get started'}
             {savedFlash && (
-              <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-800">
+              <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-xs sm:text-[11px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-800">
                 Override loaded · {savedFlash.ledgers} ledgers
               </span>
             )}
@@ -238,13 +238,13 @@ function ReplaceTab({
       >
         {busy ? 'Reducing…' : 'Pick a Tally export JSON'}
       </button>
-      <div className="text-center text-[10px] uppercase tracking-wider text-slate-400">or paste</div>
+      <div className="text-center text-xs sm:text-[11px] uppercase tracking-wider text-slate-400">or paste</div>
       <textarea
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
         placeholder='Paste raw Tally export {"tallymessage":[…]} or a slim master JSON'
         rows={5}
-        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-[11px]"
+        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs sm:text-[11px]"
       />
       <button
         type="button"
@@ -289,7 +289,7 @@ function ResetTab({ onReset }: { onReset: () => void }) {
 function KV({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex justify-between gap-3">
-      <span className="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">{k}</span>
+      <span className="text-slate-500 uppercase tracking-wider text-xs sm:text-[11px] font-semibold">{k}</span>
       <span className="text-slate-900 truncate">{v}</span>
     </div>
   );
@@ -298,7 +298,7 @@ function KV({ k, v }: { k: string; v: string }) {
 function Stat({ label, n }: { label: string; n: number }) {
   return (
     <div className="rounded-lg border border-slate-200 px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="text-xs sm:text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
       <div className="text-sm font-semibold text-slate-900 tabular-nums">{n}</div>
     </div>
   );

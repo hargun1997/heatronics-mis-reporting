@@ -97,7 +97,7 @@ export function TeamCard({ state, me, onChanged, onError }: { state: WorkState; 
             <button type="button" onClick={() => startEdit(m)} className="min-h-[40px] rounded-lg px-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
               Edit
             </button>
-            <button type="button" onClick={() => void remove(m)} aria-label={`Remove ${m.name}`} className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+            <button type="button" onClick={() => void remove(m)} aria-label={`Remove ${m.name}`} className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700">
               <TrashIcon className="h-4 w-4" />
             </button>
           </li>
@@ -112,7 +112,7 @@ export function TeamCard({ state, me, onChanged, onError }: { state: WorkState; 
             <button type="button" onClick={close} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
               Cancel
             </button>
-            <button type="button" disabled={busy || !name.trim() || !email.includes('@')} onClick={() => void add()} className="rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" disabled={busy || !name.trim() || !email.includes('@')} onClick={() => void add()} className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
               {editId ? 'Save' : 'Add person'}
             </button>
           </div>
@@ -289,7 +289,7 @@ export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; o
       <div className="space-y-3 px-4 py-3 text-sm text-slate-600">
         <div className="flex items-center gap-2">
           <span>Send at</span>
-          <select value={st.sendHour} onChange={(e) => void update({ sendHour: Number(e.target.value) })} className="rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-sm font-medium text-slate-800">
+          <select aria-label="Send at (India time)" value={st.sendHour} onChange={(e) => void update({ sendHour: Number(e.target.value) })} className="rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-sm font-medium text-slate-800">
             {HOURS.map((h) => (
               <option key={h} value={h}>
                 {hourLabel(h)}
@@ -416,7 +416,7 @@ function MailConnection({ state, onChanged }: { state: WorkState; onChanged: () 
                 Cancel
               </button>
             )}
-            <button type="button" disabled={busy || !pass.trim()} onClick={() => void connect()} className="rounded-lg bg-brand-500 px-3 py-1 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" disabled={busy || !pass.trim()} onClick={() => void connect()} className="rounded-lg bg-brand-600 px-3 py-1 text-sm font-semibold text-white disabled:opacity-50">
               {busy ? 'Checking…' : 'Connect'}
             </button>
           </div>
@@ -467,7 +467,7 @@ export function EmailPreview({ onClose, embedded }: { onClose: () => void; embed
                 key={k}
                 type="button"
                 onClick={() => setI(k)}
-                className={`shrink-0 rounded-full border px-3 py-1 text-sm font-medium ${k === i ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
+                className={`shrink-0 rounded-full border px-3 py-1 text-sm font-medium ${k === i ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}
               >
                 {x.kind === 'summary' && !/summary/i.test(x.name) ? 'Team summary · ' : ''}
                 {x.name} · {x.items}

@@ -200,9 +200,9 @@ function AmazonTraffic({ rows, label }: { rows: TrafficRow[]; label: string }) {
   return (
     <Fold id="ov-traffic" secondary title={`Amazon traffic & conversion · ${label}`} meta="Sessions → units ordered (Business Report — not revenue)">
       <TableBox>
-        <table className="w-full text-[11px]">
+        <table className="w-full text-xs sm:text-[11px]">
           <thead>
-            <tr className="text-[10px] text-slate-400 text-left border-b border-slate-200 bg-slate-50">
+            <tr className="text-xs sm:text-[11px] text-slate-400 text-left border-b border-slate-200 bg-slate-50">
               <th className="py-1.5 px-2">Product</th>
               <th className="py-1.5 px-2 text-right">Sessions</th>
               <th className="py-1.5 px-2 text-right">Page views</th>
@@ -376,7 +376,7 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
       <>
         {display !== 'percent' && <div>{inr(v)}</div>}
         {display !== 'amount' && (
-          <div className={display === 'both' ? `text-[10px] ${strong ? 'font-medium' : 'font-normal'} text-slate-400 mt-0.5` : ''}>{pctStr(share)}</div>
+          <div className={display === 'both' ? `text-xs sm:text-[11px] ${strong ? 'font-medium' : 'font-normal'} text-slate-400 mt-0.5` : ''}>{pctStr(share)}</div>
         )}
         {small && null}
       </>
@@ -397,10 +397,10 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
           options={[{ id: 'amount', label: '₹' }, { id: 'percent', label: '% Rev' }, { id: 'both', label: '₹ + %' }]} />
       </div>
 
-      <div ref={scrollRef} className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div ref={scrollRef} tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-xs border-collapse">
           <thead>
-            <tr className="text-[10px] text-slate-400 border-b border-slate-200">
+            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white z-10 min-w-[150px]">Particulars</th>
               {cols.map((p) => {
                 const sc = colScope(p, gran);
@@ -439,9 +439,9 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
                   </tr>
                   {isOpen && lines.map((ln) => (
                     <tr key={`${row.k}:${ln.key}`} className={`border-b border-slate-50 ${ln.strong ? 'bg-slate-50/40' : ''}`}>
-                      <td className={`py-1 pr-3 pl-7 sticky left-0 bg-white text-[11px] whitespace-pre ${ln.strong ? 'font-medium text-slate-600' : 'text-slate-500'}`}>{ln.label}</td>
+                      <td className={`py-1 pr-3 pl-7 sticky left-0 bg-white text-xs sm:text-[11px] whitespace-pre ${ln.strong ? 'font-medium text-slate-600' : 'text-slate-500'}`}>{ln.label}</td>
                       {cols.map((p) => (
-                        <td key={p.key} className="py-1 px-2 text-right tabular-nums text-[11px] text-slate-500 align-top">
+                        <td key={p.key} className="py-1 px-2 text-right tabular-nums text-xs sm:text-[11px] text-slate-500 align-top">
                           {ln.gate && !isRealRow(p.level, ln.gate) ? <span className="text-slate-300">—</span> : cell(ln.value(p), p, !!ln.strong)}
                         </td>
                       ))}
@@ -571,10 +571,10 @@ function FullPnlTable({ slice, firstCol, level, pctHeader = false }: { slice: Sl
   const colCls = (c: PnlColumn) =>
     c.kind === 'total' ? 'font-semibold text-slate-800' : c.kind === 'recon' ? 'text-slate-400 italic' : 'text-slate-600';
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200">
+    <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="w-full text-xs border-collapse">
         <thead>
-          <tr className="text-[10px] text-slate-400 border-b border-slate-200">
+          <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
             <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white z-10">{firstCol}</th>
             {cols.map((c) => (
               <th key={c.key} title={c.label}
@@ -603,9 +603,9 @@ function FullPnlTable({ slice, firstCol, level, pctHeader = false }: { slice: Sl
           })}
           {MARGIN_ROWS.map((row, i) => (
             <tr key={`pct:${row.label}`} className={`text-slate-500 ${i === 0 ? 'border-t border-slate-200' : ''}`}>
-              <td className="py-1 px-3 sticky left-0 bg-white text-[11px] italic">{row.label}</td>
+              <td className="py-1 px-3 sticky left-0 bg-white text-xs sm:text-[11px] italic">{row.label}</td>
               {cols.map((c) => (
-                <td key={c.key} className="py-1 px-2 text-right tabular-nums text-[11px]">
+                <td key={c.key} className="py-1 px-2 text-right tabular-nums text-xs sm:text-[11px]">
                   {!real.has(row.real) || c.kind === 'recon' || !c.rev ? <span className="text-slate-300">—</span> : pctStr((c[row.k] as number) / c.rev)}
                 </td>
               ))}
@@ -867,10 +867,10 @@ function SkuMatrix({ period, cells, periodKeys }: { period: PeriodAgg; cells: Sk
         <Pills label="Orientation" value={transpose ? 't' : 'n'} onChange={(v) => setTranspose(v === 't')}
           options={[{ id: 'n', label: 'SKU × Channel' }, { id: 't', label: 'Channel × SKU' }]} />
       </div>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-xs border-collapse whitespace-nowrap">
           <thead>
-            <tr className="text-[10px] text-slate-400 border-b border-slate-200">
+            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white z-10">{transpose ? 'Channel' : 'Product'}</th>
               {colKeys.map((c) => <th key={c} className="py-1.5 px-2 text-right font-medium text-slate-600">{label(c, !transpose)}</th>)}
               <th className="py-1.5 px-3 text-right font-semibold text-slate-700">Total</th>
@@ -934,10 +934,10 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
   return (
     <div className="space-y-3">
       <div className="flex justify-end"><LevelBadge level={period.level} published={period.published} /></div>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="min-w-full text-xs border-collapse">
           <thead>
-            <tr className="text-[10px] text-slate-400 border-b border-slate-200">
+            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white z-10">Product</th>
               {channels.map((ch) => <th key={ch} className="py-1.5 px-2 text-right font-medium whitespace-nowrap">{chName(ch)}</th>)}
               <th className="py-1.5 px-3 text-right font-semibold text-slate-500">Total</th>

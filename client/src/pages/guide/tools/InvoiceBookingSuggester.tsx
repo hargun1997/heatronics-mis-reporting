@@ -1,3 +1,4 @@
+import { LabeledField } from '../../../components/ui/LabeledField';
 import { useMemo, useState } from 'react';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { Pill } from '../../../components/ui/Card';
@@ -268,18 +269,13 @@ export function InvoiceBookingSuggester() {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
-      {children}
-    </div>
-  );
+  return <LabeledField label={label} className="" captionClassName="block text-xs font-medium text-slate-600 mb-1">{children}</LabeledField>;
 }
 
 function Cell({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="text-xs sm:text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
       <div className={`mt-0.5 text-sm font-medium text-slate-900 ${mono ? 'font-mono text-xs' : ''}`}>{value}</div>
     </div>
   );

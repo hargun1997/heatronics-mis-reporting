@@ -74,7 +74,7 @@ export function Drawer({
             )}
             <div className="flex-1 min-w-0">
               {subtitle && (
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{subtitle}</div>
+                <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-400">{subtitle}</div>
               )}
               {title && <div className="font-display text-lg font-bold text-slate-900 tracking-tight truncate">{title}</div>}
               {badges && <div className="flex flex-wrap gap-1.5 mt-2">{badges}</div>}

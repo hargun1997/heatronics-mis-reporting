@@ -147,7 +147,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               onChange={(x) => update((p) => setDiscountPct(ensureFx(p), x))} />
             {d.discountPct != null && (
               <button type="button" disabled={parity} onClick={() => update((p) => { ensureFx(p); applyShopifyDiscount(p); })}
-                className="text-[11px] font-semibold text-brand-700 hover:underline disabled:no-underline">Use Shopify's</button>
+                className="text-xs sm:text-[11px] font-semibold text-brand-700 hover:underline disabled:no-underline">Use Shopify's</button>
             )}
           </Row>
         </div>
@@ -162,10 +162,10 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <button type="button" onClick={() => update((p) => resetSkuSeason(p))} className={ghost} title="Every product's curve back to last year's actual units (the sheet)">Reset products</button>
         </div>
         <Note>Each month's share of a normal month (1.0 = average). Products: last year's actual units, all channels (Oct-25 → Sep-26, from the sheet). D2C: new buyers on Shopify. Click a cell to change it. Which shape FY29+ follows is set under Assumptions.</Note>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="text-[12px] tabular-nums">
             <thead>
-              <tr className="text-[11px] text-slate-500">
+              <tr className="text-xs sm:text-[11px] text-slate-500">
                 <th className="pr-3 text-left font-semibold">Product</th>
                 {SEASON_ORDER.map((i) => <th key={i} className="w-12 px-0.5 text-center font-semibold">{MON[i]}</th>)}
                 <th className="pl-3 text-right font-semibold">Peak</th>
@@ -187,7 +187,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                             type="number" step="0.1" min="0" aria-label={`${row.name} ${MON[i]}`}
                             defaultValue={v.toFixed(2)} key={v.toFixed(3)}
                             onBlur={(e) => { const x = seasonEdit(e.target.value, v); if (x != null) update((p) => setSeason(p, row, i, x)); }}
-                            className={`relative w-12 rounded border-0 bg-transparent px-1 py-1 text-center text-[11.5px] font-semibold outline-none focus:ring-2 focus:ring-brand-300 ${v > 2 ? 'text-white' : 'text-slate-900'}`}
+                            className={`relative w-12 rounded border-0 bg-transparent px-1 py-1 text-center text-xs sm:text-[11.5px] font-semibold outline-none focus:ring-2 focus:ring-brand-300 ${v > 2 ? 'text-white' : 'text-slate-900'}`}
                           />
                         </td>
                       );

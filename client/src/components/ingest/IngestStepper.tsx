@@ -40,7 +40,7 @@ function ExportHelpModal({ slot, open, onClose }: { slot: ReportSlot; open: bool
         </p>
       )}
 
-      <h4 className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">Steps</h4>
+      <h4 className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-2">Steps</h4>
       <ol className="space-y-2.5">
         {slot.exportSteps.map((t, i) => (
           <li key={i} className="flex gap-3 text-sm text-slate-700 leading-relaxed">
@@ -75,7 +75,7 @@ function AiWorking({ label }: { label: string }) {
 /** Small static marker that a slot is read by AI (Claude). */
 function AiBadge() {
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">
+    <span className="inline-flex items-center gap-1 text-xs sm:text-[11px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-700">
       <span className="h-1.5 w-1.5 rounded-full bg-violet-500" aria-hidden /> Claude reads this
     </span>
   );
@@ -240,16 +240,16 @@ export function IngestStepper({
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-semibold text-slate-800">{slot.label}</h4>
             {slot.required
-              ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">required</span>
-              : <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-400">optional</span>}
-            {slot.kind === 'vision' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">screenshot → AI</span>}
-            {slot.kind === 'invoice' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">PDF → AI</span>}
+              ? <span className="text-xs sm:text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">required</span>
+              : <span className="text-xs sm:text-[11px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-400">optional</span>}
+            {slot.kind === 'vision' && <span className="text-xs sm:text-[11px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">screenshot → AI</span>}
+            {slot.kind === 'invoice' && <span className="text-xs sm:text-[11px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">PDF → AI</span>}
             {usesAI && <AiBadge />}
             {source && <SlotSourceBadge info={source} />}
           </div>
-          {source && <p className="text-[11px] text-slate-500 mt-0.5 max-w-xl">{slotSourceLine(source)}</p>}
+          {source && <p className="text-xs sm:text-[11px] text-slate-500 mt-0.5 max-w-xl">{slotSourceLine(source)}</p>}
           {committed && (
-            <p className="text-[11px] text-emerald-700 mt-0.5">
+            <p className="text-xs sm:text-[11px] text-emerald-700 mt-0.5">
               Ingested · {committedCount > 1 ? `${committedCount} months` : committed.periodKey}{committed.through ? ` · through ${committed.through}` : ''} · {committed.rowCount} rows · {
                 pulledFrom(committed)
                   ? `${pulledFrom(committed) === 'sheet' ? 'From' : 'Pulled from'} ${source?.via ?? 'the source'} on ${new Date(committed.savedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`
@@ -262,12 +262,12 @@ export function IngestStepper({
             a Tally export's month columns) the months are read automatically and
             this is just an override; otherwise (BOM, a screenshot) it's required. */}
         <div className="shrink-0 text-right">
-          <label className="block text-[10px] font-medium text-slate-500 mb-0.5">
+          <label className="block text-xs sm:text-[11px] font-medium text-slate-500 mb-0.5">
             Month {autoMonths ? <span className="text-slate-400 font-normal">(auto)</span> : <span className="text-rose-500">*</span>}
           </label>
-          <input type="month" value={period} onChange={(e) => onPeriod(e.target.value)}
+          <input type="month" aria-label="Month" value={period} onChange={(e) => onPeriod(e.target.value)}
             className={`px-2 py-1 rounded-lg border text-xs ${autoMonths || periodOk ? 'border-slate-200' : 'border-rose-300 bg-rose-50'}`} />
-          {!autoMonths && !periodOk && <span className="block mt-0.5 text-[10px] text-rose-500">required</span>}
+          {!autoMonths && !periodOk && <span className="block mt-0.5 text-xs sm:text-[11px] text-rose-500">required</span>}
         </div>
       </div>
 
@@ -277,9 +277,9 @@ export function IngestStepper({
           <div key={s} className="flex items-center flex-1 last:flex-none">
             <div className="flex items-center gap-2">
               <span className={
-                'flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold tabular-nums ' +
+                'flex items-center justify-center w-7 h-7 rounded-full text-xs sm:text-[11px] font-bold tabular-nums ' +
                 (i < active ? 'bg-emerald-500 text-white'
-                  : i === active ? 'bg-brand-500 text-white'
+                  : i === active ? 'bg-brand-600 text-white'
                   : 'bg-slate-100 text-slate-400 border border-slate-200')
               }>{i < active ? '✓' : i + 1}</span>
               <span className={'text-xs font-semibold ' + (i <= active ? 'text-slate-800' : 'text-slate-400')}>{s}</span>
@@ -316,7 +316,7 @@ export function IngestStepper({
             </button>
           )}
           {canPull && source && !source.connected && (
-            <span className="text-[11px] text-amber-700">{source.connectHint ?? 'Not connected'}</span>
+            <span className="text-xs sm:text-[11px] text-amber-700">{source.connectHint ?? 'Not connected'}</span>
           )}
         </div>
 
@@ -333,7 +333,7 @@ export function IngestStepper({
             <span className="text-sm font-medium text-slate-700">
               {dragging ? 'Drop to upload' : stage === 'ingested' ? 'Replace or add another month' : canPull ? `Or upload the file (fallback) · ${uploadLabel}` : uploadLabel}
             </span>
-            <span className="text-[11px] text-slate-500">Drag {multiple ? 'files' : 'a file'} here or click to browse · {slot.accept}</span>
+            <span className="text-xs sm:text-[11px] text-slate-500">Drag {multiple ? 'files' : 'a file'} here or click to browse · {slot.accept}</span>
             <input type="file" accept={slot.accept} multiple={multiple} className="hidden" onChange={(e) => void onFiles(e.target.files)} />
           </label>
         )}
@@ -342,7 +342,7 @@ export function IngestStepper({
         {picked.length > 0 && stage !== 'ingested' && (
           <div className="flex flex-wrap gap-1.5">
             {picked.map((name, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[11px] text-slate-700">
+              <span key={i} className="inline-flex items-center gap-1.5 max-w-full px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-xs sm:text-[11px] text-slate-700">
                 <svg className="w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h7l4 4v14H7zM14 3v4h4" />
                 </svg>
@@ -353,7 +353,7 @@ export function IngestStepper({
         )}
 
         {!wired && (
-          <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
+          <p className="text-xs sm:text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
             The reader for this report is being built — the export steps are ready (tap “How to export”). Upload opens next.
           </p>
         )}
@@ -372,13 +372,13 @@ export function IngestStepper({
           <ChecksAndReview staged={staged} />
         )}
 
-        {error && <p className="text-[11px] text-rose-700">{error}</p>}
+        {error && <p className="text-xs sm:text-[11px] text-rose-700">{error}</p>}
 
         {/* ④ Save / ⑤ Ingest (the month lives in the header, auto-filled on upload) */}
         {stage === 'review' && staged && (
           <div className="border-t border-slate-100 pt-3 space-y-2">
             {autoMonths ? (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs sm:text-[11px] text-slate-500">
                 {breakdown.length > 1
                   ? <>Will ingest <span className="font-medium text-slate-700">{breakdown.length} months</span>, each filed to its own month: </>
                   : <>Saving into <span className="font-medium text-slate-700">{monthName(breakdown[0].periodKey)}</span> (read from the data). </>}
@@ -388,21 +388,21 @@ export function IngestStepper({
                 Re-uploading a month overwrites just that month.
               </p>
             ) : (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs sm:text-[11px] text-slate-500">
                 Saving into <span className="font-medium text-slate-700">{periodOk ? monthName(period) : 'the month set above'}</span>.
                 {' '}Re-uploading for the same month overwrites the previous file.
               </p>
             )}
             {!autoMonths && !periodOk && (
-              <p className="text-[11px] text-rose-500">Set the <span className="font-medium">Month</span> (top right) before saving — required.</p>
+              <p className="text-xs sm:text-[11px] text-rose-500">Set the <span className="font-medium">Month</span> (top right) before saving — required.</p>
             )}
             {tallyMonths && tallyMonths.length > 1 && (
-              <p className="text-[10px] text-slate-400">
+              <p className="text-xs sm:text-[11px] text-slate-400">
                 Tally export carries {tallyMonths.length} months — all are ingested: {tallyMonths.map((m) => m.periodLabel).join(', ')}
               </p>
             )}
             {hasWarn && (
-              <label className="flex items-center gap-2 text-[11px] text-amber-700">
+              <label className="flex items-center gap-2 text-xs sm:text-[11px] text-amber-700">
                 <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
                 I've reviewed the warnings above and want to save anyway.
               </label>
@@ -417,7 +417,7 @@ export function IngestStepper({
         {stage === 'saving' && <p className="text-xs text-slate-500">Saving to durable storage and ingesting…</p>}
 
         {stage === 'ingested' && (
-          <p className="text-[11px] text-emerald-700">✓ Saved &amp; ingested. Drop a file above to replace this month or add another.</p>
+          <p className="text-xs sm:text-[11px] text-emerald-700">✓ Saved &amp; ingested. Drop a file above to replace this month or add another.</p>
         )}
       </div>
     </div>
@@ -435,7 +435,7 @@ function InvoiceSummaryView({ invoice, trace }: { invoice: NonNullable<StagedUpl
     </div>
   );
   return (
-    <div className="text-[11px]">
+    <div className="text-xs sm:text-[11px]">
       {invoice.provider && <div className="text-slate-500 mb-1">{invoice.provider}{invoice.invoiceNumber ? ` · ${invoice.invoiceNumber}` : ''}</div>}
       {row('Taxable amount', money(invoice.taxableAmount))}
       {row('GST / IGST', money(invoice.taxAmount))}
@@ -447,7 +447,7 @@ function InvoiceSummaryView({ invoice, trace }: { invoice: NonNullable<StagedUpl
         <div className="text-slate-400 mt-1">Billing cycle {invoice.periodStart ?? '?'} → {invoice.periodEnd ?? '?'}</div>
       )}
       {trace && trace.length > 0 && (
-        <details className="mt-2 text-[10px] text-slate-400">
+        <details className="mt-2 text-xs sm:text-[11px] text-slate-400">
           <summary className="cursor-pointer hover:text-slate-600">How this was read</summary>
           <ul className="mt-1 space-y-0.5">{trace.map((t, i) => <li key={i}>{t}</li>)}</ul>
         </details>
@@ -463,8 +463,8 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div>
-        <h5 className="text-[10px] uppercase tracking-wide text-slate-400 mb-1.5">AI checks</h5>
-        <ul className="space-y-1 text-[11px]">
+        <h5 className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-400 mb-1.5">AI checks</h5>
+        <ul className="space-y-1 text-xs sm:text-[11px]">
           {checks.items.map((it) => (
             <li key={it.id} className="flex gap-2">
               <span className={`font-bold ${dot(it.status)}`}>{mark(it.status)}</span>
@@ -474,11 +474,11 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
         </ul>
       </div>
       <div>
-        <h5 className="text-[10px] uppercase tracking-wide text-slate-400 mb-1.5">Extracted</h5>
+        <h5 className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-400 mb-1.5">Extracted</h5>
         {extracted.bomCosts && extracted.bomCosts.length > 0 ? (
           <div className="max-h-56 overflow-auto">
-            <table className="w-full text-[11px]">
-              <thead><tr className="text-[10px] text-slate-400 text-left border-b border-slate-200">
+            <table className="w-full text-xs sm:text-[11px]">
+              <thead><tr className="text-xs sm:text-[11px] text-slate-400 text-left border-b border-slate-200">
                 <th className="py-1 pr-2">Finished good</th><th className="py-1 pr-2">BOM</th><th className="py-1 text-right">Cost / unit</th>
               </tr></thead>
               <tbody>
@@ -493,7 +493,7 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
             </table>
           </div>
         ) : extracted.ledgerRows && extracted.ledgerRows.length > 0 ? (
-          <div className="max-h-56 overflow-auto text-[11px]">
+          <div className="max-h-56 overflow-auto text-xs sm:text-[11px]">
             {extracted.ledgerRows.slice(0, 40).map((r, i) => (
               <div key={i} className="flex justify-between gap-2 border-b border-slate-50 py-0.5"
                 style={{ paddingLeft: `${Math.min(r.depth, 5) * 12}px` }}>
@@ -506,8 +506,8 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
           <InvoiceSummaryView invoice={extracted.invoice} trace={extracted.trace} />
         ) : extracted.facts.length > 0 ? (
           <div className="max-h-56 overflow-auto">
-            <table className="w-full text-[11px]">
-              <thead><tr className="text-[10px] text-slate-400 text-left border-b border-slate-200">
+            <table className="w-full text-xs sm:text-[11px]">
+              <thead><tr className="text-xs sm:text-[11px] text-slate-400 text-left border-b border-slate-200">
                 <th className="py-1 pr-2">Date</th><th className="py-1 pr-2 text-right">Revenue</th>
                 <th className="py-1 pr-2 text-right">Fees</th><th className="py-1 text-right">Units</th>
               </tr></thead>
@@ -524,13 +524,13 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
             </table>
           </div>
         ) : (
-          <p className="text-[11px] text-slate-400">Nothing extracted.</p>
+          <p className="text-xs sm:text-[11px] text-slate-400">Nothing extracted.</p>
         )}
         {extracted.rawPreview && extracted.rawPreview.length > 0 && (
-          <details className="mt-2 text-[10px] text-slate-400">
+          <details className="mt-2 text-xs sm:text-[11px] text-slate-400">
             <summary className="cursor-pointer hover:text-slate-600">Raw file preview</summary>
-            <div className="mt-1 overflow-x-auto border border-slate-100 rounded">
-              <table className="text-[10px]"><tbody>
+            <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="mt-1 overflow-x-auto border border-slate-100 rounded">
+              <table className="text-xs sm:text-[11px]"><tbody>
                 {extracted.rawPreview.slice(0, 6).map((row, i) => (
                   <tr key={i} className={i === 0 ? 'bg-slate-50 font-medium' : ''}>
                     {row.map((c, j) => <td key={j} className="px-1.5 py-0.5 border-b border-slate-50 whitespace-nowrap max-w-[120px] truncate" title={c}>{c}</td>)}

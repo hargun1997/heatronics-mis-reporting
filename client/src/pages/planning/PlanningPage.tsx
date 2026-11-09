@@ -161,7 +161,7 @@ export function PlanningPage() {
             <option value="base">Base — Projection & Deployment Plan</option>
             {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Unsaved changes</span>}
+          {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-amber-700">Unsaved changes</span>}
           <button disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
             {selected === 'base' ? 'Save as scenario' : 'Save'}
           </button>

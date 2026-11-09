@@ -91,9 +91,9 @@ export function BulkPaymentsPage() {
             </Step>
             <Step id="past" n="✓" title="Past batches" summary={batches.length ? `${batches.length} saved (records only, no bank status)` : 'None yet'}>
               {batches.length ? (
-                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
                   <table className="w-full text-[13px]">
-                    <thead className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <thead className="bg-slate-50 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                       <tr><th className="px-3 py-2">Batch</th><th className="px-3 py-2">Made</th><th className="px-3 py-2">By</th><th className="px-3 py-2">Pay on</th><th className="px-3 py-2 text-right">Payments</th><th className="px-3 py-2 text-right">Total</th><th className="px-3 py-2">From</th><th className="px-3 py-2"><span className="sr-only">Files</span></th></tr>
                     </thead>
                     <tbody>

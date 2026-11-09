@@ -68,7 +68,7 @@ export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'r
   return (
     <div className={`relative overflow-hidden rounded-xl border p-4 shadow-card ${toneWrap[tone]}`}>
       {bar && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px]" style={{ background: bar }} />}
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`font-semibold tracking-[-0.02em] tabular-nums mt-2 text-[26px] leading-none ${toneValue[tone]}`}>
         {value}
         {unit && <span className="text-base font-bold text-slate-400 ml-1">{unit}</span>}

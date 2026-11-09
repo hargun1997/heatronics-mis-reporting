@@ -72,7 +72,7 @@ export function NavCard({ to, title, description, icon, accent = 'brand', badge 
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
             {badge && (
-              <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
+              <span className={`text-xs sm:text-[11px] uppercase tracking-wider px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
                 {badge}
               </span>
             )}
@@ -104,7 +104,7 @@ const pillColorMap: Record<NonNullable<PillProps['color']>, string> = {
 };
 
 export function Pill({ children, color = 'slate', size = 'sm' }: PillProps) {
-  const sizeCls = size === 'xs' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5';
+  const sizeCls = size === 'xs' ? 'text-xs sm:text-[11px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5';
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border font-medium ${pillColorMap[color]} ${sizeCls}`}>
       {children}

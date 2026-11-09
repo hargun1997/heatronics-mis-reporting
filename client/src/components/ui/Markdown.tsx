@@ -59,7 +59,7 @@ function Table({ rows, keyBase }: { rows: string[][]; keyBase: number }) {
     return vals.length > 0 && vals.filter(looksNumeric).length / vals.length >= 0.6;
   });
   return (
-    <div key={`tb${keyBase}`} className="md-table my-2 overflow-x-auto rounded-lg border border-slate-200">
+    <div key={`tb${keyBase}`} tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="md-table my-2 overflow-x-auto rounded-lg border border-slate-200">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="bg-slate-50">
