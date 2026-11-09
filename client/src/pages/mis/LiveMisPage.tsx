@@ -37,7 +37,7 @@ import { deckItems, rememberDeckItems } from '../../data/issues/inbox';
 import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExportModals';
 import { LiveViewProvider, Pills, Section, type CogmBasis } from '../../components/liveMis/shared';
 import { WhyItMoved } from '../../components/liveMis/WhyItMoved';
-import { useWhyData, whySummary } from '../../components/liveMis/whyData';
+import { useWhyData, useSaveBridge, whySummary } from '../../components/liveMis/whyData';
 
 const iconLive = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -220,6 +220,7 @@ export function LiveMisPage() {
   const whyActual = useMemo(() => (view ? aggregatePeriods(view.months, completeness, 'month') : []), [view, completeness]);
   const whyNorm = useMemo(() => (normalised ? aggregatePeriods(normalised.months, completeness, 'month') : []), [normalised, completeness]);
   const why = useWhyData(selected, whyActual, whyNorm, view);
+  useSaveBridge(why, !!view && !showLive);
 
   const ctx = useMemo(() => ({ merged, basis, setBasis, basisNote: normalised?.note ?? '' }), [merged, basis, setBasis, normalised]);
   const showControls = !NO_PERIOD.includes(tab) && view && allPeriods.length > 0;

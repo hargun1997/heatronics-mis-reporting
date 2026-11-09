@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import type { PeriodAgg } from '../../data/misDeck/liveAnalytics';
 import { buildBridge, comparisonKeys, type BridgeResult } from '../../data/misDeck/bridge';
@@ -37,3 +37,23 @@ export function whySummary(d: WhyData): string {
   return r.reasons.length ? r.reasons.map((x, i) => `${i + 1}. ${x.text}`).join('  ·  ') : 'Little changed.';
 }
 
+
+/** What the server keeps: the pure bridge output only (no bars, no raw rows). */
+function slim(r: BridgeResult | null) {
+  if (!r || r.status !== 'ok') return r;
+  const { bars: _bars, ...rest } = r; // eslint-disable-line @typescript-eslint/no-unused-vars
+  return rest;
+}
+
+/** Saves the computed bridge for the MCP tool (POST /api/mis/bridge). Fire-and-forget; the server skips unchanged content. */
+export function useSaveBridge(d: WhyData, enabled: boolean): void {
+  const body = useMemo(() => (d.selectedKey && enabled && (d.results.previous || d.results.lastYear)
+    ? JSON.stringify({ month: d.selectedKey, previous: slim(d.results.previous), lastYear: slim(d.results.lastYear) }) : null), [d, enabled]);
+  useEffect(() => {
+    if (!body) return;
+    const t = setTimeout(() => {
+      fetch('/api/mis/bridge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }).catch(() => { /* snapshot is optional */ });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [body]);
+}
