@@ -4,7 +4,7 @@
 
 export type NavIconName =
   | 'live' | 'upload' | 'issues' | 'ai' | 'send' | 'tasks' | 'booking' | 'book' | 'tools'
-  | 'plan' | 'rounds' | 'floors' | 'payments' | 'sources' | 'rules' | 'people' | 'tally' | 'tds' | 'old';
+  | 'today' | 'plan' | 'rounds' | 'floors' | 'payments' | 'sources' | 'rules' | 'people' | 'tally' | 'tds' | 'old';
 
 export interface NavPage {
   id: string;
@@ -36,7 +36,9 @@ export const NAV: NavSection[] = [
   {
     id: 'reporting',
     label: 'Reporting',
+    href: HOME,
     pages: [
+      { id: 'today', label: 'Today', href: '/today', icon: 'today', hint: 'What needs you today, five key numbers, what changed since yesterday', words: 'morning brief home overview needs me cash runway fix late' },
       { id: 'live', label: 'Live MIS', href: '/reporting/mis/live', icon: 'live', hint: 'This month and last, P&L by channel', words: 'mis dashboard p&l revenue margin run rate' },
       { id: 'insights', label: 'AI insights', href: '/reporting/mis/insights', icon: 'ai', also: ['/reporting/mis/chat'], hint: 'Ask about the numbers', words: 'chat claude ask analysis' },
     ],

@@ -288,6 +288,20 @@ export const portalManifest = {
         "input": { "type": "object", "properties": { "months": { "type": "integer", "minimum": 1, "maximum": 24, "description": "How many months back, default 6" } } },
         "returns": "months[] newest first with usd / inr / calls and vendors, models, purposes"
       }
+    },
+    {
+      "id": "morning-brief",
+      "method": "GET",
+      "path": "/api/today",
+      "auth": "session",
+      "purpose": "The morning page: what needs the founder today, five key numbers, what moved since yesterday, what is due soon",
+      "mcp": {
+        "tool": "mis_get_morning_brief",
+        "description": "Use for 'what needs me today', 'morning brief', 'what changed since yesterday' on the books side: status (act / watch / ok), 5 tiles (net cash, months of cash, sales, items to fix, late tasks), the top things that need you with why and where, what is due soon, and what changed vs the last saved day. Stored data only, no AI.",
+        "access": "read",
+        "input": { "type": "object", "properties": {} },
+        "returns": "status, statusLine, tiles[], needsYou[], dueSoon[], changed[], freshness"
+      }
     }
   ],
   "consumes": [

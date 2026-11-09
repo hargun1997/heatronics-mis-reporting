@@ -23,6 +23,7 @@ import { InvoiceBookingSuggester } from './pages/guide/tools/InvoiceBookingSugge
 import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
 import { ExpenseBooking } from './pages/tools/ExpenseBooking';
 import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
+import { TodayPage } from './pages/today/TodayPage';
 import { PriceFloorsPage } from './pages/tools/PriceFloorsPage';
 import { BulkPaymentsPage } from './pages/tools/BulkPaymentsPage';
 import { RoundPlannerPage } from './pages/tools/RoundPlannerPage';
@@ -103,6 +104,7 @@ function App() {
           <Route path="tools/invoice-booking" element={<InvoiceBookingSuggester />} />
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
           <Route path="tools/expense-booking" element={<ExpenseBooking />} />
+          <Route path="today" element={<TodayPage />} />
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
           <Route path="tools/bulk-payments" element={<BulkPaymentsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />

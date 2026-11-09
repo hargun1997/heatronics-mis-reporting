@@ -394,3 +394,6 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,
   assumptions / risks / themes & milestones / team text. Tested against the sheet (Exit ARR, equity 12M/18M, deployment by theme).
+
+## Morning page (`/today`, 9 Nov 2026)
+`GET /api/today` (`routes/today.ts`, pure `services/morningBrief.ts`, test `test/morningBrief.test.ts`; manifest tool `mis_get_morning_brief`): status (act / watch / ok), 5 tiles (net cash, months of cash, sales, to fix, tasks late), "Needs you" (Tally watch items + open Fix items + late / due-today tasks, high first), "What changed" vs the last saved day, "Coming up". Stored data only, no AI. The first read of each IST day saves ONE small snapshot `morning/snap-<day>` (+ `morning/index`, last 45 days). Page `pages/today/TodayPage.tsx`; sidebar Reporting → Today (Live MIS stays the Reporting breadcrumb target).
