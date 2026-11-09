@@ -90,7 +90,7 @@ function LineItem({ label, amount, percentage, isSubtotal, isTotal, indent = 0, 
       <span className={`${isTotal ? 'text-blue-900' : isSubtotal ? 'text-gray-800' : 'text-gray-600'} flex items-center gap-2`}>
         {label}
         {source === 'bs' && !isTotal && !isSubtotal && (
-          <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">BS</span>
+          <span className="text-xs sm:text-[11px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">BS</span>
         )}
       </span>
       <div className="flex items-center gap-4">
@@ -765,7 +765,7 @@ export function MISMiniPreview({ report }: { report: MISReport }) {
       <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
         P&L Preview
         {hasBSData && (
-          <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">BS Data</span>
+          <span className="text-xs sm:text-[11px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">BS Data</span>
         )}
       </h3>
       <div className="space-y-2">
@@ -773,7 +773,7 @@ export function MISMiniPreview({ report }: { report: MISReport }) {
           <div key={label} className="flex justify-between text-sm">
             <span className="text-gray-600">
               {label}
-              {source && <span className="text-[10px] text-green-600 ml-1">{source}</span>}
+              {source && <span className="text-xs sm:text-[11px] text-green-600 ml-1">{source}</span>}
             </span>
             <span className={`font-mono font-medium ${color}`}>
               {formatCurrencyFull(value)}

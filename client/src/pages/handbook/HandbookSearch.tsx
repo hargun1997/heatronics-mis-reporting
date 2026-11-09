@@ -61,7 +61,7 @@ function Hit({ h, active, onPick }: { h: HbSearchHit; active: boolean; onPick: (
       <div className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
         <span className="font-semibold text-slate-900">{h.article.title}</span>
         {h.heading && <span className="text-slate-500">› {h.heading.title}</span>}
-        <span className="ml-auto text-[11px] font-medium uppercase tracking-wide text-slate-500">{h.article.collection.title}</span>
+        <span className="ml-auto text-xs sm:text-[11px] font-medium uppercase tracking-wide text-slate-500">{h.article.collection.title}</span>
       </div>
       <div className="mt-0.5 text-xs leading-relaxed text-slate-500 line-clamp-2">
         {h.before}
@@ -163,7 +163,7 @@ export function HandbookSearch({
           }`}
         />
         {!q && (
-          <kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[11px] font-medium text-slate-500">
+          <kbd className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-xs sm:text-[11px] font-medium text-slate-500">
             /
           </kbd>
         )}
@@ -174,7 +174,7 @@ export function HandbookSearch({
               large ? 'left-0 right-0' : 'right-0 w-[min(580px,calc(100vw-2rem))]'
             }`}
           >
-            <div className="px-3 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <div className="px-3 pt-1 pb-1.5 text-xs sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               {hits.length ? `${hits.length}${hits.length === 40 ? '+' : ''} result${hits.length > 1 ? 's' : ''}` : `No results for “${q.trim()}”`}
             </div>
             {hits.map((h, i) => (

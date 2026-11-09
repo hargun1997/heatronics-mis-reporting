@@ -108,6 +108,6 @@ export const card = 'rounded-xl border border-slate-200 bg-white';
 export const input =
   'w-full rounded-lg border border-slate-300 px-3 py-2 text-[14px] text-slate-950 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100';
 export const lbl = 'mb-1 block text-sm font-semibold text-slate-800';
-export const btnPrimary = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-4 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50 ${focusRing}`;
+export const btnPrimary = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 ${focusRing}`;
 export const btnSecondary = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-800 hover:border-slate-400 hover:bg-slate-50 disabled:opacity-50 ${focusRing}`;
 export const btnGhost = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950 disabled:opacity-50 ${focusRing}`;

@@ -78,7 +78,7 @@ export function MisChatPage() {
 
         <div className="mb-4 flex items-center gap-2">
           <StatusPill toneName="info" dot>Grounded on closed books · through {throughLabel}</StatusPill>
-          <span className="text-[11px] text-slate-400">Answers cite the monthly P&amp;L; figures are management, not statutory.</span>
+          <span className="text-xs sm:text-[11px] text-slate-400">Answers cite the monthly P&amp;L; figures are management, not statutory.</span>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white flex flex-col shadow-soft" style={{ minHeight: '60vh' }}>
@@ -135,6 +135,7 @@ export function MisChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(input); } }}
                 rows={1}
+                aria-label="Ask about the MIS"
                 placeholder="Ask about the MIS…  (Enter to send, Shift+Enter for a new line)"
                 disabled={loading || configured === false}
                 className="flex-1 resize-none px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-400 focus:outline-none disabled:bg-slate-50"
@@ -146,7 +147,7 @@ export function MisChatPage() {
             </div>
             {messages.length > 0 && (
               <button onClick={() => { setMessages([]); setError(null); }}
-                className="mt-2 text-[11px] text-slate-400 hover:text-slate-600">Clear conversation</button>
+                className="mt-2 text-xs sm:text-[11px] text-slate-400 hover:text-slate-600">Clear conversation</button>
             )}
           </div>
         </div>

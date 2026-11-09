@@ -99,7 +99,7 @@ export function MonthView({
               <div className="mb-1 flex flex-wrap items-center justify-between gap-x-1">
                 <span
                   className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[13px] font-medium tabular-nums ${
-                    isToday ? 'bg-brand-500 text-white' : late ? 'text-rose-700' : 'text-slate-900'
+                    isToday ? 'bg-brand-600 text-white' : late ? 'text-rose-700' : 'text-slate-900'
                   }`}
                 >
                   {Number(d.slice(8))}

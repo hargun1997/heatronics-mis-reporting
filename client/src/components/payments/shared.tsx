@@ -39,7 +39,7 @@ export function Step({ n, title, summary, defaultOpen = false, children, id }: {
 export function Num({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-[26px] font-semibold leading-8 text-slate-900">{value}</div>
       {sub && <div className="mt-0.5 text-xs text-slate-600">{sub}</div>}
     </div>

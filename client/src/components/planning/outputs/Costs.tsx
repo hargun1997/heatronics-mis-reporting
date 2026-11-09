@@ -44,10 +44,10 @@ export function CostsView({ plan, result }: Props) {
         const ls = plan.lines.filter((l) => l.group === g.name);
         const gTot = (fy: string) => r.months.filter((m) => m.fy === fy).reduce((a, m) => a + (m.groups[g.name] ?? 0), 0);
         return (
-          <div key={g.name} className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
+          <div key={g.name} tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
             <table className="w-full min-w-[900px] text-[12.5px] tabular-nums">
               <thead>
-                <tr className="bg-surface-tint text-[11px] uppercase tracking-wide text-slate-500">
+                <tr className="bg-surface-tint text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2 text-left text-[13px] font-bold normal-case text-slate-800">{g.name}</th>
                   <th className="px-2 py-2 text-left font-semibold">Type</th>
                   <th className="px-2 py-2 text-right font-semibold">Amount</th>
@@ -62,8 +62,8 @@ export function CostsView({ plan, result }: Props) {
                   <tr key={l.id} className={`border-t border-slate-100 ${l.off ? 'opacity-45' : ''}`}>
                     <td className="px-3 py-1 text-slate-800">
                       {l.name}
-                      {l.off && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">off</span>}
-                      {l.milestone && <span className="ml-2 rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] text-violet-700" title={l.theme ? `Theme: ${l.theme}` : undefined}>{l.milestone}</span>}
+                      {l.off && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs sm:text-[11px] font-semibold text-slate-500">off</span>}
+                      {l.milestone && <span className="ml-2 rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-xs sm:text-[11px] text-violet-700" title={l.theme ? `Theme: ${l.theme}` : undefined}>{l.milestone}</span>}
                     </td>
                     <td className="px-2 py-1 text-slate-600">{l.type}</td>
                     <td className="px-2 py-1 text-right text-slate-700">{amount(l)}</td>
@@ -75,7 +75,7 @@ export function CostsView({ plan, result }: Props) {
                 ))}
                 {ls.length === 0 && <tr className="border-t border-slate-100"><td colSpan={6 + fys.length} className="px-3 py-2 text-[12px] text-slate-500">No lines in this group.</td></tr>}
                 <tr className="border-t border-slate-200 bg-slate-50/70">
-                  <td className="px-3 py-1.5 text-[11px] text-slate-400" colSpan={6}>{g.name} · ₹ Cr per FY →</td>
+                  <td className="px-3 py-1.5 text-xs sm:text-[11px] text-slate-400" colSpan={6}>{g.name} · ₹ Cr per FY →</td>
                   {fys.map((fy) => <td key={fy} className="px-2 py-1.5 text-right font-bold text-slate-900">{cr(gTot(fy))}</td>)}
                 </tr>
               </tbody>

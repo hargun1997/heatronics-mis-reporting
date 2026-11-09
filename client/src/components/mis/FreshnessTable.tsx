@@ -38,16 +38,16 @@ export function FreshnessTable({
 }) {
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mb-2">
+      <div className="flex flex-wrap items-center gap-3 text-xs sm:text-[11px] text-slate-500 mb-2">
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> {fresh.fresh} up to date</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> {fresh.stale} out of sync</span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-300" /> {fresh.none} not loaded</span>
         <span className="text-slate-400">· up-to-date target {fresh.target}</span>
       </div>
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-[10px] text-slate-400 border-b border-slate-200 text-left">
+            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200 text-left">
               <th className="py-1.5 pr-3 font-medium">Source</th>
               <th className="py-1.5 pr-3 font-medium">Mode</th>
               <th className="py-1.5 pr-3 font-medium">Status</th>
@@ -65,7 +65,7 @@ export function FreshnessTable({
                   </span>
                 </td>
                 <td className="py-1.5 pr-3">
-                  <span className={'px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap ' + MODE_BADGE[c.mode]}>
+                  <span className={'px-1.5 py-0.5 rounded text-xs sm:text-[11px] whitespace-nowrap ' + MODE_BADGE[c.mode]}>
                     {MODE_LABEL[c.mode]}
                   </span>
                 </td>
@@ -76,7 +76,7 @@ export function FreshnessTable({
                     {c.fedBy === 'upload' ? ' · uploaded' : ''}
                   </span>
                   {c.fedBy === 'upload' && onRemoveUpload && (
-                    <button onClick={() => onRemoveUpload(c.id)} className="ml-2 text-[10px] text-slate-400 hover:text-rose-600">remove</button>
+                    <button onClick={() => onRemoveUpload(c.id)} className="ml-2 text-xs sm:text-[11px] text-slate-400 hover:text-rose-600">remove</button>
                   )}
                 </td>
                 <td className="py-1.5 pr-3 text-right tabular-nums text-slate-600">{c.rows || '—'}</td>

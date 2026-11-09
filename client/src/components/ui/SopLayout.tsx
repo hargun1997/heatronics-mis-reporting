@@ -65,7 +65,7 @@ export function SopLayout({ spec }: { spec: SopSpec }) {
           </div>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">Voucher type(s)</div>
+              <div className="text-xs sm:text-[11px] uppercase tracking-wider text-slate-500">Voucher type(s)</div>
               <ul className="mt-1 space-y-1 text-slate-700">
                 {spec.voucherTypes.map((v) => (
                   <li key={v.name}>
@@ -76,7 +76,7 @@ export function SopLayout({ spec }: { spec: SopSpec }) {
               </ul>
             </div>
             <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">Key ledger mapping</div>
+              <div className="text-xs sm:text-[11px] uppercase tracking-wider text-slate-500">Key ledger mapping</div>
               <ul className="mt-1 space-y-1 text-slate-700">
                 {spec.ledgerMapping.map((l) => (
                   <li key={l.role}>
@@ -177,7 +177,7 @@ export function JournalTable({ lines }: { lines: { side: 'Dr' | 'Cr'; ledger: st
   return (
     <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
       <table className="w-full text-xs">
-        <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider">
+        <thead className="bg-slate-50 text-slate-500 uppercase text-xs sm:text-[11px] tracking-wider">
           <tr>
             <th className="text-left px-3 py-2 font-medium w-14">Dr / Cr</th>
             <th className="text-left px-3 py-2 font-medium">Ledger</th>
@@ -190,7 +190,7 @@ export function JournalTable({ lines }: { lines: { side: 'Dr' | 'Cr'; ledger: st
               <td className={`px-3 py-2 font-semibold ${l.side === 'Dr' ? 'text-brand-700' : 'text-emerald-700'}`}>{l.side}</td>
               <td className="px-3 py-2 text-slate-700">
                 {l.ledger}
-                {l.note && <span className="block text-[10px] text-slate-400 italic mt-0.5">{l.note}</span>}
+                {l.note && <span className="block text-xs sm:text-[11px] text-slate-400 italic mt-0.5">{l.note}</span>}
               </td>
               <td className="px-3 py-2 text-right currency text-slate-900 font-medium">{l.amount || '—'}</td>
             </tr>

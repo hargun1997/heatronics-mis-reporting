@@ -94,7 +94,7 @@ export function CoveragePanel({ reports, connectors }: { reports: IngestReportMe
   const CHIP: Record<MonthState, string> = {
     complete: 'bg-emerald-500 text-white border-emerald-500',
     partial: 'bg-amber-100 text-amber-800 border-amber-300',
-    none: 'bg-rose-50 text-rose-600 border-rose-200',
+    none: 'bg-rose-50 text-rose-700 border-rose-200',
   };
   const tip = (r: typeof rows[number]) => {
     if (r.state === 'complete') return `${monthName(r.mk)} — complete · all ${expected.length} required reports in`;
@@ -106,7 +106,7 @@ export function CoveragePanel({ reports, connectors }: { reports: IngestReportMe
     <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="text-sm font-semibold text-slate-800">Where we are</h3>
-        <span className="text-[11px] text-slate-500">
+        <span className="text-xs sm:text-[11px] text-slate-500">
           Live window from <span className="font-medium text-slate-700">{monthName(LIVE_BOUNDARY)}</span>
           {completeThrough
             ? <> · <span className="text-emerald-700 font-medium">complete through {monthName(completeThrough)}</span></>
@@ -118,14 +118,14 @@ export function CoveragePanel({ reports, connectors }: { reports: IngestReportMe
       <div className="flex flex-wrap gap-1.5">
         {rows.map((r) => (
           <div key={r.mk} title={tip(r)}
-            className={`px-2 py-1 rounded-md border text-[11px] font-medium tabular-nums ${CHIP[r.state]}`}>
+            className={`px-2 py-1 rounded-md border text-xs sm:text-[11px] font-medium tabular-nums ${CHIP[r.state]}`}>
             {shortMonth(r.mk)}
             {r.state === 'partial' && expected.length > 0 && <span className="ml-1 opacity-70">{r.present}/{expected.length}</span>}
           </div>
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-[11px] text-slate-500">
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-emerald-500" /> Complete (all required in)</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-amber-300" /> Partial (some in)</span>
         <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded bg-rose-300" /> Nothing in yet</span>
@@ -172,9 +172,9 @@ export function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSo
     <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="text-sm font-semibold text-slate-800">Automatic sources</h3>
-        <span className="text-[11px] text-slate-500">{auto.length} reports fill themselves ({ready.length} connected) · {manual.length} are manual uploads</span>
+        <span className="text-xs sm:text-[11px] text-slate-500">{auto.length} reports fill themselves ({ready.length} connected) · {manual.length} are manual uploads</span>
         <div className="ml-auto flex items-center gap-2">
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="px-2 py-1 rounded-lg border border-slate-200 text-xs" />
+          <input type="month" aria-label="Month to pull" value={month} onChange={(e) => setMonth(e.target.value)} className="px-2 py-1 rounded-lg border border-slate-200 text-xs" />
           <button onClick={() => void run()} disabled={running || ready.length === 0 || !/^\d{4}-\d{2}$/.test(month)}
             className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40">
             {running ? 'Pulling…' : `Pull & save all for ${monthName(month)}`}
@@ -185,20 +185,20 @@ export function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSo
         {auto.map((s) => {
           const src = sources.get(slotKey(s.connectorId, s.slotId))!;
           return (
-            <span key={slotKey(s.connectorId, s.slotId)} title={src.line} className={`text-[11px] px-2 py-0.5 rounded-md border ${src.connected ? 'border-slate-200 bg-white text-slate-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+            <span key={slotKey(s.connectorId, s.slotId)} title={src.line} className={`text-xs sm:text-[11px] px-2 py-0.5 rounded-md border ${src.connected ? 'border-slate-200 bg-white text-slate-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
               {s.label}{src.connected ? '' : ' · connect'}
             </span>
           );
         })}
       </div>
       {results.length > 0 && (
-        <ul className="text-[11px] space-y-0.5">
+        <ul className="text-xs sm:text-[11px] space-y-0.5">
           {results.map((r, i) => (
             <li key={i} className={r.ok ? 'text-emerald-700' : 'text-amber-800'}>{r.ok ? '✓' : '!'} <span className="font-medium">{r.label}</span> — {r.detail}</li>
           ))}
         </ul>
       )}
-      <p className="text-[10px] text-slate-500">Only clean pulls are saved. A pull that needs a look (a warning or failed check) is listed here; open that source below to review it or upload the report by hand.</p>
+      <p className="text-xs sm:text-[11px] text-slate-500">Only clean pulls are saved. A pull that needs a look (a warning or failed check) is listed here; open that source below to review it or upload the report by hand.</p>
     </div>
   );
 }
@@ -284,7 +284,7 @@ export function IngestWorkspace() {
       <AutoPullPanel sources={sources} onDone={reloadReports} />
 
       {/* Status strip: Claude API (reads Tally screenshots + Ask the MIS) + store durability */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-[11px]">
         <span className={
           'px-2 py-0.5 rounded-full inline-flex items-center gap-1.5 font-medium ' +
           (claudeLive ? 'bg-emerald-50 text-emerald-700' : claudeLive === false ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-400')
@@ -308,7 +308,7 @@ export function IngestWorkspace() {
           {store.grantHint ? (
             <>
               <p>To make the ingestion store durable (a Cloud Storage bucket), run this once in Cloud Shell, then Re-check:</p>
-              <pre className="bg-amber-100 rounded p-2 overflow-x-auto whitespace-pre-wrap font-mono text-[11px]">{store.grantHint}</pre>
+              <pre className="bg-amber-100 rounded p-2 overflow-x-auto whitespace-pre-wrap font-mono text-xs sm:text-[11px]">{store.grantHint}</pre>
               {store.error && <p className="text-amber-700">Storage said: {store.error}</p>}
             </>
           ) : <p>This server isn't on GCP, so reports persist only in a temp directory.</p>}
@@ -320,16 +320,16 @@ export function IngestWorkspace() {
         </div>
       )}
       {store && store.durable && (
-        <p className="text-[11px] text-slate-400">Reports saved durably to Cloud Storage bucket <span className="font-mono">{store.bucket}</span>.</p>
+        <p className="text-xs sm:text-[11px] text-slate-400">Reports saved durably to Cloud Storage bucket <span className="font-mono">{store.bucket}</span>.</p>
       )}
 
       {/* Manual uploads: only the reports no API, sheet or Claude task can fill */}
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="text-sm font-semibold text-slate-800">{showAuto ? 'All reports (uploads as a fallback)' : 'Manual uploads'}</h3>
-        <span className="text-[11px] text-slate-500">
+        <span className="text-xs sm:text-[11px] text-slate-500">
           {showAuto ? 'Automatic reports are shown too: upload one only if its pull fails.' : 'Only the reports that have no API, sheet or Claude task. Everything else fills from "Pull & save all" above.'}
         </span>
-        <label className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-slate-600">
+        <label className="ml-auto inline-flex items-center gap-1.5 text-xs sm:text-[11px] text-slate-600">
           <input type="checkbox" className="h-3.5 w-3.5 accent-brand-600" checked={showAuto} onChange={(e) => setShowAuto(e.target.checked)} />
           Show automatic reports too
         </label>
@@ -361,13 +361,13 @@ export function IngestWorkspace() {
             {(() => {
               const m = manualCount(sel.id);
               const auto = m === 0 && loaded;
-              return <span className={'px-1.5 py-0.5 rounded text-[10px] ' + (auto || sel.mode === 'live-api' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800')}>
+              return <span className={'px-1.5 py-0.5 rounded text-xs sm:text-[11px] ' + (auto || sel.mode === 'live-api' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800')}>
                 {auto ? 'Automatic' : sel.mode === 'live-api' ? MODE_LABEL[sel.mode] : 'Manual upload'}
               </span>;
             })()}
           </div>
           {hiddenAuto > 0 && (
-            <p className="text-[11px] text-slate-500">{hiddenAuto} more {sel.label} report{hiddenAuto === 1 ? '' : 's'} fill automatically (hidden; tick "Show automatic reports too" to upload one by hand).</p>
+            <p className="text-xs sm:text-[11px] text-slate-500">{hiddenAuto} more {sel.label} report{hiddenAuto === 1 ? '' : 's'} fill automatically (hidden; tick "Show automatic reports too" to upload one by hand).</p>
           )}
 
           {sel.mode === 'live-api' && showAuto ? (

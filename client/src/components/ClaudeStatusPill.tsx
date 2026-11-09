@@ -44,9 +44,9 @@ export function ClaudeStatusPill({ compact = false, dark = false }: { compact?: 
       }
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dot} ${live ? 'animate-pulse' : ''}`} />
-      {!compact && <span className="text-[11px] font-medium text-slate-600">Claude {live == null ? '…' : live ? 'live' : 'off'}</span>}
+      {!compact && <span className="text-xs sm:text-[11px] font-medium text-slate-600">Claude {live == null ? '…' : live ? 'live' : 'off'}</span>}
       {spend != null && (
-        <span className="text-[11px] tabular-nums text-slate-500">
+        <span className="text-xs sm:text-[11px] tabular-nums text-slate-500">
           {compact ? spend : <>· <span className="text-slate-700 font-medium">{spend}</span> today</>}
         </span>
       )}

@@ -430,7 +430,7 @@ export function MISExcelExportModal({
                 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all
                 ${isExporting || estimatedSheets === 0
                   ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
-                  : 'bg-brand-500 text-white hover:bg-brand-600'
+                  : 'bg-brand-600 text-white hover:bg-brand-700'
                 }
               `}
             >

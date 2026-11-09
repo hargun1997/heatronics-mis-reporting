@@ -54,9 +54,9 @@ export function NewPayeesSection({ saved }: { saved: Payee[] }) {
       </ol>
       <Note tone="info">Nick name limit of {NICK_MAX} letters is our guess. If CIB refuses a row, shorten the nick name.</Note>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full min-w-[900px] text-[13px]">
-          <thead className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             <tr><th className="w-8 px-2 py-2">#</th>{FIELDS.map((f) => <th key={f.k} className="px-2 py-2">{f.label}</th>)}<th className="w-10 px-2 py-2"><span className="sr-only">Remove</span></th></tr>
           </thead>
           <tbody>

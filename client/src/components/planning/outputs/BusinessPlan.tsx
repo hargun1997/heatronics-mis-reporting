@@ -56,7 +56,7 @@ export function BusinessPlanView({ plan, result }: Props) {
             ['of which inventory (peak)', asks.map((a) => cr(a.inventoryPeak))],
             ['of which GST asset (peak)', asks.map((a) => cr(a.gstAssetPeak))],
           ]} />
-          <p className="mt-2 text-[11px] text-slate-500">Full-plan column uses the 18-month buffer. Venture debt comes from the funding timeline (Setup → Funding); the buffers from Setup → Assumptions.</p>
+          <p className="mt-2 text-xs sm:text-[11px] text-slate-500">Full-plan column uses the 18-month buffer. Venture debt comes from the funding timeline (Setup → Funding); the buffers from Setup → Assumptions.</p>
         </SectionCard>
       </div>
 
@@ -107,12 +107,12 @@ function Empty() { return <span className="text-slate-300">—</span>; }
 
 function Table({ cols, rows }: { cols: Span[]; rows: [string, ReactNode[], boolean?][] }) {
   return (
-    <div className="overflow-x-auto">
+    <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
       <table className="w-full text-[13px] tabular-nums">
         <thead>
-          <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-slate-200 text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
             <th />
-            {cols.map((c) => <th key={c.n} className="px-2 py-1.5 text-right font-semibold">{c.label}<span className="block text-[10px] font-normal normal-case text-slate-400">{c.sub}</span></th>)}
+            {cols.map((c) => <th key={c.n} className="px-2 py-1.5 text-right font-semibold">{c.label}<span className="block text-xs sm:text-[11px] font-normal normal-case text-slate-400">{c.sub}</span></th>)}
           </tr>
         </thead>
         <tbody>
@@ -134,10 +134,10 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
   const tot = (d: ReturnType<typeof deployment>, th: string) => d.themes.find((t) => t.theme === th)?.total ?? 0;
   return (
     <SectionCard title="Use of funds" description="Spend tagged to each theme (cost lines carrying a milestone), and its share of the equity raise for that period.">
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="w-full min-w-[620px] text-[13px] tabular-nums">
           <thead>
-            <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-slate-200 text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
               <th className="py-1.5 text-left font-semibold">Theme</th>
               {spans.map((s) => <th key={s.n} colSpan={2} className="px-2 py-1.5 text-right font-semibold">{s.label} · ₹ Cr / % of raise</th>)}
             </tr>
@@ -186,10 +186,10 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
         </div>
       }
     >
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="text-[12px] tabular-nums">
           <thead>
-            <tr className="text-[11px] text-slate-500">
+            <tr className="text-xs sm:text-[11px] text-slate-500">
               <th className="sticky left-0 z-10 bg-surface py-1.5 pr-3 text-left font-semibold">{by === 'milestone' ? 'Milestone' : 'Theme'}</th>
               {d.months.map((m) => <th key={m} className="whitespace-nowrap px-1.5 py-1.5 text-right font-semibold">{m}</th>)}
               <th className="bg-slate-100 px-2 text-right font-semibold text-slate-800">Total</th>
@@ -199,7 +199,7 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
           <tbody>
             {rows.map((x) => (
               <tr key={x.key} className="border-t border-slate-100">
-                <td className="sticky left-0 z-10 whitespace-nowrap bg-surface py-1 pr-3 text-slate-700">{x.key}{by === 'milestone' && <span className="ml-1.5 text-[10px] text-slate-400">{x.theme}</span>}</td>
+                <td className="sticky left-0 z-10 whitespace-nowrap bg-surface py-1 pr-3 text-slate-700">{x.key}{by === 'milestone' && <span className="ml-1.5 text-xs sm:text-[11px] text-slate-400">{x.theme}</span>}</td>
                 {x.byMonth.map((v, i) => <td key={i} className="px-1.5 text-right text-slate-700">{lakh(v)}</td>)}
                 <td className="bg-slate-50 px-2 text-right font-semibold">{lakh(x.total)}</td>
                 <td className="bg-slate-50 px-2 text-right text-slate-500">{pct(x.total / (ask?.equityRequired || 1))}</td>
@@ -225,10 +225,10 @@ function Milestones({ plan }: { plan: Plan }) {
   return (
     <SectionCard title="Themes & milestones" description="Overview rows 10–36. Edited in Setup → Business plan text; cost lines are tagged with a milestone in Setup → Sheet lines.">
       {plan.business.themes.length === 0 && <p className="text-[13px] text-slate-500">No milestones yet.</p>}
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>
-            <tr className="text-[11px] uppercase tracking-wide text-slate-500">
+            <tr className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
               <th className="py-1 pr-3 text-left font-semibold">Theme</th><th className="pr-3 text-left font-semibold">Milestone</th>
               <th className="pr-3 text-left font-semibold">Month</th><th className="text-right font-semibold">Cost lines</th>
             </tr>

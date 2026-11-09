@@ -218,6 +218,7 @@ export function MonthCloseTab() {
         <input
           value={monthLabel}
           onChange={(e) => { setMonthLabel(e.target.value); setCopied(false); }}
+          aria-label="Month"
           placeholder="Month e.g. Aug 2026"
           className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200"
         />
@@ -233,11 +234,12 @@ export function MonthCloseTab() {
                   <div key={ln.key} className="flex items-center gap-3 py-1 border-b border-slate-50 last:border-0">
                     <div className="flex-1 min-w-0">
                       <div className="text-sm text-slate-700">{ln.label}</div>
-                      <div className="text-[10px] text-slate-400 truncate">{ln.source}</div>
+                      <div className="text-xs sm:text-[11px] text-slate-400 truncate">{ln.source}</div>
                     </div>
                     <div className="flex items-center gap-1">
                       <span className={`text-xs ${ln.sign === 'cost' ? 'text-rose-400' : 'text-slate-300'}`}>{ln.sign === 'cost' ? '−' : '+'}</span>
                       <input
+                        aria-label={`${ln.label} amount`}
                         inputMode="decimal"
                         value={vals[ln.key] ?? ''}
                         onChange={(e) => set(ln.key, e.target.value)}
@@ -275,7 +277,7 @@ export function MonthCloseTab() {
                     <tr key={r.label} className={`border-b border-slate-50 ${strong ? 'font-semibold text-slate-800' : r.kind === 'sub' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
                       <td className="py-1.5 pr-2">{r.label}</td>
                       <td className="py-1.5 text-right tabular-nums">{inr(r.value)}</td>
-                      <td className="py-1.5 pl-2 text-right tabular-nums text-[11px] text-slate-400 w-12">{r.pctOf ? pct(r.value) : ''}</td>
+                      <td className="py-1.5 pl-2 text-right tabular-nums text-xs sm:text-[11px] text-slate-400 w-12">{r.pctOf ? pct(r.value) : ''}</td>
                     </tr>
                   );
                 })}
@@ -291,9 +293,9 @@ export function MonthCloseTab() {
                 <Row label="YoY growth (last 6 mo avg)" value={arr.yoy !== null ? pctStr(arr.yoy) : '—'} />
                 <Row label="Blended growth" value={pctStr(arr.blended)} strong />
                 <div className="pt-2 mt-1 border-t border-slate-100">
-                  <div className="text-[11px] text-slate-400">Projected next-12-month revenue (ARR)</div>
+                  <div className="text-xs sm:text-[11px] text-slate-400">Projected next-12-month revenue (ARR)</div>
                   <div className="text-2xl font-semibold text-brand-700 tabular-nums">{inr(arr.forwardArr)}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">From {keyLabel(arr.proj[0].key)} → {keyLabel(arr.proj[11].key)}, seasonality via same-month-last-year × (1 + blended).</div>
+                  <div className="text-xs sm:text-[11px] text-slate-400 mt-0.5">From {keyLabel(arr.proj[0].key)} → {keyLabel(arr.proj[11].key)}, seasonality via same-month-last-year × (1 + blended).</div>
                 </div>
               </div>
             </SectionCard>

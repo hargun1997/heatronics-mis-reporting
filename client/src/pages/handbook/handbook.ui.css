@@ -19,7 +19,7 @@
    ------------------------------------------------------------------------- */
 .hbx {
   font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  color: #0f172a;
+  color: rgb(var(--n-900));
   -webkit-font-smoothing: antialiased;
 }
 .hbx .font-mono { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -97,7 +97,7 @@
   position: absolute;
   inset: -6px;
 }
-.hbf-btn:hover { background: #f1f5f9; color: #0f172a; }
+.hbf-btn:hover { background: rgb(var(--n-100)); color: rgb(var(--n-900)); }
 .hbf-btn:focus-visible { outline: 2px solid #fe4705; }
 .hbf-btn svg { transition: transform 0.15s ease; }
 .hbx .hb .hbf-head[data-open='false'] .hbf-btn svg { transform: rotate(-90deg); }

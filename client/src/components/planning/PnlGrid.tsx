@@ -109,10 +109,10 @@ export function PnlGrid({ r }: { r: PlanResult }) {
         <SegmentedControl options={[{ id: 'month', label: 'Months + FY' }, { id: 'fy', label: 'FY only' }]} value={grain} onChange={setGrain} size="sm" />
         <span className="text-[12px] text-slate-500">₹ lakh · shaded months come from the levers (after the 18-month sheet) · *part year</span>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
         <table className="text-[12px] tabular-nums">
           <thead>
-            <tr className="text-[11px] text-slate-500">
+            <tr className="text-xs sm:text-[11px] text-slate-500">
               <th className="sticky left-0 z-10 bg-surface-tint px-3 py-2 text-left font-semibold">Line</th>
               {cols.map((c) => (
                 <th key={c.key} className={`whitespace-nowrap px-2 py-2 text-right font-semibold ${c.fy ? 'bg-slate-100 text-slate-800' : c.ext ? 'bg-amber-50/60' : 'bg-surface-tint'}`}>{c.label}</th>
@@ -122,7 +122,7 @@ export function PnlGrid({ r }: { r: PlanResult }) {
           <tbody>
             {rows.map((row) => (
               <tr key={row.label} className={`border-t border-slate-100 ${row.strong ? 'font-semibold' : ''}`}>
-                <td className={`sticky left-0 z-10 whitespace-nowrap bg-surface px-3 py-1 ${row.head ? 'pt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500' : row.strong ? 'text-slate-900' : 'text-slate-600'}`}>{row.label}</td>
+                <td className={`sticky left-0 z-10 whitespace-nowrap bg-surface px-3 py-1 ${row.head ? 'pt-3 text-xs sm:text-[11px] font-bold uppercase tracking-wide text-slate-500' : row.strong ? 'text-slate-900' : 'text-slate-600'}`}>{row.label}</td>
                 {cols.map((c) => (
                   <Fragment key={c.key}>
                     {row.head ? <td className={c.fy ? 'bg-slate-50' : ''} /> : (

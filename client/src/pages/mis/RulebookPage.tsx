@@ -48,7 +48,7 @@ const GROUP_ORDER = ['Book of record', 'Marketplace', 'D2C', 'Marketing', 'Logis
 type RbTab = 'checklist' | 'cascade' | 'sources' | 'sheets';
 
 function Badge({ children, cls }: { children: ReactNode; cls: string }) {
-  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium whitespace-nowrap ${cls}`}>{children}</span>;
+  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-xs sm:text-[11px] font-medium whitespace-nowrap ${cls}`}>{children}</span>;
 }
 
 export function RulebookPage() {
@@ -108,10 +108,10 @@ export function RulebookPage() {
             Each source needs three things: its ids mapped into the MIS, its export steps added, and its rule
             (what we do with the data) defined. Done ones first, in the order we wired them, then the queue.
           </p>
-          <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+                <tr className="text-left text-xs sm:text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
                   <th className="px-3 py-2 font-semibold w-10">#</th>
                   <th className="px-3 py-2 font-semibold">Source</th>
                   <th className="px-3 py-2 font-semibold w-28">Mapping</th>
@@ -142,7 +142,7 @@ export function RulebookPage() {
                           return (
                             <div className="flex flex-col gap-0.5">
                               <Badge cls={READY_STYLE[r]}>{READY_MARK[r]} {READY_LABEL[r]}</Badge>
-                              <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                              <span className="text-xs sm:text-[11px] text-slate-400 whitespace-nowrap">
                                 {s.steps ? '✓' : '○'} steps · {s.linkExpected ? `${s.link ? '✓' : '○'} link` : '— link'}
                               </span>
                             </div>
@@ -161,7 +161,7 @@ export function RulebookPage() {
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">
+          <p className="text-xs sm:text-[11px] text-slate-400 mt-2">
             The queue (below the line) is the remaining one-by-one order. The full file→read→destination rule for
             every source is in the “Sources &amp; files” tab.
           </p>
@@ -192,7 +192,7 @@ export function RulebookPage() {
                   <div className="flex-shrink-0 w-24"><Badge cls={o.cls}>{o.label}</Badge></div>
                   <div className="flex-1 min-w-0">
                     {line.formula && <p className="text-xs text-slate-500">{line.formula}</p>}
-                    {line.note && <p className="text-[11px] text-slate-400 mt-0.5">{line.note}</p>}
+                    {line.note && <p className="text-xs sm:text-[11px] text-slate-400 mt-0.5">{line.note}</p>}
                   </div>
                 </div>
               );
@@ -289,10 +289,10 @@ function ConnectorCard({ c }: { c: ConnectorRule }) {
             <div key={f.slotId} className="px-4 py-3 pl-11">
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
                 <span className="text-sm font-medium text-slate-700">{f.label}</span>
-                <Badge cls={f.required ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-slate-50 text-slate-400 border-slate-200'}>
+                <Badge cls={f.required ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-400 border-slate-200'}>
                   {f.required ? 'Required' : 'Optional'}
                 </Badge>
-                <span className="text-[11px] text-slate-400">· {f.cadence}</span>
+                <span className="text-xs sm:text-[11px] text-slate-400">· {f.cadence}</span>
               </div>
               <p className="text-xs text-slate-500 mb-2"><span className="font-medium text-slate-600">We read:</span> {f.reads}</p>
               {f.exclusions && (

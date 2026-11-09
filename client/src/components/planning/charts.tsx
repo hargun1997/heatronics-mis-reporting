@@ -16,15 +16,15 @@ export function RevenueBars({ r, compare }: { r: PlanResult; compare?: PlanResul
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Revenue by channel per financial year">
         {[0, 0.25, 0.5, 0.75, 1].map((t) => (
           <g key={t}>
-            <line x1={padL} x2={W - 6} y1={yOf(nice * t)} y2={yOf(nice * t)} stroke="#e2e8f0" />
-            <text x={padL - 6} y={yOf(nice * t) + 4} textAnchor="end" fontSize="10" fill="#94a3b8">{Math.round(nice * t)}</text>
+            <line x1={padL} x2={W - 6} y1={yOf(nice * t)} y2={yOf(nice * t)} stroke="rgb(var(--n-200))" />
+            <text x={padL - 6} y={yOf(nice * t) + 4} textAnchor="end" fontSize="11" fill="rgb(var(--n-400-text))">{Math.round(nice * t)}</text>
           </g>
         ))}
         {years.map((y, i) => {
           const x = padL + i * bw + bw * 0.2, w = bw * 0.6;
           let acc = (y.revenueWithActuals - y.revenue) / 1e7; // FY27 H1 actuals at the bottom, grey
           const segs: ReactElement[] = [];
-          if (acc > 0) segs.push(<rect key="act" x={x} width={w} y={yOf(acc)} height={yOf(0) - yOf(acc)} fill="#cbd5e1"><title>Apr–Sep actuals ₹{acc.toFixed(2)} Cr</title></rect>);
+          if (acc > 0) segs.push(<rect key="act" x={x} width={w} y={yOf(acc)} height={yOf(0) - yOf(acc)} fill="rgb(var(--n-300))"><title>Apr–Sep actuals ₹{acc.toFixed(2)} Cr</title></rect>);
           for (const ch of CHANNELS) {
             const v = y.revenueByChannel[ch] / 1e7;
             if (v <= 0) continue;
@@ -40,14 +40,14 @@ export function RevenueBars({ r, compare }: { r: PlanResult; compare?: PlanResul
           return (
             <g key={y.fy}>
               {segs}
-              {cmp && <line x1={x - 4} x2={x + w + 4} y1={yOf(cmp.revenueWithActuals / 1e7)} y2={yOf(cmp.revenueWithActuals / 1e7)} stroke="#0f172a" strokeWidth="1.5" strokeDasharray="4 3"><title>Compared scenario ₹{cr(cmp.revenueWithActuals)} Cr</title></line>}
-              <text x={x + w / 2} y={yOf(acc) - 6} textAnchor="middle" fontSize="11" fontWeight="700" fill="#0f172a">{cr(y.revenueWithActuals, 1)}</text>
-              <text x={x + w / 2} y={H - 10} textAnchor="middle" fontSize="11" fill="#475569">{y.fy}{y.months < 12 ? '*' : ''}</text>
+              {cmp && <line x1={x - 4} x2={x + w + 4} y1={yOf(cmp.revenueWithActuals / 1e7)} y2={yOf(cmp.revenueWithActuals / 1e7)} stroke="rgb(var(--n-900))" strokeWidth="1.5" strokeDasharray="4 3"><title>Compared scenario ₹{cr(cmp.revenueWithActuals)} Cr</title></line>}
+              <text x={x + w / 2} y={yOf(acc) - 6} textAnchor="middle" fontSize="11" fontWeight="700" fill="rgb(var(--n-900))">{cr(y.revenueWithActuals, 1)}</text>
+              <text x={x + w / 2} y={H - 10} textAnchor="middle" fontSize="11" fill="rgb(var(--n-600))">{y.fy}{y.months < 12 ? '*' : ''}</text>
             </g>
           );
         })}
       </svg>
-      <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+      <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-[11px] text-slate-500">
         {CHANNELS.map((ch) => (
           <span key={ch} className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm" style={{ background: CH_COLOR[ch] }} />{CHANNEL_NAMES[ch]}</span>
         ))}
@@ -77,20 +77,20 @@ export function CashCurve({ r, compare }: { r: PlanResult; compare?: PlanResult 
         {ticks.map((t) => (
           <g key={t}>
             <line x1={padL} x2={W - 6} y1={yOf(t)} y2={yOf(t)} stroke={Math.abs(t) < 1e-9 ? '#94a3b8' : '#e2e8f0'} />
-            <text x={padL - 6} y={yOf(t) + 4} textAnchor="end" fontSize="10" fill="#94a3b8">{t.toFixed(0)}</text>
+            <text x={padL - 6} y={yOf(t) + 4} textAnchor="end" fontSize="11" fill="rgb(var(--n-400-text))">{t.toFixed(0)}</text>
           </g>
         ))}
-        <line x1={padL} x2={W - 6} y1={yOf(0)} y2={yOf(0)} stroke="#64748b" />
-        {ms.map((m, i) => (m.label.startsWith('Apr') ? <text key={m.m} x={xOf(i)} y={H - 6} fontSize="10" fill="#64748b" textAnchor="middle">{m.fy}</text> : null))}
-        {r.base < ms.length && <line x1={xOf(r.base - 0.5)} x2={xOf(r.base - 0.5)} y1={padT} y2={H - padB} stroke="#cbd5e1" strokeDasharray="3 3" />}
-        {compare && <path d={path(cmpSeries)} fill="none" stroke="#0f172a" strokeWidth="1.25" strokeDasharray="4 3" />}
-        <path d={path(series[1])} fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+        <line x1={padL} x2={W - 6} y1={yOf(0)} y2={yOf(0)} stroke="rgb(var(--n-500))" />
+        {ms.map((m, i) => (m.label.startsWith('Apr') ? <text key={m.m} x={xOf(i)} y={H - 6} fontSize="11" fill="rgb(var(--n-500))" textAnchor="middle">{m.fy}</text> : null))}
+        {r.base < ms.length && <line x1={xOf(r.base - 0.5)} x2={xOf(r.base - 0.5)} y1={padT} y2={H - padB} stroke="rgb(var(--n-300))" strokeDasharray="3 3" />}
+        {compare && <path d={path(cmpSeries)} fill="none" stroke="rgb(var(--n-900))" strokeWidth="1.25" strokeDasharray="4 3" />}
+        <path d={path(series[1])} fill="none" stroke="rgb(var(--n-400))" strokeWidth="1.5" />
         <path d={path(series[0])} fill="none" stroke="rgb(var(--accent-600))" strokeWidth="2.25" />
         {ms.map((m, i) => m.equity > 0 && (
-          <circle key={m.m} cx={xOf(i)} cy={yOf(series[0][i])} r="4" fill="#10b981"><title>{m.label}: equity ₹{cr(m.equity)} Cr</title></circle>
+          <circle key={m.m} cx={xOf(i)} cy={yOf(series[0][i])} r="4" fill="rgb(var(--emerald-500))"><title>{m.label}: equity ₹{cr(m.equity)} Cr</title></circle>
         ))}
       </svg>
-      <figcaption className="mt-1 flex flex-wrap gap-x-4 text-[11px] text-slate-500">
+      <figcaption className="mt-1 flex flex-wrap gap-x-4 text-xs sm:text-[11px] text-slate-500">
         <span className="inline-flex items-center gap-1"><span className="h-0.5 w-4 bg-brand-600" />Closing cash (with raises & debt)</span>
         <span className="inline-flex items-center gap-1"><span className="h-0.5 w-4 bg-slate-400" />Cumulative operating cash flow (what funding must cover)</span>
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Equity in</span>
@@ -103,9 +103,9 @@ export function CashCurve({ r, compare }: { r: PlanResult; compare?: PlanResult 
 export function MiniStat({ label, value, sub, bad }: { label: string; value: string; sub?: string; bad?: boolean }) {
   return (
     <div className={`rounded-2xl border px-4 py-3 ${bad ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200/80 bg-surface'} shadow-card`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`mt-1 text-xl font-extrabold tabular-nums ${bad ? 'text-rose-700' : 'text-slate-900'}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
+      {sub && <div className="mt-0.5 text-xs sm:text-[11px] text-slate-500">{sub}</div>}
     </div>
   );
 }

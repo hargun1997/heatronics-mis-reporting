@@ -81,7 +81,7 @@ export function Fold({
       </div>
       {open && (
         <div className="border-t border-slate-100 px-3 sm:px-4 py-3">
-          {meta != null && <p className="sm:hidden text-[11px] text-slate-400 mb-2">{meta}</p>}
+          {meta != null && <p className="sm:hidden text-xs sm:text-[11px] text-slate-400 mb-2">{meta}</p>}
           {children}
         </div>
       )}
@@ -124,14 +124,14 @@ export function Section({ id, title, meta, defaultOpen = false, actions, childre
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-surface shadow-card">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3">
-        <button type="button" onClick={flip} aria-expanded={open} aria-controls={bodyId}
+        <h2 className="flex min-w-0 flex-1"><button type="button" onClick={flip} aria-expanded={open} aria-controls={bodyId}
           className="flex min-w-0 flex-1 items-center gap-2.5 text-left rounded-lg -mx-1 px-1 py-1 hover:bg-slate-50 focus-visible:ring-2 ring-accent-500 outline-none">
           <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? '' : '-rotate-90'}`} aria-hidden />
           <span className="min-w-0">
             <span className="block text-base font-semibold text-slate-900 leading-6">{title}</span>
             {meta != null && <span className="block text-xs text-slate-500 truncate">{meta}</span>}
           </span>
-        </button>
+        </button></h2>
         {open && actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
       {open && <div id={bodyId} className="border-t border-slate-200/70 px-4 sm:px-5 py-4">{children}</div>}
@@ -149,7 +149,7 @@ export function Pills<T extends string>({ value, onChange, options, label }: {
     <div className="inline-flex bg-slate-100 rounded-lg p-0.5" role="group" aria-label={label}>
       {options.map((o) => (
         <button key={o.id} type="button" onClick={() => onChange(o.id)} aria-pressed={value === o.id}
-          className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+          className={`px-2.5 py-1 min-h-10 sm:min-h-0 text-xs font-medium rounded-md transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${
             value === o.id ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'}`}>
           {o.label}
         </button>
@@ -189,10 +189,10 @@ const LEVEL_BADGE: Record<CompletenessLevel, { label: string; cls: string }> = {
 export function LevelBadge({ level, published }: { level: CompletenessLevel; published?: boolean }) {
   if (published && level === 'full') {
     return <span title="From the published MIS — no full live close for this month yet"
-      className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium bg-brand-50 text-brand-700 border-brand-100">Published</span>;
+      className="inline-flex items-center px-1.5 py-0.5 rounded border text-xs sm:text-[11px] font-medium bg-brand-50 text-brand-700 border-brand-100">Published</span>;
   }
   const b = LEVEL_BADGE[level];
-  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium ${b.cls}`}>{b.label}</span>;
+  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-xs sm:text-[11px] font-medium ${b.cls}`}>{b.label}</span>;
 }
 
 /** ▲/▼ growth, coloured brand (up) / slate (down) — never red/green. */
@@ -216,10 +216,11 @@ export function fairGrowth(cur: { v: number; n: number }, other: { v: number; n:
 export const ND = <span className="text-slate-300">—</span>;
 
 export function Note({ children }: { children: ReactNode }) {
-  return <p className="text-[11px] leading-relaxed text-slate-400">{children}</p>;
+  return <p className="text-xs sm:text-[11px] leading-relaxed text-slate-400">{children}</p>;
 }
 
 /** Table shell: scrolls in its own box (never the page) with a sticky first column. */
-export function TableBox({ children }: { children: ReactNode }) {
-  return <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">{children}</div>;
+export function TableBox({ children, label = 'Table, scroll sideways for more' }: { children: ReactNode; label?: string }) {
+  // Focusable so keyboard users can scroll it too (axe scrollable-region-focusable).
+  return <div tabIndex={0} role="region" aria-label={label} className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">{children}</div>;
 }

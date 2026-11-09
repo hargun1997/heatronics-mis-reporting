@@ -131,7 +131,7 @@ export function MisSheetTab() {
         title={`MIS · ${MIS_ENTITIES.find((e) => e.id === entity)?.label} · ${fy.name}`}
         description="Particulars in ₹ Lac. Costs are positive magnitudes; contribution margins are signed. Percentages are of net revenue (GM%/CM%/EBITDA%) or of gross revenue (Net Revenue %)."
       >
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full text-sm whitespace-nowrap">
             <thead>
               <tr className="text-xs text-slate-400 border-b border-slate-200">
@@ -176,7 +176,7 @@ export function MisSheetTab() {
             <button onClick={() => setImported(null)} className="text-xs text-slate-500 hover:text-slate-800">Clear</button>
           }
         >
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr className="text-xs text-slate-400 border-b border-slate-200">

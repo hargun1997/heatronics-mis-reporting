@@ -47,7 +47,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       </Row>
 
       {mode === 'path' ? (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-[12.5px] tabular-nums">
             <thead>
               <tr className="bg-surface-tint">

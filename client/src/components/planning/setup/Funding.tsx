@@ -70,7 +70,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         </Row>
         <Row label="Seed pre-money" hint="For the dilution table only (placeholder until agreed).">
           <NumInput unit="cr" value={seedPreMoney} min={0} width="w-16" title="Seed pre-money" onChange={(x) => setG((g) => { g.seedPreMoney = x; })} />
-          {seedRow && <span className="text-[11px] text-slate-500">sold {pct(seedRow.sold, 0)}</span>}
+          {seedRow && <span className="text-xs sm:text-[11px] text-slate-500">sold {pct(seedRow.sold, 0)}</span>}
         </Row>
         <Row label={<>Venture debt{!v.confirmed && <Flag />}</>} hint="Replaces the sheet’s ₹2.5 Cr draw. Interest-only through the moratorium, then equal instalments.">
           <Check checked={v.on} onChange={(x) => setFx((f) => { f.ventureDebt.on = x; })} label="Venture debt on" />
@@ -108,11 +108,11 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           const replaced = !!e.venture && !!plan.fx && !plan.fx.sheetParity && plan.fx.ventureDebt.on;
           return (
             <div key={e.id} className={`flex flex-wrap items-center gap-2 ${replaced ? 'opacity-60' : ''}`}>
-              <span className={`w-28 rounded-md px-2 py-0.5 text-center text-[11px] font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{KIND[e.kind]}</span>
+              <span className={`w-28 rounded-md px-2 py-0.5 text-center text-xs sm:text-[11px] font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{KIND[e.kind]}</span>
               <MonthSelect title={`${KIND[e.kind]} month`} value={e.month} months={months} onChange={(m) => update((p) => { p.events[i].month = m ?? 1; })} />
               <NumInput unit="cr" value={e.amount} min={0} width="w-20" title="Amount" onChange={(x) => update((p) => { p.events[i].amount = x; })} />
               <input value={e.note} placeholder="Note (e.g. Seed — Hyperscale lead)" aria-label="Note" onChange={(ev) => update((p) => { p.events[i].note = ev.target.value; })} className={`${txt} min-w-[200px] flex-1`} />
-              {replaced && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Replaced by the venture-debt terms above</span>}
+              {replaced && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-slate-500">Replaced by the venture-debt terms above</span>}
               <button type="button" className={rm} aria-label={`Remove ${KIND[e.kind]} in ${e.month}`} onClick={() => update((p) => { p.events.splice(i, 1); })}>Remove</button>
             </div>
           );
@@ -139,7 +139,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <SubHead>Rounds</SubHead>
           <button type="button" className={btn} onClick={() => setG((g) => { g.rounds.push({ id: newId('r'), name: 'New round', on: true, month: Math.min(horizon, 19), amount: 25 * CR, preMoney: 100 * CR, feePct: funding.feePct, confirmed: false }); })}>Add a round</button>
         </div>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-[12.5px] tabular-nums">
             <thead>
               <tr className="bg-surface-tint">
@@ -188,7 +188,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             {hasBench ? 'Reset the benchmark rounds' : 'Add these rounds as a starting point'}
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-[12px]">
             <thead>
               <tr className="bg-surface-tint">
@@ -203,12 +203,12 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                     <td className={`${td} whitespace-nowrap font-semibold text-slate-700`}>{d.name}</td>
                     <td className={td}>
                       <span className="whitespace-nowrap">{b ? monthLabel(plan.startMonth, b.month) : '–'} · ≈ ₹{d.timing.arrAtLeastCr ?? '–'} Cr ARR</span>
-                      <span className="block text-[11px] text-slate-500">{d.timing.rule}</span>
+                      <span className="block text-xs sm:text-[11px] text-slate-500">{d.timing.rule}</span>
                     </td>
                     <td className={`${td} whitespace-nowrap text-right`}>{range(d.sizeCr, crRange)}</td>
                     <td className={`${td} whitespace-nowrap text-right`}>{range(d.preMoneyArrMultiple, xRange)}</td>
                     <td className={`${td} whitespace-nowrap text-right`}>{range(d.dilutionPct, pctRange)}</td>
-                    <td className={`${td} min-w-[260px] text-[11px] text-slate-500`}>{d.milestones}</td>
+                    <td className={`${td} min-w-[260px] text-xs sm:text-[11px] text-slate-500`}>{d.milestones}</td>
                   </tr>
                 );
               })}

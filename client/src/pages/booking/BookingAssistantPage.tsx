@@ -211,14 +211,14 @@ export function BookingAssistantPage() {
   const savedUpload = status?.history.find((h) => h.kind === 'upload');
 
   return (
-    <div className="tasks-ui min-h-full bg-[#f7f6f3]">
+    <div className="tasks-ui min-h-full bg-slate-50">
       <PageHeader
         title="Booking assistant"
         description="Ask which ledger, which voucher and how to cut the entry. Answers follow Hargun’s ledger map, the Accounts Handbook and past bookings — and say “to confirm” when they can’t be sure."
         icon={iconBook}
         crumbs={[{ label: 'Guides' }, { label: 'Booking assistant' }]}
         actions={
-          <Link to="/tools/expense-booking" className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[13px] font-medium text-[#0b1220] hover:border-brand-400 hover:text-brand-700">
+          <Link to="/tools/expense-booking" className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[13px] font-medium text-slate-900 hover:border-brand-400 hover:text-brand-700">
             Tally XML export tool →
           </Link>
         }
@@ -285,7 +285,7 @@ export function BookingAssistantPage() {
           </div>
 
           {/* composer */}
-          <div className="border-t border-slate-200 bg-[#fbfaf8] px-3 py-3 sm:px-4">
+          <div className="border-t border-slate-200 bg-slate-50 px-3 py-3 sm:px-4">
             {historyNote && <p className="mb-2 text-[12.5px] text-slate-700">{historyNote}</p>}
             {attachError && <p className="mb-2 text-[12.5px] text-rose-700">{attachError}</p>}
             {pending.length > 0 && (
@@ -307,7 +307,7 @@ export function BookingAssistantPage() {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="flex h-10 flex-shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 text-[13px] font-medium text-[#0b1220] hover:border-brand-400 hover:text-brand-700"
+                className="flex h-10 flex-shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 text-[13px] font-medium text-slate-900 hover:border-brand-400 hover:text-brand-700"
                 title="Attach an invoice (PDF / image) or a Tally export (xlsx / csv / xml)"
               >
                 {iconClip}
@@ -327,7 +327,7 @@ export function BookingAssistantPage() {
                   }}
                   rows={1}
                   placeholder="e.g. Bitespeed invoice ₹11,800 incl. GST — which ledger and TDS?"
-                  className="block max-h-36 min-h-[40px] w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 text-[14px] leading-snug text-[#0b1220] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30"
+                  className="block max-h-36 min-h-[40px] w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 text-[14px] leading-snug text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30"
                 />
               </label>
               <button
@@ -335,7 +335,7 @@ export function BookingAssistantPage() {
                 onClick={() => void ask(input)}
                 disabled={loading || (!input.trim() && !pending.length)}
                 aria-label="Ask"
-                className="flex h-10 flex-shrink-0 items-center gap-1.5 rounded-xl bg-brand-500 px-3.5 text-[13.5px] font-semibold text-white hover:bg-brand-600 disabled:opacity-40"
+                className="flex h-10 flex-shrink-0 items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 text-[13.5px] font-semibold text-white hover:bg-brand-700 disabled:opacity-40"
               >
                 Ask {iconSend}
               </button>
@@ -343,7 +343,7 @@ export function BookingAssistantPage() {
             <div className="mt-1.5 flex items-center justify-between text-[12px] text-slate-500">
               <span>Enter to ask · Shift+Enter for a new line · attach invoices or a Tally Day Book</span>
               {messages.length > 0 && (
-                <button type="button" onClick={newThread} className="font-medium text-slate-600 hover:text-[#0b1220]">
+                <button type="button" onClick={newThread} className="font-medium text-slate-600 hover:text-slate-900">
                   New question
                 </button>
               )}
@@ -396,7 +396,7 @@ function Source({ on, label, detail }: { on: boolean; label: string; detail: str
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className={`h-1.5 w-1.5 rounded-full ${on ? 'bg-emerald-600' : 'bg-slate-300'}`} aria-hidden="true" />
-      <span className="font-medium text-[#0b1220]">{label}</span>
+      <span className="font-medium text-slate-900">{label}</span>
       <span className="text-slate-600">{detail}</span>
     </span>
   );
@@ -405,7 +405,7 @@ function Source({ on, label, detail }: { on: boolean; label: string; detail: str
 function EmptyState({ onAsk, disabled }: { onAsk: (q: string) => void; disabled: boolean }) {
   return (
     <div className="mx-auto max-w-2xl py-6">
-      <h2 className="text-[19px] font-semibold text-[#0b1220]">What are you booking?</h2>
+      <h2 className="text-[19px] font-semibold text-slate-900">What are you booking?</h2>
       <p className="mt-1.5 text-[14px] leading-relaxed text-slate-700">
         Describe the bill, or attach the invoice. You’ll get the voucher type, the Dr/Cr lines with GST and TDS, a narration to paste,
         and the handbook section it comes from.
@@ -417,15 +417,15 @@ function EmptyState({ onAsk, disabled }: { onAsk: (q: string) => void; disabled:
             type="button"
             disabled={disabled}
             onClick={() => onAsk(s.q)}
-            className="group rounded-xl border border-slate-200 bg-[#fbfaf8] p-3.5 text-left hover:border-brand-400 hover:bg-white disabled:opacity-50"
+            className="group rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-left hover:border-brand-400 hover:bg-white disabled:opacity-50"
           >
-            <span className="block text-[11.5px] font-semibold uppercase tracking-wide text-brand-700">{s.hint}</span>
-            <span className="mt-1 block text-[14px] font-medium leading-snug text-[#0b1220]">{s.q}</span>
+            <span className="block text-xs sm:text-[11.5px] font-semibold uppercase tracking-wide text-brand-700">{s.hint}</span>
+            <span className="mt-1 block text-[14px] font-medium leading-snug text-slate-900">{s.q}</span>
           </button>
         ))}
       </div>
       <div className="mt-5 rounded-xl border border-dashed border-slate-300 p-3.5 text-[13px] leading-relaxed text-slate-700">
-        <strong className="font-semibold text-[#0b1220]">Tip — give it your history.</strong> Export a Tally <em>Day Book</em> or{' '}
+        <strong className="font-semibold text-slate-900">Tip — give it your history.</strong> Export a Tally <em>Day Book</em> or{' '}
         <em>Ledger Vouchers</em> report to Excel, attach it, and choose <em>Keep as booking history</em>. Every later answer then checks how
         the same vendor was booked before.
       </div>
@@ -450,8 +450,8 @@ function UserTurn({ m, onKeep }: { m: BookingMessage; onKeep: (a: ChatAttachment
 
 function AssistantTurn({ text }: { text: string }) {
   return (
-    <article className="booking-answer rounded-xl border border-slate-200 border-l-[3px] border-l-brand-500 bg-white px-4 py-3 sm:px-5 [&_li]:text-[14px] [&_li]:text-[#1e293b] [&_p]:text-[14px] [&_p]:text-[#1e293b] [&_strong]:text-[#0b1220] [&_h4]:text-[14px] [&_h4]:text-[#0b1220] [&_td]:text-[13.5px] [&_td]:text-[#0b1220]">
-      <div className="mb-1 text-[11.5px] font-semibold uppercase tracking-wide text-brand-700">Booking advice</div>
+    <article className="booking-answer rounded-xl border border-slate-200 border-l-[3px] border-l-brand-500 bg-white px-4 py-3 sm:px-5 [&_li]:text-[14px] [&_li]:text-slate-800 [&_p]:text-[14px] [&_p]:text-slate-800 [&_strong]:text-slate-900 [&_h4]:text-[14px] [&_h4]:text-slate-900 [&_td]:text-[13.5px] [&_td]:text-slate-900">
+      <div className="mb-1 text-xs sm:text-[11.5px] font-semibold uppercase tracking-wide text-brand-700">Booking advice</div>
       <Markdown text={text} />
       <CopyButton text={text} />
     </article>
@@ -469,7 +469,7 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="mt-2 text-[12.5px] font-medium text-slate-600 hover:text-[#0b1220]"
+      className="mt-2 text-[12.5px] font-medium text-slate-600 hover:text-slate-900"
     >
       {copied ? 'Copied' : 'Copy answer'}
     </button>
@@ -502,8 +502,8 @@ function ErrorTurn({ error, onRetry }: { error: { message: string; code?: string
 function AttachmentChip({ a, onRemove, onKeep }: { a: ChatAttachment; onRemove?: () => void; onKeep?: () => void }) {
   const tag = a.kind === 'pdf' ? 'PDF' : a.kind === 'image' ? 'IMG' : a.isTallyExport ? 'TALLY' : 'DATA';
   return (
-    <span className="inline-flex max-w-full items-center gap-2 rounded-lg border border-slate-300 bg-white py-1 pl-1.5 pr-2 text-[12.5px] text-[#0b1220]">
-      <span className={`rounded px-1 py-px text-[10.5px] font-bold tracking-wide ${a.kind === 'text' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-700'}`}>{tag}</span>
+    <span className="inline-flex max-w-full items-center gap-2 rounded-lg border border-slate-300 bg-white py-1 pl-1.5 pr-2 text-[12.5px] text-slate-900">
+      <span className={`rounded px-1 py-px text-xs sm:text-[11px] font-bold tracking-wide ${a.kind === 'text' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-700'}`}>{tag}</span>
       <span className="max-w-[180px] truncate font-medium" title={a.name}>{a.name}</span>
       <span className="text-slate-500">{a.meta}</span>
       {onKeep && (
