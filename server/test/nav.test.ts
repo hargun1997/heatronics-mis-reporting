@@ -68,3 +68,24 @@ test('sidebar stays small: ≤ 5 sections, ≤ 15 pages in all; every tool sits 
   assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['today', 'live', 'insights']);
   assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'cash', 'tally', 'tds', 'handbook'], 'Tasks = the one place for to-do + fix');
 });
+
+test('every sidebar page names its owner, how often and what to do', async () => {
+  const { PAGE_OWNER } = await import('../../client/src/nav/config.ts');
+  for (const sec of sidebarSections()) for (const p of sec.pages) {
+    const o = PAGE_OWNER[p.id];
+    assert.ok(o, `${p.id} has no owner`);
+    assert.ok(o.role && o.cadence && o.job.length > 10, `${p.id} owner incomplete`);
+  }
+  const ids = new Set(NAV.flatMap((s) => s.pages.map((p) => p.id)));
+  for (const k of Object.keys(PAGE_OWNER)) assert.ok(ids.has(k), `PAGE_OWNER.${k} has no page`);
+});
+
+test('sourceAgo says how old a number is in plain words', async () => {
+  const { ago } = await import('../../client/src/components/ui/sourceAgo.ts');
+  const now = Date.parse('2026-11-09T12:00:00Z');
+  assert.equal(ago(null, now), 'not read yet');
+  assert.equal(ago('2026-11-09T11:40:00Z', now), 'just now');
+  assert.equal(ago('2026-11-09T09:00:00Z', now), '3 h ago');
+  assert.equal(ago('2026-11-05T12:00:00Z', now), '4 days ago');
+  assert.equal(ago('junk', now), 'unknown');
+});

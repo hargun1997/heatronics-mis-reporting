@@ -30,6 +30,28 @@ export interface NavSection {
   href?: string;
 }
 
+/** Who runs each page, what they must do there and how often (founder, 9 Nov 2026: "every section shows its owner,
+ * what they must do, and how often"). Person names that are not set yet say "set in People & reminders". */
+export type Cadence = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'When needed';
+export interface PageOwner { role: string; person?: string; cadence: Cadence; job: string }
+export const PAGE_OWNER: Record<string, PageOwner> = {
+  today: { role: 'Founder', person: 'Hargun', cadence: 'Daily', job: 'Open first. Act on anything red, then check what changed.' },
+  live: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Read the P&L and channels. Close and lock last month after the 10th.' },
+  insights: { role: 'Founder', person: 'Hargun', cadence: 'When needed', job: 'Ask why a number moved.' },
+  tasks: { role: 'Accounts executive', cadence: 'Daily', job: 'Tick tasks due today. Clear the Fix list.' },
+  cash: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Check the week cash goes below zero or hits the overdraft limit. Set the limit.' },
+  tally: { role: 'Accounts executive', cadence: 'Weekly', job: 'Fix hanging ledgers and wrong groups in TallyPrime.' },
+  tds: { role: 'Accounts executive', cadence: 'Monthly', job: 'Pay TDS by the 7th. Prepare the quarter return.' },
+  handbook: { role: 'Accounts executive', cadence: 'When needed', job: 'Follow the SOP before booking something new.' },
+  plan: { role: 'Founder', person: 'Hargun', cadence: 'Monthly', job: 'Update the plan. Pin the one you run on.' },
+  send: { role: 'Founder', person: 'Hargun', cadence: 'Monthly', job: 'Send the MIS to investors after the month is locked.' },
+  booking: { role: 'Accounts executive', cadence: 'Daily', job: 'Check ledger, voucher and GST before booking an invoice.' },
+  rounds: { role: 'Founder', person: 'Hargun', cadence: 'When needed', job: 'Size a round and see dilution.' },
+  floors: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Raise any SKU priced below its floor.' },
+  payments: { role: 'Accounts executive', cadence: 'Weekly', job: 'Make the ICICI payment file. A second person approves in the bank.' },
+  sources: { role: 'Accounts executive', cadence: 'Monthly', job: 'Pull or upload every report for last month by the 10th.' },
+};
+
 export const HOME = '/reporting/mis/live';
 
 export const NAV: NavSection[] = [
