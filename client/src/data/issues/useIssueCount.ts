@@ -4,7 +4,6 @@
 import { useEffect, useState } from 'react';
 import { cachedDeckItems, isOpen, type IssueState } from './inbox';
 import { getWork } from '../work/workClient';
-import { buildAgenda } from '../../pages/work/taskModel';
 import { todayIST } from '../work/schedule';
 
 export function useIssueCount(): { open: number; high: number } | null {
@@ -13,7 +12,8 @@ export function useIssueCount(): { open: number; high: number } | null {
     let alive = true;
     const load = async () => {
       try {
-        const [r, work] = await Promise.all([fetch('/api/issues/count'), getWork().catch(() => null)]);
+        // taskModel pulls in the handbook: imported on demand so the sidebar badge doesn't put it in the shell chunk.
+        const [r, work, { buildAgenda }] = await Promise.all([fetch('/api/issues/count'), getWork().catch(() => null), import('../../pages/work/taskModel')]);
         if (!r.ok) return;
         const j = (await r.json()) as { open: number; high: number; state: IssueState };
         const deck = cachedDeckItems().filter((i) => isOpen(i, j.state ?? {}));

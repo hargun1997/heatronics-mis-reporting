@@ -1,10 +1,17 @@
 // Live facts cache: per source × month, stale served at once and refreshed behind, never-pulled months waited for.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cachedFacts, freshFor, monthsBetween } from '../src/connectors/factsCache.js';
+import { mkdtempSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { FactResult } from '../src/connectors/facts.js';
 
-const fact = (date: string) => ({ source: 't', channel: 'D2C', date, revenue: 100, units: 1, orders: 1 });
+// Keep the object store on a throwaway local dir: no GCP metadata probe, never the real bucket.
+process.env.INGEST_STORE = 'local';
+process.env.INGEST_STORE_DIR = mkdtempSync(path.join(os.tmpdir(), 'facts-cache-test-'));
+const { cachedFacts, freshFor, monthsBetween } = await import('../src/connectors/factsCache.js');
+
+const fact = (date: string) => ({ source: 't', channel: 'D2C', date, revenue: 100, units: 1, orders: 1, fees: 0 });
 
 test('months and freshness', () => {
   assert.deepEqual(monthsBetween('2026-11-15', '2027-01-02'), ['2026-11', '2026-12', '2027-01']);

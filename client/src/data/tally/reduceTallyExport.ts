@@ -16,6 +16,7 @@ import type { TallyMaster } from './useTallyMaster';
 // a previously-saved slim JSON.
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line no-control-regex -- stripping control characters is the point
 const CONTROL_CHAR_RE = /[\x00-\x1f]/g;
 
 function clean(s: unknown): string {
@@ -86,6 +87,7 @@ export function reduceTallyExport(raw: unknown): ReduceResult {
 
   for (const m of raw.tallymessage) {
     if (!m || typeof m !== 'object') continue;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw Tally JSON, read defensively below
     const msg = m as Record<string, any>;
     if (msg.isdeleted) continue;
 

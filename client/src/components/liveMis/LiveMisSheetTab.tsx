@@ -18,8 +18,9 @@ import { MIS_SHEET_ROWS, MIS_SHEET_ROWS_NORMALISED, type MisEntity, type MisPoin
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import type { MonthlyMIS } from '../../data/misDeck/misDeckData';
 import { liveFiscalYears } from '../../data/misDeck/liveViews';
-import { downloadMisFormat, parseMisFormat, type ImportedMis } from '../../utils/misFormatExport';
-import { liveMisFormatSource, misSourceWithCash } from '../../utils/liveMisExport';
+// misFormatExport (xlsx-js-style) is imported on download / import, not with the page.
+import type { ImportedMis } from '../../utils/misFormatExport';
+import { liveMisFormatSource, misSourceWithCash } from '../../utils/liveMisSource';
 import { BASIS_OPTIONS, CogmBasisNote, Fold, Note, useLiveView } from './shared';
 
 const LAC = 1e5;
@@ -80,16 +81,21 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
     return raw === null || !nr ? '–' : fmtPct(raw / nr);
   };
   const unit = pct ? '% of Net Revenue' : 'INR Lac';
-  const onDownload = () => downloadMisFormat({
-    ...misSourceWithCash(src, flows),
-    percent: pct,
-    title: `HEATRONICS LIVE MIS · Company P&L (${pct ? '% of net revenue' : '₹ Lac'}${normalised ? ', normalised COGM' : ''})`,
-    fileName: `Heatronics_Live_MIS_Sheet_${pct ? 'pct' : 'lac'}_${normalised ? 'normalised' : 'actual'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
-  });
+  const onDownload = async () => {
+    const source = {
+      ...misSourceWithCash(src, flows),
+      percent: pct,
+      title: `HEATRONICS LIVE MIS · Company P&L (${pct ? '% of net revenue' : '₹ Lac'}${normalised ? ', normalised COGM' : ''})`,
+      fileName: `Heatronics_Live_MIS_Sheet_${pct ? 'pct' : 'lac'}_${normalised ? 'normalised' : 'actual'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    };
+    const { downloadMisFormat } = await import('../../utils/misFormatExport');
+    downloadMisFormat(source);
+  };
 
   const onImport = async (file: File) => {
     setImportError(null);
     try {
+      const { parseMisFormat } = await import('../../utils/misFormatExport');
       const parsed = parseMisFormat(await file.arrayBuffer());
       if (!parsed || parsed.rows.length === 0) { setImportError('Could not find a "P&L Summary" block in that file. Use a workbook exported from here.'); return; }
       setImported(parsed);
@@ -125,7 +131,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
           <SegmentedControl size="sm" aria-label="COGM basis" value={basis} onChange={setBasis} options={BASIS_OPTIONS} />
         </div>
         <div className="flex flex-wrap gap-2 sm:ml-auto">
-          <button type="button" onClick={onDownload}
+          <button type="button" onClick={() => void onDownload()}
             className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50">Download (this format)</button>
           <button type="button" onClick={() => fileRef.current?.click()}
             className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50">Import Excel</button>

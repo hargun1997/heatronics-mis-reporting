@@ -10,9 +10,9 @@
 import { useMemo, useState } from 'react';
 import { KpiTile } from '../ui';
 import {
-  inr, pctStr, pctSigned, LineChart, StackedBarChart, GrowthBarChart, WaterfallChart, Legend,
-  SERIES_COLORS, type WaterfallStep,
+  LineChart, StackedBarChart, GrowthBarChart, WaterfallChart, Legend, type WaterfallStep,
 } from '../mis-deck/charts';
+import { inr, pctStr, pctSigned, SERIES_COLORS } from '../mis-deck/format';
 import { SALES_CHANNELS, DISCOUNT_DATA, type MonthlyMIS, type SalesChannel } from '../../data/misDeck/misDeckData';
 import type { PeriodAgg, Granularity } from '../../data/misDeck/liveAnalytics';
 import { REAL_ROWS, toPeriodMIS, liveLikeForLike } from '../../data/misDeck/liveViews';

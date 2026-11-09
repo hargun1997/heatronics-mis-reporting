@@ -192,7 +192,6 @@ function gcsBackend(bucketName: string): { backend: Backend; ensure: () => Promi
     },
     async list(prefix) {
       const b = await getBucket();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [files] = await b.getFiles({ prefix });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return files.map((f: any) => f.name as string);
@@ -226,6 +225,10 @@ let resolvedPromise: Promise<Resolved> | null = null;
 function resolveStore(): Promise<Resolved> {
   if (!resolvedPromise) {
     resolvedPromise = (async () => {
+      // INGEST_STORE=local: never probe GCP (tests, local runs) — the local directory backend only.
+      if (process.env.INGEST_STORE === 'local') {
+        return { backend: fileBackend, name: 'local-file' as const, bucket: '', project: '', serviceAccount: '' };
+      }
       const [project, serviceAccount] = await Promise.all([detectProject(), detectServiceAccount()]);
       const bucket = process.env.INGEST_BUCKET || (project ? `${project}-heatronics-ingest` : '');
       if (project && bucket) {

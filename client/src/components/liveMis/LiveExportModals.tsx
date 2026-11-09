@@ -8,9 +8,10 @@ import { useMemo, useState } from 'react';
 import { Modal } from '../ui';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import { aggregatePeriods, monthLabel, type Granularity } from '../../data/misDeck/liveAnalytics';
-import { exportLiveMis, liveSheetCount, LIVE_EXPORT_EVERYTHING, type LiveExportOptions } from '../../utils/liveMisExport';
+// The Excel / PDF builders (xlsx-js-style, jspdf) are imported when a download is clicked, not with the page.
+import { liveSheetCount, LIVE_EXPORT_EVERYTHING, type LiveExportOptions } from '../../utils/liveMisSource';
 import { useStatements } from './useStatements';
-import { downloadLivePdf, type PdfSection } from '../../utils/liveMisPdf';
+import type { PdfSection } from '../../utils/liveMisPdf';
 import type { CogmBasis } from './shared';
 
 type SheetKey = Exclude<keyof LiveExportOptions, 'granularities' | 'normaliseCogm' | 'mergeChannels'>;
@@ -47,7 +48,7 @@ export function LiveExcelModal({ deck, open, onClose, basis, merged }: {
   const n = liveSheetCount(o);
   const run = async (opts: LiveExportOptions) => {
     setBusy(true);
-    try { await exportLiveMis(deck, opts, stmts.built); setTimeout(onClose, 300); }
+    try { const { exportLiveMis } = await import('../../utils/liveMisExport'); await exportLiveMis(deck, opts, stmts.built); setTimeout(onClose, 300); }
     catch (e) { console.error('Live MIS export failed', e); alert('Failed to export the Excel file. Please try again.'); }
     finally { setBusy(false); }
   };
@@ -121,9 +122,9 @@ export function LivePdfModal({ deck, open, onClose, basis, merged }: {
   const [busy, setBusy] = useState(false);
   const stmts = useStatements();
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
-  const run = () => {
+  const run = async () => {
     setBusy(true);
-    try { downloadLivePdf(deck, { sections, fyKeys, monthKeys, normaliseCogm: basis === 'normalised', mergeChannels: merged }, stmts.built); setTimeout(onClose, 300); }
+    try { const { downloadLivePdf } = await import('../../utils/liveMisPdf'); downloadLivePdf(deck, { sections, fyKeys, monthKeys, normaliseCogm: basis === 'normalised', mergeChannels: merged }, stmts.built); setTimeout(onClose, 300); }
     catch (e) { console.error('PDF export failed', e); alert('Failed to build the PDF. Please try again.'); }
     finally { setBusy(false); }
   };
@@ -132,7 +133,7 @@ export function LivePdfModal({ deck, open, onClose, basis, merged }: {
       footer={<>
         <span className="mr-auto text-xs text-slate-500">{basis === 'normalised' ? 'Normalised' : 'Actual'} COGM · {merged ? 'continuous' : 'as-booked'} channels</span>
         <button type="button" onClick={onClose} className={btnGhost}>Cancel</button>
-        <button type="button" disabled={busy || sections.length === 0} onClick={run} className={btnPrimary}>{busy ? 'Building…' : 'Download PDF'}</button>
+        <button type="button" disabled={busy || sections.length === 0} onClick={() => void run()} className={btnPrimary}>{busy ? 'Building…' : 'Download PDF'}</button>
       </>}>
       <div className="space-y-4">
         <div className="space-y-1.5">
