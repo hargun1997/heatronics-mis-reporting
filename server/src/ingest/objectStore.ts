@@ -462,7 +462,7 @@ function istDate(d = new Date()): string {
   return new Date(d.getTime() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
-interface UsageRecord {
+export interface UsageRecord {
   model: string;
   feature: string;
   inputTokens: number;
@@ -538,6 +538,32 @@ export async function usageByDay(days = 7): Promise<DayUsage[]> {
     }),
   );
   return [...byDay.values()].sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** One stored usage record with the IST day it was filed under (from its key). */
+export interface DatedUsageRecord extends UsageRecord { day: string }
+
+/** Every usage record filed from IST day `fromDay` (YYYY-MM-DD) on. Read-only; feeds the AI usage feed. */
+export async function usageRecordsSince(fromDay: string): Promise<DatedUsageRecord[]> {
+  const r = await resolveStore();
+  const keys = (await r.backend.list('usage/')).filter((k) => {
+    const day = k.split('/')[1] ?? '';
+    return k.endsWith('.json') && day >= fromDay;
+  });
+  const out: DatedUsageRecord[] = [];
+  await Promise.all(
+    keys.map(async (k) => {
+      const text = await r.backend.getText(k);
+      if (!text) return;
+      try {
+        const rec = JSON.parse(text) as UsageRecord;
+        out.push({ ...rec, day: k.split('/')[1] });
+      } catch {
+        /* skip an unreadable record */
+      }
+    }),
+  );
+  return out;
 }
 
 export async function ingestStoreStatus(): Promise<IngestStoreStatus> {
