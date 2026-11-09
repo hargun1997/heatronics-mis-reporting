@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRunway, hasTwentieth } from '../src/services/cashRunway.js';
+import { buildRunway, hasTwentieth, netCashFlows } from '../src/services/cashRunway.js';
 import { portalManifest } from '../src/portalManifest.js';
 
 const L = 100_000;
@@ -33,15 +33,31 @@ test('usual pace crossing the overdraft limit → act, with the date', () => {
   assert.match(r.line, /reach the overdraft limit the week of 20/);
 });
 
-test('positive flows stay ok; GST lump lands once per 20th and only when payable', () => {
+test('positive flows stay ok; GST is not added on top of the pattern', () => {
   const ok = buildRunway(inp({ flows: [{ period: '2026-10', netChange: 2 * L }] }));
   assert.equal(ok.status, 'ok');
   const g = buildRunway(inp({ flows: [{ period: '2026-10', netChange: 0 }], gstPayable: 4 * L }));
-  assert.equal(g.weeks[12].base, 20 * L - 4 * L * 3);  // 20 Nov, 20 Dec, 20 Jan fall inside 13 weeks from 9 Nov (to 7 Feb)
-  const neg = buildRunway(inp({ flows: [{ period: '2026-10', netChange: 0 }], gstPayable: -4 * L }));
-  assert.equal(neg.weeks[12].base, 20 * L);            // GST refundable is not counted as cash in
+  assert.equal(g.weeks[12].base, 20 * L);
   assert.equal(hasTwentieth('2026-11-16'), true);
   assert.equal(hasTwentieth('2026-11-21'), false);
+});
+
+test('flows use net cash (bank − overdraft) and take out new loans', () => {
+  // Oct: bank flat but overdraft drawn ₹10 L → net cash −10 L (burn the gross-cash change would hide)
+  // Nov: a ₹5 L term loan lands → net cash +5 L, but that is borrowing, not cash earned
+  const f = netCashFlows([
+    { period: '2026-09', netCash: 30 * L, loans: 0 },
+    { period: '2026-10', netCash: 20 * L, loans: 0 },
+    { period: '2026-11', netCash: 25 * L, loans: 5 * L },
+    { period: '2026-12', netCash: null, loans: null },
+  ]);
+  assert.deepEqual(f, [{ period: '2026-10', netChange: -10 * L }, { period: '2026-11', netChange: 0 }]);
+  const r = buildRunway(inp({ netCash: 5 * L, flows: f }));
+  assert.equal(r.cases[1].perMonth, -10 * L);
+});
+
+test('old books are called out', () => {
+  assert.ok(buildRunway(inp({ balancePeriod: '2026-08' })).notes.some((n) => /over a month old/.test(n)));
 });
 
 test('no books → unknown with a note, never a made-up number', () => {

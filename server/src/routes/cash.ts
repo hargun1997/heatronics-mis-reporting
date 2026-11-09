@@ -7,8 +7,9 @@
 import { Router, type Request, type Response } from 'express';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import { summaryInput, istToday } from '../connectors/tally/ceoSummaryLoad.js';
+import { ceoSummary } from '../connectors/tally/ceoSummary.js';
 import { ceoSummaryV2 } from '../connectors/tally/ceoSummaryV2.js';
-import { buildRunway } from '../services/cashRunway.js';
+import { buildRunway, netCashFlows } from '../services/cashRunway.js';
 
 const router = Router();
 const KEY = 'cash/settings';
@@ -25,7 +26,7 @@ router.get('/runway', (req: Request, res: Response) => {
     const v2 = ceoSummaryV2(x);
     const out = buildRunway({
       today: istToday(), netCash: v2.balance?.netCash ?? null, balancePeriod: v2.balance?.period ?? null,
-      flows: (v2.cashflow ?? []).map((f) => ({ period: f.period, netChange: f.netChange })),
+      flows: netCashFlows(ceoSummary(x.months.slice(-14)).months.map((m) => ({ period: m.period, netCash: m.netCash, loans: m.loans }))),
       gstPayable: v2.balance?.gstNet ?? null, odLimit: s.odLimit ?? null,
     });
     res.set('Cache-Control', 'no-store').json(out);
@@ -35,6 +36,7 @@ router.get('/runway', (req: Request, res: Response) => {
 router.put('/settings', (req: Request, res: Response) => {
   (async () => {
     const v = (req.body as { odLimit?: unknown } | undefined)?.odLimit;
+    if (v !== null && v !== '' && typeof v !== 'number' && typeof v !== 'string') { res.status(400).json({ error: 'odLimit must be a number or null.' }); return; }
     const od = v === null || v === '' ? null : Number(v);
     if (od !== null && (!Number.isFinite(od) || od < 0 || od > 1e10)) { res.status(400).json({ error: 'odLimit must be a number ≥ 0, or null.' }); return; }
     const s: Settings = { odLimit: od === null ? null : Math.round(od), by: (req as { htxUser?: string }).htxUser, at: new Date().toISOString() };

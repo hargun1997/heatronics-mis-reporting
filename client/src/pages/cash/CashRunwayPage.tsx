@@ -31,7 +31,7 @@ function Chart({ r }: { r: Runway }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Net cash over the next 13 weeks in three cases">
       <line x1={P.l} x2={W - P.r} y1={y(0)} y2={y(0)} stroke="currentColor" strokeOpacity="0.35" />
       <text x={P.l - 6} y={y(0) + 4} textAnchor="end" fontSize="11" fill="currentColor" fillOpacity="0.7">₹0</text>
-      {r.odLimit ? <><line x1={P.l} x2={W - P.r} y1={y(-r.odLimit)} y2={y(-r.odLimit)} stroke="#d03b3b" strokeDasharray="4 3" /><text x={P.l - 6} y={y(-r.odLimit) + 4} textAnchor="end" fontSize="11" fill="#d03b3b">limit</text></> : null}
+      {r.odLimit != null ? <><line x1={P.l} x2={W - P.r} y1={y(-r.odLimit)} y2={y(-r.odLimit)} stroke="#d03b3b" strokeDasharray="4 3" /><text x={P.l - 6} y={y(-r.odLimit) + 4} textAnchor="end" fontSize="11" fill="#d03b3b">limit</text></> : null}
       {Math.abs(y(hi) - y(0)) > 14 && <text x={P.l - 6} y={P.t + 8} textAnchor="end" fontSize="11" fill="currentColor" fillOpacity="0.7">{inr(hi)}</text>}
       {Math.abs(y(lo) - y(0)) > 14 && <text x={P.l - 6} y={H - P.b} textAnchor="end" fontSize="11" fill="currentColor" fillOpacity="0.7">{inr(lo)}</text>}
       {(['hard', 'base', 'easy'] as const).map((k) => <polyline key={k} points={line(k)} fill="none" stroke={COLOR[k]} strokeWidth={k === 'base' ? 3 : 2} strokeLinejoin="round" />)}
@@ -57,19 +57,22 @@ export function CashRunwayPage() {
   };
   useEffect(() => { void load(); }, []);
   const saveOd = async () => {
-    const res = await fetch('/api/cash/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ odLimit: od.trim() === '' ? null : Number(od.replace(/,/g, '')) }) });
+    const raw = od.replace(/[,\s₹]/g, '');
+    if (raw !== '' && !/^\d+(\.\d+)?$/.test(raw)) { setErr('Type the limit in rupees, digits only (e.g. 5000000 for ₹50 L).'); return; }
+    const res = await fetch('/api/cash/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ odLimit: raw === '' ? null : Number(raw) }) });
     if (!res.ok) { setErr('Could not save the limit'); return; }
     await load();
   };
   return (
     <div className="space-y-5 max-w-5xl">
       <PageHeader title="Cash runway" description="If the last months repeat, when does cash run out? 13 weeks, three cases."
+        status={r ? <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${BAND[r.status]}`}>{r.status === 'act' ? 'Act now' : r.status === 'watch' ? 'Watch' : r.status === 'ok' ? 'OK' : 'No data'}</span> : undefined}
         actions={<button type="button" onClick={() => void load(true)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} aria-hidden /> Refresh</button>} />
       {err && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</div>}
       {!r && !err && <div className="text-sm text-slate-500" role="status">Loading…</div>}
       {r && (
         <>
-          <div className={`rounded-xl border px-4 py-3 text-base font-semibold ${BAND[r.status]}`} role="status">{r.line}</div>
+          <p className="text-base font-semibold text-slate-900" role="status">{r.line}</p>
           {r.weeks.length > 0 && (
             <>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
