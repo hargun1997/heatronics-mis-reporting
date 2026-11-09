@@ -14,6 +14,20 @@ export const portalManifest = {
       "purpose": "Monthly expense lines from the Tally P&L uploads"
     },
     {
+      "id": "plan-vs-actual",
+      "method": "GET",
+      "path": "/api/planning/vs-actual?scenario=<scenario>",
+      "auth": "session",
+      "purpose": "Our 5-year plan as the budget: each month from Oct-26 to now, actual vs plan, with year to date and exit ARR pace",
+      "mcp": {
+        "tool": "mis_get_plan_vs_actual",
+        "description": "Call for 'are we on plan / how are we doing against budget': per month from the plan's first month (Oct-26) to now, net revenue, gross margin, CM3, EBITDA and units, actual vs plan with gap ₹ and %, status on_track (within 5%) / behind / ahead, or no data yet (never 0); the month in progress is shown but not counted; plus year to date, 'on pace for FY exit ARR X vs plan Y', and the behind-plan list (biggest ₹ gap first). Actuals are the Live MIS figures last saved from the Planning page (normalised COGM where costed); read actualsAsOf and limits. ₹.",
+        "access": "read",
+        "input": { "type": "object", "properties": { "scenario": { "type": "string", "description": "'base' (default) or the name or id of a saved scenario (it must have been saved after this feature shipped)" } } },
+        "returns": "months[] + ytd + arr + behind[] + scenario + actualsAsOf + limits"
+      }
+    },
+    {
       "id": "price-floors-live",
       "method": "GET",
       "path": "/api/price-floors/live",
@@ -301,6 +315,20 @@ export const portalManifest = {
         "access": "read",
         "input": { "type": "object", "properties": {} },
         "returns": "status, statusLine, tiles[], needsYou[], dueSoon[], changed[], freshness"
+      }
+    },
+    {
+      "id": "margin-bridge",
+      "method": "GET",
+      "path": "/api/mis/bridge?month=<month>",
+      "auth": "session",
+      "purpose": "Why the month's EBITDA moved: contribution bridge vs last month and last year, saved by the Live MIS page",
+      "mcp": {
+        "tool": "mis_get_margin_bridge",
+        "description": "Use for 'why did profit / EBITDA move' or 'what changed vs last month': the saved Live MIS bridge for a month: EBITDA change in ₹ lakh split into volume, price and mix, channel mix, returns, BOM cost, stock timing, factory, channel fees, ads (by platform), payment fees and opex, plus the top 3 reasons, vs last month and vs the same month last year. Saved when someone opens Live MIS, so check asOf; null = no bridge saved or not enough data.",
+        "access": "read",
+        "input": { "type": "object", "properties": { "month": { "type": "string", "description": "YYYY-MM, default the newest saved" } } },
+        "returns": "month, asOf, previous{steps[], reasons[], delta} and lastYear{...}; null when none"
       }
     }
   ],
