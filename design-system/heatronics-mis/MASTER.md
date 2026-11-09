@@ -35,6 +35,13 @@ All colour is CSS variables in `client/src/index.css` (copied from Ops' `app/glo
 - **Theme:** Light by default (founder, 2 Nov 2026: not dark-only). The sidebar theme button cycles Light → Dark → System
   (`localStorage mis.theme`, applied before React renders in `main.tsx`). Dark scales mirror (50 ↔ 950). The sidebar is navy
   in both themes, as in Ops.
+- **Text shades are AA by construction** (accessibility pass, 9 Nov 2026): as TEXT, `text-slate-400` (gray / stone)
+  uses `--n-400-text` (light #606F86, dark #7A88A1) and `text-emerald|green|teal|amber|yellow|orange-500/600` use the
+  700 shade (`tailwind.config.js textColor`); borders, fills and icons keep the plain scale. White text sits on the 600
+  shade (`bg-brand-600`, `bg-red-600`), never 500. Wide tables scroll inside a focusable box
+  (`tabIndex={0} role="region" aria-label`, `TableBox` in `components/liveMis/shared.tsx`), never the page.
+  Text under 12px only from `sm:` up (`text-xs sm:text-[11px]`): phones get 12px minimum.
+  A caption over a single select / input = `components/ui/LabeledField` (real `<label>`).
 - Channel colours (`channel-*`) stay fixed hex: they are categorical data, identical in both themes.
 - Status always pairs colour with a label, icon or ▲/▼.
 
@@ -77,7 +84,9 @@ All colour is CSS variables in `client/src/index.css` (copied from Ops' `app/glo
   ghost · danger (`red`). Selected chips / segments use accent, not cta.
 - `KpiTile`: label caps · figure · delta (▲ / ▼ with the metric's good direction) · sparkline in accent. No decorative
   colour bar (only warning / critical tones get one).
-- `SegmentedControl`: toggle buttons (`aria-pressed`); selected segment surface with indigo text.
+- `SegmentedControl`: toggle buttons (`aria-pressed`, `role="group"`); selected segment surface with indigo text;
+  44px tall on phones and wraps instead of running off the screen.
+- `Section` (Live MIS folds): the toggle button sits in an `<h2>` so screen readers can jump between sections.
 - Overlays (`components/ui/overlays.tsx` Drawer / Modal / Popover, shell `useOverlay`): Esc closes, focus trapped and
   returned, scroll locked, z-index above the sidebar (`z-[100]`), backdrop `bg-scrim`.
 

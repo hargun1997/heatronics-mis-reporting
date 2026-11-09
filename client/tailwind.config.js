@@ -51,6 +51,15 @@ export default {
           blinkit: '#64748B',
         },
       },
+      // Muted text (text-slate-400 / gray / stone) gets its own AA token: the n-400 colour stays for borders,
+      // icons and fills, but as text it was 2.6:1 (light) / 2.4:1 (dark). Accessibility pass, Nov 2026.
+      // Same idea for status text: emerald / amber / orange 500–600 are 2.5–3.8:1 on white, so as TEXT they use the
+      // 700 shade (AA in light; the dark scale mirrors, so 700 is the lighter, readable one there too).
+      textColor: {
+        ...Object.fromEntries(['slate', 'gray', 'stone', 'zinc', 'neutral'].map((n) => [n, { ...scale('n'), 400: v('n-400-text') }])),
+        ...Object.fromEntries([['emerald', 'emerald'], ['green', 'emerald'], ['teal', 'emerald'], ['amber', 'amber'], ['yellow', 'amber'], ['orange', 'orange']]
+          .map(([n, t]) => [n, { ...scale(t), 500: v(`${t}-700`), 600: v(`${t}-700`) }])),
+      },
       boxShadow: {
         soft: 'var(--shadow-card)',
         card: 'var(--shadow-card)',

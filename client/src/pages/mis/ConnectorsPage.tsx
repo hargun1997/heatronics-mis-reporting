@@ -158,7 +158,7 @@ function ConnectionsView() {
           {store.grantHint ? (
             <>
               <p>Grant this service account permission to manage secrets once (Cloud Shell), then Re-check:</p>
-              <pre className="bg-amber-100 rounded p-2 overflow-x-auto whitespace-pre-wrap font-mono text-[11px]">{store.grantHint}</pre>
+              <pre className="bg-amber-100 rounded p-2 overflow-x-auto whitespace-pre-wrap font-mono text-xs sm:text-[11px]">{store.grantHint}</pre>
               {store.secretManagerError && <p className="text-amber-700">Secret Manager said: {store.secretManagerError}</p>}
             </>
           ) : <p>This server isn't on GCP, so set credentials as environment variables (each drawer shows the names).</p>}
@@ -173,8 +173,8 @@ function ConnectionsView() {
 
       {GROUP_ORDER.filter((g) => grouped[g]?.length).map((g) => (
         <div key={g}>
-          <h3 className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400 mb-2.5">{GROUP_LABEL[g]}</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <h3 className="text-xs sm:text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400 mb-2.5">{GROUP_LABEL[g]}</h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {grouped[g].map((c) => (
               <ConnectorCard key={c.id} connector={c} feed={feeds.get(c.id)!} sources={sources} latest={latest}
                 open={openId === c.id} setOpen={(o) => setOpenId(o ? c.id : null)} onChanged={reload} onCommitted={reloadReports} />
@@ -234,12 +234,12 @@ function ConnectorCard({
 
   return (
     <>
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 hover:shadow-card transition-shadow">
+      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 hover:shadow-card transition-shadow">
         <div className="flex items-start gap-3">
           <Monogram label={connector.label} />
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-bold text-slate-800 truncate">{connector.label}</h4>
-            <span className="text-[11px] text-slate-400 uppercase tracking-wide">{GROUP_LABEL[connector.group]}</span>
+            <span className="text-xs sm:text-[11px] text-slate-400 uppercase tracking-wide">{GROUP_LABEL[connector.group]}</span>
           </div>
           <StatusPill toneName={FEED_TONE[feed]} className="whitespace-nowrap">{FEED_LABEL[feed]}</StatusPill>
         </div>
@@ -257,10 +257,10 @@ function ConnectorCard({
         ) : connector.note ? <p className="text-[12px] leading-snug text-slate-500 line-clamp-2">{connector.note}</p> : null}
 
         <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 mt-auto">
-          {hasCreds ? <StatusPill toneName={status.tone} dot>{status.label}</StatusPill> : <span className="text-[11px] text-slate-400">No login needed</span>}
+          {hasCreds ? <StatusPill toneName={status.tone} dot>{status.label}</StatusPill> : <span className="text-xs sm:text-[11px] text-slate-400">No login needed</span>}
           <button
             onClick={() => { setOpen(true); setMsg(null); }}
-            className={'px-3 py-1.5 text-xs font-semibold rounded-lg ' + (feed === 'manual' ? 'bg-cta text-on-cta hover:bg-cta-hover' : 'border border-slate-300 text-slate-700 hover:bg-slate-50')}
+            className={'px-3 py-1.5 text-xs font-semibold rounded-lg ' + (feed === 'manual' ? 'border border-brand-300 bg-brand-50 text-brand-700 hover:bg-brand-100' : 'border border-slate-300 text-slate-700 hover:bg-slate-50')}
           >
             {feed === 'manual' ? 'Upload' : connector.connected || !hasCreds ? 'Open' : 'Connect'}
           </button>
@@ -300,7 +300,7 @@ function ConnectorCard({
                 }}
                 disabled={busy !== null}
                 aria-label="Remove credentials"
-                className="px-3 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+                className="px-3 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-40"
               >
                 Remove
               </button>
@@ -313,20 +313,20 @@ function ConnectorCard({
 
           {manualSlots.length > 0 && (
             <div className="space-y-3">
-              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Upload each month</div>
+              <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Upload each month</div>
               {manualSlots.map((x) => <IngestStepper key={x.slotId} slot={x} existing={latest.get(slotKey(connector.id, x.slotId))} onCommitted={onCommitted} source={sources.get(slotKey(connector.id, x.slotId))} />)}
             </div>
           )}
           {autoSlots.length > 0 && (
             <div className="space-y-3">
-              <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Fills automatically</div>
+              <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Fills automatically</div>
               <p className="text-[12px] text-slate-500">"Pull & save all" at the top saves these. Pull one here, or upload the report by hand only if its pull fails.</p>
               {autoSlots.map((x) => <IngestStepper key={x.slotId} slot={x} existing={latest.get(slotKey(connector.id, x.slotId))} onCommitted={onCommitted} source={sources.get(slotKey(connector.id, x.slotId))} />)}
             </div>
           )}
 
           {hasCreds && <div>
-            <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2.5">Credentials</div>
+            <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2.5">Credentials</div>
             <div className="space-y-3">
               {connector.credentialFields.map((f) => (
                 <label key={f.key} className="block">
@@ -341,14 +341,14 @@ function ConnectorCard({
                     className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 font-mono focus:border-brand-400 focus:outline-none"
                     autoComplete="off"
                   />
-                  {f.help && <span className="text-[11px] text-slate-400">{f.help}</span>}
+                  {f.help && <span className="text-xs sm:text-[11px] text-slate-400">{f.help}</span>}
                 </label>
               ))}
             </div>
-            <p className="text-[11px] text-slate-400 mt-2">Blank fields are left unchanged; passwords are never shown back.</p>
+            <p className="text-xs sm:text-[11px] text-slate-400 mt-2">Blank fields are left unchanged; passwords are never shown back.</p>
           </div>}
 
-          {hasCreds && <details className="text-[11px] text-slate-500">
+          {hasCreds && <details className="text-xs sm:text-[11px] text-slate-500">
             <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">
               Durable option: set as environment variables instead
             </summary>

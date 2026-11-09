@@ -12,7 +12,7 @@ const STYLE: Record<SlotSourceKind, { label: string; cls: string; dot: string }>
 export function SlotSourceBadge({ info }: { info: Pick<SlotSourceInfo, 'source' | 'via'> }) {
   const s = STYLE[info.source];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${s.cls}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs sm:text-[11px] font-semibold px-1.5 py-0.5 rounded border ${s.cls}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden />
       {s.label}
       {info.source !== 'upload' && <span className="font-normal opacity-80">· {info.via}</span>}

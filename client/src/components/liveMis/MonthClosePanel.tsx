@@ -99,7 +99,7 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
       {error && <p className="text-red-700">{error}</p>}
 
       {open && tie && (
-        <div className="space-y-2 overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="space-y-2 overflow-x-auto">
           <table className="w-full text-[12px]">
             <thead>
               <tr className="text-left text-slate-500">
@@ -124,7 +124,7 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
                 <tr key={c.channel} className="border-t border-slate-100">
                   <td className="py-1 pr-3 text-slate-700">
                     {c.channel} sales
-                    <span className="block text-[11px] text-slate-400">{c.sources.length ? `${c.sources.join(', ')} · ${c.netBasis ? BASIS_TXT[c.netBasis] : ''}` : 'no connector — Tally only'}</span>
+                    <span className="block text-xs sm:text-[11px] text-slate-400">{c.sources.length ? `${c.sources.join(', ')} · ${c.netBasis ? BASIS_TXT[c.netBasis] : ''}` : 'no connector — Tally only'}</span>
                   </td>
                   <td className="py-1 pr-3 text-right">{c.net === null ? '–' : inr(c.net)}</td>
                   <td className="py-1 pr-3 text-right">{c.gmv === null ? '–' : inr(c.gmv)}</td>

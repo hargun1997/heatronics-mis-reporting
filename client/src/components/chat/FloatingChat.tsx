@@ -87,7 +87,7 @@ export function FloatingChat() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? 'Close chat' : 'Ask the MIS'}
-        className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-brand-500 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center hover:bg-brand-600 hover:scale-105 active:scale-95 transition-all"
+        className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full bg-brand-600 text-white shadow-lg shadow-brand-500/30 flex items-center justify-center hover:bg-brand-700 hover:scale-105 active:scale-95 transition-all"
       >
         {open ? iconClose : iconChat}
       </button>
@@ -97,18 +97,18 @@ export function FloatingChat() {
         <div className="fixed bottom-24 right-5 z-50 w-[min(92vw,400px)] h-[min(72vh,620px)] rounded-2xl border border-slate-200 bg-white shadow-2xl flex flex-col overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-100 bg-brand-500/5 flex items-center gap-2">
-            <span className="w-7 h-7 rounded-lg bg-brand-500 text-white flex items-center justify-center">
+            <span className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </span>
             <div className="min-w-0">
               <div className="text-sm font-semibold text-slate-800 leading-tight">Ask the MIS</div>
-              <div className="text-[10px] text-slate-400 leading-tight">Grounded in the live P&amp;L · reads only, can’t change anything</div>
+              <div className="text-xs sm:text-[11px] text-slate-400 leading-tight">Grounded in the live P&amp;L · reads only, can’t change anything</div>
             </div>
             <button onClick={() => setOpen(false)} aria-label="Close" className="ml-auto text-slate-400 hover:text-slate-700">{iconClose}</button>
           </div>
 
           {configured === false && (
-            <div className="px-3 py-2 text-[11px] text-amber-800 bg-amber-50 border-b border-amber-100">
+            <div className="px-3 py-2 text-xs sm:text-[11px] text-amber-800 bg-amber-50 border-b border-amber-100">
               Claude API key isn’t set on the server, so chat can’t run. Set <span className="font-mono">ANTHROPIC_API_KEY</span>.
             </div>
           )}
@@ -131,7 +131,7 @@ export function FloatingChat() {
             {messages.map((m, i) => (
               <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                 <div className={m.role === 'user'
-                  ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-brand-500 text-white px-3 py-2 text-sm whitespace-pre-wrap'
+                  ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-brand-600 text-white px-3 py-2 text-sm whitespace-pre-wrap'
                   : 'max-w-[92%] rounded-2xl rounded-bl-sm bg-slate-50 border border-slate-100 px-3 py-2'}>
                   {m.role === 'user' ? m.content : <Markdown text={m.content} />}
                 </div>
@@ -145,7 +145,7 @@ export function FloatingChat() {
                 </div>
               </div>
             )}
-            {error && <p className="text-[11px] text-rose-700 px-1">{error}</p>}
+            {error && <p className="text-xs sm:text-[11px] text-rose-700 px-1">{error}</p>}
             <div ref={endRef} />
           </div>
 
@@ -166,7 +166,7 @@ export function FloatingChat() {
                 onClick={() => void ask(input)}
                 disabled={!input.trim() || loading || configured === false}
                 aria-label="Send"
-                className="w-9 h-9 flex-shrink-0 rounded-xl bg-brand-500 text-white flex items-center justify-center hover:bg-brand-600 disabled:opacity-40"
+                className="w-9 h-9 flex-shrink-0 rounded-xl bg-brand-600 text-white flex items-center justify-center hover:bg-brand-700 disabled:opacity-40"
               >
                 {iconSend}
               </button>

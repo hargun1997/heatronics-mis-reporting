@@ -346,7 +346,7 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
         <div className="p-4 border-b border-slate-200">
           <h3 className="text-base font-semibold text-slate-800">Monthly Comparison</h3>
         </div>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-slate-100">

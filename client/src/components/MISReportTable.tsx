@@ -456,7 +456,7 @@ export function MISReportTable({
                       <div className="flex items-center gap-2">
                         {item.label}
                         {item.source === 'bs' && (
-                          <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
+                          <span className="text-xs sm:text-[11px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">
                             BS
                           </span>
                         )}

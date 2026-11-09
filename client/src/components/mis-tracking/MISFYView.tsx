@@ -169,7 +169,7 @@ export function MISFYView({ allMISRecords }: MISFYViewProps) {
           </p>
         </div>
 
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-slate-100">

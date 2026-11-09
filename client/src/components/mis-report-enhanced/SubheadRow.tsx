@@ -72,7 +72,7 @@ export function SubheadRow({
           <span className="text-slate-700">{subhead}</span>
 
           {/* Source Badge */}
-          <span className={`text-[10px] px-1.5 py-0.5 rounded ${sourceLabels[source].color}`}>
+          <span className={`text-xs sm:text-[11px] px-1.5 py-0.5 rounded ${sourceLabels[source].color}`}>
             {sourceLabels[source].text}
           </span>
 

@@ -28,14 +28,14 @@ const show = (v: number, k: Row['kind']) => (k === 'pct' ? pct(v) : k === 'int' 
 export function FyTable({ r, compare, compareName }: { r: PlanResult; compare?: PlanResult | null; compareName?: string }) {
   const ys = r.years;
   return (
-    <div className="overflow-x-auto">
+    <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
       <table className="w-full min-w-[560px] text-[13px] tabular-nums">
         <thead>
-          <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-slate-200 text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
             <th className="py-2 pr-3 text-left font-semibold">₹ Cr</th>
             {ys.map((y) => (
               <th key={y.fy} className="px-2 py-2 text-right font-semibold">
-                {y.fy}{y.months < 12 && <span className="block text-[10px] font-normal normal-case text-slate-400">{y.months} mo plan</span>}
+                {y.fy}{y.months < 12 && <span className="block text-xs sm:text-[11px] font-normal normal-case text-slate-400">{y.months} mo plan</span>}
               </th>
             ))}
           </tr>
@@ -55,7 +55,7 @@ export function FyTable({ r, compare, compareName }: { r: PlanResult; compare?: 
                   <td key={y.fy} className={`px-2 py-1.5 text-right ${v < 0 ? 'text-rose-600' : row.strong ? 'font-bold text-slate-900' : 'text-slate-800'}`}>
                     {show(v, row.kind)}
                     {showDelta && (
-                      <span className={`block text-[10px] ${d > 0 ? 'text-emerald-600' : 'text-rose-600'}`} title={`vs ${compareName}`}>
+                      <span className={`block text-xs sm:text-[11px] ${d > 0 ? 'text-emerald-600' : 'text-rose-600'}`} title={`vs ${compareName}`}>
                         {d > 0 ? '+' : '−'}{row.kind === 'pct' ? (Math.abs(d) * 100).toFixed(1) + ' pt' : row.kind === 'int' ? Math.round(Math.abs(d)).toLocaleString('en-IN') : cr(Math.abs(d))}
                       </span>
                     )}

@@ -65,7 +65,7 @@ export function SopVisual({ placeholderKey, label, sopPath, maxHeight = 480 }: S
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="absolute top-2 right-2 rounded-md bg-white/95 border border-slate-200 hover:bg-white text-slate-700 text-[11px] font-medium px-2 py-1 shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
+            className="absolute top-2 right-2 rounded-md bg-white/95 border border-slate-200 hover:bg-white text-slate-700 text-xs sm:text-[11px] font-medium px-2 py-1 shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
           >
             {uploading ? 'Uploading…' : 'Replace'}
           </button>
@@ -83,13 +83,13 @@ export function SopVisual({ placeholderKey, label, sopPath, maxHeight = 480 }: S
           <span className="text-sm font-medium">
             {uploading ? 'Uploading…' : loading ? 'Loading registry…' : 'Upload visual'}
           </span>
-          <span className="text-[11px] text-slate-500">PNG / JPG / GIF · click or drag in</span>
+          <span className="text-xs sm:text-[11px] text-slate-500">PNG / JPG / GIF · click or drag in</span>
         </button>
       )}
       <figcaption className="px-3 py-2 border-t border-slate-100 flex items-baseline justify-between gap-2">
         <span className="text-xs font-medium text-slate-700 truncate">{label}</span>
         {entry && (
-          <span className="text-[10px] uppercase tracking-wider text-slate-400 flex-shrink-0">
+          <span className="text-xs sm:text-[11px] uppercase tracking-wider text-slate-400 flex-shrink-0">
             {new Date(entry.lastUpdated).toLocaleDateString()}
           </span>
         )}

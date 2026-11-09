@@ -45,10 +45,10 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
   const peak = ms.reduce((a, m, j) => (m.units > ms[a].units ? j : a), 0);
   return (
     <SectionCard title="Product roll-out" description="Monthly units across the plan — launches, ramps and seasons. Products are set up in Setup → Products & categories (season per product there too).">
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-[12px] tabular-nums">
           <thead>
-            <tr className="text-[11px] uppercase tracking-wide text-slate-500">
+            <tr className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
               <th className="py-1 pr-3 text-left font-semibold">Product</th>
               <th className="px-2 text-left font-semibold">First sale</th>
               <th className="px-2 text-left font-semibold">Units by month · {ms[0].label} → {ms[ms.length - 1].label}</th>
@@ -63,7 +63,7 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
               const lastUnits = ms.filter((m) => m.fy === lastFy).reduce((a, m) => a + (m.unitsBySku[it.id] ?? 0), 0);
               return (
                 <tr key={it.id} className="border-t border-slate-100">
-                  <td className="py-1 pr-3 text-slate-700">{it.name}{it.isNew && <span className="ml-1.5 rounded bg-violet-50 px-1 text-[10px] text-violet-700">new</span>}</td>
+                  <td className="py-1 pr-3 text-slate-700">{it.name}{it.isNew && <span className="ml-1.5 rounded bg-violet-50 px-1 text-xs sm:text-[11px] text-violet-700">new</span>}</td>
                   <td className="px-2 text-slate-500">{firstIdx >= 0 ? monthLabel(plan.startMonth, firstIdx + 1) : '—'}</td>
                   <td className="px-2"><Spark v={series} base={r.base} /></td>
                   <td className="px-2 text-right text-slate-800">{lastUnits ? int(lastUnits) : '–'}</td>
@@ -74,7 +74,7 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-[11px] text-slate-500">Peak month of the plan: {ms[peak].label}, {int(ms[peak].units)} units ({MON[calOf(plan.startMonth, peak + 1)]}). Check it against factory capacity below.</p>
+      <p className="mt-2 text-xs sm:text-[11px] text-slate-500">Peak month of the plan: {ms[peak].label}, {int(ms[peak].units)} units ({MON[calOf(plan.startMonth, peak + 1)]}). Check it against factory capacity below.</p>
     </SectionCard>
   );
 }
@@ -101,10 +101,10 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
     <SectionCard title="Capacity & utilisation by FY" description="In-house units a month (core hCore range + in-house lines) against production capacity. Capacity today and the blocks that add to it are in Setup → Capacity, sites & capex.">
       {!hasCapacity && <p className="text-[13px] text-slate-500">No production capacity set, so utilisation is not measured.</p>}
       {hasCapacity && (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-[12.5px] tabular-nums">
             <thead>
-              <tr className="bg-surface-tint text-[11px] uppercase tracking-wide text-slate-500">
+              <tr className="bg-surface-tint text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
                 <th className="px-2 py-2 text-left font-semibold">FY</th><th className="px-2 py-2 text-left font-semibold">Peak month</th>
                 <th className="px-2 py-2 text-right font-semibold">Peak use</th><th className="px-2 py-2 text-right font-semibold">In-house units</th>
                 <th className="px-2 py-2 text-right font-semibold">Capacity</th><th className="px-2 py-2 text-right font-semibold">Months over 100%</th>
@@ -172,11 +172,11 @@ function D2CCard({ plan, r }: { plan: Plan; r: PlanResult }) {
           <h4 className="mb-1 text-[12px] font-bold text-slate-700">History: repeat orders, actual vs model</h4>
           <HistoryChart h={d.history} pred={pred} />
         </div>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <h4 className="mb-1 text-[12px] font-bold text-slate-700">Plan by year</h4>
           <table className="w-full text-[12.5px] tabular-nums">
             <thead>
-              <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-200 text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
                 <th className="py-1.5 text-left font-semibold" />
                 {r.years.map((y) => <th key={y.fy} className="px-2 py-1.5 text-right font-semibold">{y.fy}{y.months < 12 ? '*' : ''}</th>)}
               </tr>
@@ -261,10 +261,10 @@ function SeasonCard({ plan }: { plan: Plan }) {
       title="Seasonality"
       description={`Each month's share of a normal month (1.0 = average). Products: last year's actual units, all channels (from the sheet). D2C: new buyers on Shopify. FY29+ ${shape === 'history' ? 'follows these curves' : "follows the sheet's shape"} (Setup → Assumptions); the curves are edited in Setup → D2C customers & seasonality.`}
     >
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="text-[12px] tabular-nums">
           <thead>
-            <tr className="text-[11px] text-slate-500">
+            <tr className="text-xs sm:text-[11px] text-slate-500">
               <th className="pr-3 text-left font-semibold">Product</th>
               {order.map((i) => <th key={i} className="w-12 px-0.5 text-center font-semibold">{MON[i]}</th>)}
               <th className="pl-3 text-right font-semibold">Peak</th>
@@ -279,7 +279,7 @@ function SeasonCard({ plan }: { plan: Plan }) {
                   <td className="whitespace-nowrap py-0.5 pr-3 text-slate-700">{row.name}</td>
                   {order.map((i) => (
                     <td key={i} className="px-0.5 py-0.5">
-                      <span className={`block w-12 rounded px-1 py-1 text-center text-[11.5px] font-semibold ${row.v[i] > 2 ? 'text-white' : 'text-slate-900'}`} style={{ background: tint(row.v[i]) }} title={`${row.name} ${MON[i]}`}>{row.v[i].toFixed(2)}</span>
+                      <span className={`block w-12 rounded px-1 py-1 text-center text-xs sm:text-[11.5px] font-semibold ${row.v[i] > 2 ? 'text-white' : 'text-slate-900'}`} style={{ background: tint(row.v[i]) }} title={`${row.name} ${MON[i]}`}>{row.v[i].toFixed(2)}</span>
                     </td>
                   ))}
                   <td className="whitespace-nowrap pl-3 text-right text-slate-500" title="Share of the year's volume in the top 3 months">{MON[peak]} · top-3 {pct(top3, 0)}</td>

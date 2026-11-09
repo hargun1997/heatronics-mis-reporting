@@ -96,7 +96,7 @@ export function TasksToolbar({
               }`}
             >
               {l}
-              {v === 'fix' && fixCount ? <span className={`ml-1.5 rounded-full px-1.5 text-xs font-semibold ${fixHigh ? 'bg-red-500 text-white' : 'bg-slate-300 text-slate-800'}`}>{fixCount}</span> : null}
+              {v === 'fix' && fixCount ? <span className={`ml-1.5 rounded-full px-1.5 text-xs font-semibold ${fixHigh ? 'bg-red-600 text-white' : 'bg-slate-300 text-slate-800'}`}>{fixCount}</span> : null}
             </button>
           ))}
         </div>

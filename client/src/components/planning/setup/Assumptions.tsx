@@ -53,7 +53,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         <div>
           <div className="text-[13px] font-semibold text-slate-700">Unit growth by channel</div>
           <Note>Year-on-year, vs the same month a year earlier. FY27–FY28 come from the 18-month sheet; these drive FY29 onwards.</Note>
-          <div className="mt-1.5 overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="mt-1.5 overflow-x-auto">
             <table className="text-[13px]">
               <thead>
                 <tr>

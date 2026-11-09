@@ -159,7 +159,7 @@ function TrajectorySection({ periods, allPeriods, gran }: { periods: PeriodAgg[]
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
             <thead>
-              <tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
+              <tr className="text-left text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
                 <th className="py-1.5 pr-3 font-medium sticky left-0 bg-white">Period</th>
                 <th className="py-1.5 px-2 text-right font-medium">Net Revenue</th>
                 <th className="py-1.5 px-2 text-right font-medium">{popLabel}</th>
@@ -292,7 +292,7 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
             <thead>
-              <tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
+              <tr className="text-left text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
                 <th className="py-1.5 pr-3 font-medium">Channel</th>
                 <th className="py-1.5 px-2 text-right font-medium">{lfl.priorScope}</th>
                 <th className="py-1.5 px-2 text-right font-medium">{lfl.curScope}</th>
@@ -318,7 +318,7 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
             <thead>
-              <tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
+              <tr className="text-left text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
                 <th className="py-1.5 pr-3 font-medium sticky left-0 bg-white">FY</th>
                 <th className="py-1.5 px-2 text-right font-medium">Net Rev</th>
                 {fyChans.map((c) => <th key={c} className="py-1.5 px-2 text-right font-medium">{chName(c)}</th>)}
@@ -392,7 +392,7 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
             <thead>
-              <tr className="text-left text-[10px] text-slate-400 border-b border-slate-200">
+              <tr className="text-left text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
                 <th className="py-1.5 pr-3 font-medium sticky left-0 bg-white">Period</th>
                 {['COGM', ...(normalised ? ['Stock build / drawdown'] : []), 'Channel', 'S&M', 'Platform', 'OpEx', 'EBITDA %', 'Net %'].map((h) => <th key={h} className="py-1.5 px-2 text-right font-medium">{h}</th>)}
               </tr>

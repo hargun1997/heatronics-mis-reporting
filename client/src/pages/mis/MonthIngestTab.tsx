@@ -194,6 +194,7 @@ export function MonthIngestTab() {
               const label = e.target.value;
               setSession((s) => ({ ...s, periodLabel: label, periodKey: keyFromLabel(label) || s.periodKey }));
             }}
+            aria-label="Month"
             placeholder="Month e.g. Aug 2026"
             className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200"
           />
@@ -335,21 +336,21 @@ function SourcesCard(props: {
         }`}
       >
         <div className="text-sm text-slate-600">{props.busy ?? 'Drop files here, or click to browse'}</div>
-        <div className="text-[10px] text-slate-400 mt-1">
+        <div className="text-xs sm:text-[11px] text-slate-400 mt-1">
           .xlsx · .csv · screenshots
           {props.visionReady === false && ' — screenshot reading is off (GEMINI_API_KEY not set); use the xlsx export'}
         </div>
       </div>
 
       <div className="mt-2 flex items-center gap-2 justify-end">
-        <label htmlFor="forced-kind" className="text-[10px] text-slate-400">
+        <label htmlFor="forced-kind" className="text-xs sm:text-[11px] text-slate-400">
           Files are identified automatically. Read one wrong? Set its type, then add it again:
         </label>
         <select
           id="forced-kind"
           value={props.forcedKind}
           onChange={(e) => props.setForcedKind(e.target.value as SourceKind | '')}
-          className="px-2 py-1 text-[11px] rounded border border-slate-200 bg-white text-slate-600"
+          className="px-2 py-1 text-xs sm:text-[11px] rounded border border-slate-200 bg-white text-slate-600"
         >
           <option value="">Detect automatically</option>
           {SOURCE_KINDS.map((k) => (
@@ -372,7 +373,7 @@ function SourcesCard(props: {
 
       {(showAll || optional.some((r) => landedFor(r.kind!).length > 0)) && (
         <div className="mt-3 space-y-1.5">
-          <div className="text-[10px] uppercase tracking-wide text-slate-400 pt-1">Optional — sharpens the detail</div>
+          <div className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-400 pt-1">Optional — sharpens the detail</div>
           {optional.map((row) => (
             <ChecklistRow
               key={`${row.source}:${row.export}`}
@@ -388,7 +389,7 @@ function SourcesCard(props: {
       {!showAll && !optional.some((r) => landedFor(r.kind!).length > 0) && (
         <button
           onClick={() => setShowAll(true)}
-          className="mt-2 text-[11px] text-slate-400 hover:text-slate-600"
+          className="mt-2 text-xs sm:text-[11px] text-slate-400 hover:text-slate-600"
         >
           + {optional.length} optional source{optional.length === 1 ? '' : 's'}
         </button>
@@ -396,7 +397,7 @@ function SourcesCard(props: {
 
       {uncatalogued.length > 0 && (
         <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
-          <div className="text-[10px] uppercase tracking-wide text-slate-400">Not in the checklist</div>
+          <div className="text-xs sm:text-[11px] uppercase tracking-wide text-slate-400">Not in the checklist</div>
           {uncatalogued.map((s) => (
             <LandedFile key={s.id} source={s} onRemove={props.onRemove} onVerifySource={props.onVerifySource} />
           ))}
@@ -424,16 +425,16 @@ function ChecklistRow(props: {
         <div className="flex-1 min-w-0">
           <button onClick={() => setOpen(!open)} className="text-left w-full group">
             <span className="text-xs font-medium text-slate-700">{row.export}</span>
-            <span className="text-[10px] text-slate-400 ml-1.5">{row.source}</span>
-            <span className="block text-[11px] text-slate-500 leading-snug">{row.where}</span>
+            <span className="text-xs sm:text-[11px] text-slate-400 ml-1.5">{row.source}</span>
+            <span className="block text-xs sm:text-[11px] text-slate-500 leading-snug">{row.where}</span>
           </button>
 
           {row.caution && (
-            <div className="mt-1 text-[10px] text-amber-700 leading-snug">⚠ {row.caution}</div>
+            <div className="mt-1 text-xs sm:text-[11px] text-amber-700 leading-snug">⚠ {row.caution}</div>
           )}
 
           {open && (
-            <dl className="mt-1.5 space-y-1 text-[10px] text-slate-500 leading-snug">
+            <dl className="mt-1.5 space-y-1 text-xs sm:text-[11px] text-slate-500 leading-snug">
               <div><dt className="inline font-medium text-slate-600">Columns needed: </dt><dd className="inline">{row.fields}</dd></div>
               <div><dt className="inline font-medium text-slate-600">Feeds: </dt><dd className="inline">{row.feeds}</dd></div>
               <div><dt className="inline font-medium text-slate-600">Self-check: </dt><dd className="inline">{row.check}</dd></div>
@@ -472,8 +473,8 @@ function LandedFile(props: {
   return (
     <div className={props.compact ? 'mt-1.5' : ''}>
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-slate-600 truncate flex-1" title={s.label}>{s.label}</span>
-        <span className="text-[10px] text-slate-400 shrink-0">{yielded}</span>
+        <span className="text-xs sm:text-[11px] text-slate-600 truncate flex-1" title={s.label}>{s.label}</span>
+        <span className="text-xs sm:text-[11px] text-slate-400 shrink-0">{yielded}</span>
         <button
           onClick={() => props.onRemove(s.id)}
           className="text-slate-300 hover:text-rose-500 text-xs shrink-0"
@@ -484,19 +485,19 @@ function LandedFile(props: {
       </div>
 
       {!props.compact && (
-        <div className="text-[10px] text-slate-400">
+        <div className="text-xs sm:text-[11px] text-slate-400">
           read as {SOURCE_KINDS.find((k) => k.kind === s.kind)?.label ?? s.kind}
         </div>
       )}
 
       {unverified > 0 && (
         <div className="mt-1 flex items-center justify-between gap-2">
-          <span className="text-[11px] text-amber-700">
+          <span className="text-xs sm:text-[11px] text-amber-700">
             {unverified} figure{unverified === 1 ? '' : 's'} read from the image, not yet confirmed
           </span>
           <button
             onClick={() => props.onVerifySource(s.id)}
-            className="text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 shrink-0"
+            className="text-xs sm:text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 shrink-0"
           >
             I&apos;ve checked these against the screen
           </button>
@@ -504,7 +505,7 @@ function LandedFile(props: {
       )}
 
       {s.warnings.map((w, i) => (
-        <div key={i} className="mt-1 text-[10px] text-amber-600 leading-snug">⚠ {w}</div>
+        <div key={i} className="mt-1 text-xs sm:text-[11px] text-amber-600 leading-snug">⚠ {w}</div>
       ))}
     </div>
   );
@@ -563,7 +564,7 @@ function BlockersCard(props: {
             <span className="text-xs text-slate-700 flex-1">{b.message}</span>
             <button
               onClick={() => props.onVerifyLine(b.ref!)}
-              className="text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-white text-amber-700 hover:bg-amber-100 shrink-0"
+              className="text-xs sm:text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-white text-amber-700 hover:bg-amber-100 shrink-0"
             >
               Confirm
             </button>
@@ -614,10 +615,10 @@ function CrossChecksCard(props: { sources: UploadedSource[]; computed: ComputedC
               <tr key={`${c.source}-${c.label}-${i}`} className="border-b border-slate-50 align-top">
                 <td className="py-1 text-slate-600">
                   {c.label}
-                  {c.note && <span className="block text-[10px] text-slate-400 leading-snug">{c.note}</span>}
+                  {c.note && <span className="block text-xs sm:text-[11px] text-slate-400 leading-snug">{c.note}</span>}
                 </td>
                 <td className="py-1 text-right tabular-nums text-slate-700 whitespace-nowrap pl-2">{inr(c.amount)}</td>
-                <td className="py-1 text-right tabular-nums whitespace-nowrap pl-2 text-[10px]">
+                <td className="py-1 text-right tabular-nums whitespace-nowrap pl-2 text-xs sm:text-[11px]">
                   {tally === null ? (
                     <span className="text-slate-300">—</span>
                   ) : (
@@ -681,9 +682,9 @@ function SkuCard(props: {
         <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2.5">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-xs font-medium text-slate-700">Cost basis</span>
-            <span className="text-[10px] text-slate-400">{sku.costBook.count} finished goods priced</span>
+            <span className="text-xs sm:text-[11px] text-slate-400">{sku.costBook.count} finished goods priced</span>
           </div>
-          <p className="mt-1 text-[10px] text-slate-500 leading-relaxed">
+          <p className="mt-1 text-xs sm:text-[11px] text-slate-500 leading-relaxed">
             Tranzact holds the same physical product twice — under the legacy <code>HTR-*</code> item codes and
             under the later <code>hCore-*</code> ones. Nothing in the platform files says which generation a SKU
             means, and their standard costs differ by up to 44%.
@@ -704,7 +705,7 @@ function SkuCard(props: {
               >
                 {label}
                 {impact && (
-                  <span className="block text-[10px] font-normal tabular-nums opacity-70">
+                  <span className="block text-xs sm:text-[11px] font-normal tabular-nums opacity-70">
                     {inr(value === 'legacy' ? impact.legacy : impact.hcore)} COGS
                   </span>
                 )}
@@ -712,7 +713,7 @@ function SkuCard(props: {
             ))}
           </div>
           {impact && impact.difference !== 0 && (
-            <p className="mt-1.5 text-[10px] text-slate-400">
+            <p className="mt-1.5 text-xs sm:text-[11px] text-slate-400">
               {inr(Math.abs(impact.difference))} apart on {inr(impact.forkedRevenue)} of revenue. The legacy codes
               are what the committed months use: they reproduce July&apos;s published Amazon COGS to 0.4%.
             </p>
@@ -739,8 +740,8 @@ function SkuCard(props: {
                 <tr key={`${a.fgId}-${a.channel}`} className="border-b border-slate-50">
                   <td className="py-1 text-slate-700">
                     {a.deckName}
-                    {!a.confirmed && <span className="ml-1 text-[9px] px-1 rounded bg-amber-100 text-amber-700">inferred</span>}
-                    {a.byTitle && <span className="ml-1 text-[9px] px-1 rounded bg-sky-100 text-sky-700">by title</span>}
+                    {!a.confirmed && <span className="ml-1 text-xs sm:text-[11px] px-1 rounded bg-amber-100 text-amber-700">inferred</span>}
+                    {a.byTitle && <span className="ml-1 text-xs sm:text-[11px] px-1 rounded bg-sky-100 text-sky-700">by title</span>}
                   </td>
                   <td className="py-1 text-slate-500">{a.channel}</td>
                   <td className="py-1 text-right tabular-nums text-slate-500">{a.units || '—'}</td>
@@ -770,7 +771,7 @@ function SkuCard(props: {
             </tbody>
           </table>
 
-          <p className="mt-2 text-[10px] text-slate-400 leading-relaxed">
+          <p className="mt-2 text-xs sm:text-[11px] text-slate-400 leading-relaxed">
             Fees are what each platform attributes to the SKU. Shopify reports none and Shiprocket&apos;s freight
             carries no SKU at all, so D2C contribution here is before fulfilment — it is not comparable with
             Amazon&apos;s.
@@ -796,7 +797,7 @@ function LinesCard(props: {
       <div className="space-y-4">
         {CLOSE_GROUPS.map((g) => (
           <div key={g.title}>
-            <div className="text-[11px] font-medium text-slate-500 mb-1">{g.title}</div>
+            <div className="text-xs sm:text-[11px] font-medium text-slate-500 mb-1">{g.title}</div>
             <div className="space-y-1">
               {g.lines.map((l) => {
                 const line = props.computed.lines[l.key];
@@ -808,17 +809,18 @@ function LinesCard(props: {
                       <div className="text-sm text-slate-700 flex items-center gap-1.5">
                         {l.label}
                         {line && !line.verified && (
-                          <span className="text-[9px] px-1 rounded bg-amber-100 text-amber-700">unconfirmed</span>
+                          <span className="text-xs sm:text-[11px] px-1 rounded bg-amber-100 text-amber-700">unconfirmed</span>
                         )}
-                        {manual && <span className="text-[9px] px-1 rounded bg-slate-100 text-slate-500">manual</span>}
+                        {manual && <span className="text-xs sm:text-[11px] px-1 rounded bg-slate-100 text-slate-500">manual</span>}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">
+                      <div className="text-xs sm:text-[11px] text-slate-400 truncate">
                         {contributors.length > 0
                           ? `from ${contributors.map((c) => c.node.name).slice(0, 2).join(', ')}${contributors.length > 2 ? ` +${contributors.length - 2}` : ''}`
                           : l.source}
                       </div>
                     </div>
                     <input
+                      aria-label={`${l.label}: amount (type to override)`}
                       inputMode="decimal"
                       value={manual ? String(manual.value) : ''}
                       onChange={(e) => props.onManual(l.key, e.target.value)}
@@ -862,7 +864,7 @@ function CascadeCard({ computed: c, label }: { computed: ComputedClose; label: s
             <tr key={r.label} className={`border-b border-slate-50 ${r.strong ? 'font-semibold text-slate-800' : 'text-slate-500'}`}>
               <td className="py-1.5 pr-2">{r.label}</td>
               <td className={`py-1.5 text-right tabular-nums ${r.value < 0 && r.strong ? 'text-rose-600' : ''}`}>{inr(r.value)}</td>
-              <td className="py-1.5 pl-2 text-right tabular-nums text-[11px] text-slate-400 w-12">{r.strong ? pct(r.value) : ''}</td>
+              <td className="py-1.5 pl-2 text-right tabular-nums text-xs sm:text-[11px] text-slate-400 w-12">{r.strong ? pct(r.value) : ''}</td>
             </tr>
           ))}
         </tbody>
@@ -885,6 +887,7 @@ function ReconcileCard(props: {
         <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Tally Nett Profit / Loss</span>
           <input
+            aria-label="Tally Nett Profit / Loss"
             inputMode="decimal"
             defaultValue={anchor ? String(anchor.value) : ''}
             onBlur={(e) => props.onAnchor(e.target.value)}
@@ -903,7 +906,7 @@ function ReconcileCard(props: {
               <span className="text-slate-500">{i.label}</span>
               <span className="tabular-nums text-slate-700">{inr(i.amount)}</span>
             </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">{i.explanation}</div>
+            <div className="text-xs sm:text-[11px] text-slate-400 mt-0.5">{i.explanation}</div>
           </div>
         ))}
 
@@ -916,7 +919,7 @@ function ReconcileCard(props: {
               <span className="tabular-nums font-semibold">{inr(r.residual ?? 0)}</span>
             </div>
             {!r.ok && (
-              <div className="text-[10px] text-rose-600 mt-0.5">
+              <div className="text-xs sm:text-[11px] text-rose-600 mt-0.5">
                 A ledger is mis-bucketed or missing. Do not circulate until this is nil.
               </div>
             )}
@@ -994,11 +997,11 @@ function EmitCard(props: {
             )}
           </div>
           {emitted!.skuBlockedReason && (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs sm:text-[11px] text-slate-600">
               <span className="font-medium text-slate-700">SKU cells withheld.</span> {emitted!.skuBlockedReason}
             </div>
           )}
-          <div className="text-[10px] text-slate-400">
+          <div className="text-xs sm:text-[11px] text-slate-400">
             Paste the entry into <code className="text-slate-500">MONTHLY_MIS</code> in misDeckData.ts, drop the writeup in
             at the repo root, merge the map additions into <code className="text-slate-500">SEED_LEDGER_MAP</code>, then open
             a PR. The deck reads from the committed data, so it goes live on the next deploy.

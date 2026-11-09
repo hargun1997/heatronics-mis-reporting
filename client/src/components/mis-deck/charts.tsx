@@ -86,7 +86,7 @@ function Tooltip({ state, width }: { state: TooltipState | null; width: number }
   const flip = state.x > width * 0.6;
   return (
     <div
-      className="pointer-events-none absolute z-20 rounded-lg bg-slate-900 text-white text-[11px] leading-snug px-2.5 py-1.5 shadow-lg whitespace-nowrap"
+      className="pointer-events-none absolute z-20 rounded-lg bg-slate-900 text-white text-xs sm:text-[11px] leading-snug px-2.5 py-1.5 shadow-lg whitespace-nowrap"
       style={{ left, top: state.y, transform: `translate(${flip ? '-100%' : '0'}, -50%)`, marginLeft: flip ? -8 : 8 }}
     >
       {state.content}
@@ -175,17 +175,17 @@ export function LineChart({
         {/* gridlines */}
         {tickVals.map((tv, i) => (
           <g key={i}>
-            <line x1={PAD.left} x2={width - PAD.right} y1={y(tv)} y2={y(tv)} stroke="#eef2f7" strokeWidth={1} />
-            <text x={PAD.left - 6} y={y(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={10}>
+            <line x1={PAD.left} x2={width - PAD.right} y1={y(tv)} y2={y(tv)} stroke="rgb(var(--n-200))" strokeWidth={1} />
+            <text x={PAD.left - 6} y={y(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={11}>
               {percent ? `${Math.round(tv * 100)}%` : yFormat(tv)}
             </text>
           </g>
         ))}
         {/* zero line */}
-        {niceBot < 0 && <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} stroke="#cbd5e1" strokeWidth={1} />}
+        {niceBot < 0 && <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} stroke="rgb(var(--n-300))" strokeWidth={1} />}
         {/* x labels */}
         {labels.map((lb, i) => (i % labelStep === 0 || i === n - 1) ? (
-          <text key={i} x={x(i)} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{lb}</text>
+          <text key={i} x={x(i)} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={11}>{lb}</text>
         ) : null)}
         {/* series */}
         {series.map((s) => {
@@ -205,7 +205,7 @@ export function LineChart({
             </g>
           );
         })}
-        {tip && <line x1={tip.x} x2={tip.x} y1={PAD.top} y2={PAD.top + innerH} stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" />}
+        {tip && <line x1={tip.x} x2={tip.x} y1={PAD.top} y2={PAD.top + innerH} stroke="rgb(var(--n-400))" strokeWidth={1} strokeDasharray="3 3" />}
       </svg>
       <Tooltip state={tip} width={width} />
     </div>
@@ -249,8 +249,8 @@ export function StackedBarChart({
       <svg width={width} height={height} className="block">
         {Array.from({ length: ticks + 1 }, (_, i) => (top * i) / ticks).map((tv, i) => (
           <g key={i}>
-            <line x1={PAD.left} x2={width - PAD.right} y1={yOf(tv)} y2={yOf(tv)} stroke="#eef2f7" strokeWidth={1} />
-            <text x={PAD.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={10}>
+            <line x1={PAD.left} x2={width - PAD.right} y1={yOf(tv)} y2={yOf(tv)} stroke="rgb(var(--n-200))" strokeWidth={1} />
+            <text x={PAD.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={11}>
               {asShare ? `${Math.round(tv * 100)}%` : inrLakh(tv)}
             </text>
           </g>
@@ -294,7 +294,7 @@ export function StackedBarChart({
                 return <rect key={k} x={xBand(i) - barW / 2} y={yPos} width={barW} height={Math.max(0, h)} fill={colors[k]} rx={1} />;
               })}
               {(i % labelStep === 0 || i === n - 1) && (
-                <text x={xBand(i)} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{lb}</text>
+                <text x={xBand(i)} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={11}>{lb}</text>
               )}
             </g>
           );
@@ -342,8 +342,8 @@ export function GroupedBarChart({
       <svg width={width} height={height} className="block">
         {Array.from({ length: ticks + 1 }, (_, i) => (top * i) / ticks).map((tv, i) => (
           <g key={i}>
-            <line x1={PAD.left} x2={width - PAD.right} y1={yOf(tv)} y2={yOf(tv)} stroke="#eef2f7" strokeWidth={1} />
-            <text x={PAD.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={10}>{inrLakh(tv)}</text>
+            <line x1={PAD.left} x2={width - PAD.right} y1={yOf(tv)} y2={yOf(tv)} stroke="rgb(var(--n-200))" strokeWidth={1} />
+            <text x={PAD.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={11}>{inrLakh(tv)}</text>
           </g>
         ))}
         {labels.map((lb, i) => {
@@ -377,7 +377,7 @@ export function GroupedBarChart({
                 return <rect key={k} x={groupX0(i) + ki * barW} y={PAD.top + innerH - h} width={Math.max(0.5, barW - 1)} height={Math.max(0, h)} fill={colors[k]} rx={1} />;
               })}
               {(i % labelStep === 0 || i === n - 1) && (
-                <text x={PAD.left + bandW * i + bandW / 2} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{lb}</text>
+                <text x={PAD.left + bandW * i + bandW / 2} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={11}>{lb}</text>
               )}
             </g>
           );
@@ -424,11 +424,11 @@ export function GrowthBarChart({
       <svg width={width} height={height} className="block">
         {Array.from({ length: 5 }, (_, i) => bot + (span * i) / 4).map((tv, i) => (
           <g key={i}>
-            <line x1={PAD.left} x2={width - PAD.right} y1={yOf(tv)} y2={yOf(tv)} stroke="#eef2f7" strokeWidth={1} />
-            <text x={PAD.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={10}>{Math.round(tv * 100)}%</text>
+            <line x1={PAD.left} x2={width - PAD.right} y1={yOf(tv)} y2={yOf(tv)} stroke="rgb(var(--n-200))" strokeWidth={1} />
+            <text x={PAD.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={11}>{Math.round(tv * 100)}%</text>
           </g>
         ))}
-        <line x1={PAD.left} x2={width - PAD.right} y1={yOf(0)} y2={yOf(0)} stroke="#cbd5e1" strokeWidth={1} />
+        <line x1={PAD.left} x2={width - PAD.right} y1={yOf(0)} y2={yOf(0)} stroke="rgb(var(--n-300))" strokeWidth={1} />
         {labels.map((lb, i) => {
           const v = values[i];
           return (
@@ -452,7 +452,7 @@ export function GrowthBarChart({
                 />
               )}
               {(i % labelStep === 0 || i === n - 1) && (
-                <text x={xBand(i)} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={10}>{lb}</text>
+                <text x={xBand(i)} y={height - 8} textAnchor="middle" className="fill-slate-400" fontSize={11}>{lb}</text>
               )}
             </g>
           );
@@ -494,7 +494,7 @@ export function DonutChart({
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {segments.map((s) => (
-        <path key={s.key} d={s.d} fill={colors[s.key] || '#94a3b8'} stroke="#fff" strokeWidth={1.5}>
+        <path key={s.key} d={s.d} fill={colors[s.key] || '#94a3b8'} stroke="rgb(var(--surface))" strokeWidth={1.5}>
           <title>{`${s.key}: ${format(s.frac)}`}</title>
         </path>
       ))}
@@ -545,11 +545,11 @@ export function WaterfallChart({ steps, height = 280 }: { steps: WaterfallStep[]
       <svg width={width} height={height} className="block">
         {Array.from({ length: 5 }, (_, i) => bot + (span * i) / 4).map((tv, i) => (
           <g key={i}>
-            <line x1={pad.left} x2={width - pad.right} y1={yOf(tv)} y2={yOf(tv)} stroke="#eef2f7" strokeWidth={1} />
-            <text x={pad.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={10}>{inrLakh(tv)}</text>
+            <line x1={pad.left} x2={width - pad.right} y1={yOf(tv)} y2={yOf(tv)} stroke="rgb(var(--n-200))" strokeWidth={1} />
+            <text x={pad.left - 6} y={yOf(tv) + 3} textAnchor="end" className="fill-slate-400" fontSize={11}>{inrLakh(tv)}</text>
           </g>
         ))}
-        <line x1={pad.left} x2={width - pad.right} y1={yOf(0)} y2={yOf(0)} stroke="#cbd5e1" strokeWidth={1} />
+        <line x1={pad.left} x2={width - pad.right} y1={yOf(0)} y2={yOf(0)} stroke="rgb(var(--n-300))" strokeWidth={1} />
         {bars.map((b, i) => {
           const yTop = yOf(Math.max(b.start, b.end));
           const h = Math.max(1, Math.abs(yOf(b.start) - yOf(b.end)));
@@ -565,10 +565,10 @@ export function WaterfallChart({ steps, height = 280 }: { steps: WaterfallStep[]
               }}
             >
               <rect x={pad.left + bandW * i} y={pad.top} width={bandW} height={innerH} fill="transparent" />
-              {i > 0 && <line x1={xBand(i - 1) + barW / 2} x2={xBand(i) - barW / 2} y1={yOf(bars[i - 1].end)} y2={yOf(bars[i - 1].end)} stroke="#cbd5e1" strokeWidth={1} strokeDasharray="2 2" />}
+              {i > 0 && <line x1={xBand(i - 1) + barW / 2} x2={xBand(i) - barW / 2} y1={yOf(bars[i - 1].end)} y2={yOf(bars[i - 1].end)} stroke="rgb(var(--n-300))" strokeWidth={1} strokeDasharray="2 2" />}
               <rect x={xBand(i) - barW / 2} y={yTop} width={barW} height={h} fill={color} rx={1} opacity={b.type === 'total' ? 1 : 0.85} />
               {words.map((w, wi) => (
-                <text key={wi} x={xBand(i)} y={height - 30 + wi * 11} textAnchor="middle" className="fill-slate-500" fontSize={9}>{w}</text>
+                <text key={wi} x={xBand(i)} y={height - 30 + wi * 11} textAnchor="middle" className="fill-slate-500" fontSize={11}>{w}</text>
               ))}
             </g>
           );

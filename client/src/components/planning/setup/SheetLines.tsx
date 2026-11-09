@@ -52,10 +52,10 @@ function UnitGrid({ plan, update, result: r }: SetupSectionProps) {
         <NumInput value={s.asp} min={0} width="w-24" title={`${s.name} price`} onChange={(v) => update((p) => { p.skus[skuI].asp = v; })} />
         <span className="text-[12px] text-slate-400">Same price on every channel, as in the sheet.</span>
       </div>
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="text-[12.5px] tabular-nums">
           <thead>
-            <tr className="text-[11px] text-slate-500">
+            <tr className="text-xs sm:text-[11px] text-slate-500">
               <th className="py-1.5 pr-3 text-left font-semibold">Month</th>
               {CHANNELS.map((c) => <th key={c} className="px-1 text-right font-semibold">{CHANNEL_NAMES[c]}</th>)}
               <th className="bg-slate-100 px-2 text-right font-semibold text-slate-800">Units</th>
@@ -118,10 +118,10 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
         const ls = linesOf(plan, g.name, q);
         if (q.trim() && !ls.length) return null;
         return (
-          <div key={g.name} className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
+          <div key={g.name} tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
             <table className="w-full min-w-[980px] text-[12.5px] tabular-nums">
               <thead>
-                <tr className="bg-surface-tint text-[11px] uppercase tracking-wide text-slate-500">
+                <tr className="bg-surface-tint text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
                   <th className="px-3 py-2 text-left text-[13px] font-bold normal-case text-slate-800">{g.name}</th>
                   <th className="px-2 py-2 text-left font-semibold">Type</th>
                   <th className="px-2 py-2 text-right font-semibold">Amount</th>
@@ -142,7 +142,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
                           <input value={l.name} onChange={(e) => set(l.id, (x) => { x.name = e.target.value; })} className="w-64 rounded border border-transparent px-1 py-0.5 hover:border-slate-200 focus:border-slate-300" aria-label="Line name" />
                           <select value={l.milestone ?? ''} title={l.theme ? `Theme: ${l.theme}` : 'Tag with a milestone to count it as capital deployment'}
                             onChange={(e) => set(l.id, (x, p) => tagMilestone(p, x, e.target.value))}
-                            className={`max-w-[160px] rounded border px-1 py-0.5 text-[11px] ${l.milestone ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-transparent text-slate-400 hover:border-slate-200'}`} aria-label="Milestone">
+                            className={`max-w-[160px] rounded border px-1 py-0.5 text-xs sm:text-[11px] ${l.milestone ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-transparent text-slate-400 hover:border-slate-200'}`} aria-label="Milestone">
                             <option value="">{l.milestone ? 'No milestone' : '+ milestone'}</option>
                             {plan.business.themes.map((t) => <option key={t.id} value={t.milestone}>{t.milestone} · {t.theme}</option>)}
                           </select>
@@ -178,7 +178,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
                 <tr className="border-t border-slate-200 bg-slate-50/70">
                   <td className="px-3 py-1.5" colSpan={6}>
                     <button type="button" onClick={() => add(g.name)} className="text-[12px] font-semibold text-brand-700 hover:underline">+ Add line</button>
-                    <span className="ml-3 text-[11px] text-slate-400">₹ Cr per FY →</span>
+                    <span className="ml-3 text-xs sm:text-[11px] text-slate-400">₹ Cr per FY →</span>
                   </td>
                   {fys.map((fy) => <td key={fy} className="px-2 py-1.5 text-right font-bold text-slate-900">{cr(groupTotal(r, g.name, fy))}</td>)}
                 </tr>

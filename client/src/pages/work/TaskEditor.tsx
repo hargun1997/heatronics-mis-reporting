@@ -256,7 +256,7 @@ export function TaskEditor({
                     on ? 'border-brand-500 bg-brand-50 text-brand-800' : 'border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  <Avatar m={m} size="h-6 w-6 text-[11px]" />
+                  <Avatar m={m} size="h-6 w-6 text-xs sm:text-[11px]" />
                   {m.name}
                   {on && <CheckIcon className="h-3 w-3" strokeWidth={3} />}
                 </button>
@@ -319,7 +319,7 @@ export function TaskEditor({
               <button
                 type="button"
                 onClick={() => set({ links: f.links!.filter((_, j) => j !== i) })}
-                className="flex w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+                className="flex w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700"
                 aria-label="Remove reference"
               >
                 <XMarkIcon className="h-4 w-4" />

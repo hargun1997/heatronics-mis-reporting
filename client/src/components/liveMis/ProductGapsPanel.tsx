@@ -41,11 +41,11 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
       {open && <p className="text-xs text-slate-600">Each row shows the closest product by name; one click confirms the mapping (nothing is applied until confirmed). Until then an unmapped item is left out of product margins and a no-BOM product is costed from its closest product, never at 100%.</p>}
       {err && <p role="alert" className="text-xs text-rose-700">{err}</p>}
       {open && um.length > 0 && (
-        <div className="overflow-x-auto"><table className="w-full text-xs">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto"><table className="w-full text-xs">
           <thead><tr className="text-left text-slate-500"><th className="py-1 pr-2">Item</th><th className="pr-2">From</th><th className="pr-2 text-right">Sales</th><th>Closest products (confirm one)</th></tr></thead>
           <tbody>{um.slice(0, 40).map((u) => (
             <tr key={`${u.platform}|${u.key}`} className="border-t border-amber-100 align-top">
-              <td className="py-1 pr-2 text-slate-800">{u.name}<span className="block text-[11px] text-slate-400">{u.key}</span></td>
+              <td className="py-1 pr-2 text-slate-800">{u.name}<span className="block text-xs sm:text-[11px] text-slate-400">{u.key}</span></td>
               <td className="pr-2 text-slate-600">{u.kind === 'meta' ? 'Meta' : u.kind === 'b2b' ? 'B2B / Tranzact' : u.platform}</td>
               <td className="pr-2 text-right tabular-nums">{inr(u.revenue)}</td>
               <td className="space-x-1 space-y-1">{u.suggestions.length ? u.suggestions.map((s) => (
@@ -57,7 +57,7 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
         </table></div>
       )}
       {open && nb.length > 0 && (
-        <div className="overflow-x-auto"><table className="w-full text-xs">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto"><table className="w-full text-xs">
           <thead><tr className="text-left text-slate-500"><th className="py-1 pr-2">No BOM for</th><th className="pr-2 text-right">Sales</th><th>Use the BOM of</th></tr></thead>
           <tbody>{nb.slice(0, 40).map((b) => (
             <tr key={b.fgId} className="border-t border-amber-100">

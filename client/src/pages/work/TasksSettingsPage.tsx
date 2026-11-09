@@ -191,7 +191,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
               <button
                 type="button"
                 onClick={() => setHeads((hs) => hs.filter((_, j) => j !== i))}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 ${focusRing}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700 ${focusRing}`}
                 aria-label={`Delete ${h.name || 'head'}`}
               >
                 <TrashIcon className="h-4 w-4" />

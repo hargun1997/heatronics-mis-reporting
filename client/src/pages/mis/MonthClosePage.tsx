@@ -66,7 +66,7 @@ export function MonthClosePage() {
             >
               Setup →
             </Link>
-            <span className="text-[11px] text-slate-400 hidden sm:block">
+            <span className="text-xs sm:text-[11px] text-slate-400 hidden sm:block">
               Published through {last?.label ?? '—'} · next {last ? nextMonthLabel(last.key) : '—'}
             </span>
           </div>
@@ -124,15 +124,15 @@ function InputCatalogue() {
             <div key={src.name}>
               <div className="flex items-baseline gap-2 mb-1.5">
                 <h4 className="text-xs font-semibold text-slate-700">{src.name}</h4>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${TIER_BADGE[src.tier].cls}`}>
+                <span className={`px-1.5 py-0.5 rounded text-xs sm:text-[11px] font-medium ${TIER_BADGE[src.tier].cls}`}>
                   {TIER_BADGE[src.tier].label}
                 </span>
-                <span className="text-[10px] text-slate-400">{src.cadence}</span>
+                <span className="text-xs sm:text-[11px] text-slate-400">{src.cadence}</span>
               </div>
-              <div className="overflow-x-auto">
+              <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-[10px] text-slate-400 border-b border-slate-200 text-left align-bottom">
+                    <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200 text-left align-bottom">
                       <th className="py-1.5 pr-3 font-medium">Pull this</th>
                       <th className="py-1.5 pr-3 font-medium">From</th>
                       <th className="py-1.5 pr-3 font-medium">Columns needed</th>
@@ -145,7 +145,7 @@ function InputCatalogue() {
                       <tr key={r.export} className="border-b border-slate-50 align-top">
                         <td className="py-2 pr-3 text-slate-700 font-medium">
                           {r.export}
-                          {r.optional && <span className="ml-1 text-[10px] font-normal text-slate-400">optional</span>}
+                          {r.optional && <span className="ml-1 text-xs sm:text-[11px] font-normal text-slate-400">optional</span>}
                         </td>
                         <td className="py-2 pr-3 text-slate-500">{r.where}</td>
                         <td className="py-2 pr-3 text-slate-500">{r.fields}</td>

@@ -1095,7 +1095,7 @@ function MetricCard({ label, value, subValue, color }: { label: string; value: s
     blue: 'bg-blue-50 border-blue-200 text-blue-600',
     emerald: 'bg-emerald-50 border-emerald-200 text-emerald-600',
     violet: 'bg-violet-50 border-violet-200 text-violet-600',
-    red: 'bg-rose-50 border-rose-200 text-rose-600',
+    red: 'bg-rose-50 border-rose-200 text-rose-700',
     orange: 'bg-orange-50 border-orange-200 text-orange-600'
   };
 
@@ -1617,7 +1617,7 @@ function TaxSummarySection({ taxSummary }: TaxSummarySectionProps) {
       </div>
 
       <div className="p-5">
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-200">
