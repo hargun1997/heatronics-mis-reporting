@@ -64,7 +64,7 @@ export function LiveExcelModal({ deck, open, onClose, basis, merged }: {
           <span className="block font-semibold">Export Everything</span>
           <span className="block text-xs text-white/80">Every month, quarter and FY, channel P&amp;L, SKU × channel, orders, repeats, discounts, COGM / OpEx detail, marketing, units and SKU cells</span>
         </button>
-        <div className="flex items-center gap-3 text-[10px] uppercase tracking-wide text-slate-400"><div className="flex-1 h-px bg-slate-200" />or pick what you want<div className="flex-1 h-px bg-slate-200" /></div>
+        <div className="flex items-center gap-3 text-xs sm:text-[11px] uppercase tracking-wide text-slate-400"><div className="flex-1 h-px bg-slate-200" />or pick what you want<div className="flex-1 h-px bg-slate-200" /></div>
         <div className="rounded-lg bg-slate-50 p-3 space-y-3">
           <div>
             <p className="text-sm font-medium text-slate-800">P&amp;L cascade sheets</p>
@@ -153,8 +153,8 @@ export function LivePdfModal({ deck, open, onClose, basis, merged }: {
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <p className="text-xs font-medium text-slate-700">Months</p>
-              <button type="button" className="text-[11px] text-brand-600" onClick={() => setMonthKeys([...deck.periods])}>Select all</button>
-              <button type="button" className="text-[11px] text-slate-500" onClick={() => setMonthKeys([])}>Clear</button>
+              <button type="button" className="text-xs sm:text-[11px] text-brand-600" onClick={() => setMonthKeys([...deck.periods])}>Select all</button>
+              <button type="button" className="text-xs sm:text-[11px] text-slate-500" onClick={() => setMonthKeys([])}>Clear</button>
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
               {deck.periods.map((k) => <button key={k} type="button" className={chip(monthKeys.includes(k))} onClick={() => setMonthKeys(toggle(monthKeys, k))}>{monthLabel(k)}</button>)}

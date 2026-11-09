@@ -43,7 +43,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           Capacity today <NumInput value={baseCapacityOf(plan)} min={0} width="w-20" title="Capacity today, units a month" onChange={(v) => set((g) => { g.baseCapacity = v; })} /> units / month
         </div>
         {capacity.length > 0 && (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-[12.5px] tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Block</th><th className={th}>Capex in</th><th className={thr}>Lead (mo)</th><th className={thr}>+ units/mo</th><th className={thr}>Capex</th><th className={thr}>Running / mo</th><th className={th} /></tr></thead>
               <tbody>
@@ -85,7 +85,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           </p>
         )}
         {overheads.length > 0 && (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full min-w-[1100px] text-[12.5px] tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Kind</th><th className={th}>Group</th><th className={th}>From</th><th className={th}>To</th><th className={thr}>₹ / mo or %</th><th className={thr}>Sq ft</th><th className={thr}>Rent ₹/sq ft</th><th className={thr}>Running / mo</th><th className={thr}>Deposit (mo)</th><th className={thr}>Fit-out</th><th className={thr}>+ / yr</th><th className={th} /></tr></thead>
               <tbody>
@@ -136,7 +136,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         <Note>One-off spends, booked in their month (depreciated when that switch is on under Assumptions).</Note>
         {capex.length === 0 && <p className="text-[13px] text-slate-500">None yet.</p>}
         {capex.length > 0 && (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-[12.5px] tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Group</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={th} /></tr></thead>
               <tbody>

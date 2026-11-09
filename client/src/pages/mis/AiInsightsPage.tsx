@@ -75,7 +75,7 @@ export function AiInsightsPage() {
           </div>
         )}
         {deck && (
-          <p className="text-[11px] text-slate-400">
+          <p className="text-xs sm:text-[11px] text-slate-400">
             {deck.completeThrough
               ? <>Analysing the MIS, fully closed through <span className="text-emerald-700 font-medium">{monthLabel(deck.completeThrough)}</span>{deck.periods.length ? ` · ${deck.periods.length} live month${deck.periods.length === 1 ? '' : 's'}` : ''}.</>
               : 'Analysing the published history plus any live months uploaded so far.'}
@@ -109,8 +109,8 @@ function SpendCard({ usage }: { usage: UsageResponse | null }) {
       {usage.days.length === 0 ? (
         <p className="text-sm text-slate-400">No API calls recorded yet.</p>
       ) : (
-        <table className="w-full text-[11px]">
-          <thead><tr className="text-[10px] text-slate-400 text-left border-b border-slate-200">
+        <table className="w-full text-xs sm:text-[11px]">
+          <thead><tr className="text-xs sm:text-[11px] text-slate-400 text-left border-b border-slate-200">
             <th className="py-1 pr-3">Day (IST)</th><th className="py-1 pr-3 text-right">Calls</th>
             <th className="py-1 pr-3 text-right">Tokens in/out</th><th className="py-1 text-right">Cost (USD)</th>
           </tr></thead>
@@ -157,7 +157,7 @@ function Analysis({ context, configured }: { context: string; configured: boolea
           <button key={p.id} onClick={() => void run(p)} disabled={!!running || configured === false}
             className="group text-left rounded-xl border border-slate-200 px-3 py-2 hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-50 transition-colors">
             <div className="text-sm font-medium text-slate-700 group-hover:text-brand-700">{p.label}</div>
-            <div className="text-[11px] text-slate-400">{p.blurb}</div>
+            <div className="text-xs sm:text-[11px] text-slate-400">{p.blurb}</div>
           </button>
         ))}
       </div>
@@ -174,7 +174,7 @@ function Analysis({ context, configured }: { context: string; configured: boolea
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{result.label}</span>
             <button onClick={() => navigator.clipboard?.writeText(result.text).catch(() => {})}
-              className="text-[11px] text-slate-400 hover:text-slate-600">Copy</button>
+              className="text-xs sm:text-[11px] text-slate-400 hover:text-slate-600">Copy</button>
           </div>
           <Markdown text={result.text} />
         </div>
@@ -254,7 +254,7 @@ function AskChat({ context, configured }: { context: string; configured: boolean
           <div className="flex items-end gap-2">
             <textarea value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(input); } }}
-              rows={1} placeholder="Ask about the MIS…  (Enter to send, Shift+Enter for a new line)"
+              rows={1} aria-label="Ask about the MIS" placeholder="Ask about the MIS…  (Enter to send, Shift+Enter for a new line)"
               disabled={loading || configured === false}
               className="flex-1 resize-none px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-400 focus:outline-none disabled:bg-slate-50" />
             <button onClick={() => void ask(input)} disabled={loading || !input.trim() || configured === false}
@@ -262,7 +262,7 @@ function AskChat({ context, configured }: { context: string; configured: boolean
           </div>
           {messages.length > 0 && (
             <button onClick={() => { setMessages([]); setError(null); }}
-              className="mt-2 text-[11px] text-slate-400 hover:text-slate-600">Clear conversation</button>
+              className="mt-2 text-xs sm:text-[11px] text-slate-400 hover:text-slate-600">Clear conversation</button>
           )}
         </div>
       </div>

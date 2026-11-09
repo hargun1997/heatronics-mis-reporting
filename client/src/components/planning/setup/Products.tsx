@@ -29,8 +29,8 @@ function Inherit({ label, value, fallback, unit, onChange, title }: { label: str
       <div className={lbl}>{label}</div>
       <div className="mt-1 flex items-center gap-1.5">
         {own ? <NumInput unit={unit} value={value!} min={0} width="w-16" title={title} onChange={(v) => onChange(v)} />
-          : <span className="text-[13px] text-slate-500" title="From the category">{fallback == null ? '—' : unit === 'pct' ? pct(fallback, 1) : int(fallback)} <span className="text-[11px]">(category)</span></span>}
-        <button type="button" className="text-[11px] font-semibold text-brand-700 hover:underline" onClick={() => onChange(own ? undefined : fallback ?? 0)}>{own ? 'use category' : 'set'}</button>
+          : <span className="text-[13px] text-slate-500" title="From the category">{fallback == null ? '—' : unit === 'pct' ? pct(fallback, 1) : int(fallback)} <span className="text-xs sm:text-[11px]">(category)</span></span>}
+        <button type="button" className="text-xs sm:text-[11px] font-semibold text-brand-700 hover:underline" onClick={() => onChange(own ? undefined : fallback ?? 0)}>{own ? 'use category' : 'set'}</button>
       </div>
     </div>
   );
@@ -61,7 +61,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       <section className="space-y-2" aria-label="Current range">
         <SubHead>Current range (from the sheet)</SubHead>
         <p className="text-[12px] text-slate-500">Today's SKUs. Volume × scales every month's units (1 = as planned); price overrides the selling price incl. GST.</p>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-[12.5px] tabular-nums">
             <thead><tr className="bg-surface-tint text-left">
               <th className="px-3 py-2 font-semibold text-slate-500">SKU</th><th className="px-2 text-right font-semibold text-slate-500">Volume ×</th><th className="px-2 text-right font-semibold text-slate-500">Price ₹</th>
@@ -152,7 +152,7 @@ function ProductRow({ x, c, cats, skus, months, fys, byFy, open, onToggle, setPr
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={x.on} aria-label={`${x.name} on`} onChange={(e) => set((y) => { y.on = e.target.checked; })} />
         <input className={`${txt} min-w-[180px] font-medium`} value={x.name} aria-label="Product name" onChange={(e) => set((y) => { y.name = e.target.value; })} />
-        {x.placeholder && <button type="button" className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700" title="Click once these numbers are yours" onClick={() => set((y) => { y.placeholder = false; })}>placeholder</button>}
+        {x.placeholder && <button type="button" className="rounded-full bg-amber-50 px-1.5 py-0.5 text-xs sm:text-[11px] font-semibold text-amber-700" title="Click once these numbers are yours" onClick={() => set((y) => { y.placeholder = false; })}>placeholder</button>}
         <span className="text-[12px] text-slate-500">launch</span><MonthSelect title="Launch month" value={x.launchMonth} months={months} onChange={(m) => set((y) => { y.launchMonth = m ?? 1; })} />
         <span className="text-[12px] text-slate-500">price</span><NumInput value={x.asp} min={0} width="w-16" title="Price incl. GST" onChange={(v) => set((y) => { y.asp = v; })} />
         <span className="ml-auto text-[12px] tabular-nums text-slate-600">{fys.slice(-3).map((f) => `${f} ${cr(byFy[f]?.rev ?? 0, 1)} Cr`).join(' · ')}</span>
@@ -171,7 +171,7 @@ function ProductRow({ x, c, cats, skus, months, fys, byFy, open, onToggle, setPr
             {byYear ? (
               <div className="flex flex-wrap gap-2">{fys.map((f) => (
                 <div key={f}><div className={lbl}>{f}</div><NumInput value={x.unitsByFy?.[f] ?? 0} min={0} width="w-20" title={`${f} units`} onChange={(v) => set((y) => { y.unitsByFy = { ...(y.unitsByFy ?? {}), [f]: v }; })} /></div>))}
-                <p className="w-full text-[11.5px] text-slate-500">New-buyer units in each FY, spread over its months on sale; repeat orders come on top. Fitting the plan to targets leaves typed years alone.</p></div>
+                <p className="w-full text-xs sm:text-[11.5px] text-slate-500">New-buyer units in each FY, spread over its months on sale; repeat orders come on top. Fitting the plan to targets leaves typed years alone.</p></div>
             ) : (
               <div className="flex flex-wrap gap-3">
                 <div><div className={lbl}>Units / mo at launch</div><NumInput value={Math.round(x.launchUnits)} min={0} width="w-20" title="Units a month at launch" onChange={(v) => set((y) => { y.launchUnits = v; })} /></div>
@@ -221,7 +221,7 @@ function ProductRow({ x, c, cats, skus, months, fys, byFy, open, onToggle, setPr
               </div>))}
               <div className="rounded-lg border border-slate-200 px-2.5 py-2 text-[12.5px]"><div className="mb-1 font-semibold text-slate-700">GT / MT / pharmacy</div>
                 <div className="flex items-center gap-1">in outlets from <MonthSelect title="Offline start" value={x.retailStart ?? x.launchMonth} months={months} onChange={(m) => set((y) => { y.retailStart = m ?? y.launchMonth; })} /></div>
-                <p className="mt-1 max-w-[200px] text-[11.5px] text-slate-500">Outlets and offtake per category: Offline retail & stores.</p></div>
+                <p className="mt-1 max-w-[200px] text-xs sm:text-[11.5px] text-slate-500">Outlets and offtake per category: Offline retail & stores.</p></div>
             </div>
           </div>
 
@@ -231,7 +231,7 @@ function ProductRow({ x, c, cats, skus, months, fys, byFy, open, onToggle, setPr
               <button type="button" className={`${btn} ml-auto`} onClick={() => set((y) => { y.expenses = [...(y.expenses ?? []), { id: expenseId(), label: 'Launch campaign', kind: 'oneoff', amount: 500_000 }]; })}>+ Add expense</button></div>
             {(x.launchCost || x.launchCapex) ? <p className="text-[12px] text-slate-500">Also: launch cost {money(x.launchCost ?? 0, 2)} and tooling {money(x.launchCapex ?? 0, 2)} in the launch month.</p> : null}
             {!(x.expenses ?? []).length ? <p className="text-[12.5px] text-slate-500">None. Add formulation / licences / trials (one-off), moulds (capex), a brand manager or warehouse slot (monthly), or royalties / extra commission (% of its revenue).</p> : (
-              <table className="w-full text-[12.5px]"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-500">
+              <table className="w-full text-[12.5px]"><thead><tr className="text-left text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
                 <th className="py-1 font-semibold">What</th><th className="font-semibold">Kind</th><th className="text-right font-semibold">Amount</th><th className="font-semibold">From</th><th className="font-semibold">To</th><th className="text-right font-semibold">+ / yr</th><th className="font-semibold">P&L group</th><th /></tr></thead>
                 <tbody>{(x.expenses ?? []).map((e, ei) => {
                   const setE = (fn: (q: ProductExpense) => void) => set((y) => { fn(y.expenses![ei]); });

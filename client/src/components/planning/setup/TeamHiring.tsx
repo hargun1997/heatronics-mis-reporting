@@ -37,7 +37,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       {G.hires.length === 0 ? (
         <Note>No roles yet — the plan's people costs are the sheet's lines only. Add a role to layer hires on top.</Note>
       ) : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-[12.5px] tabular-nums">
             <thead>
               <tr className="bg-surface-tint">

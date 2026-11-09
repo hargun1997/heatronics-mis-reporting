@@ -79,7 +79,7 @@ export function AppNav() {
           {mini ? <span className="sr-only">{p.label}</span> : <span className="min-w-0 flex-1 truncate">{p.label}</span>}
           {p.id === 'tasks' && issues && issues.open > 0 && (
             <span className={cx('rounded-full px-1.5 text-xs font-semibold tabular-nums', mini ? 'absolute right-1 top-1 min-w-[18px] text-center leading-[18px]' : 'leading-5',
-              issues.high > 0 ? 'bg-red-500 text-white' : 'bg-nav-hover text-nav-strong')} aria-label={`${issues.open} to do or fix${issues.high ? `, ${issues.high} urgent` : ''}`}>{issues.open}</span>
+              issues.high > 0 ? 'bg-red-600 text-white' : 'bg-nav-hover text-nav-strong')} aria-label={`${issues.open} to do or fix${issues.high ? `, ${issues.high} urgent` : ''}`}>{issues.open}</span>
           )}
         </Link>
       </li>

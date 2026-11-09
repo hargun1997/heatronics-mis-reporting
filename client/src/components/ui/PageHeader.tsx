@@ -67,7 +67,7 @@ export function PageHeader({ title, description, crumbs, actions, icon, status, 
                 {w && (
                   <button type="button" onClick={() => toggle({ href: path, label: w.page.label, context: w.section.label })}
                     aria-pressed={pinned} aria-label={pinned ? `Unpin ${w.page.label} from the sidebar` : `Pin ${w.page.label} to the sidebar`} title={pinned ? 'Unpin from the sidebar' : 'Pin to the sidebar'}
-                    className={cx('inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 print:hidden', pinned ? 'text-accent-600' : 'text-stone-400 hover:text-stone-700')}>
+                    className={cx('inline-flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg transition-colors hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 print:hidden', pinned ? 'text-accent-600' : 'text-stone-400 hover:text-stone-700')}>
                     <Pin className={cx('h-4 w-4', pinned && 'fill-current')} aria-hidden />
                   </button>
                 )}

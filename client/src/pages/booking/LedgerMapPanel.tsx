@@ -98,7 +98,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
     <section aria-label="Ledger map" className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-card">
       <header className="border-b border-slate-200 px-4 pb-3 pt-4">
         <div className="flex items-baseline gap-2">
-          <h2 className="text-[15px] font-semibold text-[#0b1220]">Ledger map</h2>
+          <h2 className="text-[15px] font-semibold text-slate-900">Ledger map</h2>
           <span className="text-[13px] text-slate-600 tabular-nums">{all.length} vendors</span>
           {needsInfo > 0 && (
             <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[12px] font-semibold text-amber-900 tabular-nums">
@@ -120,13 +120,13 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search vendor, ledger, keyword…"
-              className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-[#0b1220] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30"
+              className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30"
             />
           </label>
           <button
             type="button"
             onClick={startNew}
-            className="rounded-lg border border-slate-300 px-2.5 text-[13px] font-medium text-[#0b1220] hover:border-brand-400 hover:text-brand-700"
+            className="rounded-lg border border-slate-300 px-2.5 text-[13px] font-medium text-slate-900 hover:border-brand-400 hover:text-brand-700"
           >
             + Add
           </button>
@@ -145,7 +145,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
               aria-selected={filter === key}
               onClick={() => setFilter(key)}
               className={`rounded-md px-2 py-1 text-[12.5px] font-medium ${
-                filter === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-[#0b1220]'
+                filter === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
               {label}
@@ -183,13 +183,13 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-[14px] font-semibold text-[#0b1220]">{r.vendor}</span>
+                      <span className="text-[14px] font-semibold text-slate-900">{r.vendor}</span>
                       {r.status === 'out-of-scope' ? (
-                        <span className="rounded bg-slate-100 px-1.5 py-px text-[11.5px] font-semibold text-slate-700 ring-1 ring-slate-200">Not in scope for now</span>
+                        <span className="rounded bg-slate-100 px-1.5 py-px text-xs sm:text-[11.5px] font-semibold text-slate-700 ring-1 ring-slate-200">Not in scope for now</span>
                       ) : r.status === 'needs-info' ? (
-                        <span className="rounded bg-amber-100 px-1.5 py-px text-[11.5px] font-semibold text-amber-900">Needs info</span>
+                        <span className="rounded bg-amber-100 px-1.5 py-px text-xs sm:text-[11.5px] font-semibold text-amber-900">Needs info</span>
                       ) : (
-                        <span className="rounded bg-emerald-50 px-1.5 py-px text-[11.5px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                        <span className="rounded bg-emerald-50 px-1.5 py-px text-xs sm:text-[11.5px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
                           {r.evidence ? 'Confirmed · from books' : 'Confirmed'}
                         </span>
                       )}
@@ -200,14 +200,14 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                         <span className="font-medium text-amber-900">ledger to confirm</span>
                       ) : (
                         r.ledger.split(' · ').map((l, li) => (
-                          <span key={li} className="mb-0.5 mr-1 inline-block rounded bg-slate-100 px-1 font-mono text-[12px] font-medium text-[#0b1220]">{l}</span>
+                          <span key={li} className="mb-0.5 mr-1 inline-block rounded bg-slate-100 px-1 font-mono text-[12px] font-medium text-slate-900">{l}</span>
                         ))
                       )}
                     </div>
                     {r.party && (
                       <div className="mt-0.5 text-[13px] text-slate-600">
                         <span className="inline-block w-6 font-semibold text-slate-500">Cr</span>
-                        <span className="font-mono text-[12.5px] font-medium text-[#0b1220]">{r.party}</span>
+                        <span className="font-mono text-[12.5px] font-medium text-slate-900">{r.party}</span>
                       </div>
                     )}
                     {r.status === 'needs-info' && r.suggestion && (
@@ -223,11 +223,11 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                     {r.notes && <p className="mt-1 text-[12.5px] leading-snug text-slate-600">{r.notes}</p>}
                     {r.subRules && r.subRules.length > 0 && (
                       <div className="mt-1.5 rounded-md border border-slate-200 px-2 py-1.5">
-                        <div className="text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">Rules by document</div>
+                        <div className="text-xs sm:text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">Rules by document</div>
                         <ul className="mt-1 space-y-1">
                           {r.subRules.map((s, si) => (
                             <li key={si} className="text-[12.5px] leading-snug text-slate-700">
-                              <span className="font-semibold text-[#0b1220]">{s.when}</span> → {s.then}
+                              <span className="font-semibold text-slate-900">{s.when}</span> → {s.then}
                             </li>
                           ))}
                         </ul>
@@ -243,7 +243,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                     )}
                     {r.evidence && (
                       <details className="mt-1.5 rounded-md bg-slate-50 px-2 py-1 text-[12.5px] text-slate-700">
-                        <summary className="cursor-pointer font-medium text-[#0b1220]">Evidence from the books</summary>
+                        <summary className="cursor-pointer font-medium text-slate-900">Evidence from the books</summary>
                         <p className="mt-1 font-mono text-[12px] leading-relaxed text-slate-800">{r.evidence}</p>
                       </details>
                     )}
@@ -262,7 +262,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                     type="button"
                     onClick={() => startEdit(r)}
                     aria-label={`Edit ${r.vendor}`}
-                    className="rounded-md border border-transparent px-2 py-1 text-[12.5px] font-medium text-slate-600 hover:border-slate-300 hover:text-[#0b1220]"
+                    className="rounded-md border border-transparent px-2 py-1 text-[12.5px] font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900"
                   >
                     Edit
                   </button>
@@ -317,7 +317,7 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete,
   const set = <K extends keyof ExpenseMapRow>(k: K, v: ExpenseMapRow[K]) => setDraft({ ...draft, [k]: v });
   // Kept as raw text while typing, so a half-written line isn't dropped.
   const [subRulesText, setSubRulesText] = useState(() => (draft.subRules ?? []).map((s) => `${s.when} → ${s.then}`).join('\n'));
-  const field = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-[#0b1220] focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30';
+  const field = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30';
   const label = 'block text-[12px] font-medium text-slate-700';
   return (
     <form
@@ -409,7 +409,7 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete,
         </label>
       </div>
       <div className="flex items-center gap-2 pt-1">
-        <button type="submit" disabled={saving || !draft.vendor.trim()} className="rounded-md bg-brand-500 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
+        <button type="submit" disabled={saving || !draft.vendor.trim()} className="rounded-md bg-brand-600 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
           {saving ? 'Saving…' : 'Save row'}
         </button>
         <button type="button" onClick={onCancel} className="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-slate-700 hover:bg-slate-100">

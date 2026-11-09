@@ -65,7 +65,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             (tag lines in Sheet lines; the spend shows on the Business plan view as capital deployment).
           </Note>
           <datalist id="plan-themes">{themes.map((t) => <option key={t} value={t} />)}</datalist>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-slate-200">

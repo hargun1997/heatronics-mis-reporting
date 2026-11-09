@@ -11,8 +11,8 @@ export const CR = 1e7;
 export const btn = 'rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40';
 export const rm = 'rounded px-1.5 py-0.5 text-[12px] font-semibold text-slate-400 hover:text-rose-600';
 export const txt = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-[13px]';
-export const lbl = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
-export const th = 'px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500';
+export const lbl = 'text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500';
+export const th = 'px-2 py-2 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500';
 export const thr = th.replace('text-left', 'text-right');
 export const td = 'px-2 py-1.5';
 
@@ -40,7 +40,7 @@ export function Check({ checked, onChange, label }: { checked: boolean; onChange
 export function Row({ label, hint, children }: { label: ReactNode; hint?: string; children: ReactNode }) {
   return (
     <label className="flex items-center justify-between gap-3 text-[13px] text-slate-600">
-      <span>{label}{hint && <span className="block text-[11px] leading-snug text-slate-400">{hint}</span>}</span>
+      <span>{label}{hint && <span className="block text-xs sm:text-[11px] leading-snug text-slate-400">{hint}</span>}</span>
       <span className="flex items-center gap-1.5">{children}</span>
     </label>
   );
@@ -53,11 +53,11 @@ export function CheckRow({ on, set, label, hint }: { on: boolean; set: (v: boole
 }
 
 export function Flag({ children = 'Terms not confirmed' }: { children?: string }) {
-  return <span className="ml-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{children}</span>;
+  return <span className="ml-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-amber-800">{children}</span>;
 }
 
 export function SubHead({ children }: { children: ReactNode }) {
-  return <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{children}</h4>;
+  return <h4 className="text-xs sm:text-[11px] font-bold uppercase tracking-wide text-slate-500">{children}</h4>;
 }
 
 /** One grey line of explanation / feedback. */

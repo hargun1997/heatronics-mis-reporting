@@ -11,7 +11,7 @@ import { cr, money, pct } from '../fmt';
 interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string }
 
 const KIND: Record<CashEvent['kind'], string> = { equity: 'Equity raise', debtDrawn: 'Debt drawn', debtRepaid: 'Debt repaid' };
-const th = 'px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500';
+const th = 'px-2 py-2 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500';
 const thr = th.replace('text-left', 'text-right');
 const td = 'px-2 py-1.5';
 
@@ -49,7 +49,7 @@ export function CashFundingView({ plan, result }: Props) {
         description={`The seed${fx?.seed.on && !parity ? ` (₹${cr(fx.seed.amount, 0)} Cr in ${label(fx.seed.month)})` : ''} and the rounds from Setup → Funding. Cash before = closing cash the month before the round; burn = average monthly cash burn over the 12 months after it; runway = months until cash falls under the buffer again. Ownership ignores ESOP pools and convertibles.`}
       >
         {!growthOn && <p className="mb-3 text-[12px] text-amber-800">{parity ? 'Sheet parity is on: the rounds below are not in the numbers — the sheet\'s own timeline events (further down) are.' : 'The growth layer is off, so the rounds below are not in the numbers.'}</p>}
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-[12.5px] tabular-nums">
             <thead><tr className="bg-surface-tint"><th className={th}>Round</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={thr}>Pre-money</th><th className={thr}>Fee</th><th className={th}>Agreed</th><th className={thr}>Cash before</th><th className={thr}>Burn / mo</th><th className={thr}>Runway</th><th className={thr}>Sold</th><th className={thr}>Today's holders keep</th></tr></thead>
             <tbody>
@@ -66,7 +66,7 @@ export function CashFundingView({ plan, result }: Props) {
                 const st = rstats.find((y) => y.id === x.id);
                 return (
                   <tr key={x.id} className={`border-t border-slate-100 ${x.on ? '' : 'opacity-50'}`}>
-                    <td className={`${td} font-medium text-slate-700`}>{x.name}{!x.on && <span className="ml-2 text-[10px] text-slate-400">off</span>}</td>
+                    <td className={`${td} font-medium text-slate-700`}>{x.name}{!x.on && <span className="ml-2 text-xs sm:text-[11px] text-slate-400">off</span>}</td>
                     <td className={td}>{label(x.month)}</td>
                     <td className={`${td} text-right`}>{money(x.amount, 1)}</td>
                     <td className={`${td} text-right`}>{money(x.preMoney, 0)}</td>
@@ -91,11 +91,11 @@ export function CashFundingView({ plan, result }: Props) {
         <div className="space-y-1.5">
           {[...plan.events].sort((a, b) => a.month - b.month).map((e) => (
             <div key={e.id} className="flex flex-wrap items-center gap-3 text-[13px]">
-              <span className={`w-28 rounded-md px-2 py-0.5 text-center text-[11px] font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{KIND[e.kind]}</span>
+              <span className={`w-28 rounded-md px-2 py-0.5 text-center text-xs sm:text-[11px] font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{KIND[e.kind]}</span>
               <span className="w-16 text-slate-600">{label(e.month)}</span>
               <span className="w-24 text-right tabular-nums text-slate-900">{money(e.amount, 2)}</span>
               <span className="min-w-0 flex-1 text-slate-500">{e.note}</span>
-              {e.venture && ventureOn && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">Replaced by the venture-debt terms</span>}
+              {e.venture && ventureOn && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-slate-500">Replaced by the venture-debt terms</span>}
             </div>
           ))}
         </div>
@@ -111,13 +111,13 @@ export function CashFundingView({ plan, result }: Props) {
 function Box({ label, value, sub, bad }: { label: string; value: string; sub?: string; bad?: boolean }) {
   return (
     <div className={`rounded-2xl border px-4 py-3 shadow-card ${bad ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200/80 bg-surface'}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`mt-1 text-xl font-extrabold tabular-nums ${bad ? 'text-rose-700' : 'text-slate-900'}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
+      {sub && <div className="mt-0.5 text-xs sm:text-[11px] text-slate-500">{sub}</div>}
     </div>
   );
 }
 
 function Flag({ children = 'Not confirmed' }: { children?: string }) {
-  return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{children}</span>;
+  return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-amber-800">{children}</span>;
 }

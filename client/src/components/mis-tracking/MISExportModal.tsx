@@ -488,7 +488,7 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                 flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all
                 ${isExporting || (!includeTrends && !includeFYSummary && !includeIndividualMonths)
                   ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
-                  : 'bg-red-500 text-white hover:bg-red-600'
+                  : 'bg-red-600 text-white hover:bg-red-700'
                 }
               `}
             >
@@ -549,9 +549,9 @@ export function MISExportModal({ allMISRecords, onClose }: MISExportModalProps) 
                     const height = maxRev > 0 ? (mis.revenue.netRevenue / maxRev) * 180 : 0;
                     return (
                       <div key={mis.periodKey} className="flex-1 flex flex-col items-center">
-                        <div className="text-[10px] text-slate-400 mb-1">{formatCurrency(mis.revenue.netRevenue)}</div>
+                        <div className="text-xs sm:text-[11px] text-slate-400 mb-1">{formatCurrency(mis.revenue.netRevenue)}</div>
                         <div className="w-full bg-blue-500 rounded-t" style={{ height: `${height}px` }} />
-                        <div className="text-[10px] text-slate-500 mt-1">
+                        <div className="text-xs sm:text-[11px] text-slate-500 mt-1">
                           {periodToString(mis.period).split(' ')[0].slice(0, 3)} '{String(mis.period.year).slice(-2)}
                         </div>
                       </div>

@@ -63,7 +63,7 @@ export function OverviewView({ plan, result, compare, compareName }: Props) {
         actions={
           <div className="text-right text-[12px] text-slate-500">
             Apr–Sep ’26 actuals: <b className="text-slate-700">₹{cr(plan.levers.fy27H1Revenue, 2)} Cr</b> revenue · <b className="text-slate-700">₹{cr(plan.levers.fy27H1Ebitda, 2)} Cr</b> EBITDA
-            <span className="block text-[11px] text-slate-400">Setup → Starting point</span>
+            <span className="block text-xs sm:text-[11px] text-slate-400">Setup → Starting point</span>
           </div>
         }
       >
@@ -86,9 +86,9 @@ export function OverviewView({ plan, result, compare, compareName }: Props) {
 function MiniStat({ label, value, sub, bad }: { label: string; value: string; sub?: string; bad?: boolean }) {
   return (
     <div className={`rounded-2xl border px-4 py-3 ${bad ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200/80 bg-surface'} shadow-card`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className={`mt-1 text-xl font-extrabold tabular-nums ${bad ? 'text-rose-700' : 'text-slate-900'}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] text-slate-500">{sub}</div>}
+      {sub && <div className="mt-0.5 text-xs sm:text-[11px] text-slate-500">{sub}</div>}
     </div>
   );
 }

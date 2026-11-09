@@ -137,19 +137,19 @@ export function SendReportPage() {
               const on = recipients.includes(e);
               return (
                 <button key={e} onClick={() => toggleRecipient(e)}
-                  className={`text-xs rounded-full border px-2.5 py-1 ${on ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'}`}>
+                  className={`text-xs rounded-full border px-2.5 py-1 ${on ? 'bg-brand-600 text-white border-brand-500' : 'bg-white text-slate-600 border-slate-200 hover:border-brand-300'}`}>
                   {e}
                 </button>
               );
             })}
           </div>
-          <div className="mt-3 flex items-center gap-2">
-            <input value={adhoc} onChange={(e) => setAdhoc(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAdhoc(); } }}
-              type="email" placeholder="add an email…" className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/40" />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input aria-label="Add an email" value={adhoc} onChange={(e) => setAdhoc(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAdhoc(); } }}
+              type="email" placeholder="add an email…" className="min-w-0 flex-1 sm:flex-none rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/40" />
             <button onClick={addAdhoc} className="rounded-lg border border-slate-200 text-sm px-3 py-1.5 text-slate-600 hover:bg-slate-50">Add</button>
             <button onClick={saveList} className="rounded-lg border border-slate-200 text-sm px-3 py-1.5 text-slate-600 hover:bg-slate-50">Save list</button>
-            {savedNote && <span className="text-[11px] text-emerald-600">saved</span>}
-            <span className="ml-auto text-[11px] text-slate-400">{recipients.length} selected</span>
+            {savedNote && <span className="text-xs sm:text-[11px] text-emerald-600">saved</span>}
+            <span className="ml-auto text-xs sm:text-[11px] text-slate-400">{recipients.length} selected</span>
           </div>
         </SectionCard>
 
@@ -166,6 +166,7 @@ export function SendReportPage() {
           }
         >
           <textarea value={summary} onChange={(e) => setSummary(e.target.value)} rows={summary ? 8 : 3}
+            aria-label="Summary for the email"
             placeholder="Generate with Claude, or type your own. Leave blank to send without a summary."
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/40" />
         </SectionCard>
@@ -175,7 +176,7 @@ export function SendReportPage() {
             <button onClick={preview} disabled={!deck} className="rounded-lg border border-slate-200 text-sm px-3.5 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50">Preview</button>
             <button onClick={download} disabled={!deck} className="rounded-lg border border-slate-200 text-sm px-3.5 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50">Download .html</button>
             <button onClick={() => void doSend()} disabled={sendBusy || !deck || recipients.length === 0}
-              className="ml-auto inline-flex items-center gap-2 rounded-lg bg-brand-500 text-white text-sm font-medium px-3.5 py-2 hover:bg-brand-600 disabled:opacity-50">
+              className="ml-auto inline-flex items-center gap-2 rounded-lg bg-brand-600 text-white text-sm font-medium px-3.5 py-2 hover:bg-brand-700 disabled:opacity-50">
               {sendBusy ? <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-white/60 border-t-transparent animate-spin" /> : iconSend}
               Send to {recipients.length || 'nobody'}
             </button>
@@ -187,7 +188,7 @@ export function SendReportPage() {
           )}
         </SectionCard>
 
-        <p className="text-[10px] text-slate-400">
+        <p className="text-xs sm:text-[11px] text-slate-400">
           Monthly auto-send: point a monthly Cloud Scheduler job at <span className="font-mono">POST /api/report/send-monthly</span> — it emails a server-composed
           summary + a link to the full report to this saved recipient list. (Needs the email provider configured.)
         </p>

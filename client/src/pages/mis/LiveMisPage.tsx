@@ -12,6 +12,7 @@
 // freshness and report uploads live in Setup; repeat purchase / cohorts in Ops.
 // ----------------------------------------------------------------------------
 
+import { LabeledField } from '../../components/ui/LabeledField';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader, KpiTile, SegmentedControl } from '../../components/ui';
@@ -111,12 +112,7 @@ function useTab(): [Tab, (t: Tab) => void] {
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="text-xs text-slate-500">
-      <span className="block mb-1">{label}</span>
-      {children}
-    </div>
-  );
+  return <LabeledField label={label}>{children}</LabeledField>;
 }
 
 export function LiveMisPage() {
@@ -250,22 +246,22 @@ export function LiveMisPage() {
         ]}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Link to="/reporting/mis/rulebook" className="px-2.5 py-1 rounded-lg text-slate-600 text-[11px] hover:bg-white/70 underline-offset-2 hover:underline">
+            <Link to="/reporting/mis/rulebook" className="px-2.5 py-1 rounded-lg text-slate-600 text-xs sm:text-[11px] hover:bg-white/70 underline-offset-2 hover:underline">
               How it’s calculated
             </Link>
-            <Link to="/reporting/mis/connectors?view=uploads" className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50">
+            <Link to="/reporting/mis/connectors?view=uploads" className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-[11px] hover:bg-slate-50">
               Close the month
             </Link>
             <button onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-[11px] hover:bg-slate-50 disabled:opacity-40">
               Export Excel
             </button>
             <button onClick={() => setPdfOpen(true)} disabled={!deck || deckLoading}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] hover:bg-slate-50 disabled:opacity-40">
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-[11px] hover:bg-slate-50 disabled:opacity-40">
               Export PDF
             </button>
             <button onClick={() => void loadDeck(true)} disabled={deckLoading} title="Re-pull every live source now (otherwise they refresh by themselves every 15 min)"
-              className="px-2.5 py-1 rounded-lg bg-cta text-on-cta text-[11px] hover:bg-cta-hover disabled:opacity-40">
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-[11px] hover:bg-slate-50 disabled:opacity-40">
               {deckLoading ? 'Loading…' : 'Refresh'}
             </button>
           </div>
@@ -342,7 +338,7 @@ export function LiveMisPage() {
                 const on = custom.includes(k);
                 return (
                   <button key={k} type="button" onClick={() => setCustom(on ? custom.filter((x) => x !== k) : [...custom, k])}
-                    className={`px-2 py-0.5 rounded-md text-[11px] border ${on ? 'bg-brand-50 text-brand-700 border-brand-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+                    className={`px-2 py-0.5 rounded-md text-xs sm:text-[11px] border ${on ? 'bg-brand-50 text-brand-700 border-brand-200' : 'bg-white text-slate-500 border-slate-200'}`}>
                     {monthLabel(k)}
                   </button>
                 );
@@ -466,7 +462,7 @@ function CompletenessBanner({ deck, raw, showLive, setShowLive }: {
         <span className="text-slate-400 flex items-center gap-1.5">Latest data: {monthLabel(latest)} (partial <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} />)</span>
       )}
       <span className="text-slate-400 flex items-center gap-1.5">
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 text-[10px] font-medium text-slate-500">Locked</span>
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 text-xs sm:text-[11px] font-medium text-slate-500">Locked</span>
         history through {monthLabel(prevMonth(LIVE_BOUNDARY))} · live from {monthLabel(LIVE_BOUNDARY)}
       </span>
       {published.length > 0 && (
@@ -600,7 +596,7 @@ function RunRateTab() {
             {RR_METRICS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </Field>
-        <div className="flex items-center gap-3 text-[11px] text-slate-400 sm:ml-auto pb-1">
+        <div className="flex items-center gap-3 text-xs sm:text-[11px] text-slate-400 sm:ml-auto pb-1">
           {fetchedAt && <span>updated {fetchedAt.toLocaleTimeString()}</span>}
           <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> auto</label>
           <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40">{loading ? 'Pulling…' : 'Pull again'}</button>
@@ -627,9 +623,9 @@ function RunRateTab() {
           <p className="text-sm text-slate-400">No data for this range. Connect a dateable source (Shopify today) on the{' '}
             <Link to="/reporting/mis/connectors" className="text-brand-600 underline">Setup</Link> page and pull.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-xs border-collapse">
-              <thead><tr className="text-[10px] text-slate-400 border-b border-slate-200">
+              <thead><tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
                 <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">{RR_DIMS.find((d) => d.id === dim)!.label}</th>
                 {periods.map((p) => <th key={p} className="py-1.5 px-2 text-right font-medium whitespace-nowrap">{p}</th>)}
                 {!isRatio && <th className="py-1.5 pl-3 pr-3 text-right font-semibold">Total</th>}
@@ -653,7 +649,7 @@ function RunRateTab() {
           {data.warnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
         </div>
       )}
-      <p className="text-[11px] text-slate-400">Which connector is current, and report uploads for sources with no API, are on <Link to="/reporting/mis/connectors" className="underline underline-offset-2">Setup</Link>.</p>
+      <p className="text-xs sm:text-[11px] text-slate-400">Which connector is current, and report uploads for sources with no API, are on <Link to="/reporting/mis/connectors" className="underline underline-offset-2">Setup</Link>.</p>
     </div>
   );
 }

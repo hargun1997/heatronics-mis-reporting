@@ -86,7 +86,7 @@ export function CollapsibleSection({
 
           {/* Source Badge */}
           {source && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${sourceLabels[source].color}`}>
+            <span className={`text-xs sm:text-[11px] px-1.5 py-0.5 rounded ${sourceLabels[source].color}`}>
               {sourceLabels[source].text}
             </span>
           )}
