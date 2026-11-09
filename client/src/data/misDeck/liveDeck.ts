@@ -110,7 +110,12 @@ export interface TrafficRow {
   units: number;
 }
 
+/** How the live connector pull went (backlog bug 3, 9 Nov 2026: a failed pull used to build the deck with no live data, silently). */
+export interface LiveFeedStatus { ok: boolean; error?: string; sources: { id: string; label: string; ok: boolean; error?: string; partial?: boolean; cachedAt?: string | null }[] }
+
 export interface LiveDeckData {
+  /** Live connector pull status (absent on decks built from uploads only, e.g. tests). */
+  liveFeed?: LiveFeedStatus;
   months: MonthlyMIS[];               // ascending by period
   skuCells: SkuCell[];
   completeness: Record<string, PeriodCompleteness>;
@@ -920,7 +925,7 @@ function nextMonthKey(pk: string): string {
 }
 
 /** Live connector facts over a window covering the uploaded months (Shopify D2C today). */
-async function fetchLiveFacts(reports: ExtractedReport[], force = false): Promise<DailyFact[]> {
+async function fetchLiveFacts(reports: ExtractedReport[], force = false): Promise<{ facts: DailyFact[]; feed: LiveFeedStatus }> {
   const today = new Date().toISOString().slice(0, 10);
   let from = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
   const months = reports.map((r) => r.periodKey).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
@@ -929,7 +934,8 @@ async function fetchLiveFacts(reports: ExtractedReport[], force = false): Promis
     if (earliest < from) from = earliest;
   }
   const res = await fetchFacts(from, today, force);
-  return Array.isArray(res.facts) ? res.facts : [];
+  const sources = (res.sources ?? []).map((x) => ({ id: x.id, label: x.label, ok: !!x.ok, error: x.error, partial: (x as { partial?: boolean }).partial, cachedAt: (x as { cachedAt?: string | null }).cachedAt ?? null }));
+  return { facts: Array.isArray(res.facts) ? res.facts : [], feed: { ok: true, sources } };
 }
 
 /** Current month in IST, 'YYYY-MM'. */
@@ -962,12 +968,12 @@ async function loadLiveDeckNow(opts: BuildLiveDeckOptions, force: boolean): Prom
   // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck; served from the server's
   // per-month facts cache (stale months refresh in the background). Never fail the whole load on it.
   const [liveFacts, locks, rules, pmap] = await Promise.all([
-    fetchLiveFacts(reports, force).catch(() => [] as DailyFact[]),
+    fetchLiveFacts(reports, force).catch((e: unknown) => ({ facts: [] as DailyFact[], feed: { ok: false, error: e instanceof Error ? e.message : 'Live sales pull failed', sources: [] } as LiveFeedStatus })),
     fetchLocks().catch(() => ({} as Record<string, MonthLock>)),
     fetch('/api/tally/ledger-rules').then((r) => (r.ok ? r.json() : null)).catch(() => null),
     fetch('/api/mis/product-map').then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
   setLedgerRules(Array.isArray(rules?.rules) ? rules.rules : null);
   setProductMap(pmap);
-  return buildLiveDeck(reports, liveFacts, { ...opts, locks });
+  return { ...buildLiveDeck(reports, liveFacts.facts, { ...opts, locks }), liveFeed: liveFacts.feed };
 }

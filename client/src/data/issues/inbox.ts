@@ -26,8 +26,24 @@ const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')
 const monthName = (k: string) => new Date(`${k}-01T00:00:00`).toLocaleString('en-IN', { month: 'short', year: '2-digit' });
 
 /** Items only the Live MIS deck knows. */
-export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps'>): InboxItem[] {
+export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps'> & Partial<Pick<LiveDeckData, 'liveFeed'>>): InboxItem[] {
   const out: InboxItem[] = [];
+  const feed = deck.liveFeed;
+  const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);   // a feed problem marked Done comes back the next day if it still holds
+  if (feed && !feed.ok) {
+    out.push({ id: 'feed:live', area: 'feeds', severity: 'high', title: 'Live sales feed did not load — Live MIS shows uploads only',
+      detail: feed.error ?? 'The connector pull failed.', fix: 'Press Refresh on Live MIS. If it fails again, open Setup and check the connector cards.',
+      href: '/reporting/mis/connectors', sig: `down:${today}` });
+  }
+  for (const x of feed?.sources ?? []) {
+    if (!x.ok && x.error && x.error !== 'not connected' && !x.partial) {
+      out.push({ id: `feed:${x.id}`, area: 'feeds', severity: 'medium', title: `${x.label}: live pull failed`, detail: x.error,
+        fix: 'Open Setup → this connector and press Pull now; fix the credentials if it says so.', href: `/reporting/mis/connectors?view=uploads#${x.id}`, sig: `${sig(x.error.slice(0, 60))}:${today}` });
+    } else if (x.partial) {
+      out.push({ id: `feed:${x.id}:partial`, area: 'feeds', severity: 'low', title: `${x.label}: numbers still loading (partial)`, detail: 'The source was still preparing data. It is pulled again within 5 minutes.',
+        fix: 'Refresh Live MIS in a few minutes.', href: '/reporting/mis/live', sig: `partial:${today}` });
+    }
+  }
   const thisMonth = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 7);
   for (const [k, c] of Object.entries(deck.completeness ?? {})) {
     if (c.closed || c.locked || k > thisMonth) continue; // a month that hasn't happened can't be wrong yet

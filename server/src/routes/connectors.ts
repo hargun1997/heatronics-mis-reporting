@@ -202,6 +202,13 @@ router.post('/:id/test', h(async (req, res) => {
 
 // Live run-rate: pull a dated fact stream from every connected source that can
 // date its data. Body: { from: "YYYY-MM-DD", to: "YYYY-MM-DD" }.
+/** Per-source wait on /facts (env FACTS_SOURCE_WAIT_MS, default 25 s): Amazon Ads (12 s) and Flipkart (20 s) cap themselves inside it. */
+export const FACTS_SOURCE_WAIT_MS = Number(process.env.FACTS_SOURCE_WAIT_MS) || 25_000;
+export function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
+  let t: NodeJS.Timeout | undefined;
+  return Promise.race([p, new Promise<T>((_, rej) => { t = setTimeout(() => rej(new Error(message)), ms); })]).finally(() => clearTimeout(t));
+}
+
 router.post('/facts', h(async (req, res) => {
   const from = String(req.body?.from ?? '').trim();
   const to = String(req.body?.to ?? '').trim();
@@ -222,7 +229,10 @@ router.post('/facts', h(async (req, res) => {
       }
       try {
         // Through the per-month cache (connectors/factsCache.ts): stale months come back at once and refresh behind.
-        const result = await cachedFacts(c.id, from, to, (f, t) => c.fetchFacts!(creds, f, t), { force });
+        // One hung source must not hold the whole page (backlog bug 2): cap the wait; the pull keeps going and fills the cache.
+        const pull = cachedFacts(c.id, from, to, (f, t) => c.fetchFacts!(creds, f, t), { force });
+        pull.catch(() => undefined);
+        const result = await withTimeout(pull, FACTS_SOURCE_WAIT_MS, `${c.label} took over ${Math.round(FACTS_SOURCE_WAIT_MS / 1000)} s — still loading in the background; refresh in a minute.`);
         // Coverage: the span of dates this source actually returned, so the UI
         // can show how current each connector is ("data through …").
         const dates = result.facts.map((f) => f.date).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
@@ -237,13 +247,14 @@ router.post('/facts', h(async (req, res) => {
             trace: result.trace ?? [],
             cachedAt: result.cachedAt,
             refreshing: result.refreshing,
+            partial: result.partial ?? false,
           },
           facts: result.facts,
           warnings: result.warnings,
         };
       } catch (err) {
         return {
-          source: { id: c.id, label: c.label, ok: false, count: 0, error: err instanceof Error ? err.message : 'fetch failed' },
+          source: { id: c.id, label: c.label, ok: false, count: 0, error: err instanceof Error ? err.message : 'fetch failed', ...(err instanceof Error && /still loading in the background/.test(err.message) ? { partial: true } : {}) },
           facts: [],
           warnings: [],
         };
