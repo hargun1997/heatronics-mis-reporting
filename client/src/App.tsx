@@ -24,6 +24,7 @@ const AmazonToTranzactTool = lazyPage(() => import('./pages/guide/tools/AmazonTo
 const ExpenseBooking = lazyPage(() => import('./pages/tools/ExpenseBooking'), 'ExpenseBooking');
 const BookingAssistantPage = lazyPage(() => import('./pages/booking/BookingAssistantPage'), 'BookingAssistantPage');
 const TodayPage = lazyPage(() => import('./pages/today/TodayPage'), 'TodayPage');
+const CashRunwayPage = lazyPage(() => import('./pages/cash/CashRunwayPage'), 'CashRunwayPage');
 const PriceFloorsPage = lazyPage(() => import('./pages/tools/PriceFloorsPage'), 'PriceFloorsPage');
 const BulkPaymentsPage = lazyPage(() => import('./pages/tools/BulkPaymentsPage'), 'BulkPaymentsPage');
 const RoundPlannerPage = lazyPage(() => import('./pages/tools/RoundPlannerPage'), 'RoundPlannerPage');
@@ -105,6 +106,7 @@ function App() {
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
           <Route path="tools/expense-booking" element={<ExpenseBooking />} />
           <Route path="today" element={<TodayPage />} />
+          <Route path="accounts/cash-runway" element={<CashRunwayPage />} />
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
           <Route path="tools/bulk-payments" element={<BulkPaymentsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />
