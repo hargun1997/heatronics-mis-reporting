@@ -229,11 +229,17 @@ interface Resolved {
 
 let resolvedPromise: Promise<Resolved> | null = null;
 
+/** INGEST_STORE=local (tests, local runs) forces the local directory backend — never on Cloud Run (K_SERVICE set),
+ *  where a stray env var must not silently move the books to the instance's temp disk (same rule as HTX_GATE=off). */
+export function localStoreForced(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.INGEST_STORE === 'local' && !env.K_SERVICE;
+}
+
 function resolveStore(): Promise<Resolved> {
   if (!resolvedPromise) {
     resolvedPromise = (async () => {
-      // INGEST_STORE=local: never probe GCP (tests, local runs) — the local directory backend only.
-      if (process.env.INGEST_STORE === 'local') {
+      // INGEST_STORE=local: never probe GCP (tests, local runs) — the local directory backend only. Ignored on Cloud Run.
+      if (localStoreForced()) {
         return { backend: fileBackend, name: 'local-file' as const, bucket: '', project: '', serviceAccount: '' };
       }
       const [project, serviceAccount] = await Promise.all([detectProject(), detectServiceAccount()]);

@@ -6,6 +6,7 @@ import { AppNav } from '../components/shell/AppNav';
 import { CommandPalette } from '../components/shell/CommandPalette';
 import { ShellContext } from '../components/shell/ShellContext';
 import { pushRecent } from '../components/shell/prefs';
+import { PageErrorBoundary } from '../components/shell/PageErrorBoundary';
 import { whereIs } from '../nav/config';
 
 // The chats pull in the Live MIS deck / the handbook: loaded after the shell, in their own chunks.
@@ -43,9 +44,11 @@ export function MainLayout() {
       <AppNav />
       <div className="app-content min-h-screen bg-stone-50 text-stone-900">
         <main id="main" tabIndex={-1} className="min-w-0 focus:outline-none">
-          <Suspense fallback={<PageLoading />}>
-            <Outlet />
-          </Suspense>
+          <PageErrorBoundary key={path}>
+            <Suspense fallback={<PageLoading />}>
+              <Outlet />
+            </Suspense>
+          </PageErrorBoundary>
         </main>
       </div>
       <CommandPalette />
