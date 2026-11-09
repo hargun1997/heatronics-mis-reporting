@@ -45,7 +45,7 @@ export interface WorkTask extends ScheduleSpec {
   /** Tasks that should be done first (e.g. settlement import before reconciliation). */
   dependsOn?: string[];
   /** A live panel the task shows with the period's figures (e.g. 'amazon-stock' = Amazon stock valuation for the month). */
-  live?: 'amazon-stock' | 'fix';
+  live?: 'amazon-stock' | 'fix' | 'tds';
   active: boolean;
   source?: string;
 }
@@ -315,7 +315,7 @@ function clean(input: Partial<WorkTask>, prev?: WorkTask): WorkTask {
           .filter((c) => c.label)
       : prev?.checklist,
     dependsOn: Array.isArray(input.dependsOn) ? input.dependsOn.map(String) : prev?.dependsOn,
-    live: input.live === 'amazon-stock' || input.live === 'fix' ? input.live : (input.live === null ? undefined : prev?.live),
+    live: input.live === 'amazon-stock' || input.live === 'fix' || input.live === 'tds' ? input.live : (input.live === null ? undefined : prev?.live),
     startDay: num(input.startDay, 1, 31) ?? (input.startDay === null ? undefined : prev?.startDay),
     active: input.active ?? prev?.active ?? true,
     source: input.source ?? prev?.source ?? 'custom',

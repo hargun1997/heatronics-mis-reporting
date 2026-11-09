@@ -193,7 +193,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   skipped) → `GET /api/issues/inbox` / `count`; browser `data/issues/inbox.ts deckItems` (tie breach, ready to lock, BOM from another month,
   unmapped / no-BOM products). Shared state `issues/state` (`POST /api/issues/state`): Done holds until the item's `sig` changes.
   Tally health keeps only tools (Chart of accounts default, Ask, Ledgers, Vouchers, Ledger rules) + a line pointing to Tasks → Fix.
-  **Calendar v2** (`closeCalendar.ts`, `CALENDAR_VERSION` 2): `cal-m10-mis` = the five no-API uploads + lock (checklist); new
+  **Calendar v2** (`closeCalendar.ts`, `CALENDAR_VERSION` 3 since TDS planning): `cal-m10-mis` = the five no-API uploads + lock (checklist); new
   `cal-m02-stock` "Closing stock into Tally" with `live: 'amazon-stock'` → `AmazonStockPanel` on the task: `GET /api/stock/amazon?month=`
   (`routes/stock.ts`: Ops `amz_ledger_daily_fc_latest` balances for both month ends via `sources/opsBq.ts opsQuery` + Production costs
   incl. `conversion`) → pure `client/src/data/stock/amazonStock.ts buildValuation` (per FG via `skuToFgMapping`, sellable + unsellable +
@@ -244,6 +244,19 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   (records only, no bank status; who = `req.htxUser`, else self-reported, flagged). Routes `server/src/routes/payments.ts`
   (`GET/PUT /api/payments/payees`, `GET/POST /api/payments/batches`, `GET /api/payments/batches/:id`). Debit account in localStorage
   `mis.payments.debitAccount` only. Tests `server/test/payments.test.ts` (synthetic data; the repo is public — never commit real payees).
+- **TDS planning (`/accounts/tds`, sidebar Accounts; founder 9 Nov 2026), READ ONLY from the STORED Tally Day Books:** `GET /api/tds?month=`
+  (`routes/tds.ts`, pure `services/tdsFeed.ts`: months FY April → month + 1 / quarter end, only vouchers touching a /TDS/ ledger + their ledger
+  masters) → pure engine `client/src/data/tds/tds.ts buildTds` (in the browser): TDS PAYABLE ledgers (not receivable / 194O / TCS / Current
+  Assets), section from the ledger name (`sectionOf`: 192, 194A/C/H/Q, 194I(a/b), 194J(a/b), 195, else "Other" = rename the ledger), amount
+  paid = the voucher's Dr lines ex-GST / tax / bank, deductee = party (PAN from masters), rate check (194C 1 % / 2 % by PAN 4th letter,
+  194J 2 / 10, 194H 2, 194I 2 / 10, 194Q 0.1, no PAN = 20 % 206AA), threshold notes, challans = TDS debits with a bank line booked in the
+  NEXT month (assumption), FIFO late-deposit interest 1.5 % / month-or-part, 234E ₹200 / day capped, challan head 0020 company / 0021 other,
+  due 7th (March → 30 Apr), quarter 26Q / 24Q / 27Q rows (BSR / serial read from the challan narration "BSR 1234567 Challan 12345").
+  Rates / limits = 1961 Act after Finance Act 2025 — UNVERIFIED for FY 2026-27 (Income-tax Act 2025 renumbers sections). Excel layout in ONE
+  place `client/src/data/tds/tdsFormats.ts` (Pay this month · Deductee detail · 26Q prep) — **match to Heatronics' existing TDS file when the
+  founder sends it**. Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),
+  `cal-m04-tds-march` (30 Apr), both `live: 'tds'` → `pages/work/TdsTaskPanel.tsx`; `cal-q-tds-return` (31 Jan / May / Jul / Oct). Tests
+  `server/test/tds.test.ts`.
 - **Live MIS = five tabs of expandable sections (founder, 5 Nov 2026: "expandable … declutter … the P&L is the MIS"):** `pages/mis/LiveMisPage.tsx`
   Overview (Headline · Revenue & growth · Run-rate — whole business) · **P&L** (the MIS sheet `LiveMisSheetTab` with Show ₹ Lac | % of net
   revenue and **Basis Actual | Normalised** — ONE basis switch (`LiveView.basis`, default normalised) drives the Margin ladder & cost structure,
