@@ -13,12 +13,15 @@ import { RevenueView } from '../../components/planning/outputs/Revenue';
 import { CostsView } from '../../components/planning/outputs/Costs';
 import { CashFundingView } from '../../components/planning/outputs/CashFunding';
 import { ProductsCustomersView } from '../../components/planning/outputs/ProductsCustomers';
+import { PlanVsActualView } from '../../components/planning/outputs/PlanVsActual';
+import { planMonthsOf } from '../../data/planning/planVsActual';
+import { runRateArr } from '../../data/planning/growth';
 import { PnlGrid } from '../../components/planning/PnlGrid';
 import { monthBefore, openingFromTally } from '../../data/planning/opening';
 import { downloadPlanWorkbook } from '../../utils/planningExport';
 
 interface Saved { id: string; name: string; note: string; updatedAt: string; updatedBy: string | null }
-type View = 'overview' | 'business' | 'revenue' | 'costs' | 'monthly' | 'cash' | 'products';
+type View = 'overview' | 'business' | 'revenue' | 'costs' | 'monthly' | 'cash' | 'products' | 'actual';
 
 const DRAFT_KEY = 'planning-draft-v1';
 const icon = (
@@ -124,7 +127,7 @@ export function PlanningPage() {
     setBusy(true);
     try {
       const next = { ...plan, name };
-      const row = await api<Saved>('/api/planning/scenarios', { id: asNew || selected === 'base' ? undefined : selected, name, plan: next });
+      const row = await api<Saved>('/api/planning/scenarios', { id: asNew || selected === 'base' ? undefined : selected, name, plan: next, summary: planMonthsOf(result, next.startMonth, (e) => runRateArr(result, e)) });
       setPlan(next); setSelected(row.id); setCleanJson(JSON.stringify(next));
       await refreshList();
       flash(`Saved “${name}”.`);
@@ -182,7 +185,7 @@ export function PlanningPage() {
 
         <div className="-mx-1 overflow-x-auto px-1 [&_button]:whitespace-nowrap">
           <SegmentedControl<View>
-            options={[{ id: 'overview', label: 'Overview' }, { id: 'business', label: 'Business plan' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }, { id: 'products', label: 'Products & customers' }]}
+            options={[{ id: 'overview', label: 'Overview' }, { id: 'business', label: 'Business plan' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }, { id: 'products', label: 'Products & customers' }, { id: 'actual', label: 'Plan vs actual' }]}
             value={view} onChange={setView} aria-label="Plan output"
           />
         </div>
@@ -194,6 +197,7 @@ export function PlanningPage() {
         {view === 'monthly' && <PnlGrid r={result} />}
         {view === 'cash' && <CashFundingView plan={plan} result={result} />}
         {view === 'products' && <ProductsCustomersView plan={plan} result={result} />}
+        {view === 'actual' && <PlanVsActualView saved={saved} />}
       </div>
     </>
   );

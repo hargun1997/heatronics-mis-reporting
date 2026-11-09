@@ -23,11 +23,13 @@ import { InvoiceBookingSuggester } from './pages/guide/tools/InvoiceBookingSugge
 import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
 import { ExpenseBooking } from './pages/tools/ExpenseBooking';
 import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
+import { TodayPage } from './pages/today/TodayPage';
 import { PriceFloorsPage } from './pages/tools/PriceFloorsPage';
 import { BulkPaymentsPage } from './pages/tools/BulkPaymentsPage';
 import { RoundPlannerPage } from './pages/tools/RoundPlannerPage';
 import { PlanningPage } from './pages/planning/PlanningPage';
 import { TallyPage } from './pages/tally/TallyPage';
+import { TdsPage } from './pages/accounts/TdsPage';
 
 function App() {
   return (
@@ -102,12 +104,14 @@ function App() {
           <Route path="tools/invoice-booking" element={<InvoiceBookingSuggester />} />
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
           <Route path="tools/expense-booking" element={<ExpenseBooking />} />
+          <Route path="today" element={<TodayPage />} />
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
           <Route path="tools/bulk-payments" element={<BulkPaymentsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />
           <Route path="planning" element={<PlanningPage />} />
           <Route path="setup" element={<Navigate to="/reporting/mis/connectors" replace />} />
           <Route path="tally" element={<TallyPage />} />
+          <Route path="accounts/tds" element={<TdsPage />} />
 
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { MISRecord, MISPeriod, periodToString, periodToKey, SalesChannel, SALES_CHANNELS, createEmptyChannelRevenue, createEmptyMISRecord, createEmptyCOGMData, AggregatedBalanceSheetData } from '../../types/misTracking';
+import { MISRecord, MISPeriod, periodToString, periodToKey, SalesChannel, SALES_CHANNELS, createEmptyChannelRevenue, createEmptyCOGMData, AggregatedBalanceSheetData } from '../../types/misTracking';
 import { formatCurrency, formatCurrencyFull, formatPercent } from '../../utils/misCalculator';
 import { EnhancedMISReportView } from '../mis-report-enhanced';
 import { TableCellsIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
@@ -452,6 +452,31 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
     });
   };
 
+  // Get tax summary from state data store (if available)
+  const taxSummary = useMemo(() => {
+    if (!displayMIS) return null;
+
+    // Get month key from period
+    const monthKey = displayMIS.periodKey;
+
+    // Try to get aggregated data from new state data store
+    const aggregatedData = aggregateStatesToMonth(monthKey);
+
+    if (aggregatedData) {
+      return aggregatedData.aggregated.taxSummary;
+    }
+
+    // Fallback: return empty tax summary
+    return {
+      outputGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
+      inputGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
+      expenseGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
+      netGST: 0,
+      tds: 0,
+      roundOffs: 0
+    };
+  }, [displayMIS]);
+
   if (!displayMIS && savedPeriods.length === 0) {
     return (
       <div className="text-center py-12">
@@ -479,30 +504,6 @@ export function MISMonthlyView({ currentMIS, savedPeriods, onPeriodChange, allMI
   const nonOperating = displayMIS ? displayMIS.nonOperating : { interestExpense: 0, depreciation: 0, amortization: 0, totalIDA: 0, incomeTax: 0 };
   const netRevenue = revenue.netRevenue;
 
-  // Get tax summary from state data store (if available)
-  const taxSummary = useMemo(() => {
-    if (!displayMIS) return null;
-
-    // Get month key from period
-    const monthKey = displayMIS.periodKey;
-
-    // Try to get aggregated data from new state data store
-    const aggregatedData = aggregateStatesToMonth(monthKey);
-
-    if (aggregatedData) {
-      return aggregatedData.aggregated.taxSummary;
-    }
-
-    // Fallback: return empty tax summary
-    return {
-      outputGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
-      inputGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
-      expenseGST: { sgst: 0, cgst: 0, igst: 0, total: 0 },
-      netGST: 0,
-      tds: 0,
-      roundOffs: 0
-    };
-  }, [displayMIS]);
 
   return (
     <div className="space-y-6">

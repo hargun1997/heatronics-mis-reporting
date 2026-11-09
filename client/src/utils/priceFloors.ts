@@ -30,6 +30,12 @@ export interface FloorSku {
   /** FBA storage per unit sold for this SKU (its box size); null = the account average in settings. */
   storage?: number | null;
   reportId: string | null; // report the numbers last came from
+  /** How Amazon stock ships, from Production's product specs (filled by withSpecs; never typed here). */
+  route?: 'FBA' | 'FBM' | 'Both' | null;
+  /** Courier chargeable weight (kg) = max(packed, L×B×H÷5000), from Production's specs. */
+  chargeKg?: number | null;
+  /** true = sold by us (1P): no reseller margin; false = via a 3P seller; unset = the global default. */
+  firstParty?: boolean | null;
 }
 
 export interface FloorGlobal {
@@ -49,6 +55,10 @@ export interface FloorGlobal {
   resellerOn?: boolean; // false = leave the reseller margin out
   packingOn?: boolean; // false = leave packing out
   stuckOn?: boolean; // false = treat input GST as fully recoverable (no GST stuck)
+  fbmPerKg?: number; // FBM courier ₹ per chargeable kg (incl. GST)
+  fbmMin?: number; // FBM courier minimum ₹ per order (incl. GST)
+  unsell?: number; // share of returns that can't be resold (0–1); the main table uses it
+  ownPays3p?: boolean; // false = own-brand sales are 1P by default (no reseller margin); per-SKU firstParty overrides
 }
 
 export interface FloorSettings {
@@ -90,7 +100,7 @@ export interface CostsSnapshot {
 }
 
 /** One product's box and carton, as Production serves it (/api/costs → specs). */
-export interface ProductSpec { item: string; name?: string; box?: string; L: number; B: number; H: number; kg: number; perCarton: number; cL: number; cB: number; cH: number; asin?: string; route?: string; cm3?: number }
+export interface ProductSpec { item: string; name?: string; box?: string; L: number; B: number; H: number; kg: number; perCarton: number; cL: number; cB: number; cH: number; asin?: string; route?: string; cm3?: number; chargeKg?: number; volKg?: number }
 
 /** ATS ₹ per master carton of 65 × 44 × 35 cm, read off the fee report (X Lite ₹14.43 × 25, X-L Lite ₹38.11 × 10). */
 export const ATS_PER_CTN = 370;
@@ -105,12 +115,17 @@ export function withSpecs(st: FloorSettings, specs?: ProductSpec[] | null): Floo
   if (!specs?.length) return st;
   const by = new Map(specs.map((s) => [s.item, s]));
   const cm3 = (s: ProductSpec) => s.cm3 || s.L * s.B * s.H;
+  const fbm = (s: ProductSpec) => s.route === 'FBM';
   let v = 0, n = 0;
-  for (const x of st.skus) { const s = by.get(x.item); if (s && cm3(s) > 0 && x.sold > 0) { v += cm3(s) * x.sold; n += x.sold; } }
+  for (const x of st.skus) { const s = by.get(x.item); if (s && !fbm(s) && cm3(s) > 0 && x.sold > 0) { v += cm3(s) * x.sold; n += x.sold; } }
   const avg = n ? v / n : 0;
-  const skus = st.skus.map((x) => {
-    const s = by.get(x.item);
-    if (!s || !(cm3(s) > 0)) return x;
+  const skus = st.skus.map((x0) => {
+    const s = by.get(x0.item);
+    if (!s) return x0;
+    const route = s.route === 'FBM' || s.route === 'Both' ? s.route : 'FBA';
+    const kg = s.chargeKg ?? Math.max(s.kg || 0, cm3(s) / 5000);
+    const x: FloorSku = { ...x0, route, chargeKg: kg > 0 ? Math.round(kg * 100) / 100 : null };
+    if (!(cm3(s) > 0) || route === 'FBM') return x;
     const storage = x.storage ?? (avg ? Math.round((st.global.storage * cm3(s) / avg) * 100) / 100 : null);
     const ctn = s.cL * s.cB * s.cH;
     const inbound = x.inbound ?? Math.round((ctn > 0 && s.perCarton > 0 ? (ATS_PER_CTN * ctn) / CTN_REF / s.perCarton : (ATS_PER_CTN * cm3(s)) / 0.85 / CTN_REF) * 100) / 100;
@@ -163,7 +178,37 @@ export const DEFAULT_GLOBAL: FloorGlobal = {
   buyGst: 0.18,
   reseller: 0.04,
   packing: 0.01,
+  fbmPerKg: 45,
+  fbmMin: 70,
+  unsell: 0,
+  ownPays3p: true,
 };
+
+/** True when this SKU ships FBM (Production's specs): no FBA fee, storage or freight to FC; a courier per order instead. */
+export const isFbm = (x: FloorSku) => x.route === 'FBM';
+/** FBM courier ₹ per order (incl. GST) = ₹ per kg × chargeable kg, at least the minimum. */
+export function fbmCourier(x: FloorSku, st: FloorSettings) {
+  const g = st.global;
+  const perKg = Number.isFinite(g.fbmPerKg) ? g.fbmPerKg! : DEFAULT_GLOBAL.fbmPerKg!;
+  const min = Number.isFinite(g.fbmMin) ? g.fbmMin! : DEFAULT_GLOBAL.fbmMin!;
+  return Math.max(min, perKg * (x.chargeKg && x.chargeKg > 0 ? x.chargeKg : 0));
+}
+/** Share of returns that can't be resold (setting, 0–1). */
+export const unsellOf = (st: FloorSettings) => {
+  const u = st.global.unsell;
+  return Number.isFinite(u) ? Math.min(1, Math.max(0, u!)) : 0;
+};
+/** Sold by us (1P): the SKU's own toggle, else the global "Own-brand sales pay 3P margin" (off = 1P). */
+export const isFirstParty = (x: FloorSku, st: FloorSettings) => (x.firstParty != null ? x.firstParty : st.global.ownPays3p === false);
+/** Reseller margin share this SKU pays (0 when switched off or sold 1P). */
+export const resellerOf = (x: FloorSku, st: FloorSettings) => {
+  const g = st.global;
+  if (g.resellerOn === false || isFirstParty(x, st)) return 0;
+  return Number.isFinite(g.reseller) ? g.reseller : DEFAULT_GLOBAL.reseller;
+};
+/** The SKU as solve() charges it: an FBM SKU's fulfilment fee becomes the courier, with no freight to FC or storage. */
+export const asCharged = (x: FloorSku, st: FloorSettings): FloorSku =>
+  isFbm(x) ? { ...x, fba: fbmCourier(x, st), pick: null, inbound: 0, storage: 0 } : x;
 
 const s = (asin: string, name: string, sku: string, item: string, asp: number, sold: number, returned: number, fba: number, admin: number, refPct: number): FloorSku => ({
   asin, name, sku, item, asp, sold, returned, fba, admin, refPct, tacos: null, inbound: null, reportId: null,
@@ -237,8 +282,18 @@ export interface Lines {
 }
 
 /** The detail lines under a waterfall row (all before GST), for the SKU breakdown. */
-export function detailLines(l: Lines, x: FloorSku, st: FloorSettings, c: CostIn): Partial<Record<keyof Groups, [string, number][]>> {
+export function detailLines(l: Lines, x0: FloorSku, st: FloorSettings, c: CostIn): Partial<Record<keyof Groups, [string, number][]>> {
   const g1 = 1 + buyGstOf(st);
+  const x = asCharged(x0, st);
+  if (isFbm(x0)) {
+    const kg = x0.chargeKg && x0.chargeKg > 0 ? `${x0.chargeKg} kg` : 'no weight';
+    const unsellableF = l.returnsEx - l.returns / g1;
+    return {
+      cost: [['Materials (parts list)', c.material], ['Factory overheads', c.conversion]],
+      amazon: [[`Courier per order (FBM, ${kg}; no FBA fee, storage or freight to FC)`, x.fba / g1], ['Referral fee', l.referral / g1], ['Closing fee (Easy Ship / self-ship)', l.closing / g1]],
+      returns: [['Courier + refund admin lost on returns', l.returns / g1], ...(unsellableF > 0.5 ? [['Unsellable returns', unsellableF] as [string, number]] : [])],
+    };
+  }
   const pick = x.pick != null && x.pick > 0 && x.pick <= x.fba ? x.pick : null;
   const lostOnReturns = l.returns / g1;
   const fba: [string, number][] = pick != null
@@ -268,19 +323,28 @@ export const groupLines = (l: Lines, price: number): Groups => ({
   margin: l.margin,
 });
 /** Waterfall rows, leaving out the lines switched off in settings. */
-export const waterfallRows = (st: FloorSettings) => {
+export const waterfallRows = (st: FloorSettings, x?: FloorSku) => {
   const g = st.global;
-  return WATERFALL.filter(({ k }) => !((k === 'reseller' && g.resellerOn === false) || (k === 'packing' && g.packingOn === false) || (k === 'stuck' && g.stuckOn === false)));
+  const noRsl = g.resellerOn === false || (x != null && isFirstParty(x, st));
+  return WATERFALL
+    .filter(({ k }) => !((k === 'reseller' && noRsl) || (k === 'packing' && g.packingOn === false) || (k === 'stuck' && g.stuckOn === false)))
+    .map((r) => (r.k === 'amazon' && x && isFbm(x) ? { ...r, label: 'Amazon fees + courier (FBM)' } : r));
 };
+/** "FBA" / "FBM" tag and "1P" for a SKU, for the table, waterfall title and PDF. */
+export const routeTag = (x: FloorSku, st: FloorSettings) => [isFbm(x) ? 'FBM' : 'FBA', ...(isFirstParty(x, st) ? ['1P'] : [])].join(' · ');
+/** One line on the ₹1,000 band for a SKU, e.g. "Band: ₹999 keeps ₹120; avoid ₹1,000–₹1,149". */
+export const bandLine = (a: BandAdvice, money: (v: number) => string = rs) =>
+  `Band: ${money(a.below)} keeps ${money(a.belowMargin)}; ${a.deadTo == null ? `no price from ${money(a.deadFrom)} up to ${money(a.deadFrom * 5)} earns as much` : a.deadTo <= a.deadFrom ? `${money(a.deadFrom)} and up earns more` : `avoid ${money(a.deadFrom)}–${money(a.deadTo - 1)}`}`;
 /** One line naming what the prices include, for the page and the PDF. */
 export const assumptionsLine = (st: FloorSettings) => {
   const g = st.global;
   const p = (v: number) => `${Math.round(v * 1000) / 10}%`;
   return [
     `margin ${p(marginOf(st))}`,
-    g.resellerOn === false ? '3P margin off' : `3P margin ${p(g.reseller ?? DEFAULT_GLOBAL.reseller)}`,
+    g.resellerOn === false ? '3P margin off' : `3P margin ${p(g.reseller ?? DEFAULT_GLOBAL.reseller)}${g.ownPays3p === false ? ' (3P SKUs only)' : ''}`,
     g.packingOn === false ? 'packing off' : `packing ${p(g.packing ?? DEFAULT_GLOBAL.packing)}`,
     g.stuckOn === false ? 'GST stuck ignored' : 'GST stuck counted',
+    `${p(unsellOf(st))} of returns unsellable`,
   ].join(' · ');
 };
 export const WATERFALL: { k: keyof Groups; label: string; sign: '' | '−' | '=' }[] = [
@@ -319,15 +383,13 @@ export function stuckOf(goods: number, serv: number, outGst: number, on?: boolea
 /** Product cost with the GST paid on materials. */
 export const grossCost = (c: CostIn, st: FloorSettings) => c.material * (1 + buyGstOf(st)) + c.conversion;
 
-/**
- * Lowest GST-inclusive price that leaves `margin` (share of net sales) after product cost,
- * Amazon fees, returns, ads and the GST stuck by the inverted duty. margin = 0 gives break-even.
- */
-export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: number | null, tacos: number, margin = marginOf(st)): { price: number; lines: Lines } {
+/** Everything solve() needs that doesn't depend on the price. */
+function setup(x0: FloorSku, st: FloorSettings, c: CostIn, unsellable: number | null, tacos: number, margin: number) {
   const g = st.global;
+  const x = asCharged(x0, st);
   const b = buyGstOf(st);
   const cost = grossCost(c, st);
-  const r = unsellable === null ? 0 : Math.min(returnRate(x, st), 0.9);
+  const r = unsellable === null ? 0 : Math.min(returnRate(x0, st), 0.9);
   const u = unsellable || 0;
   const k = r / (1 - r);
   const sent = x.inbound ?? g.placement + g.transport;
@@ -336,39 +398,34 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
   const base = cost + x.fba + inbound + k * (x.fba + x.admin) + k * u * (cost + inbound + g.removal);
   const net = 1 / (1 + g.gst);
   const ads = tacos * (1 + b); // ad spend is billed with 18% GST on top
-  // ads + margin (+ referral) can eat the whole price: then no price works
-  const rsl = g.resellerOn === false ? 0 : Number.isFinite(g.reseller) ? g.reseller : DEFAULT_GLOBAL.reseller;
+  const rsl = resellerOf(x0, st);
   const pk = g.packingOn === false ? 0 : Number.isFinite(g.packing) ? g.packing : DEFAULT_GLOBAL.packing;
   // margin, reseller margin and packing are shares of net sales (price without GST); packing also carries GST
   const lo = 1 - ads - (margin + rsl) * net - pk * net * (1 + b);
   const hi = lo - x.refPct;
-  let price = Infinity;
-  let above = false;
-  let extra = 0; // sale GST the input credits don't cover
-  let inGst = 0;
-  let outGst = 0;
-  let amazon = 0;
-  let stuck = 0;
-  for (let i = 0; i < 30; i++) {
-    price = lo > 0 ? (base + extra + g.closeLo) / lo : Infinity;
-    above = false;
-    if (price >= g.band) {
-      price = hi > 0 ? Math.max(g.band, (base + extra + g.closeHi) / hi) : Infinity;
-      above = true;
-    }
-    if (!Number.isFinite(price)) break;
-    // Amazon fees (incl. their GST): fulfilment, inbound, storage, referral, closing, wasted on returns, removal
-    amazon = x.fba + inbound + (above ? x.refPct * price + g.closeHi : g.closeLo) + k * (x.fba + x.admin) + k * u * (inbound + g.removal);
-    const goods = b * c.material * (1 + k * u); // GST on materials
-    const serv = (amazon * b) / (1 + b) + b * tacos * price + b * pk * net * price; // GST on Amazon fees, ads, packing
-    inGst = goods + serv;
-    outGst = price - price * net;
-    stuck = stuckOf(goods, serv, outGst, g.stuckOn);
-    // net GST cost on top of the GST already inside the costs: sale GST − credits used − refund (= − inGst + outGst + stuck)
-    const next = outGst - inGst + stuck;
-    if (Math.abs(next - extra) < 0.005) { extra = next; break; }
-    extra = next;
-  }
+  return { g, x, b, c, cost, k, u, inbound, store, base, net, ads, tacos, rsl, pk, lo, hi };
+}
+type Setup = ReturnType<typeof setup>;
+
+/** GST and Amazon charges at a given price (referral + higher closing fee from the band up). */
+function gstAt(s: Setup, price: number) {
+  const { g, x, b, c, k, u, inbound, net, tacos, pk } = s;
+  const above = price >= g.band;
+  // Amazon fees (incl. their GST): fulfilment, inbound, storage, referral, closing, wasted on returns, removal
+  const amazon = x.fba + inbound + (above ? x.refPct * price + g.closeHi : g.closeLo) + k * (x.fba + x.admin) + k * u * (inbound + g.removal);
+  const goods = b * c.material * (1 + k * u); // GST on materials
+  const serv = (amazon * b) / (1 + b) + b * tacos * price + b * pk * net * price; // GST on Amazon fees, ads, packing
+  const inGst = goods + serv;
+  const outGst = price - price * net;
+  const stuck = stuckOf(goods, serv, outGst, g.stuckOn);
+  // net GST cost on top of the GST already inside the costs: sale GST − credits used − refund (= − inGst + outGst + stuck)
+  return { above, amazon, inGst, outGst, stuck, extra: outGst - inGst + stuck };
+}
+
+/** The per-unit lines (and margin ₹) at a given GST-inclusive price. */
+function linesAt(s: Setup, price: number): Lines {
+  const { g, x, b, c, cost, k, u, inbound, store, net, ads, tacos, rsl, pk } = s;
+  const { above, amazon, inGst, outGst, stuck, extra } = gstAt(s, price);
   const lines: Lines = {
     cost,
     fba: x.fba,
@@ -400,7 +457,59 @@ export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: num
   lines.amazonEx = (amazon - retFees) / (1 + b);
   const spent = lines.cost + lines.fba + lines.placement + lines.transport + lines.storage + lines.referral + lines.closing + lines.returns + lines.unsellable + lines.ads + lines.gst + lines.resellerEx + lines.packingEx * (1 + b);
   lines.margin = price - spent;
-  return { price, lines };
+  return lines;
+}
+
+/**
+ * Lowest GST-inclusive price that leaves `margin` (share of net sales) after product cost,
+ * Amazon fees (or the FBM courier), returns, ads and the GST stuck by the inverted duty. margin = 0 gives break-even.
+ */
+export function solve(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: number | null, tacos: number, margin = marginOf(st)): { price: number; lines: Lines } {
+  const s = setup(x, st, c, unsellable, tacos, margin);
+  const { g, base, lo, hi } = s;
+  let price = Infinity;
+  let extra = 0; // sale GST the input credits don't cover
+  for (let i = 0; i < 30; i++) {
+    price = lo > 0 ? (base + extra + g.closeLo) / lo : Infinity;
+    if (price >= g.band) price = hi > 0 ? Math.max(g.band, (base + extra + g.closeHi) / hi) : Infinity;
+    if (!Number.isFinite(price)) break;
+    const next = gstAt(s, price).extra;
+    if (Math.abs(next - extra) < 0.005) break;
+    extra = next;
+  }
+  return { price, lines: linesAt(s, price) };
+}
+
+/** Per-unit lines and margin ₹ at a price you pick (e.g. ₹999), same costs as solve(). */
+export function marginAt(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: number | null, tacos: number, price: number): Lines {
+  return linesAt(setup(x, st, c, unsellable, tacos, marginOf(st)), price);
+}
+
+/**
+ * The ₹1,000 referral band. Amazon.in charges no referral below the band and a higher closing fee from it, so the
+ * margin ₹ drops at ₹1,000. below = price just under the band (₹999) and its margin ₹; deadTo = the lowest whole-rupee
+ * price at or above the band that earns at least that margin (null = none up to 5× the band). Prices from the band to
+ * deadTo − 1 earn less than ₹999 does (the "dead zone"). priceAtBelow = the target floor is ≤ ₹999 and today's price
+ * sits in the dead zone, so ₹999 earns more per unit.
+ */
+export interface BandAdvice { below: number; belowMargin: number; deadFrom: number; deadTo: number | null; floor: number; priceAtBelow: boolean }
+export function bandAdvice(x: FloorSku, st: FloorSettings, c: CostIn, unsellable: number | null, tacos: number, margin = marginOf(st)): BandAdvice {
+  const s = setup(x, st, c, unsellable, tacos, margin);
+  const band = st.global.band;
+  const below = Math.ceil(band) - 1;
+  const belowMargin = linesAt(s, below).margin;
+  const m = (p: number) => linesAt(s, p).margin;
+  let deadTo: number | null = null;
+  if (m(band) >= belowMargin) deadTo = band;
+  else if (m(band * 5) >= belowMargin) {
+    let a = band, z = band * 5; // m(a) < target ≤ m(z); margin rises with price above the band
+    while (z - a > 0.01) { const mid = (a + z) / 2; if (m(mid) >= belowMargin) z = mid; else a = mid; }
+    deadTo = Math.ceil(z);
+    if (m(deadTo) < belowMargin) deadTo += 1;
+  }
+  const floor = solve(x, st, c, unsellable, tacos, margin).price;
+  const inDead = x.asp >= band && (deadTo == null || x.asp < deadTo);
+  return { below, belowMargin, deadFrom: band, deadTo, floor, priceAtBelow: floor <= below && inDead && belowMargin > m(x.asp) };
 }
 
 /**

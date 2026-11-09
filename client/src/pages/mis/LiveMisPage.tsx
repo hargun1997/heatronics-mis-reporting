@@ -16,7 +16,7 @@ import { LabeledField } from '../../components/ui/LabeledField';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader, KpiTile, SegmentedControl } from '../../components/ui';
-import { inr } from '../../components/mis-deck/charts';
+import { inr } from '../../components/mis-deck/format';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
 import {
@@ -37,6 +37,8 @@ import { MonthClosePanel } from '../../components/liveMis/MonthClosePanel';
 import { deckItems, rememberDeckItems } from '../../data/issues/inbox';
 import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExportModals';
 import { LiveViewProvider, Pills, Section, type CogmBasis } from '../../components/liveMis/shared';
+import { WhyItMoved } from '../../components/liveMis/WhyItMoved';
+import { useWhyData, useSaveBridge, whySummary } from '../../components/liveMis/whyData';
 
 const iconLive = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -210,6 +212,12 @@ export function LiveMisPage() {
     return [...byKey.values()];
   }, [view, selected]);
 
+  // "Why it moved": always the ACTUAL months (as booked) plus their normalised twins, whatever the basis switch says.
+  const whyActual = useMemo(() => (view ? aggregatePeriods(view.months, completeness, 'month') : []), [view, completeness]);
+  const whyNorm = useMemo(() => (normalised ? aggregatePeriods(normalised.months, completeness, 'month') : []), [normalised, completeness]);
+  const why = useWhyData(selected, whyActual, whyNorm, view);
+  useSaveBridge(why, !!view && !showLive);
+
   const ctx = useMemo(() => ({ merged, basis, setBasis, basisNote: normalised?.note ?? '' }), [merged, basis, setBasis, normalised]);
   const showControls = !NO_PERIOD.includes(tab) && view && allPeriods.length > 0;
 
@@ -351,6 +359,9 @@ export function LiveMisPage() {
             <Section id="ov-headline" title="Headline" defaultOpen
               meta={`Snapshot for ${selLabel} · KPIs, revenue & margin trends, channel mix, P&L bridge`}>
               {withPeriod((sel) => <OverviewTab period={sel} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} traffic={trafficRows} isRange={isRange} />)}
+            </Section>
+            <Section id="ov-why" title="Why it moved" meta={whySummary(why)}>
+              {withDeck(() => <WhyItMoved data={why} />)}
             </Section>
             <Section id="ov-growth" title="Revenue & growth"
               meta="ARR & forward projection · discounts · revenue trajectory by channel · period-over-period and YoY growth">

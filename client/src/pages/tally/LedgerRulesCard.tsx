@@ -1,7 +1,7 @@
 // Tally health → "Ledger rules": which Tally ledgers feed Quick Commerce / Flipkart sales, Brand investment and Cost of
 // fundraising (seed map + editable name-pattern rules), what matched, and what still needs the founder's eye.
 // Rules: GET/PUT /api/tally/ledger-rules (stored as data). Matching: client/src/data/monthClose/ledgerRules.ts. Read only.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_LEDGER_RULES, RULE_LINES, exactNameRule, ledgerRulesReport, sanitizeRules, type LedgerRule, type RuleLine } from '../../data/monthClose/ledgerRules';
 import { exactLineOf } from '../../data/monthClose/ledgerMap';
 
@@ -14,12 +14,12 @@ export function LedgerRulesCard() {
   const [w, setW] = useState<Wire | null>(null);
   const [rules, setRules] = useState<LedgerRule[]>(DEFAULT_LEDGER_RULES);
   const [msg, setMsg] = useState<string | null>(null);
-  const load = useCallback(async () => {
-    const r = await fetch('/api/tally/ledger-rules');
-    const j = (await r.json()) as Wire;
-    setW(j); setRules(j.rules?.length ? j.rules : DEFAULT_LEDGER_RULES);
+  useEffect(() => {
+    fetch('/api/tally/ledger-rules')
+      .then((r) => r.json() as Promise<Wire>)
+      .then((j) => { setW(j); setRules(j.rules?.length ? j.rules : DEFAULT_LEDGER_RULES); })
+      .catch((e) => setMsg(e.message));
   }, []);
-  useEffect(() => { load().catch((e) => setMsg(e.message)); }, [load]);
 
   const rep = useMemo(() => {
     if (!w) return null;

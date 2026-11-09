@@ -26,6 +26,18 @@ function token(creds: Credentials): string {
 }
 
 /**
+ * READ ONLY guard (every Meta call is a plain GET): graph.facebook.com /<ver>/act_<id>/insights (or the account
+ * itself for the connection test), and never Graph's `method=` override, which would turn a GET into a POST / DELETE.
+ */
+export function assertMetaReadOnly(url: string): void {
+  let u: URL;
+  try { u = new URL(url); } catch { throw new Error('Blocked: Meta call to a bad URL.'); }
+  const ok = u.protocol === 'https:' && u.host === 'graph.facebook.com' && /^\/v[\d.]+\/act_\d+(\/insights)?$/.test(u.pathname)
+    && !u.searchParams.has('method') && !/[?&]method=/i.test(u.search);
+  if (!ok) throw new Error('Blocked: Meta calls are read only (insights GET).');
+}
+
+/**
  * Every insights row for `params` on the ad account, following paging. READ
  * ONLY: GET on graph.facebook.com /act_…/insights only (asserted before each call).
  */
@@ -34,7 +46,7 @@ export async function metaInsights(creds: Credentials, params: Record<string, st
   let url: string | null = `${BASE}/${account(creds)}/insights?${q.toString()}`;
   const out: Record<string, unknown>[] = [];
   for (let page = 0; url && page < maxPages; page++) {
-    if (!/^https:\/\/graph\.facebook\.com\/[^/]+\/act_\d+\/insights\?/.test(url)) throw new Error('Blocked: Meta calls are read only (insights GET).');
+    assertMetaReadOnly(url);
     const res: Response = await fetch(url);
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
@@ -79,6 +91,7 @@ const meta: ConnectorDef = {
 
   async test(creds: Credentials): Promise<TestResult> {
     const url = `${BASE}/${account(creds)}?fields=account_id,name&access_token=${encodeURIComponent(token(creds))}`;
+    assertMetaReadOnly(url);
     const res = await fetch(url);
     if (res.ok) {
       const b = (await res.json()) as { name?: string };
@@ -98,6 +111,7 @@ const meta: ConnectorDef = {
 
     let pages = 0;
     while (url && pages < 50) {
+      assertMetaReadOnly(url);
       const res = await fetch(url);
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };

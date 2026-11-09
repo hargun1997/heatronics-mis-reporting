@@ -31,3 +31,7 @@ dist-ssr
 # Connector credentials (local-file store fallback)
 .connector-credentials.json
 server/.connector-credentials.json
+
+# Raw Tally master exports (party GSTINs / PANs / addresses) — keep local; the repo is public.
+# scripts/normalize-tally-master.mjs reads them from the repo root and writes the slim client/public/data/tally/master.json.
+/Master*.json

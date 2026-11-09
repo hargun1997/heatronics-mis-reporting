@@ -4,6 +4,7 @@
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import { AmazonStockPanel } from './AmazonStockPanel';
+import { TdsTaskPanel } from './TdsTaskPanel';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowTopRightOnSquareIcon, BellAlertIcon, BookOpenIcon, CloudArrowUpIcon, LinkIcon } from '@heroicons/react/24/outline';
 import { getHandbook } from '../../data/handbook/handbook';
@@ -311,6 +312,7 @@ export function TaskPanel({
       </div>
 
       {task.live === 'amazon-stock' && workPeriod && /^\d{4}-\d{2}$/.test(workPeriod) && <AmazonStockPanel month={workPeriod} />}
+      {task.live === 'tds' && workPeriod && /^\d{4}-\d{2}$/.test(workPeriod) && <TdsTaskPanel month={workPeriod} />}
       {(task.dependsOn?.length ?? 0) > 0 && <DependsOn task={task} state={state} today={today} />}
       {(task.checklist?.length ?? 0) > 0 && workPeriod && <Checklist task={task} state={state} period={workPeriod} reload={reload} />}
 

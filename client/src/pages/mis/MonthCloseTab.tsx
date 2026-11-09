@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { SectionCard } from '../../components/ui/Card';
-import { inr, pctStr } from '../../components/mis-deck/charts';
+import { inr, pctStr } from '../../components/mis-deck/format';
 import { seriesFor, type PeriodMIS } from '../../data/misDeck/analytics';
 
 // ----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Transaction, Heads, MISReport, AggregatedRevenueData, IndianState, INDIAN_STATES } from '../types';
+import { Transaction, Heads, MISReport, AggregatedRevenueData, IndianState } from '../types';
 import { formatCurrency } from '../utils/cogsCalculator';
 import { HEAD_COLORS, HEAD_ORDER } from '../data/defaultHeads';
 

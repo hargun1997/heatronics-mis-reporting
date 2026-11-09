@@ -383,7 +383,7 @@ function categorizeChannel(partyName: string): string {
   return 'Offline/OEM';
 }
 
-export function parseSalesExcel(file: File, sourceState?: IndianState): Promise<SalesParseResult> {
+export function parseSalesExcel(file: File): Promise<SalesParseResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
