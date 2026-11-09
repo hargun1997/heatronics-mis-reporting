@@ -28,6 +28,7 @@ import { BulkPaymentsPage } from './pages/tools/BulkPaymentsPage';
 import { RoundPlannerPage } from './pages/tools/RoundPlannerPage';
 import { PlanningPage } from './pages/planning/PlanningPage';
 import { TallyPage } from './pages/tally/TallyPage';
+import { TdsPage } from './pages/accounts/TdsPage';
 
 function App() {
   return (
@@ -108,6 +109,7 @@ function App() {
           <Route path="planning" element={<PlanningPage />} />
           <Route path="setup" element={<Navigate to="/reporting/mis/connectors" replace />} />
           <Route path="tally" element={<TallyPage />} />
+          <Route path="accounts/tds" element={<TdsPage />} />
 
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />

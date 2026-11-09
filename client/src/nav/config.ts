@@ -4,7 +4,7 @@
 
 export type NavIconName =
   | 'live' | 'upload' | 'issues' | 'ai' | 'send' | 'tasks' | 'booking' | 'book' | 'tools'
-  | 'plan' | 'rounds' | 'floors' | 'payments' | 'sources' | 'rules' | 'people' | 'tally' | 'old';
+  | 'plan' | 'rounds' | 'floors' | 'payments' | 'sources' | 'rules' | 'people' | 'tally' | 'tds' | 'old';
 
 export interface NavPage {
   id: string;
@@ -47,6 +47,7 @@ export const NAV: NavSection[] = [
     pages: [
       { id: 'tasks', label: 'Tasks', href: '/tasks', icon: 'tasks', exact: true, also: ['/work', '/compliance', '/task-tracker', '/tracker', '/reporting/mis/issues'], hint: 'Everything to do and to fix: recurring accounts tasks + what the books and the MIS need a person for', words: 'todo deadlines gst tds roc issues fix problems errors warnings hanging ledgers tie close stock' },
       { id: 'tally', label: 'Tally health', href: '/tally', icon: 'tally', hint: 'Chart of accounts, hanging ledgers, ledgers, vouchers, ask about Tally', words: 'tally ledgers vouchers day book gst gstin chart groups ask' },
+      { id: 'tds', label: 'TDS planning', href: '/accounts/tds', icon: 'tds', hint: 'TDS to pay this month by section, deductees, 26Q / 24Q working, how to pay and file', words: 'tds challan 281 26q 24q tax deducted at source deposit section 194c 194j 194h 194i 194q traces form 16a' },
       { id: 'handbook', label: 'Accounts Handbook', href: '/handbook', icon: 'book', also: ['/guide'], hint: 'SOPs, ledgers and how we book', words: 'sop guide policy ledgers' },
     ],
   },

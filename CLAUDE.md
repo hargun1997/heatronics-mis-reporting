@@ -1,13 +1,22 @@
 # heatronics-mis-reporting
 
 ## Login
-Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in server/src/index.ts) asks the master portal
+Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in server/src/app.ts) asks the master portal
 (`https://portal.heatronics.in/api/auth/check?portal=mis`) whether the visitor's `htx_session`
 cookie may open this tool (cached 60s), and otherwise redirects to the portal's login or "no access"
 page (APIs get 401/403 JSON). The `.run.app` address redirects to mis.heatronics.in.
 Who has access is managed at https://portal.heatronics.in/admin (Hargun only).
 Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron) and `/api/expenses` (read by production.heatronics.in, own token). Never add pages there.
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
+**Security rules (9 Nov 2026, `server/test/security.test.ts`):** the app is built in `server/src/app.ts` (index.ts only listens) so the test lists
+EVERY registered route and asserts a 401 without a login (also with a forged `Host` / `X-Forwarded-Host: localhost`); a new open path fails it
+until added there and here. Open paths match EXACTLY (no prefix, no `..` / `//` / `%2e`); the localhost bypass and `HTX_GATE=off` are ignored
+when `K_SERVICE` is set (Cloud Run). On open paths the gate sets `req.htxAuthed` (signed-in person vs machine): unauthenticated reminder runs
+only do the once-a-day scheduled send and answer counts only; `/api/expenses` needs `EXPENSES_API_TOKEN` (Bearer) or a login on Cloud Run
+(no token = refused). Store keys: ingest connector / slot ids must be slugs (`SAFE_ID`), the local backend refuses keys outside its folder.
+SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata server, loopback, private ranges) on Cloud Run; the Delhivery
+`feedUrl` (carries `x-feed-token`) must be https on heatronics.in — both checked on save and before each request. Raw Tally master exports
+(`/Master*.json`: party GSTINs / PANs) are git-ignored.
 
 **AI usage feed** `GET /api/ai/usage?months=<n>` (`routes/aiUsage.ts`, pure `services/aiUsageFeed.ts`, test `test/aiUsageFeed.test.ts`; manifest tool `mis_get_ai_usage`): schema 1 of `heatronics-portal/mcp/ai-usage-feed.md` from the stored `usage/<day>/<id>.json` records (`recordApiUsage`), per IST month newest first, vendor = gemini-* → gemini else claude, purposes = feature, ₹ at `USD_INR` 88. Login only (the MIS has no roles). The MIS makes no Gemini calls any more (`ledgerVision` runs on Claude).
 
@@ -184,7 +193,7 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   skipped) → `GET /api/issues/inbox` / `count`; browser `data/issues/inbox.ts deckItems` (tie breach, ready to lock, BOM from another month,
   unmapped / no-BOM products). Shared state `issues/state` (`POST /api/issues/state`): Done holds until the item's `sig` changes.
   Tally health keeps only tools (Chart of accounts default, Ask, Ledgers, Vouchers, Ledger rules) + a line pointing to Tasks → Fix.
-  **Calendar v2** (`closeCalendar.ts`, `CALENDAR_VERSION` 2): `cal-m10-mis` = the five no-API uploads + lock (checklist); new
+  **Calendar v2** (`closeCalendar.ts`, `CALENDAR_VERSION` 3 since TDS planning): `cal-m10-mis` = the five no-API uploads + lock (checklist); new
   `cal-m02-stock` "Closing stock into Tally" with `live: 'amazon-stock'` → `AmazonStockPanel` on the task: `GET /api/stock/amazon?month=`
   (`routes/stock.ts`: Ops `amz_ledger_daily_fc_latest` balances for both month ends via `sources/opsBq.ts opsQuery` + Production costs
   incl. `conversion`) → pure `client/src/data/stock/amazonStock.ts buildValuation` (per FG via `skuToFgMapping`, sellable + unsellable +
@@ -235,6 +244,19 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   (records only, no bank status; who = `req.htxUser`, else self-reported, flagged). Routes `server/src/routes/payments.ts`
   (`GET/PUT /api/payments/payees`, `GET/POST /api/payments/batches`, `GET /api/payments/batches/:id`). Debit account in localStorage
   `mis.payments.debitAccount` only. Tests `server/test/payments.test.ts` (synthetic data; the repo is public — never commit real payees).
+- **TDS planning (`/accounts/tds`, sidebar Accounts; founder 9 Nov 2026), READ ONLY from the STORED Tally Day Books:** `GET /api/tds?month=`
+  (`routes/tds.ts`, pure `services/tdsFeed.ts`: months FY April → month + 1 / quarter end, only vouchers touching a /TDS/ ledger + their ledger
+  masters) → pure engine `client/src/data/tds/tds.ts buildTds` (in the browser): TDS PAYABLE ledgers (not receivable / 194O / TCS / Current
+  Assets), section from the ledger name (`sectionOf`: 192, 194A/C/H/Q, 194I(a/b), 194J(a/b), 195, else "Other" = rename the ledger), amount
+  paid = the voucher's Dr lines ex-GST / tax / bank, deductee = party (PAN from masters), rate check (194C 1 % / 2 % by PAN 4th letter,
+  194J 2 / 10, 194H 2, 194I 2 / 10, 194Q 0.1, no PAN = 20 % 206AA), threshold notes, challans = TDS debits with a bank line booked in the
+  NEXT month (assumption), FIFO late-deposit interest 1.5 % / month-or-part, 234E ₹200 / day capped, challan head 0020 company / 0021 other,
+  due 7th (March → 30 Apr), quarter 26Q / 24Q / 27Q rows (BSR / serial read from the challan narration "BSR 1234567 Challan 12345").
+  Rates / limits = 1961 Act after Finance Act 2025 — UNVERIFIED for FY 2026-27 (Income-tax Act 2025 renumbers sections). Excel layout in ONE
+  place `client/src/data/tds/tdsFormats.ts` (Pay this month · Deductee detail · 26Q prep) — **match to Heatronics' existing TDS file when the
+  founder sends it**. Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),
+  `cal-m04-tds-march` (30 Apr), both `live: 'tds'` → `pages/work/TdsTaskPanel.tsx`; `cal-q-tds-return` (31 Jan / May / Jul / Oct). Tests
+  `server/test/tds.test.ts`.
 - **Live MIS = five tabs of expandable sections (founder, 5 Nov 2026: "expandable … declutter … the P&L is the MIS"):** `pages/mis/LiveMisPage.tsx`
   Overview (Headline · Revenue & growth · Run-rate — whole business) · **P&L** (the MIS sheet `LiveMisSheetTab` with Show ₹ Lac | % of net
   revenue and **Basis Actual | Normalised** — ONE basis switch (`LiveView.basis`, default normalised) drives the Margin ladder & cost structure,
@@ -373,3 +395,11 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,
   assumptions / risks / themes & milestones / team text. Tested against the sheet (Exit ARR, equity 12M/18M, deployment by theme).
+- **Plan vs actual (Planning → "Plan vs actual", 9 Nov 2026):** the Base (or a saved) plan is the budget, Live MIS months are the actuals.
+  Pure `client/src/data/planning/planVsActual.ts` (byte-identical copy `server/src/planning/planVsActual.ts`, test-checked): per month plan, actual,
+  gap ₹ / %, status (within 5% = on track / behind / ahead), no data = null never 0, the running month shown but not counted, year to date, exit
+  ARR pace (last 3 closed months × 4 vs plan, gap carried to FY end), behind list. Deck side `planVsActualLive.ts` (normalised basis; units from
+  SkuCells). View `components/planning/outputs/PlanVsActual.tsx`. Server: `GET /api/planning/vs-actual?scenario=` (MCP `mis_get_plan_vs_actual`);
+  Base plan months = generated `server/src/planning/basePlanMonths.ts` (`node --import tsx scripts/export-base-plan-months.ts`; test fails when stale);
+  a saved scenario carries `summary` months written by the Planning page on Save (older scenarios: open + Save once); actuals = what the browser last
+  stored (`POST /api/planning/actuals`, written when the view opens), because the deck is built client side. Tests `server/test/planVsActual.test.ts`.

@@ -15,16 +15,19 @@
 // ----------------------------------------------------------------------------
 
 import type { ConnectorDef, Credentials, FetchResult, TestResult } from '../types.js';
+import { assertSafeTallyUrl } from '../safeUrl.js';
 import { connectorProvenance, type ConnectorSource, type LedgerNode } from '../schema.js';
 
-function endpoint(creds: Credentials): string {
+export function endpoint(creds: Credentials): string {
   let host = (creds.host || '').trim();
   if (!host) throw new Error('Tally host is required (e.g. http://127.0.0.1 or the cloud host).');
   if (!/^https?:\/\//.test(host)) host = `http://${host}`;
   host = host.replace(/\/+$/, '');
   const port = (creds.port || '9000').trim();
   // Only add the port when the host does not already carry one.
-  return /:\d+$/.test(host) ? host : `${host}:${port}`;
+  const url = /:\d+$/.test(host) ? host : `${host}:${port}`;
+  assertSafeTallyUrl(url); // SSRF: never the metadata server / internal ranges on Cloud Run
+  return url;
 }
 
 /** Tally wants dates as YYYYMMDD. */

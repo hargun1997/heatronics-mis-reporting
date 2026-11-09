@@ -20,6 +20,7 @@ import {
 } from '../services/ownershipStore.js';
 import { computeOutstanding, runReminders } from '../services/reminderEngine.js';
 import { mailerStatus } from '../services/mailer.js';
+import { readJson, writeJson } from '../ingest/objectStore.js';
 
 const router = Router();
 
@@ -50,6 +51,18 @@ router.post('/assignments/:id/done', h(async (req, res) => {
 }));
 
 router.get('/outstanding', h(async (_req, res) => res.json(await computeOutstanding(new Date()))));
-router.post('/reminders/run', h(async (_req, res) => res.json(await runReminders(new Date()))));
+// Open path (no login, for a scheduler). A caller that is not signed in (req.htxAuthed false, set by htxGate) may
+// send at most once per IST day and gets counts back — never the owners' emails or the outstanding list.
+const LAST_UNAUTH_RUN = 'ownership-reminders-last-scheduled';
+router.post('/reminders/run', h(async (req, res) => {
+  const now = new Date();
+  if ((req as unknown as { htxAuthed?: boolean }).htxAuthed === true) return res.json(await runReminders(now));
+  const day = new Date(now.getTime() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+  const last = await readJson<{ day?: string }>(LAST_UNAUTH_RUN, {});
+  if (last.day === day) return res.json({ skipped: 'Already sent today.', at: now.toISOString() });
+  await writeJson(LAST_UNAUTH_RUN, { day });
+  const run = await runReminders(now);
+  res.json({ runDate: run.runDate, servicePeriod: run.servicePeriod, outstanding: run.outstanding.length, emails: run.emails.length, sent: run.emails.filter((e) => e.sent).length });
+}));
 
 export default router;
