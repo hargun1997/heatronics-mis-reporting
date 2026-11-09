@@ -18,7 +18,6 @@ import { planMonthsOf } from '../../data/planning/planVsActual';
 import { runRateArr } from '../../data/planning/growth';
 import { PnlGrid } from '../../components/planning/PnlGrid';
 import { monthBefore, openingFromTally } from '../../data/planning/opening';
-import { downloadPlanWorkbook } from '../../utils/planningExport';
 
 interface Saved { id: string; name: string; note: string; updatedAt: string; updatedBy: string | null }
 type View = 'overview' | 'business' | 'revenue' | 'costs' | 'monthly' | 'cash' | 'products' | 'actual';
@@ -177,7 +176,7 @@ export function PlanningPage() {
             <option value="base">Base</option>
             {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <button onClick={() => downloadPlanWorkbook(plan, result)} className="ml-auto rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Export Excel</button>
+          <button onClick={() => void import('../../utils/planningExport').then((m) => m.downloadPlanWorkbook(plan, result))} className="ml-auto rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Export Excel</button>
           {msg && <span className={`w-full text-[12px] ${msg.bad ? 'text-rose-600' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
         </div>
 

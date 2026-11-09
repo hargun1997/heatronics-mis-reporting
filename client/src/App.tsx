@@ -2,35 +2,35 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
 import { HOME } from './nav/config';
 
-// Top-level pages
-import { MonthClosePage } from './pages/mis/MonthClosePage';
-import { ConnectorsPage } from './pages/mis/ConnectorsPage';
-import { LiveMisPage } from './pages/mis/LiveMisPage';
-import { RulebookPage } from './pages/mis/RulebookPage';
-import { MisChatPage } from './pages/mis/MisChatPage';
-import { AiInsightsPage } from './pages/mis/AiInsightsPage';
-import { UploadsRedirect } from './pages/mis/UploadsRedirect';
-import { TasksPage } from './pages/work/TasksPage';
-import { TasksSettingsPage } from './pages/work/TasksSettingsPage';
-import { SendReportPage } from './pages/mis/SendReportPage';
+// Every page is its own chunk (React.lazy): the shell loads first, a page's code (and xlsx / jspdf / the handbook) only when
+// it is opened. MainLayout wraps the <Outlet /> in <Suspense>. `lazyPage` reloads once if a chunk from an older deploy is gone.
+import { lazyPage } from './lazyPage';
 
-// Guide
-
-// Tools
-import { HandbookPage, HandbookRedirect } from './pages/handbook/HandbookPage';
-import { ToolsHome } from './pages/guide/tools/ToolsHome';
-import { InvoiceBookingSuggester } from './pages/guide/tools/InvoiceBookingSuggester';
-import { AmazonToTranzactTool } from './pages/guide/tools/AmazonToTranzactTool';
-import { ExpenseBooking } from './pages/tools/ExpenseBooking';
-import { BookingAssistantPage } from './pages/booking/BookingAssistantPage';
-import { TodayPage } from './pages/today/TodayPage';
-import { CashRunwayPage } from './pages/cash/CashRunwayPage';
-import { PriceFloorsPage } from './pages/tools/PriceFloorsPage';
-import { BulkPaymentsPage } from './pages/tools/BulkPaymentsPage';
-import { RoundPlannerPage } from './pages/tools/RoundPlannerPage';
-import { PlanningPage } from './pages/planning/PlanningPage';
-import { TallyPage } from './pages/tally/TallyPage';
-import { TdsPage } from './pages/accounts/TdsPage';
+const MonthClosePage = lazyPage(() => import('./pages/mis/MonthClosePage'), 'MonthClosePage');
+const ConnectorsPage = lazyPage(() => import('./pages/mis/ConnectorsPage'), 'ConnectorsPage');
+const LiveMisPage = lazyPage(() => import('./pages/mis/LiveMisPage'), 'LiveMisPage');
+const RulebookPage = lazyPage(() => import('./pages/mis/RulebookPage'), 'RulebookPage');
+const MisChatPage = lazyPage(() => import('./pages/mis/MisChatPage'), 'MisChatPage');
+const AiInsightsPage = lazyPage(() => import('./pages/mis/AiInsightsPage'), 'AiInsightsPage');
+const UploadsRedirect = lazyPage(() => import('./pages/mis/UploadsRedirect'), 'UploadsRedirect');
+const TasksPage = lazyPage(() => import('./pages/work/TasksPage'), 'TasksPage');
+const TasksSettingsPage = lazyPage(() => import('./pages/work/TasksSettingsPage'), 'TasksSettingsPage');
+const SendReportPage = lazyPage(() => import('./pages/mis/SendReportPage'), 'SendReportPage');
+const HandbookPage = lazyPage(() => import('./pages/handbook/HandbookPage'), 'HandbookPage');
+const HandbookRedirect = lazyPage(() => import('./pages/handbook/HandbookPage'), 'HandbookRedirect');
+const ToolsHome = lazyPage(() => import('./pages/guide/tools/ToolsHome'), 'ToolsHome');
+const InvoiceBookingSuggester = lazyPage(() => import('./pages/guide/tools/InvoiceBookingSuggester'), 'InvoiceBookingSuggester');
+const AmazonToTranzactTool = lazyPage(() => import('./pages/guide/tools/AmazonToTranzactTool'), 'AmazonToTranzactTool');
+const ExpenseBooking = lazyPage(() => import('./pages/tools/ExpenseBooking'), 'ExpenseBooking');
+const BookingAssistantPage = lazyPage(() => import('./pages/booking/BookingAssistantPage'), 'BookingAssistantPage');
+const TodayPage = lazyPage(() => import('./pages/today/TodayPage'), 'TodayPage');
+const CashRunwayPage = lazyPage(() => import('./pages/cash/CashRunwayPage'), 'CashRunwayPage');
+const PriceFloorsPage = lazyPage(() => import('./pages/tools/PriceFloorsPage'), 'PriceFloorsPage');
+const BulkPaymentsPage = lazyPage(() => import('./pages/tools/BulkPaymentsPage'), 'BulkPaymentsPage');
+const RoundPlannerPage = lazyPage(() => import('./pages/tools/RoundPlannerPage'), 'RoundPlannerPage');
+const PlanningPage = lazyPage(() => import('./pages/planning/PlanningPage'), 'PlanningPage');
+const TallyPage = lazyPage(() => import('./pages/tally/TallyPage'), 'TallyPage');
+const TdsPage = lazyPage(() => import('./pages/accounts/TdsPage'), 'TdsPage');
 
 function App() {
   return (

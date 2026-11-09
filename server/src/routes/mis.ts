@@ -19,7 +19,7 @@ interface MISSession {
 }
 
 // In-memory storage for MIS sessions
-let misSessions: MISSession[] = [];
+const misSessions: MISSession[] = [];
 
 // Get all MIS sessions
 router.get('/sessions', (req, res) => {

@@ -27,6 +27,11 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   action; light / dark / system theme). No gradients, no raw hex in components, scrims `bg-scrim/x`.
 - Menu = `client/src/nav/config.ts` only (sidebar `components/shell/AppNav.tsx`, ⌘K `CommandPalette`, breadcrumbs in
   `PageHeader`). Adding a page = a route in `App.tsx` + a line in nav/config; `server/test/nav.test.ts` checks both.
+- **Bundle:** every page is `lazyPage(() => import(...), 'Name')` in `App.tsx` (own chunk; `<Suspense>` around the `<Outlet />` in
+  `MainLayout`; a missing chunk after a deploy reloads once). Keep `xlsx-js-style` / `jspdf` out of page chunks: import the
+  builders (`liveMisExport`, `liveMisPdf`, `misFormatExport`, `planningExport`, `priceFloorsExport`) with `await import()` on
+  click; the Live MIS page reads options / the MIS-format source from `utils/liveMisSource.ts`. `/assets/*` is served
+  `immutable, max-age=1y`, `index.html` `no-cache` (`server/src/index.ts`).
 
 ## Live connectors & shared secrets
 - `server/src/connectors/sharedSecrets.ts`: connectors fill blank fields from the SAME Secret Manager entries Ops uses
@@ -275,7 +280,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     net income. **As-booked fallback, never an FY average:** static history / published months, top-line months, months without a recon and
     months whose every SKU cell has no BOM cost stay as booked and are named in the note ("Dec 23–Jul 26 shown as booked — no BOM costing for
     them"); a facts-only month costed to CM2 is already on this basis (variance 0). `blendLiveMonths` / `blendedMonths` / `fyBlendedGMRates`
-    are `@deprecated` and unused. Tests `server/test/normalisedCogm.test.ts`.
+    were deleted (code-health pass, 9 Nov 2026). Tests `server/test/normalisedCogm.test.ts`.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
@@ -304,7 +309,11 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 - **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).
-- Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).
+- Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network; a test that reaches the object store sets
+  `INGEST_STORE=local` + `INGEST_STORE_DIR` before importing it, so it never probes GCP or writes the real bucket — see
+  `factsCache.test.ts`; `INGEST_STORE=local` is ignored when `K_SERVICE` is set, i.e. on Cloud Run). Checks before a push: `npm test`,
+  `npm run lint` (client + server; server `no-explicit-any` is a warning only under `src/connectors/**`),
+  `npm run typecheck --workspace=client|server`, `npm run build`.
 - **CI** `.github/workflows/ci.yml` (every PR + push to main, Node 20 = Dockerfile): client `npm run lint` (0 errors; warnings allowed) +
   `tsc -b && vite build`, server `tsc`, `npm test`. Keep it green before merging: Cloud Build only checks after the merge.
 

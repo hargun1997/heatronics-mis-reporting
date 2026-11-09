@@ -8,7 +8,6 @@ import { Card, SectionCard } from '../../components/ui/Card';
 import { Disclosure } from '../../components/ui/Disclosure';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Modal } from '../../components/ui/overlays';
-import { downloadFloorsReport } from '../../utils/priceFloorsExport';
 import {
   DEFAULT_GLOBAL,
   DEFAULT_SETTINGS,
@@ -281,7 +280,8 @@ export function PriceFloorsPage() {
         open
         onClose={() => setPicker(false)}
         rows={rows}
-        onDownload={(skus) => {
+        onDownload={async (skus) => {
+          const { downloadFloorsReport } = await import('../../utils/priceFloorsExport'); // jspdf: loaded on click
           const r = downloadFloorsReport({ skus, settings: calc, products, costs, feeReport: state?.reports[0] || null, tacos: t });
           setPicker(false);
           setNote({ tone: r.written ? 'good' : 'bad', text: r.written ? `PDF downloaded for ${r.written} product${r.written > 1 ? 's' : ''}.` : 'None of the picked products has a cost yet, so there was nothing to put in the report.' });

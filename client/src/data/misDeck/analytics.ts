@@ -181,55 +181,6 @@ export function seriesFor(g: Granularity, src: MonthlyMIS[] = monthsAsc): Period
 }
 
 // ----------------------------------------------------------------------------
-// FY-blended gross margin — RETIRED (5 Nov 2026)
-// ----------------------------------------------------------------------------
-//
-// Stamped one revenue-weighted FY GM% on every month of the fiscal year, so GM%
-// was flat all year and mix was hidden. The Live MIS now uses the normalised
-// COGM basis (liveViews.normaliseLiveMonths: BOM cost of units sold + factory
-// overhead, purchase-timing difference as a memo line). Nothing in the UI or
-// the exports calls these any more; they stay until the next cleanup.
-
-/** @deprecated Retired with the FY blend — revenue-weighted gross-margin fraction per fiscal year. */
-export function fyBlendedGMRates(src: MonthlyMIS[] = monthsAsc): Map<string, number> {
-  const acc = new Map<string, { gm: number; nr: number }>();
-  for (const r of src) {
-    const key = fiscalYear(r.month, r.year).key;
-    const cur = acc.get(key) ?? { gm: 0, nr: 0 };
-    cur.gm += r.grossMargin;
-    cur.nr += r.netRevenue;
-    acc.set(key, cur);
-  }
-  const rates = new Map<string, number>();
-  for (const [key, v] of acc) rates.set(key, v.nr ? v.gm / v.nr : 0);
-  return rates;
-}
-
-/** @deprecated Retired with the FY blend — months restated so each carries its fiscal year's blended GM%. */
-export function blendedMonths(src: MonthlyMIS[] = monthsAsc, rates: Map<string, number> = fyBlendedGMRates(src)): MonthlyMIS[] {
-  return src.map((r) => {
-    const rate = rates.get(fiscalYear(r.month, r.year).key) ?? (r.netRevenue ? r.grossMargin / r.netRevenue : 0);
-    const blendedGM = r.netRevenue * rate;
-    const delta = blendedGM - r.grossMargin; // >0 if the blend lifts this month's GM
-    return {
-      ...r,
-      cogm: r.cogm - delta,
-      grossMargin: blendedGM,
-      cm1: r.cm1 + delta,
-      cm2: r.cm2 + delta,
-      cm3: r.cm3 + delta,
-      ebitda: r.ebitda + delta,
-      netIncome: r.netIncome + delta,
-    };
-  });
-}
-
-/** @deprecated Retired with the FY blend — period series with the blended-GM restatement applied. */
-export function seriesForBlended(g: Granularity): PeriodMIS[] {
-  return seriesFor(g, blendedMonths());
-}
-
-// ----------------------------------------------------------------------------
 // Growth
 // ----------------------------------------------------------------------------
 
