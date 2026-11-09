@@ -24,8 +24,8 @@ interface ChecklistCompletion {
 }
 
 // In-memory storage
-let checklists: ChecklistItem[] = getDefaultChecklists();
-let completions: ChecklistCompletion[] = [];
+const checklists: ChecklistItem[] = getDefaultChecklists();
+const completions: ChecklistCompletion[] = [];
 
 // Get all checklists
 router.get('/', (req, res) => {

@@ -112,11 +112,16 @@ if (process.env.NODE_ENV === 'production') {
     || path.join(__dirname, '../../client/dist');
 
   console.log(`Serving static files from: ${clientBuildPath}`);
-  app.use(express.static(clientBuildPath));
+  // Vite's /assets files carry a content hash in their name: cache them for a year (a missing one is a 404, not
+  // index.html). index.html (and anything unhashed) is revalidated on every load so a deploy is picked up at once
+  // (the page chunks are lazy: App.tsx).
+  app.use('/assets', express.static(path.join(clientBuildPath, 'assets'), { immutable: true, maxAge: '1y', fallthrough: false }));
+  app.use(express.static(clientBuildPath, { index: false, setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') }));
 
   // Handle React routing - serve index.html for all non-API routes
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(clientBuildPath, 'index.html'));
     }
   });

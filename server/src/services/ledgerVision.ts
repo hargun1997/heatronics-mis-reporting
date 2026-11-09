@@ -11,7 +11,7 @@
 // caller is expected to make a human confirm each figure before it can affect a
 // close. The dashboard enforces that; this service just marks the data.
 
-import { claudeCompleteText, isClaudeConfigured, stripJsonFence } from './claudeClient.js';
+import { claudeCompleteText, isClaudeConfigured } from './claudeClient.js';
 
 export interface VisionLedgerRow {
   name: string;

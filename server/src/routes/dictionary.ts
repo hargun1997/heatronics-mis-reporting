@@ -3,7 +3,7 @@ import { Router } from 'express';
 const router = Router();
 
 // In-memory storage (can be replaced with database later)
-let dictionaryEntries: DictionaryEntry[] = getDefaultDictionaryEntries();
+const dictionaryEntries: DictionaryEntry[] = getDefaultDictionaryEntries();
 
 interface DictionaryEntry {
   id: string;

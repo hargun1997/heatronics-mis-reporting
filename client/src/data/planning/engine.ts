@@ -433,10 +433,19 @@ export function openingCashOf(plan: Plan): number {
 
 // ---- calendar helpers ------------------------------------------------------------
 
+// monthLabel / fyOf run for every month of every runPlan (the solvers call runPlan hundreds of times), and
+// toLocaleString builds an Intl formatter per call — so both are memoised on (startMonth, m). Same output.
+const MONTH_LABELS = new Map<string, string>();
 export function monthLabel(startMonth: string, m: number): string {
-  const [y, mo] = startMonth.split('-').map(Number);
-  const d = new Date(Date.UTC(y, mo - 1 + (m - 1), 1));
-  return d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }) + '-' + String(d.getUTCFullYear()).slice(2);
+  const key = startMonth + '|' + m;
+  let v = MONTH_LABELS.get(key);
+  if (v === undefined) {
+    const [y, mo] = startMonth.split('-').map(Number);
+    const d = new Date(Date.UTC(y, mo - 1 + (m - 1), 1));
+    v = d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }) + '-' + String(d.getUTCFullYear()).slice(2);
+    MONTH_LABELS.set(key, v);
+  }
+  return v;
 }
 
 /** Calendar month of m, 0 = Jan. */
@@ -452,11 +461,18 @@ export function toIndex(v: number[]): number[] {
 }
 
 /** Indian FY of month m, e.g. "FY27" for Apr-26 … Mar-27. */
+const FY_OF = new Map<string, string>();
 export function fyOf(startMonth: string, m: number): string {
-  const [y, mo] = startMonth.split('-').map(Number);
-  const abs = y * 12 + (mo - 1) + (m - 1);
-  const yr = Math.floor(abs / 12), mon = abs % 12; // mon 0 = Jan
-  return 'FY' + String((mon >= 3 ? yr + 1 : yr) % 100).padStart(2, '0');
+  const key = startMonth + '|' + m;
+  let v = FY_OF.get(key);
+  if (v === undefined) {
+    const [y, mo] = startMonth.split('-').map(Number);
+    const abs = y * 12 + (mo - 1) + (m - 1);
+    const yr = Math.floor(abs / 12), mon = abs % 12; // mon 0 = Jan
+    v = 'FY' + String((mon >= 3 ? yr + 1 : yr) % 100).padStart(2, '0');
+    FY_OF.set(key, v);
+  }
+  return v;
 }
 
 // ---- results ---------------------------------------------------------------------
