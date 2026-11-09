@@ -10,7 +10,8 @@
 
 export interface FlowIn { period: string; netChange: number }
 /** Month-end balances from the stored Trial Balances (ceoSummary months). */
-export interface BalMonth { period: string; netCash: number | null; loans: number | null }
+/** `loans` from Tally's Loans (Liability) group, which also holds Bank OD A/c — so the overdraft is taken back out. */
+export interface BalMonth { period: string; netCash: number | null; loans: number | null; overdraft?: number | null }
 
 /** Monthly change in net cash (bank − overdraft) less new borrowing, from consecutive month-ends with both. */
 export function netCashFlows(months: BalMonth[]): FlowIn[] {
@@ -18,7 +19,8 @@ export function netCashFlows(months: BalMonth[]): FlowIn[] {
   const out: FlowIn[] = [];
   for (let i = 1; i < ms.length; i++) {
     const a = ms[i - 1], b = ms[i];
-    const loanIn = a.loans != null && b.loans != null ? b.loans - a.loans : 0;
+    const debt = (m: BalMonth) => (m.loans ?? 0) - (m.overdraft ?? 0);   // term borrowing only (OD already sits in netCash)
+    const loanIn = a.loans != null && b.loans != null ? debt(b) - debt(a) : 0;
     out.push({ period: b.period, netChange: Math.round((b.netCash! - a.netCash!) - loanIn) });
   }
   return out;

@@ -311,7 +311,7 @@ export const portalManifest = {
       "purpose": "13-week net cash runway in three cases from the stored Tally books, with the day cash goes below zero or hits the overdraft limit",
       "mcp": {
         "tool": "mis_get_cash_runway",
-        "description": "Use for 'how long does our cash last', 'when do we hit the overdraft limit', 'will we run out of cash': net cash today, 13 weekly points for the usual / worst-month / best-month cases, the week each case goes below zero or reaches the overdraft limit, and a one-line verdict. Stored books only; assumes GST payable is paid on the 20th. Not a sales forecast.",
+        "description": "Use for 'how long does our cash last', 'when do we hit the overdraft limit', 'will we run out of cash': net cash today, 13 weekly points for the usual / worst-month / best-month cases, the week each case goes below zero or reaches the overdraft limit, and a one-line verdict. Stored books only; moves net cash at the last months' pattern (net of new loans). Not a sales forecast.",
         "access": "read",
         "input": { "type": "object", "properties": {} },
         "returns": "status, line, netCash, odLimit, cases[] (perMonth, zeroOn, limitOn, low, end), weeks[] (base, hard, easy)"

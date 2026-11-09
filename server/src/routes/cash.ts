@@ -26,7 +26,7 @@ router.get('/runway', (req: Request, res: Response) => {
     const v2 = ceoSummaryV2(x);
     const out = buildRunway({
       today: istToday(), netCash: v2.balance?.netCash ?? null, balancePeriod: v2.balance?.period ?? null,
-      flows: netCashFlows(ceoSummary(x.months.slice(-14)).months.map((m) => ({ period: m.period, netCash: m.netCash, loans: m.loans }))),
+      flows: netCashFlows(ceoSummary(x.months.slice(-14)).months.map((m) => ({ period: m.period, netCash: m.netCash, loans: m.loans, overdraft: m.overdraft }))),
       gstPayable: v2.balance?.gstNet ?? null, odLimit: s.odLimit ?? null,
     });
     res.set('Cache-Control', 'no-store').json(out);

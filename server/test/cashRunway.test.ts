@@ -56,6 +56,15 @@ test('flows use net cash (bank − overdraft) and take out new loans', () => {
   assert.equal(r.cases[1].perMonth, -10 * L);
 });
 
+test('an overdraft draw that Tally files under Loans is not counted twice', () => {
+  // Spend ₹10 L paid by drawing the OD: net cash −10 L, and Loans (incl. Bank OD A/c) +10 L
+  const f = netCashFlows([
+    { period: '2026-09', netCash: 0, loans: 0, overdraft: 0 },
+    { period: '2026-10', netCash: -10 * L, loans: 10 * L, overdraft: 10 * L },
+  ]);
+  assert.deepEqual(f, [{ period: '2026-10', netChange: -10 * L }]);
+});
+
 test('old books are called out', () => {
   assert.ok(buildRunway(inp({ balancePeriod: '2026-08' })).notes.some((n) => /over a month old/.test(n)));
 });
