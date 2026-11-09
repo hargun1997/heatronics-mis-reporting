@@ -3,8 +3,8 @@
 // `crumbs` / `accent` are still accepted from older pages; the menu's breadcrumbs win when the page is in it.
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronRight, Pin } from 'lucide-react';
-import { breadcrumbsFor, whereIs } from '../../nav/config';
+import { ChevronRight, Pin, UserRound } from 'lucide-react';
+import { PAGE_OWNER, breadcrumbsFor, whereIs } from '../../nav/config';
 import { usePins } from '../shell/prefs';
 import { cx } from '../shell/cx';
 
@@ -37,6 +37,7 @@ export function PageHeader({ title, description, crumbs, actions, icon, status, 
   const trail: Crumb[] = navCrumbs.length ? navCrumbs : (crumbs ?? []).filter((c) => c.to !== '/reporting' && c.to !== '/reporting/mis');
   const { isPinned, toggle } = usePins();
   const pinned = isPinned(path);
+  const owner = w ? PAGE_OWNER[w.page.id] : undefined;
 
   return (
     <div className="border-b border-stone-200 bg-white">
@@ -73,6 +74,14 @@ export function PageHeader({ title, description, crumbs, actions, icon, status, 
                 {status && <span className="ml-1">{status}</span>}
               </div>
               {description && <div className="mt-1 max-w-[80ch] text-sm leading-6 text-stone-600">{description}</div>}
+              {owner && (
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-stone-600" data-testid="page-owner">
+                  <UserRound className="h-3.5 w-3.5" aria-hidden />
+                  <span className="font-medium text-stone-700">{owner.person ? `${owner.person} (${owner.role})` : owner.role}</span>
+                  <span aria-hidden>·</span><span>{owner.cadence}</span>
+                  <span aria-hidden>·</span><span>{owner.job}</span>
+                </p>
+              )}
             </div>
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

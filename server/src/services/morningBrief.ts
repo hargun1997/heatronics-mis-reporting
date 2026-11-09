@@ -61,7 +61,7 @@ export interface MorningBrief {
   moreNeeds: number;
   dueSoon: Due[];
   changed: Change[];
-  freshness: { tallyHoursOld: number | null; stale: boolean; line: string };
+  freshness: { tallyHoursOld: number | null; tallyLastOkAt: string | null; stale: boolean; line: string };
   notes: string[];
   snapshot: MorningSnapshot;
 }
@@ -195,6 +195,7 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
   const stale = age == null || age > 48;
   const freshness = {
     tallyHoursOld: age,
+    tallyLastOkAt: x.tallyLastOkAt,
     stale,
     line: age == null ? 'Tally has not been read yet' : age <= 1 ? 'Tally read within the last hour' : age < 48 ? `Tally read ${age} hours ago` : `Tally last read ${Math.round(age / 24)} days ago — open TallyPrime so the poll can read it`,
   };

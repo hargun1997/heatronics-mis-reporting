@@ -6,6 +6,7 @@ import { ArrowDownRight, ArrowUpRight, CheckCircle2, AlertTriangle, CircleAlert,
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Disclosure } from '../../components/ui/Disclosure';
+import { SourceChip } from '../../components/ui/SourceChip';
 
 interface Tile { id: string; label: string; value: number | null; unit: 'inr' | 'months' | 'count'; sub: string; tone: 'ok' | 'watch' | 'act'; delta: number | null }
 interface Need { kind: 'watch' | 'fix' | 'task'; severity: 'high' | 'medium' | 'low'; title: string; why: string; href: string; inr: number | null }
@@ -13,7 +14,7 @@ interface Due { title: string; due: string; inDays: number; owners: string[]; hr
 interface Change { id: string; text: string; direction: 'better' | 'worse' | 'same' | 'info' }
 interface Brief {
   day: string; asOf: string; status: 'act' | 'watch' | 'ok'; statusLine: string; tiles: Tile[]; needsYou: Need[]; moreNeeds: number;
-  dueSoon: Due[]; changed: Change[]; freshness: { line: string; stale: boolean }; notes: string[];
+  dueSoon: Due[]; changed: Change[]; freshness: { line: string; stale: boolean; tallyLastOkAt?: string | null }; notes: string[];
 }
 
 function inr(n: number | null): string {
@@ -57,15 +58,22 @@ export function TodayPage() {
       <PageHeader
         title="Today"
         description="What needs you, the five numbers that matter, and what moved since yesterday."
+        status={b && band ? <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${band.box}`}><band.Icon className="h-3.5 w-3.5" aria-hidden />{b.status === 'act' ? 'Act now' : b.status === 'watch' ? 'Watch' : 'All clear'}</span> : undefined}
         actions={<button type="button" onClick={() => void load(true)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} aria-hidden /> Refresh</button>}
       />
       {err && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</div>}
       {!b && !err && <div className="text-sm text-slate-500" role="status">Loading…</div>}
       {b && band && (
         <>
-          <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${band.box}`} role="status">
-            <band.Icon className="h-5 w-5 shrink-0" aria-hidden />
-            <p className="text-base font-semibold">{b.statusLine}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-lg font-semibold text-slate-900" role="status">{b.statusLine}</p>
+            <SourceChip
+              items={[
+                { label: 'Tally books', asOf: b.freshness.tallyLastOkAt ?? null, staleAfterH: 48, note: 'Cash, sales and watch items' },
+                { label: 'Tasks & Fix list', asOf: b.asOf, note: 'Read live' },
+              ]}
+              notes={b.notes}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -131,7 +139,6 @@ export function TodayPage() {
             )}
           </Disclosure>
 
-          <p className={`text-xs ${b.freshness.stale ? 'text-amber-700' : 'text-slate-500'}`}>{b.freshness.line}.{b.notes.filter((n) => !n.startsWith('The books numbers')).map((n) => ` ${n}`)}</p>
         </>
       )}
     </div>
