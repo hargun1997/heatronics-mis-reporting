@@ -1,10 +1,11 @@
 import {
-  Activity, Archive, BookCheck, BookOpen, CalendarRange, CheckSquare, Database, FileUp, IndianRupee, Landmark, ListChecks, ReceiptIndianRupee,
+  Activity, Archive, BookCheck, BookOpen, CalendarRange, CheckSquare, Database, Hourglass, FileUp, IndianRupee, Landmark, ListChecks, ReceiptIndianRupee,
   ReceiptText, Send, ShieldAlert, Sparkles, TrendingUp, Users, Wrench, type LucideIcon,
 } from 'lucide-react';
 import type { NavIconName } from '../../nav/config';
 
 export const NAV_ICON: Record<NavIconName, LucideIcon> = {
+  cash: Hourglass,
   live: Activity,
   upload: FileUp,
   issues: ShieldAlert,

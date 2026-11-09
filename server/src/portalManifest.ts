@@ -288,6 +288,20 @@ export const portalManifest = {
         "input": { "type": "object", "properties": { "months": { "type": "integer", "minimum": 1, "maximum": 24, "description": "How many months back, default 6" } } },
         "returns": "months[] newest first with usd / inr / calls and vendors, models, purposes"
       }
+    },
+    {
+      "id": "cash-runway",
+      "method": "GET",
+      "path": "/api/cash/runway",
+      "auth": "session",
+      "purpose": "13-week net cash runway in three cases from the stored Tally books, with the day cash goes below zero or hits the overdraft limit",
+      "mcp": {
+        "tool": "mis_get_cash_runway",
+        "description": "Use for 'how long does our cash last', 'when do we hit the overdraft limit', 'will we run out of cash': net cash today, 13 weekly points for the usual / worst-month / best-month cases, the week each case goes below zero or reaches the overdraft limit, and a one-line verdict. Stored books only; assumes GST payable is paid on the 20th. Not a sales forecast.",
+        "access": "read",
+        "input": { "type": "object", "properties": {} },
+        "returns": "status, line, netCash, odLimit, cases[] (perMonth, zeroOn, limitOn, low, end), weeks[] (base, hard, easy)"
+      }
     }
   ],
   "consumes": [

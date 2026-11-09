@@ -394,3 +394,6 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   3M a year earlier, cap 2); pre-plan prior = `exitPriorL3M`), The Ask (peak deficit × (1 + contingency) − venture debt; 12M uses
   `business.contingency12`, 18M/full `cash.contingencyPct`), use of funds + capital deployment from lines tagged with a milestone,
   assumptions / risks / themes & milestones / team text. Tested against the sheet (Exit ARR, equity 12M/18M, deployment by theme).
+
+## Cash runway (`/accounts/cash-runway`, 9 Nov 2026)
+`GET /api/cash/runway` (`routes/cash.ts`, pure `services/cashRunway.ts`, test `test/cashRunway.test.ts`; manifest tool `mis_get_cash_runway`): net cash now (newest TB, bank − overdraft) moved forward 13 weeks at the last ≤ 3 months' net cash change — Usual (average), Worst month repeats, Best month repeats — plus GST payable (`balance.gstNet` > 0) paid in full on each 20th. Week each case goes below zero / reaches the overdraft limit. `PUT /api/cash/settings {odLimit}` (store `cash/settings`). Stored books only; NOT a sales forecast (says so on the page).
