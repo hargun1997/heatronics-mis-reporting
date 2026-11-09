@@ -38,7 +38,7 @@ export function freshFor(period: string, now: number): number {
  * window). Its copy is kept (better than nothing) but treated as stale after PARTIAL_FRESH_MS, so the next load
  * re-pulls instead of serving understated spend / revenue all day (backlog bug 1, 9 Nov 2026). */
 export const PARTIAL_FRESH_MS = 5 * 60_000;
-const PARTIAL_RE = /still being prepared|ran out of time|pull again|timed? ?out|time limit|failed|not finished|in the background/i;
+const PARTIAL_RE = /still being prepared|out of time|pull again|timed? ?out|time limit|failed|not finished|in the background/i;
 export const isPartial = (warnings: string[]) => warnings.some((w) => PARTIAL_RE.test(w));
 
 const key = (source: string, period: string) => `facts-cache/${source}-${period}`;

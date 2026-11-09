@@ -254,7 +254,7 @@ router.post('/facts', h(async (req, res) => {
         };
       } catch (err) {
         return {
-          source: { id: c.id, label: c.label, ok: false, count: 0, error: err instanceof Error ? err.message : 'fetch failed' },
+          source: { id: c.id, label: c.label, ok: false, count: 0, error: err instanceof Error ? err.message : 'fetch failed', ...(err instanceof Error && /still loading in the background/.test(err.message) ? { partial: true } : {}) },
           facts: [],
           warnings: [],
         };

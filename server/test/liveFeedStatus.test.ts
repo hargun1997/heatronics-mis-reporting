@@ -15,8 +15,9 @@ test('a failed live pull is a high Fix item; a failed source medium; a partial o
     { id: 'amazonads', label: 'Amazon Ads', ok: true, partial: true },
     { id: 'flipkart', label: 'Flipkart', ok: false, error: 'not connected' },
     { id: 'meta', label: 'Meta', ok: true },
+    { id: 'google', label: 'Google Ads', ok: false, partial: true, error: 'Google Ads took over 25 s — still loading in the background; refresh in a minute.' },
   ] } } as never);
-  assert.deepEqual(mixed.map((i) => [i.id, i.severity]), [['feed:shopify', 'medium'], ['feed:amazonads:partial', 'low']]);
+  assert.deepEqual(mixed.map((i) => [i.id, i.severity]), [['feed:shopify', 'medium'], ['feed:amazonads:partial', 'low'], ['feed:google:partial', 'low']]);
   assert.equal(deckItems(base).length, 0);
 });
 
