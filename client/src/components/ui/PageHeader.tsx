@@ -75,7 +75,7 @@ export function PageHeader({ title, description, crumbs, actions, icon, status, 
               </div>
               {description && <div className="mt-1 max-w-[80ch] text-sm leading-6 text-stone-600">{description}</div>}
               {owner && (
-                <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-stone-600" data-testid="page-owner">
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-stone-600" data-testid="page-owner">
                   <UserRound className="h-3.5 w-3.5" aria-hidden />
                   <span className="font-medium text-stone-700">{owner.person ? `${owner.person} (${owner.role})` : owner.role}</span>
                   <span aria-hidden>·</span><span>{owner.cadence}</span>
