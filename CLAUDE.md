@@ -282,6 +282,8 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).
 - Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).
+- **CI** `.github/workflows/ci.yml` (every PR + push to main, Node 20 = Dockerfile): client `npm run lint` (0 errors; warnings allowed) +
+  `tsc -b && vite build`, server `tsc`, `npm test`. Keep it green before merging: Cloud Build only checks after the merge.
 
 ## 5-year plan (`/planning`)
 - Port of the Google Sheet "Heatronics Projection and Deployment Plan" (1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE), run live

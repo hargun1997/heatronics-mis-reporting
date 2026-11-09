@@ -144,7 +144,7 @@ export function MISTrendsView({ savedPeriods }: MISTrendsViewProps) {
           <h3 className="text-base font-semibold text-slate-800 mb-6">Net Revenue Trend</h3>
 
           <div className="flex items-end gap-2 h-64">
-            {allMISData.map((mis, index) => {
+            {allMISData.map((mis) => {
               const height = maxRevenue > 0
                 ? (mis.revenue.netRevenue / maxRevenue) * maxBarHeight
                 : 0;

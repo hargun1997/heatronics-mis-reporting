@@ -9,7 +9,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { readFold, writeFold } from '../../hooks/useDensity';
-import { CHANNEL_COLORS, pctSigned } from '../mis-deck/charts';
+import { CHANNEL_COLORS, pctSigned } from '../mis-deck/format';
 import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
 import { channelName } from '../../data/misDeck/liveViews';
 

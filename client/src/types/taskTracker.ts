@@ -39,9 +39,10 @@ export function getCurrentPeriodKey(frequency: TaskFrequency): string {
   switch (frequency) {
     case 'daily':
       return `${year}-${month}-${day}`;
-    case 'weekly':
+    case 'weekly': {
       const weekNumber = getWeekNumber(now);
       return `${year}-W${String(weekNumber).padStart(2, '0')}`;
+    }
     case 'monthly':
       return `${year}-${month}`;
     case 'adhoc':

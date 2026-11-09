@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDownIcon, ChevronRightIcon, InformationCircleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { formatCurrencyFull } from '../../utils/misCalculator';
-import { TransactionRef, MISHead } from '../../types/misTracking';
+import { TransactionRef } from '../../types/misTracking';
 
 interface SubheadRowProps {
   subhead: string;

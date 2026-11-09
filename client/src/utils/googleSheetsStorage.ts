@@ -1,36 +1,9 @@
 // Google Sheets Storage Utility for MIS Tracking
 // Uses the public Google Sheets API (requires sheet to be "Anyone with link can edit")
 
-import { MISRecord, MISStorageData, LearnedPattern, periodToKey } from '../types/misTracking';
+import { MISRecord, MISStorageData, LearnedPattern } from '../types/misTracking';
 import { misDataStore } from '../services/misDataStore';
 import { MonthlyBSData } from '../types/monthlyMIS';
-
-// Google Sheet ID from the URL
-const SHEET_ID = '1CgClltIfhvQMZ9kxQ2MqfcebyZzDoZdg6i2evHAo3JI';
-
-// Sheet names
-const MIS_DATA_SHEET = 'MIS_Data';
-const PATTERNS_SHEET = 'Learned_Patterns';
-const CONFIG_SHEET = 'Config';
-
-// Helper to convert sheet data to JSON
-function sheetsRowToObject<T>(headers: string[], row: unknown[]): T {
-  const obj: Record<string, unknown> = {};
-  headers.forEach((header, index) => {
-    const value = row[index];
-    // Try to parse JSON strings
-    if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
-      try {
-        obj[header] = JSON.parse(value);
-      } catch {
-        obj[header] = value;
-      }
-    } else {
-      obj[header] = value;
-    }
-  });
-  return obj as T;
-}
 
 // ============================================
 // LOCAL STORAGE FALLBACK
@@ -276,7 +249,7 @@ export function clearAllMISData(): void {
 export function getStorageInfo(): { used: number; available: number; percentage: number } {
   let used = 0;
   for (const key in localStorage) {
-    if (localStorage.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
       used += localStorage.getItem(key)?.length || 0;
     }
   }
@@ -424,6 +397,21 @@ export async function deleteLearnedPattern(patternId: string): Promise<boolean> 
 
 // Cache key for API rules
 const API_RULES_CACHE_KEY = 'heatronics_api_rules_cache';
+
+/** A classification rule as GET /api/classification/rules returns it (fields optional: defaults below). */
+interface ApiRule {
+  ruleId?: string;
+  pattern: string;
+  matchType?: LearnedPattern['matchType'];
+  head: LearnedPattern['head'];
+  subhead: string;
+  confidence?: number;
+  priority?: number;
+  active?: boolean;
+  createdDate?: string;
+  source?: LearnedPattern['source'];
+  notes?: string;
+}
 const API_RULES_CACHE_TIMESTAMP_KEY = 'heatronics_api_rules_timestamp';
 const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -496,10 +484,10 @@ async function fetchRulesFromAPI(): Promise<LearnedPattern[] | null> {
     }
 
     // Transform API rules to LearnedPattern format
-    const patterns: LearnedPattern[] = rules
-      .filter((rule: any) => rule.active !== false) // Only active rules
-      .sort((a: any, b: any) => (a.priority || 1) - (b.priority || 1)) // Sort by priority
-      .map((rule: any) => ({
+    const patterns: LearnedPattern[] = (rules as ApiRule[])
+      .filter((rule) => rule.active !== false) // Only active rules
+      .sort((a, b) => (a.priority || 1) - (b.priority || 1)) // Sort by priority
+      .map((rule) => ({
         id: rule.ruleId || `api_${Date.now()}_${Math.random()}`,
         pattern: rule.pattern,
         matchType: rule.matchType || 'regex',

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Heads, Classification } from '../types';
+import { Heads } from '../types';
 import { HEAD_ORDER, HEAD_COLORS } from '../data/defaultHeads';
 
 interface BulkActionsProps {

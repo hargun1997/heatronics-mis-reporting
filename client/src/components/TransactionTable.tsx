@@ -182,10 +182,12 @@ export function TransactionTable({
     transaction: Transaction;
   } | null>(null);
 
-  // Reset to page 1 when transactions change
-  useEffect(() => {
+  // Reset to page 1 when the number of transactions changes (adjusted during render, as the React docs advise).
+  const [seenCount, setSeenCount] = useState(transactions.length);
+  if (seenCount !== transactions.length) {
+    setSeenCount(transactions.length);
     setCurrentPage(1);
-  }, [transactions.length]);
+  }
 
   // Pagination calculations
   const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);

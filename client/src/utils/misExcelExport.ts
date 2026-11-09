@@ -286,19 +286,6 @@ function setColumnWidths(ws: XLSX.WorkSheet, widths: number[]): void {
   ws['!cols'] = widths.map(w => ({ wch: w }));
 }
 
-function setRowHeights(ws: XLSX.WorkSheet, heights: { [row: number]: number }): void {
-  ws['!rows'] = ws['!rows'] || [];
-  Object.entries(heights).forEach(([row, height]) => {
-    ws['!rows']![parseInt(row)] = { hpt: height };
-  });
-}
-
-// Apply style to a cell
-function applyStyle(ws: XLSX.WorkSheet, cellRef: string, style: CellStyle): void {
-  if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
-  ws[cellRef].s = style;
-}
-
 // Create a styled cell
 function createCell(value: string | number, style: CellStyle): XLSX.CellObject {
   const cell: XLSX.CellObject = {
@@ -1259,7 +1246,7 @@ export async function exportMISToExcel(
   if (options.includeFYSheets && options.selectedFYs.length > 0) {
     for (const fy of options.selectedFYs) {
       const fySheet = generateFYDetailedPLSheet(allRecords, fy);
-      const sheetName = fy.replace(/[\/\\?*\[\]]/g, '-').slice(0, 28);
+      const sheetName = fy.replace(/[/\\?*[\]]/g, '-').slice(0, 28);
       XLSX.utils.book_append_sheet(workbook, fySheet, sheetName);
       sheetCount++;
     }
@@ -1271,7 +1258,7 @@ export async function exportMISToExcel(
       const record = allRecords.find(r => r.periodKey === periodKey);
       if (record) {
         const monthSheet = generateMonthlyDetailedPLSheet(record);
-        const sheetName = periodToString(record.period).replace(/[\/\\?*\[\]]/g, '-').slice(0, 28);
+        const sheetName = periodToString(record.period).replace(/[/\\?*[\]]/g, '-').slice(0, 28);
         XLSX.utils.book_append_sheet(workbook, monthSheet, sheetName);
         sheetCount++;
       }
@@ -1284,7 +1271,7 @@ export async function exportMISToExcel(
       const record = allRecords.find(r => r.periodKey === periodKey);
       if (record && record.transactionsByHead) {
         const txnSheet = generateTransactionsSheet(record);
-        const sheetName = `Txn ${periodToString(record.period)}`.replace(/[\/\\?*\[\]]/g, '-').slice(0, 28);
+        const sheetName = `Txn ${periodToString(record.period)}`.replace(/[/\\?*[\]]/g, '-').slice(0, 28);
         XLSX.utils.book_append_sheet(workbook, txnSheet, sheetName);
         sheetCount++;
       }

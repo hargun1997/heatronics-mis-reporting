@@ -6,7 +6,7 @@
 // ----------------------------------------------------------------------------
 
 import { useState, type DragEvent } from 'react';
-import { inr } from '../mis-deck/charts';
+import { inr } from '../mis-deck/format';
 import { Modal } from '../ui/overlays';
 import { commitReportMonths, monthBreakdown, restageTallyMonth, runChecks } from '../../data/ingest/ingestClient';
 import type { IngestReportMeta, ReportSlot, StagedUpload } from '../../data/ingest/types';

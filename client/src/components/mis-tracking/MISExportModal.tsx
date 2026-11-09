@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { MISRecord, MISPeriod, periodToString, periodToKey } from '../../types/misTracking';
+import { MISRecord, periodToString } from '../../types/misTracking';
 import { formatCurrency, formatPercent } from '../../utils/misCalculator';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';

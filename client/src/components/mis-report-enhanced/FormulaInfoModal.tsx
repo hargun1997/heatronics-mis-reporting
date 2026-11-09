@@ -1,7 +1,7 @@
 import React from 'react';
 import { XMarkIcon, CalculatorIcon } from '@heroicons/react/24/outline';
 import { formatCurrencyFull } from '../../utils/misCalculator';
-import { FormulaDefinition, FormulaComponent } from '../../config/misFormulas';
+import { FormulaDefinition } from '../../config/misFormulas';
 import { MISRecord } from '../../types/misTracking';
 
 interface FormulaInfoModalProps {

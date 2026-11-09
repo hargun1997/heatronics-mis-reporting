@@ -117,7 +117,7 @@ export interface SalesParseResult {
   errors: string[];
 }
 
-export function parseSalesRegister(file: File, sourceState: IndianState): Promise<SalesParseResult> {
+export function parseSalesRegister(file: File): Promise<SalesParseResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
