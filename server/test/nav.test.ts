@@ -68,3 +68,12 @@ test('sidebar stays small: ≤ 5 sections, ≤ 14 pages in all; every tool sits 
   assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['today', 'live', 'insights']);
   assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'tally', 'tds', 'handbook'], 'Tasks = the one place for to-do + fix');
 });
+
+test('every sidebar page names its owner, how often and what to do', async () => {
+  const { PAGE_OWNER } = await import('../../client/src/nav/config.ts');
+  for (const sec of sidebarSections()) for (const p of sec.pages) {
+    const o = PAGE_OWNER[p.id];
+    assert.ok(o, `${p.id} has no owner`);
+    assert.ok(o.role && o.cadence && o.job.length > 10, `${p.id} owner incomplete`);
+  }
+});

@@ -39,6 +39,7 @@ export const PAGE_OWNER: Record<string, PageOwner> = {
   live: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Read the P&L and channels. Close and lock last month after the 10th.' },
   insights: { role: 'Founder', person: 'Hargun', cadence: 'When needed', job: 'Ask why a number moved.' },
   tasks: { role: 'Accounts executive', cadence: 'Daily', job: 'Tick tasks due today. Clear the Fix list.' },
+  cash: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Check the week cash goes below zero or hits the overdraft limit. Set the limit.' },
   tally: { role: 'Accounts executive', cadence: 'Weekly', job: 'Fix hanging ledgers and wrong groups in TallyPrime.' },
   tds: { role: 'Accounts executive', cadence: 'Monthly', job: 'Pay TDS by the 7th. Prepare the quarter return.' },
   handbook: { role: 'Accounts executive', cadence: 'When needed', job: 'Follow the SOP before booking something new.' },
