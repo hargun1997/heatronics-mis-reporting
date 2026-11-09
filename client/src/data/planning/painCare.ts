@@ -4,9 +4,11 @@
 // topical launch is done, then only we proceed with scaling on marketing; till then very basic like we are today, maybe leading
 // up to March". Built from the Base like build500Cr; every ₹ figure not stated by the founder is a placeholder.
 // Month 1 = Oct-26. Quick commerce has no channel of its own in the engine: it rides in the D2C share (note on the plan).
-import { runPlan, type Hire, type NewProduct, type Plan, type RetailType } from './engine';
+import { runPlan, type Channel, type Hire, type NewProduct, type Overhead, type Plan, type RetailType } from './engine';
 import { applyFounderDecisions } from './basePlan';
-import { defaultCategories, defaultFunding, emptyGrowth, ensureGrowthGroups, fundTheGap, solvePath } from './growth';
+import { defaultCapacityWeights, defaultCategories, defaultFunding, emptyGrowth, ensureGrowthGroups, fundTheGap, solvePath } from './growth';
+import { applyTallyOpening } from './opening';
+import type { StatementMonthIn } from '../statements/statements';
 
 const CR = 1e7;
 
@@ -35,6 +37,80 @@ export const SEED_PRE_MONEY_CR = 23;
 export const OVERDRAFT_LIMIT_CR = 2;
 /** Cash the round sizing keeps in hand (≈ 3 months of the scale phase's burn). */
 export const FUNDING_BUFFER_CR = 5;
+
+/**
+ * Engine mechanics the plan uses (review, 9 Nov 2026), each a switch so its effect can be shown one at a time:
+ * capacity = line time in pad-equivalents + lost sales above capacity (reported, not capped); receivables = days per channel;
+ * rule89 = GST refund per Rule 89(5); opening = the Tally Sep-26 balance sheet when supplied; fundraiseCapital = share-issue costs off
+ * the equity; advances = contract-made topicals / nutra paid 50 % with the PO; overheads = warehouses, office and the Plant 2 building.
+ */
+export type PainCareFix = 'capacity' | 'receivables' | 'rule89' | 'opening' | 'fundraiseCapital' | 'advances' | 'overheads';
+export const PAIN_CARE_FIXES: PainCareFix[] = ['capacity', 'receivables', 'rule89', 'opening', 'fundraiseCapital', 'advances', 'overheads'];
+
+/** Receivable days by how the money comes in (placeholders until Supernode's and the distributors' terms are signed). */
+export const RECEIVABLE_DAYS = { amazon: 20, flipkart: 15, d2cPrepaid: 3, d2cCod: 10, quickCommerce: 30, offline: 45, b2b: 30 };
+/** D2C money mix: prepaid gateways, COD remittance, quick commerce (rides in the D2C share). Placeholder. */
+export const D2C_MONEY_MIX = { prepaid: 0.6, cod: 0.3, quickCommerce: 0.1 };
+export function painCareReceivableDays(): Partial<Record<Channel | 'retail' | 'stores', number>> {
+  const R = RECEIVABLE_DAYS, X = D2C_MONEY_MIX;
+  const d2c = X.prepaid * R.d2cPrepaid + X.cod * R.d2cCod + X.quickCommerce * R.quickCommerce; // 7.8 days
+  // GT and physio / clinic channels and the outlets are distributor / trade credit; there is no B2B channel in the engine (30 days when added)
+  return { A: R.amazon, D: Math.round(d2c * 10) / 10, F: R.flipkart, G: R.offline, P: R.offline, retail: R.offline, stores: 0 };
+}
+/** Contract manufacturers want half the PO up front (placeholder). */
+export const CM_ADVANCE_PCT = 0.5;
+
+/** Space rules for the overheads (placeholders): own warehouse space for the stock not sitting at Amazon / 3PL nodes. */
+export const SPACE = {
+  /** share of the stock held in our own warehouses (the rest at Amazon FBA / Flex / 3PL nodes) */
+  ownStockShare: 0.6, unitsPerSqft: 75, warehouseHaveSqft: 2_000, warehouseRent: 28, warehouseRunningPerSqft: 5, warehouseFitoutPerSqft: 100,
+  /** office: seats today in the factory building, sq ft per seat, people the base team already has */
+  officeHaveSeats: 20, sqftPerSeat: 100, baseOfficeTeam: 16, officeRent: 90, officeRunningPerSqft: 20, officeFitoutPerSqft: 800,
+  step: 5_000, headroom: 1.2, leadMonths: 6,
+  /** Plant 2 building (founder brief): 60k sq ft × ₹30 = ₹18 L a month, 6 months' deposit ₹1.08 Cr, fit-out ₹2.5 Cr, 9 months to fit out and license */
+  plant2Sqft: 60_000, plant2Rent: 30, plant2DepositMonths: 6, plant2Fitout: 2.5 * CR, plant2LeadMonths: 9,
+};
+
+/**
+ * Warehouses and office sized from the plan's own stock and headcount, and the Plant 2 building tied to its capacity block (pure: runs
+ * the plan once). A site is added `leadMonths` before the space is needed, in 5,000 sq ft steps with 20 % headroom.
+ */
+export function sizeOverheads(p: Plan): Overhead[] {
+  const r = runPlan(p);
+  const S = SPACE;
+  const out: Overhead[] = [];
+  const site = (name: string, group: string, month: number, sqft: number, rent: number, running: number, depositMonths: number, fitout: number): Overhead =>
+    ({ id: id('o'), name, on: true, kind: 'site', group, month, end: null, amount: 0, growthPct: 0.05, sqft, rentPerSqft: rent, runningPerMonth: running, depositMonths, fitout });
+  const officeIds = new Set((p.growth?.hires ?? []).filter((h) => h.dept !== 'factory' && h.dept !== 'store' && !/warehouse|reps|kam/i.test(h.role)).map((h) => h.id));
+  const need = r.months.map((m) => {
+    const perUnit = m.units > 0 ? m.stdCogs / m.units : 0;
+    const stockUnits = perUnit > 0 ? m.inventory / perUnit : 0;
+    const seats = S.baseOfficeTeam + Object.entries(m.headcountByHire).reduce((a, [hid, n]) => a + (officeIds.has(hid) ? n : 0), 0);
+    return { wh: (stockUnits * S.ownStockShare) / S.unitsPerSqft, office: seats * S.sqftPerSeat };
+  });
+  let wh = S.warehouseHaveSqft, office = S.officeHaveSeats * S.sqftPerSeat, nWh = 0, nOff = 0;
+  for (let m = SCALE_FROM; m <= r.months.length; m++) {
+    const ahead = need.slice(m - 1, m - 1 + S.leadMonths);
+    const wNeed = Math.max(...ahead.map((x) => x.wh)), oNeed = Math.max(...ahead.map((x) => x.office));
+    if (wNeed > wh) {
+      const sq = Math.ceil((wNeed * S.headroom - wh) / S.step) * S.step;
+      out.push(site(`Warehouse ${++nWh} (sized from stock, placeholder)`, 'Rent & Facilities', m, sq, S.warehouseRent, sq * S.warehouseRunningPerSqft, 6, sq * S.warehouseFitoutPerSqft));
+      wh += sq;
+    }
+    if (oNeed > office) {
+      const sq = Math.ceil((oNeed * S.headroom - office) / S.step) * S.step;
+      out.push(site(nOff++ ? `Office expansion ${nOff} (sized from headcount, placeholder)` : 'Corporate office (sized from headcount, placeholder)', 'Rent & Facilities', m, sq, S.officeRent, sq * S.officeRunningPerSqft, 10, sq * S.officeFitoutPerSqft));
+      office += sq;
+    }
+  }
+  const plant2 = p.growth?.capacity.find((c) => c.on && /plant 2/i.test(c.name));
+  if (plant2) {
+    // lease from 9 months before the plant makes anything (fit-out, power, BIS / CDSCO site licences); factory rent sits in COGM like today's
+    const month = Math.max(1, plant2.month + plant2.leadMonths - S.plant2LeadMonths);
+    out.push(site('Plant 2 building (lease, deposit, fit-out)', 'Manufacturing Overhead', month, S.plant2Sqft, S.plant2Rent, 0, S.plant2DepositMonths, S.plant2Fitout));
+  }
+  return out;
+}
 
 function products(): NewProduct[] {
   const base = { on: true, placeholder: true, growthLine: true, seasonRef: 'flat' } as const;
@@ -134,11 +210,22 @@ function withRounds(p0: Plan, A: number, B: number): Plan {
 }
 
 /** The founder's pain-care plan on top of `from` (normally the Base). */
-export function buildPainCarePlan(from: Plan, opts: { seriesAMonth?: number; seriesBMonth?: number } = {}): Plan {
+export function buildPainCarePlan(from: Plan, opts: {
+  seriesAMonth?: number; seriesBMonth?: number;
+  /** months of GET /api/tally/statements: the month before the start becomes the opening balance sheet */
+  statements?: StatementMonthIn[] | null;
+  /** the engine fixes to apply (default all; [] = the plan as before the 9 Nov 2026 review) */
+  fixes?: PainCareFix[];
+} = {}): Plan {
+  const fix = new Set(opts.fixes ?? PAIN_CARE_FIXES);
   let p = structuredClone(from);
   p.name = 'Pain care — lean to Mar-27, online first, offline from Jan-28 (Nov 2026)';
   if (!p.fx) applyFounderDecisions(p);
   p.fx!.sheetParity = false;
+  if (fix.has('opening') && opts.statements) p = applyTallyOpening(p, opts.statements).plan;
+  if (fix.has('rule89')) p.fx!.gstRefundRule = 'rule89';
+  if (fix.has('fundraiseCapital')) p.fx!.fundraiseAsCapital = true;
+  if (fix.has('receivables')) p.cash = { ...p.cash, receivableDaysByChannel: painCareReceivableDays() };
   // double down on devices from the scale phase: the sheet's device volumes up, hGo pushed harder (placeholders)
   for (const s of p.skus) p.fx!.skuTweaks[s.id] = { volume: s.id === 's8' ? 1.5 : 1.2, asp: null };
   // the CC / overdraft limit being sought; cash below it is an unfunded gap
@@ -150,6 +237,7 @@ export function buildPainCarePlan(from: Plan, opts: { seriesAMonth?: number; ser
   const cats = products();
   const ids = new Set(cats.map((c) => c.id));
   p.products = [...p.products.filter((x) => !ids.has(x.id) && !x.placeholder), ...cats];
+  if (fix.has('advances')) for (const x of p.products) if (x.growthLine && x.inHouse === false) x.advancePct = CM_ADVANCE_PCT;
   // rebrand ₹50 L over Dec-26 → Feb-27: a small advance before the seed, the rest once it lands (keeps Dec-26 inside the CC limit)
   const rebrand = ([[3, 5], [4, 25], [5, 20]] as const).map(([month, lakh]) => ({ id: id('x'), name: 'Branding exercise — new master brand (placeholder)', on: true, group: 'Brand & Creative Build', month, amount: lakh * L }));
   p.growth = {
@@ -176,7 +264,9 @@ export function buildPainCarePlan(from: Plan, opts: { seriesAMonth?: number; ser
     ],
     rounds: [],
   };
+  if (fix.has('capacity')) { p.growth.capacityWeights = defaultCapacityWeights(p); p.growth.peakShift = 1.9; }
   ensureGrowthGroups(p);
   p = solvePath(p).plan;
+  if (fix.has('overheads')) p.growth!.overheads = sizeOverheads(p);
   return withRounds(p, opts.seriesAMonth ?? SERIES_A_MONTH, opts.seriesBMonth ?? SERIES_B_MONTH);
 }

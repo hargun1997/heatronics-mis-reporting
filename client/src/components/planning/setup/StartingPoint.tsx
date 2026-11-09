@@ -59,9 +59,16 @@ export function Section({ plan, update }: SetupSectionProps) {
     if (!window.confirm('Replace products, hires, capacity, rounds and targets with the example growth plan (₹30 → 100 → 250 → 500 Cr, every number a placeholder)?')) return;
     run('Building…', () => replacePlan(update, build500Cr));
   };
-  const loadPainCare = () => {
+  const loadPainCare = async () => {
     if (!window.confirm('Replace products, hires, capacity, rounds and targets with the pain-care plan (online first for 12 months, offline from the next round)?')) return;
-    run('Building…', () => replacePlan(update, buildPainCarePlan));
+    // the opening balance sheet comes from Tally (Sep-26) when it is stored; else the sheet's placeholders stay and the plan says so
+    let statements: Parameters<typeof openingFromTally>[0][] | null = null;
+    try {
+      const res = await fetch('/api/tally/statements');
+      if (res.ok) statements = ((await res.json()) as { months?: Parameters<typeof openingFromTally>[0][] }).months ?? null;
+    } catch { /* Tally not reachable */ }
+    run('Building…', () => replacePlan(update, (p) => buildPainCarePlan(p, { statements })));
+    if (!statements?.some((m) => m.period === monthBefore(plan.startMonth))) setMsg(`No Tally balance sheet for ${monthBefore(plan.startMonth)}: opening cash, receivables and payables are placeholders (0).`);
   };
 
   return (

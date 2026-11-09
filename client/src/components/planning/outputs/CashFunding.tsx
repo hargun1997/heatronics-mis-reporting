@@ -43,6 +43,8 @@ export function CashFundingView({ plan, result }: Props) {
         <Box label="Lowest closing cash" value={money(r.minClosingCash)} sub={low ? `${low.label}${r.minClosingCash < 0 ? ' — add or bring forward a raise (Setup → Funding)' : ''}` : ''} bad={r.minClosingCash < 0} />
         <Box label="Equity raised · kept" value={money(r.equityPlanned, 0)} sub={`Today’s holders keep ${pct(keep, 0)} after ${dil.length} round${dil.length === 1 ? '' : 's'} · lowest cash ${money(r.minClosingCash, 1)}`} bad={r.minClosingCash < 0} />
       </div>
+      {r.openingIsPlaceholder && <p className="text-[12px] text-amber-800">Opening cash, receivables, payables and GST credit are the sheet&apos;s placeholders, not the Sep-26 balance sheet — Setup → Starting point → Load from Tally.</p>}
+      {r.months.some((m) => m.overdraftOverLimit > 0) && <p className="text-[12px] text-rose-600">Cash goes past the overdraft limit by up to {money(Math.max(...r.months.map((m) => m.overdraftOverLimit)))} — money the plan has not found yet.</p>}
 
       <SectionCard
         title="Rounds & dilution"

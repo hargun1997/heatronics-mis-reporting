@@ -96,7 +96,12 @@ test('pain-care plan: seed ₹8 Cr Jan-27 at ₹23 Cr pre, its 5% cost paid with
   assert.equal(P.lines.find((l) => l.id === 'e378')!.milestone, 'Seed');
 });
 
-test('pain-care plan: cash never past the ₹2 Cr CC limit; Series A ₹30–40 Cr with no bridge; Series B ₹100 Cr', () => {
+// Before the 9 Nov 2026 engine fixes (receivables per channel, Rule 89, advances, overheads) the founder's rounds fit inside the CC limit;
+// with them the plan shows the gap instead (planFixes.test.ts). These checks hold the founder's round mechanics on the old basis.
+const P0 = buildPainCarePlan(basePlan(), { fixes: [] });
+const R0 = runPlan(P0);
+test('pain-care plan (before the engine fixes): cash never past the ₹2 Cr CC limit; Series A ₹30–40 Cr with no bridge; Series B ₹100 Cr', () => {
+  const P = P0, R = R0;
   const low = Math.min(...R.months.map((m) => m.closingCash));
   assert.ok(low >= -OVERDRAFT_LIMIT_CR * CR, `min cash ${low / CR}`);
   assert.equal(P.fx!.overdraft.limit, 2 * CR);

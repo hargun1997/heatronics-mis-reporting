@@ -310,9 +310,26 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   pharmacy+physio / MT, devices, offline team); path FY29 100 → FY30 250 → FY31 500 Cr (FY28 left to the launches). Funding: seed ₹8 Cr Jan-27 at
   ₹23 Cr pre (`growth.seedPreMoney`; its 5 % cost e378 now books in `fx.seed.month`, milestone "Seed"); **Series A `SERIES_A_MONTH` 12 (Sep-27)**,
   ₹30 Cr grown in ₹5 Cr steps to ≤ ₹40 Cr before `fundTheGap` (buffer ₹5 Cr) may add a bridge (lands at ₹40 Cr, 3.5 × TTM ≈ ₹58 Cr pre); B ₹100 Cr
-  M34; `fx.overdraft.limit` ₹2 Cr → `overdraftOverLimit`. Min cash ≈ −₹1.9 Cr Dec-26 (pre-seed; opening cash is still the sheet's 0).
+  M34; `fx.overdraft.limit` ₹2 Cr → `overdraftOverLimit`. Before the 9 Nov fixes min cash ≈ −₹1.9 Cr Dec-26; with them ≈ −₹2.8 Cr Aug-27 (₹0.8 Cr past
+  the limit), a ₹20 Cr bridge M24, peak need ≈ ₹118 Cr (was ₹66 Cr), lost sales ₹9.7 / 10.2 / 19.4 / 4.0 Cr FY28–31 (opening still the sheet's 0s).
   Engine fixes (7 Nov 2026): outlets never sell a product before its launch (`max(retailStart, launchMonth)`); `roundStats` runway is counted
   with the later rounds switched off.
+- **Engine mechanics from the 9 Nov 2026 review** (each a switch, absent = as before, sheet parity untouched; tests `server/test/planFixes.test.ts`;
+  `buildPainCarePlan(from, {statements?, fixes?})` applies all `PAIN_CARE_FIXES` by default, `fixes: []` = the plan before them — painCare.test.ts
+  keeps the CC-limit / no-bridge checks on that basis): (1) capacity in heating-pad equivalents `growth.capacityWeights` (`defaultCapacityWeights`:
+  pad/knee/X/XL/rest 1, single bed 1.25, neck/foot/double bed/hGo/hBoots/hPulse/new devices 2.5, contract-made 0) → `inHousePadEq`, utilisation,
+  `unitsShort` / `revenueShort` = demand above capacity × `growth.peakShift` (1.9 in `peakMonths`, default Dec/Jan); `fx.capacityCaps` (off) takes it
+  out of revenue; (2) `cash.receivableDaysByChannel` (A/D/F/G/P + `retail` outlets + `stores`; pain-care `painCareReceivableDays()`: Amazon 20,
+  Flipkart 15, D2C 7.8 = 60 % prepaid 3 / 30 % COD 10 / 10 % q-com 30, GT/physio/outlets 45); (3) `fx.gstRefundRule: 'rule89'` = Rule 89(5) as
+  amended 2022 (refund = Net ITC goods − output tax × Net ITC ÷ (ITC goods + services), all supplies inverted; ITC left over = `gstStuck`, written
+  off with `gstServicesAsCost`; an opening GST credit is refunded in the first cycle); (4) `opening.ts applyTallyOpening(plan, months)` (pure; the
+  Setup "Load the pain-care plan" button fetches /api/tally/statements) + `PlanResult.openingIsPlaceholder` (Cash & funding note); (5)
+  `fx.fundraiseAsCapital`: Fundraise Costs come off the equity (`equityCosts`), not PBT (venture-debt fee stays a finance cost); (6) product
+  `advancePct` (pain-care topicals / nutra 0.5): that material share of purchases gets no supplier credit and the advance on next month's receipts
+  is a prepayment (positive payable); (7) pain-care `sizeOverheads()`: warehouses from own stock units (60 % own, 75 units / sq ft, ₹28), office from
+  office headcount (100 sq ft a seat, ₹90), 5,000 sq ft steps, 6 months ahead; Plant 2 building (60k sq ft × ₹30 = ₹18 L/mo, deposit ₹1.08 Cr,
+  fit-out ₹2.5 Cr, in Manufacturing Overhead) from 9 months before the Plant 2 block's capacity. All space / days numbers are placeholders (`SPACE`,
+  `RECEIVABLE_DAYS`, `D2C_MONEY_MIX`, `CM_ADVANCE_PCT`).
 - **Growth layer** (`plan.growth`, `data/planning/growth.ts` + hooks in `runPlan`; absent / off / sheet parity = no
   change, test `server/test/growth.test.ts`): new product lines are `plan.products` with `category` (device | topical | nutra), `inHouse`,
   `launchCost` / `launchCapex` (launch month), `marketingPct` and `growthLine`; `hires` (dept → Factory Payroll else Corporate Salaries,

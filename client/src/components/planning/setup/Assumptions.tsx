@@ -146,6 +146,11 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               <NumInput unit={x.unit} value={plan.cash[x.k]} min={0} width="w-20" title={x.label} onChange={(v) => update((p) => { p.cash[x.k] = v; })} />
             </Row>
           ))}
+          {plan.cash.receivableDaysByChannel && (
+            <Row label="Receivable days by channel" hint="Set by the pain-care plan; replaces Receivable days for the channels it names">
+              <span className="text-[12.5px] text-slate-600">{Object.entries(plan.cash.receivableDaysByChannel).map(([k, v]) => `${k} ${v}`).join(' · ')}</span>
+            </Row>
+          )}
           <Row label="Contingency, 12-month ask" hint="Buffer on the 12-month peak deficit (the Business plan's first column)">
             <NumInput unit="pct" value={plan.business.contingency12} min={0} max={3} width="w-20" title="Contingency, 12-month ask" onChange={(v) => update((p) => { p.business.contingency12 = v; })} />
           </Row>

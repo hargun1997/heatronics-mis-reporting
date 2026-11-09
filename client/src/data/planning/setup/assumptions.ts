@@ -27,7 +27,7 @@ export function setChannelGrowth(p: Plan, fy: string, ch: (typeof CHANNELS)[numb
 }
 
 /** The working-capital / GST / tax / interest inputs of the sheet's Cash Flow & Fundraise tab (the opening values live in Starting point). */
-export type CashFieldKey = Exclude<keyof CashInputs, 'openingCash' | 'openingInventory' | 'openingDebt' | 'interestSteps' | 'outputGst' | 'inputGstGoods' | 'inputGstServices'>;
+export type CashFieldKey = Exclude<keyof CashInputs, 'openingCash' | 'openingInventory' | 'openingDebt' | 'interestSteps' | 'receivableDaysByChannel' | 'outputGst' | 'inputGstGoods' | 'inputGstServices'>;
 export const CASH_FIELDS: { k: CashFieldKey; label: string; unit: 'pct' | 'num'; hint?: string }[] = [
   { k: 'inventoryDays', label: 'Inventory days', unit: 'num', hint: 'Forward cover on the next 3 months’ COGS' },
   { k: 'gmStandard', label: 'Standard gross margin (for inventory)', unit: 'pct' },

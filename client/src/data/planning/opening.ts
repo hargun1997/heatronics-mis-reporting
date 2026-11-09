@@ -15,6 +15,22 @@ export function monthBefore(startMonth: string): string {
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
 }
 
+/**
+ * Put the Tally opening balance sheet on a plan (pure; the Setup "Load the pain-care plan" / "Load from Tally" buttons call it with the
+ * `months` of GET /api/tally/statements). Returns the plan with `fx.opening` replaced, or unchanged with
+ * `openingIsPlaceholder: true` when no month before the plan start is stored (the sheet's 0s stay).
+ */
+export function applyTallyOpening<P extends { startMonth: string; fx?: PlanFx }>(plan: P, months: StatementMonthIn[] | null | undefined):
+  { plan: P; warnings: string[]; openingIsPlaceholder: boolean } {
+  const want = monthBefore(plan.startMonth);
+  const m = months?.find((x) => x.period === want);
+  const got = m && plan.fx ? openingFromTally(m, plan.fx.opening) : null;
+  if (!got || !plan.fx) {
+    return { plan, warnings: [`No Tally balance sheet for ${want}: opening cash, receivables, payables and GST credit stay at the sheet's placeholders.`], openingIsPlaceholder: true };
+  }
+  return { plan: { ...plan, fx: { ...plan.fx, opening: got.opening } }, warnings: got.warnings, openingIsPlaceholder: false };
+}
+
 export function openingFromTally(month: StatementMonthIn, keep: Opening): { opening: Opening; warnings: string[] } | null {
   const bs = balanceSheet(month);
   if (!bs) return null;
