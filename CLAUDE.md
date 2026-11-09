@@ -1,13 +1,22 @@
 # heatronics-mis-reporting
 
 ## Login
-Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in server/src/index.ts) asks the master portal
+Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in server/src/app.ts) asks the master portal
 (`https://portal.heatronics.in/api/auth/check?portal=mis`) whether the visitor's `htx_session`
 cookie may open this tool (cached 60s), and otherwise redirects to the portal's login or "no access"
 page (APIs get 401/403 JSON). The `.run.app` address redirects to mis.heatronics.in.
 Who has access is managed at https://portal.heatronics.in/admin (Hargun only).
 Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron) and `/api/expenses` (read by production.heatronics.in, own token). Never add pages there.
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
+**Security rules (9 Nov 2026, `server/test/security.test.ts`):** the app is built in `server/src/app.ts` (index.ts only listens) so the test lists
+EVERY registered route and asserts a 401 without a login (also with a forged `Host` / `X-Forwarded-Host: localhost`); a new open path fails it
+until added there and here. Open paths match EXACTLY (no prefix, no `..` / `//` / `%2e`); the localhost bypass and `HTX_GATE=off` are ignored
+when `K_SERVICE` is set (Cloud Run). On open paths the gate sets `req.htxAuthed` (signed-in person vs machine): unauthenticated reminder runs
+only do the once-a-day scheduled send and answer counts only; `/api/expenses` needs `EXPENSES_API_TOKEN` (Bearer) or a login on Cloud Run
+(no token = refused). Store keys: ingest connector / slot ids must be slugs (`SAFE_ID`), the local backend refuses keys outside its folder.
+SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata server, loopback, private ranges) on Cloud Run; the Delhivery
+`feedUrl` (carries `x-feed-token`) must be https on heatronics.in — both checked on save and before each request. Raw Tally master exports
+(`/Master*.json`: party GSTINs / PANs) are git-ignored.
 
 **AI usage feed** `GET /api/ai/usage?months=<n>` (`routes/aiUsage.ts`, pure `services/aiUsageFeed.ts`, test `test/aiUsageFeed.test.ts`; manifest tool `mis_get_ai_usage`): schema 1 of `heatronics-portal/mcp/ai-usage-feed.md` from the stored `usage/<day>/<id>.json` records (`recordApiUsage`), per IST month newest first, vendor = gemini-* → gemini else claude, purposes = feature, ₹ at `USD_INR` 88. Login only (the MIS has no roles). The MIS makes no Gemini calls any more (`ledgerVision` runs on Claude).
 
