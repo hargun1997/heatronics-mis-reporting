@@ -409,3 +409,6 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 
 ## Cash runway (`/accounts/cash-runway`, 9 Nov 2026)
 `GET /api/cash/runway` (`routes/cash.ts`, pure `services/cashRunway.ts`, test `test/cashRunway.test.ts`; manifest tool `mis_get_cash_runway`): net cash now (newest TB, bank − overdraft) moved forward 13 weeks at the last ≤ 3 months' change in NET cash less new loans (`netCashFlows`, from consecutive stored TBs) — Usual (average), Worst month repeats, Best month repeats. GST / salaries / suppliers are inside that pattern (no extra lump). Week each case goes below zero / reaches the overdraft limit. `PUT /api/cash/settings {odLimit}` (store `cash/settings`). Stored books only; NOT a sales forecast (says so on the page).
+
+## Page owners + sources (9 Nov 2026)
+Every sidebar page names its owner (role + person where known), how often and what to do: `PAGE_OWNER` in `client/src/nav/config.ts`, shown under the title by `PageHeader` (test: every sidebar page has one, `server/test/nav.test.ts`). Every number says where it comes from and when it last updated: `components/ui/SourceChip.tsx` (pill "Tally books · 3 h ago", popover with each source + notes; amber past `staleAfterH`). Notes and page status live in the chip / a header status pill, not in banners; inline boxes only for blocking errors.
