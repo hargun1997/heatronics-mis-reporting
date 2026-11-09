@@ -88,7 +88,14 @@ interface Backend {
 
 // ---- Local directory backend -----------------------------------------------
 
-const toPath = (key: string) => path.join(LOCAL_DIR, ...key.split('/'));
+/** Key → file under LOCAL_DIR; a key that would resolve outside it (".." parts) is refused. */
+export function localPath(root: string, key: string): string {
+  const base = path.resolve(root);
+  const p = path.resolve(base, ...key.split('/'));
+  if (p !== base && !p.startsWith(base + path.sep)) throw new Error('Bad store key.');
+  return p;
+}
+const toPath = (key: string) => localPath(LOCAL_DIR, key);
 
 const fileBackend: Backend = {
   async put(key, data) {
@@ -256,8 +263,15 @@ function errMsg(err: unknown): string {
 
 // ---- Keys ------------------------------------------------------------------
 
-const prefixFor = (connectorId: string, slotId: string, periodKey: string) =>
-  `ingest/${connectorId}/${slotId}/${periodKey}/`;
+/** Connector / slot ids are short slugs ("tally", "trial-balance"); anything else could walk out of ingest/. */
+export const SAFE_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
+const PERIOD_KEY = /^\d{4}-\d{2}$/;
+const prefixFor = (connectorId: string, slotId: string, periodKey: string) => {
+  if (!SAFE_ID.test(connectorId) || !SAFE_ID.test(slotId) || !PERIOD_KEY.test(periodKey)) {
+    throw new Error('Bad connector / slot / period id.');
+  }
+  return `ingest/${connectorId}/${slotId}/${periodKey}/`;
+};
 
 // ---- Public API ------------------------------------------------------------
 

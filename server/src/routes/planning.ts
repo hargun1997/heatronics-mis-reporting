@@ -13,6 +13,9 @@ import { readJson, writeJson } from '../ingest/objectStore.js';
 import { getConnector } from '../connectors/registry.js';
 import { getEffectiveCredentials } from '../connectors/credentialStore.js';
 import { pullShopifyHistory, type D2CHistory } from '../planning/shopifyHistory.js';
+import { cleanActuals, cleanPlanRows, composeVsActual, type ActualsSnapshot } from '../planning/vsActual.js';
+import { BASE_PLAN_MONTHS } from '../planning/basePlanMonths.js';
+import type { PlanMonthRow } from '../planning/planVsActual.js';
 
 const router = Router();
 const INDEX = 'planning-index';
@@ -21,7 +24,7 @@ const MAX_BYTES = 2_000_000;
 
 interface IndexRow { id: string; name: string; note: string; updatedAt: string; updatedBy: string | null }
 interface Index { scenarios: IndexRow[] }
-interface Stored { plan: unknown; note: string; updatedAt: string; updatedBy: string | null }
+interface Stored { plan: unknown; note: string; updatedAt: string; updatedBy: string | null; /** the plan's months (Plan vs actual), written by the Planning page on save */ summary?: PlanMonthRow[] }
 
 type AsyncHandler = (req: Request, res: Response) => Promise<unknown>;
 const h = (fn: AsyncHandler) => (req: Request, res: Response) => {
@@ -76,7 +79,8 @@ router.put('/scenarios', h(async (req, res) => {
   }
   const updatedAt = new Date().toISOString();
   const updatedBy = who(req);
-  await writeJson(`planning-scenario-${id}`, { plan: req.body.plan, note, updatedAt, updatedBy } satisfies Stored);
+  const summary = cleanPlanRows(req.body?.summary) ?? undefined;
+  await writeJson(`planning-scenario-${id}`, { plan: req.body.plan, note, updatedAt, updatedBy, summary } satisfies Stored);
   const row: IndexRow = { id, name, note, updatedAt, updatedBy };
   idx.scenarios = [row, ...idx.scenarios.filter((s) => s.id !== id)];
   await writeJson(INDEX, idx);
@@ -91,6 +95,41 @@ router.delete('/scenarios/:id', h(async (req, res) => {
   await writeJson(INDEX, idx);
   await writeJson(`planning-scenario-${id}`, null);
   res.json({ ok: true });
+}));
+
+// ---- Plan vs actual (the plan is the budget; the Live MIS months are what happened) ----------------
+// The deck is built in the browser, so the browser stores the monthly figures it shows (POST /actuals) and the
+// server reads them back here (GET /vs-actual, MCP tool mis_get_plan_vs_actual). Our own store only; nothing leaves.
+const ACTUALS_KEY = 'planning-actuals';
+
+router.get('/actuals', h(async (_req, res) => {
+  res.json(await readJson<ActualsSnapshot | null>(ACTUALS_KEY, null));
+}));
+
+router.post('/actuals', h(async (req, res) => {
+  const months = cleanActuals(req.body?.months);
+  if (!months || !months.length) { res.status(400).json({ error: 'Send { months: [...] }.' }); return; }
+  const email = (req as unknown as { htxUser?: string }).htxUser;
+  const snap: ActualsSnapshot = { savedAt: new Date().toISOString(), savedBy: email ?? who(req), months };
+  await writeJson(ACTUALS_KEY, snap);
+  res.json({ ok: true, savedAt: snap.savedAt, months: months.length });
+}));
+
+router.get('/vs-actual', h(async (req, res) => {
+  const sc = String(req.query.scenario ?? 'base').trim() || 'base';
+  let scenario = { id: 'base', name: 'Base — Projection & Deployment Plan' };
+  let plan: PlanMonthRow[] = BASE_PLAN_MONTHS;
+  if (sc !== 'base') {
+    const idx = await readJson<Index>(INDEX, { scenarios: [] });
+    const row = idx.scenarios.find((s) => s.id === sc || s.name.toLowerCase() === sc.toLowerCase());
+    if (!row) { res.status(404).json({ error: 'No saved scenario with that id or name. Use "base" or a name from /api/planning/scenarios.' }); return; }
+    const s = await readJson<Stored | null>(`planning-scenario-${row.id}`, null);
+    const rows = s?.summary ? cleanPlanRows(s.summary) : null;
+    if (!rows) { res.status(409).json({ error: `“${row.name}” was saved before Plan vs actual existed. Open it on the Planning page and press Save once.` }); return; }
+    scenario = { id: row.id, name: row.name }; plan = rows;
+  }
+  const snap = await readJson<ActualsSnapshot | null>(ACTUALS_KEY, null);
+  res.set('Cache-Control', 'no-store').json(composeVsActual(scenario, plan, snap, new Date()));
 }));
 
 // ---- D2C history (Shopify orders → cohorts) --------------------------------------

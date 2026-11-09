@@ -55,15 +55,16 @@ test('"More" pages (tasks, old pages …) stay out of the sidebar but are in the
   assert.ok(!idx.some((i) => i.id === 'deck'), 'the old MIS deck is gone (redirects to Live MIS)');
   assert.equal(searchPalette(idx, 'connectors')[0]?.id, 'sources');
   assert.equal(searchPalette(idx, 'tally')[0]?.id, 'tally');
-  assert.equal(searchPalette(idx, 'plan')[0]?.id, 'plan');
+  assert.ok(searchPalette(idx, 'plan').slice(0, 2).some((i) => i.id === 'plan'), '5-year plan near the top (TDS planning also matches)');
+  assert.equal(searchPalette(idx, 'tds')[0]?.id, 'tds');
 });
 
-test('sidebar stays small: ≤ 5 sections, ≤ 13 pages in all; every tool sits under Tools', () => {
+test('sidebar stays small: ≤ 5 sections, ≤ 14 pages in all; every tool sits under Tools', () => {
   // Tasks (to do + fix, live count) heads Accounts; Issues folded into it (founder, 3 Nov 2026)
   const s = sidebarSections();
   assert.ok(s.length <= 5);
-  assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 13);
+  assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 14);
   assert.deepEqual(s.find((x) => x.id === 'tools')?.pages.map((p) => p.id), ['send', 'booking', 'rounds', 'floors', 'payments']);
-  assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['live', 'insights']);
-  assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'tally', 'handbook'], 'Tasks = the one place for to-do + fix');
+  assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['today', 'live', 'insights']);
+  assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'tally', 'tds', 'handbook'], 'Tasks = the one place for to-do + fix');
 });

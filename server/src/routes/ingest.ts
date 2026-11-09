@@ -17,6 +17,7 @@ import {
   readJson,
   refreshIngestStore,
   saveReport,
+  SAFE_ID,
   writeJson,
   type CommitInput,
   type RawFile,
@@ -41,6 +42,7 @@ const h = (fn: AsyncHandler) => (req: Request, res: Response) => {
 };
 
 const isPeriod = (s: string) => /^\d{4}-\d{2}$/.test(s);
+const isId = (s: string) => SAFE_ID.test(s);
 
 router.get('/status', h(async (_req, res) => {
   res.json({ store: await ingestStoreStatus() });
@@ -129,6 +131,9 @@ router.post('/commit', h(async (req, res) => {
   if (!isPeriod(b.periodKey as string)) {
     return res.status(400).json({ error: 'periodKey must be "YYYY-MM".' });
   }
+  if (!isId(b.connectorId as string) || !isId(b.slotId as string)) {
+    return res.status(400).json({ error: 'connectorId / slotId must be short ids (letters, digits, - or _).' });
+  }
 
   const input: CommitInput = {
     connectorId: b.connectorId as string,
@@ -159,6 +164,7 @@ router.post('/commit', h(async (req, res) => {
 router.delete('/reports/:connectorId/:slotId/:periodKey', h(async (req, res) => {
   const { connectorId, slotId, periodKey } = req.params;
   if (!isPeriod(periodKey)) return res.status(400).json({ error: 'periodKey must be "YYYY-MM".' });
+  if (!isId(connectorId) || !isId(slotId)) return res.status(400).json({ error: 'Bad connector / slot id.' });
   await deleteReport(connectorId, slotId, periodKey);
   res.json({ ok: true });
 }));

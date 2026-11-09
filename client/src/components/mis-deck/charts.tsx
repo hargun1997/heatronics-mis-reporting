@@ -425,20 +425,20 @@ export function DonutChart({
   const r = size / 2;
   const inner = r * 0.6;
   const cx = r, cy = r;
-  const p = (ang: number, rad: number) => [cx + rad * Math.cos(ang), cy + rad * Math.sin(ang)];
-  const segments: { key: string; frac: number; d: string }[] = [];
-  let acc = 0;
-  for (const d of data) {
-    if (!(d.value > 0)) continue;
+  const shown = data.filter((d) => d.value > 0);
+  // Start fraction of each slice (cumulative), computed up front so the map below stays pure.
+  const starts: number[] = [];
+  for (let i = 0, acc = 0; i < shown.length; i++) { starts.push(acc); acc += shown[i].value / total; }
+  const segments = shown.map((d, i) => {
     const frac = d.value / total;
-    const a0 = acc * 2 * Math.PI - Math.PI / 2;
-    acc += frac;
-    const a1 = acc * 2 * Math.PI - Math.PI / 2;
+    const a0 = starts[i] * 2 * Math.PI - Math.PI / 2;
+    const a1 = (starts[i] + frac) * 2 * Math.PI - Math.PI / 2;
     const large = frac > 0.5 ? 1 : 0;
+    const p = (ang: number, rad: number) => [cx + rad * Math.cos(ang), cy + rad * Math.sin(ang)];
     const [x0, y0] = p(a0, r), [x1, y1] = p(a1, r);
     const [x2, y2] = p(a1, inner), [x3, y3] = p(a0, inner);
-    segments.push({ key: d.key, frac, d: `M${x0},${y0} A${r},${r} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${inner},${inner} 0 ${large} 0 ${x3},${y3} Z` });
-  }
+    return { key: d.key, frac, d: `M${x0},${y0} A${r},${r} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${inner},${inner} 0 ${large} 0 ${x3},${y3} Z` };
+  });
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {segments.map((s) => (
@@ -466,8 +466,8 @@ export function WaterfallChart({ steps, height = 280 }: { steps: WaterfallStep[]
 
   // running cumulative for cost steps
   const bars: (WaterfallStep & { start: number; end: number })[] = [];
-  let running = 0;
-  for (const s of steps) {
+  for (let i = 0, running = 0; i < steps.length; i++) {
+    const s = steps[i];
     if (s.type === 'total') {
       bars.push({ start: 0, end: s.value, ...s });
       running = s.value;

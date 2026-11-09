@@ -89,7 +89,7 @@ async function fetchBundled(): Promise<TallyMaster> {
 }
 
 export function useTallyMaster(): MasterState {
-  // A saved override (localStorage) is read once on mount; only the bundled master needs a fetch.
+  // A saved override is read once, synchronously, as the initial state; only the bundled master is fetched.
   const [initial] = useState(readOverride);
   const [master, setMaster] = useState<TallyMaster | null>(initial.master);
   const [source, setSource] = useState<MasterSource>(initial.master ? 'override' : 'bundled');
@@ -117,7 +117,7 @@ export function useTallyMaster(): MasterState {
     return () => {
       cancelled = true;
     };
-  }, [initial]);
+  }, [initial.master]);
 
   function loadFromText(text: string, label?: string): ReduceStats {
     setError(null);

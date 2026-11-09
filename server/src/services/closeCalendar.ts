@@ -9,6 +9,8 @@
 //   4th       clear all bank statements
 //   5th       attendance + salary booking
 //   6th       TDS report to the CA
+//   7th       pay last month's TDS (March: 30 April) — TDS planning page shown live
+//   31st      Jan / May / Jul / Oct: TDS returns 26Q / 24Q for the last quarter
 //   8th–9th   GSTR-1 data (discrepancies, e-invoice, e-way bill)
 //   2nd       closing stock into Tally (Amazon FBA valuation shown live)
 //   10th      no-API reports + lock the month in the MIS
@@ -24,7 +26,9 @@ import type { WorkTask } from './workStore.js';
 
 // v2 (3 Nov 2026): the MIS is live, so the 10th task is only the no-API uploads + the lock; new task "Closing stock into Tally"
 // with the Amazon stock valuation shown live on it; the inbox of things to fix sits at the top of Tasks.
-export const CALENDAR_VERSION = 2;
+// v3 (9 Nov 2026): TDS planning — pay last month's TDS by the 7th (March by 30 April) with the TDS plan shown live, and the
+// quarterly 26Q / 24Q return.
+export const CALENDAR_VERSION = 3;
 
 const H = (id: string) => `/handbook#${id}`;
 const BANKS = [
@@ -238,6 +242,72 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
     dueDay: 6,
     arrears: true,
     howTo: 'c8',
+  },
+  {
+    ...base,
+    id: 'cal-m07-tds-pay',
+    title: '7th · Pay last month’s TDS (challan ITNS 281)',
+    area: 'GST & TDS',
+    roleLabel: 'Accountant',
+    // Every month except April (March’s TDS is due 30 April: next task). "quarterly" with a months list = those months only.
+    cadence: 'quarterly',
+    months: [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12],
+    dueDay: 7,
+    arrears: true,
+    howTo: 'c8',
+    live: 'tds',
+    remindDaysBefore: 3,
+    description:
+      'TDS deducted last month must reach the government by the 7th. The amount per section is shown below, from the Tally Day Book. Pay one challan per section on incometax.gov.in, then book the challan in Tally.',
+    links: [{ label: 'TDS planning', url: '/accounts/tds' }, { label: 'e-Pay Tax', url: 'https://www.incometax.gov.in' }],
+    checklist: [
+      { id: 'check', label: 'Flags on the TDS page checked (rate, PAN)', link: '/accounts/tds' },
+      { id: 'paid', label: 'Challan paid for every section', hint: 'Save each challan: BSR code, date, serial no.' },
+      { id: 'tally', label: 'Challans booked in Tally against the TDS ledgers' },
+    ],
+  },
+  {
+    ...base,
+    id: 'cal-m04-tds-march',
+    title: '30 April · Pay March’s TDS (challan ITNS 281)',
+    area: 'GST & TDS',
+    roleLabel: 'Accountant',
+    cadence: 'quarterly',
+    months: [4],
+    dueDay: 30,
+    arrears: true,
+    howTo: 'c8',
+    live: 'tds',
+    remindDaysBefore: 5,
+    description: 'TDS deducted in March is due by 30 April (not the 7th). The amount per section is shown below.',
+    links: [{ label: 'TDS planning', url: '/accounts/tds' }],
+    checklist: [
+      { id: 'paid', label: 'Challan paid for every section', hint: 'Save each challan: BSR code, date, serial no.' },
+      { id: 'tally', label: 'Challans booked in Tally against the TDS ledgers' },
+    ],
+  },
+  {
+    ...base,
+    id: 'cal-q-tds-return',
+    title: 'File TDS returns 26Q / 24Q for last quarter',
+    area: 'GST & TDS',
+    roleLabel: 'Accountant / CA',
+    cadence: 'quarterly',
+    months: [1, 5, 7, 10],
+    dueDay: 31,
+    howTo: 'c8',
+    remindDaysBefore: 7,
+    description:
+      'Q1 (Apr–Jun) by 31 Jul · Q2 by 31 Oct · Q3 by 31 Jan · Q4 by 31 May. Download "26Q prep" from the TDS page, fill the RPU, check it with the FVU, upload on incometax.gov.in. Late fee ₹200 a day (capped at the TDS).',
+    penalty: '234E: ₹200 a day until filed, capped at the TDS in the return; 271H: ₹10,000–₹1,00,000 if over a year late or wrong.',
+    links: [{ label: 'TDS planning → 26Q prep', url: '/accounts/tds' }, { label: 'Protean RPU / FVU', url: 'https://www.protean-tinpan.com' }],
+    checklist: [
+      { id: 'challans', label: 'Every challan of the quarter has BSR, date and serial no.' },
+      { id: 'pan', label: 'Every deductee has a valid PAN' },
+      { id: '26q', label: '26Q filed (non-salary)' },
+      { id: '24q', label: '24Q filed (salary)', hint: 'Skip if no salary TDS this quarter' },
+      { id: '16a', label: 'Form 16A downloaded from TRACES and sent', hint: 'About 15 days after the return' },
+    ],
   },
   {
     ...base,

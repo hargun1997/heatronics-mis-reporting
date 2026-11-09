@@ -23,11 +23,13 @@ const InvoiceBookingSuggester = lazyPage(() => import('./pages/guide/tools/Invoi
 const AmazonToTranzactTool = lazyPage(() => import('./pages/guide/tools/AmazonToTranzactTool'), 'AmazonToTranzactTool');
 const ExpenseBooking = lazyPage(() => import('./pages/tools/ExpenseBooking'), 'ExpenseBooking');
 const BookingAssistantPage = lazyPage(() => import('./pages/booking/BookingAssistantPage'), 'BookingAssistantPage');
+const TodayPage = lazyPage(() => import('./pages/today/TodayPage'), 'TodayPage');
 const PriceFloorsPage = lazyPage(() => import('./pages/tools/PriceFloorsPage'), 'PriceFloorsPage');
 const BulkPaymentsPage = lazyPage(() => import('./pages/tools/BulkPaymentsPage'), 'BulkPaymentsPage');
 const RoundPlannerPage = lazyPage(() => import('./pages/tools/RoundPlannerPage'), 'RoundPlannerPage');
 const PlanningPage = lazyPage(() => import('./pages/planning/PlanningPage'), 'PlanningPage');
 const TallyPage = lazyPage(() => import('./pages/tally/TallyPage'), 'TallyPage');
+const TdsPage = lazyPage(() => import('./pages/accounts/TdsPage'), 'TdsPage');
 
 function App() {
   return (
@@ -102,12 +104,14 @@ function App() {
           <Route path="tools/invoice-booking" element={<InvoiceBookingSuggester />} />
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
           <Route path="tools/expense-booking" element={<ExpenseBooking />} />
+          <Route path="today" element={<TodayPage />} />
           <Route path="tools/price-floors" element={<PriceFloorsPage />} />
           <Route path="tools/bulk-payments" element={<BulkPaymentsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />
           <Route path="planning" element={<PlanningPage />} />
           <Route path="setup" element={<Navigate to="/reporting/mis/connectors" replace />} />
           <Route path="tally" element={<TallyPage />} />
+          <Route path="accounts/tds" element={<TdsPage />} />
 
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />

@@ -16,8 +16,20 @@ import type { TallyMaster } from './useTallyMaster';
 // a previously-saved slim JSON.
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line no-control-regex -- stripping control characters is the point
+// eslint-disable-next-line no-control-regex -- stripping control characters is the point of this regex
 const CONTROL_CHAR_RE = /[\x00-\x1f]/g;
+
+/** The fields we read from one entry of a raw Tally export's `tallymessage` array. */
+interface RawTallyMessage {
+  isdeleted?: unknown;
+  metadata?: { name?: unknown; type?: unknown };
+  parent?: unknown;
+  isrevenue?: unknown;
+  gsttypeofsupply?: unknown;
+  isgstapplicable?: unknown;
+  istdsapplicable?: unknown;
+  category?: unknown;
+}
 
 function clean(s: unknown): string {
   if (typeof s !== 'string') return '';
@@ -87,8 +99,7 @@ export function reduceTallyExport(raw: unknown): ReduceResult {
 
   for (const m of raw.tallymessage) {
     if (!m || typeof m !== 'object') continue;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw Tally JSON, read defensively below
-    const msg = m as Record<string, any>;
+    const msg = m as RawTallyMessage;
     if (msg.isdeleted) continue;
 
     const meta = msg.metadata;
