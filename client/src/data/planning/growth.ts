@@ -32,6 +32,24 @@ export function emptyGrowth(): GrowthPlan {
   };
 }
 
+/**
+ * Line time per unit in heating-pad equivalents (the Ops planner's rule: one line, units a day in pad equivalents; weight = 500 ÷ the
+ * product's own line rate a day). Pad / Knee / X / XL / Rest 500 a day = 1; single bed 400 = 1.25; Neck, Foot, double bed 200 = 2.5;
+ * hGo / hBoots / hPulse and new devices 2.5 (assumed); contract-made topicals and nutraceuticals 0 (not on our line).
+ */
+export function defaultCapacityWeights(plan: Pick<Plan, 'skus' | 'products'>): Record<string, number> {
+  const w: Record<string, number> = {};
+  for (const s of plan.skus) {
+    const n = s.name.toLowerCase();
+    w[s.id] = /neck|foot|dual|hgo|hboots|hpulse/.test(n) ? 2.5 : /bed/.test(n) ? 1.25 : 1;
+  }
+  for (const p of plan.products) {
+    const ih = p.inHouse ?? p.category === 'device';
+    w[p.id] = !ih ? 0 : p.category === 'device' ? 2.5 : 1;
+  }
+  return w;
+}
+
 /** Make sure the plan carries the Growth builder's cost groups (so tables list them). */
 export function ensureGrowthGroups(p: Plan) {
   for (const g of GROWTH_GROUPS) if (!p.groups.some((x) => x.name === g.name)) p.groups.push({ ...g });

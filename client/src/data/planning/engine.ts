@@ -52,6 +52,9 @@ export interface CashInputs {
   /** interest rate from a month onwards (each step holds until the next) */
   interestSteps: { month: number; rate: number }[];
   openingCash: number; contingencyPct: number; taxRate: number;
+  /** receivable days per channel (+ `retail` = GT / pharmacy / MT outlets, `stores`); when present it replaces
+   *  `receivableDays` for the channels it names (a channel it leaves out keeps `receivableDays`) */
+  receivableDaysByChannel?: Partial<Record<Channel | 'retail' | 'stores', number>>;
 }
 
 export interface CashEvent {
@@ -108,6 +111,10 @@ export interface NewProduct {
   unitsByFy?: Record<string, number>;
   /** Growth builder: this product's own costs (one-off launch / tooling, monthly fixed, % of its revenue) */
   expenses?: ProductExpense[];
+  /** line time per unit in heating-pad equivalents (500 ÷ its line rate a day; 0 = not on our line); default from `growth.capacityWeights`, else 1 */
+  capacityWeight?: number;
+  /** share of its material bought in advance (contract-made lines: 0.5 = half paid with the PO, a month before receipt; the rest on receipt) */
+  advancePct?: number;
 }
 
 /** A product's own cost line. `month` defaults to the product's launch month; `group` to the natural plan group for the kind. */
@@ -227,8 +234,14 @@ export interface GrowthPlan {
   funding?: FundingRules;
   /** exit ARR target (₹): last 3 months' revenue × 4 at the end of the horizon */
   targetArr: number;
-  /** in-house production capacity today, units a month (all devices) */
+  /** in-house production capacity today, units a month (all devices); heating-pad equivalents when `capacityWeights` is set */
   baseCapacity: number;
+  /** capacity in heating-pad equivalents: weight per SKU / product id (500 ÷ its line rate; pad = 1). Absent = raw units (weight 1) */
+  capacityWeights?: Record<string, number>;
+  /** stock build ahead of the peak: in `peakMonths` the line can ship this × its monthly capacity (default 1.9) */
+  peakShift?: number;
+  /** calendar months (0 = Jan) the peak-shift factor applies to (default Dec, Jan) */
+  peakMonths?: number[];
   /** salary increment a year for growth hires */
   incrementPct: number;
   /** employer PF / ESI / insurance on top of CTC */
@@ -362,6 +375,14 @@ export interface PlanFx {
   depreciationOnce: { on: boolean; lifeYears: number };
   /** 8. per-SKU volume and price tweaks (hGo, hPulse, …) */
   skuTweaks: Record<string, { volume: number; asp: number | null }>;
+  /** cap in-house sales at production capacity (demand above it is lost); off / absent = only reported (`unitsShort`, `revenueShort`) */
+  capacityCaps?: boolean;
+  /** GST refund of the inverted duty: 'goods-first' (absent; services ITC sets off output first, all unused goods ITC refunded) or
+   *  'rule89' = Rule 89(5) as amended 2022: refund = inverted turnover × Net ITC (goods) ÷ adjusted turnover − output tax × Net ITC ÷
+   *  (ITC on inputs + input services); services ITC only sets off, never refunded; ITC left after the refund is written off / carried */
+  gstRefundRule?: 'goods-first' | 'rule89';
+  /** share-issue costs (Fundraise Costs group) reduce the equity raised instead of hitting the P&L; off / absent = P&L expense (the sheet) */
+  fundraiseAsCapital?: boolean;
 }
 
 /** The sheet's Business Plan + Overview: words, milestones and the few inputs they hold. */
@@ -553,8 +574,18 @@ export interface MonthResult {
   growthHeadcount: number;
   /** in-house units vs capacity (units a month); utilisation 0 when no capacity is set */
   inHouseUnits: number;
+  /** in-house units in heating-pad equivalents (= inHouseUnits when no `capacityWeights`); utilisation = this ÷ capacity */
+  inHousePadEq: number;
   capacity: number;
   utilisation: number;
+  /** demand the line can't make this month (pad-equivalents above capacity × the peak-shift factor in Dec / Jan) and its revenue (list, incl. GST).
+   *  Lost when `fx.capacityCaps` is on (revenue already reduced), else only reported */
+  unitsShort: number;
+  revenueShort: number;
+  /** people per Growth-builder hire id this month */
+  headcountByHire: Record<string, number>;
+  /** share-issue costs taken off the equity raised (`fx.fundraiseAsCapital`); 0 otherwise */
+  equityCosts: number;
   /** equity from Growth-builder rounds this month */
   roundEquity: number;
   /** offline distribution (Growth builder): what we invoice, by type, and live outlets by type */
@@ -611,6 +642,8 @@ export interface PlanResult {
   /** seed equity in the plan (fx) and what the Ask needs after it */
   seedEquity: number;
   fxActive: boolean;
+  /** the opening balance sheet is still the sheet's placeholder (not loaded from Tally / typed) */
+  openingIsPlaceholder: boolean;
 }
 
 const zeroCh = (): Record<Channel, number> => ({ A: 0, D: 0, F: 0, G: 0, P: 0 });
@@ -810,9 +843,16 @@ export function runPlan(plan: Plan): PlanResult {
   let nwcPrev = plan.cash.openingInventory;
   let invPrev = plan.cash.openingInventory;
   const stdCogs: number[] = [];
+  const cmMat: number[] = []; // material of lines bought with an advance (advancePct > 0), per month
+  const cmAdv: number[] = []; // the advance paid on that material
+  // capacity in pad-equivalents: a product's weight on our line (0 when contract-made)
+  const padMode = !!G?.capacityWeights;
+  const weightOf = (id: string, inHouse: boolean, cat?: string, own?: number) =>
+    !inHouse ? 0 : own ?? G?.capacityWeights?.[id] ?? (padMode && cat === 'device' ? 2.5 : 1);
+  const peakMonths = new Set(G?.peakMonths ?? [11, 0]);
 
   // first pass needs every month's revenue for forward inventory cover, so compute P&L for all months first
-  const pre: Omit<MonthResult, 'gstAsset' | 'gstRefund' | 'taxableTurnover' | 'outputGst' | 'itcGoods' | 'itcServices' | 'gstSetOffServices' | 'gstSetOffGoods' | 'gstClaimable' | 'gstStuck' | 'stdCogs' | 'inventory' | 'inventoryPurchase' | 'receivables' | 'payables' | 'nwc' | 'nwcChange' | 'debt' | 'netCashFlow' | 'cumulativeCash' | 'equity' | 'debtNet' | 'closingCash' | 'bankDebt' | 'ventureBalance' | 'ventureInterest' | 'overdraftInterest' | 'overdraft' | 'overdraftOverLimit' | 'cumulativeNeed' | 'roundEquity' | 'interest' | 'tax' | 'pbt' | 'pat' | 'gstWrittenOff' | 'cm1' | 'cm2' | 'cm3' | 'ebitda' | 'ebit'>[] = [];
+  const pre: Omit<MonthResult, 'gstAsset' | 'gstRefund' | 'taxableTurnover' | 'outputGst' | 'itcGoods' | 'itcServices' | 'gstSetOffServices' | 'gstSetOffGoods' | 'gstClaimable' | 'gstStuck' | 'stdCogs' | 'inventory' | 'inventoryPurchase' | 'receivables' | 'payables' | 'nwc' | 'nwcChange' | 'debt' | 'netCashFlow' | 'cumulativeCash' | 'equity' | 'debtNet' | 'closingCash' | 'bankDebt' | 'ventureBalance' | 'ventureInterest' | 'overdraftInterest' | 'overdraft' | 'overdraftOverLimit' | 'cumulativeNeed' | 'roundEquity' | 'equityCosts' | 'interest' | 'tax' | 'pbt' | 'pat' | 'gstWrittenOff' | 'cm1' | 'cm2' | 'cm3' | 'ebitda' | 'ebit'>[] = [];
 
   for (let m = 1; m <= H; m++) {
     const aspF = Math.pow(1 + L.aspGrowthPct, yearsAfter(m));
@@ -836,6 +876,7 @@ export function runPlan(plan: Plan): PlanResult {
     }
     // D2C: rebuild the channel from customers, keeping the month's SKU mix
     let d2cNewCustomers = 0, d2cRepeatOrders = 0, d2cNewRevenue = 0, d2cRepeatRevenue = 0;
+    let fD = 1, d2cOrphan = 0; // cohort rebuild factor on the core SKUs' D2C units, and repeat revenue in a month the plan sells none
     if (cohorts) {
       const planD = revenueByChannel.D;
       const S = (D.season[calOf(plan.startMonth, m)] ?? 1) * D.repeatBoost;
@@ -858,6 +899,8 @@ export function runPlan(plan: Plan): PlanResult {
       const total = d2cNewRevenue + d2cRepeatRevenue;
       newShare[m] = total > 0 ? d2cNewRevenue / total : 1;
       const f = planD > 0 ? total / planD : 0;
+      fD = planD > 0 ? f : 0;
+      if (planD <= 0) d2cOrphan = total;
       if (planD > 0 && Math.abs(f - 1) > 1e-12) {
         const ci = CHANNELS.indexOf('D');
         for (let s = 0; s < nSku; s++) {
@@ -877,7 +920,11 @@ export function runPlan(plan: Plan): PlanResult {
     let ownCogsRevenue = 0;
     const gAdd: Record<string, number> = {}; // Growth-builder costs, added to the groups after the expense calendar
     const add = (grp: string, v: number) => { if (v) gAdd[grp] = (gAdd[grp] ?? 0) + v; };
-    let inHouseUnits = 0, repeatUnits = 0;
+    let inHouseUnits = 0, inHousePadEq = 0, repeatUnits = 0;
+    const ihRevCh = zeroCh(); // in-house list revenue by channel (for the capacity cap)
+    const ihRetail: Record<string, number> = {};
+    const ihIds = new Set<string>();
+    let ihOwnCogs = 0, ihOwnCogsRev = 0, mat = 0, adv = 0;
     const growthByChannel = zeroCh(); // the growth lines' own channel revenue (kept out of the ROAS ad base in the lean phase)
     for (const p of products) {
       if (G && p.on && m === p.launchMonth) { add('Product Development & Launch', p.launchCost ?? 0); add('New Product Tooling & Moulds', p.launchCapex ?? 0); }
@@ -894,17 +941,23 @@ export function runPlan(plan: Plan): PlanResult {
       const q = G && (p.chStart || p.chGrowth) ? q0 * facSum : q0;
       if (G && p.on && m >= p.launchMonth) repeatUnits += (unitsOf(p).rep[m] ?? 0) * (p.chStart || p.chGrowth ? facSum : 1);
       if (!q) { unitsBySku[p.id] = 0; revenueBySku[p.id] = 0; continue; }
-      if (p.inHouse ?? (p.category ? p.category === 'device' : true)) inHouseUnits += q;
+      const ih = p.inHouse ?? (p.category ? p.category === 'device' : true);
+      if (ih) { inHouseUnits += q; inHousePadEq += q * weightOf(p.id, true, p.category, p.capacityWeight); ihIds.add(p.id); }
       let pr = 0;
       for (let ci = 0; ci < CHANNELS.length; ci++) {
         const ch = CHANNELS[ci];
         const r = q0 * fac[ci] * p.asp * aspF;
         revenueByChannel[ch] += r; pr += r;
+        if (ih) ihRevCh[ch] += r;
         if (p.growthLine) growthByChannel[ch] += r;
         if (ch === 'G') gtList[p.id] = (gtList[p.id] ?? 0) + r;
       }
       unitsBySku[p.id] = q; revenueBySku[p.id] = pr; units += q;
-      if (p.cogsPct != null) { ownCogs += pr * p.cogsPct; ownCogsRevenue += pr; }
+      if (p.cogsPct != null) {
+        ownCogs += pr * p.cogsPct; ownCogsRevenue += pr;
+        if (ih) { ihOwnCogs += pr * p.cogsPct; ihOwnCogsRev += pr; }
+        if (G && (p.advancePct ?? 0) > 0) { mat += pr * p.cogsPct; adv += pr * p.cogsPct * (p.advancePct ?? 0); }
+      }
       if (G && p.marketingPct && m > leanUntil) add('Performance Marketing', pr * p.marketingPct);
     }
     // Growth builder: each product's own cost lines
@@ -919,7 +972,12 @@ export function runPlan(plan: Plan): PlanResult {
         else add(grp, (revenueBySku[p.id] ?? 0) * e.amount);
       }
     }
-    for (let s = 0; s < nSku; s++) inHouseUnits += unitsBySku[plan.skus[s].id] ?? 0; // the core SKUs are made in-house
+    for (let s = 0; s < nSku; s++) { // the core SKUs are made in-house
+      const id = plan.skus[s].id, q = unitsBySku[id] ?? 0;
+      inHouseUnits += q; inHousePadEq += q * weightOf(id, true); ihIds.add(id);
+      for (let c = 0; c < CHANNELS.length; c++) ihRevCh[CHANNELS[c]] += u[m - 1][s][c] * aspOf(s) * aspF * (cohorts && c === ciD ? fD : 1);
+    }
+    if (d2cOrphan) { ihRevCh.D += d2cOrphan; ihIds.add('d2c-repeat'); }
 
     // ---- Growth builder: offline distribution of the new lines (GT, MT, pharmacy) ------------
     let retailRevenue = 0;
@@ -939,8 +997,10 @@ export function runPlan(plan: Plan): PlanResult {
           const r = list * (1 - t.tradeMarginPct);
           inv += r;
           unitsBySku[p.id] = (unitsBySku[p.id] ?? 0) + q; revenueBySku[p.id] = (revenueBySku[p.id] ?? 0) + r; units += q;
-          if (p.inHouse ?? p.category === 'device') inHouseUnits += q;
+          const ih = p.inHouse ?? p.category === 'device';
+          if (ih) { inHouseUnits += q; inHousePadEq += q * weightOf(p.id, true, p.category, p.capacityWeight); ihIds.add(p.id); ihRetail[t.id] = (ihRetail[t.id] ?? 0) + r; ihOwnCogs += list * (p.cogsPct ?? 0.3); ihOwnCogsRev += r; }
           ownCogs += list * (p.cogsPct ?? 0.3); ownCogsRevenue += r; // material on the list value; kept out of the %-of-revenue RM base
+          if ((p.advancePct ?? 0) > 0) { mat += list * (p.cogsPct ?? 0.3); adv += list * (p.cogsPct ?? 0.3) * (p.advancePct ?? 0); }
         }
       }
       retailByType[t.id] = inv; retailRevenue += inv;
@@ -951,6 +1011,7 @@ export function runPlan(plan: Plan): PlanResult {
 
     // ---- Growth builder: stores, people, capacity, capex, round fees ---------------------
     let storeRevenue = 0, stores = 0, growthHeadcount = 0, capacity = 0;
+    const headcountByHire: Record<string, number> = {};
     if (G) {
       const st = G.stores;
       if (st.on) {
@@ -987,6 +1048,7 @@ export function runPlan(plan: Plan): PlanResult {
         add('Employee Benefits & Statutory', pay * G.benefitsPct);
         if (m === h.month) add('Recruitment & Training', n * h.monthlyCtc * 12 * G.recruitPct);
         growthHeadcount += n;
+        headcountByHire[h.id] = (headcountByHire[h.id] ?? 0) + n;
       }
       capacity = G.baseCapacity;
       for (const b of G.capacity) {
@@ -1006,6 +1068,22 @@ export function runPlan(plan: Plan): PlanResult {
         } else add(o.group || 'Office & Administration', o.amount * esc);
       }
       for (const r of G.rounds) if (r.on && m === r.month) add('Fundraise Costs', r.amount * r.feePct);
+    }
+    // ---- capacity: demand above what the line can make (pad-equivalents; Dec / Jan ship peakShift × capacity from stock built ahead)
+    let unitsShort = 0, revenueShort = 0;
+    if (capacity > 0 && inHousePadEq > 0) {
+      const can = capacity * (peakMonths.has(calOf(plan.startMonth, m)) ? G?.peakShift ?? 1.9 : 1);
+      unitsShort = Math.max(0, inHousePadEq - can);
+      const ihRev = CHANNELS.reduce((a, c) => a + ihRevCh[c], 0) + Object.values(ihRetail).reduce((a, x) => a + x, 0);
+      revenueShort = (ihRev * unitsShort) / inHousePadEq;
+      if (fx.capacityCaps && unitsShort > 0) {
+        const lost = unitsShort / inHousePadEq; // share of in-house demand that can't be made
+        for (const ch of CHANNELS) revenueByChannel[ch] -= ihRevCh[ch] * lost;
+        for (const [t, v] of Object.entries(ihRetail)) { retailByType[t] -= v * lost; retailRevenue -= v * lost; }
+        for (const id of ihIds) { units -= (unitsBySku[id] ?? 0) * lost; unitsBySku[id] = (unitsBySku[id] ?? 0) * (1 - lost); revenueBySku[id] = (revenueBySku[id] ?? 0) * (1 - lost); }
+        ownCogs -= ihOwnCogs * lost; ownCogsRevenue -= ihOwnCogsRev * lost;
+        inHouseUnits *= 1 - lost; inHousePadEq *= 1 - lost;
+      }
     }
     const listRevenue = CHANNELS.reduce((a, c) => a + revenueByChannel[c], 0) + storeRevenue + retailRevenue; // the base of every %-of-revenue line
     if (G) for (const o of G.overheads ?? []) if (o.on && o.kind === 'pct' && m >= o.month && !(o.end != null && m > o.end)) add(o.group || 'Office & Administration', o.amount * listRevenue);
@@ -1088,10 +1166,12 @@ export function runPlan(plan: Plan): PlanResult {
       revenueByChannel, revenueBySku, grossRevenue, d2cNewCustomers, d2cRepeatOrders, d2cNewRevenue, d2cRepeatRevenue, groups, lines, revenueDeductions, netRevenue, cogs,
       grossProfit, opex, da: g('Depreciation & Amortisation'), banking: g('Banking Charges'),
       fundraiseCosts: g('Fundraise Costs'), capex,
-      storeRevenue, stores, growthHeadcount, inHouseUnits, capacity, utilisation: capacity > 0 ? inHouseUnits / capacity : 0,
+      storeRevenue, stores, growthHeadcount, inHouseUnits, inHousePadEq, capacity, utilisation: capacity > 0 ? inHousePadEq / capacity : 0,
+      unitsShort, revenueShort, headcountByHire,
       retailRevenue, retailByType, outlets, repeatUnits,
     });
     stdCogs.push((listRevenue - revenueDeductions) * (1 - plan.cash.gmStandard)); // physical goods: list price, whatever the P&L basis
+    cmMat.push(mat); cmAdv.push(adv);
   }
 
   // ---- 3. GST, working capital, debt, tax, cash ----------------------------------
@@ -1137,10 +1217,21 @@ export function runPlan(plan: Plan): PlanResult {
     const itcServices = services * c.inputGstServices;
     const setOffServices = Math.min(itcServices, outGst);
     const setOffGoods = Math.min(itcGoods, outGst - setOffServices);
-    const claimable = itcGoods - setOffGoods;
+    let claimable = itcGoods - setOffGoods;
+    let stuck = itcServices - setOffServices;
+    if (fx.gstRefundRule === 'rule89') {
+      // Rule 89(5) (amended 5 Jul 2022): every supply is inverted (5 % out, 18 % in), so inverted turnover = adjusted turnover;
+      // the output tax is apportioned by Net ITC ÷ (ITC on inputs + input services). Services ITC is never refunded in cash.
+      const itcAll = itcGoods + itcServices;
+      const max89 = itcGoods - (itcAll > 0 ? outGst * itcGoods / itcAll : 0);
+      const unused = itcAll - setOffServices - setOffGoods; // credit left in the ledger after paying the output tax
+      claimable = Math.max(0, Math.min(max89, unused));
+      stuck = unused - claimable; // goods ITC beyond the formula + services ITC: no cash refund
+    }
     refundClaimable.push(claimable);
-    const refund = m - c.refundLagMonths >= 1 ? refundClaimable[m - c.refundLagMonths - 1] : 0;
-    const stuck = itcServices - setOffServices;
+    let refund = m - c.refundLagMonths >= 1 ? refundClaimable[m - c.refundLagMonths - 1] : 0;
+    // an opening GST credit (Tally) is claimed with the first refund cycle
+    if (fx.gstRefundRule === 'rule89' && op && op.gstAsset > 0 && m === Math.max(1, c.refundLagMonths)) refund += op.gstAsset;
     const writtenOff = stuck * (fx.gstServicesAsCost ? 1 : c.gstWriteOffPct);
     const gstAsset = gstAssetPrev + claimable + (stuck - writtenOff) - refund;
     gstAssetPrev = gstAsset;
@@ -1166,7 +1257,8 @@ export function runPlan(plan: Plan): PlanResult {
     const overdraftInterest = fx.overdraft.on ? Math.max(0, -cash) * fx.overdraft.rate / 12 : 0;
     const interest = bankInterest + ventureInterest + overdraftInterest;
     const financeFee = vDrawn(m) * vd.feePct;
-    const fundraiseCosts = p.fundraiseCosts + financeFee;
+    const equityCosts = fx.fundraiseAsCapital ? p.fundraiseCosts : 0; // share-issue costs: off the equity, not the P&L
+    const fundraiseCosts = p.fundraiseCosts - equityCosts + financeFee;
     const pbt = ebit - interest - p.banking - fundraiseCosts;
     let tax = 0;
     if (taxMode === 'fy') {
@@ -1188,8 +1280,16 @@ export function runPlan(plan: Plan): PlanResult {
     const inventory = fwd * 3 / 90 * c.inventoryDays;
     const inventoryPurchase = stdCogs[i] + inventory - invPrev;
     invPrev = inventory;
-    const receivables = p.grossRevenue / 30 * c.receivableDays;
-    const payables = -Math.max(0, inventoryPurchase) / 30 * c.payableDays;
+    const rd = c.receivableDaysByChannel;
+    const receivables = rd
+      ? CHANNELS.reduce((a, ch) => a + p.revenueByChannel[ch] / 30 * (rd[ch] ?? c.receivableDays), 0)
+        + p.retailRevenue / 30 * (rd.retail ?? c.receivableDays) + p.storeRevenue / 30 * (rd.stores ?? c.receivableDays)
+      : p.grossRevenue / 30 * c.receivableDays;
+    // contract-made lines bought with an advance: that share of purchases gets no supplier credit, and the advance on next
+    // month's receipts sits as a prepayment (a negative payable)
+    const cmShare = stdCogs[i] > 0 ? Math.min(1, cmMat[i] / stdCogs[i]) : 0;
+    const advance = cmAdv[i + 1] ?? cmAdv[i];
+    const payables = -Math.max(0, inventoryPurchase) * (1 - cmShare) / 30 * c.payableDays + advance;
     const nwc = inventory + receivables + payables + gstAsset;
     const nwcChange = nwcPrev - nwc;
     nwcPrev = nwc;
@@ -1202,7 +1302,7 @@ export function runPlan(plan: Plan): PlanResult {
     const netCashFlow = ebitda - tax - interest - p.banking - fundraiseCosts + nwcChange - p.capex;
     cumulative += netCashFlow;
     cumulativeNeed += netCashFlow - vRepaid(m);
-    cash += netCashFlow + equity + drawn - repaid;
+    cash += netCashFlow + equity - equityCosts + drawn - repaid;
 
     months.push({
       ...p, da, fundraiseCosts, gstWrittenOff: writtenOff, gstServicesCost: writtenOff, revenueExGst: taxable, cm1, cm2, cm3, ebitda, ebit, interest, pbt, tax, pat,
@@ -1211,7 +1311,7 @@ export function runPlan(plan: Plan): PlanResult {
       gstAsset, gstRefund: refund, inventory, inventoryPurchase, receivables, payables, nwc, nwcChange,
       debt, netCashFlow, cumulativeCash: cumulative, equity, debtNet: drawn - repaid, closingCash: cash,
       bankDebt, ventureBalance: ventureBal, ventureInterest, overdraftInterest, overdraft: Math.max(0, -cash),
-      overdraftOverLimit: fx.overdraft.on && fx.overdraft.limit != null ? Math.max(0, -cash - fx.overdraft.limit) : 0, cumulativeNeed, roundEquity,
+      overdraftOverLimit: fx.overdraft.on && fx.overdraft.limit != null ? Math.max(0, -cash - fx.overdraft.limit) : 0, cumulativeNeed, roundEquity, equityCosts,
     });
   }
 
@@ -1254,6 +1354,7 @@ export function runPlan(plan: Plan): PlanResult {
     months, years, peakDeficit, peakDeficitMonth: peakMonth, fundingRequired, debtDrawnTotal,
     equityRequired: fundingRequired - debtDrawnTotal, equityPlanned, minClosingCash: minCash,
     minClosingCashMonth: minCashMonth, base: B, roundsEquity, seedEquity, fxActive: fx !== LEGACY_FX,
+    openingIsPlaceholder: fx !== LEGACY_FX && (!fx.opening.on || fx.opening.source === 'sheet'),
   };
 }
 

@@ -97,8 +97,10 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
   const G = plan.growth;
   const blocks = (G?.capacity ?? []).filter((b) => b.on);
   const label = (m: number) => r.months.find((x) => x.m === m)?.label ?? `M${m}`;
+  const pad = !!G?.capacityWeights;
+  const lost = r.months.reduce((a, m) => a + m.revenueShort, 0);
   return (
-    <SectionCard title="Capacity & utilisation by FY" description="In-house units a month (core hCore range + in-house lines) against production capacity. Capacity today and the blocks that add to it are in Setup → Capacity, sites & capex.">
+    <SectionCard title="Capacity & utilisation by FY" description={`In-house ${pad ? 'units in heating-pad equivalents (line time: neck / foot / double bed / new devices 2.5, single bed 1.25, contract-made 0)' : 'units'} a month (core hCore range + in-house lines) against production capacity. Lost sales = demand above capacity (Dec / Jan ship ${G?.peakShift ?? 1.9}× from stock built ahead). Capacity today and the blocks that add to it are in Setup → Capacity, sites & capex.`}>
       {!hasCapacity && <p className="text-[13px] text-slate-500">No production capacity set, so utilisation is not measured.</p>}
       {hasCapacity && (
         <div className="overflow-x-auto">
@@ -108,6 +110,7 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
                 <th className="px-2 py-2 text-left font-semibold">FY</th><th className="px-2 py-2 text-left font-semibold">Peak month</th>
                 <th className="px-2 py-2 text-right font-semibold">Peak use</th><th className="px-2 py-2 text-right font-semibold">In-house units</th>
                 <th className="px-2 py-2 text-right font-semibold">Capacity</th><th className="px-2 py-2 text-right font-semibold">Months over 100%</th>
+                <th className="px-2 py-2 text-right font-semibold">Lost sales</th>
               </tr>
             </thead>
             <tbody>
@@ -120,9 +123,10 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
                     <td className="px-2 py-1.5 font-semibold">{y.fy}</td>
                     <td className="px-2 py-1.5">{pk?.label}</td>
                     <td className="px-2 py-1.5 text-right">{pct(pk?.utilisation ?? 0, 0)}</td>
-                    <td className="px-2 py-1.5 text-right">{int(pk?.inHouseUnits ?? 0)}</td>
+                    <td className="px-2 py-1.5 text-right">{int((pad ? pk?.inHousePadEq : pk?.inHouseUnits) ?? 0)}</td>
                     <td className="px-2 py-1.5 text-right">{int(pk?.capacity ?? 0)}</td>
                     <td className="px-2 py-1.5 text-right">{over || '–'}</td>
+                    <td className="px-2 py-1.5 text-right">{ms.some((m) => m.revenueShort > 0) ? cr(ms.reduce((a, m) => a + m.revenueShort, 0)) : '–'}</td>
                   </tr>
                 );
               })}
@@ -131,6 +135,7 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
         </div>
       )}
       {overMonths.length > 0 && <p className="mt-2 text-[12px] text-rose-600">Over capacity means stock must be built ahead of the peak or capacity added earlier.</p>}
+      {lost > 0 && <p className="mt-1 text-[12px] text-rose-600">{cr(lost)} of sales can't be made on this capacity plan — {plan.fx?.capacityCaps ? 'taken out of revenue' : 'still counted in revenue (switch capacity caps on to take it out)'}.</p>}
       {G && (
         <p className="mt-2 text-[12px] text-slate-500">
           Capacity today {int(G.baseCapacity)} units / month{blocks.length ? ` · blocks: ${blocks.map((b) => `${b.name} +${int(b.unitsPerMonth)} from ${label(b.month + b.leadMonths)}`).join(', ')}` : ' · no capacity blocks'}.
