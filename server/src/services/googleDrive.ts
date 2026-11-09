@@ -94,7 +94,7 @@ class GoogleDriveService {
       this.drive = google.drive({ version: 'v3', auth });
 
       // Test connection by listing files in inputs folder
-      const response = await this.drive.files.list({
+      await this.drive.files.list({
         q: `'${this.inputsFolderId}' in parents and trashed = false`,
         fields: 'files(id, name)',
         pageSize: 1

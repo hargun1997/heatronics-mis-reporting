@@ -1,11 +1,5 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
-import { inr, inrLakh, pctStr, pctSigned } from './format';
-
-// Formatters and palette live in ./format (a .tsx may only export components for fast refresh).
-
-// Directional accents for +/- bars — indigo for up, muted slate for down (no red/green).
-export const POS_COLOR = '#4f46e5';
-export const NEG_COLOR = '#94a3b8';
+import { inr, inrLakh, pctStr, pctSigned, POS_COLOR, NEG_COLOR } from './format';
 
 // ============================================================================
 // Measurement hook

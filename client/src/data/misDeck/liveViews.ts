@@ -29,7 +29,7 @@ import {
   type PeriodAgg, type PnlColumn,
 } from './liveAnalytics';
 import {
-  channelAdWeight, fyBlendedGMRates, blendedMonths, channelPnl,
+  channelAdWeight, channelPnl,
   type PeriodMIS, type SkuAgg,
 } from './analytics';
 import type { MisEntity, MisPoint } from './misSheet';
@@ -108,28 +108,6 @@ export function toPeriodMIS(a: PeriodAgg): PeriodMIS {
 }
 
 // ---- Actual | Normalised COGM --------------------------------------------
-
-/**
- * @deprecated FY-level blend (one revenue-weighted GM% stamped on every month of the FY) — retired 5 Nov 2026
- * for normaliseLiveMonths(): it flattened GM% all year and hid mix. Kept only until the next cleanup.
- */
-export function blendLiveMonths(
-  months: MonthlyMIS[],
-  completeness: Record<string, PeriodCompleteness>,
-): { months: MonthlyMIS[]; rates: Map<string, number> } {
-  const real = months.filter((m) => (completeness[m.key]?.level ?? 'topline') !== 'topline');
-  const rates = fyBlendedGMRates(real);
-  const blended = new Map(blendedMonths(real, rates).map((m) => [m.key, m]));
-  return { months: months.map((m) => blended.get(m.key) ?? m), rates };
-}
-
-/** @deprecated with blendLiveMonths. "FY25-26 59.7% · FY26-27 51.9%" from the legacy-keyed rate map. */
-export function blendRatesNote(rates: Map<string, number>): string {
-  return [...rates.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([fy, r]) => `${fy.replace(/^FY (\d\d)(\d\d)-(\d\d)$/, 'FY$2-$3')} ${(r * 100).toFixed(1)}%`)
-    .join(' · ');
-}
 
 export interface NormalisedMonths {
   /** Every month, in the input order: restated where it could be, as booked where it could not. */

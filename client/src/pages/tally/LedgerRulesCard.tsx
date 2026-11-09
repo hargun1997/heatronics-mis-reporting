@@ -15,10 +15,12 @@ export function LedgerRulesCard() {
   const [rules, setRules] = useState<LedgerRule[]>(DEFAULT_LEDGER_RULES);
   const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => {
+    let off = false;
     fetch('/api/tally/ledger-rules')
       .then((r) => r.json() as Promise<Wire>)
-      .then((j) => { setW(j); setRules(j.rules?.length ? j.rules : DEFAULT_LEDGER_RULES); })
-      .catch((e) => setMsg(e.message));
+      .then((j) => { if (!off) { setW(j); setRules(j.rules?.length ? j.rules : DEFAULT_LEDGER_RULES); } })
+      .catch((e) => { if (!off) setMsg(e.message); });
+    return () => { off = true; };
   }, []);
 
   const rep = useMemo(() => {

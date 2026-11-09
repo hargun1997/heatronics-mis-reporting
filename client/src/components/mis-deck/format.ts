@@ -1,4 +1,4 @@
-// Shared formatters and chart palette for the MIS deck charts (./charts.tsx) and the Live MIS views.
+/** Formatters + chart palette shared by the Live MIS views (kept out of charts.tsx so that file only exports components). */
 
 // ============================================================================
 // Formatters
@@ -50,3 +50,7 @@ export const CHANNEL_COLORS: Record<string, string> = {
 
 // Neutral, categorical palette — deliberately avoids red/green value signalling.
 export const SERIES_COLORS = ['#2563EB', '#0E7490', '#D97706', '#7C3AED', '#475569', '#DB2777'];
+
+// Directional accents for +/- bars — indigo for up, muted slate for down (no red/green).
+export const POS_COLOR = '#4f46e5';
+export const NEG_COLOR = '#94a3b8';
