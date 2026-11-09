@@ -274,6 +274,20 @@ export const portalManifest = {
         },
         "returns": "Checks with fixes"
       }
+    },
+    {
+      "id": "ai-usage",
+      "method": "GET",
+      "path": "/api/ai/usage?months=<months>",
+      "auth": "session",
+      "purpose": "This portal's Claude / Gemini API spend per month (its own usage ledger)",
+      "mcp": {
+        "tool": "mis_get_ai_usage",
+        "description": "Use for 'what does the MIS spend on AI / Claude / Gemini': ₹ and US$ per month by vendor, model and purpose, from the portal's own usage ledger. For the whole company use heatronics_spend on the master portal.",
+        "access": "read",
+        "input": { "type": "object", "properties": { "months": { "type": "integer", "minimum": 1, "maximum": 24, "description": "How many months back, default 6" } } },
+        "returns": "months[] newest first with usd / inr / calls and vendors, models, purposes"
+      }
     }
   ],
   "consumes": [

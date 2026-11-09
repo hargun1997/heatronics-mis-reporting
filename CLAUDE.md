@@ -9,6 +9,8 @@ Who has access is managed at https://portal.heatronics.in/admin (Hargun only).
 Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron) and `/api/expenses` (read by production.heatronics.in, own token). Never add pages there.
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 
+**AI usage feed** `GET /api/ai/usage?months=<n>` (`routes/aiUsage.ts`, pure `services/aiUsageFeed.ts`, test `test/aiUsageFeed.test.ts`; manifest tool `mis_get_ai_usage`): schema 1 of `heatronics-portal/mcp/ai-usage-feed.md` from the stored `usage/<day>/<id>.json` records (`recordApiUsage`), per IST month newest first, vendor = gemini-* → gemini else claude, purposes = feature, ₹ at `USD_INR` 88. Login only (the MIS has no roles). The MIS makes no Gemini calls any more (`ledgerVision` runs on Claude).
+
 
 ## Design & menu
 - Same design system as Ops: `design-system/heatronics-mis/MASTER.md` (tokens in `client/src/index.css`, Tailwind names
