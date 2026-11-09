@@ -403,3 +403,6 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   Base plan months = generated `server/src/planning/basePlanMonths.ts` (`node --import tsx scripts/export-base-plan-months.ts`; test fails when stale);
   a saved scenario carries `summary` months written by the Planning page on Save (older scenarios: open + Save once); actuals = what the browser last
   stored (`POST /api/planning/actuals`, written when the view opens), because the deck is built client side. Tests `server/test/planVsActual.test.ts`.
+
+## Morning page (`/today`, 9 Nov 2026)
+`GET /api/today` (`routes/today.ts`, pure `services/morningBrief.ts`, test `test/morningBrief.test.ts`; manifest tool `mis_get_morning_brief`): status (act / watch / ok), 5 tiles (net cash, months of cash, sales, to fix, tasks late), "Needs you" (Tally watch items + open Fix items + late / due-today tasks, high first), "What changed" vs the last saved day, "Coming up". Stored data only, no AI. The first read of each IST day saves ONE small snapshot `morning/snap-<day>` (+ `morning/index`, last 45 days). Page `pages/today/TodayPage.tsx`; sidebar Reporting → Today (Live MIS stays the Reporting breadcrumb target).
