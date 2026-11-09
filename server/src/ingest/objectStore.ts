@@ -543,6 +543,12 @@ export async function usageByDay(days = 7): Promise<DayUsage[]> {
 /** One stored usage record with the IST day it was filed under (from its key). */
 export interface DatedUsageRecord extends UsageRecord { day: string }
 
+// Usage records are append-only and never edited, so a record read once is kept for the life of the process: a feed call then
+// costs one list plus reads of the NEW records only (not one GCS read per call ever made, per request). In-flight reads are
+// shared, a failed read is not remembered, and reads run a batch at a time.
+const usageMemo = new Map<string, Promise<UsageRecord | null>>();
+const USAGE_READ_BATCH = 40;
+
 /** Every usage record filed from IST day `fromDay` (YYYY-MM-DD) on. Read-only; feeds the AI usage feed. */
 export async function usageRecordsSince(fromDay: string): Promise<DatedUsageRecord[]> {
   const r = await resolveStore();
@@ -550,19 +556,24 @@ export async function usageRecordsSince(fromDay: string): Promise<DatedUsageReco
     const day = k.split('/')[1] ?? '';
     return k.endsWith('.json') && day >= fromDay;
   });
+  const readOne = (k: string): Promise<UsageRecord | null> => {
+    let p = usageMemo.get(k);
+    if (!p) {
+      p = (async () => {
+        const text = await r.backend.getText(k);
+        if (!text) throw new Error('empty');
+        return JSON.parse(text) as UsageRecord;
+      })().catch(() => { usageMemo.delete(k); return null; });
+      usageMemo.set(k, p);
+    }
+    return p;
+  };
   const out: DatedUsageRecord[] = [];
-  await Promise.all(
-    keys.map(async (k) => {
-      const text = await r.backend.getText(k);
-      if (!text) return;
-      try {
-        const rec = JSON.parse(text) as UsageRecord;
-        out.push({ ...rec, day: k.split('/')[1] });
-      } catch {
-        /* skip an unreadable record */
-      }
-    }),
-  );
+  for (let i = 0; i < keys.length; i += USAGE_READ_BATCH) {
+    const batch = keys.slice(i, i + USAGE_READ_BATCH);
+    const recs = await Promise.all(batch.map(readOne));
+    recs.forEach((rec, j) => { if (rec) out.push({ ...rec, day: batch[j].split('/')[1] }); });
+  }
   return out;
 }
 
