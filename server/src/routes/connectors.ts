@@ -22,6 +22,8 @@ import { NotImplementedError, type ConnectorDef, type Credentials } from '../con
 import { FEED_TASKS, SLOT_SOURCES, slotSource } from '../connectors/slots/catalog.js';
 import { lastPulls, pullState, runPull } from '../connectors/slots/jobs.js';
 import type { SlotSourceDef } from '../connectors/slots/types.js';
+import { endpoint as tallyEndpoint } from '../connectors/sources/tally.js';
+import { feedOrigin } from '../connectors/sources/delhivery.js';
 
 const router = Router();
 
@@ -161,6 +163,14 @@ router.put('/:id/credentials', h(async (req, res) => {
     .map((f) => f.key);
   if (missing.length > 0) {
     return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}.` });
+  }
+
+  // SSRF: refuse a Tally host / feed URL the server must never call (same checks the requests run).
+  try {
+    if (c.id === 'tally') tallyEndpoint(merged);
+    if (c.id === 'delhivery' && (merged.feedUrl || '').trim()) feedOrigin(merged);
+  } catch (e) {
+    return res.status(400).json({ error: e instanceof Error ? e.message : 'Bad address.' });
   }
 
   await saveCredentials(c.id, merged);

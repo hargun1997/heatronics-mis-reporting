@@ -54,7 +54,7 @@ const istDay = (iso: string) => new Date(Date.parse(iso) + 5.5 * 3_600_000).toIS
 
 // ---- read-only guard --------------------------------------------------------
 
-function assertReadOnly(method: string, url: string): void {
+export function assertReadOnly(method: string, url: string): void {
   const u = new URL(url);
   if (u.host !== HOST) throw new Error(`Blocked: Flipkart call to another host (${u.host}).`);
   const p = u.pathname;

@@ -47,7 +47,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // ---- read-only guard --------------------------------------------------------
 
-function assertReadOnly(method: string, url: string): void {
+export function assertReadOnly(method: string, url: string): void {
   if (method === 'GET') return;
   const path = url.replace(/^https:\/\/[^/]+/, '').split('?')[0];
   if (method === 'POST' && path === '/reporting/reports') return;

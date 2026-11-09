@@ -129,14 +129,19 @@ router.get(
   }),
 );
 
+// Open path (no login, the hourly cron). A caller that is not signed in (req.htxAuthed false, set by htxGate) can
+// only trigger the once-a-day scheduled send, and gets counts back — never who was emailed or what.
 router.post(
   '/reminders/run',
   h(async (req, res) => {
-    if (req.body?.scheduled) {
+    const signedIn = (req as unknown as { htxAuthed?: boolean }).htxAuthed === true;
+    if (req.body?.scheduled || !signedIn) {
       const claim = await claimScheduledRun();
       if (!claim.ok) return res.json({ skipped: claim.reason, at: new Date().toISOString() });
     }
-    res.json(await runWorkReminders(baseUrl(req)));
+    const run = await runWorkReminders(baseUrl(req));
+    if (signedIn) return res.json(run);
+    res.json({ at: run.at, items: run.items, unowned: run.unowned, emails: run.emails.length, sent: run.emails.filter((e) => e.sent).length });
   }),
 );
 

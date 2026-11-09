@@ -33,6 +33,7 @@
 // create / edit / cancel / pickup / manifest call can leave this file.
 // ----------------------------------------------------------------------------
 
+import { isAllowedFeedHost } from '../safeUrl.js';
 import type { ConnectorDef, Credentials, FetchResult, TestResult } from '../types.js';
 import type { ConnectorSource } from '../schema.js';
 import { istToday } from '../slots/map/common.js';
@@ -55,12 +56,14 @@ export function feedOrigin(creds: Credentials): string {
   let u: URL;
   try { u = new URL(raw); } catch { throw new Error(`Warranty feed URL "${raw}" is not a URL.`); }
   if (u.protocol !== 'https:') throw new Error('Warranty feed URL must be https.');
+  // The feed call carries the x-feed-token secret: only ever to a heatronics.in host.
+  if (!isAllowedFeedHost(u.hostname)) throw new Error(`Warranty feed URL must be on heatronics.in (got ${u.hostname}).`);
   return u.origin;
 }
 
 export function assertDelhiveryReadOnly(method: string, url: string, feed = DEFAULT_FEED_URL): void {
   let u: URL;
-  try { u = new URL(url); } catch { throw new Error(`Blocked: ${url} is not a URL.`); }
+  try { u = new URL(url); } catch { throw new Error('Blocked: not a URL.'); }
   if (method !== 'GET') throw new Error(`Blocked: Delhivery ${method} ${u.pathname} is not a read-only call.`);
   if (u.origin === DELHIVERY_HOST && (u.pathname === TRACK_PATH || u.pathname === CHARGES_PATH)) return;
   if (u.origin === new URL(feed).origin && u.pathname === FEED_PATH) return;

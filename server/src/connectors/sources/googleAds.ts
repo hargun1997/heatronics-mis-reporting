@@ -50,6 +50,15 @@ async function accessToken(creds: Credentials): Promise<string> {
   return body.access_token;
 }
 
+/** READ ONLY guard: googleads.googleapis.com /<ver>/customers/<id>/googleAds:searchStream only — never :mutate. */
+export function assertGoogleAdsReadOnly(url: string): void {
+  let u: URL;
+  try { u = new URL(url); } catch { throw new Error('Blocked: Google Ads call to a bad URL.'); }
+  if (u.protocol !== 'https:' || u.host !== 'googleads.googleapis.com' || !/^\/v\d+\/customers\/\d+\/googleAds:searchStream$/.test(u.pathname)) {
+    throw new Error('Blocked: Google Ads calls are read only (searchStream).');
+  }
+}
+
 /** READ ONLY: the one endpoint this file calls is googleAds:searchStream (a GAQL query) — never :mutate. */
 export async function searchStream(creds: Credentials, query: string): Promise<Record<string, unknown>[]> {
   const customerId = digits(creds.customerId || '');
@@ -67,7 +76,7 @@ export async function searchStream(creds: Credentials, query: string): Promise<R
   if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
 
   const url = `${ADS_BASE}/customers/${customerId}/googleAds:searchStream`;
-  if (!/\/googleAds:searchStream$/.test(url)) throw new Error('Blocked: Google Ads calls are read only (searchStream).');
+  assertGoogleAdsReadOnly(url);
   const res = await fetch(url, {
     method: 'POST',
     headers,
