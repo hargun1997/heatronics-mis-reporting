@@ -77,8 +77,8 @@ Sources: [Numeric AI accounting tools](https://www.numeric.io/blog/ai-accounting
 | 2 | Code health: lazy pages (main chunk 1.16 MB → 88 kB gz), lint 0, dead code out, faster plan engine | 1 | 4 | 1 | 2 | 2.0 | **Merged #395** |
 | 3 | Accessibility + phone layout: axe serious issues 1,116 → 0 | 1 | 4 | 1 | 2 | 2.0 | **Merged #397** |
 | 4 | Cash runway: 13 weeks, 3 cases, overdraft-limit week; MCP `mis_get_cash_runway` | 1 | 5 | 3 | 2 | 7.5 | **Merged #396** |
-| 5 | Owner · how often · job on every page; Source chip (where from, how old); no banners | 1 | 4 | 3 | 1 | 12.0 | PR #398 |
-| 6 | Live feed bugs: partial pulls re-pulled, 25 s cap per source, failures on Fix list | 1 | 4 | 1 | 2 | 2.0 | PR #399 |
+| 5 | Owner · how often · job on every page; Source chip (where from, how old); no banners | 1 | 4 | 3 | 1 | 12.0 | **Merged #398** |
+| 6 | Live feed bugs: partial pulls re-pulled, 25 s cap per source, failures on Fix list | 1 | 4 | 1 | 2 | 2.0 | **Merged #399** |
 | 7 | Why it moved bridge; MCP `mis_get_margin_bridge` (other session) | 1 | 4 | 3 | 2 | 6.0 | Merged #392 |
 | 8 | Plan vs actual; MCP `mis_get_plan_vs_actual` (other session) | 1 | 5 | 3 | 3 | 5.0 | Merged #393 |
 | 9 | **Source chip on every page** (Live MIS, Tasks, Tally, TDS, Runway, Plan) — #398 only did Today | 2 | 4 | 2 | 2 | 4.0 | Next |
@@ -120,9 +120,8 @@ Still missing:
 5. Equity raises make the "Best month repeats" case look too good. Should a month with share money be left out automatically? That needs the share-capital ledger name.
 
 ## Next up (run 3)
-1. Merge #398 / #399 if they're still open.
-2. Item 9: source chip on every page.
-3. Item 11: runway known dues.
-4. Item 12: variance notes.
-5. Item 10: ageing.
-6. Then the remaining bug list.
+1. Item 9: source chip on every page.
+2. Item 11: runway known dues.
+3. Item 12: variance notes.
+4. Item 10: ageing.
+5. Then the remaining bug list.

@@ -3,6 +3,8 @@
 Newest first. One line per merged PR: what changed for the person using it.
 
 ## 10 Nov 2026 (run 2)
+- **#399 Live feed:** partial Ads / Flipkart data is pulled again after 5 min (was 24 h), no source can hold the Live MIS load more than 25 s, and a failed or partial feed shows on Tasks → Fix and Today instead of a silent empty page.
+- **#398 Owners + sources:** every sidebar page shows who runs it, how often and what to do; the Source chip ("Tally books · 3 h ago", tap for details) replaces the freshness line on Today; the status is a header chip, not a banner.
 - **#397 Accessibility + phones:** text readable in light and dark (axe serious issues 1,116 → 0), no text under 12 px on phones, no pages cut off at 390 px, every input labelled, one primary button per screen.
 - **#396 Cash runway** (`/accounts/cash-runway`, Accounts):
   - net cash projected 13 weeks ahead in three cases (usual, worst month, best month);
@@ -28,5 +30,4 @@ Newest first. One line per merged PR: what changed for the person using it.
 - **#386 Price floors v2:** ₹999 band, FBM courier, unsellable returns, 1P.
 
 ## Open PRs at the end of run 2
-- **#398** Owner · how often · job on every page; Source chip; Today status moved from a banner to a header chip.
-- **#399** Live feed: partial data re-pulled after 5 min; 25 s cap per source; failed or partial feeds shown on the Fix list.
+None from this run.
