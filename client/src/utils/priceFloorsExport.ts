@@ -5,7 +5,7 @@
 
 import { jsPDF } from 'jspdf';
 import {
-  assumptionsLine, costIn, waterfallRows, groupLines, solve,
+  assumptionsLine, bandAdvice, bandLine, costIn, routeTag, unsellOf, waterfallRows, groupLines, solve,
   type CostsSnapshot, type FloorSettings, type FloorSku, type ProductCost,
 } from './priceFloors';
 
@@ -105,6 +105,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   const rows = skus.map((x) => ({ x, c: costIn(costOf(x)) })).filter((r) => r.c) as { x: FloorSku; c: NonNullable<ReturnType<typeof costIn>> }[];
   const missing = skus.length - rows.length;
   const t = tacos;
+  const u = unsellOf(settings);
   const ads = (v: number) => `${Math.round(v * 100)}% ads`;
   const source = `Costs ${costs?.month || '-'} (production)  |  Amazon fees: ${feeReport ? feeReport.fileName : '14 Oct report'}  |  ${stamp}`;
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -120,19 +121,22 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   y += 4;
   const cols: Col[] = [{ w: 62 }, { w: 32, align: 'right' }, { w: 34, align: 'right' }, ...LEVELS.map(() => ({ w: 34, align: 'right' as const })), { w: 41, align: 'right' }];
   const body: Cell[][] = rows.map(({ x, c }) => {
-    const be = solve(x, settings, c, 0, t, 0).price;
-    const need = solve(x, settings, c, 0, t).price;
+    const be = solve(x, settings, c, u, t, 0).price;
+    const need = solve(x, settings, c, u, t).price;
     const ok = Number.isFinite(need) && need <= x.asp;
+    const band = bandAdvice(x, settings, c, u, t);
     return [
-      { t: x.name, s: { bold: true } },
+      { t: `${x.name} (${routeTag(x, settings)})`, s: { bold: true } },
       rs(x.asp),
       rs(be),
       ...LEVELS.map((lv) => {
-        const p = solve(x, settings, c, 0, lv).price;
+        const p = solve(x, settings, c, u, lv).price;
         const on = Math.abs(lv - t) < 1e-9;
         return { t: rs(p), s: p > x.asp ? { color: BAD, fill: BAD_BG, bold: on } : on ? { bold: true, fill: SOFT } : {} };
       }),
-      { t: !Number.isFinite(need) ? '-' : ok ? `OK, can drop ${sh(x.asp - need, x.asp)}` : `Raise to ${rs(need)}`, s: { bold: true, color: ok ? GOOD : BAD } },
+      band.priceAtBelow
+        ? { t: `Price at ${rs(band.below)}`, s: { bold: true, color: BRAND } }
+        : { t: !Number.isFinite(need) ? '-' : ok ? `OK, can drop ${sh(x.asp - need, x.asp)}` : `Raise to ${rs(need)}`, s: { bold: true, color: ok ? GOOD : BAD } },
     ];
   });
   y = table(pdf, M, y, cols, ['Product', 'Selling at today', "Don't go below", ...LEVELS.map((lv) => `At ${ads(lv)}`), 'Action'], body, 8.5, 9);
@@ -141,6 +145,7 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
   pdf.setTextColor(...MUTED);
   pdf.text([
     "Don't go below = break-even (zero margin). Red = needs more than today's price. Waterfalls for each product from page 2.",
+    `Rs 1,000 band: no referral fee below Rs 1,000, so Rs 999 can earn more than a price just above it. "Price at Rs 999" = today's price sits in that dead zone. FBM = courier per order, no FBA fee / storage / freight to FC.`,
     ...(missing ? [`${missing} product${missing > 1 ? 's' : ''} left out: no product cost yet.`] : []),
   ], M, y + 6);
 
@@ -153,28 +158,33 @@ export function buildFloorsPdf({ skus, settings, products, costs, feeReport, tac
     if (slot === 0) { pdf.addPage(); header(pdf, `Waterfall per unit at ${ads(t)}`, source); }
     const bx = M + (slot % 3) * (bw + gap);
     let by = M + 16 + Math.floor(slot / 3) * 90;
-    const res = solve(x, settings, c, 0, t);
+    const res = solve(x, settings, c, u, t);
+    const band = bandAdvice(x, settings, c, u, t);
     const g = groupLines(res.lines, res.price);
     pdf.setFillColor(...BRAND);
     pdf.rect(bx, by, bw, 7, 'F');
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9.5);
     pdf.setTextColor(255, 255, 255);
-    pdf.text(x.name, bx + 2, by + 4.8);
+    pdf.text(`${x.name}  ${routeTag(x, settings)}`, bx + 2, by + 4.8);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8);
     pdf.text(`today ${rs(x.asp)}`, bx + bw - 2, by + 4.8, { align: 'right' });
     by += 7;
-    const wrows: Cell[][] = waterfallRows(settings).map(({ k, label, sign }) => {
+    const wrows: Cell[][] = waterfallRows(settings, x).map(({ k, label, sign }) => {
       const total = sign === '=' || k === 'price';
       const st = total ? { bold: true, fill: k === 'margin' || k === 'price' ? SOFT : undefined } : {};
       return [
-        { t: `${sign ? `${sign === '−' ? '-' : sign} ` : ''}${label}${k === 'saleGst' ? ` ${pc(settings.global.gst)}` : ''}`, s: st },
+        { t: `${sign ? `${sign === '−' ? '-' : sign} ` : ''}${k === 'amazon' && label !== 'Amazon fees' ? 'Fees + courier (FBM)' : label}${k === 'saleGst' ? ` ${pc(settings.global.gst)}` : ''}`, s: st },
         { t: rs(g[k]), s: st },
         { t: k === 'price' || k === 'saleGst' ? '' : sh(g[k], g.net), s: { ...st, color: total ? INK : MUTED } },
       ];
     });
-    table(pdf, bx, by, wcols, ['', 'Rs', '% of net'], wrows, 6.1, 8.5);
+    const end = table(pdf, bx, by, wcols, ['', 'Rs', '% of net'], wrows, 5.8, 8.5);
+    pdf.setFont('helvetica', band.priceAtBelow ? 'bold' : 'normal');
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(...(band.priceAtBelow ? BRAND : MUTED));
+    pdf.text(pdf.splitTextToSize(bandLine(band, rs).replace(/–/g, '-'), bw)[0] as string, bx, end + 3.6);
   });
   pdf.setFont('helvetica', 'normal');
 

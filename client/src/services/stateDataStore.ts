@@ -13,8 +13,6 @@ import {
   MonthlyMISAggregated,
   RangeMISData,
   JournalEntry,
-  makeStateDataKey,
-  FileType
 } from '../types/stateData';
 
 // ============================================
@@ -121,9 +119,6 @@ export function hasDataForMonth(month: string): boolean {
 export function aggregateStatesToMonth(month: string): MonthlyMISData | null {
   const statesData = getAllStatesForMonth(month);
   if (statesData.length === 0) return null;
-
-  // Find UP data for COGM
-  const upData = statesData.find(s => s.state === 'UP');
 
   // Initialize aggregated values
   let grossRevenue = 0;

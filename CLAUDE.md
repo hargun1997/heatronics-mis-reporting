@@ -1,13 +1,22 @@
 # heatronics-mis-reporting
 
 ## Login
-Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in server/src/index.ts) asks the master portal
+Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in server/src/app.ts) asks the master portal
 (`https://portal.heatronics.in/api/auth/check?portal=mis`) whether the visitor's `htx_session`
 cookie may open this tool (cached 60s), and otherwise redirects to the portal's login or "no access"
 page (APIs get 401/403 JSON). The `.run.app` address redirects to mis.heatronics.in.
 Who has access is managed at https://portal.heatronics.in/admin (Hargun only).
 Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron) and `/api/expenses` (read by production.heatronics.in, own token). Never add pages there.
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
+**Security rules (9 Nov 2026, `server/test/security.test.ts`):** the app is built in `server/src/app.ts` (index.ts only listens) so the test lists
+EVERY registered route and asserts a 401 without a login (also with a forged `Host` / `X-Forwarded-Host: localhost`); a new open path fails it
+until added there and here. Open paths match EXACTLY (no prefix, no `..` / `//` / `%2e`); the localhost bypass and `HTX_GATE=off` are ignored
+when `K_SERVICE` is set (Cloud Run). On open paths the gate sets `req.htxAuthed` (signed-in person vs machine): unauthenticated reminder runs
+only do the once-a-day scheduled send and answer counts only; `/api/expenses` needs `EXPENSES_API_TOKEN` (Bearer) or a login on Cloud Run
+(no token = refused). Store keys: ingest connector / slot ids must be slugs (`SAFE_ID`), the local backend refuses keys outside its folder.
+SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata server, loopback, private ranges) on Cloud Run; the Delhivery
+`feedUrl` (carries `x-feed-token`) must be https on heatronics.in — both checked on save and before each request. Raw Tally master exports
+(`/Master*.json`: party GSTINs / PANs) are git-ignored.
 
 **AI usage feed** `GET /api/ai/usage?months=<n>` (`routes/aiUsage.ts`, pure `services/aiUsageFeed.ts`, test `test/aiUsageFeed.test.ts`; manifest tool `mis_get_ai_usage`): schema 1 of `heatronics-portal/mcp/ai-usage-feed.md` from the stored `usage/<day>/<id>.json` records (`recordApiUsage`), per IST month newest first, vendor = gemini-* → gemini else claude, purposes = feature, ₹ at `USD_INR` 88. Login only (the MIS has no roles). The MIS makes no Gemini calls any more (`ledgerVision` runs on Claude).
 
@@ -210,6 +219,18 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   settings); the upload stays behind "Upload a fee report instead". Inbound placement / transport stay settings (account-level fees).
   UNVERIFIED until the first live run: Amazon IN fee type names (FBA / closing regexes) and whether fee GST is itemised. Tests
   `server/test/priceFloorsLive.test.ts`.
+  **v2 (9 Nov 2026, `client/src/utils/priceFloors.ts`, tests `server/test/priceFloorsV2.test.ts`):** `solve()` now = `setup()` + `gstAt()` +
+  `linesAt()` (same maths; `marginAt(price)` = the lines at any price). (1) **₹1,000 band** `bandAdvice()`: margin ₹ at ₹999 (no referral, low
+  closing) and `deadTo` = lowest whole ₹ ≥ the band earning at least that (bisection, ≤ 5× band); `priceAtBelow` = target floor ≤ ₹999 AND today's
+  ASP sits in ₹1,000…deadTo−1 → Action "Price at ₹999" (page + PDF); every SKU detail / PDF waterfall shows `bandLine()` ("Band: ₹999 keeps ₹X;
+  avoid ₹1,000–₹Y"). An ASP below ₹999 keeps the normal Raise / OK action. (2) **FBM**: `withSpecs` copies `route` + `chargeKg` from Production's
+  specs (FBM SKUs get no FBA storage / freight and are left out of the storage-volume average); `asCharged()` swaps an FBM SKU's FBA fee for the
+  courier `fbmCourier` = max(`fbmMin` 70, `fbmPerKg` 45 × chargeKg), incl. GST, inbound and storage 0, closing fee as today (Easy Ship /
+  self-ship); waterfall row "Amazon fees + courier (FBM)", detail "Courier per order (FBM, X kg…)". (3) `global.unsell` (Settings "Share of
+  returns that can't be resold, %", default 0) = `unsellOf()`, used by the table, SKU detail, "Selling below target" and the PDF, named in the
+  table caption and `assumptionsLine`. (4) **1P**: `global.ownPays3p` (Settings checkbox "Own-brand sales pay 3P margin", default on = old
+  behaviour) and per-SKU `firstParty` ("Sold by us (1P)"; null = follow the default) → `resellerOf()` 0, reseller row hidden for that SKU;
+  `routeTag()` = "FBA|FBM · 1P" on rows, titles and the PDF.
 - **Bulk payments (ICICI) (`/tools/bulk-payments`, founder 7 Nov 2026): FILES ONLY — no bank API, never moves money**; the accounts team
   uploads in ICICI CIB (BizPay360) and a second user authorises there. Formats in ONE place `client/src/data/payments/iciciFormats.ts`:
   payee export ("Manage Bene", BIFF8 .xls, sheet CounterPartyListUX3, header row found by text "Bene Name" + "Account Number", junk rows
@@ -283,6 +304,8 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).
 - Tests: `npm test` (node:test via tsx, `server/test/*.test.ts`, no network).
+- **CI** `.github/workflows/ci.yml` (every PR + push to main, Node 20 = Dockerfile): client `npm run lint` (0 errors; warnings allowed) +
+  `tsc -b && vite build`, server `tsc`, `npm test`. Keep it green before merging: Cloud Build only checks after the merge.
 
 ## 5-year plan (`/planning`)
 - Port of the Google Sheet "Heatronics Projection and Deployment Plan" (1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE), run live

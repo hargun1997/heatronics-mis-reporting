@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { MISRecord, MISHead, TransactionRef, periodToString, LearnedPattern } from '../../types/misTracking';
 import { formatCurrencyFull } from '../../utils/misCalculator';
 import { CollapsibleSection, MarginRow } from './CollapsibleSection';

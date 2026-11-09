@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, ExclamationTriangleIcon, EyeSlashIcon, QuestionMarkCircleIcon, CheckCircleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronRightIcon, ExclamationTriangleIcon, EyeSlashIcon, QuestionMarkCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { formatCurrencyFull } from '../../utils/misCalculator';
 import { TransactionRef, UnclassifiedTransaction, HeadWithTransactions } from '../../types/misTracking';
 

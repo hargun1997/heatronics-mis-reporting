@@ -9,9 +9,10 @@
 // Each month: the P&L's expense lines as uploaded (Factory Overheads, Manufacturing
 // Costs, Employee Cost - Indirect, Admin & General Expenses…), amounts in ₹ as
 // printed in Tally. Sales, income, stock and purchase lines are left out.
-// When EXPENSES_API_TOKEN is set, callers must send `Authorization: Bearer <token>`.
+// Callers send `Authorization: Bearer <EXPENSES_API_TOKEN>` (on Cloud Run the token is required; see expensesAllowed).
 // ----------------------------------------------------------------------------
 
+import { timingSafeEqual } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { readAllExtracted } from '../ingest/objectStore.js';
 
@@ -34,10 +35,23 @@ export function expenseRows(p: PnlPayload): Row[] {
   return [...out].map(([name, amount]) => ({ name, amount }));
 }
 
+/**
+ * Open path (no login): production.heatronics.in calls it with `Authorization: Bearer <EXPENSES_API_TOKEN>`.
+ * A signed-in person (req.htxAuthed, set by htxGate) may read it too. With no token configured the endpoint
+ * stays open ONLY off Cloud Run (local dev) — on Cloud Run it fails closed, since the repo (and so this URL) is public.
+ */
+export function expensesAllowed(req: Pick<Request, 'headers'> & { htxAuthed?: boolean }, env = process.env): boolean {
+  if (req.htxAuthed === true) return true;
+  const token = env.EXPENSES_API_TOKEN;
+  if (!token) return !env.K_SERVICE;
+  const got = Buffer.from(String(req.headers.authorization ?? ''));
+  const want = Buffer.from(`Bearer ${token}`);
+  return got.length === want.length && timingSafeEqual(got, want);
+}
+
 router.get('/', (req: Request, res: Response) => {
   (async () => {
-    const token = process.env.EXPENSES_API_TOKEN;
-    if (token && req.headers.authorization !== `Bearer ${token}`) return res.status(401).json({ error: 'Not allowed' });
+    if (!expensesAllowed(req)) return res.status(401).json({ error: 'Not allowed' });
     const want = typeof req.query.month === 'string' && /^\d{4}-\d{2}$/.test(req.query.month) ? req.query.month : null;
     const all = await readAllExtracted();
     const months = all

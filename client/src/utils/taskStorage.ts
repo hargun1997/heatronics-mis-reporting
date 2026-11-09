@@ -55,16 +55,10 @@ function saveToLocalStorage(data: TaskTrackerData): boolean {
 // GOOGLE SHEETS INTEGRATION
 // ============================================
 
-interface SheetRow {
-  id: string;
-  title: string;
-  description: string;
-  frequency: string;
-  isRepeatable: string;
-  dueDay: string;
-  category: string;
-  createdAt: string;
-}
+// Shape of the Google Visualization (gviz) JSON answer we read.
+interface GvizCol { id: string; label?: string }
+interface GvizRow { c: ({ v?: string | number | boolean | null } | null)[] }
+type GvizValue = string | number | boolean | null | undefined;
 
 async function fetchFromGoogleSheets(): Promise<Task[] | null> {
   try {
@@ -92,12 +86,12 @@ async function fetchFromGoogleSheets(): Promise<Task[] | null> {
     }
 
     // Extract column headers
-    const headers = data.table.cols.map((col: any) => col.label || col.id);
+    const headers = (data.table.cols as GvizCol[]).map((col) => col.label || col.id);
 
     // Parse rows
-    const tasks: Task[] = data.table.rows.map((row: any) => {
-      const values = row.c.map((cell: any) => cell?.v ?? '');
-      const taskData: any = {};
+    const tasks: Task[] = (data.table.rows as GvizRow[]).map((row) => {
+      const values = row.c.map((cell) => cell?.v ?? '');
+      const taskData: Record<string, GvizValue> = {};
       headers.forEach((header: string, index: number) => {
         taskData[header.toLowerCase().replace(/\s/g, '')] = values[index];
       });
@@ -108,7 +102,7 @@ async function fetchFromGoogleSheets(): Promise<Task[] | null> {
         description: taskData.description || '',
         frequency: taskData.frequency || 'monthly',
         isRepeatable: taskData.isrepeatable === 'TRUE' || taskData.isrepeatable === true,
-        dueDay: taskData.dueday ? parseInt(taskData.dueday) : undefined,
+        dueDay: taskData.dueday ? parseInt(String(taskData.dueday)) : undefined,
         category: taskData.category || '',
         createdAt: taskData.createdat || new Date().toISOString()
       } as Task;

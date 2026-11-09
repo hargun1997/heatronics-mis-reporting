@@ -10,10 +10,29 @@ type Opts = {
   host: string;
   /**
    * Machine endpoints (cron jobs, other apps) that skip the login. They must check their own
-   * token or be harmless. Prefix match. Never put pages here.
+   * token or be harmless. EXACT path match (a trailing "/" is tolerated) — never a prefix, so
+   * nothing can be hung under an open path. Never put pages here.
    */
   openPaths?: string[];
 };
+
+/**
+ * Local-dev bypass (Host localhost / 127.0.0.1). Never on Cloud Run: the Host / X-Forwarded-Host headers are
+ * sent by the caller, so trusting them there would let anyone skip the login with `X-Forwarded-Host: localhost`.
+ * Cloud Run always sets K_SERVICE.
+ */
+export const onCloudRun = () => Boolean(process.env.K_SERVICE);
+
+/** HTX_GATE=off is for local testing only — ignored on Cloud Run (CLAUDE.md: never there). */
+export function gateOff(): boolean {
+  return process.env.HTX_GATE === "off" && !onCloudRun();
+}
+
+/** Strip a trailing slash; refuse paths a proxy might normalise differently from Express. */
+function cleanPath(pathname: string): string | null {
+  if (/(^|\/)\.\.?(\/|$)|\/\/|%2e|%2f|%5c|\\/i.test(pathname)) return null;
+  return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+}
 
 const HUB = "https://portal.heatronics.in";
 const COOKIE = "htx_session";
@@ -36,7 +55,7 @@ function readCookie(header: string | undefined, name: string): string | null {
 
 export function htxGate({ portal, host, openPaths = [] }: Opts) {
   const cache = new Map<string, { at: number; status: number; email?: string }>();
-  const open = ["/api/health", "/health", ...openPaths];
+  const open = new Set(["/api/health", "/health", ...openPaths]);
 
   async function check(token: string): Promise<{ status: number; email?: string }> {
     const hit = cache.get(token);
@@ -68,9 +87,27 @@ export function htxGate({ portal, host, openPaths = [] }: Opts) {
     const pathname = url.split("?")[0];
     const reqHost = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(":")[0];
 
-    // Machine endpoints first, so cron jobs on the .run.app address keep working.
-    if (open.some((p) => pathname === p || pathname.startsWith(p + "/"))) return next();
-    if (reqHost === "localhost" || reqHost === "127.0.0.1" || process.env.HTX_GATE === "off") return next();
+    const localDev = !onCloudRun() && (reqHost === "localhost" || reqHost === "127.0.0.1");
+    const clean = cleanPath(pathname);
+
+    // Machine endpoints first, so cron jobs on the .run.app address keep working. They run without a login;
+    // `req.htxAuthed` tells the route whether a signed-in person (not a cron) is calling, so a route can give
+    // the full answer to people and a status-only answer to machines.
+    if (clean !== null && open.has(clean)) {
+      req.htxAuthed = false;
+      if (localDev || gateOff()) req.htxAuthed = true;
+      else {
+        const t = readCookie(req.headers.cookie, COOKIE);
+        if (t) {
+          try {
+            const c = await check(t);
+            if (c.status === 200) { req.htxAuthed = true; req.htxUser = c.email; }
+          } catch { /* the open path still runs, as a machine call */ }
+        }
+      }
+      return next();
+    }
+    if (localDev || gateOff()) { req.htxAuthed = true; return next(); }
     if (reqHost.endsWith(".run.app")) return res.redirect(308, `https://${host}${url}`);
 
     const isApi = pathname.startsWith("/api/");
@@ -87,7 +124,7 @@ export function htxGate({ portal, host, openPaths = [] }: Opts) {
         status = 503;
       }
     }
-    if (status === 200) return next();
+    if (status === 200) { req.htxAuthed = true; return next(); }
     if (status === 503 || (status !== 401 && status !== 403)) {
       return res.status(503).type("text/plain").send("Login service is unavailable. Try again in a minute.");
     }

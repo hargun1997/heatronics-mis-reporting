@@ -9,7 +9,7 @@
 // ----------------------------------------------------------------------------
 
 import { useState } from 'react';
-import { inr } from '../mis-deck/charts';
+import { inr } from '../mis-deck/format';
 import { monthLabel } from '../../data/misDeck/liveAnalytics';
 import { setMonthLock, type PeriodCompleteness } from '../../data/misDeck/liveDeck';
 import { TIE_LIMIT_PCT, type ChannelTie } from '../../data/misDeck/closeTies';

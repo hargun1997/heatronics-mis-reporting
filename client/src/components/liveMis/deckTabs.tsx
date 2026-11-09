@@ -9,9 +9,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { KpiTile } from '../ui';
 import {
-  inr, pctStr, LineChart, DonutChart, WaterfallChart, Legend, StackedBarChart, GroupedBarChart,
-  SERIES_COLORS, type LineSeries, type WaterfallStep,
+  LineChart, DonutChart, WaterfallChart, Legend, StackedBarChart, GroupedBarChart, type LineSeries, type WaterfallStep,
 } from '../mis-deck/charts';
+import { inr, pctStr, SERIES_COLORS } from '../mis-deck/format';
 import type { SkuCell } from '../../data/misDeck/skuChannelPnl';
 import type { MonthlyMIS, SalesChannel } from '../../data/misDeck/misDeckData';
 import { SALES_CHANNELS, VERTICALS } from '../../data/misDeck/misDeckData';

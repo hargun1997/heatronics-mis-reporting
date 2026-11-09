@@ -552,5 +552,5 @@ function parseNumber(value: unknown): number {
 
 function isValidDate(str: string): boolean {
   // Check if string looks like a date
-  return /\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}/.test(str);
+  return /\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2}/.test(str);
 }
