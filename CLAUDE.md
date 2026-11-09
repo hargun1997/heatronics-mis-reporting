@@ -210,6 +210,18 @@ Set `HTX_GATE=off` only for local testing; never on Cloud Run.
   settings); the upload stays behind "Upload a fee report instead". Inbound placement / transport stay settings (account-level fees).
   UNVERIFIED until the first live run: Amazon IN fee type names (FBA / closing regexes) and whether fee GST is itemised. Tests
   `server/test/priceFloorsLive.test.ts`.
+  **v2 (9 Nov 2026, `client/src/utils/priceFloors.ts`, tests `server/test/priceFloorsV2.test.ts`):** `solve()` now = `setup()` + `gstAt()` +
+  `linesAt()` (same maths; `marginAt(price)` = the lines at any price). (1) **₹1,000 band** `bandAdvice()`: margin ₹ at ₹999 (no referral, low
+  closing) and `deadTo` = lowest whole ₹ ≥ the band earning at least that (bisection, ≤ 5× band); `priceAtBelow` = target floor ≤ ₹999 AND today's
+  ASP sits in ₹1,000…deadTo−1 → Action "Price at ₹999" (page + PDF); every SKU detail / PDF waterfall shows `bandLine()` ("Band: ₹999 keeps ₹X;
+  avoid ₹1,000–₹Y"). An ASP below ₹999 keeps the normal Raise / OK action. (2) **FBM**: `withSpecs` copies `route` + `chargeKg` from Production's
+  specs (FBM SKUs get no FBA storage / freight and are left out of the storage-volume average); `asCharged()` swaps an FBM SKU's FBA fee for the
+  courier `fbmCourier` = max(`fbmMin` 70, `fbmPerKg` 45 × chargeKg), incl. GST, inbound and storage 0, closing fee as today (Easy Ship /
+  self-ship); waterfall row "Amazon fees + courier (FBM)", detail "Courier per order (FBM, X kg…)". (3) `global.unsell` (Settings "Share of
+  returns that can't be resold, %", default 0) = `unsellOf()`, used by the table, SKU detail, "Selling below target" and the PDF, named in the
+  table caption and `assumptionsLine`. (4) **1P**: `global.ownPays3p` (Settings checkbox "Own-brand sales pay 3P margin", default on = old
+  behaviour) and per-SKU `firstParty` ("Sold by us (1P)"; null = follow the default) → `resellerOf()` 0, reseller row hidden for that SKU;
+  `routeTag()` = "FBA|FBM · 1P" on rows, titles and the PDF.
 - **Bulk payments (ICICI) (`/tools/bulk-payments`, founder 7 Nov 2026): FILES ONLY — no bank API, never moves money**; the accounts team
   uploads in ICICI CIB (BizPay360) and a second user authorises there. Formats in ONE place `client/src/data/payments/iciciFormats.ts`:
   payee export ("Manage Bene", BIFF8 .xls, sheet CounterPartyListUX3, header row found by text "Bene Name" + "Account Number", junk rows
