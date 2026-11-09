@@ -255,7 +255,7 @@ export function getMonthRange(startMonth: string, endMonth: string): string[] {
   const end = parseMonthKey(endMonth);
 
   const months: string[] = [];
-  let current = new Date(start.year, start.month - 1, 1);
+  const current = new Date(start.year, start.month - 1, 1);
   const endDate = new Date(end.year, end.month - 1, 1);
 
   while (current <= endDate) {

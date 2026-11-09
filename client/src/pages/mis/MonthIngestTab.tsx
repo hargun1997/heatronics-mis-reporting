@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SectionCard } from '../../components/ui/Card';
-import { inr } from '../../components/mis-deck/charts';
+import { inr } from '../../components/mis-deck/format';
 import { computeClose, type Blocker, type ComputedClose } from '../../data/monthClose/compute';
 import { emitClose } from '../../data/monthClose/emit';
 import { checkVisionAvailable, ingestFile } from '../../data/monthClose/ingestClient';

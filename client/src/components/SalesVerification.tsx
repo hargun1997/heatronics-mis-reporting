@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { SalesLineItem, IndianState, INDIAN_STATES } from '../types';
+import { SalesLineItem, INDIAN_STATES } from '../types';
 
 const CHANNELS = ['Amazon', 'Blinkit', 'Website', 'Offline/OEM', 'Inter-Company'];
 

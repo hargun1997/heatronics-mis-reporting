@@ -89,24 +89,17 @@ async function fetchBundled(): Promise<TallyMaster> {
 }
 
 export function useTallyMaster(): MasterState {
-  const [master, setMaster] = useState<TallyMaster | null>(null);
-  const [source, setSource] = useState<MasterSource>('bundled');
-  const [sourceLabel, setSourceLabel] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // A saved override is read once, synchronously, as the initial state; only the bundled master is fetched.
+  const [initial] = useState(readOverride);
+  const [master, setMaster] = useState<TallyMaster | null>(initial.master);
+  const [source, setSource] = useState<MasterSource>(initial.master ? 'override' : 'bundled');
+  const [sourceLabel, setSourceLabel] = useState<string | null>(initial.master ? initial.label : null);
+  const [loading, setLoading] = useState(!initial.master);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initial.master) return;
     let cancelled = false;
-    const override = readOverride();
-    if (override.master) {
-      setMaster(override.master);
-      setSource('override');
-      setSourceLabel(override.label);
-      setLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
     fetchBundled()
       .then((m) => {
         if (cancelled) return;
@@ -124,7 +117,7 @@ export function useTallyMaster(): MasterState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initial.master]);
 
   function loadFromText(text: string, label?: string): ReduceStats {
     setError(null);

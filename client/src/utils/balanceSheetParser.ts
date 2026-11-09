@@ -7,8 +7,6 @@ import * as XLSX from 'xlsx';
 import {
   BalanceSheetLineItem,
   EnhancedBalanceSheetData,
-  TradingAccountData,
-  PLAccountData,
   BalanceSheetParseResult,
   createEmptyTradingAccount,
   createEmptyPLAccount,
@@ -131,12 +129,6 @@ function isSectionHeader(line: string): boolean {
          /^\s*-+\s*$/i.test(lower);  // Horizontal lines
 }
 
-// Check if this is a sub-item line (indented, part of a group)
-function isSubItem(line: string): boolean {
-  // Lines that start with significant whitespace or don't have "To"/"By" prefix
-  return /^\s{4,}/.test(line) || (!/^(to|by)\s+/i.test(line.trim()) && !isSectionHeader(line));
-}
-
 // ============================================
 // SECTION DETECTION
 // ============================================
@@ -244,8 +236,7 @@ function detectSpecialItem(accountName: string): SpecialItemResult {
 function extractLineItem(
   line: string,
   section: Section,
-  side: Side,
-  lineIndex: number
+  side: Side
 ): BalanceSheetLineItem | null {
   // Skip section headers and empty lines
   if (isSectionHeader(line) || !line.trim()) {
@@ -425,8 +416,7 @@ function createLineItemFromParts(
   accountName: string,
   amount: number,
   section: Section,
-  side: Side,
-  lineIndex: number
+  side: Side
 ): BalanceSheetLineItem | null {
   if (section === 'unknown' || side === 'unknown') {
     return null;
@@ -479,9 +469,7 @@ function parseAllLineItems(
 
   let currentSection: Section = 'unknown';
   let currentSide: Side = 'unknown';
-  let lastParentAccount = '';
   let sectionSwitchCount = 0;
-  let linesProcessed = 0;
   let pendingAccountName = ''; // For multi-line entries where name is on one line and amount on next
 
   console.log('[parseAllLineItems] Starting to parse', lines.length, 'lines');
@@ -527,8 +515,6 @@ function parseAllLineItems(
     // Skip if we haven't found a section yet
     if (currentSection === 'unknown') continue;
 
-    linesProcessed++;
-
     // Check if this line is just an amount (continuation of previous account name)
     const lineAccountName = extractAccountName(line);
 
@@ -553,7 +539,7 @@ function parseAllLineItems(
       console.log(`  - All numbers in line: ${extractNumbersFromLine(line).join(', ')}`);
       console.log(`  - First amount selected: ${lineAmount}`);
 
-      const multiLineItem = createLineItemFromParts(pendingAccountName, lineAmount, currentSection, currentSide, i);
+      const multiLineItem = createLineItemFromParts(pendingAccountName, lineAmount, currentSection, currentSide);
       pendingAccountName = '';
 
       if (multiLineItem) {
@@ -593,7 +579,7 @@ function parseAllLineItems(
     }
 
     // Extract line item normally
-    const item = extractLineItem(line, currentSection, currentSide, i);
+    const item = extractLineItem(line, currentSection, currentSide);
 
     // DEBUG: Log what happened to special entries
     if (isDebugLine) {

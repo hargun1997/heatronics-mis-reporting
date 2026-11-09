@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { XMarkIcon, ArrowRightIcon, CheckIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { MISHead, TransactionRef, LearnedPattern } from '../../types/misTracking';
+import { MISHead, TransactionRef } from '../../types/misTracking';
 import { MIS_HEADS_CONFIG } from '../../utils/misClassifier';
 import { formatCurrencyFull } from '../../utils/misCalculator';
-import { saveLearnedPattern } from '../../utils/googleSheetsStorage';
 
 interface ReclassifyModalProps {
   isOpen: boolean;

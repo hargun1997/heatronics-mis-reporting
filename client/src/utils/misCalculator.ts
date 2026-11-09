@@ -13,20 +13,15 @@ import {
   StockTransfer,
   ChannelRevenue,
   AggregatedBalanceSheetData,
-  createEmptyChannelRevenue,
   createEmptyRevenueData,
   createEmptyCOGMData,
   periodToKey,
   TransactionsByHead,
-  HeadWithTransactions,
-  SubheadWithTransactions,
   TransactionRef,
   MISHead
 } from '../types/misTracking';
 import { EnhancedBalanceSheetData } from '../types/balanceSheet';
-import { MIS_HEADS_CONFIG } from './misClassifier';
 import {
-  parseBalanceSheetEnhanced,
   extractCOGMFromBalanceSheet,
   extractChannelFromBalanceSheet,
   extractMarketingFromBalanceSheet,
@@ -39,7 +34,6 @@ import {
   MonthlyBSDataForProration,
   ProratedRawMaterialsResult,
   calculateProratedRawMaterials,
-  getAllocatedRawMaterialsForMonth
 } from './cogsCalculator';
 
 // ============================================

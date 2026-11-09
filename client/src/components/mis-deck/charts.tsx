@@ -1,55 +1,7 @@
-import React, { useRef, useState, useLayoutEffect, useCallback } from 'react';
+import React, { useRef, useState, useLayoutEffect } from 'react';
+import { inr, inrLakh, pctStr, pctSigned } from './format';
 
-// ============================================================================
-// Formatters
-// ============================================================================
-
-/** Format INR compactly: ₹1.23 Cr / ₹4.56 L / ₹789. */
-export function inr(value: number, opts: { sign?: boolean } = {}): string {
-  const sign = value < 0 ? '-' : opts.sign && value > 0 ? '+' : '';
-  const a = Math.abs(value);
-  let body: string;
-  if (a >= 1e7) body = `₹${(a / 1e7).toFixed(2)} Cr`;
-  else if (a >= 1e5) body = `₹${(a / 1e5).toFixed(2)} L`;
-  else if (a >= 1e3) body = `₹${(a / 1e3).toFixed(1)}k`;
-  else body = `₹${Math.round(a)}`;
-  return sign + body;
-}
-
-/** Format INR in lakhs always (for axis ticks). */
-export function inrLakh(value: number): string {
-  return `${(value / 1e5).toFixed(value >= 1e7 ? 0 : 1)}L`;
-}
-
-/** Format a fraction as a percentage. */
-export function pctStr(value: number | null | undefined, digits = 1): string {
-  if (value === null || value === undefined || !isFinite(value)) return '–';
-  return `${(value * 100).toFixed(digits)}%`;
-}
-
-export function pctSigned(value: number | null | undefined, digits = 1): string {
-  if (value === null || value === undefined || !isFinite(value)) return '–';
-  const s = value > 0 ? '+' : '';
-  return `${s}${(value * 100).toFixed(digits)}%`;
-}
-
-// ============================================================================
-// Palette
-// ============================================================================
-
-// Channel palette — one hue per channel, distinct in hue AND lightness, kept
-// off brand orange (reserved for actions). Mirrors tailwind `channel.*`.
-export const CHANNEL_COLORS: Record<string, string> = {
-  OEM: '#2563EB',     // blue
-  D2C: '#0E7490',     // cyan-700
-  Amazon: '#D97706',  // amber-600
-  Offline: '#7C3AED', // violet
-  Blinkit: '#475569', // slate-600
-  Export: '#DB2777',  // pink-600
-};
-
-// Neutral, categorical palette — deliberately avoids red/green value signalling.
-export const SERIES_COLORS = ['#2563EB', '#0E7490', '#D97706', '#7C3AED', '#475569', '#DB2777'];
+// Formatters and palette live in ./format (a .tsx may only export components for fast refresh).
 
 // Directional accents for +/- bars — indigo for up, muted slate for down (no red/green).
 export const POS_COLOR = '#4f46e5';
@@ -131,7 +83,7 @@ export function LineChart({
   const innerH = height - PAD.top - PAD.bottom;
 
   const all = series.flatMap((s) => s.values.filter((v): v is number => v !== null));
-  let min = Math.min(0, ...all);
+  const min = Math.min(0, ...all);
   let max = Math.max(0, ...all);
   if (max === min) max = min + 1;
   const niceTop = max > 0 ? niceMax(max) : max;
@@ -145,7 +97,7 @@ export function LineChart({
   const ticks = 4;
   const tickVals = Array.from({ length: ticks + 1 }, (_, i) => niceBot + (span * i) / ticks);
 
-  const onMove = useCallback((e: React.MouseEvent) => {
+  const onMove = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const px = e.clientX - rect.left;
     const i = Math.round(((px - PAD.left) / innerW) * (n - 1));
@@ -165,7 +117,7 @@ export function LineChart({
         </div>
       ),
     });
-  }, [innerW, n, labels, series, valueFormat]);
+  };
 
   const labelStep = Math.ceil(n / Math.max(1, Math.floor(innerW / 56)));
 
@@ -407,8 +359,8 @@ export function GrowthBarChart({
   const n = labels.length;
 
   const nums = values.filter((v): v is number => v !== null);
-  let max = Math.max(0.0001, ...nums);
-  let min = Math.min(0, ...nums);
+  const max = Math.max(0.0001, ...nums);
+  const min = Math.min(0, ...nums);
   const top = niceMax(max);
   const bot = min < 0 ? -niceMax(-min) : 0;
   const span = top - bot || 1;
@@ -478,13 +430,15 @@ export function DonutChart({
   const total = data.reduce((s, d) => s + Math.max(0, d.value), 0) || 1;
   const r = size / 2;
   const inner = r * 0.6;
-  let acc = 0;
   const cx = r, cy = r;
-  const segments = data.filter((d) => d.value > 0).map((d) => {
+  const shown = data.filter((d) => d.value > 0);
+  // Start fraction of each slice (cumulative), computed up front so the map below stays pure.
+  const starts: number[] = [];
+  for (let i = 0, acc = 0; i < shown.length; i++) { starts.push(acc); acc += shown[i].value / total; }
+  const segments = shown.map((d, i) => {
     const frac = d.value / total;
-    const a0 = acc * 2 * Math.PI - Math.PI / 2;
-    acc += frac;
-    const a1 = acc * 2 * Math.PI - Math.PI / 2;
+    const a0 = starts[i] * 2 * Math.PI - Math.PI / 2;
+    const a1 = (starts[i] + frac) * 2 * Math.PI - Math.PI / 2;
     const large = frac > 0.5 ? 1 : 0;
     const p = (ang: number, rad: number) => [cx + rad * Math.cos(ang), cy + rad * Math.sin(ang)];
     const [x0, y0] = p(a0, r), [x1, y1] = p(a1, r);
@@ -517,18 +471,19 @@ export function WaterfallChart({ steps, height = 280 }: { steps: WaterfallStep[]
   const n = steps.length;
 
   // running cumulative for cost steps
-  let running = 0;
-  const bars = steps.map((s) => {
+  const bars: (WaterfallStep & { start: number; end: number })[] = [];
+  for (let i = 0, running = 0; i < steps.length; i++) {
+    const s = steps[i];
     if (s.type === 'total') {
-      const bar = { start: 0, end: s.value, ...s };
+      bars.push({ start: 0, end: s.value, ...s });
       running = s.value;
-      return bar;
+      continue;
     }
     const start = running;
     const end = running + s.value; // s.value negative for costs
     running = end;
-    return { start, end, ...s };
-  });
+    bars.push({ start, end, ...s });
+  }
 
   const maxV = Math.max(0, ...bars.map((b) => Math.max(b.start, b.end)));
   const minV = Math.min(0, ...bars.map((b) => Math.min(b.start, b.end)));

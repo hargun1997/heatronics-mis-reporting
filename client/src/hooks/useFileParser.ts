@@ -1,15 +1,10 @@
 import { useState, useCallback } from 'react';
-import { BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, AggregatedRevenueData, SalesLineItem } from '../types';
+import { BalanceSheetData, COGSData, SalesRegisterData, IndianState, StateFileData, createEmptyStateFileData, AggregatedRevenueData } from '../types';
 import { parsePurchaseExcel, parseBalanceSheetExcel, parseSalesExcel } from '../utils/excelParser';
 import { parseBalanceSheetPDF } from '../utils/pdfParser';
 import { parseBalanceSheetEnhanced } from '../utils/balanceSheetParser';
 import { calculateCOGS } from '../utils/cogsCalculator';
 import { EnhancedBalanceSheetData } from '../types/balanceSheet';
-
-// Generate unique ID
-function generateId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-}
 
 export interface FileParseState {
   balanceSheetFile: File | null;
@@ -335,7 +330,7 @@ export function useFileParser() {
     setMultiState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      const result = await parseSalesExcel(file, stateCode);
+      const result = await parseSalesExcel(file);
 
       setMultiState(prev => {
         const stateData = prev.stateData[stateCode] || createEmptyStateFileData();
@@ -372,7 +367,7 @@ export function useFileParser() {
     let totalStockTransfer = 0;
     let totalReturns = 0;
     let totalTaxes = 0;
-    let totalDiscounts = 0;
+    const totalDiscounts = 0;
     const salesByState: { [key in IndianState]?: number } = {};
     const returnsByState: { [key in IndianState]?: number } = {};
 

@@ -8,14 +8,12 @@
 import {
   MonthlyMISRecord,
   MonthlyBSData,
-  MonthlyTransactionData,
   ParsedJournalEntry,
   ParsedSalesEntry,
   AggregatedMISRecord,
   createEmptyMonthlyMISRecord,
   getMonthRange,
   HeadTransactions,
-  SubheadTransactions,
 } from '../types/monthlyMIS';
 
 // ============================================
