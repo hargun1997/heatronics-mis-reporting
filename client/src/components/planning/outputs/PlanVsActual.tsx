@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { runPlan } from '../../../data/planning/engine';
 import { basePlan, upgradePlan } from '../../../data/planning/basePlan';
 import { runRateArr } from '../../../data/planning/growth';
-import { METRIC_NAME, METRICS, buildPlanVsActual, planMonthsOf, type ActualMonth, type MetricCmp, type MetricId, type MonthCmp, type PlanMonthRow, type Status } from '../../../data/planning/planVsActual';
+import { METRIC_NAME, METRICS, buildPlanVsActual, monthsSubtitle, planMonthsOf, type ActualMonth, type MetricCmp, type MetricId, type MonthCmp, type PlanMonthRow, type Status } from '../../../data/planning/planVsActual';
 import { actualMonthsFromDeck } from '../../../data/planning/planVsActualLive';
 import { loadLiveDeck } from '../../../data/misDeck/liveDeck';
 import { SectionCard } from '../../ui/Card';
@@ -207,7 +207,7 @@ export function PlanVsActualView({ saved }: Props) {
 
           <Disclosure
             title="2. All months"
-            subtitle={`${r.withData} with data · ${r.noData} with no data yet${r.partial.length ? ` · ${r.partial.length} with books not complete (not counted)` : ''}{r.running ? ' · this month is not finished' : ''}`}>
+            subtitle={monthsSubtitle(r)}>
             <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-[13px] tabular-nums">
                 <thead><tr className="border-b border-slate-200 text-left text-[12px] text-slate-500"><th className="py-2 pr-3">Month</th><th className="pr-3 text-right">Plan</th><th className="pr-3 text-right">Actual</th><th className="pr-3 text-right">Gap</th><th>Status</th></tr></thead>

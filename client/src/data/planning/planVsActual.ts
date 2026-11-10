@@ -195,3 +195,10 @@ export function buildPlanVsActual(plan: PlanMonthRow[], actuals: ActualMonth[], 
   if (counted.some((m) => m.basis === 'booked')) notes.push('Months marked "as booked" have no BOM costing, so their margins are Tally\'s own.');
   return { months, ytd, arr, behind, withData: counted.length + partial.length + (runningMonth ? 1 : 0), noData: months.filter((m) => m.state === 'nodata').length, running: runningMonth?.key ?? null, partial: partial.map((m) => m.key), notes };
 }
+
+/** The "All months" heading line: counts, months with incomplete books, the running month. */
+export function monthsSubtitle(r: Pick<PlanVsActual, 'withData' | 'noData' | 'partial' | 'running'>): string {
+  return `${r.withData} with data · ${r.noData} with no data yet`
+    + (r.partial.length ? ` · ${r.partial.length} with books not complete (not counted)` : '')
+    + (r.running ? ' · this month is not finished' : '');
+}

@@ -73,7 +73,9 @@ test('#5 period EBITDA burn = max(0, −Σ EBITDA), not Σ of the loss months; b
 test('#13 payroll / prof fee / other income / memo are blank in a total whose Other Expense is blank', () => {
   const s = sumMisPoints([pt({}), pt({ otherExpense: null, ebitda: null, ebitdaBurn: null })]);
   assert.equal(s.otherExpense, null);
-  for (const k of ['payroll', 'profFee', 'otherIncome', 'stockVariance'] as const) assert.equal(s[k], null, k);
+  for (const k of ['payroll', 'profFee', 'otherIncome'] as const) assert.equal(s[k], null, k);
+  assert.equal(s.stockVariance, 2); // the memo follows COGS (still real), not Other Expense
+  assert.equal(sumMisPoints([pt({}), pt({ cogs: null, grossMargin: null })]).stockVariance, null);
   const ok = sumMisPoints([pt({}), pt({ payroll: null })]);
   assert.equal(ok.payroll, 10); // a month with no payroll line does not blank the total
 });

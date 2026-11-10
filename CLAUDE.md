@@ -331,7 +331,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   `server/test/misSheetPeriods.test.ts`):** Payroll / Professional fee / Other income are split out of OpEx for legacy months too
   (`opexSplit`: Payroll…, Salar…, Professional Fees, Legal & CA…, Other Income…; no matching line = blank, never 0; FY23-24–FY25-26 ₹116.22 L
   payroll + ₹22.80 L fees were in Other Expense). A period's EBITDA Burn = max(0, −Σ EBITDA) (FY25-26 was 33.97 L, now 0.97 L) and is gated;
-  payroll / prof fee / other income / memo are blank in a total whose Other Expense is. Range presets and the Excel Summary end on the newest
+  payroll / prof fee / other income are blank in a total whose Other Expense is, the stock memo in one whose COGS is. Range presets and the Excel Summary end on the newest
   COMPLETE month (`anchorMonth` / `isCompleteMonth`: closed, published, or a full close of a finished month), not the running / half-booked
   newest; "YTD" = Indian FY to date, labelled "FY26-27 to date"; the Summary names the newest month separately. Cash rows (`MisSheetRow.cash`)
   stay ₹ Lac in the % view / % export. FY cash = the months with a stored cash flow (`cashOverMonths`), named in the total header ("cash

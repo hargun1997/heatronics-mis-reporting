@@ -601,9 +601,9 @@ const MIS_KEYS: MisNumKey[] = [
 ];
 // Cascade fields gated by completeness: a period total is blank when any month is.
 const GATED: MisNumKey[] = ['cogs', 'grossMargin', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'otherExpense', 'ebitda', 'ebitdaBurn'];
-// Split out of OpEx (and the memo): blank in a total whenever its Other Expense is (round 7 #13), so a total
-// column never shows payroll next to a blank Other Expense / EBITDA.
-const GATED_WITH_OPEX: MisNumKey[] = ['payroll', 'profFee', 'otherIncome', 'stockVariance'];
+// Split out of OpEx: blank in a total whenever its Other Expense is (round 7 #13), so a total column never shows
+// payroll next to a blank Other Expense / EBITDA. The stock memo follows COGS, so normalised GM keeps its memo beside it.
+const GATED_WITH_OPEX: MisNumKey[] = ['payroll', 'profFee', 'otherIncome'];
 
 /**
  * Sum MIS points across months — the legacy sumPoints (nulls stay null when
@@ -621,6 +621,7 @@ export function sumMisPoints(points: MisPoint[]): MisPoint {
   // A period's EBITDA burn is the burn of the period, not Σ of its loss months (round 7 #5).
   if (out.ebitdaBurn !== null) out.ebitdaBurn = out.ebitda === null ? null : Math.max(0, -out.ebitda);
   if (out.otherExpense === null) for (const k of GATED_WITH_OPEX) out[k] = null;
+  if (out.cogs === null) out.stockVariance = null;
   return out;
 }
 

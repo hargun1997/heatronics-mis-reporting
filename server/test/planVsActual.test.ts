@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildPlanVsActual, planMonthsOf, statusOf, fyOfKey, type ActualMonth, type PlanMonthRow } from '../src/planning/planVsActual.ts';
+import { buildPlanVsActual, monthsSubtitle, planMonthsOf, statusOf, fyOfKey, type ActualMonth, type PlanMonthRow } from '../src/planning/planVsActual.ts';
 import { cleanActuals, cleanPlanRows, composeVsActual } from '../src/planning/vsActual.ts';
 import { BASE_PLAN_MONTHS, BASE_PLAN_START } from '../src/planning/basePlanMonths.ts';
 import { runPlan } from '../../client/src/data/planning/engine.ts';
@@ -169,4 +169,12 @@ test('cleanActuals keeps the complete flag only when it is a boolean', () => {
   const c = cleanActuals([{ key: '2026-10', level: 'full', complete: false, netRevenue: 1 }, { key: '2026-09', level: 'full', complete: 'yes', netRevenue: 2 }]);
   assert.equal(c?.[0].complete, false);
   assert.equal('complete' in (c?.[1] ?? {}), false);
+});
+
+test('"All months" subtitle is plain text (no template code), with partial and running months', () => {
+  assert.equal(monthsSubtitle({ withData: 5, noData: 1, partial: ['2026-10'], running: '2026-11' }),
+    '5 with data · 1 with no data yet · 1 with books not complete (not counted) · this month is not finished');
+  const t = monthsSubtitle({ withData: 2, noData: 0, partial: [], running: null });
+  assert.equal(t, '2 with data · 0 with no data yet');
+  assert.ok(!/[{}$]/.test(t));
 });
