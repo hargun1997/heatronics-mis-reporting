@@ -2,10 +2,11 @@
 // Live MIS — the month's close status, its ties to Tally, and "Close & lock".
 //
 // Only a manually locked month (or frozen legacy history) counts as closed for
-// the MIS's "complete through" floor. A month with a Tally P&L that booked sales
-// is "ready to close"; the tie table shows what the connectors saw against
-// Tally's own figures, and locking a month that is off by more than 1% of
-// revenue asks for a written reason (kept in the audit trail).
+// the MIS's "complete through" floor. A month is "ready to close" only when
+// nothing blocks it (monthCompleteness.ts: full Tally, ties within 1%, closing
+// stock posted, reports in, month over); otherwise the panel lists the exact
+// blockers. Soft blockers (a tie gap, a report) can still be locked with a
+// written reason (kept in the audit trail); hard ones cannot.
 // ----------------------------------------------------------------------------
 
 import { useState } from 'react';
@@ -13,11 +14,12 @@ import { inr } from '../mis-deck/format';
 import { monthLabel } from '../../data/misDeck/liveAnalytics';
 import { setMonthLock, type PeriodCompleteness } from '../../data/misDeck/liveDeck';
 import { TIE_LIMIT_PCT, type ChannelTie } from '../../data/misDeck/closeTies';
+import { gstRateLabel } from '../../data/misDeck/gstBasis';
 
 const BASIS_TXT: Record<NonNullable<ChannelTie['netBasis']>, string> = {
   reported: 'ex-GST as reported',
   booked: 'as booked (settlement / invoice)',
-  estimated: 'estimated ex-GST (18%)',
+  estimated: `estimated ex-GST (${gstRateLabel()})`,
 };
 
 const when = (iso: string) => new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -34,18 +36,22 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
   const lock = comp.manualLock;
   const legacy = !!comp.locked;
   const breach = !!tie?.breach;
+  const blockers = comp.closeBlockers ?? [];
+  // Soft blockers only (tie gap, a report) on a full Tally month: lockable, but only with a written reason.
+  const canOverride = !comp.ready && comp.level === 'full' && comp.hasTally && blockers.length > 0 && blockers.every((b) => !b.hard);
+  const needReason = breach || canOverride;
 
   const run = async (action: 'lock' | 'unlock', text?: string) => {
     setBusy(true); setError(null);
     const r = await setMonthLock(periodKey, action === 'lock'
-      ? { action, worstResidualPct: tie?.worstResidualPct ?? null, overrideReason: breach ? text : undefined }
+      ? { action, worstResidualPct: tie?.worstResidualPct ?? null, overrideReason: needReason ? text : undefined }
       : { action, reason: text });
     setBusy(false);
     if (!r.ok) { setError(r.error ?? 'Could not save.'); return; }
     setAsking(null); setReason('');
     onChanged();
   };
-  const onLock = () => (breach ? setAsking('lock') : void run('lock'));
+  const onLock = () => (needReason ? setAsking('lock') : void run('lock'));
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs space-y-2">
@@ -58,16 +64,17 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
             Closed &amp; locked by {lock.lockedBy}{lock.verifiedUser ? '' : ' (unverified name)'} · {when(lock.lockedAt)}
           </span>
         ) : comp.ready ? (
-          <span className="text-brand-700 font-medium">Ready to close — Tally P&amp;L is in with sales booked; not counted as closed until locked.</span>
+          <span className="text-brand-700 font-medium">Ready to close — Tally is complete, it ties and stock is posted; not counted as closed until locked.</span>
+        ) : comp.tallyGaps?.length ? (
+          <span className="text-amber-700 font-medium">Tally incomplete — {blockers.length} thing{blockers.length === 1 ? '' : 's'} to fix before closing.</span>
         ) : (
-          <span className="text-amber-700">Not ready to close — {comp.hasTally ? 'Tally booked no sales for this month yet.' : 'waiting for the Tally P&L.'}</span>
+          <span className="text-amber-700">Not ready to close — {blockers.length ? `${blockers.length} thing${blockers.length === 1 ? '' : 's'} to fix.` : comp.hasTally ? 'Tally booked no sales for this month yet.' : 'waiting for the Tally P&L.'}</span>
         )}
         {tie && (
           <button type="button" onClick={() => setOpen(!open)} className="text-brand-600 hover:underline">
             {open ? 'Hide tie to Tally' : `Tie to Tally${tie.worstResidualPct !== null ? ` · worst ${tie.worstResidualPct.toFixed(1)}%` : ''}`}
           </button>
         )}
-        {breach && !lock && <span className="text-amber-700">Over {TIE_LIMIT_PCT}% of revenue: {tie!.breaches.join('; ')}</span>}
         <span className="sm:ml-auto flex gap-2">
           {!legacy && lock && (
             <button type="button" disabled={busy} onClick={() => setAsking('unlock')} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50">Unlock</button>
@@ -75,16 +82,30 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
           {!legacy && !lock && comp.ready && (
             <button type="button" disabled={busy} onClick={onLock} className="px-3 py-1.5 rounded-lg bg-cta text-on-cta font-medium disabled:opacity-50">Close &amp; lock {monthLabel(periodKey)}</button>
           )}
+          {!legacy && !lock && canOverride && (
+            <button type="button" disabled={busy} onClick={onLock} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50">Lock with a reason</button>
+          )}
         </span>
       </div>
 
-      {lock?.overrideReason && <p className="text-amber-700">Locked over the 1% limit — reason: {lock.overrideReason}</p>}
+      {!legacy && !lock && blockers.length > 0 && (
+        <ol className="list-decimal pl-5 space-y-1 text-slate-700">
+          {blockers.map((b, i) => (
+            <li key={i}><span className={b.hard ? 'text-amber-700 font-medium' : 'text-slate-800'}>{b.text}</span> <span className="text-slate-500">{b.fix}</span></li>
+          ))}
+        </ol>
+      )}
+      {comp.exGstEstimated && (
+        <p className="text-slate-500">Sales ex-GST are estimated for {comp.exGstEstimated.sources.join(', ')}: GMV ÷ {(1 + comp.exGstEstimated.ratePct / 100).toFixed(2)} (GST {comp.exGstEstimated.ratePct}%).</p>
+      )}
+
+      {lock?.overrideReason && <p className="text-amber-700">Locked with open items — reason: {lock.overrideReason}</p>}
 
       {asking && (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
           <p className="text-slate-700">
             {asking === 'lock'
-              ? `This month is off Tally by more than ${TIE_LIMIT_PCT}% of revenue (${tie?.breaches.join('; ')}). Say why it is still closed.`
+              ? `This month still has open items (${blockers.map((b) => b.text).join(' ') || tie?.breaches.join('; ')}). Say why it is closed anyway.`
               : `Unlock ${monthLabel(periodKey)}? It stops counting as closed, and so does every later month. Optional reason:`}
           </p>
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm" placeholder={asking === 'lock' ? 'Reason (required)' : 'Reason'} />

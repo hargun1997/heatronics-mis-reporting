@@ -17,12 +17,13 @@ import type { DailyFact } from '../liveMis/facts';
 import type { SalesChannel } from './misDeckData';
 import { SALES_CHANNELS } from './misDeckData';
 import { toSalesChannel } from './expenseTagging';
+import { DEFAULT_GST_RATE, exGstOf, type NetBasis } from './gstBasis';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export const TIE_LIMIT_PCT = 1;
-/** GST used only to estimate ex-GST sales for a GST-inclusive source that cannot split tax. */
-export const ASSUMED_GST_RATE = 0.18;
+/** GST used only to estimate ex-GST sales for a GST-inclusive source that cannot split tax (the product rate, gstBasis.ts). */
+export const ASSUMED_GST_RATE = DEFAULT_GST_RATE;
 
 /** The shared lock record (mirror of server/src/ingest/closeLocks.ts MonthLock). */
 export interface MonthLock {
@@ -36,7 +37,7 @@ export interface MonthLock {
 }
 
 /** How the connector's ex-GST figure was obtained. */
-export type NetBasis = 'reported' | 'booked' | 'estimated';
+export type { NetBasis };
 
 export interface ChannelTie {
   channel: SalesChannel;
@@ -74,9 +75,6 @@ export interface CloseTie {
   breaches: string[];
 }
 
-/** Sources whose `revenue` is a settlement / invoice amount already ex-GST or not splittable: taken as booked. */
-const GST_INCLUSIVE_UNSPLIT = new Set(['shopify', 'amazon']);
-
 interface Acc { gmv: number; haveGmv: boolean; net: number; basis: Set<NetBasis>; sources: Set<string> }
 
 /** Fold a month's connector facts into per-channel GMV and ex-GST sales. */
@@ -89,9 +87,8 @@ export function connectorSales(facts: DailyFact[]): Map<SalesChannel, Acc> {
     const a = out.get(ch) ?? { gmv: 0, haveGmv: false, net: 0, basis: new Set<NetBasis>(), sources: new Set<string>() };
     a.sources.add(f.source);
     if (typeof f.gmv === 'number') { a.gmv += f.gmv; a.haveGmv = true; }
-    if (typeof f.netExGst === 'number') { a.net += f.netExGst; a.basis.add('reported'); }
-    else if (typeof f.gmv === 'number' && GST_INCLUSIVE_UNSPLIT.has(f.source)) { a.net += f.gmv / (1 + ASSUMED_GST_RATE); a.basis.add('estimated'); }
-    else { a.net += f.revenue; a.basis.add('booked'); }
+    const x = exGstOf(f);
+    a.net += x.net; a.basis.add(x.basis);
     out.set(ch, a);
   }
   return out;

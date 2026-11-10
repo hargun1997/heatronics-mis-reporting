@@ -57,7 +57,7 @@ test('connector sales: reported ex-GST, estimated from GMV, or as booked', () =>
   ]);
   assert.equal(s.get('D2C')!.net, 1000);
   assert.equal(s.get('D2C')!.haveGmv, true);
-  assert.equal(Math.round(s.get('Amazon')!.net), 1500); // 1180/1.18 + 500 as booked
+  assert.equal(Math.round(s.get('Amazon')!.net), 1624); // 1180/1.05 (product GST 5%) + 500 as booked
   assert.ok(s.get('Amazon')!.basis.has('estimated'));
   assert.equal(s.get('B2B')!.net, 700);
   assert.equal(s.size, 3);
