@@ -147,7 +147,7 @@ export interface TallyBucketLine {
 export interface ChannelRecon {
   /** Per channel: Tally net revenue − Σ connector SkuCell revenue. */
   revenueResidue: Partial<Record<SalesChannel, number>>;
-  /** Tally COGM − (Σ BOM-costed SkuCell COGS + factory overhead on net revenue). */
+  /** Tally COGM − (Σ BOM-costed SkuCell COGS + factory overhead + the other Direct Expenses booked): material timing only. */
   cogmVariance: number;
 }
 

@@ -262,7 +262,7 @@ export const PNL_ROWS: PnlRow[] = [
 /** Normalised COGM basis: the signed memo line under Gross Margin (Tally COGM − BOM cost of units sold − factory). */
 const STOCK_ROW: PnlRow = {
   k: 'stock_variance', label: 'Stock build / drawdown (purchase timing)', kind: 'memo',
-  title: 'Memo, outside the cascade: Tally charged this much more (+) or less (−) COGM than the BOM cost of the units sold. Gross Margin + this = Gross Margin as booked.',
+  title: 'Memo, outside the cascade: material only. Tally charged this much more (+) or less (−) material (purchases + stock change) than the BOM cost of the units sold. Factory overhead, manufacturing cost and inward freight stay inside COGM. Gross Margin + this = Gross Margin as booked.',
   get: (p) => p.stockVariance,
 };
 const PNL_ROWS_NORMALISED: PnlRow[] = PNL_ROWS.flatMap((r) => (r.k === 'gross_margin' ? [r, STOCK_ROW] : [r]));
@@ -457,7 +457,7 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
         ▸ Click a line to drill in — Net Revenue into its gross → returns → GST build-up (where the month’s source carries
         it), COGM and Operating Expenses into their ledger lines, Sales &amp; Marketing into the ad platforms, and the other
         cost lines into Tally’s own ledger buckets (live months). Non-Operating lists its Tally ledgers with an EBT subtotal.
-        {basis === 'normalised' && ' Stock build / drawdown is a signed memo outside the cascade (positive = Tally charged more COGM than the BOM cost of what was sold); Gross Margin + memo = Gross Margin as booked.'}
+        {basis === 'normalised' && ' Stock build / drawdown is a signed memo outside the cascade (material only: positive = Tally charged more material than the BOM cost of what was sold; factory, manufacturing and inward freight stay in COGM); Gross Margin + memo = Gross Margin as booked.'}
       </Note>
 
       <MetricTrends months={months} completeness={completeness} />

@@ -176,9 +176,9 @@ export function tagTallyLines(
  * `revenueResidue[ch]` is Tally's net revenue for the channel minus what the
  * connector SkuCells add up to — the "one recon line" that keeps the connectors
  * shown as-is while still tying the channel to Tally. `cogmVariance` is Tally's
- * COGM minus the bottoms-up estimate (BOM-costed SkuCell COGS plus the factory
- * overhead convention on net revenue); it is large exactly where the per-SKU
- * cost model and the books disagree.
+ * COGM minus the bottoms-up estimate (BOM-costed SkuCell COGS = material, plus
+ * the month's conversion cost: factory overhead and every other Direct Expense
+ * ledger), so it holds only the material purchase-timing / stock difference.
  */
 export function buildChannelRecon(
   netByChannel: Partial<Record<SalesChannel, number>>,
@@ -186,6 +186,8 @@ export function buildChannelRecon(
   cogm: number,
   netRevenue: number,
   factoryPct: number,
+  /** Direct Expense ledgers other than factory overhead (manufacturing costs, inward freight …): conversion.ts. */
+  otherConversion = 0,
 ): ChannelRecon {
   const revByChannel: Partial<Record<SalesChannel, number>> = {};
   let skuCogs = 0;
@@ -201,6 +203,6 @@ export function buildChannelRecon(
     if (tally !== 0 || sku !== 0) revenueResidue[ch] = r2(tally - sku);
   }
 
-  const cogmVariance = r2(cogm - (skuCogs + factoryPct * netRevenue));
+  const cogmVariance = r2(cogm - (skuCogs + factoryPct * netRevenue + otherConversion));
   return { revenueResidue, cogmVariance };
 }

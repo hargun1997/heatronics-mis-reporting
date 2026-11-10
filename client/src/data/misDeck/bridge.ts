@@ -3,7 +3,8 @@
 //
 // Pure maths, no I/O. It walks from the earlier month's EBITDA to the later month's EBITDA in steps:
 //   revenue:  more / fewer units · price & product mix · channel mix · returns · other
-//   cost:     BOM cost of what was sold · stock timing (buying vs using) · factory overhead
+//   cost:     BOM cost of what was sold · stock timing (buying vs using) · factory overhead ·
+//             manufacturing cost and inward freight (the other Direct Expenses)
 //             channel fees · ads & marketing · payment & platform fees · opex
 // Every step is the effect on EBITDA in rupees (+ helps, − hurts) and in ₹ lakh. The steps add up to the
 // EBITDA change; anything the cascade cannot explain is shown as "Other / rounding", never hidden.
@@ -25,7 +26,7 @@ const toLakh = (n: number) => Math.round((n / LAKH) * 100) / 100;
 
 export type StepKind =
   | 'volume' | 'price_mix' | 'channel_mix' | 'returns' | 'revenue_other' | 'revenue'
-  | 'bom_cost' | 'stock_timing' | 'cogm' | 'factory'
+  | 'bom_cost' | 'stock_timing' | 'cogm' | 'factory' | 'direct_other'
   | 'channel_fees' | 'marketing' | 'platform' | 'opex' | 'other';
 
 export interface BridgeStep {
@@ -183,10 +184,12 @@ export function buildBridge(inp: BridgeInput): BridgeResult {
   const bN = inp.baseNorm, cN = inp.curNorm;
   const canSplitCogm = !!bN && !!cN && bN.normalisedMonths > 0 && cN.normalisedMonths > 0;
   if (canSplitCogm) {
-    const bomB = bN!.cogm - bN!.factory, bomC = cN!.cogm - cN!.factory;
+    const bomB = bN!.cogm - bN!.conversion, bomC = cN!.cogm - cN!.conversion;
+    const mfg = (cN!.conversion - cN!.factory) - (bN!.conversion - bN!.factory);
     add({ id: 'bom_cost', label: 'Product cost (BOM) of what was sold', value: -(bomC - bomB), group: 'cost' });
     add({ id: 'stock_timing', label: 'Stock timing (bought vs used)', value: -(cN!.stockVariance - bN!.stockVariance), group: 'cost' });
     add({ id: 'factory', label: 'Factory overhead', value: -(cN!.factory - bN!.factory), group: 'cost' });
+    if (Math.abs(mfg) >= 1) add({ id: 'direct_other', label: 'Manufacturing cost and inward freight', value: -mfg, group: 'cost' });
   } else {
     add({ id: 'cogm', label: 'Cost of goods', value: -(cur.cogm - base.cogm), group: 'cost' });
     notes.push('Product cost and stock timing cannot be split: one month has no BOM costing.');
@@ -266,6 +269,7 @@ function phrase(id: StepKind, label: string, value: number): string {
     case 'stock_timing': return value >= 0 ? `Stock timing helped by ${l}` : `Stock timing hurt by ${l}`;
     case 'cogm': return costUp ? `Cost of goods up ${l}` : `Cost of goods down ${l}`;
     case 'factory': return costUp ? `Factory cost up ${l}` : `Factory cost down ${l}`;
+    case 'direct_other': return costUp ? `Manufacturing cost and freight up ${l}` : `Manufacturing cost and freight down ${l}`;
     case 'channel_fees': return costUp ? `Channel fees up ${l}` : `Channel fees down ${l}`;
     case 'marketing': return costUp ? `Ads up ${l}` : `Ads down ${l}`;
     case 'platform': return costUp ? `Payment fees up ${l}` : `Payment fees down ${l}`;
