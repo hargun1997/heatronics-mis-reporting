@@ -8,6 +8,7 @@ import { allocateMarketing, capTallyLines, capToTotal, overAttributions, spreadW
 import { buildLiveDeck } from '../../client/src/data/misDeck/liveDeck.ts';
 import { aggregatePeriods } from '../../client/src/data/misDeck/liveAnalytics.ts';
 import { anchoredChannelPnl, tallyAnchoredRows, unifyChannels } from '../../client/src/data/misDeck/liveViews.ts';
+import { channelAdWeight } from '../../client/src/data/misDeck/analytics.ts';
 import { deckItems } from '../../client/src/data/issues/inbox.ts';
 
 const near = (a: number, b: number, msg?: string) => assert.ok(Math.abs(a - b) < 1, `${msg ?? ''} ${a} vs ${b}`);
@@ -171,4 +172,22 @@ test('locked month with connector ads AND published feeds: the spend is counted 
   // ad spend before the rest is spread can only grow to the larger of the two sources, so Amazon + D2C never exceed Tally's line
   near(by.Amazon.salesMarketing + by.D2C.salesMarketing, 1_600_000);
   assert.ok(by.Amazon.salesMarketing > 0 && open.Amazon.salesMarketing > 0);
+});
+
+test('mixed period: a feed-only locked month + a tags-only live month keep BOTH months\' ad spend (per month, per channel)', () => {
+  const pubAmz = channelAdWeight('Amazon', ['2025-10']); const pubD2c = channelAdWeight('D2C', ['2025-10']);
+  assert.ok(pubAmz > 0 && pubD2c > 0, 'published feeds exist for Oct 25');
+  const tagAmz = 900_000, tagD2c = 300_000;
+  const total = pubAmz + pubD2c + tagAmz + tagD2c;              // rest = 0, so each channel's S&M = its recognised ad spend
+  const period = { members: ['2025-10', '2025-11'], hasTally: true, netRevenue: 10_000_000,
+    netByChannel: { D2C: 2_000_000, Amazon: 3_000_000, B2B: 5_000_000 },
+    tallyLines: [{ lineKey: 'sm', label: 'Sales & Marketing', bucket: 'sm', cascadeLine: 'sales_marketing', total: -total,
+      byChannel: { Amazon: -tagAmz, D2C: -tagD2c }, blended: -(total - tagAmz - tagD2c) }],
+    smTagsByMonth: { '2025-11': { Amazon: tagAmz, D2C: tagD2c } },
+    cogm: 0, grossMargin: 10_000_000, channelFulfillment: 0, cm1: 10_000_000, salesMarketing: total, cm2: 10_000_000 - total,
+    platformCosts: 0, cm3: 10_000_000 - total, opex: 0, ebitda: 10_000_000 - total, nonOperating: 0, costOfFundraising: 0, netIncome: 10_000_000 - total } as never;
+  const rows = tallyAnchoredRows(period, [], { '2025-10': { locked: true } } as never);
+  const by = Object.fromEntries(rows.map((r) => [r.channel, r]));
+  near(by.Amazon.salesMarketing, pubAmz + tagAmz); near(by.D2C.salesMarketing, pubD2c + tagD2c); assert.equal(by.B2B.salesMarketing, 0);
+  near(sum(rows.map((r) => r.salesMarketing)), total);
 });
