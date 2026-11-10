@@ -2,6 +2,20 @@
 
 Newest first. One line per merged PR: what changed for the person using it.
 
+## 10 Nov 2026 (run 3: MIS fault hunt, 10 audit rounds + audited-books tie)
+Ten audit rounds (new MIS vs legacy MIS, a decider each round) found the faults below; every fix was tested, reviewed by a separate agent and merged.
+- **#411 Tied to the audited accounts:** FY24-25 and FY25-26 net revenue, gross margin, EBITDA, profit before and after tax now equal the audited statements (FY25 within ₹2k of workbook rounding, FY26 within ₹100). FY25 material true-up −₹11.70 L (EBITDA ₹27.2 L → ₹39.2 L); new Other income, Tax and Net income lines; Jan–Mar 26 inter-branch to the books; Dec 23–Mar 24 labelled a 4-month year.
+- **#410 Product level:** unmapped sales get a "Not mapped" row; modelled units marked ≈; FY = sum of months; D2C GM FY24-25 100 % → 62.7 %; product fees + ads no longer ₹56 L above the P&L; no made-up "Other revenue" reason in Why it moved; plan vs actual uses each month's Amazon ordered ÷ settled units.
+- **#409 Channel splits:** MIS Sheet and Channels tab show the same channel P&L (FY25-26 B2B GM 60.4 % / 20.7 % → 28.1 %); years sum their months; marketplace fees never land on B2B / GT; leftover marketing no longer on Blinkit; channels and SKU cells foot to the company (499 mismatches → 16, all pre-existing display blanks).
+- **#408 MIS Sheet + periods:** legacy payroll ₹1.16 Cr and professional fees ₹22.8 L on their own lines; EBITDA burn FY25-26 33.97 L → 0.97 L; "Last 12 months" ends at the last complete month; YTD = financial year; plan vs actual leaves out half-booked months.
+- **#407 Server books + cash:** Today / MCP / CEO summary: TB sales exclude stock transfers (+₹93 L removed), sales & marketing no longer dropped (₹1.18 Cr), direct expenses not counted twice (₹64.5 L), cash lasts counts the overdraft (4.1 → 0.8 months on the test book), runway page gets cash / OD / debtors, empty Tally answers never overwrite a good copy.
+- **#406 Tranzact:** cancelled invoices skipped (may explain the Oct ₹2.2 L B2B gap), accessory lines count as sales, charge lines dropped with ₹ shown, day-first upload dates, seven new sales ledgers mapped (internal transfers = stock transfer).
+- **#405 Feeds + pulls:** Amazon wide ranges work; stale live sources show as Fix items; every close slot checked for every open month; daily auto-pull of last month's automatic slots (needs secret `mis-auto-pull-token`).
+- **#404 Month completeness:** Oct 26 no longer counted full with Amazon ₹0 (shows "no data", named on the close panel); Nov stops showing ₹0; ready-to-close needs closing stock posted; Amazon ex-GST estimate 5 % (was 18 %).
+- **#403 Normalised COGM:** includes manufacturing cost and inward freight (₹40.7 L Apr–Sep); no-BOM sales costed, never a 100 % margin.
+- **#402 Marketing by spend:** ads no longer charged to B2B / GT (₹49 L FY25, ₹32 L FY26); report fees capped at Tally.
+- **#401 History:** Amazon Dec 23–Sep 24 (₹1.01 Cr) shows as Amazon, not B2B; legacy channels ex-GST (sum to net revenue); chat reads the deck.
+
 ## 10 Nov 2026 (run 2)
 - **#399 Live feed:** partial Ads / Flipkart data is pulled again after 5 min (was 24 h), no source can hold the Live MIS load more than 25 s, and a failed or partial feed shows on Tasks → Fix and Today instead of a silent empty page.
 - **#398 Owners + sources:** every sidebar page shows who runs it, how often and what to do; the Source chip ("Tally books · 3 h ago", tap for details) replaces the freshness line on Today; the status is a header chip, not a banner.
