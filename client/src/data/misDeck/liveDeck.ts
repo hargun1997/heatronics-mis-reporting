@@ -38,7 +38,7 @@ import { fetchFacts } from '../liveMis/client';
 import { accumulateTags, buildChannelRecon, tagTallyLines, toSalesChannel } from './expenseTagging';
 import { buildCloseTie, type CloseTie, type MonthLock } from './closeTies';
 import { estimatedSources, gstRateFor, toExGstFact } from './gstBasis';
-import { closeBlockers, connectorSalesTotal, slotGaps, tallyGaps, tallyHasSalesLedger, type CloseBlocker, type SlotGap, type TallyGap } from './monthCompleteness';
+import { applyChannelHistory, closeBlockers, connectorSalesTotal, slotGaps, tallyGaps, tallyHasSalesLedger, type CloseBlocker, type MissingChannel, type SlotGap, type TallyGap } from './monthCompleteness';
 
 // Factory overhead convention — 10% of revenue added to product COGS to form
 // COGM, matching the deck (analytics.ts FACTORY_PCT) and the committed closes.
@@ -96,6 +96,8 @@ export interface PeriodCompleteness {
   closeBlockers?: CloseBlocker[];
   /** Channels the connectors sold on that Tally has not booked: the copy is "Tally incomplete", never a full close. */
   tallyGaps?: TallyGap[];
+  /** Channels that sold in the last 3 months with no sales data this month: the month is partial, never ₹0-as-full. */
+  missingChannels?: MissingChannel[];
   /** Set when a stored Tally copy was NOT used (no sales ledgers, only stock carry-forward): the month runs on connector facts. */
   tallyIgnored?: string;
   /** Sources whose ex-GST sales were estimated from GMV at the product GST rate (months with no Tally sales). */
@@ -564,7 +566,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     });
     const blockers = closeBlockers({
       periodKey, thisMonth: ctx.thisMonth, hasTally: true, tallyHasSales, gaps: gapsTally, tie, slots: ctx.slots,
-      stock: { opening: Math.abs(c.lines['cogm_open']?.amount ?? 0), closing: Math.abs(c.lines['cogm_close']?.amount ?? 0), purchases: Math.abs(c.lines['cogm_rm']?.amount ?? 0) },
+      stock: { opening: Math.abs(c.lines['cogm_open']?.amount ?? 0), closing: Math.abs(c.lines['cogm_close']?.amount ?? 0), purchases: Math.abs(c.lines['cogm_rm']?.amount ?? 0), sales: c.netRevenue },
     });
 
     // Non-Operating broken into its Tally ledgers (finance cost, depreciation,
@@ -813,6 +815,7 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   //    with no full live close (G5). A full live close replaces it; a live partial
   //    never silently does — see BuildLiveDeckOptions.prefer.
   const { months: staticMonths, cellsByMonth } = staticHistory();
+  applyChannelHistory(built, staticMonths);
   const months: MonthlyMIS[] = [];
   const skuCells: SkuCell[] = [];
   const completeness: Record<string, PeriodCompleteness> = {};

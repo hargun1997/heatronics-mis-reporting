@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildLiveDeck } from '../../client/src/data/misDeck/liveDeck.ts';
 import { DEFAULT_GST_RATE, GST_RATE_BY_SOURCE, exGstOf, toExGstFact } from '../../client/src/data/misDeck/gstBasis.ts';
-import { closeBlockers, slotGaps, stockNotPosted, tallyGaps, tallyHasSalesLedger } from '../../client/src/data/misDeck/monthCompleteness.ts';
+import { closeBlockers, missingChannels, slotGaps, stockNotPosted, tallyGaps, tallyHasSalesLedger } from '../../client/src/data/misDeck/monthCompleteness.ts';
 import { deckItems } from '../../client/src/data/issues/inbox.ts';
 import type { DailyFact } from '../../client/src/data/liveMis/facts.ts';
 
@@ -14,7 +14,7 @@ const tally = (pk: string, rows: Row[], nett: number | null = null) =>
   ({ connectorId: 'tally', slotId: 'pnl', periodKey: pk, payload: { ledgerRows: rows.map(([name, amount]) => ({ name, depth: 1, amount })), nettProfit: nett } });
 const STOCK_ONLY: Row[] = [['Opening Stock', 500_000], ['Closing Stock', 500_000]];
 const BOOKS = (o: { amazon?: number; d2c?: number; closing?: number } = {}): Row[] => [
-  ...(o.amazon === 0 ? [] : [['Amazon Sales', o.amazon ?? 600_000] as Row]), ['D2C Sales', o.d2c ?? 300_000], ['OEM Sales', 100_000],
+  ...(o.amazon === 0 ? [] : [['Amazon Sales', o.amazon ?? 600_000] as Row]), ['D2C Sales', o.d2c ?? 300_000], ['OEM Sales', 100_000], ['Offline Sales', 50_000],
   ['Opening Stock', 500_000], ['Raw Material Purchases', 200_000], ['Closing Stock', o.closing ?? 450_000], ['Factory Overheads', 50_000],
 ];
 const NOV = { thisMonth: '2026-11' };
@@ -104,7 +104,7 @@ test('ready needs full Tally, a tie within 1%, closing stock posted and the mont
   assert.deepEqual(flat.closeBlockers!.map((b) => b.kind), ['stock']);
   assert.match(flat.closeBlockers![0].text, /Closing stock = opening stock \(₹5,00,000\) with ₹2,00,000 of purchases/);
   assert.equal(flat.closeBlockers![0].hard, true);
-  assert.equal(stockNotPosted({ opening: 5, closing: 5, purchases: 0 }), false, 'no purchases: flat stock is possible');
+  assert.equal(stockNotPosted({ opening: 5, closing: 5, purchases: 0, sales: 0 }), false, 'no purchases or sales: flat stock is possible');
   assert.equal(stockNotPosted({ opening: 0, closing: 0, purchases: 10 }), false, 'no stock rows at all: not judged');
 
   // Tie over 1% → not ready (soft: lockable only with a reason).
@@ -164,4 +164,42 @@ test('Fix items: the blockers of a Tally month, never "ready to lock" while any 
   assert.match(oct.detail, /Amazon: ₹6,50,000 sold/);
   assert.match(items.find((i) => i.id === 'close:2026-09')!.detail, /Closing stock = opening stock/);
   assert.ok(!items.some((i) => i.id.startsWith('lock:')));
+});
+
+// ---- rule 4: channels that sold in the last 3 months ---------------------------------
+
+test('a channel that sold in the last 3 months with no data this month is named; the month is partial and not ready', () => {
+  const hist = new Map<string, Record<string, number>>([
+    ['2026-07', { Amazon: 700_000, D2C: 300_000, OEM: 300_000 }],
+    ['2026-08', { Amazon: 650_000, D2C: 320_000 }],
+    ['2026-09', { Amazon: 600_000, D2C: 280_000, Blinkit: 4_000 }],
+  ]);
+  const miss = missingChannels('2026-10', { D2C: 310_000, OEM: 0 }, hist as never);
+  assert.deepEqual(miss.map((x) => [x.channel, x.priorAvg]), [['Amazon', 650_000], ['B2B', 100_000]]);
+  assert.deepEqual(miss[0].months, ['2026-09', '2026-08', '2026-07']);
+  assert.deepEqual(missingChannels('2026-10', { Amazon: 1, D2C: 1, OEM: 1 }, hist as never), [], 'any sales = has data');
+  assert.deepEqual(missingChannels('2026-06', {}, hist as never), [], 'no history before → nothing judged');
+
+  // In the deck: Tally booked Aug + Sep with Amazon (+ published Jul 11,96,831); Oct has no Amazon ledger AND no Amazon facts.
+  const stockMoves = (closing: number) => BOOKS({ closing });
+  const d = buildLiveDeck([tally('2026-08', stockMoves(480_000)), tally('2026-09', stockMoves(460_000)), tally('2026-10', BOOKS({ amazon: 0 }))] as never,
+    [shop(315_000, '2026-08'), shop(315_000, '2026-09'), shop(315_000)], NOV);
+  const c = d.completeness['2026-10'];
+  assert.notEqual(c.level, 'full');
+  assert.equal(c.ready, false);
+  assert.deepEqual(c.missingChannels!.map((x) => x.channel), ['Amazon']);
+  const b = c.closeBlockers!.find((x) => x.kind === 'channel-missing')!;
+  assert.equal(b.hard, true);
+  assert.match(b.text, /^Amazon: no sales data for Oct 26 \(sold ₹7,98,944 a month in the last 3 months\)\.$/);
+  assert.equal(d.completeness['2026-09'].missingChannels, undefined);
+  const item = deckItems(d).find((i) => i.id === 'close:2026-10')!;
+  assert.match(item.title, /no data: Amazon/);
+  assert.match(item.detail, /Amazon: no sales data/);
+});
+
+test('closing stock = opening is flagged when the month sold goods even with no purchases', () => {
+  assert.equal(stockNotPosted({ opening: 5, closing: 5, purchases: 0, sales: 100 }), true);
+  const b = closeBlockers({ periodKey: '2026-09', thisMonth: '2026-11', hasTally: true, tallyHasSales: true, gaps: [], slots: [],
+    stock: { opening: 1_48_15_505, closing: 1_48_15_505, purchases: 0, sales: 62_71_000 } });
+  assert.match(b[0].text, /Closing stock = opening stock \(₹1,48,15,505\) with ₹62,71,000 of sales: closing stock not posted/);
 });

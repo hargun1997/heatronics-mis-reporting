@@ -49,12 +49,14 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
     if (c.closed || c.locked || k > thisMonth) continue; // a month that hasn't happened can't be wrong yet
     const tie = c.tie;
     const blockers = c.closeBlockers ?? [];
-    // What blocks the close besides the tie (its own item below): Tally incomplete, stock not posted, reports. A month with no Tally yet is not a problem.
-    const todo = c.hasTally ? blockers.filter((b) => b.kind === 'tally-incomplete' || b.kind === 'stock' || b.kind === 'slot') : [];
+    // What blocks the close besides the tie (its own item below): Tally incomplete, a channel with no data, stock not posted,
+    // reports. A month with no Tally yet is not a problem by itself, but a channel missing from a finished month always is.
+    const todo = blockers.filter((b) => (c.hasTally && (b.kind === 'tally-incomplete' || b.kind === 'stock' || b.kind === 'slot'))
+      || (b.kind === 'channel-missing' && k < thisMonth));
     if (todo.length) {
       const hard = todo.some((b) => b.hard);
       out.push({ id: `close:${k}`, area: 'close', severity: hard ? 'high' : 'medium', period: k, count: todo.length,
-        title: `${monthName(k)} can't be closed yet: ${todo.length} thing${todo.length === 1 ? '' : 's'} to fix${c.tallyGaps?.length ? ' (Tally incomplete)' : ''}`,
+        title: `${monthName(k)} can't be closed yet: ${todo.length} thing${todo.length === 1 ? '' : 's'} to fix${c.tallyGaps?.length ? ' (Tally incomplete)' : c.missingChannels?.length ? ` (no data: ${c.missingChannels.map((x) => x.channel).join(', ')})` : ''}`,
         detail: todo.slice(0, 4).map((b, i) => `${i + 1}. ${b.text}`).join(' '),
         fix: todo[0].fix, href: `/reporting/mis/live?month=${k}#close`, sig: sig(todo.map((b) => `${b.kind}:${b.text.replace(/₹[\d,]+/g, '₹')}`)) });
     }

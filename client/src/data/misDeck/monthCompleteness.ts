@@ -12,6 +12,10 @@
 //  3. "Ready to lock" = full Tally AND ties within 1 % AND closing stock posted
 //     AND no required report missing / empty / partial AND the month is over.
 //     Anything else is a named blocker.
+//  4. A channel that sold in any of the previous 3 months (≥ 5 % of those
+//     months' sales) must have sales data in the month: otherwise it is named
+//     as missing, the month is partial (never "full") and not ready — even when
+//     no connector saw it either (applyChannelHistory).
 // ----------------------------------------------------------------------------
 import type { DailyFact } from '../liveMis/facts';
 import type { SalesChannel } from './misDeckData';
@@ -19,6 +23,8 @@ import { SALES_CHANNELS } from './misDeckData';
 import { connectorSales, type CloseTie } from './closeTies';
 import { gstRateLabel, type NetBasis } from './gstBasis';
 import { ALL_SLOTS } from '../ingest/catalog';
+import type { BuiltMonth, CompletenessLevel } from './liveDeck';
+import { CHANNEL_FOLD } from './liveAnalytics';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`;
@@ -118,7 +124,7 @@ export function slotGaps(periodKey: string, reports: SlotReport[]): SlotGap[] {
 
 // ---- 3b. Blockers -------------------------------------------------------------
 
-export type BlockerKind = 'running' | 'no-tally' | 'tally-incomplete' | 'stock' | 'tie' | 'slot';
+export type BlockerKind = 'running' | 'no-tally' | 'tally-incomplete' | 'channel-missing' | 'stock' | 'tie' | 'slot';
 export interface CloseBlocker {
   kind: BlockerKind;
   /** What is wrong, numbers first. */
@@ -129,10 +135,10 @@ export interface CloseBlocker {
   hard: boolean;
 }
 
-export interface StockCheck { opening: number; closing: number; purchases: number }
-/** Closing stock was not valued: Tally prints closing = opening until it is posted. Only judged when the month bought material. */
+export interface StockCheck { opening: number; closing: number; purchases: number; /** Net sales of the month. */ sales?: number }
+/** Closing stock was not valued: Tally prints closing = opening until it is posted. Only judged when the month bought or sold goods. */
 export const stockNotPosted = (s: StockCheck | null | undefined): boolean =>
-  !!s && s.purchases > 0 && Math.abs(s.opening - s.closing) < 1 && (s.opening !== 0 || s.closing !== 0);
+  !!s && (s.purchases > 0 || (s.sales ?? 0) > 0) && Math.abs(s.opening - s.closing) < 1 && (s.opening !== 0 || s.closing !== 0);
 
 const BASIS_NOTE = (b: NetBasis) => (b === 'estimated' ? ` (ex-GST estimated at ${gstRateLabel()})` : '');
 
@@ -166,7 +172,7 @@ export function closeBlockers(a: {
   }
   if (a.hasTally && stockNotPosted(a.stock)) {
     out.push({ kind: 'stock', hard: true,
-      text: `Closing stock = opening stock (${inr(a.stock!.closing)}) with ${inr(a.stock!.purchases)} of purchases: stock is not valued, profit is overstated.`,
+      text: `Closing stock = opening stock (${inr(a.stock!.closing)}) with ${a.stock!.purchases > 0 ? `${inr(a.stock!.purchases)} of purchases` : `${inr(a.stock!.sales ?? 0)} of sales`}: closing stock not posted, profit is wrong.`,
       fix: 'Post the closing stock in Tally (Tasks → Closing stock into Tally), then pull Tally again.' });
   }
   if (a.hasTally && a.tallyHasSales && !a.gaps.length) {
@@ -182,4 +188,81 @@ export function closeBlockers(a: {
     for (const x of a.slots.filter((y) => y.state === 'partial')) out.push({ kind: 'slot', hard: false, text: `${x.label} ${x.detail}.`, fix: 'Setup: pull or upload the full month.' });
   }
   return out;
+}
+
+// ---- 4. Channels that sold in the last 3 months -----------------------------------
+
+/** Months looked back on, and the smallest monthly average that counts (below it a quiet month is normal). */
+export const HISTORY_MONTHS = 3;
+export const HISTORY_MIN_INR = 10_000;
+
+export interface MissingChannel {
+  channel: SalesChannel;
+  /** Average monthly sales over the previous months that had data. */
+  priorAvg: number;
+  /** Months it was averaged over (YYYY-MM). */
+  months: string[];
+}
+
+const prevKey = (k: string, n: number) => {
+  const [y, m] = k.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 - n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+/**
+ * Channels that sold in the previous HISTORY_MONTHS months (average ≥ 5 % of those months' sales and ≥ ₹10,000)
+ * but have no sales (≤ 0) in this month. `history` = net sales by channel per month (the deck's months).
+ */
+export function missingChannels(periodKey: string, currentIn: Partial<Record<SalesChannel, number>>,
+  historyIn: Map<string, Partial<Record<SalesChannel, number>>>): MissingChannel[] {
+  // Published months say OEM / Offline, live months B2B / GT: compare on the folded names (CHANNEL_FOLD).
+  const current = foldChannels(currentIn);
+  const history = new Map([...historyIn].map(([k, v]) => [k, foldChannels(v)]));
+  const prior = Array.from({ length: HISTORY_MONTHS }, (_, i) => prevKey(periodKey, i + 1)).filter((k) => history.has(k));
+  if (!prior.length) return [];
+  const avg = (ch: SalesChannel) => prior.reduce((s, k) => s + Math.max(0, history.get(k)![ch] ?? 0), 0) / prior.length;
+  const total = SALES_CHANNELS.reduce((s, ch) => s + avg(ch), 0);
+  const out: MissingChannel[] = [];
+  for (const ch of SALES_CHANNELS) {
+    const a = avg(ch);
+    if (a < HISTORY_MIN_INR || a < MATERIAL_CHANNEL_SHARE * total) continue;
+    if ((current[ch] ?? 0) > 0) continue;
+    out.push({ channel: ch, priorAvg: r2(a), months: prior });
+  }
+  return out.sort((x, y) => y.priorAvg - x.priorAvg);
+}
+
+function foldChannels(v: Partial<Record<SalesChannel, number>>): Partial<Record<SalesChannel, number>> {
+  const out: Partial<Record<SalesChannel, number>> = {};
+  for (const ch of SALES_CHANNELS) if (v[ch] != null) { const to = CHANNEL_FOLD[ch] ?? ch; out[to] = (out[to] ?? 0) + (v[ch] ?? 0); }
+  return out;
+}
+
+const monthName = (k: string) => `${MON[Number(k.slice(5, 7))]} ${k.slice(2, 4)}`;
+
+/**
+ * Rule 4 on the built live months, in place. History = the published month where there is one and the live month is
+ * not full, else the live month. A channel already named by tallyGaps (the connectors saw it) is not named twice.
+ * A month with a missing channel is never "full" (contribution / top line) and gets a hard 'channel-missing' blocker.
+ */
+export function applyChannelHistory(built: Map<string, BuiltMonth>,
+  published: { key: string; netByChannel: Partial<Record<SalesChannel, number>> }[]): void {
+  const history = new Map<string, Partial<Record<SalesChannel, number>>>();
+  for (const m of published) history.set(m.key, m.netByChannel);
+  for (const [k, b] of built) if (b.completeness.level === 'full' || !history.has(k)) history.set(k, b.month.netByChannel);
+  for (const [k, b] of built) {
+    const c = b.completeness;
+    if (c.locked || c.manualLock) continue;
+    const named = new Set((c.tallyGaps ?? []).map((g) => g.channel));
+    const miss = missingChannels(k, b.month.netByChannel, history).filter((x) => !named.has(x.channel));
+    if (!miss.length) continue;
+    const level: CompletenessLevel = c.level === 'full' ? (c.cogmReal ? 'contribution' : 'topline') : c.level;
+    const blockers: CloseBlocker[] = miss.map((x) => ({
+      kind: 'channel-missing', hard: true,
+      text: `${x.channel}: no sales data for ${monthName(k)} (sold ${inr(x.priorAvg)} a month in ${x.months.length === 1 ? monthName(x.months[0]) : `the last ${x.months.length} months`}).`,
+      fix: c.hasTally ? `Book the ${x.channel} sales in Tally, or pull its report on Setup, then pull again.` : `Pull or upload the ${x.channel} report for the month on Setup.`,
+    }));
+    b.completeness = { ...c, level, missingChannels: miss, closeBlockers: [...(c.closeBlockers ?? []), ...blockers] };
+  }
 }

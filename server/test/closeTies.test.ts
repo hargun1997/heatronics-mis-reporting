@@ -92,6 +92,8 @@ test('tie: residuals per channel and profit, breach over 1% of revenue', () => {
 
 const rows = (sales: number) => [
   { name: 'Amazon Sales', depth: 1, amount: sales }, { name: 'D2C Sales', depth: 1, amount: sales / 2 },
+  // OEM + Offline: the published Jul sold on them, so a month without them is "channel missing" (monthCompleteness rule 4).
+  { name: 'OEM Sales', depth: 1, amount: sales / 10 }, { name: 'Offline Sales', depth: 1, amount: sales / 20 },
   { name: 'Raw Material Purchases', depth: 1, amount: 300_000 }, { name: 'Factory Overheads', depth: 1, amount: 80_000 },
   { name: 'Channel Fees & Commissions', depth: 1, amount: 100_000 },
 ];
@@ -137,7 +139,7 @@ test('factory overhead is Tally actual when booked, 10% fallback is labelled', (
   const noFactory = { ...tally('2026-10', 1_000_000), payload: { ledgerRows: rows(1_000_000).filter((r) => r.name !== 'Factory Overheads'), nettProfit: null } };
   const d2 = buildLiveDeck([noFactory], [], {});
   assert.equal(d2.months.find((x) => x.key === '2026-10')!.factoryBasis, 'assumed');
-  assert.equal(d2.months.find((x) => x.key === '2026-10')!.factory, 150_000);
+  assert.equal(d2.months.find((x) => x.key === '2026-10')!.factory, 165_000); // 10% of 16.5 L (Amazon 10 + D2C 5 + OEM 1 + Offline 0.5)
   // A live partial month (no Tally) is the labelled 10% too.
   const d3 = buildLiveDeck([], [f({ source: 'amazon', channel: 'Amazon', date: '2026-11-02', revenue: 1000 })], {});
   assert.equal(d3.completeness['2026-11'].factoryBasis, 'assumed');

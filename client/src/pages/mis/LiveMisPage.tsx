@@ -458,8 +458,9 @@ function CompletenessBanner({ deck, raw, showLive, setShowLive }: {
       {deck.periods.some((k) => deck.completeness[k]?.ready) && (
         <span className="text-brand-700">Ready to close: {deck.periods.filter((k) => deck.completeness[k]?.ready).map(monthLabel).join(', ')}</span>
       )}
-      {deck.periods.some((k) => deck.completeness[k]?.tallyGaps?.length) && (
-        <span className="text-amber-700">Tally incomplete: {deck.periods.filter((k) => deck.completeness[k]?.tallyGaps?.length).map(monthLabel).join(', ')}</span>
+      {deck.periods.some((k) => deck.completeness[k]?.tallyGaps?.length || deck.completeness[k]?.missingChannels?.length) && (
+        <span className="text-amber-700">Channels missing: {deck.periods.filter((k) => deck.completeness[k]?.tallyGaps?.length || deck.completeness[k]?.missingChannels?.length)
+          .map((k) => `${monthLabel(k)} (${[...(deck.completeness[k].tallyGaps ?? []), ...(deck.completeness[k].missingChannels ?? [])].map((g) => g.channel).join(', ')})`).join('; ')}</span>
       )}
       {latest && latest !== through && (
         <span className="text-slate-400 flex items-center gap-1.5">Latest data: {monthLabel(latest)} (partial <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} />)</span>
