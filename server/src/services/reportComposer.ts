@@ -68,9 +68,10 @@ export async function composeMonthlySummary(reports: ExtractedReport[], appUrl: 
     <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;color:#0f172a;max-width:600px">
       <div style="background:linear-gradient(135deg,#fe4705,#b5370b);color:#fff;border-radius:16px;padding:20px 22px">
         <h1 style="margin:0;font-size:20px">Heatronics MIS — monthly summary</h1>
-        <p style="margin:6px 0 0;opacity:.9;font-size:13px">${monthLabel(servicePeriod)}${latest ? ` · latest net revenue ${inr(revByMonth.get(latest) ?? 0)}` : ''}</p>
+        <p style="margin:6px 0 0;opacity:.9;font-size:13px">${monthLabel(servicePeriod)}${latest ? ` · stored-report sales ${inr(revByMonth.get(latest) ?? 0)}` : ''}</p>
       </div>
-      <h2 style="font-size:14px;color:#334155;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.06em">Net revenue — last 6 months</h2>
+      <h2 style="font-size:14px;color:#334155;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.06em">Sales in stored reports — last 6 months</h2>
+      <p style="margin:0 0 8px;color:#64748b;font-size:12px">Only committed reports: live Shopify (D2C) sales and reports not saved yet are not in it. Open the MIS for net revenue.</p>
       <table style="width:100%;border-collapse:collapse">${rows || '<tr><td style="color:#94a3b8;font-size:13px">No revenue yet.</td></tr>'}</table>
       <div style="margin-top:18px;padding:12px 14px;background:#f8fafc;border:1px solid #eef2f7;border-radius:12px;font-size:13px;color:#334155">
         <div>📋 ${outstandingLine}</div>

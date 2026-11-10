@@ -66,6 +66,12 @@ const factMonth = (f: Fact, fallback: string): string => {
 // Lines that are totals / subtotals, not real cost centres — never flag these
 // as "a cost centre went to zero".
 const TOTAL_LINE = /(total|gross profit|nett? profit|net profit|gross margin|ebitda|balance|difference)/i;
+// A sales ledger (revenue line), not a cost centre — worded as such (round 10 D).
+const SALES_LINE = /\bsales\b|revenue/i;
+const COST_LIKE = /marketing|after-? ?sales|warranty|commission|fees?|charges?|expenses?|returns?/i;
+const isSalesLine = (n: string) => SALES_LINE.test(n) && !COST_LIKE.test(n);
+const STOCK_OR_GROUP = /stock|purchase|^direct (expenses|incomes?)$|^indirect (expenses|incomes?)$|income/i;
+const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : 0; };
 
 // ---- scan ------------------------------------------------------------------
 
@@ -144,22 +150,58 @@ export function scanIssues(reports: ExtractedReport[]): AnomalyScanResult {
     const cur = ledgerByMonth.get(months[i]);
     if (!prev || !cur) continue; // need both months closed in Tally to judge "gone"
     for (const [name, amt] of prev) {
-      if (TOTAL_LINE.test(name)) continue;
+      if (TOTAL_LINE.test(name) || /stock/i.test(name)) continue; // stock rows move with valuation, not postings
       const was = Math.abs(amt);
       if (was < 25000) continue; // materiality floor
       const now = Math.abs(cur.get(name) ?? 0);
       if (now === 0) {
+        const sale = isSalesLine(name);
         push({
           id: `cost-zero:${months[i]}:${name}`,
           severity: 'medium',
-          category: 'cost-centre',
+          category: sale ? 'revenue' : 'cost-centre',
           period: months[i],
           title: `"${titleCase(name)}" dropped to zero`,
           detail:
             `${titleCase(name)} was ${inr(was)} in ${monthName(months[i - 1])} but is absent/zero in ` +
-            `${monthName(months[i])}. A cost centre going to absolute zero usually means a missing posting.`,
+            `${monthName(months[i])}. ${sale ? 'A sales ledger going to zero usually means sales were not booked yet.' : 'A cost centre going to absolute zero usually means a missing posting.'}`,
         });
       }
+    }
+  }
+
+  // Rule 2b — a cost ledger spiked: ≥ 3× the median of the 3 months before it and ≥ ₹1 lakh more (round 10 D: Admin &
+  // General May 34.34 L was 48× April and not flagged). Sales, stock, purchases, group and total rows are left out.
+  for (let i = 3; i < months.length; i += 1) {
+    const cur = ledgerByMonth.get(months[i]);
+    const before = [1, 2, 3].map((k) => ledgerByMonth.get(months[i - k]));
+    if (!cur || before.some((b) => !b)) continue;
+    for (const [name, amt] of cur) {
+      if (TOTAL_LINE.test(name) || STOCK_OR_GROUP.test(name) || isSalesLine(name)) continue;
+      const base = median(before.map((b) => Math.abs(b!.get(name) ?? 0)));
+      const now = Math.abs(amt);
+      if (now >= 3 * Math.max(base, 1) && now - base >= 100000) {
+        push({
+          id: `cost-spike:${months[i]}:${name}`,
+          severity: 'medium',
+          category: 'cost-centre',
+          period: months[i],
+          title: `"${titleCase(name)}" jumped ${base > 0 ? `${Math.round((now / base) * 10) / 10}×` : 'from nothing'}`,
+          detail: `${titleCase(name)} is ${inr(now)} in ${monthName(months[i])} vs a usual ${inr(base)} (median of the 3 months before). Check for a wrong ledger, a duplicate voucher or a one-off that belongs elsewhere.`,
+        });
+      }
+    }
+  }
+
+  // Rule 2c — a sales ledger booked negative (credit notes larger than sales, or a reversal in the wrong month).
+  for (const [mo, lines] of ledgerByMonth) {
+    for (const [name, amt] of lines) {
+      if (!isSalesLine(name) || TOTAL_LINE.test(name) || /stock/i.test(name) || amt > -10000) continue;
+      push({
+        id: `sales-negative:${mo}:${name}`, severity: 'medium', category: 'revenue', period: mo,
+        title: `"${titleCase(name)}" is negative`,
+        detail: `${titleCase(name)} shows ${inr(amt)} in ${monthName(mo)}: more returns / credit notes than sales on this ledger. Check for a reversal booked in the wrong month.`,
+      });
     }
   }
 

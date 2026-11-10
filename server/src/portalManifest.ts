@@ -48,7 +48,7 @@ export const portalManifest = {
       "purpose": "Monthly sales, costs, net profit, cash, debtors and creditors from the stored Tally copies",
       "mcp": {
         "tool": "mis_get_summary",
-        "description": "Start here for money questions (Cash Overwatch): one row per month (last 13) from Tally: sales, other income, purchases, direct and indirect expenses, net profit, closing stock, cash and bank, overdraft, net cash, debtors, creditors, loans, GST payable; plus fy (FY-to-date sales, gross margin, EBITDA, net profit vs last FY), channels (sales per channel ledger, 6 months, MoM), costs (opex buckets, MoM, % of sales), balance (cash per bank, OD, debtors, creditors, stock, loans, GST), cashflow (last 3 months), close (locked / ready / open, tie, uploads), watch (things to watch with ₹ and a reason), topExpenses. ₹, no adding up needed; null = not in the books yet.",
+        "description": "Start here for money questions (Cash Overwatch): one row per month (last 13) from Tally: sales (channel ledgers; Stock Transfers taken out of sales and purchases), other income, purchases, direct and indirect expenses, net profit, closing stock, cash and bank, overdraft, net cash, debtors, creditors, loans, GST payable, complete (false = running month or books copied < 5 days after month end: not a whole month); plus fy (FY-to-date sales, gross margin, EBITDA, net profit vs last FY), channels (sales per channel ledger, 6 months, MoM), costs (opex buckets, MoM, % of sales), balance (cash per bank, OD, debtors, creditors, stock, loans, GST), cashflow (last 3 months), close (locked / ready / open, tie, uploads), watch (things to watch with ₹ and a reason), topExpenses. ₹, no adding up needed; null = not in the books yet.",
         "access": "read",
         "returns": "months[] + fy + channels + costs + balance + cashflow[] + close[] + watch[] + topExpenses + notes"
       }
@@ -311,7 +311,7 @@ export const portalManifest = {
       "purpose": "13-week net cash runway in three cases from the stored Tally books, with the day cash goes below zero or hits the overdraft limit",
       "mcp": {
         "tool": "mis_get_cash_runway",
-        "description": "Use for 'how long does our cash last', 'when do we hit the overdraft limit', 'will we run out of cash': net cash today, 13 weekly points for the usual / worst-month / best-month cases, the week each case goes below zero or reaches the overdraft limit, and a one-line verdict. Stored books only; moves net cash at the last months' pattern (net of new loans). Not a sales forecast.",
+        "description": "Use for 'how long does our cash last', 'when do we hit the overdraft limit', 'will we run out of cash': net cash today, 13 weekly points for the usual / worst-month / best-month cases, the week each case goes below zero or reaches the overdraft limit, and a one-line verdict. Stored books only; moves net cash (bank − overdraft) at the last whole months' pattern (net of new loans; a running month or books copied < 5 days after month end never count). Not a sales forecast.",
         "access": "read",
         "input": { "type": "object", "properties": {} },
         "returns": "status, line, netCash, odLimit, cases[] (perMonth, zeroOn, limitOn, low, end), weeks[] (base, hard, easy)"

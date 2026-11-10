@@ -82,7 +82,8 @@ test('ledger → channel follows the close map, rules and plain names; costs nev
   assert.equal(bucketOfLedger('Cost of Advertising'), 'marketing');
   assert.equal(bucketOfLedger('Freight Charges Shiprocket'), 'logistics');
   assert.equal(bucketOfLedger('Amazon Channel Fees'), 'channelFees');
-  assert.equal(bucketOfLedger('Factory Overheads'), 'rentFactory');
+  assert.equal(bucketOfLedger('Factory Overheads'), null); // COGM on Live MIS, not opex (round 10 A2)
+  assert.equal(bucketOfLedger('Factory Rent'), 'rentFactory');
   assert.equal(bucketOfLedger('Interest Paid'), 'finance');
   assert.equal(bucketOfLedger('Depreciation'), 'depreciation');
   assert.equal(bucketOfLedger('Professional Fees'), 'professional');
@@ -176,7 +177,7 @@ test('watch: runway, debtors, creditors, GST, tie breach, channel drop, early co
   const ids = r.watch.map((w) => w.id);
   const w = (id: string) => r.watch.find((x) => x.id === id)!;
   assert.ok(ids.includes('cash_runway'));
-  assert.equal(w('cash_runway').pct, 1.1); // net cash 4 L ÷ avg outflow 3.5 L
+  assert.equal(w('cash_runway').pct, 1); // net cash 4 L (bank − OD) ÷ Sep's fall in net cash 4 L; Oct (copied 3 Nov) is not a whole month
   assert.equal(w('cash_runway').severity, 'high');
   assert.equal(w('debtors_up').pct, 40);
   assert.ok(ids.includes('creditors_high'));

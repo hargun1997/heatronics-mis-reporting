@@ -9,7 +9,9 @@ import { readAllExtracted, readJson } from '../../ingest/objectStore.js';
 import type { LockStore } from '../../ingest/closeLocks.js';
 import { MANUAL_SLOTS } from '../../services/issuesInbox.js';
 import { readMasters } from './bookStore.js';
-import { readTallySnapshot, readTallyState, readTallyTb } from './snapshots.js';
+import { readTallyState, readTallyTb } from './snapshots.js';
+import { pickPnlCopy } from './pnlCopies.js';
+import { readPnlCopies } from './pnlCopiesLoad.js';
 import type { Channel, LedgerRuleIn, V2Input, V2MonthIn } from './ceoSummaryV2.js';
 
 /** Live connectors whose facts carry sales (ad / freight / gateway sources carry costs only). */
@@ -43,15 +45,18 @@ export async function loadSummaryInput(opts: { months?: number; now?: number } =
   const s = await readTallyState();
   const periods = [...new Set([...Object.keys(s.tbMonths ?? {}), ...Object.keys(s.months)])].sort().slice(-(opts.months ?? 26));
   const [months, masters, locks, reports, rulesDoc] = await Promise.all([
-    Promise.all(periods.map(async (period): Promise<V2MonthIn> => {
-      const [tb, pnl] = await Promise.all([readTallyTb(period), readTallySnapshot(period)]);
+    readPnlCopies(periods).then((copies) => Promise.all(periods.map(async (period): Promise<V2MonthIn> => {
+      const tb = await readTallyTb(period);
+      // The newer of the poll copy and the committed close report (round 7 #10).
+      const c = copies.find((x) => x.period === period);
+      const pnl = pickPnlCopy(c?.snapshot ?? null, c?.committed ?? null).copy;
       return {
         period,
         tb: tb ? { rows: tb.rows, difference: tb.difference, basis: tb.basis ?? null } : null,
-        pnl: pnl ? { nettProfit: pnl.nettProfit, ledgerRows: pnl.ledgerRows.map((r) => ({ name: r.name, amount: r.amount })) } : null,
-        pnlAsOf: pnl?.asOf ?? null, tbAsOf: tb?.asOf ?? null,
+        pnl: pnl ? { nettProfit: pnl.nettProfit, ledgerRows: pnl.ledgerRows } : null,
+        pnlAsOf: pnl?.at ?? null, tbAsOf: tb?.asOf ?? null,
       };
-    })),
+    }))),
     readMasters().catch(() => null),
     readJson<LockStore>('close-locks', { locks: {} }).catch(() => ({ locks: {} })),
     readAllExtracted().catch(() => []),

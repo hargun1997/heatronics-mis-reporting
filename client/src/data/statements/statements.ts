@@ -58,6 +58,8 @@ export interface BalanceSheet {
   /** Stock the TB itself carried as an asset (Tally's opening stock), replaced by the P&L's closing stock. */
   tbStock: number;
   workingCapital: number; // current assets ex cash + stock − current liabilities
+  /** No P&L copy (closing stock unknown) and the TB carries no stock: stock, profit and this month's cash flow are not shown. */
+  stockUnknown?: boolean;
   warnings: string[];
 }
 export interface CashFlow {
@@ -80,6 +82,11 @@ export interface CashFlow {
   netChange: number;
   openingCash: number;
   closingCash: number;
+  /** Net cash = cash & bank − bank OD / CC, at the start / end of the month. */
+  openingNetCash: number;
+  closingNetCash: number;
+  /** When this month's Trial Balance was copied (ISO), when known. */
+  asOf: string | null;
   warnings: string[];
 }
 
@@ -198,11 +205,12 @@ export function balanceSheet(m: StatementMonthIn, parents?: Parents): BalanceShe
   }
   tbStock = r2(tbStock);
   let stock = m.closingStock;
+  const stockUnknown = stock == null && !tbStock;
   if (stock == null) {
     stock = tbStock;
     warnings.push(tbStock
       ? 'No closing stock for this month (its P&L copy is missing) — the stock Tally\'s Trial Balance carries (its opening stock) is shown instead, so stock and profit are approximate.'
-      : 'No closing stock for this month (its P&L copy is missing) — stock and profit are understated.');
+      : 'Stock unknown for this month (its P&L copy is missing): closing stock is left out, so profit to date is understated by it, and no cash flow is built for this month or the next.');
   }
   if (m.tb.basis !== 'fy-to-date' && m.period.slice(5) !== '04') {
     warnings.push('This Trial Balance copy was taken from the month start (before the FY-to-date fix): profit to date may cover this month only. The next Tally poll takes it again.');
@@ -221,7 +229,7 @@ export function balanceSheet(m: StatementMonthIn, parents?: Parents): BalanceShe
   equity.push({ label: 'Profit for the year to date', amount: fyProfit });
   const liabilities = groups.filter((g) => sideOf(g.name) === 'liability').map((g) => line(g, -1));
   const assets = groups.filter((g) => sideOf(g.name) === 'asset' && (g.balance !== 0 || g.children.length > 0)).map((g) => line(g, 1));
-  assets.push({ label: 'Closing Stock', amount: r2(stock) });
+  if (!stockUnknown) assets.push({ label: 'Closing Stock', amount: r2(stock) });
   for (const g of groups.filter((x) => sideOf(x.name) === 'other')) {
     if (g.balance >= 0) assets.push(line(g, 1)); else liabilities.push(line(g, -1));
   }
@@ -255,6 +263,7 @@ export function balanceSheet(m: StatementMonthIn, parents?: Parents): BalanceShe
     totalEquityLiabilities: r2([...equity, ...liabilities].reduce((s, l) => s + l.amount, 0)), totalAssets: totalA,
     cash: r2(cash), bankOd: r2(bankOd), fyProfit, retained, tbStock,
     workingCapital: r2(caTotal - cash + stock - cl),
+    ...(stockUnknown ? { stockUnknown: true } : {}),
     warnings,
   };
 }
@@ -300,11 +309,12 @@ export function cashFlow(prev: BalanceSheet, cur: BalanceSheet, depreciation: nu
   return {
     period: cur.period, profit, pnlProfit, depreciation: r2(depreciation), workingCapital: wc, operating,
     capex, investments, investing: r2(capex + investments), equity, loans: loansD, financing: r2(equity + loansD),
-    retained, other, netChange, openingCash: prev.cash, closingCash: cur.cash, warnings,
+    retained, other, netChange, openingCash: prev.cash, closingCash: cur.cash,
+    openingNetCash: r2(prev.cash - prev.bankOd), closingNetCash: r2(cur.cash - cur.bankOd), asOf: cur.asOf, warnings,
   };
 }
 
-/** Balance Sheets and Cash Flows for every stored month (a flow needs the month before stored too). */
+/** Balance Sheets and Cash Flows for every stored month (a flow needs the month before stored too, and both stocks known). */
 export function statements(months: StatementMonthIn[], parents?: Parents): { sheets: BalanceSheet[]; flows: CashFlow[] } {
   const sorted = [...months].sort((a, b) => a.period.localeCompare(b.period));
   const sheets = sorted.map((m) => balanceSheet(m, parents)).filter((b): b is BalanceSheet => !!b);
@@ -313,23 +323,35 @@ export function statements(months: StatementMonthIn[], parents?: Parents): { she
   const flows: CashFlow[] = [];
   for (const b of sheets) {
     const p = by.get(prevMonth(b.period));
-    if (p) flows.push(cashFlow(p, b, mon.get(b.period)?.depreciation ?? 0, mon.get(b.period)?.nettProfit ?? null));
+    if (p && !p.stockUnknown && !b.stockUnknown) flows.push(cashFlow(p, b, mon.get(b.period)?.depreciation ?? 0, mon.get(b.period)?.nettProfit ?? null));
   }
   return { sheets, flows };
 }
 
+const monthEndMs = (p: string) => { const [y, m] = p.split('-').map(Number); return Date.UTC(y, m, 0, 18, 29, 59); };
+const istToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+/** A whole month: ended before `today`'s month, its TB copied ≥ 5 days after month end (unknown date = counted). */
+export function flowComplete(f: Pick<CashFlow, 'period' | 'asOf'>, today: string): boolean {
+  if (f.period >= today.slice(0, 7)) return false;
+  if (!f.asOf) return true;
+  const t = Date.parse(f.asOf);
+  return !Number.isFinite(t) || t >= monthEndMs(f.period) + 5 * 86_400_000;
+}
+
 /**
- * MIS Sheet cash rows (₹) for a month. Burn = opening + equity raised − closing (cash used other than fresh equity; loans
- * drawn reduce it), so Opening + Funding − Burn = Closing. Runway (quarters) = closing cash ÷ (3 × the average monthly
- * burn over this month and the two calendar months before it, those stored); null when the business isn't burning cash.
+ * MIS Sheet cash rows (₹) for a month, on NET cash (cash & bank − bank OD / CC), so an overdraft-funded burn shows.
+ * Burn = opening + equity raised − closing (net cash used other than fresh equity; term loans drawn reduce it, the OD does
+ * not), so Opening + Funding − Burn = Closing. Runway (quarters) = closing net cash ÷ (3 × the average monthly burn over this
+ * month and the two calendar months before it, those stored and whole); null when the business isn't burning cash.
+ * A running month, or one whose books were copied < 5 days after month end, gives null (not a whole month).
  */
-export function misCashRows(flows: CashFlow[], period: string): { openingCash: number; closingCash: number; funding: number; cashBurn: number; runway: number | null } | null {
-  const by = new Map(flows.map((f) => [f.period, f]));
+export function misCashRows(flows: CashFlow[], period: string, today: string = istToday()): { openingCash: number; closingCash: number; funding: number; cashBurn: number; runway: number | null } | null {
+  const by = new Map(flows.filter((f) => flowComplete(f, today)).map((f) => [f.period, f]));
   const f = by.get(period);
   if (!f) return null;
-  const burnOf = (x: CashFlow) => x.openingCash + x.equity - x.closingCash;
+  const burnOf = (x: CashFlow) => x.openingNetCash + x.equity - x.closingNetCash;
   const win = [period, prevMonth(period), prevMonth(prevMonth(period))].map((p) => by.get(p)).filter((x): x is CashFlow => !!x);
   const avg = win.reduce((s, x) => s + burnOf(x), 0) / win.length;
-  const runway = avg > 0 ? r2(Math.max(0, f.closingCash) / (avg * 3)) : null;
-  return { openingCash: f.openingCash, closingCash: f.closingCash, funding: f.equity, cashBurn: r2(burnOf(f)), runway };
+  const runway = avg > 0 ? r2(Math.max(0, f.closingNetCash) / (avg * 3)) : null;
+  return { openingCash: f.openingNetCash, closingCash: f.closingNetCash, funding: f.equity, cashBurn: r2(burnOf(f)), runway };
 }
