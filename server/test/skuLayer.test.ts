@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SkuCell } from '../../client/src/data/misDeck/skuChannelPnl.ts';
 import {
-  NOT_MAPPED, notMappedCells, markModelled, bookedStaticCells, cogmShares, sumChannelRows, estimatedUnits,
+  NO_PRODUCT_LABEL, rankLast, notMappedCells, markModelled, bookedStaticCells, cellCogmShares, sumMonthlyChannelRows, estimatedUnits,
 } from '../../client/src/data/misDeck/skuLayer.ts';
 import { uncostedEstimate } from '../../client/src/data/misDeck/uncosted.ts';
 import { computeSku, tranzactFgHit, CHANNEL_BY_PLATFORM } from '../../client/src/data/monthClose/skuRollup.ts';
@@ -17,7 +17,7 @@ import { aggregatePeriods, slicePnl } from '../../client/src/data/misDeck/liveAn
 import { anchoredChannelPnl, unifyChannels } from '../../client/src/data/misDeck/liveViews.ts';
 import { topReasons, type Bridge } from '../../client/src/data/misDeck/bridge.ts';
 import { metaProductFacts } from '../src/connectors/slots/map/ads.ts';
-import { actualMonthsFromDeck, AMAZON_ORDERED_PER_SETTLED } from '../../client/src/data/planning/planVsActualLive.ts';
+import { actualMonthsFromDeck, amazonOrderedRatio, AMAZON_ORDERED_PER_SETTLED } from '../../client/src/data/planning/planVsActualLive.ts';
 
 const close = (a: number, b: number, tol = 1) => assert.ok(Math.abs(a - b) <= tol, `${a} ≉ ${b}`);
 const cell = (o: Partial<SkuCell>): SkuCell => ({ m: '2026-09', ch: 'D2C', p: 'P', rev: 0, cogs: 0, oth: 0, con: 0, u: 0, ...o });
@@ -31,7 +31,7 @@ test('notMappedCells: one cell per channel, no cost, nothing dropped', () => {
   const cells = notMappedCells(rows, '2026-09', (p) => CHANNEL_BY_PLATFORM[p as keyof typeof CHANNEL_BY_PLATFORM]);
   assert.equal(cells.length, 2);
   const d2c = cells.find((c) => c.ch === 'D2C')!;
-  assert.deepEqual([d2c.p, d2c.rev, d2c.u, d2c.oth, d2c.noCost], [NOT_MAPPED, 1500, 3, 50, true]);
+  assert.deepEqual([d2c.p, d2c.rev, d2c.u, d2c.oth, d2c.noCost], [NO_PRODUCT_LABEL, 1500, 3, 50, true]);
   assert.equal(cells.find((c) => c.ch === 'B2B')!.rev, 16_90_000);
   // the normalised COGM counts unmapped sales once (as unmappedRevenue), never again through the "Not mapped" cell
   const u = uncostedEstimate([cell({ rev: 1000, cogs: 300 }), ...cells], 1500 + 16_90_000);
@@ -59,7 +59,7 @@ test('buildLiveDeck: unmapped sales show as a "Not mapped" cell (revenue and uni
   const fact = (sku: string, revenue: number, units: number) => ({ source: 'amazon', channel: 'Amazon', date: '2026-09-15', sku, skuKind: 'sku', revenue, units, orders: units, fees: 0 });
   const deck = buildLiveDeck([{ connectorId: 'amazon', slotId: 'unified-transaction', periodKey: '2026-09', payload: { facts: [fact('VW-H1GL-KTOZ', 3000, 2), fact('ZZ-NOT-A-REAL-SKU', 1200, 3)] } } as never]);
   const sep = deck.skuCells.filter((c) => c.m === '2026-09');
-  const nm = sep.find((c) => c.p === NOT_MAPPED);
+  const nm = sep.find((c) => c.p === NO_PRODUCT_LABEL);
   assert.ok(nm, 'a Not mapped cell exists');
   assert.deepEqual([nm!.ch, nm!.rev, nm!.u, nm!.noCost], ['Amazon', 1200, 3, true]);
   close(sep.reduce((t, c) => t + c.rev, 0), 4200, 0.01);
@@ -90,23 +90,23 @@ test('bookedStaticCells: D2C ads ex-GST, ads kept up to booked S&M, fees give wa
   assert.deepEqual(bookedStaticCells(exGst, { channelFulfillment: 1000, salesMarketing: 1000 }).map((c) => c.oth), [100, 400]);
 });
 
-test('cogmShares: no cells = company rate, ₹0 / negative sales = no COGM, shares sum to 1', () => {
+test('cellCogmShares: no cells = company rate, ₹0 / negative sales = no COGM, shares sum to 1', () => {
   // channels: A cells cogs 300, B cells cogs 100, C sales but no cells, D negative sales with cells
-  const sh = cogmShares([600, 200, 200, -50], [300, 100, 0, 40], [true, true, false, true], () => 0);
+  const sh = cellCogmShares([600, 200, 200, -50], [300, 100, 0, 40], [true, true, false, true], () => 0);
   close(sh[2], 0.2, 1e-9);
   assert.equal(sh[3], 0);
   close(sh[0], 0.6, 1e-9);
   close(sh.reduce((t, v) => t + v, 0), 1, 1e-9);
-  assert.deepEqual(cogmShares([0, 0], [10, 10], [true, true], () => 1), [0, 0]);
+  assert.deepEqual(cellCogmShares([0, 0], [10, 10], [true, true], () => 1), [0, 0]);
 });
 
-test('sumChannelRows: a period is its months added up, shares re-derived', () => {
+test('sumMonthlyChannelRows: a period is its months added up, shares re-derived', () => {
   const row = (channel: 'D2C' | 'B2B', revenue: number, cogm: number) => ({
     channel, revenue, cogm, grossMargin: revenue - cogm, channelFulfillment: 0, cm1: revenue - cogm, salesMarketing: 0, cm2: revenue - cogm,
     platformCosts: 0, cm3: revenue - cogm, opex: 0, ebitda: revenue - cogm, nonOperating: 0, costOfFundraising: 0, netIncome: revenue - cogm,
     revShare: 0, cogsShare: 0, smShare: 0, basis: 'tally' as const,
   });
-  const out = sumChannelRows([[row('D2C', 100, 30), row('B2B', 100, 70)], [row('D2C', 300, 90)]], ['D2C', 'B2B']);
+  const out = sumMonthlyChannelRows([[row('D2C', 100, 30), row('B2B', 100, 70)], [row('D2C', 300, 90)]], ['D2C', 'B2B']);
   assert.deepEqual(out.map((r) => [r.channel, r.revenue, r.cogm]), [['D2C', 400, 120], ['B2B', 100, 70]]);
   close(out[0].revShare, 0.8, 1e-9);
   close(out[0].cogsShare, 120 / 190, 1e-9);
@@ -170,4 +170,21 @@ test('plan vs actual: Amazon settled units put on the plan\'s ordered basis', ()
   const mk = { key: '2026-10', netRevenue: 1, grossMargin: 0, cm3: 0, ebitda: 0 } as never;
   const a = actualMonthsFromDeck({ ...d, months: [mk], completeness: { '2026-10': { level: 'full' } as never } } as never, '2026-10');
   assert.equal(a[0].units, Math.round(100 * AMAZON_ORDERED_PER_SETTLED + 50));
+});
+
+test('plan vs actual: the Business Report ordered ÷ settled ratio wins over the 1.205 fallback', () => {
+  const cells = [cell({ m: '2026-10', ch: 'Amazon', u: 100 }), cell({ m: '2026-10', ch: 'D2C', u: 50 })];
+  assert.equal(amazonOrderedRatio(cells, [{ units: 110 }, { units: 20 }], '2026-10'), 1.3);
+  assert.equal(amazonOrderedRatio(cells, undefined, '2026-10'), null);
+  assert.equal(amazonOrderedRatio(cells, [{ units: 1000 }], '2026-10'), null, 'implausible ratio = fallback');
+  const mk = { key: '2026-10', netRevenue: 1, grossMargin: 0, cm3: 0, ebitda: 0 } as never;
+  const a = actualMonthsFromDeck({ months: [mk], completeness: { '2026-10': { level: 'full' } as never }, skuCells: cells, traffic: { '2026-10': [{ sku: 'x', name: 'x', sessions: 1, pageViews: 1, units: 130 }] } } as never, '2026-10');
+  assert.equal(a[0].units, 180);
+});
+
+test('non-product buckets rank after products in the SKU P&L', () => {
+  assert.ok(rankLast(NO_PRODUCT_LABEL) && rankLast('Amazon (no SKU split)') && rankLast('Accessory (excl)') && !rankLast('hCore Knee'));
+  const cs = [cell({ p: NO_PRODUCT_LABEL, rev: 9000 }), cell({ p: 'Amazon (no SKU split)', ch: 'Amazon', rev: 8000 }), cell({ p: 'hCore Knee', rev: 100 })];
+  const p = { members: ['2026-09'], netRevenue: 17100, platformCosts: 0, opex: 0, nonOperating: 0, costOfFundraising: 0, hasTally: false } as never;
+  assert.deepEqual(slicePnl(p, cs, new Set(['2026-09']), 'sku').columns.map((c) => c.key), ['hCore Knee', NO_PRODUCT_LABEL, 'Amazon (no SKU split)']);
 });

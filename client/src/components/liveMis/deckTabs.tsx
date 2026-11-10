@@ -13,7 +13,7 @@ import {
 } from '../mis-deck/charts';
 import { inr, pctStr, SERIES_COLORS } from '../mis-deck/format';
 import type { SkuCell } from '../../data/misDeck/skuChannelPnl';
-import { estimatedUnits, NOT_MAPPED } from '../../data/misDeck/skuLayer';
+import { estimatedUnits, NO_PRODUCT_LABEL, rankLast } from '../../data/misDeck/skuLayer';
 import type { MonthlyMIS, SalesChannel } from '../../data/misDeck/misDeckData';
 import { SALES_CHANNELS, VERTICALS } from '../../data/misDeck/misDeckData';
 import type { CompletenessLevel, PeriodCompleteness, TrafficRow } from '../../data/misDeck/liveDeck';
@@ -772,7 +772,7 @@ export function SkuTab({ period, cells, periodKeys }: { period: PeriodAgg; cells
     return { ...s, columns: s.columns.map((c) => ((c.modelledRev ?? 0) > 0.5 * c.rev && c.rev > 0 ? { ...c, label: `${c.label} (modelled)` } : c)) };
   }, [period, cells, periodKeys]);
   const modelled = slice.columns.reduce((t, c) => t + (c.modelledRev ?? 0), 0);
-  const notMapped = slice.columns.find((c) => c.key === NOT_MAPPED);
+  const notMapped = slice.columns.find((c) => c.key === NO_PRODUCT_LABEL);
   return (
     <div className="space-y-3">
       <div className="flex justify-end"><LevelBadge level={period.level} published={period.published} /></div>
@@ -781,7 +781,7 @@ export function SkuTab({ period, cells, periodKeys }: { period: PeriodAgg; cells
       {(modelled > 0 || notMapped) && (
         <Note>
           {modelled > 0 && <>{inr(modelled)} of sales here is modelled (OEM, Offline and Blinkit in the old workbook: product and units assumed from the channel total), so products are ranked by measured sales. </>}
-          {notMapped && <>“{NOT_MAPPED}” = {inr(notMapped.rev)} of sales whose SKU no product map knows yet (no cost): map it on the Products gaps list.</>}
+          {notMapped && <>“{NO_PRODUCT_LABEL}” = {inr(notMapped.rev)} of sales whose SKU no product map knows yet (no cost): map it on the Products gaps list.</>}
         </Note>
       )}
     </div>
@@ -947,7 +947,7 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
     }
     // rank by COUNTED units: estimated units (revenue ÷ an assumed price) never outrank counted ones (R6 B6-5)
     const counted = (p: string) => (rowTotal.get(p) ?? 0) - (rowEst.get(p) ?? 0);
-    const products = [...units.keys()].sort((a, b) => counted(b) - counted(a) || (rowTotal.get(b) ?? 0) - (rowTotal.get(a) ?? 0));
+    const products = [...units.keys()].sort((a, b) => Number(rankLast(a)) - Number(rankLast(b)) || counted(b) - counted(a) || (rowTotal.get(b) ?? 0) - (rowTotal.get(a) ?? 0));
     const channels = [...colTotal.keys()].sort((a, b) => (colTotal.get(b) ?? 0) - (colTotal.get(a) ?? 0));
     const grand = [...colTotal.values()].reduce((s, v) => s + v, 0);
     const estGrand = [...est.values()].reduce((s, v) => s + v, 0);

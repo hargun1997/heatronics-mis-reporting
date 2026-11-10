@@ -13,7 +13,7 @@ import type { SkuCell } from './skuChannelPnl';
 import type { CompletenessLevel, PeriodCompleteness } from './liveDeck';
 import type { ChannelRecon, TallyBucketLine } from '../monthClose/schema';
 import { CHANNEL_AOV } from './analytics';
-import { estimatedUnits, modelledRevenue } from './skuLayer';
+import { estimatedUnits, modelledRevenue, rankLast } from './skuLayer';
 
 /** The continuous-taxonomy fold: legacy channel → forward channel (G6). */
 export const CHANNEL_FOLD: Partial<Record<SalesChannel, SalesChannel>> = { OEM: 'B2B', Offline: 'GT' };
@@ -578,7 +578,9 @@ export function slicePnl(
   const columns = [...agg.entries()]
     .map(([k, a]) => mkCol(k, a))
     // products rank by MEASURED revenue: a modelled product (revenue ÷ an assumed price) never outranks a counted one (R6 B6-5)
-    .sort((x, y) => (order ? order.indexOf(x.key) - order.indexOf(y.key) : (y.rev - (y.modelledRev ?? 0)) - (x.rev - (x.modelledRev ?? 0)) || y.rev - x.rev));
+    // non-product buckets (accessories, "Amazon (no SKU split)", unmapped sales) after the products
+    .sort((x, y) => (order ? order.indexOf(x.key) - order.indexOf(y.key)
+      : Number(rankLast(x.key)) - Number(rankLast(y.key)) || (y.rev - (y.modelledRev ?? 0)) - (x.rev - (x.modelledRev ?? 0)) || y.rev - x.rev));
 
   const SUM: (keyof PnlColumn)[] = ['rev', 'cogs', 'factory', 'cogm', 'gm', 'fulfilment', 'cm1', 'marketing', 'cm2', 'platform', 'cm3', 'opex', 'ebitda', 'nonOperating', 'netIncome'];
   const foldCols = (label: string, kind: PnlColumn['kind'], src: PnlColumn[]): PnlColumn => {

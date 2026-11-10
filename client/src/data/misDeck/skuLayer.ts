@@ -17,7 +17,10 @@ import type { SkuCell } from './skuChannelPnl';
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 /** Product label for sales no product map knows (one cell per channel and month). */
-export const NOT_MAPPED = 'Not mapped';
+export const NO_PRODUCT_LABEL = 'Not mapped (sales with no product)';
+
+/** Buckets that are not a product (accessories, early Amazon with no SKU split, unmapped sales): ranked after the products. */
+export const rankLast = (p: string): boolean => p.startsWith('Accessory') || p === 'Amazon (no SKU split)' || p === NO_PRODUCT_LABEL;
 
 /** Channels whose workbook SKU cells are a model, not measured (product + units assumed from the channel total). */
 export const MODELLED_CHANNELS: readonly SalesChannel[] = ['OEM', 'Offline', 'Blinkit'];
@@ -50,7 +53,7 @@ export function notMappedCells(
   const out: SkuCell[] = [];
   for (const [ch, e] of by) {
     if (Math.abs(e.rev) < 0.005 && Math.abs(e.u) < 0.005) continue;
-    out.push({ m: periodKey, ch, p: NOT_MAPPED, rev: r2(e.rev), cogs: 0, oth: r2(e.fees), con: r2(e.rev - e.fees), u: r2(e.u), ad: 0, noCost: true });
+    out.push({ m: periodKey, ch, p: NO_PRODUCT_LABEL, rev: r2(e.rev), cogs: 0, oth: r2(e.fees), con: r2(e.rev - e.fees), u: r2(e.u), ad: 0, noCost: true });
   }
   return out;
 }
@@ -93,7 +96,7 @@ export function bookedStaticCells(
  * sales but no cells (or no cell cost) takes the company rate (COGM ÷ net revenue × its sales); ₹0 or negative
  * sales = no COGM. Shares sum to 1 whenever any channel has positive sales. Pure.
  */
-export function cogmShares(revenue: number[], cellCogs: number[], hasCells: boolean[], fallback: (i: number) => number): number[] {
+export function cellCogmShares(revenue: number[], cellCogs: number[], hasCells: boolean[], fallback: (i: number) => number): number[] {
   const n = revenue.length;
   const totPos = revenue.reduce((s, v) => s + Math.max(0, v), 0);
   if (totPos <= 0) return revenue.map(() => 0);
@@ -111,7 +114,7 @@ export function cogmShares(revenue: number[], cellCogs: number[], hasCells: bool
   return Array.from({ length: n }, (_, i) => fixed[i] + (pool[i] / tot) * rest);
 }
 
-/** Row shape summed by `sumChannelRows` (the anchored channel P&L row). */
+/** Row shape summed by `sumMonthlyChannelRows` (the anchored channel P&L row). */
 export interface ChannelRowLike {
   channel: SalesChannel;
   revenue: number; cogm: number; grossMargin: number; channelFulfillment: number; cm1: number;
@@ -124,7 +127,7 @@ export interface ChannelRowLike {
 const SUM_KEYS = ['revenue', 'cogm', 'grossMargin', 'channelFulfillment', 'cm1', 'salesMarketing', 'cm2', 'platformCosts', 'cm3', 'opex', 'ebitda', 'nonOperating', 'costOfFundraising', 'netIncome'] as const;
 
 /** A period's channel P&L as the sum of its months' (R6 B6-6). Shares are re-derived from the summed figures. Pure. */
-export function sumChannelRows<R extends ChannelRowLike>(byMonth: R[][], order: readonly SalesChannel[]): R[] {
+export function sumMonthlyChannelRows<R extends ChannelRowLike>(byMonth: R[][], order: readonly SalesChannel[]): R[] {
   const by = new Map<SalesChannel, R>();
   for (const rows of byMonth) {
     for (const r of rows) {

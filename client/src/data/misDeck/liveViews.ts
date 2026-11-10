@@ -33,11 +33,12 @@ import {
   channelAdWeight, channelPnl,
   type PeriodMIS, type SkuAgg,
 } from './analytics';
-import type { MisEntity, MisPoint } from './misSheet';
+import type { MisEntity, MisNumKey, MisPoint } from './misSheet';
 import { channelNoData } from './monthCompleteness';
 import type { TallyBucketLine } from '../monthClose/schema';
 import { allocateMarketing, spreadWithCap } from './channelAlloc';
-import { cogmShares, modelledRevenue, sumChannelRows } from './skuLayer';
+import { cellCogmShares, modelledRevenue, rankLast, sumMonthlyChannelRows } from './skuLayer';
+import { opexSplit, fyToDateLabel } from './misPeriods';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -301,7 +302,7 @@ export function anchoredChannelPnl(
   // and each cost line = what the connectors attribute to the channel (tallyLines.byChannel) plus its revenue-share of
   // the unattributed remainder, so every line still foots to Tally. Without Tally it stays the order-share split.
   // A multi-month period is the sum of its months, so a quarter / year equals its months added up (R6 B6-6).
-  if (period.memberAggs && period.memberAggs.length > 1) return sumChannelRows(period.memberAggs.map((m) => anchoredChannelPnl(m, cells, completeness)), SALES_CHANNELS);
+  if (period.memberAggs && period.memberAggs.length > 1) return sumMonthlyChannelRows(period.memberAggs.map((m) => anchoredChannelPnl(m, cells, completeness)), SALES_CHANNELS);
   if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells, completeness);
 
   const keys = new Set(period.members);
@@ -321,8 +322,8 @@ export function anchoredChannelPnl(
   // Marketing follows ad spend; with no ad spend it goes to the consumer channels only (never B2B / GT by revenue).
   const smSplit = allocateMarketing(chans, period.salesMarketing, adWeight.map((w) => Math.max(0, w)), realRev).values;
 
-  // Without Tally the channel revenue IS its cells' revenue, so every channel here has cells (cogmShares only drops ₹0 sales).
-  const cogsShares = cogmShares(realRev, realCogs, chans.map(() => true), (i) => realRev[i]);
+  // Without Tally the channel revenue IS its cells' revenue, so every channel here has cells (cellCogmShares only drops ₹0 sales).
+  const cogsShares = cellCogmShares(realRev, realCogs, chans.map(() => true), (i) => realRev[i]);
   return chans.map((ch, i) => {
     const revShare = realRev[i] / totRev;
     const cogsShare = totCogs > 1 ? cogsShares[i] : revShare;
@@ -369,7 +370,7 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[], completen
   const realCogs = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.cogs : s), 0)));
   const totCogs = realCogs.reduce((a, b) => a + b, 0);
   // Sales but no cells = company COGM rate, ₹0 / negative sales = no COGM (R6 B6-7: no 100 % GM, no COGS on no sales).
-  const shares = cogmShares(rev, realCogs, chans.map((ch) => sel.some((c) => c.ch === ch)), revShareOf);
+  const shares = cellCogmShares(rev, realCogs, chans.map((ch) => sel.some((c) => c.ch === ch)), revShareOf);
   const cogsShareOf = (i: number) => (totCogs > 1 ? shares[i] : revShareOf(i));
 
   const fulfil = spreadCost(period.channelFulfillment, 'channel_fulfilment', revShareOf);
@@ -487,7 +488,7 @@ export function liveSkuChannelMatrix(cells: SkuCell[], keys: Set<string>): LiveM
     grand = addM(grand, c);
   }
   const products = [...byP.keys()].sort((a, b) => {
-    const ax = a.startsWith('Accessory') ? 1 : 0, bx = b.startsWith('Accessory') ? 1 : 0;
+    const ax = rankLast(a) ? 1 : 0, bx = rankLast(b) ? 1 : 0;
     if (ax !== bx) return ax - bx;
     // by measured revenue: a modelled product never outranks a counted one (R6 B6-5)
     const meas = (p: string) => (byP.get(p)?.rev ?? 0) - (modelled.get(p) ?? 0);
@@ -548,13 +549,13 @@ export type RangePreset = 'last3' | 'last6' | 'last12' | 'ytd' | 'fy_current' | 
 const fyStart = (k: string) => { const [y, m] = k.split('-').map(Number); return m >= 4 ? y : y - 1; };
 
 /**
- * Month keys for a range preset, anchored to the LATEST month with data (not
- * today's date — so "Last 12 months" is a true trailing twelve even when the
- * newest upload is a few months old).
+ * Month keys for a range preset, anchored to `anchor` = the newest COMPLETE month (misPeriods.anchorMonth; audit
+ * round 7 #6: a running / half-booked newest month is never the end of "Last 12 months"); without one, the newest
+ * month with data. "ytd" = the Indian FY to date (April → anchor).
  */
-export function rangeKeys(preset: RangePreset, all: string[], custom: string[]): string[] {
+export function rangeKeys(preset: RangePreset, all: string[], custom: string[], anchor?: string | null): string[] {
   const keys = [...all].sort();
-  const latest = keys[keys.length - 1];
+  const latest = anchor && keys.includes(anchor) ? anchor : keys[keys.length - 1];
   if (!latest) return [];
   if (preset === 'custom') return keys.filter((k) => custom.includes(k));
   if (preset === 'last3' || preset === 'last6' || preset === 'last12') {
@@ -568,19 +569,19 @@ export function rangeKeys(preset: RangePreset, all: string[], custom: string[]):
     }
     return keys.filter((k) => want.has(k));
   }
-  if (preset === 'ytd') return keys.filter((k) => k.slice(0, 4) === latest.slice(0, 4) && k <= latest);
+  if (preset === 'ytd') return keys.filter((k) => fyStart(k) === fyStart(latest) && k <= latest);
   const start = fyStart(latest) - (preset === 'fy_previous' ? 1 : 0);
   return keys.filter((k) => fyStart(k) === start);
 }
 
-export function rangePresetLabel(preset: RangePreset, all: string[]): string {
-  const latest = [...all].sort().pop() ?? '';
+export function rangePresetLabel(preset: RangePreset, all: string[], anchor?: string | null): string {
+  const latest = (anchor && all.includes(anchor) ? anchor : [...all].sort().pop()) ?? '';
   const fy = (s: number) => `FY${String(s % 100).padStart(2, '0')}-${String((s + 1) % 100).padStart(2, '0')}`;
   switch (preset) {
     case 'last3': return 'Last 3 months';
     case 'last6': return 'Last 6 months';
     case 'last12': return 'Last 12 months';
-    case 'ytd': return `Year to date (${latest.slice(0, 4)})`;
+    case 'ytd': return latest ? fyToDateLabel(latest) : 'FY to date';
     case 'fy_current': return latest ? fy(fyStart(latest)) : 'Current FY';
     case 'fy_previous': return latest ? fy(fyStart(latest) - 1) : 'Previous FY';
     default: return 'Custom';
@@ -604,13 +605,16 @@ export function aggregateRange(
 // ---- MIS Sheet (G34/G35) ---------------------------------------------------
 
 const DISC_BY_KEY = new Map(DISCOUNT_DATA.map((d) => [d.key, d.discount]));
-const MIS_KEYS: (keyof MisPoint)[] = [
+const MIS_KEYS: MisNumKey[] = [
   'qty', 'grossRevenue', 'channelMargin', 'returns', 'gst', 'ssClaim', 'discounts', 'netRevenue', 'cogs', 'grossMargin',
   'stockVariance', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
   'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
 ];
 // Cascade fields gated by completeness: a period total is blank when any month is.
-const GATED: (keyof MisPoint)[] = ['cogs', 'grossMargin', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'otherExpense', 'ebitda'];
+const GATED: MisNumKey[] = ['cogs', 'grossMargin', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'otherExpense', 'ebitda', 'ebitdaBurn'];
+// Split out of OpEx: blank in a total whenever its Other Expense is (round 7 #13), so a total column never shows
+// payroll next to a blank Other Expense / EBITDA. The stock memo follows COGS, so normalised GM keeps its memo beside it.
+const GATED_WITH_OPEX: MisNumKey[] = ['payroll', 'profFee', 'otherIncome'];
 
 /**
  * Sum MIS points across months — the legacy sumPoints (nulls stay null when
@@ -625,6 +629,10 @@ export function sumMisPoints(points: MisPoint[]): MisPoint {
     const nums = vals.filter((v): v is number => v !== null);
     out[k] = nums.length ? nums.reduce((a, b) => a + b, 0) : null;
   }
+  // A period's EBITDA burn is the burn of the period, not Σ of its loss months (round 7 #5).
+  if (out.ebitdaBurn !== null) out.ebitdaBurn = out.ebitda === null ? null : Math.max(0, -out.ebitda);
+  if (out.otherExpense === null) for (const k of GATED_WITH_OPEX) out[k] = null;
+  if (out.cogs === null) out.stockVariance = null;
   return out;
 }
 
@@ -662,14 +670,12 @@ export function liveMisPoint(
   // Normalised COGM basis: the month's stock build / drawdown memo (null on the actual basis / an as-booked month).
   const stockVariance = p.normalisedMonths > 0 && isReal(p.level, 'cogm') ? p.stockVariance : null;
   if (entity === 'company') {
-    // Payroll / Professional fee / Other income split out of OpEx from the month's Tally ledger lines
-    // (compute.ts OPEX_LABELS), when the month reaches EBITDA; Other Expense is the rest.
+    // Payroll / Professional fee / Other income split out of OpEx from the month's ledger lines, live AND legacy
+    // names (misPeriods.opexSplit: Salaries…, Legal & CA …; null when nothing matches), when the month reaches
+    // EBITDA; Other Expense is the rest.
     const L = p.opexLines ?? {};
     const opexReal = isReal(p.level, 'opex') && Object.keys(L).length > 0;
-    // opexLines are effect-signed (compute.ts: costs negative, income positive); the sheet shows costs and income positive.
-    const payroll = -(L['Payroll (Employee Cost – Indirect)'] ?? 0);
-    const profFee = -(L['Professional Fees'] ?? 0);
-    const otherIncome = L['Other Income (Indirect Incomes)'] ?? 0;
+    const { payroll, profFee, otherIncome } = opexSplit(L);
     const ebitdaReal = isReal(p.level, 'ebitda');
     return {
       ...blank,
@@ -685,7 +691,7 @@ export function liveMisPoint(
       logistics: v('channel_fulfilment', p.channelFulfillment), cm1: v('cm1', p.cm1),
       marketing: v('sales_marketing', p.salesMarketing), cm2: v('cm2', p.cm2),
       branding: v('platform_payment', p.platformCosts), cm3: v('cm3', p.cm3),
-      otherExpense: opexReal ? p.opex - payroll - profFee + otherIncome : v('opex', p.opex), ebitda: v('ebitda', p.ebitda),
+      otherExpense: opexReal ? p.opex - (payroll ?? 0) - (profFee ?? 0) + (otherIncome ?? 0) : v('opex', p.opex), ebitda: v('ebitda', p.ebitda),
     };
   }
   const ch = entity;

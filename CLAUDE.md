@@ -328,20 +328,29 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   read. (5) A published month replaced by a full Tally close carries `completeness.vsPublished` (₹ change): chip `PublishedGapChip` in
   the Live MIS status strip + a low Fix item `published:<month>` when net revenue or net profit moved ≥ ₹10,000.
 - **SKU layer foots (10 Nov 2026, audit R6 / R8 / R10; pure `data/misDeck/skuLayer.ts`, tests `server/test/skuLayer.test.ts`):**
-  (1) sales no product map knows get one **"Not mapped"** cell per channel and month (`notMappedCells`, `noCost`; `uncostedEstimate` skips it
+  (1) sales no product map knows get one **"Not mapped (sales with no product)"** cell per channel (`NO_PRODUCT_LABEL`) and month (`notMappedCells`, `noCost`; `uncostedEstimate` skips it
   because `unmappedRevenue` already counts it), so SKU P&L / Units sold never drop them; a Tranzact `FG-dddd` the FG master does not list is
   its own product under its Tranzact name (`skuRollup.ts tranzactFgHit`), costed by its BOM. (2) Workbook OEM / Offline / Blinkit cells are
   `modelled` (product + units assumed): SKU P&L / SKU × channel rank products by measured revenue, a mostly-modelled column says "(modelled)",
-  Units sold shows estimated units (modelled or `uEst`) as "≈" and ranks by counted units. (3) Static cells on the books' basis
+  Units sold shows estimated units (modelled or `uEst`) as "≈" and ranks by counted units; accessories, "Amazon (no SKU split)" and unmapped sales rank last (`rankLast`). (3) Static cells on the books' basis
   (`bookedStaticCells` in `liveDeck staticHistory`): D2C ads ex-GST (`D2C_AD_SPEND` ÷ `D2C_COSTS` meta + google, the feed's Google carried
   18 % GST); Σ ad ≤ booked S&M and Σ fees ≤ what is left of booked C&F + S&M (ads kept, fees give way) — FY25-26 cells cf + ads were
-  ₹56.1 L above the P&L, now ≤ it every month. (4) Channel COGM shares (`cogmShares`): sales but no cells = company COGM rate, ₹0 / negative
-  sales = no COGM (no 100 % GM, no COGS on Blinkit's ₹0 months). (5) A multi-month channel P&L (`anchoredChannelPnl`, `sumChannelRows`) and SKU
+  ₹56.1 L above the P&L, now ≤ it every month. (4) Channel COGM shares (`cellCogmShares`): sales but no cells = company COGM rate, ₹0 / negative
+  sales = no COGM (no 100 % GM, no COGS on Blinkit's ₹0 months). (5) A multi-month channel P&L (`anchoredChannelPnl`, `sumMonthlyChannelRows`) and SKU
   P&L below CM2 (`slicePnl`) = the sum of their months (FY24-25 B2B COGM was ₹16 L off). (6) "Why it moved": cells ≠ books is "Sales not in
   product detail", never a top reason (also "Other / rounding"). (7) Meta product rows above the account total are scaled down to it (upload
-  parser + slot mapper; stored months need a re-pull). (8) Plan vs actual: Amazon settled cell units × `AMAZON_ORDERED_PER_SETTLED` (1.205,
-  measured Oct 25–Jun 26) to the plan's ordered basis, noted on the page. Left: Mar 26 Amazon cells vs row (−₹2.44 L, which side is wrong is
+  parser + slot mapper; stored months need a re-pull). (8) Plan vs actual: Amazon settled cell units × the month's Business Report units ordered ÷ settled (`amazonOrderedRatio`, deck `traffic`),
+  else × `AMAZON_ORDERED_PER_SETTLED` 1.205 (measured Oct 25–Jun 26, labelled estimate), to the plan's ordered basis, noted on the page. Left: Mar 26 Amazon cells vs row (−₹2.44 L, which side is wrong is
   unknown), Jan–Mar 26 restated quarter (×1.0659, data decision), plan Jul–Sep 26 last-year units (re-import the sheet), B6-4 legacy COGM by month.
+- **MIS sheet + periods (10 Nov 2026, audit round 7 #4–#6 #12–#14 / round 10 #4; pure `data/misDeck/misPeriods.ts`, tests
+  `server/test/misSheetPeriods.test.ts`):** Payroll / Professional fee / Other income are split out of OpEx for legacy months too
+  (`opexSplit`: Payroll…, Salar…, Professional Fees, Legal & CA…, Other Income…; no matching line = blank, never 0; FY23-24–FY25-26 ₹116.22 L
+  payroll + ₹22.80 L fees were in Other Expense). A period's EBITDA Burn = max(0, −Σ EBITDA) (FY25-26 was 33.97 L, now 0.97 L) and is gated;
+  payroll / prof fee / other income are blank in a total whose Other Expense is, the stock memo in one whose COGS is. Range presets and the Excel Summary end on the newest
+  COMPLETE month (`anchorMonth` / `isCompleteMonth`: closed, published, or a full close of a finished month), not the running / half-booked
+  newest; "YTD" = Indian FY to date, labelled "FY26-27 to date"; the Summary names the newest month separately. Cash rows (`MisSheetRow.cash`)
+  stay ₹ Lac in the % view / % export. FY cash = the months with a stored cash flow (`cashOverMonths`), named in the total header ("cash
+  Oct–Nov"). The unused `FY_SUMMARY` was deleted.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
@@ -516,7 +525,8 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   assumptions / risks / themes & milestones / team text. Tested against the sheet (Exit ARR, equity 12M/18M, deployment by theme).
 - **Plan vs actual (Planning → "Plan vs actual", 9 Nov 2026):** the Base (or a saved) plan is the budget, Live MIS months are the actuals.
   Pure `client/src/data/planning/planVsActual.ts` (byte-identical copy `server/src/planning/planVsActual.ts`, test-checked): per month plan, actual,
-  gap ₹ / %, status (within 5% = on track / behind / ahead), no data = null never 0, the running month shown but not counted, year to date, exit
+  gap ₹ / %, status (within 5% = on track / behind / ahead), no data = null never 0, the running month AND a finished month whose books
+  are not complete (`ActualMonth.complete` = `isCompleteMonth`, else level full; state `partial`, 10 Nov 2026) shown but not counted, year to date, exit
   ARR pace (last 3 closed months × 4 vs plan, gap carried to FY end), behind list. Deck side `planVsActualLive.ts` (normalised basis; units from
   SkuCells). View `components/planning/outputs/PlanVsActual.tsx`. Server: `GET /api/planning/vs-actual?scenario=` (MCP `mis_get_plan_vs_actual`);
   Base plan months = generated `server/src/planning/basePlanMonths.ts` (`node --import tsx scripts/export-base-plan-months.ts`; test fails when stale);
