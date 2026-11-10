@@ -5,10 +5,10 @@
 // year-end entries, applied once at read time in publishedBasis (every reader takes PUBLISHED_MONTHS):
 //
 //  • FY24-25: the workbook costs raw material at a flat 30.97 % of revenue every month. The audited consumption (to the
-//    audited closing stock) is lower: "Audit true-up: material" in Mar 2025 (an opex line, positive = less cost, so it
-//    sits below CM3 and channels / SKU cells keep their own cost). Other income and tax are booked in March too.
+//    audited closing stock) is lower: "Audit true-up: material" comes out of COGM, spread over Apr 2024 – Mar 2025 by each
+//    month's raw-material line (channels take it with the rest of COGM). Other income and tax are booked in March.
 //  • FY25-26: other income was netted into opex with no line: it now shows as its own "Other income" opex line (opex total
-//    unchanged). A small material + finance-cost true-up and the deferred-tax credit in Mar 2026. Jan–Mar 2026
+//    unchanged). A small material (spread like FY24-25) + finance-cost true-up and the deferred-tax credit in Mar 2026. Jan–Mar 2026
 //    inter-branch transfers set to the books and the gross → returns → GST build-up made to foot to the restated net.
 //  • Dec 2023 – Mar 2024 (4 months of FY23-24): the workbook charged the whole year's depreciation in Mar 2024. Only 4/12
 //    of it belongs to these months; it is spread over them (the other 8/12 belongs to Apr–Nov 2023, not in the MIS).
@@ -50,19 +50,19 @@ export interface AuditYear {
 export const AUDIT_YEARS: AuditYear[] = [
   {
     fy: 'FY24-25', month: '2025-03',
-    // audited material consumption ex inter-branch is ₹11,70,367 below the workbook's 30.97 % proxy; + ₹1,604 revenue rounding
-    materialTrueUp: 1_171_971, financeTrueUp: 0,
+    // audited material consumption ex inter-branch is ₹11,70,367 below the workbook's 30.97 % proxy (₹1.6k revenue rounding left)
+    materialTrueUp: 1_170_367, financeTrueUp: 0,
     otherIncome: 27_660, otherIncomeInOpex: false,
     tax: 295_085,
-    note: 'FY24-25 trued up to the audited accounts in Mar 2025 (audit adjustment): material ₹11.72 L less (workbook used a flat 30.97 % material rate), other income ₹0.28 L, tax ₹2.95 L.',
+    note: 'FY24-25 trued up to the audited accounts (audit adjustment): material ₹11.70 L less over the year, by each month\'s material (the workbook used a flat 30.97 % rate); other income ₹0.28 L and tax ₹2.95 L in Mar 2025.',
   },
   {
     fy: 'FY25-26', month: '2026-03',
-    materialTrueUp: -8_997, financeTrueUp: 5_215,
+    materialTrueUp: -8_940, financeTrueUp: 5_215,
     otherIncome: 146_730, otherIncomeInOpex: true,
     tax: -86_458,
     interBranch: { months: ['2026-01', '2026-02', '2026-03'], total: 1_193_198 },
-    note: 'FY25-26 tied to the audited accounts in Mar 2026 (audit adjustment): other income ₹1.47 L shown on its own line, deferred-tax credit ₹0.86 L, material / finance cost true-up ₹0.14 L.',
+    note: 'FY25-26 tied to the audited accounts (audit adjustment): material +₹8,940 over the year by each month\'s material; other income ₹1.47 L on its own line, finance cost +₹5,215 and deferred-tax credit ₹0.86 L in Mar 2026.',
   },
 ];
 
@@ -84,36 +84,58 @@ export function footBuildUp(m: MonthlyMIS): MonthlyMIS {
   };
 }
 
-const withNonOpLines = (m: MonthlyMIS, extra: Record<string, number> = {}): MonthlyMIS => {
+const withNonOpLines = (m: MonthlyMIS, zeroTax: boolean): MonthlyMIS => {
   if (m.nonOpLines) return m;
   const lines: Record<string, number> = {};
   if (m.nonOperating) lines[NON_OP_LINE] = -m.nonOperating;
-  for (const [k, v] of Object.entries(extra)) if (v) lines[k] = r2((lines[k] ?? 0) + v);
+  if (zeroTax) lines[TAX_LINE] = 0;
   return Object.keys(lines).length ? { ...m, nonOpLines: lines } : m;
 };
 
-/** Book one audited year's year-end entries on its months. Pure; months outside the year are returned as is. */
+const RM_LINE = 'Raw Materials & Inventory';
+const fyMonths = (fy: string): [string, string] => { const a = 2000 + Number(fy.slice(2, 4)); return [`${a}-04`, `${a + 1}-03`]; };
+
+/**
+ * Book one audited year on its months. Pure; months outside the year are returned as is.
+ *  • material true-up: OUT OF COGM, spread over the year's months pro rata to each month's raw-material line (each month
+ *    flagged, own COGM line); GM, CM1–CM3, EBITDA and net income move, opex does not. Channels take it with the rest of COGM.
+ *  • other income (opex line), finance true-up and tax (Non-operating lines) in the year-end month.
+ */
 export function applyAuditYear(months: MonthlyMIS[], y: AuditYear): MonthlyMIS[] {
   const ib = y.interBranch;
   const ibBooked = ib ? months.filter((m) => ib.months.includes(m.key)).reduce((s, m) => s + m.interBranch, 0) : 0;
+  const [from, to] = fyMonths(y.fy);
+  const inYear = (k: string) => k >= from && k <= to;
+  const rmOf = (m: MonthlyMIS) => Math.max(0, -(m.cogmLines[RM_LINE] ?? 0));
+  const rmTotal = months.filter((m) => inYear(m.key)).reduce((s, m) => s + rmOf(m), 0);
+  const ymonths = months.filter((m) => inYear(m.key) && rmOf(m) > 0).map((m) => m.key);
+  let left = y.materialTrueUp;                                   // the last month takes the paise so the year adds up exactly
   return months.map((m) => {
     let out = m;
     if (ib && ib.months.includes(m.key) && ibBooked > 0) {
       const interBranch = r2(m.interBranch * (ib.total / ibBooked));
       out = { ...out, interBranch, turnover: r2(out.netRevenue + interBranch) };
     }
+    if (y.materialTrueUp && rmTotal > 0 && ymonths.includes(m.key)) {
+      const t = m.key === ymonths[ymonths.length - 1] ? r2(left) : r2(y.materialTrueUp * (rmOf(m) / rmTotal));
+      left -= t;
+      out = {
+        ...out, cogm: r2(out.cogm - t), grossMargin: r2(out.grossMargin + t), cm1: r2(out.cm1 + t), cm2: r2(out.cm2 + t),
+        cm3: r2(out.cm3 + t), ebitda: r2(out.ebitda + t), netIncome: r2(out.netIncome + t),
+        cogmLines: { ...out.cogmLines, [AUDIT_TRUE_UP_LINE]: t }, auditNote: y.note,
+      };
+    }
     if (m.key !== y.month) return out;
-    const opexDelta = -y.materialTrueUp - (y.otherIncomeInOpex ? 0 : y.otherIncome);   // opex is a positive cost
-    const opex = r2(out.opex + opexDelta);
-    const ebitda = r2(out.ebitda - opexDelta);
+    const newIncome = y.otherIncomeInOpex ? 0 : y.otherIncome;      // opex is a positive cost
+    const opex = r2(out.opex - newIncome);
+    const ebitda = r2(out.ebitda + newIncome);
     const preTaxNonOp = r2(out.nonOperating + y.financeTrueUp);
     const nonOperating = r2(preTaxNonOp + y.tax);
     const lines: Record<string, number> = { ...out.opexLines };
-    if (y.materialTrueUp) lines[AUDIT_TRUE_UP_LINE] = y.materialTrueUp;
     if (y.otherIncome) lines[OTHER_INCOME_LINE] = r2((lines[OTHER_INCOME_LINE] ?? 0) + y.otherIncome);
     const nonOpLines: Record<string, number> = { ...(out.nonOperating ? { [NON_OP_LINE]: -out.nonOperating } : {}) };
     if (y.financeTrueUp) nonOpLines[AUDIT_FINANCE_LINE] = -y.financeTrueUp;
-    if (y.tax) nonOpLines[TAX_LINE] = -y.tax;
+    nonOpLines[TAX_LINE] = -y.tax;
     return {
       ...out, opex, ebitda, nonOperating, netIncome: r2(ebitda - nonOperating - (out.costOfFundraising ?? 0)),
       opexLines: lines, nonOpLines, auditNote: y.note,
@@ -143,7 +165,9 @@ export function tieToAudit(months: MonthlyMIS[], before = '2026-04'): MonthlyMIS
   let out = months.map((m) => (m.key < before ? footBuildUp(m) : m));
   out = spreadPartialDepreciation(out);
   for (const y of AUDIT_YEARS) out = applyAuditYear(out, y);
-  return out.map((m) => (m.key < before ? withNonOpLines(m) : m));
+  // audited years book tax only at year end: their other months carry a ₹0 tax line (no tax), not "no data"
+  const audited = (k: string) => AUDIT_YEARS.some((y) => { const [a, b] = fyMonths(y.fy); return k >= a && k <= b; });
+  return out.map((m) => (m.key < before ? withNonOpLines(m, audited(m.key)) : m));
 }
 
 // ---- Views ---------------------------------------------------------------------
@@ -151,7 +175,7 @@ export function tieToAudit(months: MonthlyMIS[], before = '2026-04'): MonthlyMIS
 /** Tax inside a month's / period's Non-operating lines (charge positive, credit negative); null = no tax line (no data). */
 export function taxOf(nonOpLines: Record<string, number> | null | undefined): number | null {
   const tax = Object.entries(nonOpLines ?? {}).filter(([k]) => /\btax/i.test(k));
-  return tax.length ? r2(-tax.reduce((s, [, v]) => s + v, 0)) : null;
+  return tax.length ? r2(-tax.reduce((s, [, v]) => s + v, 0)) || 0 : null;
 }
 
 /** "FY23-24 (Dec 23–Mar 24, 4 months)" for a year bucket that starts after its April; else the key. */

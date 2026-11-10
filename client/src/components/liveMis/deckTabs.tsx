@@ -472,8 +472,9 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
         consistent with the source MIS. Percentages are each line’s share of that period’s net revenue.
       </Note>
       <Note>
-        <span className="font-medium text-slate-500">Tied to the audited accounts:</span> FY24-25 EBITDA ₹39.20 L, profit before
-        tax ₹17.52 L, net income ₹14.57 L (Mar 2025 carries an audit true-up of material ₹11.72 L, other income and tax). FY25-26
+        <span className="font-medium text-slate-500">Tied to the audited accounts:</span> FY24-25 EBITDA ₹39.18 L, profit before
+        tax ₹17.51 L, net income ₹14.56 L (audited 39.20 / 17.52 / 14.57 L; ₹1.6k workbook revenue rounding). Material is trued up
+        by ₹11.70 L in COGM, spread over the year by each month’s material; other income and tax sit in Mar 2025. FY25-26
         EBITDA −₹1.06 L, profit before tax −₹23.02 L, net income −₹22.16 L after a deferred-tax credit of ₹0.86 L; the Jan–Mar
         2026 monthly costs are allocated to tie to the audited year. FY23-24 here is Dec 2023 – Mar 2024 only (4 months), with
         4/12 of that year’s depreciation.

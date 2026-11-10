@@ -34,9 +34,9 @@ test('#4 opexSplit: legacy Salaries / Legal & CA map to payroll / prof fee; noth
   assert.equal(legacy.profFee, 73300);
   assert.equal(legacy.otherIncome, null);
   const live = opexSplit({ 'Payroll (Employee Cost – Indirect)': -219204, 'Professional Fees': -36000, 'Other Income (Indirect Incomes)': 5221.53, 'Staff Welfare': -9370 });
-  assert.deepEqual(live, { payroll: 219204, profFee: 36000, otherIncome: 5221.53, auditTrueUp: null });
-  assert.deepEqual(opexSplit({ 'Admin & General Expenses': -1000 }), { payroll: null, profFee: null, otherIncome: null, auditTrueUp: null });
-  assert.deepEqual(opexSplit(undefined), { payroll: null, profFee: null, otherIncome: null, auditTrueUp: null });
+  assert.deepEqual(live, { payroll: 219204, profFee: 36000, otherIncome: 5221.53 });
+  assert.deepEqual(opexSplit({ 'Admin & General Expenses': -1000 }), { payroll: null, profFee: null, otherIncome: null });
+  assert.deepEqual(opexSplit(undefined), { payroll: null, profFee: null, otherIncome: null });
 });
 
 test('#4 liveMisPoint: a legacy month shows payroll / prof fee; Other Expense = the rest; no line = blank', () => {

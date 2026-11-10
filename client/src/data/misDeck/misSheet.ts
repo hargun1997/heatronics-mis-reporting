@@ -20,6 +20,7 @@ import {
 } from './analytics';
 import { PUBLISHED_MONTHS } from './publishedBasis';
 import { belowEbitda } from './auditTie';
+import { opexSplit } from './misPeriods';
 
 export type MisEntity = 'company' | SalesChannel;
 
@@ -51,8 +52,6 @@ export interface MisPoint {
   profFee: number | null;
   otherExpense: number | null;
   otherIncome: number | null;
-  /** Year-end audit adjustment (auditTie.ts): + = less cost than the workbook. null = none. */
-  auditTrueUp: number | null;
   ebitda: number | null;
   /** Below EBITDA, before tax: interest, depreciation, fundraising cost (company only). */
   nonOperating: number | null;
@@ -77,7 +76,7 @@ export type MisNumKey = Exclude<keyof MisPoint, 'cashMonths'>;
 const MIS_POINT_KEYS: MisNumKey[] = [
   'qty', 'grossRevenue', 'channelMargin', 'returns', 'gst', 'ssClaim', 'discounts',
   'netRevenue', 'cogs', 'grossMargin', 'stockVariance', 'logistics', 'cm1', 'marketing', 'cm2',
-  'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'auditTrueUp', 'ebitda',
+  'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
   'nonOperating', 'pbt', 'tax', 'netIncome', 'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
 ];
 
@@ -127,7 +126,6 @@ export const MIS_SHEET_ROWS: MisSheetRow[] = [
   { label: 'Professional Fee', get: (p) => p.profFee },
   { label: 'Other Expense', get: (p) => p.otherExpense },
   { label: 'Other income', get: (p) => p.otherIncome },
-  { label: 'Audit true-up (audit adjustment)', get: (p) => p.auditTrueUp },
   { label: 'EBITDA', bold: true, get: (p) => p.ebitda },
   { label: 'EBITDA%', pct: true, get: (p) => ratio(p.ebitda, p.netRevenue) },
   { label: 'Interest, depreciation & other', get: (p) => p.nonOperating },
@@ -158,7 +156,7 @@ const monthsSeries = monthlySeries();
 
 const EMPTY_CASH = {
   channelMargin: null, ssClaim: null, stockVariance: null, payroll: null, profFee: null, otherIncome: null,
-  auditTrueUp: null, nonOperating: null, pbt: null, tax: null, netIncome: null,
+  nonOperating: null, pbt: null, tax: null, netIncome: null,
   openingCash: null, funding: null, closingCash: null, cashBurn: null, ebitdaBurn: null, runway: null,
 } as const;
 
@@ -183,9 +181,15 @@ function companyPoint(p: PeriodMIS): MisPoint {
     branding: m.platformCosts,
     cm3: m.cm3,
     ...belowEbitda(m.ebitda, m.netIncome, m.nonOpLines),
-    otherExpense: m.opex,
+    ...opexParts(m.opex, m.opexLines),
     ebitda: m.ebitda,
   };
+}
+
+/** Payroll / Professional fee / Other income split out of OpEx (misPeriods.opexSplit); Other Expense is the rest. */
+function opexParts(opex: number, lines: Record<string, number>): Pick<MisPoint, 'payroll' | 'profFee' | 'otherIncome' | 'otherExpense'> {
+  const { payroll, profFee, otherIncome } = opexSplit(lines);
+  return { payroll, profFee, otherIncome, otherExpense: opex - (payroll ?? 0) - (profFee ?? 0) + (otherIncome ?? 0) };
 }
 
 function channelPoint(p: PeriodMIS, c: SalesChannel): MisPoint {

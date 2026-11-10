@@ -16,27 +16,25 @@ import type { PeriodCompleteness } from './liveDeck';
 const PAYROLL_RE = /^(payroll\b|salar(y|ies)\b)/i;
 const PROF_RE = /^(professional fees?\b|legal\s*(&|and)\s*(ca|professional)\b)/i;
 const OTHER_INCOME_RE = /^other income\b/i;
-const AUDIT_TRUE_UP_RE = /^audit true-up\b/i;
 const TOTAL_RE = /^total\b/i;
 
-export interface OpexSplit { payroll: number | null; profFee: number | null; otherIncome: number | null; auditTrueUp: number | null }
+export interface OpexSplit { payroll: number | null; profFee: number | null; otherIncome: number | null }
 
 /**
  * Split a month's effect-signed OpEx lines (costs negative, income positive — compute.ts / the legacy workbook) into
- * the MIS sheet's Payroll, Professional fee, Other income and Audit true-up (costs, income and true-up shown positive). A line kind with no
+ * the MIS sheet's Payroll, Professional fee and Other income (costs and income shown positive). A line kind with no
  * matching line is null ("no data"), never 0.
  */
 export function opexSplit(lines: Record<string, number> | null | undefined): OpexSplit {
-  let payroll: number | null = null, profFee: number | null = null, otherIncome: number | null = null, auditTrueUp: number | null = null;
+  let payroll: number | null = null, profFee: number | null = null, otherIncome: number | null = null;
   for (const [name, v] of Object.entries(lines ?? {})) {
     const n = name.trim();
     if (!Number.isFinite(v) || TOTAL_RE.test(n)) continue;
     if (PAYROLL_RE.test(n)) payroll = (payroll ?? 0) - v;
     else if (PROF_RE.test(n)) profFee = (profFee ?? 0) - v;
     else if (OTHER_INCOME_RE.test(n)) otherIncome = (otherIncome ?? 0) + v;
-    else if (AUDIT_TRUE_UP_RE.test(n)) auditTrueUp = (auditTrueUp ?? 0) + v;   // year-end audit adjustment (auditTie.ts), + = less cost
   }
-  return { payroll, profFee, otherIncome, auditTrueUp };
+  return { payroll, profFee, otherIncome };
 }
 
 // ---- Complete months + the range anchor ----------------------------------------
