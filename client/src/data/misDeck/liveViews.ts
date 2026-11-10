@@ -23,6 +23,7 @@
 import type { MonthlyMIS, SalesChannel } from './misDeckData';
 import { SALES_CHANNELS, VERTICALS, VERTICAL_BY_CHANNEL, DISCOUNT_DATA, D2C_AD_SPEND, AMAZON_AD_SPEND } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
+import { uncostedEstimate, UNCOSTED_SKIP_SHARE } from './uncosted';
 import type { CompletenessLevel, LiveDeckData, PeriodCompleteness } from './liveDeck';
 import {
   aggregatePeriods, monthLabel, cellFactory, CHANNEL_FOLD,
@@ -33,7 +34,9 @@ import {
   type PeriodMIS, type SkuAgg,
 } from './analytics';
 import type { MisEntity, MisPoint } from './misSheet';
+import { channelNoData } from './monthCompleteness';
 import type { TallyBucketLine } from '../monthClose/schema';
+import { allocateMarketing, spreadWithCap } from './channelAlloc';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -118,11 +121,15 @@ export interface NormalisedMonths {
   skipped: string[];
   /** Month key → number of products whose cost is estimated / missing in a restated month. */
   estimated: Record<string, number>;
+  /** Restated months whose Tally closing stock is not posted yet (closing = opening with purchases): memo not final. */
+  stockEstimated: string[];
+  /** Restated months with sales that have no BOM cost (no-BOM products + unmapped sales): costed at the month's material rate, an estimate. */
+  uncosted: Record<string, { revenue: number; estCost: number }>;
 }
 
 /** The one-line definition shown with the Normalised basis everywhere (page note, export subtitles). */
 export const NORMALISED_DEFINITION =
-  'Normalised: COGM = units sold × BOM cost + factory overhead, so GM moves with revenue and mix; Tally\'s purchase-timing difference is shown as Stock build / drawdown.';
+  'Normalised: COGM = units sold × BOM cost + the factory overhead, manufacturing cost and inward freight booked in Tally, so GM moves with revenue and mix; Tally\'s material purchase-timing difference is shown as Stock build / drawdown.';
 
 /** "Dec 23–Mar 26, Jun 26" — consecutive month keys folded into ranges. */
 export function monthSpans(keys: string[]): string {
@@ -141,8 +148,9 @@ export function monthSpans(keys: string[]): string {
 /**
  * The normalised COGM basis (founder, 5 Nov 2026: "we should see some normalisation with revenue").
  *
- * Normalised COGM for a month = BOM standard cost of what was sold + factory overhead. A live Tally month carries
- * `channelRecon.cogmVariance` = Tally COGM − (Σ SkuCell COGS + factory), so the month is restated by exactly that
+ * Normalised COGM for a month = BOM material cost of what was sold + the conversion cost booked in Tally's Direct
+ * Expenses (factory overhead, manufacturing costs, inward freight: conversion.ts). A live Tally month carries
+ * `channelRecon.cogmVariance` = Tally COGM − (Σ SkuCell COGS + conversion) = material purchase timing only, so the month is restated by exactly that
  * delta: cogm − v, grossMargin + v and every margin below (CM1 … net income) + v; everything else stays actual. The
  * delta itself is kept on the month as `stockVariance` (the "Stock build / drawdown (purchase timing)" memo line),
  * so a full year still reconciles: Σ normalised net income − Σ stockVariance = Tally net income.
@@ -162,24 +170,37 @@ export function normaliseLiveMonths(
   for (const c of deck?.skuCells ?? []) cellsByMonth.set(c.m, [...(cellsByMonth.get(c.m) ?? []), c]);
   const skipped: string[] = [];
   const estimated: Record<string, number> = {};
+  const stockEstimated: string[] = [];
+  const uncosted: NormalisedMonths['uncosted'] = {};
+  const tooUncosted: string[] = [];
   const out = months.map((m) => {
     const comp = completeness[m.key];
     const level = comp?.level ?? 'topline';
     const skip = () => { skipped.push(m.key); return m; };
     if (level === 'topline' || comp?.locked || comp?.published) return skip();
     const cells = cellsByMonth.get(m.key);
+    let uncostedCost = 0;
     if (cells) {
       const costed = cells.filter((c) => !c.noCost && c.p !== 'Accessory (excl)');
       if (costed.length === 0) return skip();
       const est = new Set(cells.filter((c) => c.noCost || c.costEst).map((c) => c.p));
       if (est.size) estimated[m.key] = est.size;
+      // Sales with no BOM cost never enter at ₹0 (never a silent 100 % margin): costed at the month's material rate, or
+      // the month stays as booked when most of its sales have no cost (audit round 6, A6-1 / A6-9).
+      const u = uncostedEstimate(cells, m.unmappedRevenue ?? 0);
+      if (u.revenue > 0 && m.channelRecon) {
+        if (u.estCost === null || u.share > UNCOSTED_SKIP_SHARE) { tooUncosted.push(m.key); return skip(); }
+        uncostedCost = u.estCost;
+        uncosted[m.key] = { revenue: u.revenue, estCost: u.estCost };
+      }
     }
     if (!m.channelRecon) {
       // Facts-only month costed to CM2: COGM is already BOM × units + factory (liveDeck), nothing to move.
       if (comp && !comp.hasTally && level === 'contribution') return { ...m, stockVariance: 0 };
       return skip();
     }
-    const v = r2(m.channelRecon.cogmVariance);
+    const v = r2(m.channelRecon.cogmVariance - uncostedCost);
+    if (m.stockUnposted) stockEstimated.push(m.key);
     return {
       ...m,
       cogm: r2(m.cogm - v),
@@ -195,11 +216,19 @@ export function normaliseLiveMonths(
   skipped.sort();
   const estMonths = Object.keys(estimated).sort();
   const parts = [NORMALISED_DEFINITION];
-  if (skipped.length) parts.push(`${monthSpans(skipped)} shown as booked — no BOM costing for ${skipped.length === 1 ? 'it' : 'them'}.`);
+  const noBom = skipped.filter((k) => !tooUncosted.includes(k));
+  if (noBom.length) parts.push(`${monthSpans(noBom)} shown as booked — no BOM costing for ${noBom.length === 1 ? 'it' : 'them'}.`);
+  if (tooUncosted.length) parts.push(`${monthSpans(tooUncosted)} shown as booked — most sales have no BOM cost (map the products).`);
+  const ucMonths = Object.keys(uncosted).sort();
+  if (ucMonths.length) {
+    parts.push(`Not costed by BOM (no BOM / not mapped): ${ucMonths.map((k) => `₹${(uncosted[k].revenue / 1e5).toFixed(2)} L of sales in ${monthLabel(k)}`).join(', ')} — material estimated at that month's BOM rate (₹${(ucMonths.reduce((t, k) => t + uncosted[k].estCost, 0) / 1e5).toFixed(2)} L), map the products to fix.`);
+  }
   if (estMonths.length) {
     parts.push(`Cost estimated for ${estMonths.map((k) => `${estimated[k]} product${estimated[k] === 1 ? '' : 's'} in ${monthLabel(k)}`).join(', ')}.`);
   }
-  return { months: out, note: parts.join(' '), skipped, estimated };
+  stockEstimated.sort();
+  if (stockEstimated.length) parts.push(`${monthSpans(stockEstimated)} estimated — closing stock not posted in Tally yet, so Stock build / drawdown is not final.`);
+  return { months: out, note: parts.join(' '), skipped, estimated, stockEstimated, uncosted };
 }
 
 // ---- Continuous channel taxonomy (G6) -------------------------------------
@@ -249,7 +278,8 @@ export interface AnchoredRow {
   nonOperating: number; costOfFundraising: number; netIncome: number;
   revShare: number; cogsShare: number; smShare: number;
   /** 'tally' = revenue and channel / marketing / platform costs come from Tally's channel ledgers; 'shares' = order-share splits. */
-  basis: 'tally' | 'shares';
+  /** 'estimated' = as 'tally', but the period has no ad spend by platform, so marketing went to the consumer channels by revenue. */
+  basis: 'tally' | 'shares' | 'estimated';
 }
 
 /**
@@ -268,7 +298,7 @@ export function anchoredChannelPnl(
   // Where Tally exists for the period, the channel's own ledgers carry the figures: revenue = Tally's channel sales,
   // and each cost line = what the connectors attribute to the channel (tallyLines.byChannel) plus its revenue-share of
   // the unattributed remainder, so every line still foots to Tally. Without Tally it stays the order-share split.
-  if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells);
+  if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells, completeness);
 
   const keys = new Set(period.members);
   const sel = cells.filter((c) => keys.has(c.m));
@@ -284,18 +314,19 @@ export function anchoredChannelPnl(
   }, 0));
   const totRev = realRev.reduce((s, v) => s + v, 0) || 1;
   const totCogs = realCogs.reduce((s, v) => s + v, 0) || 1;
-  const totAd = adWeight.reduce((s, v) => s + v, 0);
+  // Marketing follows ad spend; with no ad spend it goes to the consumer channels only (never B2B / GT by revenue).
+  const smSplit = allocateMarketing(chans, period.salesMarketing, adWeight.map((w) => Math.max(0, w)), realRev).values;
 
   return chans.map((ch, i) => {
     const revShare = realRev[i] / totRev;
     const cogsShare = totCogs > 1 ? realCogs[i] / totCogs : revShare;
-    const smShare = totAd > 0 ? adWeight[i] / totAd : revShare;
+    const smShare = period.salesMarketing ? smSplit[i] / period.salesMarketing : 0;
     const revenue = period.netRevenue * revShare;
     const cogm = period.cogm * cogsShare;
     const grossMargin = revenue - cogm;
     const channelFulfillment = period.channelFulfillment * revShare;
     const cm1 = grossMargin - channelFulfillment;
-    const salesMarketing = period.salesMarketing * smShare;
+    const salesMarketing = smSplit[i];
     const cm2 = cm1 - salesMarketing;
     const platformCosts = period.platformCosts * revShare;
     const cm3 = cm2 - platformCosts;
@@ -312,7 +343,7 @@ export function anchoredChannelPnl(
 }
 
 /** Channel P&L tied to Tally's channel ledgers (see anchoredChannelPnl). Exported for tests. */
-export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[]): AnchoredRow[] {
+export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[], completeness: Record<string, PeriodCompleteness> = {}): AnchoredRow[] {
   const keys = new Set(period.members);
   const sel = cells.filter((c) => keys.has(c.m));
   const chans = SALES_CHANNELS.filter((ch) => (period.netByChannel[ch] ?? 0) !== 0 || sel.some((c) => c.ch === ch));
@@ -326,16 +357,26 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[]): Anchored
   const attributed = (cascade: string): number[] => chans.map((ch) =>
     -period.tallyLines.filter((l) => l.cascadeLine === cascade).reduce((s, l) => s + (l.byChannel[ch] ?? 0), 0));
   const spreadCost = (total: number, cascade: string, fallbackShare: (i: number) => number): number[] => {
-    const att = attributed(cascade);
-    const rest = total - att.reduce((a, b) => a + b, 0);
-    return att.map((a, i) => a + rest * fallbackShare(i));
+    // Reports above Tally's total are capped pro rata (channelAlloc.ts): a negative rest is never spread to other channels.
+    return spreadWithCap(total, attributed(cascade), fallbackShare);
   };
   const realCogs = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.cogs : s), 0)));
   const totCogs = realCogs.reduce((a, b) => a + b, 0);
   const cogsShareOf = (i: number) => (totCogs > 1 ? realCogs[i] / totCogs : revShareOf(i));
 
   const fulfil = spreadCost(period.channelFulfillment, 'channel_fulfilment', revShareOf);
-  const sm = spreadCost(period.salesMarketing, 'sales_marketing', revShareOf);
+  // Marketing: ad spend on the channel it was spent for (connector-attributed for live months, the published ad feeds for
+  // locked / published months); the rest of Tally's S&M only to the consumer channels, by ad spend (else revenue = 'estimated').
+  // Per month and channel the larger of the report tags and (locked / published months) the published feeds — never both
+  // added, and a period mixing a feed-only month with a tags-only month keeps both months' spend.
+  const smTotal = attributed('sales_marketing');
+  const pubOf = (ch: SalesChannel, m: string) => (completeness[m]?.locked || completeness[m]?.published ? channelAdWeight(ch, [m]) : 0);
+  const smAtt = chans.map((ch, i) => (period.smTagsByMonth
+    ? period.members.reduce((w, m) => w + Math.max(0, period.smTagsByMonth?.[m]?.[ch] ?? 0, pubOf(ch, m)), 0)
+    : Math.max(0, smTotal[i], period.members.reduce((w, m) => w + pubOf(ch, m), 0))));   // no per-month tags (hand-built period)
+  const cellRev = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.rev : s), 0)));
+  const smSplit = allocateMarketing(chans, period.salesMarketing, smAtt, posRev, cellRev);
+  const sm = smSplit.values;
   const plat = spreadCost(period.platformCosts, 'platform_payment', revShareOf);
 
   return chans.map((ch, i) => {
@@ -358,7 +399,7 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[]): Anchored
     return {
       channel: ch, revenue, cogm, grossMargin, channelFulfillment, cm1, salesMarketing, cm2,
       platformCosts, cm3, opex, ebitda, nonOperating, costOfFundraising, netIncome,
-      revShare, cogsShare, smShare: totPos ? sm[i] / (period.salesMarketing || 1) : 0, basis: 'tally' as const,
+      revShare, cogsShare, smShare: totPos ? sm[i] / (period.salesMarketing || 1) : 0, basis: smSplit.basis === 'estimated' ? 'estimated' as const : 'tally' as const,
     };
   });
 }
@@ -633,6 +674,8 @@ export function liveMisPoint(
   }
   const ch = entity;
   const comp = completeness[key];
+  // A channel named missing for the month (monthCompleteness) shows "no data", never ₹0.
+  if (channelNoData(comp, ch)) return Object.fromEntries(MIS_KEYS.map((k) => [k, null])) as unknown as MisPoint;
   const fromFeeds = comp?.locked || comp?.published;
   const adOf = (c: SalesChannel) => cells.reduce((s, x) => (x.m === key && x.ch === c ? s + (x.ad ?? 0) : s), 0);
   const marketing = fromFeeds

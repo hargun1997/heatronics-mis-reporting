@@ -17,12 +17,14 @@ import type { DailyFact } from '../liveMis/facts';
 import type { SalesChannel } from './misDeckData';
 import { SALES_CHANNELS } from './misDeckData';
 import { toSalesChannel } from './expenseTagging';
+import { DEFAULT_GST_RATE, exGstOf, type NetBasis } from './gstBasis';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
+const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`;
 
 export const TIE_LIMIT_PCT = 1;
-/** GST used only to estimate ex-GST sales for a GST-inclusive source that cannot split tax. */
-export const ASSUMED_GST_RATE = 0.18;
+/** GST used only to estimate ex-GST sales for a GST-inclusive source that cannot split tax (the product rate, gstBasis.ts). */
+export const ASSUMED_GST_RATE = DEFAULT_GST_RATE;
 
 /** The shared lock record (mirror of server/src/ingest/closeLocks.ts MonthLock). */
 export interface MonthLock {
@@ -36,7 +38,7 @@ export interface MonthLock {
 }
 
 /** How the connector's ex-GST figure was obtained. */
-export type NetBasis = 'reported' | 'booked' | 'estimated';
+export type { NetBasis };
 
 export interface ChannelTie {
   channel: SalesChannel;
@@ -51,6 +53,8 @@ export interface ChannelTie {
   tally: number;
   /** tally − net; null when there is no connector side to compare. */
   residual: number | null;
+  /** false = shown, not judged against the 1 % limit (connector side is an orders estimate, not booked sales). */
+  judged?: boolean;
 }
 
 export interface ProfitTie {
@@ -74,9 +78,6 @@ export interface CloseTie {
   breaches: string[];
 }
 
-/** Sources whose `revenue` is a settlement / invoice amount already ex-GST or not splittable: taken as booked. */
-const GST_INCLUSIVE_UNSPLIT = new Set(['shopify', 'amazon']);
-
 interface Acc { gmv: number; haveGmv: boolean; net: number; basis: Set<NetBasis>; sources: Set<string> }
 
 /** Fold a month's connector facts into per-channel GMV and ex-GST sales. */
@@ -89,9 +90,8 @@ export function connectorSales(facts: DailyFact[]): Map<SalesChannel, Acc> {
     const a = out.get(ch) ?? { gmv: 0, haveGmv: false, net: 0, basis: new Set<NetBasis>(), sources: new Set<string>() };
     a.sources.add(f.source);
     if (typeof f.gmv === 'number') { a.gmv += f.gmv; a.haveGmv = true; }
-    if (typeof f.netExGst === 'number') { a.net += f.netExGst; a.basis.add('reported'); }
-    else if (typeof f.gmv === 'number' && GST_INCLUSIVE_UNSPLIT.has(f.source)) { a.net += f.gmv / (1 + ASSUMED_GST_RATE); a.basis.add('estimated'); }
-    else { a.net += f.revenue; a.basis.add('booked'); }
+    const x = exGstOf(f);
+    a.net += x.net; a.basis.add(x.basis);
     out.set(ch, a);
   }
   return out;
@@ -122,19 +122,26 @@ export function buildCloseTie(args: {
       netBasis: !a ? null : a.basis.has('estimated') ? 'estimated' : a.basis.has('booked') && !a.basis.has('reported') ? 'booked' : 'reported',
       tally,
       residual: net === null ? null : r2(tally - net),
+      // Orders GMV ÷ (1 + GST) is before returns / cancellations: not like for like with Tally's booked ledger, so it is
+      // shown but never judged against the 1 % limit (a channel Tally has not booked at all is named by monthCompleteness).
+      ...(a && !a.basis.has('reported') && !a.basis.has('booked') ? { judged: false } : {}),
     });
   }
 
   const pct = (v: number | null) => (v === null || !netRevenue ? null : (Math.abs(v) / Math.abs(netRevenue)) * 100);
-  const cands: { label: string; pct: number }[] = [];
+  const cands: { label: string; pct: number; detail?: string }[] = [];
   const profitPct = pct(args.profitResidual);
   if (profitPct !== null) cands.push({ label: 'Net profit vs Tally', pct: profitPct });
   for (const c of channels) {
     const p = pct(c.residual);
-    if (p !== null) cands.push({ label: `${c.channel} sales vs Tally`, pct: p });
+    if (p === null || c.judged === false) continue;
+    // Say which side is lower and by how much (Tally − connectors).
+    const side = c.residual! < 0 ? `Tally ${inr(c.residual!)} lower (${inr(c.tally)} vs ${inr(c.net!)} from ${c.sources.join(', ')})`
+      : `Tally ${inr(c.residual!)} higher (${inr(c.tally)} vs ${inr(c.net!)} from ${c.sources.join(', ')})`;
+    cands.push({ label: `${c.channel} sales vs Tally`, pct: p, detail: side });
   }
   const worst = cands.reduce<{ label: string; pct: number } | null>((w, c) => (!w || c.pct > w.pct ? c : w), null);
-  const breaches = cands.filter((c) => c.pct > TIE_LIMIT_PCT).map((c) => `${c.label}: ${c.pct.toFixed(1)}% of revenue`);
+  const breaches = cands.filter((c) => c.pct > TIE_LIMIT_PCT).map((c) => `${c.label}: ${c.pct.toFixed(1)}% of revenue${c.detail ? ` — ${c.detail}` : ''}`);
   return {
     periodKey, netRevenue,
     profit: { tallyNett: args.tallyNett, misProfit: args.misProfit, residual: args.profitResidual },

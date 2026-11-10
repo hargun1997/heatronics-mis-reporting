@@ -138,6 +138,91 @@ interface OrderMetric {
   totalSales?: { amount?: string | number; currencyCode?: string };
 }
 
+// ---- Sales API windows -------------------------------------------------------
+// One orderMetrics call may not span more than 821 days at Day granularity ("Metrics Interval … (821D) exceeded limit
+// for Granularity day", seen live Nov 2026). A long range (a back-filled old month makes Live MIS ask from that month to
+// today, or Refresh forces the whole span) is asked in windows of ≤ SALES_WINDOW_DAYS and merged. A window Amazon
+// refuses because it is older than it keeps is left out with a note: it must never fail the whole source.
+export const SALES_WINDOW_DAYS = 365;
+
+const addDays = (dateISO: string, n: number) => {
+  const d = new Date(`${dateISO}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const istToday = (now = Date.now()) => new Date(now + 5.5 * 3_600_000).toISOString().slice(0, 10);
+
+/** [from, to] (to capped at today, IST) cut into consecutive windows of ≤ SALES_WINDOW_DAYS days. */
+export function salesWindows(fromISO: string, toISO: string, todayISO: string): { from: string; to: string }[] {
+  const end = toISO > todayISO ? todayISO : toISO;
+  const windows: { from: string; to: string }[] = [];
+  let from = fromISO;
+  while (from <= end) {
+    const last = addDays(from, SALES_WINDOW_DAYS - 1);
+    const to = last > end ? end : last;
+    windows.push({ from, to });
+    from = addDays(to, 1);
+  }
+  return windows;
+}
+
+/** Daily ordered sales for [from, to], one orderMetrics call per window. `get` = spapiGet with the creds bound (tests inject it). */
+export async function orderMetricsFacts(
+  get: (path: string) => Promise<unknown>, mp: string, fromISO: string, toISO: string, now = Date.now(),
+): Promise<FactResult> {
+  const today = istToday(now);
+  const windows = salesWindows(fromISO, toISO, today);
+  const warnings: string[] = [];
+  const facts: DailyFact[] = [];
+  const seen = new Set<string>();
+  let calls = 0;
+  for (const w of windows) {
+    const q = new URLSearchParams({
+      marketplaceIds: mp,
+      interval: `${w.from}T00:00:00${IST_OFFSET}--${nextDay(w.to)}T00:00:00${IST_OFFSET}`,
+      granularity: 'Day',
+      granularityTimeZone: TZ,
+    });
+    let body: { payload?: OrderMetric[] };
+    try {
+      body = (await get(`/sales/v1/orderMetrics?${q.toString()}`)) as { payload?: OrderMetric[] };
+      calls++;
+    } catch (e) {
+      // A window Amazon refuses because it is too old (400) is left out; anything else (login, limit, outage) is a real error.
+      const msg = e instanceof Error ? e.message : String(e);
+      const old = w.from < addDays(today, -700);
+      if (old && / 400\b|interval/i.test(msg) && windows.length > 1) {
+        warnings.push(`Amazon would not give ${w.from} to ${w.to} (older than it keeps): left out.`);
+        continue;
+      }
+      throw e;
+    }
+    for (const m of body.payload ?? []) {
+      const date = String(m.interval ?? '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || seen.has(date)) continue;
+      seen.add(date);
+      facts.push({
+        source: 'amazon',
+        channel: 'Amazon',
+        date,
+        revenue: r2(num(m.totalSales?.amount)),
+        // Sales API "total sales" is the customer-paid amount (GST inclusive); it carries no tax split.
+        gmv: r2(num(m.totalSales?.amount)),
+        units: m.unitCount ?? 0,
+        orders: m.orderCount ?? 0,
+        fees: 0,
+      } as DailyFact);
+    }
+  }
+  const dates = facts.map((f) => f.date).sort();
+  const trace = [
+    `Minted LWA access token`,
+    `Called Sales API orderMetrics (marketplace ${mp}, daily) ${fromISO}→${toISO}${windows.length > 1 ? ` in ${calls} calls of ≤ ${SALES_WINDOW_DAYS} days` : ''}`,
+    `Extracted ${facts.length} daily sales facts${dates.length ? ` spanning ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
+  ];
+  return { facts, warnings, trace };
+}
+
 const amazon: ConnectorDef = {
   id: 'amazon',
   label: 'Amazon Seller Central',
@@ -160,39 +245,7 @@ const amazon: ConnectorDef = {
   },
 
   async fetchFacts(creds: Credentials, fromISO: string, toISO: string): Promise<FactResult> {
-    const mp = marketplace(creds);
-    const interval = `${fromISO}T00:00:00${IST_OFFSET}--${nextDay(toISO)}T00:00:00${IST_OFFSET}`;
-    const q = new URLSearchParams({
-      marketplaceIds: mp,
-      interval,
-      granularity: 'Day',
-      granularityTimeZone: TZ,
-    });
-    const body = (await spapiGet(creds, `/sales/v1/orderMetrics?${q.toString()}`)) as { payload?: OrderMetric[] };
-    const facts: DailyFact[] = (body.payload ?? [])
-      .map((m) => {
-        const date = String(m.interval ?? '').slice(0, 10);
-        return {
-          source: 'amazon',
-          channel: 'Amazon',
-          date,
-          revenue: r2(num(m.totalSales?.amount)),
-          // Sales API "total sales" is the customer-paid amount (GST inclusive); it carries no tax split.
-          gmv: r2(num(m.totalSales?.amount)),
-          units: m.unitCount ?? 0,
-          orders: m.orderCount ?? 0,
-          fees: 0,
-        } as DailyFact;
-      })
-      .filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f.date));
-
-    const dates = facts.map((f) => f.date).sort();
-    const trace = [
-      `Minted LWA access token`,
-      `Called Sales API orderMetrics (marketplace ${mp}, daily) ${fromISO}→${toISO}`,
-      `Extracted ${facts.length} daily sales facts${dates.length ? ` spanning ${dates[0]} → ${dates[dates.length - 1]}` : ''}`,
-    ];
-    return { facts, warnings: [], trace };
+    return orderMetricsFacts((path) => spapiGet(creds, path), marketplace(creds), fromISO, toISO);
   },
 
   async fetchPeriod(creds: Credentials, periodKey: string): Promise<FetchResult> {
