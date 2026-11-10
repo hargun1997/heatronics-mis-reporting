@@ -2,6 +2,7 @@
 // tie breaches against Tally, products with no map or no BOM, months ready to lock. One shared open / done / snoozed state
 // (POST /api/issues/state). Pure helpers (deckItems, isOpen) are tested in server/test/issuesInboxClient.test.ts.
 import type { LiveDeckData } from '../misDeck/liveDeck';
+import { overAttributions, overKind } from '../misDeck/channelAlloc';
 
 export type InboxArea = 'books' | 'mis' | 'feeds' | 'products' | 'close';
 export type InboxSeverity = 'high' | 'medium' | 'low';
@@ -26,7 +27,7 @@ const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')
 const monthName = (k: string) => new Date(`${k}-01T00:00:00`).toLocaleString('en-IN', { month: 'short', year: '2-digit' });
 
 /** Items only the Live MIS deck knows. */
-export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps'> & Partial<Pick<LiveDeckData, 'liveFeed'>>): InboxItem[] {
+export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps'> & Partial<Pick<LiveDeckData, 'liveFeed' | 'months'>>): InboxItem[] {
   const out: InboxItem[] = [];
   const feed = deck.liveFeed;
   const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);   // a feed problem marked Done comes back the next day if it still holds
@@ -60,6 +61,16 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
         href: `/reporting/mis/live?month=${k}#close`, sig: 'ready' });
     }
     if (c.bom && !c.bom.exact) out.push({ id: `bom:${k}`, area: 'products', severity: 'low', period: k, title: `${monthName(k)} is costed with another month's BOM`, detail: c.bom.note, fix: 'Pull the BOM pricing for the month (Production portal) on Setup.', href: `/reporting/mis/connectors?view=uploads#tranzact`, sig: sig(c.bom.month) });
+  }
+  // A report says more cost than Tally booked on the line: the Channel P&L caps it at Tally's total; accounts check the booking.
+  for (const o of overAttributions(deck.months ?? [])) {
+    const c = deck.completeness?.[o.month];
+    if (c?.closed || c?.locked || o.month > thisMonth) continue;
+    out.push({ id: `over:${o.month}:${o.lineKey}`, area: 'books', severity: o.excess >= 50_000 ? 'high' : 'medium', period: o.month,
+      title: `${monthName(o.month)}: ${o.channel} ${overKind(o.cascadeLine)} in the report exceed Tally by ${inr(o.excess)} — check the booking`,
+      detail: `Report ${inr(o.reported)} vs Tally "${o.label}" ${inr(o.tally)}. The Channel P&L uses Tally's total.`,
+      fix: 'In Tally, check this month\'s entries for the line: a bill not booked yet, booked in another month, or under another ledger.',
+      href: `/reporting/mis/live?month=${o.month}#close`, sig: sig(o.channel, Math.round(o.excess / 1000)) });
   }
   const g = deck.productGaps;
   if (g?.unmapped?.length) {

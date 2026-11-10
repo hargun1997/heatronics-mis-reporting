@@ -36,6 +36,7 @@ import { activeProductMap, bomGaps, unmappedGaps, setProductMap, type Candidate,
 import { setLedgerRules } from '../monthClose/ledgerRules';
 import { fetchFacts } from '../liveMis/client';
 import { accumulateTags, buildChannelRecon, tagTallyLines, toSalesChannel } from './expenseTagging';
+import { capTallyLines } from './channelAlloc';
 import { buildCloseTie, type CloseTie, type MonthLock } from './closeTies';
 
 // Factory overhead convention — 10% of revenue added to product COGS to form
@@ -513,7 +514,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     // can to channels; whatever they cannot stays as the company-wide blended
     // remainder. Pure view-side: the headline cascade above is unchanged.
     const tags = accumulateTags(allFacts);
-    const tallyLines = tagTallyLines(c.tallyLines, tags, c.netByChannel);
+    const tallyLines = capTallyLines(tagTallyLines(c.tallyLines, tags, c.netByChannel)); // reports never put more on a channel than Tally booked
 
     // Factory overhead: Tally's booked amount where the month has the ledger (it is already inside c.cogm);
     // the 10% convention only as a labelled fallback. Cells carry their share so every view splits COGM the same way.

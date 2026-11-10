@@ -34,6 +34,7 @@ import {
 } from './analytics';
 import type { MisEntity, MisPoint } from './misSheet';
 import type { TallyBucketLine } from '../monthClose/schema';
+import { allocateMarketing, spreadWithCap } from './channelAlloc';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -249,7 +250,8 @@ export interface AnchoredRow {
   nonOperating: number; costOfFundraising: number; netIncome: number;
   revShare: number; cogsShare: number; smShare: number;
   /** 'tally' = revenue and channel / marketing / platform costs come from Tally's channel ledgers; 'shares' = order-share splits. */
-  basis: 'tally' | 'shares';
+  /** 'estimated' = as 'tally', but the period has no ad spend by platform, so marketing went to the consumer channels by revenue. */
+  basis: 'tally' | 'shares' | 'estimated';
 }
 
 /**
@@ -268,7 +270,7 @@ export function anchoredChannelPnl(
   // Where Tally exists for the period, the channel's own ledgers carry the figures: revenue = Tally's channel sales,
   // and each cost line = what the connectors attribute to the channel (tallyLines.byChannel) plus its revenue-share of
   // the unattributed remainder, so every line still foots to Tally. Without Tally it stays the order-share split.
-  if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells);
+  if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells, completeness);
 
   const keys = new Set(period.members);
   const sel = cells.filter((c) => keys.has(c.m));
@@ -284,18 +286,19 @@ export function anchoredChannelPnl(
   }, 0));
   const totRev = realRev.reduce((s, v) => s + v, 0) || 1;
   const totCogs = realCogs.reduce((s, v) => s + v, 0) || 1;
-  const totAd = adWeight.reduce((s, v) => s + v, 0);
+  // Marketing follows ad spend; with no ad spend it goes to the consumer channels only (never B2B / GT by revenue).
+  const smSplit = allocateMarketing(chans, period.salesMarketing, adWeight.map((w) => Math.max(0, w)), realRev).values;
 
   return chans.map((ch, i) => {
     const revShare = realRev[i] / totRev;
     const cogsShare = totCogs > 1 ? realCogs[i] / totCogs : revShare;
-    const smShare = totAd > 0 ? adWeight[i] / totAd : revShare;
+    const smShare = period.salesMarketing ? smSplit[i] / period.salesMarketing : 0;
     const revenue = period.netRevenue * revShare;
     const cogm = period.cogm * cogsShare;
     const grossMargin = revenue - cogm;
     const channelFulfillment = period.channelFulfillment * revShare;
     const cm1 = grossMargin - channelFulfillment;
-    const salesMarketing = period.salesMarketing * smShare;
+    const salesMarketing = smSplit[i];
     const cm2 = cm1 - salesMarketing;
     const platformCosts = period.platformCosts * revShare;
     const cm3 = cm2 - platformCosts;
@@ -312,7 +315,7 @@ export function anchoredChannelPnl(
 }
 
 /** Channel P&L tied to Tally's channel ledgers (see anchoredChannelPnl). Exported for tests. */
-export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[]): AnchoredRow[] {
+export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[], completeness: Record<string, PeriodCompleteness> = {}): AnchoredRow[] {
   const keys = new Set(period.members);
   const sel = cells.filter((c) => keys.has(c.m));
   const chans = SALES_CHANNELS.filter((ch) => (period.netByChannel[ch] ?? 0) !== 0 || sel.some((c) => c.ch === ch));
@@ -326,16 +329,21 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[]): Anchored
   const attributed = (cascade: string): number[] => chans.map((ch) =>
     -period.tallyLines.filter((l) => l.cascadeLine === cascade).reduce((s, l) => s + (l.byChannel[ch] ?? 0), 0));
   const spreadCost = (total: number, cascade: string, fallbackShare: (i: number) => number): number[] => {
-    const att = attributed(cascade);
-    const rest = total - att.reduce((a, b) => a + b, 0);
-    return att.map((a, i) => a + rest * fallbackShare(i));
+    // Reports above Tally's total are capped pro rata (channelAlloc.ts): a negative rest is never spread to other channels.
+    return spreadWithCap(total, attributed(cascade), fallbackShare);
   };
   const realCogs = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.cogs : s), 0)));
   const totCogs = realCogs.reduce((a, b) => a + b, 0);
   const cogsShareOf = (i: number) => (totCogs > 1 ? realCogs[i] / totCogs : revShareOf(i));
 
   const fulfil = spreadCost(period.channelFulfillment, 'channel_fulfilment', revShareOf);
-  const sm = spreadCost(period.salesMarketing, 'sales_marketing', revShareOf);
+  // Marketing: ad spend on the channel it was spent for (connector-attributed for live months, the published ad feeds for
+  // locked / published months); the rest of Tally's S&M only to the consumer channels, by ad spend (else revenue = 'estimated').
+  const smAtt = attributed('sales_marketing').map((a, i) => Math.max(0, a) + period.members.reduce((w, m) =>
+    (completeness[m]?.locked || completeness[m]?.published ? w + channelAdWeight(chans[i], [m]) : w), 0));
+  const cellRev = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.rev : s), 0)));
+  const smSplit = allocateMarketing(chans, period.salesMarketing, smAtt, posRev, cellRev);
+  const sm = smSplit.values;
   const plat = spreadCost(period.platformCosts, 'platform_payment', revShareOf);
 
   return chans.map((ch, i) => {
@@ -358,7 +366,7 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[]): Anchored
     return {
       channel: ch, revenue, cogm, grossMargin, channelFulfillment, cm1, salesMarketing, cm2,
       platformCosts, cm3, opex, ebitda, nonOperating, costOfFundraising, netIncome,
-      revShare, cogsShare, smShare: totPos ? sm[i] / (period.salesMarketing || 1) : 0, basis: 'tally' as const,
+      revShare, cogsShare, smShare: totPos ? sm[i] / (period.salesMarketing || 1) : 0, basis: smSplit.basis === 'estimated' ? 'estimated' as const : 'tally' as const,
     };
   });
 }
