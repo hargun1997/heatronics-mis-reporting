@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { runPlan } from '../../../data/planning/engine';
 import { basePlan, upgradePlan } from '../../../data/planning/basePlan';
 import { runRateArr } from '../../../data/planning/growth';
-import { METRIC_NAME, METRICS, buildPlanVsActual, planMonthsOf, type ActualMonth, type MetricCmp, type MetricId, type MonthCmp, type PlanMonthRow, type Status } from '../../../data/planning/planVsActual';
+import { METRIC_NAME, METRICS, buildPlanVsActual, monthsSubtitle, planMonthsOf, type ActualMonth, type MetricCmp, type MetricId, type MonthCmp, type PlanMonthRow, type Status } from '../../../data/planning/planVsActual';
 import { actualMonthsFromDeck } from '../../../data/planning/planVsActualLive';
 import { loadLiveDeck } from '../../../data/misDeck/liveDeck';
 import { SectionCard } from '../../ui/Card';
@@ -88,10 +88,10 @@ function Chart({ months, metric }: { months: MonthCmp[]; metric: MetricId }) {
           return (
             <g key={m.key}>
               <rect x={x0} width={w} y={p.y} height={Math.max(p.h, 1)} fill="#a5b4fc"><title>{m.label} plan {fmt(metric, c.plan)}</title></rect>
-              {c.actual != null ? (() => { const a = bar(c.actual); return <rect x={x0 + w + 2} width={w} y={a.y} height={Math.max(a.h, 1)} fill={st ? TONE[st].bar : '#64748b'} opacity={m.state === 'running' ? 0.55 : 1}><title>{m.label} actual {fmt(metric, c.actual)}{m.state === 'running' ? ' (month not finished)' : ''}</title></rect>; })()
+              {c.actual != null ? (() => { const a = bar(c.actual); return <rect x={x0 + w + 2} width={w} y={a.y} height={Math.max(a.h, 1)} fill={st ? TONE[st].bar : '#64748b'} opacity={m.state === 'running' || m.state === 'partial' ? 0.55 : 1}><title>{m.label} actual {fmt(metric, c.actual)}{m.state === 'running' ? ' (month not finished)' : m.state === 'partial' ? ' (books not complete, not counted)' : ''}</title></rect>; })()
                 : <text x={x0 + w + 2 + w / 2} y={y(0) - 6} textAnchor="middle" fontSize="9" fill="#94a3b8">no data</text>}
               <text x={x0 + w} y={H - 16} textAnchor="middle" fontSize="10" fill="#475569">{m.label}</text>
-              {m.state === 'running' && <text x={x0 + w} y={H - 4} textAnchor="middle" fontSize="9" fill="#94a3b8">so far</text>}
+              {(m.state === 'running' || m.state === 'partial') && <text x={x0 + w} y={H - 4} textAnchor="middle" fontSize="9" fill="#94a3b8">{m.state === 'running' ? 'so far' : 'partial'}</text>}
             </g>
           );
         })}
@@ -207,18 +207,18 @@ export function PlanVsActualView({ saved }: Props) {
 
           <Disclosure
             title="2. All months"
-            subtitle={`${r.withData} with data · ${r.noData} with no data yet${r.running ? ' · this month is not finished' : ''}`}>
+            subtitle={monthsSubtitle(r)}>
             <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-[13px] tabular-nums">
                 <thead><tr className="border-b border-slate-200 text-left text-[12px] text-slate-500"><th className="py-2 pr-3">Month</th><th className="pr-3 text-right">Plan</th><th className="pr-3 text-right">Actual</th><th className="pr-3 text-right">Gap</th><th>Status</th></tr></thead>
                 <tbody>
                   {r.months.map((m) => { const c = m.metrics.revenue; return (
                     <tr key={m.key} className="border-b border-slate-100">
-                      <td className="py-2 pr-3 font-semibold">{m.label}{m.state === 'running' ? ' (so far)' : ''}</td>
+                      <td className="py-2 pr-3 font-semibold">{m.label}{m.state === 'running' ? ' (so far)' : m.state === 'partial' ? ' (partial)' : ''}</td>
                       <td className="pr-3 text-right">{inr(c.plan)}</td>
                       <td className="pr-3 text-right">{c.actual == null ? 'No data yet' : inr(c.actual)}</td>
                       <td className="pr-3 text-right">{c.gap == null ? '–' : `${inr(c.gap, true)} (${c.gapPct == null ? '–' : (c.gapPct * 100).toFixed(1) + '%'})`}</td>
-                      <td>{m.state === 'running' ? <span className="text-[12px] font-semibold text-slate-500">Month not finished</span> : <Pill status={m.status} />}</td>
+                      <td>{m.state === 'running' ? <span className="text-[12px] font-semibold text-slate-500">Month not finished</span> : m.state === 'partial' ? <span className="text-[12px] font-semibold text-slate-500">Books not complete</span> : <Pill status={m.status} />}</td>
                     </tr>); })}
                 </tbody>
               </table>
@@ -227,7 +227,7 @@ export function PlanVsActualView({ saved }: Props) {
             <ul className="space-y-2 sm:hidden">
               {r.months.map((m) => { const c = m.metrics.revenue; return (
                 <li key={m.key} className="rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-center justify-between gap-2"><b className="text-[14px]">{m.label}</b>{m.state === 'running' ? <span className="text-[12px] font-semibold text-slate-500">Month not finished</span> : <Pill status={m.status} />}</div>
+                  <div className="flex items-center justify-between gap-2"><b className="text-[14px]">{m.label}</b>{m.state === 'running' ? <span className="text-[12px] font-semibold text-slate-500">Month not finished</span> : m.state === 'partial' ? <span className="text-[12px] font-semibold text-slate-500">Books not complete</span> : <Pill status={m.status} />}</div>
                   <div className="mt-1 grid grid-cols-2 gap-1 text-[13px] text-slate-700">
                     <span>Plan</span><span className="text-right font-semibold">{inr(c.plan)}</span>
                     <span>Actual</span><span className="text-right font-semibold">{c.actual == null ? 'No data yet' : inr(c.actual)}</span>

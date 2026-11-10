@@ -4,6 +4,7 @@
 import type { LiveDeckData } from '../misDeck/liveDeck';
 import { isReal, normaliseLiveMonths } from '../misDeck/liveViews';
 import type { ActualMonth } from './planVsActual';
+import { isCompleteMonth } from '../misDeck/misPeriods';
 
 /** One ActualMonth per deck month from `fromKey` on. A figure the month's completeness cannot give is null, not 0. */
 export function actualMonthsFromDeck(deck: Pick<LiveDeckData, 'months' | 'completeness' | 'skuCells'>, fromKey: string): ActualMonth[] {
@@ -12,11 +13,13 @@ export function actualMonthsFromDeck(deck: Pick<LiveDeckData, 'months' | 'comple
   const units = new Map<string, number>();
   for (const c of deck.skuCells) if (c.p !== 'Accessory (excl)') units.set(c.m, (units.get(c.m) ?? 0) + c.u);
   return norm.months.filter((m) => m.key >= fromKey).map((m) => {
-    const level = deck.completeness[m.key]?.level ?? 'topline';
+    const comp = deck.completeness[m.key];
+    const level = comp?.level ?? 'topline';
     const real = (row: string) => isReal(level, row);
     return {
       key: m.key,
       level,
+      complete: isCompleteMonth(comp),
       basis: skipped.has(m.key) ? 'booked' : 'normalised',
       netRevenue: real('net_revenue') ? m.netRevenue : null,
       grossMargin: real('gross_margin') ? m.grossMargin : null,

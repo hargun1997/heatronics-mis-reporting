@@ -33,7 +33,7 @@ export interface MisFormatSource {
   label: (entity: MisEntity) => string;
   title?: string;
   fileName?: string;
-  /** Write every ₹ row as a % of that column's Net Revenue (as the Live MIS "% of net revenue" view); ratio and count rows unchanged. */
+  /** Write every P&L ₹ row as a % of that column's Net Revenue (as the Live MIS "% of net revenue" view); ratio, count and cash rows (₹ Lac) unchanged. */
   percent?: boolean;
   /** The rows to write (default MIS_SHEET_ROWS; the normalised COGM basis adds its memo line). */
   rows?: MisSheetRow[];
@@ -106,11 +106,12 @@ function writeBlock(
 
   // Header row.
   put(row, 0, src.percent ? 'Particulars in % of Net Revenue' : 'Particulars in INR Lac', S.head);
-  cols.forEach((col, i) => put(row, i + 1, col.total ? 'Grand Total' : col.label, S.head));
+  const points = cols.map((col) => src.point(col.monthKeys, entity));
+  // A total whose cash rows cover only some months says which ("Grand Total (cash Oct–Nov)").
+  cols.forEach((col, i) => put(row, i + 1, col.total ? `Grand Total${points[i].cashMonths ? ` (cash ${points[i].cashMonths})` : ''}` : col.label, S.head));
   row++;
 
   // Rows.
-  const points = cols.map((col) => src.point(col.monthKeys, entity));
   for (const def of src.rows ?? MIS_SHEET_ROWS) {
     put(row, 0, def.label, def.bold ? S.labelBold : def.memo ? S.memoLabel : S.label);
     cols.forEach((col, i) => {
@@ -123,7 +124,7 @@ function writeBlock(
         const dp = def.decimals ?? 0;
         const numFmt = dp ? `#,##0.${'0'.repeat(dp)}` : '#,##0';
         put(row, i + 1, Math.round(raw * 10 ** dp) / 10 ** dp, col.total ? { ...S.total, numFmt } : { ...S.num, numFmt });
-      } else if (src.percent) {
+      } else if (src.percent && !def.cash) {
         const nr = points[i].netRevenue;
         if (!nr) put(row, i + 1, '', S.label);
         else put(row, i + 1, round2((raw / nr) * 1000) / 1000, col.total ? { ...S.total, numFmt: '0.0%' } : def.bold ? { ...S.pct, font: { bold: true, sz: 10 } } : S.pct);

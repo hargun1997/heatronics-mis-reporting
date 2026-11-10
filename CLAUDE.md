@@ -326,6 +326,15 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   (`buildLiveMisContext`; fiscal years summed from the deck by `fySummaryOf`); the stale `FY_SUMMARY` / `buildMisContext` are no longer
   read. (5) A published month replaced by a full Tally close carries `completeness.vsPublished` (₹ change): chip `PublishedGapChip` in
   the Live MIS status strip + a low Fix item `published:<month>` when net revenue or net profit moved ≥ ₹10,000.
+- **MIS sheet + periods (10 Nov 2026, audit round 7 #4–#6 #12–#14 / round 10 #4; pure `data/misDeck/misPeriods.ts`, tests
+  `server/test/misSheetPeriods.test.ts`):** Payroll / Professional fee / Other income are split out of OpEx for legacy months too
+  (`opexSplit`: Payroll…, Salar…, Professional Fees, Legal & CA…, Other Income…; no matching line = blank, never 0; FY23-24–FY25-26 ₹116.22 L
+  payroll + ₹22.80 L fees were in Other Expense). A period's EBITDA Burn = max(0, −Σ EBITDA) (FY25-26 was 33.97 L, now 0.97 L) and is gated;
+  payroll / prof fee / other income are blank in a total whose Other Expense is, the stock memo in one whose COGS is. Range presets and the Excel Summary end on the newest
+  COMPLETE month (`anchorMonth` / `isCompleteMonth`: closed, published, or a full close of a finished month), not the running / half-booked
+  newest; "YTD" = Indian FY to date, labelled "FY26-27 to date"; the Summary names the newest month separately. Cash rows (`MisSheetRow.cash`)
+  stay ₹ Lac in the % view / % export. FY cash = the months with a stored cash flow (`cashOverMonths`), named in the total header ("cash
+  Oct–Nov"). The unused `FY_SUMMARY` was deleted.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
@@ -514,7 +523,8 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   assumptions / risks / themes & milestones / team text. Tested against the sheet (Exit ARR, equity 12M/18M, deployment by theme).
 - **Plan vs actual (Planning → "Plan vs actual", 9 Nov 2026):** the Base (or a saved) plan is the budget, Live MIS months are the actuals.
   Pure `client/src/data/planning/planVsActual.ts` (byte-identical copy `server/src/planning/planVsActual.ts`, test-checked): per month plan, actual,
-  gap ₹ / %, status (within 5% = on track / behind / ahead), no data = null never 0, the running month shown but not counted, year to date, exit
+  gap ₹ / %, status (within 5% = on track / behind / ahead), no data = null never 0, the running month AND a finished month whose books
+  are not complete (`ActualMonth.complete` = `isCompleteMonth`, else level full; state `partial`, 10 Nov 2026) shown but not counted, year to date, exit
   ARR pace (last 3 closed months × 4 vs plan, gap carried to FY end), behind list. Deck side `planVsActualLive.ts` (normalised basis; units from
   SkuCells). View `components/planning/outputs/PlanVsActual.tsx`. Server: `GET /api/planning/vs-actual?scenario=` (MCP `mis_get_plan_vs_actual`);
   Base plan months = generated `server/src/planning/basePlanMonths.ts` (`node --import tsx scripts/export-base-plan-months.ts`; test fails when stale);

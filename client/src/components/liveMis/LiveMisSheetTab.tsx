@@ -13,7 +13,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { SegmentedControl } from '../ui';
 import { useStatements } from './useStatements';
-import { misCashRows } from '../../data/statements/statements';
 import { MIS_SHEET_ROWS, MIS_SHEET_ROWS_NORMALISED, type MisEntity, type MisPoint } from '../../data/misDeck/misSheet';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import type { MonthlyMIS } from '../../data/misDeck/misDeckData';
@@ -58,25 +57,22 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
   const fy = fys[Math.min(fyIdx ?? defaultFy, fys.length - 1)];
   // Cash rows (opening / closing cash, equity raised, burn, runway) from Tally's month-end balance sheets (company only).
   const flows = stmts.built?.flows ?? [];
-  const withCash = (keys: string[], point: MisPoint): MisPoint => {
-    if (entity !== 'company') return point;
-    const rows = keys.map((k) => misCashRows(flows, k));
-    if (rows.some((r) => !r)) return point;
-    const rs = rows as NonNullable<(typeof rows)[number]>[];
-    return { ...point, openingCash: rs[0].openingCash, closingCash: rs[rs.length - 1].closingCash, funding: rs.reduce((a, r) => a + r.funding, 0), cashBurn: rs.reduce((a, r) => a + r.cashBurn, 0), runway: rs[rs.length - 1].runway };
-  };
+  const cashSrc = misSourceWithCash(src, flows);
+  const fyKeys = fy.months.map((m) => m.key);
+  const total = cashSrc.point(fyKeys, entity);
   const columns = [
-    ...fy.months.map((m) => ({ label: m.label, point: withCash([m.key], src.point([m.key], entity)) })),
-    { label: `${fy.name} Total`, point: withCash(fy.months.map((m) => m.key), src.point(fy.months.map((m) => m.key), entity)) },
+    ...fy.months.map((m) => ({ label: m.label, point: cashSrc.point([m.key], entity) })),
+    // Cash rows over the months that have them, named in the header ("cash Oct–Nov") when not every month does.
+    { label: `${fy.name} Total${total.cashMonths ? ` (cash ${total.cashMonths})` : ''}`, point: total },
   ];
   const entities: { id: MisEntity; label: string }[] = [{ id: 'company', label: 'Company (All)' }, ...src.channels.map((c) => ({ id: c, label: chName(c) }))];
   const pct = show === 'pct';
-  // % view: every ₹ row ÷ that column's Net Revenue; ratio rows and counts stay as they are.
+  // % view: every P&L ₹ row ÷ that column's Net Revenue; ratio rows, counts and cash rows (₹ Lac) stay as they are.
   const cellText = (row: (typeof rows)[number], point: MisPoint) => {
     const raw = row.get(point);
     if (row.pct) return fmtPct(raw);
     if (row.count) return fmtCount(raw, row.decimals);
-    if (!pct) return fmtLac(raw);
+    if (!pct || row.cash) return fmtLac(raw);
     const nr = point.netRevenue;
     return raw === null || !nr ? '–' : fmtPct(raw / nr);
   };
@@ -166,11 +162,13 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
       </div>
       <CogmBasisNote />
       <Note>
-        {pct ? 'Every ₹ line is shown as a % of that column’s Net Revenue; ratio rows (GM%, CM1% …) and counts (Qty, Runway) are unchanged. ' : 'Costs positive, margins signed. '}
+        {pct ? 'Every P&L ₹ line is shown as a % of that column’s Net Revenue; ratio rows (GM%, CM1% …), counts (Qty, Runway) and the cash rows (cash, funding, burn: ₹ Lac) are unchanged. ' : 'Costs positive, margins signed. '}
         {normalised ? 'Stock build / drawdown is a signed memo line (material only: positive = Tally charged more material than was sold; factory, manufacturing and inward freight stay in COGM), outside the cascade: EBITDA + Σ memo = EBITDA as booked. ' : ''}
         Cash rows (company only) come from Tally’s month-end Balance Sheets: burn = opening + equity raised − closing, runway =
-        closing cash ÷ (3 × the last 3 months’ average burn), in quarters; blank until both month ends are stored (FY total: every
-        month). Other blank rows aren’t tracked (Channel Margin, SS Claim, Payroll / Professional Fee split) or aren’t real yet
+        closing cash ÷ (3 × the last 3 months’ average burn), in quarters; blank until both month ends are stored (FY total: the months
+        that have them, named in the column header). EBITDA Burn for a total = the period’s EBITDA loss (0 when it made a profit),
+        not the sum of its loss months. Payroll = payroll and salary ledgers, Professional Fee = professional fees and Legal &amp; CA;
+        blank when the month has no such line. Other blank rows aren’t tracked (Channel Margin, SS Claim) or aren’t real yet
         for that month (below its completeness level). Gross revenue, returns and GST come from the months whose source carries
         them (the published MIS); live-built months leave them blank. Qty = actual connector orders where every month reports
         them, else estimated (net revenue ÷ AOV). Channel columns use the MIS-anchored split; Brand Investment = Platform &amp;
