@@ -7,7 +7,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { StatusPill } from '../../components/ui/StatusPill';
-import { buildMisContext } from '../../data/chat/misContext';
+import { buildLiveMisContext } from '../../data/chat/misContext';
+import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { chatStatus, sendChat, type ChatMessage } from '../../data/chat/chatClient';
 
 const iconChat = (
@@ -26,7 +27,10 @@ const SUGGESTIONS = [
 ];
 
 export function MisChatPage() {
-  const { context, throughLabel } = useMemo(() => buildMisContext(), []);
+  // The same deck the Live MIS page shows (published history until it has loaded).
+  const [deck, setDeck] = useState<LiveDeckData | null>(null);
+  useEffect(() => { loadLiveDeck().then(setDeck).catch(() => setDeck(null)); }, []);
+  const { context, throughLabel } = useMemo(() => buildLiveMisContext(deck), [deck]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);

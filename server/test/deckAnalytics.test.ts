@@ -3,11 +3,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  fiscalYear, fiscalQuarter, shortMonth, reclassifyEarlyAmazon, monthlySeries, quarterlySeries, yearlySeries, seriesFor,
+  fiscalYear, fiscalQuarter, shortMonth, monthlySeries, quarterlySeries, yearlySeries, seriesFor,
   periodGrowth, yoyGrowth, cagr, pct, marginsOf, channelMix, channelHHI, topChannel, channelsAbove,
   type PeriodMIS,
 } from '../../client/src/data/misDeck/analytics.ts';
-import { MONTHLY_MIS, SALES_CHANNELS, type MonthlyMIS } from '../../client/src/data/misDeck/misDeckData.ts';
+import { MONTHLY_MIS, SALES_CHANNELS } from '../../client/src/data/misDeck/misDeckData.ts';
 import * as source from '../../client/src/utils/liveMisSource.ts';
 import * as exportMod from '../../client/src/utils/liveMisExport.ts';
 
@@ -40,18 +40,16 @@ test('quarters and FYs foot to the months (every P&L line, every channel)', () =
   for (const p of yearlySeries()) near(p.nonOpOther, p.nonOperating - p.costOfFundraising);
 });
 
-test('pre-Oct-2024 Amazon revenue is OEM; later months untouched', () => {
-  const base = MONTHLY_MIS[0];
-  const early: MonthlyMIS = { ...base, year: 2024, month: 9, netByChannel: { ...base.netByChannel, Amazon: 100, OEM: 50 }, grossByChannel: { Amazon: 120 }, returnsByChannel: {} };
-  const moved = reclassifyEarlyAmazon(early);
-  assert.equal(moved.netByChannel.Amazon, 0);
-  assert.equal(moved.netByChannel.OEM, 150);
-  assert.equal(moved.grossByChannel.OEM, 120);
-  assert.equal(moved.netRevenue, early.netRevenue);
-  const late = { ...early, month: 10 };
-  assert.equal(reclassifyEarlyAmazon(late), late);
-  // the static history carries no Amazon revenue before launch
-  for (const p of monthlySeries()) if (p.sortKey < 202410) assert.equal(p.netByChannel.Amazon, 0, p.key);
+test('Amazon stays Amazon before Oct 2024 (founder, 10 Nov 2026): no month is moved to OEM', () => {
+  for (const p of monthlySeries()) if (p.sortKey < 202410) assert.ok(p.netByChannel.Amazon > 0, p.key);
+  const raw = MONTHLY_MIS.filter((m) => m.key < '2024-10');
+  assert.equal(raw.length, 10);
+  // every channel keeps its own share of the month: the series is the workbook's split, on the ex-GST basis
+  for (const m of raw) {
+    const p = monthlySeries().find((x) => x.key === m.key)!;
+    const tot = SALES_CHANNELS.reduce((s, c) => s + (m.netByChannel[c] ?? 0), 0);
+    near(p.netByChannel.Amazon / p.netRevenue, (m.netByChannel.Amazon ?? 0) / tot, 1e-4);
+  }
 });
 
 test('growth, CAGR, margins, mix', () => {

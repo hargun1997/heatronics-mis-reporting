@@ -1,7 +1,8 @@
 // AUTO-GENERATED monthly SKU x Channel P&L cells. Do not edit by hand.
 // Amazon per-SKU monthly (net proceeds)+Jun-25 patch; Shopify per-product (D2C); Blinkit settlement
 // (hCore X Lite); Offline (hCore X Lite) & OEM (OEM Heating Pad) from the model + Jul-2026 sales.
-// Pre-Oct-24 Amazon revenue reclassified to OEM. Value-channel COGS = rev x (unit cost / ASP):
+// Pre-Oct-24 Amazon revenue sits inside the OEM model cell HERE; publishedBasis.recutAmazonCells cuts it back out
+// as its own Amazon cell at read time (founder, 10 Nov 2026: Amazon is shown as Amazon). Value-channel COGS = rev x (unit cost / ASP):
 // Blinkit ₹222 unit (settlement ASP); Offline ₹222 unit @ ₹550 ASP (40.4%); OEM ₹220 unit @ ₹325 ASP
 // (67.7%). con = rev - cogs - oth (factory added at view time).
 

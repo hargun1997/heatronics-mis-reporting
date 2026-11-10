@@ -1,6 +1,6 @@
 // AUTO-GENERATED from channel settlement & ad-spend uploads. Do not edit by hand.
 // Sources: Blinkit seller settlement summary; Amazon Payments monthly summary (+ Jun-25 SKU
-// report patch; Oct-24 launch month excluded — itemised fees not captured); Meta & Google Ads
+// report patch; Oct-24 excluded — itemised fees not captured); Meta & Google Ads
 // net cost; Shiprocket freight/COD/VAS invoices; Shopflo checkout billing; payment-gateway
 // settlement charges. All values in INR. This feed powers the "Channel P&L (Actuals)" tab only;
 // the rest of the MIS deck is unaffected.

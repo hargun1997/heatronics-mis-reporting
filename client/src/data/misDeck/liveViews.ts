@@ -228,6 +228,7 @@ export function unifyChannels(deck: LiveDeckData): LiveDeckData {
     rawNetByChannel: m.rawNetByChannel ?? m.netByChannel,
     netByChannel: uniRec(m.netByChannel),
     grossByChannel: uniRec(m.grossByChannel),
+    ...(m.gmvByChannel ? { gmvByChannel: uniRec(m.gmvByChannel) } : {}),
     returnsByChannel: uniRec(m.returnsByChannel),
     ordersByChannel: m.ordersByChannel ? uniRec(m.ordersByChannel) : undefined,
     tallyLines: mapLines(m.tallyLines),
@@ -461,10 +462,14 @@ export interface LiveLfL {
 /** The selected period vs the same calendar months one year earlier. */
 export function liveLikeForLike(period: PeriodAgg, months: MonthlyMIS[]): LiveLfL {
   const byKey = new Map(months.map((m) => [m.key, m]));
-  const cur = period.members.map((k) => byKey.get(k)).filter((m): m is MonthlyMIS => !!m);
-  const prior = cur
-    .map((m) => byKey.get(`${m.year - 1}-${String(m.month).padStart(2, '0')}`))
-    .filter((m): m is MonthlyMIS => !!m);
+  const all = period.members.map((k) => byKey.get(k)).filter((m): m is MonthlyMIS => !!m);
+  // Like for like: only the months that HAVE the same month a year earlier are summed on both sides
+  // (a 12-month year against a 4-month one is not growth). `priorComplete` says when months were left out.
+  const pairs = all
+    .map((m) => ({ m, p: byKey.get(`${m.year - 1}-${String(m.month).padStart(2, '0')}`) }))
+    .filter((x): x is { m: MonthlyMIS; p: MonthlyMIS } => !!x.p);
+  const cur = pairs.length ? pairs.map((x) => x.m) : all;
+  const prior = pairs.map((x) => x.p);
   const scope = (ms: MonthlyMIS[]) => (!ms.length ? '—' : ms.length > 1 ? `${shortKey(ms[0].key)}–${shortKey(ms[ms.length - 1].key)}` : shortKey(ms[0].key));
   const sumCh = (ms: MonthlyMIS[], ch: SalesChannel) => ms.reduce((s, m) => s + (m.netByChannel[ch] ?? 0), 0);
   const curRevenue = cur.reduce((s, m) => s + m.netRevenue, 0);
@@ -477,7 +482,7 @@ export function liveLikeForLike(period: PeriodAgg, months: MonthlyMIS[]): LiveLf
     })
     .filter((r) => r.prior !== 0 || r.cur !== 0);
   return {
-    curScope: scope(cur), priorScope: scope(prior), priorComplete: prior.length === cur.length,
+    curScope: scope(cur), priorScope: scope(prior), priorComplete: prior.length === all.length,
     curRevenue, priorRevenue,
     revenueGrowth: priorRevenue > 0 ? (curRevenue - priorRevenue) / priorRevenue : null,
     rows,

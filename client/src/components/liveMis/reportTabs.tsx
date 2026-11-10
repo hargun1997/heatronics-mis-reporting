@@ -287,7 +287,7 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
         </ul>
       </Fold>
       <Fold id="cm-lfl" title={`Channel growth · like-for-like ${gran === 'year' ? 'FY-to-date' : gran}`}
-        meta={`${lfl.curScope} vs ${lfl.priorScope} — same calendar months a year earlier${lfl.priorComplete ? '' : ' (prior frame partly unavailable)'}`}>
+        meta={`${lfl.curScope} vs ${lfl.priorScope} — same calendar months a year earlier${lfl.priorComplete ? '' : ' (only months that have a prior-year month are compared)'}`}>
         <p className="mb-2 text-sm text-slate-600">Total net revenue {inr(lfl.curRevenue)} vs {inr(lfl.priorRevenue)} · <Delta value={lfl.revenueGrowth} /></p>
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
