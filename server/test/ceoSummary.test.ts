@@ -62,14 +62,14 @@ test('balances are read without masters too (a sub-group row followed by its led
 test('sales and purchases exclude Stock Transfers (round 7 #1): GM ₹ unchanged', () => {
   const r = ceoSummary([
     { period: '2026-04', tb: tb(100, 40, 1000, 0, 60), pnl: null },
-    { period: '2026-05', tb: tb(250, 90, 1000, 0, 93), pnl: null },
+    { period: '2026-05', tb: tb(250, 90, 1000, 0, 90), pnl: null },
   ], 13, { parents });
   const [apr, may] = r.months;
   assert.equal(apr.sales, 100);         // not 160
   assert.equal(apr.purchases, 10);      // 70 − 60
   assert.equal(apr.stockTransfers, 60);
-  assert.equal(may.sales, 150);         // 250 − 100, not 183
-  assert.equal(may.stockTransfers, 33);
+  assert.equal(may.sales, 150);         // 250 − 100, not 180
+  assert.equal(may.stockTransfers, 30);
   assert.equal((apr.sales ?? 0) - (apr.purchases ?? 0), 160 - 70); // margin as booked
   assert.ok(r.notes.some((n) => /Stock Transfers/.test(n)));
 });

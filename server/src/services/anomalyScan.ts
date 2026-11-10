@@ -170,8 +170,8 @@ export function scanIssues(reports: ExtractedReport[]): AnomalyScanResult {
     }
   }
 
-  // Rule 2b — a cost ledger spiked: ≥ 3× the median of the 3 months before it and ≥ ₹1 lakh more (round 10 D: Admin &
-  // General May 34.34 L was 48× April and not flagged). Sales, stock, purchases, group and total rows are left out.
+  // Rule 2b — a cost ledger spiked: ≥ 3× the median of the 3 months before it and ≥ ₹1 lakh more (round 10 D: a one-month
+  // jump of dozens of times went unflagged). Sales, stock, purchases, group and total rows are left out.
   for (let i = 3; i < months.length; i += 1) {
     const cur = ledgerByMonth.get(months[i]);
     const before = [1, 2, 3].map((k) => ledgerByMonth.get(months[i - k]));

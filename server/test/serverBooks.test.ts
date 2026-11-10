@@ -28,7 +28,7 @@ const parents: Record<string, string> = {
 };
 interface S { cap: number; term: number; dir: number; od: number; cred: number; gst: number; bank: number; debt: number; fa: number; sales: number; st: number; purch: number; ind: number; fin: number; open: number }
 function book(o: Partial<S> & { bank: number }) {
-  const s: S = { cap: 500 * L, term: 20 * L, dir: 20 * L, od: 10 * L, cred: 30 * L, gst: -5 * L, debt: 40 * L, fa: 25 * L, sales: 0, st: 0, purch: 0, ind: 0, fin: 0, open: 117 * L, ...o };
+  const s: S = { cap: 500 * L, term: 20 * L, dir: 20 * L, od: 10 * L, cred: 30 * L, gst: -5 * L, debt: 40 * L, fa: 25 * L, sales: 0, st: 0, purch: 0, ind: 0, fin: 0, open: 80 * L, ...o };
   const pl = (s.fa + s.bank + s.debt + s.open + s.purch + s.st + s.ind + s.fin) - (s.cap + s.term + s.dir + s.od + s.cred + s.gst + s.sales + s.st);
   const rows: TbRow[] = [
     g('Capital Account', -s.cap), l('Share Capital', -s.cap),
@@ -44,9 +44,9 @@ function book(o: Partial<S> & { bank: number }) {
   ];
   return { rows, difference: 0, basis: 'fy-to-date' };
 }
-const pnl = (np: number, sales: number) => ({ nettProfit: np, ledgerRows: [{ name: 'D2C Sales', amount: sales }, { name: 'Closing Stock', amount: 148 * L }, { name: 'Salaries', amount: 10 * L }] });
-const sep = book({ bank: 30 * L, sales: 298 * L, st: 93 * L, purch: 142 * L, ind: 170 * L, fin: 3 * L });
-const oct = book({ bank: 22 * L, od: 30 * L, debt: 48 * L, sales: 306 * L, st: 93 * L, purch: 142 * L, ind: 198 * L, fin: 3 * L });
+const pnl = (np: number, sales: number) => ({ nettProfit: np, ledgerRows: [{ name: 'D2C Sales', amount: sales }, { name: 'Closing Stock', amount: 90 * L }, { name: 'Salaries', amount: 10 * L }] });
+const sep = book({ bank: 30 * L, sales: 200 * L, st: 50 * L, purch: 100 * L, ind: 120 * L, fin: 3 * L });
+const oct = book({ bank: 22 * L, od: 30 * L, debt: 48 * L, sales: 206 * L, st: 50 * L, purch: 100 * L, ind: 148 * L, fin: 3 * L });
 
 test('tbRows: leaves skip a sub-group listed with its ledgers, with or without masters', () => {
   const names = (rs: TbRow[]) => rs.map((r) => r.name);
@@ -58,18 +58,18 @@ test('tbRows: leaves skip a sub-group listed with its ledgers, with or without m
   }
   assert.equal(subTotal(sep.rows, /^sundry debtors$/i, parents), 40 * L);
   assert.equal(subTotal([g('Current Assets', 9), l('Cust A', 4), l('Cust B', 5)], /^sundry debtors$/i, { 'Cust A': 'Sundry Debtors', 'Cust B': 'Sundry Debtors', 'Sundry Debtors': 'Current Assets' }), 9);
-  assert.equal(stockTransfers(sep.rows, parents), 93 * L);
+  assert.equal(stockTransfers(sep.rows, parents), 50 * L);
   const sp = salesPurchases(sep.rows, parents);
-  assert.equal(sp.sales, 298 * L);
-  assert.equal(sp.purchases, 142 * L);
+  assert.equal(sp.sales, 200 * L);
+  assert.equal(sp.purchases, 100 * L);
 });
 
 test('FY block: sales = channel ledgers (no Stock Transfers), GM ₹ unchanged, finance cost leaf only (round 7 #1, #9)', () => {
   const fy = fyOut([{ period: '2026-09', tb: sep, pnl: pnl(0, 0) }] as V2MonthIn[], parents)!.current!;
-  assert.equal(fy.sales, 298 * L);          // was 391 L
+  assert.equal(fy.sales, 200 * L);          // was 250 L
   assert.equal(fy.financeCost, 3 * L);      // was 6 L
-  // GM ₹ = sales − (purchases + opening − closing) with both legs of the transfer out: 298 − (142 + 117 − 148) = 187 L
-  assert.equal(fy.grossMargin, 187 * L);
+  // GM ₹ = sales − (purchases + opening − closing) with both legs of the transfer out: 200 − (100 + 80 − 90) = 110 L
+  assert.equal(fy.grossMargin, 110 * L);
 });
 
 test('v1 summary: balances from the Balance Sheet builder, loans counted once (round 7 #3, #7)', () => {
@@ -85,7 +85,7 @@ test('v1 summary: balances from the Balance Sheet builder, loans counted once (r
   assert.equal(o.debtors, 48 * L);
   assert.equal(o.creditors, 30 * L);
   assert.equal(o.loans, 70 * L);   // term 20 + director 20 + OD 30
-  assert.equal(o.sales, 8 * L);
+  assert.equal(o.sales, 6 * L);
   assert.equal(o.complete, true);
   const v2 = ceoSummaryV2({ today: '2026-11-10', months, parents });
   assert.equal(v2.balance?.loans, 70 * L); // was 110 L (sub-groups added again)
@@ -140,16 +140,16 @@ test('Tally poll: an empty answer never overwrites a copy; TB backfill only for 
 });
 
 test('two P&L copies: the newer one is read, a Fix item names a gap over ₹1,000 (round 7 #10)', () => {
-  const snap = { nettProfit: -898_780, ledgerRows: [{ name: 'D2C Sales', amount: 1 }], at: '2026-11-02T06:00:00Z' };
-  const comm = committedCopy({ ledgerRows: [{ name: 'D2C Sales', amount: 1 }], nettProfit: -751_429 }, '2026-10-12T06:00:00Z')!;
+  const snap = { nettProfit: -500_000, ledgerRows: [{ name: 'D2C Sales', amount: 1 }], at: '2026-11-02T06:00:00Z' };
+  const comm = committedCopy({ ledgerRows: [{ name: 'D2C Sales', amount: 1 }], nettProfit: -380_000 }, '2026-10-12T06:00:00Z')!;
   assert.equal(pickPnlCopy(snap, comm).source, 'snapshot');
   assert.equal(pickPnlCopy({ ...snap, at: '2026-10-01T00:00:00Z' }, comm).source, 'committed');
   assert.equal(pickPnlCopy(null, comm).source, 'committed');
   const gaps = pnlCopyGaps([{ period: '2026-08', snapshot: snap, committed: comm }, { period: '2026-09', snapshot: { ...snap, nettProfit: 100 }, committed: { ...comm, nettProfit: 600 } }]);
-  assert.deepEqual(gaps.map((x) => [x.period, x.gap]), [['2026-08', -147_351]]);
+  assert.deepEqual(gaps.map((x) => [x.period, x.gap]), [['2026-08', -120_000]]);
   const items = serverItems({ today: '2026-11-10', health: null, chart: null, tb: null, tally: null, committed: new Set(), everUsed: new Set(), anomalies: [], pnlGaps: gaps });
   const it = items.find((i) => i.id === 'pnl-copies:2026-08')!;
-  assert.match(it.title, /₹1,47,351/);
+  assert.match(it.title, /₹1,20,000/);
 });
 
 test('cost buckets: Sales & Marketing is marketing, group rows not counted twice, After-Sales is a cost (round 10 A1–A3, A7)', () => {
@@ -184,7 +184,7 @@ test('anomaly scan: cost spike, negative sales ledger, sales ledger wording; run
     rep('2026-04', [['Admin & General Expenses', 70_000], ['D2C Sales', 500_000]]),
     rep('2026-05', [['Admin & General Expenses', 72_000], ['D2C Sales', 500_000]]),
     rep('2026-06', [['Admin & General Expenses', 71_000], ['D2C Sales', 500_000], ['GT Sales', 80_000]]),
-    rep('2026-07', [['Admin & General Expenses', 3_434_000], ['D2C Sales', -40_000]]),
+    rep('2026-07', [['Admin & General Expenses', 2_500_000], ['D2C Sales', -40_000]]),
   ]);
   const titles = r.issues.map((i) => i.title);
   assert.ok(titles.some((t) => /Admin & General Expenses" jumped/.test(t)));
