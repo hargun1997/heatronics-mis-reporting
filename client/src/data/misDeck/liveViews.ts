@@ -37,6 +37,7 @@ import type { MisEntity, MisPoint } from './misSheet';
 import { channelNoData } from './monthCompleteness';
 import type { TallyBucketLine } from '../monthClose/schema';
 import { allocateMarketing, spreadWithCap } from './channelAlloc';
+import { cogmShares, modelledRevenue, sumChannelRows } from './skuLayer';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -299,6 +300,8 @@ export function anchoredChannelPnl(
   // Where Tally exists for the period, the channel's own ledgers carry the figures: revenue = Tally's channel sales,
   // and each cost line = what the connectors attribute to the channel (tallyLines.byChannel) plus its revenue-share of
   // the unattributed remainder, so every line still foots to Tally. Without Tally it stays the order-share split.
+  // A multi-month period is the sum of its months, so a quarter / year equals its months added up (R6 B6-6).
+  if (period.memberAggs && period.memberAggs.length > 1) return sumChannelRows(period.memberAggs.map((m) => anchoredChannelPnl(m, cells, completeness)), SALES_CHANNELS);
   if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells, completeness);
 
   const keys = new Set(period.members);
@@ -318,9 +321,11 @@ export function anchoredChannelPnl(
   // Marketing follows ad spend; with no ad spend it goes to the consumer channels only (never B2B / GT by revenue).
   const smSplit = allocateMarketing(chans, period.salesMarketing, adWeight.map((w) => Math.max(0, w)), realRev).values;
 
+  // Without Tally the channel revenue IS its cells' revenue, so every channel here has cells (cogmShares only drops ₹0 sales).
+  const cogsShares = cogmShares(realRev, realCogs, chans.map(() => true), (i) => realRev[i]);
   return chans.map((ch, i) => {
     const revShare = realRev[i] / totRev;
-    const cogsShare = totCogs > 1 ? realCogs[i] / totCogs : revShare;
+    const cogsShare = totCogs > 1 ? cogsShares[i] : revShare;
     const smShare = period.salesMarketing ? smSplit[i] / period.salesMarketing : 0;
     const revenue = period.netRevenue * revShare;
     const cogm = period.cogm * cogsShare;
@@ -363,7 +368,9 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[], completen
   };
   const realCogs = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.cogs : s), 0)));
   const totCogs = realCogs.reduce((a, b) => a + b, 0);
-  const cogsShareOf = (i: number) => (totCogs > 1 ? realCogs[i] / totCogs : revShareOf(i));
+  // Sales but no cells = company COGM rate, ₹0 / negative sales = no COGM (R6 B6-7: no 100 % GM, no COGS on no sales).
+  const shares = cogmShares(rev, realCogs, chans.map((ch) => sel.some((c) => c.ch === ch)), revShareOf);
+  const cogsShareOf = (i: number) => (totCogs > 1 ? shares[i] : revShareOf(i));
 
   const fulfil = spreadCost(period.channelFulfillment, 'channel_fulfilment', revShareOf);
   // Marketing: ad spend on the channel it was spent for (connector-attributed for live months, the published ad feeds for
@@ -469,8 +476,10 @@ export function liveSkuChannelMatrix(cells: SkuCell[], keys: Set<string>): LiveM
   const byP = new Map<string, RawM>();
   const byC = new Map<SalesChannel, RawM>();
   let grand = { ...ZERO_M };
+  const modelled = new Map<string, number>();
   for (const c of cells) {
     if (!keys.has(c.m)) continue;
+    if (c.modelled) modelled.set(c.p, (modelled.get(c.p) ?? 0) + modelledRevenue(c));
     const k = `${c.p}||${c.ch}`;
     byCell.set(k, addM(byCell.get(k) ?? ZERO_M, c));
     byP.set(c.p, addM(byP.get(c.p) ?? ZERO_M, c));
@@ -480,7 +489,9 @@ export function liveSkuChannelMatrix(cells: SkuCell[], keys: Set<string>): LiveM
   const products = [...byP.keys()].sort((a, b) => {
     const ax = a.startsWith('Accessory') ? 1 : 0, bx = b.startsWith('Accessory') ? 1 : 0;
     if (ax !== bx) return ax - bx;
-    return (byP.get(b)?.rev ?? 0) - (byP.get(a)?.rev ?? 0);
+    // by measured revenue: a modelled product never outranks a counted one (R6 B6-5)
+    const meas = (p: string) => (byP.get(p)?.rev ?? 0) - (modelled.get(p) ?? 0);
+    return meas(b) - meas(a) || (byP.get(b)?.rev ?? 0) - (byP.get(a)?.rev ?? 0);
   });
   return {
     products,

@@ -651,12 +651,14 @@ function parseMetaAds(wb: XLSX.WorkBook): ParseOutput {
 
   const totalLeaf = [...perMonth.values()].reduce((s, pm) => s + pm.leaf, 0);
   const overallResidual = grandTotal != null ? r2(grandTotal - totalLeaf) : 0;
+  // Product rows above the account total (Meta counts some spend under several products): scaled down so the total holds (R8 C10).
+  const leafScale = grandTotal != null && grandTotal > 0 && totalLeaf > grandTotal ? grandTotal / totalLeaf : 1;
   const facts: DailyFact[] = [];
   for (const [mo, pm] of perMonth) {
     const date = `${mo}-01`;
     for (const [id, { name, spend }] of pm.bySku) {
       if (spend === 0) continue;
-      facts.push({ source: 'meta', channel: 'D2C', date, sku: id, skuName: name, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend) });
+      facts.push({ source: 'meta', channel: 'D2C', date, sku: id, skuName: name, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend * leafScale) });
     }
     // This month's share of the unattributed residual (pro-rata by leaf spend).
     const share = totalLeaf > 0 ? r2(overallResidual * (pm.leaf / totalLeaf)) : 0;
@@ -673,8 +675,9 @@ function parseMetaAds(wb: XLSX.WorkBook): ParseOutput {
       ? `Grand total ₹${inr(grandTotal)} → residual ₹${inr(overallResidual)} unattributed, split across months pro-rata`
       : 'No grand-total row — total is the sum of product rows',
     `Total Meta ad spend ₹${inr(total)}`,
+    ...(leafScale < 1 ? [`Product rows (₹${inr(totalLeaf)}) exceed the account total (₹${inr(grandTotal ?? 0)}) — scaled down to it`] : []),
   ];
-  return { facts, warning: facts.length === 0 ? 'No Meta ad spend rows found.' : undefined, trace };
+  return { facts, warning: facts.length === 0 ? 'No Meta ad spend rows found.' : leafScale < 1 ? `Meta product rows were above the account total by ₹${inr(totalLeaf - (grandTotal ?? 0))}; scaled down to the total.` : undefined, trace };
 }
 
 // ---- Blinkit payout → per-SKU Blinkit revenue & fees ------------------------

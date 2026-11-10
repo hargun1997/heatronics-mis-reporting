@@ -13,6 +13,7 @@ import {
 } from '../mis-deck/charts';
 import { inr, pctStr, SERIES_COLORS } from '../mis-deck/format';
 import type { SkuCell } from '../../data/misDeck/skuChannelPnl';
+import { estimatedUnits, NOT_MAPPED } from '../../data/misDeck/skuLayer';
 import type { MonthlyMIS, SalesChannel } from '../../data/misDeck/misDeckData';
 import { SALES_CHANNELS, VERTICALS } from '../../data/misDeck/misDeckData';
 import type { CompletenessLevel, PeriodCompleteness, TrafficRow } from '../../data/misDeck/liveDeck';
@@ -765,12 +766,24 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
 // ============================================================================
 
 export function SkuTab({ period, cells, periodKeys }: { period: PeriodAgg; cells: SkuCell[]; periodKeys: Set<string> }) {
-  const slice = useMemo(() => slicePnl(period, cells, periodKeys, 'sku'), [period, cells, periodKeys]);
+  const slice = useMemo(() => {
+    const s = slicePnl(period, cells, periodKeys, 'sku');
+    // a product whose revenue is mostly a model (workbook OEM / Offline / Blinkit) says so in its column title
+    return { ...s, columns: s.columns.map((c) => ((c.modelledRev ?? 0) > 0.5 * c.rev && c.rev > 0 ? { ...c, label: `${c.label} (modelled)` } : c)) };
+  }, [period, cells, periodKeys]);
+  const modelled = slice.columns.reduce((t, c) => t + (c.modelledRev ?? 0), 0);
+  const notMapped = slice.columns.find((c) => c.key === NOT_MAPPED);
   return (
     <div className="space-y-3">
       <div className="flex justify-end"><LevelBadge level={period.level} published={period.published} /></div>
       <FullPnlTable slice={slice} firstCol="Line" level={period.level} pctHeader />
       <BasisNote slice={slice} dim="SKU" hasTally={period.hasTally} />
+      {(modelled > 0 || notMapped) && (
+        <Note>
+          {modelled > 0 && <>{inr(modelled)} of sales here is modelled (OEM, Offline and Blinkit in the old workbook: product and units assumed from the channel total), so products are ranked by measured sales. </>}
+          {notMapped && <>“{NOT_MAPPED}” = {inr(notMapped.rev)} of sales whose SKU no product map knows yet (no cost): map it on the Products gaps list.</>}
+        </Note>
+      )}
     </div>
   );
 }
@@ -912,9 +925,10 @@ function SkuMatrix({ period, cells, periodKeys }: { period: PeriodAgg; cells: Sk
 
 export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; cells: SkuCell[]; periodKeys: Set<string> }) {
   const { chName } = useLiveView();
-  const { products, channels, units, rowTotal, colTotal, grand } = useMemo(() => {
+  const { products, channels, units, rowTotal, colTotal, grand, est, rowEst, estGrand } = useMemo(() => {
     const inPeriod = cells.filter((c) => periodKeys.has(c.m));
     const units = new Map<string, Map<string, number>>(); // product -> channel -> units
+    const est = new Map<string, number>(); // product||channel -> units not counted (modelled / estimated)
     const colTotal = new Map<string, number>();
     for (const c of inPeriod) {
       if (!c.u) continue;
@@ -922,13 +936,22 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
       row.set(c.ch, (row.get(c.ch) ?? 0) + c.u);
       units.set(c.p, row);
       colTotal.set(c.ch, (colTotal.get(c.ch) ?? 0) + c.u);
+      const e = estimatedUnits(c);
+      if (e) est.set(`${c.p}||${c.ch}`, (est.get(`${c.p}||${c.ch}`) ?? 0) + e);
     }
     const rowTotal = new Map<string, number>();
-    for (const [p, row] of units) rowTotal.set(p, [...row.values()].reduce((s, v) => s + v, 0));
-    const products = [...units.keys()].sort((a, b) => (rowTotal.get(b) ?? 0) - (rowTotal.get(a) ?? 0));
+    const rowEst = new Map<string, number>();
+    for (const [p, row] of units) {
+      rowTotal.set(p, [...row.values()].reduce((s, v) => s + v, 0));
+      rowEst.set(p, [...row.keys()].reduce((s, ch) => s + (est.get(`${p}||${ch}`) ?? 0), 0));
+    }
+    // rank by COUNTED units: estimated units (revenue ÷ an assumed price) never outrank counted ones (R6 B6-5)
+    const counted = (p: string) => (rowTotal.get(p) ?? 0) - (rowEst.get(p) ?? 0);
+    const products = [...units.keys()].sort((a, b) => counted(b) - counted(a) || (rowTotal.get(b) ?? 0) - (rowTotal.get(a) ?? 0));
     const channels = [...colTotal.keys()].sort((a, b) => (colTotal.get(b) ?? 0) - (colTotal.get(a) ?? 0));
     const grand = [...colTotal.values()].reduce((s, v) => s + v, 0);
-    return { products, channels, units, rowTotal, colTotal, grand };
+    const estGrand = [...est.values()].reduce((s, v) => s + v, 0);
+    return { products, channels, units, rowTotal, colTotal, grand, est, rowEst, estGrand };
   }, [cells, periodKeys]);
 
   if (products.length === 0) return <Empty what="units data" />;
@@ -953,9 +976,10 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
                   <td className="py-1.5 px-3 sticky left-0 bg-white text-slate-700 whitespace-nowrap">{p}</td>
                   {channels.map((ch) => {
                     const v = row.get(ch) ?? 0;
-                    return <td key={ch} className="py-1.5 px-2 text-right tabular-nums text-slate-600">{v ? n(v) : <span className="text-slate-300">—</span>}</td>;
+                    const e = est.get(`${p}||${ch}`) ?? 0;
+                    return <td key={ch} className="py-1.5 px-2 text-right tabular-nums text-slate-600">{v ? (e >= 0.5 * v ? <span title="Estimated: revenue ÷ an assumed price, not counted">≈{n(v)}</span> : n(v)) : <span className="text-slate-300">—</span>}</td>;
                   })}
-                  <td className="py-1.5 px-3 text-right tabular-nums font-semibold text-slate-800">{n(rowTotal.get(p) ?? 0)}</td>
+                  <td className="py-1.5 px-3 text-right tabular-nums font-semibold text-slate-800">{(rowEst.get(p) ?? 0) >= 0.5 * (rowTotal.get(p) ?? 0) ? '≈' : ''}{n(rowTotal.get(p) ?? 0)}</td>
                 </tr>
               );
             })}
@@ -969,7 +993,10 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
           </tfoot>
         </table>
       </div>
-      <Note>Quantity sold per product, split by channel, for the selected period. Units are net of returns where the channel reports them.</Note>
+      <Note>
+        Quantity sold per product, split by channel, for the selected period. Units are net of returns where the channel reports them.
+        {estGrand > 0 && <> ≈ = estimated, not counted: {n(estGrand)} of {n(grand)} units are revenue ÷ an assumed price (old workbook OEM, Offline, Blinkit and early Amazon). Products are ranked by counted units.</>}
+      </Note>
     </div>
   );
 }

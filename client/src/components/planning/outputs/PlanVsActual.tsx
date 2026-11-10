@@ -7,7 +7,7 @@ import { runPlan } from '../../../data/planning/engine';
 import { basePlan, upgradePlan } from '../../../data/planning/basePlan';
 import { runRateArr } from '../../../data/planning/growth';
 import { METRIC_NAME, METRICS, buildPlanVsActual, planMonthsOf, type ActualMonth, type MetricCmp, type MetricId, type MonthCmp, type PlanMonthRow, type Status } from '../../../data/planning/planVsActual';
-import { actualMonthsFromDeck } from '../../../data/planning/planVsActualLive';
+import { actualMonthsFromDeck, UNITS_BASIS_NOTE } from '../../../data/planning/planVsActualLive';
 import { loadLiveDeck } from '../../../data/misDeck/liveDeck';
 import { SectionCard } from '../../ui/Card';
 import { Disclosure } from '../../ui/Disclosure';
@@ -240,7 +240,7 @@ export function PlanVsActualView({ saved }: Props) {
           <p className="text-[12px] leading-relaxed text-slate-500">
             On track = within 5% of plan. A month with no data shows “No data yet”, never 0. The month in progress is shown but not counted in the big numbers.
             Exit ARR pace = the last 3 closed months × 4, compared with the plan for the same months; that gap is carried to {arr?.fyEndLabel ?? 'the end of the year'}.
-            {r.notes.map((n) => ` ${n}`).join('')}
+            {r.notes.map((n) => ` ${n}`).join('')} {UNITS_BASIS_NOTE}
             {stored === 'ok' ? ' These actuals are saved for the assistant.' : stored === 'fail' ? ' Could not save these actuals for the assistant.' : ''}
           </p>
         </>
