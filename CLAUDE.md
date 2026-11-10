@@ -139,6 +139,19 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     month, Document Date written ISO (day-first for DD-MM-YYYY), then the client's `parseTranzactSales`. Empty sheet = "No data in
     the sheet yet" (fail check, upload fallback). Product Price & Inventory / Purchase Invoice Register ids are in `TRANZACT_SHEETS`
     (not read yet).
+- **Tranzact register rules (10 Nov 2026, round 9 A9-1/3/4/6/7, B5; test `server/test/tranzactParser.test.ts`):** the upload parser
+    (`parseTranzactSales`) and the sheet pull (`tranzactSheetForMonth`) skip **cancelled** lines (Document Status "Cancelled", or a
+    Cancelled column 1 / Yes; same aliases as Ops) and say "N cancelled line(s) ₹X skipped" in the trace; no status column = a trace
+    note. Non-FG items (SFG / RM / spares / accessories) with a value COUNT for the channel as unmapped products (they show in Product
+    gaps); only freight / courier / packing / round-off lines are dropped, ₹ traced. "FG 0006" = FG-0006. Totals rows ("3 (530)") are
+    skipped. Text dates are day-first (`toISODate`: ISO, then dd/mm/yyyy built with Date.UTC; free text read on the local day); undated
+    lines are counted with ₹. "(5,000)" = −5,000. The Amazon-customer transfer rule applies only to rows with no known series (a GTD /
+    OEM invoice to Amazon stays that series' sale, as Tally books it). Tranzact's per-series Tally ledgers are in the seed map: GT -
+    Dealer / Retailer / CNF Sales, Physio Channel Sales, MT Sales, B2C Offline Sales → `rev_gt`; **Internal Transfer Sales → `rev_str`**
+    (stock transfer, never revenue; mirrored in `ceoSummaryV2.ts SEED_CHANNEL`).
+    **GT definition (MIS):** GT = Tranzact series GTD + GTR + GTC + PHY + MT + B2C (`client/src/data/tranzact/rules.ts`), which ties to
+    Tally Offline Sales. Ops' `/gt` page uses GTD + GTR + CNF + PHY (no MT / B2C; "CNF" is not a Tranzact prefix, C&F is GTC), so the
+    two portals can show different GT sales — not changed here (Ops-side fix: CNF → GTC, decide MT / B2C).
 - **Claude task (indirect):** the BOM costs Production serves come from the "Portal feeds: Mac Chrome" Claude task (its Tranzact part runs on the 18th).
   - Tally · P&L → `api`, READ ONLY, from STORED snapshots (Tally answers only while TallyPrime is open on Thakur Hardsoft's cloud
     with the company loaded). `.github/workflows/tally-poll.yml` POSTs `/api/tally/poll` (open path, status only) every 30 min Mon–Sat;

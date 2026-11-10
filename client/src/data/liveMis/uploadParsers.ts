@@ -74,9 +74,12 @@ const lower = (v: unknown) => cell(v).toLowerCase();
 
 function num(v: unknown): number {
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  const s = cell(v).replace(/[(),₹\s]/g, '');
+  const raw = cell(v);
+  // "(5,000)" is the accounting way of writing −5,000 (A9-7, 10 Nov 2026).
+  const neg = /^\(.*\)$/.test(raw.replace(/[₹\s]/g, ''));
+  const s = raw.replace(/[(),₹\s]/g, '');
   const n = parseFloat(s);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? (neg ? -Math.abs(n) : n) : 0;
 }
 
 const MONTHS: Record<string, string> = {
@@ -103,8 +106,24 @@ function toISODate(raw: unknown): string {
     const year = m[3].length === 2 ? `20${m[3]}` : m[3];
     return `${year}-${MONTHS[m[2].toLowerCase()]}-${m[1].padStart(2, '0')}`;
   }
+  // ISO first, then day-first numeric dates ("05/06/2026" = 5 June, Indian exports), built
+  // without Date.parse so neither US month-first reading nor the IST → UTC shift moves the day (A9-4).
+  const iso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (iso) return ymd(+iso[1], +iso[2], +iso[3]);
+  const dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})(?!\d)/);
+  if (dmy) return ymd(dmy[3].length === 2 ? 2000 + +dmy[3] : +dmy[3], +dmy[2], +dmy[1]);
   const t = Date.parse(s);
-  return Number.isNaN(t) ? '' : new Date(t).toISOString().slice(0, 10);
+  if (Number.isNaN(t)) return '';
+  // A free-text date ("Oct 1, 2026") parses in local time: read the local calendar day.
+  const d = new Date(t);
+  return ymd(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+/** Calendar date → "YYYY-MM-DD", '' when it is not a real day (31/02, month 13). */
+function ymd(y: number, m: number, d: number): string {
+  const t = new Date(Date.UTC(y, m - 1, d));
+  if (t.getUTCFullYear() !== y || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return '';
+  return t.toISOString().slice(0, 10);
 }
 
 // ---- Shiprocket wallet passbook → daily freight ----------------------------
@@ -1229,7 +1248,27 @@ import { tranzactSeriesFor } from '../tranzact/rules';
 export function isTranzactStockTransfer(invoice: string, customer = ''): boolean {
   const s = tranzactSeriesFor(invoice);
   if (s?.treatment === 'transfer') return true;
+  // Tally books by series: a GT / OEM invoice billed to an Amazon entity is still that series' sale.
+  // The customer-name rule only applies to rows with no known series (A9-6, 10 Nov 2026).
+  if (s) return false;
   return /\bamazon\b/i.test(customer);
+}
+
+/** Tranzact status cell → cancelled? "Cancelled" in Document Status, or 1 / yes / true in a Cancelled column. */
+export function isTranzactCancelled(v: unknown): boolean {
+  if (v === true || v === 1) return true;
+  const s = String(v ?? '').trim();
+  return /cancel/i.test(s) || /^(1|yes|true)$/i.test(s);
+}
+
+/** Non-FG lines that are charges, not goods: freight / courier / packing / round-off (dropped, ₹ traced). */
+export const TRANZACT_CHARGE_LINE = /freight|courier|shipping|packing|forwarding|round.?off|rounding/i;
+
+/** "FG-0006", "FG 0006", "fg0006" → "FG-0006"; anything else unchanged (upper-case). */
+function tranzactItemCode(raw: string): string {
+  const s = raw.trim().toUpperCase();
+  const m = s.match(/^FG[-\s]?(\d+)/);
+  return m ? `FG-${m[1]}` : s;
 }
 
 function tranzactChannel(invoice: string): { channel: string; source: string } | null {
@@ -1250,10 +1289,13 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
   const hi = findHeader(rows, ['invoice number', 'item id', 'invoice quantity']);
   if (hi < 0) return { facts: [], warning: 'No "Invoice Number / Item ID / Invoice Quantity" header — is this the Tranzact Sales Invoice Register (Item-wise)?' };
   const header = (rows[hi] ?? []).map(lower);
+  const firstOf = (...names: string[]) => names.map((n) => col(header, n)).find((i) => i >= 0) ?? -1;
   const ix = {
     inv: col(header, 'invoice number'),
     cust: col(header, 'customer name'),
     date: col(header, 'document date'),
+    // Same aliases as Ops (lib/gt/parse.ts): Document Status = "Cancelled"; Tally-sync export = Cancelled 1 / Yes.
+    status: firstOf('document status', 'cancelled', 'is cancelled', 'status'),
     item: col(header, 'item id'),
     desc: col(header, 'item description'),
     qty: col(header, 'invoice quantity'),
@@ -1262,13 +1304,20 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
   if (ix.inv < 0 || ix.item < 0 || ix.val < 0) return { facts: [], warning: 'Tranzact: Invoice Number / Item ID / Item Value column not found.' };
 
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  const byKey = new Map<string, DailyFact>(); // `${source}|${date}|${fg}`
+  const byKey = new Map<string, DailyFact>(); // `${source}|${date}|${item}`
   const byCh = new Map<string, number>();
-  let skippedNoFg = 0, skippedCh = 0, transferVal = 0, blinkitVal = 0;
+  let skippedCh = 0, transferVal = 0, blinkitVal = 0;
+  let cancelledN = 0, cancelledVal = 0, chargeN = 0, chargeVal = 0, nonFgN = 0, nonFgVal = 0, undatedN = 0, undatedVal = 0;
   const transferInvs = new Set<string>();
+  const cancelledInvs = new Set<string>();
+  const nonFgCodes = new Set<string>();
   for (const row of rows.slice(hi + 1)) {
     const inv = cell(row[ix.inv]);
-    if (!inv || /report ends/i.test(inv)) continue;
+    if (!inv || /report ends|^total/i.test(inv) || /^\d+\s*\(\d+\)$/.test(inv)) continue; // totals row "3903 (6511)"
+    // Cancelled invoices are not sales; Tranzact's Tally sync skips them too (A9-1, 10 Nov 2026).
+    if (ix.status >= 0 && isTranzactCancelled(row[ix.status])) {
+      cancelledN += 1; cancelledVal += num(row[ix.val]); cancelledInvs.add(inv); continue;
+    }
     if (isTranzactStockTransfer(inv, ix.cust >= 0 ? cell(row[ix.cust]) : '')) {
       transferVal += num(row[ix.val]); transferInvs.add(inv); continue;
     }
@@ -1276,28 +1325,41 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
     if (tranzactSeriesFor(inv)?.treatment === 'own-feed') { blinkitVal += num(row[ix.val]); continue; }
     const ch = tranzactChannel(inv);
     if (!ch) { skippedCh += 1; continue; }
-    const item = cell(row[ix.item]).toUpperCase();
-    if (!item || !/^FG-\d+/.test(item)) { skippedNoFg += 1; continue; } // freight / non-FG lines
+    const rawItem = cell(row[ix.item]);
+    const desc = ix.desc >= 0 ? cell(row[ix.desc]) : '';
+    const item = tranzactItemCode(rawItem);
     const val = num(row[ix.val]);
+    const isFg = /^FG-\d+/.test(item);
+    // Non-FG lines: freight / round-off are charges (dropped, ₹ shown); any other item (SFG, RM, spares,
+    // accessories) is a real sale and counts for the channel as an unmapped product (A9-3, 10 Nov 2026).
+    if (!isFg && (!rawItem || TRANZACT_CHARGE_LINE.test(`${rawItem} ${desc}`))) { chargeN += 1; chargeVal += val; continue; }
+    if (!isFg && val === 0) { chargeN += 1; continue; }
     const qty = num(row[ix.qty]);
     const rawDate = ix.date >= 0 ? cell(row[ix.date]) : '';
     const date = /^\d{4}-\d{2}-\d{2}/.test(rawDate) ? rawDate.slice(0, 10) : toISODate(row[ix.date]);
-    if (!date) continue;
+    if (!date) { undatedN += 1; undatedVal += val; continue; }
+    if (!isFg) { nonFgN += 1; nonFgVal += val; nonFgCodes.add(item); }
     const key = `${ch.source}|${date}|${item}`;
     const e = byKey.get(key);
     if (e) { e.revenue = r2(e.revenue + val); e.units += qty; }
-    else byKey.set(key, { source: ch.source, channel: ch.channel, date, sku: item, skuName: cell(row[ix.desc]), skuKind: 'sku', revenue: r2(val), units: qty, orders: 0, fees: 0 });
+    else byKey.set(key, { source: ch.source, channel: ch.channel, date, sku: item, skuName: desc, skuKind: 'sku', revenue: r2(val), units: qty, orders: 0, fees: 0 });
     byCh.set(ch.channel, r2((byCh.get(ch.channel) ?? 0) + val));
   }
 
   const facts = [...byKey.values()];
-  const inr = (n: number) => Math.round(n).toLocaleString('en-IN');
+  const inr = (n: number) => `${n < 0 ? '−' : ''}₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`;
+  const codes = [...nonFgCodes].slice(0, 5).join(', ') + (nonFgCodes.size > 5 ? ' …' : '');
   const trace = [
     `Read sheet "${wb.SheetNames[0]}" — header at row ${hi + 1}`,
-    `${facts.length} channel×SKU facts: ${[...byCh.entries()].map(([c, v]) => `${c} ₹${inr(v)}`).join(', ')}`,
-    ...(transferInvs.size ? [`${transferInvs.size} internal stock-transfer invoice(s) (ITF / transfer series / Amazon-bound) ₹${inr(transferVal)} excluded from sales — compare with Tally's Stock Transfers ledger`] : []),
-    ...(blinkitVal ? [`BLK (Blinkit) invoices ₹${inr(blinkitVal)} not counted here — Blinkit revenue comes from the Blinkit payout; compare the two`] : []),
-    `GT → Tally Offline Sales; B2B → Tally OEM Sales${skippedNoFg ? `; skipped ${skippedNoFg} non-FG line(s) (freight)` : ''}${skippedCh ? `; ${skippedCh} row(s) with unrecognised invoice prefix` : ''}`,
+    `${facts.length} channel×SKU facts: ${[...byCh.entries()].map(([c, v]) => `${c} ${inr(v)}`).join(', ')}`,
+    ...(cancelledN ? [`${cancelledN} cancelled line(s) on ${cancelledInvs.size} invoice(s) ${inr(cancelledVal)} skipped — not sales`] : []),
+    ...(ix.status < 0 ? ['No "Document Status" column — cancelled invoices cannot be told apart; add it to the report'] : []),
+    ...(transferInvs.size ? [`${transferInvs.size} internal stock-transfer invoice(s) (ITF / transfer series / Amazon-bound) ${inr(transferVal)} excluded from sales — compare with Tally's Stock Transfers ledger`] : []),
+    ...(blinkitVal ? [`BLK (Blinkit) invoices ${inr(blinkitVal)} not counted here — Blinkit revenue comes from the Blinkit payout; compare the two`] : []),
+    ...(nonFgN ? [`${nonFgN} non-FG sale line(s) ${inr(nonFgVal)} counted as unmapped products (${codes}) — map them under Products`] : []),
+    ...(chargeN ? [`${chargeN} freight / round-off line(s) ${inr(chargeVal)} dropped — charges, not goods`] : []),
+    ...(undatedN ? [`${undatedN} line(s) ${inr(undatedVal)} with no readable Document Date skipped`] : []),
+    `GT → Tally Offline Sales; B2B → Tally OEM Sales${skippedCh ? `; ${skippedCh} row(s) with unrecognised invoice prefix` : ''}`,
   ];
   return { facts, warning: facts.length === 0 ? 'No GT/B2B invoice rows found.' : undefined, trace };
 }

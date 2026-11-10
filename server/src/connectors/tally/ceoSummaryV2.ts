@@ -114,6 +114,8 @@ const SEED_CHANNEL: Record<string, Channel> = {
   'd2c sales': 'D2C', 'shopify sales': 'D2C', 'ecommerce sales': 'Amazon', 'amazon sales': 'Amazon',
   'flipkart sales': 'Flipkart', 'ecommerce - flipkart': 'Flipkart', 'oem sales': 'B2B', 'offline sales': 'GT',
   'quick commerce sales': 'Blinkit', 'blinkit sales': 'Blinkit', 'export sales': 'Export',
+  'gt - dealer sales': 'GT', 'gt - retailer sales': 'GT', 'gt - cnf sales': 'GT', 'physio channel sales': 'GT',
+  'mt sales': 'GT', 'b2c offline sales': 'GT',
 };
 const RULE_CHANNEL: Record<string, Channel> = { rev_blinkit: 'Blinkit', rev_flipkart: 'Flipkart' };
 const QC = /(blinkit|grofers|hyperpure|zepto|instamart|swiggy|big ?basket|quick[ -]?commerce)/;
@@ -121,7 +123,7 @@ const QC = /(blinkit|grofers|hyperpure|zepto|instamart|swiggy|big ?basket|quick[
 /** Which sales channel a P&L ledger feeds; null = not a sales ledger (stock transfers, fees, costs, income). */
 export function channelOfLedger(name: string, rules: LedgerRuleIn[] | null = null): Channel | null {
   const n = norm(name);
-  if (!n || /stock transfer/.test(n)) return null;
+  if (!n || /stock transfer|internal transfer/.test(n)) return null;
   const seed = SEED_CHANNEL[n];
   if (seed) return seed;
   for (const r of rules ?? []) {
