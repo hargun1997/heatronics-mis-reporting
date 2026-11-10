@@ -16,7 +16,8 @@ import type { Channel, LedgerRuleIn, V2Input, V2MonthIn } from './ceoSummaryV2.j
 const REVENUE_SOURCES = ['shopify', 'amazon', 'flipkart'];
 const CHANNEL_ALIAS: Record<string, Channel> = { d2c: 'D2C', shopify: 'D2C', amazon: 'Amazon', blinkit: 'Blinkit', flipkart: 'Flipkart', gt: 'GT', b2b: 'B2B', oem: 'B2B', offline: 'GT', export: 'Export' };
 const GST_INCLUSIVE_UNSPLIT = new Set(['shopify', 'amazon']);
-const ASSUMED_GST_RATE = 0.18;
+/** Product GST used to estimate ex-GST from GMV — must equal client data/misDeck/gstBasis.ts DEFAULT_GST_RATE (test-checked). */
+export const ASSUMED_GST_RATE = 0.05;
 
 interface FactLike { source?: string; channel?: string; date?: string; revenue?: number; gmv?: number; netExGst?: number }
 

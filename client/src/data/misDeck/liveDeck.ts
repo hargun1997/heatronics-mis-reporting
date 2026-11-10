@@ -819,7 +819,7 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   //    with no full live close (G5). A full live close replaces it; a live partial
   //    never silently does — see BuildLiveDeckOptions.prefer.
   const { months: staticMonths, cellsByMonth } = staticHistory();
-  applyChannelHistory(built, staticMonths);
+  applyChannelHistory(built, staticMonths, opts.locks ?? {});
   const months: MonthlyMIS[] = [];
   const skuCells: SkuCell[] = [];
   const completeness: Record<string, PeriodCompleteness> = {};

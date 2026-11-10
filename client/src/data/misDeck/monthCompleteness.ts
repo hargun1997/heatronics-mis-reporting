@@ -13,9 +13,9 @@
 //     AND no required report missing / empty / partial AND the month is over.
 //     Anything else is a named blocker.
 //  4. A channel that sold in any of the previous 3 months (≥ 5 % of those
-//     months' sales) must have sales data in the month: otherwise it is named
-//     as missing, the month is partial (never "full") and not ready — even when
-//     no connector saw it either (applyChannelHistory).
+//     months' sales) with no sales data in the month is named as missing and
+//     the month is not ready (soft: lockable with a written reason, since a
+//     channel can really stop). Views show it as "no data", never ₹0.
 // ----------------------------------------------------------------------------
 import type { DailyFact } from '../liveMis/facts';
 import type { SalesChannel } from './misDeckData';
@@ -23,7 +23,7 @@ import { SALES_CHANNELS } from './misDeckData';
 import { connectorSales, type CloseTie } from './closeTies';
 import { gstRateLabel, type NetBasis } from './gstBasis';
 import { ALL_SLOTS } from '../ingest/catalog';
-import type { BuiltMonth, CompletenessLevel } from './liveDeck';
+import type { BuiltMonth } from './liveDeck';
 import { CHANNEL_FOLD } from './liveAnalytics';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -243,26 +243,35 @@ const monthName = (k: string) => `${MON[Number(k.slice(5, 7))]} ${k.slice(2, 4)}
 
 /**
  * Rule 4 on the built live months, in place. History = the published month where there is one and the live month is
- * not full, else the live month. A channel already named by tallyGaps (the connectors saw it) is not named twice.
- * A month with a missing channel is never "full" (contribution / top line) and gets a hard 'channel-missing' blocker.
+ * not full, else the live month. A channel already named by tallyGaps (the connectors saw it — that one is a hard
+ * blocker) is not named twice. A channel with no data at all is a SOFT blocker: it may really have stopped (lumpy OEM),
+ * so the month keeps its level and can be locked with a written reason. Locked months are left alone.
  */
 export function applyChannelHistory(built: Map<string, BuiltMonth>,
-  published: { key: string; netByChannel: Partial<Record<SalesChannel, number>> }[]): void {
+  published: { key: string; netByChannel: Partial<Record<SalesChannel, number>> }[], locks: Record<string, unknown> = {}): void {
   const history = new Map<string, Partial<Record<SalesChannel, number>>>();
   for (const m of published) history.set(m.key, m.netByChannel);
   for (const [k, b] of built) if (b.completeness.level === 'full' || !history.has(k)) history.set(k, b.month.netByChannel);
   for (const [k, b] of built) {
     const c = b.completeness;
-    if (c.locked || c.manualLock) continue;
-    const named = new Set((c.tallyGaps ?? []).map((g) => g.channel));
+    if (c.locked || locks[k]) continue;
+    const named = new Set((c.tallyGaps ?? []).map((g) => CHANNEL_FOLD[g.channel] ?? g.channel));
     const miss = missingChannels(k, b.month.netByChannel, history).filter((x) => !named.has(x.channel));
     if (!miss.length) continue;
-    const level: CompletenessLevel = c.level === 'full' ? (c.cogmReal ? 'contribution' : 'topline') : c.level;
     const blockers: CloseBlocker[] = miss.map((x) => ({
-      kind: 'channel-missing', hard: true,
-      text: `${x.channel}: no sales data for ${monthName(k)} (sold ${inr(x.priorAvg)} a month in ${x.months.length === 1 ? monthName(x.months[0]) : `the last ${x.months.length} months`}).`,
-      fix: c.hasTally ? `Book the ${x.channel} sales in Tally, or pull its report on Setup, then pull again.` : `Pull or upload the ${x.channel} report for the month on Setup.`,
+      kind: 'channel-missing', hard: false,
+      text: `${x.channel} had no sales in ${monthName(k)} (${inr(x.priorAvg)} a month in ${x.months.length === 1 ? monthName(x.months[0]) : `the last ${x.months.length} months`}) — stopped, or not booked?`,
+      fix: c.hasTally ? `If it stopped, lock with a written reason. If not, book the ${x.channel} sales in Tally and pull again.`
+        : `If it stopped, ignore. If not, pull or upload the ${x.channel} report for the month on Setup.`,
     }));
-    b.completeness = { ...c, level, missingChannels: miss, closeBlockers: [...(c.closeBlockers ?? []), ...blockers] };
+    b.completeness = { ...c, missingChannels: miss, closeBlockers: [...(c.closeBlockers ?? []), ...blockers] };
   }
+}
+
+/** True when the month names this channel as missing (no data): views show "no data", not ₹0. */
+export function channelNoData(c: { tallyGaps?: TallyGap[]; missingChannels?: MissingChannel[] } | null | undefined, ch: SalesChannel): boolean {
+  if (!c) return false;
+  const f = CHANNEL_FOLD[ch] ?? ch;
+  return (c.tallyGaps ?? []).some((g) => g.tally <= 0 && (CHANNEL_FOLD[g.channel] ?? g.channel) === f)
+    || (c.missingChannels ?? []).some((m) => m.channel === f);
 }

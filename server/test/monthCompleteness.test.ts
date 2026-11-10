@@ -4,8 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildLiveDeck } from '../../client/src/data/misDeck/liveDeck.ts';
 import { DEFAULT_GST_RATE, GST_RATE_BY_SOURCE, exGstOf, toExGstFact } from '../../client/src/data/misDeck/gstBasis.ts';
-import { closeBlockers, missingChannels, slotGaps, stockNotPosted, tallyGaps, tallyHasSalesLedger } from '../../client/src/data/misDeck/monthCompleteness.ts';
+import { channelNoData, closeBlockers, missingChannels, slotGaps, stockNotPosted, tallyGaps, tallyHasSalesLedger } from '../../client/src/data/misDeck/monthCompleteness.ts';
 import { deckItems } from '../../client/src/data/issues/inbox.ts';
+import { ASSUMED_GST_RATE as SERVER_GST_RATE } from '../src/connectors/tally/ceoSummaryLoad.ts';
 import type { DailyFact } from '../../client/src/data/liveMis/facts.ts';
 
 const f = (o: Partial<DailyFact>): DailyFact => ({ source: 'shopify', channel: 'D2C', date: '2026-10-05', revenue: 0, units: 0, orders: 0, fees: 0, ...o });
@@ -168,7 +169,7 @@ test('Fix items: the blockers of a Tally month, never "ready to lock" while any 
 
 // ---- rule 4: channels that sold in the last 3 months ---------------------------------
 
-test('a channel that sold in the last 3 months with no data this month is named; the month is partial and not ready', () => {
+test('a channel that sold in the last 3 months with no data this month is named; soft blocker, lockable with a reason', () => {
   const hist = new Map<string, Record<string, number>>([
     ['2026-07', { Amazon: 700_000, D2C: 300_000, OEM: 300_000 }],
     ['2026-08', { Amazon: 650_000, D2C: 320_000 }],
@@ -177,24 +178,44 @@ test('a channel that sold in the last 3 months with no data this month is named;
   const miss = missingChannels('2026-10', { D2C: 310_000, OEM: 0 }, hist as never);
   assert.deepEqual(miss.map((x) => [x.channel, x.priorAvg]), [['Amazon', 650_000], ['B2B', 100_000]]);
   assert.deepEqual(miss[0].months, ['2026-09', '2026-08', '2026-07']);
-  assert.deepEqual(missingChannels('2026-10', { Amazon: 1, D2C: 1, OEM: 1 }, hist as never), [], 'any sales = has data');
+  assert.deepEqual(missingChannels('2026-10', { Amazon: 1, D2C: 1, B2B: 1 }, hist as never), [], 'any sales = has data (OEM folds into B2B)');
   assert.deepEqual(missingChannels('2026-06', {}, hist as never), [], 'no history before → nothing judged');
 
   // In the deck: Tally booked Aug + Sep with Amazon (+ published Jul 11,96,831); Oct has no Amazon ledger AND no Amazon facts.
-  const stockMoves = (closing: number) => BOOKS({ closing });
-  const d = buildLiveDeck([tally('2026-08', stockMoves(480_000)), tally('2026-09', stockMoves(460_000)), tally('2026-10', BOOKS({ amazon: 0 }))] as never,
-    [shop(315_000, '2026-08'), shop(315_000, '2026-09'), shop(315_000)], NOV);
+  const reps = [tally('2026-08', BOOKS({ closing: 480_000 })), tally('2026-09', BOOKS({ closing: 460_000 })), tally('2026-10', BOOKS({ amazon: 0 }))];
+  const facts = [shop(315_000, '2026-08'), shop(315_000, '2026-09'), shop(315_000)];
+  const d = buildLiveDeck(reps as never, facts, NOV);
   const c = d.completeness['2026-10'];
-  assert.notEqual(c.level, 'full');
+  assert.equal(c.level, 'full', 'Tally is otherwise full: the level stays, so "Lock with a reason" can show');
   assert.equal(c.ready, false);
   assert.deepEqual(c.missingChannels!.map((x) => x.channel), ['Amazon']);
   const b = c.closeBlockers!.find((x) => x.kind === 'channel-missing')!;
-  assert.equal(b.hard, true);
-  assert.match(b.text, /^Amazon: no sales data for Oct 26 \(sold ₹7,98,944 a month in the last 3 months\)\.$/);
+  assert.equal(b.hard, false);
+  assert.equal(b.text, 'Amazon had no sales in Oct 26 (₹7,98,944 a month in the last 3 months) — stopped, or not booked?');
+  assert.ok(c.closeBlockers!.every((x) => !x.hard));
   assert.equal(d.completeness['2026-09'].missingChannels, undefined);
+  // P&L for the channel = no data, not ₹0.
+  assert.equal(channelNoData(c, 'Amazon'), true);
+  assert.equal(channelNoData(c, 'D2C'), false);
   const item = deckItems(d).find((i) => i.id === 'close:2026-10')!;
+  assert.equal(item.severity, 'medium');
   assert.match(item.title, /no data: Amazon/);
-  assert.match(item.detail, /Amazon: no sales data/);
+  // A locked month is left alone (locks are passed in before the published splice).
+  const lock = { periodKey: '2026-10', lockedAt: '2026-11-03T00:00:00Z', lockedBy: 'x' };
+  const locked = buildLiveDeck(reps as never, facts, { ...NOV, locks: { '2026-10': lock } }).completeness['2026-10'];
+  assert.equal(locked.missingChannels, undefined);
+  assert.equal(locked.level, 'full');
+  assert.equal(locked.closed, true);
+});
+
+test('connectors saw a channel Tally does not have → hard; P&L shows no data for it', () => {
+  const c = buildLiveDeck([tally('2026-10', BOOKS({ amazon: 0 }))] as never, [amz(650_000), shop(315_000)], NOV).completeness['2026-10'];
+  assert.ok(c.closeBlockers!.some((x) => x.kind === 'tally-incomplete' && x.hard));
+  assert.equal(channelNoData(c, 'Amazon'), true);
+});
+
+test('the server CEO summary uses the same product GST rate as the MIS', () => {
+  assert.equal(SERVER_GST_RATE, DEFAULT_GST_RATE);
 });
 
 test('closing stock = opening is flagged when the month sold goods even with no purchases', () => {

@@ -310,7 +310,10 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     book connector sales ex-GST (`gstBasis.ts exGstOf`: reported, else GMV ÷ 1.05 estimated → `exGstEstimated`, else as booked).
     (2) `full` needs every channel with ≥ 5 % of the month's connector sales to have a Tally ledger ≥ half of it (`tallyGaps`).
     (3) a channel with ≥ 5 % (and ≥ ₹10,000) of the previous 3 months' sales (published months count; OEM/Offline folded into B2B/GT)
-    and no sales this month = `missingChannels` (`applyChannelHistory`): month partial, hard blocker. (4) `ready` = full + no
+    and no sales this month = `missingChannels` (`applyChannelHistory`, skips locked months): SOFT blocker ("stopped, or not booked?"),
+    level kept so it can be locked with a reason; only (2) is hard. Named channels show "no data" in the channel P&L
+    (`channelNoData`), never ₹0. Tie: an orders-GMV estimate (Sales API) is shown but not judged; a breach says which side is lower
+    and by how much. Server `ceoSummaryLoad.ts ASSUMED_GST_RATE` = the same 5 % (test). (4) `ready` = full + no
     `closeBlockers` (month over, tie ≤ 1 %, closing stock ≠ opening when the month bought or sold, required reports not missing /
     empty / partial). Blockers show on the Month close panel (numbered) and as one Fix item `close:<YYYY-MM>`; soft ones (tie, report)
     can be locked with a written reason.

@@ -82,8 +82,14 @@ test('tie: residuals per channel and profit, breach over 1% of revenue', () => {
   assert.equal(tie.channels.find((c) => c.channel === 'D2C')!.residual, 30_000);
   assert.equal(tie.channels.find((c) => c.channel === 'OEM')!.residual, null); // no connector: shown, not judged
   assert.equal(tie.breach, true);                    // D2C 2% of revenue
-  assert.match(tie.breaches[0], /D2C sales vs Tally: 2\.0%/);
+  assert.equal(tie.breaches[0], 'D2C sales vs Tally: 2.0% of revenue — Tally ₹30,000 higher (₹5,00,000 vs ₹4,70,000 from shopify)');
   assert.equal(tie.worstResidualPct, 2);
+  // Orders GMV ÷ (1 + GST) (Sales API) is before returns: shown, never judged against the 1 % limit.
+  const est = buildCloseTie({ periodKey: '2026-10', netRevenue: 1_000_000, netByChannel: { Amazon: 1_000_000 }, tallyNett: 5, misProfit: 5, profitResidual: 0,
+    facts: [f({ source: 'amazon', channel: 'Amazon', revenue: 1_155_000, gmv: 1_155_000 })] });
+  assert.equal(est.channels[0].residual, -100_000);
+  assert.equal(est.channels[0].judged, false);
+  assert.equal(est.breach, false);
   const ok = buildCloseTie({ periodKey: '2026-10', netRevenue: 1_000_000, netByChannel: { Amazon: 1_000_000 }, tallyNett: 5, misProfit: 5, profitResidual: 0, facts: [f({ source: 'amazon', channel: 'Amazon', revenue: 995_000 })] });
   assert.equal(ok.breach, false);
 });

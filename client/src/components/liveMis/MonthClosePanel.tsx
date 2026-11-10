@@ -151,7 +151,7 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
                   <td className="py-1 pr-3 text-right">{c.gmv === null ? '–' : inr(c.gmv)}</td>
                   <td className="py-1 pr-3 text-right">{inr(c.tally)}</td>
                   <td className="py-1 pr-3 text-right">{c.residual === null ? '–' : inr(c.residual, { sign: true })}</td>
-                  <td className="py-1 text-right">{pctOf(c.residual, tie.netRevenue)}</td>
+                  <td className="py-1 text-right">{c.judged === false ? 'not judged (orders estimate)' : pctOf(c.residual, tie.netRevenue)}</td>
                 </tr>
               ))}
             </tbody>
