@@ -95,19 +95,19 @@ test('like-for-like: one basis, and only months that have a prior-year month', (
   assert.ok(none.curRevenue > 0);                                // no prior year: the period itself is still shown
 });
 
-test('SKU cells: early Amazon is its own cell, cut out of the OEM model cell; totals unchanged', () => {
+test('SKU cells: early Amazon is its own cell, cut out of the OEM model cell', () => {
   const total = (cells: SkuCell[], f: (c: SkuCell) => number) => cells.reduce((s, c) => s + f(c), 0);
-  close(total(PUBLISHED_CELLS, (c) => c.rev), total(SKU_CELLS, (c) => c.rev), 1);
-  close(total(PUBLISHED_CELLS, (c) => c.cogs), total(SKU_CELLS, (c) => c.cogs), 1);
+  close(total(SKU_CELLS, (c) => c.cogs) - total(PUBLISHED_CELLS, (c) => c.cogs), 4_537_000, 60_000); // only the phantom OEM-model cost on Amazon goes
   for (const raw of MONTHLY_MIS.filter((m) => m.key < '2024-10')) {
     const cells = PUBLISHED_CELLS.filter((c) => c.m === raw.key);
     const amz = cells.filter((c) => c.ch === 'Amazon');
     assert.equal(amz.length, 1, raw.key);
     assert.equal(amz[0].p, AMAZON_NO_SKU_SPLIT);
     assert.equal(amz[0].costEst, true);
-    assert.equal(amz[0].u, 0);                                   // units not known: not shown, never invented
-    close(amz[0].rev, raw.netByChannel.Amazon!, 0.01);
-    close(total(cells.filter((c) => c.ch === 'OEM'), (c) => c.rev), raw.netByChannel.OEM!, 2);
+    assert.equal(amz[0].uEst, true);                             // units estimated, flagged
+    const pub = PUBLISHED_MONTHS.find((m) => m.key === raw.key)!;
+    close(amz[0].rev, pub.netByChannel.Amazon!, 0.01);            // ex-GST, like the channel row
+    close(total(cells.filter((c) => c.ch === 'OEM'), (c) => c.rev), pub.netByChannel.OEM!, 2);
   }
   // months with their own Amazon cells are untouched
   const oct = SKU_CELLS.filter((c) => c.m === '2024-10');
@@ -181,4 +181,57 @@ test('a month now from Tally that differs from the published MIS by ≥ ₹10,00
   assert.deepEqual(pub.map((i) => i.id), ['published:2026-04']);
   assert.equal(pub[0].severity, 'low');
   assert.match(pub[0].title, /−₹25,000.*\+₹40,000/);
+});
+
+test('SKU cells cut from the workbook rows are ex-GST: they sum to the ex-GST channel row; early Amazon has estimated units', async () => {
+  const { exGstCells, earlyAmazonAsp } = await import('../../client/src/data/misDeck/publishedBasis.ts');
+  const rawBy = new Map(MONTHLY_MIS.map((m) => [m.key, m]));
+  let checked = 0;
+  for (const pub of PUBLISHED_MONTHS) {
+    const raw = rawBy.get(pub.key)!;
+    for (const ch of SALES_CHANNELS) {
+      const rawCells = SKU_CELLS.filter((c) => c.m === pub.key && c.ch === ch);
+      const rawSum = rawCells.reduce((s, c) => s + c.rev, 0);
+      const gross = raw.netByChannel[ch] ?? 0;
+      const fromRows = (gross && rawCells.length && Math.abs(rawSum - gross) <= 2) || (pub.key < '2024-10' && ch === 'Amazon');
+      if (!fromRows || !pub.gmvByChannel) continue;
+      const sum = PUBLISHED_CELLS.filter((c) => c.m === pub.key && c.ch === ch).reduce((s, c) => s + c.rev, 0);
+      close(sum, pub.netByChannel[ch] ?? 0, 1); checked++;
+    }
+  }
+  assert.ok(checked >= 30, `checked ${checked}`);
+  // Dec 2023 – Sep 2024: every cell is cut from the rows, so Σ cells = net revenue
+  for (const pub of PUBLISHED_MONTHS.filter((m) => m.key < '2024-10')) {
+    close(PUBLISHED_CELLS.filter((c) => c.m === pub.key).reduce((s, c) => s + c.rev, 0), pub.netRevenue, 1);
+  }
+  for (const c of PUBLISHED_CELLS) close(c.con, c.rev - c.cogs - c.oth, 0.02);
+  // a group from another source (not equal to the row) is left as booked
+  const m = { ...MONTHLY_MIS[0], netRevenue: 95, totalTaxes: -5, netByChannel: { D2C: 100 } };
+  const cell: SkuCell = { m: m.key, ch: 'D2C', p: 'x', rev: 80, cogs: 10, oth: 5, con: 65, u: 1 };
+  assert.deepEqual(exGstCells([cell], m, exGstChannels(m)), [cell]);
+  assert.equal(exGstCells([{ ...cell, rev: 100 }], m, exGstChannels(m))[0].rev, 95);
+  const asp = earlyAmazonAsp(PUBLISHED_CELLS)!;
+  for (const c of PUBLISHED_CELLS.filter((x) => x.p === AMAZON_NO_SKU_SPLIT)) {
+    assert.equal(c.uEst, true); close(c.u, c.rev / asp, 0.01); assert.ok(c.u > 0);
+  }
+});
+
+test('early Amazon cells are costed at Amazon’s own rate, not the OEM model’s (round 6 B6-1/2)', async () => {
+  const { earlyAmazonCogsRate } = await import('../../client/src/data/misDeck/publishedBasis.ts');
+  const rate = earlyAmazonCogsRate(PUBLISHED_CELLS)!;
+  assert.ok(rate > 0.15 && rate < 0.35, `rate ${rate}`);
+  const gm = (cs: SkuCell[]) => 1 - cs.reduce((s, c) => s + c.cogs, 0) / cs.reduce((s, c) => s + c.rev, 0);
+  let amzCogs = 0;
+  for (const pub of PUBLISHED_MONTHS.filter((m) => m.key < '2024-10')) {
+    const cells = PUBLISHED_CELLS.filter((c) => c.m === pub.key), raw = SKU_CELLS.filter((c) => c.m === pub.key);
+    const amz = cells.filter((c) => c.ch === 'Amazon'), oem = cells.filter((c) => c.ch === 'OEM');
+    close(amz[0].cogs, amz[0].rev * rate, 0.02);
+    assert.ok(oem.every((c) => c.costEst), pub.key);
+    assert.ok(Math.abs(gm(amz) - gm(oem)) > 0.2, `${pub.key}: Amazon GM ${gm(amz)} vs OEM ${gm(oem)}`);
+    // the model cost on the Amazon revenue is dropped, never moved to OEM: cell COGS only go down
+    assert.ok(cells.reduce((s, c) => s + c.cogs, 0) <= raw.reduce((s, c) => s + c.cogs, 0) + 0.01, pub.key);
+    close(oem.reduce((s, c) => s + c.cogs, 0), raw.filter((c) => c.ch === 'OEM').reduce((s, c) => s + c.cogs, 0) * (1 - (MONTHLY_MIS.find((m) => m.key === pub.key)!.netByChannel.Amazon! / raw.filter((c) => c.ch === 'OEM').reduce((s, c) => s + c.rev, 0))), 1);
+    amzCogs += amz[0].cogs;
+  }
+  close(amzCogs, 2_276_000, 60_000);                               // ≈ ₹22.8 L (was ₹68.1 L at the OEM model rate)
 });

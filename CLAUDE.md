@@ -288,7 +288,11 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   all products at 5 % GST; the per-month ratio is used instead of a flat rate because it is exact and also covers the restated Jan–Mar
   2026 months), so Σ channels = net revenue to the paisa; the customer-paid figure is kept as `gmvByChannel`. FY25-26 Σ channels was
   ₹6.13 Cr vs ₹5.83 Cr net revenue. (2) `reclassifyEarlyAmazon` is deleted: Amazon Dec 2023 – Sep 2024 (₹1.01 Cr incl. GST) shows as
-  Amazon, not OEM/B2B; `recutAmazonCells` takes it back out of the OEM model SKU cell (cost pro rata, `costEst`, units unknown).
+  Amazon, not OEM/B2B; `recutAmazonCells` takes it back out of the OEM model SKU cell (cost = revenue × Amazon's own Oct 2024 – Mar 2025 cost rate ≈ 24 %, units = revenue ÷
+  its revenue per unit, flagged `costEst` / `uEst`; the OEM part keeps the model's 67.7 % and is flagged too; the model's cost on the Amazon
+  revenue, ₹45.4 L from units that never existed, is dropped, not moved to OEM: Amazon GM ≈ 76 %, OEM ≈ 29 % in those months). SKU cells cut from the workbook rows (OEM, Offline, early Amazon, some Blinkit months: Σ cells = the GST-incl row)
+  are scaled to the ex-GST row by `exGstCells`; cells from other sources (Amazon net proceeds from Oct 2024, Shopify per product) are already
+  ex-GST and stay as booked, so they do not foot exactly to the channel row (different source).
   (3) Like-for-like compares only months that have a year-ago month. (4) Chat / AI context (`data/chat/misContext.ts`) = the built deck
   (`buildLiveMisContext`; fiscal years summed from the deck by `fySummaryOf`); the stale `FY_SUMMARY` / `buildMisContext` are no longer
   read. (5) A published month replaced by a full Tally close carries `completeness.vsPublished` (₹ change): chip `PublishedGapChip` in
