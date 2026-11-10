@@ -74,12 +74,15 @@ const lower = (v: unknown) => cell(v).toLowerCase();
 
 function num(v: unknown): number {
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  const raw = cell(v);
-  // "(5,000)" is the accounting way of writing −5,000 (A9-7, 10 Nov 2026).
-  const neg = /^\(.*\)$/.test(raw.replace(/[₹\s]/g, ''));
-  const s = raw.replace(/[(),₹\s]/g, '');
+  const s = cell(v).replace(/[(),₹\s]/g, '');
   const n = parseFloat(s);
-  return Number.isFinite(n) ? (neg ? -Math.abs(n) : n) : 0;
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Like num(), but "(5,000)" = −5,000 (accounting brackets; A9-7). Tranzact register only: other parsers keep their own sign rules. */
+function numSigned(v: unknown): number {
+  const n = num(v);
+  return typeof v !== 'number' && /^\(.*\)$/.test(cell(v).replace(/[₹\s]/g, '')) ? -Math.abs(n) : n;
 }
 
 const MONTHS: Record<string, string> = {
@@ -1261,8 +1264,14 @@ export function isTranzactCancelled(v: unknown): boolean {
   return /cancel/i.test(s) || /^(1|yes|true)$/i.test(s);
 }
 
-/** Non-FG lines that are charges, not goods: freight / courier / packing / round-off (dropped, ₹ traced). */
-export const TRANZACT_CHARGE_LINE = /freight|courier|shipping|packing|forwarding|round.?off|rounding/i;
+/**
+ * Non-FG lines that are charges / services, not goods: freight, transport, packaging, insurance, installation,
+ * service, labour, round-off … Dropped from product revenue + units, ₹ traced. Keep in step with
+ * server/src/connectors/slots/map/feeds.ts TRANZACT_CHARGE_LINE (test-checked).
+ */
+export const TRANZACT_CHARGE_LINE = /freight|courier|shipping|packing|packag|forwarding|transport|cartage|delivery|loading|insurance|installation|service|labou?r|round.?off|rounding/i;
+/** Tooling / development / mould charges: real B2B revenue for the channel, but no product (no SKU, no units). */
+export const TRANZACT_TOOLING_LINE = /tooling|development|\bdie\b|mou?ld|\bnre\b|design charge/i;
 
 /** "FG-0006", "FG 0006", "fg0006" → "FG-0006"; anything else unchanged (upper-case). */
 function tranzactItemCode(raw: string): string {
@@ -1307,7 +1316,7 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
   const byKey = new Map<string, DailyFact>(); // `${source}|${date}|${item}`
   const byCh = new Map<string, number>();
   let skippedCh = 0, transferVal = 0, blinkitVal = 0;
-  let cancelledN = 0, cancelledVal = 0, chargeN = 0, chargeVal = 0, nonFgN = 0, nonFgVal = 0, undatedN = 0, undatedVal = 0;
+  let cancelledN = 0, cancelledVal = 0, chargeN = 0, chargeVal = 0, nonFgN = 0, nonFgVal = 0, undatedN = 0, undatedVal = 0, toolingN = 0, toolingVal = 0;
   const transferInvs = new Set<string>();
   const cancelledInvs = new Set<string>();
   const nonFgCodes = new Set<string>();
@@ -1316,32 +1325,35 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
     if (!inv || /report ends|^total/i.test(inv) || /^\d+\s*\(\d+\)$/.test(inv)) continue; // totals row "3903 (6511)"
     // Cancelled invoices are not sales; Tranzact's Tally sync skips them too (A9-1, 10 Nov 2026).
     if (ix.status >= 0 && isTranzactCancelled(row[ix.status])) {
-      cancelledN += 1; cancelledVal += num(row[ix.val]); cancelledInvs.add(inv); continue;
+      cancelledN += 1; cancelledVal += numSigned(row[ix.val]); cancelledInvs.add(inv); continue;
     }
     if (isTranzactStockTransfer(inv, ix.cust >= 0 ? cell(row[ix.cust]) : '')) {
-      transferVal += num(row[ix.val]); transferInvs.add(inv); continue;
+      transferVal += numSigned(row[ix.val]); transferInvs.add(inv); continue;
     }
     // BLK = Blinkit sales: counted from the Blinkit payout (own slot), not here, so no double count.
-    if (tranzactSeriesFor(inv)?.treatment === 'own-feed') { blinkitVal += num(row[ix.val]); continue; }
+    if (tranzactSeriesFor(inv)?.treatment === 'own-feed') { blinkitVal += numSigned(row[ix.val]); continue; }
     const ch = tranzactChannel(inv);
     if (!ch) { skippedCh += 1; continue; }
     const rawItem = cell(row[ix.item]);
     const desc = ix.desc >= 0 ? cell(row[ix.desc]) : '';
     const item = tranzactItemCode(rawItem);
-    const val = num(row[ix.val]);
+    const val = numSigned(row[ix.val]);
     const isFg = /^FG-\d+/.test(item);
     // Non-FG lines: freight / round-off are charges (dropped, ₹ shown); any other item (SFG, RM, spares,
     // accessories) is a real sale and counts for the channel as an unmapped product (A9-3, 10 Nov 2026).
-    if (!isFg && (!rawItem || TRANZACT_CHARGE_LINE.test(`${rawItem} ${desc}`))) { chargeN += 1; chargeVal += val; continue; }
+    const tooling = !isFg && TRANZACT_TOOLING_LINE.test(`${rawItem} ${desc}`);
+    if (!isFg && !tooling && (!rawItem || TRANZACT_CHARGE_LINE.test(`${rawItem} ${desc}`))) { chargeN += 1; chargeVal += val; continue; }
     if (!isFg && val === 0) { chargeN += 1; continue; }
-    const qty = num(row[ix.qty]);
+    const qty = tooling ? 0 : numSigned(row[ix.qty]);
     const rawDate = ix.date >= 0 ? cell(row[ix.date]) : '';
     const date = /^\d{4}-\d{2}-\d{2}/.test(rawDate) ? rawDate.slice(0, 10) : toISODate(row[ix.date]);
     if (!date) { undatedN += 1; undatedVal += val; continue; }
-    if (!isFg) { nonFgN += 1; nonFgVal += val; nonFgCodes.add(item); }
-    const key = `${ch.source}|${date}|${item}`;
+    if (tooling) { toolingN += 1; toolingVal += val; }
+    else if (!isFg) { nonFgN += 1; nonFgVal += val; nonFgCodes.add(item); }
+    const key = tooling ? `${ch.source}|${date}|` : `${ch.source}|${date}|${item}`;
     const e = byKey.get(key);
     if (e) { e.revenue = r2(e.revenue + val); e.units += qty; }
+    else if (tooling) byKey.set(key, { source: ch.source, channel: ch.channel, date, revenue: r2(val), units: 0, orders: 0, fees: 0 });
     else byKey.set(key, { source: ch.source, channel: ch.channel, date, sku: item, skuName: desc, skuKind: 'sku', revenue: r2(val), units: qty, orders: 0, fees: 0 });
     byCh.set(ch.channel, r2((byCh.get(ch.channel) ?? 0) + val));
   }
@@ -1357,7 +1369,8 @@ function parseTranzactSales(wb: XLSX.WorkBook): ParseOutput {
     ...(transferInvs.size ? [`${transferInvs.size} internal stock-transfer invoice(s) (ITF / transfer series / Amazon-bound) ${inr(transferVal)} excluded from sales — compare with Tally's Stock Transfers ledger`] : []),
     ...(blinkitVal ? [`BLK (Blinkit) invoices ${inr(blinkitVal)} not counted here — Blinkit revenue comes from the Blinkit payout; compare the two`] : []),
     ...(nonFgN ? [`${nonFgN} non-FG sale line(s) ${inr(nonFgVal)} counted as unmapped products (${codes}) — map them under Products`] : []),
-    ...(chargeN ? [`${chargeN} freight / round-off line(s) ${inr(chargeVal)} dropped — charges, not goods`] : []),
+    ...(toolingN ? [`${toolingN} tooling / development line(s) ${inr(toolingVal)} counted as channel revenue with no product or units`] : []),
+    ...(chargeN ? [`${chargeN} charge / service line(s) (freight, transport, packaging, insurance, installation, round-off …) ${inr(chargeVal)} dropped — not goods`] : []),
     ...(undatedN ? [`${undatedN} line(s) ${inr(undatedVal)} with no readable Document Date skipped`] : []),
     `GT → Tally Offline Sales; B2B → Tally OEM Sales${skippedCh ? `; ${skippedCh} row(s) with unrecognised invoice prefix` : ''}`,
   ];

@@ -3,9 +3,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as XLSX from 'xlsx';
-import { UPLOAD_PARSERS, isTranzactCancelled } from '../../client/src/data/liveMis/uploadParsers.ts';
+import { UPLOAD_PARSERS, isTranzactCancelled, TRANZACT_CHARGE_LINE, TRANZACT_TOOLING_LINE } from '../../client/src/data/liveMis/uploadParsers.ts';
 import { lookupLedger } from '../../client/src/data/monthClose/ledgerMap.ts';
-import { tranzactSheetForMonth } from '../src/connectors/slots/map/feeds.js';
+import { tranzactSheetForMonth, TRANZACT_CHARGE_LINE as SERVER_CHARGE, TRANZACT_TOOLING_LINE as SERVER_TOOLING } from '../src/connectors/slots/map/feeds.js';
+import { isoDay } from '../src/connectors/slots/map/common.js';
 import { channelOfLedger } from '../src/connectors/tally/ceoSummaryV2.js';
 
 const parser = UPLOAD_PARSERS.find((p) => p.sourceId === 'tranzact')!;
@@ -59,7 +60,7 @@ test('non-FG sale lines count (unmapped); freight / round-off dropped with ₹ s
   assert.ok(out.facts.some((f) => f.sku === 'FG-0037' && f.revenue === 5000), 'FG 0037 normalised');
   assert.ok(out.facts.some((f) => f.sku === 'SFG-0012' && f.revenue === 300000));
   assert.ok(out.trace.some((t) => /2 non-FG sale line\(s\) ₹3,40,000 counted as unmapped products \(SFG-0012, RM-0456\)/.test(t)), out.trace.join('\n'));
-  assert.ok(out.trace.some((t) => /2 freight \/ round-off line\(s\) ₹1,200 dropped/.test(t)), out.trace.join('\n'));
+  assert.ok(out.trace.some((t) => /2 charge \/ service line\(s\).*₹1,200 dropped/.test(t)), out.trace.join('\n'));
 });
 
 test('text dates are read day-first (no month flip, no IST shift); undated lines are counted', () => {
@@ -106,4 +107,49 @@ test('Tranzact per-series sales ledgers map (GT) and Internal Transfer Sales is 
   assert.equal(line('Internal Transfer Sales'), 'rev_str');
   assert.equal(channelOfLedger('Internal Transfer Sales'), null);
   assert.equal(line('OEM Sales'), 'rev_b2b');
+});
+
+test('charge / service lines are dropped (one per term); tooling counts as B2B revenue with no product', () => {
+  const terms = ['Freight', 'Transportation charges', 'Cartage', 'Delivery charges', 'Loading charges', 'Packing', 'Packaging charges',
+    'Insurance', 'Installation charges', 'Service charges', 'Labour charges', 'Courier', 'Round Off'];
+  const out = run([H,
+    ['OEM/26-27/0080', 'OEM Co', '2026-06-10', 'Sent', 'FG-0037', 'Pad', 10, 5000],
+    ...terms.map((t, i) => ['OEM/26-27/0080', 'OEM Co', '2026-06-10', 'Sent', `CHG-${i}`, t, 1, 100]),
+    ['OEM/26-27/0081', 'OEM Co', '2026-06-11', 'Sent', 'TOOL-01', 'Tooling / development charges', 1, 75000],
+  ]);
+  for (const t of terms) {
+    assert.ok(TRANZACT_CHARGE_LINE.test(t), t);
+    assert.ok(!out.facts.some((f) => f.sku?.startsWith('CHG-')), t);
+  }
+  assert.ok(out.trace.some((x) => new RegExp(`${terms.length} charge / service line\\(s\\).*₹1,300 dropped`).test(x)), out.trace.join('\n'));
+  assert.equal(sum(out.facts, 'B2B', 'revenue'), 80000);
+  assert.equal(sum(out.facts, 'B2B', 'units'), 10, 'tooling adds no units');
+  const tool = out.facts.find((f) => f.revenue === 75000)!;
+  assert.equal(tool.sku, undefined, 'tooling has no product');
+  assert.ok(out.trace.some((x) => /1 tooling \/ development line\(s\) ₹75,000 counted as channel revenue/.test(x)));
+  assert.ok(!out.trace.some((x) => /non-FG sale line/.test(x)), 'nothing left for Products to fix');
+});
+
+test('server sheet pull uses the same charge / tooling patterns as the file reader', () => {
+  assert.equal(SERVER_CHARGE.source, TRANZACT_CHARGE_LINE.source);
+  assert.equal(SERVER_TOOLING.source, TRANZACT_TOOLING_LINE.source);
+  const rows = [H,
+    ['OEM/26-27/0090', 'OEM Co', '2026-06-10', 'Sent', 'FG-0037', 'Pad', 10, 5000],
+    ['OEM/26-27/0090', 'OEM Co', '2026-06-10', 'Sent', 'X1', 'Transportation charges', 1, 400],
+    ['OEM/26-27/0091', 'OEM Co', '2026-06-10', 'Sent', 'TOOL-01', 'Mould development', 1, 9000],
+  ];
+  const r = tranzactSheetForMonth(rows, '2026-06');
+  assert.equal(r.rowCount, 2);
+  assert.ok(r.trace.some((t) => /1 charge \/ service line\(s\).*₹400 dropped/.test(t)));
+});
+
+test('server isoDay reads YYYY/MM/DD as that day', () => {
+  assert.equal(isoDay('2026/06/06'), '2026-06-06');
+  assert.equal(isoDay('2026.6.7'), '2026-06-07');
+});
+
+test('bracket negatives are Tranzact-only: other parsers keep their sign rules', () => {
+  // The shared num() still strips brackets (unchanged behaviour for every other report); only the Tranzact reader negates.
+  const out = run([H, ['OEM/26-27/0092', 'OEM Co', '2026-06-11', 'Sent', 'FG-0037', 'Pad', -1, '(500)']]);
+  assert.equal(sum(out.facts, 'B2B', 'revenue'), -500);
 });
