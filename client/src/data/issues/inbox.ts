@@ -36,6 +36,8 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
       href: '/reporting/mis/connectors', sig: `down:${today}` });
   }
   for (const x of feed?.sources ?? []) {
+    // Flipkart refuses its API until the self-access app is approved: a wait, not a fault (the server lists it once, low).
+    if (x.id === 'flipkart' && x.error && /not in approved state|not approved|approval pending/i.test(x.error)) continue;
     if (!x.ok && x.error && x.error !== 'not connected' && !x.partial) {
       out.push({ id: `feed:${x.id}`, area: 'feeds', severity: 'medium', title: `${x.label}: live pull failed`, detail: x.error,
         fix: 'Open Setup → this connector and press Pull now; fix the credentials if it says so.', href: `/reporting/mis/connectors?view=uploads#${x.id}`, sig: `${sig(x.error.slice(0, 60))}:${today}` });

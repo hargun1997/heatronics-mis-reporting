@@ -61,6 +61,7 @@ app.use(htxGate({
     '/api/ownership/reminders/run', // reminder scheduler
     '/api/expenses',                // read by production.heatronics.in; checks EXPENSES_API_TOKEN when set
     '/api/tally/poll',              // GitHub Actions every 30 min (.github/workflows/tally-poll.yml); status only, no figures
+    '/api/connectors/auto-pull/run', // GitHub Actions daily (.github/workflows/slot-auto-pull.yml); once-a-day run, counts only
   ],
 }));
 app.use(cors());
