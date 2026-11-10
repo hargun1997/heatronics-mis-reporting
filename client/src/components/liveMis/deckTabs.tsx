@@ -24,6 +24,7 @@ import {
   REAL_ROWS, toPeriodMIS, anchoredChannelPnl, anchoredColumns, companyColumn, liveSkuChannelMatrix,
 } from '../../data/misDeck/liveViews';
 import { topChannel } from '../../data/misDeck/analytics';
+import { footCellsToChannels, NOT_MAPPED } from '../../data/misDeck/channelFoot';
 import type { CascadeLine } from '../../data/monthClose/schema';
 import {
   Fold, Pills, CogmBasisToggle, CogmBasisNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
@@ -781,7 +782,7 @@ export function SkuTab({ period, cells, periodKeys }: { period: PeriodAgg; cells
 
 type MatrixMetric = 'con' | 'rev' | 'sm' | 'cm' | 'u';
 
-export function SkuChannelTab({ period, cells, periodKeys }: { period: PeriodAgg; cells: SkuCell[]; periodKeys: Set<string> }) {
+export function SkuChannelTab({ period, cells, periodKeys, completeness = {} }: { period: PeriodAgg; cells: SkuCell[]; periodKeys: Set<string>; completeness?: Record<string, PeriodCompleteness> }) {
   const { chName } = useLiveView();
   // mode 'matrix'  → products × channels grid with a metric toggle
   // mode 'sku'     → SKU × Channel: pick a SKU, columns are its channels (full P&L)
@@ -805,7 +806,7 @@ export function SkuChannelTab({ period, cells, periodKeys }: { period: PeriodAgg
           options={[{ id: 'matrix', label: 'Matrix' }, { id: 'sku', label: 'SKU × Channel' }, { id: 'channel', label: 'Channel × SKU' }]} />
         <span className="ml-auto"><LevelBadge level={period.level} published={period.published} /></span>
       </div>
-      {mode === 'matrix' ? <SkuMatrix period={period} cells={cells} periodKeys={periodKeys} /> : (
+      {mode === 'matrix' ? <SkuMatrix period={period} cells={cells} periodKeys={periodKeys} completeness={completeness} /> : (
         <>
           {orient === 'channel' && options.length <= 10 ? (
             <div className="flex flex-wrap gap-1.5">
@@ -834,11 +835,13 @@ export function SkuChannelTab({ period, cells, periodKeys }: { period: PeriodAgg
   );
 }
 
-function SkuMatrix({ period, cells, periodKeys }: { period: PeriodAgg; cells: SkuCell[]; periodKeys: Set<string> }) {
+function SkuMatrix({ period, cells, periodKeys, completeness }: { period: PeriodAgg; cells: SkuCell[]; periodKeys: Set<string>; completeness: Record<string, PeriodCompleteness> }) {
   const { chName } = useLiveView();
   const [metric, setMetric] = useState<MatrixMetric>('con');
   const [transpose, setTranspose] = useState(false);
-  const mx = useMemo(() => liveSkuChannelMatrix(cells, periodKeys), [cells, periodKeys]);
+  // Cells footed to the Channel P&L (channelFoot.ts): each channel's column = its Channel P&L to CM2, Σ = the company.
+  const footed = useMemo(() => footCellsToChannels(cells, period.memberAggs?.length ? period.memberAggs : [period], completeness), [cells, period, completeness]);
+  const mx = useMemo(() => liveSkuChannelMatrix(footed, periodKeys), [footed, periodKeys]);
   const cm2Real = isRealRow(period.level, 'cm2');
   const rowKeys = transpose ? (mx.channels as string[]) : mx.products;
   const colKeys = transpose ? mx.products : (mx.channels as string[]);
@@ -898,8 +901,9 @@ function SkuMatrix({ period, cells, periodKeys }: { period: PeriodAgg; cells: Sk
         </table>
       </div>
       <Note>
-        CM2 = revenue − COGM (product COGS + factory overhead: Tally’s actual where booked, else 10%) − channel &amp; fulfilment − ads. Ad spend is measured per product
-        (Meta/Google mapped by campaign; Amazon by advertised product). Accessory rows in italics, sorted last.
+        CM2 = revenue − COGM − channel &amp; fulfilment − ads, footed to the Channel P&amp;L: each channel column = that channel’s CM2, the total = the company’s.
+        Product cost = BOM material; factory, manufacturing, inward freight and sales with no BOM cost are allocated by material (estimated). Fees and ads follow
+        each product’s own report figures, scaled to what the books show. “{NOT_MAPPED}” = sales in the books that the SKU data does not cover. Accessory rows in italics, sorted last.
         {!cm2Real && ' This period is top line only — CM2 needs the BOM (costs) for every month in it.'}
       </Note>
     </div>

@@ -36,7 +36,7 @@ import {
 import type { MisEntity, MisPoint } from './misSheet';
 import { channelNoData } from './monthCompleteness';
 import type { TallyBucketLine } from '../monthClose/schema';
-import { allocateMarketing, spreadWithCap } from './channelAlloc';
+import { allocateChannelCost, allocateMarketing, cogsWeights, feedFees, feedPlatform, sumChannelRows } from './channelAlloc';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -281,7 +281,12 @@ export interface AnchoredRow {
   /** 'tally' = revenue and channel / marketing / platform costs come from Tally's channel ledgers; 'shares' = order-share splits. */
   /** 'estimated' = as 'tally', but the period has no ad spend by platform, so marketing went to the consumer channels by revenue. */
   basis: 'tally' | 'shares' | 'estimated';
+  /** Lines of this channel that are allocated estimates, not attributed (10 Nov 2026): shown with the estimated flag. */
+  estimatedLines?: EstimatedLine[];
+  /** Why (plain English), e.g. "B2B: SKU data covers 64% of booked sales — cost scaled to the booked sales". */
+  notes?: string[];
 }
+export type EstimatedLine = 'cogm' | 'fees' | 'marketing' | 'platform';
 
 /**
  * The legacy deck's Channel P&L method on a live period: the company P&L is the
@@ -299,6 +304,9 @@ export function anchoredChannelPnl(
   // Where Tally exists for the period, the channel's own ledgers carry the figures: revenue = Tally's channel sales,
   // and each cost line = what the connectors attribute to the channel (tallyLines.byChannel) plus its revenue-share of
   // the unattributed remainder, so every line still foots to Tally. Without Tally it stays the order-share split.
+  // A year / quarter / range = Σ its months (audit round 9 B1b): costs booked in one half of a year never land on a
+  // channel that sold only in the other half.
+  if (period.members.length > 1 && period.memberAggs?.length) return sumAnchoredRows(period.memberAggs.map((m) => anchoredChannelPnl(m, cells, completeness)));
   if (period.hasTally && period.netRevenue > 0) return tallyAnchoredRows(period, cells, completeness);
 
   const keys = new Set(period.members);
@@ -317,6 +325,13 @@ export function anchoredChannelPnl(
   const totCogs = realCogs.reduce((s, v) => s + v, 0) || 1;
   // Marketing follows ad spend; with no ad spend it goes to the consumer channels only (never B2B / GT by revenue).
   const smSplit = allocateMarketing(chans, period.salesMarketing, adWeight.map((w) => Math.max(0, w)), realRev).values;
+  // Fees and platform costs follow the channels that pay them (cells' own fees, the published fee feeds), the rest to
+  // the consumer channels only — never to B2B / GT by revenue (audit round 9 B2).
+  const pub = period.members.some((m) => completeness[m]?.locked || completeness[m]?.published);
+  const cellFees = chans.map((ch) => Math.max(0, sum(ch, (c) => c.oth)));
+  const feeAtt = chans.map((ch, i) => (pub ? Math.max(period.members.reduce((w, m) => w + feedFees(ch, m), 0), 0) : cellFees[i]));
+  const cfSplit = allocateChannelCost(chans, period.channelFulfillment, feeAtt, realRev);
+  const pfSplit = allocateChannelCost(chans, period.platformCosts, chans.map((ch) => period.members.reduce((w, m) => w + feedPlatform(ch, m), 0)), realRev);
 
   return chans.map((ch, i) => {
     const revShare = realRev[i] / totRev;
@@ -325,20 +340,22 @@ export function anchoredChannelPnl(
     const revenue = period.netRevenue * revShare;
     const cogm = period.cogm * cogsShare;
     const grossMargin = revenue - cogm;
-    const channelFulfillment = period.channelFulfillment * revShare;
+    const channelFulfillment = cfSplit.values[i];
     const cm1 = grossMargin - channelFulfillment;
     const salesMarketing = smSplit[i];
     const cm2 = cm1 - salesMarketing;
-    const platformCosts = period.platformCosts * revShare;
+    const platformCosts = pfSplit.values[i];
     const cm3 = cm2 - platformCosts;
     const opex = period.opex * revShare;
     const ebitda = cm3 - opex;
     const nonOperating = period.nonOperating * revShare;
     const costOfFundraising = period.costOfFundraising * revShare;
     const netIncome = ebitda - nonOperating - costOfFundraising;
+    const est: EstimatedLine[] = [...(cfSplit.basis === 'estimated' ? ['fees' as const] : []), ...(pfSplit.basis === 'estimated' ? ['platform' as const] : [])];
     return {
       channel: ch, revenue, cogm, grossMargin, channelFulfillment, cm1, salesMarketing, cm2,
       platformCosts, cm3, opex, ebitda, nonOperating, costOfFundraising, netIncome, revShare, cogsShare, smShare, basis: 'shares' as const,
+      ...(est.length ? { estimatedLines: est } : {}),
     };
   });
 }
@@ -357,15 +374,24 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[], completen
   // Cost attributed to each channel by Tally line group (positive = cost), and the total booked for the group.
   const attributed = (cascade: string): number[] => chans.map((ch) =>
     -period.tallyLines.filter((l) => l.cascadeLine === cascade).reduce((s, l) => s + (l.byChannel[ch] ?? 0), 0));
-  const spreadCost = (total: number, cascade: string, fallbackShare: (i: number) => number): number[] => {
-    // Reports above Tally's total are capped pro rata (channelAlloc.ts): a negative rest is never spread to other channels.
-    return spreadWithCap(total, attributed(cascade), fallbackShare);
-  };
-  const realCogs = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.cogs : s), 0)));
-  const totCogs = realCogs.reduce((a, b) => a + b, 0);
-  const cogsShareOf = (i: number) => (totCogs > 1 ? realCogs[i] / totCogs : revShareOf(i));
+  // COGM on ONE basis (audit round 9 A9-2): each channel's material cost per ₹ from its SKU cells, applied to the revenue
+  // Tally booked on it; cost-less sales at the month's material rate (channelAlloc.ts cogsWeights).
+  const cellIn = chans.map((ch) => sel.reduce((a, c) => (c.ch !== ch ? a : {
+    cogs: a.cogs + c.cogs, cellRev: a.cellRev + Math.max(0, c.rev),
+    uncostedRev: a.uncostedRev + (c.noCost && c.p !== 'Accessory (excl)' ? Math.max(0, c.rev) : 0),
+  }), { cogs: 0, cellRev: 0, uncostedRev: 0 }));
+  const cw = cogsWeights(chans, posRev, cellIn);
+  const totCogs = cw.weights.reduce((a, b) => a + b, 0);
+  const cogsShareOf = (i: number) => (totCogs > 0 ? cw.weights[i] / totCogs : revShareOf(i));
 
-  const fulfil = spreadCost(period.channelFulfillment, 'channel_fulfilment', revShareOf);
+  // Fees / platform: what the reports tag on the channel (published months: the larger of the tags and the fee feeds),
+  // capped at Tally; the rest only to the consumer channels (audit round 9 B2).
+  const pubM = period.members.filter((m) => completeness[m]?.locked || completeness[m]?.published);
+  const withFeeds = (att: number[], feed: (ch: SalesChannel, m: string) => number) =>
+    att.map((a, i) => Math.max(a, pubM.reduce((w, m) => w + feed(chans[i], m), 0)));
+  const cellRevAll = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.rev : s), 0)));
+  const cfSplit = allocateChannelCost(chans, period.channelFulfillment, withFeeds(attributed('channel_fulfilment'), feedFees), posRev, cellRevAll);
+  const fulfil = cfSplit.values;
   // Marketing: ad spend on the channel it was spent for (connector-attributed for live months, the published ad feeds for
   // locked / published months); the rest of Tally's S&M only to the consumer channels, by ad spend (else revenue = 'estimated').
   // Per month and channel the larger of the report tags and (locked / published months) the published feeds — never both
@@ -378,7 +404,18 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[], completen
   const cellRev = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.rev : s), 0)));
   const smSplit = allocateMarketing(chans, period.salesMarketing, smAtt, posRev, cellRev);
   const sm = smSplit.values;
-  const plat = spreadCost(period.platformCosts, 'platform_payment', revShareOf);
+  const pfSplit = allocateChannelCost(chans, period.platformCosts, withFeeds(attributed('platform_payment'), feedPlatform), posRev, cellRevAll);
+  const plat = pfSplit.values;
+
+  const estimatedOf = (i: number): Pick<AnchoredRow, 'estimatedLines' | 'notes'> => {
+    const est: EstimatedLine[] = [];
+    if (cw.estimated[i]) est.push('cogm');
+    if (cfSplit.basis === 'estimated' && fulfil[i]) est.push('fees');
+    if (smSplit.basis === 'estimated' && sm[i]) est.push('marketing');
+    if (pfSplit.basis === 'estimated' && plat[i]) est.push('platform');
+    const notes = cw.notes.filter((n) => n.startsWith(`${chans[i]}:`));
+    return { ...(est.length ? { estimatedLines: est } : {}), ...(notes.length ? { notes } : {}) };
+  };
 
   return chans.map((ch, i) => {
     const revShare = revShareOf(i);
@@ -401,6 +438,31 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[], completen
       channel: ch, revenue, cogm, grossMargin, channelFulfillment, cm1, salesMarketing, cm2,
       platformCosts, cm3, opex, ebitda, nonOperating, costOfFundraising, netIncome,
       revShare, cogsShare, smShare: totPos ? sm[i] / (period.salesMarketing || 1) : 0, basis: smSplit.basis === 'estimated' ? 'estimated' as const : 'tally' as const,
+      ...estimatedOf(i),
+    };
+  });
+}
+
+/** Σ monthly channel rows → one period's rows: shares recomputed from the sums, estimated lines / notes merged. */
+function sumAnchoredRows(monthRows: AnchoredRow[][]): AnchoredRow[] {
+  const rows = sumChannelRows(monthRows);
+  const tot = (f: (r: AnchoredRow) => number) => rows.reduce((t, r) => t + Math.max(0, f(r)), 0);
+  const totRev = tot((r) => r.revenue), totCogm = tot((r) => r.cogm), totSm = tot((r) => r.salesMarketing);
+  const order = (ch: SalesChannel) => SALES_CHANNELS.indexOf(ch);
+  return rows.sort((a, b) => order(a.channel) - order(b.channel)).map((r) => {
+    const all = monthRows.flat().filter((x) => x.channel === r.channel);
+    const est = [...new Set(all.flatMap((x) => x.estimatedLines ?? []))];
+    const notes = [...new Set(all.flatMap((x) => x.notes ?? []))];
+    const bases = new Set(all.map((x) => x.basis));
+    const basis = bases.size === 1 ? r.basis : bases.has('estimated') || bases.has('shares') ? (bases.has('tally') ? 'estimated' : 'shares') : 'tally';
+    const { estimatedLines: _e, notes: _n, ...rest } = r;
+    void _e; void _n;
+    return {
+      ...rest, basis,
+      revShare: totRev ? Math.max(0, r.revenue) / totRev : 0,
+      cogsShare: totCogm ? Math.max(0, r.cogm) / totCogm : 0,
+      smShare: totSm ? Math.max(0, r.salesMarketing) / totSm : 0,
+      ...(est.length ? { estimatedLines: est } : {}), ...(notes.length ? { notes } : {}),
     };
   });
 }
@@ -620,9 +682,9 @@ export function sumMisPoints(points: MisPoint[]): MisPoint {
 /**
  * One MIS-format point (₹, costs as positive magnitudes) for a live period —
  * company or one channel — reproducing the legacy MIS Sheet (misSheet.ts):
- *   • per MONTH: company lines from the month; a channel uses the legacy
- *     channelPnl() with ad-spend S&M (the legacy D2C / Amazon ad feeds on
- *     locked/published months, the SKU cells' measured ad on live months);
+ *   • per MONTH: company lines from the month; a channel uses the Channels
+ *     tab's anchoredChannelPnl() row (COGM by its own SKU cost, fees and ad
+ *     spend on the channel that incurred them; channelPnl() only as fallback);
  *     qty = estimated orders (net ÷ AOV, by source channel) or actual connector
  *     orders where the month reports them;
  *   • a multi-month period (FY total, range) = the SUM of its monthly points.
@@ -681,12 +743,16 @@ export function liveMisPoint(
   const comp = completeness[key];
   // A channel named missing for the month (monthCompleteness) shows "no data", never ₹0.
   if (channelNoData(comp, ch)) return Object.fromEntries(MIS_KEYS.map((k) => [k, null])) as unknown as MisPoint;
-  const fromFeeds = comp?.locked || comp?.published;
-  const adOf = (c: SalesChannel) => cells.reduce((s, x) => (x.m === key && x.ch === c ? s + (x.ad ?? 0) : s), 0);
-  const marketing = fromFeeds
-    ? { d2c: D2C_AD_SPEND[key] || 0, amazon: AMAZON_AD_SPEND[key] || 0 }
-    : { d2c: adOf('D2C'), amazon: adOf('Amazon') };
-  const r = channelPnl(legacyP, marketing).find((x) => x.channel === ch)!;
+  // ONE channel method (audit round 9 B1a): the Channels tab's anchored row — COGM by the channel's own SKU cost, fees /
+  // marketing where they were incurred. The legacy revenue-share channelPnl only when the month has no anchored row.
+  const r = anchoredChannelPnl(p, cells, completeness).find((x) => x.channel === ch) ?? (() => {
+    const fromFeeds = comp?.locked || comp?.published;
+    const adOf = (c: SalesChannel) => cells.reduce((s, x) => (x.m === key && x.ch === c ? s + (x.ad ?? 0) : s), 0);
+    const marketing = fromFeeds
+      ? { d2c: D2C_AD_SPEND[key] || 0, amazon: AMAZON_AD_SPEND[key] || 0 }
+      : { d2c: adOf('D2C'), amazon: adOf('Amazon') };
+    return channelPnl(legacyP, marketing).find((x) => x.channel === ch)!;
+  })();
   const share = p.netRevenue ? Math.max(0, p.netByChannel[ch] ?? 0) / p.netRevenue : 0;
   return {
     ...blank,

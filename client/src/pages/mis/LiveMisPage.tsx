@@ -406,7 +406,7 @@ export function LiveMisPage() {
             </Section>
             <Section id="ch-skuchannel" title="SKU × channel"
               meta={`Products × channels for ${selLabel} · contribution, revenue, marketing, CM2 or units · full P&L per SKU or per channel`}>
-              {withPeriod((sel, v) => <SkuChannelTab period={sel} cells={v.skuCells} periodKeys={periodKeys} />)}
+              {withPeriod((sel, v) => <SkuChannelTab period={sel} cells={v.skuCells} periodKeys={periodKeys} completeness={completeness} />)}
             </Section>
           </>
         )}
