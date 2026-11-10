@@ -109,7 +109,7 @@ test('#6 Last 12 / FY to date end on the anchor; YTD is the Indian FY, labelled 
   assert.deepEqual(trailingKeys('2026-02', 3), ['2025-12', '2026-01', '2026-02']);
 });
 
-const cf = (period: string, openingCash: number, closingCash: number, equity = 0) => ({ period, openingCash, closingCash, equity }) as unknown as CashFlow;
+const cf = (period: string, open: number, close: number, equity = 0) => ({ period, openingCash: open, closingCash: close, openingNetCash: open, closingNetCash: close, equity, asOf: null }) as unknown as CashFlow;
 
 test('#13 FY cash rows over the months that have a cash flow, labelled; all months = no label', () => {
   const rows: Record<string, { openingCash: number; closingCash: number; funding: number; cashBurn: number; runway: number | null }> = {
@@ -127,16 +127,18 @@ test('#13 FY cash rows over the months that have a cash flow, labelled; all mont
   assert.equal(cashOverMonths(['2026-10', '2026-11'], (k) => rows[k] ?? null)!.label, null);
   assert.equal(cashOverMonths(['2026-04'], () => null), null);
 
-  // Through misSourceWithCash: the FY total keeps cash for the months that have it and names them.
+  // Through misSourceWithCash: the FY total keeps cash for the months that have it and names them (finished months only).
+  const fk = ['2025-04', '2025-05', '2025-10', '2025-11'];
   const base: MisFormatSource = {
-    fiscalYears: [{ name: 'FY 2026-27', months: keys.map((k) => ({ key: k, label: k })) }],
+    fiscalYears: [{ name: 'FY 2025-26', months: fk.map((k) => ({ key: k, label: k })) }],
     point: () => pt({ netRevenue: 1000 }), channels: [], label: () => 'Company',
   };
-  const src = misSourceWithCash(base, [cf('2026-10', 100, 80), cf('2026-11', 80, 150, 100)]);
-  const tot = src.point(keys, 'company');
+  const src = misSourceWithCash(base, [cf('2025-10', 100, 80), cf('2025-11', 80, 150, 100)]);
+  const tot = src.point(fk, 'company');
   assert.equal(tot.closingCash, 150);
+  assert.equal(tot.openingCash, 100);
   assert.equal(tot.cashMonths, 'Oct–Nov');
-  assert.equal(src.point(['2026-04'], 'company').closingCash, null);
+  assert.equal(src.point(['2025-04'], 'company').closingCash, null);
 });
 
 test('#12 % view / % export print cash rows in ₹ Lac, not % of net revenue', () => {
