@@ -36,6 +36,7 @@ import { activeProductMap, bomGaps, unmappedGaps, setProductMap, type Candidate,
 import { setLedgerRules } from '../monthClose/ledgerRules';
 import { fetchFacts } from '../liveMis/client';
 import { accumulateTags, buildChannelRecon, tagTallyLines, toSalesChannel } from './expenseTagging';
+import { conversionCost, stockUnposted } from './conversion';
 import { buildCloseTie, type CloseTie, type MonthLock } from './closeTies';
 
 // Factory overhead convention — 10% of revenue added to product COGS to form
@@ -523,7 +524,8 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     const factoryAmount = factoryActual ?? r2(FACTORY_PCT * c.netRevenue);
     const factoryRate = c.netRevenue > 0 ? factoryAmount / c.netRevenue : FACTORY_PCT;
     for (const cell of skuCells) cell.fac = r2(factoryRate * cell.rev);
-    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, factoryRate);
+    const conv = conversionCost(c.cogmLines, factoryAmount);
+    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, factoryRate, conv.other);
 
     // A month is "full" only when Tally actually booked sales; a P&L with no revenue is not a close.
     const tallyHasSales = c.netRevenue > 0;
@@ -559,6 +561,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       costOfFundraising: c.costOfFundraising, cogmLines: c.cogmLines, opexLines: c.opexLines,
       tallyLines, channelRecon,
       factory: factoryAmount, factoryBasis,
+      conversion: conv.total, ...(stockUnposted(c.cogmLines) ? { stockUnposted: true } : {}),
     };
     return {
       month, skuCells, gaps,

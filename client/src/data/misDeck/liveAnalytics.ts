@@ -123,9 +123,11 @@ export interface PeriodAgg {
   factory: number;
   /** 'tally' = every member month uses Tally's actual; 'assumed' = none; 'mixed' = some. */
   factoryBasis: 'tally' | 'assumed' | 'mixed';
+  /** Conversion cost inside `cogm`: `factory` + the other Direct Expenses booked in Tally (= `factory` where a month has none). */
+  conversion: number;
   /**
-   * Normalised COGM basis only: Σ of the member months' `stockVariance` (Tally COGM − BOM cost of units sold −
-   * factory overhead; positive = stock built). 0 and `normalisedMonths` 0 on the actual basis.
+   * Normalised COGM basis only: Σ of the member months' `stockVariance` (Tally COGM − BOM material cost of units sold −
+   * conversion cost booked; positive = stock built). 0 and `normalisedMonths` 0 on the actual basis.
    */
   stockVariance: number;
   /** Member months restated to the normalised COGM basis (carry `stockVariance`). */
@@ -172,7 +174,7 @@ export function aggregatePeriods(
         cogmLines: {}, opexLines: {}, nonOpLines: {},
         grossByChannel: {}, returnsByChannel: {}, totalGrossRevenue: 0, totalReturns: 0, totalTaxes: 0, hasBuildUp: true,
         ordersByChannel: {}, ordersMonths: 0, published: false, locked: true, estOrdersByChannel: {},
-        closed: true, factory: 0, factoryBasis: 'tally', stockVariance: 0, normalisedMonths: 0,
+        closed: true, factory: 0, factoryBasis: 'tally', conversion: 0, stockVariance: 0, normalisedMonths: 0,
       };
       buckets.set(key, b);
     }
@@ -201,6 +203,7 @@ export function aggregatePeriods(
     if (!comp?.closed) b.closed = false;
     const monthFactory = m.factory ?? FACTORY_PCT * m.netRevenue;
     b.factory = r2(b.factory + monthFactory);
+    b.conversion = r2(b.conversion + (m.conversion ?? monthFactory));
     const mBasis = m.factoryBasis ?? 'assumed';
     if (b.members.length === 1) b.factoryBasis = mBasis;
     else if (b.factoryBasis !== mBasis) b.factoryBasis = 'mixed';

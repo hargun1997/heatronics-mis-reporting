@@ -281,6 +281,15 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     months whose every SKU cell has no BOM cost stay as booked and are named in the note ("Dec 23–Jul 26 shown as booked — no BOM costing for
     them"); a facts-only month costed to CM2 is already on this basis (variance 0). `blendLiveMonths` / `blendedMonths` / `fyBlendedGMRates`
     were deleted (code-health pass, 9 Nov 2026). Tests `server/test/normalisedCogm.test.ts`.
+    **Conversion cost is inside the normalised COGM (10 Nov 2026, audit A1):** the BOM is material only, so normalised COGM = BOM material of the
+    units sold + ALL conversion cost booked that month in Tally's Direct Expenses (`misDeck/conversion.ts conversionCost`: factory overheads +
+    manufacturing costs + inward freight + any other COGM ledger that is not raw material / stock movement; `MonthlyMIS.conversion`,
+    `PeriodAgg.conversion`; `factory` is still the Factory Overheads ledger). `cogmVariance` = raw-material purchases + stock movement − BOM
+    material of the units sold, so the memo line holds ONLY material purchase timing (before: ≈ ₹40.8 L of manufacturing cost + freight over
+    Apr–Oct 2026 sat in the memo and normalised GM was that much too high). Bridge: "Product cost (BOM)" = normalised COGM − conversion, new step
+    "Manufacturing cost and inward freight" (`direct_other`). A month whose Tally closing stock = opening stock with purchases booked
+    (`stockUnposted`) is listed as "estimated" in the note (`NormalisedMonths.stockEstimated`): its memo is not final. SKU / channel cells still
+    carry factory overhead only (`SkuCell.fac`).
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).

@@ -13,6 +13,8 @@ import { buildLiveWorkbook, LIVE_EXPORT_EVERYTHING, liveMisFormatSource } from '
 import { buildLivePdf } from '../../client/src/utils/liveMisPdf.ts';
 import { buildLiveDeck } from '../../client/src/data/misDeck/liveDeck.ts';
 import type { DailyFact } from '../../client/src/data/liveMis/facts.ts';
+import { conversionCost, stockUnposted } from '../../client/src/data/misDeck/conversion.ts';
+import { buildBridge } from '../../client/src/data/misDeck/bridge.ts';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -193,4 +195,118 @@ test('a live deck end to end: the Excel / PDF exports on the normalised basis ca
 
   const pdf = buildLivePdf(deck, { sections: ['trends', 'fyPnl', 'months', 'misSheet'], fyKeys: [], monthKeys: ['2026-10'], normaliseCogm: true, mergeChannels: true }, null);
   assert.ok(pdf.getNumberOfPages() >= 3);
+});
+
+// ---- Conversion cost inside the normalised COGM (10 Nov 2026) ---------------------------------------------------
+// Normalised COGM = BOM material of the units sold + ALL conversion cost booked in Tally's Direct Expenses (factory
+// overheads, manufacturing costs, inward freight …). The memo line then holds only the material purchase timing.
+
+test('conversionCost: every Direct Expense ledger except raw material and stock movement is conversion', () => {
+  const lines = {
+    'Raw Material Purchases': -600_000, 'Factory Overheads': -80_000,
+    'Manufacturing Costs (job work, wages, addl. charges)': -50_000, 'Inward Freight': -10_000, 'Some new direct ledger': -2_000,
+    'Stock movement (Opening − Closing)': 30_000, 'TOTAL COGM': -712_000,
+  };
+  assert.deepEqual(conversionCost(lines, 80_000), { factory: 80_000, other: 62_000, total: 142_000 });
+  assert.deepEqual(conversionCost({ 'Raw Material Purchases': -100 }, 10), { factory: 10, other: 0, total: 10 });
+  assert.equal(stockUnposted(lines), false);
+  assert.equal(stockUnposted({ 'Raw Material Purchases': -600_000, 'Stock movement (Opening − Closing)': 0 }), true);  // closing = opening, purchases booked
+  assert.equal(stockUnposted({ 'Stock movement (Opening − Closing)': 0 }), false);                                     // nothing bought: nothing to value
+  assert.equal(stockUnposted({ 'Raw Material Purchases': -600_000 }), false);                                          // no stock lines in the P&L at all
+});
+
+/** A synthetic Tally month + Shopify units + one BOM (₹400 material a unit). */
+function tallyMonth(periodKey: string, o: { sales: number; units: number; rm: number; foh: number; mfg: number; freight: number; open: number; close: number; opex: number }) {
+  const f = (x: Partial<DailyFact>): DailyFact => ({ source: 'shopify', channel: 'D2C', date: `${periodKey}-05`, revenue: 0, units: 0, orders: 0, fees: 0, ...x });
+  const rows = [
+    { name: 'D2C Sales', depth: 1, amount: o.sales }, { name: 'Opening Stock', depth: 1, amount: o.open },
+    { name: 'Raw Material Purchases', depth: 1, amount: o.rm }, { name: 'Closing Stock', depth: 1, amount: o.close },
+    ...(o.foh ? [{ name: 'Factory Overheads', depth: 1, amount: o.foh }] : []),
+    ...(o.mfg ? [{ name: 'Manufacturing Costs', depth: 1, amount: o.mfg }] : []),
+    ...(o.freight ? [{ name: 'Inward Freight', depth: 1, amount: o.freight }] : []),
+    { name: 'Sales & Marketing', depth: 1, amount: o.opex },
+  ];
+  return [
+    { connectorId: 'tally', slotId: 'pnl', periodKey, payload: { ledgerRows: rows, nettProfit: null } },
+    { connectorId: 'shopify', slotId: 'sales', periodKey, payload: { facts: [f({ sku: 'HCORE-NECK', skuName: 'hCore Neck', revenue: o.sales, units: o.units })] } },
+  ];
+}
+const BOM_REPORT = { connectorId: 'production', slotId: 'bom', periodKey: '2026-10', payload: { bomCosts: [{ fgId: 'FG-0008', bomNumber: '1', bomName: 'hCore Neck', costPerUnit: 400 }] } };
+
+test('normalised COGM = BOM material + factory + manufacturing + inward freight; the memo is material timing only', () => {
+  const o = { sales: 1_000_000, units: 500, rm: 600_000, foh: 80_000, mfg: 50_000, freight: 10_000, open: 900_000, close: 1_150_000, opex: 100_000 };
+  const deck = buildLiveDeck([...tallyMonth('2026-06', o), BOM_REPORT] as never, [], {});
+  const jun = deck.months.find((m) => m.key === '2026-06')!;
+  assert.equal(jun.cogm, 600_000 + 80_000 + 50_000 + 10_000 + (900_000 - 1_150_000));   // 490,000 as booked
+  assert.equal(jun.factory, 80_000);
+  assert.equal(jun.conversion, 140_000);                                                 // FOH + Mfg + Inward
+  assert.equal(jun.stockUnposted, undefined);
+  // memo = material purchased + stock movement − BOM material of the units sold; no conversion cost in it
+  assert.equal(jun.channelRecon!.cogmVariance, 600_000 + (900_000 - 1_150_000) - 500 * 400);
+  const norm = normaliseLiveMonths(deck.months, deck.completeness, deck);
+  const n = norm.months.find((m) => m.key === '2026-06')!;
+  assert.equal(n.cogm, 500 * 400 + 80_000 + 50_000 + 10_000);                            // 340,000 (was 280,000 before the fix)
+  assert.equal(n.grossMargin, 1_000_000 - 340_000);
+  assert.equal(n.stockVariance, 150_000);
+  assert.equal(r2(n.netIncome - n.stockVariance!), jun.netIncome);
+  assert.deepEqual(norm.stockEstimated, []);
+  const agg = aggregatePeriods([n], deck.completeness, 'month')[0];
+  assert.equal(agg.conversion, 140_000);
+  assert.equal(r2(agg.cogm - agg.conversion), 200_000);                                  // what the bridge calls "Product cost (BOM)"
+});
+
+test('seven months shaped like Apr–Oct 2026: the year reconciles and unposted closing stock is marked estimated', () => {
+  // Made-up figures in the shape of the stored Tally copies: stock built Apr–Jun, drawn down in Jul, closing stock
+  // left equal to opening in Sep and Oct, and a thin Oct with no factory ledger.
+  const set: [string, Parameters<typeof tallyMonth>[1]][] = [
+    ['2026-04', { sales: 4_000_000, units: 4000, rm: 2_800_000, foh: 380_000, mfg: 620_000, freight: 24_000, open: 11_700_000, close: 12_350_000, opex: 3_000_000 }],
+    ['2026-05', { sales: 6_800_000, units: 7000, rm: 2_600_000, foh: 406_000, mfg: 700_000, freight: 32_000, open: 12_350_000, close: 14_300_000, opex: 8_000_000 }],
+    ['2026-06', { sales: 4_900_000, units: 5000, rm: 3_400_000, foh: 397_000, mfg: 1_026_000, freight: 50_000, open: 14_300_000, close: 16_330_000, opex: 3_800_000 }],
+    ['2026-07', { sales: 4_600_000, units: 4800, rm: 1_500_000, foh: 396_000, mfg: 670_000, freight: 37_000, open: 16_330_000, close: 14_540_000, opex: 2_500_000 }],
+    ['2026-08', { sales: 3_000_000, units: 3100, rm: 1_000_000, foh: 402_000, mfg: 491_000, freight: 19_000, open: 14_540_000, close: 14_820_000, opex: 2_100_000 }],
+    ['2026-09', { sales: 6_300_000, units: 6500, rm: 2_800_000, foh: 398_000, mfg: 365_000, freight: 32_000, open: 14_820_000, close: 14_820_000, opex: 1_400_000 }],
+    ['2026-10', { sales: 760_000, units: 800, rm: 1_250_000, foh: 0, mfg: 14_000, freight: 0, open: 14_820_000, close: 14_820_000, opex: 240_000 }],
+  ];
+  const deck = buildLiveDeck([...set.flatMap(([k, o]) => tallyMonth(k, o)), BOM_REPORT] as never, [], {});
+  const keys = set.map(([k]) => k);
+  const norm = normaliseLiveMonths(deck.months, deck.completeness, deck);
+  let sumNi = 0, sumMemo = 0, sumTally = 0;
+  for (const [k, o] of set) {
+    const booked = deck.months.find((m) => m.key === k)!;
+    const n = norm.months.find((m) => m.key === k)!;
+    const factory = o.foh || r2(0.1 * o.sales);                                          // no ledger → the labelled 10 % fallback
+    assert.equal(n.cogm, r2(o.units * 400 + factory + o.mfg + o.freight), `${k} normalised COGM`);
+    // The memo carries no manufacturing cost or freight: only material (and, in a month with no factory ledger, the assumed factory charge).
+    assert.equal(n.stockVariance, r2(o.rm + (o.open - o.close) - o.units * 400 - (o.foh ? 0 : factory)), `${k} memo`);
+    assert.equal(r2(booked.grossMargin + n.stockVariance!), n.grossMargin, `${k} GM + memo`);
+    sumNi += n.netIncome; sumMemo += n.stockVariance!; sumTally += booked.netIncome;
+  }
+  assert.equal(r2(sumNi - sumMemo), r2(sumTally));                                       // Σ normalised NI − Σ memo = Tally NI
+  const fy = aggregatePeriods(norm.months.filter((m) => keys.includes(m.key)), deck.completeness, 'fy')[0];
+  assert.equal(r2(fy.netIncome - fy.stockVariance), r2(sumTally));
+  assert.equal(fy.conversion, r2(set.reduce((s, [, o]) => s + (o.foh || 0.1 * o.sales) + o.mfg + o.freight, 0)));
+  // Sep and Oct: closing = opening with purchases booked → estimated, said in the note; the others are clean.
+  assert.deepEqual(norm.stockEstimated, ['2026-09', '2026-10']);
+  assert.match(norm.note, /Sep 26–Oct 26 estimated — closing stock not posted in Tally yet/);
+  assert.equal(deck.months.find((m) => m.key === '2026-08')!.stockUnposted, undefined);
+});
+
+test('bridge: manufacturing cost and inward freight are their own step, not inside "Product cost (BOM)"', () => {
+  const a = { sales: 1_000_000, units: 500, rm: 600_000, foh: 80_000, mfg: 50_000, freight: 10_000, open: 900_000, close: 1_150_000, opex: 100_000 };
+  const b = { ...a, mfg: 90_000, freight: 20_000 };
+  const deck = buildLiveDeck([...tallyMonth('2026-06', a), ...tallyMonth('2026-07', b), BOM_REPORT] as never, [], {});
+  const pick = (ms: MonthlyMIS[], k: string) => aggregatePeriods(ms.filter((m) => m.key === k), deck.completeness, 'month')[0];
+  const norm = normaliseLiveMonths(deck.months, deck.completeness, deck);
+  const r = buildBridge({
+    base: pick(deck.months, '2026-06'), cur: pick(deck.months, '2026-07'),
+    baseNorm: pick(norm.months, '2026-06'), curNorm: pick(norm.months, '2026-07'), cells: deck.skuCells,
+  });
+  assert.equal(r.status, 'ok');
+  if (r.status !== 'ok') return;
+  const step = (id: string) => (r.steps.find((s) => s.id === id)?.value ?? NaN) + 0;
+  assert.equal(step('bom_cost'), 0);
+  assert.equal(step('factory'), 0);
+  assert.equal(step('direct_other'), -50_000);
+  assert.equal(step('stock_timing'), 0);
+  assert.ok(Math.abs(r.steps.reduce((t, x) => t + x.value, 0) - r.delta) < 1);
 });

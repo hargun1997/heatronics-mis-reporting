@@ -118,11 +118,13 @@ export interface NormalisedMonths {
   skipped: string[];
   /** Month key → number of products whose cost is estimated / missing in a restated month. */
   estimated: Record<string, number>;
+  /** Restated months whose Tally closing stock is not posted yet (closing = opening with purchases): memo not final. */
+  stockEstimated: string[];
 }
 
 /** The one-line definition shown with the Normalised basis everywhere (page note, export subtitles). */
 export const NORMALISED_DEFINITION =
-  'Normalised: COGM = units sold × BOM cost + factory overhead, so GM moves with revenue and mix; Tally\'s purchase-timing difference is shown as Stock build / drawdown.';
+  'Normalised: COGM = units sold × BOM cost + the factory overhead, manufacturing cost and inward freight booked in Tally, so GM moves with revenue and mix; Tally\'s material purchase-timing difference is shown as Stock build / drawdown.';
 
 /** "Dec 23–Mar 26, Jun 26" — consecutive month keys folded into ranges. */
 export function monthSpans(keys: string[]): string {
@@ -141,8 +143,9 @@ export function monthSpans(keys: string[]): string {
 /**
  * The normalised COGM basis (founder, 5 Nov 2026: "we should see some normalisation with revenue").
  *
- * Normalised COGM for a month = BOM standard cost of what was sold + factory overhead. A live Tally month carries
- * `channelRecon.cogmVariance` = Tally COGM − (Σ SkuCell COGS + factory), so the month is restated by exactly that
+ * Normalised COGM for a month = BOM material cost of what was sold + the conversion cost booked in Tally's Direct
+ * Expenses (factory overhead, manufacturing costs, inward freight: conversion.ts). A live Tally month carries
+ * `channelRecon.cogmVariance` = Tally COGM − (Σ SkuCell COGS + conversion) = material purchase timing only, so the month is restated by exactly that
  * delta: cogm − v, grossMargin + v and every margin below (CM1 … net income) + v; everything else stays actual. The
  * delta itself is kept on the month as `stockVariance` (the "Stock build / drawdown (purchase timing)" memo line),
  * so a full year still reconciles: Σ normalised net income − Σ stockVariance = Tally net income.
@@ -162,6 +165,7 @@ export function normaliseLiveMonths(
   for (const c of deck?.skuCells ?? []) cellsByMonth.set(c.m, [...(cellsByMonth.get(c.m) ?? []), c]);
   const skipped: string[] = [];
   const estimated: Record<string, number> = {};
+  const stockEstimated: string[] = [];
   const out = months.map((m) => {
     const comp = completeness[m.key];
     const level = comp?.level ?? 'topline';
@@ -180,6 +184,7 @@ export function normaliseLiveMonths(
       return skip();
     }
     const v = r2(m.channelRecon.cogmVariance);
+    if (m.stockUnposted) stockEstimated.push(m.key);
     return {
       ...m,
       cogm: r2(m.cogm - v),
@@ -199,7 +204,9 @@ export function normaliseLiveMonths(
   if (estMonths.length) {
     parts.push(`Cost estimated for ${estMonths.map((k) => `${estimated[k]} product${estimated[k] === 1 ? '' : 's'} in ${monthLabel(k)}`).join(', ')}.`);
   }
-  return { months: out, note: parts.join(' '), skipped, estimated };
+  stockEstimated.sort();
+  if (stockEstimated.length) parts.push(`${monthSpans(stockEstimated)} estimated — closing stock not posted in Tally yet, so Stock build / drawdown is not final.`);
+  return { months: out, note: parts.join(' '), skipped, estimated, stockEstimated };
 }
 
 // ---- Continuous channel taxonomy (G6) -------------------------------------
