@@ -305,11 +305,23 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     Only frozen history (< `LIVE_BOUNDARY`) and locked months are `closed`; `completeThrough` = the contiguous closed run from the first
     month (a month with no data or not locked stops it). A full Tally month (P&L with net revenue > 0; with none it is only to-CM2 / top line)
     is `ready` until locked. Published months are not closed until locked either.
+  - **Month completeness (10 Nov 2026, pure `data/misDeck/monthCompleteness.ts`, tests `server/test/monthCompleteness.test.ts`):**
+    (1) a Tally copy with no sales ledger (stock carry-forward only) is ignored when connectors sold (`tallyIgnored`); facts-only months
+    book connector sales ex-GST (`gstBasis.ts exGstOf`: reported, else GMV ÷ 1.05 estimated → `exGstEstimated`, else as booked).
+    (2) `full` needs every channel with ≥ 5 % of the month's connector sales to have a Tally ledger ≥ half of it (`tallyGaps`).
+    (3) a channel with ≥ 5 % (and ≥ ₹10,000) of the previous 3 months' sales (published months count; OEM/Offline folded into B2B/GT)
+    and no sales this month = `missingChannels` (`applyChannelHistory`, skips locked months): SOFT blocker ("stopped, or not booked?"),
+    level kept so it can be locked with a reason; only (2) is hard. Named channels show "no data" in the channel P&L
+    (`channelNoData`), never ₹0. Tie: an orders-GMV estimate (Sales API) is shown but not judged; a breach says which side is lower
+    and by how much. Server `ceoSummaryLoad.ts ASSUMED_GST_RATE` = the same 5 % (test). (4) `ready` = full + no
+    `closeBlockers` (month over, tie ≤ 1 %, closing stock ≠ opening when the month bought or sold, required reports not missing /
+    empty / partial). Blockers show on the Month close panel (numbered) and as one Fix item `close:<YYYY-MM>`; soft ones (tie, report)
+    can be locked with a written reason.
   - **Tie** (`completeness.tie`, Tally-backed live months): Tally Nett Profit vs the cascade's net income (engine residual) + per channel
     connector sales ex-GST vs Tally's channel sales ledgers (Amazon, D2C/Shopify, Flipkart, Blinkit, GT, B2B). Residual > 1% of net revenue
     (`TIE_LIMIT_PCT`) = breach: locking needs a written reason (server 422 without), kept on the lock. Channels with no connector are shown, not judged.
   - **GMV vs ex-GST**: facts may carry `gmv` (customer-paid incl. GST) and `netExGst`. Shopify `fetchFacts` fills both (`shopifyLineSales`: `taxes_included`
-    + line `tax_lines`); Amazon Sales-API facts carry `gmv` only (no tax split → ex-GST ESTIMATED at 18 %, labelled); Finances/settlement and
+    + line `tax_lines`); Amazon Sales-API facts carry `gmv` only (no tax split → ex-GST ESTIMATED at the product GST rate, `gstBasis.ts DEFAULT_GST_RATE` = 5 % since 10 Nov 2026, labelled); Finances/settlement and
     other feeds are taken as booked (Principal is ex-GST). `revenue` itself is unchanged.
   - **Channel P&L** (`anchoredChannelPnl` → `tallyAnchoredRows`) where Tally exists: revenue = Tally channel ledgers; channel fees / marketing /
     platform = connector-attributed `tallyLines.byChannel` + revenue share of the unattributed rest (foots to Tally); COGM by BOM-COGS share; opex and

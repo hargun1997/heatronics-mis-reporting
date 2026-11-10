@@ -34,6 +34,7 @@ import {
   type PeriodMIS, type SkuAgg,
 } from './analytics';
 import type { MisEntity, MisPoint } from './misSheet';
+import { channelNoData } from './monthCompleteness';
 import type { TallyBucketLine } from '../monthClose/schema';
 import { allocateMarketing, spreadWithCap } from './channelAlloc';
 
@@ -673,6 +674,8 @@ export function liveMisPoint(
   }
   const ch = entity;
   const comp = completeness[key];
+  // A channel named missing for the month (monthCompleteness) shows "no data", never ₹0.
+  if (channelNoData(comp, ch)) return Object.fromEntries(MIS_KEYS.map((k) => [k, null])) as unknown as MisPoint;
   const fromFeeds = comp?.locked || comp?.published;
   const adOf = (c: SalesChannel) => cells.reduce((s, x) => (x.m === key && x.ch === c ? s + (x.ad ?? 0) : s), 0);
   const marketing = fromFeeds
