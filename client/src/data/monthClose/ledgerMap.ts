@@ -53,6 +53,16 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'export sales': 'rev_export',
   'stock transfers internal': 'rev_str',
   'stock transfers': 'rev_str',
+  // Tranzact's per-series sales ledgers (client/src/data/tranzact/rules.ts, B5 10 Nov 2026). GT / Physio / MT /
+  // B2C roll into GT (the MIS has no MT / offline-B2C channel yet). Internal Transfer Sales = what ITF / ECOM
+  // invoices post to: a stock transfer, never revenue.
+  'gt - dealer sales': 'rev_gt',
+  'gt - retailer sales': 'rev_gt',
+  'gt - cnf sales': 'rev_gt',
+  'physio channel sales': 'rev_gt',
+  'mt sales': 'rev_gt',
+  'b2c offline sales': 'rev_gt',
+  'internal transfer sales': 'rev_str',
 
   // ---- COGM ----------------------------------------------------------------
   'raw material purchases': 'cogm_rm',

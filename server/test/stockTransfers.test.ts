@@ -13,7 +13,9 @@ test('ITF / transfer series and Amazon customers are classified as stock transfe
   assert.equal(isTranzactStockTransfer('ITF/CN/26-27/001'), false); // credit note, not a transfer invoice
   assert.equal(isTranzactStockTransfer('MT/26-27/0001'), false);
   assert.equal(isTranzactStockTransfer('itf/26-27/0001'), true);
-  assert.equal(isTranzactStockTransfer('GTD/26-27/0102', 'AMAZON SELLER SERVICES PVT LTD'), true);
+  // A9-6 (10 Nov 2026): the series wins — a GTD invoice to Amazon is a GT sale, as Tally books it.
+  assert.equal(isTranzactStockTransfer('GTD/26-27/0102', 'AMAZON SELLER SERVICES PVT LTD'), false);
+  assert.equal(isTranzactStockTransfer('INV-0102', 'AMAZON SELLER SERVICES PVT LTD'), true);
   assert.equal(isTranzactStockTransfer('GTD/26-27/0102', 'SCIENTIFIC SURGICAL EMPORIUM'), false);
   assert.equal(isTranzactStockTransfer('OEM/26-27/0047', 'MEDIKART'), false);
 });
@@ -29,7 +31,7 @@ test('transfers are kept out of revenue and reported in the trace', () => {
   ]);
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
   const out = parser.parse(wb) as { facts: { revenue: number }[]; trace?: string[] };
-  assert.equal(out.facts.reduce((a, f) => a + f.revenue, 0), 4240 + 64359);
+  assert.equal(out.facts.reduce((a, f) => a + f.revenue, 0), 4240 + 64359 + 50000);
   assert.ok(out.trace!.some((t) => /BLK \(Blinkit\).*47,500/.test(t)));
-  assert.ok(out.trace!.some((t) => /2 internal stock-transfer invoice/.test(t) && /1,50,000/.test(t)));
+  assert.ok(out.trace!.some((t) => /1 internal stock-transfer invoice/.test(t) && /1,00,000/.test(t)));
 });
