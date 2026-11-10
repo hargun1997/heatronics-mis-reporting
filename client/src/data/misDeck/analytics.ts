@@ -1,9 +1,7 @@
 // Derived analytics for the MIS Reporting deck.
-// Everything here is computed from the bundled MONTHLY_MIS / FY_SUMMARY data.
+// Everything here is computed from the published months (publishedBasis.ts: MONTHLY_MIS, channel rows ex-GST).
 
 import {
-  MONTHLY_MIS,
-  FY_SUMMARY,
   SALES_CHANNELS,
   D2C_AD_SPEND,
   AMAZON_AD_SPEND,
@@ -16,7 +14,8 @@ import {
   AMAZON_ACTUALS,
   D2C_COSTS,
 } from './channelActuals';
-import { SKU_CELLS, type SkuCell } from './skuChannelPnl';
+import type { SkuCell } from './skuChannelPnl';
+import { PUBLISHED_MONTHS, PUBLISHED_CELLS as SKU_CELLS } from './publishedBasis';
 import { AD_MIX_D2C, AD_MIX_AMZN, AMAZON_AD_MONTHLY } from './adMeasured';
 
 export type Granularity = 'month' | 'quarter' | 'year';
@@ -112,26 +111,8 @@ function aggregate(records: MonthlyMIS[], key: string, label: string, longLabel:
 // Period series builders
 // ----------------------------------------------------------------------------
 
-// Reclassify pre-Oct-2024 "Amazon" revenue as OEM (Amazon launched Oct 2024; the
-// earlier marketplace revenue was OEM). Applied at the base so EVERY channel view —
-// Channel Mix, Overview, Growth, Channel P&L and SKU × Channel — agrees on the split.
-export function reclassifyEarlyAmazon(m: MonthlyMIS): MonthlyMIS {
-  const preLaunch = m.year < 2024 || (m.year === 2024 && m.month < 10);
-  if (!preLaunch) return m;
-  const move = (obj: Partial<Record<SalesChannel, number>>): Partial<Record<SalesChannel, number>> => {
-    const amz = obj.Amazon || 0;
-    return amz ? { ...obj, Amazon: 0, OEM: (obj.OEM || 0) + amz } : obj;
-  };
-  return {
-    ...m,
-    netByChannel: move(m.netByChannel),
-    grossByChannel: move(m.grossByChannel),
-    returnsByChannel: move(m.returnsByChannel),
-  };
-}
-const monthsAsc = [...MONTHLY_MIS]
-  .map(reclassifyEarlyAmazon)
-  .sort((a, b) => a.year - b.year || a.month - b.month);
+// The published months on the live basis (channel rows ex-GST, Amazon as booked): see publishedBasis.ts.
+const monthsAsc = PUBLISHED_MONTHS;
 
 // The series builders take an explicit source array so the same aggregation can
 // be reused for the actual months (default) and for any restated set of months.
@@ -1112,5 +1093,5 @@ export function channelPnlAnchored(g: Granularity, period: PeriodMIS): ChannelAn
   });
 }
 
-export { SALES_CHANNELS, FY_SUMMARY, COGS_RATE };
+export { SALES_CHANNELS, COGS_RATE };
 export type { SalesChannel };

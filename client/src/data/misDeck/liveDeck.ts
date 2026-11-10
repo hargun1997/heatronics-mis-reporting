@@ -19,10 +19,10 @@
 // ----------------------------------------------------------------------------
 
 import type { MonthlyMIS, SalesChannel } from './misDeckData';
-import { SALES_CHANNELS, MONTHLY_MIS } from './misDeckData';
+import { SALES_CHANNELS } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
-import { SKU_CELLS } from './skuChannelPnl';
-import { reclassifyEarlyAmazon, decomposeLegacyCell } from './analytics';
+import { PUBLISHED_MONTHS, PUBLISHED_CELLS, publishedGap, type PublishedGap } from './publishedBasis';
+import { decomposeLegacyCell } from './analytics';
 import type { DailyFact } from '../liveMis/facts';
 import {
   emptySession,
@@ -81,6 +81,8 @@ export interface PeriodCompleteness {
    * with `preferLivePartials()` — never silently.
    */
   livePartial?: { level: CompletenessLevel; netRevenue: number };
+  /** Set on a full live (Tally) month that replaced a month of the published workbook: the workbook's figures and live − published. */
+  vsPublished?: PublishedGap;
   /** Set on a live partial month that has a published full month it replaced (prefer: 'live'). */
   publishedAvailable?: boolean;
   /** Tally's Nett Profit/Loss and the net income the cascade produced from the same ledgers. */
@@ -725,13 +727,12 @@ export interface BuildLiveDeckOptions {
 
 // ---- The published static history, normalised to the live conventions ------
 //
-//  • G1: pre-Oct-2024 "Amazon" revenue is OEM (Amazon launched Oct 2024) —
-//    the same reclassification the legacy deck applies at its base.
+//  • G1 (10 Nov 2026): channel rows are ex-GST and Amazon stays Amazon (publishedBasis.ts).
 //  • G7: static months carry Cost of Fundraising INSIDE nonOperating; the
 //    month-close engine (and aggregatePeriods) treat them as separate lines.
 //    Carve CoF out of nonOperating so both conventions mean the same thing.
 function normaliseStaticMonth(m: MonthlyMIS): MonthlyMIS {
-  const r = reclassifyEarlyAmazon(m);
+  const r = m;
   const cof = r.costOfFundraising ?? 0;
   return cof ? { ...r, nonOperating: r2(r.nonOperating - cof), costOfFundraising: cof } : r;
 }
@@ -748,9 +749,9 @@ let STATIC_MONTHS: MonthlyMIS[] | null = null;
 let STATIC_CELLS: Map<string, SkuCell[]> | null = null;
 function staticHistory(): { months: MonthlyMIS[]; cellsByMonth: Map<string, SkuCell[]> } {
   if (!STATIC_MONTHS || !STATIC_CELLS) {
-    STATIC_MONTHS = MONTHLY_MIS.map(normaliseStaticMonth).sort((a, b) => a.key.localeCompare(b.key));
+    STATIC_MONTHS = PUBLISHED_MONTHS.map(normaliseStaticMonth).sort((a, b) => a.key.localeCompare(b.key));
     STATIC_CELLS = new Map();
-    for (const c of SKU_CELLS) {
+    for (const c of PUBLISHED_CELLS) {
       const arr = STATIC_CELLS.get(c.m) ?? [];
       arr.push(normaliseStaticCell(c));
       STATIC_CELLS.set(c.m, arr);
@@ -850,7 +851,8 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
     const live = built.get(sm.key);
     if (!live) { take(pub); continue; }
     built.delete(sm.key);
-    if (live.completeness.level === 'full') { take(live); continue; }
+    // A full live close replaces the published month; the gap to the workbook is kept so the page can say so (quietly).
+    if (live.completeness.level === 'full') { take({ ...live, completeness: { ...live.completeness, vsPublished: publishedGap(sm, live.month) } }); continue; }
     if (prefer === 'live') {
       take({ ...live, completeness: { ...live.completeness, publishedAvailable: true } });
       alternates[sm.key] = pub;

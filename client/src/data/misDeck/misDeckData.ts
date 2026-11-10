@@ -132,6 +132,11 @@ export interface MonthlyMIS {
    * estimates that depend on the source channel (orders ÷ AOV) stay exact.
    */
   rawNetByChannel?: Partial<Record<SalesChannel, number>>;
+  /**
+   * Published (workbook) months only, set by publishedBasis.exGstChannels: what customers paid per channel, net of
+   * returns, INCLUDING GST (the workbook's own channel row). `netByChannel` is ex-GST and sums to `netRevenue`.
+   */
+  gmvByChannel?: Partial<Record<SalesChannel, number>>;
   /** Live months only: actual order counts per channel from the connector facts. */
   ordersByChannel?: Partial<Record<SalesChannel, number>>;
   /**
