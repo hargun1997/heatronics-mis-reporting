@@ -21,7 +21,7 @@ function tb(o: { bank: number; debtors: number; creditors: number; fa: number; l
   return rows;
 }
 const m = (period: string, rows: TbRowIn[], closingStock: number, depreciation = 0): StatementMonthIn =>
-  ({ period, asOf: `${period}-28T10:00:00Z`, tb: { rows, difference: 0, basis: 'fy-to-date' }, closingStock, depreciation, nettProfit: null });
+  ({ period, asOf: new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 10)).toISOString(), tb: { rows, difference: 0, basis: 'fy-to-date' }, closingStock, depreciation, nettProfit: null });
 
 test('groups land on the right side', () => {
   assert.equal(sideOf('Capital Account'), 'equity');
@@ -75,10 +75,11 @@ test('Cash Flow: sections add up to the change in cash; equity and loans are fin
   assert.equal(Math.abs(f.other) < 1, true); // everything explained
   const c = cashFlow(sheets[0], sheets[1], 20);
   assert.equal(c.closingCash, 900);
-  const cash = misCashRows(flows, '2026-10')!;
+  const cash = misCashRows(flows, '2026-10', '2026-12-01')!;
   assert.equal(cash.funding, 500);
   assert.equal(cash.cashBurn, -100); // 300 + 500 equity − 900: more cash came in than equity alone
-  assert.equal(misCashRows(flows, '2026-09'), null);
+  assert.equal(misCashRows(flows, '2026-09', '2026-12-01'), null);
+  assert.equal(misCashRows(flows, '2026-10', '2026-10-20'), null); // the running month is never a whole month
 });
 
 test('a TB that does not tie shows its difference instead of hiding it', () => {
@@ -199,14 +200,40 @@ test('cross-checks: monthly profit vs the P&L copy, a large unexplained movement
 });
 
 test('MIS cash rows: burn and runway (quarters) over consecutive calendar months only', () => {
-  const flow = (period: string, open: number, close: number, equity = 0) => ({ period, openingCash: open, closingCash: close, equity }) as unknown as import('../../client/src/data/statements/statements.ts').CashFlow;
+  const flow = (period: string, open: number, close: number, equity = 0, asOf: string | null = null) => ({ period, openingCash: open, closingCash: close, openingNetCash: open, closingNetCash: close, equity, asOf }) as unknown as import('../../client/src/data/statements/statements.ts').CashFlow;
   const flows = [flow('2026-05', 900, 800), flow('2026-08', 600, 500), flow('2026-09', 500, 400), flow('2026-10', 400, 1200, 1000)];
-  const oct = misCashRows(flows, '2026-10')!;
+  const T = '2026-11-20';
+  const oct = misCashRows(flows, '2026-10', T)!;
   assert.equal(oct.cashBurn, 200); // 400 + 1,000 − 1,200
   assert.equal(oct.runway, 3);     // 1,200 ÷ (3 × avg burn of Aug–Oct 133.33)
-  const aug = misCashRows(flows, '2026-08')!; // May is not one of the 2 months before August → only August counts
+  const aug = misCashRows(flows, '2026-08', T)!; // May is not one of the 2 months before August → only August counts
   assert.equal(aug.runway, r(500 / 300));
-  assert.equal(misCashRows([flow('2026-10', 100, 300)], '2026-10')!.runway, null); // not burning
+  assert.equal(misCashRows([flow('2026-10', 100, 300)], '2026-10', T)!.runway, null); // not burning
+  // books copied 2 days after month end: not a whole month (round 7 #2)
+  assert.equal(misCashRows([flow('2026-10', 400, 300, 0, '2026-11-02T06:00:00Z')], '2026-10', T), null);
+});
+
+test('MIS cash rows are on NET cash: an overdraft-funded burn shows (round 7 #2)', () => {
+  const P = { 'Bank Accounts': 'Current Assets', 'Central Bank OD A/c': 'Loans (Liability)' };
+  // Aug bank 80 / OD 0 → Sep bank 72 / OD 20: gross cash fell 8, net cash fell 28.
+  const aug = m('2026-08', tb({ bank: 80, debtors: 0, creditors: 0, fa: 0, loans: 0, capital: 300, sales: 100, exp: 140 }), 0);
+  const sep = m('2026-09', tb({ bank: 72, od: 20, debtors: 0, creditors: 0, fa: 0, loans: 0, capital: 300, sales: 120, exp: 188 }), 0);
+  const { flows } = statements([aug, sep], P);
+  const rows = misCashRows(flows, '2026-09', '2026-11-10')!;
+  assert.equal(rows.openingCash, 80);
+  assert.equal(rows.closingCash, 52);
+  assert.equal(rows.cashBurn, 28);
+});
+
+test('a month without its P&L copy and no TB stock: stock unknown, no 0 printed, no cash flow (round 7 #8)', () => {
+  const sep = m('2026-09', tb({ bank: 300, debtors: 200, creditors: 150, fa: 1000, loans: 400, capital: 1000, sales: 800, exp: 650 }), 250);
+  const oct = { ...m('2026-10', tb({ bank: 900, debtors: 260, creditors: 190, fa: 1100, loans: 500, capital: 1500, sales: 1000, exp: 780 }), 0), closingStock: null };
+  const { sheets, flows } = statements([sep, oct]);
+  const b = sheets.find((x) => x.period === '2026-10')!;
+  assert.equal(b.stockUnknown, true);
+  assert.ok(!b.assets.some((x) => x.label === 'Closing Stock'));
+  assert.ok(b.warnings.some((w) => /Stock unknown/.test(w)));
+  assert.equal(flows.length, 0);
 });
 
 test('MIS Sheet splits OpEx with the right signs (opexLines are effect-signed: costs negative, income positive)', async () => {

@@ -13,12 +13,16 @@ export interface FlowIn { period: string; netChange: number }
 /** `loans` from Tally's Loans (Liability) group, which also holds Bank OD A/c — so the overdraft is taken back out. */
 export interface BalMonth { period: string; netCash: number | null; loans: number | null; overdraft?: number | null }
 
-/** Monthly change in net cash (bank − overdraft) less new borrowing, from consecutive month-ends with both. */
+const nextMonth = (p: string) => { const y = Number(p.slice(0, 4)), m = Number(p.slice(5, 7)); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`; };
+
+/** Monthly change in net cash (bank − overdraft) less new borrowing, from month-ends of CALENDAR neighbours with both
+ *  (a Jun → Sep gap is not one month's change). */
 export function netCashFlows(months: BalMonth[]): FlowIn[] {
   const ms = [...months].filter((m) => m.netCash != null).sort((a, b) => a.period.localeCompare(b.period));
   const out: FlowIn[] = [];
   for (let i = 1; i < ms.length; i++) {
     const a = ms[i - 1], b = ms[i];
+    if (b.period !== nextMonth(a.period)) continue;
     const debt = (m: BalMonth) => (m.loans ?? 0) - (m.overdraft ?? 0);   // term borrowing only (OD already sits in netCash)
     const loanIn = a.loans != null && b.loans != null ? debt(b) - debt(a) : 0;
     out.push({ period: b.period, netChange: Math.round((b.netCash! - a.netCash!) - loanIn) });
@@ -29,6 +33,8 @@ export interface RunwayInput {
   today: string;            // IST YYYY-MM-DD
   netCash: number | null;   // bank − overdraft, as of balancePeriod
   balancePeriod: string | null;
+  /** When the books behind netCash were copied (ISO), when known: shown as "books as of <day>". */
+  balanceAsOf?: string | null;
   flows: FlowIn[];          // newest last
   gstPayable: number | null; // > 0 = we owe (shown only; already inside the monthly pattern)
   odLimit: number | null;   // overdraft limit in ₹ (positive), null = not set
@@ -62,10 +68,14 @@ export function buildRunway(x: RunwayInput): Runway {
   const ch = flows.map((f) => f.netChange);
   const per: Record<CaseId, number> = { base: ch.reduce((a, b) => a + b, 0) / ch.length, hard: Math.min(...ch), easy: Math.max(...ch) };
   notes.push('GST, salaries, rent and supplier payments are inside the monthly pattern; nothing extra is added.');
-  if (x.balancePeriod && x.balancePeriod < x.today.slice(0, 7)) {
+  if (x.balancePeriod && x.balancePeriod <= x.today.slice(0, 7)) {
     const lag = (Number(x.today.slice(0, 4)) - Number(x.balancePeriod.slice(0, 4))) * 12 + Number(x.today.slice(5, 7)) - Number(x.balancePeriod.slice(5, 7));
-    notes.push(`Net cash is as of the end of ${x.balancePeriod} (latest stored books)${lag >= 2 ? ' — over a month old; pull Tally for a fresher start' : ''}.`);
+    const asOfDay = x.balanceAsOf ? new Date(Date.parse(x.balanceAsOf) + 5.5 * 3_600_000).toISOString().slice(0, 10) : null;
+    const end = new Date(Date.UTC(Number(x.balancePeriod.slice(0, 4)), Number(x.balancePeriod.slice(5, 7)), 0)).toISOString().slice(0, 10);
+    const when = asOfDay && asOfDay < end ? `books as of ${asOfDay}` : `the end of ${x.balancePeriod}`;
+    notes.push(`Net cash is as of ${when} (latest stored books)${lag >= 2 ? ' — over a month old; pull Tally for a fresher start' : ''}.`);
   }
+  notes.push('Only whole months count: a running month, or one whose books were copied less than 5 days after it ended, is left out.');
   notes.push('A month with a fundraise or one-off receipt makes "Best month repeats" look better than it is.');
   if (x.odLimit == null) notes.push('Overdraft limit not set — set it to see the day you would hit it.');
   notes.push(`Moves cash forward at the ${flows.length}-month pattern (${flows.map((f) => f.period).join(', ')}). Not a sales forecast.`);

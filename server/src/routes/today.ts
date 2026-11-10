@@ -31,7 +31,7 @@ router.get('/', (req: Request, res: Response) => {
       safe(listMembers(), []),
       safe(readJson<string[]>(INDEX, []), []),
     ]);
-    const v1 = ceoSummary(x.months.slice(-14));
+    const v1 = ceoSummary(x.months.slice(-14), 13, { parents: x.parents, today: x.today });
     const v2 = ceoSummaryV2(x);
     const name = new Map(members.map((m) => [m.id, m.name]));
     const fix: FixIn[] = fixRaw.map((i) => ({ id: i.id, severity: i.severity, title: i.title, fix: i.fix, href: i.href, area: i.area }));

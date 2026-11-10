@@ -68,6 +68,17 @@ export function easebuzzHashInput(parts: string[], salt: string): string {
 
 const TZ_HEADER = ['invoice number', 'item id', 'invoice quantity'];
 
+/** Same patterns as the client's (uploadParsers.ts, test-checked): charge / service lines are not goods; tooling is kept. */
+export const TRANZACT_CHARGE_LINE = /freight|transport|cartage|courier|insurance|forwarding|round.?off|rounding|\b(service|delivery|loading|unloading|installation|labou?r|packing|packaging|shipping|handling)\b[\s\w/&-]{0,20}?\bcharges?\b/i;
+export const TRANZACT_TOOLING_LINE = /\bmou?ld\b|mou?ld charge|tooling|development charge|\bnre\b|\bdie charge/i;
+
+/** Same rule as the client's isTranzactCancelled: "Cancelled" status, or 1 / yes / true in a Cancelled column. */
+export function tranzactCancelled(v: unknown): boolean {
+  if (v === true || v === 1) return true;
+  const s = str(v);
+  return /cancel/i.test(s) || /^(1|yes|true)$/i.test(s);
+}
+
 /**
  * The daily Tranzact sheet holds every date. Find the header the way the file
  * parser does (first 30 rows, all three columns), keep the close month's rows
@@ -93,13 +104,30 @@ export function tranzactSheetForMonth(rows: unknown[][], periodKey: string): Slo
   if (dateCol < 0) {
     return { rows: [], rowCount: 0, trace: ['Header found but no "Document Date" column'], warnings: ['No "Document Date" column in the sheet — cannot pick the month.'] };
   }
+  // Same aliases as the file parser / Ops: cancelled invoices are left out here (A9-1, 10 Nov 2026).
+  const statusCol = ['document status', 'cancelled', 'is cancelled', 'status'].map((n) => header.indexOf(n)).find((i) => i >= 0) ?? -1;
+  const valCol = header.findIndex((h) => h.startsWith('item value - before tax'));
+  const invCol = header.indexOf('invoice number');
+  const itemCol = header.indexOf('item id');
+  const descCol = header.indexOf('item description');
   const kept: unknown[][] = [];
-  let other = 0, undated = 0;
+  let other = 0, undated = 0, cancelled = 0, cancelledVal = 0, charges = 0, chargeVal = 0;
   for (const r of rows.slice(hi + 1)) {
     if (!Array.isArray(r) || !r.some((c) => str(c) !== '')) continue;
+    const inv = invCol >= 0 ? str(r[invCol]) : '';
+    if (/report ends|^total/i.test(inv) || /^\d+\s*\(\d+\)$/.test(inv)) continue; // footer / totals row
     const d = isoDay(r[dateCol]);
     if (!d) { undated += 1; continue; }
     if (d.slice(0, 7) !== periodKey) { other += 1; continue; }
+    if (statusCol >= 0 && tranzactCancelled(r[statusCol])) {
+      cancelled += 1; cancelledVal += valCol >= 0 ? num(r[valCol]) : 0; continue;
+    }
+    // Charge / service lines (non-FG): left out here, as the file reader drops them (same pattern).
+    const item = itemCol >= 0 ? str(r[itemCol]) : '';
+    const text = `${item} ${descCol >= 0 ? str(r[descCol]) : ''}`;
+    if (!/^FG[-\s]?\d+/i.test(item) && !TRANZACT_TOOLING_LINE.test(text) && TRANZACT_CHARGE_LINE.test(text)) {
+      charges += 1; chargeVal += valCol >= 0 ? num(r[valCol]) : 0; continue;
+    }
     const copy = [...r];
     copy[dateCol] = d;
     kept.push(copy);
@@ -110,6 +138,9 @@ export function tranzactSheetForMonth(rows: unknown[][], periodKey: string): Slo
     trace: [
       `Sheet header at row ${hi + 1}; ${kept.length} invoice line(s) dated ${periodKey} kept, ${other} from other months left out`,
       ...(undated ? [`${undated} line(s) with no readable Document Date skipped`] : []),
+      ...(cancelled ? [`${cancelled} cancelled line(s) ${inr(cancelledVal)} skipped — not sales`] : []),
+      ...(charges ? [`${charges} charge / service line(s) (freight, transport, packaging, insurance, installation …) ${inr(chargeVal)} dropped — not goods`] : []),
+      ...(statusCol < 0 ? ['No "Document Status" column in the sheet — cancelled invoices cannot be told apart; add it to the Tranzact recurring report'] : []),
     ],
     warnings: [],
     emptyOk: kept.length === 0,
