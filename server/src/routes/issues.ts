@@ -12,6 +12,8 @@
 import { Router, type Request, type Response } from 'express';
 import { readAllExtracted, readJson, writeJson } from '../ingest/objectStore.js';
 import { scanIssues } from '../services/anomalyScan.js';
+import { pnlCopyGaps } from '../connectors/tally/pnlCopies.js';
+import { readPnlCopies } from '../connectors/tally/pnlCopiesLoad.js';
 import { applyIssueOp, openItems, serverItems, type InboxItem, type IssueState } from '../services/issuesInbox.js';
 import { chartReport, health } from './tally.js';
 import { readTallyState, readTallyTb } from '../connectors/tally/snapshots.js';
@@ -59,7 +61,9 @@ async function loadItems(): Promise<InboxItem[]> {
   const committed = new Set(reports.map((r) => `${r.connectorId}|${r.slotId}|${r.periodKey}`));
   const everUsed = new Set(reports.map((r) => r.connectorId));
   const scan = scanIssues(reports);
+  const pnlGaps = pnlCopyGaps(await safe(readPnlCopies(), []));
   return serverItems({
+    pnlGaps,
     today: istDay(), health: hr, chart, committed, everUsed,
     tb: tb && tbPeriod ? { period: tbPeriod, difference: tb.difference } : null,
     tally: ts ? { connected: !!(creds as { host?: string } | null)?.host, lastOkAt: ts.lastOkAt, lastError: ts.lastError } : null,

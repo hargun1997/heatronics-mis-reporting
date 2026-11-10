@@ -278,7 +278,8 @@ test('Tranzact sheet rows (Excel-export shape) → month filter → the real Tra
     ['Report Ends'],
   ];
   const r = tranzactSheetForMonth(rows, '2026-10');
-  assert.equal(r.rowCount, 4);
+  assert.equal(r.rowCount, 3, 'the FREIGHT line is left out by the sheet pull (charge, not goods)');
+  assert.ok(r.trace.some((t) => /1 charge \/ service line\(s\).*₹100 dropped/.test(t)), r.trace.join('\n'));
   assert.deepEqual(r.rows![0], TZ_HEADER);
   assert.equal(r.rows![1][1], '2026-10-03');
   assert.equal(r.rows![2][1], '2026-10-15', 'DD-MM-YYYY read day-first');

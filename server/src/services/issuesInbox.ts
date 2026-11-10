@@ -57,6 +57,8 @@ export interface InboxInputs {
   /** Connectors that were ever committed for any month (a channel not started yet isn't nagged). */
   everUsed: Set<string>;
   anomalies: { id: string; severity: InboxSeverity; category: string; period: string; title: string; detail: string }[];
+  /** Months whose two stored P&L copies (poll snapshot vs committed report) differ in Nett Profit by > ₹1,000 (pnlCopies.ts). */
+  pnlGaps?: { period: string; snapshot: number; committed: number; gap: number; newer: 'snapshot' | 'committed' }[];
   /**
    * Every committed report reduced to its coverage (rows, first / last date). Given = the full check: every close slot,
    * every unlocked month from LIVE_BOUNDARY to last month, missing / empty / partial. Absent = the old last-month check.
@@ -184,6 +186,14 @@ export function serverItems(x: InboxInputs): InboxItem[] {
       fix: 'In TallyPrime open Trial Balance for the month; the "Difference in opening balances" line names it. Fix the opening, then Pull Tally now.',
       href: '/reporting/mis/live', sig: sigOf(Math.round(x.tb.difference)) });
   }
+  // Books: the two stored P&L copies of a month disagree (Live MIS reads the committed one, statements / MCP the newer one)
+  for (const g of x.pnlGaps ?? []) {
+    out.push({ id: `pnl-copies:${g.period}`, area: 'books', severity: 'medium', period: g.period,
+      title: `${g.period}: two Tally P&L copies differ by ${inr(g.gap)}`,
+      detail: `Nett Profit ${inr(g.snapshot)}${g.snapshot < 0 ? ' loss' : ''} in the stored poll copy vs ${inr(g.committed)}${g.committed < 0 ? ' loss' : ''} in the committed close report. Live MIS uses the committed one; statements and the CEO summary use the ${g.newer === 'committed' ? 'committed (newer)' : 'poll (newer)'} copy.`,
+      fix: 'Pull Tally now, then re-pull the Tally P&L slot for the month and save it, so both copies match.',
+      href: '/reporting/mis/connectors?view=uploads#tally', sig: sigOf(g.snapshot, g.committed) });
+  }
   // Feeds: Tally not reached lately (it only answers while TallyPrime is open on the cloud machine)
   if (x.tally?.connected) {
     const age = x.tally.lastOkAt ? (Date.parse(`${x.today}T12:00:00+05:30`) - Date.parse(x.tally.lastOkAt)) / 86_400_000 : Infinity;
@@ -212,12 +222,13 @@ export function serverItems(x: InboxInputs): InboxItem[] {
   // Feeds: a live source whose refresh keeps failing (the copy shown is old)
   out.push(...liveFactItems(x));
   // MIS numbers: cross-month anomaly scan
-  // (future months are skipped — a month that hasn't happened can't be wrong yet — and the same check over several months is one item)
+  // (the running month and future months are skipped — a month that hasn't finished can't be judged yet, round 10 D — and
+  // the same check over several months is one item)
   const thisMonth = x.today.slice(0, 7);
   const RANK = { high: 0, medium: 1, low: 2 } as const;
   const scan = new Map<string, InboxInputs['anomalies']>();
   for (const a of x.anomalies) {
-    if (a.period && a.period.slice(0, 7) > thisMonth) continue;
+    if (a.period && a.period.slice(0, 7) >= thisMonth) continue;
     const list = scan.get(a.title) ?? [];
     list.push(a); scan.set(a.title, list);
   }

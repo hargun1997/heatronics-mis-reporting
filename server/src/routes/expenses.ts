@@ -15,14 +15,14 @@
 import { timingSafeEqual } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { readAllExtracted } from '../ingest/objectStore.js';
+/** Not running costs: revenue, other income, stock movement, purchases, group rows and totals (shared with the CEO summary). */
+import { NOT_EXPENSE } from '../connectors/tally/tbRows.js';
 
 const router = Router();
 
 interface Row { name: string; amount: number }
 interface PnlPayload { ledgerRows?: { name?: string; amount?: number }[]; nettProfit?: number | null }
 
-/** Not running costs: revenue, other income, stock movement, purchases, and totals. */
-const NOT_EXPENSE = /\bsales$|\bsales returns?\b|income|stock|purchase|^direct expenses$|^indirect expenses$|total|nett? profit|gross profit/i;
 
 export function expenseRows(p: PnlPayload): Row[] {
   const out = new Map<string, number>();
