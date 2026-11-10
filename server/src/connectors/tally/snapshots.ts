@@ -78,13 +78,28 @@ export function scheduledDue(now: number, state: TallyState): { due: boolean; wh
   return okDay === ist.toISOString().slice(0, 10) ? { due: false, why: 'Already taken today.' } : since >= MIN_GAP_MS ? { due: true, why: 'Daily refresh.' } : { due: false, why: 'Checked less than 20 min ago.' };
 }
 
+/** A Tally answer is stored only when it carries rows: an empty answer (Tally busy, company closing) keeps the old copy. */
+export const keepCopy = (rows: number) => rows > 0;
+
+/**
+ * Months whose Trial Balance the backfill pulls this poll: up to 3 of the last 13 that have a P&L copy (closing stock is
+ * needed, else the Balance Sheet shows stock unknown) and no TB yet, other than the months pulled this run.
+ */
+export function tbBackfill(now: number, state: Pick<TallyState, 'months' | 'tbMonths'>, done: string[]): string[] {
+  const cur = istMonth(now);
+  return Array.from({ length: 13 }, (_, i) => addMonths(cur, -i)).filter((p) => !state.tbMonths?.[p] && state.months[p] && !done.includes(p)).slice(0, 3);
+}
+
 /** Trial Balance at the end of `period` (groups-only answer first, so exploded children are told apart). */
 async function pullTb(creds: Credentials, period: string, state: TallyState, keepRaw: boolean): Promise<void> {
   const groupsXml = await post(creds, tbEnvelope(period, creds.company, false), 60_000);
   const groups = new Set(parseTbXml(groupsXml, period).rows.map((r) => r.name));
   const tbXml = await post(creds, tbEnvelope(period, creds.company, true), 60_000);
   if (keepRaw) await writeJson('tally/tb-raw-last', { period, at: state.lastTryAt, xml: tbXml.slice(0, 400_000) });
-  await writeJson(`tally/tb-${period}`, { ...parseTbXml(tbXml, period, groups), asOf: state.lastTryAt ?? new Date().toISOString() } satisfies TallyTbSnapshot);
+  const tb = parseTbXml(tbXml, period, groups);
+  // An answer without TB rows never overwrites a good copy (it would read as cash ₹0 / profit = stock): round 7 #11.
+  if (!keepCopy(tb.rows.length)) throw new Error('Tally answered without Trial Balance rows; the stored copy was kept');
+  await writeJson(`tally/tb-${period}`, { ...tb, asOf: state.lastTryAt ?? new Date().toISOString() } satisfies TallyTbSnapshot);
   state.tbMonths = { ...(state.tbMonths ?? {}), [period]: state.lastTryAt! };
 }
 
@@ -111,11 +126,13 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
   const done: string[] = [];
   let failed: string | null = null;
   let tbFailed: string | null = null;
+  const empty: string[] = [];
   for (const period of monthsToPull(now, state.months)) {
     try {
       const xml = await post(creds, pnlEnvelope(period, creds.company), 60_000);
       const month = parsePnlXml(xml, period);
       if (!done.length) await writeJson('tally/raw-last', { period, at: state.lastTryAt, xml: xml.slice(0, 400_000) });
+      if (!keepCopy(month.ledgerRows.length)) { empty.push(period); continue; } // keep the stored copy; not a success
       const snap: TallySnapshot = { ...month, asOf: state.lastTryAt };
       await writeJson(`tally/pnl-${period}`, snap);
       state.months[period] = state.lastTryAt;
@@ -134,14 +151,12 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
   // Balance Sheet / Cash Flow need a Trial Balance for every month (and the one before): fill up to 3 of the last 13
   // months that have a P&L copy but no TB yet.
   if (done.length && !failed) {
-    const cur = istMonth(now);
-    const want = Array.from({ length: 13 }, (_, i) => addMonths(cur, -i)).filter((p) => !state.tbMonths?.[p] && !done.includes(p)).slice(0, 3);
-    for (const p of want) {
+    for (const p of tbBackfill(now, state, done)) {
       try { await pullTb(creds, p, state, false); } catch (e) { tbFailed = `${p}: ${e instanceof Error ? e.message : String(e)}`; break; }
     }
   }
   if (done.length) state.lastOkAt = state.lastTryAt;
-  state.lastError = failed;
+  state.lastError = failed ?? (empty.length ? `Tally answered without P&L rows for ${empty.join(', ')}; the stored copies were kept` : null);
   await writeJson('tally/state', state);
   // While Tally is open, also refresh the stored books (masters daily, Day Books) in what is left of ~4 min.
   let books = '';
@@ -149,5 +164,5 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
     const b = await pullBooks(creds, { now, budgetMs: 230_000 - (Date.now() - now) });
     books = b.masters || b.months.length ? `; books: ${[b.masters ? 'masters' : '', ...b.months].filter(Boolean).join(', ')}` : '';
   }
-  return { status: done.length ? 'ok' : 'down', detail: done.length ? `Stored P&L + Trial Balance for ${done.join(', ')}${tbFailed ? ` (Trial Balance failed: ${tbFailed})` : ''}${failed ? ` (stopped: ${failed})` : ''}${books}` : `Tally answered the check but not the P&L: ${failed}`, months: done };
+  return { status: done.length ? 'ok' : 'down', detail: done.length ? `Stored P&L + Trial Balance for ${done.join(', ')}${tbFailed ? ` (Trial Balance failed: ${tbFailed})` : ''}${failed ? ` (stopped: ${failed})` : ''}${books}` : `Tally answered the check but not the P&L: ${failed ?? state.lastError}`, months: done };
 }

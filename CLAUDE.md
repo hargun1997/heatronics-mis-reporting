@@ -397,6 +397,21 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 - **CI** `.github/workflows/ci.yml` (every PR + push to main, Node 20 = Dockerfile): client `npm run lint` (0 errors; warnings allowed) +
   `tsc -b && vite build`, server `tsc`, `npm test`. Keep it green before merging: Cloud Build only checks after the merge.
 
+- **Server books readers fixed (audit rounds 7 + 10, 10 Nov 2026; `connectors/tally/tbRows.ts` shared, tests `server/test/serverBooks.test.ts`):**
+  TB sales / purchases exclude Stock Transfers (`salesPurchases`: v1 `months[].sales`, `fy.sales`, GM / EBITDA %, Today sales tile; GM ₹ unchanged);
+  v1 balances come from the Balance Sheet builder with masters (sub-groups are `ledger` rows in a real TB; `subTotal`), loans = Loans (Liability)
+  only (v1 = v2); finance cost / depreciation = leaf ledgers only (`leafDr`); Bank Charges / Interest on TDS stay opex (`other`). Cash runway,
+  the `cash_runway` watch / "Cash lasts" tile and the MIS-sheet cash rows all use NET cash (bank − OD) and whole months only
+  (`booksComplete`: ended + copy ≥ 5 days after month end; `netCashMonths` → `netCashFlows`, calendar neighbours only); `misCashRows(flows,
+  period, today?)` on `openingNetCash` / `closingNetCash`; tiles say "books as of 2 Nov". v1 months carry `stockTransfers` + `complete`.
+  A TB month without its P&L copy and no TB stock = `stockUnknown` (no Closing Stock line, no cash flow for it or the next month); the TB
+  backfill pulls only months with a P&L copy (`tbBackfill`); an empty Tally answer never overwrites a stored copy (`keepCopy`). Two P&L
+  copies: statements + summary read the newer (`pnlCopies.ts pickPnlCopy`, committed `savedAt` vs snapshot `asOf`); Fix item
+  `pnl-copies:<m>` when their Nett Profit differs > ₹1,000. Cost buckets use the `/api/expenses` `NOT_EXPENSE` ("Sales & Marketing" =
+  marketing; Direct / Indirect Expenses group rows not added to their ledgers); "After-Sales & Warranty" is not a sales ledger. Anomaly
+  scan: cost spike (≥ 3× the 3-month median and ≥ ₹1 L), negative sales ledger, "sales ledger" wording; the inbox skips the running month.
+  Monthly email labels its figure "Sales in stored reports" (no live Shopify).
+
 ## 5-year plan (`/planning`)
 - Port of the Google Sheet "Heatronics Projection and Deployment Plan" (1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE), run live
   and extended Oct-26 → Mar-31. Engine `client/src/data/planning/engine.ts` (pure); Base = `base-plan.json`, written by

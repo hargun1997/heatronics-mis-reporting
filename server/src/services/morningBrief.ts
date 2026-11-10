@@ -81,15 +81,28 @@ export function inrShort(n: number): string {
 const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const monthLabel = (p: string) => `${MN[Number(p.slice(5, 7)) - 1] ?? p} ${p.slice(0, 4)}`;
 
+/** "books as of 2 Nov" when the copy was taken before the month ended, else "Oct 2026 books". */
+export function booksLabel(period: string, asOf: string | null | undefined): string {
+  if (asOf) {
+    const t = Date.parse(asOf);
+    const end = Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0, 18, 29, 59);
+    if (Number.isFinite(t) && t < end) {
+      const d = new Date(t + 5.5 * 3_600_000);
+      return `books as of ${d.getUTCDate()} ${MN[d.getUTCMonth()]}`;
+    }
+  }
+  return `${monthLabel(period)} books`;
+}
+
 function watchHref(w: WatchItem): string {
   if (/^cash|runway|overdraft|gst|debtor|creditor/i.test(w.id)) return '/reporting/mis/live?tab=statements';
   if (/close|tie|tb_/i.test(w.id)) return '/reporting/mis/live';
   return '/reporting/mis/live';
 }
 
-/** The newest month that has sales, plus the one before it. */
-function salesPair(months: SummaryMonth[]): { cur: SummaryMonth | null; prev: SummaryMonth | null } {
-  const withSales = [...months].filter((m) => m.sales != null && m.sales > 0).sort((a, b) => a.period.localeCompare(b.period));
+/** The newest WHOLE month that has sales (not the running month, not books copied < 5 days after month end), plus the one before it. */
+function salesPair(months: SummaryMonth[], today: string): { cur: SummaryMonth | null; prev: SummaryMonth | null } {
+  const withSales = [...months].filter((m) => m.sales != null && m.sales > 0 && m.period < today.slice(0, 7) && m.complete !== false).sort((a, b) => a.period.localeCompare(b.period));
   return { cur: withSales[withSales.length - 1] ?? null, prev: withSales[withSales.length - 2] ?? null };
 }
 
@@ -131,18 +144,18 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
 
   // ---- numbers
   const b = x.balance;
-  const { cur, prev: prevM } = salesPair(x.months);
+  const { cur, prev: prevM } = salesPair(x.months, x.today);
   const runway = x.watch.find((w) => w.id === 'cash_runway');
   const cashDelta = b && x.prev?.netCash != null ? r0(b.netCash - x.prev.netCash) : null;
   const tiles: Tile[] = [
     {
       id: 'net_cash', label: 'Net cash', value: b ? r0(b.netCash) : null, unit: 'inr',
-      sub: b ? `${inrShort(b.cashBank)} in bank − ${inrShort(b.overdraft)} overdraft · ${monthLabel(b.period)} books` : 'No Trial Balance stored yet',
+      sub: b ? `${inrShort(b.cashBank)} in bank − ${inrShort(b.overdraft)} overdraft · ${booksLabel(b.period, b.asOf)}` : 'No Trial Balance stored yet',
       tone: b && b.netCash < 0 ? 'act' : 'ok', delta: cashDelta,
     },
     {
       id: 'runway', label: 'Cash lasts', value: runway?.pct ?? null, unit: 'months',
-      sub: runway ? 'at the last 3 months’ average outflow' : 'Cash is growing, or not enough months stored',
+      sub: runway ? 'net cash (after overdraft) at the last whole months’ average fall' : 'Net cash is growing, or not enough whole months stored',
       tone: runway ? (runway.severity === 'high' ? 'act' : runway.severity === 'medium' ? 'watch' : 'ok') : 'ok', delta: null,
     },
     {

@@ -15,6 +15,8 @@
 
 import type { SummaryMonthIn, TbRowIn } from './ceoSummary.js';
 import { balanceSheet, statements, type BalanceSheet, type BsLine, type CashFlow, type Parents, type StatementMonthIn } from './statementsCore.js';
+import { booksComplete, leafDr, NOT_EXPENSE, primaryDr, salesPurchases, subTotal } from './tbRows.js';
+import { netCashFlows, type BalMonth } from '../../services/cashRunway.js';
 
 export type Channel = 'Amazon' | 'D2C' | 'Flipkart' | 'Blinkit' | 'GT' | 'B2B' | 'Export' | 'Other';
 export const CHANNELS: Channel[] = ['Amazon', 'D2C', 'Flipkart', 'Blinkit', 'GT', 'B2B', 'Export', 'Other'];
@@ -102,12 +104,10 @@ const fyLabel = (p: string) => { const y = fyOf(p); return `FY${String(y).slice(
 const monthEndIso = (p: string) => { const [y, m] = p.split('-').map(Number); return new Date(Date.UTC(y, m, 0, 18, 29, 59)).toISOString(); }; // 23:59:59 IST
 const sameMonthLastYear = (p: string) => `${Number(p.slice(0, 4)) - 1}${p.slice(4)}`;
 
-const exact = (rows: TbRowIn[], re: RegExp) => { const hit = rows.filter((r) => re.test(r.name)); return hit.length ? hit.reduce((a, r) => a + r.debit - r.credit, 0) : null; };
-const groupDr = (rows: TbRowIn[], re: RegExp) => { const hit = rows.filter((r) => r.level === 'group' && re.test(r.name)); return hit.length ? hit.reduce((a, r) => a + r.debit - r.credit, 0) : null; };
-const ledgerDr = (rows: TbRowIn[], re: RegExp) => { const hit = rows.filter((r) => r.level === 'ledger' && re.test(r.name)); return hit.length ? hit.reduce((a, r) => a + r.debit - r.credit, 0) : null; };
+const groupDr = (rows: TbRowIn[], re: RegExp) => primaryDr(rows, re);
 
 // ---------------------------------------------------------------- ledger → channel (mirror of the close's map + rules)
-const NOT_SALE = /\b(fees?|commission|ads?|advert\w*|tds|tcs|receivables?|debtors?|expenses?|payable|refunds?|damage|reimburse\w*|charges?|freight|shipping|marketing)\b/;
+const NOT_SALE = /\b(fees?|commission|ads?|advert\w*|tds|tcs|receivables?|debtors?|expenses?|payable|refunds?|damage|reimburse\w*|charges?|freight|shipping|marketing|after-? ?sales?|warranty|promotions?)\b/;
 const LOOKS_SALE = /\b(sales?|revenue|credit notes?|returns?)\b/;
 /** Exact seed names of client/src/data/monthClose/ledgerMap.ts (normalised). */
 const SEED_CHANNEL: Record<string, Channel> = {
@@ -142,10 +142,13 @@ export function channelOfLedger(name: string, rules: LedgerRuleIn[] | null = nul
 }
 
 // ---------------------------------------------------------------- ledger → cost bucket
-const NOT_EXPENSE = /(sales|income|closing stock|opening stock|stock transfer|purchase|interest received|discount received|^total\b|^gross|^nett? (profit|loss)|^check\b)/i;
+// NOT_EXPENSE (tbRows.ts) = the /api/expenses rule: "Sales & Marketing" is a cost (it was dropped as a sales line, round 10
+// A1) and the Direct / Indirect Expenses GROUP rows are skipped (their ledgers are listed too, round 10 A2). Bank charges and
+// interest on TDS / GST stay in opex ("other"), as the Live MIS has them (round 10 A7).
 const BUCKET_RULES: [CostBucket, RegExp][] = [
+  ['other', /bank charges|interest on (tds|gst|income tax)|late fee/],
   ['depreciation', /depreciat|amortis/],
-  ['finance', /finance cost|\binterest\b|bank charges|loan processing|\bemi\b|overdraft|od charges/],
+  ['finance', /finance cost|\binterest\b|loan processing|\bemi\b|overdraft|od charges/],
   ['employee', /employee|salar|\bwages\b|staff|\bpf\b|provident|\besi\b|gratuity|bonus|incentive|recruit|hiring|payroll|director.?s? remuneration/],
   ['channelFees', /channel fee|commission|\bfba\b|d2c fees|platform fee|gateway|razorpay|easebuzz|snapmint|shopflo|amazon damage|reimbursement|cod charges|settlement/],
   ['marketing', /marketing|advertis|\bads?\b|media buying|google|meta\b|facebook|influencer|content creation|brand|campaign|promotion|creative|agency|shoot|celebrity/],
@@ -153,10 +156,12 @@ const BUCKET_RULES: [CostBucket, RegExp][] = [
   ['rentFactory', /\brent\b|factory|electric|power|manufactur|job work|dyeing|repair|maint|utilit|water|consumable|generator|diesel|machine/],
   ['professional', /professional|legal|audit|consult|compliance|certification|govt fee|\broc\b|filing|trademark|patent|nsdl|secretar|registration|licen[cs]e/],
 ];
+/** Lines the Live MIS books in COGM (cost of goods made), not opex: server opex = client opex (round 10 A2). */
+const COGM_LINE = /^(factory overheads?|manufacturing (costs?|expenses?)|inward freight|freight inward)$/;
 /** Which opex bucket an expense ledger falls in; null = not an operating expense row (sales, stock, purchases, income, totals). */
 export function bucketOfLedger(name: string): CostBucket | null {
   const n = norm(name);
-  if (!n || NOT_EXPENSE.test(n)) return null;
+  if (!n || NOT_EXPENSE.test(n) || COGM_LINE.test(n) || channelOfLedger(name)) return null;
   for (const [b, re] of BUCKET_RULES) if (re.test(n)) return b;
   return 'other';
 }
@@ -178,18 +183,19 @@ function fyBlock(m: V2MonthIn | undefined, parents?: Parents): FyBlock | null {
   if (!m?.tb || m.tb.basis !== 'fy-to-date' || !m.tb.rows.length) return null;
   const rows = m.tb.rows;
   const sheet = balanceSheet(toStatementIn(m), parents);
-  const sales = groupDr(rows, /^sales accounts$/i);
-  const purchases = groupDr(rows, /^purchase accounts$/i);
+  // Stock Transfers out of sales AND purchases (round 7 #1): sales = the channel ledgers, GM ₹ unchanged.
+  const { sales: salesV0, purchases } = salesPurchases(rows, parents);
   const direct = groupDr(rows, /^direct expenses$/i);
   const opening = groupDr(rows, /^opening stock$/i) ?? 0;
   const closing = toStatementIn(m).closingStock;
-  const salesV = sales == null ? null : r0(-sales);
-  const cogs = sales == null || closing == null ? null : r0((purchases ?? 0) + (direct ?? 0) + opening - closing);
+  const salesV = salesV0 == null ? null : r0(salesV0);
+  const cogs = salesV == null || closing == null ? null : r0((purchases ?? 0) + (direct ?? 0) + opening - closing);
   const gm = salesV == null || cogs == null ? null : salesV - cogs;
-  const net = sheet ? r0(sheet.fyProfit) : null;
-  const dep = ledgerDr(rows, /depreciat|amortis/i);
-  const fin = ledgerDr(rows, /finance cost|interest (paid|on|expense)|bank interest|^interest$|loan processing|bank charges/i);
-  const tax = ledgerDr(rows, /income tax|provision for tax|tax expense/i) ?? 0;
+  const net = sheet && !sheet.stockUnknown ? r0(sheet.fyProfit) : null;
+  // Leaf ledgers only: a sub-group ("Finance Costs") and its ledgers are both listed in the TB (round 7 #9).
+  const dep = leafDr(rows, /depreciat|amortis/i, parents);
+  const fin = leafDr(rows, /finance cost|interest (paid|expense)|interest on (?!tds|gst|income tax)|bank interest|^interest$|loan processing/i, parents);
+  const tax = leafDr(rows, /income tax|provision for tax|tax expense/i, parents) ?? 0;
   const hasLedgers = rows.some((r) => r.level === 'ledger');
   const ebitda = net == null || !hasLedgers ? null : r0(net + (dep ?? 0) + (fin ?? 0) + tax);
   const mo = Number(m.period.slice(5, 7));
@@ -290,20 +296,22 @@ function cashLedgers(sheet: BalanceSheet): { ledger: string; amount: number }[] 
 }
 
 export function balanceOut(months: V2MonthIn[], parents?: Parents): { balance: BalanceOut | null; cashflow: FlowOut[] } {
-  const ins = months.filter((m) => m.tb).map(toStatementIn);
+  // A stored TB without rows (an empty Tally answer kept before round 7 #11) is no Balance Sheet: never cash ₹0.
+  const ins = months.filter((m) => m.tb?.rows.length).map(toStatementIn);
   if (!ins.length) return { balance: null, cashflow: [] };
   const { sheets, flows } = statements(ins, parents);
   const sheet = sheets[sheets.length - 1];
   const m = months.find((x) => x.period === sheet?.period);
   const rows = m?.tb?.rows ?? [];
-  const bal = (re: RegExp, sign: 1 | -1) => { const v = exact(rows, re); return v == null ? null : r0(v * sign); };
+  const bal = (re: RegExp, sign: 1 | -1) => { const v = subTotal(rows, re, parents); return v == null ? null : r0(v * sign); };
+  const loansDr = primaryDr(rows, /^loans \(liability\)$/i);
   const balance: BalanceOut | null = sheet ? {
     period: sheet.period, asOf: sheet.asOf,
     cash: cashLedgers(sheet), cashBank: r0(sheet.cash), overdraft: r0(sheet.bankOd), netCash: r0(sheet.cash - sheet.bankOd),
     receivables: bal(/^sundry debtors$/i, 1), payables: bal(/^sundry creditors$/i, -1),
     inventory: toStatementIn(m!).closingStock == null ? null : r0(toStatementIn(m!).closingStock!),
-    loans: bal(/^(loans \(liability\)|secured loans|unsecured loans)$/i, -1), gstNet: bal(/^duties & taxes$/i, -1),
-    fixedAssets: bal(/^fixed assets$/i, 1),
+    loans: loansDr == null ? null : r0(-loansDr), gstNet: bal(/^duties & taxes$/i, -1),
+    fixedAssets: (() => { const v = primaryDr(rows, /^fixed assets$/i); return v == null ? null : r0(v); })(),
     workingCapital: r0(sheet.workingCapital), fyProfit: r0(sheet.fyProfit), totalAssets: r0(sheet.totalAssets), tbDiff: r0(m?.tb?.difference ?? 0),
     warnings: sheet.warnings,
   } : null;
@@ -313,6 +321,21 @@ export function balanceOut(months: V2MonthIn[], parents?: Parents): { balance: B
     netChange: r0(f.netChange), openingCash: r0(f.openingCash), closingCash: r0(f.closingCash), warnings: f.warnings,
   });
   return { balance, cashflow: flows.slice(-3).map(flowOut) };
+}
+
+/**
+ * Month-end net cash (bank − overdraft) and Loans (Liability) of every WHOLE month (books ended and copied ≥ 5 days after
+ * month end) from the Balance Sheet builder: the one input of the cash runway, the "Cash lasts" watch and MCP
+ * mis_get_cash_runway (round 7 #2, #3). A running or barely-closed month is left out, never counted as a month.
+ */
+export function netCashMonths(months: V2MonthIn[], parents: Parents | undefined, today: string): BalMonth[] {
+  const ins = months.filter((m) => m.tb?.rows.length).map(toStatementIn);
+  const { sheets } = statements(ins, parents);
+  const byP = new Map(months.map((m) => [m.period, m]));
+  return sheets.filter((b) => booksComplete(b.period, b.asOf, today)).map((b) => {
+    const loans = primaryDr(byP.get(b.period)?.tb?.rows ?? [], /^loans \(liability\)$/i);
+    return { period: b.period, netCash: r0(b.cash - b.bankOd), loans: loans == null ? null : r0(-loans), overdraft: r0(b.bankOd) };
+  });
 }
 
 // ---------------------------------------------------------------- close status
@@ -358,20 +381,22 @@ export function watchOut(x: V2Input, parts: { channels: ChannelsOut | null; bala
   const out: WatchItem[] = [];
   const sorted = [...x.months].sort((a, b) => a.period.localeCompare(b.period));
   const byP = new Map(sorted.map((m) => [m.period, m]));
-  const { balance, cashflow, close, channels } = parts;
-  // 1. cash runway at the last 3 months' average net outflow
-  if (balance && cashflow.length) {
-    const avg = cashflow.reduce((s, f) => s + f.netChange, 0) / cashflow.length;
+  const { balance, close, channels } = parts;
+  // 1. cash runway: net cash (bank − overdraft) at the average monthly change in NET cash less new loans over the last ≤ 3
+  //    whole months — the same method as /api/cash/runway (an OD-funded burn shows; a 2-day month never counts).
+  const flows = balance ? netCashFlows(netCashMonths(x.months, x.parents, x.today)).slice(-3) : [];
+  if (balance && flows.length) {
+    const avg = flows.reduce((s, f) => s + f.netChange, 0) / flows.length;
     if (avg < 0) {
       const months = r1(Math.max(0, balance.netCash) / -avg);
       out.push({ id: 'cash_runway', severity: months < 3 ? 'high' : months < 6 ? 'medium' : 'low', period: balance.period, inr: r0(avg), pct: months,
-        title: `Cash runway ≈ ${months} months`, reason: `Net cash ${inr(balance.netCash)} after an average outflow of ${inr(avg)} a month over the last ${cashflow.length} months (${cashflow.map((f) => f.period).join(', ')}).` });
+        title: `Cash runway ≈ ${months} months`, reason: `Net cash ${inr(balance.netCash)} (bank − overdraft) after an average fall of ${inr(avg)} a month in net cash, less new loans, over ${flows.length} whole month${flows.length === 1 ? '' : 's'} (${flows.map((f) => f.period).join(', ')}).` });
     }
   }
   // 2. debtors +20 % MoM · 3. creditors > 2× purchases · 4. GST payable spike
   if (balance) {
     const cur = byP.get(balance.period), prev = byP.get(prevPeriod(balance.period));
-    const bal = (m: V2MonthIn | undefined, re: RegExp, sign: 1 | -1) => { const v = m?.tb ? exact(m.tb.rows, re) : null; return v == null ? null : v * sign; };
+    const bal = (m: V2MonthIn | undefined, re: RegExp, sign: 1 | -1) => { const v = m?.tb ? subTotal(m.tb.rows, re, x.parents) : null; return v == null ? null : v * sign; };
     const d1 = bal(cur, /^sundry debtors$/i, 1), d0 = bal(prev, /^sundry debtors$/i, 1);
     const dPct = change(d1, d0);
     if (dPct != null && dPct > 20 && d1 != null) out.push({ id: 'debtors_up', severity: dPct > 50 ? 'high' : 'medium', period: balance.period, inr: r0(d1 - (d0 ?? 0)), pct: dPct, title: `Debtors up ${dPct}% in a month`, reason: `Sundry Debtors ${inr(d1)} at ${balance.period} vs ${inr(d0 ?? 0)} the month before: customers are paying slower or sales were booked late in the month.` });
@@ -379,11 +404,11 @@ export function watchOut(x: V2Input, parts: { channels: ChannelsOut | null; bala
       const vals = sorted.filter((m) => m.period <= balance.period).slice(-3).map((m) => {
         const p = byP.get(prevPeriod(m.period));
         if (!m.tb || m.tb.basis !== 'fy-to-date') return null;
-        const now = groupDr(m.tb.rows, /^purchase accounts$/i);
+        const now = salesPurchases(m.tb.rows, x.parents).purchases;
         if (now == null) return null;
         if (Number(m.period.slice(5, 7)) === 4) return now;
         if (!p?.tb || p.tb.basis !== 'fy-to-date' || fyOf(p.period) !== fyOf(m.period)) return null;
-        return now - (groupDr(p.tb.rows, /^purchase accounts$/i) ?? 0);
+        return now - (salesPurchases(p.tb.rows, x.parents).purchases ?? 0);
       }).filter((v): v is number => v != null && v > 0);
       return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
     })();

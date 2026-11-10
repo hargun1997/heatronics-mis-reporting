@@ -28,6 +28,8 @@ import { buildChart, closingByLedger, type ChartReport } from '../connectors/tal
 import { ceoSummary } from '../connectors/tally/ceoSummary.js';
 import { balanceOut, ceoSummaryV2, channelsOut, closeOut, costsOut, expensesOf, fyOut, ledgerTrend, watchOut } from '../connectors/tally/ceoSummaryV2.js';
 import { summaryInput } from '../connectors/tally/ceoSummaryLoad.js';
+import { pickPnlCopy } from '../connectors/tally/pnlCopies.js';
+import { readPnlCopies } from '../connectors/tally/pnlCopiesLoad.js';
 import { claudeChat, isClaudeConfigured } from '../services/claudeClient.js';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import { BUNDLED_HISTORY } from '../services/expenseMap.js';
@@ -61,13 +63,17 @@ router.post('/pull', h(async (_req, res) => {
 router.get('/statements', h(async (_req, res) => {
   const [s, masters] = await Promise.all([readTallyState(), readMasters()]);
   const periods = [...new Set([...Object.keys(s.tbMonths ?? {}), ...Object.keys(s.months)])].sort().slice(-24);
+  const copies = new Map((await readPnlCopies(periods)).map((c) => [c.period, c]));
   const months = await Promise.all(periods.map(async (period) => {
-    const [tb, pnl] = await Promise.all([readTallyTb(period), readTallySnapshot(period)]);
+    const tb = await readTallyTb(period);
+    // The newer of the poll copy and the committed close report (round 7 #10).
+    const c = copies.get(period);
+    const pnl = pickPnlCopy(c?.snapshot ?? null, c?.committed ?? null).copy;
     const rows = pnl?.ledgerRows ?? [];
     const stock = rows.filter((r) => /^closing stock$/i.test(r.name));
     return {
       period,
-      asOf: tb?.asOf ?? pnl?.asOf ?? null,
+      asOf: tb?.asOf ?? pnl?.at ?? null,
       tb: tb ? { rows: tb.rows, difference: tb.difference, basis: tb.basis ?? null } : null,
       // Shown figures (pnl.ts): Closing Stock positive, an expense positive, a contra (write-back) negative → summed signed.
       closingStock: stock.length ? stock.reduce((a, r) => a + r.amount, 0) : null,
@@ -90,7 +96,7 @@ router.get('/statements', h(async (_req, res) => {
 // close, watch, amazonStock next to them — the "Cash Overwatch" blocks (founder, 7 Nov 2026).
 router.get('/summary', h(async (req, res) => {
   const x = await summaryInput(req.query.fresh === '1');
-  const v1 = ceoSummary(x.months.slice(-14));
+  const v1 = ceoSummary(x.months.slice(-14), 13, { parents: x.parents, today: x.today });
   const v2 = ceoSummaryV2(x);
   res.json({ ...v1, ...v2, notes: [...v1.notes, ...v2.notes], lastOkAt: x.lastOkAt, unit: 'INR' });
 }));

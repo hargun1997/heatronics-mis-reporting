@@ -7,8 +7,7 @@
 import { Router, type Request, type Response } from 'express';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import { summaryInput, istToday } from '../connectors/tally/ceoSummaryLoad.js';
-import { ceoSummary } from '../connectors/tally/ceoSummary.js';
-import { ceoSummaryV2 } from '../connectors/tally/ceoSummaryV2.js';
+import { ceoSummaryV2, netCashMonths } from '../connectors/tally/ceoSummaryV2.js';
 import { buildRunway, netCashFlows } from '../services/cashRunway.js';
 
 const router = Router();
@@ -24,9 +23,11 @@ router.get('/runway', (req: Request, res: Response) => {
   (async () => {
     const [x, s] = await Promise.all([summaryInput(req.query.fresh === '1'), readJson<Settings>(KEY, { odLimit: null })]);
     const v2 = ceoSummaryV2(x);
+    const today = istToday();
+    // Flows from the Balance Sheet builder (sub-groups + masters), whole months only, calendar neighbours (round 7 #2/#3/#15).
     const out = buildRunway({
-      today: istToday(), netCash: v2.balance?.netCash ?? null, balancePeriod: v2.balance?.period ?? null,
-      flows: netCashFlows(ceoSummary(x.months.slice(-14)).months.map((m) => ({ period: m.period, netCash: m.netCash, loans: m.loans, overdraft: m.overdraft }))),
+      today, netCash: v2.balance?.netCash ?? null, balancePeriod: v2.balance?.period ?? null, balanceAsOf: v2.balance?.asOf ?? null,
+      flows: netCashFlows(netCashMonths(x.months, x.parents, today)),
       gstPayable: v2.balance?.gstNet ?? null, odLimit: s.odLimit ?? null,
     });
     res.set('Cache-Control', 'no-store').json(out);
