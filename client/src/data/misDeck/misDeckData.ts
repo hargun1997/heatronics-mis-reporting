@@ -146,15 +146,6 @@ export interface MonthlyMIS {
   nonOpLines?: Record<string, number>;
 }
 
-export interface FYSummary {
-  name: string;
-  netRevenue: number;
-  mix: Record<SalesChannel, number>;
-  grossMarginPct: number;
-  ebitdaPct: number;
-  netIncomePct: number;
-}
-
 export const MIS_SOURCE_FILE = "MIS-Sheet_FINAL_channels.xlsx";
 export const MIS_GENERATED_AT = "2026-06-19";
 
@@ -1979,80 +1970,6 @@ export const MONTHLY_MIS: MonthlyMIS[] = [
   }
 ];
 
-export const FY_SUMMARY: FYSummary[] = [
-  {
-    "name": "FY 2023-24",
-    "netRevenue": 13410000,
-    "mix": {
-      "D2C": 0,
-      "Amazon": 0.073,
-      "Blinkit": 0,
-      "Flipkart": 0,
-      "GT": 0,
-      "B2B": 0,
-      "OEM": 0.802,
-      "Offline": 0.125,
-      "Export": 0
-    },
-    "grossMarginPct": 0.305,
-    "ebitdaPct": 0.053,
-    "netIncomePct": -0.057
-  },
-  {
-    "name": "FY 2024-25",
-    "netRevenue": 37950000,
-    "mix": {
-      "D2C": 0.007,
-      "Amazon": 0.655,
-      "Blinkit": 0.005,
-      "Flipkart": 0,
-      "GT": 0,
-      "B2B": 0,
-      "OEM": 0.133,
-      "Offline": 0.2,
-      "Export": 0
-    },
-    "grossMarginPct": 0.636,
-    "ebitdaPct": 0.072,
-    "netIncomePct": 0.015
-  },
-  {
-    "name": "FY 2025-26",
-    "netRevenue": 58339080.42,
-    "mix": {
-      "D2C": 0.402,
-      "Amazon": 0.335,
-      "Blinkit": 0.054,
-      "Flipkart": 0,
-      "GT": 0,
-      "B2B": 0,
-      "OEM": 0.134,
-      "Offline": 0.074,
-      "Export": 0
-    },
-    "grossMarginPct": 0.6,
-    "ebitdaPct": 0,
-    "netIncomePct": -0.04
-  },
-  {
-    "name": "FY 2026-27",
-    "netRevenue": 10900000,
-    "mix": {
-      "D2C": 0.301,
-      "Amazon": 0.384,
-      "Blinkit": 0,
-      "Flipkart": 0,
-      "GT": 0,
-      "B2B": 0,
-      "OEM": 0.271,
-      "Offline": 0.045,
-      "Export": 0
-    },
-    "grossMarginPct": 0.592,
-    "ebitdaPct": -0.229,
-    "netIncomePct": -0.242
-  }
-];
 
 // ----------------------------------------------------------------------------
 // Repeat-purchase data — powers the Repeats tab. Two separate feeds:

@@ -57,9 +57,13 @@ export interface MisPoint {
   cashBurn: number | null;
   ebitdaBurn: number | null;
   runway: number | null;
+  /** Set on a multi-month total whose cash rows cover only some of its months ("Oct–Nov"); absent = all months. */
+  cashMonths?: string | null;
 }
 
-const MIS_POINT_KEYS: (keyof MisPoint)[] = [
+/** The numeric fields of a MisPoint (everything but the `cashMonths` label). */
+export type MisNumKey = Exclude<keyof MisPoint, 'cashMonths'>;
+const MIS_POINT_KEYS: MisNumKey[] = [
   'qty', 'grossRevenue', 'channelMargin', 'returns', 'gst', 'ssClaim', 'discounts',
   'netRevenue', 'cogs', 'grossMargin', 'stockVariance', 'logistics', 'cm1', 'marketing', 'cm2',
   'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
@@ -78,6 +82,8 @@ export interface MisSheetRow {
   decimals?: number;
   /** Memo line (signed, outside the cascade), rendered muted / italic. */
   memo?: boolean;
+  /** Cash / burn row: always ₹ Lac, also in the "% of net revenue" view (a cash balance is not a share of revenue). */
+  cash?: boolean;
   get: (pt: MisPoint) => number | null;
 }
 
@@ -112,11 +118,11 @@ export const MIS_SHEET_ROWS: MisSheetRow[] = [
   { label: 'Other income', get: (p) => p.otherIncome },
   { label: 'EBITDA', bold: true, get: (p) => p.ebitda },
   { label: 'EBITDA%', pct: true, get: (p) => ratio(p.ebitda, p.netRevenue) },
-  { label: 'Opening Cash Balance (₹ lakh)', get: (p) => p.openingCash },
-  { label: 'Funding (equity)', get: (p) => p.funding },
-  { label: 'Closing Cash Balance (₹ lakh)', get: (p) => p.closingCash },
-  { label: 'Total Cash Burn', get: (p) => p.cashBurn },
-  { label: 'EBITDA Burn', get: (p) => p.ebitdaBurn },
+  { label: 'Opening Cash Balance (₹ lakh)', cash: true, get: (p) => p.openingCash },
+  { label: 'Funding (equity)', cash: true, get: (p) => p.funding },
+  { label: 'Closing Cash Balance (₹ lakh)', cash: true, get: (p) => p.closingCash },
+  { label: 'Total Cash Burn', cash: true, get: (p) => p.cashBurn },
+  { label: 'EBITDA Burn', cash: true, get: (p) => p.ebitdaBurn },
   { label: 'Runway (Qtr)', count: true, decimals: 1, get: (p) => p.runway },
 ];
 
