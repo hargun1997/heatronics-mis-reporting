@@ -117,9 +117,16 @@ Still missing:
 2. **Menu moves** listed above.
 3. **Overdraft limit:** type it once on Cash runway (one total for now), or per bank (HDFC / ICICI / Central Bank)?
 4. **Item 15:** OK to add a small "MIS alerts" producer to Ops' alerts inbox (an Ops repo change)?
-5. Equity raises make the "Best month repeats" case look too good. Should a month with share money be left out automatically? That needs the share-capital ledger name.
+5. **Jan–Mar 2026 restatement** (×1.0659) matches the audit and is kept — confirm.
+6. **"Operations Platform Subscriptions"** now counts as Platform & Payment (Shopflo): confirm nothing else is booked there.
+7. A month complete except closing stock counts in "Last 12 months" (so ranges end at Sep 26): keep, or hold it out until stock is posted?
+8. Equity raises make the "Best month repeats" case look too good. Should a month with share money be left out automatically? That needs the share-capital ledger name.
 
-## Next up (run 3)
+## Audit follow-ups (run 3, 10 Nov 2026; evidence in the session scratchpad mis-audit/)
+- Waiting on others: Flipkart API approval; TallyPrime open on the cloud machine (Tally unreachable since 2 Nov — needed to verify whether May/Jun Cost of Advertising ₹13 L duplicates Amazon ads in Sales & Marketing); accounts team: post Sep/Oct closing stock, finish Oct booking, book Blinkit into Quick Commerce, check Oct OEM vs Tranzact (cancelled invoice?).
+- Small code items left: `tbRows.ts` no-masters fallback can mistake equal-valued ledgers for a sub-group; MIS Sheet totals blank when a channel lacks a month; Mar 26 Amazon cells vs row (−₹2.44 L); plan Jul–Sep 26 last-year units (re-import the Projection sheet); legacy product COGS by month (B6-4) still modelled; gateway costs inside Bank Charges; Ops `/gt` GT definition (CNF → GTC, MT / B2C) — Ops repo.
+
+## Next up (run 4)
 1. Item 9: source chip on every page.
 2. Item 11: runway known dues.
 3. Item 12: variance notes.
