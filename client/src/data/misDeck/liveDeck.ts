@@ -36,7 +36,11 @@ import { activeProductMap, bomGaps, unmappedGaps, setProductMap, type Candidate,
 import { setLedgerRules } from '../monthClose/ledgerRules';
 import { fetchFacts } from '../liveMis/client';
 import { accumulateTags, buildChannelRecon, tagTallyLines, toSalesChannel } from './expenseTagging';
+import { capTallyLines } from './channelAlloc';
+import { conversionCost, stockUnposted } from './conversion';
 import { buildCloseTie, type CloseTie, type MonthLock } from './closeTies';
+import { estimatedSources, gstRateFor, toExGstFact } from './gstBasis';
+import { applyChannelHistory, closeBlockers, connectorSalesTotal, slotGaps, tallyGaps, tallyHasSalesLedger, type CloseBlocker, type MissingChannel, type SlotGap, type TallyGap } from './monthCompleteness';
 
 // Factory overhead convention — 10% of revenue added to product COGS to form
 // COGM, matching the deck (analytics.ts FACTORY_PCT) and the committed closes.
@@ -88,8 +92,18 @@ export interface PeriodCompleteness {
   manualLock?: MonthLock;
   /** Closed = frozen legacy history OR manually locked. Drives "complete through". */
   closed?: boolean;
-  /** Full close with Tally sales, not yet locked: waiting for Hargun's "Close & lock". */
+  /** Nothing blocks the lock (full Tally, ties, stock posted, reports in, month over): waiting for Hargun's "Close & lock". */
   ready?: boolean;
+  /** Why the month cannot be locked yet (monthCompleteness.ts). Empty / absent = nothing blocks. */
+  closeBlockers?: CloseBlocker[];
+  /** Channels the connectors sold on that Tally has not booked: the copy is "Tally incomplete", never a full close. */
+  tallyGaps?: TallyGap[];
+  /** Channels that sold in the last 3 months with no sales data this month: the month is partial, never ₹0-as-full. */
+  missingChannels?: MissingChannel[];
+  /** Set when a stored Tally copy was NOT used (no sales ledgers, only stock carry-forward): the month runs on connector facts. */
+  tallyIgnored?: string;
+  /** Sources whose ex-GST sales were estimated from GMV at the product GST rate (months with no Tally sales). */
+  exGstEstimated?: { sources: string[]; ratePct: number };
   /** Which BOM priced this month's COGS (the month's own, else the nearest — labelled). */
   bom?: { month: string; exact: boolean; note: string } | null;
   /** Factory overhead inside COGM: Tally's booked amount or the labelled 10% fallback. */
@@ -111,7 +125,8 @@ export interface TrafficRow {
 }
 
 /** How the live connector pull went (backlog bug 3, 9 Nov 2026: a failed pull used to build the deck with no live data, silently). */
-export interface LiveFeedStatus { ok: boolean; error?: string; sources: { id: string; label: string; ok: boolean; error?: string; partial?: boolean; cachedAt?: string | null }[] }
+/** staleError = the last refresh of that source failed, so its numbers are the last good copy (cachedAt = how old). */
+export interface LiveFeedStatus { ok: boolean; error?: string; sources: { id: string; label: string; ok: boolean; error?: string; partial?: boolean; cachedAt?: string | null; staleError?: string | null; staleErrorAt?: string | null }[] }
 
 export interface LiveDeckData {
   /** Live connector pull status (absent on decks built from uploads only, e.g. tests). */
@@ -284,10 +299,10 @@ export interface BuiltMonth {
   gaps?: ProductGaps;
 }
 
-function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: DailyFact[] = [], bomInfo: PeriodCompleteness['bom'] = null): BuiltMonth {
+function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: DailyFact[] = [], bomInfo: PeriodCompleteness['bom'] = null, ctx: { slots: SlotGap[]; thisMonth: string } = { slots: [], thisMonth: '9999-12' }): BuiltMonth {
   const session: MonthCloseSession = emptySession(periodKey, periodLabel(periodKey));
-  const sources: UploadedSource[] = [];
-  const allFacts: DailyFact[] = [...monthFacts];
+  let sources: UploadedSource[] = [];
+  let allFacts: DailyFact[] = [...monthFacts];
   let hasTally = false;
   let through: string | null = null;
   const contributors = new Set<string>();
@@ -320,9 +335,26 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     }
   }
 
+  // A Tally copy with no sales ledger (the opening / closing stock carry-forward Tally prints for a month that is
+  // not booked yet) is not a close: when the connectors saw sales, build the month from them instead of showing ₹0.
+  let tallyIgnored: string | undefined;
+  if (hasTally) {
+    const probe = computeClose({ ...session, sources });
+    if (!tallyHasSalesLedger(probe.netByChannel) && connectorSalesTotal(monthFacts) > 0) {
+      hasTally = false;
+      tallyIgnored = 'Tally copy has no sales ledgers yet (only stock carried forward): not used.';
+      session.anchor = emptySession(periodKey, '').anchor;
+      for (const x of sources) if (!x.bomCosts.length) contributors.delete(x.label);
+      sources = sources.map((x) => ({ ...x, nodes: [] })).filter((x) => x.bomCosts.length > 0);
+    }
+  }
+  // No Tally sales to anchor on: connector sales go in ex-GST (reported, else estimated from GMV at the product rate).
+  const estSources = hasTally ? [] : estimatedSources(monthFacts);
+  if (!hasTally) allFacts = monthFacts.map(toExGstFact);
+
   // SKU rows from this month's facts — one synthetic source per connector.
   const factsByConn = new Map<string, DailyFact[]>();
-  for (const f of monthFacts) {
+  for (const f of allFacts) {
     const arr = factsByConn.get(f.source) ?? [];
     arr.push(f);
     factsByConn.set(f.source, arr);
@@ -513,7 +545,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     // can to channels; whatever they cannot stays as the company-wide blended
     // remainder. Pure view-side: the headline cascade above is unchanged.
     const tags = accumulateTags(allFacts);
-    const tallyLines = tagTallyLines(c.tallyLines, tags, c.netByChannel);
+    const tallyLines = capTallyLines(tagTallyLines(c.tallyLines, tags, c.netByChannel)); // reports never put more on a channel than Tally booked
 
     // Factory overhead: Tally's booked amount where the month has the ledger (it is already inside c.cogm);
     // the 10% convention only as a labelled fallback. Cells carry their share so every view splits COGM the same way.
@@ -523,15 +555,22 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     const factoryAmount = factoryActual ?? r2(FACTORY_PCT * c.netRevenue);
     const factoryRate = c.netRevenue > 0 ? factoryAmount / c.netRevenue : FACTORY_PCT;
     for (const cell of skuCells) cell.fac = r2(factoryRate * cell.rev);
-    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, factoryRate);
+    const conv = conversionCost(c.cogmLines, factoryAmount);
+    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, factoryRate, conv.other);
 
-    // A month is "full" only when Tally actually booked sales; a P&L with no revenue is not a close.
+    // A month is "full" only when Tally booked sales AND every channel the connectors sold on has its Tally sales
+    // ledger (monthCompleteness.ts): a half-booked P&L is "Tally incomplete", not a close.
     const tallyHasSales = c.netRevenue > 0;
-    const level: CompletenessLevel = tallyHasSales ? 'full' : cogmReal ? 'contribution' : 'topline';
+    const gapsTally = tallyHasSales ? tallyGaps(c.netByChannel, c.netRevenue, allFacts) : [];
+    const level: CompletenessLevel = tallyHasSales && !gapsTally.length ? 'full' : cogmReal ? 'contribution' : 'topline';
     const tie = buildCloseTie({
       periodKey, netRevenue: c.netRevenue, netByChannel: c.netByChannel,
       tallyNett: c.reconciliation.tallyNett, misProfit: c.reconciliation.computedNet,
       profitResidual: c.reconciliation.residual, facts: allFacts,
+    });
+    const blockers = closeBlockers({
+      periodKey, thisMonth: ctx.thisMonth, hasTally: true, tallyHasSales, gaps: gapsTally, tie, slots: ctx.slots,
+      stock: { opening: Math.abs(c.lines['cogm_open']?.amount ?? 0), closing: Math.abs(c.lines['cogm_close']?.amount ?? 0), purchases: Math.abs(c.lines['cogm_rm']?.amount ?? 0), sales: c.netRevenue },
     });
 
     // Non-Operating broken into its Tally ledgers (finance cost, depreciation,
@@ -559,6 +598,8 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       costOfFundraising: c.costOfFundraising, cogmLines: c.cogmLines, opexLines: c.opexLines,
       tallyLines, channelRecon,
       factory: factoryAmount, factoryBasis,
+      conversion: conv.total, ...(stockUnposted(c.cogmLines) ? { stockUnposted: true } : {}),
+      ...(sku.unmapped.length ? { unmappedRevenue: r2(sku.unmapped.reduce((t, u) => t + u.revenue, 0)) } : {}),
     };
     return {
       month, skuCells, gaps,
@@ -568,6 +609,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
         reconcileResidual: c.reconciliation.residual,
         tallyNett: c.reconciliation.tallyNett, misProfit: c.reconciliation.computedNet,
         tie, bom: bomInfo, factoryBasis,
+        closeBlockers: blockers, ...(gapsTally.length ? { tallyGaps: gapsTally } : {}),
       },
     };
   }
@@ -623,6 +665,9 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       periodKey, hasTally: false, cogmReal,
       level: cogmReal ? 'contribution' : 'topline',
       sources: [...contributors], through, reconcileResidual: null, bom: bomInfo, factoryBasis: 'assumed',
+      closeBlockers: closeBlockers({ periodKey, thisMonth: ctx.thisMonth, hasTally: false, tallyIgnored, tallyHasSales: false, gaps: [], slots: ctx.slots }),
+      ...(tallyIgnored ? { tallyIgnored } : {}),
+      ...(estSources.length ? { exGstEstimated: { sources: estSources, ratePct: Math.round(gstRateFor(estSources[0]) * 1000) / 10 } } : {}),
     },
   };
 }
@@ -674,6 +719,8 @@ export interface BuildLiveDeckOptions {
    * the alternate. A full live close always wins either way.
    */
   prefer?: 'published' | 'live';
+  /** Current month (IST, YYYY-MM): a month that is not over is never ready to lock. Default = now. */
+  thisMonth?: string;
 }
 
 // ---- The published static history, normalised to the live conventions ------
@@ -765,7 +812,7 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
     // Ledgers for this month + the shared BOM cost book.
     const bom = pickBom(bomAll, periodKey);
     const reps = [...(ledgerByPeriod.get(periodKey) ?? []), ...bom.reports];
-    built.set(periodKey, buildMonth(periodKey, reps, factsByMonth.get(periodKey) ?? [], bom.info));
+    built.set(periodKey, buildMonth(periodKey, reps, factsByMonth.get(periodKey) ?? [], bom.info, { slots: slotGaps(periodKey, reports), thisMonth: opts.thisMonth ?? currentIstMonth() }));
   }
 
   // Splice the published static MIS in:
@@ -774,6 +821,7 @@ export function buildLiveDeck(reports: ExtractedReport[], liveFacts: DailyFact[]
   //    with no full live close (G5). A full live close replaces it; a live partial
   //    never silently does — see BuildLiveDeckOptions.prefer.
   const { months: staticMonths, cellsByMonth } = staticHistory();
+  applyChannelHistory(built, staticMonths, opts.locks ?? {});
   const months: MonthlyMIS[] = [];
   const skuCells: SkuCell[] = [];
   const completeness: Record<string, PeriodCompleteness> = {};
@@ -859,7 +907,7 @@ function finishDeck(
     if (!c) continue;
     const manualLock = locks[k];
     const closed = !!c.locked || !!manualLock;
-    stamped[k] = { ...c, manualLock, closed, ready: !closed && c.level === 'full' };
+    stamped[k] = { ...c, manualLock, closed, ready: !closed && c.level === 'full' && !(c.closeBlockers?.length) };
   }
   let completeThrough: string | null = null;
   if (periods.length) {
@@ -934,7 +982,7 @@ async function fetchLiveFacts(reports: ExtractedReport[], force = false): Promis
     if (earliest < from) from = earliest;
   }
   const res = await fetchFacts(from, today, force);
-  const sources = (res.sources ?? []).map((x) => ({ id: x.id, label: x.label, ok: !!x.ok, error: x.error, partial: (x as { partial?: boolean }).partial, cachedAt: (x as { cachedAt?: string | null }).cachedAt ?? null }));
+  const sources = (res.sources ?? []).map((x) => { const y = x as { partial?: boolean; cachedAt?: string | null; staleError?: string; staleErrorAt?: string | null }; return { id: x.id, label: x.label, ok: !!x.ok, error: x.error, partial: y.partial, cachedAt: y.cachedAt ?? null, staleError: y.staleError ?? null, staleErrorAt: y.staleErrorAt ?? null }; });
   return { facts: Array.isArray(res.facts) ? res.facts : [], feed: { ok: true, sources } };
 }
 

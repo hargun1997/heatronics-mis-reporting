@@ -18,6 +18,11 @@ import { applyIssueOp, openItems, serverItems, type InboxItem, type IssueState }
 import { chartReport, health } from './tally.js';
 import { readTallyState, readTallyTb } from '../connectors/tally/snapshots.js';
 import { getEffectiveCredentials } from '../connectors/credentialStore.js';
+import { storedSlotReport } from '../connectors/slots/closeSlots.js';
+import { SLOT_SOURCES } from '../connectors/slots/catalog.js';
+import { CONNECTORS, getConnector } from '../connectors/registry.js';
+import { liveFactsHealth } from '../connectors/factsCache.js';
+import type { LockStore } from '../ingest/closeLocks.js';
 
 const router = Router();
 const STATE = 'issues/state';
@@ -44,9 +49,12 @@ const istDay = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(
 const safe = async <T>(p: Promise<T>, fallback: T): Promise<T> => { try { return await p; } catch { return fallback; } };
 
 async function loadItems(): Promise<InboxItem[]> {
-  const [reports, hr, chart, ts, creds] = await Promise.all([
+  const [reports, hr, chart, ts, creds, locks, slotFeeds, liveFacts] = await Promise.all([
     safe(readAllExtracted(), []), safe(health(3), null), safe(chartReport(), null), safe(readTallyState(), null),
     safe(getEffectiveCredentials('tally', ['host', 'port', 'company']), null),
+    safe(readJson<LockStore>('close-locks', { locks: {} }), { locks: {} } as LockStore),
+    safe(slotFeedStatus(), {}),
+    safe(liveFactsHealth(CONNECTORS.filter((c) => c.fetchFacts).map((c) => ({ id: c.id, label: c.label }))), []),
   ]);
   const tbPeriod = Object.keys(ts?.tbMonths ?? {}).sort().pop() ?? null;
   const tb = tbPeriod ? await safe(readTallyTb(tbPeriod), null) : null;
@@ -60,7 +68,26 @@ async function loadItems(): Promise<InboxItem[]> {
     tb: tb && tbPeriod ? { period: tbPeriod, difference: tb.difference } : null,
     tally: ts ? { connected: !!(creds as { host?: string } | null)?.host, lastOkAt: ts.lastOkAt, lastError: ts.lastError } : null,
     anomalies: scan.issues,
+    reports: reports.map(storedSlotReport),
+    locked: new Set(Object.keys(locks.locks ?? {})),
+    slotFeeds, liveFacts,
   });
+}
+
+/** How each close slot is fed and whether its pull has what it needs (no secrets leave this function). */
+async function slotFeedStatus() {
+  const out: Record<string, { source: 'api' | 'sheet' | 'claude_task' | 'upload'; connected: boolean; connectHint?: string | null }> = {};
+  await Promise.all(SLOT_SOURCES.map(async (d) => {
+    let connected = false;
+    if (d.pull) {
+      const cid = d.credsFrom ?? d.connectorId;
+      const c = getConnector(cid);
+      const cr = await safe(getEffectiveCredentials(cid, c ? c.credentialFields.map((f) => f.key) : d.needs ?? []), {} as Record<string, string>);
+      connected = (d.needs ?? []).every((k) => (cr[k] || '').trim());
+    }
+    out[`${d.connectorId}|${d.slotId}`] = { source: d.source, connected, connectHint: d.connectHint ?? null };
+  }));
+  return out;
 }
 
 let cache: { at: number; items: InboxItem[] } | null = null;

@@ -135,6 +135,8 @@ export interface TallyBucketLine {
   byChannel: Partial<Record<SalesChannel, number>>;
   /** total − Σ byChannel. Company-wide remainder; may be negative. */
   blended: number;
+  /** Set when the reports said more than Tally booked on this line: ₹ cut from each channel by the cap (positive). See misDeck/channelAlloc.ts. */
+  over?: Partial<Record<SalesChannel, number>>;
 }
 
 /**
@@ -145,7 +147,7 @@ export interface TallyBucketLine {
 export interface ChannelRecon {
   /** Per channel: Tally net revenue − Σ connector SkuCell revenue. */
   revenueResidue: Partial<Record<SalesChannel, number>>;
-  /** Tally COGM − (Σ BOM-costed SkuCell COGS + factory overhead on net revenue). */
+  /** Tally COGM − (Σ BOM-costed SkuCell COGS + factory overhead + the other Direct Expenses booked): material timing only. */
   cogmVariance: number;
 }
 

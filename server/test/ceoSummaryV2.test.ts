@@ -221,7 +221,7 @@ test('ledger trend + expenses of a month', () => {
 
 test('connector facts → ex-GST sales per channel like the close tie', () => {
   const s = connectorSalesOf([
-    { source: 'shopify', channel: 'D2C', date: '2026-10-01', revenue: 1180, gmv: 1180 },
+    { source: 'shopify', channel: 'D2C', date: '2026-10-01', revenue: 1050, gmv: 1050 }, // GMV ÷ 1.05 (product GST 5 %)
     { source: 'shopify', channel: 'D2C', date: '2026-10-02', revenue: 1180, gmv: 1180, netExGst: 1000 },
     { source: 'flipkart', channel: 'Flipkart', date: '2026-10-02', revenue: 500 },
     { source: 'meta', channel: 'Meta Ads', date: '2026-10-02', revenue: 0, spend: 300 } as never,
