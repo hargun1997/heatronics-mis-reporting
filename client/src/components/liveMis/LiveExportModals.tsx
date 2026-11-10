@@ -81,7 +81,7 @@ export function LiveExcelModal({ deck, open, onClose, basis, merged }: {
           <label className="flex items-start gap-2.5 text-sm cursor-pointer">
             <input type="checkbox" className="mt-1" checked={o.normaliseCogm} onChange={() => setO({ ...o, normaliseCogm: !o.normaliseCogm })} />
             <span><span className="font-medium text-slate-800">Normalised COGM</span>
-              <span className="block text-xs text-slate-500">P&amp;L and MIS sheets price COGM as units sold × BOM cost + factory overhead; Tally's purchase-timing difference is a "Stock build / drawdown" memo line. Months with no BOM costing stay as booked (noted). COGM Detail stays as booked.</span></span>
+              <span className="block text-xs text-slate-500">P&amp;L and MIS sheets price COGM as units sold × BOM cost + factory overhead, manufacturing cost and inward freight; Tally's material purchase-timing difference is a "Stock build / drawdown" memo line. Months with no BOM costing stay as booked (noted). COGM Detail stays as booked.</span></span>
           </label>
           <label className="flex items-start gap-2.5 text-sm cursor-pointer">
             <input type="checkbox" className="mt-1" checked={o.mergeChannels} onChange={() => setO({ ...o, mergeChannels: !o.mergeChannels })} />
