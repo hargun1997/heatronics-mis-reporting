@@ -27,6 +27,7 @@ import {
 import { topChannel } from '../../data/misDeck/analytics';
 import { footCellsToChannels, NOT_MAPPED } from '../../data/misDeck/channelFoot';
 import type { CascadeLine } from '../../data/monthClose/schema';
+import { interBranchNote } from '../../data/misDeck/auditTie';
 import {
   Fold, Pills, CogmBasisToggle, CogmBasisNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
   useLiveView, VERTICAL_COLORS,
@@ -365,7 +366,8 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
           key: '__ebt', label: 'EBT (before income tax)', strong: true, gate: 'non_operating',
           value: (p: PeriodAgg) => (has(p) ? p.ebitda - p.costOfFundraising + Object.entries(p.nonOpLines).filter(([k]) => !isTax(k)).reduce((s, [, v]) => s + v, 0) : null),
         },
-        ...nonOpKeys.filter(isTax).map((k) => ({ key: k, label: k, gate: 'non_operating', value: (p: PeriodAgg) => p.nonOpLines[k] ?? (has(p) ? 0 : null) })),
+        // no tax line in the books for the period = no data, never ₹0 (live months until Tally books tax)
+        ...nonOpKeys.filter(isTax).map((k) => ({ key: k, label: k, gate: 'non_operating', value: (p: PeriodAgg) => p.nonOpLines[k] ?? null })),
       ];
     }
     return out;
@@ -470,11 +472,13 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
         consistent with the source MIS. Percentages are each line’s share of that period’s net revenue.
       </Note>
       <Note>
-        <span className="font-medium text-slate-500">FY 2025-26 restated:</span> tied to the company’s provisional P&amp;L as on
-        31-03-2026 — COGM ₹2.35 Cr (gross margin 59.7%), EBITDA ≈ −₹0.97 L (breakeven), with depreciation (₹12.91 L) and
-        interest (₹9.00 L) below EBITDA for a net loss of −₹22.88 L. The Jan–Mar 2026 months were smoothed to remove the
-        volatile actual-consumption COGM that had overstated full-year cost of goods.
+        <span className="font-medium text-slate-500">Tied to the audited accounts:</span> FY24-25 EBITDA ₹39.20 L, profit before
+        tax ₹17.52 L, net income ₹14.57 L (Mar 2025 carries an audit true-up of material ₹11.72 L, other income and tax). FY25-26
+        EBITDA −₹1.06 L, profit before tax −₹23.02 L, net income −₹22.16 L after a deferred-tax credit of ₹0.86 L; the Jan–Mar
+        2026 monthly costs are allocated to tie to the audited year. FY23-24 here is Dec 2023 – Mar 2024 only (4 months), with
+        4/12 of that year’s depreciation.
       </Note>
+      {cols.map((p) => interBranchNote(p.label, p.key.startsWith('FY') ? p.interBranch : null)).filter(Boolean).map((t) => <Note key={t}>{t}</Note>)}
     </div>
   );
 }

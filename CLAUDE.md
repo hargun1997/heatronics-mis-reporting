@@ -326,6 +326,20 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   (`buildLiveMisContext`; fiscal years summed from the deck by `fySummaryOf`); the stale `FY_SUMMARY` / `buildMisContext` are no longer
   read. (5) A published month replaced by a full Tally close carries `completeness.vsPublished` (₹ change): chip `PublishedGapChip` in
   the Live MIS status strip + a low Fix item `published:<month>` when net revenue or net profit moved ≥ ₹10,000.
+- **Published history tied to the audited accounts (10 Nov 2026, audit recon; pure `data/misDeck/auditTie.ts`, applied in `PUBLISHED_MONTHS`,
+  test `server/test/auditTie.test.ts`):** FY24-25 and FY25-26 company net revenue (ex inter-branch), EBITDA, PBT and net income equal the
+  audited statements within ₹1,000 (revenue ₹1,920 workbook rounding). (1) FY24-25 material was a flat 30.97 % proxy: opex line
+  "Audit true-up: material (audit adjustment)" +₹11.72 L in Mar 2025 (EBITDA ₹27.20 L → ₹39.20 L, PBT ₹5.53 L → ₹17.52 L). (2) Other income
+  = opex line "Other income" (FY25 ₹0.28 L new; FY26 ₹1.47 L was netted into opex, now its own line, opex total unchanged); tax = Non-operating
+  line "Tax (incl. deferred)" in March (FY25 ₹2.95 L, FY26 −₹0.86 L credit) so Net income = PAT (FY25 ₹14.57 L, FY26 −₹22.16 L); FY26 also a
+  −₹8,997 material and ₹5,215 finance-cost true-up. Every published month < Apr 2026 carries `nonOpLines` ("Interest & depreciation" + tax).
+  MIS sheet rows added: Audit true-up, Interest/depreciation & other, Profit before tax, Tax (incl. deferred), Net income (company only;
+  `auditTie.belowEbitda`; tax = `taxOf` the Non-operating lines, no tax line = "no data", also in the Detailed P&L drill for live months).
+  True-up / other income sit in opex and tax in Non-operating: below CM3, spread like other company lines, channels and SKU cells unchanged.
+  (3) Jan–Mar 2026 inter-branch scaled to the books (₹8.97 L → ₹11.93 L; FY26 turnover = audited ₹6.93 Cr); ×1.0659 kept; gross / returns /
+  GST = the channel rows' build-up so it foots to the restated net (`footBuildUp`). (4) Dec 23–Mar 24: depreciation 4/12 of the year spread
+  over the 4 months (was the full ₹13.88 L in Mar 24); FY bucket label "FY23-24 (Dec 23–Mar 24, 4 months)" (`fyBucketLabel`). (5) Detailed P&L
+  note per FY: "audited revenue includes ₹X inter-branch transfers; MIS excludes them" (`PeriodAgg.interBranch`, `interBranchNote`).
 - **SKU layer foots (10 Nov 2026, audit R6 / R8 / R10; pure `data/misDeck/skuLayer.ts`, tests `server/test/skuLayer.test.ts`):**
   (1) sales no product map knows get one **"Not mapped (sales with no product)"** cell per channel (`NO_PRODUCT_LABEL`) and month (`notMappedCells`, `noCost`; `uncostedEstimate` skips it
   because `unmappedRevenue` already counts it), so SKU P&L / Units sold never drop them; a Tranzact `FG-dddd` the FG master does not list is

@@ -39,6 +39,7 @@ import type { TallyBucketLine } from '../monthClose/schema';
 import { allocateChannelCost, allocateMarketing, cogsWeights, feedFees, feedPlatform, sumChannelRows } from './channelAlloc';
 import { modelledRevenue, rankLast } from './skuLayer';
 import { opexSplit, fyToDateLabel } from './misPeriods';
+import { belowEbitda } from './auditTie';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -677,14 +678,14 @@ export function aggregateRange(
 const DISC_BY_KEY = new Map(DISCOUNT_DATA.map((d) => [d.key, d.discount]));
 const MIS_KEYS: MisNumKey[] = [
   'qty', 'grossRevenue', 'channelMargin', 'returns', 'gst', 'ssClaim', 'discounts', 'netRevenue', 'cogs', 'grossMargin',
-  'stockVariance', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
-  'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
+  'stockVariance', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'auditTrueUp', 'ebitda',
+  'nonOperating', 'pbt', 'tax', 'netIncome', 'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
 ];
 // Cascade fields gated by completeness: a period total is blank when any month is.
-const GATED: MisNumKey[] = ['cogs', 'grossMargin', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'otherExpense', 'ebitda', 'ebitdaBurn'];
+const GATED: MisNumKey[] = ['cogs', 'grossMargin', 'logistics', 'cm1', 'marketing', 'cm2', 'branding', 'cm3', 'otherExpense', 'ebitda', 'ebitdaBurn', 'nonOperating', 'pbt', 'netIncome'];
 // Split out of OpEx: blank in a total whenever its Other Expense is (round 7 #13), so a total column never shows
 // payroll next to a blank Other Expense / EBITDA. The stock memo follows COGS, so normalised GM keeps its memo beside it.
-const GATED_WITH_OPEX: MisNumKey[] = ['payroll', 'profFee', 'otherIncome'];
+const GATED_WITH_OPEX: MisNumKey[] = ['payroll', 'profFee', 'otherIncome', 'auditTrueUp'];
 
 /**
  * Sum MIS points across months — the legacy sumPoints (nulls stay null when
@@ -735,6 +736,7 @@ export function liveMisPoint(
   const disc = DISC_BY_KEY.get(key) ?? null;
   const blank = {
     channelMargin: null, ssClaim: null, stockVariance: null, payroll: null, profFee: null, otherIncome: null,
+    auditTrueUp: null, nonOperating: null, pbt: null, tax: null, netIncome: null,
     openingCash: null, funding: null, closingCash: null, cashBurn: null, ebitdaBurn: null, runway: null,
   };
   // Normalised COGM basis: the month's stock build / drawdown memo (null on the actual basis / an as-booked month).
@@ -745,11 +747,13 @@ export function liveMisPoint(
     // EBITDA; Other Expense is the rest.
     const L = p.opexLines ?? {};
     const opexReal = isReal(p.level, 'opex') && Object.keys(L).length > 0;
-    const { payroll, profFee, otherIncome } = opexSplit(L);
+    const { payroll, profFee, otherIncome, auditTrueUp } = opexSplit(L);
     const ebitdaReal = isReal(p.level, 'ebitda');
     return {
       ...blank,
-      ...(opexReal ? { payroll, profFee, otherIncome } : {}),
+      ...(opexReal ? { payroll, profFee, otherIncome, auditTrueUp } : {}),
+      // Interest / depreciation, PBT, tax (its own Non-operating line; no line = no data) and net income: company only.
+      ...(isReal(p.level, 'net_income') ? belowEbitda(p.ebitda, p.netIncome, p.nonOpLines) : {}),
       ebitdaBurn: ebitdaReal ? (p.ebitda < 0 ? -p.ebitda : 0) : null,
       qty: Math.round(SALES_CHANNELS.reduce((s, c) => s + ordersOf(c), 0)),
       grossRevenue: p.totalGrossRevenue || null,
@@ -761,7 +765,7 @@ export function liveMisPoint(
       logistics: v('channel_fulfilment', p.channelFulfillment), cm1: v('cm1', p.cm1),
       marketing: v('sales_marketing', p.salesMarketing), cm2: v('cm2', p.cm2),
       branding: v('platform_payment', p.platformCosts), cm3: v('cm3', p.cm3),
-      otherExpense: opexReal ? p.opex - (payroll ?? 0) - (profFee ?? 0) + (otherIncome ?? 0) : v('opex', p.opex), ebitda: v('ebitda', p.ebitda),
+      otherExpense: opexReal ? p.opex - (payroll ?? 0) - (profFee ?? 0) + (otherIncome ?? 0) + (auditTrueUp ?? 0) : v('opex', p.opex), ebitda: v('ebitda', p.ebitda),
     };
   }
   const ch = entity;

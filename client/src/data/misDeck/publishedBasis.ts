@@ -40,6 +40,7 @@
 import { MONTHLY_MIS, SALES_CHANNELS, type MonthlyMIS, type SalesChannel } from './misDeckData';
 import { SKU_CELLS, type SkuCell } from './skuChannelPnl';
 import { markModelled } from './skuLayer';
+import { tieToAudit } from './auditTie';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 type ByChannel = Partial<Record<SalesChannel, number>>;
@@ -95,10 +96,10 @@ export function recutAmazonCells(cells: SkuCell[], raw: MonthlyMIS | undefined):
 
 const RAW_BY_KEY = new Map(MONTHLY_MIS.map((m) => [m.key, m]));
 
-/** The published months, oldest first, channel rows ex-GST. The one list every reader uses. */
-export const PUBLISHED_MONTHS: MonthlyMIS[] = [...MONTHLY_MIS]
+/** The published months, oldest first, channel rows ex-GST, tied to the audited accounts (auditTie.ts). The one list every reader uses. */
+export const PUBLISHED_MONTHS: MonthlyMIS[] = tieToAudit([...MONTHLY_MIS]
   .sort((a, b) => a.key.localeCompare(b.key))
-  .map(exGstChannels);
+  .map(exGstChannels));
 
 /**
  * A month's SKU cells on the ex-GST basis (review of #401, 10 Nov 2026). Only a (month, channel) group whose cells add up to
