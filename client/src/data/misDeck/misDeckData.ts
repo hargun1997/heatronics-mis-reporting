@@ -144,6 +144,8 @@ export interface MonthlyMIS {
    * cost, depreciation, income tax …), each as a signed effect (costs negative).
    */
   nonOpLines?: Record<string, number>;
+  /** Published months only (auditTie.ts): the year-end audit adjustment / partial-year note booked on this month. */
+  auditNote?: string;
 }
 
 export const MIS_SOURCE_FILE = "MIS-Sheet_FINAL_channels.xlsx";

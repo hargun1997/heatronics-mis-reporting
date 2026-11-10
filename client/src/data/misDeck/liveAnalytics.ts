@@ -14,6 +14,7 @@ import type { CompletenessLevel, PeriodCompleteness } from './liveDeck';
 import type { ChannelRecon, TallyBucketLine } from '../monthClose/schema';
 import { CHANNEL_AOV } from './analytics';
 import { estimatedUnits, modelledRevenue, rankLast } from './skuLayer';
+import { fyBucketLabel } from './auditTie';
 
 /** The continuous-taxonomy fold: legacy channel → forward channel (G6). */
 export const CHANNEL_FOLD: Partial<Record<SalesChannel, SalesChannel>> = { OEM: 'B2B', Offline: 'GT' };
@@ -96,6 +97,8 @@ export interface PeriodAgg {
   opexLines: Record<string, number>;
   /** Non-Operating ledgers (finance, D&A, tax) — live Tally months only. */
   nonOpLines: Record<string, number>;
+  /** Inter-branch transfers (published months): inside the audited revenue, left out of net revenue. 0 / absent = none. */
+  interBranch?: number;
   /** Revenue build-up (gross → returns → GST → net). Real only when `hasBuildUp`. */
   grossByChannel: Partial<Record<SalesChannel, number>>;
   returnsByChannel: Partial<Record<SalesChannel, number>>;
@@ -225,6 +228,7 @@ export function aggregatePeriods(
     addLines(b.cogmLines, m.cogmLines);
     addLines(b.opexLines, m.opexLines);
     addLines(b.nonOpLines, m.nonOpLines);
+    if (m.interBranch) b.interBranch = r2((b.interBranch ?? 0) + m.interBranch);
 
     // Revenue build-up: only months whose source carries gross / returns / GST.
     // Summed as carried (the MIS Sheet reads them like the legacy sheet);
@@ -277,6 +281,7 @@ export function aggregatePeriods(
     b.ebitda = r2(b.cm3 - b.opex);
     b.netIncome = r2(b.ebitda - b.nonOperating - b.costOfFundraising);
     b.tallyLines = [...(tallyByBucket.get(b.key)?.values() ?? [])];
+    if (gran === 'year' && !bucketFn) b.label = fyBucketLabel(b.key, b.members, monthLabel);   // "FY23-24 (Dec 23–Mar 24, 4 months)"
     const est: Partial<Record<SalesChannel, number>> = {};
     for (const [ch, v] of Object.entries(rawByBucket.get(b.key) ?? {}) as [SalesChannel, number][]) {
       const aov = CHANNEL_AOV[ch];

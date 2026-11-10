@@ -110,7 +110,7 @@ function liveMisPointEmpty() {
   return {
     qty: null, grossRevenue: null, channelMargin: null, returns: null, gst: null, ssClaim: null, discounts: null, netRevenue: null,
     cogs: null, grossMargin: null, stockVariance: null, logistics: null, cm1: null, marketing: null, cm2: null, branding: null, cm3: null, payroll: null,
-    profFee: null, otherExpense: null, otherIncome: null, ebitda: null, openingCash: null, funding: null, closingCash: null,
+    profFee: null, otherExpense: null, otherIncome: null, ebitda: null, nonOperating: null, pbt: null, tax: null, netIncome: null, openingCash: null, funding: null, closingCash: null,
     cashBurn: null, ebitdaBurn: null, runway: null,
   };
 }

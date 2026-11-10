@@ -19,6 +19,8 @@ import {
   type PeriodMIS,
 } from './analytics';
 import { PUBLISHED_MONTHS } from './publishedBasis';
+import { belowEbitda } from './auditTie';
+import { opexSplit } from './misPeriods';
 
 export type MisEntity = 'company' | SalesChannel;
 
@@ -51,6 +53,14 @@ export interface MisPoint {
   otherExpense: number | null;
   otherIncome: number | null;
   ebitda: number | null;
+  /** Below EBITDA, before tax: interest, depreciation, fundraising cost (company only). */
+  nonOperating: number | null;
+  /** Profit before tax (company only). */
+  pbt: number | null;
+  /** Current + deferred tax (charge positive). null = no tax line in the books for the period ("no data"). */
+  tax: number | null;
+  /** Net income = profit after tax (company only). */
+  netIncome: number | null;
   openingCash: number | null;
   funding: number | null;
   closingCash: number | null;
@@ -67,7 +77,7 @@ const MIS_POINT_KEYS: MisNumKey[] = [
   'qty', 'grossRevenue', 'channelMargin', 'returns', 'gst', 'ssClaim', 'discounts',
   'netRevenue', 'cogs', 'grossMargin', 'stockVariance', 'logistics', 'cm1', 'marketing', 'cm2',
   'branding', 'cm3', 'payroll', 'profFee', 'otherExpense', 'otherIncome', 'ebitda',
-  'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
+  'nonOperating', 'pbt', 'tax', 'netIncome', 'openingCash', 'funding', 'closingCash', 'cashBurn', 'ebitdaBurn', 'runway',
 ];
 
 // A row of the statement. `pct` rows render as %, others as ₹ Lac. `bold` marks
@@ -118,6 +128,10 @@ export const MIS_SHEET_ROWS: MisSheetRow[] = [
   { label: 'Other income', get: (p) => p.otherIncome },
   { label: 'EBITDA', bold: true, get: (p) => p.ebitda },
   { label: 'EBITDA%', pct: true, get: (p) => ratio(p.ebitda, p.netRevenue) },
+  { label: 'Interest, depreciation & other', get: (p) => p.nonOperating },
+  { label: 'Profit before tax', bold: true, get: (p) => p.pbt },
+  { label: 'Tax (incl. deferred)', get: (p) => p.tax },
+  { label: 'Net income', bold: true, get: (p) => p.netIncome },
   { label: 'Opening Cash Balance (₹ lakh)', cash: true, get: (p) => p.openingCash },
   { label: 'Funding (equity)', cash: true, get: (p) => p.funding },
   { label: 'Closing Cash Balance (₹ lakh)', cash: true, get: (p) => p.closingCash },
@@ -142,6 +156,7 @@ const monthsSeries = monthlySeries();
 
 const EMPTY_CASH = {
   channelMargin: null, ssClaim: null, stockVariance: null, payroll: null, profFee: null, otherIncome: null,
+  nonOperating: null, pbt: null, tax: null, netIncome: null,
   openingCash: null, funding: null, closingCash: null, cashBurn: null, ebitdaBurn: null, runway: null,
 } as const;
 
@@ -165,9 +180,16 @@ function companyPoint(p: PeriodMIS): MisPoint {
     cm2: m.cm2,
     branding: m.platformCosts,
     cm3: m.cm3,
-    otherExpense: m.opex,
+    ...belowEbitda(m.ebitda, m.netIncome, m.nonOpLines),
+    ...opexParts(m.opex, m.opexLines),
     ebitda: m.ebitda,
   };
+}
+
+/** Payroll / Professional fee / Other income split out of OpEx (misPeriods.opexSplit); Other Expense is the rest. */
+function opexParts(opex: number, lines: Record<string, number>): Pick<MisPoint, 'payroll' | 'profFee' | 'otherIncome' | 'otherExpense'> {
+  const { payroll, profFee, otherIncome } = opexSplit(lines);
+  return { payroll, profFee, otherIncome, otherExpense: opex - (payroll ?? 0) - (profFee ?? 0) + (otherIncome ?? 0) };
 }
 
 function channelPoint(p: PeriodMIS, c: SalesChannel): MisPoint {
