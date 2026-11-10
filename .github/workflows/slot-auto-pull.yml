@@ -1,0 +1,29 @@
+# Month-end reports, pulled and saved by themselves. Once a day (after 07:00 IST) the MIS pulls every connected automatic
+# close slot for LAST month and THIS month (to date) and saves only clean pulls: the same rule and the same commit as
+# "Pull & save all" on Setup (read only against every source). This month skips the connectors that also feed live
+# numbers (a saved pull would freeze them). See server/src/connectors/slots/autoPull.ts.
+# The endpoint is an open path with its own token (repo secret MIS_AUTO_PULL_TOKEN = Secret Manager mis-auto-pull-token):
+# a token call only starts the once-a-day run and gets counts back (no figures). The app applies the gate (autoPullDue),
+# so the extra runs below are harmless retries. Optional repo variable MIS_APP_URL overrides the address.
+name: Close slots auto-pull
+
+on:
+  schedule:
+    - cron: '17 2,5,9 * * *'   # UTC = 07:47, 10:47, 14:47 IST; the app runs once a day
+  workflow_dispatch:
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Ask the MIS to pull and save the automatic close reports
+        env:
+          APP_URL: ${{ vars.MIS_APP_URL || 'https://heatronics-mis-tool-559416687588.europe-west1.run.app' }}
+          TOKEN: ${{ secrets.MIS_AUTO_PULL_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "Repo secret MIS_AUTO_PULL_TOKEN is not set"; exit 1; fi
+          curl -fsS --retry 1 --retry-delay 30 --max-time 290 \
+            -X POST "$APP_URL/api/connectors/auto-pull/run" -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $TOKEN" -d '{}'
+          echo

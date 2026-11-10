@@ -262,7 +262,7 @@ export const PNL_ROWS: PnlRow[] = [
 /** Normalised COGM basis: the signed memo line under Gross Margin (Tally COGM − BOM cost of units sold − factory). */
 const STOCK_ROW: PnlRow = {
   k: 'stock_variance', label: 'Stock build / drawdown (purchase timing)', kind: 'memo',
-  title: 'Memo, outside the cascade: Tally charged this much more (+) or less (−) COGM than the BOM cost of the units sold. Gross Margin + this = Gross Margin as booked.',
+  title: 'Memo, outside the cascade: material only. Tally charged this much more (+) or less (−) material (purchases + stock change) than the BOM cost of the units sold. Factory overhead, manufacturing cost and inward freight stay inside COGM. Gross Margin + this = Gross Margin as booked.',
   get: (p) => p.stockVariance,
 };
 const PNL_ROWS_NORMALISED: PnlRow[] = PNL_ROWS.flatMap((r) => (r.k === 'gross_margin' ? [r, STOCK_ROW] : [r]));
@@ -457,7 +457,7 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
         ▸ Click a line to drill in — Net Revenue into its gross → returns → GST build-up (where the month’s source carries
         it), COGM and Operating Expenses into their ledger lines, Sales &amp; Marketing into the ad platforms, and the other
         cost lines into Tally’s own ledger buckets (live months). Non-Operating lists its Tally ledgers with an EBT subtotal.
-        {basis === 'normalised' && ' Stock build / drawdown is a signed memo outside the cascade (positive = Tally charged more COGM than the BOM cost of what was sold); Gross Margin + memo = Gross Margin as booked.'}
+        {basis === 'normalised' && ' Stock build / drawdown is a signed memo outside the cascade (material only: positive = Tally charged more material than the BOM cost of what was sold; factory, manufacturing and inward freight stay in COGM); Gross Margin + memo = Gross Margin as booked.'}
       </Note>
 
       <MetricTrends months={months} completeness={completeness} />
@@ -694,10 +694,12 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
 
       {basis === 'anchored' ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-600">
-          {anchored.length > 0 && anchored.every((r) => r.basis === 'tally') && (
-            <p className="mb-1.5"><span className="font-medium text-slate-800">Tied to Tally’s channel ledgers.</span> Revenue is each channel’s own Tally sales ledger; channel fees, marketing and
-              platform costs are what the connectors attribute to the channel plus its revenue share of the rest — every line still foots to Tally. Opex and non-operating stay revenue-share
-              (Tally books them company-wide), COGM follows the real per-unit COGS of the SKU mix.</p>
+          {anchored.length > 0 && anchored.every((r) => r.basis !== 'shares') && (
+            <p className="mb-1.5"><span className="font-medium text-slate-800">Tied to Tally’s channel ledgers.</span> Revenue is each channel’s own Tally sales ledger. Channel fees and
+              platform costs are what the reports show for the channel (never more than Tally booked) plus its revenue share of the rest. Marketing sits where the money was spent: Amazon Ads on
+              Amazon, Meta + Google on D2C; the rest of Sales &amp; Marketing goes to the online channels by ad spend, never to B2B / GT. Every line still foots to Tally. Opex and non-operating
+              stay revenue-share, COGM follows the real per-unit COGS of the SKU mix.
+              {anchored.some((r) => r.basis === 'estimated') && ' Estimated: no ad spend by platform for this period, so marketing is split across the online channels by revenue.'}</p>
           )}
           <span className="font-medium text-slate-800">Totals hold, splits are data-driven.</span> The company P&amp;L is the book of
           record and does not move; each line is split across channels — revenue by each channel’s real revenue share,

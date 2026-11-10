@@ -57,7 +57,7 @@ test('connector sales: reported ex-GST, estimated from GMV, or as booked', () =>
   ]);
   assert.equal(s.get('D2C')!.net, 1000);
   assert.equal(s.get('D2C')!.haveGmv, true);
-  assert.equal(Math.round(s.get('Amazon')!.net), 1500); // 1180/1.18 + 500 as booked
+  assert.equal(Math.round(s.get('Amazon')!.net), 1624); // 1180/1.05 (product GST 5%) + 500 as booked
   assert.ok(s.get('Amazon')!.basis.has('estimated'));
   assert.equal(s.get('B2B')!.net, 700);
   assert.equal(s.size, 3);
@@ -82,8 +82,14 @@ test('tie: residuals per channel and profit, breach over 1% of revenue', () => {
   assert.equal(tie.channels.find((c) => c.channel === 'D2C')!.residual, 30_000);
   assert.equal(tie.channels.find((c) => c.channel === 'OEM')!.residual, null); // no connector: shown, not judged
   assert.equal(tie.breach, true);                    // D2C 2% of revenue
-  assert.match(tie.breaches[0], /D2C sales vs Tally: 2\.0%/);
+  assert.equal(tie.breaches[0], 'D2C sales vs Tally: 2.0% of revenue — Tally ₹30,000 higher (₹5,00,000 vs ₹4,70,000 from shopify)');
   assert.equal(tie.worstResidualPct, 2);
+  // Orders GMV ÷ (1 + GST) (Sales API) is before returns: shown, never judged against the 1 % limit.
+  const est = buildCloseTie({ periodKey: '2026-10', netRevenue: 1_000_000, netByChannel: { Amazon: 1_000_000 }, tallyNett: 5, misProfit: 5, profitResidual: 0,
+    facts: [f({ source: 'amazon', channel: 'Amazon', revenue: 1_155_000, gmv: 1_155_000 })] });
+  assert.equal(est.channels[0].residual, -100_000);
+  assert.equal(est.channels[0].judged, false);
+  assert.equal(est.breach, false);
   const ok = buildCloseTie({ periodKey: '2026-10', netRevenue: 1_000_000, netByChannel: { Amazon: 1_000_000 }, tallyNett: 5, misProfit: 5, profitResidual: 0, facts: [f({ source: 'amazon', channel: 'Amazon', revenue: 995_000 })] });
   assert.equal(ok.breach, false);
 });
@@ -92,6 +98,8 @@ test('tie: residuals per channel and profit, breach over 1% of revenue', () => {
 
 const rows = (sales: number) => [
   { name: 'Amazon Sales', depth: 1, amount: sales }, { name: 'D2C Sales', depth: 1, amount: sales / 2 },
+  // OEM + Offline: the published Jul sold on them, so a month without them is "channel missing" (monthCompleteness rule 4).
+  { name: 'OEM Sales', depth: 1, amount: sales / 10 }, { name: 'Offline Sales', depth: 1, amount: sales / 20 },
   { name: 'Raw Material Purchases', depth: 1, amount: 300_000 }, { name: 'Factory Overheads', depth: 1, amount: 80_000 },
   { name: 'Channel Fees & Commissions', depth: 1, amount: 100_000 },
 ];
@@ -137,7 +145,7 @@ test('factory overhead is Tally actual when booked, 10% fallback is labelled', (
   const noFactory = { ...tally('2026-10', 1_000_000), payload: { ledgerRows: rows(1_000_000).filter((r) => r.name !== 'Factory Overheads'), nettProfit: null } };
   const d2 = buildLiveDeck([noFactory], [], {});
   assert.equal(d2.months.find((x) => x.key === '2026-10')!.factoryBasis, 'assumed');
-  assert.equal(d2.months.find((x) => x.key === '2026-10')!.factory, 150_000);
+  assert.equal(d2.months.find((x) => x.key === '2026-10')!.factory, 165_000); // 10% of 16.5 L (Amazon 10 + D2C 5 + OEM 1 + Offline 0.5)
   // A live partial month (no Tally) is the labelled 10% too.
   const d3 = buildLiveDeck([], [f({ source: 'amazon', channel: 'Amazon', date: '2026-11-02', revenue: 1000 })], {});
   assert.equal(d3.completeness['2026-11'].factoryBasis, 'assumed');

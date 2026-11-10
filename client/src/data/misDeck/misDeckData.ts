@@ -110,9 +110,18 @@ export interface MonthlyMIS {
   /** Named residues between the connector channel/SKU view and Tally's authority. */
   channelRecon?: ChannelRecon;
   /**
+   * Live Tally months: the conversion cost booked inside `cogm` = `factory` + every other Direct Expense ledger
+   * (manufacturing costs, inward freight …). The normalised COGM = BOM material of the units sold + this.
+   */
+  conversion?: number;
+  /** Live Tally months: Tally's closing stock still equals opening stock with purchases booked (stock not valued yet). */
+  stockUnposted?: boolean;
+  /** Live Tally months: sales (ex-GST) no product map knows: no SkuCell, so no BOM cost (uncosted.ts). */
+  unmappedRevenue?: number;
+  /**
    * Set ONLY on a month restated to the normalised COGM basis (liveViews
-   * normaliseLiveMonths): Tally's booked COGM − (BOM cost of the units sold +
-   * factory overhead). Positive = Tally charged more than was sold (stock
+   * normaliseLiveMonths): Tally's booked COGM − (BOM material cost of the units sold +
+   * the conversion cost booked: factory overhead, manufacturing costs, inward freight). Positive = Tally charged more than was sold (stock
    * built / purchase timing); negative = drawdown. The month's cogm / margins
    * already exclude it; it is shown as the memo line "Stock build / drawdown".
    */

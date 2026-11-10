@@ -626,7 +626,7 @@ export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions, s
   if (o.includeDiscounts) XLSX.utils.book_append_sheet(wb, generateDiscountSheet(), 'Discounts');
   const ordered = [...deck.months].sort((a, b) => a.key.localeCompare(b.key));
   if (o.includeCogmDetail) {
-    const extra = norm ? ' NOTE: the P&L sheets use normalised COGM (BOM cost of units sold + factory), so these booked ledger totals differ from the P&L COGM by the Stock build / drawdown memo line.' : '';
+    const extra = norm ? ' NOTE: the P&L sheets use normalised COGM (BOM cost of units sold + factory, manufacturing and inward freight), so these booked ledger totals differ from the P&L COGM by the Stock build / drawdown memo line.' : '';
     XLSX.utils.book_append_sheet(wb, generateLineDetailSheet(ordered, 'cogmLines', 'COGM DETAIL — Cost of Goods Manufactured', extra), 'COGM Detail');
   }
   if (o.includeOpexDetail) XLSX.utils.book_append_sheet(wb, generateLineDetailSheet(ordered, 'opexLines', 'OPEX DETAIL — Operating Expenses'), 'OpEx Detail');

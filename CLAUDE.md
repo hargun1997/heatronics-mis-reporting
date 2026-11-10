@@ -6,7 +6,7 @@ Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in s
 cookie may open this tool (cached 60s), and otherwise redirects to the portal's login or "no access"
 page (APIs get 401/403 JSON). The `.run.app` address redirects to mis.heatronics.in.
 Who has access is managed at https://portal.heatronics.in/admin (Hargun only).
-Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron) and `/api/expenses` (read by production.heatronics.in, own token). Never add pages there.
+Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron), `/api/expenses` (read by production.heatronics.in, own token), `/api/tally/poll` and `/api/connectors/auto-pull/run` (GitHub Actions daily; Bearer = secret `mis-auto-pull-token` / env MIS_AUTO_PULL_TOKEN, repo secret MIS_AUTO_PULL_TOKEN; no token on Cloud Run = refused; a token call only starts the once-a-day run and answers counts). Never add pages there.
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 **Security rules (9 Nov 2026, `server/test/security.test.ts`):** the app is built in `server/src/app.ts` (index.ts only listens) so the test lists
 EVERY registered route and asserts a 401 without a login (also with a forged `Host` / `X-Forwarded-Host: localhost`); a new open path fails it
@@ -281,6 +281,20 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     months whose every SKU cell has no BOM cost stay as booked and are named in the note ("Dec 23–Jul 26 shown as booked — no BOM costing for
     them"); a facts-only month costed to CM2 is already on this basis (variance 0). `blendLiveMonths` / `blendedMonths` / `fyBlendedGMRates`
     were deleted (code-health pass, 9 Nov 2026). Tests `server/test/normalisedCogm.test.ts`.
+    **Conversion cost is inside the normalised COGM (10 Nov 2026, audit A1):** the BOM is material only, so normalised COGM = BOM material of the
+    units sold + ALL conversion cost booked that month in Tally's Direct Expenses (`misDeck/conversion.ts conversionCost`: factory overheads +
+    manufacturing costs + inward freight + any other COGM ledger that is not raw material / stock movement; `MonthlyMIS.conversion`,
+    `PeriodAgg.conversion`; `factory` is still the Factory Overheads ledger). `cogmVariance` = raw-material purchases + stock movement − BOM
+    material of the units sold, so the memo line holds ONLY material purchase timing (before: ≈ ₹40.8 L of manufacturing cost + freight over
+    Apr–Oct 2026 sat in the memo and normalised GM was that much too high). Bridge: "Product cost (BOM)" = normalised COGM − conversion, new step
+    "Manufacturing cost and inward freight" (`direct_other`). A month whose Tally closing stock = opening stock with purchases booked
+    (`stockUnposted`) is listed as "estimated" in the note (`NormalisedMonths.stockEstimated`): its memo is not final. SKU / channel cells still
+    carry factory overhead only (`SkuCell.fac`).
+    **Sales with no BOM cost are never ₹0 in the normalised COGM (10 Nov 2026, audit A6-1 / A6-9):** `misDeck/uncosted.ts uncostedEstimate`:
+    `noCost` cells + `MonthlyMIS.unmappedRevenue` (sales no product map knows, set in `buildMonth`) are costed at the month's own BOM material
+    rate (Σ cogs ÷ Σ rev of the costed cells); the estimate is taken out of the memo (`v − est`), so the identity still holds, and listed in
+    `NormalisedMonths.uncosted` + the note ("Not costed by BOM …: ₹X L of sales in Sep 26 — material estimated …"). A month where more than
+    half of its product sales have no cost (`UNCOSTED_SKIP_SHARE`) stays as booked ("most sales have no BOM cost"). Facts-only months are unchanged.
 - **Published history on the live basis (10 Nov 2026, founder-approved audit fixes; `data/misDeck/publishedBasis.ts`, test
   `server/test/publishedBasis.test.ts`):** every reader (Live MIS, legacy analytics, MIS sheet, exports, chat) takes `PUBLISHED_MONTHS` /
   `PUBLISHED_CELLS`, never the raw `MONTHLY_MIS` / `SKU_CELLS`. (1) The workbook's channel rows carried GST (Σ channels − net revenue =
@@ -307,21 +321,55 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     Only frozen history (< `LIVE_BOUNDARY`) and locked months are `closed`; `completeThrough` = the contiguous closed run from the first
     month (a month with no data or not locked stops it). A full Tally month (P&L with net revenue > 0; with none it is only to-CM2 / top line)
     is `ready` until locked. Published months are not closed until locked either.
+  - **Month completeness (10 Nov 2026, pure `data/misDeck/monthCompleteness.ts`, tests `server/test/monthCompleteness.test.ts`):**
+    (1) a Tally copy with no sales ledger (stock carry-forward only) is ignored when connectors sold (`tallyIgnored`); facts-only months
+    book connector sales ex-GST (`gstBasis.ts exGstOf`: reported, else GMV ÷ 1.05 estimated → `exGstEstimated`, else as booked).
+    (2) `full` needs every channel with ≥ 5 % of the month's connector sales to have a Tally ledger ≥ half of it (`tallyGaps`).
+    (3) a channel with ≥ 5 % (and ≥ ₹10,000) of the previous 3 months' sales (published months count; OEM/Offline folded into B2B/GT)
+    and no sales this month = `missingChannels` (`applyChannelHistory`, skips locked months): SOFT blocker ("stopped, or not booked?"),
+    level kept so it can be locked with a reason; only (2) is hard. Named channels show "no data" in the channel P&L
+    (`channelNoData`), never ₹0. Tie: an orders-GMV estimate (Sales API) is shown but not judged; a breach says which side is lower
+    and by how much. Server `ceoSummaryLoad.ts ASSUMED_GST_RATE` = the same 5 % (test). (4) `ready` = full + no
+    `closeBlockers` (month over, tie ≤ 1 %, closing stock ≠ opening when the month bought or sold, required reports not missing /
+    empty / partial). Blockers show on the Month close panel (numbered) and as one Fix item `close:<YYYY-MM>`; soft ones (tie, report)
+    can be locked with a written reason.
   - **Tie** (`completeness.tie`, Tally-backed live months): Tally Nett Profit vs the cascade's net income (engine residual) + per channel
     connector sales ex-GST vs Tally's channel sales ledgers (Amazon, D2C/Shopify, Flipkart, Blinkit, GT, B2B). Residual > 1% of net revenue
     (`TIE_LIMIT_PCT`) = breach: locking needs a written reason (server 422 without), kept on the lock. Channels with no connector are shown, not judged.
   - **GMV vs ex-GST**: facts may carry `gmv` (customer-paid incl. GST) and `netExGst`. Shopify `fetchFacts` fills both (`shopifyLineSales`: `taxes_included`
-    + line `tax_lines`); Amazon Sales-API facts carry `gmv` only (no tax split → ex-GST ESTIMATED at 18 %, labelled); Finances/settlement and
+    + line `tax_lines`); Amazon Sales-API facts carry `gmv` only (no tax split → ex-GST ESTIMATED at the product GST rate, `gstBasis.ts DEFAULT_GST_RATE` = 5 % since 10 Nov 2026, labelled); Finances/settlement and
     other feeds are taken as booked (Principal is ex-GST). `revenue` itself is unchanged.
   - **Channel P&L** (`anchoredChannelPnl` → `tallyAnchoredRows`) where Tally exists: revenue = Tally channel ledgers; channel fees / marketing /
     platform = connector-attributed `tallyLines.byChannel` + revenue share of the unattributed rest (foots to Tally); COGM by BOM-COGS share; opex and
     non-operating by revenue share (Tally books them company-wide). Months without Tally keep the order-share split (`row.basis`).
+    **Cost allocation rules (10 Nov 2026, pure `data/misDeck/channelAlloc.ts`, tests `server/test/channelAlloc.test.ts`):** (1) Marketing sits where
+    it was spent: connector ad spend for live months, the published ad feeds (`channelAdWeight`) for locked / published months (per month AND per channel the larger of the two — `PeriodAgg.smTagsByMonth` holds each month's report tags — then summed over the period, so a quarter mixing a feed-only and a tags-only month keeps both); the rest of
+    Tally's S&M goes ONLY to the consumer channels (D2C, Amazon, Flipkart, Blinkit) by ad spend, else by their revenue (`row.basis:
+    'estimated'`), never to B2B / OEM / GT / Export unless something attributes it there (a period with no consumer channel at all falls
+    back to revenue, estimated). (2) A report can't put more on a channel than Tally booked: `capTallyLines` (per month, per line, in
+    `buildLiveDeck`) scales the channels down pro rata, keeps the cut on `TallyBucketLine.over`, and `deckItems` raises the Fix item
+    "<Month>: Amazon fees in the report exceed Tally by ₹X — check the booking"; `spreadWithCap` does the same per period so a negative
+    rest is never spread. (3) Σ channels = company for every line (tested). Fulfilment / platform rests stay revenue-share. Months without Tally use the same rule: no ad spend = consumer channels by revenue, not every channel.
   - **Factory overhead** = Tally's Factory Overheads ledger where the month has it (`MonthlyMIS.factory`, `factoryBasis: 'tally'`, `SkuCell.fac`,
     `PeriodAgg.factory`); the 10 % convention only as a labelled fallback (`'assumed'`; static history keeps 10 %). Views use `cellFactory()`.
   - **BOM per month** (`pickBom`): each month prices COGS with its own BOM report (the slot pull's `periodKey`, `production.ts` month param), else the
     nearest month's (tie → earlier), shown as `completeness.bom` with a note. Meta/Google live facts (`channel: 'Meta Ads' | 'Google Ads'`) now map to D2C
     (`toSalesChannel`). MIS Sheet cash rows are labelled ₹ lakh (values were already lakh, not Cr).
 - **Why it moved** (Live MIS Overview section `ov-why`, 9 Nov 2026): pure `client/src/data/misDeck/bridge.ts buildBridge()` = EBITDA bridge month vs previous month / same month last year: volume · price & product mix · channel mix · returns · other revenue, then BOM cost · stock timing (normalised basis, `stockVariance`) · factory · channel fees · ads (by platform) · payment fees · opex, in ₹ lakh with sign; steps sum to the change ("Other / rounding" if not). Missing = `not_enough_data` / unsplit step, never 0. `topReasons()` = 3 lines ≤ 10 words, no LLM. View `components/liveMis/WhyItMoved.tsx` + `whyData.ts`. Client-only (the deck is built in the browser), so the page saves the pure bridge output (numbers only) via `POST /api/mis/bridge` (`routes/misBridge.ts`, `services/bridgeSnapshot.ts`: whitelist + 60k cap, objectStore `mis/bridge-latest` + `mis/bridge-<YYYY-MM>`, one write per content hash); `GET /api/mis/bridge?month=` = MCP `mis_get_margin_bridge` (null when none, `asOf` = last save). Tests `server/test/bridge.test.ts`, `bridgeSnapshot.test.ts`.
+- **Feeds & pulls (10 Nov 2026, test `server/test/feedsAndPulls.test.ts`):**
+  - Amazon Sales API (`sources/amazon.ts orderMetricsFacts`): a range is asked in ≤ 365-day windows (`salesWindows`) and merged — one call over
+    > 821 days failed the whole source ("Metrics Interval … exceeded limit for Granularity day"); an old window Amazon refuses is left out with a note.
+  - Facts cache: every pull records `facts-status/<source>` (okAt, error, errorAt); a failed background refresh is no longer swallowed:
+    `/api/connectors/facts` sources carry `staleError` / `staleErrorAt` (deck `liveFeed.sources`), and `liveFactsHealth` → Fix item
+    `live:<id>` "X live numbers are N days old" (> 2 h low, ≥ 1 day medium, ≥ 3 days high; Flipkart approval wait = one low item).
+  - Missing reports (`issuesInbox slotItems`, server copy of the slot list `slots/closeSlots.ts`, tested equal to the client catalog): EVERY close
+    slot × unlocked month from its first stored month (else its connector's; never-loaded connectors low) to last month, missing / empty (0 rows) / partial (dates short of the month), one item per
+    connector naming each slot (sig = the set of missing slot × month pairs, so Done holds until a new one goes missing); replaces the 5-slot `MANUAL_SLOTS` check (kept only as a fallback when no reports are passed).
+  - Daily auto-pull (`slots/autoPull.ts`, `POST /api/connectors/auto-pull/run`, `.github/workflows/slot-auto-pull.yml`): once per IST day after
+    07:00, every connected automatic slot whose pull needs no browser reader (facts / BOM costs / Trial Balance) for last month (missing, empty,
+    partial, or re-pulled daily up to the 8th) and this month to date (not Amazon / Amazon Ads / Meta / Google Ads / Shopify / Flipkart, whose
+    saved pull would freeze the live run-rate); saves only clean pulls (no warning, all rows in the month, finished month covered), never over an
+    upload or into a locked month. Sheet / Business Report / Tally P&L stay on "Pull & save all". State `auto-pull/state`; `GET /api/connectors/auto-pull`.
 - **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).

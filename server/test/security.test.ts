@@ -24,7 +24,7 @@ const { assertReadOnly: assertAmazonAdsReadOnly } = await import('../src/connect
 const { assertReadOnly: assertFlipkartReadOnly } = await import('../src/connectors/sources/flipkart.js');
 
 /** The documented open paths (CLAUDE.md "Login") + health. Anything else must need a login. */
-const OPEN = new Set(['/api/work/reminders/run', '/api/ownership/reminders/run', '/api/expenses', '/api/tally/poll', '/api/health', '/.well-known/portal.json']);
+const OPEN = new Set(['/api/work/reminders/run', '/api/ownership/reminders/run', '/api/expenses', '/api/tally/poll', '/api/connectors/auto-pull/run', '/api/health', '/.well-known/portal.json']);
 
 type Layer = { route?: { path: string; methods: Record<string, boolean> }; name: string; handle: { stack?: Layer[] }; regexp: RegExp };
 
@@ -79,7 +79,7 @@ test('every registered route needs a login (only the documented machine endpoint
     assert.deepEqual(leaks, []);
     // The open routes registered are exactly the documented ones.
     const open = [...new Set(all.map((r) => concrete(r.path)).filter((p) => OPEN.has(p)))].sort();
-    assert.deepEqual(open, ['/.well-known/portal.json', '/api/expenses', '/api/health', '/api/ownership/reminders/run', '/api/tally/poll', '/api/work/reminders/run']);
+    assert.deepEqual(open, ['/.well-known/portal.json', '/api/connectors/auto-pull/run', '/api/expenses', '/api/health', '/api/ownership/reminders/run', '/api/tally/poll', '/api/work/reminders/run']);
   } finally {
     server.close();
   }
