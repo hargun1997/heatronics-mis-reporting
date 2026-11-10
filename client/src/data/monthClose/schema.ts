@@ -135,6 +135,8 @@ export interface TallyBucketLine {
   byChannel: Partial<Record<SalesChannel, number>>;
   /** total − Σ byChannel. Company-wide remainder; may be negative. */
   blended: number;
+  /** Set when the reports said more than Tally booked on this line: ₹ cut from each channel by the cap (positive). See misDeck/channelAlloc.ts. */
+  over?: Partial<Record<SalesChannel, number>>;
 }
 
 /**

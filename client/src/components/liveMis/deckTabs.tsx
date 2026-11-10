@@ -694,10 +694,12 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
 
       {basis === 'anchored' ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-600">
-          {anchored.length > 0 && anchored.every((r) => r.basis === 'tally') && (
-            <p className="mb-1.5"><span className="font-medium text-slate-800">Tied to Tally’s channel ledgers.</span> Revenue is each channel’s own Tally sales ledger; channel fees, marketing and
-              platform costs are what the connectors attribute to the channel plus its revenue share of the rest — every line still foots to Tally. Opex and non-operating stay revenue-share
-              (Tally books them company-wide), COGM follows the real per-unit COGS of the SKU mix.</p>
+          {anchored.length > 0 && anchored.every((r) => r.basis !== 'shares') && (
+            <p className="mb-1.5"><span className="font-medium text-slate-800">Tied to Tally’s channel ledgers.</span> Revenue is each channel’s own Tally sales ledger. Channel fees and
+              platform costs are what the reports show for the channel (never more than Tally booked) plus its revenue share of the rest. Marketing sits where the money was spent: Amazon Ads on
+              Amazon, Meta + Google on D2C; the rest of Sales &amp; Marketing goes to the online channels by ad spend, never to B2B / GT. Every line still foots to Tally. Opex and non-operating
+              stay revenue-share, COGM follows the real per-unit COGS of the SKU mix.
+              {anchored.some((r) => r.basis === 'estimated') && ' Estimated: no ad spend by platform for this period, so marketing is split across the online channels by revenue.'}</p>
           )}
           <span className="font-medium text-slate-800">Totals hold, splits are data-driven.</span> The company P&amp;L is the book of
           record and does not move; each line is split across channels — revenue by each channel’s real revenue share,

@@ -314,6 +314,14 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   - **Channel P&L** (`anchoredChannelPnl` → `tallyAnchoredRows`) where Tally exists: revenue = Tally channel ledgers; channel fees / marketing /
     platform = connector-attributed `tallyLines.byChannel` + revenue share of the unattributed rest (foots to Tally); COGM by BOM-COGS share; opex and
     non-operating by revenue share (Tally books them company-wide). Months without Tally keep the order-share split (`row.basis`).
+    **Cost allocation rules (10 Nov 2026, pure `data/misDeck/channelAlloc.ts`, tests `server/test/channelAlloc.test.ts`):** (1) Marketing sits where
+    it was spent: connector ad spend for live months, the published ad feeds (`channelAdWeight`) for locked / published months (per month AND per channel the larger of the two — `PeriodAgg.smTagsByMonth` holds each month's report tags — then summed over the period, so a quarter mixing a feed-only and a tags-only month keeps both); the rest of
+    Tally's S&M goes ONLY to the consumer channels (D2C, Amazon, Flipkart, Blinkit) by ad spend, else by their revenue (`row.basis:
+    'estimated'`), never to B2B / OEM / GT / Export unless something attributes it there (a period with no consumer channel at all falls
+    back to revenue, estimated). (2) A report can't put more on a channel than Tally booked: `capTallyLines` (per month, per line, in
+    `buildLiveDeck`) scales the channels down pro rata, keeps the cut on `TallyBucketLine.over`, and `deckItems` raises the Fix item
+    "<Month>: Amazon fees in the report exceed Tally by ₹X — check the booking"; `spreadWithCap` does the same per period so a negative
+    rest is never spread. (3) Σ channels = company for every line (tested). Fulfilment / platform rests stay revenue-share. Months without Tally use the same rule: no ad spend = consumer channels by revenue, not every channel.
   - **Factory overhead** = Tally's Factory Overheads ledger where the month has it (`MonthlyMIS.factory`, `factoryBasis: 'tally'`, `SkuCell.fac`,
     `PeriodAgg.factory`); the 10 % convention only as a labelled fallback (`'assumed'`; static history keeps 10 %). Views use `cellFactory()`.
   - **BOM per month** (`pickBom`): each month prices COGS with its own BOM report (the slot pull's `periodKey`, `production.ts` month param), else the

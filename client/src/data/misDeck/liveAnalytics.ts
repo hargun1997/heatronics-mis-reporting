@@ -83,6 +83,8 @@ export interface PeriodAgg {
   netIncome: number;
   /** Tally expense buckets, summed across member months and merged by line key. */
   tallyLines: TallyBucketLine[];
+  /** Per member month: Sales & Marketing the reports tag to each channel (₹, positive). Lets the Channel P&L pick its ad source month by month. */
+  smTagsByMonth?: Record<string, Partial<Record<SalesChannel, number>>>;
   /** Channel reconciliation, summed across member months. */
   channelRecon: ChannelRecon;
   /** Lowest completeness across member months — how far down the cascade is real. */
@@ -247,6 +249,12 @@ export function aggregatePeriods(
       const lines = tallyByBucket.get(key) ?? new Map<string, TallyBucketLine>();
       for (const line of m.tallyLines) mergeTallyLine(lines, line);
       tallyByBucket.set(key, lines);
+      const tags: Partial<Record<SalesChannel, number>> = {};
+      for (const line of m.tallyLines) {
+        if (line.cascadeLine !== 'sales_marketing') continue;
+        for (const [ch, v] of Object.entries(line.byChannel) as [SalesChannel, number][]) tags[ch] = r2((tags[ch] ?? 0) - (v ?? 0));
+      }
+      b.smTagsByMonth = { ...(b.smTagsByMonth ?? {}), [m.key]: tags };
     }
     if (m.channelRecon) {
       const recon = reconByBucket.get(key) ?? { revenueResidue: {}, cogmVariance: 0 };
