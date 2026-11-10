@@ -36,6 +36,7 @@ import { activeProductMap, bomGaps, unmappedGaps, setProductMap, type Candidate,
 import { setLedgerRules } from '../monthClose/ledgerRules';
 import { fetchFacts } from '../liveMis/client';
 import { accumulateTags, buildChannelRecon, tagTallyLines, toSalesChannel } from './expenseTagging';
+import { conversionCost, stockUnposted } from './conversion';
 import { buildCloseTie, type CloseTie, type MonthLock } from './closeTies';
 import { estimatedSources, gstRateFor, toExGstFact } from './gstBasis';
 import { applyChannelHistory, closeBlockers, connectorSalesTotal, slotGaps, tallyGaps, tallyHasSalesLedger, type CloseBlocker, type MissingChannel, type SlotGap, type TallyGap } from './monthCompleteness';
@@ -552,7 +553,8 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     const factoryAmount = factoryActual ?? r2(FACTORY_PCT * c.netRevenue);
     const factoryRate = c.netRevenue > 0 ? factoryAmount / c.netRevenue : FACTORY_PCT;
     for (const cell of skuCells) cell.fac = r2(factoryRate * cell.rev);
-    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, factoryRate);
+    const conv = conversionCost(c.cogmLines, factoryAmount);
+    const channelRecon = buildChannelRecon(c.netByChannel, skuCells, c.cogm, c.netRevenue, factoryRate, conv.other);
 
     // A month is "full" only when Tally booked sales AND every channel the connectors sold on has its Tally sales
     // ledger (monthCompleteness.ts): a half-booked P&L is "Tally incomplete", not a close.
@@ -594,6 +596,8 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       costOfFundraising: c.costOfFundraising, cogmLines: c.cogmLines, opexLines: c.opexLines,
       tallyLines, channelRecon,
       factory: factoryAmount, factoryBasis,
+      conversion: conv.total, ...(stockUnposted(c.cogmLines) ? { stockUnposted: true } : {}),
+      ...(sku.unmapped.length ? { unmappedRevenue: r2(sku.unmapped.reduce((t, u) => t + u.revenue, 0)) } : {}),
     };
     return {
       month, skuCells, gaps,
