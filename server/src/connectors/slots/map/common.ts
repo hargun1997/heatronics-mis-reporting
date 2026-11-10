@@ -69,8 +69,8 @@ export function isoDay(raw: unknown): string {
   }
   const s = str(raw);
   if (!s) return '';
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
   m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
   if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
   m = s.match(/(\d{1,2})[-\s]([A-Za-z]{3})[a-z]*[-\s,]+(\d{2,4})/);
@@ -79,7 +79,10 @@ export function isoDay(raw: unknown): string {
     return `${y}-${MONTHS[m[2].toLowerCase()]}-${m[1].padStart(2, '0')}`;
   }
   const t = Date.parse(s);
-  return Number.isNaN(t) ? '' : new Date(t).toISOString().slice(0, 10);
+  if (Number.isNaN(t)) return '';
+  // Free text ("Oct 1, 2026") parses in local time: read the local calendar day, not the UTC one.
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
