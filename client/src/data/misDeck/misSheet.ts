@@ -5,7 +5,6 @@
 // rows that Heatronics actually tracks are filled and the rest stay blank.
 
 import {
-  MONTHLY_MIS,
   SALES_CHANNELS,
   DISCOUNT_DATA,
   type SalesChannel,
@@ -19,6 +18,7 @@ import {
   channelLabel,
   type PeriodMIS,
 } from './analytics';
+import { PUBLISHED_MONTHS } from './publishedBasis';
 
 export type MisEntity = 'company' | SalesChannel;
 
@@ -130,7 +130,7 @@ export const MIS_SHEET_ROWS_NORMALISED: MisSheetRow[] = MIS_SHEET_ROWS.flatMap((
 
 // ----------------------------------------------------------------------------
 
-const monthByKey = new Map(MONTHLY_MIS.map((m) => [m.key, m]));
+const monthByKey = new Map(PUBLISHED_MONTHS.map((m) => [m.key, m]));
 const discByKey = new Map(DISCOUNT_DATA.map((d) => [d.key, d.discount]));
 const monthsSeries = monthlySeries();
 

@@ -76,6 +76,17 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
     }
     if (c.bom && !c.bom.exact) out.push({ id: `bom:${k}`, area: 'products', severity: 'low', period: k, title: `${monthName(k)} is costed with another month's BOM`, detail: c.bom.note, fix: 'Pull the BOM pricing for the month (Production portal) on Setup.', href: `/reporting/mis/connectors?view=uploads#tranzact`, sig: sig(c.bom.month) });
   }
+  // A month the published workbook had, now shown from Tally (10 Nov 2026): say how far the two differ, once.
+  for (const [k, c] of Object.entries(deck.completeness ?? {})) {
+    const v = c.vsPublished;
+    if (!v || (Math.abs(v.dNetRevenue) < 10_000 && Math.abs(v.dNetIncome) < 10_000)) continue;
+    const sgn = (n: number) => `${n >= 0 ? '+' : '−'}${inr(Math.abs(n))}`;
+    out.push({ id: `published:${k}`, area: 'close', severity: 'low', period: k,
+      title: `${monthName(k)} now from Tally: net revenue ${sgn(v.dNetRevenue)}, net profit ${sgn(v.dNetIncome)} vs the published MIS`,
+      detail: `Published MIS: net revenue ${inr(v.netRevenue)}, net profit ${inr(v.netIncome)}. Live MIS shows the Tally figures.`,
+      fix: 'Check the change is expected (late entries in Tally). Mark Done once reviewed.',
+      href: `/reporting/mis/live?month=${k}`, sig: sig(Math.round(v.dNetRevenue / 1000), Math.round(v.dNetIncome / 1000)) });
+  }
   // A report says more cost than Tally booked on the line: the Channel P&L caps it at Tally's total; accounts check the booking.
   for (const o of overAttributions(deck.months ?? [])) {
     const c = deck.completeness?.[o.month];

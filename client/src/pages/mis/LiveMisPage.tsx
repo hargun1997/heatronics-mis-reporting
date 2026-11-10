@@ -23,6 +23,7 @@ import {
   periodsIn, rollup, totals, type Dimension, type Granularity as RrGranularity, type MetricKey,
 } from '../../data/liveMis/facts';
 import { ProductGapsPanel } from '../../components/liveMis/ProductGapsPanel';
+import { PublishedGapChip } from '../../components/liveMis/PublishedGapChip';
 import { loadLiveDeck, swapAlternates, LIVE_BOUNDARY, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran, type PeriodAgg } from '../../data/misDeck/liveAnalytics';
 import {
@@ -470,6 +471,7 @@ function CompletenessBanner({ deck, raw, showLive, setShowLive }: {
           <LevelBadge level="full" published /> {span(published)} from the published MIS until a full live close replaces {published.length === 1 ? 'it' : 'them'}
         </span>
       )}
+      <PublishedGapChip deck={deck} />
       {altKeys.length > 0 && (
         <label className="flex items-center gap-1.5 text-slate-600 cursor-pointer">
           <input type="checkbox" checked={showLive} onChange={(e) => setShowLive(e.target.checked)} />

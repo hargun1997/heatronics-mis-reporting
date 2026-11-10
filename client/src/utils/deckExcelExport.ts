@@ -12,10 +12,10 @@
  */
 
 import XLSX from 'xlsx-js-style';
+import { PUBLISHED_MONTHS } from '../data/misDeck/publishedBasis';
 import fileSaver from 'file-saver';
 const { saveAs } = fileSaver;
 import {
-  MONTHLY_MIS,
   SALES_CHANNELS,
   MIS_SOURCE_FILE,
   MIS_GENERATED_AT,
@@ -1046,7 +1046,7 @@ const PL_SUBTITLE =
 // not apply here and the retired FY blend is gone.
 export async function exportDeckToExcel(options: DeckExportOptions): Promise<void> {
   const wb = XLSX.utils.book_new();
-  const monthsAsc = [...MONTHLY_MIS].sort((a, b) => a.year - b.year || a.month - b.month);
+  const monthsAsc = PUBLISHED_MONTHS;
   const plSubtitle = PL_SUBTITLE;
 
   if (options.includeSummary) {

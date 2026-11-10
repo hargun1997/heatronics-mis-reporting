@@ -1,13 +1,14 @@
 // AUTO-GENERATED monthly SKU x Channel P&L cells. Do not edit by hand.
 // Amazon per-SKU monthly (net proceeds)+Jun-25 patch; Shopify per-product (D2C); Blinkit settlement
 // (hCore X Lite); Offline (hCore X Lite) & OEM (OEM Heating Pad) from the model + Jul-2026 sales.
-// Pre-Oct-24 Amazon revenue reclassified to OEM. Value-channel COGS = rev x (unit cost / ASP):
+// Pre-Oct-24 Amazon revenue sits inside the OEM model cell HERE; publishedBasis.recutAmazonCells cuts it back out
+// as its own Amazon cell at read time (founder, 10 Nov 2026: Amazon is shown as Amazon). Value-channel COGS = rev x (unit cost / ASP):
 // Blinkit ₹222 unit (settlement ASP); Offline ₹222 unit @ ₹550 ASP (40.4%); OEM ₹220 unit @ ₹325 ASP
 // (67.7%). con = rev - cogs - oth (factory added at view time).
 
 import type { SalesChannel } from './misDeckData';
 
-export interface SkuCell { m: string; ch: SalesChannel; p: string; rev: number; cogs: number; oth: number; con: number; u: number; /** live-only: per-SKU ad spend, when an ad report is ingested. */ ad?: number; /** live-only: no BOM prices this product (cost 0 here, NOT a real 100 % margin). */ noCost?: boolean; /** live-only: cost estimated from the closest product's BOM, pending confirmation. */ costEst?: boolean; /** live-only: this cell's factory overhead when the month has Tally's actual (else the views assume 10% of revenue). */ fac?: number; }
+export interface SkuCell { m: string; ch: SalesChannel; p: string; rev: number; cogs: number; oth: number; con: number; u: number; /** live-only: per-SKU ad spend, when an ad report is ingested. */ ad?: number; /** live-only: no BOM prices this product (cost 0 here, NOT a real 100 % margin). */ noCost?: boolean; /** live-only: cost estimated from the closest product's BOM, pending confirmation. */ costEst?: boolean; /** live-only: this cell's factory overhead when the month has Tally's actual (else the views assume 10% of revenue). */ fac?: number; /** published history: units estimated (revenue ÷ an average price), not counted from orders. */ uEst?: boolean; }
 
 export const SKU_CELLS: SkuCell[] = [
   { m: "2024-10", ch: "Amazon", p: "hCore X-L Lite", rev: 420636.58, cogs: 93840.0, oth: 86443.56, con: 240353.02, u: 345.0 },
