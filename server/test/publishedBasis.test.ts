@@ -171,3 +171,14 @@ test('months now from Tally carry the ₹ change vs the published workbook', () 
   const [row] = contextMonths([m], { [m.key]: { ...deck.completeness[m.key], vsPublished: g } });
   assert.deepEqual(row.vsPublishedWorkbook, { netRevenueChange: -9, netIncomeChange: -15 });
 });
+
+test('a month now from Tally that differs from the published MIS by ≥ ₹10,000 is a Fix item (low), not a banner', async () => {
+  const { deckItems } = await import('../../client/src/data/issues/inbox.ts');
+  const big = { netRevenue: 2_000_000, netIncome: 100_000, dNetRevenue: -25_000, dNetIncome: 40_000 };
+  const small = { ...big, dNetRevenue: 500, dNetIncome: -900 };
+  const items = deckItems({ completeness: { '2026-04': { vsPublished: big }, '2026-05': { vsPublished: small } } as never, productGaps: undefined as never });
+  const pub = items.filter((i) => i.id.startsWith('published:'));
+  assert.deepEqual(pub.map((i) => i.id), ['published:2026-04']);
+  assert.equal(pub[0].severity, 'low');
+  assert.match(pub[0].title, /−₹25,000.*\+₹40,000/);
+});

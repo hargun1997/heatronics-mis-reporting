@@ -281,6 +281,18 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     months whose every SKU cell has no BOM cost stay as booked and are named in the note ("Dec 23–Jul 26 shown as booked — no BOM costing for
     them"); a facts-only month costed to CM2 is already on this basis (variance 0). `blendLiveMonths` / `blendedMonths` / `fyBlendedGMRates`
     were deleted (code-health pass, 9 Nov 2026). Tests `server/test/normalisedCogm.test.ts`.
+- **Published history on the live basis (10 Nov 2026, founder-approved audit fixes; `data/misDeck/publishedBasis.ts`, test
+  `server/test/publishedBasis.test.ts`):** every reader (Live MIS, legacy analytics, MIS sheet, exports, chat) takes `PUBLISHED_MONTHS` /
+  `PUBLISHED_CELLS`, never the raw `MONTHLY_MIS` / `SKU_CELLS`. (1) The workbook's channel rows carried GST (Σ channels − net revenue =
+  the month's `totalTaxes`, exact to Dec 2025): `exGstChannels` scales each month's channel rows by net revenue ÷ Σ channels (≈ 100/105,
+  all products at 5 % GST; the per-month ratio is used instead of a flat rate because it is exact and also covers the restated Jan–Mar
+  2026 months), so Σ channels = net revenue to the paisa; the customer-paid figure is kept as `gmvByChannel`. FY25-26 Σ channels was
+  ₹6.13 Cr vs ₹5.83 Cr net revenue. (2) `reclassifyEarlyAmazon` is deleted: Amazon Dec 2023 – Sep 2024 (₹1.01 Cr incl. GST) shows as
+  Amazon, not OEM/B2B; `recutAmazonCells` takes it back out of the OEM model SKU cell (cost pro rata, `costEst`, units unknown).
+  (3) Like-for-like compares only months that have a year-ago month. (4) Chat / AI context (`data/chat/misContext.ts`) = the built deck
+  (`buildLiveMisContext`; fiscal years summed from the deck by `fySummaryOf`); the stale `FY_SUMMARY` / `buildMisContext` are no longer
+  read. (5) A published month replaced by a full Tally close carries `completeness.vsPublished` (₹ change): chip `PublishedGapChip` in
+  the Live MIS status strip + a low Fix item `published:<month>` when net revenue or net profit moved ≥ ₹10,000.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).
