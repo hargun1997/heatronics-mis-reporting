@@ -311,18 +311,31 @@ export function anchoredChannelPnl(
 
   const keys = new Set(period.members);
   const sel = cells.filter((c) => keys.has(c.m));
-  const chans = SALES_CHANNELS.filter((ch) => sel.some((c) => c.ch === ch));
+  // Every channel that sold — booked revenue or SKU cells — gets a row (a channel with revenue and no cells must not hand
+  // its revenue and COGM to the others).
+  const chans = SALES_CHANNELS.filter((ch) => (period.netByChannel[ch] ?? 0) !== 0 || sel.some((c) => c.ch === ch));
   if (chans.length === 0) return [];
   const sum = (ch: SalesChannel, f: (c: SkuCell) => number) => sel.reduce((s, c) => (c.ch === ch ? s + f(c) : s), 0);
-  const realRev = chans.map((ch) => Math.max(0, sum(ch, (c) => c.rev)));
-  const realCogs = chans.map((ch) => Math.max(0, sum(ch, (c) => c.cogs)));
+  const cellRev = chans.map((ch) => Math.max(0, sum(ch, (c) => c.rev)));
+  // Revenue: the channel's booked net revenue when the period's channel rows foot to it, else the SKU cells' share.
+  const booked = chans.map((ch) => period.netByChannel[ch] ?? 0);
+  const useBooked = Math.abs(booked.reduce((a, b) => a + b, 0) - period.netRevenue) < 1;
+  const totCell = cellRev.reduce((s, v) => s + v, 0);
+  const revOf = chans.map((_, i) => (useBooked ? booked[i] : totCell > 0 ? period.netRevenue * (cellRev[i] / totCell) : 0));
+  const realRev = revOf.map((v) => Math.max(0, v));
   const adWeight = chans.map((ch) => period.members.reduce((w, m) => {
     const comp = completeness[m];
     if (comp?.locked || comp?.published) return w + channelAdWeight(ch, [m]);
     return w + sel.reduce((s, c) => (c.m === m && c.ch === ch ? s + (c.ad ?? 0) : s), 0);
   }, 0));
   const totRev = realRev.reduce((s, v) => s + v, 0) || 1;
-  const totCogs = realCogs.reduce((s, v) => s + v, 0) || 1;
+  // COGM: same weights as the Tally path — own material per ₹ on the channel's revenue; a channel with revenue and no
+  // cells at the month's material rate (estimated).
+  const cw = cogsWeights(chans, realRev, chans.map((ch) => sel.reduce((a, c) => (c.ch !== ch ? a : {
+    cogs: a.cogs + c.cogs, cellRev: a.cellRev + Math.max(0, c.rev),
+    uncostedRev: a.uncostedRev + (c.noCost && c.p !== 'Accessory (excl)' ? Math.max(0, c.rev) : 0),
+  }), { cogs: 0, cellRev: 0, uncostedRev: 0 })));
+  const totCogs = cw.weights.reduce((s, v) => s + v, 0);
   // Marketing follows ad spend; with no ad spend it goes to the consumer channels only (never B2B / GT by revenue).
   const smSplit = allocateMarketing(chans, period.salesMarketing, adWeight.map((w) => Math.max(0, w)), realRev).values;
   // Fees and platform costs follow the channels that pay them (cells' own fees, the published fee feeds), the rest to
@@ -335,9 +348,9 @@ export function anchoredChannelPnl(
 
   return chans.map((ch, i) => {
     const revShare = realRev[i] / totRev;
-    const cogsShare = totCogs > 1 ? realCogs[i] / totCogs : revShare;
+    const cogsShare = totCogs > 0 ? cw.weights[i] / totCogs : revShare;
     const smShare = period.salesMarketing ? smSplit[i] / period.salesMarketing : 0;
-    const revenue = period.netRevenue * revShare;
+    const revenue = revOf[i];
     const cogm = period.cogm * cogsShare;
     const grossMargin = revenue - cogm;
     const channelFulfillment = cfSplit.values[i];
@@ -351,11 +364,12 @@ export function anchoredChannelPnl(
     const nonOperating = period.nonOperating * revShare;
     const costOfFundraising = period.costOfFundraising * revShare;
     const netIncome = ebitda - nonOperating - costOfFundraising;
-    const est: EstimatedLine[] = [...(cfSplit.basis === 'estimated' ? ['fees' as const] : []), ...(pfSplit.basis === 'estimated' ? ['platform' as const] : [])];
+    const est: EstimatedLine[] = [...(cw.estimated[i] ? ['cogm' as const] : []), ...(cfSplit.basis === 'estimated' ? ['fees' as const] : []), ...(pfSplit.basis === 'estimated' ? ['platform' as const] : [])];
+    const notes = cw.notes.filter((n) => n.startsWith(`${ch}:`));
     return {
       channel: ch, revenue, cogm, grossMargin, channelFulfillment, cm1, salesMarketing, cm2,
       platformCosts, cm3, opex, ebitda, nonOperating, costOfFundraising, netIncome, revShare, cogsShare, smShare, basis: 'shares' as const,
-      ...(est.length ? { estimatedLines: est } : {}),
+      ...(est.length ? { estimatedLines: est } : {}), ...(notes.length ? { notes } : {}),
     };
   });
 }
@@ -745,7 +759,10 @@ export function liveMisPoint(
   if (channelNoData(comp, ch)) return Object.fromEntries(MIS_KEYS.map((k) => [k, null])) as unknown as MisPoint;
   // ONE channel method (audit round 9 B1a): the Channels tab's anchored row — COGM by the channel's own SKU cost, fees /
   // marketing where they were incurred. The legacy revenue-share channelPnl only when the month has no anchored row.
-  const r = anchoredChannelPnl(p, cells, completeness).find((x) => x.channel === ch) ?? (() => {
+  // Anchored rows only when they cover every channel that sold; otherwise channelPnl for all (never mix two methods).
+  const anchored = anchoredChannelPnl(p, cells, completeness);
+  const covers = SALES_CHANNELS.every((c) => !(p.netByChannel[c] ?? 0) || anchored.some((x) => x.channel === c));
+  const r = (covers ? anchored.find((x) => x.channel === ch) : undefined) ?? (() => {
     const fromFeeds = comp?.locked || comp?.published;
     const adOf = (c: SalesChannel) => cells.reduce((s, x) => (x.m === key && x.ch === c ? s + (x.ad ?? 0) : s), 0);
     const marketing = fromFeeds

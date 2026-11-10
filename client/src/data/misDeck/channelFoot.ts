@@ -9,7 +9,8 @@
 //   • revenue: the books win. Books above the SKU data → a "Not mapped" cell per channel holds the difference;
 //     SKU data above positive books (GMV incl. GST, double reports) → the cells are scaled down to the books; books
 //     at or below zero (net returns) → the "Not mapped" cell holds the negative difference.
-//   • COGM: material stays per cell; the rest of the channel's COGM (factory, manufacturing, inward freight, stock
+//   • COGM: material stays per cell (scaled down, flagged costEst, when it is above the channel's booked COGM — so
+//     `fac` is never negative); the rest of the channel's COGM (factory, manufacturing, inward freight, stock
 //     true-up, cost-less sales) goes into `fac`, by each cell's material (cost-less cells at the month's rate).
 //   • fees / ad spend: scaled to the channel's booked fees / marketing, in proportion to each cell's own report figure
 //     (else by revenue). Amazon ads inside a published cell's fees move to marketing this way.
@@ -55,13 +56,21 @@ export function footChannelCells(cells: SkuCell[], t: ChannelTarget, month: stri
   const rate = sum(costed.map((c) => c.rev)) > 0 ? sum(costed.map((c) => c.cogs)) / sum(costed.map((c) => c.rev)) : 0;
   const material = out.map((c) => (c.noCost ? (c.p === 'Accessory (excl)' ? 0 : c.rev * rate) : c.cogs));
   // Material for cost-less cells (and the not-mapped sales) is part of what they carry in `fac` below.
-  const gap = t.cogm - sum(out.map((c) => c.cogs));
+  // Cells' material above the channel's booked COGM (the books cost the sales lower than the BOM): material is scaled
+  // down to the books and flagged costEst — the factory / conversion line is never negative.
+  const mat = sum(out.map((c) => c.cogs));
+  if (mat > Math.max(0, t.cogm) && mat > 0) {
+    const k = Math.max(0, t.cogm) / mat;
+    out = out.map((c) => (c.cogs ? { ...c, cogs: c.cogs * k, costEst: true } : c));
+  }
+  const gap = Math.max(0, t.cogm - sum(out.map((c) => c.cogs)));
   const facs = split(gap, out.map((c, i) => material[i] + (c.p === NOT_MAPPED ? 0 : cellFactory(c))), out.map((c) => c.rev));
   const fees = split(t.channelFulfillment, out.map((c) => c.oth), out.map((c) => c.rev));
   const ads = split(t.salesMarketing, out.map((c) => c.ad ?? 0), out.map((c) => c.rev));
   return out.map((c, i) => {
     const fac = r2(facs[i]), oth = r2(fees[i]), ad = r2(ads[i]), rev = r2(c.rev);
-    return { ...c, rev, fac, oth, ad, con: r2(rev - c.cogs - fac - oth - ad), footed: true };
+    const cogs = r2(c.cogs);
+    return { ...c, rev, cogs, fac, oth, ad, con: r2(rev - cogs - fac - oth - ad), footed: true };
   });
 }
 

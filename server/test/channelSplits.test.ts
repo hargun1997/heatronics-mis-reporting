@@ -163,3 +163,28 @@ test('SKU × channel cells foot to the Channel P&L (fees capped, ads out of fees
   for (const r of anchoredChannelPnl(months[0], d.skuCells, d.completeness)) near(mx.channelTotal(r.channel).con, r.cm2, `${r.channel} CM2`);
   near(mx.grand.con, months[0].cm2, 'Σ = company CM2');
 });
+
+test('month without Tally: a channel with revenue and no SKU cells keeps its revenue, is costed at the month rate; MIS Sheet foots', () => {
+  const m = '2099-11';
+  const p = { key: m, label: m, members: [m], level: 'contribution', hasTally: false, netRevenue: 288_000,
+    netByChannel: { D2C: 138_000, Amazon: 150_000 }, grossByChannel: {}, returnsByChannel: {}, ordersByChannel: {}, estOrdersByChannel: {},
+    totalTaxes: 0, tallyLines: [], cogm: 78_000, grossMargin: 210_000, channelFulfillment: 0, cm1: 210_000, salesMarketing: 0, cm2: 210_000,
+    platformCosts: 0, cm3: 210_000, opex: 0, ebitda: 210_000, nonOperating: 0, costOfFundraising: 0, netIncome: 210_000, normalisedMonths: 0 } as never;
+  const c = [{ m, ch: 'D2C', p: 'Knee', rev: 138_000, cogs: 39_000, oth: 0, con: 0, u: 60 }] as never[];
+  const rows = anchoredChannelPnl(p, c, {});
+  const by = Object.fromEntries(rows.map((r) => [r.channel, r]));
+  near(by.D2C.revenue, 138_000); near(by.Amazon.revenue, 150_000);
+  near(by.D2C.cogm + by.Amazon.cogm, 78_000);
+  near(by.Amazon.cogm / by.Amazon.revenue, by.D2C.cogm / by.D2C.revenue, 'Amazon at the month material rate');
+  assert.ok(by.Amazon.estimatedLines?.includes('cogm'));
+  const pts = ['D2C', 'Amazon'].map((ch) => liveMisPoint(p, ch as never, c, {}));
+  near(sum(pts.map((x) => x.cogs!)), 78_000, 'MIS Sheet channel COGS = company');
+  for (const x of pts) assert.ok(x.grossMargin! <= x.netRevenue!, 'GM never above revenue');
+});
+
+test('footed cells: material above the booked COGM is scaled down, factory never negative', () => {
+  const out = footChannelCells([{ m: '2099-09', ch: 'B2B', p: 'Pad', rev: 1000, cogs: 900, oth: 0, con: 0, u: 1 }] as never,
+    { revenue: 1000, cogm: 600, channelFulfillment: 0, salesMarketing: 0 }, '2099-09', 'B2B');
+  assert.ok(out.every((c) => (c.fac ?? 0) >= 0));
+  near(sum(out.map((c) => c.cogs + (c.fac ?? 0))), 600); assert.ok(out[0].costEst);
+});
