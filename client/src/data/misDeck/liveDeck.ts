@@ -19,7 +19,9 @@
 // ----------------------------------------------------------------------------
 
 import type { MonthlyMIS, SalesChannel } from './misDeckData';
-import { SALES_CHANNELS } from './misDeckData';
+import { SALES_CHANNELS, D2C_AD_SPEND } from './misDeckData';
+import { D2C_COSTS } from './channelActuals';
+import { bookedStaticCells, notMappedCells } from './skuLayer';
 import type { SkuCell } from './skuChannelPnl';
 import { PUBLISHED_MONTHS, PUBLISHED_CELLS, publishedGap, type PublishedGap } from './publishedBasis';
 import { decomposeLegacyCell } from './analytics';
@@ -30,7 +32,7 @@ import {
   type SkuPlatform, type SkuRow, type UploadedSource,
 } from '../monthClose/schema';
 import { computeClose } from '../monthClose/compute';
-import { computeSku } from '../monthClose/skuRollup';
+import { computeSku, CHANNEL_BY_PLATFORM } from '../monthClose/skuRollup';
 import { lookupSku, PRODUCTS, type Platform } from '../monthClose/skuMap';
 import { activeProductMap, bomGaps, unmappedGaps, setProductMap, type Candidate, type ProductGaps } from '../monthClose/productSuggest';
 import { setLedgerRules } from '../monthClose/ledgerRules';
@@ -455,6 +457,9 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
     };
   });
 
+  // Sales no product map knows: one "Not mapped" cell per channel, never dropped from the SKU views (R6 A6-1/3).
+  skuCells.push(...notMappedCells(sku.unmapped, periodKey, (pl) => CHANNEL_BY_PLATFORM[pl as keyof typeof CHANNEL_BY_PLATFORM]));
+
   // Spread the Meta residual — spend with no product id, plus any measured
   // whose FG has no cell this month — across that channel's SkuCells by revenue,
   // into `ad`. Keeps per-SKU ad footing to the true monthly Meta total.
@@ -755,6 +760,12 @@ function staticHistory(): { months: MonthlyMIS[]; cellsByMonth: Map<string, SkuC
       const arr = STATIC_CELLS.get(c.m) ?? [];
       arr.push(normaliseStaticCell(c));
       STATIC_CELLS.set(c.m, arr);
+    }
+    // On the books' basis (R8 C1 / C9): D2C ads ex-GST, cell fees + ads never above the month's booked C&F + S&M (skuLayer.ts).
+    const byKey = new Map(STATIC_MONTHS.map((m) => [m.key, m]));
+    for (const [k, cs] of STATIC_CELLS) {
+      const d = D2C_COSTS[k];
+      STATIC_CELLS.set(k, bookedStaticCells(cs, byKey.get(k), d && D2C_AD_SPEND[k] ? { exGst: D2C_AD_SPEND[k], gross: d.meta + d.google } : null));
     }
   }
   return { months: STATIC_MONTHS, cellsByMonth: STATIC_CELLS };

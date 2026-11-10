@@ -86,10 +86,12 @@ export function metaProductFacts(rows: MetaProductRow[], accountSpend: number | 
     bySku.set(id, e);
     leaf += spend; leafRows += 1;
   }
+  // Product rows above the account total: scaled down to it, as the upload parser does (R8 C10); still a warning so it is never auto-saved.
+  const scale = accountSpend != null && accountSpend > 0 && leaf > accountSpend ? accountSpend / leaf : 1;
   const facts: DailyFact[] = [];
   for (const [id, { name, spend }] of bySku) {
     if (r2(spend) === 0) continue;
-    facts.push({ source: 'meta', channel: 'D2C', date, sku: id, skuName: name, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend) });
+    facts.push({ source: 'meta', channel: 'D2C', date, sku: id, skuName: name, skuKind: 'sku', revenue: 0, units: 0, orders: 0, fees: 0, spend: r2(spend * scale) });
   }
   const residual = accountSpend != null ? r2(accountSpend - leaf) : 0;
   if (residual > 0) facts.push({ source: 'meta', channel: 'D2C', date, revenue: 0, units: 0, orders: 0, fees: 0, spend: residual });
@@ -104,7 +106,7 @@ export function metaProductFacts(rows: MetaProductRow[], accountSpend: number | 
         : 'No account total — total is the sum of product rows',
       `Total Meta ad spend ${inr(total)}`,
     ],
-    warnings: accountSpend != null && residual < 0 ? [`Product rows (${inr(leaf)}) exceed the account total (${inr(accountSpend)}) — check the month.`] : [],
+    warnings: accountSpend != null && residual < 0 ? [`Product rows (${inr(leaf)}) exceed the account total (${inr(accountSpend)}) — scaled down to the total; check the month.`] : [],
     emptyOk: facts.length === 0,
   };
 }

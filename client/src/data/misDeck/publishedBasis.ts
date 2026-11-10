@@ -39,6 +39,7 @@
 
 import { MONTHLY_MIS, SALES_CHANNELS, type MonthlyMIS, type SalesChannel } from './misDeckData';
 import { SKU_CELLS, type SkuCell } from './skuChannelPnl';
+import { markModelled } from './skuLayer';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 type ByChannel = Partial<Record<SalesChannel, number>>;
@@ -160,7 +161,8 @@ export const PUBLISHED_CELLS: SkuCell[] = (() => {
   const byMonth = new Map<string, SkuCell[]>();
   for (const c of SKU_CELLS) byMonth.set(c.m, [...(byMonth.get(c.m) ?? []), c]);
   const cells = [...byMonth.entries()].flatMap(([k, cs]) => exGstCells(recutAmazonCells(cs, RAW_BY_KEY.get(k)), RAW_BY_KEY.get(k), PUB_BY_KEY.get(k)));
-  return costEarlyAmazon(cells, earlyAmazonCogsRate(cells), earlyAmazonAsp(cells));
+  // OEM / Offline / Blinkit cells are a model (product + units assumed): flagged so views never rank them as counted (R6 B6-5).
+  return markModelled(costEarlyAmazon(cells, earlyAmazonCogsRate(cells), earlyAmazonAsp(cells)));
 })();
 
 /** A month the published workbook also had, now shown from Tally: the workbook's figures and live − published (₹). */

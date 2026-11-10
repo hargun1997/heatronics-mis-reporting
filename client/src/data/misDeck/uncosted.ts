@@ -8,6 +8,7 @@
 // Pure; tests in server/test/normalisedCogm.test.ts.
 
 import type { SkuCell } from './skuChannelPnl';
+import { NO_PRODUCT_LABEL } from './skuLayer';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -30,7 +31,7 @@ export interface UncostedEstimate {
 export function uncostedEstimate(cells: SkuCell[], unmappedRevenue = 0): UncostedEstimate {
   let costedRev = 0, costedCogs = 0, noCostRev = 0;
   for (const c of cells) {
-    if (c.p === 'Accessory (excl)') continue;
+    if (c.p === 'Accessory (excl)' || c.p === NO_PRODUCT_LABEL) continue; // unmapped sales come in once, as `unmappedRevenue`
     if (c.noCost) noCostRev += c.rev;
     else { costedRev += c.rev; costedCogs += c.cogs; }
   }

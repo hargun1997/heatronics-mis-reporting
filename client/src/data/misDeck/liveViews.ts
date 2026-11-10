@@ -37,6 +37,7 @@ import type { MisEntity, MisNumKey, MisPoint } from './misSheet';
 import { channelNoData } from './monthCompleteness';
 import type { TallyBucketLine } from '../monthClose/schema';
 import { allocateChannelCost, allocateMarketing, cogsWeights, feedFees, feedPlatform, sumChannelRows } from './channelAlloc';
+import { modelledRevenue, rankLast } from './skuLayer';
 import { opexSplit, fyToDateLabel } from './misPeriods';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -546,8 +547,10 @@ export function liveSkuChannelMatrix(cells: SkuCell[], keys: Set<string>): LiveM
   const byP = new Map<string, RawM>();
   const byC = new Map<SalesChannel, RawM>();
   let grand = { ...ZERO_M };
+  const modelled = new Map<string, number>();
   for (const c of cells) {
     if (!keys.has(c.m)) continue;
+    if (c.modelled) modelled.set(c.p, (modelled.get(c.p) ?? 0) + modelledRevenue(c));
     const k = `${c.p}||${c.ch}`;
     byCell.set(k, addM(byCell.get(k) ?? ZERO_M, c));
     byP.set(c.p, addM(byP.get(c.p) ?? ZERO_M, c));
@@ -555,9 +558,11 @@ export function liveSkuChannelMatrix(cells: SkuCell[], keys: Set<string>): LiveM
     grand = addM(grand, c);
   }
   const products = [...byP.keys()].sort((a, b) => {
-    const ax = a.startsWith('Accessory') ? 1 : 0, bx = b.startsWith('Accessory') ? 1 : 0;
+    const ax = rankLast(a) ? 1 : 0, bx = rankLast(b) ? 1 : 0;
     if (ax !== bx) return ax - bx;
-    return (byP.get(b)?.rev ?? 0) - (byP.get(a)?.rev ?? 0);
+    // by measured revenue: a modelled product never outranks a counted one (R6 B6-5)
+    const meas = (p: string) => (byP.get(p)?.rev ?? 0) - (modelled.get(p) ?? 0);
+    return meas(b) - meas(a) || (byP.get(b)?.rev ?? 0) - (byP.get(a)?.rev ?? 0);
   });
   return {
     products,

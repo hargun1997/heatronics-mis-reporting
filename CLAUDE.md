@@ -326,6 +326,20 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   (`buildLiveMisContext`; fiscal years summed from the deck by `fySummaryOf`); the stale `FY_SUMMARY` / `buildMisContext` are no longer
   read. (5) A published month replaced by a full Tally close carries `completeness.vsPublished` (₹ change): chip `PublishedGapChip` in
   the Live MIS status strip + a low Fix item `published:<month>` when net revenue or net profit moved ≥ ₹10,000.
+- **SKU layer foots (10 Nov 2026, audit R6 / R8 / R10; pure `data/misDeck/skuLayer.ts`, tests `server/test/skuLayer.test.ts`):**
+  (1) sales no product map knows get one **"Not mapped (sales with no product)"** cell per channel (`NO_PRODUCT_LABEL`) and month (`notMappedCells`, `noCost`; `uncostedEstimate` skips it
+  because `unmappedRevenue` already counts it), so SKU P&L / Units sold never drop them; a Tranzact `FG-dddd` the FG master does not list is
+  its own product under its Tranzact name (`skuRollup.ts tranzactFgHit`), costed by its BOM. (2) Workbook OEM / Offline / Blinkit cells are
+  `modelled` (product + units assumed): SKU P&L / SKU × channel rank products by measured revenue, a mostly-modelled column says "(modelled)",
+  Units sold shows estimated units (modelled or `uEst`) as "≈" and ranks by counted units; accessories, "Amazon (no SKU split)" and unmapped sales rank last (`rankLast`). (3) Static cells on the books' basis
+  (`bookedStaticCells` in `liveDeck staticHistory`): D2C ads ex-GST (`D2C_AD_SPEND` ÷ `D2C_COSTS` meta + google, the feed's Google carried
+  18 % GST); Σ ad ≤ booked S&M and Σ fees ≤ what is left of booked C&F + S&M (ads kept, fees give way) — FY25-26 cells cf + ads were
+  ₹56.1 L above the P&L, now ≤ it every month. (4)–(5) Channel COGM weights and period = sum of months now come from #409 (`channelAlloc.ts cogsWeights` / `sumChannelRows`);
+  the SKU P&L below CM2 (`slicePnl`) is also summed month by month. (6) "Why it moved": cells ≠ books is "Sales not in
+  product detail", never a top reason (also "Other / rounding"). (7) Meta product rows above the account total are scaled down to it (upload
+  parser + slot mapper; stored months need a re-pull). (8) Plan vs actual: Amazon settled cell units × the month's Business Report units ordered ÷ settled (`amazonOrderedRatio`, deck `traffic`),
+  else × `AMAZON_ORDERED_PER_SETTLED` 1.205 (measured Oct 25–Jun 26, labelled estimate), to the plan's ordered basis, noted on the page. Left: Mar 26 Amazon cells vs row (−₹2.44 L, which side is wrong is
+  unknown), Jan–Mar 26 restated quarter (×1.0659, data decision), plan Jul–Sep 26 last-year units (re-import the sheet), B6-4 legacy COGM by month.
 - **MIS sheet + periods (10 Nov 2026, audit round 7 #4–#6 #12–#14 / round 10 #4; pure `data/misDeck/misPeriods.ts`, tests
   `server/test/misSheetPeriods.test.ts`):** Payroll / Professional fee / Other income are split out of OpEx for legacy months too
   (`opexSplit`: Payroll…, Salar…, Professional Fees, Legal & CA…, Other Income…; no matching line = blank, never 0; FY23-24–FY25-26 ₹116.22 L

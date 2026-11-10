@@ -18,11 +18,11 @@
 
 import type { SalesChannel } from '../misDeck/misDeckData';
 import type { BomCost, CostBasis, MonthCloseSession, SkuPlatform, SkuRow, UploadedSource } from './schema';
-import { hcoreTwin, lookupSku, PRODUCTS, type Platform, type SkuEntry } from './skuMap';
+import { hcoreTwin, lookupSku, PRODUCTS, type Platform, type SkuEntry, type SkuLookup } from './skuMap';
 import { activeProductMap, suggest, type Candidate } from './productSuggest';
 
 /** Which deck channel a platform's rows belong to. */
-const CHANNEL_BY_PLATFORM: Record<SkuPlatform, SalesChannel> = {
+export const CHANNEL_BY_PLATFORM: Record<SkuPlatform, SalesChannel> = {
   amazon: 'Amazon',
   shopify: 'D2C',
   blinkit: 'Blinkit',
@@ -138,6 +138,18 @@ export interface SkuResult {
   costBook: CostBook;
 }
 
+/**
+ * A Tranzact FG id (FG-0049 …) that the FG master behind PRODUCTS does not list yet (it was refreshed before the item existed) is
+ * still that finished good: the row keeps its own FG id and Tranzact item name, so the BOM (Production prices every FG-…) costs it
+ * and it shows under its own name instead of going to "Not mapped" (audit round 6, A6-2). Pure.
+ */
+export function tranzactFgHit(row: Pick<SkuRow, 'key' | 'name'>): SkuLookup | null {
+  const fgId = row.key.trim().toUpperCase();
+  if (!/^FG-\d{4}$/.test(fgId) || PRODUCTS[fgId]) return null;
+  const name = row.name?.trim() || fgId;
+  return { fgId, baseFgId: fgId, product: { fgId, deckName: name, tranzactName: name, confirmed: true, basis: 'Tranzact FG id (not in the FG master yet)' }, confirmed: true, byTitle: false };
+}
+
 export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): SkuResult {
   const rows = session.sources.flatMap((s) => s.skuRows ?? []);
   const pmap = activeProductMap();
@@ -149,7 +161,7 @@ export function computeSku(session: MonthCloseSession, entries?: SkuEntry[]): Sk
   const unmapped: SkuRow[] = [];
 
   for (const row of rows) {
-    const hit = lookupSku(row.platform as Platform, row.key, overrides, entries, basis);
+    const hit = lookupSku(row.platform as Platform, row.key, overrides, entries, basis) ?? tranzactFgHit(row);
     if (!hit) {
       unmapped.push(row);
       continue;

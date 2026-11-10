@@ -170,7 +170,8 @@ export function buildBridge(inp: BridgeInput): BridgeResult {
     add({ id: 'price_mix', label: 'Price and product mix', value: split.priceMix, group: 'revenue' });
     add({ id: 'channel_mix', label: 'Channel mix', value: split.channelMix, group: 'revenue', parts: chParts(split.byChannel) });
     if (returns !== null) add({ id: 'returns', label: returns >= 0 ? 'Fewer returns' : 'More returns', value: returns, group: 'revenue' });
-    if (Math.abs(other) >= 1) add({ id: 'revenue_other', label: returns !== null ? 'Other revenue' : 'Returns, tax and other', value: other, group: 'revenue' });
+    // What the product cells don't hold (cells ≠ booked revenue: different source, unmapped sales). Shown, never a reason (R10 B2).
+    if (Math.abs(other) >= 1) add({ id: 'revenue_other', label: returns !== null ? 'Sales not in product detail' : 'Returns, tax and sales not in product detail', value: other, group: 'revenue' });
   } else {
     const byCh: Record<string, number> = {};
     for (const ch of new Set([...Object.keys(base.netByChannel), ...Object.keys(cur.netByChannel)])) {
@@ -294,6 +295,8 @@ export function topReasons(b: Bridge, n = 3): BridgeReason[] {
   const cands: Cand[] = [];
   for (const s of b.steps) {
     if (Math.abs(s.value) < 10000) continue;
+    // a gap between two sources (product cells vs books, or what the cascade did not explain) is not a reason
+    if (s.id === 'revenue_other' || s.id === 'other') continue;
     if (s.id === 'marketing' && s.parts?.length) {
       const top = s.parts[0];
       if (Math.abs(top.value) >= 0.6 * Math.abs(s.value) && Math.abs(top.value) >= 10000) {

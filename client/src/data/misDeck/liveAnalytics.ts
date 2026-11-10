@@ -13,6 +13,7 @@ import type { SkuCell } from './skuChannelPnl';
 import type { CompletenessLevel, PeriodCompleteness } from './liveDeck';
 import type { ChannelRecon, TallyBucketLine } from '../monthClose/schema';
 import { CHANNEL_AOV } from './analytics';
+import { estimatedUnits, modelledRevenue, rankLast } from './skuLayer';
 
 /** The continuous-taxonomy fold: legacy channel → forward channel (G6). */
 export const CHANNEL_FOLD: Partial<Record<SalesChannel, SalesChannel>> = { OEM: 'B2B', Offline: 'GT' };
@@ -469,6 +470,11 @@ export interface PnlColumn {
   ebitda: number;
   nonOperating: number;
   netIncome: number;
+  /** Revenue whose product is a model (workbook OEM / Offline / Blinkit), not measured. Slice columns only. */
+  modelledRev?: number;
+  /** Units not counted (modelled or estimated from revenue). Slice columns only. */
+  estUnits?: number;
+  units?: number;
 }
 
 export interface SlicePnl {
@@ -483,7 +489,7 @@ export interface SlicePnl {
   tied: boolean;
 }
 
-interface SliceAgg { rev: number; cogs: number; fees: number; ad: number; units: number; fac: number }
+interface SliceAgg { rev: number; cogs: number; fees: number; ad: number; units: number; fac: number; modelled: number; estU: number; byMonth: Map<string, number> }
 
 /** The distinct column keys available for a slice, most revenue first. */
 export function sliceOptions(
@@ -520,8 +526,11 @@ export function slicePnl(
   const agg = new Map<string, SliceAgg>();
   for (const c of sel) {
     const k = colKey(c);
-    const e = agg.get(k) ?? { rev: 0, cogs: 0, fees: 0, ad: 0, units: 0, fac: 0 };
+    const e = agg.get(k) ?? { rev: 0, cogs: 0, fees: 0, ad: 0, units: 0, fac: 0, modelled: 0, estU: 0, byMonth: new Map<string, number>() };
     e.fac = r2(e.fac + cellFactory(c));
+    e.modelled = r2(e.modelled + modelledRevenue(c));
+    e.estU = r2(e.estU + estimatedUnits(c));
+    e.byMonth.set(c.m, (e.byMonth.get(c.m) ?? 0) + c.rev);
     e.rev = r2(e.rev + c.rev);
     e.cogs = r2(e.cogs + c.cogs);
     e.fees = r2(e.fees + c.oth);
@@ -532,12 +541,19 @@ export function slicePnl(
 
   // Pro-rata base for the company-level cost below CM2: the month's net revenue,
   // so each column carries its fair share and the pieces foot to the Tally totals.
-  const base = period.netRevenue || 0;
-  const belowCm2 = (share: number) => ({
-    platform: r2(period.platformCosts * share),
-    opex: r2(period.opex * share),
-    nonOperating: r2((period.nonOperating + period.costOfFundraising) * share),
-  });
+  // Month by month, then summed, so a quarter / year equals its months added up (R6 B6-6).
+  const months = period.memberAggs && period.memberAggs.length > 1 ? period.memberAggs : [period];
+  const belowCm2 = (a: SliceAgg) => {
+    let platform = 0, opex = 0, nonOperating = 0;
+    for (const m of months) {
+      const rev = m.members.reduce((t, k) => t + (a.byMonth.get(k) ?? 0), 0);
+      const share = m.netRevenue ? rev / m.netRevenue : 0;
+      platform += m.platformCosts * share;
+      opex += m.opex * share;
+      nonOperating += (m.nonOperating + m.costOfFundraising) * share;
+    }
+    return { platform: r2(platform), opex: r2(opex), nonOperating: r2(nonOperating) };
+  };
 
   const mkCol = (key: string, a: SliceAgg, kind: PnlColumn['kind'] = 'slice'): PnlColumn => {
     const factory = r2(a.fac);
@@ -545,7 +561,7 @@ export function slicePnl(
     const gm = r2(a.rev - cogm);
     const cm1 = r2(gm - a.fees);
     const cm2 = r2(cm1 - a.ad);
-    const b = belowCm2(base ? a.rev / base : 0);
+    const b = belowCm2(a);
     const cm3 = r2(cm2 - b.platform);
     const ebitda = r2(cm3 - b.opex);
     const netIncome = r2(ebitda - b.nonOperating);
@@ -554,13 +570,17 @@ export function slicePnl(
       rev: a.rev, cogs: a.cogs, factory, cogm, gm,
       fulfilment: a.fees, cm1, marketing: a.ad, cm2,
       platform: b.platform, cm3, opex: b.opex, ebitda, nonOperating: b.nonOperating, netIncome,
+      modelledRev: a.modelled, estUnits: a.estU, units: a.units,
     };
   };
 
   const order = columnBy === 'vertical' ? (VERTICALS as readonly string[]) : columnBy === 'channel' ? (SALES_CHANNELS as readonly string[]) : null;
   const columns = [...agg.entries()]
     .map(([k, a]) => mkCol(k, a))
-    .sort((x, y) => (order ? order.indexOf(x.key) - order.indexOf(y.key) : y.rev - x.rev));
+    // products rank by MEASURED revenue: a modelled product (revenue ÷ an assumed price) never outranks a counted one (R6 B6-5)
+    // non-product buckets (accessories, "Amazon (no SKU split)", unmapped sales) after the products
+    .sort((x, y) => (order ? order.indexOf(x.key) - order.indexOf(y.key)
+      : Number(rankLast(x.key)) - Number(rankLast(y.key)) || (y.rev - (y.modelledRev ?? 0)) - (x.rev - (x.modelledRev ?? 0)) || y.rev - x.rev));
 
   const SUM: (keyof PnlColumn)[] = ['rev', 'cogs', 'factory', 'cogm', 'gm', 'fulfilment', 'cm1', 'marketing', 'cm2', 'platform', 'cm3', 'opex', 'ebitda', 'nonOperating', 'netIncome'];
   const foldCols = (label: string, kind: PnlColumn['kind'], src: PnlColumn[]): PnlColumn => {
