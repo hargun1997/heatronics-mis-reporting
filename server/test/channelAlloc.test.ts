@@ -129,18 +129,14 @@ test('two months together: one month\'s overshoot is not hidden by the other, an
   const by = Object.fromEntries(rows.map((r) => [r.channel, r]));
   foots(rows, q as never);
   assert.equal(by.B2B.salesMarketing, 0);
-  // Amazon fees: Aug 1,80,000 as reported + Sep capped at 1,30,000 (+ its revenue share of Aug's unattributed rest only).
-  // The quarter is the sum of its months (audit R6 B6-6), so each month's rest is spread by that month's revenue share.
-  const ms = aggregatePeriods(deck.months, deck.completeness, 'month');
-  const aug = ms.find((x) => x.key === '2026-08')!;
-  const augRows = anchoredChannelPnl(aug, deck.skuCells, deck.completeness);
-  const augAmazon = augRows.find((r) => r.channel === 'Amazon')!;
-  const rest = aug.channelFulfillment - (180_000 + 60_000);
-  near(augAmazon.channelFulfillment, 180_000 + rest * augAmazon.revShare);
-  // the quarter also holds the published Jul month: Amazon = Jul as published + Aug + Sep capped at 1,30,000
-  const others = q.members.filter((k) => k !== '2026-08' && k !== '2026-09')
-    .reduce((t, k) => t + (anchoredChannelPnl(ms.find((x) => x.key === k)!, deck.skuCells, deck.completeness).find((r) => r.channel === 'Amazon')?.channelFulfillment ?? 0), 0);
-  near(by.Amazon.channelFulfillment, others + augAmazon.channelFulfillment + 130_000);
+  // Amazon fees: Aug 1,80,000 as reported + Sep capped at 1,30,000 (+ its share of Aug's unattributed rest, which goes to
+  // the consumer channels only: Amazon 7 of the 9 lakh consumer revenue). The quarter is Σ months, never split once.
+  const augRest = 400_000 - (180_000 + 60_000);
+  const mon = (k: string) => Object.fromEntries(anchoredChannelPnl(aggregatePeriods(deck.months, deck.completeness, 'month').find((x) => x.key === k)!, deck.skuCells, deck.completeness).map((r) => [r.channel, r]));
+  near(mon('2026-08').Amazon.channelFulfillment, 180_000 + augRest * 7 / 9);
+  near(mon('2026-09').Amazon.channelFulfillment, 130_000);
+  near(by.Amazon.channelFulfillment, q.members.reduce((t, k) => t + (mon(k).Amazon?.channelFulfillment ?? 0), 0), 'quarter = Σ months');
+  assert.equal(by.B2B.channelFulfillment, 0); assert.equal(by.GT.channelFulfillment, 0);
 });
 
 test('legacy months: marketing follows the published ad feeds; B2B / GT carry none', () => {

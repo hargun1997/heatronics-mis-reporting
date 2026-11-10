@@ -17,6 +17,7 @@ import {
 import type { SkuCell } from './skuChannelPnl';
 import { PUBLISHED_MONTHS, PUBLISHED_CELLS as SKU_CELLS } from './publishedBasis';
 import { AD_MIX_D2C, AD_MIX_AMZN, AMAZON_AD_MONTHLY } from './adMeasured';
+import { allocateChannelCost, allocateMarketing, feedFees, feedPlatform } from './channelAlloc';
 
 export type Granularity = 'month' | 'quarter' | 'year';
 
@@ -680,67 +681,45 @@ export function adSpendForPeriod(g: Granularity, period: PeriodMIS): ChannelMark
 }
 
 /**
- * Channel-level P&L. Every shared cost is allocated by net-revenue share,
- * EXCEPT Sales & Marketing when `marketing` is supplied: D2C carries its
- * Meta+Google spend, Amazon its Amazon Ads spend, and Blinkit the leftover
- * (booked S&M − D2C − Amazon). The below-S&M cascade (CM2 → Net Income) is
- * recomputed per channel so the marketing attribution flows through, and every
- * line still reconciles to the company total. Without `marketing`, S&M falls
- * back to revenue-share like the other lines.
- *
- * The booked S&M in the system is authoritative: the ad-spend feeds can never
- * attribute more marketing than was actually booked. When the reported ad spend
- * (D2C + Amazon) exceeds booked S&M for a period, the ad channels are scaled
- * down proportionally to fit the system total and Blinkit's leftover is held at
- * 0 — a channel's attributed marketing is therefore never negative.
- *
- * The leftover only lands on Blinkit when Blinkit actually sold in the period.
- * If Blinkit had no revenue, the residual isn't its cost, so it is spread across
- * the selling channels by net-revenue share (general marketing) rather than
- * shown as a Blinkit loss against zero sales.
+ * Channel-level P&L (legacy MIS Sheet; the live sheet uses anchoredChannelPnl and
+ * falls back here only for a month with no anchored rows). COGM, OPEX and below
+ * by net-revenue share. Sales & Marketing when `marketing` is supplied: D2C
+ * carries its Meta + Google spend, Amazon its Amazon Ads spend (capped at booked
+ * S&M), the rest only on the consumer channels (channelAlloc.allocateMarketing).
+ * Channel & fulfilment and Platform & Payment: the month's fee feeds, the rest on
+ * the consumer channels by revenue (never B2B / GT). Every line reconciles to the
+ * company total.
  */
 export function channelPnl(p: PeriodMIS, marketing?: ChannelMarketing): ChannelPnlRow[] {
   const totalPositive = SALES_CHANNELS.reduce((s, c) => s + Math.max(0, p.netByChannel[c] || 0), 0);
   const shareOf = (c: SalesChannel) => (totalPositive > 0 ? Math.max(0, p.netByChannel[c] || 0) / totalPositive : 0);
 
-  // Sales & Marketing per channel.
+  // Sales & Marketing per channel: ad spend on its channel (capped at booked S&M); the rest of S&M only to the consumer
+  // channels by their ad spend, else revenue — never a "leftover → Blinkit" (audit round 8 C8: ₹10.6 L on Blinkit
+  // against ₹24.6 k of real Blinkit ads) and never onto B2B / GT (channelAlloc.ts).
+  const revs = SALES_CHANNELS.map((c) => Math.max(0, p.netByChannel[c] || 0));
+  const att = SALES_CHANNELS.map((c) => (!marketing ? 0 : c === 'D2C' ? marketing.d2c : c === 'Amazon' ? marketing.amazon : 0));
+  const smVals = marketing ? allocateMarketing(SALES_CHANNELS, p.salesMarketing, att, revs).values : SALES_CHANNELS.map((c) => p.salesMarketing * shareOf(c));
   const smByChannel = emptyChannels();
-  if (marketing) {
-    const booked = p.salesMarketing;
-    const adTotal = marketing.d2c + marketing.amazon;
-    if (adTotal > booked && adTotal > 0) {
-      // Reported ad spend exceeds booked S&M — trust the system total, scale the
-      // ad channels to fit, and hold Blinkit's leftover at 0 (never negative).
-      const scale = booked / adTotal;
-      smByChannel.D2C = marketing.d2c * scale;
-      smByChannel.Amazon = marketing.amazon * scale;
-      smByChannel.Blinkit = 0;
-    } else {
-      smByChannel.D2C = marketing.d2c;
-      smByChannel.Amazon = marketing.amazon;
-      const leftover = booked - adTotal; // ≥ 0 here
-      if ((p.netByChannel.Blinkit || 0) > 0) {
-        smByChannel.Blinkit = leftover; // Blinkit sold — leftover is its marketing
-      } else {
-        // Blinkit had no sales — spread the residual across selling channels.
-        for (const c of SALES_CHANNELS) smByChannel[c] += leftover * shareOf(c);
-      }
-    }
-    // OEM / Offline / Export carry no attributed marketing (unless the spread above applies).
-  } else {
-    for (const c of SALES_CHANNELS) smByChannel[c] = p.salesMarketing * shareOf(c);
-  }
+  SALES_CHANNELS.forEach((c, i) => { smByChannel[c] = smVals[i]; });
+  // Fees and platform costs: the published fee feeds where the period has them, the rest to the consumer channels by
+  // revenue — never to B2B / GT / OEM / Offline (audit round 9 B2).
+  const members = /^\d{4}-\d{2}$/.test(p.key) ? [p.key] : [];   // channelPnl runs per month (MIS Sheet)
+  const feeAtt = SALES_CHANNELS.map((c) => members.reduce((w, m) => w + feedFees(c, m), 0));
+  const pfAtt = SALES_CHANNELS.map((c) => members.reduce((w, m) => w + feedPlatform(c, m), 0));
+  const cfVals = allocateChannelCost(SALES_CHANNELS, p.channelFulfillment, feeAtt, revs).values;
+  const pfVals = allocateChannelCost(SALES_CHANNELS, p.platformCosts, pfAtt, revs).values;
 
   return SALES_CHANNELS.map((c) => {
     const share = shareOf(c);
     const netRevenue = Math.max(0, p.netByChannel[c] || 0);
     const cogm = p.cogm * share;
     const grossMargin = netRevenue - cogm;
-    const channelFulfillment = p.channelFulfillment * share;
+    const channelFulfillment = cfVals[SALES_CHANNELS.indexOf(c)];
     const cm1 = grossMargin - channelFulfillment;
     const salesMarketing = smByChannel[c];
     const cm2 = cm1 - salesMarketing;
-    const platformCosts = p.platformCosts * share;
+    const platformCosts = pfVals[SALES_CHANNELS.indexOf(c)];
     const cm3 = cm2 - platformCosts;
     const opex = p.opex * share;
     const ebitda = cm3 - opex;

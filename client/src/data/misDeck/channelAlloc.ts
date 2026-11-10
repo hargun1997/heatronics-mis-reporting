@@ -12,6 +12,7 @@
 
 import type { TallyBucketLine } from '../monthClose/schema';
 import type { SalesChannel } from './misDeckData';
+import { AMAZON_ACTUALS, BLINKIT_ACTUALS, D2C_COSTS } from './channelActuals';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const sum = (a: number[]) => a.reduce((s, v) => s + v, 0);
@@ -124,4 +125,118 @@ export function overAttributions(months: { key: string; tallyLines?: TallyBucket
     }
   }
   return out;
+}
+
+// ---- Fees, platform and COGM by channel (audit round 9 B2 / A9-2, round 8 C3 / C8; 10 Nov 2026) ----------------------
+
+export interface CostSplit {
+  values: number[];
+  /** 'attributed' = what the reports / fee feeds put on each channel (capped at the books); 'estimated' = part of the line went by revenue. */
+  basis: 'attributed' | 'estimated';
+}
+
+/**
+ * Channel & fulfilment (marketplace fees, couriers) or Platform & Payment by channel. The fees a report puts on a
+ * channel stay there (capped at the booked total). The rest goes ONLY to the consumer channels (they are the ones that
+ * pay marketplace / courier / gateway fees), by their revenue; B2B / GT / OEM / Export carry such costs only when a
+ * report attributes them directly. With no consumer revenue at all, every channel by revenue. Σ values = total.
+ */
+export function allocateChannelCost(
+  channels: readonly SalesChannel[], total: number, attributed: number[], revenue: number[], fallbackRevenue?: number[],
+): CostSplit {
+  const { values } = capToTotal(attributed, total);
+  const rest = total - sum(values);
+  if (Math.abs(rest) < 0.005 || channels.length === 0) return { values, basis: 'attributed' };
+  const consumer = channels.map(isConsumerChannel);
+  const pick = (w: number[], onlyConsumer: boolean) => w.map((v, i) => (!onlyConsumer || consumer[i] ? Math.max(0, v) : 0));
+  const candidates = [
+    pick(revenue, true), pick(fallbackRevenue ?? [], true), channels.map((_, i) => (consumer[i] ? 1 : 0)),
+    pick(revenue, false), channels.map(() => 1),
+  ];
+  // A rest under 1 % of the line is rounding / timing on attributed channels, not an estimate.
+  const basis: CostSplit['basis'] = Math.abs(rest) > 0.01 * Math.abs(total) ? 'estimated' : 'attributed';
+  for (const w of candidates) {
+    const tot = sum(w);
+    if (tot > 0) return { values: values.map((a, i) => a + rest * (w[i] / tot)), basis };
+  }
+  return { values, basis: 'estimated' };
+}
+
+/** Per channel: COGS of its SKU cells, their revenue, and the revenue of cells with no BOM cost (accessories excluded). */
+export interface ChannelCogsInput { cogs: number; cellRev: number; uncostedRev: number }
+
+export interface CogsSplit {
+  /** Weights (₹ of material, coverage-scaled) — the company COGM is split in these proportions. */
+  weights: number[];
+  /** Per channel: true when its weight is an estimate (no cells, cost-less sales, or cells far from the booked revenue). */
+  estimated: boolean[];
+  /** Plain-English notes for the estimated channels. */
+  notes: string[];
+}
+
+/**
+ * COGM weights by channel on ONE basis: the booked (Tally) revenue. A channel's SKU cells give its material cost per ₹
+ * of sales; that is applied to the channel's booked revenue (cell COGS × booked ÷ cell revenue), so a channel whose
+ * connector covers only part of what Tally booked (e.g. Tranzact vs Tally OEM) still carries the cost of all of it.
+ * Sales with no BOM cost are costed at the month's material rate (never at ₹0), and a channel with booked revenue but
+ * no cells at that same rate — both flagged estimated. Coverage ratio is clamped to 0.2–5.
+ */
+export function cogsWeights(channels: readonly SalesChannel[], booked: number[], cells: ChannelCogsInput[]): CogsSplit {
+  const costedRev = cells.map((c) => Math.max(0, c.cellRev - c.uncostedRev));
+  const totCogs = sum(cells.map((c) => Math.max(0, c.cogs)));
+  const totCosted = sum(costedRev);
+  const rate = totCosted > 0 ? totCogs / totCosted : 0;
+  const estimated = channels.map(() => false);
+  const notes: string[] = [];
+  const weights = channels.map((ch, i) => {
+    const b = Math.max(0, booked[i] ?? 0);
+    const c = cells[i] ?? { cogs: 0, cellRev: 0, uncostedRev: 0 };
+    const material = Math.max(0, c.cogs) + Math.max(0, c.uncostedRev) * rate;
+    if (c.uncostedRev > 0 && rate > 0) { estimated[i] = true; notes.push(`${ch}: ₹${(c.uncostedRev / 1e5).toFixed(2)} L of sales with no BOM cost costed at the month's material rate`); }
+    if (b <= 0) return 0;                                  // nothing booked on the channel: no COGM (the revenue sits elsewhere)
+    if (c.cellRev > 0 && material > 0) {
+      const k = Math.min(5, Math.max(0.2, b / c.cellRev));
+      if (k < 0.9 || k > 1.1) { estimated[i] = true; notes.push(`${ch}: SKU data covers ${Math.round(100 / k)}% of booked sales — cost scaled to the booked sales`); }
+      return material * k;
+    }
+    estimated[i] = true;
+    notes.push(`${ch}: no SKU cost data — costed at the month's average material rate`);
+    return b * rate;
+  });
+  // No material rate at all (no costed cells): booked revenue share, every channel estimated.
+  if (sum(weights) <= 0) return { weights: channels.map((_, i) => Math.max(0, booked[i] ?? 0)), estimated: channels.map(() => true), notes: ['No SKU cost data — COGM split by revenue'] };
+  return { weights, estimated, notes };
+}
+
+/**
+ * Sum per-channel rows over months (a year / quarter / range = Σ its months, never split once at period level: costs
+ * booked in one half of a year must not land on a channel that sold in the other half). Numeric fields are added;
+ * `pick` keeps the non-numeric fields of the first row seen.
+ */
+export function sumChannelRows<T extends { channel: SalesChannel }>(monthRows: T[][]): T[] {
+  const by = new Map<SalesChannel, T>();
+  for (const rows of monthRows) {
+    for (const r of rows) {
+      const prev = by.get(r.channel);
+      if (!prev) { by.set(r.channel, { ...r }); continue; }
+      const next = { ...prev } as Record<string, unknown>;
+      for (const [k, v] of Object.entries(r)) if (typeof v === 'number' && typeof next[k] === 'number') next[k] = (next[k] as number) + v;
+      by.set(r.channel, next as T);
+    }
+  }
+  return [...by.values()];
+}
+
+/** Fee feeds of the published history (no Tally tags behind them), by channel and month: marketplace / courier fees. */
+export function feedFees(ch: SalesChannel, month: string): number {
+  if (ch === 'Amazon') { const a = AMAZON_ACTUALS[month]; return a ? a.referral + a.fba : 0; }
+  if (ch === 'D2C') return D2C_COSTS[month]?.shiprocket ?? 0;
+  if (ch === 'Blinkit') return BLINKIT_ACTUALS[month]?.fulfilment ?? 0;
+  return 0;
+}
+/** Platform & payment feeds of the published history: checkout (Shopflo) + payment gateway, D2C only. */
+export function feedPlatform(ch: SalesChannel, month: string): number {
+  if (ch !== 'D2C') return 0;
+  const d = D2C_COSTS[month];
+  return d ? d.shopflo + d.gateway : 0;
 }

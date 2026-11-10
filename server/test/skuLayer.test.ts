@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SkuCell } from '../../client/src/data/misDeck/skuChannelPnl.ts';
 import {
-  NO_PRODUCT_LABEL, rankLast, notMappedCells, markModelled, bookedStaticCells, cellCogmShares, sumMonthlyChannelRows, estimatedUnits,
+  NO_PRODUCT_LABEL, rankLast, notMappedCells, markModelled, bookedStaticCells, estimatedUnits,
 } from '../../client/src/data/misDeck/skuLayer.ts';
 import { uncostedEstimate } from '../../client/src/data/misDeck/uncosted.ts';
 import { computeSku, tranzactFgHit, CHANNEL_BY_PLATFORM } from '../../client/src/data/monthClose/skuRollup.ts';
@@ -88,28 +88,6 @@ test('bookedStaticCells: D2C ads ex-GST, ads kept up to booked S&M, fees give wa
   close(capped.reduce((t, c) => t + c.oth + (c.ad ?? 0), 0), 400, 0.05);
   // under the books: unchanged
   assert.deepEqual(bookedStaticCells(exGst, { channelFulfillment: 1000, salesMarketing: 1000 }).map((c) => c.oth), [100, 400]);
-});
-
-test('cellCogmShares: no cells = company rate, ₹0 / negative sales = no COGM, shares sum to 1', () => {
-  // channels: A cells cogs 300, B cells cogs 100, C sales but no cells, D negative sales with cells
-  const sh = cellCogmShares([600, 200, 200, -50], [300, 100, 0, 40], [true, true, false, true], () => 0);
-  close(sh[2], 0.2, 1e-9);
-  assert.equal(sh[3], 0);
-  close(sh[0], 0.6, 1e-9);
-  close(sh.reduce((t, v) => t + v, 0), 1, 1e-9);
-  assert.deepEqual(cellCogmShares([0, 0], [10, 10], [true, true], () => 1), [0, 0]);
-});
-
-test('sumMonthlyChannelRows: a period is its months added up, shares re-derived', () => {
-  const row = (channel: 'D2C' | 'B2B', revenue: number, cogm: number) => ({
-    channel, revenue, cogm, grossMargin: revenue - cogm, channelFulfillment: 0, cm1: revenue - cogm, salesMarketing: 0, cm2: revenue - cogm,
-    platformCosts: 0, cm3: revenue - cogm, opex: 0, ebitda: revenue - cogm, nonOperating: 0, costOfFundraising: 0, netIncome: revenue - cogm,
-    revShare: 0, cogsShare: 0, smShare: 0, basis: 'tally' as const,
-  });
-  const out = sumMonthlyChannelRows([[row('D2C', 100, 30), row('B2B', 100, 70)], [row('D2C', 300, 90)]], ['D2C', 'B2B']);
-  assert.deepEqual(out.map((r) => [r.channel, r.revenue, r.cogm]), [['D2C', 400, 120], ['B2B', 100, 70]]);
-  close(out[0].revShare, 0.8, 1e-9);
-  close(out[0].cogsShare, 120 / 190, 1e-9);
 });
 
 // ---- On the published history (the Live MIS with nothing uploaded) ----
