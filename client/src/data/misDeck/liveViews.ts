@@ -23,6 +23,7 @@
 import type { MonthlyMIS, SalesChannel } from './misDeckData';
 import { SALES_CHANNELS, VERTICALS, VERTICAL_BY_CHANNEL, DISCOUNT_DATA, D2C_AD_SPEND, AMAZON_AD_SPEND } from './misDeckData';
 import type { SkuCell } from './skuChannelPnl';
+import { uncostedEstimate, UNCOSTED_SKIP_SHARE } from './uncosted';
 import type { CompletenessLevel, LiveDeckData, PeriodCompleteness } from './liveDeck';
 import {
   aggregatePeriods, monthLabel, cellFactory, CHANNEL_FOLD,
@@ -120,6 +121,8 @@ export interface NormalisedMonths {
   estimated: Record<string, number>;
   /** Restated months whose Tally closing stock is not posted yet (closing = opening with purchases): memo not final. */
   stockEstimated: string[];
+  /** Restated months with sales that have no BOM cost (no-BOM products + unmapped sales): costed at the month's material rate, an estimate. */
+  uncosted: Record<string, { revenue: number; estCost: number }>;
 }
 
 /** The one-line definition shown with the Normalised basis everywhere (page note, export subtitles). */
@@ -166,24 +169,35 @@ export function normaliseLiveMonths(
   const skipped: string[] = [];
   const estimated: Record<string, number> = {};
   const stockEstimated: string[] = [];
+  const uncosted: NormalisedMonths['uncosted'] = {};
+  const tooUncosted: string[] = [];
   const out = months.map((m) => {
     const comp = completeness[m.key];
     const level = comp?.level ?? 'topline';
     const skip = () => { skipped.push(m.key); return m; };
     if (level === 'topline' || comp?.locked || comp?.published) return skip();
     const cells = cellsByMonth.get(m.key);
+    let uncostedCost = 0;
     if (cells) {
       const costed = cells.filter((c) => !c.noCost && c.p !== 'Accessory (excl)');
       if (costed.length === 0) return skip();
       const est = new Set(cells.filter((c) => c.noCost || c.costEst).map((c) => c.p));
       if (est.size) estimated[m.key] = est.size;
+      // Sales with no BOM cost never enter at ₹0 (never a silent 100 % margin): costed at the month's material rate, or
+      // the month stays as booked when most of its sales have no cost (audit round 6, A6-1 / A6-9).
+      const u = uncostedEstimate(cells, m.unmappedRevenue ?? 0);
+      if (u.revenue > 0 && m.channelRecon) {
+        if (u.estCost === null || u.share > UNCOSTED_SKIP_SHARE) { tooUncosted.push(m.key); return skip(); }
+        uncostedCost = u.estCost;
+        uncosted[m.key] = { revenue: u.revenue, estCost: u.estCost };
+      }
     }
     if (!m.channelRecon) {
       // Facts-only month costed to CM2: COGM is already BOM × units + factory (liveDeck), nothing to move.
       if (comp && !comp.hasTally && level === 'contribution') return { ...m, stockVariance: 0 };
       return skip();
     }
-    const v = r2(m.channelRecon.cogmVariance);
+    const v = r2(m.channelRecon.cogmVariance - uncostedCost);
     if (m.stockUnposted) stockEstimated.push(m.key);
     return {
       ...m,
@@ -200,13 +214,19 @@ export function normaliseLiveMonths(
   skipped.sort();
   const estMonths = Object.keys(estimated).sort();
   const parts = [NORMALISED_DEFINITION];
-  if (skipped.length) parts.push(`${monthSpans(skipped)} shown as booked — no BOM costing for ${skipped.length === 1 ? 'it' : 'them'}.`);
+  const noBom = skipped.filter((k) => !tooUncosted.includes(k));
+  if (noBom.length) parts.push(`${monthSpans(noBom)} shown as booked — no BOM costing for ${noBom.length === 1 ? 'it' : 'them'}.`);
+  if (tooUncosted.length) parts.push(`${monthSpans(tooUncosted)} shown as booked — most sales have no BOM cost (map the products).`);
+  const ucMonths = Object.keys(uncosted).sort();
+  if (ucMonths.length) {
+    parts.push(`Not costed by BOM (no BOM / not mapped): ${ucMonths.map((k) => `₹${(uncosted[k].revenue / 1e5).toFixed(2)} L of sales in ${monthLabel(k)}`).join(', ')} — material estimated at that month's BOM rate (₹${(ucMonths.reduce((t, k) => t + uncosted[k].estCost, 0) / 1e5).toFixed(2)} L), map the products to fix.`);
+  }
   if (estMonths.length) {
     parts.push(`Cost estimated for ${estMonths.map((k) => `${estimated[k]} product${estimated[k] === 1 ? '' : 's'} in ${monthLabel(k)}`).join(', ')}.`);
   }
   stockEstimated.sort();
   if (stockEstimated.length) parts.push(`${monthSpans(stockEstimated)} estimated — closing stock not posted in Tally yet, so Stock build / drawdown is not final.`);
-  return { months: out, note: parts.join(' '), skipped, estimated, stockEstimated };
+  return { months: out, note: parts.join(' '), skipped, estimated, stockEstimated, uncosted };
 }
 
 // ---- Continuous channel taxonomy (G6) -------------------------------------

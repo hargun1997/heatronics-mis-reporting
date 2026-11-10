@@ -290,6 +290,11 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     "Manufacturing cost and inward freight" (`direct_other`). A month whose Tally closing stock = opening stock with purchases booked
     (`stockUnposted`) is listed as "estimated" in the note (`NormalisedMonths.stockEstimated`): its memo is not final. SKU / channel cells still
     carry factory overhead only (`SkuCell.fac`).
+    **Sales with no BOM cost are never ₹0 in the normalised COGM (10 Nov 2026, audit A6-1 / A6-9):** `misDeck/uncosted.ts uncostedEstimate`:
+    `noCost` cells + `MonthlyMIS.unmappedRevenue` (sales no product map knows, set in `buildMonth`) are costed at the month's own BOM material
+    rate (Σ cogs ÷ Σ rev of the costed cells); the estimate is taken out of the memo (`v − est`), so the identity still holds, and listed in
+    `NormalisedMonths.uncosted` + the note ("Not costed by BOM …: ₹X L of sales in Sep 26 — material estimated …"). A month where more than
+    half of its product sales have no cost (`UNCOSTED_SKIP_SHARE`) stays as booked ("most sales have no BOM cost"). Facts-only months are unchanged.
 - **Live MIS speed:** facts through `connectors/factsCache.ts` (per source × month, closed months 24 h / recent 15 min, stale
   served + background refresh, Refresh = force); `readAllExtracted` cached behind a version marker written on every save /
   delete; the client shares one deck load per tab (`loadLiveDeck`, 2 min).

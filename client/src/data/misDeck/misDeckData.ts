@@ -116,6 +116,8 @@ export interface MonthlyMIS {
   conversion?: number;
   /** Live Tally months: Tally's closing stock still equals opening stock with purchases booked (stock not valued yet). */
   stockUnposted?: boolean;
+  /** Live Tally months: sales (ex-GST) no product map knows: no SkuCell, so no BOM cost (uncosted.ts). */
+  unmappedRevenue?: number;
   /**
    * Set ONLY on a month restated to the normalised COGM basis (liveViews
    * normaliseLiveMonths): Tally's booked COGM − (BOM material cost of the units sold +

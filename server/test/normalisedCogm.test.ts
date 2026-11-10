@@ -15,6 +15,7 @@ import { buildLiveDeck } from '../../client/src/data/misDeck/liveDeck.ts';
 import type { DailyFact } from '../../client/src/data/liveMis/facts.ts';
 import { conversionCost, stockUnposted } from '../../client/src/data/misDeck/conversion.ts';
 import { buildBridge } from '../../client/src/data/misDeck/bridge.ts';
+import { uncostedEstimate } from '../../client/src/data/misDeck/uncosted.ts';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -309,4 +310,58 @@ test('bridge: manufacturing cost and inward freight are their own step, not insi
   assert.equal(step('direct_other'), -50_000);
   assert.equal(step('stock_timing'), 0);
   assert.ok(Math.abs(r.steps.reduce((t, x) => t + x.value, 0) - r.delta) < 1);
+});
+
+// ---- Sales with no BOM cost never enter the normalised COGM at ₹0 (10 Nov 2026, audit round 6 A6-1 / A6-9) ----------
+
+test('uncostedEstimate: no-cost cells + unmapped sales costed at the month\'s own BOM material rate', () => {
+  const cs = [cell('2026-09', 'hCore X', 400), cell('2026-09', 'hCore Y', 200), cell('2026-09', 'Cushion', 0, { noCost: true }), cell('2026-09', 'Accessory (excl)', 0)];
+  const u = uncostedEstimate(cs, 3000);
+  assert.equal(u.revenue, 4000);                  // 1,000 no-cost cell + 3,000 unmapped
+  assert.equal(u.unmappedRevenue, 3000);
+  assert.equal(u.rate, 0.3);                       // 600 ÷ 2,000 of the costed cells
+  assert.equal(u.estCost, 1200);
+  assert.equal(r2(u.share), r2(4000 / 6000));
+  assert.deepEqual(uncostedEstimate([cell('2026-09', 'hCore X', 400)]), { revenue: 0, unmappedRevenue: 0, rate: 0.4, estCost: 0, share: 0 });
+  assert.equal(uncostedEstimate([cell('2026-09', 'A', 0, { noCost: true })], 0).estCost, null);
+});
+
+test('unmapped sales and no-BOM cells add their estimated material to the normalised COGM; the identity holds; the note says so', () => {
+  // Sep: cells 3 × ₹1,000 (two costed at 30 %, one no-BOM) + ₹1,000 unmapped → ₹2,000 not costed → +₹600 material.
+  const sep = month('2026-09', 10000, 5000, 800, { unmappedRevenue: 1000 });
+  const cs = [cell('2026-09', 'hCore X', 400), cell('2026-09', 'hCore Y', 200), cell('2026-09', 'Cushion', 0, { noCost: true })];
+  const out = normaliseLiveMonths([sep], { '2026-09': full('2026-09') }, { skuCells: cs });
+  const n = out.months[0];
+  assert.equal(n.cogm, 5000 - 800 + 600);         // before the fix: 4,200 (the ₹2,000 of sales at ₹0 cost)
+  assert.equal(n.stockVariance, 200);
+  assert.equal(r2(n.netIncome - n.stockVariance!), sep.netIncome);
+  assert.deepEqual(out.uncosted, { '2026-09': { revenue: 2000, estCost: 600 } });
+  assert.match(out.note, /Not costed by BOM \(no BOM \/ not mapped\): ₹0\.02 L of sales in Sep 26 — material estimated/);
+  assert.deepEqual(out.skipped, []);
+});
+
+test('a month where most sales have no BOM cost stays as booked, with its own reason', () => {
+  const oct = month('2026-10', 10000, 5000, 800, { unmappedRevenue: 5000 });
+  const out = normaliseLiveMonths([oct], { '2026-10': full('2026-10') }, { skuCells: [cell('2026-10', 'hCore X', 400)] });
+  assert.deepEqual(out.months[0], oct);
+  assert.deepEqual(out.skipped, ['2026-10']);
+  assert.match(out.note, /Oct 26 shown as booked — most sales have no BOM cost/);
+  assert.ok(!/no BOM costing for it/.test(out.note));
+});
+
+test('a live deck: unmapped B2B-style sales are carried on the month and costed in the normalised COGM', () => {
+  const o = { sales: 1_000_000, units: 500, rm: 600_000, foh: 80_000, mfg: 50_000, freight: 10_000, open: 900_000, close: 1_150_000, opex: 100_000 };
+  const extra = { connectorId: 'shopify', slotId: 'sales2', periodKey: '2026-06', payload: { facts: [
+    { source: 'shopify', channel: 'D2C', date: '2026-06-06', revenue: 200_000, units: 100, orders: 0, fees: 0, sku: 'ZZQ-NOT-A-PRODUCT-9', skuName: 'Qwxz gizmo 9' },
+  ] } };
+  const deck = buildLiveDeck([...tallyMonth('2026-06', o), extra, BOM_REPORT] as never, [], {});
+  const jun = deck.months.find((m) => m.key === '2026-06')!;
+  assert.equal(jun.unmappedRevenue, 200_000);
+  const cellsJun = deck.skuCells.filter((c) => c.m === '2026-06' && !c.noCost);
+  const rate = cellsJun.reduce((t, c) => t + c.cogs, 0) / cellsJun.reduce((t, c) => t + c.rev, 0);
+  const norm = normaliseLiveMonths(deck.months, deck.completeness, deck);
+  const n = norm.months.find((m) => m.key === '2026-06')!;
+  assert.equal(n.cogm, r2(jun.cogm - jun.channelRecon!.cogmVariance + r2(rate * jun.unmappedRevenue)));
+  assert.equal(r2(n.netIncome - n.stockVariance!), jun.netIncome);
+  assert.ok(norm.uncosted['2026-06']);
 });

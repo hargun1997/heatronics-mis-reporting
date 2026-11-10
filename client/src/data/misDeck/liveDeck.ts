@@ -562,6 +562,7 @@ function buildMonth(periodKey: string, reports: ExtractedReport[], monthFacts: D
       tallyLines, channelRecon,
       factory: factoryAmount, factoryBasis,
       conversion: conv.total, ...(stockUnposted(c.cogmLines) ? { stockUnposted: true } : {}),
+      ...(sku.unmapped.length ? { unmappedRevenue: r2(sku.unmapped.reduce((t, u) => t + u.revenue, 0)) } : {}),
     };
     return {
       month, skuCells, gaps,
