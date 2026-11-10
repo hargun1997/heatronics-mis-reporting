@@ -202,3 +202,24 @@ test('autoPullCaller: token or sign-in; never open on Cloud Run without a token'
   assert.equal(autoPullCaller({ headers: {} }, null, cloud), null);
   assert.equal(autoPullCaller({ headers: {} }, null, {} as NodeJS.ProcessEnv), 'machine', 'local dev only');
 });
+
+test('missing reports start at each source\'s first stored month (Shopflo from Aug, Flipkart from Oct: no Apr–Jul nagging)', () => {
+  const r = (connectorId: string, slotId: string, periodKey: string) => ({ connectorId, slotId, periodKey, rows: 3, first: null, last: null });
+  const reports = [r('shopflo', 'invoice', '2026-08'), r('shopflo', 'invoice', '2026-10'), r('flipkart', 'settlement', '2026-10')];
+  const items = slotItems({ today: '2026-11-12', reports, locked: new Set() });
+  const sf = items.find((i) => i.id === 'slot:shopflo')!;
+  assert.equal(sf.count, 1, 'only Sep (between Aug and Oct) is missing');
+  assert.match(sf.title, /1 month not complete \(Sep 26\)/);
+  assert.ok(!items.some((i) => i.id === 'slot:flipkart'), 'Flipkart stored for Oct: nothing earlier flagged');
+  // A connector never loaded still shows, low.
+  assert.equal(items.find((i) => i.id === 'slot:snapmint')!.severity, 'low');
+});
+
+test('missing-report sig is stable: same missing pairs → same sig (Done holds); a new missing pair → new sig', () => {
+  const r = (periodKey: string, rows = 3) => ({ connectorId: 'shopflo', slotId: 'invoice', periodKey, rows, first: null, last: null });
+  const sig = (today: string, reports: ReturnType<typeof r>[]) => slotItems({ today, reports, locked: new Set() }).find((i) => i.id === 'slot:shopflo')?.sig;
+  const a = sig('2026-11-12', [r('2026-08'), r('2026-10')]);
+  assert.equal(sig('2026-11-28', [r('2026-08'), r('2026-10')]), a, 'later in the month, nothing new: same sig');
+  assert.equal(sig('2026-11-12', [r('2026-08'), r('2026-10', 0)]), sig('2026-11-12', [r('2026-08'), r('2026-10', 0)]));
+  assert.notEqual(sig('2026-12-12', [r('2026-08'), r('2026-10')]), a, 'Nov now missing too: comes back');
+});

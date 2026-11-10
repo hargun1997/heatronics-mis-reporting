@@ -119,7 +119,8 @@ export function slotItems(x: Pick<InboxInputs, 'today' | 'reports' | 'locked' | 
       id: `slot:${cid}`, area: 'feeds', severity, period: months[months.length - 1], count: list.length,
       title: neverUsed && !anyStored ? `${name}: never loaded (${months.length} month${months.length === 1 ? '' : 's'})` : `${name}: ${months.length} month${months.length === 1 ? '' : 's'} not complete (${monthsText})`,
       detail, fix: fixes.join(' '), href: `/reporting/mis/connectors?view=uploads#${cid}`,
-      sig: sigOf(list.map((p) => [p.slot.slotId, p.period, p.kind, p.detail])),
+      // Stable per set of missing (slot, month) pairs: Done holds until a new pair goes missing.
+      sig: sigOf(list.map((p) => `${p.slot.slotId}|${p.period}`).sort()),
     });
   }
   return out;

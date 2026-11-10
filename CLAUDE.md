@@ -327,8 +327,8 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     `/api/connectors/facts` sources carry `staleError` / `staleErrorAt` (deck `liveFeed.sources`), and `liveFactsHealth` → Fix item
     `live:<id>` "X live numbers are N days old" (> 2 h low, ≥ 1 day medium, ≥ 3 days high; Flipkart approval wait = one low item).
   - Missing reports (`issuesInbox slotItems`, server copy of the slot list `slots/closeSlots.ts`, tested equal to the client catalog): EVERY close
-    slot × unlocked month from `LIVE_BOUNDARY` to last month, missing / empty (0 rows) / partial (dates short of the month), one item per
-    connector naming each slot; replaces the 5-slot `MANUAL_SLOTS` check (kept only as a fallback when no reports are passed).
+    slot × unlocked month from its first stored month (else its connector's; never-loaded connectors low) to last month, missing / empty (0 rows) / partial (dates short of the month), one item per
+    connector naming each slot (sig = the set of missing slot × month pairs, so Done holds until a new one goes missing); replaces the 5-slot `MANUAL_SLOTS` check (kept only as a fallback when no reports are passed).
   - Daily auto-pull (`slots/autoPull.ts`, `POST /api/connectors/auto-pull/run`, `.github/workflows/slot-auto-pull.yml`): once per IST day after
     07:00, every connected automatic slot whose pull needs no browser reader (facts / BOM costs / Trial Balance) for last month (missing, empty,
     partial, or re-pulled daily up to the 8th) and this month to date (not Amazon / Amazon Ads / Meta / Google Ads / Shopify / Flipkart, whose

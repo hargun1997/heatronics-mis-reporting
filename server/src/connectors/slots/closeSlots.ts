@@ -3,7 +3,7 @@
 //
 // The client catalog (client/src/data/ingest/catalog.ts) owns the slot list; this is the minimum the server needs for
 // the Fix list ("which report is missing / empty / partial for which month") and the scheduled pull (autoPull.ts).
-// Test `server/test/closeCoverage.test.ts` fails when the two lists differ (ids, label, required).
+// Test `server/test/feedsAndPulls.test.ts` fails when the two lists differ (ids, label, required).
 //
 // Pure: no I/O.
 // ----------------------------------------------------------------------------
@@ -121,18 +121,33 @@ export function slotCoverage(slot: CloseSlot, period: string, report: StoredSlot
 export interface SlotProblem { slot: CloseSlot; period: string; kind: Exclude<CoverageKind, 'ok'>; detail: string }
 
 /**
- * Every slot × unlocked month (LIVE_BOUNDARY … last finished month) whose stored report is missing, empty or partial.
- * `today` = YYYY-MM-DD in IST.
+ * Month each slot starts being checked: its first stored report, else its connector's first stored report (a slot
+ * added later), else null (connector never loaded: every month is checked, the caller marks it low). Months before a
+ * source was in use are not nagged (review of PR #405: Shopflo stored from Aug was flagged for Apr–Jul).
+ */
+export function slotStarts(reports: StoredSlotReport[]): (slot: CloseSlot) => string | null {
+  const first = new Map<string, string>();
+  const keep = (k: string, p: string) => { const c = first.get(k); if (!c || p < c) first.set(k, p); };
+  for (const r of reports) { keep(`${r.connectorId}|${r.slotId}`, r.periodKey); keep(r.connectorId, r.periodKey); }
+  return (slot) => first.get(`${slot.connectorId}|${slot.slotId}`) ?? first.get(slot.connectorId) ?? null;
+}
+
+/**
+ * Every slot × unlocked month (LIVE_BOUNDARY … last finished month) whose stored report is missing, empty or partial,
+ * from the slot's first stored month on (`slotStarts`). `today` = YYYY-MM-DD in IST.
  */
 export function slotProblems(x: { today: string; reports: StoredSlotReport[]; locked?: Set<string>; from?: string }): SlotProblem[] {
   const last = prevMonthOf(x.today.slice(0, 7));
   const from = x.from ?? LIVE_BOUNDARY;
   if (last < from) return [];
   const by = new Map(x.reports.map((r) => [`${r.connectorId}|${r.slotId}|${r.periodKey}`, r]));
+  const startOf = slotStarts(x.reports);
   const out: SlotProblem[] = [];
   for (const period of monthRange(from, last)) {
     if (x.locked?.has(period)) continue;
     for (const slot of CLOSE_SLOTS) {
+      const start = startOf(slot);
+      if (start && period < start) continue;
       const c = slotCoverage(slot, period, by.get(`${slot.connectorId}|${slot.slotId}|${period}`));
       if (c.kind !== 'ok') out.push({ slot, period, kind: c.kind, detail: c.detail });
     }

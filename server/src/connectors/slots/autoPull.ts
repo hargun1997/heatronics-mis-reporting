@@ -14,7 +14,7 @@
 // Still manual (the browser has the reader): sheet / report slots that return `rows` (Tranzact sales register, Amazon
 // Business Report) and the Tally P&L (staged through the browser's close maths; the Tally poll stores its copy anyway).
 //
-// stagePullServer / planAutoPull / autoPullDue are pure (tests: server/test/autoPull.test.ts).
+// stagePullServer / planAutoPull / autoPullDue are pure (tests: server/test/feedsAndPulls.test.ts).
 // ----------------------------------------------------------------------------
 
 import { timingSafeEqual } from 'node:crypto';
