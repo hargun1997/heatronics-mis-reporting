@@ -11,6 +11,7 @@ import { channelName, liveFiscalYears, liveMisPoint, aggregateRange } from '../d
 import type { MisFormatSource } from './misFormatExport';
 import { misCashRows, type BalanceSheet, type CashFlow } from '../data/statements/statements';
 import type { MisPoint } from '../data/misDeck/misSheet';
+import { cashOverMonths } from '../data/misDeck/misPeriods';
 
 // ---- Options ---------------------------------------------------------------
 
@@ -62,17 +63,20 @@ export function liveSheetCount(o: LiveExportOptions): number {
 export interface LiveStatements { sheets: BalanceSheet[]; flows: CashFlow[] }
 
 
-/** A MIS-format source whose company cash rows (opening / closing / funding / burn / runway) come from the Cash Flow. */
+/**
+ * A MIS-format source whose company cash rows (opening / closing / funding / burn / runway) come from the Cash Flow.
+ * A multi-month total uses the months that have a stored cash flow (misPeriods.cashOverMonths) and names them in
+ * `cashMonths` ("Oct–Nov") when not every month has one, instead of going blank.
+ */
 export function misSourceWithCash(src: MisFormatSource, flows: CashFlow[]): MisFormatSource {
   return {
     ...src,
     point: (keys, entity) => {
       const p = src.point(keys, entity);
       if (entity !== 'company') return p;
-      const rows = keys.map((k) => misCashRows(flows, k));
-      if (rows.some((r) => !r)) return p;
-      const rs = rows as NonNullable<(typeof rows)[number]>[];
-      return { ...p, openingCash: rs[0].openingCash, closingCash: rs[rs.length - 1].closingCash, funding: rs.reduce((a, r) => a + r.funding, 0), cashBurn: rs.reduce((a, r) => a + r.cashBurn, 0), runway: rs[rs.length - 1].runway } as MisPoint;
+      const c = cashOverMonths(keys, (k) => misCashRows(flows, k));
+      if (!c) return p;
+      return { ...p, openingCash: c.openingCash, closingCash: c.closingCash, funding: c.funding, cashBurn: c.cashBurn, runway: c.runway, cashMonths: c.label } as MisPoint;
     },
   };
 }

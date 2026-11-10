@@ -10,6 +10,7 @@
 // buildLiveWorkbook() is pure (no download) so it can be verified in a script.
 // ----------------------------------------------------------------------------
 
+import { anchorMonth, fyStartOfKey, fyToDateLabel, trailingKeys } from '../data/misDeck/misPeriods';
 import XLSX from 'xlsx-js-style';
 import type { LiveDeckData } from '../data/misDeck/liveDeck';
 import { SALES_CHANNELS, type MonthlyMIS, type SalesChannel } from '../data/misDeck/misDeckData';
@@ -183,12 +184,19 @@ function summarySheet(deck: LiveDeckData, monthly: PeriodAgg[], yearly: PeriodAg
     else put(row, 1, v, kind === 'pct' ? S.pct : kind === 'num' ? S.num : { ...S.label, alignment: { horizontal: 'left' } });
     row++;
   };
-  const latest = monthly[monthly.length - 1];
+  // "Latest" = the newest COMPLETE month (misPeriods.anchorMonth), never the running / half-booked newest one;
+  // TTM = the 12 calendar months ending there (round 7 #6). The newest month is still named below.
+  const newest = monthly[monthly.length - 1];
+  const anchorKey = anchorMonth(monthly.map((p) => p.key), deck.completeness, deck.completeThrough);
+  const byKey = new Map(monthly.map((p) => [p.key, p]));
+  const latest = anchorKey ? byKey.get(anchorKey) : newest;
   const closed = deck.completeThrough ? monthly.find((p) => p.key === deck.completeThrough) ?? null : null;
-  const prev = latest ? monthly[monthly.length - 2] : null;
+  const prev = latest ? monthly[monthly.indexOf(latest) - 1] ?? null : null;
   const yAgo = latest ? monthly.find((p) => p.key === `${Number(latest.key.slice(0, 4)) - 1}${latest.key.slice(4)}`) : null;
-  const ttm = monthly.slice(-12).reduce((s, p) => s + p.netRevenue, 0);
-  const ttmPrior = monthly.slice(-24, -12).reduce((s, p) => s + p.netRevenue, 0);
+  const sumKeys = (ks: string[]) => ks.reduce((s, k) => s + (byKey.get(k)?.netRevenue ?? 0), 0);
+  const ttmKeys = latest ? trailingKeys(latest.key, 24) : [];
+  const ttm = sumKeys(ttmKeys.slice(12));
+  const ttmPrior = ttmKeys.slice(0, 12).some((k) => byKey.has(k)) ? sumKeys(ttmKeys.slice(0, 12)) : 0;
   band(row++, 'Headline', S.header, nCols);
   // Same headline rows (and labels) as the legacy deck's Summary, on the live months.
   const fullYears = yearly.filter((y) => y.members.length >= 12);
@@ -197,7 +205,9 @@ function summarySheet(deck: LiveDeckData, monthly: PeriodAgg[], yearly: PeriodAg
   const cagrFY = fyFirst && fyLast ? cagr(fyFirst.netRevenue, fyLast.netRevenue, Math.max(1, sk(fyLast) - sk(fyFirst))) : null;
   const pctOfLatest = (row: string, v: (p: PeriodAgg) => number) => (latest && real(latest, row) && latest.netRevenue ? v(latest) / latest.netRevenue : '');
   kv('Months of data', monthly.length, 'num');
-  kv('Latest month', latest ? toPeriodMIS(latest).longLabel : '—');
+  kv('Latest full month', latest ? toPeriodMIS(latest).longLabel : '—');
+  if (latest && anchorKey) kv(`${fyToDateLabel(anchorKey)} net revenue`, round2(sumKeys(monthly.map((p) => p.key).filter((k) => fyStartOfKey(k) === fyStartOfKey(anchorKey) && k <= anchorKey))), 'num');
+  if (newest && latest && newest !== latest) kv('Newest month (not complete, not used above)', `${toPeriodMIS(newest).longLabel} · ${LEVEL_TXT(newest)}`);
   kv('Latest net revenue', latest ? round2(latest.netRevenue) : '', 'num');
   kv('MoM revenue growth', latest && prev?.netRevenue ? (latest.netRevenue - prev.netRevenue) / Math.abs(prev.netRevenue) : '', 'pct');
   kv('YoY revenue growth', latest && yAgo?.netRevenue ? (latest.netRevenue - yAgo.netRevenue) / Math.abs(yAgo.netRevenue) : '', 'pct');
@@ -209,7 +219,7 @@ function summarySheet(deck: LiveDeckData, monthly: PeriodAgg[], yearly: PeriodAg
   kv('Latest net income %', pctOfLatest('net_income', (p) => p.netIncome), 'pct');
   if (latest) { const t = topChannel(toPeriodMIS(latest)); kv('Top channel (latest)', `${channelName(t.channel, merged)} (${(t.share * 100).toFixed(0)}%)`); }
   // Live extras
-  kv('Latest month completeness', latest ? LEVEL_TXT(latest) : '—');
+  kv('Latest full month completeness', latest ? LEVEL_TXT(latest) : '—');
   kv('Fully closed through', deck.completeThrough ? toPeriodMIS(monthly.find((p) => p.key === deck.completeThrough)!).longLabel : '—');
   if (closed && closed !== latest) {
     kv(`Gross margin % (${closed.label}, last full close)`, closed.netRevenue ? closed.grossMargin / closed.netRevenue : '', 'pct');

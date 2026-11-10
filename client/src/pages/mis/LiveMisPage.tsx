@@ -12,6 +12,7 @@
 // freshness and report uploads live in Setup; repeat purchase / cohorts in Ops.
 // ----------------------------------------------------------------------------
 
+import { anchorMonth } from '../../data/misDeck/misPeriods';
 import { LabeledField } from '../../components/ui/LabeledField';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -179,10 +180,12 @@ export function LiveMisPage() {
   }, [view]);
   const isRange = gran === 'range';
   // Range grain: one aggregated period over the chosen months.
-  const selKeys = useMemo(() => (view && isRange ? rangeKeys(preset, view.periods, custom) : []), [view, isRange, preset, custom]);
+  // Range presets end on the newest COMPLETE month, never the running / half-booked one (misPeriods.anchorMonth).
+  const anchor = useMemo(() => (view ? anchorMonth(view.periods, view.completeness, view.completeThrough) : null), [view]);
+  const selKeys = useMemo(() => (view && isRange ? rangeKeys(preset, view.periods, custom, anchor) : []), [view, isRange, preset, custom, anchor]);
   const rangeAgg = useMemo(
-    () => (view && isRange ? aggregateRange(months, completeness, selKeys, rangePresetLabel(preset, view.periods)) : null),
-    [view, isRange, months, completeness, selKeys, preset],
+    () => (view && isRange ? aggregateRange(months, completeness, selKeys, rangePresetLabel(preset, view.periods, anchor)) : null),
+    [view, isRange, months, completeness, selKeys, preset, anchor],
   );
   // The periods actually shown — scoped to one fiscal year unless "All"; in
   // range mode, the range's own months.
@@ -309,7 +312,7 @@ export function LiveMisPage() {
               <Field label="Range">
                 <select value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
-                  {RANGE_PRESETS.map((p) => <option key={p} value={p}>{rangePresetLabel(p, view.periods)}</option>)}
+                  {RANGE_PRESETS.map((p) => <option key={p} value={p}>{rangePresetLabel(p, view.periods, anchor)}</option>)}
                 </select>
               </Field>
             )}

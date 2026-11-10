@@ -6,6 +6,8 @@
 //  - a month with no actual is "no data yet", never 0; a metric the books cannot give yet (EBITDA before the Tally P&L
 //    is in) is null for that metric only;
 //  - the month in progress is shown but never counted in year-to-date, the exit ARR pace or the "Behind plan" list;
+//  - so is a finished month whose books are not complete (`complete: false`, or below a full close when the browser
+//    did not say): state "partial" (10 Nov 2026, audit round 10 #4 — half-booked Oct read as "+75 % ahead");
 //  - status: within ±5% of plan = on track, below = behind, above = ahead (EBITDA % is on |plan|, so a smaller loss is ahead).
 
 export const TOLERANCE = 0.05;
@@ -29,12 +31,14 @@ export interface ActualMonth {
   level: 'full' | 'contribution' | 'topline';
   /** normalised COGM basis, or as booked */
   basis: 'normalised' | 'booked';
+  /** books done for the month (Live MIS: closed / published / full with no hard close blocker). Absent = level 'full'. */
+  complete?: boolean;
 }
 
 export interface MetricCmp { plan: number; actual: number | null; gap: number | null; gapPct: number | null; status: Status | null }
 export interface MonthCmp {
   key: string; label: string; fy: string;
-  state: 'ok' | 'running' | 'nodata';
+  state: 'ok' | 'running' | 'partial' | 'nodata';
   metrics: Record<MetricId, MetricCmp>;
   /** the month's headline status = its net revenue status */
   status: Status | null;
@@ -44,7 +48,7 @@ export interface MonthCmp {
 export interface TotalCmp extends MetricCmp { months: number }
 export interface BehindItem { key: string; label: string; metric: MetricId; gap: number; gapPct: number | null }
 export interface ArrPace {
-  /** last complete months used (up to 3), newest last */
+  /** last complete months used (up to 3; running and partial months never), newest last */
   monthsUsed: string[];
   actualArr: number;
   planArrSameMonths: number;
@@ -66,6 +70,8 @@ export interface PlanVsActual {
   withData: number;
   noData: number;
   running: string | null;
+  /** finished months shown but not counted because their books are not complete */
+  partial: string[];
   notes: string[];
 }
 
@@ -116,7 +122,7 @@ const actualValue = (a: ActualMonth | undefined, id: MetricId): number | null =>
  */
 export function buildPlanVsActual(plan: PlanMonthRow[], actuals: ActualMonth[], asOfKey: string): PlanVsActual {
   const notes: string[] = [];
-  const empty: PlanVsActual = { months: [], ytd: null, arr: null, behind: [], withData: 0, noData: 0, running: null, notes };
+  const empty: PlanVsActual = { months: [], ytd: null, arr: null, behind: [], withData: 0, noData: 0, running: null, partial: [], notes };
   if (!plan.length) return empty;
   const byKey = new Map(actuals.map((a) => [a.key, a]));
   const inRange = plan.filter((p) => p.key <= asOfKey);
@@ -128,9 +134,10 @@ export function buildPlanVsActual(plan: PlanMonthRow[], actuals: ActualMonth[], 
     for (const id of METRICS) metrics[id] = cmp(planValue(p, id), actualValue(a, id));
     const has = METRICS.some((id) => metrics[id].actual != null);
     const running = p.key === asOfKey;
+    const complete = a ? (a.complete ?? a.level === 'full') : false;
     return {
       key: p.key, label: p.label, fy: p.fy,
-      state: !has ? 'nodata' : running ? 'running' : 'ok',
+      state: !has ? 'nodata' : running ? 'running' : complete ? 'ok' : 'partial',
       metrics,
       status: metrics.revenue.status,
       basis: a && has ? a.basis : null,
@@ -139,6 +146,8 @@ export function buildPlanVsActual(plan: PlanMonthRow[], actuals: ActualMonth[], 
   });
   const counted = months.filter((m) => m.state === 'ok');
   const runningMonth = months.find((m) => m.state === 'running') ?? null;
+  const partial = months.filter((m) => m.state === 'partial');
+  if (partial.length) notes.push(`${partial.map((m) => m.label).join(', ')} shown but not counted: the books are not complete yet.`);
 
   // Year to date: the newest FY with a counted month, like for like per metric
   let ytd: PlanVsActual['ytd'] = null;
@@ -184,5 +193,5 @@ export function buildPlanVsActual(plan: PlanMonthRow[], actuals: ActualMonth[], 
   behind.sort((x, y) => x.gap - y.gap);
 
   if (counted.some((m) => m.basis === 'booked')) notes.push('Months marked "as booked" have no BOM costing, so their margins are Tally\'s own.');
-  return { months, ytd, arr, behind, withData: counted.length + (runningMonth ? 1 : 0), noData: months.filter((m) => m.state === 'nodata').length, running: runningMonth?.key ?? null, notes };
+  return { months, ytd, arr, behind, withData: counted.length + partial.length + (runningMonth ? 1 : 0), noData: months.filter((m) => m.state === 'nodata').length, running: runningMonth?.key ?? null, partial: partial.map((m) => m.key), notes };
 }

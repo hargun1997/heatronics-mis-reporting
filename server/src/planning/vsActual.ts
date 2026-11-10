@@ -25,6 +25,7 @@ export function cleanActuals(input: unknown): ActualMonth[] | null {
     out.push({
       key: o.key, level, basis: o.basis === 'normalised' ? 'normalised' : 'booked',
       netRevenue: num(o.netRevenue), grossMargin: num(o.grossMargin), cm3: num(o.cm3), ebitda: num(o.ebitda), units: num(o.units),
+      ...(typeof o.complete === 'boolean' ? { complete: o.complete } : {}),
     });
   }
   return out;

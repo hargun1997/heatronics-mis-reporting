@@ -47,7 +47,7 @@ test('months without actuals say no data, never 0; the month in progress is show
 
 test('a metric the books cannot give yet is null for that metric only', () => {
   const plan = [row('2026-10', 100, -10)];
-  const r = buildPlanVsActual(plan, [act('2026-10', 100, null, 'contribution')], '2026-11');
+  const r = buildPlanVsActual(plan, [{ ...act('2026-10', 100, null, 'contribution'), complete: true }], '2026-11');
   assert.equal(r.months[0].metrics.ebitda.actual, null);
   assert.equal(r.months[0].metrics.ebitda.status, null);
   assert.equal(r.months[0].metrics.revenue.status, 'on_track');
@@ -143,4 +143,30 @@ test('deck months become actuals: normalised, nulls where the books are not that
   assert.equal(a[1].grossMargin, null);
   assert.equal(a[1].netRevenue, 500);
   assert.equal(a[1].basis, 'booked'); // topline month: no BOM costing, shown as booked
+});
+
+test('a finished month whose books are not complete is shown as partial, never counted (round 10 #4)', () => {
+  // Oct half-booked: 7.64 vs plan 19 would read as behind on revenue and "ahead" on EBITDA; Sep is a full close.
+  const plan = [row('2026-07', 100, -10, 1200), row('2026-08', 100, -10, 1200), row('2026-09', 100, -10, 1200), row('2026-10', 100, -10, 1200), row('2026-11', 100, -10, 1200)];
+  const actuals = [act('2026-07', 90, -12), act('2026-08', 95, -11), act('2026-09', 100, -9), { ...act('2026-10', 40, -2), complete: false }, act('2026-11', 5, null, 'topline')];
+  const r = buildPlanVsActual(plan, actuals, '2026-11');
+  assert.deepEqual(r.months.map((m) => m.state), ['ok', 'ok', 'ok', 'partial', 'running']);
+  assert.deepEqual(r.partial, ['2026-10']);
+  assert.equal(r.ytd?.months, 3);
+  assert.equal(r.ytd?.totals.revenue?.actual, 285);
+  // exit ARR = the last 3 FULL months (Jul–Sep), not Aug–Oct
+  assert.deepEqual(r.arr?.monthsUsed, ['2026-07', '2026-08', '2026-09']);
+  assert.equal(r.arr?.actualArr, 1140);
+  assert.ok(!r.behind.some((b) => b.key === '2026-10'));
+  assert.ok(r.notes.some((n) => /2026-10 shown but not counted/.test(n)));
+  // without the flag (an older saved snapshot) a month below a full close is partial too
+  const r2 = buildPlanVsActual(plan, [act('2026-07', 90, null, 'topline')], '2026-11');
+  assert.equal(r2.months[0].state, 'partial');
+  assert.equal(r2.ytd, null);
+});
+
+test('cleanActuals keeps the complete flag only when it is a boolean', () => {
+  const c = cleanActuals([{ key: '2026-10', level: 'full', complete: false, netRevenue: 1 }, { key: '2026-09', level: 'full', complete: 'yes', netRevenue: 2 }]);
+  assert.equal(c?.[0].complete, false);
+  assert.equal('complete' in (c?.[1] ?? {}), false);
 });
