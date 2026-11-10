@@ -301,7 +301,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     platform = connector-attributed `tallyLines.byChannel` + revenue share of the unattributed rest (foots to Tally); COGM by BOM-COGS share; opex and
     non-operating by revenue share (Tally books them company-wide). Months without Tally keep the order-share split (`row.basis`).
     **Cost allocation rules (10 Nov 2026, pure `data/misDeck/channelAlloc.ts`, tests `server/test/channelAlloc.test.ts`):** (1) Marketing sits where
-    it was spent: connector ad spend for live months, the published ad feeds (`channelAdWeight`) for locked / published months; the rest of
+    it was spent: connector ad spend for live months, the published ad feeds (`channelAdWeight`) for locked / published months (per channel the larger of the two, never summed); the rest of
     Tally's S&M goes ONLY to the consumer channels (D2C, Amazon, Flipkart, Blinkit) by ad spend, else by their revenue (`row.basis:
     'estimated'`), never to B2B / OEM / GT / Export unless something attributes it there (a period with no consumer channel at all falls
     back to revenue, estimated). (2) A report can't put more on a channel than Tally booked: `capTallyLines` (per month, per line, in

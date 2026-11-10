@@ -339,8 +339,9 @@ export function tallyAnchoredRows(period: PeriodAgg, cells: SkuCell[], completen
   const fulfil = spreadCost(period.channelFulfillment, 'channel_fulfilment', revShareOf);
   // Marketing: ad spend on the channel it was spent for (connector-attributed for live months, the published ad feeds for
   // locked / published months); the rest of Tally's S&M only to the consumer channels, by ad spend (else revenue = 'estimated').
-  const smAtt = attributed('sales_marketing').map((a, i) => Math.max(0, a) + period.members.reduce((w, m) =>
-    (completeness[m]?.locked || completeness[m]?.published ? w + channelAdWeight(chans[i], [m]) : w), 0));
+  // max, not sum: a locked month may carry the same spend in both the connector tags and the published feeds.
+  const smAtt = attributed('sales_marketing').map((a, i) => Math.max(0, a, period.members.reduce((w, m) =>
+    (completeness[m]?.locked || completeness[m]?.published ? w + channelAdWeight(chans[i], [m]) : w), 0)));
   const cellRev = chans.map((ch) => Math.max(0, sel.reduce((s, c) => (c.ch === ch ? s + c.rev : s), 0)));
   const smSplit = allocateMarketing(chans, period.salesMarketing, smAtt, posRev, cellRev);
   const sm = smSplit.values;

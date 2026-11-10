@@ -158,3 +158,17 @@ test('legacy month with no platform split: consumer channels by revenue, basis e
   assert.ok(rows.every((r) => r.basis === 'estimated'));
   foots(rows, period);
 });
+
+test('locked month with connector ads AND published feeds: the spend is counted once', () => {
+  const deck = build(month('2026-08', { tallyFees: 400_000, amazonFees: 180_000, tallySm: 1_600_000, amazonAds: 650_000, meta: 630_000 }));
+  const p = aggregatePeriods(deck.months, deck.completeness, 'month').find((x) => x.key === '2026-08')!;
+  const open = Object.fromEntries(tallyAnchoredRows(p, deck.skuCells, deck.completeness).map((r) => [r.channel, r]));
+  const lockedComp = { ...deck.completeness, '2026-08': { ...deck.completeness['2026-08'], locked: true } };
+  const rows = tallyAnchoredRows(p, deck.skuCells, lockedComp as never);
+  const by = Object.fromEntries(rows.map((r) => [r.channel, r]));
+  foots(rows, p as never);
+  assert.equal(by.B2B.salesMarketing, 0); assert.equal(by.GT.salesMarketing, 0);
+  // ad spend before the rest is spread can only grow to the larger of the two sources, so Amazon + D2C never exceed Tally's line
+  near(by.Amazon.salesMarketing + by.D2C.salesMarketing, 1_600_000);
+  assert.ok(by.Amazon.salesMarketing > 0 && open.Amazon.salesMarketing > 0);
+});
