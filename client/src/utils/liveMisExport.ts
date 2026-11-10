@@ -15,7 +15,7 @@ import XLSX from 'xlsx-js-style';
 import type { LiveDeckData } from '../data/misDeck/liveDeck';
 import { SALES_CHANNELS, type MonthlyMIS, type SalesChannel } from '../data/misDeck/misDeckData';
 import {
-  aggregatePeriods, FACTORY_PCT, monthLabel, scopeOf, CHANNEL_FOLD, type Granularity, type PeriodAgg,
+  aggregatePeriods, monthLabel, scopeOf, CHANNEL_FOLD, type Granularity, type PeriodAgg,
 } from '../data/misDeck/liveAnalytics';
 import {
   REAL_ROWS, anchoredChannelPnl, normaliseLiveMonths, channelName,
@@ -29,6 +29,7 @@ import {
 import { buildMisFormatWorkbook } from './misFormatExport';
 import type { BalanceSheet, CashFlow } from '../data/statements/statements';
 import { MIS_SHEET_ROWS_NORMALISED } from '../data/misDeck/misSheet';
+import { footCellsToChannels, NOT_MAPPED } from '../data/misDeck/channelFoot';
 import {
   LIVE_EXPORT_EVERYTHING, liveMisFormatSource, misSourceWithCash,
   type LiveExportOptions, type LiveStatements,
@@ -293,7 +294,7 @@ function channelPnlSheet(deck: LiveDeckData, yearly: PeriodAgg[], merged: boolea
   const nCols = chans.length + 2;
   let row = 0;
   band(row++, 'CHANNEL P&L — company totals held, data-driven split (MIS-anchored)', S.title, nCols);
-  band(row++, `Company totals are the MIS book of record and tie to the P&L sheets. Revenue split by real revenue share, COGM by the real SKU-mix COGS (incl. ${Math.round(FACTORY_PCT * 100)}% factory), Sales & Marketing by real ad spend, all other lines by revenue share. Rows below a fiscal year's completeness level are blank. All in ₹.`, S.subtitle, nCols);
+  band(row++, `Company totals are the MIS book of record and tie to the P&L sheets. Each year = the sum of its months. Revenue = the channel's booked sales; COGM by each channel's own SKU material cost applied to its booked sales; fees, marketing and platform costs on the channels that incurred them (the rest on the consumer channels only, never B2B / GT); OPEX and below by revenue share. Rows below a fiscal year's completeness level are blank. All in ₹.`, S.subtitle, nCols);
   row++;
   type K = 'revenue' | 'cogm' | 'grossMargin' | 'channelFulfillment' | 'cm1' | 'salesMarketing' | 'cm2' | 'platformCosts' | 'cm3' | 'opex' | 'ebitda' | 'nonOperating' | 'netIncome';
   const LINES: { label: string; k: K; row: string; cost: boolean; tot: (p: PeriodAgg) => number }[] = [
@@ -352,12 +353,14 @@ function channelPnlSheet(deck: LiveDeckData, yearly: PeriodAgg[], merged: boolea
 function skuChannelSheet(deck: LiveDeckData, merged: boolean): XLSX.WorkSheet {
   const { put, band, finish } = sheetWriter();
   const costed = new Set(deck.periods.filter((k) => (deck.completeness[k]?.level ?? 'topline') !== 'topline'));
-  const mx = liveSkuChannelMatrix(deck.skuCells, costed);
+  // Footed to the Channel P&L per month (channelFoot.ts): channel columns = Channel P&L CM2, total = company.
+  const monthAggs = aggregatePeriods(deck.months.filter((m) => costed.has(m.key)), deck.completeness, 'month');
+  const mx = liveSkuChannelMatrix(footCellsToChannels(deck.skuCells, monthAggs, deck.completeness), costed);
   const chans = mx.channels;
   const nCols = chans.length + 2;
   let row = 0;
   band(row++, 'SKU × CHANNEL — CONTRIBUTION (CM2) + per-channel cascade (all-time)', S.title, Math.max(nCols, 8));
-  band(row++, `CM2 ₹ per product per channel over every costed month (top-line-only months excluded: their COGS isn't in yet). Real per-SKU COGS + ${Math.round(FACTORY_PCT * 100)}% factory; ad spend measured per product.`, S.subtitle, Math.max(nCols, 8));
+  band(row++, `CM2 ₹ per product per channel over every costed month (top-line-only months excluded: their COGS isn't in yet). Footed to the Channel P&L: BOM material per SKU, factory / manufacturing / inward freight / uncosted sales allocated by material (estimated); fees and ads scaled to the books; "${NOT_MAPPED}" = booked sales the SKU data does not cover.`, S.subtitle, Math.max(nCols, 8));
   row++;
   put(row, 0, 'Product', S.header);
   chans.forEach((c, i) => put(row, i + 1, channelName(c, merged), S.header));

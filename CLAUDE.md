@@ -304,8 +304,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     material of the units sold, so the memo line holds ONLY material purchase timing (before: ≈ ₹40.8 L of manufacturing cost + freight over
     Apr–Oct 2026 sat in the memo and normalised GM was that much too high). Bridge: "Product cost (BOM)" = normalised COGM − conversion, new step
     "Manufacturing cost and inward freight" (`direct_other`). A month whose Tally closing stock = opening stock with purchases booked
-    (`stockUnposted`) is listed as "estimated" in the note (`NormalisedMonths.stockEstimated`): its memo is not final. SKU / channel cells still
-    carry factory overhead only (`SkuCell.fac`).
+    (`stockUnposted`) is listed as "estimated" in the note (`NormalisedMonths.stockEstimated`): its memo is not final. Raw SKU cells carry factory overhead only (`SkuCell.fac`); the SKU × channel views foot them to the Channel P&L (`channelFoot.ts`).
     **Sales with no BOM cost are never ₹0 in the normalised COGM (10 Nov 2026, audit A6-1 / A6-9):** `misDeck/uncosted.ts uncostedEstimate`:
     `noCost` cells + `MonthlyMIS.unmappedRevenue` (sales no product map knows, set in `buildMonth`) are costed at the month's own BOM material
     rate (Σ cogs ÷ Σ rev of the costed cells); the estimate is taken out of the memo (`v − est`), so the identity still holds, and listed in
@@ -374,7 +373,21 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     back to revenue, estimated). (2) A report can't put more on a channel than Tally booked: `capTallyLines` (per month, per line, in
     `buildLiveDeck`) scales the channels down pro rata, keeps the cut on `TallyBucketLine.over`, and `deckItems` raises the Fix item
     "<Month>: Amazon fees in the report exceed Tally by ₹X — check the booking"; `spreadWithCap` does the same per period so a negative
-    rest is never spread. (3) Σ channels = company for every line (tested). Fulfilment / platform rests stay revenue-share. Months without Tally use the same rule: no ad spend = consumer channels by revenue, not every channel.
+    rest is never spread. (3) Σ channels = company for every line (tested). Months without Tally use the same rule: no ad spend = consumer channels by revenue, not every channel.
+    **One channel method (10 Nov 2026, audit rounds 8 + 9; `channelAlloc.ts`, `channelFoot.ts`, tests `server/test/channelSplits.test.ts`):**
+    (4) a year / quarter / range = Σ its months' rows (`anchoredChannelPnl` sums `memberAggs`; was split once at period level: FY24-25 B2B CM2
+    off ₹18.95 L). (5) The MIS Sheet channel view (`liveMisPoint`) takes the same anchored row; the legacy revenue-share `channelPnl` is only
+    the fallback (B2B showed the company GM %: FY25-26 COGS ₹30.99 L → ₹56.22 L). (6) COGM weights `cogsWeights`: each channel's SKU material
+    per ₹ applied to its BOOKED revenue (cells covering part of Tally's OEM scale up), no-BOM sales at the month's material rate, a channel with
+    booked sales and no cells at that rate — flagged `row.estimatedLines` 'cogm' + `row.notes`. (7) Channel & fulfilment and Platform & Payment
+    (`allocateChannelCost`): report tags (published months: the larger of tags and the fee feeds `feedFees` / `feedPlatform`) capped at the books,
+    the rest ONLY to the consumer channels by revenue (B2B / GT get none unless a report tags them; was ₹14.68 L on B2B / GT in FY25-26);
+    'fees' / 'platform' in `estimatedLines` when > 1 % went by revenue. Legacy `channelPnl` follows the same rules and no longer puts the S&M
+    leftover on Blinkit (₹10.6 L). (8) SKU × channel (`footCellsToChannels`, matrix + Excel): each channel-month's cells foot to its anchored
+    row to CM2 — material per cell, the rest of COGM (factory, manufacturing, inward freight, stock true-up, no-BOM sales) in `fac` by material,
+    fees / ads scaled to the books (Amazon ads inside published fees move to marketing; fees above the books capped: FY25-26 cf + S&M ₹277.6 L →
+    ₹221.5 L = the P&L), booked sales the SKU data lacks in a "Not mapped (books vs SKU data)" cell; cells carry `footed`. (9) Ledger
+    "Operations Platform Subscriptions" (Shopflo) + gateway charge ledgers → `pf_platform` (Platform & Payment was ₹0 in Tally months).
   - **Factory overhead** = Tally's Factory Overheads ledger where the month has it (`MonthlyMIS.factory`, `factoryBasis: 'tally'`, `SkuCell.fac`,
     `PeriodAgg.factory`); the 10 % convention only as a labelled fallback (`'assumed'`; static history keeps 10 %). Views use `cellFactory()`.
   - **BOM per month** (`pickBom`): each month prices COGS with its own BOM report (the slot pull's `periodKey`, `production.ts` month param), else the

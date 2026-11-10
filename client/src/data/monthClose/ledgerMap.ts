@@ -112,6 +112,13 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   // ---- Platform / brand ----------------------------------------------------
   'content creation - agency': 'pf_platform',
   'brand investment': 'pf_platform',
+  // Checkout / payment platform costs (audit round 8 C12, 10 Nov 2026): Shopflo sat in "Operations Platform
+  // Subscriptions" (Apr 26 ₹17,697 vs Shopflo invoice ₹18,883) under opex, so Platform & Payment showed ₹0 and D2C CM3
+  // was overstated. These are D2C basket costs: CM3 line, carried by the consumer channels.
+  'operations platform subscriptions': 'pf_platform',
+  'shopflo charges': 'pf_platform',
+  'payment gateway charges': 'pf_platform',
+  'gateway charges': 'pf_platform',
 
   // ---- Opex ----------------------------------------------------------------
   'employee cost - indirect net': 'op_payroll',
@@ -133,7 +140,6 @@ export const SEED_LEDGER_MAP: Record<string, string> = {
   'other expenses': 'op_other',
   'office expenses': 'op_other',
   // FY26-27 indirect ledgers with no dedicated line of their own.
-  'operations platform subscriptions': 'op_other',
   'govt fee': 'op_other',
   'interest on tds late payment': 'op_other',
   'nsdl service exp': 'op_other',
