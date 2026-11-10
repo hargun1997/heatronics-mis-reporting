@@ -72,7 +72,7 @@ export interface InboxInputs {
 
 /** Flipkart refuses its API until the self-access app is approved: a wait, not a fault. */
 export const FLIPKART_WAITING = /not in approved state|not approved|approval pending/i;
-const LIVE_STALE_H = 24;
+const LIVE_STALE_H = 2; // older than the slowest refresh window (closed months refresh daily: their items show ≥ 1 day)
 
 /** Close reports missing / empty / partial: one item per connector, months listed, with the action. */
 export function slotItems(x: Pick<InboxInputs, 'today' | 'reports' | 'locked' | 'slotFeeds'>): InboxItem[] {
@@ -108,7 +108,7 @@ export function slotItems(x: Pick<InboxInputs, 'today' | 'reports' | 'locked' | 
     }).join(' ');
     const fixes: string[] = [];
     if (auto && notConnected) fixes.push(notConnected.connectHint || 'Connect it on Setup first.');
-    if (auto && !notConnected) fixes.push(`Setup → ${name} → Pull now for each month (the daily job also tries, from the 3rd).`);
+    if (auto && !notConnected) fixes.push(`Setup → ${name} → Pull now for each month (the daily auto-pull also tries last month and this month).`);
     if (manual) fixes.push(cid.startsWith('flipkart')
       ? `Download the report from Flipkart Seller Hub and upload it on Setup → ${name} (the Flipkart API is waiting for approval).`
       : `Download the report and upload it on Setup → ${name}.`);
@@ -141,11 +141,12 @@ export function liveFactItems(x: Pick<InboxInputs, 'today' | 'liveFacts'>, nowMs
     const hours = (nowMs - Date.parse(s.cachedAt)) / 3_600_000;
     if (!(hours > LIVE_STALE_H)) continue;
     const days = Math.floor(hours / 24);
-    out.push({ id: `live:${s.id}`, area: 'feeds', severity: days >= 3 ? 'high' : 'medium',
-      title: `${s.label} live numbers are ${days} day${days === 1 ? '' : 's'} old`,
+    const age = days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${Math.floor(hours)} hours`;
+    out.push({ id: `live:${s.id}`, area: 'feeds', severity: days >= 3 ? 'high' : days >= 1 ? 'medium' : 'low',
+      title: `${s.label} live numbers are ${age} old`,
       detail: `The refresh keeps failing, so Live MIS shows the last good copy. Error: ${s.error.slice(0, 200)}`,
       fix: 'Open Live MIS and press Refresh. If it fails again, check the connector on Setup (login / token).',
-      href: `/reporting/mis/connectors?view=uploads#${s.id}`, sig: sigOf(s.error.slice(0, 60), days) });
+      href: `/reporting/mis/connectors?view=uploads#${s.id}`, sig: sigOf(s.error.slice(0, 60), Math.min(days, 3)) });
   }
   return out;
 }

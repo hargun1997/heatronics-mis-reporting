@@ -24,7 +24,8 @@ import { lastPulls, pullState, runPull } from '../connectors/slots/jobs.js';
 import type { SlotSourceDef } from '../connectors/slots/types.js';
 import { endpoint as tallyEndpoint } from '../connectors/sources/tally.js';
 import { feedOrigin } from '../connectors/sources/delhivery.js';
-import { manualSlots, runAutoPull, runCounts, type AutoPullDeps, type AutoPullState } from '../connectors/slots/autoPull.js';
+import { autoPullCaller, manualSlots, runAutoPull, runCounts, type AutoPullDeps, type AutoPullState } from '../connectors/slots/autoPull.js';
+import { sharedSecret } from '../connectors/sharedSecrets.js';
 import { storedSlotReport } from '../connectors/slots/closeSlots.js';
 import { listReports, readAllExtracted, readJson, saveReport, writeJson } from '../ingest/objectStore.js';
 import type { LockStore } from '../ingest/closeLocks.js';
@@ -143,9 +144,9 @@ router.get('/slots/:connectorId/:slotId/pull/:periodKey', h(async (req, res) => 
 }));
 
 // ---- Scheduled pull + save of the automatic slots (connectors/slots/autoPull.ts) ----------
-// POST /api/connectors/auto-pull/run is an OPEN path (GitHub Actions, .github/workflows/slot-auto-pull.yml), like
-// /api/tally/poll: a machine call can only start the once-a-day run (from the 3rd, after 07:00 IST) and gets counts
-// only — no figures, no slot detail. A signed-in person may force a run and sees each slot's outcome.
+// POST /api/connectors/auto-pull/run is an OPEN path (GitHub Actions, .github/workflows/slot-auto-pull.yml) with its own
+// token (autoPullCaller): a machine call can only start the once-a-day run (after 07:00 IST) and gets counts only — no
+// figures, no slot detail. A signed-in person may force a run and sees each slot's outcome.
 const AUTO_STATE = 'auto-pull/state';
 const AUTO_WAIT_MS = Number(process.env.AUTO_PULL_WAIT_MS) || 240_000;
 const autoDeps = (): AutoPullDeps => ({
@@ -168,19 +169,22 @@ const autoDeps = (): AutoPullDeps => ({
   locked: async () => new Set(Object.keys((await readJson<LockStore>('close-locks', { locks: {} })).locks ?? {})),
   save: saveReport,
   readState: () => readJson<AutoPullState>(AUTO_STATE, { lastRunDay: null }),
+  liveConnectors: new Set(CONNECTORS.filter((c) => c.fetchFacts).map((c) => c.id)),
   writeState: (st) => writeJson(AUTO_STATE, st),
 });
 let autoRunning: ReturnType<typeof runAutoPull> | null = null;
 
 router.post('/auto-pull/run', h(async (req, res) => {
-  const signedIn = (req as unknown as { htxAuthed?: boolean }).htxAuthed === true;
+  const caller = autoPullCaller(req as unknown as Parameters<typeof autoPullCaller>[0], await sharedSecret('mis-auto-pull-token'));
+  if (!caller) return res.status(401).json({ error: 'Not allowed' });
+  const signedIn = caller === 'person';
   const force = signedIn && req.body?.force === true;
   if (!autoRunning) {
     const p = runAutoPull(autoDeps(), { force }).finally(() => { if (autoRunning === p) autoRunning = null; });
     p.catch((e: unknown) => console.error('auto-pull failed:', e instanceof Error ? e.message : e));
     autoRunning = p;
   }
-  const waitMs = Math.max(0, Math.min(Number(req.body?.waitMs ?? AUTO_WAIT_MS) || 0, AUTO_WAIT_MS));
+  const waitMs = signedIn ? Math.max(0, Math.min(Number(req.body?.waitMs ?? AUTO_WAIT_MS) || 0, AUTO_WAIT_MS)) : AUTO_WAIT_MS;
   let t: NodeJS.Timeout | undefined;
   const out = await Promise.race([
     autoRunning.catch(() => null),

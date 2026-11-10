@@ -6,7 +6,7 @@ Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in s
 cookie may open this tool (cached 60s), and otherwise redirects to the portal's login or "no access"
 page (APIs get 401/403 JSON). The `.run.app` address redirects to mis.heatronics.in.
 Who has access is managed at https://portal.heatronics.in/admin (Hargun only).
-Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron) and `/api/expenses` (read by production.heatronics.in, own token). Never add pages there.
+Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron), `/api/expenses` (read by production.heatronics.in, own token), `/api/tally/poll` and `/api/connectors/auto-pull/run` (GitHub Actions daily; Bearer = secret `mis-auto-pull-token` / env MIS_AUTO_PULL_TOKEN, repo secret MIS_AUTO_PULL_TOKEN; no token on Cloud Run = refused; a token call only starts the once-a-day run and answers counts). Never add pages there.
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 **Security rules (9 Nov 2026, `server/test/security.test.ts`):** the app is built in `server/src/app.ts` (index.ts only listens) so the test lists
 EVERY registered route and asserts a 401 without a login (also with a forged `Host` / `X-Forwarded-Host: localhost`); a new open path fails it
@@ -306,6 +306,20 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     nearest month's (tie → earlier), shown as `completeness.bom` with a note. Meta/Google live facts (`channel: 'Meta Ads' | 'Google Ads'`) now map to D2C
     (`toSalesChannel`). MIS Sheet cash rows are labelled ₹ lakh (values were already lakh, not Cr).
 - **Why it moved** (Live MIS Overview section `ov-why`, 9 Nov 2026): pure `client/src/data/misDeck/bridge.ts buildBridge()` = EBITDA bridge month vs previous month / same month last year: volume · price & product mix · channel mix · returns · other revenue, then BOM cost · stock timing (normalised basis, `stockVariance`) · factory · channel fees · ads (by platform) · payment fees · opex, in ₹ lakh with sign; steps sum to the change ("Other / rounding" if not). Missing = `not_enough_data` / unsplit step, never 0. `topReasons()` = 3 lines ≤ 10 words, no LLM. View `components/liveMis/WhyItMoved.tsx` + `whyData.ts`. Client-only (the deck is built in the browser), so the page saves the pure bridge output (numbers only) via `POST /api/mis/bridge` (`routes/misBridge.ts`, `services/bridgeSnapshot.ts`: whitelist + 60k cap, objectStore `mis/bridge-latest` + `mis/bridge-<YYYY-MM>`, one write per content hash); `GET /api/mis/bridge?month=` = MCP `mis_get_margin_bridge` (null when none, `asOf` = last save). Tests `server/test/bridge.test.ts`, `bridgeSnapshot.test.ts`.
+- **Feeds & pulls (10 Nov 2026, test `server/test/feedsAndPulls.test.ts`):**
+  - Amazon Sales API (`sources/amazon.ts orderMetricsFacts`): a range is asked in ≤ 365-day windows (`salesWindows`) and merged — one call over
+    > 821 days failed the whole source ("Metrics Interval … exceeded limit for Granularity day"); an old window Amazon refuses is left out with a note.
+  - Facts cache: every pull records `facts-status/<source>` (okAt, error, errorAt); a failed background refresh is no longer swallowed:
+    `/api/connectors/facts` sources carry `staleError` / `staleErrorAt` (deck `liveFeed.sources`), and `liveFactsHealth` → Fix item
+    `live:<id>` "X live numbers are N days old" (> 2 h low, ≥ 1 day medium, ≥ 3 days high; Flipkart approval wait = one low item).
+  - Missing reports (`issuesInbox slotItems`, server copy of the slot list `slots/closeSlots.ts`, tested equal to the client catalog): EVERY close
+    slot × unlocked month from `LIVE_BOUNDARY` to last month, missing / empty (0 rows) / partial (dates short of the month), one item per
+    connector naming each slot; replaces the 5-slot `MANUAL_SLOTS` check (kept only as a fallback when no reports are passed).
+  - Daily auto-pull (`slots/autoPull.ts`, `POST /api/connectors/auto-pull/run`, `.github/workflows/slot-auto-pull.yml`): once per IST day after
+    07:00, every connected automatic slot whose pull needs no browser reader (facts / BOM costs / Trial Balance) for last month (missing, empty,
+    partial, or re-pulled daily up to the 8th) and this month to date (not Amazon / Amazon Ads / Meta / Google Ads / Shopify / Flipkart, whose
+    saved pull would freeze the live run-rate); saves only clean pulls (no warning, all rows in the month, finished month covered), never over an
+    upload or into a locked month. Sheet / Business Report / Tally P&L stay on "Pull & save all". State `auto-pull/state`; `GET /api/connectors/auto-pull`.
 - **Manual uploads (reason shown on the slot):** Flipkart settlement + Flipkart Ads FSN (API approval pending; no fees /
   ads data in its API), Blinkit payout (no API), Snapmint (no API or scheduled export; emailed), Shopflo invoice (one PDF a month: Shopflo's tools have no
   billing data).

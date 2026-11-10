@@ -139,12 +139,11 @@ interface OrderMetric {
 }
 
 // ---- Sales API windows -------------------------------------------------------
-// One orderMetrics call may not span more than 821 days ("Metrics Interval … (821D) exceeded", seen live Nov 2026), and
-// Amazon keeps about two years of daily sales. A long range (a back-filled old month makes Live MIS ask from that month
-// to today) is therefore asked in windows of ≤ 365 days, never older than SALES_MAX_AGE_DAYS; days Amazon no longer
-// keeps are left out with a note — they must never fail the whole source (that blanked every Amazon live month).
+// One orderMetrics call may not span more than 821 days at Day granularity ("Metrics Interval … (821D) exceeded limit
+// for Granularity day", seen live Nov 2026). A long range (a back-filled old month makes Live MIS ask from that month to
+// today, or Refresh forces the whole span) is asked in windows of ≤ SALES_WINDOW_DAYS and merged. A window Amazon
+// refuses because it is older than it keeps is left out with a note: it must never fail the whole source.
 export const SALES_WINDOW_DAYS = 365;
-export const SALES_MAX_AGE_DAYS = 820;
 
 const addDays = (dateISO: string, n: number) => {
   const d = new Date(`${dateISO}T00:00:00Z`);
@@ -153,24 +152,18 @@ const addDays = (dateISO: string, n: number) => {
 };
 const istToday = (now = Date.now()) => new Date(now + 5.5 * 3_600_000).toISOString().slice(0, 10);
 
-/** [from, to] cut into windows Amazon accepts. `skipped` = the days too old to ask (null when none). */
-export function salesWindows(fromISO: string, toISO: string, todayISO: string): { windows: { from: string; to: string }[]; skipped: { from: string; to: string } | null } {
-  const oldest = addDays(todayISO, -SALES_MAX_AGE_DAYS);
+/** [from, to] (to capped at today, IST) cut into consecutive windows of ≤ SALES_WINDOW_DAYS days. */
+export function salesWindows(fromISO: string, toISO: string, todayISO: string): { from: string; to: string }[] {
   const end = toISO > todayISO ? todayISO : toISO;
-  let skipped: { from: string; to: string } | null = null;
-  let from = fromISO;
-  if (from < oldest) {
-    skipped = { from, to: end < oldest ? end : addDays(oldest, -1) };
-    from = oldest;
-  }
   const windows: { from: string; to: string }[] = [];
+  let from = fromISO;
   while (from <= end) {
     const last = addDays(from, SALES_WINDOW_DAYS - 1);
     const to = last > end ? end : last;
     windows.push({ from, to });
     from = addDays(to, 1);
   }
-  return { windows, skipped };
+  return windows;
 }
 
 /** Daily ordered sales for [from, to], one orderMetrics call per window. `get` = spapiGet with the creds bound (tests inject it). */
@@ -178,9 +171,8 @@ export async function orderMetricsFacts(
   get: (path: string) => Promise<unknown>, mp: string, fromISO: string, toISO: string, now = Date.now(),
 ): Promise<FactResult> {
   const today = istToday(now);
-  const { windows, skipped } = salesWindows(fromISO, toISO, today);
+  const windows = salesWindows(fromISO, toISO, today);
   const warnings: string[] = [];
-  if (skipped) warnings.push(`Amazon keeps about 2 years of daily sales: ${skipped.from} to ${skipped.to} not asked.`);
   const facts: DailyFact[] = [];
   const seen = new Set<string>();
   let calls = 0;

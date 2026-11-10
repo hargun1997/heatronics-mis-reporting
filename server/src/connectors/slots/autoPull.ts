@@ -2,11 +2,13 @@
 // Scheduled pull + save of the automatic close slots (10 Nov 2026).
 //
 // Until now only Tally was polled: every other "automatic" slot waited for someone to press "Pull & save all", so on
-// 10 Nov every October api slot was still empty. This job runs once a day from the 3rd (IST): it pulls each connected
-// automatic slot for LAST month, plus a few earlier unlocked months that still miss a slot, and saves a pull ONLY when
-// it is clean — the same rule and the same commit as the browser's "Pull & save all" (stagePull → commitReportMonths →
-// saveReport; raw file `api-pull-<connector>-<slot>-<month>.json`). Read only against every source (each pull runs its
-// own guard). An uploaded file is never overwritten; a locked month is never touched.
+// 10 Nov every October api slot was still empty. This job runs once a day (after 07:00 IST): it pulls each connected
+// automatic slot for LAST month and THIS month (to date) and saves a pull ONLY when it is clean — the same rule and the
+// same commit as the browser's "Pull & save all" (stagePull → commitReportMonths → saveReport; raw file
+// `api-pull-<connector>-<slot>-<month>.json`). Read only against every source (each pull runs its own guard). An
+// uploaded file is never overwritten; a locked month is never touched. This month skips the slots of connectors that
+// also feed live numbers (Amazon, Amazon Ads, Meta, Google Ads, Shopify, Flipkart): a saved pull wins over live facts
+// for its source + month (buildLiveDeck), so saving one would freeze this month's run-rate at the time of the pull.
 //
 // Covered here: slots whose pull returns `facts`, `bomCosts` or `trialBalance` (no browser parser needed).
 // Still manual (the browser has the reader): sheet / report slots that return `rows` (Tranzact sales register, Amazon
@@ -15,11 +17,12 @@
 // stagePullServer / planAutoPull / autoPullDue are pure (tests: server/test/autoPull.test.ts).
 // ----------------------------------------------------------------------------
 
+import { timingSafeEqual } from 'node:crypto';
 import type { DailyFact } from '../facts.js';
 import type { Credentials } from '../types.js';
 import type { CommitInput, IngestReportMeta } from '../../ingest/objectStore.js';
 import type { SlotPull, SlotSourceDef } from './types.js';
-import { CLOSE_SLOTS, LIVE_BOUNDARY, closeSlot, monthRange, prevMonthOf, slotCoverage, type StoredSlotReport } from './closeSlots.js';
+import { CLOSE_SLOTS, LIVE_BOUNDARY, closeSlot, prevMonthOf, slotCoverage, type StoredSlotReport } from './closeSlots.js';
 
 const isISODate = (d: unknown): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
 
@@ -33,7 +36,7 @@ export type Staged =
   | { kind: 'manual'; why: string };
 
 /** Mirror of the client's stagePull + monthBreakdown + postCommit for pulls that need no parser. */
-export function stagePullServer(def: Pick<SlotSourceDef, 'connectorId' | 'slotId' | 'via'>, periodKey: string, result: SlotPull, pulledAt: string): Staged {
+export function stagePullServer(def: Pick<SlotSourceDef, 'connectorId' | 'slotId' | 'via'>, periodKey: string, result: SlotPull, pulledAt: string, currentMonth?: string): Staged {
   const slot = closeSlot(def.connectorId, def.slotId);
   if (!slot) return { kind: 'manual', why: 'Unknown slot.' };
   if (result.rows) return { kind: 'manual', why: 'Sheet rows are read by the browser — press Pull now on Setup.' };
@@ -75,8 +78,9 @@ export function stagePullServer(def: Pick<SlotSourceDef, 'connectorId' | 'slotId
   if (warned) return { kind: 'review', why: whyWarn() };
   const dated = inMonth.filter((f) => isISODate(f.date));
   const dates = dated.map((f) => f.date).sort();
-  // Date coverage (audit A4: a 7–13 Oct pull was saved as a clean October).
-  const cov = slotCoverage(slot, periodKey, { connectorId: def.connectorId, slotId: def.slotId, periodKey, rows: inMonth.length, first: dates[0] ?? null, last: dates[dates.length - 1] ?? null });
+  // Date coverage of a finished month (audit A4: a 7–13 Oct pull was saved as a clean October). The running month is
+  // to date by nature, so it is not judged here.
+  const cov = periodKey === currentMonth ? { kind: 'ok' as const, detail: '' } : slotCoverage(slot, periodKey, { connectorId: def.connectorId, slotId: def.slotId, periodKey, rows: inMonth.length, first: dates[0] ?? null, last: dates[dates.length - 1] ?? null });
   if (cov.kind === 'partial') return { kind: 'review', why: `${cov.detail} — check the source, then Pull now on Setup.` };
   // Undated rows are stamped to the month only when no row carries a date (monthBreakdown).
   const facts = dated.length > 0 ? inMonth : inMonth.map((f) => (f.date ? f : { ...f, date: `${periodKey}-01` }));
@@ -88,17 +92,14 @@ export function stagePullServer(def: Pick<SlotSourceDef, 'connectorId' | 'slotId
 
 // ---- Plan: which slot × month to pull today ---------------------------------------------
 
-export const AUTO_PULL_FROM_DAY = 3;      // from the 3rd: last month's settlements, ads and freight are in
-export const AUTO_PULL_REFRESH_DAY = 8;   // one more pull of last month from the 8th (late adjustments)
+export const AUTO_PULL_REFRESH_DAY = 8;   // last month is pulled again each day up to the 8th (late settlements / adjustments)
 export const AUTO_PULL_FROM_HOUR = 7;     // IST
-export const AUTO_PULL_MAX_EARLIER = 4;   // earlier unlocked months: a few slot-months a run, one per connector
-export const AUTO_PULL_MAX_TRIES = 3;     // an earlier month that keeps failing is left to the Fix list
 
 export interface AutoPullState {
   /** IST day of the last finished run. */
   lastRunDay: string | null;
   runningSince?: string | null;
-  /** Failed / needs-review tries per "connector|slot|month". */
+  /** Failed / needs-review tries per "connector|slot|month" (shown on Setup; reset by a save). */
   tries?: Record<string, { n: number; day: string; why: string }>;
   last?: AutoPullRun | null;
 }
@@ -108,18 +109,17 @@ export interface AutoPullRun { day: string; startedAt: string; finishedAt: strin
 const ist = (now: number) => new Date(now + 5.5 * 3_600_000);
 export const istDayOf = (now: number) => ist(now).toISOString().slice(0, 10);
 
-/** May the scheduled run go now? Once per IST day, from the 3rd, after 07:00 IST. */
+/** May the scheduled run go now? Once per IST day, after 07:00 IST. */
 export function autoPullDue(now: number, state: AutoPullState): { due: boolean; why: string } {
   const d = ist(now);
   const day = d.toISOString().slice(0, 10);
-  if (d.getUTCDate() < AUTO_PULL_FROM_DAY) return { due: false, why: `Runs from the ${AUTO_PULL_FROM_DAY}rd of the month.` };
   if (d.getUTCHours() < AUTO_PULL_FROM_HOUR) return { due: false, why: `Runs after ${AUTO_PULL_FROM_HOUR}:00 IST.` };
   if (state.lastRunDay === day) return { due: false, why: 'Already ran today.' };
   if (state.runningSince && now - Date.parse(state.runningSince) < 10 * 60_000) return { due: false, why: 'A run is in progress.' };
   return { due: true, why: '' };
 }
 
-export interface AutoTarget { connectorId: string; slotId: string; periodKey: string; why: 'missing' | 'empty' | 'partial' | 'refresh' }
+export interface AutoTarget { connectorId: string; slotId: string; periodKey: string; why: 'missing' | 'empty' | 'partial' | 'refresh' | 'to-date' }
 
 /** Automatic slots a server-side save can handle (pull returns facts / bomCosts / trialBalance). */
 export function serverSavable(def: SlotSourceDef): boolean {
@@ -130,48 +130,35 @@ export function serverSavable(def: SlotSourceDef): boolean {
 }
 
 /**
- * What to pull today. Last month: every savable slot that is not stored, or whose stored copy came from a pull and is
- * empty / partial, or (from the 8th) was pulled before the 8th. Earlier unlocked months: slots with nothing stored, newest
- * first, one per connector, ≤ AUTO_PULL_MAX_EARLIER, skipping those that failed AUTO_PULL_MAX_TRIES times. An uploaded
- * file is never replaced.
+ * What to pull today, for last month and this month (unlocked, from LIVE_BOUNDARY). Last month: every savable slot that
+ * is not stored, or whose pulled copy is empty / partial, or was saved before today while today ≤ the 8th (or saved
+ * before the 8th). This month: every savable slot whose pulled copy is not from today, except connectors that feed live
+ * numbers (`liveConnectors`). An uploaded file is never replaced.
  */
 export function planAutoPull(x: {
-  today: string; defs: SlotSourceDef[]; reports: StoredSlotReport[]; locked: Set<string>; state: AutoPullState; from?: string;
+  today: string; defs: SlotSourceDef[]; reports: StoredSlotReport[]; locked: Set<string>; liveConnectors?: Set<string>; from?: string;
 }): AutoTarget[] {
-  const last = prevMonthOf(x.today.slice(0, 7));
+  const cur = x.today.slice(0, 7);
+  const last = prevMonthOf(cur);
   const from = x.from ?? LIVE_BOUNDARY;
-  if (last < from) return [];
   const day = Number(x.today.slice(8, 10));
+  const refreshCut = `${cur}-${String(AUTO_PULL_REFRESH_DAY).padStart(2, '0')}`;
   const by = new Map(x.reports.map((r) => [`${r.connectorId}|${r.slotId}|${r.periodKey}`, r]));
   const savable = x.defs.filter(serverSavable).filter((d) => closeSlot(d.connectorId, d.slotId));
   const out: AutoTarget[] = [];
-  if (!x.locked.has(last)) {
+  for (const period of [last, cur]) {
+    if (period < from || x.locked.has(period)) continue;
     for (const d of savable) {
-      const r = by.get(`${d.connectorId}|${d.slotId}|${last}`);
-      const cov = slotCoverage(closeSlot(d.connectorId, d.slotId)!, last, r);
-      const pulled = Boolean(r?.fileName?.startsWith('api-pull-'));
-      if (!r) out.push({ connectorId: d.connectorId, slotId: d.slotId, periodKey: last, why: 'missing' });
-      else if (!pulled) continue; // an upload wins
-      else if (cov.kind === 'empty' || cov.kind === 'partial') out.push({ connectorId: d.connectorId, slotId: d.slotId, periodKey: last, why: cov.kind });
-      else if (day >= AUTO_PULL_REFRESH_DAY && r.savedAt && istDayOf(Date.parse(r.savedAt)) < `${x.today.slice(0, 8)}${String(AUTO_PULL_REFRESH_DAY).padStart(2, '0')}`) {
-        out.push({ connectorId: d.connectorId, slotId: d.slotId, periodKey: last, why: 'refresh' });
-      }
-    }
-  }
-  if (last > from) {
-    const earlier = monthRange(from, prevMonthOf(last)).filter((p) => !x.locked.has(p)).reverse();
-    const taken = new Set<string>();
-    let n = 0;
-    for (const p of earlier) {
-      for (const d of savable) {
-        if (n >= AUTO_PULL_MAX_EARLIER) break;
-        const k = `${d.connectorId}|${d.slotId}|${p}`;
-        if (by.has(k) || taken.has(d.connectorId)) continue;
-        if ((x.state.tries?.[k]?.n ?? 0) >= AUTO_PULL_MAX_TRIES) continue;
-        taken.add(d.connectorId);
-        out.push({ connectorId: d.connectorId, slotId: d.slotId, periodKey: p, why: 'missing' });
-        n++;
-      }
+      if (period === cur && x.liveConnectors?.has(d.connectorId)) continue;
+      const t = (why: AutoTarget['why']) => out.push({ connectorId: d.connectorId, slotId: d.slotId, periodKey: period, why });
+      const r = by.get(`${d.connectorId}|${d.slotId}|${period}`);
+      if (!r) { t('missing'); continue; }
+      if (!r.fileName?.startsWith('api-pull-')) continue; // an upload wins
+      const savedDay = r.savedAt ? istDayOf(Date.parse(r.savedAt)) : '';
+      if (period === cur) { if (savedDay < x.today) t('to-date'); continue; }
+      const cov = slotCoverage(closeSlot(d.connectorId, d.slotId)!, period, r);
+      if (cov.kind === 'empty' || cov.kind === 'partial') t(cov.kind);
+      else if (savedDay < x.today && (day <= AUTO_PULL_REFRESH_DAY || savedDay < refreshCut)) t('refresh');
     }
   }
   return out;
@@ -189,6 +176,22 @@ export function manualSlots(defs: SlotSourceDef[]): { connectorId: string; slotI
   }).filter((v): v is { connectorId: string; slotId: string; why: string } => v !== null);
 }
 
+// ---- Who may start it --------------------------------------------------------------------
+
+/**
+ * POST /api/connectors/auto-pull/run is an open path (GitHub Actions). 'person' = signed in (may force, sees each slot);
+ * 'machine' = `Authorization: Bearer <token>` (secret `mis-auto-pull-token` / env MIS_AUTO_PULL_TOKEN): only the
+ * once-a-day scheduled run, counts only. With no token configured it is open only off Cloud Run (local dev); on Cloud
+ * Run it fails closed (the repo, and so this URL, is public).
+ */
+export function autoPullCaller(req: { headers: { authorization?: string | string[] }; htxAuthed?: boolean }, token: string | null, env: NodeJS.ProcessEnv = process.env): 'person' | 'machine' | null {
+  if (req.htxAuthed === true) return 'person';
+  if (!token) return env.K_SERVICE ? null : 'machine';
+  const got = Buffer.from(String(req.headers.authorization ?? ''));
+  const want = Buffer.from(`Bearer ${token}`);
+  return got.length === want.length && timingSafeEqual(got, want) ? 'machine' : null;
+}
+
 // ---- Run ---------------------------------------------------------------------------------
 
 export interface AutoPullDeps {
@@ -203,6 +206,8 @@ export interface AutoPullDeps {
   save: (commit: CommitInput) => Promise<IngestReportMeta>;
   readState: () => Promise<AutoPullState>;
   writeState: (s: AutoPullState) => Promise<void>;
+  /** Connectors that also feed live numbers: their slots are not saved for the running month. */
+  liveConnectors?: Set<string>;
   /** Pulls at once (different sources; one source's own pacing is inside its pull). */
   concurrency?: number;
 }
@@ -229,7 +234,7 @@ export async function runAutoPull(deps: AutoPullDeps, opts: { force?: boolean } 
   const tries = { ...(state.tries ?? {}) };
   try {
     const [reports, locked] = await Promise.all([deps.reports(), deps.locked()]);
-    const targets = planAutoPull({ today, defs: deps.defs, reports, locked, state });
+    const targets = planAutoPull({ today, defs: deps.defs, reports, locked, liveConnectors: deps.liveConnectors });
     const one = async (t: AutoTarget): Promise<AutoPullRow> => {
       const row = (outcome: AutoPullRow['outcome'], detail: string): AutoPullRow => ({ connectorId: t.connectorId, slotId: t.slotId, periodKey: t.periodKey, outcome, detail: detail.slice(0, 300) });
       const def = deps.defs.find((d) => d.connectorId === t.connectorId && d.slotId === t.slotId);
@@ -238,9 +243,9 @@ export async function runAutoPull(deps: AutoPullDeps, opts: { force?: boolean } 
         const { creds, missing } = await deps.creds(def);
         if (missing.length) return row('not_connected', def.connectHint ?? `Not connected — missing ${missing.join(', ')}.`);
         const ans = await deps.pull(def, creds, t.periodKey);
-        if (ans.status === 'running') return row('running', 'Still running — the next run picks it up.');
+        if (ans.status === 'running') return row('running', 'Still running — saved by the next run.');
         if (ans.status === 'failed') return row('failed', ans.error);
-        const staged = stagePullServer(def, t.periodKey, ans.result, ans.pulledAt);
+        const staged = stagePullServer(def, t.periodKey, ans.result, ans.pulledAt, today.slice(0, 7));
         if (staged.kind === 'manual') return row('manual', staged.why);
         if (staged.kind === 'review') return row('review', `Pulled, needs review — ${staged.why}`);
         // The month may have been locked or uploaded while the pull ran: look again before writing.
