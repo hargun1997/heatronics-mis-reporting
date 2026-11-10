@@ -110,8 +110,8 @@ test('Tranzact per-series sales ledgers map (GT) and Internal Transfer Sales is 
 });
 
 test('charge / service lines are dropped (one per term); tooling counts as B2B revenue with no product', () => {
-  const terms = ['Freight', 'Transportation charges', 'Cartage', 'Delivery charges', 'Loading charges', 'Packing', 'Packaging charges',
-    'Insurance', 'Installation charges', 'Service charges', 'Labour charges', 'Courier', 'Round Off'];
+  const terms = ['Freight', 'Transportation', 'Transportation charges', 'Cartage', 'Courier', 'Insurance', 'Round Off', 'Delivery charges',
+    'Loading charges', 'Packing charges', 'Packaging charges', 'Installation / service charges', 'Service Charge', 'Labour charges', 'Shipping charges'];
   const out = run([H,
     ['OEM/26-27/0080', 'OEM Co', '2026-06-10', 'Sent', 'FG-0037', 'Pad', 10, 5000],
     ...terms.map((t, i) => ['OEM/26-27/0080', 'OEM Co', '2026-06-10', 'Sent', `CHG-${i}`, t, 1, 100]),
@@ -121,7 +121,7 @@ test('charge / service lines are dropped (one per term); tooling counts as B2B r
     assert.ok(TRANZACT_CHARGE_LINE.test(t), t);
     assert.ok(!out.facts.some((f) => f.sku?.startsWith('CHG-')), t);
   }
-  assert.ok(out.trace.some((x) => new RegExp(`${terms.length} charge / service line\\(s\\).*₹1,300 dropped`).test(x)), out.trace.join('\n'));
+  assert.ok(out.trace.some((x) => new RegExp(`${terms.length} charge / service line\\(s\\).*₹1,500 dropped`).test(x)), out.trace.join('\n'));
   assert.equal(sum(out.facts, 'B2B', 'revenue'), 80000);
   assert.equal(sum(out.facts, 'B2B', 'units'), 10, 'tooling adds no units');
   const tool = out.facts.find((f) => f.revenue === 75000)!;
@@ -152,4 +152,16 @@ test('bracket negatives are Tranzact-only: other parsers keep their sign rules',
   // The shared num() still strips brackets (unchanged behaviour for every other report); only the Tranzact reader negates.
   const out = run([H, ['OEM/26-27/0092', 'OEM Co', '2026-06-11', 'Sent', 'FG-0037', 'Pad', -1, '(500)']]);
   assert.equal(sum(out.facts, 'B2B', 'revenue'), -500);
+});
+
+test('products whose names contain service / delivery / loading / mould words stay products', () => {
+  const products = ['Service kit', 'Delivery bag', 'Spare controller for service', 'Loading tray', 'Moulded housing', 'Packaging sleeve', 'Installation bracket'];
+  for (const n of products) {
+    assert.ok(!TRANZACT_CHARGE_LINE.test(n), `${n} is not a charge`);
+    assert.ok(!TRANZACT_TOOLING_LINE.test(n), `${n} is not tooling`);
+  }
+  const out = run([H, ...products.map((n, i) => ['OEM/26-27/0095', 'OEM Co', '2026-06-10', 'Sent', `SP-${i}`, n, 2, 1000])]);
+  assert.equal(sum(out.facts, 'B2B', 'revenue'), products.length * 1000);
+  assert.equal(sum(out.facts, 'B2B', 'units'), products.length * 2);
+  for (const t of ['Mould development', 'Mould charges', 'Tooling', 'Development charges']) assert.ok(TRANZACT_TOOLING_LINE.test(t), t);
 });

@@ -1265,13 +1265,14 @@ export function isTranzactCancelled(v: unknown): boolean {
 }
 
 /**
- * Non-FG lines that are charges / services, not goods: freight, transport, packaging, insurance, installation,
- * service, labour, round-off … Dropped from product revenue + units, ₹ traced. Keep in step with
+ * Non-FG lines that are charges, not goods. Always: freight, transport, cartage, courier, insurance, forwarding,
+ * round-off. Only with "charge(s)": service / delivery / loading / installation / labour / packing / packaging /
+ * shipping / handling (so "Service kit", "Delivery bag", "Loading tray" stay products). Dropped, ₹ traced. Keep in step with
  * server/src/connectors/slots/map/feeds.ts TRANZACT_CHARGE_LINE (test-checked).
  */
-export const TRANZACT_CHARGE_LINE = /freight|courier|shipping|packing|packag|forwarding|transport|cartage|delivery|loading|insurance|installation|service|labou?r|round.?off|rounding/i;
+export const TRANZACT_CHARGE_LINE = /freight|transport|cartage|courier|insurance|forwarding|round.?off|rounding|\b(service|delivery|loading|unloading|installation|labou?r|packing|packaging|shipping|handling)\b[\s\w/&-]{0,20}?\bcharges?\b/i;
 /** Tooling / development / mould charges: real B2B revenue for the channel, but no product (no SKU, no units). */
-export const TRANZACT_TOOLING_LINE = /tooling|development|\bdie\b|mou?ld|\bnre\b|design charge/i;
+export const TRANZACT_TOOLING_LINE = /\bmou?ld\b|mou?ld charge|tooling|development charge|\bnre\b|\bdie charge/i;
 
 /** "FG-0006", "FG 0006", "fg0006" → "FG-0006"; anything else unchanged (upper-case). */
 function tranzactItemCode(raw: string): string {

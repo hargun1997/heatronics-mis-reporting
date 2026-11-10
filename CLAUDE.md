@@ -143,9 +143,10 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     (`parseTranzactSales`) and the sheet pull (`tranzactSheetForMonth`) skip **cancelled** lines (Document Status "Cancelled", or a
     Cancelled column 1 / Yes; same aliases as Ops) and say "N cancelled line(s) ₹X skipped" in the trace; no status column = a trace
     note. Non-FG items (SFG / RM / spares / accessories) with a value COUNT for the channel as unmapped products (they show in Product
-    gaps); charge / service lines (freight, courier, transport, cartage, delivery, loading, packing / packaging, insurance,
-    installation, service, labour, round-off; `TRANZACT_CHARGE_LINE`, same pattern in the sheet pull, test-checked) are dropped, ₹
-    traced; **tooling / development / mould / NRE lines = B2B channel revenue with NO product and no units** (sku-less fact). "FG 0006" = FG-0006. Totals rows ("3 (530)") are
+    gaps); charge lines are dropped, ₹ traced (`TRANZACT_CHARGE_LINE`, same pattern in the sheet pull, test-checked): freight, transport,
+    cartage, courier, insurance, forwarding, round-off always; service / delivery / loading / installation / labour / packing /
+    packaging / shipping / handling ONLY with "charge(s)" ("Service kit", "Delivery bag", "Loading tray" stay products); **tooling /
+    development charges / mould (whole word, not "Moulded") / NRE lines = B2B channel revenue with NO product and no units** (sku-less fact). "FG 0006" = FG-0006. Totals rows ("3 (530)") are
     skipped. Text dates are day-first (`toISODate`: ISO, then dd/mm/yyyy built with Date.UTC; free text read on the local day); undated
     lines are counted with ₹. "(5,000)" = −5,000 in the Tranzact reader only (`numSigned`; other parsers keep `num`). Server `isoDay` also reads YYYY/MM/DD. The Amazon-customer transfer rule applies only to rows with no known series (a GTD /
     OEM invoice to Amazon stays that series' sale, as Tally books it). Tranzact's per-series Tally ledgers are in the seed map: GT -

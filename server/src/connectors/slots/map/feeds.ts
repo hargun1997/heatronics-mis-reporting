@@ -69,8 +69,8 @@ export function easebuzzHashInput(parts: string[], salt: string): string {
 const TZ_HEADER = ['invoice number', 'item id', 'invoice quantity'];
 
 /** Same patterns as the client's (uploadParsers.ts, test-checked): charge / service lines are not goods; tooling is kept. */
-export const TRANZACT_CHARGE_LINE = /freight|courier|shipping|packing|packag|forwarding|transport|cartage|delivery|loading|insurance|installation|service|labou?r|round.?off|rounding/i;
-export const TRANZACT_TOOLING_LINE = /tooling|development|\bdie\b|mou?ld|\bnre\b|design charge/i;
+export const TRANZACT_CHARGE_LINE = /freight|transport|cartage|courier|insurance|forwarding|round.?off|rounding|\b(service|delivery|loading|unloading|installation|labou?r|packing|packaging|shipping|handling)\b[\s\w/&-]{0,20}?\bcharges?\b/i;
+export const TRANZACT_TOOLING_LINE = /\bmou?ld\b|mou?ld charge|tooling|development charge|\bnre\b|\bdie charge/i;
 
 /** Same rule as the client's isTranzactCancelled: "Cancelled" status, or 1 / yes / true in a Cancelled column. */
 export function tranzactCancelled(v: unknown): boolean {
