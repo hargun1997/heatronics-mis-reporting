@@ -167,7 +167,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
       <CogmBasisNote />
       <Note>
         {pct ? 'Every ₹ line is shown as a % of that column’s Net Revenue; ratio rows (GM%, CM1% …) and counts (Qty, Runway) are unchanged. ' : 'Costs positive, margins signed. '}
-        {normalised ? 'Stock build / drawdown is a signed memo line (positive = Tally charged more COGM than was sold), outside the cascade: EBITDA + Σ memo = EBITDA as booked. ' : ''}
+        {normalised ? 'Stock build / drawdown is a signed memo line (material only: positive = Tally charged more material than was sold; factory, manufacturing and inward freight stay in COGM), outside the cascade: EBITDA + Σ memo = EBITDA as booked. ' : ''}
         Cash rows (company only) come from Tally’s month-end Balance Sheets: burn = opening + equity raised − closing, runway =
         closing cash ÷ (3 × the last 3 months’ average burn), in quarters; blank until both month ends are stored (FY total: every
         month). Other blank rows aren’t tracked (Channel Margin, SS Claim, Payroll / Professional Fee split) or aren’t real yet
