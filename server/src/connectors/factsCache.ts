@@ -12,7 +12,13 @@ import type { DailyFact, FactResult } from './facts.js';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 
 export interface CachedMonth { at: string; facts: DailyFact[]; warnings: string[]; trace?: string[]; partial?: boolean }
-export interface SourceOutcome { facts: DailyFact[]; warnings: string[]; trace: string[]; cachedAt: string | null; refreshing: boolean; partial?: boolean }
+export interface SourceOutcome {
+  facts: DailyFact[]; warnings: string[]; trace: string[]; cachedAt: string | null; refreshing: boolean; partial?: boolean;
+  /** The last refresh of this source failed: the copy served is the last good one. */
+  staleError?: string; staleErrorAt?: string;
+}
+/** Last pull of one source (objectStore `facts-status/<source>`): a failed refresh is recorded, never swallowed. */
+export interface FactsStatus { okAt: string | null; error: string | null; errorAt: string | null; errorSpan?: string }
 
 const H = 3_600_000;
 const ist = (t: number) => new Date(t + 5.5 * H);
@@ -53,6 +59,47 @@ async function readMonth(k: string): Promise<CachedMonth | null> {
 }
 const inflight = new Map<string, Promise<void>>();
 
+// ---- Pull status (10 Nov 2026: a failing background refresh left Amazon / Shopify 2 days old and nobody was told) ----
+const statusKey = (source: string) => `facts-status/${source}`;
+const NO_STATUS: FactsStatus = { okAt: null, error: null, errorAt: null };
+const statusMem = new Map<string, { at: number; doc: FactsStatus }>();
+export async function readFactsStatus(source: string, now = Date.now(), fresh = false): Promise<FactsStatus> {
+  const hit = statusMem.get(source);
+  if (!fresh && hit && Math.abs(now - hit.at) < 60_000) return hit.doc;
+  const doc = { ...NO_STATUS, ...(await readJson<Partial<FactsStatus>>(statusKey(source), {}).catch(() => ({}))) };
+  statusMem.set(source, { at: now, doc });
+  return doc;
+}
+async function writeStatus(source: string, doc: FactsStatus, now: number): Promise<void> {
+  statusMem.set(source, { at: now, doc });
+  await writeJson(statusKey(source), doc).catch(() => undefined);
+}
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 300);
+/** Pull + store, and record how it went. Throws the pull's own error. */
+async function trackedPull(source: string, months: string[], fetch: (from: string, to: string) => Promise<FactResult>, now: number): Promise<Map<string, CachedMonth>> {
+  try {
+    const got = await pullAndStore(source, months, fetch, now);
+    await writeStatus(source, { okAt: new Date(now).toISOString(), error: null, errorAt: null }, now);
+    return got;
+  } catch (e) {
+    const prev = await readFactsStatus(source, now).catch(() => NO_STATUS);
+    await writeStatus(source, { okAt: prev.okAt, error: errText(e), errorAt: new Date(now).toISOString(), errorSpan: `${months[0]}…${months[months.length - 1]}` }, now);
+    throw e;
+  }
+}
+
+/** Health of each live source for the Fix list: age of this month's copy + the last refresh error (if it is still failing). */
+export async function liveFactsHealth(sources: { id: string; label: string }[], now = Date.now()): Promise<{ id: string; label: string; cachedAt: string | null; error: string | null; errorAt: string | null }[]> {
+  const month = istMonthOf(now);
+  return Promise.all(sources.map(async (x) => {
+    const [st, doc] = await Promise.all([
+      readFactsStatus(x.id, now, true),
+      readJson<CachedMonth | null>(key(x.id, month), null).catch(() => null),
+    ]);
+    return { id: x.id, label: x.label, cachedAt: doc?.at ?? st.okAt ?? null, error: st.error, errorAt: st.errorAt };
+  }));
+}
+
 /** Pull [from, to] once and store it split by month (months with no facts stored empty). */
 async function pullAndStore(source: string, months: string[], fetch: (from: string, to: string) => Promise<FactResult>, now = Date.now()): Promise<Map<string, CachedMonth>> {
   const from = `${months[0]}-01`;
@@ -88,7 +135,7 @@ export async function cachedFacts(
   if (missing.length) {
     // Never pulled (or forced): wait — one range from the first to the last month needed.
     const span = months.slice(months.indexOf(missing[0]), months.indexOf(missing[missing.length - 1]) + 1);
-    const got = await pullAndStore(source, span, fetch, now);
+    const got = await trackedPull(source, span, fetch, now);
     for (const [p, d] of got) have.set(p, d);
   }
   let refreshing = false;
@@ -96,7 +143,8 @@ export async function cachedFacts(
   if (stillStale.length && !inflight.has(source)) {
     refreshing = true;
     const span = months.slice(months.indexOf(stillStale[0]), months.indexOf(stillStale[stillStale.length - 1]) + 1);
-    const job = pullAndStore(source, span, fetch, opts.now === undefined ? undefined : now + 1).then(() => undefined).catch(() => undefined).finally(() => inflight.delete(source));
+    // A failed refresh keeps the last good copy; trackedPull has recorded the error + time (returned below as staleError).
+    const job = trackedPull(source, span, fetch, opts.now === undefined ? Date.now() : now + 1).then(() => undefined).catch(() => undefined).finally(() => inflight.delete(source));
     inflight.set(source, job);
     (opts.background ?? (() => {}))(job);
   } else if (inflight.has(source)) refreshing = true;
@@ -107,5 +155,6 @@ export async function cachedFacts(
   const trace = used.find((d) => d.trace?.length)?.trace ?? [];
   const oldest = used.map((d) => d.at).sort()[0] ?? null;
   const partial = used.some((d) => d.partial);
-  return { facts, warnings, trace, cachedAt: oldest, refreshing, partial };
+  const st = await readFactsStatus(source, now).catch(() => NO_STATUS);
+  return { facts, warnings, trace, cachedAt: oldest, refreshing, partial, ...(st.error ? { staleError: st.error, staleErrorAt: st.errorAt ?? undefined } : {}) };
 }

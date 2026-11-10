@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import type { ChartReport, HangKind } from '../connectors/tally/chart.js';
 import { HANG_LABEL } from '../connectors/tally/chart.js';
 import type { HealthReport } from '../connectors/tally/books.js';
+import { CONNECTOR_NAME, monthLabel, prevMonthOf, slotProblems, type SlotProblem, type StoredSlotReport } from '../connectors/slots/closeSlots.js';
 
 export type InboxArea = 'books' | 'mis' | 'feeds' | 'products' | 'close';
 export type InboxSeverity = 'high' | 'medium' | 'low';
@@ -56,6 +57,99 @@ export interface InboxInputs {
   /** Connectors that were ever committed for any month (a channel not started yet isn't nagged). */
   everUsed: Set<string>;
   anomalies: { id: string; severity: InboxSeverity; category: string; period: string; title: string; detail: string }[];
+  /**
+   * Every committed report reduced to its coverage (rows, first / last date). Given = the full check: every close slot,
+   * every unlocked month from LIVE_BOUNDARY to last month, missing / empty / partial. Absent = the old last-month check.
+   */
+  reports?: StoredSlotReport[];
+  /** Locked months (YYYY-MM): closed, never nagged. */
+  locked?: Set<string>;
+  /** How each slot is fed ("connector|slot" → source + whether its pull is connected). */
+  slotFeeds?: Record<string, { source: 'api' | 'sheet' | 'claude_task' | 'upload'; connected: boolean; connectHint?: string | null }>;
+  /** Live sources (/api/connectors/facts): age of this month's copy + the last refresh error while it is still failing. */
+  liveFacts?: { id: string; label: string; cachedAt: string | null; error: string | null; errorAt: string | null }[];
+}
+
+/** Flipkart refuses its API until the self-access app is approved: a wait, not a fault. */
+export const FLIPKART_WAITING = /not in approved state|not approved|approval pending/i;
+const LIVE_STALE_H = 2; // older than the slowest refresh window (closed months refresh daily: their items show ≥ 1 day)
+
+/** Close reports missing / empty / partial: one item per connector, months listed, with the action. */
+export function slotItems(x: Pick<InboxInputs, 'today' | 'reports' | 'locked' | 'slotFeeds'>): InboxItem[] {
+  if (!x.reports) return [];
+  const problems = slotProblems({ today: x.today, reports: x.reports, locked: x.locked });
+  const used = new Set(x.reports.filter((r) => r.rows > 0).map((r) => r.connectorId));
+  const last = prevMonthOf(x.today.slice(0, 7));
+  const day = Number(x.today.slice(8, 10));
+  const byConnector = new Map<string, SlotProblem[]>();
+  for (const p of problems) (byConnector.get(p.slot.connectorId) ?? byConnector.set(p.slot.connectorId, []).get(p.slot.connectorId)!).push(p);
+  const out: InboxItem[] = [];
+  for (const [cid, list] of byConnector) {
+    const name = CONNECTOR_NAME[cid] ?? cid;
+    const months = [...new Set(list.map((p) => p.period))].sort();
+    const neverUsed = !used.has(cid);
+    const anyStored = x.reports.some((r) => r.connectorId === cid);
+    const feeds = list.map((p) => x.slotFeeds?.[`${cid}|${p.slot.slotId}`]);
+    const auto = feeds.some((f) => f && f.source !== 'upload');
+    const notConnected = feeds.find((f) => f && f.source !== 'upload' && !f.connected);
+    const manual = feeds.some((f) => !f || f.source === 'upload');
+    // Severity: a required report missing for a finished month the close needs = high; partial / empty = medium;
+    // a connector never loaded, optional slots, or last month before the 10th = low.
+    const req = list.filter((p) => p.slot.required);
+    const overdue = req.some((p) => p.kind === 'missing' && (p.period < last || day > 10));
+    const severity: InboxSeverity = neverUsed || req.length === 0 ? 'low' : overdue ? 'high' : req.some((p) => p.period < last || day > 3) ? 'medium' : 'low';
+    // Detail: per slot, newest month first ("Payout: Oct 26 not loaded; Sep 26 has only 5–23 Sep.")
+    const bySlot = new Map<string, SlotProblem[]>();
+    for (const p of list) (bySlot.get(p.slot.slotId) ?? bySlot.set(p.slot.slotId, []).get(p.slot.slotId)!).push(p);
+    const detail = [...bySlot.values()].map((ps) => {
+      const sorted = [...ps].sort((a, b) => b.period.localeCompare(a.period));
+      const shown = sorted.slice(0, 6).map((p) => p.detail).join('; ');
+      return `${ps[0].slot.short}${ps[0].slot.required ? '' : ' (optional)'}: ${shown}${sorted.length > 6 ? `; and ${sorted.length - 6} more` : ''}.`;
+    }).join(' ');
+    const fixes: string[] = [];
+    if (auto && notConnected) fixes.push(notConnected.connectHint || 'Connect it on Setup first.');
+    if (auto && !notConnected) fixes.push(`Setup → ${name} → Pull now for each month (the daily auto-pull also tries last month and this month).`);
+    if (manual) fixes.push(cid.startsWith('flipkart')
+      ? `Download the report from Flipkart Seller Hub and upload it on Setup → ${name} (the Flipkart API is waiting for approval).`
+      : `Download the report and upload it on Setup → ${name}.`);
+    if (list.some((p) => p.kind === 'empty')) fixes.push('A month with really no activity: mark this Done.');
+    if (neverUsed) fixes.push(`If ${name} is not in use, mark this Done.`);
+    const monthsText = months.length <= 4 ? months.map(monthLabel).join(', ') : `${monthLabel(months[0])} to ${monthLabel(months[months.length - 1])}`;
+    out.push({
+      id: `slot:${cid}`, area: 'feeds', severity, period: months[months.length - 1], count: list.length,
+      title: neverUsed && !anyStored ? `${name}: never loaded (${months.length} month${months.length === 1 ? '' : 's'})` : `${name}: ${months.length} month${months.length === 1 ? '' : 's'} not complete (${monthsText})`,
+      detail, fix: fixes.join(' '), href: `/reporting/mis/connectors?view=uploads#${cid}`,
+      // Stable per set of missing (slot, month) pairs: Done holds until a new pair goes missing.
+      sig: sigOf(list.map((p) => `${p.slot.slotId}|${p.period}`).sort()),
+    });
+  }
+  return out;
+}
+
+/** Live sources whose refresh keeps failing: the page shows the last good copy, so say how old it is and why. */
+export function liveFactItems(x: Pick<InboxInputs, 'today' | 'liveFacts'>, nowMs = Date.parse(`${x.today}T12:00:00+05:30`)): InboxItem[] {
+  const out: InboxItem[] = [];
+  for (const s of x.liveFacts ?? []) {
+    if (!s.error) continue;
+    if (s.id === 'flipkart' && FLIPKART_WAITING.test(s.error)) {
+      out.push({ id: 'live:flipkart', area: 'feeds', severity: 'low', title: 'Flipkart live feed: waiting for Flipkart approval',
+        detail: 'Flipkart has not approved the self-access app yet, so it gives no live orders.',
+        fix: 'Flipkart Seller Hub → Manage Profile → Developer Access: approve / resubmit the app. Until then upload the settlement report.',
+        href: '/reporting/mis/connectors?view=uploads#flipkart', sig: 'waiting' });
+      continue;
+    }
+    if (!s.cachedAt) continue; // no copy at all: the page already shows the source as failed
+    const hours = (nowMs - Date.parse(s.cachedAt)) / 3_600_000;
+    if (!(hours > LIVE_STALE_H)) continue;
+    const days = Math.floor(hours / 24);
+    const age = days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${Math.floor(hours)} hours`;
+    out.push({ id: `live:${s.id}`, area: 'feeds', severity: days >= 3 ? 'high' : days >= 1 ? 'medium' : 'low',
+      title: `${s.label} live numbers are ${age} old`,
+      detail: `The refresh keeps failing, so Live MIS shows the last good copy. Error: ${s.error.slice(0, 200)}`,
+      fix: 'Open Live MIS and press Refresh. If it fails again, check the connector on Setup (login / token).',
+      href: `/reporting/mis/connectors?view=uploads#${s.id}`, sig: sigOf(s.error.slice(0, 60), Math.min(days, 3)) });
+  }
+  return out;
 }
 
 const SEV_HEALTH = { error: 'high', warn: 'medium', info: 'low' } as const;
@@ -101,16 +195,22 @@ export function serverItems(x: InboxInputs): InboxItem[] {
   } else if (x.tally && !x.tally.connected) {
     out.push({ id: 'feed:tally', area: 'feeds', severity: 'high', title: 'Tally not connected', detail: 'No host / port saved for the Tally connector.', fix: 'Add the Tally host and port on Setup (Tally card).', href: '/reporting/mis/connectors', sig: 'nc' });
   }
-  // Feeds: manual reports for last month
-  const last = prevMonth(x.today);
-  const day = Number(x.today.slice(8, 10));
-  for (const s of MANUAL_SLOTS) {
-    if (!x.everUsed.has(s.connectorId)) continue;
-    if (x.committed.has(`${s.connectorId}|${s.slotId}|${last}`)) continue;
-    out.push({ id: `upload:${s.connectorId}:${s.slotId}:${last}`, area: 'feeds', severity: day > s.dueDay ? 'medium' : 'low', period: last,
-      title: `${s.label} for ${last} not uploaded`, detail: 'No API for this report: it comes in by hand.',
-      fix: `Download it from the channel and drop it on the ${s.label} slot.`, href: `/reporting/mis/connectors?view=uploads#${s.connectorId}`, sig: 'missing' });
+  // Feeds: close reports. With the stored reports' coverage: every slot × unlocked month (missing / empty / partial).
+  if (x.reports) out.push(...slotItems(x));
+  else {
+    // Old check (no coverage given): the manual reports for last month.
+    const last = prevMonth(x.today);
+    const day = Number(x.today.slice(8, 10));
+    for (const s of MANUAL_SLOTS) {
+      if (!x.everUsed.has(s.connectorId)) continue;
+      if (x.committed.has(`${s.connectorId}|${s.slotId}|${last}`)) continue;
+      out.push({ id: `upload:${s.connectorId}:${s.slotId}:${last}`, area: 'feeds', severity: day > s.dueDay ? 'medium' : 'low', period: last,
+        title: `${s.label} for ${last} not uploaded`, detail: 'No API for this report: it comes in by hand.',
+        fix: `Download it from the channel and drop it on the ${s.label} slot.`, href: `/reporting/mis/connectors?view=uploads#${s.connectorId}`, sig: 'missing' });
+    }
   }
+  // Feeds: a live source whose refresh keeps failing (the copy shown is old)
+  out.push(...liveFactItems(x));
   // MIS numbers: cross-month anomaly scan
   // (future months are skipped — a month that hasn't happened can't be wrong yet — and the same check over several months is one item)
   const thisMonth = x.today.slice(0, 7);

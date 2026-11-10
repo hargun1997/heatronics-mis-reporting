@@ -112,7 +112,8 @@ export interface TrafficRow {
 }
 
 /** How the live connector pull went (backlog bug 3, 9 Nov 2026: a failed pull used to build the deck with no live data, silently). */
-export interface LiveFeedStatus { ok: boolean; error?: string; sources: { id: string; label: string; ok: boolean; error?: string; partial?: boolean; cachedAt?: string | null }[] }
+/** staleError = the last refresh of that source failed, so its numbers are the last good copy (cachedAt = how old). */
+export interface LiveFeedStatus { ok: boolean; error?: string; sources: { id: string; label: string; ok: boolean; error?: string; partial?: boolean; cachedAt?: string | null; staleError?: string | null; staleErrorAt?: string | null }[] }
 
 export interface LiveDeckData {
   /** Live connector pull status (absent on decks built from uploads only, e.g. tests). */
@@ -938,7 +939,7 @@ async function fetchLiveFacts(reports: ExtractedReport[], force = false): Promis
     if (earliest < from) from = earliest;
   }
   const res = await fetchFacts(from, today, force);
-  const sources = (res.sources ?? []).map((x) => ({ id: x.id, label: x.label, ok: !!x.ok, error: x.error, partial: (x as { partial?: boolean }).partial, cachedAt: (x as { cachedAt?: string | null }).cachedAt ?? null }));
+  const sources = (res.sources ?? []).map((x) => { const y = x as { partial?: boolean; cachedAt?: string | null; staleError?: string; staleErrorAt?: string | null }; return { id: x.id, label: x.label, ok: !!x.ok, error: x.error, partial: y.partial, cachedAt: y.cachedAt ?? null, staleError: y.staleError ?? null, staleErrorAt: y.staleErrorAt ?? null }; });
   return { facts: Array.isArray(res.facts) ? res.facts : [], feed: { ok: true, sources } };
 }
 

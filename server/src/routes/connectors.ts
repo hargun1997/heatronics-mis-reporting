@@ -24,6 +24,11 @@ import { lastPulls, pullState, runPull } from '../connectors/slots/jobs.js';
 import type { SlotSourceDef } from '../connectors/slots/types.js';
 import { endpoint as tallyEndpoint } from '../connectors/sources/tally.js';
 import { feedOrigin } from '../connectors/sources/delhivery.js';
+import { autoPullCaller, manualSlots, runAutoPull, runCounts, type AutoPullDeps, type AutoPullState } from '../connectors/slots/autoPull.js';
+import { sharedSecret } from '../connectors/sharedSecrets.js';
+import { storedSlotReport } from '../connectors/slots/closeSlots.js';
+import { listReports, readAllExtracted, readJson, saveReport, writeJson } from '../ingest/objectStore.js';
+import type { LockStore } from '../ingest/closeLocks.js';
 
 const router = Router();
 
@@ -138,6 +143,66 @@ router.get('/slots/:connectorId/:slotId/pull/:periodKey', h(async (req, res) => 
   res.json(state ? { ...state, via: def.via, parserId: def.parserId ?? null } : { status: 'none' });
 }));
 
+// ---- Scheduled pull + save of the automatic slots (connectors/slots/autoPull.ts) ----------
+// POST /api/connectors/auto-pull/run is an OPEN path (GitHub Actions, .github/workflows/slot-auto-pull.yml) with its own
+// token (autoPullCaller): a machine call can only start the once-a-day run (after 07:00 IST) and gets counts only — no
+// figures, no slot detail. A signed-in person may force a run and sees each slot's outcome.
+const AUTO_STATE = 'auto-pull/state';
+const AUTO_WAIT_MS = Number(process.env.AUTO_PULL_WAIT_MS) || 240_000;
+const autoDeps = (): AutoPullDeps => ({
+  now: () => Date.now(),
+  defs: SLOT_SOURCES,
+  creds: slotCreds,
+  // Wait for the job's own budget (jobs.ts stops a pull at 270 s + 30 s).
+  pull: async (def, creds, periodKey) => {
+    const st = await runPull(def, creds, periodKey, { waitMs: 310_000 });
+    return st.status === 'done' ? { status: 'done', result: st.result, pulledAt: st.pulledAt } : st.status === 'failed' ? { status: 'failed', error: st.error } : { status: 'running' };
+  },
+  reports: async () => {
+    const [metas, extracted] = await Promise.all([listReports(), readAllExtracted()]);
+    const meta = new Map(metas.map((m) => [`${m.connectorId}|${m.slotId}|${m.periodKey}`, m]));
+    return extracted.map((r) => {
+      const m = meta.get(`${r.connectorId}|${r.slotId}|${r.periodKey}`);
+      return { ...storedSlotReport(r), fileName: m?.fileName, savedAt: m?.savedAt };
+    });
+  },
+  locked: async () => new Set(Object.keys((await readJson<LockStore>('close-locks', { locks: {} })).locks ?? {})),
+  save: saveReport,
+  readState: () => readJson<AutoPullState>(AUTO_STATE, { lastRunDay: null }),
+  liveConnectors: new Set(CONNECTORS.filter((c) => c.fetchFacts).map((c) => c.id)),
+  writeState: (st) => writeJson(AUTO_STATE, st),
+});
+let autoRunning: ReturnType<typeof runAutoPull> | null = null;
+
+router.post('/auto-pull/run', h(async (req, res) => {
+  const caller = autoPullCaller(req as unknown as Parameters<typeof autoPullCaller>[0], await sharedSecret('mis-auto-pull-token'));
+  if (!caller) return res.status(401).json({ error: 'Not allowed' });
+  const signedIn = caller === 'person';
+  const force = signedIn && req.body?.force === true;
+  if (!autoRunning) {
+    const p = runAutoPull(autoDeps(), { force }).finally(() => { if (autoRunning === p) autoRunning = null; });
+    p.catch((e: unknown) => console.error('auto-pull failed:', e instanceof Error ? e.message : e));
+    autoRunning = p;
+  }
+  const waitMs = signedIn ? Math.max(0, Math.min(Number(req.body?.waitMs ?? AUTO_WAIT_MS) || 0, AUTO_WAIT_MS)) : AUTO_WAIT_MS;
+  let t: NodeJS.Timeout | undefined;
+  const out = await Promise.race([
+    autoRunning.catch(() => null),
+    new Promise<'waiting'>((r) => { t = setTimeout(() => r('waiting'), waitMs); }),
+  ]).finally(() => clearTimeout(t));
+  // The run keeps going after the answer (Cloud Run: --no-cpu-throttling) and saves what finishes.
+  if (out === 'waiting') return res.json({ status: 'started' });
+  if (!out) return res.json({ status: 'failed' });
+  const body = { status: out.status, ...runCounts(out.status === 'done' ? out.run : null) };
+  res.json(signedIn ? { ...body, why: out.why ?? null, run: out.run, manual: manualSlots(SLOT_SOURCES) } : body);
+}));
+
+// Last scheduled run + what stays manual (signed-in only; Setup page).
+router.get('/auto-pull', h(async (_req, res) => {
+  const st = await readJson<AutoPullState>(AUTO_STATE, { lastRunDay: null });
+  res.json({ lastRunDay: st.lastRunDay, running: Boolean(autoRunning), last: st.last ?? null, tries: st.tries ?? {}, manual: manualSlots(SLOT_SOURCES) });
+}));
+
 router.get('/:id', h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
@@ -248,6 +313,8 @@ router.post('/facts', h(async (req, res) => {
             cachedAt: result.cachedAt,
             refreshing: result.refreshing,
             partial: result.partial ?? false,
+            // The last refresh failed: these are the last good numbers (cachedAt says how old). Never hidden.
+            ...(result.staleError ? { staleError: result.staleError, staleErrorAt: result.staleErrorAt ?? null } : {}),
           },
           facts: result.facts,
           warnings: result.warnings,
