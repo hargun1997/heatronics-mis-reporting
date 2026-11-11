@@ -9,7 +9,8 @@ import { runRateArr } from '../../../data/planning/growth';
 import { METRIC_NAME, METRICS, buildPlanVsActual, monthsSubtitle, planMonthsOf, type ActualMonth, type MetricCmp, type MetricId, type MonthCmp, type PlanMonthRow, type Status } from '../../../data/planning/planVsActual';
 import { actualMonthsFromDeck, UNITS_BASIS_NOTE } from '../../../data/planning/planVsActualLive';
 import { loadLiveDeck } from '../../../data/misDeck/liveDeck';
-import { SectionCard } from '../../ui/Card';
+import { PlanCard } from '../ui';
+import { ErrorBox, InfoTip, Loading } from '../../ui/states';
 import { Disclosure } from '../../ui/Disclosure';
 
 interface Props { saved: { id: string; name: string }[] }
@@ -45,14 +46,14 @@ function BigNumber({ n, label, value, c, sub }: { n: number; label: string; valu
   const st = c?.status ?? null;
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-card" data-testid={`pva-big-${n}`}>
-      <div className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide text-slate-500">
+      <div className="flex items-center gap-2 text-[12px] font-bold text-slate-600">
         <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-900 text-[12px] text-white">{n}</span>{label}
       </div>
       <div className="mt-2 text-[28px] font-extrabold leading-tight tabular-nums text-slate-900">{value ?? 'No data yet'}</div>
       {st && c ? (
         <div className={`mt-1 text-[14px] font-bold ${TONE[st].text}`}><span aria-hidden>{ARROW[st]}</span> {pctWords(c)}</div>
       ) : (
-        <div className="mt-1 text-[14px] font-semibold text-slate-400">Waiting for the books</div>
+        <div className="mt-1 text-[14px] font-semibold text-slate-600">Waiting for the books</div>
       )}
       <div className="mt-1 text-[12px] text-slate-500">{sub}</div>
     </div>
@@ -152,18 +153,27 @@ export function PlanVsActualView({ saved }: Props) {
 
   return (
     <div className="min-w-0 space-y-5">
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-surface px-4 py-3 shadow-card">
-        <label htmlFor="pva-scn" className="text-[13px] font-semibold text-slate-600">Compare with</label>
-        <select id="pva-scn" value={scn} onChange={(e) => choose(e.target.value)} className="min-h-[44px] max-w-full rounded-lg border border-slate-200 bg-white px-3 text-[14px] font-semibold">
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="pva-scn" className="text-[13px] font-medium text-slate-600">Compare with</label>
+        <select id="pva-scn" value={scn} onChange={(e) => choose(e.target.value)} className="min-h-11 sm:min-h-9 max-w-full rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium">
           <option value="base">Base plan</option>
           {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <p className="w-full text-[13px] text-slate-600">Plan is our 5-year plan. Actual is the Live MIS, with normalised costs.</p>
+        <InfoTip label="How plan and actual are compared" width={360}>
+          <p>Plan = the 5-year plan. Actual = the Live MIS, with normalised costs.</p>
+          <p>On track = within 5% of plan. A month with no data shows &quot;No data yet&quot;, never 0.</p>
+          <p>The month in progress shows, but the big numbers do not count it.</p>
+          <p>Exit ARR pace = the last 3 closed months × 4, compared with the plan for the same months. The gap is carried to {arr?.fyEndLabel ?? 'the end of the year'}.</p>
+          {r?.notes.map((n) => <p key={n}>{n}</p>)}
+          <p>{UNITS_BASIS_NOTE}</p>
+          {stored === 'ok' && <p>These actuals are saved for the assistant.</p>}
+          {stored === 'fail' && <p>The actuals were not saved for the assistant.</p>}
+        </InfoTip>
       </div>
 
-      {planErr && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[14px] text-rose-700" role="alert">{planErr}</p>}
-      {deckErr && <p className="rounded-lg bg-rose-50 px-3 py-2 text-[14px] text-rose-700" role="alert">{deckErr}</p>}
-      {!r && !planErr && !deckErr && <p className="text-[14px] text-slate-500" role="status">Loading the plan and the MIS…</p>}
+      {planErr && <ErrorBox>{planErr}</ErrorBox>}
+      {deckErr && <ErrorBox>{deckErr}</ErrorBox>}
+      {!r && !planErr && !deckErr && <Loading label="Loading the plan and the MIS" />}
 
       {r && (
         <>
@@ -179,14 +189,14 @@ export function PlanVsActualView({ saved }: Props) {
               sub={arr ? `Plan for ${arr.fyEndLabel}: ${inr(arr.planExitArr)} · now ${inr(arr.actualArr)} a year` : 'Needs one closed month'} />
           </section>
 
-          <SectionCard title="Month by month" description={`${scnName}. Left bar is the plan, right bar is what happened.`}
-            actions={
-              <select aria-label="What to show" value={metric} onChange={(e) => setMetric(e.target.value as MetricId)} className="min-h-[44px] rounded-lg border border-slate-200 bg-white px-3 text-[14px] font-semibold">
+          <PlanCard title={`Month by month · ${scnName}`} info="Left bar = plan. Right bar = actual."
+            action={
+              <select aria-label="What to show" value={metric} onChange={(e) => setMetric(e.target.value as MetricId)} className="min-h-11 sm:min-h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium">
                 {METRICS.map((id) => <option key={id} value={id}>{METRIC_NAME[id]}</option>)}
               </select>
             }>
-            {r.months.length ? <Chart months={r.months} metric={metric} /> : <p className="text-[14px] text-slate-500">{r.notes[0] ?? 'Nothing to show yet.'}</p>}
-          </SectionCard>
+            {r.months.length ? <Chart months={r.months} metric={metric} /> : <p className="text-[14px] text-slate-600">{r.notes[0] ?? 'No data yet.'}</p>}
+          </PlanCard>
 
           <Disclosure
             title="1. Behind plan"
@@ -222,7 +232,7 @@ export function PlanVsActualView({ saved }: Props) {
                     </tr>); })}
                 </tbody>
               </table>
-              <p className="mt-2 text-[12px] text-slate-500">Net revenue. Pick another number in the chart above.</p>
+              <p className="mt-2 text-[12px] text-slate-600">Net revenue.</p>
             </div>
             <ul className="space-y-2 sm:hidden">
               {r.months.map((m) => { const c = m.metrics.revenue; return (
@@ -237,12 +247,6 @@ export function PlanVsActualView({ saved }: Props) {
             </ul>
           </Disclosure>
 
-          <p className="text-[12px] leading-relaxed text-slate-500">
-            On track = within 5% of plan. A month with no data shows “No data yet”, never 0. The month in progress is shown but not counted in the big numbers.
-            Exit ARR pace = the last 3 closed months × 4, compared with the plan for the same months; that gap is carried to {arr?.fyEndLabel ?? 'the end of the year'}.
-            {r.notes.map((n) => ` ${n}`).join('')} {UNITS_BASIS_NOTE}
-            {stored === 'ok' ? ' These actuals are saved for the assistant.' : stored === 'fail' ? ' Could not save these actuals for the assistant.' : ''}
-          </p>
         </>
       )}
     </div>

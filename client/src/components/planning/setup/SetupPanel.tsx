@@ -69,16 +69,15 @@ export function SetupPanel({ plan, update, result, embedded }: { plan: Plan; upd
                 <h3 className="m-0">
                   <button type="button" aria-expanded={open} aria-controls={bodyId}
                     onClick={() => setSt((cur) => ({ ...cur, sections: { ...cur.sections, [s.id]: !open } }))}
-                    className={cx('flex w-full flex-wrap items-center gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500', open ? 'bg-surface-tint/60' : 'hover:bg-slate-50')}>
-                    {open ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />}
-                    <span className="w-5 text-[12px] tabular-nums text-slate-400">{i + 1}</span>
+                    className={cx('flex min-h-12 w-full flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500', open ? 'bg-surface-tint/60' : 'hover:bg-slate-50')}>
+                    {open ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" aria-hidden /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />}
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold tabular-nums text-white">{i + 1}</span>
                     <span className="text-[13.5px] font-semibold text-slate-900">{s.title}</span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-slate-500">{summaries[i]}</span>
+                    <span className="min-w-0 flex-1 basis-full truncate pl-[3.25rem] text-[12px] text-slate-600 sm:basis-0 sm:pl-0">{open ? s.blurb : summaries[i]}</span>
                   </button>
                 </h3>
                 {open && (
                   <div id={bodyId} className="space-y-4 px-4 pb-5 pt-3">
-                    <p className="text-[12px] text-slate-500">{s.blurb}</p>
                     <s.Section plan={plan} update={update} result={result} />
                   </div>
                 )}

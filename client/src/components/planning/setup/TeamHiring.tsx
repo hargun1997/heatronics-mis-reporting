@@ -5,7 +5,7 @@ import { DEPT_NAMES, type Dept, type GrowthPlan } from '../../../data/planning/e
 import { applyScaleKey, newHire, peopleAddedByFy, scaleKey, summary, teamOf } from '../../../data/planning/setup/team';
 import { NumInput } from '../inputs';
 import { int, pct } from '../fmt';
-import { Check, MonthSelect, Note, btn, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt } from './shared';
+import { Check, MonthSelect, Note, Tip, btn, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 
 export { summary };
@@ -21,13 +21,8 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
   return (
     <div className="space-y-3">
-      <Note>
-        Fixed roles hire their people in the From month; roles that grow with the business add one person per revenue / units /
-        outlets step (never fewer than People). Monthly CTC per person; {pct(G.benefitsPct, 0)} benefits on top, a one-off hiring
-        cost of {pct(G.recruitPct, 0)} of a year's CTC, {pct(G.incrementPct, 0)} increment a year. Factory roles sit in COGS.
-      </Note>
-
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-slate-500">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-slate-600">
+        <Tip label="How hires are costed"><p>A fixed role hires its people in the From month.</p><p>A role that grows with the business adds 1 person for each step of revenue, units or outlets. It never has fewer than People.</p><p>CTC is a month for each person. Benefits ({pct(G.benefitsPct, 0)}) are added. Hiring cost = {pct(G.recruitPct, 0)} of 1 year&apos;s CTC, one time. Increment = {pct(G.incrementPct, 0)} a year.</p><p>Factory roles go to COGS.</p></Tip>
         <label className="flex items-center gap-1.5">Benefits <NumInput unit="pct" value={G.benefitsPct} min={0} width="w-12" title="Benefits %" onChange={(v) => set((g) => { g.benefitsPct = v; })} /></label>
         <label className="flex items-center gap-1.5">Hiring cost <NumInput unit="pct" value={G.recruitPct} min={0} width="w-12" title="Hiring cost %" onChange={(v) => set((g) => { g.recruitPct = v; })} /></label>
         <label className="flex items-center gap-1.5">Increment <NumInput unit="pct" value={G.incrementPct} min={0} width="w-12" title="Increment %" onChange={(v) => set((g) => { g.incrementPct = v; })} /></label>
@@ -35,7 +30,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       </div>
 
       {G.hires.length === 0 ? (
-        <Note>No roles yet: the plan's people costs are the sheet's lines only. Add a role to layer hires on top.</Note>
+        <Note>No roles yet. People costs come only from the sheet&apos;s lines. Add a role to add hires.</Note>
       ) : (
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-[12.5px] tabular-nums">
@@ -43,7 +38,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               <tr className="bg-surface-tint">
                 <th className={th}>On</th><th className={th}>Role</th><th className={th}>Team</th><th className={thr}>People</th>
                 <th className={th}>From</th><th className={th}>To</th><th className={th}>Grows with</th><th className={thr}>1 per</th>
-                <th className={thr}>CTC / month</th><th className={thr}>People at end</th><th className={th} />
+                <th className={thr}>CTC a month</th><th className={thr}>People at end</th><th className={th} />
               </tr>
             </thead>
             <tbody>
@@ -63,7 +58,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                     <select aria-label="Grows with" value={scaleKey(h)} className={txt} onChange={(e) => { const key = e.target.value; set((g) => { applyScaleKey(g.hires[i], key); }); }}>
                       <option value="fixed">Fixed</option>
                       <option value="revenue">Revenue (₹ Cr ARR)</option>
-                      <option value="units">Units / month</option>
+                      <option value="units">Units a month</option>
                       <option value="outlets:">All outlets</option>
                       {retail.map((t) => <option key={t.id} value={`outlets:${t.id}`}>{t.name.split(' (')[0]} outlets</option>)}
                     </select>
@@ -92,8 +87,8 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
 export const SECTION: SetupSectionDef = {
   id: 'team',
-  title: 'Team & hiring',
-  blurb: 'Roles, when they join, CTC, and which roles grow with revenue, units or outlets.',
+  title: 'Team and hiring',
+  blurb: 'Roles, join months, CTC, and roles that grow with the business.',
   Section,
   summary,
 };

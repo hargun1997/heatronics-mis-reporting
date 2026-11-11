@@ -31,11 +31,11 @@ export function FyTable({ r, compare, compareName }: { r: PlanResult; compare?: 
     <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
       <table className="w-full min-w-[560px] text-[13px] tabular-nums">
         <thead>
-          <tr className="border-b border-slate-200 text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-slate-200 text-xs text-slate-600">
             <th className="py-2 pr-3 text-left font-semibold">₹ Cr</th>
             {ys.map((y) => (
               <th key={y.fy} className="px-2 py-2 text-right font-semibold">
-                {y.fy}{y.months < 12 && <span className="block text-xs sm:text-[11px] font-normal normal-case text-slate-400">{y.months} mo plan</span>}
+                {y.fy}{y.months < 12 && <span className="block text-xs font-normal normal-case text-slate-600">{y.months} mo plan</span>}
               </th>
             ))}
           </tr>

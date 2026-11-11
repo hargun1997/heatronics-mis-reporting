@@ -3,7 +3,7 @@
 // The read-only "From the numbers" checks live on the Business plan output view, not here.
 import type { BusinessPlan } from '../../../data/planning/engine';
 import { addAssumption, addMilestone, addRisk, renameMilestone, rethemeMilestone, summary, taggedLines, themesOf } from '../../../data/planning/setup/narrative';
-import { btn, MonthSelect, monthsOf, Note, SubHead, th, thr } from './shared';
+import { btn, MonthSelect, monthsOf, Note, Parts, SubHead, th, thr, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 
 export { summary };
@@ -12,16 +12,18 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   const setB = (fn: (b: BusinessPlan) => void) => update((p) => fn(p.business));
   const themes = themesOf(plan);
   const months = monthsOf(result);
+  const [part, setPart] = useParts<'assumptions' | 'risks' | 'milestones' | 'team'>('assumptions');
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-5 xl:grid-cols-2">
-        <div className="space-y-2">
+    <div className="space-y-4">
+      <Parts value={part} onChange={setPart} label="Business plan text part" options={[
+        { id: 'assumptions', label: 'Assumptions' }, { id: 'risks', label: 'Risks' }, { id: 'milestones', label: 'Milestones' }, { id: 'team', label: 'Team' },
+      ]} />
+        {part === 'assumptions' && <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <SubHead>Key assumptions</SubHead>
+            <SubHead info="What the plan is based on. Keep it next to the numbers, so the deck and the model agree.">Key assumptions</SubHead>
             <AddBtn label="Add an assumption" onClick={() => update(addAssumption)} />
           </div>
-          <Note>What the plan rests on: kept with the numbers so the deck and the model never drift.</Note>
           {plan.business.assumptions.length === 0 && <Note>No assumptions yet.</Note>}
           <div className="space-y-1.5">
             {plan.business.assumptions.map((a, i) => (
@@ -33,14 +35,13 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               </div>
             ))}
           </div>
-        </div>
+        </div>}
 
-        <div className="space-y-2">
+        {part === 'risks' && <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <SubHead>Key risks &amp; mitigation</SubHead>
+            <SubHead info="One line for each risk, and what the plan does about it.">Risks and what we do</SubHead>
             <AddBtn label="Add a risk" onClick={() => update(addRisk)} />
           </div>
-          <Note>One line per risk, and what the plan does about it.</Note>
           {plan.business.risks.length === 0 && <Note>No risks yet.</Note>}
           <div className="space-y-1.5">
             {plan.business.risks.map((x, i) => (
@@ -51,19 +52,13 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </div>}
 
-      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-2">
+        {part === 'milestones' && <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <SubHead>Themes &amp; milestones</SubHead>
+            <SubHead info={<><p>A new name or theme for a milestone changes all cost lines linked to it.</p><p>Link lines in Sheet lines. The spend shows in Business plan → Use of funds.</p></>}>Themes and milestones</SubHead>
             <AddBtn label="Add a milestone" onClick={() => update(addMilestone)} />
           </div>
-          <Note>
-            Overview rows 10–36. Renaming a milestone or moving it to another theme updates every cost line tagged with it
-            (tag lines in Sheet lines; the spend shows on the Business plan view as capital deployment).
-          </Note>
           <datalist id="plan-themes">{themes.map((t) => <option key={t} value={t} />)}</datalist>
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full text-[13px]">
@@ -78,7 +73,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               </thead>
               <tbody>
                 {plan.business.themes.length === 0 && (
-                  <tr><td colSpan={5} className="px-2 py-2 text-[12px] text-slate-500">No milestones yet.</td></tr>
+                  <tr><td colSpan={5} className="px-2 py-2 text-[12px] text-slate-600">No milestones yet.</td></tr>
                 )}
                 {plan.business.themes.map((t, i) => (
                   <tr key={t.id} className="border-t border-slate-100">
@@ -94,22 +89,20 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                       <MonthSelect title="Milestone month" value={t.month} months={months}
                         onChange={(m) => { if (m !== null) setB((b) => { b.themes[i].month = m; }); }} />
                     </td>
-                    <td className="px-2 text-right tabular-nums text-slate-500">{taggedLines(plan, t.milestone)}</td>
+                    <td className="px-2 text-right tabular-nums text-slate-600">{taggedLines(plan, t.milestone)}</td>
                     <td className="pl-2 text-right"><Del onClick={() => setB((b) => { b.themes.splice(i, 1); })} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </div>}
 
-        <div className="space-y-2">
-          <SubHead>Team structure</SubHead>
-          <Note>From the sheet’s Overview tab. One line per role; → for who reports into whom.</Note>
+        {part === 'team' && <div className="space-y-2">
+          <SubHead info="From the Overview tab of the sheet. One line for each role. An arrow (→) shows who reports to whom.">Team</SubHead>
           <textarea value={plan.business.team} onChange={(e) => setB((b) => { b.team = e.target.value; })} rows={10}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] leading-relaxed" aria-label="Team structure" />
-        </div>
-      </div>
+        </div>}
     </div>
   );
 }
@@ -117,7 +110,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 export const SECTION: SetupSectionDef = {
   id: 'narrative',
   title: 'Business plan text',
-  blurb: 'The words next to the numbers: assumptions, risks, themes & milestones, team structure.',
+  blurb: 'Assumptions, risks, milestones and team, next to the numbers.',
   Section,
   summary,
 };
