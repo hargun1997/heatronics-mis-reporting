@@ -2,7 +2,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { isActive, maskAccount, type PayeeList } from '../../data/payments/payees';
 import { readPayeeWorkbook } from '../../data/payments/workbook';
-import { Note, Num, btnSecondary, input } from './shared';
+import { Note, btnSecondary, input } from './shared';
+import { Empty, InfoTip, Panel } from '../ui/states';
 import { fmtWhen } from './util';
 
 export function PayeesSection({ list, onSaved }: { list: PayeeList | null; onSaved: (l: PayeeList) => void }) {
@@ -43,29 +44,23 @@ export function PayeesSection({ list, onSaved }: { list: PayeeList | null; onSav
   }
 
   return (
-    <div className="space-y-4">
-      <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
-        <li>In ICICI CIB open <b>Manage Bene</b> and download the list (Excel).</li>
-        <li>Upload that file here. It replaces the saved list.</li>
-      </ol>
-      <div className="flex flex-wrap items-center gap-3">
+    <Panel title="Payees" count={payees.length}
+      action={<div className="flex flex-wrap items-center gap-2">
+        <InfoTip label="How to get the payee list" align="right">
+          <ol className="list-decimal space-y-1 pl-4"><li>In ICICI CIB, open <b>Manage Bene</b>. Download the list (Excel).</li><li>Upload that file here. It replaces the saved list.</li></ol>
+        </InfoTip>
         <input ref={file} type="file" accept=".xls,.xlsx" className="sr-only" id="payee-file" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
-        <label htmlFor="payee-file" className={`${btnSecondary} cursor-pointer`} aria-disabled={busy}>{busy ? 'Reading…' : 'Upload payee list (.xls / .xlsx)'}</label>
-        {list?.savedAt && <span className="text-sm text-slate-600">Saved list from {fmtWhen(list.savedAt)}{list.fileName ? ` · ${list.fileName}` : ''}</span>}
-      </div>
+        <label htmlFor="payee-file" className={`${btnSecondary} cursor-pointer`} aria-disabled={busy}>{busy ? 'Reading…' : 'Upload payee list'}</label>
+      </div>}>
+      <div className="space-y-3">
+      {list?.savedAt && <p className="text-xs text-slate-600">List from {fmtWhen(list.savedAt)}{list.fileName ? ` · ${list.fileName}` : ''} · {active} Active</p>}
       {msg && (
         <Note tone={msg.tone}>
           {msg.text}
           {msg.extra?.map((x) => <span key={x} className="block">{x}</span>)}
         </Note>
       )}
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Num label="Payees saved" value={payees.length} />
-        <Num label="Active" value={active} sub="Only these can be paid" />
-        <Num label="Not active" value={payees.length - active} />
-      </div>
-
+      {!payees.length && <Empty title="No payee list yet" hint="Download the list from ICICI CIB → Manage Bene. Then upload it here." />}
       {payees.length > 0 && (
         <>
           <div className="flex flex-wrap items-center gap-3">
@@ -78,7 +73,7 @@ export function PayeesSection({ list, onSaved }: { list: PayeeList | null; onSav
           </div>
           <div className="max-h-[420px] overflow-auto rounded-lg border border-slate-200">
             <table className="w-full text-[13px]">
-              <thead className="sticky top-0 bg-slate-50 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <thead className="sticky top-0 bg-slate-50 text-left text-xs font-semibold text-slate-600">
                 <tr><th className="px-3 py-2">Name</th><th className="px-3 py-2">Short name</th><th className="px-3 py-2">Bank</th><th className="px-3 py-2">Account</th><th className="px-3 py-2">IFSC</th><th className="px-3 py-2">Status</th></tr>
               </thead>
               <tbody>
@@ -97,6 +92,7 @@ export function PayeesSection({ list, onSaved }: { list: PayeeList | null; onSav
           </div>
         </>
       )}
-    </div>
+      </div>
+    </Panel>
   );
 }

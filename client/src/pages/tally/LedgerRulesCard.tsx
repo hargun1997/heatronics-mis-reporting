@@ -4,11 +4,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_LEDGER_RULES, RULE_LINES, exactNameRule, ledgerRulesReport, sanitizeRules, type LedgerRule, type RuleLine } from '../../data/monthClose/ledgerRules';
 import { exactLineOf } from '../../data/monthClose/ledgerMap';
+import { InfoTip, Loading } from '../../components/ui/states';
 
 interface Wire { rules: LedgerRule[] | null; ledgers: { name: string; group: string; primary: string }[]; pnl: { period: string; rows: { name: string; amount: number }[] }[]; narrations: { date: string; type: string; number: string; ledger: string; amount: number; narration: string }[]; mastersAt: string | null }
 const inr = (n: number | null) => (n == null ? '' : `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`);
 const label = (l: RuleLine) => RULE_LINES.find((x) => x.id === l)!.label;
-const btn = 'rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50';
+const btn = 'min-h-11 sm:min-h-7 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50';
 
 export function LedgerRulesCard() {
   const [w, setW] = useState<Wire | null>(null);
@@ -36,15 +37,16 @@ export function LedgerRulesCard() {
     const { rules: clean } = sanitizeRules(next);
     const r = await fetch('/api/tally/ledger-rules', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rules: clean }) });
     if (!r.ok) { setMsg((await r.json().catch(() => ({}))).error || 'Could not save.'); return; }
-    setRules(clean); setMsg(`${note} Reload Live MIS to see it in the numbers.`);
+    setRules(clean); setMsg(`${note} Refresh Live MIS to see it in the numbers.`);
   };
-  if (!w || !rep) return <p className="text-sm text-slate-500">{msg ?? 'Loading…'}</p>;
+  if (!w || !rep) return msg ? <p className="text-sm text-red-700">{msg}</p> : <Loading />;
   const stale = !w.ledgers.length;
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">Which Tally ledgers feed each MIS line. The seed map is exact; the rules below catch ledgers booked under other names. Read only: nothing here changes Tally.
-        {stale && <span className="text-amber-800"> No ledger master stored yet (Pull Tally now): matching uses the latest P&amp;L rows only.</span>}</p>
+      <p className="flex flex-wrap items-center gap-1 text-sm text-slate-600">The Tally ledgers that feed each MIS line.
+        <InfoTip label="About ledger rules"><p>The seed map is exact. The rules catch ledgers booked under other names.</p><p>Nothing here changes Tally.</p></InfoTip>
+        {stale && <span className="text-amber-800">No ledger list stored. Select Pull Tally now. Until then the match uses the newest P&amp;L rows only.</span>}</p>
       {msg && <p role="status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">{msg}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         {RULE_LINES.map((l) => {
@@ -67,7 +69,7 @@ export function LedgerRulesCard() {
           <li key={c.name} className="flex flex-wrap items-center gap-2"><span className="text-slate-800">{c.name}</span><span className="text-slate-400">{inr(c.amount ?? null)}</span>
             <button type="button" className={btn} onClick={() => void save([...rules, exactNameRule(c.name, c.line)], `${c.name} now feeds ${label(c.line)}.`)}>Yes → {label(c.line)}</button></li>))}
       </Review>
-      <Review title="Voucher narrations that mention brand / fundraising (listed only: a ledger is never split by narration)" empty="None in the stored months.">
+      <Review title="Voucher narrations that name brand or fundraising (list only)" empty="None in the stored months.">
         {rep.narrations.map((n, i) => <li key={i} className="text-slate-700">{n.date} · {n.type} {n.number} · {n.ledger} · {inr(n.amount)} · <span className="text-slate-500">{n.narration}</span> <span className="text-slate-400">→ {label(n.line)}?</span></li>)}
       </Review>
       <details className="rounded-xl border border-slate-200 bg-white p-3">
