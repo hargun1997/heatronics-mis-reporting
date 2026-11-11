@@ -66,17 +66,17 @@ export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'r
   const bar = accent ?? toneAccent[tone];
 
   return (
-    <div className={`relative overflow-hidden rounded-xl border p-4 shadow-card ${toneWrap[tone]}`}>
+    <div className={`relative overflow-hidden rounded-xl border px-4 py-3.5 shadow-card ${toneWrap[tone]}`}>
       {bar && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px]" style={{ background: bar }} />}
-      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="text-xs font-medium text-slate-500">{label}</div>
       <div className={`font-semibold tracking-[-0.02em] tabular-nums mt-2 text-[26px] leading-none ${toneValue[tone]}`}>
         {value}
         {unit && <span className="text-base font-bold text-slate-400 ml-1">{unit}</span>}
       </div>
       {(delta || sub) && (
-        <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
           {delta && <span className={`font-bold ${deltaColor}`}>{arrow} {delta.text}</span>}
-          {sub && <span className="text-slate-400">{sub}</span>}
+          {sub && <span className="text-slate-500">{sub}</span>}
         </div>
       )}
       {spark && <Sparkline data={spark} color={sparkColor} />}

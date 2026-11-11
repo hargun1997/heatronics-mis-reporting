@@ -29,7 +29,7 @@ import { footCellsToChannels, NOT_MAPPED } from '../../data/misDeck/channelFoot'
 import type { CascadeLine } from '../../data/monthClose/schema';
 import { interBranchNote } from '../../data/misDeck/auditTie';
 import {
-  Fold, Pills, CogmBasisToggle, CogmBasisNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
+  Fold, Views, Pills, CogmBasisToggle, CogmBasisNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
   useLiveView, VERTICAL_COLORS,
 } from './shared';
 
@@ -119,11 +119,11 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">Snapshot for <span className="font-medium text-slate-700">{period.label}</span>{n > 1 ? ` · ${scopeOf(period)}` : ''}</p>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {n > 1 && <p className="mr-auto text-xs text-slate-500">{scopeOf(period)}</p>}
+        <CogmBasisNote />
         <CogmBasisToggle />
       </div>
-      <CogmBasisNote />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Net Revenue" value={inr(period.netRevenue)}
@@ -736,32 +736,28 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
 
       {keyOrder.length > 0 && (
         <>
-          <Fold id="ch-grouped" secondary title="Revenue by channel — every period, all years" meta="One bar per channel within each period (follows the grain)">
-            <GroupedBarChart labels={tLabels} keys={names} colors={colors} data={revData} height={300} valueFormat={(v) => inr(v)} />
-            <div className="mt-2"><Legend items={legend} /></div>
-          </Fold>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <Fold id="ch-stacked" secondary title="Revenue mix by channel — since inception" meta="Net revenue per channel across every period">
-                <StackedBarChart labels={tLabels} keys={names} colors={colors} data={revData} height={280} />
-                <div className="mt-2"><Legend items={legend} /></div>
-              </Fold>
-            </div>
-            <Fold id="ch-donut" secondary title={`Revenue share · ${period.label}`}>
-              <div className="flex justify-center py-1"><DonutChart data={donut} colors={donutColors} size={180} /></div>
-              <div className="mt-2"><Legend items={slice.columns.map((c) => ({ label: `${c.label} ${slice.total.rev ? pctStr(c.rev / slice.total.rev, 0) : ''}`, color: colorOf(c.key) }))} /></div>
-            </Fold>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Fold id="ch-lines" secondary title="Revenue by channel over time">
+          <Views id="ch" label="Channel chart">
+            <Fold id="ch-lines" tab="Revenue over time" secondary title="Revenue by channel over time">
               <LineChart labels={tLabels} series={revLines} valueFormat={(v) => inr(v)} height={260} />
               <div className="mt-2"><Legend items={legend} /></div>
             </Fold>
-            <Fold id="ch-nm" secondary title="Net margin % by channel" meta="Net income ÷ revenue, full-close periods only">
+            <Fold id="ch-grouped" tab="Bars by period" secondary title="Revenue by channel, every period" meta="One bar per channel in each period">
+              <GroupedBarChart labels={tLabels} keys={names} colors={colors} data={revData} height={300} valueFormat={(v) => inr(v)} />
+              <div className="mt-2"><Legend items={legend} /></div>
+            </Fold>
+            <Fold id="ch-stacked" tab="Mix" secondary title="Revenue mix by channel" meta="Net revenue per channel in each period">
+              <StackedBarChart labels={tLabels} keys={names} colors={colors} data={revData} height={280} />
+              <div className="mt-2"><Legend items={legend} /></div>
+            </Fold>
+            <Fold id="ch-donut" tab={`Share, ${period.label}`} secondary title={`Revenue share · ${period.label}`}>
+              <div className="flex justify-center py-1"><DonutChart data={donut} colors={donutColors} size={180} /></div>
+              <div className="mt-2"><Legend items={slice.columns.map((c) => ({ label: `${c.label} ${slice.total.rev ? pctStr(c.rev / slice.total.rev, 0) : ''}`, color: colorOf(c.key) }))} /></div>
+            </Fold>
+            <Fold id="ch-nm" tab="Net margin %" secondary title="Net margin % by channel" meta="Net income ÷ revenue. Months with a full close only.">
               <LineChart labels={tLabels} series={nmLines} percent yFormat={(v) => `${Math.round(v * 100)}%`} valueFormat={(v) => pctStr(v)} height={260} />
               <div className="mt-2"><Legend items={legend} /></div>
             </Fold>
-          </div>
+          </Views>
         </>
       )}
     </div>

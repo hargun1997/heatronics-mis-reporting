@@ -1,11 +1,11 @@
 // Today — the page to open first. What needs you, five numbers, what moved since yesterday, what is coming.
-// Reads GET /api/today (stored data only). Numbers first; every section folds.
+// Reads GET /api/today (stored data only). Numbers first, then the numbered list; all on one screen.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDownRight, ArrowUpRight, CheckCircle2, AlertTriangle, CircleAlert, RefreshCw } from 'lucide-react';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Card } from '../../components/ui/Card';
-import { Disclosure } from '../../components/ui/Disclosure';
+import { CheckCircle2, AlertTriangle, CircleAlert, RefreshCw } from 'lucide-react';
+import { PageHeader, PageBody } from '../../components/ui/PageHeader';
+import { KpiTile } from '../../components/ui/KpiTile';
+import { BTN, Empty, ErrorBox, Loading, Panel, StepNo } from '../../components/ui/states';
 import { SourceChip } from '../../components/ui/SourceChip';
 
 interface Tile { id: string; label: string; value: number | null; unit: 'inr' | 'months' | 'count'; sub: string; tone: 'ok' | 'watch' | 'act'; delta: number | null }
@@ -53,94 +53,94 @@ export function TodayPage() {
   useEffect(() => { void load(); }, []);
 
   const band = b ? BAND[b.status] : null;
+  const total = b ? b.needsYou.length + b.moreNeeds : 0;
   return (
-    <div className="space-y-5 max-w-5xl">
+    <>
       <PageHeader
         title="Today"
-        description="What needs you, the five numbers that matter, and what moved since yesterday."
+        description={b ? b.statusLine : 'Do the numbered items first.'}
         status={b && band ? <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${band.box}`}><band.Icon className="h-3.5 w-3.5" aria-hidden />{b.status === 'act' ? 'Act now' : b.status === 'watch' ? 'Watch' : 'All clear'}</span> : undefined}
-        actions={<button type="button" onClick={() => void load(true)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} aria-hidden /> Refresh</button>}
+        help={<><p>The 5 numbers come from the Tally books and the Tasks list.</p><p>"What changed" compares today with the last saved day.</p></>}
+        actions={<>
+          {b && <SourceChip
+            items={[
+              { label: 'Tally books', asOf: b.freshness.tallyLastOkAt ?? null, staleAfterH: 48, note: 'Net cash, sales and watch items' },
+              { label: 'Tasks and Fix list', asOf: b.asOf, note: 'Read live' },
+            ]}
+            notes={b.notes}
+          />}
+          <button type="button" onClick={() => void load(true)} disabled={busy} className={BTN}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden /> Refresh</button>
+        </>}
       />
-      {err && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</div>}
-      {!b && !err && <div className="text-sm text-slate-500" role="status">Loading…</div>}
-      {b && band && (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-lg font-semibold text-slate-900" role="status">{b.statusLine}</p>
-            <SourceChip
-              items={[
-                { label: 'Tally books', asOf: b.freshness.tallyLastOkAt ?? null, staleAfterH: 48, note: 'Cash, sales and watch items' },
-                { label: 'Tasks & Fix list', asOf: b.asOf, note: 'Read live' },
-              ]}
-              notes={b.notes}
-            />
-          </div>
+      <PageBody>
+        {err && <ErrorBox onRetry={() => void load(true)}>{err}</ErrorBox>}
+        {!b && !err && <Loading />}
+        {b && (
+          <>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+              {b.tiles.map((t) => {
+                const d = tileDelta(t);
+                // for cash and sales up is good; for fix / late counts up is bad
+                const good = t.unit === 'count' ? (t.delta ?? 0) < 0 : (t.delta ?? 0) > 0;
+                return (
+                  <KpiTile key={t.id} label={t.label} value={<span className={TONE[t.tone]}>{show(t)}</span>}
+                    delta={d ? { dir: (t.delta ?? 0) > 0 ? 'up' : 'down', text: d, good } : undefined}
+                    sub={t.sub} />
+                );
+              })}
+            </div>
 
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {b.tiles.map((t) => {
-              const d = tileDelta(t);
-              // for cash and sales up is good; for fix / late counts up is bad
-              const good = t.unit === 'count' ? (t.delta ?? 0) < 0 : (t.delta ?? 0) > 0;
-              return (
-                <Card key={t.id} className="p-4">
-                  <p className="text-xs text-slate-500">{t.label}</p>
-                  <p className={`mt-1 text-2xl font-semibold tabular-nums ${TONE[t.tone]}`}>{show(t)}</p>
-                  {d && (
-                    <p className={`mt-0.5 flex items-center gap-0.5 text-xs ${good ? 'text-emerald-700' : 'text-red-700'}`}>
-                      {(t.delta ?? 0) > 0 ? <ArrowUpRight className="h-3.5 w-3.5" aria-hidden /> : <ArrowDownRight className="h-3.5 w-3.5" aria-hidden />}
-                      {d} vs last saved day
-                    </p>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Panel title="Do these first" count={total} className="lg:col-span-2" flush
+                action={total > 0 ? <Link to="/tasks" className={BTN}>Open Tasks</Link> : undefined}>
+                {b.needsYou.length === 0 ? <div className="p-4"><Empty title="Nothing to do now" hint="No late task. No open Fix item." /></div> : (
+                  <ol className="divide-y divide-slate-100">
+                    {b.needsYou.map((n, i) => (
+                      <li key={i}>
+                        <Link to={n.href} className="flex min-h-14 items-center gap-3 px-4 py-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500">
+                          <StepNo n={i + 1} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-slate-900">{n.title}</span>
+                            <span className="block truncate text-xs text-slate-600" title={n.why}>{n.why}</span>
+                          </span>
+                          {n.inr != null && <span className="shrink-0 text-sm tabular-nums text-slate-700">{inr(n.inr)}</span>}
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${n.severity === 'high' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-800'}`}>{KIND[n.kind]}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                {b.moreNeeds > 0 && <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-600">{b.moreNeeds} more in <Link to="/tasks?view=fix" className="font-medium text-accent-600 hover:underline">Tasks, Fix list</Link></p>}
+              </Panel>
+
+              <div className="space-y-4">
+                <Panel title="What changed">
+                  <ul className="space-y-1.5 text-sm text-slate-700">
+                    {b.changed.map((c) => (
+                      <li key={c.id} className="flex items-start gap-2">
+                        <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${c.direction === 'better' ? 'bg-emerald-500' : c.direction === 'worse' ? 'bg-red-500' : 'bg-slate-300'}`} />
+                        <span>{c.text}<span className="sr-only"> ({c.direction})</span></span>
+                      </li>
+                    ))}
+                  </ul>
+                </Panel>
+                <Panel title="Due soon" count={b.dueSoon.length} flush>
+                  {b.dueSoon.length === 0 ? <p className="p-4 text-sm text-slate-600">No task is due soon.</p> : (
+                    <ul className="divide-y divide-slate-100 text-sm">
+                      {b.dueSoon.slice(0, 5).map((d, i) => (
+                        <li key={i} className="flex items-center justify-between gap-3 px-4 py-2">
+                          <Link to={d.href} className="min-w-0 truncate text-slate-900 hover:underline">{d.title}</Link>
+                          <span className="shrink-0 text-xs text-slate-600">{d.inDays === 1 ? 'Tomorrow' : `${d.inDays} days`}</span>
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                  <p className="mt-1 text-xs text-slate-500">{t.sub}</p>
-                </Card>
-              );
-            })}
-          </div>
-
-          <Disclosure title="Needs you" defaultOpen badge={<span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{b.needsYou.length + b.moreNeeds}</span>}>
-            {b.needsYou.length === 0 ? <p className="py-2 text-slate-500">Nothing open.</p> : (
-              <ol className="divide-y divide-slate-100">
-                {b.needsYou.map((n, i) => (
-                  <li key={i} className="flex items-start gap-3 py-2.5">
-                    <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${n.severity === 'high' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>{KIND[n.kind]}</span>
-                    <div className="min-w-0 flex-1">
-                      <Link to={n.href} className="font-medium text-slate-900 hover:underline">{n.title}</Link>
-                      <p className="text-xs text-slate-600">{n.why}</p>
-                    </div>
-                    {n.inr != null && <span className="shrink-0 text-sm tabular-nums text-slate-700">{inr(n.inr)}</span>}
-                  </li>
-                ))}
-              </ol>
-            )}
-            {b.moreNeeds > 0 && <p className="pt-2 text-xs text-slate-500">+{b.moreNeeds} more — <Link to="/tasks?view=fix" className="underline">see all in Tasks</Link></p>}
-          </Disclosure>
-
-          <Disclosure title="What changed" defaultOpen subtitle="Compared with the last saved day">
-            <ul className="space-y-1.5 py-1">
-              {b.changed.map((c) => (
-                <li key={c.id} className="flex items-start gap-2">
-                  <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${c.direction === 'better' ? 'bg-emerald-500' : c.direction === 'worse' ? 'bg-red-500' : 'bg-slate-300'}`} />
-                  <span>{c.text}<span className="sr-only"> ({c.direction})</span></span>
-                </li>
-              ))}
-            </ul>
-          </Disclosure>
-
-          <Disclosure title="Coming up" badge={<span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{b.dueSoon.length}</span>}>
-            {b.dueSoon.length === 0 ? <p className="py-2 text-slate-500">Nothing due in the next few days.</p> : (
-              <ul className="divide-y divide-slate-100">
-                {b.dueSoon.map((d, i) => (
-                  <li key={i} className="flex items-center justify-between gap-3 py-2">
-                    <Link to={d.href} className="hover:underline">{d.title}</Link>
-                    <span className="shrink-0 text-xs text-slate-600">{d.inDays === 1 ? 'tomorrow' : `in ${d.inDays} days`}{d.owners.length ? ` · ${d.owners.join(', ')}` : ''}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Disclosure>
-
-        </>
-      )}
-    </div>
+                </Panel>
+              </div>
+            </div>
+          </>
+        )}
+      </PageBody>
+    </>
   );
 }

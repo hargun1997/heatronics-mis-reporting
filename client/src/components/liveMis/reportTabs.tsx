@@ -19,7 +19,7 @@ import { REAL_ROWS, toPeriodMIS, liveLikeForLike } from '../../data/misDeck/live
 import {
   arrProjection, channelMix, channelHHI, topChannel, channelsAbove, channelObservations, CHANNEL_AOV,
 } from '../../data/misDeck/analytics';
-import { Fold, Pills, Delta, fairGrowth, Note, TableBox, useLiveView } from './shared';
+import { Fold, Views, Pills, Delta, fairGrowth, Note, TableBox, useLiveView } from './shared';
 import { yearAgoOf, scopeLine } from './deckTabs';
 
 const real = (p: PeriodAgg, row: string) => REAL_ROWS[p.level].has(row);
@@ -143,19 +143,18 @@ function TrajectorySection({ periods, allPeriods, gran }: { periods: PeriodAgg[]
   const labels = periods.map((p) => p.label);
   return (
     <>
-      <Fold id="rg-stack" title="Revenue trajectory" meta={`${scopeLine(periods, gran)} · net revenue by channel (net of returns & GST)`}>
+      <Views id="rg" label="Revenue view">
+      <Fold id="rg-stack" tab="By channel" title="Revenue trajectory" meta={`${scopeLine(periods, gran)} · net revenue by channel (net of returns & GST)`}>
         <StackedBarChart labels={labels} keys={keys} colors={colors} data={data} />
         <div className="mt-2"><Legend items={keys.map((k) => ({ label: k, color: colors[k] }))} /></div>
       </Fold>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Fold id="rg-pop" secondary title={`${popLabel} revenue growth`} meta="Period-over-period, equal-length frames only">
-          <GrowthBarChart labels={labels} values={pop} />
-        </Fold>
-        <Fold id="rg-yoy" secondary title="YoY revenue growth" meta="Same period, prior year, equal-length frames only">
-          <GrowthBarChart labels={labels} values={yoy} />
-        </Fold>
-      </div>
-      <Fold id="rg-detail" title={`${GRAN_TITLE[gran]} detail`}>
+      <Fold id="rg-pop" tab={`${popLabel} growth`} secondary title={`${popLabel} revenue growth`} meta="Compared with the period before">
+        <GrowthBarChart labels={labels} values={pop} />
+      </Fold>
+      <Fold id="rg-yoy" tab="YoY growth" secondary title="YoY revenue growth" meta="Compared with the same period 1 year before">
+        <GrowthBarChart labels={labels} values={yoy} />
+      </Fold>
+      <Fold id="rg-detail" tab="Table" title={`${GRAN_TITLE[gran]} detail`}>
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
             <thead>
@@ -186,6 +185,7 @@ function TrajectorySection({ periods, allPeriods, gran }: { periods: PeriodAgg[]
         </TableBox>
         <Note>Growth is shown only where both periods cover the same number of months.</Note>
       </Fold>
+      </Views>
     </>
   );
 }
@@ -250,15 +250,27 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
 
   return (
     <div className="space-y-4">
-      <Fold id="cm-mix" title="Channel mix %" meta={`${scopeLine(periods, gran)} · share of net revenue`}>
+      <div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+          <KpiTile label="Top channel" value={chName(top.channel)} sub={`${pctStr(top.share, 0)} of net revenue`} />
+          <KpiTile label="Channels > 5%" value={`${channelsAbove(pm)} of ${channelsIn([period]).length}`} sub="diversification" />
+          <KpiTile label="Concentration (HHI)" value={`${hhi}`} sub={hhi > 3000 ? 'high' : hhi > 1800 ? 'moderate' : 'low'} />
+          <KpiTile label="Active channels" value={`${SALES_CHANNELS.filter((c) => (period.netByChannel[c] ?? 0) > 0).length}`} sub="with revenue this period" />
+        </div>
+        <ul className="space-y-1">
+          {obs.slice(0, 3).map((t, i) => <li key={i} className="flex gap-2 text-sm text-slate-700"><span className="text-brand-500">▸</span><span>{t}</span></li>)}
+        </ul>
+      </div>
+      <Views id="cm" label="Channel view">
+      <Fold id="cm-mix" tab="Mix %" title="Channel mix %" meta={`${scopeLine(periods, gran)} · share of net revenue`}>
         <StackedBarChart labels={labels} keys={names} colors={colors} data={mixData} asShare />
         <div className="mt-2"><Legend items={names.map((n) => ({ label: n, color: colors[n] }))} /></div>
       </Fold>
-      <Fold id="cm-rev" title="Channel net revenue" meta="Absolute ₹ by channel over time">
+      <Fold id="cm-rev" tab="Net revenue" title="Channel net revenue" meta="Absolute ₹ by channel over time">
         <LineChart labels={labels} series={revLines} />
         <div className="mt-2"><Legend items={names.map((n) => ({ label: n, color: colors[n] }))} /></div>
       </Fold>
-      <Fold id="cm-orders" secondary title={`Channel orders${anyActual ? '' : ' (estimated)'}`}
+      <Fold id="cm-orders" tab="Orders" secondary title={`Channel orders${anyActual ? '' : ' (estimated)'}`}
         meta={anyActual ? 'Actual connector order counts where every month in the period reports them; estimated (revenue ÷ AOV) elsewhere' : 'Estimated as each channel’s net revenue ÷ its average order value'}>
         <LineChart labels={labels} series={orderLines} valueFormat={fmtCountFull} yFormat={fmtCount} />
         <div className="mt-2"><Legend items={names.map((n) => ({ label: n, color: colors[n] }))} /></div>
@@ -269,24 +281,13 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
           {merged && aovChans.some((c) => c === 'OEM' || c === 'Offline') && ' OEM / Offline history keeps its own AOV inside B2B (OEM) / GT (Offline).'}
         </Note>
       </Fold>
-      <Fold id="cm-growth" secondary title="Channel growth over time"
+      <Fold id="cm-growth" tab="Growth" secondary title="Channel growth over time"
         meta={`${gb === 'MoM' ? 'Month-over-month' : gb === 'QoQ' ? 'Quarter-over-quarter' : 'Year-over-year (monthly)'} growth per channel — equal-length frames only`}
         actions={<Pills label="Growth basis" value={gb} onChange={setGb} options={[{ id: 'MoM', label: 'MoM' }, { id: 'QoQ', label: 'QoQ' }, { id: 'YoY', label: 'YoY' }]} />}>
         <LineChart labels={gSeries.map((p) => p.label)} series={growthLines} percent valueFormat={(v) => pctSigned(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
         <div className="mt-2"><Legend items={gChans.map((c) => ({ label: chName(c), color: chColor(c) }))} /></div>
       </Fold>
-      <Fold id="cm-obs" title="Channel observations" meta={`KPIs for ${period.label}; bullets read the full history (first → latest quarter)`}>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-          <KpiTile label="Top channel" value={chName(top.channel)} sub={`${pctStr(top.share, 0)} of net revenue`} />
-          <KpiTile label="Channels > 5%" value={`${channelsAbove(pm)} of ${channelsIn([period]).length}`} sub="diversification" />
-          <KpiTile label="Concentration (HHI)" value={`${hhi}`} sub={hhi > 3000 ? 'high' : hhi > 1800 ? 'moderate' : 'low'} />
-          <KpiTile label="Active channels" value={`${SALES_CHANNELS.filter((c) => (period.netByChannel[c] ?? 0) > 0).length}`} sub="with revenue this period" />
-        </div>
-        <ul className="space-y-1.5">
-          {obs.map((t, i) => <li key={i} className="flex gap-2 text-sm text-slate-700"><span className="text-brand-500">▸</span><span>{t}</span></li>)}
-        </ul>
-      </Fold>
-      <Fold id="cm-lfl" title={`Channel growth · like-for-like ${gran === 'year' ? 'FY-to-date' : gran}`}
+      <Fold id="cm-lfl" tab="Like for like" title={`Channel growth · like-for-like ${gran === 'year' ? 'FY-to-date' : gran}`}
         meta={`${lfl.curScope} vs ${lfl.priorScope} — same calendar months a year earlier${lfl.priorComplete ? '' : ' (only months that have a prior-year month are compared)'}`}>
         <p className="mb-2 text-sm text-slate-600">Total net revenue {inr(lfl.curRevenue)} vs {inr(lfl.priorRevenue)} · <Delta value={lfl.revenueGrowth} /></p>
         <TableBox>
@@ -314,7 +315,7 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
           </table>
         </TableBox>
       </Fold>
-      <Fold id="cm-fy" secondary title="Fiscal-year channel mix" meta="Net revenue by fiscal year, computed from the monthly MIS">
+      <Fold id="cm-fy" tab="By fiscal year" secondary title="Fiscal-year channel mix" meta="Net revenue by fiscal year, computed from the monthly MIS">
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
             <thead>
@@ -339,6 +340,7 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
           </table>
         </TableBox>
       </Fold>
+      </Views>
     </div>
   );
 }
@@ -379,16 +381,16 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
   const memo = (p: PeriodAgg) => (normalised && real(p, 'gross_margin') && p.normalisedMonths > 0 && p.netRevenue ? pctSigned(p.stockVariance / p.netRevenue) : '—');
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-500">Margins &amp; unit economics · {scopeLine(periods, gran)} · {normalised ? 'normalised COGM (the Basis switch above)' : 'actual COGM (the Basis switch above)'}</p>
-      <Fold id="pr-ladder" title="Margin ladder over time" meta="Gross margin → CM1 → CM2 → EBITDA → Net income (% of net revenue)"
+      <Views id="pr" label="Margin view">
+      <Fold id="pr-ladder" tab="Margin ladder" title="Margin ladder over time" meta="Gross margin → CM1 → CM2 → EBITDA → Net income (% of net revenue)"
         actions={<label className="flex items-center gap-1.5 text-xs text-slate-500"><input type="checkbox" checked={cm3} onChange={(e) => setCm3(e.target.checked)} /> show CM3</label>}>
         <LineChart labels={periods.map((p) => p.label)} series={series} percent valueFormat={(v) => pctStr(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
         <div className="mt-2"><Legend items={series.map((s) => ({ label: s.name, color: s.color }))} /></div>
       </Fold>
-      <Fold id="pr-bridge" title={`P&L bridge · ${lp.label}`} meta="From net revenue to net income">
+      <Fold id="pr-bridge" tab={`P&L bridge, ${lp.label}`} title={`P&L bridge · ${lp.label}`} meta="From net revenue to net income">
         {full ? <WaterfallChart steps={steps} /> : <p className="text-xs text-slate-400 py-6 text-center">The full bridge needs a full close (Tally P&amp;L) for every month in {lp.label}.</p>}
       </Fold>
-      <Fold id="pr-cost" title="Cost structure (% of net revenue)" meta={GRAN_TITLE[gran]}>
+      <Fold id="pr-cost" tab="Cost structure" title="Cost structure (% of net revenue)" meta={GRAN_TITLE[gran]}>
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
             <thead>
@@ -415,6 +417,7 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
           </table>
         </TableBox>
       </Fold>
+      </Views>
     </div>
   );
 }

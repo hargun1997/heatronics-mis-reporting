@@ -16,7 +16,8 @@ import { anchorMonth } from '../../data/misDeck/misPeriods';
 import { LabeledField } from '../../components/ui/LabeledField';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { PageHeader, KpiTile, SegmentedControl } from '../../components/ui';
+import { ChevronDown, Lock, RefreshCw } from 'lucide-react';
+import { PageHeader, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
 import { inr } from '../../components/mis-deck/format';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
@@ -41,12 +42,6 @@ import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExpor
 import { LiveViewProvider, Pills, Section, type CogmBasis } from '../../components/liveMis/shared';
 import { WhyItMoved } from '../../components/liveMis/WhyItMoved';
 import { useWhyData, useSaveBridge, whySummary } from '../../components/liveMis/whyData';
-
-const iconLive = (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-  </svg>
-);
 
 type Tab = 'overview' | 'pnl' | 'channels' | 'products' | 'statements';
 const TABS: { id: Tab; label: string }[] = [
@@ -113,8 +108,9 @@ function useTab(): [Tab, (t: Tab) => void] {
   return [tab, setTab];
 }
 
+/** A control with its label on the same line (one row of filters under the tabs). */
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <LabeledField label={label}>{children}</LabeledField>;
+  return <LabeledField label={label} className="flex items-center gap-2 text-xs text-slate-600" captionClassName="font-medium">{children}</LabeledField>;
 }
 
 export function LiveMisPage() {
@@ -227,12 +223,12 @@ export function LiveMisPage() {
 
   // A section that needs the deck: loading / no data / no period fallbacks, else its content.
   const withDeck = (render: () => ReactNode) => {
-    if (!view) return <p className="text-sm text-slate-400 py-6 text-center">{deckLoading ? 'Loading the MIS…' : 'No data yet.'}</p>;
+    if (!view) return <p className="text-sm text-slate-400 py-6 text-center">{deckLoading ? 'Loading…' : 'No data.'}</p>;
     if (allPeriods.length === 0) return <NoData />;
     return render();
   };
   const withPeriod = (render: (sel: PeriodAgg, v: LiveDeckData) => ReactNode) => withDeck(() => (
-    selected ? render(selected, view!) : <p className="text-sm text-slate-400 py-6 text-center">{isRange ? 'Pick at least one month for the range.' : 'No period in this selection.'}</p>
+    selected ? render(selected, view!) : <p className="text-sm text-slate-400 py-6 text-center">{isRange ? 'Select 1 month or more.' : 'No period for this selection.'}</p>
   ));
   const selLabel = selected ? selected.label : '—';
 
@@ -240,62 +236,39 @@ export function LiveMisPage() {
     <LiveViewProvider value={ctx}>
       <PageHeader
         title="Live MIS"
-        accent="brand"
-        icon={iconLive}
-        description="The MIS, live from your uploads. Each month is real through its completeness level; the full P&L lands once its Tally P&L is in."
-        crumbs={[
-          { label: 'Reporting', to: '/reporting' },
-          { label: 'MIS Reporting', to: '/reporting/mis' },
-          { label: 'Live MIS' },
-        ]}
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Link to="/reporting/mis/rulebook" className="px-2.5 py-1 rounded-lg text-slate-600 text-xs sm:text-[11px] hover:bg-white/70 underline-offset-2 hover:underline">
-              How it’s calculated
-            </Link>
-            <Link to="/reporting/mis/connectors?view=uploads" className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-[11px] hover:bg-slate-50">
-              Close the month
-            </Link>
-            <button onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-[11px] hover:bg-slate-50 disabled:opacity-40">
-              Export Excel
-            </button>
-            <button onClick={() => setPdfOpen(true)} disabled={!deck || deckLoading}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-[11px] hover:bg-slate-50 disabled:opacity-40">
-              Export PDF
-            </button>
-            <button onClick={() => void loadDeck(true)} disabled={deckLoading} title="Re-pull every live source now (otherwise they refresh by themselves every 15 min)"
-              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-[11px] hover:bg-slate-50 disabled:opacity-40">
-              {deckLoading ? 'Loading…' : 'Refresh'}
-            </button>
-          </div>
-        }
+        description="The P&L by month, channel and product, from Tally and the connected reports."
+        status={deck && view ? <CompletenessBanner deck={view} raw={deck} showLive={showLive} setShowLive={setShowLive} /> : undefined}
+        tabs={TABS} tab={tab} onTab={(t) => setTab(t as Tab)}
+        help={<>
+          <p>A month is final only after you lock it.</p>
+          <p>Until then, the numbers change when a report or the Tally books change.</p>
+          <p><Link to="/reporting/mis/rulebook" className="font-medium text-accent-600 hover:underline">Read how each number is made</Link></p>
+        </>}
+        actions={<>
+          <Popover align="right" width={200} buttonClassName={BTN} button={<>Download<ChevronDown className="h-4 w-4" aria-hidden /></>}>
+            <div className="p-1.5">
+              <button type="button" onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download Excel</button>
+              <button type="button" onClick={() => setPdfOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download PDF</button>
+            </div>
+          </Popover>
+          <Link to="/reporting/mis/send" className={BTN}>Send report</Link>
+          <button type="button" onClick={() => void loadDeck(true)} disabled={deckLoading} title="Pull every live report again now. They also refresh every 15 minutes." className={BTN}>
+            <RefreshCw className={`h-4 w-4 ${deckLoading ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden />Refresh
+          </button>
+        </>}
       />
 
       {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} />}
       {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
-        {/* Completeness floor */}
-        {deck && view && <CompletenessBanner deck={view} raw={deck} showLive={showLive} setShowLive={setShowLive} />}
+      <div className="mx-auto max-w-7xl space-y-3 px-4 pb-10 pt-3 sm:px-6 lg:px-8">
         {deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
-        {deckError && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{deckError}</div>}
-
-        {/* Tab bar */}
-        <div className="flex gap-1 border-b border-slate-200 overflow-x-auto no-scrollbar" role="tablist" aria-label="Live MIS views">
-          {TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
-              className={'px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors ' +
-                (tab === t.id ? 'border-brand-500 text-brand-700 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700')}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {deckError && <ErrorBox onRetry={() => void loadDeck(true)}>{deckError}</ErrorBox>}
 
         {/* Period controls (grain, year / range, period, channel naming) — once, for every tab but Statements */}
         {showControls && (
-          <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-            <Field label="Grain">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Field label="Period type">
               <SegmentedControl size="sm" aria-label="Granularity" options={DECK_GRAINS}
                 value={gran} onChange={(v) => { setGran(v); setPeriodKey(''); }} />
             </Field>
@@ -324,9 +297,9 @@ export function LiveMisPage() {
                 </select>
               </Field>
             )}
-            <Field label="Channels">
+            <Field label="Channel names">
               <Pills label="Channel naming" value={chanPref} onChange={setChanPref}
-                options={[{ id: 'continuous', label: 'Continuous' }, { id: 'booked', label: 'As booked' }]} />
+                options={[{ id: 'continuous', label: 'Merged' }, { id: 'booked', label: 'As booked' }]} />
             </Field>
           </div>
         )}
@@ -354,25 +327,25 @@ export function LiveMisPage() {
           <div id="close" className="scroll-mt-24"><MonthClosePanel periodKey={selected.members[0]} comp={view.completeness[selected.members[0]]} onChanged={() => void loadDeck(true)} /></div>
         )}
         {showControls && isRange && selected && (
-          <p className="text-xs text-slate-500">Showing <span className="font-medium text-slate-700">{selected.label}</span>: {selected.members.map(monthLabel).join(', ')} — aggregated; completeness is the lowest month’s.</p>
+          <p className="text-xs text-slate-500"><span className="font-medium text-slate-700">{selected.label}</span>: {selected.members.length} months added together.</p>
         )}
 
         {/* ---- Overview ---- */}
         {tab === 'overview' && (
           <>
             <Section id="ov-headline" title="Headline" defaultOpen
-              meta={`Snapshot for ${selLabel} · KPIs, revenue & margin trends, channel mix, P&L bridge`}>
+              meta={selLabel}>
               {withPeriod((sel) => <OverviewTab period={sel} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} traffic={trafficRows} isRange={isRange} />)}
             </Section>
             <Section id="ov-why" title="Why it moved" meta={whySummary(why)}>
               {withDeck(() => <WhyItMoved data={why} />)}
             </Section>
-            <Section id="ov-growth" title="Revenue & growth"
-              meta="ARR & forward projection · discounts · revenue trajectory by channel · period-over-period and YoY growth">
+            <Section id="ov-growth" title="Revenue and growth"
+              meta="ARR, discounts, growth">
               {withDeck(() => <RevenueGrowthTab monthly={monthly} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} completeThrough={view!.completeThrough} />)}
             </Section>
-            <Section id="ov-runrate" title="Run-rate — whole business"
-              meta="Every connector's daily facts, all channels together · MRR, MER, orders · by day, week or month">
+            <Section id="ov-runrate" title="Run-rate"
+              meta="Daily sales, ad spend and orders from the connected reports">
               <RunRateTab />
             </Section>
           </>
@@ -382,19 +355,19 @@ export function LiveMisPage() {
         {tab === 'pnl' && (
           <>
             <Section id="pnl-sheet" title="MIS sheet" defaultOpen
-              meta="Months of a fiscal year + FY total · Company or one channel · ₹ Lac or % of net revenue · COGM Actual or Normalised">
+              meta="Months of 1 fiscal year and the total">
               {withDeck(() => <LiveMisSheetTab deck={view!} normalisedMonths={normalised?.months ?? null} />)}
             </Section>
-            <Section id="pnl-ladder" title="Margin ladder & cost structure"
-              meta={`GM → CM1 → CM2 → EBITDA → Net income over time · P&L bridge for ${selLabel} · cost lines as % of net revenue · follows the Basis switch`}>
+            <Section id="pnl-ladder" title="Margins and costs"
+              meta="Margin ladder, P&L bridge, costs as % of net revenue">
               {withPeriod((sel) => <ProfitabilityTab period={sel} periods={shownPeriods} gran={aggGran} />)}
             </Section>
-            <Section id="pnl-detail" title="Detailed P&L (expandable lines)"
-              meta="Every shown period as a column · click a line to drill into ledgers, ad platforms and the revenue build-up · metric trends">
+            <Section id="pnl-detail" title="Detailed P&L"
+              meta="1 column per period. Select a line to see its ledgers.">
               {withDeck(() => <PnlTab periods={pnlCols} months={months} completeness={completeness} gran={isRange ? 'month' : aggGran} display={display} setDisplay={setDisplay} />)}
             </Section>
             <Section id="pnl-channels" title="By channel"
-              meta={`Channel P&L for ${selLabel} · MIS-anchored or bottom-up · channels or verticals · revenue by channel over time`}>
+              meta={`Channel P&L, ${selLabel}`}>
               {withPeriod((sel, v) => <ChannelsTab period={sel} periods={shownPeriods} cells={v.skuCells} periodKeys={periodKeys} completeness={completeness} />)}
             </Section>
           </>
@@ -404,11 +377,11 @@ export function LiveMisPage() {
         {tab === 'channels' && (
           <>
             <Section id="ch-mix" title="Channel mix" defaultOpen
-              meta="Share of net revenue by channel · channel revenue, orders and growth over time · like-for-like YoY · FY mix">
+              meta={selLabel}>
               {withPeriod((sel, v) => <ChannelMixTab period={sel} periods={shownPeriods} months={v.months} monthly={monthly} quarterly={quarterly} yearly={yearly} gran={aggGran} />)}
             </Section>
             <Section id="ch-skuchannel" title="SKU × channel"
-              meta={`Products × channels for ${selLabel} · contribution, revenue, marketing, CM2 or units · full P&L per SKU or per channel`}>
+              meta={`Products by channel, ${selLabel}`}>
               {withPeriod((sel, v) => <SkuChannelTab period={sel} cells={v.skuCells} periodKeys={periodKeys} completeness={completeness} />)}
             </Section>
           </>
@@ -417,10 +390,10 @@ export function LiveMisPage() {
         {/* ---- Products ---- */}
         {tab === 'products' && (
           <>
-            <Section id="pr-sku" title="SKU P&L" defaultOpen meta={`Full P&L per product for ${selLabel} · % of revenue under each column`}>
+            <Section id="pr-sku" title="SKU P&L" defaultOpen meta={`P&L per product, ${selLabel}`}>
               {withPeriod((sel, v) => <SkuTab period={sel} cells={v.skuCells} periodKeys={periodKeys} />)}
             </Section>
-            <Section id="pr-units" title="Units sold" meta={`Units per product and channel for ${selLabel}`}>
+            <Section id="pr-units" title="Units sold" meta={`Units per product and channel, ${selLabel}`}>
               {withPeriod((sel, v) => <SkuUnitsTab period={sel} cells={v.skuCells} periodKeys={periodKeys} />)}
             </Section>
           </>
@@ -429,10 +402,10 @@ export function LiveMisPage() {
         {/* ---- Statements ---- */}
         {tab === 'statements' && (
           <>
-            <Section id="st-bs" title="Balance sheet" defaultOpen meta="Month-end balance sheets from Tally's stored Trial Balances · ₹ lakh · last 12 months">
+            <Section id="st-bs" title="Balance sheet" defaultOpen meta="Month end, last 12 months, ₹ lakh, from the Tally trial balance">
               <BalanceSheetTab />
             </Section>
-            <Section id="st-cf" title="Cash flow" meta="Indirect cash flow between consecutive month ends · operations, investing, financing · ₹ lakh">
+            <Section id="st-cf" title="Cash flow" meta="Month to month, ₹ lakh: operations, investing, financing">
               <CashFlowTab />
             </Section>
           </>
@@ -450,39 +423,27 @@ function CompletenessBanner({ deck, raw, showLive, setShowLive }: {
   const published = deck.periods.filter((k) => deck.completeness[k]?.published);
   const altKeys = Object.keys(raw.alternates).sort();
   const span = (ks: string[]) => (ks.length === 1 ? monthLabel(ks[0]) : `${monthLabel(ks[0])}–${monthLabel(ks[ks.length - 1])}`);
+  const ready = deck.periods.filter((k) => deck.completeness[k]?.ready);
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
-      {through ? (
-        <span className="text-slate-600">
-          MIS <span className="font-semibold text-slate-900">closed &amp; locked through {monthLabel(through)}</span>
-        </span>
-      ) : (
-        <span className="text-amber-700 font-medium">No month is closed yet — a month counts once it is locked (Close &amp; lock).</span>
-      )}
-      {deck.periods.some((k) => deck.completeness[k]?.ready) && (
-        <span className="text-brand-700">Ready to close: {deck.periods.filter((k) => deck.completeness[k]?.ready).map(monthLabel).join(', ')}</span>
-      )}
-      {latest && latest !== through && (
-        <span className="text-slate-400 flex items-center gap-1.5">Latest data: {monthLabel(latest)} (partial <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} />)</span>
-      )}
-      <span className="text-slate-400 flex items-center gap-1.5">
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 text-xs sm:text-[11px] font-medium text-slate-500">Locked</span>
-        history through {monthLabel(prevMonth(LIVE_BOUNDARY))} · live from {monthLabel(LIVE_BOUNDARY)}
-      </span>
-      {published.length > 0 && (
-        <span className="text-slate-400 flex items-center gap-1.5">
-          <LevelBadge level="full" published /> {span(published)} from the published MIS until a full live close replaces {published.length === 1 ? 'it' : 'them'}
-        </span>
-      )}
-      <PublishedGapChip deck={deck} />
-      {altKeys.length > 0 && (
-        <label className="flex items-center gap-1.5 text-slate-600 cursor-pointer">
-          <input type="checkbox" checked={showLive} onChange={(e) => setShowLive(e.target.checked)} />
-          Show live partials for {span(altKeys)} instead of the published months
-        </label>
-      )}
-      <span className="text-slate-400 sm:ml-auto">{deck.periods.length} month{deck.periods.length === 1 ? '' : 's'} with data</span>
-    </div>
+    <Popover align="left" width={340} buttonLabel="Month status"
+      buttonClassName={`inline-flex min-h-11 sm:min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold ${through ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}
+      button={<><Lock className="h-3.5 w-3.5" aria-hidden />{through ? `Locked to ${monthLabel(through)}` : 'No month locked'}{ready.length > 0 && <span className="rounded-full bg-white/70 px-1.5 text-accent-700">{ready.length} ready</span>}</>}>
+      <dl className="space-y-2 p-4 text-[13px] font-normal text-slate-700">
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Locked to</dt><dd className="font-semibold text-slate-900">{through ? monthLabel(through) : 'No month'}</dd></div>
+        {ready.length > 0 && <div className="flex justify-between gap-3"><dt className="text-slate-500">Ready to lock</dt><dd className="text-right font-medium text-accent-700">{ready.map(monthLabel).join(', ')}</dd></div>}
+        {latest && latest !== through && <div className="flex items-center justify-between gap-3"><dt className="text-slate-500">Newest data</dt><dd className="flex items-center gap-1.5">{monthLabel(latest)} <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} /></dd></div>}
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Old history (fixed)</dt><dd>to {monthLabel(prevMonth(LIVE_BOUNDARY))}</dd></div>
+        {published.length > 0 && <div className="flex justify-between gap-3"><dt className="text-slate-500">From the published MIS</dt><dd>{span(published)}</dd></div>}
+        <div className="flex justify-between gap-3"><dt className="text-slate-500">Months with data</dt><dd className="tabular-nums">{deck.periods.length}</dd></div>
+        <PublishedGapChip deck={deck} />
+        {altKeys.length > 0 && (
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 border-t border-slate-200 pt-2 text-slate-700">
+            <input type="checkbox" checked={showLive} onChange={(e) => setShowLive(e.target.checked)} />
+            Show live numbers for {span(altKeys)}
+          </label>
+        )}
+      </dl>
+    </Popover>
   );
 }
 
@@ -496,11 +457,8 @@ function prevMonth(pk: string): string {
 function NoData() {
   return (
     <div className="px-4 py-8 text-center">
-      <p className="text-sm text-slate-500">No uploads have been ingested yet.</p>
-      <p className="text-xs text-slate-400 mt-1">
-        Head to <Link to="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</Link> to upload each source,
-        or see the <Link to="/reporting/mis/rulebook" className="text-brand-600 underline">Data rulebook</Link> for what feeds what.
-      </p>
+      <p className="text-sm font-semibold text-slate-900">No data</p>
+      <p className="mt-1 text-sm text-slate-600">Pull or upload the reports in <Link to="/reporting/mis/connectors" className="font-medium text-brand-600 underline">Setup</Link>.</p>
     </div>
   );
 }
@@ -519,13 +477,13 @@ const RR_DIMS: { id: Dimension; label: string }[] = [
 ];
 const RR_METRICS: { id: MetricKey; label: string; money: boolean }[] = [
   { id: 'revenue', label: 'Revenue', money: true },
-  { id: 'net', label: 'Net (rev − fees)', money: true },
+  { id: 'net', label: 'Net (revenue less fees)', money: true },
   { id: 'fees', label: 'Fees', money: true },
   { id: 'spend', label: 'Ad spend', money: true },
   { id: 'orders', label: 'Orders', money: false },
   { id: 'units', label: 'Units', money: false },
   { id: 'aov', label: 'AOV', money: true },
-  { id: 'mer', label: 'MER (rev / spend)', money: false },
+  { id: 'mer', label: 'MER (revenue ÷ ad spend)', money: false },
 ];
 const AUTO_MS = 120_000;
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -548,7 +506,7 @@ function RunRateTab() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try { setData(await fetchFacts(from, to)); setFetchedAt(new Date()); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not pull facts.'); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not pull the reports. Try again.'); }
     finally { setLoading(false); }
   }, [from, to]);
   useEffect(() => { void load(); }, [load]);
@@ -604,7 +562,7 @@ function RunRateTab() {
         <div className="flex items-center gap-3 text-xs sm:text-[11px] text-slate-400 sm:ml-auto pb-1">
           {fetchedAt && <span>updated {fetchedAt.toLocaleTimeString()}</span>}
           <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> auto</label>
-          <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40">{loading ? 'Pulling…' : 'Pull again'}</button>
+          <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40">{loading ? 'Refreshing…' : 'Refresh'}</button>
         </div>
       </div>
 
@@ -612,21 +570,20 @@ function RunRateTab() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiTile label="Revenue" value={inr(sum.revenue)} sub={`${days} days`} />
-        <KpiTile label="MRR" value={inr(mrr)} sub="30-day run-rate" />
+        <KpiTile label="MRR" value={inr(mrr)} sub="30 days at this rate" />
         <KpiTile label="Ad spend" value={inr(sum.spend)} />
-        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="rev / spend" />
-        <KpiTile label="Net" value={inr(sum.net)} sub="rev − fees" />
+        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="Revenue ÷ ad spend" />
+        <KpiTile label="Net" value={inr(sum.net)} sub="Revenue less fees" />
         <KpiTile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
       </div>
 
       <div>
         <p className="text-xs text-slate-500 mb-2">
           <span className="font-medium text-slate-700">{RR_GRAINS.find((g) => g.id === gran)!.label} {metricDef.label} by {RR_DIMS.find((d) => d.id === dim)!.label.toLowerCase()}</span>
-          {' '}· {from} → {to}{isRatio ? ' · ratio metric, not summed' : ''}
+          {' '}· {from} to {to}{isRatio ? ' · a ratio, no total' : ''}
         </p>
         {facts.length === 0 ? (
-          <p className="text-sm text-slate-400">No data for this range. Connect a dateable source (Shopify today) on the{' '}
-            <Link to="/reporting/mis/connectors" className="text-brand-600 underline">Setup</Link> page and pull.</p>
+          <p className="text-sm text-slate-600">No data for these dates. Connect Shopify in <Link to="/reporting/mis/connectors" className="font-medium text-brand-600 underline">Setup</Link>.</p>
         ) : (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-xs border-collapse">
@@ -654,7 +611,6 @@ function RunRateTab() {
           {data.warnings.map((w, i) => <p key={i}>⚠ {w}</p>)}
         </div>
       )}
-      <p className="text-xs sm:text-[11px] text-slate-400">Which connector is current, and report uploads for sources with no API, are on <Link to="/reporting/mis/connectors" className="underline underline-offset-2">Setup</Link>.</p>
     </div>
   );
 }

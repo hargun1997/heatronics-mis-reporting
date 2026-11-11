@@ -35,33 +35,36 @@ export interface NavSection {
 export type Cadence = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'When needed';
 export interface PageOwner { role: string; person?: string; cadence: Cadence; job: string }
 export const PAGE_OWNER: Record<string, PageOwner> = {
-  today: { role: 'Founder', person: 'Hargun', cadence: 'Daily', job: 'Open first. Act on anything red, then check what changed.' },
-  live: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Read the P&L and channels. Close and lock last month after the 10th.' },
+  today: { role: 'Founder', person: 'Hargun', cadence: 'Daily', job: 'Open this page first. Do the red items. Then read what changed.' },
+  live: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Read the P&L and the channels. Lock last month after the 10th.' },
   insights: { role: 'Founder', person: 'Hargun', cadence: 'When needed', job: 'Ask why a number moved.' },
-  tasks: { role: 'Accounts executive', cadence: 'Daily', job: 'Tick tasks due today. Clear the Fix list.' },
-  cash: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Check the week cash goes below zero or hits the overdraft limit. Set the limit.' },
-  tally: { role: 'Accounts executive', cadence: 'Weekly', job: 'Fix hanging ledgers and wrong groups in TallyPrime.' },
+  tasks: { role: 'Accounts executive', cadence: 'Daily', job: 'Tick the tasks due today. Clear the Fix list.' },
+  booking: { role: 'Accounts executive', cadence: 'Daily', job: 'Check the ledger, voucher and GST before you book an invoice.' },
+  payments: { role: 'Accounts executive', cadence: 'Weekly', job: 'Make the ICICI payment file. A second person approves it in the bank.' },
   tds: { role: 'Accounts executive', cadence: 'Monthly', job: 'Pay TDS by the 7th. Prepare the quarter return.' },
-  handbook: { role: 'Accounts executive', cadence: 'When needed', job: 'Follow the SOP before booking something new.' },
-  plan: { role: 'Founder', person: 'Hargun', cadence: 'Monthly', job: 'Update the plan. Pin the one you run on.' },
-  send: { role: 'Founder', person: 'Hargun', cadence: 'Monthly', job: 'Send the MIS to investors after the month is locked.' },
-  booking: { role: 'Accounts executive', cadence: 'Daily', job: 'Check ledger, voucher and GST before booking an invoice.' },
-  rounds: { role: 'Founder', person: 'Hargun', cadence: 'When needed', job: 'Size a round and see dilution.' },
-  floors: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Raise any SKU priced below its floor.' },
-  payments: { role: 'Accounts executive', cadence: 'Weekly', job: 'Make the ICICI payment file. A second person approves in the bank.' },
-  sources: { role: 'Accounts executive', cadence: 'Monthly', job: 'Pull or upload every report for last month by the 10th.' },
+  cash: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Find the week when net cash goes below 0 or reaches the overdraft limit.' },
+  tally: { role: 'Accounts executive', cadence: 'Weekly', job: 'Move each hanging ledger to its correct group in TallyPrime.' },
+  handbook: { role: 'Accounts executive', cadence: 'When needed', job: 'Read the SOP before you book something new.' },
+  plan: { role: 'Founder', person: 'Hargun', cadence: 'Monthly', job: 'Update the plan. Save the plan you use as a scenario.' },
+  floors: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Raise the price of each SKU that is below its floor.' },
+  sources: { role: 'Accounts executive', cadence: 'Monthly', job: 'Pull or upload each report for last month by the 10th.' },
+  send: { role: 'Founder', person: 'Hargun', cadence: 'Monthly', job: 'Send the MIS to investors after you lock the month.' },
+  rounds: { role: 'Founder', person: 'Hargun', cadence: 'When needed', job: 'Set the size of a round. Read the dilution.' },
 };
 
-export const HOME = '/reporting/mis/live';
+/** Home = Today (simplification, 11 Nov 2026): the page the founder opens first. */
+export const HOME = '/today';
 
+// Simplified 11 Nov 2026: 4 sections, 13 pages. The Tools section is gone: each tool sits with its job.
+// Send report opens from Live MIS, Round planner from the 5-year plan, People and reminders from Tasks and Setup.
 export const NAV: NavSection[] = [
   {
     id: 'reporting',
     label: 'Reporting',
     href: HOME,
     pages: [
-      { id: 'today', label: 'Today', href: '/today', icon: 'today', hint: 'What needs you today, five key numbers, what changed since yesterday', words: 'morning brief home overview needs me cash runway fix late' },
-      { id: 'live', label: 'Live MIS', href: '/reporting/mis/live', icon: 'live', hint: 'This month and last, P&L by channel', words: 'mis dashboard p&l revenue margin run rate' },
+      { id: 'today', label: 'Today', href: '/today', icon: 'today', hint: 'What to do today, 5 numbers, what changed', words: 'morning brief home overview needs me cash runway fix late' },
+      { id: 'live', label: 'Live MIS', href: '/reporting/mis/live', icon: 'live', hint: 'P&L, channels, products, balance sheet', words: 'mis dashboard p&l revenue margin run rate lock close month' },
       { id: 'insights', label: 'AI insights', href: '/reporting/mis/insights', icon: 'ai', also: ['/reporting/mis/chat'], hint: 'Ask about the numbers', words: 'chat claude ask analysis' },
     ],
   },
@@ -69,50 +72,42 @@ export const NAV: NavSection[] = [
     id: 'accounts',
     label: 'Accounts',
     pages: [
-      { id: 'tasks', label: 'Tasks', href: '/tasks', icon: 'tasks', exact: true, also: ['/work', '/compliance', '/task-tracker', '/tracker', '/reporting/mis/issues'], hint: 'Everything to do and to fix: recurring accounts tasks + what the books and the MIS need a person for', words: 'todo deadlines gst tds roc issues fix problems errors warnings hanging ledgers tie close stock' },
-      { id: 'cash', label: 'Cash runway', href: '/accounts/cash-runway', icon: 'cash', hint: 'How long cash lasts: 13 weeks, three cases, overdraft limit date', words: 'cash runway overdraft od burn bank liquidity weeks' },
-      { id: 'tally', label: 'Tally health', href: '/tally', icon: 'tally', hint: 'Chart of accounts, hanging ledgers, ledgers, vouchers, ask about Tally', words: 'tally ledgers vouchers day book gst gstin chart groups ask' },
-      { id: 'tds', label: 'TDS planning', href: '/accounts/tds', icon: 'tds', hint: 'TDS to pay this month by section, deductees, 26Q / 24Q working, how to pay and file', words: 'tds challan 281 26q 24q tax deducted at source deposit section 194c 194j 194h 194i 194q traces form 16a' },
-      { id: 'handbook', label: 'Accounts Handbook', href: '/handbook', icon: 'book', also: ['/guide'], hint: 'SOPs, ledgers and how we book', words: 'sop guide policy ledgers' },
+      { id: 'tasks', label: 'Tasks', href: '/tasks', icon: 'tasks', exact: true, also: ['/work', '/compliance', '/task-tracker', '/tracker', '/reporting/mis/issues'], hint: 'Tasks with a due date and problems to fix in the books', words: 'todo deadlines gst tds roc issues fix problems errors warnings hanging ledgers tie close stock' },
+      { id: 'booking', label: 'Book an invoice', href: '/booking-assistant', icon: 'booking', also: ['/tools/invoice-booking', '/tools/expense-booking'], hint: 'Ledger, voucher and GST for an invoice', words: 'invoice ledger voucher tally expense booking assistant suggester' },
+      { id: 'payments', label: 'Bulk payments', href: '/tools/bulk-payments', icon: 'payments', hint: 'Payee list and payment file for ICICI', words: 'icici cib bizpay360 bank transfer neft rtgs imps vendor payout beneficiary bene payee upload file' },
+      { id: 'tds', label: 'TDS', href: '/accounts/tds', icon: 'tds', hint: 'TDS to pay this month, deductees, quarter return', words: 'tds planning challan 281 26q 24q tax deducted at source deposit section 194c 194j 194h 194i 194q traces form 16a' },
+      { id: 'cash', label: 'Cash runway', href: '/accounts/cash-runway', icon: 'cash', hint: 'Net cash for the next 13 weeks', words: 'cash runway overdraft od burn bank liquidity weeks' },
+      { id: 'tally', label: 'Tally health', href: '/tally', icon: 'tally', hint: 'Chart of accounts, ledgers, vouchers', words: 'tally ledgers vouchers day book gst gstin chart groups ask hanging' },
+      { id: 'handbook', label: 'Handbook', href: '/handbook', icon: 'book', also: ['/guide'], hint: 'SOPs, ledgers, how to book', words: 'accounts handbook sop guide policy ledgers' },
     ],
   },
   {
     id: 'planning',
     label: 'Planning',
     pages: [
-      { id: 'plan', label: '5-year plan', href: '/planning', icon: 'plan', hint: 'Projection & deployment plan, levers and scenarios', words: 'projection forecast budget fundraise cash runway' },
-    ],
-  },
-  {
-    id: 'tools',
-    label: 'Tools',
-    href: '/tools',
-    pages: [
-      { id: 'send', label: 'Send report', href: '/reporting/mis/send', icon: 'send', hint: 'Email the monthly MIS', words: 'email investors board' },
-      { id: 'booking', label: 'Book an invoice', href: '/booking-assistant', icon: 'booking', also: ['/tools/invoice-booking', '/tools/expense-booking'], hint: 'Which ledger, voucher and GST for an invoice', words: 'invoice ledger voucher tally expense booking assistant suggester' },
-      { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution', words: 'equity dilution cap table investors' },
-      { id: 'floors', label: 'Amazon price floors', href: '/tools/price-floors', icon: 'floors', hint: 'Lowest price per SKU that still makes money', words: 'pricing margin asin' },
-      { id: 'payments', label: 'Bulk payments (ICICI)', href: '/tools/bulk-payments', icon: 'payments', hint: 'Payee list, bulk payee file and bulk payment file for ICICI CIB', words: 'icici cib bizpay360 bank transfer neft rtgs imps vendor payout beneficiary bene payee upload file' },
+      { id: 'plan', label: '5-year plan', href: '/planning', icon: 'plan', hint: 'Plan to FY31, scenarios, plan vs actual', words: 'projection forecast budget fundraise cash runway' },
+      { id: 'floors', label: 'Price floors', href: '/tools/price-floors', icon: 'floors', hint: 'Lowest Amazon price per SKU that makes money', words: 'amazon pricing margin asin' },
     ],
   },
   {
     id: 'admin',
     label: 'Admin',
     pages: [
-      { id: 'sources', label: 'Setup', href: '/reporting/mis/connectors', icon: 'sources', also: ['/reporting/mis/ingest'], hint: 'Connections + report uploads in one place', words: 'connectors api amazon shopify meta google tally setup data sources upload month end close pull reports slots ingest' },
+      { id: 'sources', label: 'Setup', href: '/reporting/mis/connectors', icon: 'sources', also: ['/reporting/mis/ingest'], hint: 'Connections and report uploads', words: 'connectors api amazon shopify meta google tally setup data sources upload month end close pull reports slots ingest' },
     ],
   },
   {
-    // Not in the sidebar (kept small on purpose): reachable from ⌘K.
+    // Not in the sidebar: each opens from the page it belongs to, and from ⌘K.
     id: 'more',
     label: 'More',
     hidden: true,
+    href: HOME,
     pages: [
-      { id: 'rulebook', label: 'Data rulebook', href: '/reporting/mis/rulebook', icon: 'rules', hint: 'How each number is built', words: 'rules mapping definitions' },
-      { id: 'tranzact', label: 'Amazon → Tranzact (manual)', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'Old manual converter — the closing-stock task now makes the Tranzact file from live data', words: 'fba inventory ledger stock reconciliation converter' },
-      { id: 'toolshub', label: 'All tools', href: '/tools', icon: 'tools', exact: true, hint: 'Every tool on one page', words: 'utilities converter tools' },
-      { id: 'people', label: 'People & reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails', words: 'team owners settings' },
-      { id: 'close', label: 'Month close (old)', href: '/reporting/mis/close', icon: 'old', hint: 'Replaced by Setup + Live MIS close', words: 'legacy close manual figures' },
+      { id: 'send', label: 'Send report', href: '/reporting/mis/send', icon: 'send', hint: 'Email the monthly MIS (opens from Live MIS)', words: 'email investors board' },
+      { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution (opens from the 5-year plan)', words: 'equity dilution cap table investors' },
+      { id: 'people', label: 'People and reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails (opens from Tasks)', words: 'team owners settings' },
+      { id: 'rulebook', label: 'Data rulebook', href: '/reporting/mis/rulebook', icon: 'rules', hint: 'How each number is made', words: 'rules mapping definitions' },
+      { id: 'tranzact', label: 'Amazon to Tranzact (manual)', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'Old manual converter', words: 'fba inventory ledger stock reconciliation converter' },
     ],
   },
 ];
