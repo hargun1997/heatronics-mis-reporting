@@ -157,7 +157,7 @@ export function HandbookSearch({
           role="combobox"
           aria-expanded={showing}
           aria-label="Search the handbook"
-          placeholder={large ? 'What do you need to do? e.g. Shopflo invoice' : 'Search the handbook…'}
+          placeholder={large ? 'Search: Shopflo invoice' : 'Search the handbook…'}
           className={`w-full rounded-xl border bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-500 ${
             large ? 'border-slate-300 pl-12 pr-14 py-4 text-[17px] shadow-soft' : 'border-slate-200 pl-9 pr-10 py-2 text-sm'
           }`}

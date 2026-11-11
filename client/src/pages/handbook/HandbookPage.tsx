@@ -48,6 +48,9 @@ import {
 import { QUICK_TASKS } from '../../data/handbook/collections';
 import { TEAM_VISUALS } from '../../data/handbook/teamVisuals';
 import { HandbookSearch } from './HandbookSearch';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { BTN, Panel } from '../../components/ui/states';
+import { Modal } from '../../components/ui/overlays';
 import { HandbookOpenContext } from './handbookNav';
 import { allFolds, enhanceArticle, getFold } from './fold';
 import './handbook.generated.css';
@@ -297,7 +300,7 @@ const ArticleBody = memo(function ArticleBody({
     if (!ref.current) return;
     // Fold only when there are at least two sections; one heading is not an outline.
     const ids = a.toc.length > 1 ? a.toc.map((h) => h.id) : [];
-    enhanceArticle(ref.current, a.href, ids, document.documentElement.dataset.density !== 'compact');
+    enhanceArticle(ref.current, a.href, ids, document.documentElement.dataset.density === 'compact' ? false : 'first');
   }, [a]);
   return <div ref={ref} className="hb" onClick={onClick} dangerouslySetInnerHTML={{ __html: a.html }} />;
 });
@@ -441,7 +444,7 @@ function ArticlePanel({
             <summary className={`flex min-h-[48px] cursor-pointer list-none items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 ${focusRing}`}>
               <ChevronRightIcon className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-90" aria-hidden="true" />
               Team screenshots ({visuals.length})
-              <span className="font-normal text-slate-600">— upload a current screen for any slot</span>
+              <span className="font-normal text-slate-600">Upload a current screen for a slot.</span>
             </summary>
             <div className="grid grid-cols-1 gap-4 border-t border-slate-200 p-4 md:grid-cols-2">
               {visuals.map((v) => (
@@ -745,7 +748,8 @@ function Reader({
 
 const EXAMPLES = ['Shopflo invoice', 'bank statement', 'Amazon JV', 'TDS 194C', 'option 5'];
 
-function TodaysJobs({ openHref, compact }: { openHref: (href: string) => void; compact: boolean }) {
+/** Regular jobs: every day (D) and every month (M), one list. A row opens the job's article. */
+function TodaysJobs({ openHref }: { openHref: (href: string) => void }) {
   const hb = getHandbook();
   const row = (t: (typeof QUICK_TASKS)[number]) => {
     const art = hb.idToArticle.get(t.anchor);
@@ -755,134 +759,100 @@ function TodaysJobs({ openHref, compact }: { openHref: (href: string) => void; c
       <li key={t.code}>
         <Go
           onClick={() => openHref(handbookHref(t.anchor))}
-          className={`group flex w-full items-center gap-3 rounded-lg px-3 hover:bg-slate-50 ${compact ? 'min-h-[40px] py-1.5' : 'min-h-[48px] py-2'}`}
+          className="group flex min-h-11 w-full items-center gap-3 px-4 py-2 hover:bg-slate-50"
         >
-          <span className="w-7 flex-shrink-0 font-mono text-xs font-medium text-slate-500">{t.code}</span>
-          <span className="min-w-0 flex-1 text-[15px] font-medium leading-snug text-slate-900 group-hover:text-brand-700">{name}</span>
-          {due && <span className="hidden flex-shrink-0 text-xs text-slate-600 sm:block">{due}</span>}
-          <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-slate-400 group-hover:text-brand-600" aria-hidden="true" />
+          <span className="w-7 flex-shrink-0 font-mono text-xs font-medium text-slate-600">{t.code}</span>
+          <span className="min-w-0 flex-1 text-sm font-medium leading-snug text-slate-900 group-hover:text-accent-700">{name}</span>
+          {due && <span className="flex-shrink-0 text-xs tabular-nums text-slate-600">{due}</span>}
+          <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-slate-400 group-hover:text-accent-600" aria-hidden="true" />
         </Go>
       </li>
     );
   };
-  const col = (title: string, list: typeof QUICK_TASKS) => (
-    <div className="min-w-0">
-      <h3 className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-600">{title}</h3>
-      <ul>{list.map(row)}</ul>
-    </div>
+  const group = (title: string, list: typeof QUICK_TASKS) => (
+    <li>
+      <h3 className="bg-slate-50 px-4 py-1.5 text-xs font-semibold text-slate-600">{title}</h3>
+      <ul className="divide-y divide-slate-100">{list.map(row)}</ul>
+    </li>
   );
   return (
-    <div className="grid gap-x-6 gap-y-4 rounded-xl border border-slate-200 bg-white p-2 py-3 md:grid-cols-2">
-      {col('Every day', QUICK_TASKS.filter((t) => t.code.startsWith('D')))}
-      {col('Every month', QUICK_TASKS.filter((t) => t.code.startsWith('M')))}
-    </div>
+    <ul className="divide-y divide-slate-100">
+      {group('Every day', QUICK_TASKS.filter((t) => t.code.startsWith('D')))}
+      {group('Every month', QUICK_TASKS.filter((t) => t.code.startsWith('M')))}
+    </ul>
   );
 }
 
-function TopicCard({ c, open, compact }: { c: HbCollection; open: OpenFn; compact: boolean }) {
-  const [expanded, setExpanded] = useState(false);
-  const n = c.articles.length;
-  const id = `hb-topic-${c.slug}`;
-  return (
-    <div className={`rounded-xl border bg-white ${expanded ? 'border-slate-300' : 'border-slate-200'}`}>
-      <button
-        type="button"
-        onClick={() => setExpanded((e) => !e)}
-        aria-expanded={expanded}
-        aria-controls={id}
-        className={`group flex w-full items-start gap-3 rounded-xl px-4 text-left hover:bg-slate-50 ${focusRing} ${compact ? 'min-h-[44px] items-center py-2' : 'min-h-[64px] py-3.5'}`}
-      >
-        <TopicIcon c={c} className={compact ? 'h-[18px] w-[18px]' : 'mt-0.5 h-5 w-5'} />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15.5px] font-semibold leading-snug text-slate-900">{c.title}</span>
-          {!compact && <span className="mt-0.5 block text-[13.5px] leading-snug text-slate-600">{c.description}</span>}
-        </span>
-        <span className={`flex flex-shrink-0 items-center gap-1.5 text-xs text-slate-600 ${compact ? '' : 'mt-0.5'}`}>
-          {n} {n === 1 ? 'article' : 'articles'}
-          <ChevronDownIcon className={`h-4 w-4 text-slate-500 transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
-        </span>
-      </button>
-      {expanded && (
-        <ul id={id} className="border-t border-slate-100 px-2 py-1.5">
-          {c.articles.map((a) => (
-            <li key={a.href}>
-              <Go
-                onClick={() => open({ c, a })}
-                className="group flex min-h-[40px] w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[14px] leading-snug text-slate-800 hover:bg-slate-50 hover:text-brand-700"
-              >
-                <span className="min-w-0 flex-1">
-                  <Title t={a.title} />
-                </span>
-                <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-slate-400 group-hover:text-brand-600" aria-hidden="true" />
-              </Go>
-            </li>
-          ))}
-          <li>
-            <Go
-              onClick={() => open({ c })}
-              className="flex min-h-[40px] w-full items-center rounded-lg px-2 text-[13px] font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-700"
-            >
-              Open {c.title} as a page
-            </Go>
-          </li>
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function Home({ open, openHref, compact }: { open: OpenFn; openHref: (href: string) => void; compact: boolean }) {
+/** All topics: one row each (icon, name, article count). A row opens the topic page with its articles. */
+function TopicList({ open }: { open: OpenFn }) {
   const hb = getHandbook();
+  return (
+    <ul className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-y-0">
+      {hb.collections.map((c) => (
+        <li key={c.slug} className="sm:border-b sm:border-slate-100 sm:odd:border-r">
+          <Go
+            onClick={() => open({ c })}
+            className="group flex min-h-14 w-full items-center gap-3 px-4 py-2 hover:bg-slate-50"
+          >
+            <TopicIcon c={c} className="h-[18px] w-[18px]" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium leading-snug text-slate-900 group-hover:text-accent-700">{c.title}</span>
+              <span className="block truncate text-xs leading-snug text-slate-600">{c.description}</span>
+            </span>
+            <span className="flex-shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700">{c.articles.length}</span>
+            <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-slate-400 group-hover:text-accent-600" aria-hidden="true" />
+          </Go>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Home({ open, openHref }: { open: OpenFn; openHref: (href: string) => void }) {
+  const hb = getHandbook();
+  const [howOpen, setHowOpen] = useState(false);
   const onCoverClick = (e: React.MouseEvent<HTMLElement>) => {
     const href = (e.target as HTMLElement).closest('a')?.getAttribute('href') || '';
     if (!href.startsWith('#')) return;
     e.preventDefault();
+    setHowOpen(false);
     openHref(handbookHref(href.slice(1)));
   };
 
   return (
-    <div className="min-h-[calc(100vh-var(--app-top))] bg-white">
-      <div className={`mx-auto max-w-[960px] px-4 sm:px-6 ${compact ? 'py-6' : 'py-8 sm:py-12'}`}>
-        <h1 className="text-[28px] font-bold leading-tight tracking-tight text-slate-900 sm:text-[32px]">Accounts Handbook</h1>
-        <p className="mt-1.5 text-[15.5px] text-slate-600">Search for a job, or pick one below.</p>
-        <div className="relative z-20 mt-5">
-          <HandbookSearch size="large" autoFocus examples={compact ? undefined : EXAMPLES} />
+    <>
+      <PageHeader
+        title="Handbook"
+        description="Find the steps for an accounts job. Search, or select a job or topic."
+        help={
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>Type a word in the search box, for example a vendor or a ledger.</li>
+            <li>Select a result. The article opens at the matching section.</li>
+            <li>Use Back to go to the previous page.</li>
+            <li>Select a screenshot to see it large.</li>
+          </ol>
+        }
+        actions={hb.coverHtml ? <button type="button" onClick={() => setHowOpen(true)} className={BTN}>About the handbook</button> : undefined}
+      />
+      <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="relative z-20">
+          <HandbookSearch size="large" autoFocus examples={EXAMPLES} />
         </div>
-
-        <section className={compact ? 'mt-6' : 'mt-10'} aria-labelledby="hb-jobs">
-          <h2 id="hb-jobs" className="mb-3 text-lg font-semibold text-slate-900">
-            Regular jobs
-          </h2>
-          <TodaysJobs openHref={openHref} compact={compact} />
-        </section>
-
-        <section className={compact ? 'mt-6' : 'mt-10'} aria-labelledby="hb-topics">
-          <div className="mb-3 flex items-baseline justify-between gap-4">
-            <h2 id="hb-topics" className="text-lg font-semibold text-slate-900">
-              All topics
-            </h2>
-            <span className="text-xs text-slate-600">
-              {hb.collections.length} topics · {hb.articles.length} articles
-            </span>
-          </div>
-          <div className={`grid grid-cols-1 items-start ${compact ? 'gap-2 md:grid-cols-2 xl:grid-cols-3' : 'gap-3 md:grid-cols-2'}`}>
-            {hb.collections.map((c) => (
-              <TopicCard key={c.slug} c={c} open={open} compact={compact} />
-            ))}
-          </div>
-        </section>
-
-        {hb.coverHtml && (
-          <details className="group mt-10 rounded-xl border border-slate-200">
-            <summary className={`flex min-h-[48px] cursor-pointer list-none items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 ${focusRing}`}>
-              <ChevronRightIcon className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-90" aria-hidden="true" />
-              How to use this handbook
-            </summary>
-            <div className="hb hb-cover border-t border-slate-200 p-5" onClick={onCoverClick} dangerouslySetInnerHTML={{ __html: hb.coverHtml }} />
-          </details>
-        )}
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+          <Panel title="Regular jobs" count={QUICK_TASKS.length} flush>
+            <TodaysJobs openHref={openHref} />
+          </Panel>
+          <Panel title="Topics" count={hb.collections.length} action={<span className="text-xs tabular-nums text-slate-600">{hb.articles.length} articles</span>} flush>
+            <TopicList open={open} />
+          </Panel>
+        </div>
       </div>
-    </div>
+      {hb.coverHtml && (
+        <Modal open={howOpen} onClose={() => setHowOpen(false)} title="About the handbook" width={760}>
+          <div className="hb hb-cover" onClick={onCoverClick} dangerouslySetInnerHTML={{ __html: hb.coverHtml }} />
+        </Modal>
+      )}
+    </>
   );
 }
 
@@ -942,7 +912,7 @@ export function HandbookPage() {
     <HandbookOpenContext.Provider value={openHref}>
       <div className={`hbx ${compact ? 'hbx-compact' : ''}`}>
         <div hidden={!!view}>
-          <Home open={open} openHref={openHref} compact={compact} />
+          <Home open={open} openHref={openHref} />
         </div>
         <Reader view={view} opened={opened} open={open} back={back} close={close} compact={compact} />
       </div>

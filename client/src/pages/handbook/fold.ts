@@ -36,7 +36,8 @@ export const allFolds = () => byKey.values();
 
 const esc = (id: string) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id.replace(/[^\w-]/g, '\\$&'));
 
-export function enhanceArticle(root: HTMLElement, key: string, headIds: string[], startOpen: boolean): FoldCtl {
+/** startOpen: true = every section open, false = all folded, 'first' = only the first open (one step at a time). */
+export function enhanceArticle(root: HTMLElement, key: string, headIds: string[], startOpen: boolean | 'first'): FoldCtl {
   const existing = byRoot.get(root);
   if (existing) {
     byKey.set(key, existing);
@@ -70,7 +71,7 @@ export function enhanceArticle(root: HTMLElement, key: string, headIds: string[]
     s.head.querySelector('.hbf-btn')?.setAttribute('aria-expanded', String(s.open));
   };
 
-  for (const s of sections) {
+  sections.forEach((s, i) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'hbf-btn';
@@ -83,9 +84,9 @@ export function enhanceArticle(root: HTMLElement, key: string, headIds: string[]
       s.open = !s.open;
       apply(s);
     });
-    s.open = startOpen;
+    s.open = startOpen === 'first' ? i === 0 : startOpen;
     apply(s);
-  }
+  });
 
   const ctl: FoldCtl = {
     count: sections.length,

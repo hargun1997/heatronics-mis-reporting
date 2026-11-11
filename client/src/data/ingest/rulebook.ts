@@ -31,34 +31,34 @@ export interface CascadeLine {
 export const CASCADE: CascadeLine[] = [
   { key: 'net_revenue', label: 'Net Revenue', kind: 'revenue', owner: 'connectors',
     formula: 'Σ channel net revenue (gross − returns − channel margin − GST − discounts)',
-    note: 'Per channel from each marketplace / D2C source.' },
+    note: 'For each channel, from its marketplace or D2C report.' },
   { key: 'cogm', label: 'COGM (Cost of Goods Manufactured)', kind: 'cost', owner: 'bom',
     formula: 'Σ (BOM cost/unit × units sold) + 10% factory overhead',
-    note: 'Unit cost from Tranzact BOM, joined to units sold per SKU. Reconciled to Tally RM/factory ledgers.' },
+    note: 'Unit cost from the Tranzact BOM × units sold for each SKU. Checked against the Tally RM and factory ledgers.' },
   { key: 'gross_margin', label: 'Gross Margin', kind: 'margin', owner: 'derived',
     formula: 'Net Revenue − COGM' },
   { key: 'channel_fulfilment', label: 'Channel & Fulfilment', kind: 'cost', owner: 'connectors',
     formula: 'Marketplace commissions + FBA/shipping fees + freight out',
-    note: 'From Amazon/Blinkit/Flipkart settlements (commissions) and Shiprocket/Delhivery (freight).' },
+    note: 'Commissions from the Amazon, Blinkit and Flipkart settlements. Freight from Shiprocket and Delhivery.' },
   { key: 'cm1', label: 'CM1', kind: 'margin', owner: 'derived', formula: 'Gross Margin − Channel & Fulfilment' },
   { key: 'sales_marketing', label: 'Sales & Marketing', kind: 'cost', owner: 'connectors',
     formula: 'Ad spend (Meta + Google + Amazon Ads)',
-    note: 'The MER denominator. Amazon Ads may also arrive inside the settlement file.' },
+    note: 'The MER denominator. Amazon Ads can also come in the settlement file.' },
   { key: 'cm2', label: 'CM2 (Contribution Margin)', kind: 'margin', owner: 'derived', formula: 'CM1 − Sales & Marketing',
-    note: 'The deepest line connectors + BOM can produce on their own — fully live.' },
+    note: 'The last line that reports and the BOM make without Tally. It is fully live.' },
   { key: 'platform_payment', label: 'Platform & Payment (Brand Investment)', kind: 'cost', owner: 'connectors',
     formula: 'Payment-gateway MDR + checkout + BNPL subvention + brand/agency spend',
-    note: 'From Easebuzz / Shopflo / Snapmint; brand-investment share comes from Tally.' },
+    note: 'From Easebuzz, Shopflo and Snapmint. The brand investment part comes from Tally.' },
   { key: 'cm3', label: 'CM3', kind: 'margin', owner: 'derived', formula: 'CM2 − Platform & Payment' },
   { key: 'opex', label: 'Operating Expenses', kind: 'cost', owner: 'tally',
     formula: 'Payroll + professional + admin + warranty + welfare + bank − other income',
-    note: 'Exists only in Tally. Read from the P&L screenshot, mapped ledger-by-ledger.' },
+    note: 'Only in Tally. Read from the P&L, 1 ledger at a time.' },
   { key: 'ebitda', label: 'EBITDA', kind: 'margin', owner: 'derived', formula: 'CM3 − Operating Expenses' },
   { key: 'non_operating', label: 'Non-Operating + Cost of Fundraising', kind: 'cost', owner: 'tally',
     formula: 'Finance cost + depreciation/amortisation + one-time + fundraising',
     note: 'Tally only.' },
   { key: 'net_income', label: 'Net Income', kind: 'margin', owner: 'derived', formula: 'EBITDA − Non-Operating − Cost of Fundraising',
-    note: 'Reconciled against Tally’s own Nett Profit (tolerance ₹1).' },
+    note: 'Checked against the Tally Nett Profit (limit ₹1).' },
 ];
 
 // ---- Wiring status, told honestly ----
@@ -70,9 +70,9 @@ export type Wiring = 'live' | 'wired' | 'fixture-ready' | 'needs-sample';
 
 export const WIRING_LABEL: Record<Wiring, string> = {
   live: 'Live API',
-  wired: 'Wired',
+  wired: 'Upload',
   'fixture-ready': 'Sample ready',
-  'needs-sample': 'Needs one export',
+  'needs-sample': 'Needs 1 export',
 };
 
 // Per-connector build progress — the three things each source needs before it
@@ -145,8 +145,8 @@ export function stepsReady(connectorId: string): Ready {
 export const CONNECTOR_RULES: ConnectorRule[] = [
   // ---------------- Book of record ----------------
   {
-    connectorId: 'tally', label: 'Tally Prime', group: 'Book of record', wiring: 'wired', mapping: 'done', pending: 'Upload the P&L A/c Excel (Detailed) each close to unlock OPEX -> Net Income. Desktop app, no link.',
-    summary: 'The book of record. Owns everything below Contribution Margin — OPEX, EBITDA, Net Income — and reconciles the whole cascade.',
+    connectorId: 'tally', label: 'Tally Prime', group: 'Book of record', wiring: 'wired', mapping: 'done', pending: 'Upload the P&L A/c Excel (Detailed) at each close. This fills OPEX to Net Income. Desktop app, no link.',
+    summary: 'The book of record. It gives all lines below CM2 (OPEX, EBITDA, Net Income) and checks the full P&L.',
     files: [
       {
         slotId: 'pnl', label: 'Profit & Loss A/c (Excel)', required: true, cadence: 'Monthly / each close',
@@ -167,8 +167,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'tranzact', label: 'Tranzact (ERP / BOM / GT·B2B sales)', group: 'Book of record', wiring: 'wired', seq: 1, mapping: 'done', pending: 'Re-upload the BOM when costs change and the Sales Invoice Register each month.',
-    summary: 'Standard cost per finished good, and the SKU-level sales for the two connector-less channels (GT, B2B).',
+    connectorId: 'tranzact', label: 'Tranzact (ERP / BOM / GT·B2B sales)', group: 'Book of record', wiring: 'wired', seq: 1, mapping: 'done', pending: 'Upload the BOM again when costs change. Upload the Sales Invoice Register each month.',
+    summary: 'Standard cost for each finished good. SKU sales for the 2 channels with no other report (GT, B2B).',
     files: [
       {
         slotId: 'bom', label: 'BOM pricing export', required: true, cadence: 'When costs change',
@@ -191,8 +191,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Marketplaces ----------------
   {
-    connectorId: 'amazon', label: 'Amazon Seller Central', channel: 'Amazon', group: 'Marketplace', wiring: 'wired', seq: 2, mapping: 'done', pending: 'Add the deep link to the Seller Central transaction export.',
-    summary: 'The fee-accurate money view of the Amazon channel — revenue, units, orders, fees and ad spend.',
+    connectorId: 'amazon', label: 'Amazon Seller Central', channel: 'Amazon', group: 'Marketplace', wiring: 'wired', seq: 2, mapping: 'done', pending: 'Add the direct link to the Seller Central transaction export.',
+    summary: 'Amazon money with exact fees: revenue, units, orders, fees and ad spend.',
     files: [
       {
         slotId: 'unified-transaction', label: 'Unified Transaction (settlement)', required: true, cadence: 'Weekly',
@@ -212,8 +212,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'flipkart', label: 'Flipkart Seller', channel: 'Flipkart', group: 'Marketplace', wiring: 'wired', seq: 13, mapping: 'done', pending: 'Re-upload the monthly Settled Transactions report. Flipkart is its own channel (like Amazon).',
-    summary: 'Flipkart channel — net revenue and marketplace fees from Settled Transactions.',
+    connectorId: 'flipkart', label: 'Flipkart Seller', channel: 'Flipkart', group: 'Marketplace', wiring: 'wired', seq: 13, mapping: 'done', pending: 'Upload the Settled Transactions report each month. Flipkart is a separate channel, as Amazon is.',
+    summary: 'Flipkart net revenue and marketplace fees, from Settled Transactions.',
     files: [
       {
         slotId: 'settlement', label: 'Settled Transactions', required: true, cadence: 'Monthly',
@@ -226,8 +226,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'flipkartads', label: 'Flipkart Ads (PLA/PCA)', channel: 'Flipkart', group: 'Marketing', wiring: 'wired', seq: 14, mapping: 'done', pending: 'Re-upload the monthly Consolidated FSN report (PLA, and PCA if run).',
-    summary: 'Flipkart per-product ad spend — part of Sales & Marketing.',
+    connectorId: 'flipkartads', label: 'Flipkart Ads (PLA/PCA)', channel: 'Flipkart', group: 'Marketing', wiring: 'wired', seq: 14, mapping: 'done', pending: 'Upload the Consolidated FSN report each month (PLA, and PCA if you run it).',
+    summary: 'Flipkart ad spend for each product. Part of Sales & Marketing.',
     files: [
       {
         slotId: 'ad-spend', label: 'Consolidated FSN report', required: true, cadence: 'Monthly',
@@ -237,8 +237,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'blinkit', label: 'Blinkit (Quick Commerce)', channel: 'Blinkit', group: 'Marketplace', wiring: 'wired', seq: 7, mapping: 'done', pending: 'Re-upload the monthly SoA each month. New catalog item ids map on sight.',
-    summary: 'Blinkit channel — gross bill and all the commission/shipping charges from the order-level payout.',
+    connectorId: 'blinkit', label: 'Blinkit (Quick Commerce)', channel: 'Blinkit', group: 'Marketplace', wiring: 'wired', seq: 7, mapping: 'done', pending: 'Upload the SoA each month. New catalog item ids map when they first come in.',
+    summary: 'Blinkit gross bill and all commission and shipping charges, from the payout for each order.',
     files: [
       {
         slotId: 'order-charges', label: 'Payout — order-level charges', required: true, cadence: 'Weekly',
@@ -253,8 +253,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- D2C ----------------
   {
-    connectorId: 'shopify', label: 'Shopify (D2C)', channel: 'D2C', group: 'D2C', wiring: 'live', seq: 4, mapping: 'done', pending: 'Live API pull — no upload. Fallback slot only.',
-    summary: 'The D2C channel, pulled live by API — revenue, units and orders per SKU, per day. No upload needed.',
+    connectorId: 'shopify', label: 'Shopify (D2C)', channel: 'D2C', group: 'D2C', wiring: 'live', seq: 4, mapping: 'done', pending: 'Live API pull. No upload. The upload slot is only a fallback.',
+    summary: 'D2C revenue, units and orders for each SKU and day, pulled live through the API.',
     files: [
       {
         slotId: 'variant-sales', label: 'Sales by variant (manual fallback)', required: false, cadence: 'Only if the live pull is down',
@@ -268,8 +268,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Marketing ----------------
   {
-    connectorId: 'meta', label: 'Meta Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 6, mapping: 'done', pending: 'Re-upload each month. All 19 catalog ids cross-verified against Shopify.',
-    summary: 'D2C ad spend, split to product — the Sales & Marketing line and the MER denominator.',
+    connectorId: 'meta', label: 'Meta Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 6, mapping: 'done', pending: 'Upload each month. All 19 catalog ids agree with Shopify.',
+    summary: 'D2C ad spend for each product. It gives Sales & Marketing and the MER denominator.',
     files: [
       {
         slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', required: true, cadence: 'Weekly',
@@ -282,8 +282,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 10, mapping: 'done', pending: 'Re-upload the monthly campaign report. Optional: add the Shopping-products report for measured per-product spend.',
-    summary: 'D2C ad spend — adds to Sales & Marketing, spread across D2C products by revenue.',
+    connectorId: 'googleads', label: 'Google Ads', channel: 'D2C', group: 'Marketing', wiring: 'wired', seq: 10, mapping: 'done', pending: 'Upload the campaign report each month. Optional: add the Shopping products report for exact spend by product.',
+    summary: 'D2C ad spend. It adds to Sales & Marketing, split to D2C products by revenue.',
     files: [
       {
         slotId: 'ad-spend', label: 'Campaign report (total spend)', required: true, cadence: 'Weekly',
@@ -298,8 +298,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'amazonads', label: 'Amazon Ads', channel: 'Amazon', group: 'Marketing', wiring: 'wired', seq: 3, mapping: 'done', pending: 'Owed: the real September Advertised Product report (test used the Oct-windowed export). Add the deep link.',
-    summary: 'Amazon ad spend — the fuller Sponsored Products view that supersedes the settlement’s ad lines.',
+    connectorId: 'amazonads', label: 'Amazon Ads', channel: 'Amazon', group: 'Marketing', wiring: 'wired', seq: 3, mapping: 'done', pending: 'Upload the real September Advertised Product report (the test used the October export). Add the direct link.',
+    summary: 'Amazon ad spend from Sponsored Products. It replaces the ad lines in the settlement.',
     files: [
       {
         slotId: 'ad-spend', label: 'Advertised Product report', required: true, cadence: 'Weekly',
@@ -311,8 +311,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Logistics ----------------
   {
-    connectorId: 'shiprocket', label: 'Shiprocket', channel: 'D2C', group: 'Logistics', wiring: 'wired', seq: 5, mapping: 'done', pending: 'Re-upload the monthly passbook export.',
-    summary: 'D2C outbound freight — part of Channel & Fulfilment.',
+    connectorId: 'shiprocket', label: 'Shiprocket', channel: 'D2C', group: 'Logistics', wiring: 'wired', seq: 5, mapping: 'done', pending: 'Upload the passbook export each month.',
+    summary: 'D2C outbound freight. Part of Channel & Fulfilment.',
     files: [
       {
         slotId: 'passbook', label: 'Wallet passbook', required: true, cadence: 'Weekly',
@@ -323,8 +323,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'delhivery', label: 'Delhivery', channel: 'D2C', group: 'Logistics', wiring: 'wired', seq: 12, mapping: 'done', pending: 'Re-upload the monthly wallet report.',
-    summary: 'D2C warranty/returns freight — an after-sales cost below CM2 (Platform & Payment).',
+    connectorId: 'delhivery', label: 'Delhivery', channel: 'D2C', group: 'Logistics', wiring: 'wired', seq: 12, mapping: 'done', pending: 'Upload the wallet report each month.',
+    summary: 'D2C warranty and returns freight. An after-sales cost below CM2 (Platform & Payment).',
     files: [
       {
         slotId: 'wallet', label: 'Wallet report', required: true, cadence: 'Monthly',
@@ -337,8 +337,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
 
   // ---------------- Payments & checkout ----------------
   {
-    connectorId: 'easebuzz', label: 'Easebuzz', group: 'Payments & checkout', wiring: 'wired', seq: 8, mapping: 'done', pending: 'Re-upload the monthly settlement export.',
-    summary: 'D2C payment-gateway MDR — part of Platform & Payment.',
+    connectorId: 'easebuzz', label: 'Easebuzz', group: 'Payments & checkout', wiring: 'wired', seq: 8, mapping: 'done', pending: 'Upload the settlement export each month.',
+    summary: 'D2C payment gateway MDR. Part of Platform & Payment.',
     files: [
       {
         slotId: 'settlement', label: 'Settlement / MDR', required: true, cadence: 'Weekly',
@@ -348,8 +348,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'shopflo', label: 'Shopflo', channel: 'D2C', group: 'Payments & checkout', wiring: 'wired', seq: 11, mapping: 'done', pending: 'Re-upload the monthly invoice PDF. Claude reads it (AI in use).',
-    summary: 'D2C checkout invoice (PDF) — part of Platform & Payment.',
+    connectorId: 'shopflo', label: 'Shopflo', channel: 'D2C', group: 'Payments & checkout', wiring: 'wired', seq: 11, mapping: 'done', pending: 'Upload the invoice PDF each month. Claude reads it (uses AI).',
+    summary: 'D2C checkout invoice (PDF). Part of Platform & Payment.',
     files: [
       {
         slotId: 'invoice', label: 'Checkout invoice (PDF)', required: true, cadence: 'Monthly',
@@ -359,8 +359,8 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     ],
   },
   {
-    connectorId: 'snapmint', label: 'Snapmint', channel: 'D2C', group: 'Payments & checkout', wiring: 'wired', seq: 9, mapping: 'done', pending: 'Re-upload the monthly group settlement report.',
-    summary: 'D2C BNPL (EMI) subvention / fees — part of Platform & Payment.',
+    connectorId: 'snapmint', label: 'Snapmint', channel: 'D2C', group: 'Payments & checkout', wiring: 'wired', seq: 9, mapping: 'done', pending: 'Upload the group settlement report each month.',
+    summary: 'D2C BNPL (EMI) subvention and fees. Part of Platform & Payment.',
     files: [
       {
         slotId: 'settlement', label: 'Settlement / subvention', required: true, cadence: 'Weekly',
@@ -379,27 +379,35 @@ export interface SheetRule {
 }
 
 export const SHEET_RULES: SheetRule[] = [
-  { sheet: 'Overview', what: 'Headline KPIs — Net Revenue, Gross Margin %, CM2, EBITDA, Net Income, top channel.',
-    feeds: 'The consolidated cascade for the selected period. Below-CM2 lines show only within the complete-through window.' },
-  { sheet: 'Channels', what: 'Net revenue, mix %, and the full cascade split per channel (D2C, Amazon, Blinkit, Flipkart, OEM, Offline).',
-    feeds: 'Revenue + fees + ad spend per channel from each source; company totals hold, only the split changes.' },
-  { sheet: 'SKU', what: 'Per-SKU revenue, units, COGM, and contribution (to CM2).',
-    feeds: 'SKU-level revenue/units from marketplaces + Shopify, joined to BOM cost/unit for COGM.' },
-  { sheet: 'SKU × Channel', what: 'The product × channel contribution matrix to CM2.',
-    feeds: 'SKU-level facts crossed with channel; ad spend split by measured SKU ad-mix, else revenue share.' },
-  { sheet: 'P&L', what: 'The full company cascade, Net Revenue → Net Income, periods as columns.',
-    feeds: 'Connectors + BOM for the top (through CM2); Tally for OPEX and below; reconciled to Nett Profit.' },
-  { sheet: 'MIS Sheet', what: 'The Masterchow line-item statement (₹ Lac) per entity.',
-    feeds: 'Same consolidated cascade, re-laid-out; cash/funding/runway rows stay manual until wired.' },
+  { sheet: 'Overview', what: 'Main KPIs: Net Revenue, Gross Margin %, CM2, EBITDA, Net Income, top channel.',
+    feeds: 'The full P&L for the selected period. Lines below CM2 show only for complete months.' },
+  { sheet: 'Channels', what: 'Net revenue, mix % and the full P&L for each channel (D2C, Amazon, Blinkit, Flipkart, OEM, Offline).',
+    feeds: 'Revenue, fees and ad spend for each channel from its reports. Company totals do not change. Only the split changes.' },
+  { sheet: 'SKU', what: 'Revenue, units, COGM and contribution (to CM2) for each SKU.',
+    feeds: 'SKU revenue and units from the marketplaces and Shopify, × BOM cost for each unit for COGM.' },
+  { sheet: 'SKU × Channel', what: 'Contribution to CM2 for each product and channel.',
+    feeds: 'SKU data for each channel. Ad spend splits by the measured SKU ad mix, else by revenue share.' },
+  { sheet: 'P&L', what: 'The full company P&L, Net Revenue to Net Income, 1 column for each period.',
+    feeds: 'Reports and the BOM to CM2. Tally for OPEX and below. Checked against the Nett Profit.' },
+  { sheet: 'MIS Sheet', what: 'The Masterchow line statement (₹ Lac) for each entity.',
+    feeds: 'The same full P&L in a different layout. Cash, funding and runway rows are manual until connected.' },
 ];
 
 // ---- The completeness rule ----
 export const COMPLETENESS_RULE = {
-  headline: 'How far the MIS is fully live',
+  headline: 'How far the MIS is complete',
   body:
-    'The MIS is “complete” through the latest period in which every REQUIRED source has been uploaded. ' +
-    'That floor is the earliest “data through” date across all required connectors (plus BOM and the Tally P&L for the below-CM2 lines). ' +
-    'Up to the floor, every line — down to Net Income — is real and reconciled. ' +
-    'Past the floor, the view shows only the lines whose sources are in, and flags the rest as incomplete. ' +
-    'Keep every source current weekly and the floor moves forward with you.',
+    'The MIS is complete to the last month in which all required reports are in. ' +
+    'That month is the earliest "data to" date of all required reports, the BOM and the Tally P&L. ' +
+    'Up to that month, all lines to Net Income are real and checked. ' +
+    'After that month, the MIS shows only the lines that have their reports, and marks the other lines as not complete. ' +
+    'Upload all reports each week to move that month forward.',
+  /** The same rule as numbered steps (Data rulebook, P&L lines tab). */
+  steps: [
+    'The MIS is complete to the last month in which all required reports are in.',
+    'That month is the earliest "data to" date of all required reports, the BOM and the Tally P&L.',
+    'Up to that month, all lines to Net Income are real and checked.',
+    'After that month, the MIS shows only lines that have their reports. It marks the other lines as not complete.',
+    'Upload all reports each week to move that month forward.',
+  ],
 };
