@@ -23,7 +23,6 @@ import { StatusPill, type PillTone } from '../../components/ui/StatusPill';
 import {
   clearCredentials,
   envVarName,
-  FETCH_MODE_LABEL,
   GROUP_LABEL,
   listConnectors,
   refreshStore,
@@ -46,7 +45,7 @@ const GROUP_ORDER: ConnectorGroup[] = ['book', 'marketplace', 'd2c', 'marketing'
 /** The status read of a connector → tone + label for the pill. */
 function statusOf(c: ConnectorInfo): { tone: PillTone; label: string } {
   if (!c.connected) return { tone: 'neutral', label: 'Not connected' };
-  if (!c.implemented) return { tone: 'warning', label: 'Saved, no pull' };
+  if (!c.implemented) return { tone: 'neutral', label: 'Upload only' };
   return { tone: 'positive', label: 'Connected' };
 }
 
@@ -252,7 +251,7 @@ function ConnectorCard({
         onClose={() => setOpen(false)}
         width={slots.length ? 640 : 440}
         icon={<Monogram label={connector.label} />}
-        subtitle={`${GROUP_LABEL[connector.group]} · ${FETCH_MODE_LABEL[connector.fetchMode]}`}
+        subtitle={GROUP_LABEL[connector.group]}
         title={connector.label}
         badges={<StatusPill toneName={FEED_TONE[feed]}>{FEED_LABEL[feed]}</StatusPill>}
         footer={!hasCreds ? undefined : 

@@ -98,7 +98,7 @@ export function RulebookPage() {
         onTab={(id) => setTab(id as RbTab)}
       />
 
-      <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
         {tab === 'sources' && (
           <>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

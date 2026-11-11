@@ -171,7 +171,7 @@ export function manualSlots(defs: SlotSourceDef[]): { connectorId: string; slotI
     if (d && serverSavable(d)) return null;
     const why = !d || !d.pull || d.source === 'upload' ? 'Upload (no API).'
       : d.connectorId === 'tally' ? 'The Tally check stores it. Click Pull on Setup to save it for the month.'
-      : 'The browser reads it. Click Pull or "Pull & save all" on Setup.';
+      : 'The browser reads it. Click Pull or Pull all on Setup.';
     return { connectorId: s.connectorId, slotId: s.slotId, why };
   }).filter((v): v is { connectorId: string; slotId: string; why: string } => v !== null);
 }

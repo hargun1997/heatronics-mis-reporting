@@ -4,7 +4,7 @@
 // "How to pay and file" opens in a modal. Engine: data/tds/tds.ts · export: data/tds/tdsFormats.ts · data: GET /api/tds.
 import { useState } from 'react';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { PageBody, PageHeader } from '../../components/ui/PageHeader';
+import { HeaderMore, PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
 import { Modal } from '../../components/ui/overlays';
 import { BTN, ErrorBox, InfoTip, Loading, Panel } from '../../components/ui/states';
@@ -46,13 +46,15 @@ export function TdsPage() {
             <input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} aria-label="Month of deduction"
               className="min-h-11 sm:min-h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" />
           </label>
-          <button type="button" className={BTN} onClick={() => setHowOpen(true)}>How to pay</button>
-          <button type="button" className={BTN} disabled={!ok} onClick={() => r && void downloadTds(r)}>
-            <ArrowDownTrayIcon className="h-4 w-4" aria-hidden />Download Excel
-          </button>
+          <HeaderMore>
+            <button type="button" className={BTN} onClick={() => setHowOpen(true)}>How to pay</button>
+            <button type="button" className={BTN} disabled={!ok} onClick={() => r && void downloadTds(r)}>
+              <ArrowDownTrayIcon className="h-4 w-4" aria-hidden />Download Excel
+            </button>
+          </HeaderMore>
         </>}
       />
-      <PageBody className="pt-4">
+      <PageBody>
         {error && <ErrorBox>{error}</ErrorBox>}
         {loading && !r && <Loading label="Reading the Tally Day Book" />}
         {r && !r.haveMonth && <NoDayBook month={monthLabel(month)} />}

@@ -168,45 +168,102 @@ interface PopoverProps {
   width?: number;
   buttonClassName?: string;
   buttonLabel?: string;
+  /** Close after a button or link inside the panel is selected (menus). */
+  closeOnSelect?: boolean;
 }
 
-export function Popover({ button, children, align = 'right', width = 288, buttonClassName, buttonLabel }: PopoverProps) {
+export function Popover({ button, children, align = 'right', width = 288, buttonClassName, buttonLabel, closeOnSelect }: PopoverProps) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; maxH: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+
+  // The panel renders in a portal with fixed coordinates, so a scroll area (drawer, table) never clips it.
+  // It opens below the button, or above when there is more room there, and stays inside the window.
+  const place = React.useCallback(() => {
+    const b = btn.current?.getBoundingClientRect();
+    if (!b) return;
+    const vw = window.innerWidth, vh = window.innerHeight, gap = 8, edge = 8;
+    const w = Math.min(width, vw - edge * 2);
+    let left = align === 'right' ? b.right - w : b.left;
+    left = Math.max(edge, Math.min(left, vw - w - edge));
+    const below = vh - b.bottom - gap - edge, above = b.top - gap - edge;
+    const h = panel.current?.offsetHeight ?? 0;
+    const up = h > below && above > below;
+    const maxH = Math.max(160, up ? above : below);
+    const top = up ? Math.max(edge, b.top - gap - Math.min(h, maxH)) : b.bottom + gap;
+    setPos({ top, left, maxH });
+  }, [align, width]);
 
   useEffect(() => {
     if (!open) return;
+    let raf2 = 0;
+    const raf = requestAnimationFrame(() => { place(); raf2 = requestAnimationFrame(place); }); // 2nd pass: the panel has its height
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || panel.current?.contains(t)) return;
+      setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation(); // close the popover only, not the drawer or modal under it
+      setOpen(false);
+      btn.current?.focus();
+    };
     document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
     return () => {
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(raf2);
       document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
     };
-  }, [open]);
+  }, [open, place]);
 
   return (
     <div className="relative inline-block" ref={ref}>
       <button
+        ref={btn}
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={buttonLabel}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { setPos(null); setOpen((o) => !o); }}
+        onKeyDown={(e) => {
+          // Tab from the button goes into the panel (it sits at the end of <body>).
+          if (open && e.key === 'Tab' && !e.shiftKey && panel.current) {
+            const first = panel.current.querySelector<HTMLElement>('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (first) { e.preventDefault(); first.focus(); }
+          }
+        }}
         className={buttonClassName}
       >
         {button}
       </button>
-      {open && (
+      {open && createPortal(
         <div
-          className={`absolute z-40 mt-2 ${align === 'right' ? 'right-0' : 'left-0'} rounded-xl border border-slate-200 bg-white shadow-popover animate-pop-in`}
-          style={{ width }}
+          ref={panel}
+          role="dialog"
+          aria-label={buttonLabel}
+          onClick={closeOnSelect ? (e) => { if ((e.target as HTMLElement).closest('button, a')) setOpen(false); } : undefined}
+          onBlur={(e) => {
+            // Focus left the panel: close it and go back to the button, so keyboard order stays the same.
+            if (!panel.current?.contains(e.relatedTarget as Node) && e.relatedTarget !== btn.current && e.relatedTarget) {
+              setOpen(false);
+              btn.current?.focus();
+            }
+          }}
+          className="fixed z-[110] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-popover animate-pop-in"
+          style={{ width: Math.min(width, window.innerWidth - 16), top: pos?.top ?? -9999, left: pos?.left ?? -9999, maxHeight: pos?.maxH, visibility: pos ? 'visible' : 'hidden' }}
         >
           {children}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

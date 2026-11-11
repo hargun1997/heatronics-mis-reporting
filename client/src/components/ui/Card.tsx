@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { InfoTip } from './states';
 
 interface CardProps {
   children: React.ReactNode;
@@ -22,19 +23,21 @@ interface SectionCardProps {
   className?: string;
 }
 
+/** Same look as `Panel` (states.tsx): one title row, then the content. A description is a note behind an "i",
+ *  never a paragraph under the title (simplification, 11 Nov 2026). */
 export function SectionCard({ title, description, children, actions, className = '' }: SectionCardProps) {
   return (
     <Card className={className}>
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200/70 bg-surface-tint rounded-t-xl">
-          <div>
-            {title && <h3 className="text-sm font-bold text-slate-900">{title}</h3>}
-            {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
+        <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-1.5">
+          <div className="flex min-w-0 items-center gap-0.5">
+            {title && <h3 className="text-sm font-semibold text-slate-900">{title}</h3>}
+            {description && <InfoTip label={title ? `About ${title}` : 'About this section'}>{description}</InfoTip>}
           </div>
           {actions}
         </div>
       )}
-      <div className="p-5">{children}</div>
+      <div className="p-4">{children}</div>
     </Card>
   );
 }

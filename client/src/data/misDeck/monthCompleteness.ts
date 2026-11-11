@@ -108,7 +108,7 @@ export function slotGaps(periodKey: string, reports: SlotReport[]): SlotGap[] {
     const first = mine.map((r) => r.periodKey).sort()[0];
     if (periodKey < first) continue;
     const everHadRows = mine.some((r) => (r.payload?.facts?.length ?? 0) > 0);
-    const label = `${CONNECTOR_NAME[s.connectorId] ?? `${s.connectorId[0].toUpperCase()}${s.connectorId.slice(1)}`} ${s.label.replace(/\s*\(.*\)$/, '').replace(/ — .*$/, '').toLowerCase()}`;
+    const label = `${CONNECTOR_NAME[s.connectorId] ?? `${s.connectorId[0].toUpperCase()}${s.connectorId.slice(1)}`} ${s.label.replace(/\s*\(.*\)$/, '').replace(/ [—·] .*$/, '').toLowerCase()}`;
     const base = { connectorId: s.connectorId, slotId: s.slotId, label };
     const here = mine.filter((r) => r.periodKey === periodKey);
     if (!here.length) { if (everHadRows) out.push({ ...base, state: 'missing', detail: 'not stored' }); continue; }
@@ -183,7 +183,7 @@ export function closeBlockers(a: {
     const name = (list: SlotGap[]) => `${list.slice(0, 3).map((x) => x.label).join(', ')}${list.length > 3 ? ` +${list.length - 3} more` : ''}`;
     const missing = a.slots.filter((x) => x.state === 'missing');
     const empty = a.slots.filter((x) => x.state === 'empty');
-    if (missing.length) out.push({ kind: 'slot', hard: false, text: `${missing.length} report${missing.length === 1 ? '' : 's'} missing: ${name(missing)}.`, fix: '1. On Setup, click Pull & save all for the month. 2. Upload the reports that have no API.' });
+    if (missing.length) out.push({ kind: 'slot', hard: false, text: `${missing.length} report${missing.length === 1 ? '' : 's'} missing: ${name(missing)}.`, fix: '1. On Setup, click Pull all for the month. 2. Upload the reports that have no API.' });
     if (empty.length) out.push({ kind: 'slot', hard: false, text: `${empty.length} report${empty.length === 1 ? '' : 's'} stored with no rows: ${name(empty)}.`, fix: 'On Setup, upload the correct file. If there were no sales, delete the empty report.' });
     for (const x of a.slots.filter((y) => y.state === 'partial')) out.push({ kind: 'slot', hard: false, text: `${x.label} ${x.detail}.`, fix: 'On Setup, pull or upload the full month.' });
   }

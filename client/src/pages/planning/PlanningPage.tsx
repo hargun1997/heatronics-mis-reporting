@@ -191,7 +191,7 @@ export function PlanningPage() {
       <Drawer open={setupOpen} onClose={() => setSetupOpen(false)} title="Setup" subtitle={panelSummary(plan)} width={920}>
         <SetupPanel embedded plan={plan} update={update} result={result} />
       </Drawer>
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
         {view === 'overview' && <OverviewView plan={plan} result={result} compare={compareId !== 'none' ? compareResult : null} compareName={compareName} />}
         {view === 'business' && <BusinessPlanView plan={plan} result={result} />}
         {view === 'revenue' && <RevenueView plan={plan} result={result} />}

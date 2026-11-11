@@ -388,7 +388,7 @@
   --nav-active: 255 241 232;   /* #FFF1E8 */
   --nav-border: 230 230 228;   /* #E6E6E4 */
   --nav-fg: 74 76 79;          /* #4A4C4F */
-  --nav-fg-muted: 119 121 124; /* #77797C group labels / icons */
+  --nav-fg-muted: 107 109 112; /* #6B6D70 group labels / icons (#77797C was 4.36:1 on white, under AA) */
   --nav-fg-strong: 20 21 22;   /* #141516 */
   --nav-accent: 243 107 33;    /* #F36B21 heat bar + active icon */
   --nav-brand: 194 65 12;      /* #C2410C heat text, AA on white */

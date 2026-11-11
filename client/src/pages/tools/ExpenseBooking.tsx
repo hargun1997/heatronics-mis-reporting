@@ -508,7 +508,7 @@ export function ExpenseBooking() {
               onChange={(e) => setParty(e.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
             >
-              <option value="">— let AI pick from master —</option>
+              <option value="">AI picks from the master</option>
               {partyLedgers.map((l) => (
                 <option key={l.name} value={l.name}>{l.name}</option>
               ))}
@@ -1148,8 +1148,8 @@ function ImportInstructions() {
         </li>
         <li>
           <strong>Behaviour of import:</strong> set to{' '}
-          <em>Add new vouchers, ignore duplicates</em>. Do <em>not</em> select &ldquo;Modify&rdquo; —
-          this batch is meant to add fresh entries.
+          <em>Add new vouchers, ignore duplicates</em>. Do <em>not</em> select &ldquo;Modify&rdquo;.
+          This batch adds new entries only.
         </li>
         <li>
           Press <kbd className="bg-slate-100 px-1 rounded">Enter</kbd> through the prompts. Tally

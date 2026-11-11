@@ -82,11 +82,11 @@ export function TallyPage() {
         tabs={[{ id: 'chart', label: 'Chart of accounts' }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers', count: status?.ledgers || null }, { id: 'vouchers', label: 'Vouchers' }, { id: 'rules', label: 'Ledger rules' }]}
         tab={tab} onTab={(id) => setTab(id as Tab)}
         actions={<>
-          {status && <SourceChip items={[{ label: 'Tally ledgers', asOf: status.mastersAt, staleAfterH: 48, note: `${status.ledgers || 0} ledgers` }, ...stored.slice(0, 1).map((p) => ({ label: `Day Book ${p}`, asOf: status.months[p], staleAfterH: 48 }))]} notes={notes} />}
+          {status && <SourceChip items={[{ label: 'Tally books', asOf: status.mastersAt, staleAfterH: 48, note: `${status.ledgers || 0} ledgers` }, ...stored.slice(0, 1).map((p) => ({ label: `Day Book ${p}`, asOf: status.months[p], staleAfterH: 48 }))]} notes={notes} />}
           <button type="button" onClick={pull} disabled={pulling} className={BTN}>
             {pulling ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}{pulling ? 'Pulling (up to 2 min)…' : 'Pull Tally now'}</button>
         </>} />
-      <PageBody className="pt-4">
+      <PageBody>
         {msg && <p role="status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{msg}</p>}
         {tab === 'chart' && <ChartTab />}
         {tab === 'ask' && <Ask />}

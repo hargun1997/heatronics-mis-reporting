@@ -99,7 +99,7 @@ export function IssueRow({ i, st, view, act }: { i: InboxItem; st?: IssueState[s
           {i.href.startsWith('/') && <Link to={i.href} className={cx(btn, 'border-accent-200 text-accent-700')}>Open<ArrowRight className="h-4 w-4" aria-hidden /></Link>}
           {view === 'open' ? <>
             <button type="button" className={btn} onClick={() => act(i, 'done')} title="Hide until this item changes"><Check className="h-4 w-4" aria-hidden />Done</button>
-            <button type="button" className={cx(btn, 'px-2')} onClick={() => act(i, 'snooze', 7)} title="Hide for 7 days" aria-label={`Hide for 7 days: ${i.title}`}><Clock className="h-4 w-4" aria-hidden /><span className="hidden lg:inline">7 days</span></button>
+            <button type="button" className={cx(btn, 'px-2')} onClick={() => act(i, 'snooze', 7)} title="Hide for 7 days" aria-label={`Hide for 7 days: ${i.title}`}><Clock className="h-4 w-4" aria-hidden /><span className="hidden lg:inline">Hide 7 days</span></button>
           </> : <button type="button" className={btn} onClick={() => act(i, 'reopen')}><RotateCcw className="h-4 w-4" aria-hidden />Open again</button>}
         </div>
       </div>

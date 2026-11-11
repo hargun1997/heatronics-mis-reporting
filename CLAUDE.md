@@ -46,7 +46,10 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   underline `tabs`. No breadcrumbs (only for palette-only pages), no icon tile, no owner line on the page. Body = `PageBody` (max-w-7xl,
   same gutters). Shared pieces `components/ui/states.tsx`: `Loading`, `ErrorBox` (with Try again), `Empty`, `Panel` (the one titled card),
   `InfoTip` (a note behind an "i"; `text` gives it visible words), `ShowAll` (first rows + modal), `StepNo`, `BTN` / `BTN_PRIMARY`.
-  KPI band = `KpiTile` (4–6 tiles, visible without scroll). Budget: ≤ 2 screens at 1440 × 900 in the default state (measured: every
+  KPI band = `KpiTile` (4–6 tiles, visible without scroll; the plan's `Stat` wraps it). `PageHeader` ends with ONE 16 px gap (with or without tabs):
+  bodies never add their own top padding. Secondary header buttons go in `HeaderMore` (inline from `sm`, a "…" menu on phones); the About "i"
+  sits next to the title on phones. `Popover` renders in a portal with fixed coordinates (flips up, stays in the window, Esc closes only
+  the popover), so drawers and scroll areas never clip an InfoTip. `SectionCard` = the `Panel` look; its `description` is an InfoTip. Budget: ≤ 2 screens at 1440 × 900 in the default state (measured: every
   page ≤ 1,670 px); detail goes into Modal / Drawer / Popover (`components/ui/overlays`), a tab, or a `Views` switch.
 - **Writing = ASD-STE100:** one instruction per sentence, steps ≤ 20 words, active voice, digits, no idioms, no em dashes in UI text,
   one word per idea: Setup (not Connectors), Pull (API) vs Upload (file), Report (not slot), Lock (a month), Fix (a problem) vs Task

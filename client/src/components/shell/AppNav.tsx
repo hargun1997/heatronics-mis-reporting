@@ -72,7 +72,7 @@ export function AppNav() {
     return (
       <li key={p.id} className="relative">
         <Link to={p.href} data-nav-item aria-current={on ? 'page' : undefined} title={mini ? p.label : undefined}
-          className={cx('group/row relative flex min-h-[44px] items-center gap-3 rounded-md text-sm transition-colors lg:min-h-[38px]', ring,
+          className={cx('group/row relative flex min-h-[44px] items-center gap-3 rounded-md text-sm transition-colors lg:min-h-[36px]', ring,
             mini ? 'justify-center' : 'px-3',
             on ? 'bg-nav-active font-semibold text-nav-strong' : 'text-nav-fg hover:bg-nav-hover hover:text-nav-strong')}>
           {on && <span className="absolute inset-y-1.5 -left-2 w-[3px] rounded-r-sm bg-nav-accent" aria-hidden />}
@@ -122,7 +122,7 @@ export function AppNav() {
             const on = theme === t.id;
             return (
               <button key={t.id} type="button" data-nav-item onClick={() => setTheme(t.id)} aria-pressed={on} title={mini ? `Theme: ${t.label}` : undefined}
-                className={cx('inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-md text-sm transition-colors', ring,
+                className={cx('inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-md text-sm transition-colors lg:min-h-[38px]', ring,
                   mini ? 'w-full' : 'px-1',
                   on ? (mini ? 'bg-nav-active font-semibold text-nav-strong' : 'bg-nav-bg font-semibold text-nav-strong shadow-sm ring-1 ring-nav-border')
                     : 'text-nav-fg hover:bg-nav-hover hover:text-nav-strong')}>
@@ -147,7 +147,7 @@ export function AppNav() {
   const list = (mini: boolean) => (
     <div onKeyDown={onKey} className="flex min-h-0 flex-1 flex-col">
       <div className="px-2 pb-1 pt-1">{searchBtn(mini)}</div>
-      <div className={cx('nav-scroll flex-1 space-y-4 px-2 py-2', mini ? 'overflow-y-auto overflow-x-hidden' : 'overflow-y-auto')}>
+      <div className={cx('nav-scroll flex-1 space-y-4 px-2 py-2 lg:space-y-3', mini ? 'overflow-y-auto overflow-x-hidden' : 'overflow-y-auto')}>
         {pins.length > 0 && !mini && (
           <div>
             <h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-nav-muted">Pinned</h2>
@@ -187,7 +187,7 @@ export function AppNav() {
             <ClaudeStatusPill dark />
             <button type="button" onClick={() => setDensity(density === 'compact' ? 'comfortable' : 'compact')} data-nav-item aria-pressed={density === 'compact'}
               title={density === 'compact' ? 'Compact view on' : 'Compact view off'} aria-label="Compact view"
-              className={cx('ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-nav-hover hover:text-nav-strong', ring, density === 'compact' ? 'bg-nav-active text-nav-strong' : 'text-nav-muted')}>
+              className={cx('ml-auto inline-flex h-11 w-11 lg:h-9 lg:w-9 items-center justify-center rounded-lg hover:bg-nav-hover hover:text-nav-strong', ring, density === 'compact' ? 'bg-nav-active text-nav-strong' : 'text-nav-muted')}>
               <Rows3 className="h-[18px] w-[18px]" aria-hidden />
             </button>
           </div>

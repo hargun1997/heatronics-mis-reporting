@@ -274,7 +274,7 @@ export function TaskEditor({
       <div>
         <label className={lbl}>How to do it (Accounts Handbook section)</label>
         <select className={input} value={f.howTo ?? ''} onChange={(e) => set({ howTo: e.target.value })}>
-          <option value="">— none —</option>
+          <option value="">None</option>
           {getHandbook().collections.map((c) => (
             <optgroup key={c.slug} label={c.title}>
               {anchors

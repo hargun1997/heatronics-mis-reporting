@@ -241,7 +241,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     summary: 'Blinkit gross bill and all commission and shipping charges, from the payout for each order.',
     files: [
       {
-        slotId: 'order-charges', label: 'Payout — order-level charges', required: true, cadence: 'Weekly',
+        slotId: 'order-charges', label: 'Payout · order-level charges', required: true, cadence: 'Weekly',
         reads: 'The "Forward & Return Orders" sheet — per order line: item id, order date, gross bill, net deductions, TCS/TDS. Returns carry the opposite sign.',
         destinations: [
           { line: 'Net Revenue', dimension: 'Blinkit · per SKU', rule: 'Total gross bill amount per item → Blinkit net revenue, by order date.' },
@@ -272,7 +272,7 @@ export const CONNECTOR_RULES: ConnectorRule[] = [
     summary: 'D2C ad spend for each product. It gives Sales & Marketing and the MER denominator.',
     files: [
       {
-        slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', required: true, cadence: 'Weekly',
+        slotId: 'ad-spend', label: 'Ad spend · campaign × ad set × product', required: true, cadence: 'Weekly',
         reads: 'The "By Product" export: amount spent per catalog product id, plus the grand-total row (the true month spend).',
         destinations: [
           { line: 'Sales & Marketing', dimension: 'D2C · per product', rule: 'Each product id → FG → measured per-product ad on its D2C SKU; sum = the product-attributed spend.' },

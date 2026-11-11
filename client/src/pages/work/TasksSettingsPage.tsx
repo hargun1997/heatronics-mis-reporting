@@ -48,7 +48,7 @@ export function TasksSettingsPage() {
       <PageHeader title="People and reminders" description="Set the owners of tasks and the daily reminder email."
         tabs={TABS} tab={tab} onTab={setTab}
         actions={<Link to="/tasks" className={BTN}>Back to Tasks</Link>} />
-      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {error && <p role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{error}</p>}
         {!state ? (
           <p className="py-16 text-center text-sm text-slate-600">Loading…</p>

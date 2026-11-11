@@ -9,7 +9,9 @@
 // ----------------------------------------------------------------------------
 
 import { useEffect, useMemo, useState } from 'react';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../components/ui/PageHeader';
+import { Popover } from '../../components/ui/overlays';
+import { BTN, BTN_PRIMARY, ErrorBox, InfoTip } from '../../components/ui/states';
 import { SectionCard } from '../../components/ui/Card';
 import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { buildLiveMisContext } from '../../data/chat/misContext';
@@ -114,23 +116,25 @@ export function SendReportPage() {
     <>
       <PageHeader
         title="Send report"
-        accent="brand"
-        icon={iconSend}
         description="Email the MIS to your list now, or each month."
-        crumbs={[{ label: 'Reporting', to: '/reporting' }, { label: 'MIS Reporting', to: '/reporting/mis' }, { label: 'Send Report' }]}
+        status={mailer && !mailer.configured ? (
+          <Popover align="left" width={320} buttonLabel="Email not connected: details"
+            buttonClassName="inline-flex min-h-11 sm:min-h-7 items-center rounded-full bg-amber-50 px-2.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+            button={<>Email not connected</>}>
+            <div className="space-y-1.5 p-3.5 text-[13px] leading-5 text-slate-700">
+              <p>Send makes a preview only. No email goes out.</p>
+              <p>Preview and Download still work.</p>
+              <p>To send: set <span className="font-mono">RESEND_API_KEY</span> and <span className="font-mono">MAIL_FROM</span> (or Mailgun) on the server.</p>
+            </div>
+          </Popover>
+        ) : null}
       />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
+      <PageBody>
+        {error && <ErrorBox>{error}</ErrorBox>}
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
 
-        {mailer && !mailer.configured && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            No email provider is configured, so <b>Send</b> runs in preview mode (nothing is delivered). You can still preview/download the
-            presentation. Set <span className="font-mono">RESEND_API_KEY</span> + <span className="font-mono">MAIL_FROM</span> (or Mailgun) on the server to send for real.
-          </div>
-        )}
-
-        <SectionCard title="Recipients" description="Pick from your team or add any email. This list is saved and reused for the monthly send.">
+        <SectionCard title="Recipients" description="Select people from your team, or add an email. The MIS keeps this list for the monthly send.">
           <div className="flex flex-wrap gap-1.5">
             {allEmails.length === 0 && <span className="text-xs text-slate-400">No persons in the list. Add an email below.</span>}
             {allEmails.map((e) => {
@@ -171,28 +175,29 @@ export function SendReportPage() {
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/40" />
         </SectionCard>
 
-        <SectionCard title="Presentation" description="An animated, self-contained page built from the live deck.">
+        </div>
+        <SectionCard title="Presentation" description="One page with the live MIS. It opens in any browser.">
           <div className="flex flex-wrap gap-2">
-            <button onClick={preview} disabled={!deck} className="rounded-lg border border-slate-200 text-sm px-3.5 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50">Preview</button>
-            <button onClick={download} disabled={!deck} className="rounded-lg border border-slate-200 text-sm px-3.5 py-2 text-slate-700 hover:bg-slate-50 disabled:opacity-50">Download .html</button>
+            <button onClick={preview} disabled={!deck} className={BTN}>Preview</button>
+            <button onClick={download} disabled={!deck} className={BTN}>Download page</button>
             <button onClick={() => void doSend()} disabled={sendBusy || !deck || recipients.length === 0}
-              className="ml-auto inline-flex items-center gap-2 rounded-lg bg-brand-600 text-white text-sm font-medium px-3.5 py-2 hover:bg-brand-700 disabled:opacity-50">
+              className={`ml-auto ${BTN_PRIMARY}`}>
               {sendBusy ? <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-white/60 border-t-transparent animate-spin" /> : iconSend}
               Send to {recipients.length || 'nobody'}
             </button>
           </div>
           {sent && (
             <div className={`mt-3 text-xs rounded-lg px-3 py-2 border ${sent.sent ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : sent.dryRun ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-              {sent.sent ? `Sent to ${sent.to.join(', ')}.` : sent.dryRun ? `Preview only (email not configured): would send to ${sent.to.join(', ')}.` : `Failed: ${sent.error ?? 'unknown error'}`}
+              {sent.sent ? `Sent to ${sent.to.join(', ')}.` : sent.dryRun ? `Preview only (email not connected). It would go to ${sent.to.join(', ')}.` : `Failed: ${sent.error ?? 'unknown error'}`}
             </div>
           )}
         </SectionCard>
 
-        <p className="text-xs sm:text-[11px] text-slate-400">
-          Monthly auto-send: point a monthly Cloud Scheduler job at <span className="font-mono">POST /api/report/send-monthly</span>: it emails a server-composed
-          summary + a link to the full report to this saved recipient list. (Needs the email provider configured.)
-        </p>
-      </div>
+        <InfoTip label="How the monthly send works" text="Monthly send">
+          <p>A monthly Cloud Scheduler job calls <span className="font-mono">POST /api/report/send-monthly</span>.</p>
+          <p>It emails a short summary and a link to the full report to this list. The email provider must be connected.</p>
+        </InfoTip>
+      </PageBody>
     </>
   );
 }

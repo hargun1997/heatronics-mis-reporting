@@ -199,7 +199,7 @@ export function RolesCard({
                   className="w-32 rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-sm text-slate-800"
                   aria-label={`Who covers ${n}`}
                 >
-                  <option value="">— default —</option>
+                  <option value="">Default</option>
                   {state.members.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name}
@@ -218,7 +218,7 @@ export function RolesCard({
               className="w-32 rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-sm font-medium text-slate-800"
               aria-label="Owner for unmatched roles"
             >
-              <option value="">— nobody —</option>
+              <option value="">Nobody</option>
               {state.members.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}

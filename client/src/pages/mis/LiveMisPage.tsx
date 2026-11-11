@@ -17,7 +17,7 @@ import { LabeledField } from '../../components/ui/LabeledField';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Lock, RefreshCw } from 'lucide-react';
-import { PageHeader, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
+import { PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
 import { inr } from '../../components/mis-deck/format';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
@@ -251,17 +251,19 @@ export function LiveMisPage() {
               <button type="button" onClick={() => setPdfOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download PDF</button>
             </div>
           </Popover>
-          <Link to="/reporting/mis/send" className={BTN}>Send report</Link>
-          <button type="button" onClick={() => void loadDeck(true)} disabled={deckLoading} title="Pull every live report again now. They also refresh every 15 minutes." className={BTN}>
-            <RefreshCw className={`h-4 w-4 ${deckLoading ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden />Refresh
-          </button>
+          <HeaderMore>
+            <Link to="/reporting/mis/send" className={BTN}>Send report</Link>
+            <button type="button" onClick={() => void loadDeck(true)} disabled={deckLoading} title="Pull every live report again now. They also refresh every 15 minutes." className={BTN}>
+              <RefreshCw className={`h-4 w-4 ${deckLoading ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden />Refresh
+            </button>
+          </HeaderMore>
         </>}
       />
 
       {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} />}
       {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
 
-      <div className="mx-auto max-w-7xl space-y-3 px-4 pb-10 pt-3 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-3 px-4 pb-10 sm:px-6 lg:px-8">
         {deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
         {deckError && <ErrorBox onRetry={() => void loadDeck(true)}>{deckError}</ErrorBox>}
 

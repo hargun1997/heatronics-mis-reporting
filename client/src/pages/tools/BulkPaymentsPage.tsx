@@ -74,7 +74,7 @@ export function BulkPaymentsPage() {
         tab={cur} onTab={(id) => setView(id as View)}
         actions={<button type="button" className={BTN} onClick={() => setHowOpen(true)}>How to upload in CIB</button>}
       />
-      <PageBody className="pt-4">
+      <PageBody>
         {err && <ErrorBox>{err}</ErrorBox>}
         {!list && !err && <Loading />}
         {list && (

@@ -3,7 +3,7 @@
 // Seller Central "Revenue and fees" report uploaded here.
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { HeaderMore, PageHeader } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
 import { BTN, BTN_PRIMARY, ErrorBox, InfoTip, Panel } from '../../components/ui/states';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
@@ -184,13 +184,15 @@ export function PriceFloorsPage() {
         }
         actions={
           <>
-            <button type="button" onClick={() => setModal('settings')} className={BTN}>Settings</button>
-            <button type="button" onClick={() => setModal('reports')} className={BTN}>Fee reports</button>
+            <HeaderMore>
+              <button type="button" onClick={() => setModal('settings')} className={BTN}>Settings</button>
+              <button type="button" onClick={() => setModal('reports')} className={BTN}>Fee reports</button>
+            </HeaderMore>
             <button type="button" onClick={() => setPicker(true)} className={BTN_PRIMARY}>Download report</button>
           </>
         }
       />
-      <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
         {loadError && <ErrorBox onRetry={() => void load()}>Unable to load the price floors: {loadError}</ErrorBox>}
         {note && <Banner tone={note.tone} onClose={() => setNote(null)}>{note.text}</Banner>}
 

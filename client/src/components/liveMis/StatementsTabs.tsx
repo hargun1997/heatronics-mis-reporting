@@ -25,7 +25,7 @@ function Empty({ data, what }: { data: Resp | null; what: string }) {
       <p className="mt-1 max-w-2xl mx-auto">
         The MIS copies Tally's month-end Trial Balance whenever TallyPrime is open on the cloud machine (last reached {when(data?.lastOkAt)});
         the scheduled copy runs from the 15th of each month, so before that: open TallyPrime, then{' '}
-        <Link className="underline underline-offset-2" to="/reporting/mis/connectors#tally">Setup → Tally → Pull now</Link>.
+        <Link className="underline underline-offset-2" to="/reporting/mis/connectors#tally">Setup → Tally → Pull</Link>.
         {data && !data.connected && <> The Tally host isn't set yet: add it on that card first.</>}
       </p>
     </div>

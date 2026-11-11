@@ -67,7 +67,7 @@ function AiWorking({ label }: { label: string }) {
         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-500" />
       </span>
       <span className="font-medium">Claude is working</span>
-      <span className="text-violet-500">— {label}</span>
+      <span className="text-violet-500">· {label}</span>
     </div>
   );
 }
@@ -312,7 +312,7 @@ export function IngestStepper({
               title={source.connected ? `Pull ${monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())} from ${source.via}` : source.connectHint ?? 'Not connected'}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40"
             >
-              Pull now · {monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())}
+              Pull {monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())}
             </button>
           )}
           {canPull && source && !source.connected && (

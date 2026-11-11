@@ -4,7 +4,7 @@
 // pages that are not in the sidebar. `crumbs` / `accent` / `icon` are still accepted from older pages and ignored.
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronRight, Info, Pin } from 'lucide-react';
+import { ChevronRight, Info, MoreHorizontal, Pin } from 'lucide-react';
 import { NAV, PAGE_OWNER, breadcrumbsFor, whereIs } from '../../nav/config';
 import { usePins } from '../shell/prefs';
 import { cx } from '../shell/cx';
@@ -57,9 +57,33 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
   const { isPinned, toggle } = usePins();
   const pinned = isPinned(path);
   const owner = w ? PAGE_OWNER[w.page.id] : undefined;
+  // About (i): next to the title on phones (so it never sits alone on a row), at the end of the actions from sm up.
+  const about = (owner || help || w) ? (
+<Popover align="right" width={320} buttonLabel={`About ${title}`}
+                buttonClassName="inline-flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                button={<Info className="h-[18px] w-[18px]" aria-hidden />}>
+                <div className="space-y-3 p-4 text-sm text-stone-700" data-testid="page-owner">
+                  {owner && (
+                    <dl className="space-y-1.5">
+                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-stone-500">Owner</dt><dd className="font-medium text-stone-900">{owner.person ? `${owner.person} (${owner.role})` : owner.role}</dd></div>
+                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-stone-500">How often</dt><dd>{owner.cadence}</dd></div>
+                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-stone-500">What to do</dt><dd>{owner.job}</dd></div>
+                    </dl>
+                  )}
+                  {help && <div className="space-y-1.5 border-t border-stone-200 pt-3 text-[13px] leading-5 text-stone-600 [&_li]:ml-4 [&_li]:list-decimal">{help}</div>}
+                  {w && (
+                    <button type="button" aria-pressed={pinned} onClick={() => toggle({ href: path, label: w.page.label, context: w.section.label })}
+                      className="inline-flex min-h-11 sm:min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-stone-200 px-3 text-sm font-medium text-stone-700 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+                      <Pin className={cx('h-4 w-4', pinned && 'fill-current text-accent-600')} aria-hidden />{pinned ? 'Remove from pinned' : 'Pin to sidebar'}
+                    </button>
+                  )}
+                </div>
+              </Popover>
+  ) : null;
 
   return (
-    <div className={cx('bg-transparent', tabs && 'border-b border-stone-200')}>
+    <div className="bg-transparent">
+    <div className={cx(tabs && 'border-b border-stone-200')}>
       <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
         {trail.length > 0 && (
           <nav aria-label="Breadcrumb" className="print:hidden">
@@ -81,36 +105,19 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
           <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
             <h1 className="text-[22px] font-[650] leading-7 tracking-[-0.015em] text-stone-900">{title}</h1>
             {status}
+            {about && <span className="sm:hidden print:hidden">{about}</span>}
           </div>
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             {actions}
-            {(owner || help || w) && (
-              <Popover align="right" width={320} buttonLabel={`About ${title}`}
-                buttonClassName="inline-flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-                button={<Info className="h-[18px] w-[18px]" aria-hidden />}>
-                <div className="space-y-3 p-4 text-sm text-stone-700" data-testid="page-owner">
-                  {owner && (
-                    <dl className="space-y-1.5">
-                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-stone-500">Owner</dt><dd className="font-medium text-stone-900">{owner.person ? `${owner.person} (${owner.role})` : owner.role}</dd></div>
-                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-stone-500">How often</dt><dd>{owner.cadence}</dd></div>
-                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-stone-500">What to do</dt><dd>{owner.job}</dd></div>
-                    </dl>
-                  )}
-                  {help && <div className="space-y-1.5 border-t border-stone-200 pt-3 text-[13px] leading-5 text-stone-600 [&_li]:ml-4 [&_li]:list-decimal">{help}</div>}
-                  {w && (
-                    <button type="button" aria-pressed={pinned} onClick={() => toggle({ href: path, label: w.page.label, context: w.section.label })}
-                      className="inline-flex min-h-11 sm:min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-stone-200 px-3 text-sm font-medium text-stone-700 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
-                      <Pin className={cx('h-4 w-4', pinned && 'fill-current text-accent-600')} aria-hidden />{pinned ? 'Remove from pinned' : 'Pin to sidebar'}
-                    </button>
-                  )}
-                </div>
-              </Popover>
-            )}
+            {about && <span className="hidden sm:inline-flex">{about}</span>}
           </div>
         </div>
         {description && <p className="mt-0.5 max-w-[80ch] text-sm leading-5 text-stone-600">{description}</p>}
-        {tabs ? <div className="mt-2"><PageTabs tabs={tabs} value={tab} onChange={onTab} /></div> : <div className="h-4" />}
+        {tabs && <div className="mt-2"><PageTabs tabs={tabs} value={tab} onChange={onTab} /></div>}
       </div>
+    </div>
+    {/* One gap under the header on every page (with or without tabs), so bodies never add their own top padding. */}
+    <div className="h-4" aria-hidden />
     </div>
   );
 }
@@ -118,4 +125,21 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
 /** The page column under the header: same width and gutters on every page. */
 export function PageBody({ children, className, wide }: { children: React.ReactNode; className?: string; wide?: boolean }) {
   return <div className={cx('mx-auto space-y-4 px-4 pb-10 sm:px-6 lg:px-8', wide ? 'max-w-none' : 'max-w-7xl', className)}>{children}</div>;
+}
+
+/** Secondary header buttons: in the row from `sm` up; behind a "More" (…) menu on phones, so the header never wraps
+ *  into 3 rows. Pass plain buttons (they render in both places). */
+export function HeaderMore({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <div className="hidden sm:contents">{children}</div>
+      <div className="sm:hidden">
+        <Popover align="right" width={240} buttonLabel="More actions" closeOnSelect
+          buttonClassName="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          button={<MoreHorizontal className="h-5 w-5" aria-hidden />}>
+          <div className="flex flex-col gap-1 p-2 [&>*]:w-full [&>*]:justify-start">{children}</div>
+        </Popover>
+      </div>
+    </>
+  );
 }

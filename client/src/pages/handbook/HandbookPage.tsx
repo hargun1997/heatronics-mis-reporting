@@ -834,7 +834,7 @@ function Home({ open, openHref }: { open: OpenFn; openHref: (href: string) => vo
         }
         actions={hb.coverHtml ? <button type="button" onClick={() => setHowOpen(true)} className={BTN}>About the handbook</button> : undefined}
       />
-      <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
         <div className="relative z-20">
           <HandbookSearch size="large" autoFocus examples={EXAMPLES} />
         </div>
