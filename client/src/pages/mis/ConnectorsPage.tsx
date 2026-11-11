@@ -15,8 +15,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AutoPullPanel, CoveragePanel } from '../../components/ingest/IngestWorkspace';
 import { IngestStepper } from '../../components/ingest/IngestStepper';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Drawer } from '../../components/ui/overlays';
+import { KeyRound } from 'lucide-react';
+import { PageHeader, PageBody } from '../../components/ui/PageHeader';
+import { Drawer, Popover } from '../../components/ui/overlays';
+import { BTN, Empty, ErrorBox, Loading, Panel } from '../../components/ui/states';
 import { StatusPill, type PillTone } from '../../components/ui/StatusPill';
 import {
   clearCredentials,
@@ -39,20 +41,13 @@ import { listSlotSources, slotKey, type SlotSourceInfo } from '../../data/ingest
 
 const GROUP_ORDER: ConnectorGroup[] = ['book', 'marketplace', 'd2c', 'marketing', 'logistics', 'payments'];
 
-const iconPlug = (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-      d="M13 10V3L4 14h7v7l9-11h-7z" />
-  </svg>
-);
-
 /** Append pulled sources into the month-close session localStorage. */
 
 /** The status read of a connector → tone + label for the pill. */
 function statusOf(c: ConnectorInfo): { tone: PillTone; label: string } {
   if (!c.connected) return { tone: 'neutral', label: 'Not connected' };
-  if (!c.implemented) return { tone: 'warning', label: `Saved · pull pending${c.viaEnv ? ' · env' : ''}` };
-  return { tone: 'positive', label: `Connected${c.viaEnv ? ' · env' : ''}` };
+  if (!c.implemented) return { tone: 'warning', label: 'Saved, no pull' };
+  return { tone: 'positive', label: 'Connected' };
 }
 
 /** A square monogram tile for a source (first two letters of its label). */
@@ -68,13 +63,8 @@ function Monogram({ label }: { label: string }) {
 
 // ---- One classification per connector (founder, 3 Nov 2026: "only three classifications per connector… why 2 sections and duplicates")
 type Feed = 'api' | 'claude' | 'manual';
-const FEED_LABEL: Record<Feed, string> = { api: 'Connected (API)', claude: 'Automated (Claude)', manual: 'Manual upload' };
+const FEED_LABEL: Record<Feed, string> = { api: 'API', claude: 'Claude task', manual: 'Manual upload' };
 const FEED_TONE: Record<Feed, PillTone> = { api: 'info', claude: 'brand', manual: 'warning' };
-const FEED_HELP: Record<Feed, string> = {
-  api: 'Pulled by the MIS itself (API, Tally or the Tranzact daily sheet).',
-  claude: 'Filled by a Claude scheduled task; the MIS reads the result.',
-  manual: 'No API or task can fetch it: download it and drop it here each month.',
-};
 const FEED_ORDER: Feed[] = ['manual', 'claude', 'api'];
 
 /** Manual if any of its close reports is a manual upload, else Claude if a Claude task feeds any, else API. */
@@ -105,7 +95,7 @@ function ConnectionsView() {
       setStore(data.store);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load connectors.');
+      setError(e instanceof Error ? e.message : 'Could not load the sources. Try again.');
     } finally {
       setLoading(false);
     }
@@ -131,58 +121,63 @@ function ConnectionsView() {
 
   const chip = (id: Feed | 'all', label: string, n: number) => (
     <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}
-      className={'min-h-[36px] rounded-full border px-3 text-sm ' + (filter === id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400')}>
+      className={'min-h-11 sm:min-h-8 rounded-full border px-3 text-xs font-semibold ' + (filter === id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900')}>
       {label} <span className="tabular-nums opacity-70">{n}</span>
     </button>
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-      <CoveragePanel reports={reports} connectors={connectors} />
-      <AutoPullPanel sources={sources} onDone={reloadReports} />
-
-      <div className="flex flex-wrap items-center gap-2">
-        {chip('all', 'All', connectors.length)}
-        {FEED_ORDER.map((f) => chip(f, FEED_LABEL[f], count(f)))}
-        <span className="ml-auto">
-          {store && <StatusPill toneName={store.durable ? 'positive' : 'warning'} dot>{store.durable ? 'Credentials: Secret Manager' : 'Credentials: temporary store'}</StatusPill>}
-        </span>
+    <PageBody>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CoveragePanel reports={reports} connectors={connectors} />
+        <AutoPullPanel sources={sources} onDone={reloadReports} />
       </div>
-      {filter !== 'all' && <p className="-mt-2 text-[12px] text-slate-500">{FEED_HELP[filter]}</p>}
 
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
+      {error && <ErrorBox onRetry={() => void reload()}>{error}</ErrorBox>}
 
-      {store && !store.durable && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800 space-y-2">
-          <p className="font-medium">Tokens are saved to a temporary store and will be cleared on restart or redeploy.</p>
-          {store.grantHint ? (
-            <>
-              <p>Grant this service account permission to manage secrets once (Cloud Shell), then Re-check:</p>
-              <pre className="bg-amber-100 rounded p-2 overflow-x-auto whitespace-pre-wrap font-mono text-xs sm:text-[11px]">{store.grantHint}</pre>
-              {store.secretManagerError && <p className="text-amber-700">Secret Manager said: {store.secretManagerError}</p>}
-            </>
-          ) : <p>This server isn't on GCP, so set credentials as environment variables (each drawer shows the names).</p>}
-          <button onClick={async () => { setRechecking(true); try { const r = await refreshStore(); setStore(r.store); } finally { setRechecking(false); } }}
-            disabled={rechecking} className="px-2.5 py-1 rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-100 disabled:opacity-40">
-            {rechecking ? 'Re-checking…' : 'Re-check store'}
-          </button>
-        </div>
-      )}
-
-      {loading && <p className="text-sm text-slate-400">Loading connectors…</p>}
-
-      {GROUP_ORDER.filter((g) => grouped[g]?.length).map((g) => (
-        <div key={g}>
-          <h3 className="text-xs sm:text-[11px] font-extrabold uppercase tracking-[0.1em] text-slate-400 mb-2.5">{GROUP_LABEL[g]}</h3>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {grouped[g].map((c) => (
-              <ConnectorCard key={c.id} connector={c} feed={feeds.get(c.id)!} sources={sources} latest={latest}
-                open={openId === c.id} setOpen={(o) => setOpenId(o ? c.id : null)} onChanged={reload} onCommitted={reloadReports} />
-            ))}
+      <Panel flush title="Sources" count={connectors.length}
+        action={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {chip('all', 'All', connectors.length)}
+            {FEED_ORDER.map((f) => chip(f, FEED_LABEL[f], count(f)))}
+            {store && (
+              <Popover align="right" width={380} buttonLabel="Where the passwords are kept"
+                buttonClassName={`inline-flex min-h-11 sm:min-h-8 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold ${store.durable ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}
+                button={<><KeyRound className="h-3.5 w-3.5" aria-hidden />{store.durable ? 'Passwords: safe store' : 'Passwords: temporary'}</>}>
+                <div className="space-y-2 p-4 text-[13px] text-slate-700">
+                  {store.durable ? <p>Passwords are in Secret Manager. They stay after a restart.</p> : <>
+                    <p className="font-semibold text-slate-900">A restart removes the saved passwords.</p>
+                    {store.grantHint ? <>
+                      <p>1. Run this command 1 time in Cloud Shell.</p>
+                      <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-slate-100 p-2 font-mono text-xs">{store.grantHint}</pre>
+                      <p>2. Select Check again.</p>
+                      {store.secretManagerError && <p className="text-amber-700">Secret Manager error: {store.secretManagerError}</p>}
+                    </> : <p>This server is not on Google Cloud. Set the passwords as environment variables. Each source shows the names.</p>}
+                    <button type="button" onClick={async () => { setRechecking(true); try { const r = await refreshStore(); setStore(r.store); } finally { setRechecking(false); } }}
+                      disabled={rechecking} className={BTN}>{rechecking ? 'Checking…' : 'Check again'}</button>
+                  </>}
+                </div>
+              </Popover>
+            )}
           </div>
-        </div>
-      ))}
-    </div>
+        }>
+        {loading ? <div className="p-4"><Loading /></div> : shown.length === 0 ? <div className="p-4"><Empty title="No source of this type" /></div> : (
+          <ul>
+            {GROUP_ORDER.filter((g) => grouped[g]?.length).map((g) => (
+              <li key={g}>
+                <h3 className="border-b border-slate-200 bg-slate-100 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-600">{GROUP_LABEL[g]}</h3>
+                <ul className="divide-y divide-slate-100">
+                  {grouped[g].map((c) => (
+                    <ConnectorCard key={c.id} connector={c} feed={feeds.get(c.id)!} sources={sources} latest={latest}
+                      open={openId === c.id} setOpen={(o) => setOpenId(o ? c.id : null)} onChanged={reload} onCommitted={reloadReports} />
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </PageBody>
   );
 }
 
@@ -215,9 +210,9 @@ function ConnectorCard({
       await saveCredentials(connector.id, draft);
       setDraft({});
       await onChanged();
-      setMsg({ kind: 'ok', text: 'Credentials saved.' });
+      setMsg({ kind: 'ok', text: 'Saved.' });
     } catch (e) {
-      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Save failed.' });
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Could not save. Try again.' });
     } finally {
       setBusy(null);
     }
@@ -234,38 +229,23 @@ function ConnectorCard({
 
   return (
     <>
-      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 hover:shadow-card transition-shadow">
-        <div className="flex items-start gap-3">
-          <Monogram label={connector.label} />
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-slate-800 truncate">{connector.label}</h4>
-            <span className="text-xs sm:text-[11px] text-slate-400 uppercase tracking-wide">{GROUP_LABEL[connector.group]}</span>
-          </div>
-          <StatusPill toneName={FEED_TONE[feed]} className="whitespace-nowrap">{FEED_LABEL[feed]}</StatusPill>
+      <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-slate-50">
+        <Monogram label={connector.label} />
+        <div className="min-w-0 flex-1 basis-48">
+          <h4 className="truncate text-sm font-semibold text-slate-900">{connector.label}</h4>
+          <p className="truncate text-xs text-slate-600" title={lines.map((l) => l.slot.label).join(', ')}>
+            {lines.length ? lines.map(({ slot, got }) => `${slot.label}${got ? ` (${got.periodKey})` : ''}`).join(' · ') : connector.note ?? 'No monthly report'}
+          </p>
         </div>
-
-        {lines.length > 0 ? (
-          <ul className="space-y-1 text-[12px] leading-snug text-slate-600">
-            {lines.map(({ slot, src, got }) => (
-              <li key={slot.slotId}>
-                <span className="font-medium text-slate-700">{slot.label}</span>
-                {got && <span className="text-emerald-700"> · in for {got.periodKey}</span>}
-                {src && <span className="text-slate-500"> · {src.source === 'upload' ? src.line : src.via}</span>}
-              </li>
-            ))}
-          </ul>
-        ) : connector.note ? <p className="text-[12px] leading-snug text-slate-500 line-clamp-2">{connector.note}</p> : null}
-
-        <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 mt-auto">
-          {hasCreds ? <StatusPill toneName={status.tone} dot>{status.label}</StatusPill> : <span className="text-xs sm:text-[11px] text-slate-400">No login needed</span>}
-          <button
-            onClick={() => { setOpen(true); setMsg(null); }}
-            className={'px-3 py-1.5 text-xs font-semibold rounded-lg ' + (feed === 'manual' ? 'border border-brand-300 bg-brand-50 text-brand-700 hover:bg-brand-100' : 'border border-slate-300 text-slate-700 hover:bg-slate-50')}
-          >
-            {feed === 'manual' ? 'Upload' : connector.connected || !hasCreds ? 'Open' : 'Connect'}
-          </button>
-        </div>
-      </div>
+        <StatusPill toneName={FEED_TONE[feed]} className="whitespace-nowrap">{FEED_LABEL[feed]}</StatusPill>
+        <span className="w-36 text-right">{hasCreds ? <StatusPill toneName={status.tone} dot>{status.label}</StatusPill> : <span className="text-xs text-slate-500">No login</span>}</span>
+        <button type="button"
+          onClick={() => { setOpen(true); setMsg(null); }}
+          className={BTN + ' w-24'}
+        >
+          {feed === 'manual' ? 'Upload' : connector.connected || !hasCreds ? 'Open' : 'Connect'}
+        </button>
+      </li>
 
       <Drawer
         open={open}
@@ -295,11 +275,11 @@ function ConnectorCard({
               <button
                 onClick={async () => {
                   setBusy('clear');
-                  try { await clearCredentials(connector.id); await onChanged(); setMsg({ kind: 'ok', text: 'Credentials removed.' }); }
+                  try { await clearCredentials(connector.id); await onChanged(); setMsg({ kind: 'ok', text: 'Removed.' }); }
                   finally { setBusy(null); }
                 }}
                 disabled={busy !== null}
-                aria-label="Remove credentials"
+                aria-label="Remove the saved login"
                 className="px-3 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-40"
               >
                 Remove
@@ -319,14 +299,14 @@ function ConnectorCard({
           )}
           {autoSlots.length > 0 && (
             <div className="space-y-3">
-              <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Fills automatically</div>
-              <p className="text-[12px] text-slate-500">"Pull & save all" at the top saves these. Pull one here, or upload the report by hand only if its pull fails.</p>
+              <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Automatic reports</div>
+              <p className="text-[12px] text-slate-500">Pull all saves these reports. Upload the file only if the pull fails.</p>
               {autoSlots.map((x) => <IngestStepper key={x.slotId} slot={x} existing={latest.get(slotKey(connector.id, x.slotId))} onCommitted={onCommitted} source={sources.get(slotKey(connector.id, x.slotId))} />)}
             </div>
           )}
 
           {hasCreds && <div>
-            <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2.5">Credentials</div>
+            <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2.5">Login</div>
             <div className="space-y-3">
               {connector.credentialFields.map((f) => (
                 <label key={f.key} className="block">
@@ -345,17 +325,16 @@ function ConnectorCard({
                 </label>
               ))}
             </div>
-            <p className="text-xs sm:text-[11px] text-slate-400 mt-2">Blank fields are left unchanged; passwords are never shown back.</p>
+            <p className="text-xs sm:text-[11px] text-slate-400 mt-2">An empty field keeps its saved value. The page does not show saved passwords.</p>
           </div>}
 
           {hasCreds && <details className="text-xs sm:text-[11px] text-slate-500">
             <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">
-              Durable option: set as environment variables instead
+              Environment variable names
             </summary>
             <div className="mt-2 rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-0.5 font-mono">
               <p className="font-sans text-slate-500 mb-1.5">
-                Set these on the Cloud Run service (value, or a Secret Manager reference). They survive restarts and
-                redeploys and take precedence over anything saved here.
+                Set these on the Cloud Run service. They stay after a restart. They replace the values saved here.
               </p>
               {connector.credentialFields.map((f) => (
                 <div key={f.key}>{envVarName(connector.id, f.key)}{f.optional ? '  (optional)' : ''}</div>
@@ -377,10 +356,14 @@ export function ConnectorsPage() {
     <>
       <PageHeader
         title="Setup"
-        accent="brand"
-        icon={iconPlug}
-        description="Every data source in one list. Connected (API) and Automated (Claude) fill themselves: one Pull & save for the month. Manual upload is only for the reports nothing can fetch (Flipkart settlement + ads, Blinkit, Snapmint, Shopflo). A missing report shows up in Tasks → Fix."
-        actions={<Link to="/reporting/mis/live" className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">Live MIS →</Link>}
+        description="Connect each source 1 time. Then pull or upload the reports for each month."
+        help={<>
+          <p>API: the MIS pulls the report.</p>
+          <p>Claude task: a scheduled Claude task gets the report.</p>
+          <p>Manual upload: download the file from the source. Then upload it here each month.</p>
+          <p>A missing report shows in Tasks, Fix list.</p>
+        </>}
+        actions={<Link to="/tasks/settings" className={BTN}>People and reminders</Link>}
       />
       <ConnectionsView />
     </>

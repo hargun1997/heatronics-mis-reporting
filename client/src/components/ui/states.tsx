@@ -34,11 +34,11 @@ export function Empty({ title, hint, action }: { title: string; hint?: React.Rea
 }
 
 /** A note behind an "i": use it in place of a paragraph under a chart, table or tile. */
-export function InfoTip({ children, label = 'How this number is made', align = 'left', width = 320 }: { children: React.ReactNode; label?: string; align?: 'left' | 'right'; width?: number }) {
+export function InfoTip({ children, label = 'How this number is made', text, align = 'left', width = 320 }: { children: React.ReactNode; label?: string; /** Visible words next to the icon. */ text?: string; align?: 'left' | 'right'; width?: number }) {
   return (
     <Popover align={align} width={width} buttonLabel={label}
-      buttonClassName="inline-flex h-11 w-11 sm:h-7 sm:w-7 items-center justify-center rounded-md align-middle text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-      button={<Info className="h-4 w-4" aria-hidden />}>
+      buttonClassName={`inline-flex min-h-11 sm:min-h-7 items-center justify-center gap-1 rounded-md align-middle text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${text ? 'px-1.5' : 'w-11 sm:w-7'}`}
+      button={<><Info className="h-4 w-4" aria-hidden />{text}</>}>
       <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3.5 text-[13px] font-normal normal-case leading-5 tracking-normal text-slate-700">{children}</div>
     </Popover>
   );
