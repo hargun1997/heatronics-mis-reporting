@@ -20,9 +20,9 @@ const istMonth = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slic
 const WORD: Record<Status, string> = { on_track: 'On track', behind: 'Behind plan', ahead: 'Ahead of plan' };
 const ARROW: Record<Status, string> = { on_track: '►', behind: '▼', ahead: '▲' };
 const TONE: Record<Status, { text: string; bg: string; bar: string }> = {
-  on_track: { text: 'text-slate-700', bg: 'bg-slate-100', bar: '#64748b' },
-  behind: { text: 'text-rose-700', bg: 'bg-rose-50', bar: '#e11d48' },
-  ahead: { text: 'text-emerald-700', bg: 'bg-emerald-50', bar: '#059669' },
+  on_track: { text: 'text-slate-700', bg: 'bg-slate-100', bar: 'rgb(var(--chart-ink))' },
+  behind: { text: 'text-rose-700', bg: 'bg-rose-50', bar: 'rgb(var(--red-600))' },
+  ahead: { text: 'text-emerald-700', bg: 'bg-emerald-50', bar: 'rgb(var(--emerald-600))' },
 };
 /** ₹ in lakh below 1 Cr, else Cr. */
 function inr(v: number, signed = false): string {
@@ -74,11 +74,11 @@ function Chart({ months, metric }: { months: MonthCmp[]; metric: MetricId }) {
       <svg viewBox={`0 0 ${W} ${H}`} style={{ minWidth: Math.min(W, 520) }} className="w-full" role="img" aria-label={`${METRIC_NAME[metric]}: plan and actual by month`}>
         {ticks.map((t, i) => (
           <g key={i}>
-            <line x1={padL} x2={W - 4} y1={y(t)} y2={y(t)} stroke="#e2e8f0" />
-            <text x={padL - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="#64748b">{short(t)}</text>
+            <line x1={padL} x2={W - 4} y1={y(t)} y2={y(t)} stroke="rgb(var(--n-200))" />
+            <text x={padL - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="rgb(var(--n-500))">{short(t)}</text>
           </g>
         ))}
-        <line x1={padL} x2={W - 4} y1={y(0)} y2={y(0)} stroke="#94a3b8" />
+        <line x1={padL} x2={W - 4} y1={y(0)} y2={y(0)} stroke="rgb(var(--n-400))" />
         {months.map((m, i) => {
           const c = m.metrics[metric];
           const x0 = padL + i * bw + bw * 0.12, w = bw * 0.38;
@@ -87,17 +87,17 @@ function Chart({ months, metric }: { months: MonthCmp[]; metric: MetricId }) {
           const st = c.status;
           return (
             <g key={m.key}>
-              <rect x={x0} width={w} y={p.y} height={Math.max(p.h, 1)} fill="#a5b4fc"><title>{m.label} plan {fmt(metric, c.plan)}</title></rect>
-              {c.actual != null ? (() => { const a = bar(c.actual); return <rect x={x0 + w + 2} width={w} y={a.y} height={Math.max(a.h, 1)} fill={st ? TONE[st].bar : '#64748b'} opacity={m.state === 'running' || m.state === 'partial' ? 0.55 : 1}><title>{m.label} actual {fmt(metric, c.actual)}{m.state === 'running' ? ' (month not finished)' : m.state === 'partial' ? ' (books not complete, not counted)' : ''}</title></rect>; })()
-                : <text x={x0 + w + 2 + w / 2} y={y(0) - 6} textAnchor="middle" fontSize="9" fill="#94a3b8">no data</text>}
-              <text x={x0 + w} y={H - 16} textAnchor="middle" fontSize="10" fill="#475569">{m.label}</text>
-              {(m.state === 'running' || m.state === 'partial') && <text x={x0 + w} y={H - 4} textAnchor="middle" fontSize="9" fill="#94a3b8">{m.state === 'running' ? 'so far' : 'partial'}</text>}
+              <rect x={x0} width={w} y={p.y} height={Math.max(p.h, 1)} fill="rgb(var(--chart-cmp))"><title>{m.label} plan {fmt(metric, c.plan)}</title></rect>
+              {c.actual != null ? (() => { const a = bar(c.actual); return <rect x={x0 + w + 2} width={w} y={a.y} height={Math.max(a.h, 1)} fill={st ? TONE[st].bar : 'rgb(var(--chart-ink))'} opacity={m.state === 'running' || m.state === 'partial' ? 0.55 : 1}><title>{m.label} actual {fmt(metric, c.actual)}{m.state === 'running' ? ' (month not finished)' : m.state === 'partial' ? ' (books not complete, not counted)' : ''}</title></rect>; })()
+                : <text x={x0 + w + 2 + w / 2} y={y(0) - 6} textAnchor="middle" fontSize="9" fill="rgb(var(--n-500))">no data</text>}
+              <text x={x0 + w} y={H - 16} textAnchor="middle" fontSize="10" fill="rgb(var(--n-600))">{m.label}</text>
+              {(m.state === 'running' || m.state === 'partial') && <text x={x0 + w} y={H - 4} textAnchor="middle" fontSize="9" fill="rgb(var(--n-500))">{m.state === 'running' ? 'so far' : 'partial'}</text>}
             </g>
           );
         })}
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-slate-600">
-        <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: '#a5b4fc' }} />Plan</span>
+        <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: 'rgb(var(--chart-cmp))' }} />Plan</span>
         <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TONE.on_track.bar }} />Actual: on track</span>
         <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TONE.behind.bar }} />Actual: behind</span>
         <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TONE.ahead.bar }} />Actual: ahead</span>

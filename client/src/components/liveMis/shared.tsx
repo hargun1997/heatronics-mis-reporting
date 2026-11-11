@@ -9,7 +9,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { readFold, writeFold } from '../../hooks/useDensity';
-import { CHANNEL_COLORS, pctSigned } from '../mis-deck/format';
+import { CHANNEL_COLORS, CHART, pctSigned } from '../mis-deck/format';
 import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
 import { channelName } from '../../data/misDeck/liveViews';
 
@@ -37,14 +37,14 @@ export function useLiveView(): LiveView & { chName: (ch: string) => string; chCo
 // Channel colours: the legacy palette plus the channels it doesn't name. With
 // the continuous taxonomy on, B2B (OEM) keeps OEM's blue and GT (Offline)
 // keeps Offline's violet so the history reads as one line.
-const EXTRA: Record<string, string> = { Flipkart: '#1D4ED8', GT: '#0F766E', B2B: '#9333EA' };
+const EXTRA: Record<string, string> = { Flipkart: CHART.c4, GT: CHART.c3, B2B: CHART.c2 };
 export function channelColor(ch: string, merged: boolean): string {
   if (merged && ch === 'B2B') return CHANNEL_COLORS.OEM;
   if (merged && ch === 'GT') return CHANNEL_COLORS.Offline;
-  return CHANNEL_COLORS[ch] ?? EXTRA[ch] ?? '#94a3b8';
+  return CHANNEL_COLORS[ch] ?? EXTRA[ch] ?? CHART.cmp;
 }
 export const VERTICAL_COLORS: Record<string, string> = {
-  D2C: '#0E7490', Ecommerce: '#D97706', 'Quick Commerce': '#475569', GT: '#7C3AED', B2B: '#2563EB', Export: '#DB2777', Company: '#94a3b8',
+  D2C: CHART.ink, Ecommerce: CHART.heat, 'Quick Commerce': CHART.c4, GT: CHART.c3, B2B: CHART.c2, Export: CHART.c5, Company: CHART.cmp,
 };
 
 // ---- Foldable section (Tasks / Handbook style) -----------------------------
@@ -150,7 +150,7 @@ export function Pills<T extends string>({ value, onChange, options, label }: {
       {options.map((o) => (
         <button key={o.id} type="button" onClick={() => onChange(o.id)} aria-pressed={value === o.id}
           className={`px-2.5 py-1 min-h-10 sm:min-h-0 text-xs font-medium rounded-md transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${
-            value === o.id ? 'bg-white text-brand-700 shadow-soft' : 'text-slate-500 hover:text-slate-800'}`}>
+            value === o.id ? 'bg-white font-semibold text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'}`}>
           {o.label}
         </button>
       ))}

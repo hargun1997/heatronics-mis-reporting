@@ -22,9 +22,10 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 
 
 ## Design & menu
-- Same design system as Ops: `design-system/heatronics-mis/MASTER.md` (tokens in `client/src/index.css`, Tailwind names
-  map onto them: slate/gray = neutral, white = surface, brand = accent indigo, `bg-cta text-on-cta` = the one primary
-  action; light / dark / system theme). No gradients, no raw hex in components, scrims `bg-scrim/x`.
+- Heatronics "Ember" design system (spec `design-system/EMBER.md`, MIS rules `design-system/heatronics-mis/MASTER.md`; tokens in
+  `client/src/index.css`, Tailwind names map onto them: slate/gray = Ember neutrals, white = surface, brand / accent / indigo = the
+  heat ramp, `bg-cta text-on-cta` = the one primary action, `chart-*` / `CHART` = obsidian + grey + one heat; obsidian sidebar;
+  DM Sans; light / dark / system theme). No indigo, no gradients, no raw hex in components, scrims `bg-scrim/x`.
 - Menu = `client/src/nav/config.ts` only (sidebar `components/shell/AppNav.tsx`, ⌘K `CommandPalette`, breadcrumbs in
   `PageHeader`). Adding a page = a route in `App.tsx` + a line in nav/config; `server/test/nav.test.ts` checks both.
 - **Bundle:** every page is `lazyPage(() => import(...), 'Name')` in `App.tsx` (own chunk; `<Suspense>` around the `<Outlet />` in

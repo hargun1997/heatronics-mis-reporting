@@ -33,8 +33,8 @@ const toneValue: Record<KpiTone, string> = {
 
 const toneAccent: Record<KpiTone, string> = {
   default:  '',
-  warning:  '#d97706',
-  critical: '#dc2626',
+  warning:  'rgb(var(--amber-600))',
+  critical: 'rgb(var(--red-600))',
 };
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {

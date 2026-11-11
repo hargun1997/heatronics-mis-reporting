@@ -85,14 +85,14 @@ export function buildPresentationHtml(deck: LiveDeckData, opts: PresentationOpti
   const latest = latestFull ?? months[months.length - 1];
   const rangeLabel = months.length ? `${monthLabel(months[0].key)} – ${monthLabel(months[months.length - 1].key)}` : '';
 
-  const revBars = bars(last12.map((m) => ({ label: monthLabel(m.key), value: m.netRevenue })), '#2563eb');
+  const revBars = bars(last12.map((m) => ({ label: monthLabel(m.key), value: m.netRevenue })), '#141516');
   const mkt = latest?.marketingByPlatform ?? {};
   const mktBars = Object.keys(mkt).length
-    ? bars(Object.entries(mkt).map(([k, v]) => ({ label: k, value: v })), '#fe4705')
+    ? bars(Object.entries(mkt).map(([k, v]) => ({ label: k, value: v })), '#F36B21')
     : '<p class="empty">No ad-platform breakdown for this month.</p>';
   const chan = latest?.netByChannel ?? {};
   const chanBars = Object.keys(chan).length
-    ? bars(Object.entries(chan).map(([k, v]) => ({ label: k, value: v as number })), '#0ea5e9')
+    ? bars(Object.entries(chan).map(([k, v]) => ({ label: k, value: v as number })), '#4A4C4F')
     : '<p class="empty">No channel split for this month.</p>';
 
   const kpi = (label: string, value: string, sub = '') =>
@@ -114,38 +114,38 @@ export function buildPresentationHtml(deck: LiveDeckData, opts: PresentationOpti
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#0f172a; background:#f8fafc; }
+  body { margin:0; font-family: 'DM Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#141516; background:#F4F4F3; }
   .wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
-  .hero { background: linear-gradient(135deg,#fe4705,#b5370b); color:#fff; border-radius:20px; padding:28px 26px; }
+  .hero { background: #0C0D0E; color:#fff; border-radius:20px; padding:28px 26px; }
   .hero h1 { margin:0; font-size:26px; letter-spacing:-0.02em; }
   .hero p { margin:6px 0 0; opacity:.9; font-size:14px; }
-  section { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:20px 22px; margin-top:16px;
+  section { background:#fff; border:1px solid #E6E6E4; border-radius:16px; padding:20px 22px; margin-top:16px;
             opacity:0; transform: translateY(14px); animation: riseIn .5s ease forwards; }
   section:nth-of-type(1){animation-delay:.05s} section:nth-of-type(2){animation-delay:.12s}
   section:nth-of-type(3){animation-delay:.19s} section:nth-of-type(4){animation-delay:.26s}
   section:nth-of-type(5){animation-delay:.33s} section:nth-of-type(6){animation-delay:.40s}
-  h2 { font-size:15px; margin:0 0 14px; color:#334155; text-transform:uppercase; letter-spacing:.08em; }
+  h2 { font-size:15px; margin:0 0 14px; color:#4A4C4F; text-transform:uppercase; letter-spacing:.08em; }
   h3 { font-size:14px; margin:14px 0 6px; }
   .kpis { display:grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
-  .kpi { background:#f8fafc; border:1px solid #eef2f7; border-radius:12px; padding:14px; }
+  .kpi { background:#F0F0EF; border:1px solid #E6E6E4; border-radius:12px; padding:14px; }
   .kpi-v { font-size:22px; font-weight:700; letter-spacing:-0.02em; }
-  .kpi-l { font-size:12px; color:#64748b; margin-top:2px; }
-  .kpi-s { font-size:11px; color:#94a3b8; margin-top:2px; }
+  .kpi-l { font-size:12px; color:#6B6D70; margin-top:2px; }
+  .kpi-s { font-size:11px; color:#6B6D70; margin-top:2px; }
   .bar-row { display:grid; grid-template-columns: 150px 1fr 110px; align-items:center; gap:10px; margin:7px 0;
              opacity:0; transform: translateX(-8px); animation: slideIn .45s ease forwards; }
-  .bar-label { font-size:12px; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .bar-track { background:#f1f5f9; border-radius:6px; height:16px; overflow:hidden; }
+  .bar-label { font-size:12px; color:#4A4C4F; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bar-track { background:#F0F0EF; border-radius:6px; height:16px; overflow:hidden; }
   .bar-fill { height:100%; border-radius:6px; transform-origin:left; animation: grow .7s ease forwards; }
-  .bar-val { font-size:12px; text-align:right; font-variant-numeric: tabular-nums; color:#334155; }
+  .bar-val { font-size:12px; text-align:right; font-variant-numeric: tabular-nums; color:#4A4C4F; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
-  td { padding:5px 8px; border-bottom:1px solid #f1f5f9; opacity:0; animation: fadeIn .4s ease forwards; }
+  td { padding:5px 8px; border-bottom:1px solid #F0F0EF; opacity:0; animation: fadeIn .4s ease forwards; }
   td.num { text-align:right; font-variant-numeric: tabular-nums; }
-  td.muted { color:#94a3b8; }
-  tr.strong td { font-weight:700; background:#f8fafc; }
-  .summary p { font-size:13.5px; line-height:1.6; color:#334155; margin:8px 0; }
-  .summary li { font-size:13.5px; line-height:1.55; color:#334155; }
-  .empty { color:#94a3b8; font-size:13px; }
-  .foot { color:#94a3b8; font-size:11px; margin-top:22px; text-align:center; }
+  td.muted { color:#6B6D70; }
+  tr.strong td { font-weight:700; background:#F0F0EF; }
+  .summary p { font-size:13.5px; line-height:1.6; color:#4A4C4F; margin:8px 0; }
+  .summary li { font-size:13.5px; line-height:1.55; color:#4A4C4F; }
+  .empty { color:#6B6D70; font-size:13px; }
+  .foot { color:#6B6D70; font-size:11px; margin-top:22px; text-align:center; }
   @keyframes riseIn { to { opacity:1; transform:none; } }
   @keyframes slideIn { to { opacity:1; transform:none; } }
   @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }

@@ -3,7 +3,7 @@
 //   Top: brand, collapse, "Search or jump to… ⌘K". Then Pinned (localStorage) and every section (Admin included) in one
 //   scrolling list, the current page scrolled into view; at the bottom only Claude status + Compact + Theme.
 //   Tasks carries a live count (to fix + late + due today).
-// Desktop: fixed 248 px dark rail, collapsible to a 64 px icon rail (tooltips + sr-only labels).
+// Desktop: fixed 248 px obsidian rail (Ember: active row = #222326 fill + 3px heat bar + heat icon + white 600 text), collapsible to a 64 px icon rail (tooltips + sr-only labels).
 // < 1024 px: top bar (Menu, brand, Search) + the same list in a modal drawer (focus trapped, Esc closes,
 // focus returns to the Menu button). Keyboard: ↑ / ↓ move between items, Home / End jump.
 import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent } from 'react';
@@ -71,15 +71,15 @@ export function AppNav() {
     return (
       <li key={p.id} className="relative">
         <Link to={p.href} data-nav-item aria-current={on ? 'page' : undefined} title={mini ? p.label : undefined}
-          className={cx('group/row relative flex min-h-[44px] items-center gap-3 rounded-lg text-sm transition-colors lg:min-h-[38px]', ring,
+          className={cx('group/row relative flex min-h-[44px] items-center gap-3 rounded-md text-sm transition-colors lg:min-h-[38px]', ring,
             mini ? 'justify-center' : 'px-3',
-            on ? 'bg-nav-active font-medium text-nav-strong' : 'text-nav-fg hover:bg-nav-hover hover:text-nav-strong')}>
-          {on && <span className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-nav-accent" aria-hidden />}
+            on ? 'bg-nav-active font-semibold text-nav-strong' : 'text-nav-fg hover:bg-nav-hover hover:text-nav-strong')}>
+          {on && <span className="absolute inset-y-1.5 -left-2 w-[3px] rounded-r-sm bg-nav-accent" aria-hidden />}
           <Icon className={cx('h-[18px] w-[18px] shrink-0', on ? 'text-nav-accent' : 'text-nav-muted group-hover/row:text-nav-fg')} aria-hidden />
           {mini ? <span className="sr-only">{p.label}</span> : <span className="min-w-0 flex-1 truncate">{p.label}</span>}
           {p.id === 'tasks' && issues && issues.open > 0 && (
             <span className={cx('rounded-full px-1.5 text-xs font-semibold tabular-nums', mini ? 'absolute right-1 top-1 min-w-[18px] text-center leading-[18px]' : 'leading-5',
-              issues.high > 0 ? 'bg-red-600 text-white' : 'bg-nav-hover text-nav-strong')} aria-label={`${issues.open} to do or fix${issues.high ? `, ${issues.high} urgent` : ''}`}>{issues.open}</span>
+              issues.high > 0 ? 'bg-nav-accent text-nav-bg' : 'bg-nav-border text-nav-strong')} aria-label={`${issues.open} to do or fix${issues.high ? `, ${issues.high} urgent` : ''}`}>{issues.open}</span>
           )}
         </Link>
       </li>
@@ -114,14 +114,14 @@ export function AppNav() {
       <div className={cx('nav-scroll flex-1 space-y-4 px-2 py-2', mini ? 'overflow-visible' : 'overflow-y-auto')}>
         {pins.length > 0 && !mini && (
           <div>
-            <h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.08em] text-nav-muted">Pinned</h2>
+            <h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-nav-muted">Pinned</h2>
             <ul className="space-y-0.5">
               {pins.map((p) => {
                 const on = path === p.href.split('?')[0];
                 return (
                   <li key={p.href} className="group/pin relative">
                     <Link to={p.href} data-nav-item aria-current={on ? 'page' : undefined}
-                      className={cx('flex min-h-[44px] items-center gap-3 rounded-lg px-3 pr-10 text-sm lg:min-h-[36px]', ring, on ? 'bg-nav-active text-nav-strong' : 'text-nav-fg hover:bg-nav-hover hover:text-nav-strong')}>
+                      className={cx('flex min-h-[44px] items-center gap-3 rounded-md px-3 pr-10 text-sm lg:min-h-[36px]', ring, on ? 'bg-nav-active text-nav-strong' : 'text-nav-fg hover:bg-nav-hover hover:text-nav-strong')}>
                       <Pin className="h-3.5 w-3.5 shrink-0 text-nav-muted" aria-hidden />
                       <span className="min-w-0 flex-1 truncate">{p.label}{p.context && <span className="text-nav-muted"> · {p.context}</span>}</span>
                     </Link>
@@ -137,7 +137,7 @@ export function AppNav() {
         )}
         {main.map((s) => (
           <div key={s.id}>
-            {mini ? <div className="mx-3 mb-2 border-t border-nav-border" aria-hidden /> : <h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-[0.08em] text-nav-muted">{s.label}</h2>}
+            {mini ? <div className="mx-3 mb-2 border-t border-nav-border" aria-hidden /> : <h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-nav-muted">{s.label}</h2>}
             <ul className="space-y-0.5" aria-label={mini ? s.label : undefined}>{s.pages.map((p) => row(p, mini))}</ul>
           </div>
         ))}
@@ -164,10 +164,10 @@ export function AppNav() {
     </div>
   );
 
+  // Ember text wordmark: "Heatronics" + the portal name in heat (no logo mark).
   const brand = (mini: boolean, light = false) => (
-    <Link to={HOME} className={cx('inline-flex h-11 min-w-0 items-center gap-2.5 whitespace-nowrap rounded-lg text-[15px] font-semibold tracking-tight', light ? 'text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500' : cx('text-nav-strong', ring), mini ? 'justify-center px-2' : 'px-1')}>
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-heat-600 shadow-[0_0_0_3px_rgb(var(--heat-600)/0.18)]" aria-hidden><span className="h-2 w-2 rounded-full bg-[#fff]" /></span>
-      {mini ? <span className="sr-only">Heatronics MIS</span> : <span>Heatronics <span className={light ? 'text-stone-500' : 'text-nav-muted'}>MIS</span></span>}
+    <Link to={HOME} className={cx('inline-flex h-11 min-w-0 items-center whitespace-nowrap rounded-md text-[17px] font-semibold tracking-[-0.01em]', light ? 'text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500' : cx('text-nav-strong', ring), mini ? 'justify-center px-2' : 'px-1')}>
+      {mini ? <span className="sr-only">Heatronics MIS</span> : <span>Heatronics <span className={light ? 'text-heat-600' : 'text-nav-accent'}>MIS</span></span>}
     </Link>
   );
 

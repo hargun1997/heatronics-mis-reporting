@@ -1,9 +1,9 @@
 /** @type {import('tailwindcss').Config} */
-// Colours are CSS-variable tokens (src/index.css, design-system/heatronics-mis/MASTER.md), the same set as
-// Heatronics Ops: light / dark switch without touching components.
+// Colours are CSS-variable tokens (src/index.css; spec design-system/EMBER.md, rules design-system/heatronics-mis/MASTER.md):
+// the Heatronics "Ember" set shared by every *.heatronics.in portal; light / dark switch without touching components.
 //   slate / gray / stone = the neutral scale (n-*), white = the card surface,
-//   brand = accent (indigo: active state, links, focus, data), heat = the brand mark,
-//   cta / on-cta = the one primary action per screen.
+//   brand / accent / indigo = the heat ramp (active state, links, focus, the one chart highlight), heat = same ramp,
+//   cta / on-cta = the one primary action per screen, chart.* = obsidian series + grey comparison + one heat.
 // Old colour names (indigo, purple, green, yellow, rose, pink, sky, cyan, teal) map onto the token scales so
 // they follow the theme too.
 const v = (name) => `rgb(var(--${name}) / <alpha-value>)`;
@@ -14,16 +14,18 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  // a regex in utils/sellerCentralFees.ts (`/[-:.TZ]/g`) reads as an arbitrary property; never a class.
+  blocklist: ['[-:.TZ]'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ["'Inter Variable'", 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ["'Inter Variable'", 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ["'DM Sans Variable'", "'DM Sans'", 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ["'DM Sans Variable'", "'DM Sans'", 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ["'JetBrains Mono Variable'", 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
         white: v('surface'),
-        scrim: 'rgb(2 6 23 / <alpha-value>)',
+        scrim: 'rgb(12 13 14 / <alpha-value>)',
         surface: v('surface'),
         slate: scale('n'), gray: scale('n'), stone: scale('n'), zinc: scale('n'), neutral: scale('n'),
         heat: scale('heat'),
@@ -42,13 +44,14 @@ export default {
         'mis-yellow': v('amber-500'),
         'mis-red': v('red-500'),
         'mis-blue': v('blue-500'),
-        // Categorical data palette — one hue per channel (charts, chips).
+        // Charts (Ember): obsidian series, grey comparison, ONE heat highlight; extra categories = obsidian tints.
+        chart: { ink: v('chart-ink'), 2: v('chart-2'), 3: v('chart-3'), 4: v('chart-4'), 5: v('chart-5'), cmp: v('chart-cmp'), heat: v('chart-heat') },
         channel: {
-          oem:     '#2563EB',
-          d2c:     '#0E7490',
-          amazon:  '#D97706',
-          offline: '#7C3AED',
-          blinkit: '#64748B',
+          oem:     v('chart-2'),
+          d2c:     v('chart-ink'),
+          amazon:  v('chart-heat'),
+          offline: v('chart-3'),
+          blinkit: v('chart-4'),
         },
       },
       // Muted text (text-slate-400 / gray / stone) gets its own AA token: the n-400 colour stays for borders,
@@ -63,11 +66,11 @@ export default {
       boxShadow: {
         soft: 'var(--shadow-card)',
         card: 'var(--shadow-card)',
-        'card-lg': '0 1px 2px rgb(15 23 42 / 0.05), 0 8px 24px -12px rgb(15 23 42 / 0.18)',
-        drawer: '-24px 0 60px -24px rgb(2 6 23 / 0.35)',
-        'drawer-left': '24px 0 60px -24px rgb(2 6 23 / 0.35)',
-        overlay: '0 30px 70px -20px rgb(2 6 23 / 0.5)',
-        popover: '0 20px 50px -16px rgb(2 6 23 / 0.4)',
+        'card-lg': '0 1px 2px rgb(20 21 22 / 0.04), 0 8px 24px -12px rgb(20 21 22 / 0.16)',
+        drawer: '-24px 0 60px -24px rgb(12 13 14 / 0.35)',
+        'drawer-left': '24px 0 60px -24px rgb(12 13 14 / 0.35)',
+        overlay: '0 30px 70px -20px rgb(12 13 14 / 0.5)',
+        popover: '0 20px 50px -16px rgb(12 13 14 / 0.4)',
       },
       backgroundImage: {
         // Kept as names so old classes still render; flat token fills now (no gradients, MASTER.md).
@@ -77,6 +80,8 @@ export default {
         'surface-tint': 'none',
         'ink-panel': 'linear-gradient(rgb(var(--n-900)), rgb(var(--n-900)))',
       },
+      // Ember shape: buttons / inputs 10px (rounded-lg), cards 14px (rounded-xl), nav rows 6px (rounded-md), pills full.
+      borderRadius: { lg: '10px', xl: '14px' },
       transitionDuration: { DEFAULT: '150ms' },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },

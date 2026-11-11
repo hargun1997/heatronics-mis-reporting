@@ -8,7 +8,7 @@ interface CardProps {
 
 export function Card({ children, className = '' }: CardProps) {
   return (
-    <div className={`bg-surface rounded-2xl border border-slate-200/80 shadow-card ${className}`}>
+    <div className={`bg-surface rounded-xl border border-slate-200 shadow-card ${className}`}>
       {children}
     </div>
   );
@@ -26,7 +26,7 @@ export function SectionCard({ title, description, children, actions, className =
   return (
     <Card className={className}>
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200/70 bg-surface-tint rounded-t-2xl">
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200/70 bg-surface-tint rounded-t-xl">
           <div>
             {title && <h3 className="text-sm font-bold text-slate-900">{title}</h3>}
             {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}

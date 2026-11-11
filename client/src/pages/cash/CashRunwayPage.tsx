@@ -17,7 +17,7 @@ function inr(n: number | null): string {
   return `${s}₹${Math.round(a).toLocaleString('en-IN')}`;
 }
 const nice = (d: string | null) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : 'not in 13 weeks');
-const COLOR = { base: 'var(--chart-1, #2a78d6)', hard: 'var(--chart-2, #eb6834)', easy: 'var(--chart-3, #1baf7a)' } as const;
+const COLOR = { base: 'rgb(var(--chart-ink))', hard: 'rgb(var(--chart-heat))', easy: 'rgb(var(--chart-cmp))' } as const;
 const BAND = { act: 'bg-red-50 border-red-200 text-red-800', watch: 'bg-amber-50 border-amber-200 text-amber-800', ok: 'bg-emerald-50 border-emerald-200 text-emerald-800', unknown: 'bg-slate-50 border-slate-200 text-slate-700' } as const;
 
 function Chart({ r }: { r: Runway }) {
@@ -31,7 +31,7 @@ function Chart({ r }: { r: Runway }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Net cash over the next 13 weeks in three cases">
       <line x1={P.l} x2={W - P.r} y1={y(0)} y2={y(0)} stroke="currentColor" strokeOpacity="0.35" />
       <text x={P.l - 6} y={y(0) + 4} textAnchor="end" fontSize="11" fill="currentColor" fillOpacity="0.7">₹0</text>
-      {r.odLimit != null ? <><line x1={P.l} x2={W - P.r} y1={y(-r.odLimit)} y2={y(-r.odLimit)} stroke="#d03b3b" strokeDasharray="4 3" /><text x={P.l - 6} y={y(-r.odLimit) + 4} textAnchor="end" fontSize="11" fill="#d03b3b">limit</text></> : null}
+      {r.odLimit != null ? <><line x1={P.l} x2={W - P.r} y1={y(-r.odLimit)} y2={y(-r.odLimit)} stroke="rgb(var(--red-600))" strokeDasharray="4 3" /><text x={P.l - 6} y={y(-r.odLimit) + 4} textAnchor="end" fontSize="11" fill="rgb(var(--red-700))">limit</text></> : null}
       {Math.abs(y(hi) - y(0)) > 14 && <text x={P.l - 6} y={P.t + 8} textAnchor="end" fontSize="11" fill="currentColor" fillOpacity="0.7">{inr(hi)}</text>}
       {Math.abs(y(lo) - y(0)) > 14 && <text x={P.l - 6} y={H - P.b} textAnchor="end" fontSize="11" fill="currentColor" fillOpacity="0.7">{inr(lo)}</text>}
       {(['hard', 'base', 'easy'] as const).map((k) => <polyline key={k} points={line(k)} fill="none" stroke={COLOR[k]} strokeWidth={k === 'base' ? 3 : 2} strokeLinejoin="round" />)}

@@ -442,7 +442,7 @@ export function DonutChart({
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       {segments.map((s) => (
-        <path key={s.key} d={s.d} fill={colors[s.key] || '#94a3b8'} stroke="rgb(var(--surface))" strokeWidth={1.5}>
+        <path key={s.key} d={s.d} fill={colors[s.key] || 'rgb(var(--chart-cmp))'} stroke="rgb(var(--surface))" strokeWidth={1.5}>
           <title>{`${s.key}: ${format(s.frac)}`}</title>
         </path>
       ))}
@@ -502,7 +502,7 @@ export function WaterfallChart({ steps, height = 280 }: { steps: WaterfallStep[]
         {bars.map((b, i) => {
           const yTop = yOf(Math.max(b.start, b.end));
           const h = Math.max(1, Math.abs(yOf(b.start) - yOf(b.end)));
-          const color = b.type === 'total' ? '#4f46e5' : b.value < 0 ? '#94a3b8' : '#a5b4fc';
+          const color = b.type === 'total' ? 'rgb(var(--chart-ink))' : b.value < 0 ? 'rgb(var(--chart-cmp))' : 'rgb(var(--chart-3))';
           const words = b.label.split(' ');
           return (
             <g key={i}

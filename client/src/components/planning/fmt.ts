@@ -15,6 +15,7 @@ export const int = (v: number) => Math.round(v).toLocaleString('en-IN');
 export const tone = (v: number) => (v < 0 ? 'text-rose-600' : 'text-slate-900');
 
 export const CH_COLOR: Record<Channel, string> = {
-  A: '#f59e0b', D: '#fe4705', F: '#3b82f6', G: '#10b981', P: '#8b5cf6',
+  // Ember chart palette (theme tokens): Amazon = the one heat series, the rest obsidian tints.
+  A: 'rgb(var(--chart-heat))', D: 'rgb(var(--chart-ink))', F: 'rgb(var(--chart-3))', G: 'rgb(var(--chart-2))', P: 'rgb(var(--chart-4))',
 };
 export const money = (v: number, d = 2) => (v < 0 ? '−' : '') + '₹' + cr(Math.abs(v), d) + ' Cr';

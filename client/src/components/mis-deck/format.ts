@@ -37,20 +37,25 @@ export function pctSigned(value: number | null | undefined, digits = 1): string 
 // Palette
 // ============================================================================
 
-// Channel palette — one hue per channel, distinct in hue AND lightness, kept
-// off brand orange (reserved for actions). Mirrors tailwind `channel.*`.
+// Ember chart palette (design-system/EMBER.md): obsidian series, grey comparison, ONE heat highlight;
+// extra categories are obsidian tints. Theme tokens (--chart-*, src/index.css), so light / dark both read.
+// Mirrors tailwind `channel.*` / `chart.*`.
+export const CHART = {
+  ink: 'rgb(var(--chart-ink))', c2: 'rgb(var(--chart-2))', c3: 'rgb(var(--chart-3))', c4: 'rgb(var(--chart-4))',
+  c5: 'rgb(var(--chart-5))', cmp: 'rgb(var(--chart-cmp))', heat: 'rgb(var(--chart-heat))',
+} as const;
 export const CHANNEL_COLORS: Record<string, string> = {
-  OEM: '#2563EB',     // blue
-  D2C: '#0E7490',     // cyan-700
-  Amazon: '#D97706',  // amber-600
-  Offline: '#7C3AED', // violet
-  Blinkit: '#475569', // slate-600
-  Export: '#DB2777',  // pink-600
+  OEM: CHART.c2,
+  D2C: CHART.ink,
+  Amazon: CHART.heat, // the biggest channel = the one heat series
+  Offline: CHART.c3,
+  Blinkit: CHART.c4,
+  Export: CHART.c5,
 };
 
-// Neutral, categorical palette — deliberately avoids red/green value signalling.
-export const SERIES_COLORS = ['#2563EB', '#0E7490', '#D97706', '#7C3AED', '#475569', '#DB2777'];
+// Categorical series: obsidian first, heat third (the usual "watch this one" line), then tints.
+export const SERIES_COLORS = [CHART.ink, CHART.c2, CHART.heat, CHART.c3, CHART.c4, CHART.c5];
 
-// Directional accents for +/- bars — indigo for up, muted slate for down (no red/green).
-export const POS_COLOR = '#4f46e5';
-export const NEG_COLOR = '#94a3b8';
+// Directional bars: obsidian for up, comparison grey for down (no red/green).
+export const POS_COLOR = CHART.ink;
+export const NEG_COLOR = CHART.cmp;

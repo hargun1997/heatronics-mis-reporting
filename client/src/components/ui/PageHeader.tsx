@@ -22,7 +22,7 @@ interface PageHeaderProps {
 }
 
 const ICON_TONE: Record<NonNullable<PageHeaderProps['accent']>, string> = {
-  brand: 'bg-accent-50 text-accent-600',
+  brand: 'bg-nav-bg text-nav-accent', // Ember icon tile: heat glyph on obsidian
   emerald: 'bg-emerald-50 text-emerald-700',
   violet: 'bg-violet-50 text-violet-700',
   amber: 'bg-amber-50 text-amber-700',
@@ -40,7 +40,7 @@ export function PageHeader({ title, description, crumbs, actions, icon, status, 
   const owner = w ? PAGE_OWNER[w.page.id] : undefined;
 
   return (
-    <div className="border-b border-stone-200 bg-white">
+    <div className="bg-transparent">
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         {trail.length > 0 && (
           <nav aria-label="Breadcrumb" className="mb-1.5 print:hidden">
@@ -63,7 +63,7 @@ export function PageHeader({ title, description, crumbs, actions, icon, status, 
             {icon && <span className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl [&_svg]:h-5 [&_svg]:w-5', ICON_TONE[accent])} aria-hidden>{icon}</span>}
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1">
-                <h1 className="text-[22px] font-semibold leading-7 tracking-[-0.02em] text-stone-900 sm:text-[26px] sm:leading-8">{title}</h1>
+                <h1 className="text-[22px] font-[650] leading-7 tracking-[-0.015em] text-stone-900">{title}</h1>
                 {w && (
                   <button type="button" onClick={() => toggle({ href: path, label: w.page.label, context: w.section.label })}
                     aria-pressed={pinned} aria-label={pinned ? `Unpin ${w.page.label} from the sidebar` : `Pin ${w.page.label} to the sidebar`} title={pinned ? 'Unpin from the sidebar' : 'Pin to the sidebar'}

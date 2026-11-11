@@ -169,7 +169,7 @@ export function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSo
   };
 
   return (
-    <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4 space-y-3">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="text-sm font-semibold text-slate-800">Automatic sources</h3>
         <span className="text-xs sm:text-[11px] text-slate-500">{auto.length} reports fill themselves ({ready.length} connected) · {manual.length} are manual uploads</span>

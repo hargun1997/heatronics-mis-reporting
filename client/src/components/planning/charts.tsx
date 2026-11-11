@@ -76,7 +76,7 @@ export function CashCurve({ r, compare }: { r: PlanResult; compare?: PlanResult 
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Cash position by month">
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={padL} x2={W - 6} y1={yOf(t)} y2={yOf(t)} stroke={Math.abs(t) < 1e-9 ? '#94a3b8' : '#e2e8f0'} />
+            <line x1={padL} x2={W - 6} y1={yOf(t)} y2={yOf(t)} stroke={Math.abs(t) < 1e-9 ? 'rgb(var(--n-400))' : 'rgb(var(--n-200))'} />
             <text x={padL - 6} y={yOf(t) + 4} textAnchor="end" fontSize="11" fill="rgb(var(--n-400-text))">{t.toFixed(0)}</text>
           </g>
         ))}

@@ -11,7 +11,7 @@ import { KpiTile } from '../ui';
 import {
   LineChart, DonutChart, WaterfallChart, Legend, StackedBarChart, GroupedBarChart, type LineSeries, type WaterfallStep,
 } from '../mis-deck/charts';
-import { inr, pctStr, SERIES_COLORS } from '../mis-deck/format';
+import { CHART, inr, pctStr, SERIES_COLORS } from '../mis-deck/format';
 import type { SkuCell } from '../../data/misDeck/skuChannelPnl';
 import { estimatedUnits, NO_PRODUCT_LABEL, rankLast } from '../../data/misDeck/skuLayer';
 import type { MonthlyMIS, SalesChannel } from '../../data/misDeck/misDeckData';
@@ -486,7 +486,8 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
 
 // ---- Metric trends (any P&L line over time) --------------------------------
 
-const METRIC_COLORS = ['#4f46e5', '#94a3b8', '#0ea5e9', '#cbd5e1', '#06b6d4', '#f59e0b', '#8b5cf6', '#eab308', '#ec4899', '#f97316', '#6366f1', '#64748b', '#0284c7', '#0f766e'];
+// Ember: obsidian first, the one heat line second, then obsidian tints and the comparison grey.
+const METRIC_COLORS = [CHART.ink, CHART.heat, CHART.c2, CHART.c3, CHART.cmp, CHART.c4, CHART.c5];
 
 function MetricTrends({ months, completeness }: { months: MonthlyMIS[]; completeness: Record<string, PeriodCompleteness> }) {
   const [g, setG] = useState<Granularity>('month');
@@ -516,7 +517,7 @@ function MetricTrends({ months, completeness }: { months: MonthlyMIS[]; complete
           return (
             <button key={m.k} type="button" onClick={() => toggle(m.k)} aria-pressed={on}
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${on ? 'border-slate-300 bg-slate-50 text-slate-800' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>
-              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: on ? m.color : '#cbd5e1' }} />
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: on ? m.color : 'rgb(var(--n-300))' }} />
               {m.label.replace(' / Platform & Payment', '')}
             </button>
           );
@@ -669,7 +670,7 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
   const ORDER: readonly string[] = by === 'vertical' ? VERTICALS : SALES_CHANNELS;
   const keyOrder = [...new Set(timeline.flatMap((t) => t.cols.map((c) => c.key)))].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
   const nameOf = (k: string) => (by === 'channel' ? chName(k) : k);
-  const colorOf = (k: string) => (by === 'channel' ? chColor(k) : VERTICAL_COLORS[k] ?? '#94a3b8');
+  const colorOf = (k: string) => (by === 'channel' ? chColor(k) : VERTICAL_COLORS[k] ?? CHART.cmp);
   const names = keyOrder.map(nameOf);
   const colors = Object.fromEntries(keyOrder.map((k) => [nameOf(k), colorOf(k)]));
   const tLabels = timeline.map((t) => t.p.label);
