@@ -48,7 +48,7 @@ export async function payoutsBetween(creds: Credentials, fromIso: string, toIso:
   const key = (creds.merchantKey || '').trim();
   const salt = (creds.salt || '').trim();
   const email = (creds.merchantEmail || '').trim();
-  if (!key || !salt) throw new Error('Not connected — add the Easebuzz merchant key + salt.');
+  if (!key || !salt) throw new Error('Not connected. Add the Easebuzz merchant key and salt.');
   const start = ddmmyyyy(fromIso);
   const end = ddmmyyyy(toIso);
   const hash = createHash('sha512').update(easebuzzHashInput([key, start, end], salt)).digest('hex');

@@ -42,7 +42,7 @@ test('high items and a task 3+ days late make the day "act", sorted high first',
   assert.equal(b.tiles[1].value, 2);
   assert.equal(b.tiles[1].tone, 'act');
   const due = b.needsYou.find((n) => n.title === 'Upload')!;
-  assert.match(due.why, /due today · nobody assigned/);
+  assert.match(due.why, /due today · no owner/);
 });
 
 test('low watch items are skipped and more than 6 needs fold into moreNeeds', () => {
@@ -77,7 +77,7 @@ test('nothing moved says so', () => {
 test('stale or missing Tally is flagged; missing balance gives null cash and a note', () => {
   const stale = buildMorningBrief(base({ tallyLastOkAt: '2026-11-05T00:00:00Z' }));
   assert.equal(stale.freshness.stale, true);
-  assert.ok(stale.notes.some((n) => /may be old/.test(n)));
+  assert.ok(stale.notes.some((n) => /can be old/.test(n)));
   const none = buildMorningBrief(base({ balance: null, tallyLastOkAt: null }));
   assert.equal(none.tiles[0].value, null);
   assert.equal(none.snapshot.netCash, null);

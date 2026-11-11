@@ -131,7 +131,7 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
   for (const t of [...lateTasks, ...dueToday]) {
     const sev: Severity = t.late >= 3 ? 'high' : 'medium';
     const when = t.late > 0 ? `${t.late} day${t.late === 1 ? '' : 's'} late` : 'due today';
-    needs.push({ kind: 'task', severity: sev, title: t.title, why: `${when}${t.owners.length ? ` · ${t.owners.join(', ')}` : ' · nobody assigned'}`, href: '/tasks', inr: null });
+    needs.push({ kind: 'task', severity: sev, title: t.title, why: `${when}${t.owners.length ? ` · ${t.owners.join(', ')}` : ' · no owner'}`, href: '/tasks', inr: null });
   }
   needs.sort((a, b) => SEV[b.severity] - SEV[a.severity] || (b.inr ? Math.abs(b.inr) : 0) - (a.inr ? Math.abs(a.inr) : 0));
   const top = needs.slice(0, 6);
@@ -140,7 +140,7 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
   const status: MorningBrief['status'] = high ? 'act' : needs.length ? 'watch' : 'ok';
   const statusLine = high
     ? `${high} thing${high === 1 ? '' : 's'} need${high === 1 ? 's' : ''} you today`
-    : needs.length ? `${needs.length} to keep an eye on, nothing urgent` : 'Nothing needs you today';
+    : needs.length ? `${needs.length} to watch, none urgent` : 'Nothing needs you today';
 
   // ---- numbers
   const b = x.balance;
@@ -150,22 +150,22 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
   const tiles: Tile[] = [
     {
       id: 'net_cash', label: 'Net cash', value: b ? r0(b.netCash) : null, unit: 'inr',
-      sub: b ? `${inrShort(b.cashBank)} in bank − ${inrShort(b.overdraft)} overdraft · ${booksLabel(b.period, b.asOf)}` : 'No Trial Balance stored yet',
+      sub: b ? `${inrShort(b.cashBank)} in bank − ${inrShort(b.overdraft)} overdraft · ${booksLabel(b.period, b.asOf)}` : 'No data: no Trial Balance yet',
       tone: b && b.netCash < 0 ? 'act' : 'ok', delta: cashDelta,
     },
     {
       id: 'runway', label: 'Cash lasts', value: runway?.pct ?? null, unit: 'months',
-      sub: runway ? 'net cash (after overdraft) at the last whole months’ average fall' : 'Net cash is growing, or not enough whole months stored',
+      sub: runway ? 'Net cash ÷ average monthly fall (last 1 to 3 whole months)' : 'Net cash grows, or no whole month of books yet',
       tone: runway ? (runway.severity === 'high' ? 'act' : runway.severity === 'medium' ? 'watch' : 'ok') : 'ok', delta: null,
     },
     {
       id: 'sales', label: cur ? `Sales ${monthLabel(cur.period)}` : 'Sales', value: cur?.sales ?? null, unit: 'inr',
-      sub: cur && prevM?.sales ? `${cur.sales! >= prevM.sales ? '▲' : '▼'} ${Math.abs(Math.round(((cur.sales! - prevM.sales) / prevM.sales) * 100))}% vs ${monthLabel(prevM.period)}` : 'From the Tally books',
+      sub: cur && prevM?.sales ? `${cur.sales! >= prevM.sales ? '▲' : '▼'} ${Math.abs(Math.round(((cur.sales! - prevM.sales) / prevM.sales) * 100))}% vs ${monthLabel(prevM.period)}` : 'From the books',
       tone: 'ok', delta: cur && prevM?.sales ? r0(cur.sales! - prevM.sales) : null,
     },
     {
       id: 'fix', label: 'To fix', value: x.fix.length, unit: 'count',
-      sub: x.fix.length ? `${x.fix.filter((f) => f.severity === 'high').length} urgent · books, feeds and numbers` : 'Books and feeds look clean',
+      sub: x.fix.length ? `${x.fix.filter((f) => f.severity === 'high').length} urgent · books, reports and numbers` : 'No problems found',
       tone: x.fix.some((f) => f.severity === 'high') ? 'act' : x.fix.length ? 'watch' : 'ok',
       delta: x.prev ? x.fix.length - x.prev.openFix : null,
     },
@@ -187,7 +187,7 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
   const changed: Change[] = [];
   const p = x.prev;
   if (!p) {
-    changed.push({ id: 'first', text: 'First snapshot saved. Changes show from tomorrow.', direction: 'info' });
+    changed.push({ id: 'first', text: 'First day saved. Changes show from tomorrow.', direction: 'info' });
   } else {
     if (b && p.netCash != null && Math.abs(b.netCash - p.netCash) >= 50_000) {
       const d = b.netCash - p.netCash;
@@ -200,7 +200,7 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
     const nowIds = new Set(x.watch.map((w) => w.id));
     for (const w of x.watch) if (!p.watchIds.includes(w.id)) changed.push({ id: `new-${w.id}`, text: `New to watch: ${w.title}`, direction: 'worse' });
     for (const id of p.watchIds) if (!nowIds.has(id)) changed.push({ id: `gone-${id}`, text: `No longer flagged: ${id.replace(/_/g, ' ')}`, direction: 'better' });
-    if (!changed.length) changed.push({ id: 'same', text: `Nothing moved since ${p.day}`, direction: 'same' });
+    if (!changed.length) changed.push({ id: 'same', text: `No change since ${p.day}`, direction: 'same' });
   }
 
   // ---- how fresh is the books copy
@@ -210,10 +210,10 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
     tallyHoursOld: age,
     tallyLastOkAt: x.tallyLastOkAt,
     stale,
-    line: age == null ? 'Tally has not been read yet' : age <= 1 ? 'Tally read within the last hour' : age < 48 ? `Tally read ${age} hours ago` : `Tally last read ${Math.round(age / 24)} days ago — open TallyPrime so the poll can read it`,
+    line: age == null ? 'Tally: not read yet' : age <= 1 ? 'Tally read less than 1 hour ago' : age < 48 ? `Tally read ${age} hours ago` : `Tally read ${Math.round(age / 24)} days ago. Open TallyPrime on the cloud machine`,
   };
-  if (stale) notes.push('The books numbers may be old: ' + freshness.line + '.');
-  if (!b) notes.push('Cash needs a stored Trial Balance (Setup → Tally → Pull now).');
+  if (stale) notes.push('Books numbers can be old. ' + freshness.line + '.');
+  if (!b) notes.push('Net cash needs a Trial Balance. Go to Setup → Tally → Pull.');
 
   return {
     schema: 1, portal: 'mis', day: x.today, asOf: x.now, status, statusLine, tiles,

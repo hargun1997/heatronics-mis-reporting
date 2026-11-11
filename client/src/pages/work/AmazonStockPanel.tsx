@@ -47,10 +47,10 @@ export function AmazonStockPanel({ month }: { month: string }) {
 
   // Tranzact's Physical Stock Reconciliation file for the Amazon warehouse (replaces the Amazon → Tranzact tool: same columns,
   // SELLABLE units per FG at Tranzact's default price), from the same live month-end balance.
-  const tranzactFile = () => {
+  const tranzactFile = async () => {
     if (!v) return;
     const { rows } = tranzactRows(v.closing, fgMaster);
-    const url = URL.createObjectURL(generateTranzactExcel(rows));
+    const url = URL.createObjectURL(await generateTranzactExcel(rows));
     const a = document.createElement('a'); a.href = url; a.download = `tranzact-amazon-stock-${month}.xlsx`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -65,7 +65,7 @@ export function AmazonStockPanel({ month }: { month: string }) {
             <ArrowPathIcon className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} />Refresh</button>
           <button type="button" onClick={() => void download()} disabled={!v} className={`inline-flex min-h-[36px] items-center gap-1 rounded-md border border-slate-300 px-2.5 text-sm text-slate-700 hover:bg-slate-50 ${focusRing}`}>
             <ArrowDownTrayIcon className="h-4 w-4" />Valuation</button>
-          <button type="button" onClick={tranzactFile} disabled={!v?.closing.lines.length} title="Tranzact → Inventory → Physical Stock Reconciliation upload (Amazon warehouse)" className={`inline-flex min-h-[36px] items-center gap-1 rounded-md border border-slate-300 px-2.5 text-sm text-slate-700 hover:bg-slate-50 ${focusRing}`}>
+          <button type="button" onClick={() => void tranzactFile()} disabled={!v?.closing.lines.length} title="Tranzact → Inventory → Physical Stock Reconciliation upload (Amazon warehouse)" className={`inline-flex min-h-[36px] items-center gap-1 rounded-md border border-slate-300 px-2.5 text-sm text-slate-700 hover:bg-slate-50 ${focusRing}`}>
             <ArrowDownTrayIcon className="h-4 w-4" />Tranzact file</button>
         </div>
       </div>

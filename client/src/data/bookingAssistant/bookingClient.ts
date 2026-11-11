@@ -1,7 +1,7 @@
 // Booking assistant client — the expense→ledger map, saved booking history and
 // the chat relay at /api/booking-assistant.
 
-import * as XLSX from 'xlsx';
+import { loadXlsx, xlsx } from '../../utils/xlsxLazy';
 import { readFileAsText } from '../tally/reduceTallyExport';
 import type { TallyMaster } from '../tally/useTallyMaster';
 
@@ -183,11 +183,11 @@ export async function fileToAttachment(file: File): Promise<ChatAttachment> {
     return { id, name: file.name, kind: 'image', mime, data: url.split(',')[1] ?? '', meta: kb(file.size) };
   }
   if (/\.(xlsx|xls|xlsm)$/.test(lower)) {
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+    const wb = (await loadXlsx()).read(await file.arrayBuffer(), { type: 'array', cellDates: true });
     let rows = 0;
     const text = wb.SheetNames.map((name) => {
       const sheet = wb.Sheets[name];
-      const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false, dateNF: 'yyyy-mm-dd' });
+      const csv = xlsx().utils.sheet_to_csv(sheet, { blankrows: false, dateNF: 'yyyy-mm-dd' });
       rows += csv.split('\n').length;
       return `--- sheet: ${name} ---\n${csv}`;
     }).join('\n\n');

@@ -63,11 +63,11 @@ export function buildRunway(x: RunwayInput): Runway {
   const notes: string[] = [];
   const flows = x.flows.slice(-3);
   const base: Runway = { schema: 1, portal: 'mis', today: x.today, basis: x.balancePeriod, netCash: x.netCash, odLimit: x.odLimit, gstPayable: x.gstPayable,
-    flowMonths: flows.map((f) => f.period), weeks: [], cases: [], status: 'unknown', line: 'Not enough books stored to project cash', notes };
-  if (x.netCash == null || !flows.length) { notes.push('Needs a stored Trial Balance and at least one month of cash change (Setup → Tally → Pull now).'); return base; }
+    flowMonths: flows.map((f) => f.period), weeks: [], cases: [], status: 'unknown', line: 'Not enough books to project cash', notes };
+  if (x.netCash == null || !flows.length) { notes.push('Needs a Trial Balance and 1 whole month of cash change. Go to Setup → Tally → Pull.'); return base; }
   const ch = flows.map((f) => f.netChange);
   const per: Record<CaseId, number> = { base: ch.reduce((a, b) => a + b, 0) / ch.length, hard: Math.min(...ch), easy: Math.max(...ch) };
-  notes.push('GST, salaries, rent and supplier payments are inside the monthly pattern; nothing extra is added.');
+  notes.push('GST, salaries, rent and supplier payments are in the monthly pattern. Nothing extra is added.');
   if (x.balancePeriod && x.balancePeriod <= x.today.slice(0, 7)) {
     const lag = (Number(x.today.slice(0, 4)) - Number(x.balancePeriod.slice(0, 4))) * 12 + Number(x.today.slice(5, 7)) - Number(x.balancePeriod.slice(5, 7));
     const asOfDay = x.balanceAsOf ? new Date(Date.parse(x.balanceAsOf) + 5.5 * 3_600_000).toISOString().slice(0, 10) : null;

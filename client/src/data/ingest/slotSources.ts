@@ -10,7 +10,7 @@
 // (commitReportMonths), and the close maths can't tell the difference.
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import { loadXlsx, xlsx } from '../../utils/xlsxLazy';
 import { UPLOAD_PARSERS } from '../liveMis/uploadParsers';
 import type { DailyFact } from '../liveMis/facts';
 import { commitReportMonths, stageTallyMonth } from './ingestClient';
@@ -108,7 +108,10 @@ export async function pullSlot(
     const r = await fetch(`/api/connectors/slots/${slot.connectorId}/${slot.slotId}/pull/${periodKey}`);
     ans = (await r.json().catch(() => ({ status: 'none' }))) as PullAnswer;
   }
-  if (ans.status === 'done') return { result: ans.result, pulledAt: ans.pulledAt, via: ans.via, parserId: ans.parserId };
+  if (ans.status === 'done') {
+    if (ans.result.rows) await loadXlsx(); // stagePull runs the sheet through an upload reader
+    return { result: ans.result, pulledAt: ans.pulledAt, via: ans.via, parserId: ans.parserId };
+  }
   if (ans.status === 'not_connected') throw new Error(ans.detail);
   if (ans.status === 'failed') throw new Error(ans.error);
   if (ans.status === 'running') throw new Error('Still running on the server — Pull again in a minute.');
@@ -142,8 +145,8 @@ export function stagePull(
     const parser = UPLOAD_PARSERS.find((p) => p.sourceId === (pull.parserId ?? slot.parserId));
     if (!parser) throw new Error('No reader for this sheet.');
     if (result.rows.length > 0) {
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(result.rows), 'Sheet1');
+      const wb = xlsx().utils.book_new();
+      xlsx().utils.book_append_sheet(wb, xlsx().utils.aoa_to_sheet(result.rows), 'Sheet1');
       const out = parser.parse(wb);
       facts = out.facts;
       trace = [...trace, ...(out.trace ?? [])];

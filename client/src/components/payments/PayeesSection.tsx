@@ -2,6 +2,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { isActive, maskAccount, type PayeeList } from '../../data/payments/payees';
 import { readPayeeWorkbook } from '../../data/payments/workbook';
+import { loadXlsx } from '../../utils/xlsxLazy';
 import { Note, btnSecondary, input } from './shared';
 import { Empty, InfoTip, Panel } from '../ui/states';
 import { fmtWhen } from './util';
@@ -24,6 +25,7 @@ export function PayeesSection({ list, onSaved }: { list: PayeeList | null; onSav
     setBusy(true);
     setMsg(null);
     try {
+      await loadXlsx();
       const r = readPayeeWorkbook(new Uint8Array(await f.arrayBuffer()));
       if (!r.payees.length) { setMsg({ tone: 'error', text: r.warnings[0] ?? 'No payees found in this file.' }); return; }
       const res = await fetch('/api/payments/payees', {

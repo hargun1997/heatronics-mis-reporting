@@ -26,6 +26,10 @@ import { assertEasebuzzReadOnly } from '../src/connectors/sources/easebuzz.js';
 import { assertSheetsReadOnly } from '../src/connectors/sources/sheets.js';
 import { assertDelhiveryReadOnly, computedFreight, feedOrigin, retryAfterMs } from '../src/connectors/sources/delhivery.js';
 import { chargeAmount, chargePlan, delhiveryFreightFacts, gramsOf, istDay, trackSummary, type WarrantyFeedRow } from '../src/connectors/slots/map/delhivery.js';
+import { loadXlsx } from '../../client/src/utils/xlsxLazy.ts';
+
+// The client loads SheetJS on demand; the parsers under test need it loaded first.
+await loadXlsx();
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -334,11 +338,11 @@ test('every client report slot has exactly one source; api/sheet slots can pull,
   for (const k of ['tally|pnl', 'tally|trial-balance', 'shopify|variant-sales']) assert.equal(SLOT_SOURCES.find((x) => `${x.connectorId}|${x.slotId}` === k)?.source, 'api', `${k} is automatic`);
   const dl = SLOT_SOURCES.find((x) => x.connectorId === 'delhivery' && x.slotId === 'wallet')!;
   assert.equal(dl.source, 'api');
-  assert.match(dl.line, /^Computed freight \(Delhivery tracking \+ charge calculator\), not the wallet ledger/);
-  assert.match(dl.connectHint!, /create secret delhivery-api-token/);
+  assert.match(dl.line, /^Freight calculated from Delhivery tracking and its charge calculator, not from the wallet/);
+  assert.match(dl.connectHint!, /Add the secret delhivery-api-token/);
   const sr = SLOT_SOURCES.find((x) => x.connectorId === 'shiprocket' && x.slotId === 'passbook')!;
   assert.equal(sr.source, 'api');
-  assert.match(sr.line, /^Computed from shipment charges \(freight \+ COD \+ RTO\), not the wallet statement — compare with the passbook once/);
+  assert.match(sr.line, /^Calculated from shipment charges \(freight \+ COD \+ RTO\), not from the wallet\. Compare with the passbook once/);
 });
 
 // ---- Delhivery computed freight ≡ wallet report upload ------------------------------

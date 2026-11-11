@@ -19,7 +19,8 @@
 //     both contra legs cancel; a warning flags the assumption.
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import type * as XLSX from 'xlsx';
+import { xlsx } from '../../utils/xlsxLazy';
 
 export interface TallyLedgerRow {
   name: string;
@@ -123,7 +124,7 @@ function extractMonth(rows: unknown[][], headerIdx: number, ledCol: number, peri
 export function parseTallyPnl(wb: XLSX.WorkBook): TallyPnlParse {
   const sheet = wb.Sheets[wb.SheetNames[0]];
   if (!sheet) return { months: [], warning: 'Empty workbook.' };
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: null }) as unknown[][];
+  const rows = xlsx().utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: null }) as unknown[][];
 
   const headerIdx = rows.findIndex((r) => lower(r?.[0]) === 'particulars');
   if (headerIdx < 0) return { months: [], warning: 'No "Particulars" header — is this a Tally Profit & Loss A/c export?' };

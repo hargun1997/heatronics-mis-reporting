@@ -390,7 +390,7 @@ export function watchOut(x: V2Input, parts: { channels: ChannelsOut | null; bala
     if (avg < 0) {
       const months = r1(Math.max(0, balance.netCash) / -avg);
       out.push({ id: 'cash_runway', severity: months < 3 ? 'high' : months < 6 ? 'medium' : 'low', period: balance.period, inr: r0(avg), pct: months,
-        title: `Cash runway ≈ ${months} months`, reason: `Net cash ${inr(balance.netCash)} (bank − overdraft) after an average fall of ${inr(avg)} a month in net cash, less new loans, over ${flows.length} whole month${flows.length === 1 ? '' : 's'} (${flows.map((f) => f.period).join(', ')}).` });
+        title: `Cash runway ≈ ${months} months`, reason: `Net cash ${inr(balance.netCash)} (bank − overdraft). Average fall ${inr(avg)} a month, new loans removed. Basis: ${flows.length} whole month${flows.length === 1 ? '' : 's'} (${flows.map((f) => f.period).join(', ')}).` });
     }
   }
   // 2. debtors +20 % MoM · 3. creditors > 2× purchases · 4. GST payable spike
@@ -399,7 +399,7 @@ export function watchOut(x: V2Input, parts: { channels: ChannelsOut | null; bala
     const bal = (m: V2MonthIn | undefined, re: RegExp, sign: 1 | -1) => { const v = m?.tb ? subTotal(m.tb.rows, re, x.parents) : null; return v == null ? null : v * sign; };
     const d1 = bal(cur, /^sundry debtors$/i, 1), d0 = bal(prev, /^sundry debtors$/i, 1);
     const dPct = change(d1, d0);
-    if (dPct != null && dPct > 20 && d1 != null) out.push({ id: 'debtors_up', severity: dPct > 50 ? 'high' : 'medium', period: balance.period, inr: r0(d1 - (d0 ?? 0)), pct: dPct, title: `Debtors up ${dPct}% in a month`, reason: `Sundry Debtors ${inr(d1)} at ${balance.period} vs ${inr(d0 ?? 0)} the month before: customers are paying slower or sales were booked late in the month.` });
+    if (dPct != null && dPct > 20 && d1 != null) out.push({ id: 'debtors_up', severity: dPct > 50 ? 'high' : 'medium', period: balance.period, inr: r0(d1 - (d0 ?? 0)), pct: dPct, title: `Debtors up ${dPct}% in a month`, reason: `Sundry Debtors ${inr(d1)} at ${balance.period} vs ${inr(d0 ?? 0)} a month before. Customers pay slower, or sales came late in the month.` });
     const purchases = (() => {
       const vals = sorted.filter((m) => m.period <= balance.period).slice(-3).map((m) => {
         const p = byP.get(prevPeriod(m.period));
@@ -414,25 +414,25 @@ export function watchOut(x: V2Input, parts: { channels: ChannelsOut | null; bala
     })();
     if (balance.payables != null && purchases != null && balance.payables > 2 * purchases) {
       out.push({ id: 'creditors_high', severity: balance.payables > 3 * purchases ? 'high' : 'medium', period: balance.period, inr: balance.payables, pct: r1(balance.payables / purchases),
-        title: `Creditors = ${r1(balance.payables / purchases)}× a month's purchases`, reason: `Sundry Creditors ${inr(balance.payables)} against average monthly purchases of ${inr(purchases)}: suppliers are being stretched or bills sit unpaid.` });
+        title: `Creditors = ${r1(balance.payables / purchases)}× a month's purchases`, reason: `Sundry Creditors ${inr(balance.payables)} vs average monthly purchases ${inr(purchases)}. Some supplier bills are not paid.` });
     }
     const g1 = bal(cur, /^duties & taxes$/i, -1), g0 = bal(prev, /^duties & taxes$/i, -1);
     if (g1 != null && g0 != null && g1 > 0 && g1 > 1.5 * Math.max(g0, 1) && g1 - g0 > 50_000) {
-      out.push({ id: 'gst_spike', severity: 'medium', period: balance.period, inr: r0(g1 - g0), pct: change(g1, g0), title: `GST payable jumped to ${inr(g1)}`, reason: `Duties & Taxes payable ${inr(g1)} vs ${inr(g0)} the month before: a tax payment may be due or input credit was not booked.` });
+      out.push({ id: 'gst_spike', severity: 'medium', period: balance.period, inr: r0(g1 - g0), pct: change(g1, g0), title: `GST payable jumped to ${inr(g1)}`, reason: `Duties & Taxes payable ${inr(g1)} vs ${inr(g0)} a month before. A tax payment is due, or input credit is not in the books.` });
     }
-    if (Math.abs(balance.tbDiff) >= 1) out.push({ id: 'tb_diff', severity: 'high', period: balance.period, inr: balance.tbDiff, title: `Trial Balance for ${balance.period} does not tie`, reason: `Debits and credits differ by ${inr(balance.tbDiff)} in the copy Tally gave: every balance above is approximate until fixed in TallyPrime.` });
+    if (Math.abs(balance.tbDiff) >= 1) out.push({ id: 'tb_diff', severity: 'high', period: balance.period, inr: balance.tbDiff, title: `Trial Balance for ${balance.period} does not tie`, reason: `Debits and credits differ by ${inr(balance.tbDiff)}. All balances are approximate until you fix this in TallyPrime.` });
   }
   // 5. tie breach · 8. P&L copy too early / missing · 9. missing uploads
   for (const c of close) {
-    if (c.breach) out.push({ id: `tie_breach:${c.period}`, severity: 'high', period: c.period, pct: c.tieResidualPct, title: `${c.period} locked with a ${c.tieResidualPct}% tie residual`, reason: c.overrideReason ? `Over the 1% limit; locked anyway: "${c.overrideReason}".` : 'Over the 1% limit between Tally and the connectors.' });
+    if (c.breach) out.push({ id: `tie_breach:${c.period}`, severity: 'high', period: c.period, pct: c.tieResidualPct, title: `${c.period} locked with a ${c.tieResidualPct}% tie residual`, reason: c.overrideReason ? `More than the 1% limit. Locked with this reason: "${c.overrideReason}".` : 'Tally and the reports differ by more than the 1% limit.' });
     if (c.status !== 'locked' && c.period < x.today.slice(0, 7)) {
-      if (c.pnlCopyAt == null) out.push({ id: `pnl_missing:${c.period}`, severity: 'medium', period: c.period, title: `No Tally P&L copy for ${c.period}`, reason: 'The month has ended but Tally has not been reached since: the books of that month are not in the MIS yet.' });
-      else if (c.daysAfterMonthEnd != null && c.daysAfterMonthEnd < 5) out.push({ id: `pnl_early:${c.period}`, severity: 'low', period: c.period, title: `${c.period} P&L copy taken ${c.daysAfterMonthEnd} day${c.daysAfterMonthEnd === 1 ? '' : 's'} after month end`, reason: 'Entries usually land for about 5 days after a month closes: its figures may still move. The next Tally poll re-takes it.' });
+      if (c.pnlCopyAt == null) out.push({ id: `pnl_missing:${c.period}`, severity: 'medium', period: c.period, title: `No Tally P&L copy for ${c.period}`, reason: 'The month ended. The MIS did not reach Tally after that, so the books for that month are missing.' });
+      else if (c.daysAfterMonthEnd != null && c.daysAfterMonthEnd < 5) out.push({ id: `pnl_early:${c.period}`, severity: 'low', period: c.period, title: `${c.period} P&L copy taken ${c.daysAfterMonthEnd} day${c.daysAfterMonthEnd === 1 ? '' : 's'} after month end`, reason: 'Entries can arrive up to 5 days after month end. The numbers can change. The next Tally check takes a new copy.' });
     }
-    if (c.missingUploads.length) out.push({ id: `uploads:${c.period}`, severity: 'medium', period: c.period, title: `${c.missingUploads.length} manual report${c.missingUploads.length === 1 ? '' : 's'} missing for ${c.period}`, reason: `${c.missingUploads.join(', ')}: no API for these, they come in by hand (Setup → Connectors).` });
+    if (c.missingUploads.length) out.push({ id: `uploads:${c.period}`, severity: 'medium', period: c.period, title: `${c.missingUploads.length} manual report${c.missingUploads.length === 1 ? '' : 's'} missing for ${c.period}`, reason: `${c.missingUploads.join(', ')}. These have no API. Upload them on Setup.` });
     if (c.channelGapTotal != null && c.tallySales && c.channelGapTotal > 0.05 * c.tallySales) {
       const worst = [...c.channelGap].sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))[0];
-      out.push({ id: `channel_gap:${c.period}`, severity: 'medium', period: c.period, inr: c.channelGapTotal, pct: pct(c.channelGapTotal, c.tallySales), title: `${c.period}: Tally vs connector sales differ by ${inr(c.channelGapTotal)}`, reason: `Biggest: ${worst.channel} Tally ${inr(worst.tally)} vs connector ${inr(worst.connector)}. Sales booked in another month, a missing credit note, or a connector gap.` });
+      out.push({ id: `channel_gap:${c.period}`, severity: 'medium', period: c.period, inr: c.channelGapTotal, pct: pct(c.channelGapTotal, c.tallySales), title: `${c.period}: Tally and report sales differ by ${inr(c.channelGapTotal)}`, reason: `Largest gap: ${worst.channel}, Tally ${inr(worst.tally)} vs report ${inr(worst.connector)}. Check for sales in another month, a missing credit note or a missing report.` });
     }
   }
   // 7. a channel ledger down > 25 % MoM (only a finished month vs the one before)

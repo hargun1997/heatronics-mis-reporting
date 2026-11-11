@@ -301,38 +301,38 @@ export function tallyHealth(vouchers: TallyVoucher[], masters: TallyMasters | nu
 
   // 1. Unbalanced vouchers
   add({ id: 'unbalanced', severity: 'error', title: 'Vouchers where debits ≠ credits',
-    why: 'An unbalanced voucher means a ledger line is missing or an amount was typed wrong; the trial balance and P&L are off by the difference.',
-    fix: 'Alt+G (Go To) › Day Book › F2 to the voucher date › select the voucher and press Enter to alter › correct the amounts so Dr = Cr › Ctrl+A to save. If it came from an import (Shopify / Easebuzz plugin), fix the source and re-import.' },
+    why: 'A ledger line is missing or an amount is wrong. The Trial Balance and P&L are wrong by the difference.',
+    fix: '1. Alt+G › Day Book › F2 to the voucher date. 2. Select the voucher and press Enter. 3. Correct the amounts until Dr = Cr. 4. Press Ctrl+A. 5. If an import made it (Shopify or Easebuzz plugin), fix the source and import again.' },
   live.filter((v) => v.lines.length && Math.abs(v.lines.reduce((a, l) => a + l.amount, 0)) > 1)
     .map((v) => vs(v, `Off by ${money(v.lines.reduce((a, l) => a + l.amount, 0))}`, total(v))));
 
   // 2. Future-dated / outside the pulled months
   add({ id: 'future', severity: 'warn', title: 'Vouchers dated in the future',
-    why: 'A future date pushes the entry into a month that is not closed yet, so this month is understated.',
-    fix: 'Alt+G › Day Book › F2 to that date › open the voucher (Enter) › F2 inside the voucher to change its date to the real document date › Ctrl+A.' },
+    why: 'A future date moves the entry into a later month. This month shows too little.',
+    fix: '1. Alt+G › Day Book › F2 to that date. 2. Open the voucher (Enter). 3. Press F2 and set the date of the bill. 4. Press Ctrl+A.' },
   live.filter((v) => v.date > today).map((v) => vs(v, `Dated ${v.date}`, total(v))));
 
   // 3. RCM lines — Heatronics does not book RCM
   add({ id: 'rcm', severity: 'warn', title: 'Reverse-charge (RCM) entries',
-    why: 'Heatronics does not book RCM currently (Hargun). An RCM line creates a GST liability and input that will not match the returns.',
-    fix: 'Check with Hargun before changing. If it should not be RCM: open the voucher, remove the RCM / reverse-charge ledger lines (or set "Is reverse charge applicable" = No in the GST details), Ctrl+A.' },
+    why: 'Heatronics does not use RCM now (Hargun). An RCM line adds GST payable and input that do not match the returns.',
+    fix: '1. Ask Hargun before you change it. 2. If it is not RCM, open the voucher. 3. Remove the RCM lines, or set "Is reverse charge applicable" = No. 4. Press Ctrl+A.' },
   live.flatMap((v) => v.lines.filter((l) => /\brcm\b|reverse\s*charge/i.test(l.ledger)).map((l) => ({ ...vs(v, `Ledger ${l.ledger}`, Math.abs(l.amount)), ledger: l.ledger }))));
 
   // 4. Purchases from a GST-registered party with no GST input line
   const isPurchase = (v: TallyVoucher) => /purchase/i.test(v.type) && !/order|debit\s*note/i.test(v.type);
   const hasInput = (v: TallyVoucher) => v.lines.some((l) => /input|itc|[cis]gst|igst/i.test(l.ledger) && l.amount > 0);
-  add({ id: 'no-itc', severity: 'warn', title: 'Purchases from a GST-registered party without GST input',
-    why: 'If the bill carries GST and no input ledger is debited, the input tax credit is lost (or the expense is overstated by the GST).',
-    fix: 'Open the voucher › add the GST input ledger(s) (e.g. IGST Input - 18%, or CGST + SGST Input for the same state) for the tax on the bill, reduce the expense line by the same amount, Ctrl+A. If the bill truly has no GST (exempt / nil-rated), ignore.' },
+  add({ id: 'no-itc', severity: 'warn', title: 'GST-registered purchases with no GST input',
+    why: 'The bill has GST but no input ledger is debited. You lose the input credit, or the expense includes the GST.',
+    fix: '1. Open the voucher. 2. Add the GST input ledger for the tax on the bill (IGST, or CGST + SGST). 3. Reduce the expense line by the same amount. 4. Press Ctrl+A. 5. If the bill has no GST (exempt or nil-rated), mark this Done.' },
   live.filter((v) => isPurchase(v) && !hasInput(v)).filter((v) => {
     const g = v.partyGstin || byName.get(v.party)?.gstin || '';
     return g && !/composition/i.test(byName.get(v.party)?.registration || '');
   }).map((v) => vs(v, `Party GSTIN ${v.partyGstin || byName.get(v.party)?.gstin}`, total(v))));
 
   // 5. Purchases with no supplier invoice number
-  add({ id: 'no-ref', severity: 'warn', title: 'Purchases without the supplier invoice number',
-    why: 'GSTR-2B matching and duplicate checks need the supplier invoice number and date on every purchase.',
-    fix: 'Open the voucher › fill "Supplier Invoice No." and "Date" (from the bill) › Ctrl+A. Turn it on for the voucher type if the field is hidden: F12 / voucher configuration › "Provide supplier invoice details".' },
+  add({ id: 'no-ref', severity: 'warn', title: 'Purchases with no supplier invoice number',
+    why: 'GSTR-2B matching and the duplicate check need the supplier invoice number and date on each purchase.',
+    fix: '1. Open the voucher. 2. Enter "Supplier Invoice No." and "Date" from the bill. 3. Press Ctrl+A. 4. If the field is not shown, press F12 and set "Provide supplier invoice details" = Yes.' },
   live.filter((v) => isPurchase(v) && !v.reference.trim()).map((v) => vs(v, 'No supplier invoice no.', total(v))));
 
   // 6. Same supplier invoice booked twice
@@ -345,29 +345,29 @@ export function tallyHealth(vouchers: TallyVoucher[], masters: TallyMasters | nu
     if (first) dups.push(vs(v, `Same supplier invoice "${v.reference}" as ${first.type} ${first.number} on ${first.date}`, total(v)));
     else seen.set(k, v);
   }
-  add({ id: 'dup-invoice', severity: 'error', title: 'The same supplier invoice booked twice',
-    why: 'A bill booked twice doubles the expense and the GST input claimed.',
-    fix: 'Open both vouchers from the Day Book; keep the right one. Delete the duplicate only after checking with Hargun (Alt+D) — or mark it Optional/Cancel (Alt+X) so the audit trail stays.' }, dups);
+  add({ id: 'dup-invoice', severity: 'error', title: 'Same supplier invoice in the books twice',
+    why: 'The expense and the GST input claim are double.',
+    fix: '1. Open both vouchers from the Day Book. 2. Find the correct one. 3. Ask Hargun before you delete the other one (Alt+D). 4. To keep the audit trail, mark it Optional or Cancel (Alt+X) instead.' }, dups);
 
   // 7. Cash payments above ₹10,000 (Income-tax s.40A(3))
   add({ id: 'cash-10k', severity: 'warn', title: 'Cash payments above ₹10,000 in a day',
-    why: 'Expenses paid in cash above ₹10,000 to one person in a day are disallowed for income tax (s.40A(3)).',
-    fix: 'Pay such bills by bank. If it was actually a bank payment, open the voucher and change the Cr line from Cash to the bank ledger, Ctrl+A.' },
+    why: 'Income tax does not allow a cash expense above ₹10,000 to one person in one day (s.40A(3)).',
+    fix: '1. Pay these bills by bank. 2. If it was a bank payment, open the voucher. 3. Change the Cr line from Cash to the bank ledger. 4. Press Ctrl+A.' },
   live.filter((v) => /payment/i.test(v.type)).flatMap((v) => v.lines.filter((l) => /^cash\b|cash[- ]in[- ]hand|petty cash/i.test(l.ledger) && -l.amount > 10_000).map((l) => vs(v, `Cash ${money(-l.amount)}`, -l.amount))));
 
   // 8. Suspense
-  add({ id: 'suspense', severity: 'warn', title: 'Entries posted to Suspense',
-    why: 'Suspense is a parking place; anything left there at month end is unexplained in the P&L / balance sheet.',
-    fix: 'Find out what the entry is (bank statement, invoice) and alter the voucher to the right ledger. Alt+G › Ledger Vouchers › Suspense lists them all.' },
+  add({ id: 'suspense', severity: 'warn', title: 'Entries in Suspense',
+    why: 'Suspense is a temporary ledger. An entry left there at month end has no explanation in the P&L or balance sheet.',
+    fix: '1. Alt+G › Ledger Vouchers › Suspense shows all entries. 2. Use the bank statement or invoice to find each entry. 3. Change the voucher to the correct ledger. 4. Press Ctrl+A.' },
   live.flatMap((v) => v.lines.filter((l) => /suspense/i.test(l.ledger) || /suspense/i.test(byName.get(l.ledger)?.group || '')).map((l) => ({ ...vs(v, `${l.ledger} ${money(Math.abs(l.amount))}`, Math.abs(l.amount)), ledger: l.ledger }))));
 
   // 9. Ledgers used in vouchers that are not in the master (renamed / deleted)
   if (ledgers.length) {
     const missing = new Map<string, TallyVoucher>();
     for (const v of live) for (const l of v.lines) if (!byName.has(l.ledger) && !missing.has(l.ledger)) missing.set(l.ledger, v);
-    add({ id: 'unknown-ledger', severity: 'info', title: 'Ledgers in vouchers that are not in the ledger list',
-      why: 'Usually a ledger renamed after the pull, or masters pulled from a different company.',
-      fix: 'Pull Tally again (masters + Day Book together). If it persists, look the name up in Gateway › Chart of Accounts › Ledgers.' },
+    add({ id: 'unknown-ledger', severity: 'info', title: 'Voucher ledgers missing from the ledger list',
+      why: 'A ledger got a new name after the last pull, or the masters came from a different company.',
+      fix: '1. Pull Tally again (masters and Day Book together). 2. If the item stays, find the name in Gateway › Chart of Accounts › Ledgers.' },
     [...missing].map(([ledger, v]) => ({ ...vs(v, `Ledger "${ledger}"`), ledger })));
   }
 
@@ -376,17 +376,17 @@ export function tallyHealth(vouchers: TallyVoucher[], masters: TallyMasters | nu
   const parentOf = new Map((masters?.groups ?? []).map((g) => [g.name, g.parent]));
   const underParty = (group: string) => { let g = group; for (let i = 0; i < 20 && g; i++) { if (PARTY_GROUPS.test(g)) return true; g = parentOf.get(g) || ''; } return false; };
   const parties = ledgers.filter((l) => underParty(l.group));
-  add({ id: 'bad-gstin', severity: 'error', title: 'Party ledgers with an invalid GSTIN',
-    why: 'A wrong GSTIN puts the purchase / sale on the wrong party in GSTR-1 / 2B, and the input credit will not match.',
-    fix: 'Gateway › Alter › Ledger › the party › GST registration details › correct the GSTIN/UIN (15 characters, check digit must match) › Ctrl+A.' },
+  add({ id: 'bad-gstin', severity: 'error', title: 'Party ledgers with an incorrect GSTIN',
+    why: 'A wrong GSTIN puts the sale or purchase on the wrong party in GSTR-1 / 2B. The input credit does not match.',
+    fix: '1. Gateway › Alter › Ledger › select the party. 2. Open GST registration details. 3. Correct the GSTIN (15 characters, the check digit must match). 4. Press Ctrl+A.' },
   parties.filter((l) => l.gstin && !gstinValid(l.gstin)).map((l) => ({ ledger: l.name, detail: `GSTIN "${l.gstin}" (${l.group})` })));
-  add({ id: 'regular-no-gstin', severity: 'warn', title: 'Parties marked "Regular" with no GSTIN',
-    why: 'A Regular-registered party needs its GSTIN for the returns and for GST input on its bills.',
-    fix: 'Alter the ledger › GST registration details › enter the GSTIN (from the bill) or change the registration type to Unregistered if they are not registered.' },
+  add({ id: 'regular-no-gstin', severity: 'warn', title: '"Regular" parties with no GSTIN',
+    why: 'A Regular party needs its GSTIN for the returns and for GST input on its bills.',
+    fix: '1. Alter the ledger › GST registration details. 2. Enter the GSTIN from the bill. 3. If the party is not registered, set the type to Unregistered. 4. Press Ctrl+A.' },
   parties.filter((l) => /regular/i.test(l.registration) && !l.gstin).map((l) => ({ ledger: l.name, detail: l.group })));
   add({ id: 'gstin-state', severity: 'warn', title: 'GSTIN state code ≠ ledger state',
-    why: 'Tally picks IGST vs CGST+SGST from the party state; a mismatch with the GSTIN state books the wrong tax type.',
-    fix: 'Alter the ledger › set State to the state of the GSTIN (first 2 digits) › Ctrl+A. Then re-check vouchers booked with the wrong tax type.' },
+    why: 'Tally selects IGST or CGST + SGST from the party state. A wrong state gives the wrong tax type.',
+    fix: '1. Alter the ledger. 2. Set State to the state of the GSTIN (first 2 digits). 3. Press Ctrl+A. 4. Check the vouchers that have the wrong tax type.' },
   parties.filter((l) => l.gstin && gstinValid(l.gstin) && l.state && STATE_CODE[l.state.toLowerCase()] && STATE_CODE[l.state.toLowerCase()] !== l.gstin.slice(0, 2))
     .map((l) => ({ ledger: l.name, detail: `GSTIN ${l.gstin} is state ${l.gstin.slice(0, 2)}, ledger says ${l.state}` })));
 
@@ -399,20 +399,20 @@ export function tallyHealth(vouchers: TallyVoucher[], masters: TallyMasters | nu
     if (n.length >= 4) { const o = byN.get(n); if (o && !(l.gstin && byG.get(l.gstin) === o)) dupLed.push({ ledger: l.name, detail: `Looks like "${o}"` }); else if (!o) byN.set(n, l.name); }
   }
   add({ id: 'dup-ledger', severity: 'warn', title: 'Possible duplicate party ledgers',
-    why: 'Two ledgers for one vendor split their balance and bills, so payables and TDS per party are wrong. (Several GSTINs of one company — e.g. Blinkit per state — are fine.)',
-    fix: 'Ask Hargun first. Pick the ledger to keep; open the spare one in Alt+G › Ledger Vouchers, alter each voucher to the kept ledger, then delete the spare ledger (Gateway › Alter › Ledger › Alt+D) once it has no entries.' }, dupLed);
+    why: 'Two ledgers for one vendor split the balance and bills. Payables and TDS per party are wrong. Several GSTINs of one company (for example Blinkit per state) are correct.',
+    fix: '1. Ask Hargun first. 2. Select the ledger to keep. 3. Open the other one in Alt+G › Ledger Vouchers. 4. Change each voucher to the kept ledger. 5. Delete the empty ledger (Gateway › Alter › Ledger › Alt+D).' }, dupLed);
 
   // 12. GST / TDS ledgers outside Duties & Taxes
-  add({ id: 'tax-group', severity: 'warn', title: 'GST / TDS ledgers not under Duties & Taxes',
-    why: 'Tax ledgers outside Duties & Taxes are not picked up by GST / TDS reports and returns.',
-    fix: 'Alter the ledger › Under: Duties & Taxes › Type of duty/tax: GST (or TDS) › set the tax type / head › Ctrl+A.' },
+  add({ id: 'tax-group', severity: 'warn', title: 'GST / TDS ledgers outside Duties & Taxes',
+    why: 'GST and TDS reports and returns do not see tax ledgers outside Duties & Taxes.',
+    fix: '1. Alter the ledger. 2. Set Under = Duties & Taxes. 3. Set Type of duty/tax = GST (or TDS) and the tax head. 4. Press Ctrl+A.' },
   ledgers.filter((l) => /(\b[cis]gst\b|\bigst\b|gst input|gst output|tds payable|\btcs\b)/i.test(l.name) && !/duties\s*&?\s*taxes/i.test(l.primary) && !/duties\s*&?\s*taxes/i.test(l.group) && !/receivable|current assets|loans & advances/i.test(l.primary))
     .map((l) => ({ ledger: l.name, detail: `Under ${l.group}` })));
 
   // 13. Vouchers with no narration (info)
-  add({ id: 'no-narration', severity: 'info', title: 'Journals / payments without a narration',
-    why: 'A narration is the audit trail: what the entry is and the document it comes from.',
-    fix: 'Open the voucher › type a one-line narration (what, which invoice / UTR) › Ctrl+A. Set "Use common narration" in the voucher type so it is asked every time.' },
+  add({ id: 'no-narration', severity: 'info', title: 'Journals and payments with no narration',
+    why: 'The narration is the audit trail. It tells what the entry is and which document it comes from.',
+    fix: '1. Open the voucher. 2. Type one line: what it is and the invoice number or UTR. 3. Press Ctrl+A. 4. In the voucher type, set "Use common narration" = Yes.' },
   live.filter((v) => /journal|payment|receipt|contra/i.test(v.type) && !v.narration.trim()).map((v) => vs(v, 'No narration', total(v))));
 
   const order: Record<Severity, number> = { error: 0, warn: 1, info: 2 };

@@ -3,6 +3,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as XLSX from 'xlsx';
 import { UPLOAD_PARSERS, isTranzactStockTransfer } from '../../client/src/data/liveMis/uploadParsers.ts';
+import { loadXlsx } from '../../client/src/utils/xlsxLazy.ts';
+
+// The client loads SheetJS on demand; the parsers under test need it loaded first.
+await loadXlsx();
 
 const parser = UPLOAD_PARSERS.find((p) => p.sourceId === 'tranzact')!;
 const header = ['Invoice Number', 'Customer Name', 'Document Date', 'Item ID', 'Item Description', 'Invoice Quantity', 'Item Value - Before Tax(₹)'];

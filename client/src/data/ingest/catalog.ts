@@ -136,10 +136,10 @@ const SLOTS: ReportSlot[] = [
     connectorId: 'shopify', slotId: 'variant-sales', label: 'Sales by variant', required: false,
     accept: '.csv', kind: 'xlsx',
     exportSteps: [
-      'Pulled from Shopify by API ("Pull now") — no upload needed normally.',
-      'Fallback: Analytics → Reports → Sales by product variant → export CSV',
+      'Click Pull: the MIS gets it from the Shopify API. Usually no upload is needed.',
+      'If the pull fails: Shopify Analytics → Reports → Sales by product variant → export the CSV',
     ],
-    note: 'Only needed if the live pull is unavailable.',
+    note: 'Upload only when the pull fails.',
   },
 
   // ---- Marketing ----
