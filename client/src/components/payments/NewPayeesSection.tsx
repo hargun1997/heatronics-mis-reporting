@@ -6,7 +6,8 @@ import {
   type NewPayee, type Payee,
 } from '../../data/payments/payees';
 import { XLSX_MIME, downloadBlob, textWorkbook, workbookBytes } from '../../data/payments/workbook';
-import { Note, btnSecondary, input } from './shared';
+import { Note, btnPrimary, btnSecondary, input } from './shared';
+import { InfoTip, Panel } from '../ui/states';
 
 const FIELDS: { k: keyof NewPayee; label: string; ph: string; mono?: boolean }[] = [
   { k: 'name', label: 'Name (as in bank)', ph: 'Payee name' },
@@ -42,21 +43,25 @@ export function NewPayeesSection({ saved }: { saved: Payee[] }) {
   function download() {
     const out = buildBeneRows(filled.map(({ r }) => r));
     downloadBlob(workbookBytes(textWorkbook(out, BENE_REG_SHEET)), `Bene_Reg_Format-${new Date().toISOString().slice(0, 10)}.xlsx`, XLSX_MIME);
-    setDone(`Downloaded ${filled.length} payee(s). Upload it in CIB → Bulk Payee Registration.`);
+    setDone(`File downloaded with ${filled.length} payee(s). Upload it in CIB → Bulk Payee Registration.`);
   }
 
   return (
+    <Panel title="New payees" count={filled.length || null}
+      action={<InfoTip label="How to add new payees" align="right">
+        <ol className="list-decimal space-y-1 pl-4">
+          <li>Type each new payee. Or copy rows from Excel and paste them in the first box.</li>
+          <li>Columns: name, nick name, account, IFSC, email, mobile.</li>
+          <li>Fix each field in red.</li>
+          <li>Download the file. Upload it in CIB → <b>Bulk Payee Registration</b>.</li>
+        </ol>
+        <p>The nick name limit of {NICK_MAX} letters is not confirmed. If CIB refuses a row, make the nick name shorter.</p>
+      </InfoTip>}>
     <div className="space-y-4">
-      <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
-        <li>Type each new payee, or copy rows from Excel and paste into the first box (columns: name, nick name, account, IFSC, email, mobile).</li>
-        <li>Fix anything in red.</li>
-        <li>Download the file and upload it in CIB → <b>Bulk Payee Registration</b>.</li>
-      </ol>
-      <Note tone="info">Nick name limit of {NICK_MAX} letters is our guess. If CIB refuses a row, shorten the nick name.</Note>
 
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full min-w-[900px] text-[13px]">
-          <thead className="bg-slate-50 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-600">
             <tr><th className="w-8 px-2 py-2">#</th>{FIELDS.map((f) => <th key={f.k} className="px-2 py-2">{f.label}</th>)}<th className="w-10 px-2 py-2"><span className="sr-only">Remove</span></th></tr>
           </thead>
           <tbody>
@@ -98,12 +103,13 @@ export function NewPayeesSection({ saved }: { saved: Payee[] }) {
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className={btnSecondary} onClick={() => setRows((r) => [...r, { ...BLANK_NEW_PAYEE }])}>Add row</button>
-        <button type="button" className={btnSecondary} onClick={download} disabled={!filled.length || errorRows > 0}>Download Bulk Payee file (.xlsx)</button>
+        <button type="button" className={btnPrimary} onClick={download} disabled={!filled.length || errorRows > 0}>Download payee file</button>
         <span className="text-sm text-slate-600">
           {filled.length} payee(s){errorRows ? <span className="text-red-700"> · {errorRows} to fix</span> : ''}{dupRows ? <span className="text-amber-700"> · {dupRows} already saved</span> : ''}
         </span>
       </div>
       {done && <Note tone="ok">{done}</Note>}
     </div>
+    </Panel>
   );
 }

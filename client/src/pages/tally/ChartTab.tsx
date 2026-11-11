@@ -3,8 +3,9 @@
 // group, with no group, or in another channel's group — each with where it should move and why. READ ONLY: the move is
 // made by hand in TallyPrime. Server: GET /api/tally/books/chart (server/src/connectors/tally/chart.ts).
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react';
 import { cx } from '../../components/shell/cx';
+import { Empty, ErrorBox, InfoTip, Loading } from '../../components/ui/states';
 
 type HangKind = 'catch_all' | 'legacy' | 'no_group' | 'channel_mismatch';
 interface Node { name: string; kind: 'group' | 'ledger'; closing: number | null; ledgers: number; hanging: number; children: Node[] }
@@ -40,9 +41,9 @@ export function ChartTab() {
     setOpen(all);
   };
 
-  if (err) return <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>;
-  if (!data) return <p className="py-10 text-center text-sm text-slate-500"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden />Reading the chart…</p>;
-  if (!data.summary) return <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">No Tally groups stored yet: Pull Tally now while TallyPrime is open.</p>;
+  if (err) return <ErrorBox>{err}</ErrorBox>;
+  if (!data) return <Loading label="Reading the chart" />;
+  if (!data.summary) return <Empty title="No Tally groups stored yet" hint="Open TallyPrime. Then select Pull Tally now." />;
 
   const render = (n: Node, path: string, depth: number): React.ReactNode => {
     if (filtering && !match(n)) return null;
@@ -75,25 +76,28 @@ export function ChartTab() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">
-        {data.summary.groups} groups · {data.summary.ledgers} ledgers · <b className="text-slate-900">{data.summary.hanging} hanging</b>
-        {data.tbPeriod ? ` · closings from the ${data.tbPeriod} Trial Balance` : ' · no Trial Balance stored, so no closings'}
-        {data.emptyGroups.length ? ` · ${data.emptyGroups.length} empty groups` : ''}
-      </p>
-
       <section className="rounded-xl border border-slate-200 bg-white shadow-card" aria-labelledby="hang-h">
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-3">
-          <h2 id="hang-h" className="mr-2 text-sm font-semibold text-slate-900">Hanging ledgers: where each should move</h2>
+          <h2 id="hang-h" className="mr-1 text-sm font-semibold text-slate-900">Hanging ledgers</h2>
+          <InfoTip label="How to move a ledger">
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>In TallyPrime, press Alt+G. Select Alter → Ledger.</li>
+              <li>Pick the ledger. Change <b>Under</b> to the group in “Move to”.</li>
+              <li>Press Ctrl+A to save. Old vouchers move with the ledger.</li>
+              <li>Select Pull Tally now on this page.</li>
+            </ol>
+            <p>The MIS never writes to Tally.</p>
+          </InfoTip>
           {(['all', 'channel_mismatch', 'no_group', 'catch_all', 'legacy'] as const).map((k) => {
             const n = k === 'all' ? data.hanging.length : data.summary!.byKind[k];
             if (k !== 'all' && !n) return null;
             return <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}
-              className={cx('h-8 rounded-full border px-3 text-xs', kind === k ? 'border-accent-500 bg-accent-50 font-medium text-accent-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
+              className={cx('min-h-11 sm:min-h-8 rounded-full border px-3 text-xs', kind === k ? 'border-accent-500 bg-accent-50 font-medium text-accent-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
               {k === 'all' ? 'All' : KIND[k]} {n}</button>;
           })}
         </div>
-        {!list.length ? <p className="px-4 py-6 text-center text-sm text-slate-600">No hanging ledgers. Every ledger sits in its own group.</p> : (
-          <div className="max-h-[50vh] overflow-auto">
+        {!list.length ? <p className="px-4 py-6 text-center text-sm text-slate-600">No hanging ledgers. Each ledger is in its correct group.</p> : (
+          <div className="max-h-[40vh] overflow-auto">
             <table className="w-full text-[13px]">
               <thead className="sticky top-0 bg-slate-50 text-left text-xs text-slate-500"><tr>
                 <th className="px-3 py-2 font-semibold">Ledger</th><th className="px-3 font-semibold">Now under</th><th className="px-3 font-semibold">Move to</th><th className="px-3 font-semibold">Why</th><th className="px-3 text-right font-semibold">Closing</th></tr></thead>
@@ -110,20 +114,19 @@ export function ChartTab() {
             </table>
           </div>
         )}
-        <p className="border-t border-slate-200 px-3 py-2 text-xs text-slate-500">How to move one: TallyPrime → Alt+G → Alter → Ledger → pick it → change <b>Under</b> to the group shown → Ctrl+A. Old vouchers move with it; then Pull Tally now. The MIS never writes to Tally.</p>
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-card" aria-labelledby="tree-h">
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-3">
-          <h2 id="tree-h" className="text-sm font-semibold text-slate-900">Chart of accounts</h2>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a group or ledger" aria-label="Find in chart" className="h-9 w-full max-w-xs rounded-lg border border-slate-300 px-3 text-sm" />
-          <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={onlyHanging} onChange={(e) => setOnlyHanging(e.target.checked)} className="h-4 w-4" />Only hanging</label>
+          <h2 id="tree-h" className="text-sm font-semibold text-slate-900">Chart of accounts <span className="ml-1 font-normal text-slate-600">{data.summary.groups} groups · {data.summary.ledgers} ledgers{data.tbPeriod ? ` · closings ${data.tbPeriod}` : ' · no closings'}</span></h2>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a group or ledger" aria-label="Find in chart" className="min-h-11 sm:min-h-9 w-full max-w-xs rounded-lg border border-slate-300 px-3 text-sm" />
+          <label className="flex min-h-11 sm:min-h-9 items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={onlyHanging} onChange={(e) => setOnlyHanging(e.target.checked)} className="h-4 w-4" />Only hanging</label>
           <div className="ml-auto flex gap-2">
-            <button type="button" onClick={() => expandAll(true)} className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 hover:bg-slate-50">Expand all</button>
-            <button type="button" onClick={() => expandAll(false)} className="h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 hover:bg-slate-50">Collapse</button>
+            <button type="button" onClick={() => expandAll(true)} className="min-h-11 sm:min-h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 hover:bg-slate-50">Expand all</button>
+            <button type="button" onClick={() => expandAll(false)} className="min-h-11 sm:min-h-9 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 hover:bg-slate-50">Collapse</button>
           </div>
         </div>
-        <ul className="max-h-[70vh] overflow-auto py-1">{data.tree.map((n) => render(n, n.name, 0))}</ul>
+        <ul className="max-h-[60vh] overflow-auto py-1">{data.tree.map((n) => render(n, n.name, 0))}</ul>
       </section>
     </div>
   );
