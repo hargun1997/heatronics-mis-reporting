@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, CornerDownLeft, History, Moon, PanelLeft, Pin, Search } from 'lucide-react';
 import { paletteIndex, searchPalette, whereIs } from '../../nav/config';
-import { usePins, useRecents, useTheme } from './prefs';
+import { THEMES, usePins, useRecents, useTheme } from './prefs';
 import { useShell } from './ShellContext';
 import { useOverlay } from './useOverlay';
 import { cx } from './cx';
@@ -31,7 +31,7 @@ function Palette({ close }: { close: () => void }) {
   useOverlay(true, panel, close, { initialFocus: input });
   const recents = useRecents();
   const { pins, isPinned, toggle } = usePins();
-  const { next: nextTheme } = useTheme();
+  const { theme, set: setTheme } = useTheme();
 
   const go = (href: string, newTab?: boolean) => {
     close();
@@ -44,7 +44,7 @@ function Palette({ close }: { close: () => void }) {
     const here = whereIs(path);
     const commands: Row[] = [
       ...(here ? [{ id: 'cmd-pin', label: isPinned(path) ? `Unpin “${here.page.label}”` : `Pin “${here.page.label}” to the sidebar`, group: 'Commands', icon: 'cmd' as const, run: () => { toggle({ href: path, label: here.page.label, context: here.section.label }); close(); } }] : []),
-      { id: 'cmd-theme', label: 'Switch theme (light → dark → system)', group: 'Commands', icon: 'cmd', run: () => { nextTheme(); close(); } },
+      ...THEMES.filter((t) => t.id !== theme).map((t): Row => ({ id: `cmd-theme-${t.id}`, label: `Theme: ${t.label}`, group: 'Commands', icon: 'cmd', run: () => { setTheme(t.id); close(); } })),
       { id: 'cmd-rail', label: 'Collapse or expand the sidebar', group: 'Commands', icon: 'cmd', run: () => { window.dispatchEvent(new Event('mis:rail')); close(); } },
     ];
     if (!q.trim()) {
@@ -58,7 +58,7 @@ function Palette({ close }: { close: () => void }) {
     out.push(...searchPalette(commands.map((c) => ({ ...c, words: c.label.toLowerCase() })), q, 3));
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, pins, recents, path]);
+  }, [q, pins, recents, path, theme]);
 
   useEffect(() => { listRef.current?.querySelector<HTMLElement>(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' }); }, [active]);
 

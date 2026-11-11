@@ -2,7 +2,7 @@
 // storage just fall back to defaults). Pins + recents + theme are conveniences, never data.
 import { useCallback, useEffect, useState } from 'react';
 
-export const K = { collapsed: 'mis.nav.collapsed', theme: 'mis.theme', pins: 'mis.nav.pins', recents: 'mis.nav.recents' } as const;
+export const K = { collapsed: 'mis.nav.collapsed', theme: 'htx.theme.mis', oldTheme: 'mis.theme', pins: 'mis.nav.pins', recents: 'mis.nav.recents' } as const;
 export const store = {
   get(k: string): string | null { try { return localStorage.getItem(k); } catch { return null; } },
   set(k: string, v: string) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
@@ -55,18 +55,35 @@ export function pushRecent(s: Saved) {
   writeList(K.recents, [s, ...cur].slice(0, MAX_RECENTS));
 }
 
-export type Theme = 'system' | 'light' | 'dark';
-// Light unless someone picks Dark (or System) with the theme button.
-function readTheme(): Theme { const t = store.get(K.theme); return t === 'dark' || t === 'system' ? t : 'light'; }
-/** Applied before React renders (main.tsx) so there is no flash. */
+export type Theme = 'ember' | 'light' | 'dark';
+export const THEMES: { id: Theme; label: string }[] = [{ id: 'ember', label: 'Ember' }, { id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }];
+// EMBER.md "Themes": Ember (obsidian side menu, light pages) by default; the old System/Light/Dark key migrates
+// (dark -> dark, anything else -> ember). index.html runs the same logic inline before first paint.
+export function readTheme(): Theme {
+  const t = store.get(K.theme);
+  if (t === 'ember' || t === 'light' || t === 'dark') return t;
+  return store.get(K.oldTheme) === 'dark' ? 'dark' : 'ember';
+}
+function paint(t: Theme) {
+  const d = document.documentElement;
+  d.dataset.htxTheme = t;
+  d.dataset.theme = t === 'dark' ? 'dark' : 'light';
+}
+let printHooked = false;
+/** Re-applied in main.tsx (the index.html boot script already did it); print is always light. */
 export function applyStoredTheme() {
-  const t = readTheme();
-  if (t === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  paint(readTheme());
+  if (printHooked) return;
+  printHooked = true;
+  try {
+    window.addEventListener('beforeprint', () => { document.documentElement.dataset.theme = 'light'; });
+    window.addEventListener('afterprint', () => paint(readTheme()));
+  } catch { /* ignore */ }
 }
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(readTheme);
-  const apply = useCallback((n: Theme) => {
-    if (n === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = n;
+  const set = useCallback((n: Theme) => {
+    paint(n);
     store.set(K.theme, n);
     setTheme(n);
     try { window.dispatchEvent(new Event(EVT)); } catch { /* ignore */ }
@@ -76,6 +93,5 @@ export function useTheme() {
     window.addEventListener(EVT, r);
     return () => window.removeEventListener(EVT, r);
   }, []);
-  const next = useCallback(() => apply(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'), [apply, theme]);
-  return { theme, next, set: apply };
+  return { theme, set };
 }

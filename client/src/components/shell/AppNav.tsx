@@ -1,17 +1,18 @@
 // Global navigation — a port of Ops' components/ui/AppNav.tsx (design-system/heatronics-mis/MASTER.md
 // "Layout & navigation"). Reads nav/config.ts, the one source of truth. Two levels only: section → page.
 //   Top: brand, collapse, "Search or jump to… ⌘K". Then Pinned (localStorage) and every section (Admin included) in one
-//   scrolling list, the current page scrolled into view; at the bottom only Claude status + Compact + Theme.
+//   scrolling list, the current page scrolled into view; at the bottom the Theme picker (Ember · Light · Dark, always
+//   visible; compact icons on the collapsed rail) + Claude status + Compact.
 //   Tasks carries a live count (to fix + late + due today).
-// Desktop: fixed 248 px obsidian rail (Ember: active row = #222326 fill + 3px heat bar + heat icon + white 600 text), collapsible to a 64 px icon rail (tooltips + sr-only labels).
+// Desktop: fixed 248 px rail (obsidian in Ember / Dark, white in Light; colours = --nav-* tokens: active row = fill + 3px heat bar + heat icon + strong 600 text), collapsible to a 64 px icon rail (tooltips + sr-only labels).
 // < 1024 px: top bar (Menu, brand, Search) + the same list in a modal drawer (focus trapped, Esc closes,
 // focus returns to the Menu button). Keyboard: ↑ / ↓ move between items, Home / End jump.
 import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, Monitor, Moon, PanelLeftClose, PanelLeftOpen, Pin, Rows3, Search, Sun, X } from 'lucide-react';
+import { Flame, Menu, Moon, PanelLeftClose, PanelLeftOpen, Pin, Rows3, Search, Sun, X } from 'lucide-react';
 import { HOME, sidebarSections, whereIs, type NavPage } from '../../nav/config';
 import { NAV_ICON } from './navIcons';
-import { K, store, usePins, useTheme } from './prefs';
+import { K, store, THEMES, usePins, useTheme, type Theme } from './prefs';
 import { useShell } from './ShellContext';
 import { useOverlay } from './useOverlay';
 import { cx } from './cx';
@@ -28,7 +29,7 @@ export function AppNav() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => store.get(K.collapsed) === '1');
   const [mac] = useState(isMac);
-  const { theme, next: nextTheme } = useTheme();
+  const { theme, set: setTheme } = useTheme();
   const [density, setDensity] = useDensity();
   const { pins, toggle: togglePin } = usePins();
   const drawer = useRef<HTMLDivElement>(null);
@@ -79,7 +80,7 @@ export function AppNav() {
           {mini ? <span className="sr-only">{p.label}</span> : <span className="min-w-0 flex-1 truncate">{p.label}</span>}
           {p.id === 'tasks' && issues && issues.open > 0 && (
             <span className={cx('rounded-full px-1.5 text-xs font-semibold tabular-nums', mini ? 'absolute right-1 top-1 min-w-[18px] text-center leading-[18px]' : 'leading-5',
-              issues.high > 0 ? 'bg-nav-accent text-nav-bg' : 'bg-nav-border text-nav-strong')} aria-label={`${issues.open} to do or fix${issues.high ? `, ${issues.high} urgent` : ''}`}>{issues.open}</span>
+              issues.high > 0 ? 'bg-nav-hot text-nav-onhot' : 'bg-nav-border text-nav-strong')} aria-label={`${issues.open} to do or fix${issues.high ? `, ${issues.high} urgent` : ''}`}>{issues.open}</span>
           )}
         </Link>
       </li>
@@ -97,7 +98,42 @@ export function AppNav() {
     </button>
   );
 
-  const themeIcon = theme === 'dark' ? <Moon className="h-[18px] w-[18px] text-nav-muted" aria-hidden /> : theme === 'light' ? <Sun className="h-[18px] w-[18px] text-nav-muted" aria-hidden /> : <Monitor className="h-[18px] w-[18px] text-nav-muted" aria-hidden />;
+  // Theme picker (EMBER.md "Themes"): a labelled 3-option segmented control, always in the sidebar footer (and the phone
+  // drawer). Collapsed rail: the same three buttons stacked as icons with tooltips. ← / → move between options (↑ / ↓ on the rail).
+  const themePicker = (mini: boolean) => {
+    const onArrow = (e: RKeyboardEvent<HTMLDivElement>) => {
+      if (mini || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return; // the rail's ↑ / ↓ already walks the icons
+      const btns = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button'));
+      const i = btns.indexOf(document.activeElement as HTMLButtonElement);
+      if (i < 0) return;
+      e.preventDefault(); e.stopPropagation();
+      btns[(i + (e.key === 'ArrowRight' ? 1 : -1) + btns.length) % btns.length]?.focus();
+    };
+    const icon = (t: Theme, on: boolean) => {
+      const c = cx('h-[18px] w-[18px] shrink-0', on ? 'text-nav-accent' : 'text-nav-muted');
+      return t === 'ember' ? <Flame className={c} aria-hidden /> : t === 'light' ? <Sun className={c} aria-hidden /> : <Moon className={c} aria-hidden />;
+    };
+    return (
+      <div className={mini ? 'mb-1' : 'mb-2 px-1'}>
+        {!mini && <div id="nav-theme-label" className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-nav-muted">Theme</div>}
+        <div role="group" aria-labelledby={mini ? undefined : 'nav-theme-label'} aria-label={mini ? 'Theme' : undefined} onKeyDown={onArrow}
+          className={cx(mini ? 'flex flex-col gap-0.5' : 'grid grid-cols-3 gap-0.5 rounded-lg border border-nav-border bg-nav-hover/60 p-0.5')}>
+          {THEMES.map((t) => {
+            const on = theme === t.id;
+            return (
+              <button key={t.id} type="button" data-nav-item onClick={() => setTheme(t.id)} aria-pressed={on} title={mini ? `Theme: ${t.label}` : undefined}
+                className={cx('inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-md text-sm transition-colors', ring,
+                  mini ? 'w-full' : 'px-1',
+                  on ? (mini ? 'bg-nav-active font-semibold text-nav-strong' : 'bg-nav-bg font-semibold text-nav-strong shadow-sm ring-1 ring-nav-border')
+                    : 'text-nav-fg hover:bg-nav-hover hover:text-nav-strong')}>
+                {mini ? <>{icon(t.id, on)}<span className="sr-only">Theme {t.label}</span></> : t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   const searchBtn = (mini: boolean) => (
     <button type="button" onClick={openPalette} data-nav-item aria-keyshortcuts={mac ? 'Meta+K' : 'Control+K'} title={mini ? `Search (${mac ? '⌘' : 'Ctrl '}K)` : undefined}
@@ -111,7 +147,7 @@ export function AppNav() {
   const list = (mini: boolean) => (
     <div onKeyDown={onKey} className="flex min-h-0 flex-1 flex-col">
       <div className="px-2 pb-1 pt-1">{searchBtn(mini)}</div>
-      <div className={cx('nav-scroll flex-1 space-y-4 px-2 py-2', mini ? 'overflow-visible' : 'overflow-y-auto')}>
+      <div className={cx('nav-scroll flex-1 space-y-4 px-2 py-2', mini ? 'overflow-y-auto overflow-x-hidden' : 'overflow-y-auto')}>
         {pins.length > 0 && !mini && (
           <div>
             <h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-nav-muted">Pinned</h2>
@@ -143,20 +179,16 @@ export function AppNav() {
         ))}
       </div>
       <div className="border-t border-nav-border px-2 py-2">
+        {themePicker(mini)}
         {mini ? <>
           {footBtn(true, () => setDensity(density === 'compact' ? 'comfortable' : 'compact'), <Rows3 className="h-[18px] w-[18px] text-nav-muted" aria-hidden />, 'Compact', density === 'compact' ? 'on' : 'off', density === 'compact')}
-          {footBtn(true, nextTheme, themeIcon, 'Theme', theme)}
         </> : (
-          <div className="mt-1 flex items-center gap-1 px-1">
+          <div className="flex items-center gap-1 px-1">
             <ClaudeStatusPill dark />
             <button type="button" onClick={() => setDensity(density === 'compact' ? 'comfortable' : 'compact')} data-nav-item aria-pressed={density === 'compact'}
               title={density === 'compact' ? 'Compact view on' : 'Compact view off'} aria-label="Compact view"
-              className={cx('ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-nav-hover hover:text-nav-strong lg:h-9 lg:w-9', ring, density === 'compact' ? 'bg-nav-active text-nav-strong' : 'text-nav-muted')}>
+              className={cx('ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-nav-hover hover:text-nav-strong', ring, density === 'compact' ? 'bg-nav-active text-nav-strong' : 'text-nav-muted')}>
               <Rows3 className="h-[18px] w-[18px]" aria-hidden />
-            </button>
-            <button type="button" onClick={nextTheme} data-nav-item title={`Theme: ${theme} (click to switch)`} aria-label={`Theme ${theme}, switch`}
-              className={cx('inline-flex h-11 w-11 items-center justify-center rounded-lg text-nav-muted hover:bg-nav-hover hover:text-nav-strong lg:h-9 lg:w-9', ring)}>
-              {themeIcon}
             </button>
           </div>
         )}
@@ -167,7 +199,7 @@ export function AppNav() {
   // Ember text wordmark: "Heatronics" + the portal name in heat (no logo mark).
   const brand = (mini: boolean, light = false) => (
     <Link to={HOME} className={cx('inline-flex h-11 min-w-0 items-center whitespace-nowrap rounded-md text-[17px] font-semibold tracking-[-0.01em]', light ? 'text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500' : cx('text-nav-strong', ring), mini ? 'justify-center px-2' : 'px-1')}>
-      {mini ? <span className="sr-only">Heatronics MIS</span> : <span>Heatronics <span className={light ? 'text-heat-600' : 'text-nav-accent'}>MIS</span></span>}
+      {mini ? <span className="sr-only">Heatronics MIS</span> : <span>Heatronics <span className={light ? 'text-heat-600' : 'text-nav-brand'}>MIS</span></span>}
     </Link>
   );
 

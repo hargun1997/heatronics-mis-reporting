@@ -6,6 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B1220" />
     <title>Heatronics MIS</title>
+    <script>
+      // Theme before first paint (EMBER.md "Themes"): ember (default) | light | dark in localStorage htx.theme.mis.
+      // Ember and Light are light pages (data-theme="light", so the system dark setting is ignored); only Dark is dark.
+      // The old System/Light/Dark key mis.theme migrates once: dark -> dark, anything else -> ember.
+      (function () {
+        var t = 'ember';
+        try {
+          var s = localStorage.getItem('htx.theme.mis');
+          if (s === 'ember' || s === 'light' || s === 'dark') t = s;
+          else { t = localStorage.getItem('mis.theme') === 'dark' ? 'dark' : 'ember'; localStorage.setItem('htx.theme.mis', t); localStorage.removeItem('mis.theme'); }
+        } catch (e) { /* private mode: default */ }
+        var d = document.documentElement;
+        d.setAttribute('data-htx-theme', t);
+        d.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+      })();
+    </script>
   </head>
   <body>
     <!-- Shared Heatronics header across all tools (filled in by portal.heatronics.in/shell/header.js). -->

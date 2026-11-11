@@ -31,12 +31,17 @@ All colour is CSS variables in `client/src/index.css` (Ember values, EMBER.md), 
 | `emerald` (`green`, `teal`) · `amber` (`yellow`) · `red` (`rose`, `pink`) | mirrored scales | status: ok `#15803D` on `#E8F6ED` · warn `#B45309` on `#FDF3E2` · bad `#B91C1C` on `#FDECEC` (text = the 700 shade, tint = 50). Dark: `#4ADE80` / `#0F2A1A` · `#FBBF24` / `#2E2108` · `#F87171` / `#2E1111` |
 | `blue` (`sky`, `cyan`) · `violet` (`purple`) | mirrored scales | neutral info chips only where a page already has them; never as an accent |
 | `chart-*` (`ink`, `2`–`5`, `cmp`, `heat`) | `--chart-*` | charts: obsidian series `#141516`, obsidian tints for extra categories, comparison grey `#B5B6B8`, ONE heat `#F36B21` highlight. JS: `CHART` in `components/mis-deck/format.ts` |
-| `nav-*` | `--nav-*` | sidebar only: obsidian in both themes (`#0C0D0E`, dark `#070808`), hover `#17181A`, active `#222326`, text `#A9ABAD` / `#F4F4F4`, group labels `#7C7E81`, accent heat |
+| `nav-*` | `--nav-*` | sidebar only. Ember: obsidian `#0C0D0E`, hover `#17181A`, active `#222326`, text `#A9ABAD` / `#F4F4F4`, group labels `#7C7E81`, accent heat. Dark: `#070808`. Light: white `#FFFFFF`, border `#E6E6E4`, text `#4A4C4F`, icons / labels `#77797C`, hover `#F4F4F3`, active `#FFF1E8`, strong `#141516`. `nav-brand` = portal name in the wordmark (heat; `#C2410C` in Light), `nav-hot` / `nav-onhot` = the urgent count pill |
 | `scrim` | fixed | modal / drawer backdrop (`bg-scrim/50`) — never `bg-slate-900/x`, which flips light in dark mode |
 
-- **Theme:** Light by default (founder, 2 Nov 2026: not dark-only). The sidebar theme button cycles Light → Dark → System
-  (`localStorage mis.theme`, applied before React renders in `main.tsx`). Dark scales mirror (50 ↔ 950). The sidebar is obsidian
-  in both themes.
+- **Themes** (EMBER.md "Themes", founder 11 Nov 2026): three, picked in the sidebar footer, always visible — **Ember** (default:
+  obsidian sidebar, light pages, ignores the system dark setting) · **Light** (white sidebar, light pages) · **Dark** (the dark
+  tokens). Control = a segmented group labelled "Theme" (Ember · Light · Dark, 44px buttons, `aria-pressed`, ← / → between them);
+  on the collapsed rail the same three as stacked icons (flame / sun / moon) with tooltips; on phones it is in the menu drawer.
+  Stored in `localStorage htx.theme.mis` (`ember | light | dark`; the old `mis.theme` migrates once: dark → dark, else ember).
+  The inline boot script in `client/index.html` sets `<html data-htx-theme="…">` and `data-theme` (`dark` for Dark, `light` for
+  Ember and Light) before first paint; `prefs.ts useTheme()` switches it live. Print is always light (beforeprint / afterprint).
+  ⌘K has "Theme: …" commands. Dark scales mirror (50 ↔ 950).
 - **Text shades are AA by construction** (accessibility pass, 9 Nov 2026): as TEXT, `text-slate-400` (gray / stone)
   uses `--n-400-text` (light #6B6D70, dark #9C9EA1) and `text-emerald|green|teal|amber|yellow|orange-500/600` use the
   700 shade (`tailwind.config.js textColor`); borders, fills and icons keep the plain scale. White text sits on the 600
@@ -65,14 +70,14 @@ All colour is CSS variables in `client/src/index.css` (Ember values, EMBER.md), 
 - **One source of truth:** `client/src/nav/config.ts` (sections → pages, palette words, old addresses). Never hard-code a
   menu in a component. `server/test/nav.test.ts` fails when a page route is missing from the menu or a menu page has no
   route.
-- **Sidebar** (`components/shell/AppNav.tsx`): obsidian, 248px, text wordmark "Heatronics **MIS**" (MIS in heat, no logo mark), collapsible to a 64px icon rail
+- **Sidebar** (`components/shell/AppNav.tsx`): obsidian (white in the Light theme), 248px, text wordmark "Heatronics **MIS**" (MIS in heat, no logo mark), collapsible to a 64px icon rail
   (remembered). **Two levels only — section → page, kept small (≤ 13 pages, test)**: Reporting (Live MIS, Month-end close,
   AI insights) · Accounts (Tally health, Accounts Handbook) · Planning (5-year plan, Round planner) · Tools (Send report, Book an
   invoice, Amazon price floors, Amazon → Tranzact — every tool lives here), and Admin at the bottom (Data sources, Data rulebook)
-  with the Claude status pill, Compact and Theme. Everything else (Data issues, All tools, Tasks, People & reminders, old pages)
+  with the Theme picker, the Claude status pill and Compact. Everything else (Data issues, All tools, Tasks, People & reminders, old pages)
   is in ⌘K under "More". "Search or jump to… ⌘K"
   at the top, **Pinned** pages under it (pin from any page title). Active page: `#222326` fill + 3px heat bar on the rail's left edge +
-  heat icon + white 600 text. Group labels 11px uppercase 600, tracking .06em. Tasks count = heat pill when urgent.
+  heat icon + strong 600 text (`nav-*` tokens follow the theme). Group labels 11px uppercase 600, tracking .06em. Tasks count = heat pill when urgent.
   Keyboard: ↑ ↓ Home End.
 - **Phones / tablets (< 1024 px):** light top bar (Menu, brand, Claude, Search) + the same list in a modal drawer.
   `--app-top` (3.5rem / 0 on desktop) is the height of that bar for sticky page headers.
