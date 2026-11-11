@@ -13,7 +13,7 @@ export interface InboxItem {
 export interface IssueStateEntry { status: 'done' | 'snoozed'; sig: string; until?: string; by: string; at: string; note?: string }
 export type IssueState = Record<string, IssueStateEntry>;
 
-export const AREA_LABEL: Record<InboxArea, string> = { books: 'Books (Tally)', mis: 'MIS numbers', feeds: 'Feeds', products: 'Products', close: 'Month close' };
+export const AREA_LABEL: Record<InboxArea, string> = { books: 'Books (Tally)', mis: 'MIS numbers', feeds: 'Reports', products: 'Products', close: 'Month lock' };
 export const SEV_RANK: Record<InboxSeverity, number> = { high: 0, medium: 1, low: 2 };
 
 /** Small stable hash for the browser's items (the server uses sha1). */
