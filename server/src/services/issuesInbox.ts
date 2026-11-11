@@ -29,7 +29,7 @@ export type IssueStatus = 'done' | 'snoozed';
 export interface IssueStateEntry { status: IssueStatus; sig: string; until?: string; by: string; at: string; note?: string }
 export type IssueState = Record<string, IssueStateEntry>;
 
-export const AREA_LABEL: Record<InboxArea, string> = { books: 'Books (Tally)', mis: 'MIS numbers', feeds: 'Feeds', products: 'Products', close: 'Month close' };
+export const AREA_LABEL: Record<InboxArea, string> = { books: 'Books (Tally)', mis: 'MIS numbers', feeds: 'Reports', products: 'Products', close: 'Month lock' };
 
 export const sigOf = (...parts: unknown[]) => createHash('sha1').update(JSON.stringify(parts)).digest('hex').slice(0, 12);
 
@@ -109,18 +109,18 @@ export function slotItems(x: Pick<InboxInputs, 'today' | 'reports' | 'locked' | 
       return `${ps[0].slot.short}${ps[0].slot.required ? '' : ' (optional)'}: ${shown}${sorted.length > 6 ? `; and ${sorted.length - 6} more` : ''}.`;
     }).join(' ');
     const fixes: string[] = [];
-    if (auto && notConnected) fixes.push(notConnected.connectHint || 'Connect it on Setup first.');
-    if (auto && !notConnected) fixes.push(`Setup → ${name} → Pull now for each month (the daily auto-pull also tries last month and this month).`);
+    if (auto && notConnected) fixes.push(notConnected.connectHint || 'Connect it on Setup.');
+    if (auto && !notConnected) fixes.push(`Go to Setup → ${name}. Click Pull for each month. The daily auto-pull also tries last month and this month.`);
     if (manual) fixes.push(cid.startsWith('flipkart')
-      ? `Download the report from Flipkart Seller Hub and upload it on Setup → ${name} (the Flipkart API is waiting for approval).`
-      : `Download the report and upload it on Setup → ${name}.`);
-    if (list.some((p) => p.kind === 'empty')) fixes.push('A month with really no activity: mark this Done.');
-    if (neverUsed) fixes.push(`If ${name} is not in use, mark this Done.`);
+      ? `Download the report from Flipkart Seller Hub. Upload it on Setup → ${name}. The Flipkart API waits for approval.`
+      : `Download the report. Upload it on Setup → ${name}.`);
+    if (list.some((p) => p.kind === 'empty')) fixes.push('If the month had no activity, click Done.');
+    if (neverUsed) fixes.push(`If you do not use ${name}, click Done.`);
     const monthsText = months.length <= 4 ? months.map(monthLabel).join(', ') : `${monthLabel(months[0])} to ${monthLabel(months[months.length - 1])}`;
     out.push({
       id: `slot:${cid}`, area: 'feeds', severity, period: months[months.length - 1], count: list.length,
-      title: neverUsed && !anyStored ? `${name}: never loaded (${months.length} month${months.length === 1 ? '' : 's'})` : `${name}: ${months.length} month${months.length === 1 ? '' : 's'} not complete (${monthsText})`,
-      detail, fix: fixes.join(' '), href: `/reporting/mis/connectors?view=uploads#${cid}`,
+      title: neverUsed && !anyStored ? `${name}: no reports (${months.length} month${months.length === 1 ? '' : 's'})` : `${name}: ${months.length} month${months.length === 1 ? '' : 's'} incomplete (${monthsText})`,
+      detail, fix: fixes.map((f, i) => (fixes.length > 1 ? `${i + 1}. ${f}` : f)).join(' '), href: `/reporting/mis/connectors?view=uploads#${cid}`,
       // Stable per set of missing (slot, month) pairs: Done holds until a new pair goes missing.
       sig: sigOf(list.map((p) => `${p.slot.slotId}|${p.period}`).sort()),
     });
@@ -134,9 +134,9 @@ export function liveFactItems(x: Pick<InboxInputs, 'today' | 'liveFacts'>, nowMs
   for (const s of x.liveFacts ?? []) {
     if (!s.error) continue;
     if (s.id === 'flipkart' && FLIPKART_WAITING.test(s.error)) {
-      out.push({ id: 'live:flipkart', area: 'feeds', severity: 'low', title: 'Flipkart live feed: waiting for Flipkart approval',
-        detail: 'Flipkart has not approved the self-access app yet, so it gives no live orders.',
-        fix: 'Flipkart Seller Hub → Manage Profile → Developer Access: approve / resubmit the app. Until then upload the settlement report.',
+      out.push({ id: 'live:flipkart', area: 'feeds', severity: 'low', title: 'Flipkart live numbers: waiting for approval',
+        detail: 'Flipkart did not approve the self-access app yet. It sends no live orders.',
+        fix: '1. Open Flipkart Seller Hub → Manage Profile → Developer Access. 2. Send the app again for approval. 3. Until approval, upload the settlement report.',
         href: '/reporting/mis/connectors?view=uploads#flipkart', sig: 'waiting' });
       continue;
     }
@@ -147,8 +147,8 @@ export function liveFactItems(x: Pick<InboxInputs, 'today' | 'liveFacts'>, nowMs
     const age = days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${Math.floor(hours)} hours`;
     out.push({ id: `live:${s.id}`, area: 'feeds', severity: days >= 3 ? 'high' : days >= 1 ? 'medium' : 'low',
       title: `${s.label} live numbers are ${age} old`,
-      detail: `The refresh keeps failing, so Live MIS shows the last good copy. Error: ${s.error.slice(0, 200)}`,
-      fix: 'Open Live MIS and press Refresh. If it fails again, check the connector on Setup (login / token).',
+      detail: `The refresh fails. Live MIS shows the last good copy. Error: ${s.error.slice(0, 200)}`,
+      fix: '1. Open Live MIS and click Refresh. 2. If it fails again, check the login or token on Setup.',
       href: `/reporting/mis/connectors?view=uploads#${s.id}`, sig: sigOf(s.error.slice(0, 60), Math.min(days, 3)) });
   }
   return out;
@@ -172,38 +172,38 @@ export function serverItems(x: InboxInputs): InboxItem[] {
       const sugg = names.filter((h) => h.suggest).length;
       out.push({
         id: `chart:${kind}`, area: 'books', severity: kind === 'channel_mismatch' || kind === 'no_group' ? 'high' : 'medium',
-        title: `${n} ledger${n === 1 ? '' : 's'} hanging: ${HANG_LABEL[kind].toLowerCase()}`,
+        title: `${n} ledger${n === 1 ? '' : 's'} in the wrong place: ${HANG_LABEL[kind].toLowerCase()}`,
         detail: `${names.slice(0, 4).map((h) => h.ledger).join(', ')}${n > 4 ? ` and ${n - 4} more` : ''}. ${sugg} have a suggested group.`,
-        fix: 'Open the chart, check each suggested group, then move it in TallyPrime (Alt+G → Alter → Ledger → Under).',
+        fix: '1. Open the chart of accounts. 2. Check each suggested group. 3. In TallyPrime: Alt+G → Alter → Ledger → Under.',
         href: '/tally?tab=chart', count: n, sig: sigOf(names.map((h) => h.ledger).sort()),
       });
     }
   }
   // Books: TB doesn't tie
   if (x.tb && Math.abs(x.tb.difference) >= 1) {
-    out.push({ id: `tb:${x.tb.period}`, area: 'books', severity: 'high', period: x.tb.period, title: `Trial Balance for ${x.tb.period} doesn't tie (${inr(x.tb.difference)})`,
-      detail: 'Debits and credits differ in the copy Tally gave. Usually an opening-balance difference or a ledger with a broken parent.',
-      fix: 'In TallyPrime open Trial Balance for the month; the "Difference in opening balances" line names it. Fix the opening, then Pull Tally now.',
+    out.push({ id: `tb:${x.tb.period}`, area: 'books', severity: 'high', period: x.tb.period, title: `Trial Balance ${x.tb.period} does not tie (${inr(x.tb.difference)})`,
+      detail: 'Debits and credits differ. The usual cause is an opening balance difference or a ledger with a broken parent group.',
+      fix: '1. In TallyPrime, open the Trial Balance for the month. 2. Find the line "Difference in opening balances". 3. Correct the opening balance. 4. Pull Tally again.',
       href: '/reporting/mis/live', sig: sigOf(Math.round(x.tb.difference)) });
   }
   // Books: the two stored P&L copies of a month disagree (Live MIS reads the committed one, statements / MCP the newer one)
   for (const g of x.pnlGaps ?? []) {
     out.push({ id: `pnl-copies:${g.period}`, area: 'books', severity: 'medium', period: g.period,
-      title: `${g.period}: two Tally P&L copies differ by ${inr(g.gap)}`,
-      detail: `Nett Profit ${inr(g.snapshot)}${g.snapshot < 0 ? ' loss' : ''} in the stored poll copy vs ${inr(g.committed)}${g.committed < 0 ? ' loss' : ''} in the committed close report. Live MIS uses the committed one; statements and the CEO summary use the ${g.newer === 'committed' ? 'committed (newer)' : 'poll (newer)'} copy.`,
-      fix: 'Pull Tally now, then re-pull the Tally P&L slot for the month and save it, so both copies match.',
+      title: `${g.period}: 2 Tally P&L copies differ by ${inr(g.gap)}`,
+      detail: `Nett Profit ${inr(g.snapshot)}${g.snapshot < 0 ? ' loss' : ''} in the automatic copy vs ${inr(g.committed)}${g.committed < 0 ? ' loss' : ''} in the saved report. Live MIS uses the saved report. Statements and the CEO summary use the ${g.newer === 'committed' ? 'saved report (newer)' : 'automatic copy (newer)'}.`,
+      fix: '1. Pull Tally. 2. Pull the Tally P&L report for the month. 3. Save it. The 2 copies then match.',
       href: '/reporting/mis/connectors?view=uploads#tally', sig: sigOf(g.snapshot, g.committed) });
   }
   // Feeds: Tally not reached lately (it only answers while TallyPrime is open on the cloud machine)
   if (x.tally?.connected) {
     const age = x.tally.lastOkAt ? (Date.parse(`${x.today}T12:00:00+05:30`) - Date.parse(x.tally.lastOkAt)) / 86_400_000 : Infinity;
     if (age > 3) out.push({ id: 'feed:tally', area: 'feeds', severity: age > 10 ? 'high' : 'medium',
-      title: `Tally not reached for ${Number.isFinite(age) ? `${Math.floor(age)} days` : 'ever'}`,
-      detail: x.tally.lastError ? `Last try: ${x.tally.lastError.slice(0, 160)}` : 'No answer from the cloud machine.',
-      fix: 'Open TallyPrime on the cloud machine with the company loaded; the next 30-minute check picks it up (or Tally health → Pull Tally now).',
+      title: Number.isFinite(age) ? `Tally not reached for ${Math.floor(age)} days` : 'Tally never reached',
+      detail: x.tally.lastError ? `Last try: ${x.tally.lastError.slice(0, 160)}` : 'The cloud machine does not answer.',
+      fix: '1. Open TallyPrime on the cloud machine. 2. Load the company. 3. Wait for the next check (every 30 minutes), or click Pull Tally now on Tally health.',
       href: '/tally', sig: sigOf(Math.floor(age / 7)) });
   } else if (x.tally && !x.tally.connected) {
-    out.push({ id: 'feed:tally', area: 'feeds', severity: 'high', title: 'Tally not connected', detail: 'No host / port saved for the Tally connector.', fix: 'Add the Tally host and port on Setup (Tally card).', href: '/reporting/mis/connectors', sig: 'nc' });
+    out.push({ id: 'feed:tally', area: 'feeds', severity: 'high', title: 'Tally not connected', detail: 'Setup has no Tally host and port.', fix: 'Enter the Tally host and port on Setup → Tally.', href: '/reporting/mis/connectors', sig: 'nc' });
   }
   // Feeds: close reports. With the stored reports' coverage: every slot × unlocked month (missing / empty / partial).
   if (x.reports) out.push(...slotItems(x));
@@ -215,8 +215,8 @@ export function serverItems(x: InboxInputs): InboxItem[] {
       if (!x.everUsed.has(s.connectorId)) continue;
       if (x.committed.has(`${s.connectorId}|${s.slotId}|${last}`)) continue;
       out.push({ id: `upload:${s.connectorId}:${s.slotId}:${last}`, area: 'feeds', severity: day > s.dueDay ? 'medium' : 'low', period: last,
-        title: `${s.label} for ${last} not uploaded`, detail: 'No API for this report: it comes in by hand.',
-        fix: `Download it from the channel and drop it on the ${s.label} slot.`, href: `/reporting/mis/connectors?view=uploads#${s.connectorId}`, sig: 'missing' });
+        title: `${s.label} ${last}: not uploaded`, detail: 'This report has no API. Upload it by hand.',
+        fix: `1. Download it from the channel. 2. Upload it on Setup → ${s.label}.`, href: `/reporting/mis/connectors?view=uploads#${s.connectorId}`, sig: 'missing' });
     }
   }
   // Feeds: a live source whose refresh keeps failing (the copy shown is old)
@@ -239,7 +239,7 @@ export function serverItems(x: InboxInputs): InboxItem[] {
     out.push({ id: `scan:${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`, area: 'mis', severity: worst.severity, period: months[0],
       title: months.length > 1 ? `${title} (${months.length} months)` : title,
       detail: months.length > 1 ? `${months.join(', ')}. Newest: ${newest.detail}` : newest.detail,
-      fix: 'Check the month on Live MIS; re-pull or re-upload the report behind it.', href: months[0] ? `/reporting/mis/live?month=${months[0]}` : '/reporting/mis/live',
+      fix: '1. Open the month on Live MIS. 2. Pull or upload the report again.', href: months[0] ? `/reporting/mis/live?month=${months[0]}` : '/reporting/mis/live',
       count: months.length > 1 ? months.length : undefined, sig: sigOf(months) });
   }
   return out;

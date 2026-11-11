@@ -6,7 +6,7 @@
 // totals that already include the GST Amazon charges on them.
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import { loadXlsx, xlsx } from './xlsxLazy';
 import type { FeeReport, ParsedSkuRow } from './priceFloors';
 
 type Cell = string | number | null | undefined;
@@ -21,9 +21,9 @@ const r4 = (v: number) => Math.round(v * 10000) / 10000;
 export class FeeReportError extends Error {}
 
 export async function parseFeeReport(file: File, uploadedBy: string | null): Promise<FeeReport> {
-  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+  const wb = (await loadXlsx()).read(await file.arrayBuffer(), { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Cell[]>(ws, { header: 1, defval: null, blankrows: false });
+  const rows = xlsx().utils.sheet_to_json<Cell[]>(ws, { header: 1, defval: null, blankrows: false });
 
   const hi = rows.findIndex((r) => String(r?.[0] ?? '').trim().toUpperCase() === 'ASIN');
   if (hi < 1) throw new FeeReportError('This does not look like the Seller Central "Revenue and fees" report: no ASIN column found.');

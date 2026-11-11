@@ -357,7 +357,7 @@ export const CALENDAR_TASKS: Partial<WorkTask>[] = [
     arrears: true,
     howTo: 'c28-overview',
     description:
-      'Everything else fills itself. Upload the five reports that have no API, clear what Tasks → Fix shows for last month, then Close & lock it on Live MIS (it must tie to Tally).',
+      '1. Upload the 5 reports that have no API. 2. Clear the Fix items for last month (Tasks → Fix). 3. Lock last month on Live MIS. It must tie to Tally.',
     links: [
       { label: 'Setup', url: '/reporting/mis/connectors?view=uploads' },
       { label: 'Tasks → Fix', url: '/tasks?view=fix' },

@@ -150,7 +150,7 @@ router.post('/history/refresh', h(async (_req, res) => {
   if (!c) { res.status(500).json({ error: 'Shopify connector missing.' }); return; }
   const creds = await getEffectiveCredentials('shopify', c.credentialFields.map((f) => f.key));
   if (!creds.shopDomain || !(creds.accessToken || (creds.clientId && creds.clientSecret))) {
-    res.status(400).json({ error: 'Shopify is not connected — add it under Setup → Data sources.' });
+    res.status(400).json({ error: 'Shopify is not connected. Add it on Setup → Shopify.' });
     return;
   }
   const stale = histJob?.state.status === 'running' && Date.now() - Date.parse(histJob.state.startedAt) > BUDGET_MS + 60_000;

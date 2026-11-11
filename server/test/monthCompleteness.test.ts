@@ -161,7 +161,7 @@ test('Fix items: the blockers of a Tally month, never "ready to lock" while any 
   assert.deepEqual(items.map((i) => i.id).sort(), ['close:2026-09', 'close:2026-10']);
   const oct = items.find((i) => i.id === 'close:2026-10')!;
   assert.equal(oct.severity, 'high');
-  assert.match(oct.title, /can't be closed yet: 1 thing to fix \(Tally incomplete\)/);
+  assert.match(oct.title, /cannot be locked: 1 to fix \(Tally incomplete\)/);
   assert.match(oct.detail, /Amazon: ₹6,50,000 sold/);
   assert.match(items.find((i) => i.id === 'close:2026-09')!.detail, /Closing stock = opening stock/);
   assert.ok(!items.some((i) => i.id.startsWith('lock:')));

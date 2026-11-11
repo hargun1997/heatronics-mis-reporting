@@ -6,6 +6,7 @@ import {
   type NewPayee, type Payee,
 } from '../../data/payments/payees';
 import { XLSX_MIME, downloadBlob, textWorkbook, workbookBytes } from '../../data/payments/workbook';
+import { loadXlsx } from '../../utils/xlsxLazy';
 import { Note, btnSecondary, input } from './shared';
 
 const FIELDS: { k: keyof NewPayee; label: string; ph: string; mono?: boolean }[] = [
@@ -39,7 +40,8 @@ export function NewPayeesSection({ saved }: { saved: Payee[] }) {
   const errorRows = checks.filter((c) => c.errors.length).length;
   const dupRows = checks.filter((c) => c.existing).length;
 
-  function download() {
+  async function download() {
+    await loadXlsx();
     const out = buildBeneRows(filled.map(({ r }) => r));
     downloadBlob(workbookBytes(textWorkbook(out, BENE_REG_SHEET)), `Bene_Reg_Format-${new Date().toISOString().slice(0, 10)}.xlsx`, XLSX_MIME);
     setDone(`Downloaded ${filled.length} payee(s). Upload it in CIB → Bulk Payee Registration.`);
@@ -98,7 +100,7 @@ export function NewPayeesSection({ saved }: { saved: Payee[] }) {
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className={btnSecondary} onClick={() => setRows((r) => [...r, { ...BLANK_NEW_PAYEE }])}>Add row</button>
-        <button type="button" className={btnSecondary} onClick={download} disabled={!filled.length || errorRows > 0}>Download Bulk Payee file (.xlsx)</button>
+        <button type="button" className={btnSecondary} onClick={() => void download()} disabled={!filled.length || errorRows > 0}>Download Bulk Payee file (.xlsx)</button>
         <span className="text-sm text-slate-600">
           {filled.length} payee(s){errorRows ? <span className="text-red-700"> · {errorRows} to fix</span> : ''}{dupRows ? <span className="text-amber-700"> · {dupRows} already saved</span> : ''}
         </span>

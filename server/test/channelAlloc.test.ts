@@ -117,7 +117,7 @@ test('Sep-style overshoot: Amazon fees above Tally are capped, nothing negative 
   foots(rows, p as never);
   const item = deckItems(deck as never).find((i) => i.id === 'over:2026-09:ff_channel_fees')!;
   assert.ok(item, 'Fix item');
-  assert.match(item.title, /Amazon fees in the report exceed Tally by ₹1,60,000 — check the booking/);
+  assert.match(item.title, /Amazon fees in the report exceed Tally by ₹1,60,000: check the books/);
   assert.equal(item.severity, 'high');
 });
 

@@ -85,7 +85,7 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
         });
         if (!res.ok) saved = false;
       } catch { saved = false; }
-      downloadPaymentFiles(out, id);
+      await downloadPaymentFiles(out, id);
       if (saved) onSaved();
       setResult(saved
         ? { tone: 'ok', text: `Batch ${id} saved: ${t.count} payments, ${inr(t.paise)}. Two files downloaded (.xlsx and .csv).` }

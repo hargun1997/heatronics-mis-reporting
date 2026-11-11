@@ -105,14 +105,14 @@ export interface Coverage { kind: CoverageKind; /** Plain words, e.g. "only 5–
 /** Is one slot's stored report enough for a finished month? */
 export function slotCoverage(slot: CloseSlot, period: string, report: StoredSlotReport | undefined): Coverage {
   const m = monthLabel(period);
-  if (!report) return { kind: 'missing', detail: `${m} not loaded` };
-  if (report.rows === 0) return { kind: 'empty', detail: `${m} saved with 0 rows` };
+  if (!report) return { kind: 'missing', detail: `${m} missing` };
+  if (report.rows === 0) return { kind: 'empty', detail: `${m} has 0 rows` };
   if (slot.edgeDays != null && report.first && report.last) {
     const dim = daysInMonth(period);
     const a = Number(report.first.slice(8, 10));
     const b = Number(report.last.slice(8, 10));
     if (a > slot.edgeDays || b < dim - slot.edgeDays) {
-      return { kind: 'partial', detail: `${m} has only ${a}–${b} ${m.slice(0, 3)}` };
+      return { kind: 'partial', detail: `${m} covers ${a}–${b} ${m.slice(0, 3)} only` };
     }
   }
   return { kind: 'ok', detail: '' };

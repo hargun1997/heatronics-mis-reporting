@@ -27,7 +27,8 @@
 // landing within 0.18% of Tally's Ecommerce Sales.
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import type * as XLSX from 'xlsx';
+import { xlsx } from '../../utils/xlsxLazy';
 import { toAmount, type AdapterResult, type SourceAdapter } from './adapters';
 import type { BomCost, CrossCheck, Provenance, SkuPlatform, SkuRow, SourceKind } from './schema';
 
@@ -36,7 +37,7 @@ import type { BomCost, CrossCheck, Provenance, SkuPlatform, SkuRow, SourceKind }
 function sheetRows(wb: XLSX.WorkBook, name: string): unknown[][] {
   const ws = wb.Sheets[name];
   if (!ws) return [];
-  return XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
+  return xlsx().utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
 }
 
 const cell = (v: unknown) => String(v ?? '').trim();

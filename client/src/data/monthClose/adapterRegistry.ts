@@ -6,7 +6,8 @@
 // file into an UploadedSource lives here.
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import type * as XLSX from 'xlsx';
+import { loadXlsx } from '../../utils/xlsxLazy';
 import { BASE_ADAPTERS, type SourceAdapter } from './adapters';
 import { PLATFORM_ADAPTERS } from './platformAdapters';
 import type { SourceKind, UploadedSource } from './schema';
@@ -42,7 +43,7 @@ export async function ingestSpreadsheet(
   forced?: SourceKind,
 ): Promise<UploadedSource> {
   const buf = await file.arrayBuffer();
-  const workbook = XLSX.read(buf, { type: 'array' });
+  const workbook = (await loadXlsx()).read(buf, { type: 'array' });
 
   const claim = claimAdapter(workbook, file.name, forced);
   if (!claim) {

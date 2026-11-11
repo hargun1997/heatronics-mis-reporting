@@ -10,7 +10,8 @@
 // and come back as nodes already (see visionSource in ingestClient.ts).
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import type * as XLSX from 'xlsx';
+import { xlsx } from '../../utils/xlsxLazy';
 import { normaliseLedger } from './ledgerMap';
 import type { BomCost, CrossCheck, LedgerNode, Provenance, SkuRow, SourceKind } from './schema';
 
@@ -77,7 +78,7 @@ function depthOf(raw: string): number {
 function sheetRows(wb: XLSX.WorkBook, sheetName: string): unknown[][] {
   const ws = wb.Sheets[sheetName];
   if (!ws) return [];
-  return XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
+  return xlsx().utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
 }
 
 function allText(wb: XLSX.WorkBook): string {

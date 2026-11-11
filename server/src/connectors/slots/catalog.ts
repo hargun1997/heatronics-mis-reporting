@@ -38,7 +38,7 @@ function pacer(rate: number, burst: number) {
       at = now;
       if (tokens >= 1) { tokens -= 1; return; }
       const wait = Math.ceil(((1 - tokens) / rate) * 1000);
-      if (now + wait > deadline) throw new Error('Amazon Finances paging ran out of time — Pull again in a minute (the pages read so far are not saved).');
+      if (now + wait > deadline) throw new Error('Amazon Finances took too long. The pages read are not saved. Pull again in 1 minute.');
       await new Promise((r) => setTimeout(r, wait));
     }
   };
@@ -71,7 +71,7 @@ async function amazonFinances(ctx: PullContext): Promise<SlotPull> {
   }
   const out = financesToFacts(windows, ctx.periodKey);
   out.trace.unshift(`Called SP-API Finances listFinancialEvents (read only) — ${pages} page(s), paced at 0.5 req/s`);
-  if (monthEnd > cap) out.warnings.push(`${ctx.periodKey} is still running — pulled through ${new Date(cap).toISOString().slice(0, 16).replace('T', ' ')} UTC.`);
+  if (monthEnd > cap) out.warnings.push(`${ctx.periodKey} is not finished. Pulled to ${new Date(cap).toISOString().slice(0, 16).replace('T', ' ')} UTC.`);
   return out;
 }
 
@@ -212,9 +212,9 @@ async function amazonBusinessReport(ctx: PullContext): Promise<SlotPull> {
     }
     if (r.processingStatus === 'CANCELLED' || r.processingStatus === 'FATAL') {
       bizReports.delete(key);
-      throw new Error(`Amazon ${r.processingStatus === 'CANCELLED' ? 'cancelled' : 'could not build'} the Sales & Traffic report — Pull again later.`);
+      throw new Error(`Amazon ${r.processingStatus === 'CANCELLED' ? 'cancelled' : 'could not build'} the Sales & Traffic report. Pull again later.`);
     }
-    if (Date.now() + 20_000 > ctx.deadline) throw new Error('Amazon is still preparing the Sales & Traffic report — Pull again in a few minutes (the same report is reused).');
+    if (Date.now() + 20_000 > ctx.deadline) throw new Error('Amazon still makes the Sales & Traffic report. Pull again in 5 minutes. The MIS uses the same report.');
     await new Promise((res) => setTimeout(res, 15_000));
   }
 }
@@ -230,13 +230,13 @@ async function tallyPnl(ctx: PullContext): Promise<SlotPull> {
   if (!snap) {
     const st = await readTallyState();
     const seen = st.lastOkAt ? new Date(st.lastOkAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'never';
-    throw new Error(`No Tally P&L stored for ${ctx.periodKey} yet: Tally isn't open on the cloud machine (last reached: ${seen}). Open Tally once, or upload the P&L Excel.`);
+    throw new Error(`No Tally P&L for ${ctx.periodKey}. Tally is not open on the cloud machine (last reached: ${seen}). Open Tally, or upload the P&L Excel.`);
   }
   const age = new Date(snap.asOf).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
   const warnings = [...snap.warnings];
   const end = Date.parse(`${ctx.periodKey}-01T00:00:00+05:30`);
   const monthEnd = new Date(end); monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
-  if (Date.parse(snap.asOf) < monthEnd.getTime() + 5 * 86_400_000) warnings.push(`Tally copy from ${age} — entries posted after that are not in it. Pull again after the books are final.`);
+  if (Date.parse(snap.asOf) < monthEnd.getTime() + 5 * 86_400_000) warnings.push(`Tally copy from ${age}. Later entries are not in it. Pull again when the books are final.`);
   return {
     tallyMonth: { period: snap.period, periodLabel: snap.periodLabel, ledgerRows: snap.ledgerRows, nettProfit: snap.nettProfit, asOf: snap.asOf },
     rowCount: snap.ledgerRows.length,
@@ -256,7 +256,7 @@ async function tallyTb(ctx: PullContext): Promise<SlotPull> {
   if (!tb) {
     const st = await readTallyState();
     const seen = st.lastOkAt ? new Date(st.lastOkAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'never';
-    throw new Error(`No Tally Trial Balance stored for ${ctx.periodKey} yet: Tally isn't open on the cloud machine (last reached: ${seen}). Open Tally once, or upload the screenshot.`);
+    throw new Error(`No Tally Trial Balance for ${ctx.periodKey}. Tally is not open on the cloud machine (last reached: ${seen}). Open Tally, or upload the screenshot.`);
   }
   const age = new Date(tb.asOf).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
   const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
@@ -273,7 +273,7 @@ async function tallyTb(ctx: PullContext): Promise<SlotPull> {
 async function shopifyVariants(ctx: PullContext): Promise<SlotPull> {
   const { first } = monthDays(ctx.periodKey);
   const end = rangeEnd(ctx.periodKey);
-  if (!shopifyConnector.fetchFacts) throw new Error('Shopify live pull unavailable.');
+  if (!shopifyConnector.fetchFacts) throw new Error('Shopify pull is not available.');
   const r = await shopifyConnector.fetchFacts(ctx.creds, first, end);
   const facts = (r.facts ?? []).filter((f) => (f.date ?? '').slice(0, 7) === ctx.periodKey);
   const rev = facts.reduce((s, f) => s + (f.revenue || 0), 0);
@@ -291,90 +291,90 @@ async function shopifyVariants(ctx: PullContext): Promise<SlotPull> {
 export const SLOT_SOURCES: SlotSourceDef[] = [
   // Book of record
   { connectorId: 'tally', slotId: 'pnl', source: 'api', via: 'Tally (cloud, read only)',
-    needs: ['host'], connectHint: 'Not connected. Add the Tally host and port in Setup (Tally Prime).',
-    line: "Read from Tally on the cloud machine whenever it is open (checked every 30 min in working hours from the 15th) and stored, so the close doesn't need Tally open. The Excel upload stays the fallback.",
+    needs: ['host'], connectHint: 'Not connected. Enter the Tally host and port on Setup → Tally.',
+    line: 'Read from Tally on the cloud machine when it is open. Checked every 30 minutes in working hours from the 15th, then stored. Upload the Excel if the pull fails.',
     pull: tallyPnl },
   { connectorId: 'tally', slotId: 'trial-balance', source: 'api', via: 'Tally (cloud, read only)',
-    needs: ['host'], connectHint: 'Not connected. Add the Tally host and port in Setup (Tally Prime).',
-    line: 'Stored with the P&L by the same Tally check: closing Dr / Cr per group at the month end, checked that it ties. A record only — the close uses the P&L. The screenshot upload stays the fallback.',
+    needs: ['host'], connectHint: 'Not connected. Enter the Tally host and port on Setup → Tally.',
+    line: 'Stored with the P&L by the same Tally check. Closing Dr / Cr per group at month end, checked to tie. Record only: the P&L drives the numbers. Upload a screenshot if the pull fails.',
     pull: tallyTb },
   { connectorId: 'tranzact', slotId: 'bom', source: 'api', via: 'Production portal', claudeTask: 'Portal feeds: Mac Chrome',
     needs: [], credsFrom: 'production',
-    line: "Unit cost per finished good from production.heatronics.in (each BOM at its parts' latest purchase invoices, ex-GST). Production reads the Tranzact BOMs from the monthly Claude task (18th) and the daily Tranzact sheets.",
+    line: 'Unit cost per finished good from production.heatronics.in. Each BOM uses the latest purchase price of its parts, without GST.',
     pull: productionBom },
   { connectorId: 'tranzact', slotId: 'sales', source: 'sheet', via: 'Tranzact daily sheet', parserId: 'tranzact', needs: [],
-    line: 'From the Tranzact daily Google Sheet "Sales Invoice Register (Item-wise)" (Recurring Report), filtered to the month.',
+    line: 'Read from the Tranzact daily Google Sheet "Sales Invoice Register (Item-wise)", for the month only.',
     pull: tranzactSales },
 
   // Marketplaces
   { connectorId: 'amazon', slotId: 'unified-transaction', source: 'api', via: 'Amazon SP-API Finances',
-    needs: ['lwaClientId', 'lwaClientSecret', 'refreshToken'], connectHint: 'Shared secrets spapi-* (app needs the Finance and Accounting role).',
-    line: 'Pulled from Amazon SP-API Finances (listFinancialEvents) — the events the Unified Transaction report is built from.',
+    needs: ['lwaClientId', 'lwaClientSecret', 'refreshToken'], connectHint: 'Not connected. Add the shared secrets spapi-*. The app needs the Finance and Accounting role.',
+    line: 'Pulled from Amazon SP-API Finances. These are the events behind the Unified Transaction report.',
     pull: amazonFinances },
   { connectorId: 'amazon', slotId: 'business-report', source: 'api', via: 'Amazon SP-API Reports',
-    parserId: 'amazonbiz', needs: ['lwaClientId', 'lwaClientSecret', 'refreshToken'], connectHint: 'Shared secrets spapi-* (app needs the Brand Analytics or Selling Partner Insights role).',
-    line: 'Pulled from Amazon SP-API Sales & Traffic report (by child ASIN, whole month) — the data behind the Business Report.',
+    parserId: 'amazonbiz', needs: ['lwaClientId', 'lwaClientSecret', 'refreshToken'], connectHint: 'Not connected. Add the shared secrets spapi-*. The app needs the Brand Analytics or Selling Partner Insights role.',
+    line: 'Pulled from the Amazon Sales & Traffic report (child ASIN, whole month). This is the data behind the Business Report.',
     pull: amazonBusinessReport },
   { connectorId: 'flipkart', slotId: 'settlement', source: 'upload', via: 'Manual upload',
-    line: "Flipkart API approval pending; its API has no fees / settlement data." },
+    line: 'Flipkart API waits for approval. Its API has no fee or settlement data.' },
   { connectorId: 'flipkartads', slotId: 'ad-spend', source: 'upload', via: 'Manual upload',
-    line: 'Flipkart API approval pending; its API has no ads data.' },
+    line: 'Flipkart API waits for approval. Its API has no ads data.' },
   { connectorId: 'blinkit', slotId: 'order-charges', source: 'upload', via: 'Manual upload', line: 'Blinkit has no API.' },
 
   // D2C
   { connectorId: 'shopify', slotId: 'variant-sales', source: 'api', via: 'Shopify Admin API',
-    needs: ['shopDomain'], connectHint: 'Not connected. Add the Shopify store in Setup (Shopify).',
-    line: 'The same live Shopify pull the Live MIS uses (orders by day × variant), saved for the month so the close is frozen. The CSV upload stays the fallback.',
+    needs: ['shopDomain'], connectHint: 'Not connected. Enter the Shopify store on Setup → Shopify.',
+    line: 'Same Shopify pull as Live MIS (orders by day × variant). Saved for the month, so the numbers do not change. Upload the CSV if the pull fails.',
     pull: shopifyVariants },
 
   // Marketing
   { connectorId: 'meta', slotId: 'ad-spend', source: 'api', via: 'Meta Marketing API',
-    needs: ['accessToken', 'adAccountId'], connectHint: 'Shared secrets meta-access-token + meta-ad-account-id.',
-    line: 'Pulled from Meta Insights: ad level × product_id for the month + the account total (residual spread by revenue, as the upload).',
+    needs: ['accessToken', 'adAccountId'], connectHint: 'Not connected. Add the shared secrets meta-access-token and meta-ad-account-id.',
+    line: 'Pulled from Meta Insights: spend per ad and product for the month, plus the account total. The rest is split by sales, as in the upload.',
     pull: metaProducts },
   { connectorId: 'googleads', slotId: 'ad-spend', source: 'api', via: 'Google Ads API',
-    needs: ['clientId', 'clientSecret', 'refreshToken', 'customerId'], connectHint: 'Shared secrets google-ads-*.',
-    line: 'Pulled from Google Ads (GAQL campaign cost, searchStream) for the month.',
+    needs: ['clientId', 'clientSecret', 'refreshToken', 'customerId'], connectHint: 'Not connected. Add the shared secrets google-ads-*.',
+    line: 'Pulled from Google Ads: campaign cost for the month.',
     pull: googleCampaigns },
   { connectorId: 'googleads', slotId: 'shopping-products', source: 'api', via: 'Google Ads API',
-    needs: ['clientId', 'clientSecret', 'refreshToken', 'customerId'], connectHint: 'Shared secrets google-ads-*.',
-    line: 'Pulled from Google Ads shopping_performance_view (cost per item id) for the month.',
+    needs: ['clientId', 'clientSecret', 'refreshToken', 'customerId'], connectHint: 'Not connected. Add the shared secrets google-ads-*.',
+    line: 'Pulled from Google Ads: cost per shopping item for the month.',
     pull: googleProducts },
   { connectorId: 'amazonads', slotId: 'ad-spend', source: 'api', via: 'Amazon Ads API',
-    needs: ['clientId', 'clientSecret', 'refreshToken'], connectHint: 'Shared secrets adsapi-*.',
-    line: "Read from Ops' stored Amazon Ads reports (same reporting v3 reports, pulled daily), else Amazon directly. Amazon keeps ~94 days (SB/SD 59); older months stay an upload.",
+    needs: ['clientId', 'clientSecret', 'refreshToken'], connectHint: 'Not connected. Add the shared secrets adsapi-*.',
+    line: 'Read from the Amazon Ads copy in Ops, else from Amazon. Amazon keeps 94 days (SB / SD 59). Upload older months.',
     pull: amazonAdsProduct },
 
   // Logistics
   { connectorId: 'shiprocket', slotId: 'passbook', source: 'api', via: 'Shiprocket API (computed)',
-    needs: ['email', 'password'], connectHint: 'Shared secrets shiprocket-email + shiprocket-password.',
-    line: 'Computed from shipment charges (freight + COD + RTO), not the wallet statement — compare with the passbook once. Dated on the AWB assign day (RTO on the RTO day).',
+    needs: ['email', 'password'], connectHint: 'Not connected. Add the shared secrets shiprocket-email and shiprocket-password.',
+    line: 'Calculated from shipment charges (freight + COD + RTO), not from the wallet. Compare with the passbook once. Date = AWB day (RTO: RTO day).',
     pull: shiprocketPassbook },
   { connectorId: 'delhivery', slotId: 'wallet', source: 'api', via: 'Delhivery API (computed)',
     needs: ['apiToken', 'feedToken'],
-    connectHint: 'Not connected — create secret delhivery-api-token (and warranty-feed-token = FEED_TOKEN in warranty-manager-env).',
-    line: 'Computed freight (Delhivery tracking + charge calculator), not the wallet ledger — compare with the wallet once',
+    connectHint: 'Not connected. Add the secret delhivery-api-token and warranty-feed-token (= FEED_TOKEN in warranty-manager-env).',
+    line: 'Freight calculated from Delhivery tracking and its charge calculator, not from the wallet. Compare with the wallet once.',
     pull: delhiveryFreight },
 
   // Payments & checkout
   { connectorId: 'easebuzz', slotId: 'settlement', source: 'api', via: 'Easebuzz payout API',
-    needs: ['merchantKey', 'salt'], connectHint: 'Not connected — create the shared secrets easebuzz-merchant-key + easebuzz-salt (Easebuzz dashboard → Settings → API keys), or paste them on the Connectors page.',
-    line: 'Pulled from the Easebuzz settlements API (one enquiry for the month): service charge + GST + express fees.',
+    needs: ['merchantKey', 'salt'], connectHint: 'Not connected. Add the shared secrets easebuzz-merchant-key and easebuzz-salt (Easebuzz → Settings → API keys), or enter them on Setup → Easebuzz.',
+    line: 'Pulled from the Easebuzz settlements API for the month: service charge, GST and express fees.',
     pull: easebuzzSettlements },
-  { connectorId: 'shopflo', slotId: 'invoice', source: 'upload', via: 'Manual upload', line: 'One PDF a month (or a billing-history screenshot), read by Claude.' },
-  { connectorId: 'snapmint', slotId: 'settlement', source: 'upload', via: 'Manual upload', line: 'No API or scheduled export; the report arrives by email.' },
+  { connectorId: 'shopflo', slotId: 'invoice', source: 'upload', via: 'Manual upload', line: 'Upload 1 PDF a month, or a screenshot of the billing history. Claude reads it.' },
+  { connectorId: 'snapmint', slotId: 'settlement', source: 'upload', via: 'Manual upload', line: 'No API. The report comes by email. Upload it.' },
 ];
 
 export function slotSource(connectorId: string, slotId: string): SlotSourceDef | undefined {
   return SLOT_SOURCES.find((s) => s.connectorId === connectorId && s.slotId === slotId);
 }
 
-/** Scheduled jobs that feed data into the Heatronics portals (shown on the Connectors page). */
+/** Scheduled jobs that feed data into the Heatronics portals (shown on Setup). */
 export const FEED_TASKS: FeedTask[] = [
   { name: 'Portal feeds: cloud', kind: 'claude_task', when: 'Daily, ~11:00 IST',
-    what: 'Reads Shopflo checkout analytics with the Shopflo connector (read only) and writes the feed files.', feeds: 'Ops (ops.heatronics.in → D2C → Checkout)' },
+    what: 'Reads Shopflo checkout numbers (read only) and writes the daily files.', feeds: 'Ops (ops.heatronics.in → D2C → Checkout)' },
   { name: 'Portal feeds: Mac Chrome', kind: 'claude_task', when: 'Daily, ~10:15 IST (Tranzact part on the 18th)',
-    what: "In Hargun's Mac Chrome: daily Amazon LIS lists into Ops; on the 18th requests the All BOMs + Product Edit template exports in Tranzact and posts the emailed download links to Production.", feeds: 'Production (production.heatronics.in → Monthly cleanup) → MIS BOM pricing (read from Production).' },
+    what: "Runs in Hargun's Mac Chrome. Daily: sends the Amazon LIS lists to Ops. On the 18th: gets the Tranzact BOM exports for Production.", feeds: 'Production (production.heatronics.in → Monthly cleanup) → MIS BOM pricing (read from Production).' },
   { name: 'Tranzact daily Google Sheets', kind: 'tranzact_recurring', when: 'Daily (Tranzact Recurring Reports)',
-    what: 'Sales Invoice Register, Product Price & Inventory and Purchase Invoice Register written to the "Tranzact feed" Drive folder.', feeds: 'MIS (Tranzact Sales Invoice Register slot), Production, Ops' },
+    what: 'Writes the Sales Invoice Register, Product Price & Inventory and Purchase Invoice Register to the "Tranzact feed" Drive folder.', feeds: 'MIS (Tranzact Sales Invoice Register report), Production, Ops' },
 ];

@@ -38,7 +38,7 @@ export function BulkPaymentsPage() {
     const b = (await r.json()) as StoredBatch;
     const payees: Payee[] = b.rows.map((x) => ({ id: x.payeeId, name: x.name, shortName: '', bankType: '', account: x.account, ifsc: x.ifsc, status: 'Active', activatedAt: '' }));
     const rows: BatchRow[] = b.rows.map((x) => ({ payeeId: x.payeeId, amountPaise: x.amountPaise, mode: x.mode, remark: x.remark }));
-    downloadPaymentFiles(buildPaymentRows({ debitAccount: b.debitAccount, date: b.date }, rows, payees, b.id), b.id);
+    await downloadPaymentFiles(buildPaymentRows({ debitAccount: b.debitAccount, date: b.date }, rows, payees, b.id), b.id);
   }
 
   const payees = list?.payees ?? [];
