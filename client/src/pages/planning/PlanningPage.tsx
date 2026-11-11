@@ -51,7 +51,7 @@ function loadDraft(): Draft | null {
   } catch { return null; }
 }
 function saveDraft(d: Draft) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage unavailable — the draft just isn't kept */ }
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage unavailable: the draft just isn't kept */ }
 }
 
 export function PlanningPage() {
@@ -121,7 +121,7 @@ export function PlanningPage() {
   const save = async (asNew: boolean) => {
     let name = plan.name;
     if (asNew || selected === 'base') {
-      const n = window.prompt('Name this scenario', selected === 'base' ? 'Plan — ' + new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : plan.name + ' (copy)');
+      const n = window.prompt('Name this scenario', selected === 'base' ? 'Plan: ' + new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : plan.name + ' (copy)');
       if (!n?.trim()) return;
       name = n.trim();
     }

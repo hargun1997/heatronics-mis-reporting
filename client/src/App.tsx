@@ -9,7 +9,6 @@ import { lazyPage } from './lazyPage';
 const ConnectorsPage = lazyPage(() => import('./pages/mis/ConnectorsPage'), 'ConnectorsPage');
 const LiveMisPage = lazyPage(() => import('./pages/mis/LiveMisPage'), 'LiveMisPage');
 const RulebookPage = lazyPage(() => import('./pages/mis/RulebookPage'), 'RulebookPage');
-const MisChatPage = lazyPage(() => import('./pages/mis/MisChatPage'), 'MisChatPage');
 const AiInsightsPage = lazyPage(() => import('./pages/mis/AiInsightsPage'), 'AiInsightsPage');
 const UploadsRedirect = lazyPage(() => import('./pages/mis/UploadsRedirect'), 'UploadsRedirect');
 const TasksPage = lazyPage(() => import('./pages/work/TasksPage'), 'TasksPage');
@@ -49,7 +48,7 @@ function App() {
           <Route path="reporting/mis/rulebook" element={<RulebookPage />} />
           <Route path="reporting/mis/live" element={<LiveMisPage />} />
           <Route path="reporting/mis/insights" element={<AiInsightsPage />} />
-          <Route path="reporting/mis/chat" element={<MisChatPage />} />
+          <Route path="reporting/mis/chat" element={<Navigate to="/reporting/mis/insights" replace />} />
           <Route path="reporting/mis/issues" element={<Navigate to="/tasks?view=fix" replace />} />
           <Route path="reporting/mis/ownership" element={<Navigate to="/tasks/settings" replace />} />
           <Route path="reporting/mis/send" element={<SendReportPage />} />

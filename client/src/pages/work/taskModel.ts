@@ -1,7 +1,6 @@
 // Shared, non-visual logic for the Tasks pages: date labels, the agenda
 // (what is due when), filters and who-is-who helpers.
 
-import { getHandbook, type HbArticle } from '../../data/handbook/handbook';
 import { addDays, diffDays, lookbackDays, occurrences, parseYmd, todayIST, ymd, type Cadence } from '../../data/work/schedule';
 import type { Head, TeamMember, WorkState, WorkTask } from '../../data/work/workClient';
 
@@ -68,17 +67,6 @@ export function ownerNames(ids: string[], memberById: Map<string, TeamMember>): 
   return ms.length ? ms.map((m) => m.name.split(' ')[0]).join(', ') : '';
 }
 
-/** First anchor id of each handbook article (for the "How to" picker). */
-export function handbookAnchors(): { id: string; a: HbArticle }[] {
-  const seen = new Set<HbArticle>();
-  const out: { id: string; a: HbArticle }[] = [];
-  for (const [id, a] of getHandbook().idToArticle) {
-    if (seen.has(a)) continue;
-    seen.add(a);
-    out.push({ id, a });
-  }
-  return out;
-}
 
 // --- agenda ------------------------------------------------------------------
 

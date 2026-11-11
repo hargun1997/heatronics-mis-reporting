@@ -22,7 +22,7 @@ import { Agenda, DailyEmailStrip } from './Agenda';
 import { AllTasks } from './AllTasks';
 import { MonthView } from './MonthView';
 import { EmailPreview } from './SettingsCards';
-import { TaskEditor } from './TaskEditor';
+import { TaskEditor } from './lazyParts';
 import { KINDS, NO_FILTERS, buildAgenda, inHead, readLS, unownedTasks, writeLS, type Filters, type Item, type View, type Who } from './taskModel';
 import { TasksToolbar } from './TasksToolbar';
 import { TasksHeader, btnPrimary, focusRing } from './ui';

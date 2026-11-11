@@ -42,7 +42,7 @@ export function ChartTab() {
 
   if (err) return <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{err}</p>;
   if (!data) return <p className="py-10 text-center text-sm text-slate-500"><Loader2 className="mr-2 inline h-4 w-4 animate-spin" aria-hidden />Reading the chart…</p>;
-  if (!data.summary) return <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">No Tally groups stored yet — Pull Tally now while TallyPrime is open.</p>;
+  if (!data.summary) return <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">No Tally groups stored yet: Pull Tally now while TallyPrime is open.</p>;
 
   const render = (n: Node, path: string, depth: number): React.ReactNode => {
     if (filtering && !match(n)) return null;
@@ -83,7 +83,7 @@ export function ChartTab() {
 
       <section className="rounded-xl border border-slate-200 bg-white shadow-card" aria-labelledby="hang-h">
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-3">
-          <h2 id="hang-h" className="mr-2 text-sm font-semibold text-slate-900">Hanging ledgers — where each should move</h2>
+          <h2 id="hang-h" className="mr-2 text-sm font-semibold text-slate-900">Hanging ledgers: where each should move</h2>
           {(['all', 'channel_mismatch', 'no_group', 'catch_all', 'legacy'] as const).map((k) => {
             const n = k === 'all' ? data.hanging.length : data.summary!.byKind[k];
             if (k !== 'all' && !n) return null;

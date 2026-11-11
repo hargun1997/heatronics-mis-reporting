@@ -223,7 +223,7 @@ const LEVEL_BADGE: Record<CompletenessLevel, { label: string; cls: string }> = {
 /** Completeness badge. `published` marks a month shown from the published static MIS. */
 export function LevelBadge({ level, published }: { level: CompletenessLevel; published?: boolean }) {
   if (published && level === 'full') {
-    return <span title="From the published MIS — no full live close for this month yet"
+    return <span title="From the published MIS: no full live close for this month yet"
       className="inline-flex items-center px-1.5 py-0.5 rounded border text-xs sm:text-[11px] font-medium bg-brand-50 text-brand-700 border-brand-100">Published</span>;
   }
   const b = LEVEL_BADGE[level];

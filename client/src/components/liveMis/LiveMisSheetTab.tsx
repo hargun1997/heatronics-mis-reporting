@@ -176,7 +176,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
       </Note>
 
       {imported && (
-        <Fold id="ms-imported" title="Imported MIS (P&L Summary)" meta="Parsed from the uploaded workbook — round-trips with a ₹ Lac download"
+        <Fold id="ms-imported" title="Imported MIS (P&L Summary)" meta="Parsed from the uploaded workbook: round-trips with a ₹ Lac download"
           actions={<button type="button" onClick={() => setImported(null)} className="text-xs text-slate-500 hover:text-slate-800">Clear</button>}>
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-xs whitespace-nowrap">

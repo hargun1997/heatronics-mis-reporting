@@ -35,7 +35,7 @@ import { LedgerMapPanel } from './LedgerMapPanel';
 const STARTERS = [
   { q: 'Which ledger for a Google Ads invoice?', hint: 'Ledger + GST + TDS' },
   { q: 'How do I book the Amazon monthly fees with TDS and TCS?', hint: 'Full voucher' },
-  { q: 'Shiprocket weekly bill — which voucher?', hint: 'Voucher type' },
+  { q: 'Shiprocket weekly bill: which voucher?', hint: 'Voucher type' },
 ];
 
 const CHAT_LS_KEY = 'heatronics.booking-assistant.chat.v1';
@@ -213,8 +213,8 @@ export function BookingAssistantPage() {
   return (
     <div className="tasks-ui min-h-full bg-slate-50">
       <PageHeader
-        title="Booking assistant"
-        description="Ask which ledger, which voucher and how to cut the entry. Answers follow Hargun’s ledger map, the Accounts Handbook and past bookings — and say “to confirm” when they can’t be sure."
+        title="Book an invoice"
+        description="Ask for the ledger, the voucher and the GST of an invoice."
         icon={iconBook}
         crumbs={[{ label: 'Guides' }, { label: 'Booking assistant' }]}
         actions={
@@ -248,9 +248,8 @@ export function BookingAssistantPage() {
           <ContextStrip status={status} tallyLabel={tally.master ? `${tally.master.ledgers?.length ?? 0} ledgers · ${tally.source === 'override' ? 'uploaded master' : 'bundled master'}` : tally.loading ? 'loading…' : 'not loaded'} onForget={savedUpload ? forgetHistory : undefined} />
 
           {notConfigured && (
-            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-950">
-              <strong className="font-semibold">Claude isn’t connected on this server yet</strong> — questions will return an error until{' '}
-              <span className="font-mono">ANTHROPIC_API_KEY</span> is set. The ledger map works now.
+            <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-[13px] text-amber-900">
+              <strong className="font-semibold">Claude is not connected.</strong> Set <span className="font-mono">ANTHROPIC_API_KEY</span> on the server. The ledger map works.
             </div>
           )}
 
@@ -326,7 +325,7 @@ export function BookingAssistantPage() {
                     }
                   }}
                   rows={1}
-                  placeholder="e.g. Bitespeed invoice ₹11,800 incl. GST — which ledger and TDS?"
+                  placeholder="e.g. Bitespeed invoice ₹11,800 incl. GST: which ledger and TDS?"
                   className="block max-h-36 min-h-[40px] w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 text-[14px] leading-snug text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30"
                 />
               </label>
@@ -381,7 +380,7 @@ function ContextStrip({ status, tallyLabel, onForget }: { status: AssistantStatu
       <Source
         on={history.length > 0}
         label="Booking history"
-        detail={history.length ? history.map((h) => h.label).join(' · ') : 'none yet — attach a Day Book'}
+        detail={history.length ? history.map((h) => h.label).join(' · ') : 'none yet: attach a Day Book'}
       />
       {onForget && (
         <button type="button" onClick={onForget} className="text-slate-500 underline-offset-2 hover:text-rose-700 hover:underline">
@@ -407,8 +406,7 @@ function EmptyState({ onAsk, disabled }: { onAsk: (q: string) => void; disabled:
     <div className="mx-auto max-w-2xl py-6">
       <h2 className="text-[19px] font-semibold text-slate-900">What are you booking?</h2>
       <p className="mt-1.5 text-[14px] leading-relaxed text-slate-700">
-        Describe the bill, or attach the invoice. You’ll get the voucher type, the Dr/Cr lines with GST and TDS, a narration to paste,
-        and the handbook section it comes from.
+        Type the bill, or attach the invoice. The answer gives the voucher, the Dr and Cr lines, GST and TDS.
       </p>
       <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
         {STARTERS.map((s) => (
@@ -424,11 +422,12 @@ function EmptyState({ onAsk, disabled }: { onAsk: (q: string) => void; disabled:
           </button>
         ))}
       </div>
-      <div className="mt-5 rounded-xl border border-dashed border-slate-300 p-3.5 text-[13px] leading-relaxed text-slate-700">
-        <strong className="font-semibold text-slate-900">Tip — give it your history.</strong> Export a Tally <em>Day Book</em> or{' '}
-        <em>Ledger Vouchers</em> report to Excel, attach it, and choose <em>Keep as booking history</em>. Every later answer then checks how
-        the same vendor was booked before.
-      </div>
+      <p className="mt-5 text-[13px] font-semibold text-slate-900">To use your past entries</p>
+      <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-[13px] text-slate-600">
+        <li>In Tally, export the Day Book to Excel.</li>
+        <li>Attach the file here.</li>
+        <li>Select "Keep as booking history". Then each answer uses your past entries.</li>
+      </ol>
     </div>
   );
 }

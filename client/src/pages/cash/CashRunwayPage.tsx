@@ -65,7 +65,7 @@ export function CashRunwayPage() {
   };
   return (
     <div className="space-y-5 max-w-5xl">
-      <PageHeader title="Cash runway" description="If the last months repeat, when does cash run out? 13 weeks, three cases."
+      <PageHeader title="Cash runway" description="Net cash for the next 13 weeks, in 3 cases."
         status={r ? <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${BAND[r.status]}`}>{r.status === 'act' ? 'Act now' : r.status === 'watch' ? 'Watch' : r.status === 'ok' ? 'OK' : 'No data'}</span> : undefined}
         actions={<button type="button" onClick={() => void load(true)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin' : ''}`} aria-hidden /> Refresh</button>} />
       {err && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{err}</div>}

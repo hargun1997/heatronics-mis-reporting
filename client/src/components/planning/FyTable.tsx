@@ -9,7 +9,7 @@ const ROWS: Row[] = [
   { label: 'Revenue', get: (y) => y.revenueWithActuals, kind: 'cr', strong: true, hint: 'FY27 includes the Apr–Sep actuals you entered' },
   { label: 'GMV (incl. GST)', get: (y) => y.gmv, kind: 'cr', hint: 'Sales at the prices customers pay, before deductions. Plan months only' },
   { label: 'Revenue ex-GST', get: (y) => y.revenueExGst, kind: 'cr', hint: 'Net revenue with the output GST taken out. Plan months only' },
-  { label: 'Growth YoY', get: (y, i, a) => (i && (a[i - 1].months === 12 || a[i - 1].revenueWithActuals > a[i - 1].revenue) ? y.revenueWithActuals / a[i - 1].revenueWithActuals - 1 : NaN), kind: 'pct', hint: 'Blank when the year before is only part-plan — enter Apr–Sep ’26 actuals to see FY28 growth' },
+  { label: 'Growth YoY', get: (y, i, a) => (i && (a[i - 1].months === 12 || a[i - 1].revenueWithActuals > a[i - 1].revenue) ? y.revenueWithActuals / a[i - 1].revenueWithActuals - 1 : NaN), kind: 'pct', hint: 'Blank when the year before is only part-plan: enter Apr–Sep ’26 actuals to see FY28 growth' },
   { label: 'Units', get: (y) => y.units, kind: 'int' },
   { label: 'Gross margin', get: (y) => y.grossProfit / y.revenue, kind: 'pct' },
   { label: 'CM3 (after media)', get: (y) => y.cm3 / y.revenue, kind: 'pct' },

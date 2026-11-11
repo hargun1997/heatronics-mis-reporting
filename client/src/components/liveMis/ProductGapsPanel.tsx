@@ -52,7 +52,7 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
                 <button key={s.fgId} type="button" disabled={busy !== null} className={btn} title={`${s.tranzactName} · match ${Math.round(s.score * 100)}%`}
                   onClick={() => void save(`${u.platform}|${u.key}`, { sku: { [`${u.platform}:${norm(u.key)}`]: s.fgId } })}>
                   {s.deckName} <span className="text-slate-400">{Math.round(s.score * 100)}%</span></button>))
-                : <span className="text-slate-400">No close match — map it in Month close.</span>}</td>
+                : <span className="text-slate-400">No close match: map it in Month close.</span>}</td>
             </tr>))}</tbody>
         </table></div>
       )}
@@ -66,7 +66,7 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
               <td>{b.suggested ? (
                 <button type="button" disabled={busy !== null} className={btn} onClick={() => void save(b.fgId, { bomProxy: { [b.fgId]: b.suggested!.fgId } })}>
                   {b.suggested.deckName} ({b.suggested.fgId}) <span className="text-slate-400">{Math.round(b.suggested.score * 100)}%</span></button>
-              ) : <span className="text-slate-400">No close costed product — add the BOM in Tranzact.</span>}</td>
+              ) : <span className="text-slate-400">No close costed product: add the BOM in Tranzact.</span>}</td>
             </tr>))}</tbody>
         </table></div>
       )}

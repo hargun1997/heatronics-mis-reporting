@@ -55,8 +55,8 @@ export function AmazonToTranzactTool() {
   return (
     <>
       <PageHeader
-        title="Amazon → Tranzact"
-        description="Convert the Amazon FBA Inventory Ledger into a Tranzact Physical Stock Reconciliation upload."
+        title="Amazon to Tranzact (manual)"
+        description="Change the Amazon FBA Inventory Ledger into a Tranzact stock upload file."
         accent="amber"
         icon={icon}
       />
@@ -76,36 +76,36 @@ export function AmazonToTranzactTool() {
                 <li>Aggregate by location: <b>Country</b></li>
                 <li>Aggregate by time period: <b>Monthly</b></li>
                 <li>Date range: the month you're reconciling (leave ASIN/FNSKU/MSKU blank for all products)</li>
-                <li>Click <b>Request .txt Download</b> — <span className="text-rose-600 font-medium">not .csv</span> (csv drops the leading zeros in MSKUs/ASINs and breaks SKU matching)</li>
+                <li>Click <b>Request .txt Download</b>: <span className="text-rose-600 font-medium">not .csv</span> (csv drops the leading zeros in MSKUs/ASINs and breaks SKU matching)</li>
               </ul>
               <p className="mt-1.5">
                 When it appears in the list below with a <b>Download</b> button, grab the <code className="bg-slate-100 px-1 rounded">.txt</code> file.
-                (The older <b>Manage Inventory</b> snapshot also works — the tool auto-detects either. Both use the <b>SELLABLE</b> closing quantity.)
+                (The older <b>Manage Inventory</b> snapshot also works: the tool auto-detects either. Both use the <b>SELLABLE</b> closing quantity.)
               </p>
             </Step>
             <Step n={2} title="Upload & transform here">
-              <p>Upload the .txt file below — SKUs are auto-mapped to FG Items. Review the output preview and then download the Excel.</p>
+              <p>Upload the .txt file below: SKUs are auto-mapped to FG Items. Review the output preview and then download the Excel.</p>
             </Step>
             <Step n={3} title="Upload to Tranzact">
               <p>
                 In Tranzact go to{' '}
                 <a className="text-brand-600 hover:text-brand-700 underline underline-offset-2" href="https://app.letstranzact.com/v3/inventory/?section=item_master" target="_blank" rel="noopener noreferrer">Inventory → Item Master</a>
-                {' '}→ Actions → <b>Physical Stock Reconciliation</b>. Ignore the <b>Download Template</b> block at the top — the file this tool produces already matches it.
+                {' '}→ Actions → <b>Physical Stock Reconciliation</b>. Ignore the <b>Download Template</b> block at the top: the file this tool produces already matches it.
                 (If you do want the blank template to check Item IDs, tick <b>With Items</b> and set Item Category to <b>Finished goods</b>.)
               </p>
               <p className="mt-1.5">Then set the four fields below the Download button:</p>
               <ul className="mt-1.5 space-y-1 list-disc pl-4">
                 <li>
-                  <b>Store</b> — <b>Amazon (Pan-India)</b>.
-                  {' '}<span className="text-rose-600 font-medium">It defaults to "Raw Material Store"</span> — change it, or you will write Amazon FBA stock onto the factory store.
+                  <b>Store</b>: <b>Amazon (Pan-India)</b>.
+                  {' '}<span className="text-rose-600 font-medium">It defaults to "Raw Material Store"</span>: change it, or you will write Amazon FBA stock onto the factory store.
                 </li>
-                <li><b>As on Date</b> — the last day of the month you're reconciling (e.g. 31/07/2026 for the July ledger), <i>not</i> today's date.</li>
+                <li><b>As on Date</b>: the last day of the month you're reconciling (e.g. 31/07/2026 for the July ledger), <i>not</i> today's date.</li>
                 <li>
-                  <b>Final Stock Valuation</b> — <b>Use system price</b>. Tranzact then values the stock from its own item master.
+                  <b>Final Stock Valuation</b>: <b>Use system price</b>. Tranzact then values the stock from its own item master.
                   Choose "Use uploaded price" only if you deliberately want the prices in this file, which come from the tool's built-in FG master and can be out of date.
                 </li>
                 <li>
-                  <b>Allow Final Stock at 0 Price</b> — <b>No</b>. This makes Tranzact stop if any item would be valued at zero, instead of silently booking that stock at ₹0 and understating closing stock.
+                  <b>Allow Final Stock at 0 Price</b>: <b>No</b>. This makes Tranzact stop if any item would be valued at zero, instead of silently booking that stock at ₹0 and understating closing stock.
                   Only switch to Yes once you've checked why an item has no price.
                 </li>
               </ul>

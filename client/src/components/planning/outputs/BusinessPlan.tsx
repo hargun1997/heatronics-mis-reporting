@@ -41,7 +41,7 @@ export function BusinessPlanView({ plan, result }: Props) {
           ]} />
           <p className="mt-2 text-[12px] text-slate-500">
             Jul–Sep ’26 actual revenue (for the 12-month exit) <b className="text-slate-700">₹{cr(B.exitPriorL3M)} Cr</b> · growth cap <b className="text-slate-700">{B.exitGrowthCap.toFixed(1)}×</b>
-            <span className="text-slate-400"> — Setup → Starting point / Assumptions</span>
+            <span className="text-slate-400">: Setup → Starting point / Assumptions</span>
           </p>
         </SectionCard>
 
@@ -64,7 +64,7 @@ export function BusinessPlanView({ plan, result }: Props) {
       <Deployment plan={plan} r={r} asks={asks} spans={spans} />
 
       <div className="grid gap-5 xl:grid-cols-2">
-        <SectionCard title="Key assumptions" description="What the plan rests on — kept with the numbers so the deck and the model never drift.">
+        <SectionCard title="Key assumptions" description="What the plan rests on: kept with the numbers so the deck and the model never drift.">
           {B.assumptions.length === 0 && <p className="text-[13px] text-slate-500">No assumptions written yet (Setup → Business plan text).</p>}
           <div className="divide-y divide-slate-100">
             {B.assumptions.map((a) => (

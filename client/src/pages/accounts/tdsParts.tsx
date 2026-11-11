@@ -17,7 +17,7 @@ export function PayHeadline({ r }: { r: TdsReport }) {
   const tone = r.overdue ? 'border-red-200 bg-red-50' : 'border-accent-200 bg-accent-50';
   return (
     <div className={`rounded-xl border px-4 py-4 sm:px-5 ${tone}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">{r.overdue ? 'Late — pay now' : `Pay by ${dateLabel(r.dueDate)}`}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">{r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`}</div>
       <div className="mt-1 text-[32px] font-semibold leading-10 text-slate-900">{inr(r.totals.balance)}</div>
       <div className="mt-1 text-sm text-slate-700">
         TDS deducted in {r.monthLabel}: {inr(r.totals.deducted)} · already paid {inr(r.totals.paid)}
@@ -155,7 +155,7 @@ export function HowTo() {
     { title: 'Book the challan in Tally', body: (
       <ol className="list-[lower-alpha] space-y-1 pl-5">
         <li>Payment voucher: <b>Dr</b> the TDS ledger of that section, <b>Cr</b> the bank.</li>
-        <li>In the narration write: <b>BSR &lt;7 digits&gt; Challan &lt;5 digits&gt;</b> — this page reads it for the 26Q.</li>
+        <li>In the narration write: <b>BSR &lt;7 digits&gt; Challan &lt;5 digits&gt;</b>: this page reads it for the 26Q.</li>
       </ol>) },
     { title: 'Every quarter: file 26Q (and 24Q for salary)', body: (
       <ol className="list-[lower-alpha] space-y-1 pl-5">

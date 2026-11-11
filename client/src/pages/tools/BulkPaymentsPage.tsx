@@ -47,8 +47,8 @@ export function BulkPaymentsPage() {
   return (
     <>
       <PageHeader
-        title="Bulk payments (ICICI)"
-        description="Make the ICICI CIB upload files: new payees and bulk payments. This page never sends money; you upload and authorise in CIB."
+        title="Bulk payments"
+        description="Make the payee file and the payment file for ICICI. This page does not send money."
         icon={<Landmark className="h-5 w-5" aria-hidden />}
       />
       <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">

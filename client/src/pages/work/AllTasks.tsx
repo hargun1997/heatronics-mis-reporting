@@ -7,7 +7,7 @@ import { describe } from '../../data/work/schedule';
 import type { TeamMember, WorkState, WorkTask } from '../../data/work/workClient';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { ownerNames } from './taskModel';
-import { TaskPanel } from './TaskPanel';
+import { TaskPanel } from './lazyParts';
 import { btnGhost, btnSecondary, focusRing } from './ui';
 
 export function AllTasks({

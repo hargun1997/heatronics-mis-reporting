@@ -75,10 +75,10 @@ export function RulebookPage() {
   return (
     <>
       <PageHeader
-        title="Data Rulebook"
+        title="Data rulebook"
         accent="brand"
         icon={iconBook}
-        description="The rule for every number: which file it comes from, what we read, and exactly where it lands in the MIS. This is the contract the ingestion follows."
+        description="For each report: the file, the columns the MIS reads, and the MIS line they go to."
         crumbs={[
           { label: 'Reporting', to: '/reporting' },
           { label: 'MIS Reporting', to: '/reporting/mis' },
@@ -174,7 +174,7 @@ export function RulebookPage() {
         <section>
           <h2 className="text-base font-semibold text-slate-800 mb-1">The P&amp;L cascade</h2>
           <p className="text-sm text-slate-500 mb-3">
-            Every tab is a view of this one cascade. Each line is owned by a source — connectors feed the top,
+            Every tab is a view of this one cascade. Each line is owned by a source: connectors feed the top,
             BOM gives cost of goods, Tally owns everything below Contribution Margin, and the margins are computed.
           </p>
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">

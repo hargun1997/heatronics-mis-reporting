@@ -21,7 +21,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             <SubHead>Key assumptions</SubHead>
             <AddBtn label="Add an assumption" onClick={() => update(addAssumption)} />
           </div>
-          <Note>What the plan rests on — kept with the numbers so the deck and the model never drift.</Note>
+          <Note>What the plan rests on: kept with the numbers so the deck and the model never drift.</Note>
           {plan.business.assumptions.length === 0 && <Note>No assumptions yet.</Note>}
           <div className="space-y-1.5">
             {plan.business.assumptions.map((a, i) => (

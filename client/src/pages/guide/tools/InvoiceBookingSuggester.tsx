@@ -63,8 +63,8 @@ export function InvoiceBookingSuggester() {
   return (
     <>
       <PageHeader
-        title="Invoice Booking Suggester"
-        description="Pick the transaction details and we'll tell you which system to book in, the voucher type, the bill series, the ledger mapping, and the full journal entry — including the clearing-account flow."
+        title="Invoice booking guide"
+        description="Select the type of invoice. The page gives the system, voucher, ledgers and journal entry."
         accent="amber"
         icon={iconTool}
       />
@@ -209,7 +209,7 @@ export function InvoiceBookingSuggester() {
             <p>
               The rules below encode what the finance team has configured as the canonical bookings for each
               channel & txn type. The goal is to remove ambiguity when a new operator is booking an invoice.
-              This is guidance, not a replacement for judgement — when in doubt, check with accounts.
+              This is guidance, not a replacement for judgement: when in doubt, check with accounts.
             </p>
           </div>
         </div>

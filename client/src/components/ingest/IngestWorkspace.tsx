@@ -86,9 +86,9 @@ export function CoveragePanel({ reports, connectors }: { reports: IngestReportMe
     none: 'bg-rose-50 text-rose-700 border-rose-200',
   };
   const tip = (r: typeof rows[number]) => {
-    if (r.state === 'complete') return `${monthName(r.mk)} — complete · all ${expected.length} required reports in`;
-    if (r.state === 'none') return `${monthName(r.mk)} — nothing uploaded · ${expected.length} required`;
-    return `${monthName(r.mk)} — partial · ${r.present}/${expected.length} in · missing: ${r.missing.join(', ')}`;
+    if (r.state === 'complete') return `${monthName(r.mk)}: complete · all ${expected.length} required reports in`;
+    if (r.state === 'none') return `${monthName(r.mk)}: nothing uploaded · ${expected.length} required`;
+    return `${monthName(r.mk)}: partial · ${r.present}/${expected.length} in · missing: ${r.missing.join(', ')}`;
   };
 
   const GLYPH: Record<MonthState, string> = { complete: '✓', partial: '', none: '✕' };

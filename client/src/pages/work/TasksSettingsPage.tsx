@@ -194,7 +194,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
               className={field}
               value={h.roles.join(', ')}
               onChange={(e) => set(i, { roles: e.target.value.split(',').map((r) => r.trim()).filter((r, k, a) => r || k === a.length - 1) })}
-              placeholder="Roles, comma-separated — e.g. CA, Statutory Auditor"
+              placeholder="Roles, comma-separated: e.g. CA, Statutory Auditor"
               aria-label="Roles"
             />
             <div className="flex flex-wrap gap-1">

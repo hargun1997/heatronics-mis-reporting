@@ -117,7 +117,7 @@ function DiscountSection() {
       <Note>
         {basis === 'amount' ? 'Discount ₹ given each month (positive magnitude).' : 'Discount as a % of that month’s total sales.'}{' '}
         The report window is Jul 10, 2025 – Jul 10, 2026, so the first and last months are partial. Live Shopify discount facts
-        aren’t ingested yet — this is the published storefront feed.
+        aren’t ingested yet: this is the published storefront feed.
       </Note>
     </Fold>
   );
@@ -282,13 +282,13 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
         </Note>
       </Fold>
       <Fold id="cm-growth" tab="Growth" secondary title="Channel growth over time"
-        meta={`${gb === 'MoM' ? 'Month-over-month' : gb === 'QoQ' ? 'Quarter-over-quarter' : 'Year-over-year (monthly)'} growth per channel — equal-length frames only`}
+        meta={`${gb === 'MoM' ? 'Month-over-month' : gb === 'QoQ' ? 'Quarter-over-quarter' : 'Year-over-year (monthly)'} growth per channel: equal-length frames only`}
         actions={<Pills label="Growth basis" value={gb} onChange={setGb} options={[{ id: 'MoM', label: 'MoM' }, { id: 'QoQ', label: 'QoQ' }, { id: 'YoY', label: 'YoY' }]} />}>
         <LineChart labels={gSeries.map((p) => p.label)} series={growthLines} percent valueFormat={(v) => pctSigned(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
         <div className="mt-2"><Legend items={gChans.map((c) => ({ label: chName(c), color: chColor(c) }))} /></div>
       </Fold>
       <Fold id="cm-lfl" tab="Like for like" title={`Channel growth · like-for-like ${gran === 'year' ? 'FY-to-date' : gran}`}
-        meta={`${lfl.curScope} vs ${lfl.priorScope} — same calendar months a year earlier${lfl.priorComplete ? '' : ' (only months that have a prior-year month are compared)'}`}>
+        meta={`${lfl.curScope} vs ${lfl.priorScope}: same calendar months a year earlier${lfl.priorComplete ? '' : ' (only months that have a prior-year month are compared)'}`}>
         <p className="mb-2 text-sm text-slate-600">Total net revenue {inr(lfl.curRevenue)} vs {inr(lfl.priorRevenue)} · <Delta value={lfl.revenueGrowth} /></p>
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">

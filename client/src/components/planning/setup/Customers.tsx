@@ -103,7 +103,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         </div>
 
         <div className={`grid gap-x-8 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3 ${cohortsOn ? '' : 'pointer-events-none opacity-50'}`}>
-          <Row label="Same-month 2nd order" hint="Share of new buyers who order again that month (× season — higher in winter)">
+          <Row label="Same-month 2nd order" hint="Share of new buyers who order again that month (× season: higher in winter)">
             <NumInput unit="pct" value={d.sameMonth} min={0} max={1} width="w-16" title="Same-month repeat" disabled={!cohortsOn} onChange={(v) => set('sameMonth', v)} />
           </Row>
           <Row label="Next-month reorder" hint="Share reordering the month after">
@@ -118,13 +118,13 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <Row label="Yearly fade" hint="Year-3 rate = year-2 × this, and so on">
             <NumInput unit="x" value={d.yearlyFade} min={0} max={1.5} step={0.05} width="w-16" title="Yearly fade" disabled={!cohortsOn} onChange={(v) => set('yearlyFade', v)} />
           </Row>
-          <Row label="Repeat boost" hint="Scales every repeat rate — loyalty (hCoins), reminders, bundles. 1× = as learned">
+          <Row label="Repeat boost" hint="Scales every repeat rate: loyalty (hCoins), reminders, bundles. 1× = as learned">
             <NumInput unit="x" value={d.repeatBoost} min={0} max={5} step={0.1} width="w-16" title="Repeat boost" disabled={!cohortsOn} onChange={(v) => update((p) => { p.d2c.repeatBoost = v; })} />
           </Row>
-          <Row label="AOV — new buyers" hint="At order time, before returns (sheet basis). Grows with the price lever.">
+          <Row label="AOV: new buyers" hint="At order time, before returns (sheet basis). Grows with the price lever.">
             <NumInput value={d.aovNew} min={0} width="w-24" title="AOV new" disabled={!cohortsOn} onChange={(v) => set('aovNew', v)} />
           </Row>
-          <Row label="AOV — repeat orders">
+          <Row label="AOV: repeat orders">
             <NumInput value={d.aovRepeat} min={0} width="w-24" title="AOV repeat" disabled={!cohortsOn} onChange={(v) => set('aovRepeat', v)} />
           </Row>
         </div>
@@ -199,7 +199,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             </tbody>
           </table>
         </div>
-        <Note>Products with little history (hGo, hBoots, hPulse) borrow the whole range's curve. Values don't need to average 1 — the planner uses them as typed. New products pick the curve they follow under Products &amp; categories.</Note>
+        <Note>Products with little history (hGo, hBoots, hPulse) borrow the whole range's curve. Values don't need to average 1: the planner uses them as typed. New products pick the curve they follow under Products &amp; categories.</Note>
       </div>
     </div>
   );

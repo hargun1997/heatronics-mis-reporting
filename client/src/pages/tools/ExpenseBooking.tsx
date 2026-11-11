@@ -377,14 +377,14 @@ export function ExpenseBooking() {
 
   return (
     <>
-      <PageHeader title="Expense Booking" accent="brand" icon={iconExpense} />
+      <PageHeader title="Expense booking" accent="brand" icon={iconExpense} />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         <Link
           to="/booking-assistant"
           className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm text-slate-900 hover:border-brand-400"
         >
           <span className="flex-1">
-            <span className="font-semibold">Not sure which ledger?</span> Ask the Booking assistant — it uses Hargun’s ledger map, the
+            <span className="font-semibold">Not sure which ledger?</span> Ask the Booking assistant: it uses Hargun’s ledger map, the
             handbook and past bookings. Use this form when you want a Tally XML import.
           </span>
           <span className="font-semibold text-brand-700">Open →</span>

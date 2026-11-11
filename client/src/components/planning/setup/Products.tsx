@@ -108,7 +108,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 <div key={ch}><div className={lbl}>{CHANNEL_NAMES[ch]}</div><NumInput unit="pct" value={c.split?.[ch] ?? 0} min={0} max={1} width="w-12" title={`${CHANNEL_NAMES[ch]} share for new products`}
                   onChange={(v) => setCats((cs) => { cs[ci].split = { ...(cs[ci].split ?? ZERO_SPLIT), [ch]: v }; })} /></div>))}</div>
             </div>
-            {prods.length === 0 ? <p className="px-4 py-4 text-[13px] text-slate-500">No products yet — “+ Add product”.</p> : (
+            {prods.length === 0 ? <p className="px-4 py-4 text-[13px] text-slate-500">No products yet: “+ Add product”.</p> : (
               <ul className="divide-y divide-slate-100">{prods.map((x) => (
                 <ProductRow key={x.id} x={x} c={c} cats={cats} skus={plan.skus} months={months} fys={fys} byFy={byFy[x.id] ?? {}} open={open === x.id}
                   onToggle={() => setOpen(open === x.id ? null : x.id)} setProd={setProd} remove={() => update((p) => { p.products = p.products.filter((y) => y.id !== x.id); })} />

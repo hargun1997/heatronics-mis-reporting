@@ -44,7 +44,7 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
   };
   const peak = ms.reduce((a, m, j) => (m.units > ms[a].units ? j : a), 0);
   return (
-    <SectionCard title="Product roll-out" description="Monthly units across the plan — launches, ramps and seasons. Products are set up in Setup → Products & categories (season per product there too).">
+    <SectionCard title="Product roll-out" description="Monthly units across the plan: launches, ramps and seasons. Products are set up in Setup → Products & categories (season per product there too).">
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-[12px] tabular-nums">
           <thead>

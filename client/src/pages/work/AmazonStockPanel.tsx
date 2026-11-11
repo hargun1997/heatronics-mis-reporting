@@ -33,7 +33,7 @@ export function AmazonStockPanel({ month }: { month: string }) {
     if (!v) return;
     const XLSX = await import('xlsx');
     const sheet = (s: StockSide, title: string) => XLSX.utils.aoa_to_sheet([
-      [`Amazon FBA stock — ${title} (${s.date ?? 'no balance'})`],
+      [`Amazon FBA stock: ${title} (${s.date ?? 'no balance'})`],
       ['FG', 'Product', 'Amazon SKUs', 'Sellable', 'Unsellable', 'In transit (FC→FC)', 'Units', 'Material ₹/unit (ex-GST)', 'Conversion ₹/unit', 'Cost ₹/unit', 'Value ₹'],
       ...s.lines.map((l) => [l.fg ?? '', l.name, l.mskus.join(', '), l.sellable, l.unsellable, l.inTransit, l.units, l.material, l.conversion, l.unitCost, l.value]),
       [], ['', 'Total', '', '', '', '', s.units, '', '', '', s.value],

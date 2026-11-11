@@ -173,8 +173,8 @@ export function PriceFloorsPage() {
   return (
     <>
       <PageHeader
-        title="Amazon price floors"
-        description="The lowest Amazon price per product that still leaves your target margin, from production's latest cost and live Amazon fees, prices and returns (last 30 days)."
+        title="Price floors"
+        description="The lowest Amazon price for each product that gives your target margin."
         icon={icon}
         crumbs={[{ label: 'Tools', to: '/tools' }, { label: 'Amazon price floors' }]}
         actions={
@@ -270,7 +270,7 @@ export function PriceFloorsPage() {
         <div className="space-y-2">
           <h2 className="text-sm font-bold text-slate-900">By product</h2>
           {priced.map((r) => <SkuDetail key={r.x.asin} r={r} settings={calc} t={t} />)}
-          {!priced.length && <p className="text-sm text-slate-500">No product costs yet. Refresh costs, or link SKUs to products in Settings below.</p>}
+          {!priced.length && <p className="text-sm text-slate-500">No product costs. Select Refresh costs, or link the SKUs to products in Settings.</p>}
         </div>
 
         <SettingsEditor settings={settings} products={products} onSaved={(s) => setState((st) => (st ? { ...st, settings: s } : st))} setNote={setNote} />
@@ -417,7 +417,7 @@ function UploadCard({ state, settings, onSaved, setNote }: {
           >
             Open Seller Central to download it ↗
           </a>
-          <p className="text-xs text-slate-500">Reports → Revenue and fees, all ASINs, .xlsx. Change this link in Settings.</p>
+          <p className="text-xs text-slate-500">In Seller Central: Reports, Revenue and fees, all ASINs, .xlsx.</p>
         </>
       )}
     </Card>

@@ -57,10 +57,10 @@ export function AiInsightsPage() {
   return (
     <>
       <PageHeader
-        title="AI Insights"
+        title="AI insights"
         accent="brand"
         icon={iconSpark}
-        description={`On-demand analysis of the MIS and a chat to ask anything — grounded in the live P&L (through ${throughLabel}). The AI reasons over the numbers; it can't change anything.`}
+        description={`Ask Claude about the P&L to ${throughLabel}. Claude reads the numbers. Claude does not change them.`}
         crumbs={[
           { label: 'Reporting', to: '/reporting' },
           { label: 'MIS Reporting', to: '/reporting/mis' },

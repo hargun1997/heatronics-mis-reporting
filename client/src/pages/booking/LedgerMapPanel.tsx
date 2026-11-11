@@ -238,7 +238,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                         <a href={r.link} target="_blank" rel="noreferrer" className="font-semibold text-brand-700 hover:underline">
                           Download invoices ↗
                         </a>
-                        {r.linkNote && <span className="text-slate-600"> — {r.linkNote}</span>}
+                        {r.linkNote && <span className="text-slate-600">: {r.linkNote}</span>}
                       </div>
                     )}
                     {r.evidence && (

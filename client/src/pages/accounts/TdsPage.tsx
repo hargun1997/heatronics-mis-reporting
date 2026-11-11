@@ -19,8 +19,8 @@ export function TdsPage() {
   return (
     <>
       <PageHeader
-        title="TDS planning"
-        description="How much TDS to pay for a month, by section, from the Tally Day Book — and how to pay and file it."
+        title="TDS"
+        description="The TDS to pay for 1 month, by section, from the Tally Day Book."
         icon={<ReceiptIndianRupee className="h-5 w-5" aria-hidden />}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -54,7 +54,7 @@ export function TdsPage() {
             <Step id="check" n={2} title="Check these first" defaultOpen={high > 0} summary={r.flags.length ? `${r.flags.length} items · ${high} to fix` : 'All fine'}>
               <FlagList r={r} />
             </Step>
-            <Step id="who" n={3} title="Who we deducted from" summary="By section — tap a section to see each party">
+            <Step id="who" n={3} title="Who we deducted from" summary="By section: tap a section to see each party">
               <DeducteeList r={r} />
             </Step>
             {q && (
@@ -65,7 +65,7 @@ export function TdsPage() {
                     <Num label="24Q (salary)" value={inr(q.tds24)} sub={`${q.q24.length} rows`} />
                     <Num label="Late fee cap" value={inr(q.lateFeeCap)} sub={`₹200 a day after ${dateLabel(q.dueDate)}`} />
                   </div>
-                  {q.missingMonths.length > 0 && <p className="text-amber-800">Day Book not copied for {q.missingMonths.map(monthLabel).join(', ')} — the quarter list is not complete yet.</p>}
+                  {q.missingMonths.length > 0 && <p className="text-amber-800">Day Book not copied for {q.missingMonths.map(monthLabel).join(', ')}: the quarter list is not complete yet.</p>}
                   <p>Download → sheet <b>26Q prep</b> has one row per bill in the order the RPU asks. Challan BSR / serial are filled where the Tally narration has them.</p>
                 </div>
               </Step>

@@ -66,7 +66,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             </table>
           </div>
         )}
-        <Note tone={over ? 'amber' : 'grey'}>{peak}{over ? ' — build stock ahead of the peak or add capacity earlier.' : ''}</Note>
+        <Note tone={over ? 'amber' : 'grey'}>{peak}{over ? ': build stock ahead of the peak or add capacity earlier.' : ''}</Note>
       </section>
 
       {/* overheads */}

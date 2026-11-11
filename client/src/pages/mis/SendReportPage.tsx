@@ -99,7 +99,7 @@ export function SendReportPage() {
     setSendBusy(true); setError(null); setSent(null);
     try {
       await saveRecipients(recipients); // persist whoever is selected
-      const { result } = await sendReport(`${title} — ${new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`, html, recipients);
+      const { result } = await sendReport(`${title}: ${new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`, html, recipients);
       setSent(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Send failed.');
@@ -113,10 +113,10 @@ export function SendReportPage() {
   return (
     <>
       <PageHeader
-        title="Send Report"
+        title="Send report"
         accent="brand"
         icon={iconSend}
-        description="Mail the whole MIS — an animated presentation plus an AI executive summary — to your people, on demand or monthly."
+        description="Email the MIS to your list now, or each month."
         crumbs={[{ label: 'Reporting', to: '/reporting' }, { label: 'MIS Reporting', to: '/reporting/mis' }, { label: 'Send Report' }]}
       />
 
@@ -132,7 +132,7 @@ export function SendReportPage() {
 
         <SectionCard title="Recipients" description="Pick from your team or add any email. This list is saved and reused for the monthly send.">
           <div className="flex flex-wrap gap-1.5">
-            {allEmails.length === 0 && <span className="text-xs text-slate-400">No team members yet — add emails below, or set them up on the Ownership page.</span>}
+            {allEmails.length === 0 && <span className="text-xs text-slate-400">No persons in the list. Add an email below.</span>}
             {allEmails.map((e) => {
               const on = recipients.includes(e);
               return (
@@ -155,7 +155,7 @@ export function SendReportPage() {
 
         <SectionCard
           title="Executive summary"
-          description="Optional — Claude writes a short summary from the live numbers and puts it at the top of the report."
+          description="Claude writes a short summary from the numbers. The summary goes at the top of the report."
           actions={
             <button onClick={() => void generateSummary()} disabled={genBusy || configured === false || !deck}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 text-xs font-medium px-3 py-1.5 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
@@ -183,13 +183,13 @@ export function SendReportPage() {
           </div>
           {sent && (
             <div className={`mt-3 text-xs rounded-lg px-3 py-2 border ${sent.sent ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : sent.dryRun ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-              {sent.sent ? `Sent to ${sent.to.join(', ')}.` : sent.dryRun ? `Preview only (email not configured) — would send to ${sent.to.join(', ')}.` : `Failed: ${sent.error ?? 'unknown error'}`}
+              {sent.sent ? `Sent to ${sent.to.join(', ')}.` : sent.dryRun ? `Preview only (email not configured): would send to ${sent.to.join(', ')}.` : `Failed: ${sent.error ?? 'unknown error'}`}
             </div>
           )}
         </SectionCard>
 
         <p className="text-xs sm:text-[11px] text-slate-400">
-          Monthly auto-send: point a monthly Cloud Scheduler job at <span className="font-mono">POST /api/report/send-monthly</span> — it emails a server-composed
+          Monthly auto-send: point a monthly Cloud Scheduler job at <span className="font-mono">POST /api/report/send-monthly</span>: it emails a server-composed
           summary + a link to the full report to this saved recipient list. (Needs the email provider configured.)
         </p>
       </div>

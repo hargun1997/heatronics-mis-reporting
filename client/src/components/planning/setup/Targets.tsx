@@ -86,7 +86,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             <NumInput unit="cr" value={target} min={0} width="w-24" title="Exit ARR target" onChange={(v) => set((g) => { g.targetArr = v; })} />
           </Row>
           <Note>
-            Exit ARR now {money(arr, 0)} ({lastM?.label ?? 'last month'} run-rate){arr >= target ? ' — target reached.' : `, ${money(target - arr, 0)} short.`}
+            Exit ARR now {money(arr, 0)} ({lastM?.label ?? 'last month'} run-rate){arr >= target ? ': target reached.' : `, ${money(target - arr, 0)} short.`}
           </Note>
         </div>
       )}

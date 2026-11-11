@@ -59,7 +59,7 @@ export function TallyPage() {
       const r = await api<{ status: string; detail?: string; masters?: boolean; months?: string[]; error?: string | null }>('/api/tally/books/pull', { method: 'POST', body: '{}' });
       setMsg(r.status === 'not_connected' ? r.detail || 'Tally is not connected.'
         : r.status === 'down' ? `Tally did not answer: ${r.error}. It only answers while TallyPrime is open on the cloud machine with the company loaded.`
-        : `Pulled ${[r.masters ? 'ledgers' : '', ...(r.months || [])].filter(Boolean).join(', ') || 'nothing new'}${r.error ? ` — stopped: ${r.error}` : ''}.`);
+        : `Pulled ${[r.masters ? 'ledgers' : '', ...(r.months || [])].filter(Boolean).join(', ') || 'nothing new'}${r.error ? `: stopped: ${r.error}` : ''}.`);
       await load();
     } catch (e) { setMsg((e as Error).message); } finally { setPulling(false); }
   };
@@ -71,19 +71,19 @@ export function TallyPage() {
   return (
     <>
       <PageHeader title="Tally health" icon={icon}
-        description="What the MIS reads from Tally (read only — it never writes): problems in the books with how to fix each in TallyPrime, and answers about how things were booked."
+        description="The chart of accounts, ledgers and vouchers that the MIS reads from Tally."
         actions={<button type="button" onClick={pull} disabled={pulling} className={btn}>
           {pulling ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}{pulling ? 'Pulling from Tally… (up to 2 min)' : 'Pull Tally now'}</button>} />
       <div className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
           <span>Ledgers {status?.ledgers ? <b className="text-slate-900">{status.ledgers}</b> : '—'} · taken {ago(status?.mastersAt ?? null)}</span>
           <span>Day Books: {stored.length ? stored.slice(0, 6).map((p) => <span key={p} className="mr-1 rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700" title={`Taken ${ago(status!.months[p])}`}>{p}</span>) : 'none yet'}</span>
-          {status && !status.connected && <span className="text-amber-800">Not connected — add the Tally host on <Link className="underline" to="/reporting/mis/connectors">Setup</Link>.</span>}
+          {status && !status.connected && <span className="text-amber-800">Not connected: add the Tally host on <Link className="underline" to="/reporting/mis/connectors">Setup</Link>.</span>}
           {status?.lastError && <span className="text-amber-800" title={status.lastError}>Last pull stopped: {status.lastError.slice(0, 90)}</span>}
         </div>
         {health && health.issues.length > 0 && (
           <p className="text-sm text-slate-700">
-            {health.issues.length} check{health.issues.length === 1 ? '' : 's'} found problems in the books ({counts.error} to fix, {counts.warn} to check) — they are in <Link className="font-medium text-accent-700 underline" to="/tasks?view=fix">Tasks → Fix</Link> with how to fix each.
+            {health.issues.length} check{health.issues.length === 1 ? '' : 's'} found problems in the books ({counts.error} to fix, {counts.warn} to check): they are in <Link className="font-medium text-accent-700 underline" to="/tasks?view=fix">Tasks → Fix</Link> with how to fix each.
           </p>
         )}
         {msg && <p role="status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{msg}</p>}
@@ -167,7 +167,7 @@ function Ledgers() {
               <td className="px-3 text-slate-600">{l.tds}</td><td className="px-3 text-right tabular-nums">{l.vouchers || ''}</td>
             </tr>))}</tbody>
         </table>
-        {data && !data.total && <Empty text="No ledgers stored yet — Pull Tally now while TallyPrime is open." />}
+        {data && !data.total && <Empty text="No ledgers stored yet: Pull Tally now while TallyPrime is open." />}
       </div>
     </div>
   );
@@ -182,7 +182,7 @@ function Vouchers({ months }: { months: string[] }) {
     const t = setTimeout(() => { api<{ total: number; rows: Voucher[] }>(`/api/tally/books/vouchers?period=${period}&q=${encodeURIComponent(q)}`).then(setData).catch(() => setData(null)); }, 250);
     return () => clearTimeout(t);
   }, [period, q]);
-  if (!months.length) return <Empty text="No Day Book stored yet — Pull Tally now while TallyPrime is open." />;
+  if (!months.length) return <Empty text="No Day Book stored yet: Pull Tally now while TallyPrime is open." />;
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-card">
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-3">

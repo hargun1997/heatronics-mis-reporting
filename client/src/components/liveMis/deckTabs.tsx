@@ -142,11 +142,11 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Fold id="ov-trend" title="Revenue & margin — trend" meta={scopeLine(trend, gran)}>
+        <Fold id="ov-trend" title="Revenue & margin: trend" meta={scopeLine(trend, gran)}>
           <LineChart labels={labels} series={moneySeries} />
           <div className="mt-2"><Legend items={moneySeries.map((s) => ({ label: s.name, color: s.color }))} /></div>
         </Fold>
-        <Fold id="ov-margin" title="Margin ladder % — trend" meta={scopeLine(trend, gran)}>
+        <Fold id="ov-margin" title="Margin ladder %: trend" meta={scopeLine(trend, gran)}>
           <LineChart labels={labels} series={pctSeries} percent yFormat={(v) => `${Math.round(v * 100)}%`} valueFormat={(v) => pctStr(v)} />
           <div className="mt-2"><Legend items={pctSeries.map((s) => ({ label: s.name, color: s.color }))} /></div>
         </Fold>
@@ -201,7 +201,7 @@ function AmazonTraffic({ rows, label }: { rows: TrafficRow[]; label: string }) {
   const top = [...rows].sort((a, b) => b.sessions - a.sessions).slice(0, 12);
   const n = (v: number) => v.toLocaleString('en-IN');
   return (
-    <Fold id="ov-traffic" secondary title={`Amazon traffic & conversion · ${label}`} meta="Sessions → units ordered (Business Report — not revenue)">
+    <Fold id="ov-traffic" secondary title={`Amazon traffic & conversion · ${label}`} meta="Sessions → units ordered (Business Report: not revenue)">
       <TableBox>
         <table className="w-full text-xs sm:text-[11px]">
           <thead>
@@ -458,7 +458,7 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
         </table>
       </div>
       <Note>
-        ▸ Click a line to drill in — Net Revenue into its gross → returns → GST build-up (where the month’s source carries
+        ▸ Click a line to drill in: Net Revenue into its gross → returns → GST build-up (where the month’s source carries
         it), COGM and Operating Expenses into their ledger lines, Sales &amp; Marketing into the ad platforms, and the other
         cost lines into Tally’s own ledger buckets (live months). Non-Operating lists its Tally ledgers with an EBT subtotal.
         {basis === 'normalised' && ' Stock build / drawdown is a signed memo outside the cascade (material only: positive = Tally charged more material than the BOM cost of what was sold; factory, manufacturing and inward freight stay in COGM); Gross Margin + memo = Gross Margin as booked.'}
@@ -506,7 +506,7 @@ function MetricTrends({ months, completeness }: { months: MonthlyMIS[]; complete
   }));
   const toggle = (k: string) => setSelected((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
   return (
-    <Fold id="pnl-trends" title="Metric trends" meta={basis === 'percent' ? `Each line as % of net revenue, by ${GRAN_NOUN[g]} — costs negative` : `Any P&L line over time, by ${GRAN_NOUN[g]} — costs negative`}
+    <Fold id="pnl-trends" title="Metric trends" meta={basis === 'percent' ? `Each line as % of net revenue, by ${GRAN_NOUN[g]}: costs negative` : `Any P&L line over time, by ${GRAN_NOUN[g]}: costs negative`}
       actions={<>
         <Pills label="Basis" value={basis} onChange={setBasis} options={[{ id: 'amount', label: '₹ Value' }, { id: 'percent', label: '% of Revenue' }]} />
         <Pills label="Grain" value={g} onChange={setG} options={[{ id: 'month', label: 'Monthly' }, { id: 'quarter', label: 'Quarterly' }, { id: 'year', label: 'Yearly' }]} />
@@ -710,11 +710,11 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
               {anchored.some((r) => r.basis === 'estimated') && ' Estimated: no ad spend by platform for this period, so marketing is split across the online channels by revenue.'}</p>
           )}
           <span className="font-medium text-slate-800">Totals hold, splits are data-driven.</span> The company P&amp;L is the book of
-          record and does not move; each line is split across channels — revenue by each channel’s real revenue share,
+          record and does not move; each line is split across channels: revenue by each channel’s real revenue share,
           <span className="font-medium"> COGM by the real per-unit COGS of the SKU mix</span> sold there,
           <span className="font-medium"> Sales &amp; Marketing by each channel’s real ad spend</span> (so OEM/B2B and Offline/GT carry
           almost none), and channel &amp; fulfilment, platform, opex and non-operating by revenue share. COGM includes the factory overhead (Tally’s actual where booked, else 10%)
-          cost. No reconciliation column — the Total ties to the MIS exactly.
+          cost. No reconciliation column: the Total ties to the MIS exactly.
         </div>
       ) : (
         <BasisNote slice={slice} dim={by === 'vertical' ? 'vertical' : 'channel'} hasTally={period.hasTally} />
@@ -919,7 +919,7 @@ function SkuMatrix({ period, cells, periodKeys, completeness }: { period: Period
         CM2 = revenue − COGM − channel &amp; fulfilment − ads, footed to the Channel P&amp;L: each channel column = that channel’s CM2, the total = the company’s.
         Product cost = BOM material; factory, manufacturing, inward freight and sales with no BOM cost are allocated by material (estimated). Fees and ads follow
         each product’s own report figures, scaled to what the books show. “{NOT_MAPPED}” = sales in the books that the SKU data does not cover. Accessory rows in italics, sorted last.
-        {!cm2Real && ' This period is top line only — CM2 needs the BOM (costs) for every month in it.'}
+        {!cm2Real && ' This period is top line only: CM2 needs the BOM (costs) for every month in it.'}
       </Note>
     </div>
   );

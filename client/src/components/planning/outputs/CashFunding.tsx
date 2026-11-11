@@ -40,7 +40,7 @@ export function CashFundingView({ plan, result }: Props) {
         <Box label="Peak cumulative deficit" value={`₹${cr(r.peakDeficit)} Cr`} sub={peak ? `in ${peak.label}` : ''} />
         <Box label="Funding need (with contingency)" value={`₹${cr(r.fundingRequired)} Cr`} sub={`${pct(c.contingencyPct, 0)} buffer`} />
         <Box label={r.seedEquity > 0 ? 'Still to raise after the seed' : 'Equity needed after debt'} value={`₹${cr(Math.max(0, r.equityRequired - r.seedEquity))} Cr`} sub={`Total equity ₹${cr(r.equityRequired)} Cr${r.seedEquity > 0 ? ` less seed ₹${cr(r.seedEquity)} Cr` : ''} · debt drawn ₹${cr(r.debtDrawnTotal)} Cr`} />
-        <Box label="Lowest closing cash" value={money(r.minClosingCash)} sub={low ? `${low.label}${r.minClosingCash < 0 ? ' — add or bring forward a raise (Setup → Funding)' : ''}` : ''} bad={r.minClosingCash < 0} />
+        <Box label="Lowest closing cash" value={money(r.minClosingCash)} sub={low ? `${low.label}${r.minClosingCash < 0 ? ': add or bring forward a raise (Setup → Funding)' : ''}` : ''} bad={r.minClosingCash < 0} />
         <Box label="Equity raised · kept" value={money(r.equityPlanned, 0)} sub={`Today’s holders keep ${pct(keep, 0)} after ${dil.length} round${dil.length === 1 ? '' : 's'} · lowest cash ${money(r.minClosingCash, 1)}`} bad={r.minClosingCash < 0} />
       </div>
 
@@ -48,7 +48,7 @@ export function CashFundingView({ plan, result }: Props) {
         title="Rounds & dilution"
         description={`The seed${fx?.seed.on && !parity ? ` (₹${cr(fx.seed.amount, 0)} Cr in ${label(fx.seed.month)})` : ''} and the rounds from Setup → Funding. Cash before = closing cash the month before the round; burn = average monthly cash burn over the 12 months after it; runway = months until cash falls under the buffer again. Ownership ignores ESOP pools and convertibles.`}
       >
-        {!growthOn && <p className="mb-3 text-[12px] text-amber-800">{parity ? 'Sheet parity is on: the rounds below are not in the numbers — the sheet\'s own timeline events (further down) are.' : 'The growth layer is off, so the rounds below are not in the numbers.'}</p>}
+        {!growthOn && <p className="mb-3 text-[12px] text-amber-800">{parity ? 'Sheet parity is on: the rounds below are not in the numbers: the sheet\'s own timeline events (further down) are.' : 'The growth layer is off, so the rounds below are not in the numbers.'}</p>}
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-[12.5px] tabular-nums">
             <thead><tr className="bg-surface-tint"><th className={th}>Round</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={thr}>Pre-money</th><th className={thr}>Fee</th><th className={th}>Agreed</th><th className={thr}>Cash before</th><th className={thr}>Burn / mo</th><th className={thr}>Runway</th><th className={thr}>Sold</th><th className={thr}>Today's holders keep</th></tr></thead>
@@ -102,7 +102,7 @@ export function CashFundingView({ plan, result }: Props) {
       </SectionCard>
 
       <p className="rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-        GST asset at {gstEnd?.label}: ₹{cr(gstEnd?.gstAsset ?? 0)} Cr. With 5% output GST and 18% input on services and capex, services ITC that can’t be set off keeps building as revenue grows — it is carried as an asset, so it ties up cash every year.
+        GST asset at {gstEnd?.label}: ₹{cr(gstEnd?.gstAsset ?? 0)} Cr. With 5% output GST and 18% input on services and capex, services ITC that can’t be set off keeps building as revenue grows: it is carried as an asset, so it ties up cash every year.
       </p>
     </div>
   );

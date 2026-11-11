@@ -111,7 +111,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               <span className={`w-28 rounded-md px-2 py-0.5 text-center text-xs sm:text-[11px] font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{KIND[e.kind]}</span>
               <MonthSelect title={`${KIND[e.kind]} month`} value={e.month} months={months} onChange={(m) => update((p) => { p.events[i].month = m ?? 1; })} />
               <NumInput unit="cr" value={e.amount} min={0} width="w-20" title="Amount" onChange={(x) => update((p) => { p.events[i].amount = x; })} />
-              <input value={e.note} placeholder="Note (e.g. Seed — Hyperscale lead)" aria-label="Note" onChange={(ev) => update((p) => { p.events[i].note = ev.target.value; })} className={`${txt} min-w-[200px] flex-1`} />
+              <input value={e.note} placeholder="Note (e.g. Seed: Hyperscale lead)" aria-label="Note" onChange={(ev) => update((p) => { p.events[i].note = ev.target.value; })} className={`${txt} min-w-[200px] flex-1`} />
               {replaced && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-slate-500">Replaced by the venture-debt terms above</span>}
               <button type="button" className={rm} aria-label={`Remove ${KIND[e.kind]} in ${e.month}`} onClick={() => update((p) => { p.events.splice(i, 1); })}>Remove</button>
             </div>
@@ -156,7 +156,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                   <td className={`${td} text-right`}>{pct(seedRow.sold)}</td><td className={`${td} text-right`}>{pct(seedRow.existingAfter)}</td><td className={td} />
                 </tr>
               )}
-              {rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={10} className={`${td} text-slate-500`}>No rounds yet — fit the plan (Targets), add one, or start from the benchmarks below.</td></tr>}
+              {rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={10} className={`${td} text-slate-500`}>No rounds yet: fit the plan (Targets), add one, or start from the benchmarks below.</td></tr>}
               {rounds.map((x, i) => {
                 const d = dil.find((y) => y.name === x.name && y.month === x.month);
                 return (

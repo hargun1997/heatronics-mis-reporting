@@ -19,8 +19,8 @@ const SHEETS: { key: SheetKey; title: string; desc: string }[] = [
   { key: 'includeSummary', title: 'Summary', desc: 'Headline KPIs and a financial-year summary table' },
   { key: 'includeChannelRevenue', title: 'Channel Revenue', desc: 'Net revenue and mix % per channel, by month' },
   { key: 'includeChannelPnl', title: 'Channel P&L + SKU x Channel', desc: 'MIS-anchored channel P&L per FY, and the all-time SKU × channel CM2 matrix with per-channel cascades' },
-  { key: 'includeOrders', title: 'Channel Orders', desc: 'Orders per channel per month — actual where connectors report them, else revenue ÷ AOV' },
-  { key: 'includeRepeats', title: 'Repeats', desc: 'Repeat-purchase behaviour — Shopify (D2C) & Amazon' },
+  { key: 'includeOrders', title: 'Channel Orders', desc: 'Orders per channel per month: actual where connectors report them, else revenue ÷ AOV' },
+  { key: 'includeRepeats', title: 'Repeats', desc: 'Repeat-purchase behaviour: Shopify (D2C) & Amazon' },
   { key: 'includeDiscounts', title: 'Discounts', desc: 'Monthly discounts and total sales (storefront)' },
   { key: 'includeCogmDetail', title: 'COGM Detail', desc: 'Cost-of-goods-manufactured ledger lines, month by month' },
   { key: 'includeOpexDetail', title: 'OpEx Detail', desc: 'Operating-expense ledger lines, month by month (Live extra)' },
@@ -145,7 +145,7 @@ export function LivePdfModal({ deck, open, onClose, basis, merged }: {
           ))}
         </div>
         <div>
-          <p className="text-xs font-medium text-slate-700 mb-1.5">Fiscal years <span className="font-normal text-slate-400">(trends, FY P&amp;L, channel mix — none = all)</span></p>
+          <p className="text-xs font-medium text-slate-700 mb-1.5">Fiscal years <span className="font-normal text-slate-400">(trends, FY P&amp;L, channel mix: none = all)</span></p>
           <div className="flex flex-wrap gap-1.5">
             {years.map((y) => <button key={y.key} type="button" className={chip(fyKeys.includes(y.key))} onClick={() => setFyKeys(toggle(fyKeys, y.key))}>{y.label}</button>)}
           </div>

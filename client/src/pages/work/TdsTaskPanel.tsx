@@ -17,7 +17,7 @@ export function TdsTaskPanel({ month }: { month: string }) {
       {loading && !r && <p className="text-sm text-slate-500">Reading the Tally Day Book…</p>}
       {r && !r.haveMonth && <NoDayBook month={monthLabel(month)} />}
       {r && r.haveMonth && (<><PayHeadline r={r} /><PayTable r={r} />
-        {r.flags.some((f) => f.severity === 'high') && <p className="text-sm text-red-700">{r.flags.filter((f) => f.severity === 'high').length} things to fix before paying — see the TDS page.</p>}</>)}
+        {r.flags.some((f) => f.severity === 'high') && <p className="text-sm text-red-700">{r.flags.filter((f) => f.severity === 'high').length} things to fix before paying: see the TDS page.</p>}</>)}
     </section>
   );
 }

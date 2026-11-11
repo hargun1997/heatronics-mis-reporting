@@ -6,10 +6,8 @@
 // can't change anything.
 // ----------------------------------------------------------------------------
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildLiveMisContext } from '../../data/chat/misContext';
+import { useEffect, useRef, useState } from 'react';
 import { chatStatus, sendChat, type ChatMessage } from '../../data/chat/chatClient';
-import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { Markdown } from '../ui/Markdown';
 
 const SUGGESTIONS = [
@@ -38,7 +36,7 @@ const iconSend = (
 
 export function FloatingChat() {
   const [open, setOpen] = useState(false);
-  const [deck, setDeck] = useState<LiveDeckData | null>(null);
+  const [context, setContext] = useState('');
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -53,18 +51,20 @@ export function FloatingChat() {
   useEffect(() => {
     if (!open || loadedOnce) return;
     setLoadedOnce(true);
-    loadLiveDeck().then(setDeck).catch(() => setDeck(null));
+    // The deck code (about 200 kB + the Excel reader) loads here, on the first open, not with every page.
+    void Promise.all([import('../../data/misDeck/liveDeck'), import('../../data/chat/misContext')])
+      .then(async ([d, c]) => setContext(c.buildLiveMisContext(await d.loadLiveDeck().catch(() => null)).context))
+      .catch(() => setContext('The MIS data did not load.'));
     chatStatus().then((s) => setConfigured(s.configured)).catch(() => setConfigured(false));
   }, [open, loadedOnce]);
 
   useEffect(() => { if (open) endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading, open]);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
 
-  const { context } = useMemo(() => buildLiveMisContext(deck), [deck]);
 
   const ask = async (q: string) => {
     const text = q.trim();
-    if (!text || loading || configured === false) return;
+    if (!text || loading || configured === false || !context) return;
     setError(null);
     const next = [...messages, { role: 'user' as const, content: text }];
     setMessages(next);

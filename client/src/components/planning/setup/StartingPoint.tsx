@@ -49,7 +49,7 @@ export function Section({ plan, update }: SetupSectionProps) {
       const want = monthBefore(plan.startMonth);
       const m = j.months?.find((x) => x.period === want);
       const got = m ? openingFromTally(m, plan.fx?.opening ?? founderFx(plan.cash).opening) : null;
-      if (!got) { setMsg(j.connected ? `No Trial Balance stored for ${want} yet — Tally health → Pull now.` : 'Tally is not connected (Setup → Tally).'); return; }
+      if (!got) { setMsg(j.connected ? `No Trial Balance stored for ${want} yet: Tally health → Pull now.` : 'Tally is not connected (Setup → Tally).'); return; }
       setFx((f) => { f.opening = got.opening; });
       setMsg(`Loaded the ${want} balance sheet.${got.warnings.length ? ' ' + got.warnings[0] : ''}`);
     } catch (e) { setMsg((e as Error).message); }
@@ -70,8 +70,8 @@ export function Section({ plan, update }: SetupSectionProps) {
       <div className="space-y-2">
         <SubHead>Plan basis</SubHead>
         <SegmentedControl<PlanMode> options={BASIS.map(({ id, label }) => ({ id, label }))} value={mode} onChange={(m) => update((p) => setPlanMode(p, m))} size="md" aria-label="Plan basis" />
-        <Note>{basis.label} — {basis.blurb}.</Note>
-        <Note>Sheet parity ignores every switch, product, hire, round and target below and books tax monthly — the first 18 months then equal the sheet. Outputs show a ‘Sheet parity’ chip.</Note>
+        <Note>{basis.label}: {basis.blurb}.</Note>
+        <Note>Sheet parity ignores every switch, product, hire, round and target below and books tax monthly: the first 18 months then equal the sheet. Outputs show a ‘Sheet parity’ chip.</Note>
         {growthSwitchedOff(plan) && (
           <div className="flex flex-wrap items-center gap-3">
             <Note tone="amber">The products &amp; growth layer is switched off in this saved scenario.</Note>
@@ -102,7 +102,7 @@ export function Section({ plan, update }: SetupSectionProps) {
           <SubHead>Opening position ({startLabel})</SubHead>
           {mode === 'plan' ? (
             <>
-              <span className="text-[12px] text-slate-500">{!o || o.source === 'sheet' ? 'Sheet values — replace with Tally' : o.source === 'tally' ? `From Tally, ${String(o.asOf ?? '').slice(0, 10)}` : 'Typed in'}</span>
+              <span className="text-[12px] text-slate-500">{!o || o.source === 'sheet' ? 'Sheet values: replace with Tally' : o.source === 'tally' ? `From Tally, ${String(o.asOf ?? '').slice(0, 10)}` : 'Typed in'}</span>
               <button type="button" className={btn} onClick={loadTally}>Load {priorLabel} from Tally</button>
               {msg && <span className="text-[12px] text-slate-500" role="status">{msg}</span>}
             </>
