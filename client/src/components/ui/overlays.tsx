@@ -82,7 +82,7 @@ export function Drawer({
             <button
               onClick={onClose}
               aria-label="Close"
-              className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              className="w-11 h-11 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
             >
               {iconX}
             </button>
@@ -138,7 +138,7 @@ export function Modal({ open, onClose, title, subtitle, icon, footer, width = 52
             <button
               onClick={onClose}
               aria-label="Close"
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
+              className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
             >
               {iconX}
             </button>

@@ -56,7 +56,7 @@ export const PAGE_OWNER: Record<string, PageOwner> = {
 export const HOME = '/today';
 
 // Simplified 11 Nov 2026: 4 sections, 13 pages. The Tools section is gone: each tool sits with its job.
-// Send report opens from Live MIS, Round planner from the 5-year plan, People and reminders from Tasks and Setup.
+// Send report opens from Live MIS, People and reminders from Tasks and Setup.
 export const NAV: NavSection[] = [
   {
     id: 'reporting',
@@ -86,6 +86,7 @@ export const NAV: NavSection[] = [
     label: 'Planning',
     pages: [
       { id: 'plan', label: '5-year plan', href: '/planning', icon: 'plan', hint: 'Plan to FY31, scenarios, plan vs actual', words: 'projection forecast budget fundraise cash runway' },
+      { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution', words: 'equity dilution cap table investors' },
       { id: 'floors', label: 'Price floors', href: '/tools/price-floors', icon: 'floors', hint: 'Lowest Amazon price per SKU that makes money', words: 'amazon pricing margin asin' },
     ],
   },
@@ -104,7 +105,6 @@ export const NAV: NavSection[] = [
     href: HOME,
     pages: [
       { id: 'send', label: 'Send report', href: '/reporting/mis/send', icon: 'send', hint: 'Email the monthly MIS (opens from Live MIS)', words: 'email investors board' },
-      { id: 'rounds', label: 'Round planner', href: '/tools/round-planner', icon: 'rounds', hint: 'Fundraise rounds and dilution (opens from the 5-year plan)', words: 'equity dilution cap table investors' },
       { id: 'people', label: 'People and reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails (opens from Tasks)', words: 'team owners settings' },
       { id: 'rulebook', label: 'Data rulebook', href: '/reporting/mis/rulebook', icon: 'rules', hint: 'How each number is made', words: 'rules mapping definitions' },
       { id: 'tranzact', label: 'Amazon to Tranzact (manual)', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'Old manual converter', words: 'fba inventory ledger stock reconciliation converter' },
