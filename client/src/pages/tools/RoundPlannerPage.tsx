@@ -12,7 +12,7 @@ export function RoundPlannerPage() {
     <>
       <PageHeader
         title="Round planner"
-        description="The cap table from today to Series A. Change a round and read the dilution."
+        description="Cap table from today to Series A. Change a round to see the dilution."
         actions={<>
           <Link to="/planning" className={BTN}>Back to the 5-year plan</Link>
           <a href="/embed/round-planner.html" target="_blank" rel="noreferrer" className={BTN}>Open in a new tab</a>

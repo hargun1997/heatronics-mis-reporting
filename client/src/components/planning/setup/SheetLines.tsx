@@ -9,16 +9,18 @@ import {
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import { int, lakh, cr } from '../fmt';
 import { NumInput } from '../inputs';
-import { Note, SubHead, monthsOf, newId, txt } from './shared';
+import { Parts, SubHead, monthsOf, newId, txt, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 
 export { summary };
 
 export function Section({ plan, update, result }: SetupSectionProps) {
+  const [part, setPart] = useParts<'units' | 'lines'>('lines');
   return (
-    <div className="space-y-6">
-      <UnitGrid plan={plan} update={update} result={result} />
-      <CostLines plan={plan} update={update} result={result} />
+    <div className="space-y-4">
+      <Parts value={part} onChange={setPart} label="Sheet part" options={[{ id: 'lines', label: 'Cost lines' }, { id: 'units', label: 'Unit grid' }]} />
+      {part === 'units' && <UnitGrid plan={plan} update={update} result={result} />}
+      {part === 'lines' && <CostLines plan={plan} update={update} result={result} />}
     </div>
   );
 }
@@ -36,8 +38,7 @@ function UnitGrid({ plan, update, result: r }: SetupSectionProps) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <SubHead>Unit plan (the sheet's grid)</SubHead>
-          <Note>Oct-26 → {r.months[B - 1].label}, by SKU × channel. Each cell = last year's units + units missed (stock-outs) + growth units, as in the sheet. Edit any part; Total is the sum.</Note>
+          <SubHead info={<><p>Oct-26 to {r.months[B - 1].label}, by SKU and channel.</p><p>Each cell = last year&apos;s units + units missed (stock-outs) + growth units, as in the sheet. Change any part. Total is the sum.</p><p>&quot;Stretch the 18-month plan&quot; (Assumptions) multiplies these units for each channel.</p></>}>Unit grid</SubHead>
         </div>
         <SegmentedControl size="sm" value={part} onChange={setPart} options={UNIT_PARTS.map((x) => ({ id: x.id, label: x.label }))} aria-label="Which part of the units" />
       </div>
@@ -50,7 +51,7 @@ function UnitGrid({ plan, update, result: r }: SetupSectionProps) {
       <div className="flex flex-wrap items-center gap-3 text-[13px] text-slate-600">
         <span>Price (₹, incl. GST) for <b>{s.name}</b></span>
         <NumInput value={s.asp} min={0} width="w-24" title={`${s.name} price`} onChange={(v) => update((p) => { p.skus[skuI].asp = v; })} />
-        <span className="text-[12px] text-slate-400">Same price on every channel, as in the sheet.</span>
+        <span className="text-[12px] text-slate-600">Same price on every channel, as in the sheet.</span>
       </div>
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="text-[12.5px] tabular-nums">
@@ -84,7 +85,6 @@ function UnitGrid({ plan, update, result: r }: SetupSectionProps) {
           </tbody>
         </table>
       </div>
-      <Note>The “Stretch the 18-month plan” multipliers (Assumptions) scale these units per channel on top.</Note>
     </div>
   );
 }
@@ -104,25 +104,28 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
 
   return (
     <div className="space-y-3">
-      <SubHead>Expense Calendar lines</SubHead>
       <div className="flex flex-wrap items-center gap-3">
+        <SubHead info={<><p>Select a group to change its lines.</p><p>Amount is ₹ for a monthly, quarterly, annual or one-time line. It is a % for a &quot;% of …&quot; line, and a multiple for a &quot;ROAS on …&quot; line.</p><p>Repeats: after Mar-28 the line runs as in the same month of Apr-27 to Mar-28. Clear it for one-off lines.</p><p>The ₹ Cr columns for each FY are the result of this plan.</p></>}>Expense Calendar lines</SubHead>
         <SegmentedControl options={SHEET_SECTIONS} value={section} onChange={setSection} size="sm" aria-label="Cost section" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a line…" aria-label="Find a line" className={txt} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a line" aria-label="Find a line" className={txt} />
       </div>
-      <Note>
-        Amount is ₹ for Monthly / Quarterly / Annual / One Time, a % for “% of …”, and the ROAS multiple for “ROAS on …”.
-        <b> Repeats</b> = after Mar-28 the line runs as it did in the same month of Apr-27–Mar-28 (seasonal rates carry on); untick for one-offs.
-        The ₹ Cr per FY columns are this run's result.
-      </Note>
       {groups.map((g) => {
         const ls = linesOf(plan, g.name, q);
         if (q.trim() && !ls.length) return null;
+        const lastFy = fys[fys.length - 1];
         return (
-          <div key={g.name} tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
+          <details key={g.name + (q.trim() ? ':q' : '')} open={!!q.trim()} className="group rounded-xl border border-slate-200 bg-white">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-[13px] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 [&::-webkit-details-marker]:hidden">
+              <span aria-hidden className="text-slate-400 transition-transform group-open:rotate-90">›</span>
+              <span className="font-semibold text-slate-900">{g.name}</span>
+              <span className="text-xs text-slate-600">{ls.length} lines</span>
+              <span className="ml-auto tabular-nums text-slate-700">{lastFy} ₹{cr(groupTotal(r, g.name, lastFy))} Cr</span>
+            </summary>
+          <div tabIndex={0} role="region" aria-label={`${g.name} lines, scroll sideways for more`} className="overflow-x-auto border-t border-slate-100">
             <table className="w-full min-w-[980px] text-[12.5px] tabular-nums">
               <thead>
-                <tr className="bg-surface-tint text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-2 text-left text-[13px] font-bold normal-case text-slate-800">{g.name}</th>
+                <tr className="bg-surface-tint text-xs text-slate-600">
+                  <th className="px-3 py-2 text-left font-semibold">Line</th>
                   <th className="px-2 py-2 text-left font-semibold">Type</th>
                   <th className="px-2 py-2 text-right font-semibold">Amount</th>
                   <th className="px-2 py-2 text-left font-semibold">From</th>
@@ -142,8 +145,8 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
                           <input value={l.name} onChange={(e) => set(l.id, (x) => { x.name = e.target.value; })} className="w-64 rounded border border-transparent px-1 py-0.5 hover:border-slate-200 focus:border-slate-300" aria-label="Line name" />
                           <select value={l.milestone ?? ''} title={l.theme ? `Theme: ${l.theme}` : 'Tag with a milestone to count it as capital deployment'}
                             onChange={(e) => set(l.id, (x, p) => tagMilestone(p, x, e.target.value))}
-                            className={`max-w-[160px] rounded border px-1 py-0.5 text-xs sm:text-[11px] ${l.milestone ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-transparent text-slate-400 hover:border-slate-200'}`} aria-label="Milestone">
-                            <option value="">{l.milestone ? 'No milestone' : '+ milestone'}</option>
+                            className={`max-w-[160px] rounded border px-1 py-0.5 text-xs ${l.milestone ? 'border-slate-300 bg-slate-50 text-slate-800' : 'border-transparent text-slate-600 hover:border-slate-200'}`} aria-label="Milestone">
+                            <option value="">{l.milestone ? 'No milestone' : '+ Milestone'}</option>
                             {plan.business.themes.map((t) => <option key={t.id} value={t.milestone}>{t.milestone} · {t.theme}</option>)}
                           </select>
                         </div>
@@ -164,7 +167,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
                       </td>
                       <td className="px-2 py-1">
                         <select value={l.end ?? ''} onChange={(e) => set(l.id, (x) => { x.end = e.target.value ? Number(e.target.value) : null; })} className={sel} aria-label="To month">
-                          <option value="">ongoing</option>
+                          <option value="">Ongoing</option>
                           {monthOpts.map((o) => <option key={o.m} value={o.m}>{o.label}</option>)}
                         </select>
                       </td>
@@ -177,14 +180,15 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
                 })}
                 <tr className="border-t border-slate-200 bg-slate-50/70">
                   <td className="px-3 py-1.5" colSpan={6}>
-                    <button type="button" onClick={() => add(g.name)} className="text-[12px] font-semibold text-brand-700 hover:underline">+ Add line</button>
-                    <span className="ml-3 text-xs sm:text-[11px] text-slate-400">₹ Cr per FY →</span>
+                    <button type="button" onClick={() => add(g.name)} className="min-h-8 text-[12px] font-semibold text-accent-700 hover:underline">+ Add line</button>
+                    <span className="ml-3 text-xs text-slate-600">Total, ₹ Cr</span>
                   </td>
                   {fys.map((fy) => <td key={fy} className="px-2 py-1.5 text-right font-bold text-slate-900">{cr(groupTotal(r, g.name, fy))}</td>)}
                 </tr>
               </tbody>
             </table>
           </div>
+          </details>
         );
       })}
     </div>
@@ -194,7 +198,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
 export const SECTION: SetupSectionDef = {
   id: 'sheet',
   title: 'Sheet lines (advanced)',
-  blurb: 'Edit the sheet itself: the unit grid by SKU × channel × month and every Expense Calendar line. Rarely needed.',
+  blurb: 'Change the sheet: cost lines and the unit grid. Rarely needed.',
   Section,
   summary,
 };

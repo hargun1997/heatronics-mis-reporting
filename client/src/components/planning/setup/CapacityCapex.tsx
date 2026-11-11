@@ -30,22 +30,21 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
   return (
     <div className="space-y-6">
-      {parity && <Note>Sheet parity: capacity, sites and capex are not in the numbers (Starting point → My plan).</Note>}
+      {parity && <Note tone="amber">Sheet parity is on. Capacity, sites and capex are not in the numbers. Select My plan in Starting point.</Note>}
 
       {/* production capacity */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>Production capacity</SubHead>
+          <SubHead info={<><p>In-house units a month: the hCore range and in-house lines.</p><p>The capex of a block is booked in its month. The block adds capacity and running cost after its lead time.</p></>}>Production capacity</SubHead>
           <button type="button" className={btn} onClick={() => set((g) => { g.capacity.push(newBlock(newId('c'), startMonth)); })}>Add capacity</button>
         </div>
-        <Note>In-house units a month (core hCore range + in-house lines). A block's capex lands in its month; it adds capacity and running cost after its lead time.</Note>
         <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
-          Capacity today <NumInput value={baseCapacityOf(plan)} min={0} width="w-20" title="Capacity today, units a month" onChange={(v) => set((g) => { g.baseCapacity = v; })} /> units / month
+          Capacity today <NumInput value={baseCapacityOf(plan)} min={0} width="w-20" title="Capacity today, units a month" onChange={(v) => set((g) => { g.baseCapacity = v; })} /> units a month
         </div>
         {capacity.length > 0 && (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-[12.5px] tabular-nums">
-              <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Block</th><th className={th}>Capex in</th><th className={thr}>Lead (mo)</th><th className={thr}>+ units/mo</th><th className={thr}>Capex</th><th className={thr}>Running / mo</th><th className={th} /></tr></thead>
+              <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Block</th><th className={th}>Capex in</th><th className={thr}>Lead, months</th><th className={thr}>+ Units a month</th><th className={thr}>Capex</th><th className={thr}>Running a month</th><th className={th} /></tr></thead>
               <tbody>
                 {capacity.map((b: CapacityBlock, i) => {
                   const sb = (fn: (x: CapacityBlock) => void) => set((g) => { if (g.capacity[i]) fn(g.capacity[i]); });
@@ -66,28 +65,27 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             </table>
           </div>
         )}
-        <Note tone={over ? 'amber' : 'grey'}>{peak}{over ? ': build stock ahead of the peak or add capacity earlier.' : ''}</Note>
+        <Note tone={over ? 'amber' : 'grey'}>{peak}{over ? '. Build stock before the peak, or add capacity earlier.' : ''}</Note>
       </section>
 
       {/* overheads */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>Warehouses, offices &amp; running costs</SubHead>
+          <SubHead info={<><p>A site costs sq ft × rent, plus running cost. Rent increases each year.</p><p>The deposit and fit-out are capex in the opening month.</p><p>Fixed costs grow by their rate a year. % lines follow revenue.</p></>}>Warehouses, offices and running costs</SubHead>
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btn} onClick={() => set((g) => { (g.overheads ??= []).push(newSite(newId('o'), startMonth)); })}>Add a site</button>
             <button type="button" className={btn} onClick={() => set((g) => { (g.overheads ??= []).push(newExpense(newId('o'), Math.min(7, horizon))); })}>Add an expense</button>
           </div>
         </div>
-        <Note>Sites cost sq ft × rent (escalating yearly) plus running cost, with a deposit and fit-out as capex in the opening month. Fixed costs grow by their rate a year; % lines follow revenue.</Note>
         {overheads.length === 0 && (
-          <p className="text-[13px] text-slate-500">
-            None yet. <button type="button" className="font-semibold text-brand-700 underline" onClick={() => set((g) => { g.overheads = defaultOverheads(); })}>Add warehouses, office and running costs</button>
+          <p className="text-[13px] text-slate-600">
+            None yet. <button type="button" className="font-semibold text-accent-700 underline" onClick={() => set((g) => { g.overheads = defaultOverheads(); })}>Add warehouses, office and running costs</button>
           </p>
         )}
         {overheads.length > 0 && (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full min-w-[1100px] text-[12.5px] tabular-nums">
-              <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Kind</th><th className={th}>Group</th><th className={th}>From</th><th className={th}>To</th><th className={thr}>₹ / mo or %</th><th className={thr}>Sq ft</th><th className={thr}>Rent ₹/sq ft</th><th className={thr}>Running / mo</th><th className={thr}>Deposit (mo)</th><th className={thr}>Fit-out</th><th className={thr}>+ / yr</th><th className={th} /></tr></thead>
+              <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Kind</th><th className={th}>Group</th><th className={th}>From</th><th className={th}>To</th><th className={thr}>₹ a month or %</th><th className={thr}>Sq ft</th><th className={thr}>Rent ₹ a sq ft</th><th className={thr}>Running a month</th><th className={thr}>Deposit, months</th><th className={thr}>Fit-out</th><th className={thr}>+ a year</th><th className={th} /></tr></thead>
               <tbody>
                 {overheads.map((o: Overhead, i) => {
                   const so = (fn: (x: Overhead) => void) => set((g) => { if (g.overheads?.[i]) fn(g.overheads[i]); });
@@ -98,7 +96,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                       <td className={td}><input className={name} value={o.name} aria-label="Item" onChange={(e) => so((x) => { x.name = e.target.value; })} /></td>
                       <td className={td}>
                         <select aria-label="Kind" value={o.kind} className={sel} onChange={(e) => so((x) => { x.kind = e.target.value as Overhead['kind']; })}>
-                          <option value="site">Site (rent)</option><option value="fixed">Fixed ₹ / mo</option><option value="pct">% of revenue</option>
+                          <option value="site">Site (rent)</option><option value="fixed">Fixed ₹ a month</option><option value="pct">% of revenue</option>
                         </select>
                       </td>
                       <td className={td}>
@@ -130,11 +128,10 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       {/* other capex */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>Other capex</SubHead>
+          <SubHead info="One-off spends, booked in their month. They are depreciated when that switch is on in Assumptions.">Other capex</SubHead>
           <button type="button" className={btn} onClick={() => set((g) => { g.capex.push(newCapex(newId('x'), startMonth)); })}>Add capex</button>
         </div>
-        <Note>One-off spends, booked in their month (depreciated when that switch is on under Assumptions).</Note>
-        {capex.length === 0 && <p className="text-[13px] text-slate-500">None yet.</p>}
+        {capex.length === 0 && <p className="text-[13px] text-slate-600">None yet.</p>}
         {capex.length > 0 && (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-[12.5px] tabular-nums">
@@ -168,8 +165,8 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
 export const SECTION: SetupSectionDef = {
   id: 'capacity',
-  title: 'Capacity, sites & capex',
-  blurb: 'Production capacity blocks, warehouses / offices / running costs, and one-off capex.',
+  title: 'Capacity, sites and capex',
+  blurb: 'Capacity blocks, sites and running costs, and one-off capex.',
   Section,
   summary,
 };

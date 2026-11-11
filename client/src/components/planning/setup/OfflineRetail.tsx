@@ -35,20 +35,19 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
   return (
     <div className="space-y-5">
-      {parity && <Note>Sheet parity: offline channels and stores are not in the numbers (Starting point → My plan).</Note>}
-      {!parity && layerOff && <Note tone="amber">The products & growth layer is switched off in this saved scenario (Starting point).</Note>}
+      {parity && <Note tone="amber">Sheet parity is on. Offline channels and stores are not in the numbers. Select My plan in Starting point.</Note>}
+      {!parity && layerOff && <Note tone="amber">The growth layer is off in this scenario. Turn it on in Starting point.</Note>}
 
       {/* offline channel types */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>General trade, modern trade & pharmacy</SubHead>
+          <SubHead info={<><p>Add outlets by month. After the ramp, each outlet sells the units below for each product family. The units split evenly over the family&apos;s live products.</p><p>We invoice list price less the trade margin. Schemes reduce revenue. Listing fees and servicing are channel costs.</p></>}>General trade, modern trade and pharmacy</SubHead>
           <button type="button" className={btn} onClick={() => set((g) => { g.retail = [...(g.retail ?? []), newRetailType(newId('t'))]; })}>Add a channel</button>
         </div>
-        <Note>Outlets added by month; each sells units a month per product family at full offtake (after the ramp), split evenly over that family's live lines. We invoice list price less the trade margin; schemes are a revenue deduction, listing fees and servicing are channel costs.</Note>
         {retail.length === 0 && (
-          <p className="text-[13px] text-slate-500">
+          <p className="text-[13px] text-slate-600">
             No offline channels yet.{' '}
-            <button type="button" className="font-semibold text-brand-700 underline" onClick={() => set((g) => { g.retail = defaultRetail(); })}>Add GT, MT and pharmacy</button>
+            <button type="button" className="font-semibold text-accent-700 underline" onClick={() => set((g) => { g.retail = defaultRetail(); })}>Add GT, MT and pharmacy</button>
           </p>
         )}
         {retail.map((t: RetailType, i) => {
@@ -62,7 +61,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 <button type="button" className={`${rm} ml-auto`} aria-label={`Remove ${t.name}`} onClick={() => set((g) => { g.retail?.splice(i, 1); })}>✕</button>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-slate-600">
-                <span className="text-slate-700">Units / outlet / mo:</span>
+                <span className="text-slate-700">Units an outlet a month:</span>
                 {fams.map((f) => (
                   <span key={f.id}>{f.name.toLowerCase()} <NumInput value={t.units[f.id] ?? 0} min={0} width="w-14" title={`${f.name} units per outlet a month`} onChange={(v) => setT((x) => { x.units[f.id] = v; })} /></span>
                 ))}
@@ -71,8 +70,8 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 <span>Trade margin <NumInput unit="pct" value={t.tradeMarginPct} min={0} max={0.9} width="w-12" title="Trade margin" onChange={(v) => setT((x) => { x.tradeMarginPct = v; })} /></span>
                 <span>Schemes <NumInput unit="pct" value={t.schemePct} min={0} width="w-12" title="Schemes" onChange={(v) => setT((x) => { x.schemePct = v; })} /></span>
                 <span>Listing fee ₹ <NumInput value={t.listingFee} min={0} width="w-16" title="Listing fee per new outlet" onChange={(v) => setT((x) => { x.listingFee = v; })} /></span>
-                <span>Servicing ₹/outlet/mo <NumInput value={t.servicePerOutlet} min={0} width="w-16" title="Servicing cost per outlet a month" onChange={(v) => setT((x) => { x.servicePerOutlet = v; })} /></span>
-                <span>Ramp <NumInput value={t.rampMonths} min={1} width="w-12" title="Ramp months" onChange={(v) => setT((x) => { x.rampMonths = Math.round(v); })} /> mo</span>
+                <span>Servicing ₹ an outlet a month <NumInput value={t.servicePerOutlet} min={0} width="w-16" title="Servicing cost per outlet a month" onChange={(v) => setT((x) => { x.servicePerOutlet = v; })} /></span>
+                <span>Ramp <NumInput value={t.rampMonths} min={1} width="w-12" title="Ramp months" onChange={(v) => setT((x) => { x.rampMonths = Math.round(v); })} /> months</span>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-slate-600">
                 <b className="text-slate-700">Outlets added</b>
@@ -83,9 +82,9 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                     <button type="button" className={rm} aria-label="Remove outlets step" onClick={() => setT((x) => { x.outlets.splice(j, 1); })}>✕</button>
                   </span>
                 ))}
-                <button type="button" className={btn} onClick={() => setT((x) => { x.outlets.push(nextOutletStep(x, horizon)); })}>+ outlets</button>
+                <button type="button" className={btn} onClick={() => setT((x) => { x.outlets.push(nextOutletStep(x, horizon)); })}>+ Add outlets</button>
               </div>
-              <div className="mt-2 flex flex-wrap gap-x-5 text-[12px] text-slate-500">
+              <div className="mt-2 flex flex-wrap gap-x-5 text-[12px] tabular-nums text-slate-600">
                 {fyRows.map((x) => <span key={x.fy}>{x.fy}: <b className="text-slate-700">{int(x.outlets)}</b> outlets · {money(x.invoiced, 1)}</span>)}
               </div>
             </div>
@@ -96,28 +95,27 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       {/* own stores */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>Own stores / outlets</SubHead>
+          <SubHead info={<><p>Revenue a store a month when mature, with GST. It grows in a straight line over the ramp.</p><p>Rent, running costs and staff go to Retail Stores. Fit-out is capex in the opening month.</p></>}>Own stores</SubHead>
           <label className="flex items-center gap-2 text-[13px] font-semibold text-slate-700">
             <Check checked={stores.on} onChange={(v) => set((g) => { g.stores.on = v; })} label="Stores on" /> Stores on
           </label>
         </div>
-        <Note>Revenue per store a month once mature (incl. GST), reached in a straight line over the ramp. Rent, running costs and staff in Retail Stores; fit-out is capex in the opening month.</Note>
         <div className={`grid gap-6 text-[13px] text-slate-600 lg:grid-cols-[auto_minmax(0,1fr)] ${stores.on ? '' : 'opacity-60'}`}>
           <div className="grid grid-cols-[minmax(0,13rem)_auto] items-center gap-x-4 gap-y-2">
-            <span>Mature revenue / store / mo</span><NumInput unit="lakh" value={stores.matureRevenue} min={0} width="w-16" title="Mature revenue" onChange={(v) => set((g) => { g.stores.matureRevenue = v; })} />
+            <span>Mature revenue a store a month</span><NumInput unit="lakh" value={stores.matureRevenue} min={0} width="w-16" title="Mature revenue" onChange={(v) => set((g) => { g.stores.matureRevenue = v; })} />
             <span>Ramp (months)</span><NumInput value={stores.rampMonths} min={1} width="w-16" title="Ramp months" onChange={(v) => set((g) => { g.stores.rampMonths = Math.round(v); })} />
-            <span>Fit-out capex / store</span><NumInput unit="lakh" value={stores.capexPerStore} min={0} width="w-16" title="Fit-out" onChange={(v) => set((g) => { g.stores.capexPerStore = v; })} />
-            <span>Rent / store / mo</span><NumInput unit="lakh" value={stores.rentPerStore} min={0} width="w-16" title="Rent" onChange={(v) => set((g) => { g.stores.rentPerStore = v; })} />
-            <span>Other running / store / mo</span><NumInput unit="lakh" value={stores.otherOpexPerStore} min={0} width="w-16" title="Other running cost" onChange={(v) => set((g) => { g.stores.otherOpexPerStore = v; })} />
-            <span>Staff / store</span><NumInput value={stores.staffPerStore} min={0} width="w-16" title="Staff per store" onChange={(v) => set((g) => { g.stores.staffPerStore = Math.round(v); })} />
-            <span>Staff CTC / mo</span><NumInput unit="lakh" value={stores.staffCtc} min={0} width="w-16" title="Staff CTC" onChange={(v) => set((g) => { g.stores.staffCtc = v; })} />
+            <span>Fit-out capex a store</span><NumInput unit="lakh" value={stores.capexPerStore} min={0} width="w-16" title="Fit-out" onChange={(v) => set((g) => { g.stores.capexPerStore = v; })} />
+            <span>Rent a store a month</span><NumInput unit="lakh" value={stores.rentPerStore} min={0} width="w-16" title="Rent" onChange={(v) => set((g) => { g.stores.rentPerStore = v; })} />
+            <span>Other running cost a store a month</span><NumInput unit="lakh" value={stores.otherOpexPerStore} min={0} width="w-16" title="Other running cost" onChange={(v) => set((g) => { g.stores.otherOpexPerStore = v; })} />
+            <span>Staff a store</span><NumInput value={stores.staffPerStore} min={0} width="w-16" title="Staff per store" onChange={(v) => set((g) => { g.stores.staffPerStore = Math.round(v); })} />
+            <span>Staff CTC a month</span><NumInput unit="lakh" value={stores.staffCtc} min={0} width="w-16" title="Staff CTC" onChange={(v) => set((g) => { g.stores.staffCtc = v; })} />
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between">
               <b className="text-slate-700">Openings</b>
               <button type="button" className={btn} onClick={() => set((g) => { g.stores.openings.push(nextStoreOpening(g.stores, horizon)); })}>Add openings</button>
             </div>
-            {stores.openings.length === 0 && <p className="text-[12px] text-slate-500">No openings yet.</p>}
+            {stores.openings.length === 0 && <p className="text-[12px] text-slate-600">No openings yet.</p>}
             {stores.openings.map((o, i) => (
               <div key={i} className="flex items-center gap-2 py-1">
                 <MonthSelect title="Opening month" value={o.month} months={months} onChange={(m) => set((g) => { g.stores.openings[i].month = m ?? 1; })} />
@@ -125,7 +123,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 <button type="button" className={rm} aria-label="Remove openings" onClick={() => set((g) => { g.stores.openings.splice(i, 1); })}>✕</button>
               </div>
             ))}
-            <p className="mt-2 text-[12px] text-slate-500">{int(sf.stores)} stores at {sf.label} · {sf.byFy.map((y) => `${y.fy} ${money(y.revenue, 1)}`).join(' · ')}</p>
+            <p className="mt-2 text-[12px] tabular-nums text-slate-600">{int(sf.stores)} stores at {sf.label} · {sf.byFy.map((y) => `${y.fy} ${money(y.revenue, 1)}`).join(' · ')}</p>
           </div>
         </div>
       </div>
@@ -135,8 +133,8 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
 export const SECTION: SetupSectionDef = {
   id: 'retail',
-  title: 'Offline retail & stores',
-  blurb: 'General trade, modern trade and pharmacies (outlets, offtake, margins), and own stores.',
+  title: 'Offline retail and stores',
+  blurb: 'Outlets, sales and margins in GT, MT and pharmacy, and own stores.',
   Section,
   summary,
 };
