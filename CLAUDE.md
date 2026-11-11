@@ -34,10 +34,10 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 - Menu = `client/src/nav/config.ts` only (sidebar `components/shell/AppNav.tsx`, ⌘K `CommandPalette`). Adding a page = a route in
   `App.tsx` + a line in nav/config; `server/test/nav.test.ts` checks both.
 - **Simplified structure (founder, 11 Nov 2026: "text overload… a page should not be more than 2 scrolls… modals, pills and menus";
-  plan `/home/claude/ember/simplify/MIS-PLAN.md`):** **Home = Today** (`HOME`). Sidebar = 4 sections, 13 pages, no Tools section:
+  plan `/home/claude/ember/simplify/MIS-PLAN.md`):** **Home = Today** (`HOME`). Sidebar = 4 sections, 14 pages, no Tools section:
   Reporting (Today · Live MIS · AI insights) · Accounts (Tasks · Book an invoice · Bulk payments · TDS · Cash runway · Tally health ·
-  Handbook) · Planning (5-year plan · Price floors) · Admin (Setup). Not in the sidebar (palette + a button on the page they belong to):
-  Send report (Live MIS header), Round planner (5-year plan "…" menu), People and reminders (Tasks gear, Setup header), Data rulebook
+  Handbook) · Planning (5-year plan · Round planner · Price floors; Round planner in the menu per founder) · Admin (Setup). Not in the sidebar (palette + a button on the page they belong to):
+  Send report (Live MIS header), People and reminders (Tasks gear, Setup header), Data rulebook
   (Live MIS About popover), Amazon to Tranzact. Removed: Month close (old) page (`/reporting/mis/close` → Setup), All tools hub
   (`/tools` → Today), Ask the MIS page (`/reporting/mis/chat` → AI insights, which has the chat). Short addresses: `/live`, `/cash`,
   `/tds`, `/payments`, `/booking`, `/floors`, `/setup`.
@@ -266,7 +266,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   Connected (API) / Automated (Claude) / Manual upload (`feedOf` in `ConnectorsPage.tsx`: any `upload` slot → manual, else any `claude_task` /
   `claudeTask` → Claude, else API), filter chips by tag, the card's drawer holds its upload steppers (manual first, automatic as fallback) +
   credentials; "Where we are" + "Pull & save all" on top. No Uploads tab: `?view=uploads#<connector>` and `/reporting/mis/ingest` still open
-  that connector's drawer; Round planner under Tools; Data rulebook palette-only. Sidebar: one scrolling list, current page in view.
+  that connector's drawer; Round planner under Planning; Data rulebook palette-only. Sidebar: one scrolling list, current page in view.
 - **Chart of accounts** (Tally health → Chart of accounts, `GET /api/tally/books/chart`, pure `connectors/tally/chart.ts`, READ ONLY): groups →
   sub-groups → ledgers tree with closings from the newest stored TB; hanging ledgers = on a parent group with sub-groups (not Sundry Debtors /
   Creditors / Duties & Taxes / banks), in a carry-over / old group (Busy Carryover, "- Busy"), no group, or in another channel's group; each with a
@@ -539,7 +539,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   taken twice); `depreciationOnce` (new capex straight-line over `lifeYears` from the next month, D&A lines no longer inflate); `skuTweaks` (hGo/hPulse
   volume, price). Placeholder products (lotion, oil: `placeholder:true`). SKUs launched in the base's last year (hPulse, hBoots) keep their run-rate after the base.
 - **Page = ONE Setup, then outputs (founder, 3 Nov 2026: "should have just 1 setup thing...and then just outputs"; contract
-  `docs/planning/ONE-SETUP.md`):** `components/planning/setup/SetupPanel.tsx` = a collapsible card with 11 numbered collapsible sections
+  `docs/planning/ONE-SETUP.md`):** `components/planning/setup/SetupPanel.tsx` = a right drawer (simplification pass 2: numbered sections, one part at a time via sub-tabs, field help in "i" popovers; output views use header tabs + sub-tabs, `components/planning/ui.tsx` PlanCard / SubTabs / Stat, Costs = one group table with a lines modal) with 11 numbered collapsible sections
   (Starting point · Assumptions · Products & categories · D2C customers & seasonality · Offline retail & stores · Team & hiring · Capacity,
   sites & capex · Funding · Targets · Business plan text · Sheet lines), each `setup/<Section>.tsx` exporting `SECTION` (`setup/types.ts`:
   `{id, title, blurb, Section, summary}`) with its pure helpers + `summary(plan)` in `data/planning/setup/<section>.ts` (tests
