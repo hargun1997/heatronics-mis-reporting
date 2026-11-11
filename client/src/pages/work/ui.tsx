@@ -2,8 +2,8 @@
 // collapsible section, and field styles.
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeftIcon, CheckIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { CheckIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import type { TeamMember } from '../../data/work/workClient';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { avatarTone, initials } from './taskModel';
@@ -11,23 +11,9 @@ import { avatarTone, initials } from './taskModel';
 export const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1';
 
 /** One-line page header: title + subtitle on the left, actions on the right. */
-export function TasksHeader({ title, sub, back, children }: { title: string; sub?: string; back?: { to: string; label: string }; children?: React.ReactNode }) {
-  return (
-    <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-8">
-      {back && (
-        <Link to={back.to} className={`mb-2 inline-flex items-center gap-1 rounded text-sm font-medium text-slate-600 hover:text-brand-700 ${focusRing}`}>
-          <ArrowLeftIcon className="h-4 w-4" /> {back.label}
-        </Link>
-      )}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <div className="min-w-0 flex-1 basis-56">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-slate-950">{title}</h1>
-          {sub && <p className="mt-0.5 text-sm text-slate-600">{sub}</p>}
-        </div>
-        {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
-      </div>
-    </div>
-  );
+/** The Tasks pages use the shared page header (same title row, About popover and gutters as every page). */
+export function TasksHeader({ title, sub, status, help, children }: { title: string; sub?: string; back?: { to: string; label: string }; status?: React.ReactNode; help?: React.ReactNode; children?: React.ReactNode }) {
+  return <PageHeader title={title} description={sub} status={status} help={help} actions={children} />;
 }
 
 export function Avatar({ m, size = 'h-6 w-6 text-[12px]' }: { m: TeamMember; size?: string }) {

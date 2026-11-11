@@ -6,8 +6,9 @@
 // ----------------------------------------------------------------------------
 
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Children, createContext, isValidElement, useContext, useState, type ReactElement, type ReactNode } from 'react';
+import { ChevronDownIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { Popover } from '../ui/overlays';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { CHANNEL_COLORS, CHART, pctSigned } from '../mis-deck/format';
 import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
@@ -62,6 +63,8 @@ export function Fold({
   actions?: ReactNode;
   /** Kept for callers; every section now starts open. */
   secondary?: boolean;
+  /** Short label when this block is one view inside <Views>. */
+  tab?: string;
   children: ReactNode;
 }) {
   const key = `livemis:${id}`;
@@ -85,6 +88,42 @@ export function Fold({
           {children}
         </div>
       )}
+    </section>
+  );
+}
+
+// ---- One card, many views (simplification, 11 Nov 2026) ---------------------
+//
+// Wrap a stack of <Fold> blocks in <Views>: the page shows ONE of them at a time, picked with pills, in place of a
+// long column of charts. Each Fold keeps its id / title / meta / actions; `tab` gives the short pill label.
+
+type FoldProps = { id: string; title: ReactNode; meta?: ReactNode; actions?: ReactNode; tab?: string; children: ReactNode };
+
+export function Views({ id, label = 'View', children }: { id: string; label?: string; children: ReactNode }) {
+  const folds = Children.toArray(children).filter((c): c is ReactElement<FoldProps> => isValidElement(c) && !!(c.props as Partial<FoldProps>).id);
+  const key = `livemis:views:${id}`;
+  const [pick, setPick] = useState<string>(() => { try { return localStorage.getItem(key) ?? ''; } catch { return ''; } });
+  if (folds.length === 0) return null;
+  const cur = folds.find((f) => f.props.id === pick) ?? folds[0];
+  const choose = (v: string) => { setPick(v); try { localStorage.setItem(key, v); } catch { /* private mode */ } };
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-100 px-3 py-2">
+        <div role="group" aria-label={label} className="flex max-w-full flex-wrap gap-1">
+          {folds.map((f) => {
+            const on = f === cur;
+            return (
+              <button key={f.props.id} type="button" aria-pressed={on} onClick={() => choose(f.props.id)}
+                className={`min-h-11 sm:min-h-8 rounded-full border px-3 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent-500 ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900'}`}>
+                {f.props.tab ?? f.props.title}
+              </button>
+            );
+          })}
+        </div>
+        {cur.props.meta != null && <span className="hidden min-w-0 flex-1 truncate text-xs text-slate-500 lg:inline">{cur.props.meta}</span>}
+        {cur.props.actions && <div className="ml-auto flex flex-wrap items-center gap-2">{cur.props.actions}</div>}
+      </div>
+      <div className="px-3 py-3 sm:px-4">{cur.props.children}</div>
     </section>
   );
 }
@@ -122,19 +161,19 @@ export function Section({ id, title, meta, defaultOpen = false, actions, childre
   const flip = () => { setOpen(!open); writeSection(id, !open); };
   const bodyId = `section-${id}`;
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-surface shadow-card">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 sm:px-5 py-3">
+    <section className="rounded-xl border border-slate-200 bg-surface shadow-card">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
         <h2 className="flex min-w-0 flex-1"><button type="button" onClick={flip} aria-expanded={open} aria-controls={bodyId}
           className="flex min-w-0 flex-1 items-center gap-2.5 text-left rounded-lg -mx-1 px-1 py-1 hover:bg-slate-50 focus-visible:ring-2 ring-accent-500 outline-none">
           <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? '' : '-rotate-90'}`} aria-hidden />
-          <span className="min-w-0">
-            <span className="block text-base font-semibold text-slate-900 leading-6">{title}</span>
-            {meta != null && <span className="block text-xs text-slate-500 truncate">{meta}</span>}
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5">
+            <span className="text-[15px] font-semibold leading-6 text-slate-900">{title}</span>
+            {meta != null && <span className="min-w-0 truncate text-xs text-slate-500">{meta}</span>}
           </span>
         </button></h2>
         {open && actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {open && <div id={bodyId} className="border-t border-slate-200/70 px-4 sm:px-5 py-4">{children}</div>}
+      {open && <div id={bodyId} className="border-t border-slate-200 px-4 py-4">{children}</div>}
     </section>
   );
 }
@@ -170,11 +209,7 @@ export function CogmBasisToggle() {
 export function CogmBasisNote() {
   const { basis, basisNote } = useLiveView();
   if (basis !== 'normalised' || !basisNote) return null;
-  return (
-    <p className="rounded-lg border border-brand-100 bg-brand-50/60 px-3 py-2 text-xs text-slate-600" data-testid="basis-note">
-      {basisNote}
-    </p>
-  );
+  return <span data-testid="basis-note"><Note label="What Normalised means">{basisNote}</Note></span>;
 }
 
 // ---- Badges & chips --------------------------------------------------------
@@ -188,7 +223,7 @@ const LEVEL_BADGE: Record<CompletenessLevel, { label: string; cls: string }> = {
 /** Completeness badge. `published` marks a month shown from the published static MIS. */
 export function LevelBadge({ level, published }: { level: CompletenessLevel; published?: boolean }) {
   if (published && level === 'full') {
-    return <span title="From the published MIS — no full live close for this month yet"
+    return <span title="From the published MIS: no full live close for this month yet"
       className="inline-flex items-center px-1.5 py-0.5 rounded border text-xs sm:text-[11px] font-medium bg-brand-50 text-brand-700 border-brand-100">Published</span>;
   }
   const b = LEVEL_BADGE[level];
@@ -215,8 +250,15 @@ export function fairGrowth(cur: { v: number; n: number }, other: { v: number; n:
 /** Small "muted" placeholder for a number that isn't real yet. */
 export const ND = <span className="text-slate-300">—</span>;
 
-export function Note({ children }: { children: ReactNode }) {
-  return <p className="text-xs sm:text-[11px] leading-relaxed text-slate-400">{children}</p>;
+/** A note about a chart or table. It opens from a small "Note" button so the page shows numbers, not paragraphs. */
+export function Note({ children, label = 'Note' }: { children: ReactNode; label?: string }) {
+  return (
+    <Popover align="left" width={360}
+      buttonClassName="inline-flex min-h-11 sm:min-h-7 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+      button={<><InformationCircleIcon className="h-4 w-4" aria-hidden />{label}</>}>
+      <div className="max-h-[60vh] overflow-y-auto p-3.5 text-[13px] leading-5 text-slate-700">{children}</div>
+    </Popover>
+  );
 }
 
 /** Table shell: scrolls in its own box (never the page) with a sticky first column. */

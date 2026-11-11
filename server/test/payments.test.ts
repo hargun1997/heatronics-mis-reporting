@@ -11,6 +11,10 @@ import {
   defaultMode, parseAmount, buildPaymentRows, totals, rowProblems, batchProblems, toCsv, matchPaste, parsePasteList, nameScore, newBatchId,
 } from '../../client/src/data/payments/batch.ts';
 import { cleanPayees, cleanBatch, summarise } from '../src/routes/payments.ts';
+import { loadXlsx } from '../../client/src/utils/xlsxLazy.ts';
+
+// The client loads SheetJS on demand; the parsers under test need it loaded first.
+await loadXlsx();
 
 // A sheet laid out like CIB's "CounterPartyListUX3": junk filter rows 0–7, header at row index 8, gapped columns,
 // blank rows and a page footer between data rows.

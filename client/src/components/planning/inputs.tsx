@@ -1,7 +1,8 @@
 // Small inputs for the planner: numbers typed in the unit people think in
 // (%, ₹ lakh, ₹ Cr, units) and stored in the plan's raw unit.
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { InfoTip } from '../ui/states';
 
 type Unit = 'pct' | 'lakh' | 'cr' | 'num' | 'x';
 const scale: Record<Unit, number> = { pct: 100, lakh: 1e-5, cr: 1e-7, num: 1, x: 1 };
@@ -50,12 +51,12 @@ export function NumInput({
 export function Lever({
   label, hint, value, onChange, unit = 'pct', min, max, step,
 }: {
-  label: string; hint?: string; value: number; onChange: (v: number) => void; unit?: Unit; min: number; max: number; step: number;
+  label: string; hint?: ReactNode; value: number; onChange: (v: number) => void; unit?: Unit; min: number; max: number; step: number;
 }) {
   return (
     <div className="py-2">
       <div className="flex items-center justify-between gap-3">
-        <label className="text-[13px] font-semibold text-slate-700">{label}</label>
+        <span className="flex items-center gap-0.5 text-[13px] font-medium text-slate-700">{label}{hint && <InfoTip label={`About ${label}`} width={300}>{hint}</InfoTip>}</span>
         <NumInput value={value} onChange={onChange} unit={unit} min={min} max={max} step={step * scale[unit]} title={label} />
       </div>
       <input
@@ -64,7 +65,6 @@ export function Lever({
         className="mt-1.5 w-full accent-brand-600"
         aria-label={label}
       />
-      {hint && <p className="text-xs sm:text-[11px] leading-snug text-slate-500">{hint}</p>}
     </div>
   );
 }

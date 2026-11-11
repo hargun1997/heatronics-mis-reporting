@@ -134,7 +134,7 @@ function ReminderStrip({ task, state, members, onSave }: { task: WorkTask; state
         sent
           ? { ok: true, text: `Sent to ${owners.map((o) => o.name).join(', ')}.` }
           : r.emails.some((e) => e.dryRun)
-            ? { ok: false, text: 'Email isn’t connected — nothing was sent (see People & reminders).' }
+            ? { ok: false, text: 'Email isn’t connected: nothing was sent (see People & reminders).' }
             : { ok: false, text: err ?? 'Not sent.' },
       );
     } catch (e) {
@@ -297,7 +297,7 @@ export function TaskPanel({
         {task.upload && (
           <p className="inline-flex items-center gap-1.5 text-sm text-slate-700">
             <CloudArrowUpIcon className="h-4 w-4 text-slate-500" />
-            {auto ? 'File uploaded — ticked automatically.' : 'Ticks itself when the file is uploaded.'}
+            {auto ? 'File uploaded: ticked automatically.' : 'Ticks itself when the file is uploaded.'}
           </p>
         )}
         <div className="flex flex-wrap items-center gap-x-3">

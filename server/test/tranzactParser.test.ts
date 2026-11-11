@@ -8,6 +8,10 @@ import { lookupLedger } from '../../client/src/data/monthClose/ledgerMap.ts';
 import { tranzactSheetForMonth, TRANZACT_CHARGE_LINE as SERVER_CHARGE, TRANZACT_TOOLING_LINE as SERVER_TOOLING } from '../src/connectors/slots/map/feeds.js';
 import { isoDay } from '../src/connectors/slots/map/common.js';
 import { channelOfLedger } from '../src/connectors/tally/ceoSummaryV2.js';
+import { loadXlsx } from '../../client/src/utils/xlsxLazy.ts';
+
+// The client loads SheetJS on demand; the parsers under test need it loaded first.
+await loadXlsx();
 
 const parser = UPLOAD_PARSERS.find((p) => p.sourceId === 'tranzact')!;
 const H = ['Invoice Number', 'Customer Name', 'Document Date', 'Document Status', 'Item ID', 'Item Description', 'Invoice Quantity', 'Item Value - Before Tax(₹)'];

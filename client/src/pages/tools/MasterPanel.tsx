@@ -48,7 +48,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
               ? 'Loading…'
               : hasMaster
                 ? `${ledgerCount} ledgers · ${voucherCount} voucher types · ${ccCount} cost centres`
-                : 'Not loaded — upload your Tally master to get started'}
+                : 'Not loaded: upload your Tally master to get started'}
             {savedFlash && (
               <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-xs sm:text-[11px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-800">
                 Override loaded · {savedFlash.ledgers} ledgers
@@ -213,7 +213,7 @@ function ReplaceTab({
       <p className="text-slate-600">
         Override the bundled master with your own export. Pick the JSON your
         Tally Prime exports (Gateway → Display More Reports → Masters → JSON
-        Export). The file may be UTF-16 — that's fine. Reduction runs in this
+        Export). The file may be UTF-16: that's fine. Reduction runs in this
         browser; the override is saved to{' '}
         <code className="bg-slate-100 px-1 rounded">localStorage</code> and never
         leaves your device. Click <em>Revert to bundled</em> any time to drop

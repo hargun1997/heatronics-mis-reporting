@@ -11,7 +11,7 @@ import { FUNDING_DEFAULTS, type Range3 } from '../../../data/planning/setup/fund
 import { NumInput } from '../inputs';
 import { cr, money, pct } from '../fmt';
 import type { SetupSectionDef, SetupSectionProps } from './types';
-import { CR, Check, Flag, MonthSelect, Note, Row, SubHead, btn, ensureFx, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt } from './shared';
+import { CR, Check, Flag, MonthSelect, Note, Parts, Row, SubHead, btn, ensureFx, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt, useParts } from './shared';
 
 // The §1 skeleton exports `summary` and `SECTION` beside the component (react-refresh accepts only components).
 export { summary };
@@ -55,24 +55,28 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
   const v = fx.ventureDebt;
   const fxCls = parity ? 'opacity-60' : '';
+  const [part, setPart] = useParts<'terms' | 'rounds' | 'events' | 'bench'>('terms');
 
   return (
-    <div className="space-y-6 text-[13px] text-slate-600">
-      {parity && <Note>Sheet parity is on: the seed, venture debt, overdraft and rounds below are kept but not in the numbers (Starting point → My plan).</Note>}
+    <div className="space-y-4 text-[13px] text-slate-600">
+      <Parts value={part} onChange={setPart} label="Funding part" options={[
+        { id: 'terms', label: 'Seed and debt' }, { id: 'rounds', label: 'Rounds' }, { id: 'events', label: "Sheet's events" }, { id: 'bench', label: 'Benchmarks' },
+      ]} />
+      {parity && <Note tone="amber">Sheet parity is on. The seed, debt, overdraft and rounds are kept, but they are not in the numbers.</Note>}
 
       {/* 1. seed, venture debt, overdraft */}
-      <div className={`space-y-2.5 ${fxCls}`}>
-        <SubHead>Seed, venture debt, overdraft</SubHead>
-        <Row label={<>Seed round{!fx.seed.confirmed && <Flag>Timing not confirmed</Flag>}</>} hint="Equity. The sheet’s round-cost line follows it (5%).">
+      {part === 'terms' && <div className={`space-y-2.5 ${fxCls}`}>
+        <SubHead>Seed, venture debt and overdraft</SubHead>
+        <Row label={<>Seed round{!fx.seed.confirmed && <Flag>Timing not confirmed</Flag>}</>} hint="Equity. The round-cost line of the sheet (5%) follows it.">
           <Check checked={fx.seed.on} onChange={(x) => setFx((f) => { f.seed.on = x; })} label="Seed on" />
           <NumInput unit="cr" value={fx.seed.amount} min={0} width="w-16" title="Seed amount" onChange={(x) => setFx((f) => { f.seed.amount = x; })} />
           <MonthSelect title="Seed month" value={fx.seed.month} months={months} onChange={(m) => setFx((f) => { f.seed.month = m ?? 1; f.seed.confirmed = true; })} />
         </Row>
-        <Row label="Seed pre-money" hint="For the dilution table only (placeholder until agreed).">
+        <Row label="Seed pre-money" hint="Only for the dilution table. It is a placeholder until agreed.">
           <NumInput unit="cr" value={seedPreMoney} min={0} width="w-16" title="Seed pre-money" onChange={(x) => setG((g) => { g.seedPreMoney = x; })} />
-          {seedRow && <span className="text-xs sm:text-[11px] text-slate-500">sold {pct(seedRow.sold, 0)}</span>}
+          {seedRow && <span className="text-xs text-slate-600">Sold {pct(seedRow.sold, 0)}</span>}
         </Row>
-        <Row label={<>Venture debt{!v.confirmed && <Flag />}</>} hint="Replaces the sheet’s ₹2.5 Cr draw. Interest-only through the moratorium, then equal instalments.">
+        <Row label={<>Venture debt{!v.confirmed && <Flag />}</>} hint="Replaces the ₹2.5 Cr draw of the sheet. Only interest during the moratorium, then equal instalments.">
           <Check checked={v.on} onChange={(x) => setFx((f) => { f.ventureDebt.on = x; })} label="Venture debt on" />
           <NumInput unit="cr" value={v.amount} min={0} width="w-16" title="Venture debt amount" onChange={(x) => setFx((f) => { f.ventureDebt.amount = x; f.ventureDebt.confirmed = false; })} />
         </Row>
@@ -80,63 +84,62 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <div className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-[12px] text-slate-600 sm:grid-cols-2">
             <Row label="Interest rate"><NumInput unit="pct" value={v.rate} min={0} max={0.4} width="w-14" title="Venture debt rate" onChange={(x) => setFx((f) => { f.ventureDebt.rate = x; })} /></Row>
             <Row label="Drawn in"><MonthSelect title="Draw month" value={v.drawMonth} months={months} onChange={(m) => setFx((f) => { f.ventureDebt.drawMonth = m ?? 1; })} /></Row>
-            <Row label="Moratorium (months)"><NumInput value={v.moratoriumMonths} min={0} max={36} width="w-12" title="Moratorium" onChange={(x) => setFx((f) => { f.ventureDebt.moratoriumMonths = Math.round(x); })} /></Row>
-            <Row label="Tenor (months)"><NumInput value={v.tenorMonths} min={1} max={72} width="w-12" title="Tenor" onChange={(x) => setFx((f) => { f.ventureDebt.tenorMonths = Math.round(x); })} /></Row>
+            <Row label="Moratorium, months"><NumInput value={v.moratoriumMonths} min={0} max={36} width="w-12" title="Moratorium" onChange={(x) => setFx((f) => { f.ventureDebt.moratoriumMonths = Math.round(x); })} /></Row>
+            <Row label="Tenor, months"><NumInput value={v.tenorMonths} min={1} max={72} width="w-12" title="Tenor" onChange={(x) => setFx((f) => { f.ventureDebt.tenorMonths = Math.round(x); })} /></Row>
             <Row label="Processing fee"><NumInput unit="pct" value={v.feePct} min={0} max={0.1} width="w-14" title="Processing fee" onChange={(x) => setFx((f) => { f.ventureDebt.feePct = x; })} /></Row>
             <label className="flex items-center gap-1.5"><input type="checkbox" checked={v.confirmed} onChange={(e) => setFx((f) => { f.ventureDebt.confirmed = e.target.checked; })} className="h-4 w-4 accent-brand-600" />Terms confirmed</label>
           </div>
         )}
-        <Row label={<>Overdraft / negative-cash interest{!fx.overdraft.confirmed && <Flag />}</>} hint="Charged on last month’s negative closing cash. Debt and overdraft are shown apart from equity.">
+        <Row label={<>Overdraft interest{!fx.overdraft.confirmed && <Flag />}</>} hint="Charged on negative closing cash of the month before. Debt and overdraft show apart from equity.">
           <Check checked={fx.overdraft.on} onChange={(x) => setFx((f) => { f.overdraft.on = x; })} label="Overdraft on" />
           <NumInput unit="pct" value={fx.overdraft.rate} min={0} max={0.4} width="w-14" title="Overdraft rate" onChange={(x) => setFx((f) => { f.overdraft.rate = x; f.overdraft.confirmed = false; })} />
         </Row>
-      </div>
+      </div>}
 
       {/* 2. timeline events */}
-      <div className="space-y-2">
+      {part === 'events' && <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>Timeline events (the sheet’s)</SubHead>
+          <SubHead info="Equity raises and debt on the sheet's own timeline. Sheet parity uses these.">The sheet&apos;s cash events</SubHead>
           <div className="flex flex-wrap gap-2">
             {(['equity', 'debtDrawn', 'debtRepaid'] as const).map((k) => (
               <button key={k} type="button" className={btn} onClick={() => update((p) => { p.events.push({ id: newId(k), kind: k, month: 1, amount: 0, note: '' }); })}>+ {KIND[k]}</button>
             ))}
           </div>
         </div>
-        {plan.events.length === 0 && <Note>Nothing on the timeline yet.</Note>}
+        {plan.events.length === 0 && <Note>No events yet.</Note>}
         {[...plan.events].sort((a, b) => a.month - b.month).map((e) => {
           const i = plan.events.findIndex((x) => x.id === e.id);
           const replaced = !!e.venture && !!plan.fx && !plan.fx.sheetParity && plan.fx.ventureDebt.on;
           return (
             <div key={e.id} className={`flex flex-wrap items-center gap-2 ${replaced ? 'opacity-60' : ''}`}>
-              <span className={`w-28 rounded-md px-2 py-0.5 text-center text-xs sm:text-[11px] font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{KIND[e.kind]}</span>
+              <span className={`w-28 rounded-md px-2 py-0.5 text-center text-xs font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>{KIND[e.kind]}</span>
               <MonthSelect title={`${KIND[e.kind]} month`} value={e.month} months={months} onChange={(m) => update((p) => { p.events[i].month = m ?? 1; })} />
               <NumInput unit="cr" value={e.amount} min={0} width="w-20" title="Amount" onChange={(x) => update((p) => { p.events[i].amount = x; })} />
-              <input value={e.note} placeholder="Note (e.g. Seed — Hyperscale lead)" aria-label="Note" onChange={(ev) => update((p) => { p.events[i].note = ev.target.value; })} className={`${txt} min-w-[200px] flex-1`} />
-              {replaced && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-slate-500">Replaced by the venture-debt terms above</span>}
+              <input value={e.note} placeholder="Seed: Hyperscale lead" aria-label="Note" onChange={(ev) => update((p) => { p.events[i].note = ev.target.value; })} className={`${txt} min-w-[200px] flex-1`} />
+              {replaced && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Venture-debt terms used</span>}
               <button type="button" className={rm} aria-label={`Remove ${KIND[e.kind]} in ${e.month}`} onClick={() => update((p) => { p.events.splice(i, 1); })}>Remove</button>
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* 3. how rounds are sized */}
-      <div className="space-y-2">
-        <SubHead>How rounds are sized</SubHead>
+      {part === 'rounds' && <div className="space-y-2">
+        <SubHead info="Fit (in Targets) sets the size of the rounds. It keeps rounds marked Agreed.">How rounds are sized</SubHead>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px]">
-          <span>keep cash above <NumInput unit="cr" value={funding.buffer} min={0} width="w-14" title="Cash buffer" onChange={(x) => setFunding('buffer', x)} /></span>
+          <span>Keep cash above <NumInput unit="cr" value={funding.buffer} min={0} width="w-14" title="Cash buffer" onChange={(x) => setFunding('buffer', x)} /></span>
           <span>for the next <NumInput value={funding.runwayMonths} min={3} width="w-12" title="Runway months" onChange={(x) => setFunding('runwayMonths', Math.round(x))} /> months</span>
           <span>at least <NumInput unit="cr" value={funding.minRound} min={0} width="w-14" title="Minimum round" onChange={(x) => setFunding('minRound', x)} /> a round</span>
           <span>pre-money <NumInput unit="x" value={funding.preMoneyMultiple} min={0} width="w-12" title="Pre-money multiple of run-rate ARR" onChange={(x) => setFunding('preMoneyMultiple', x)} /> run-rate ARR</span>
           <span>fee <NumInput unit="pct" value={funding.feePct} min={0} width="w-12" title="Round fee" onChange={(x) => setFunding('feePct', x)} /></span>
           <span>first round ≥ <NumInput value={funding.earliestAfterSeed} min={0} width="w-12" title="Months after the seed" onChange={(x) => setFunding('earliestAfterSeed', Math.round(x))} /> months after the seed</span>
         </div>
-        <Note>Rounds are (re)sized when you fit the plan (Targets). Rounds ticked Agreed are kept.</Note>
-      </div>
+      </div>}
 
       {/* 4. rounds */}
-      <div className={`space-y-2 ${fxCls}`}>
+      {part === 'rounds' && <div className={`space-y-2 ${fxCls}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>Rounds</SubHead>
+          <SubHead info="Ownership does not include ESOP pools and convertibles. Cash before, burn and runway for each round are in the Cash and funding view.">Rounds</SubHead>
           <button type="button" className={btn} onClick={() => setG((g) => { g.rounds.push({ id: newId('r'), name: 'New round', on: true, month: Math.min(horizon, 19), amount: 25 * CR, preMoney: 100 * CR, feePct: funding.feePct, confirmed: false }); })}>Add a round</button>
         </div>
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
@@ -156,7 +159,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                   <td className={`${td} text-right`}>{pct(seedRow.sold)}</td><td className={`${td} text-right`}>{pct(seedRow.existingAfter)}</td><td className={td} />
                 </tr>
               )}
-              {rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={10} className={`${td} text-slate-500`}>No rounds yet — fit the plan (Targets), add one, or start from the benchmarks below.</td></tr>}
+              {rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={10} className={`${td} text-slate-500`}>No rounds yet: fit the plan (Targets), add one, or start from the benchmarks below.</td></tr>}
               {rounds.map((x, i) => {
                 const d = dil.find((y) => y.name === x.name && y.month === x.month);
                 return (
@@ -177,15 +180,19 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             </tbody>
           </table>
         </div>
-        <Note>Ownership ignores ESOP pools and convertibles. Cash before, burn and runway per round are on the Cash &amp; funding view.</Note>
-      </div>
+      </div>}
 
       {/* 5. benchmarks */}
-      <div className="space-y-2">
+      {part === 'bench' && <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>Benchmarks (Indian D2C, {FUNDING_DEFAULTS.asOf})</SubHead>
-          <button type="button" className={btn} onClick={addBenchmarkRounds} title={hasBench ? 'Replaces the benchmark rounds not ticked Agreed' : 'Adds a Series A, B and C from the typical values below'}>
-            {hasBench ? 'Reset the benchmark rounds' : 'Add these rounds as a starting point'}
+          <SubHead info={<>
+            <p>Typical values (lowest to highest). Planning defaults, not market quotes.</p>
+            <p>Pre-money = the multiple × the run-rate ARR of this plan in that month (at least ₹{cr(50 * CR, 0)} Cr). Fee {pct(FUNDING_DEFAULTS.feePct, 0)}. No round is marked Agreed.</p>
+            <p>Venture debt with a round: about {pct(FUNDING_DEFAULTS.ventureDebt.shareOfRound, 0)} of the round, {FUNDING_DEFAULTS.ventureDebt.tenureMonths} months at {pct(FUNDING_DEFAULTS.ventureDebt.ratePct, 0)}.</p>
+            {clamped.length > 0 && <p>{clamped.map((d) => d.name).join(', ')} fall after the end of the plan, so they sit in its last month.</p>}
+          </>}>Benchmarks (Indian D2C, {FUNDING_DEFAULTS.asOf})</SubHead>
+          <button type="button" className={btn} onClick={addBenchmarkRounds} title={hasBench ? 'Replaces the benchmark rounds that are not Agreed' : 'Adds a Series A, B and C from the typical values'}>
+            {hasBench ? 'Reset the benchmark rounds' : 'Add these rounds'}
           </button>
         </div>
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
@@ -203,25 +210,19 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                     <td className={`${td} whitespace-nowrap font-semibold text-slate-700`}>{d.name}</td>
                     <td className={td}>
                       <span className="whitespace-nowrap">{b ? monthLabel(plan.startMonth, b.month) : '–'} · ≈ ₹{d.timing.arrAtLeastCr ?? '–'} Cr ARR</span>
-                      <span className="block text-xs sm:text-[11px] text-slate-500">{d.timing.rule}</span>
+                      <span className="block text-xs text-slate-600">{d.timing.rule}</span>
                     </td>
                     <td className={`${td} whitespace-nowrap text-right`}>{range(d.sizeCr, crRange)}</td>
                     <td className={`${td} whitespace-nowrap text-right`}>{range(d.preMoneyArrMultiple, xRange)}</td>
                     <td className={`${td} whitespace-nowrap text-right`}>{range(d.dilutionPct, pctRange)}</td>
-                    <td className={`${td} min-w-[260px] text-xs sm:text-[11px] text-slate-500`}>{d.milestones}</td>
+                    <td className={`${td} min-w-[260px] text-xs text-slate-600`}>{d.milestones}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-        <Note>
-          Typical (min–max). Pre-money is written as the multiple × this plan’s run-rate ARR in that month (at least ₹{cr(50 * CR, 0)} Cr); fee {pct(FUNDING_DEFAULTS.feePct, 0)}; every round unticked.
-          Venture debt alongside: ~{pct(FUNDING_DEFAULTS.ventureDebt.shareOfRound, 0)} of the round, {FUNDING_DEFAULTS.ventureDebt.tenureMonths} months at {pct(FUNDING_DEFAULTS.ventureDebt.ratePct, 0)}.
-          {clamped.length > 0 && ` ${clamped.map((d) => d.name).join(', ')} would fall after the plan’s horizon and sit in its last month.`}
-          {' '}Planning defaults, not market quotes.
-        </Note>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -229,7 +230,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 export const SECTION: SetupSectionDef = {
   id: 'funding',
   title: 'Funding',
-  blurb: 'Seed, venture debt and overdraft terms, the sheet’s timeline events, the rounds, and how rounds are sized.',
+  blurb: 'Seed, debt and overdraft terms, the rounds, and how rounds are sized.',
   Section,
   summary,
 };

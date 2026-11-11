@@ -29,15 +29,15 @@ export function setChannelGrowth(p: Plan, fy: string, ch: (typeof CHANNELS)[numb
 /** The working-capital / GST / tax / interest inputs of the sheet's Cash Flow & Fundraise tab (the opening values live in Starting point). */
 export type CashFieldKey = Exclude<keyof CashInputs, 'openingCash' | 'openingInventory' | 'openingDebt' | 'interestSteps' | 'outputGst' | 'inputGstGoods' | 'inputGstServices'>;
 export const CASH_FIELDS: { k: CashFieldKey; label: string; unit: 'pct' | 'num'; hint?: string }[] = [
-  { k: 'inventoryDays', label: 'Inventory days', unit: 'num', hint: 'Forward cover on the next 3 months’ COGS' },
-  { k: 'gmStandard', label: 'Standard gross margin (for inventory)', unit: 'pct' },
+  { k: 'inventoryDays', label: 'Inventory days', unit: 'num', hint: 'Stock cover on the COGS of the next 3 months.' },
+  { k: 'gmStandard', label: 'Gross margin for stock', unit: 'pct' },
   { k: 'receivableDays', label: 'Receivable days', unit: 'num' },
   { k: 'payableDays', label: 'Payable days', unit: 'num' },
-  { k: 'refundLagMonths', label: 'GST refund lag (months)', unit: 'num', hint: 'Goods ITC refund under inverted duty' },
-  { k: 'gstWriteOffPct', label: 'Stuck services ITC written off', unit: 'pct', hint: 'Share of non-refundable ITC expensed instead of carried' },
-  { k: 'interestRate', label: 'Interest rate (start)', unit: 'pct', hint: 'Rate changes are listed below' },
+  { k: 'refundLagMonths', label: 'GST refund lag (months)', unit: 'num', hint: 'Refund of goods ITC under inverted duty.' },
+  { k: 'gstWriteOffPct', label: 'Services ITC written off', unit: 'pct', hint: 'Share of the ITC we cannot refund that is expensed, not carried.' },
+  { k: 'interestRate', label: 'Interest rate (start)', unit: 'pct', hint: 'Add rate changes below.' },
   { k: 'taxRate', label: 'Tax rate', unit: 'pct' },
-  { k: 'contingencyPct', label: 'Contingency on peak deficit', unit: 'pct', hint: '18-month and full-plan ask' },
+  { k: 'contingencyPct', label: 'Buffer on largest deficit', unit: 'pct', hint: 'For the 18-month and full-plan ask.' },
 ];
 
 /** A new interest-rate step: the month after the last step (else M13), at the rate in force then. */

@@ -10,7 +10,8 @@
 // convenience store the month-close session uses.
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import type * as XLSX from 'xlsx';
+import { loadXlsx, xlsx } from '../../utils/xlsxLazy';
 import type { DailyFact } from './facts';
 
 const UPLOADS_KEY = 'heatronics.liveMis.uploads';
@@ -137,7 +138,7 @@ const SHIPROCKET_WALLET = /^(freight charges deducted against cod|bank reference
 function sheetRows(wb: XLSX.WorkBook, name: string): unknown[][] {
   const ws = wb.Sheets[name];
   if (!ws) return [];
-  return XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
+  return xlsx().utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
 }
 
 function findHeader(rows: unknown[][], needles: string[], limit = 30): number {
@@ -597,7 +598,7 @@ function metaProduct(raw: string): { id: string; name: string } {
 function isoDate(v: unknown): string {
   if (v == null || v === '') return '';
   if (typeof v === 'number' && v > 0) {
-    const d = XLSX.SSF?.parse_date_code(v);
+    const d = xlsx().SSF?.parse_date_code(v);
     return d && d.y ? `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}` : '';
   }
   const s = cell(v);
@@ -862,7 +863,7 @@ function snapmintDate(v: unknown): string {
   const m = cell(v).match(/^(\d{2})-(\d{2})-(\d{4})/);
   if (m) return `${m[3]}-${m[2]}-${m[1]}`;
   if (typeof v === 'number' && v > 0) {
-    const d = XLSX.SSF?.parse_date_code(v);
+    const d = xlsx().SSF?.parse_date_code(v);
     if (d && d.y) return `${d.y}-${String(d.d).padStart(2, '0')}-${String(d.m).padStart(2, '0')}`;
   }
   return isoDate(v);
@@ -1491,13 +1492,14 @@ function readWorkbook(buf: ArrayBuffer): XLSX.WorkBook {
   const bytes = new Uint8Array(buf);
   if (bytes.length >= 2 && ((bytes[0] === 0xff && bytes[1] === 0xfe) || (bytes[0] === 0xfe && bytes[1] === 0xff))) {
     const enc = bytes[0] === 0xff ? 'utf-16le' : 'utf-16be';
-    return XLSX.read(new TextDecoder(enc).decode(bytes), { type: 'string' });
+    return xlsx().read(new TextDecoder(enc).decode(bytes), { type: 'string' });
   }
-  return XLSX.read(buf, { type: 'array' });
+  return xlsx().read(buf, { type: 'array' });
 }
 
 export async function parseUpload(parser: UploadParser, file: File): Promise<UploadRecord> {
   const buf = await file.arrayBuffer();
+  await loadXlsx();
   const wb = readWorkbook(buf);
   const { facts, warning, trace, period, emptyOk } = parser.parse(wb);
   // Zero rows is an error only when the file wasn't understood. A parser that

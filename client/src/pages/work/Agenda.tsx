@@ -9,7 +9,7 @@ import { diffDays } from '../../data/work/schedule';
 import type { TeamMember, WorkState, WorkTask } from '../../data/work/workClient';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { GROUPS, dueLabel, groupOf, hourLabelIST, inTodaysEmail, ownerNames, periodLabel, trackingStart, type Item, type When } from './taskModel';
-import { TaskPanel } from './TaskPanel';
+import { TaskPanel } from './lazyParts';
 import { Avatar, Fold, TickBox, btnSecondary, focusRing } from './ui';
 
 /** Days ahead shown in "Later" before "Show more". */
@@ -52,7 +52,7 @@ function TaskRow({
           disabled={auto}
           small={compact}
           label={done ? `Mark “${task.title}” not done` : `Mark “${task.title}” done`}
-          title={auto ? 'Ticked automatically — the file has been uploaded' : done ? 'Mark not done' : 'Mark done'}
+          title={auto ? 'Ticked automatically: the file has been uploaded' : done ? 'Mark not done' : 'Mark done'}
         />
         <button
           type="button"
@@ -234,7 +234,7 @@ export function DailyEmailStrip({ state, agenda, today, onPreview }: { state: Wo
       ? `Sent today${state.lastReminderRun ? ` at ${new Date(state.lastReminderRun.at).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}` : ''} · next tomorrow ${hourLabelIST(st.sendHour)}`
       : minsToSend > 0
         ? `Goes out at ${hourLabelIST(st.sendHour)} (in ${Math.floor(minsToSend / 60) ? `${Math.floor(minsToSend / 60)}h ` : ''}${minsToSend % 60}m)`
-        : `Due now (${hourLabelIST(st.sendHour)}) — sends within the hour`;
+        : `Due now (${hourLabelIST(st.sendHour)}): sends within the hour`;
   const flip = () => {
     setOpen(!open);
     writeFold('tasks:daily-email', !open);

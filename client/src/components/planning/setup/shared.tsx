@@ -1,5 +1,7 @@
 // Pieces every Setup section uses (docs/planning/ONE-SETUP.md §1). Moved out of the old tab files so there is one of each.
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
+import { InfoTip } from '../../ui/states';
+import { SegmentedControl } from '../../ui/SegmentedControl';
 import type { Plan, PlanResult } from '../../../data/planning/engine';
 import { applyFounderDecisions } from '../../../data/planning/basePlan';
 import { emptyGrowth, ensureGrowthGroups } from '../../../data/planning/growth';
@@ -11,8 +13,8 @@ export const CR = 1e7;
 export const btn = 'rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40';
 export const rm = 'rounded px-1.5 py-0.5 text-[12px] font-semibold text-slate-400 hover:text-rose-600';
 export const txt = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-[13px]';
-export const lbl = 'text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500';
-export const th = 'px-2 py-2 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500';
+export const lbl = 'text-xs font-semibold uppercase tracking-wide text-slate-600';
+export const th = 'px-2 py-2 text-left text-xs font-semibold text-slate-600';
 export const thr = th.replace('text-left', 'text-right');
 export const td = 'px-2 py-1.5';
 
@@ -36,13 +38,15 @@ export function Check({ checked, onChange, label }: { checked: boolean; onChange
   return <input type="checkbox" aria-label={label} title={label} checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-brand-600" />;
 }
 
-/** A labelled row: label (+ hint) on the left, the control(s) on the right. */
-export function Row({ label, hint, children }: { label: ReactNode; hint?: string; children: ReactNode }) {
+/** A labelled row: label (+ an "i" with the hint) on the left, the control(s) on the right. The hint is a popover, not a
+ *  paragraph (pass 2, 11 Nov 2026). A div + group (not a <label>): the popover must not sit inside a label. */
+export function Row({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
+  const id = useId();
   return (
-    <label className="flex items-center justify-between gap-3 text-[13px] text-slate-600">
-      <span>{label}{hint && <span className="block text-xs sm:text-[11px] leading-snug text-slate-400">{hint}</span>}</span>
-      <span className="flex items-center gap-1.5">{children}</span>
-    </label>
+    <div role="group" aria-labelledby={id} className="flex min-h-9 items-center justify-between gap-3 text-[13px] text-slate-700">
+      <span className="flex min-w-0 items-center gap-0.5"><span id={id}>{label}</span>{hint && <Tip>{hint}</Tip>}</span>
+      <span className="flex shrink-0 items-center gap-1.5">{children}</span>
+    </div>
   );
 }
 export const Field = Row;
@@ -53,16 +57,26 @@ export function CheckRow({ on, set, label, hint }: { on: boolean; set: (v: boole
 }
 
 export function Flag({ children = 'Terms not confirmed' }: { children?: string }) {
-  return <span className="ml-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-amber-800">{children}</span>;
+  return <span className="ml-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">{children}</span>;
 }
 
-export function SubHead({ children }: { children: ReactNode }) {
-  return <h4 className="text-xs sm:text-[11px] font-bold uppercase tracking-wide text-slate-500">{children}</h4>;
+/** Group heading inside a Setup section, with an optional "i" for the how-to text. */
+export function SubHead({ children, info }: { children: ReactNode; info?: ReactNode }) {
+  return (
+    <h4 className="flex items-center gap-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+      {children}{info && <Tip>{info}</Tip>}
+    </h4>
+  );
+}
+
+/** The how-to text of a field or group, behind an "i". */
+export function Tip({ children, label = 'How to use this' }: { children: ReactNode; label?: string }) {
+  return <span className="normal-case tracking-normal"><InfoTip label={label} width={300}>{children}</InfoTip></span>;
 }
 
 /** One grey line of explanation / feedback. */
 export function Note({ children, tone = 'grey' }: { children: ReactNode; tone?: 'grey' | 'amber' }) {
-  return <p className={tone === 'amber' ? 'text-[12px] text-amber-800' : 'text-[12px] text-slate-500'}>{children}</p>;
+  return <p className={tone === 'amber' ? 'text-[12px] text-amber-800' : 'text-[12px] text-slate-600'}>{children}</p>;
 }
 
 // ---- plan helpers --------------------------------------------------------------------------------------------------
@@ -96,4 +110,12 @@ export function ensureGrowth(p: Plan): NonNullable<Plan['growth']> {
 export function ensureFx(p: Plan): NonNullable<Plan['fx']> {
   if (!p.fx) applyFounderDecisions(p);
   return p.fx!;
+}
+
+/** Parts of one Setup section (pass 2): a section with many fields shows one part at a time, so it reads in one glance. */
+export function useParts<T extends string>(first: T): [T, (v: T) => void] {
+  return useState<T>(first);
+}
+export function Parts<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: { id: T; label: string }[]; label: string }) {
+  return <SegmentedControl size="sm" value={value} onChange={onChange} options={options} aria-label={label} />;
 }

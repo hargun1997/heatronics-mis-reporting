@@ -10,6 +10,10 @@
 // ----------------------------------------------------------------------------
 
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Modal } from '../ui/overlays';
+import { BTN, BTN_PRIMARY } from '../ui/states';
+import { Note } from './shared';
 import { inr } from '../mis-deck/format';
 import { monthLabel } from '../../data/misDeck/liveAnalytics';
 import { setMonthLock, type PeriodCompleteness } from '../../data/misDeck/liveDeck';
@@ -53,88 +57,89 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
   };
   const onLock = () => (needReason ? setAsking('lock') : void run('lock'));
 
+  const n = blockers.length;
+  const status = legacy ? { tone: 'bg-slate-100 text-slate-700 border-slate-200', text: 'Locked (old history)' }
+    : lock ? { tone: 'bg-emerald-50 text-emerald-800 border-emerald-200', text: `Locked by ${lock.lockedBy}${lock.verifiedUser ? '' : ' (name not verified)'}, ${when(lock.lockedAt)}` }
+    : comp.ready ? { tone: 'bg-brand-50 text-brand-700 border-brand-100', text: 'Ready to lock' }
+    : { tone: 'bg-amber-50 text-amber-800 border-amber-200', text: n ? `${n} to fix before lock` : comp.hasTally ? 'Tally has no sales for this month' : 'No Tally P&L for this month' };
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs space-y-2">
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm space-y-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="font-semibold text-slate-900">{monthLabel(periodKey)} close</span>
-        {legacy ? (
-          <span className="text-slate-500">Frozen history — closed.</span>
-        ) : lock ? (
-          <span className="inline-flex items-center gap-1.5 text-emerald-700 font-medium">
-            Closed &amp; locked by {lock.lockedBy}{lock.verifiedUser ? '' : ' (unverified name)'} · {when(lock.lockedAt)}
-          </span>
-        ) : comp.ready ? (
-          <span className="text-brand-700 font-medium">Ready to close — Tally is complete, it ties and stock is posted; not counted as closed until locked.</span>
-        ) : comp.tallyGaps?.length ? (
-          <span className="text-amber-700 font-medium">Tally incomplete — {blockers.length} thing{blockers.length === 1 ? '' : 's'} to fix before closing.</span>
-        ) : (
-          <span className="text-amber-700">Not ready to close — {blockers.length ? `${blockers.length} thing${blockers.length === 1 ? '' : 's'} to fix.` : comp.hasTally ? 'Tally booked no sales for this month yet.' : 'waiting for the Tally P&L.'}</span>
-        )}
+        <span className="font-semibold text-slate-900">{monthLabel(periodKey)}</span>
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${status.tone}`}>{status.text}</span>
         {tie && (
-          <button type="button" onClick={() => setOpen(!open)} className="text-brand-600 hover:underline">
-            {open ? 'Hide tie to Tally' : `Tie to Tally${tie.worstResidualPct !== null ? ` · worst ${tie.worstResidualPct.toFixed(1)}%` : ''}`}
+          <button type="button" onClick={() => setOpen(true)} className="min-h-11 sm:min-h-8 rounded-md px-1.5 text-xs font-medium text-brand-600 hover:underline">
+            Check with Tally{tie.worstResidualPct !== null ? ` (largest difference ${tie.worstResidualPct.toFixed(1)}%)` : ''}
           </button>
+        )}
+        {(comp.bom || comp.factoryBasis || comp.exGstEstimated || lock?.overrideReason) && (
+          <Note label="Cost basis">
+            {lock?.overrideReason && <p>Locked with open items. Reason: {lock.overrideReason}</p>}
+            {comp.exGstEstimated && <p>Sales without GST are an estimate for {comp.exGstEstimated.sources.join(', ')}: sales ÷ {(1 + comp.exGstEstimated.ratePct / 100).toFixed(2)} (GST {comp.exGstEstimated.ratePct}%).</p>}
+            {comp.bom && <p>Cost of goods uses {comp.bom.note}.</p>}
+            {comp.factoryBasis && <p>{comp.factoryBasis === 'tally' ? 'Factory overhead is the amount in Tally.' : 'Factory overhead is 10% of revenue. Tally has no amount for this month.'}</p>}
+          </Note>
         )}
         <span className="sm:ml-auto flex gap-2">
           {!legacy && lock && (
-            <button type="button" disabled={busy} onClick={() => setAsking('unlock')} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50">Unlock</button>
+            <button type="button" disabled={busy} onClick={() => setAsking('unlock')} className={BTN}>Unlock</button>
           )}
           {!legacy && !lock && comp.ready && (
-            <button type="button" disabled={busy} onClick={onLock} className="px-3 py-1.5 rounded-lg bg-cta text-on-cta font-medium disabled:opacity-50">Close &amp; lock {monthLabel(periodKey)}</button>
+            <button type="button" disabled={busy} onClick={onLock} className={BTN_PRIMARY}>Lock {monthLabel(periodKey)}</button>
           )}
           {!legacy && !lock && canOverride && (
-            <button type="button" disabled={busy} onClick={onLock} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50">Lock with a reason</button>
+            <button type="button" disabled={busy} onClick={onLock} className={BTN}>Lock with a reason</button>
           )}
         </span>
       </div>
 
-      {!legacy && !lock && blockers.length > 0 && (
-        <ol className="list-decimal pl-5 space-y-1 text-slate-700">
-          {blockers.map((b, i) => (
+      {!legacy && !lock && n > 0 && (
+        <ol className="list-decimal space-y-0.5 pl-5 text-[13px] text-slate-700">
+          {blockers.slice(0, 3).map((b, i) => (
             <li key={i}><span className={b.hard ? 'text-amber-700 font-medium' : 'text-slate-800'}>{b.text}</span> <span className="text-slate-500">{b.fix}</span></li>
           ))}
+          {n > 3 && <li className="list-none"><Link to="/tasks?view=fix" className="font-medium text-brand-600 hover:underline">{n - 3} more in Tasks, Fix list</Link></li>}
         </ol>
       )}
-      {comp.exGstEstimated && (
-        <p className="text-slate-500">Sales ex-GST are estimated for {comp.exGstEstimated.sources.join(', ')}: GMV ÷ {(1 + comp.exGstEstimated.ratePct / 100).toFixed(2)} (GST {comp.exGstEstimated.ratePct}%).</p>
-      )}
+      {error && <p role="alert" className="text-red-700">{error}</p>}
 
-      {lock?.overrideReason && <p className="text-amber-700">Locked with open items — reason: {lock.overrideReason}</p>}
-
-      {asking && (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
-          <p className="text-slate-700">
-            {asking === 'lock'
-              ? `This month still has open items (${blockers.map((b) => b.text).join(' ') || tie?.breaches.join('; ')}). Say why it is closed anyway.`
-              : `Unlock ${monthLabel(periodKey)}? It stops counting as closed, and so does every later month. Optional reason:`}
-          </p>
-          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm" placeholder={asking === 'lock' ? 'Reason (required)' : 'Reason'} />
-          <div className="flex gap-2">
-            <button type="button" disabled={busy || (asking === 'lock' && !reason.trim())} onClick={() => void run(asking, reason)} className="px-3 py-1.5 rounded-lg bg-cta text-on-cta font-medium disabled:opacity-50">
-              {asking === 'lock' ? 'Lock anyway' : 'Unlock'}
-            </button>
-            <button type="button" onClick={() => { setAsking(null); setReason(''); }} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700">Cancel</button>
-          </div>
+      <Modal open={!!asking} onClose={() => { setAsking(null); setReason(''); }}
+        title={asking === 'lock' ? `Lock ${monthLabel(periodKey)} with open items?` : `Unlock ${monthLabel(periodKey)}?`}
+        footer={<>
+          <button type="button" onClick={() => { setAsking(null); setReason(''); }} className={BTN}>Cancel</button>
+          <button type="button" disabled={busy || (asking === 'lock' && !reason.trim())} onClick={() => asking && void run(asking, reason)} className={BTN_PRIMARY}>
+            {asking === 'lock' ? `Lock ${monthLabel(periodKey)}` : `Unlock ${monthLabel(periodKey)}`}
+          </button>
+        </>}>
+        <div className="space-y-3 text-sm text-slate-700">
+          {asking === 'lock'
+            ? <><p>Open items: {blockers.map((b) => b.text).join(' ') || tie?.breaches.join('; ')}</p><p>Write the reason. The reason stays in the lock record.</p></>
+            : <p>This month and each later month will not be locked. You can write a reason.</p>}
+          <label className="block text-xs font-medium text-slate-600">Reason{asking === 'lock' ? ' (necessary)' : ''}
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-900" />
+          </label>
+          {error && <p role="alert" className="text-red-700">{error}</p>}
         </div>
-      )}
-      {error && <p className="text-red-700">{error}</p>}
+      </Modal>
 
-      {open && tie && (
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="space-y-2 overflow-x-auto">
+      {tie && (
+        <Modal open={open} onClose={() => setOpen(false)} title={`${monthLabel(periodKey)}: check with Tally`} width={860}
+          subtitle={`A difference above ${TIE_LIMIT_PCT}% of net revenue (${inr(tie.netRevenue)}) needs a reason before lock.`}>
+          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full text-[12px]">
             <thead>
               <tr className="text-left text-slate-500">
                 <th className="py-1 pr-3 font-medium">Tie</th>
-                <th className="py-1 pr-3 font-medium text-right">Connectors ex-GST</th>
-                <th className="py-1 pr-3 font-medium text-right">GMV incl. GST</th>
-                <th className="py-1 pr-3 font-medium text-right">Tally (ex-GST)</th>
-                <th className="py-1 pr-3 font-medium text-right">Residual</th>
-                <th className="py-1 font-medium text-right">% of revenue</th>
+                <th className="py-1 pr-3 font-medium text-right">Reports, no GST</th>
+                <th className="py-1 pr-3 font-medium text-right">Sales with GST</th>
+                <th className="py-1 pr-3 font-medium text-right">Tally, no GST</th>
+                <th className="py-1 pr-3 font-medium text-right">Difference</th>
+                <th className="py-1 font-medium text-right">% of net revenue</th>
               </tr>
             </thead>
             <tbody className="tabular-nums">
               <tr className="border-t border-slate-100">
-                <td className="py-1 pr-3 text-slate-700">Net profit — MIS vs Tally’s Nett Profit</td>
+                <td className="py-1 pr-3 text-slate-700">Net profit: MIS and Tally</td>
                 <td className="py-1 pr-3 text-right">{inr(tie.profit.misProfit)}</td>
                 <td className="py-1 pr-3 text-right text-slate-300">–</td>
                 <td className="py-1 pr-3 text-right">{tie.profit.tallyNett === null ? 'not given' : inr(tie.profit.tallyNett)}</td>
@@ -145,29 +150,20 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
                 <tr key={c.channel} className="border-t border-slate-100">
                   <td className="py-1 pr-3 text-slate-700">
                     {c.channel} sales
-                    <span className="block text-xs sm:text-[11px] text-slate-400">{c.sources.length ? `${c.sources.join(', ')} · ${c.netBasis ? BASIS_TXT[c.netBasis] : ''}` : 'no connector — Tally only'}</span>
+                    <span className="block text-xs sm:text-[11px] text-slate-400">{c.sources.length ? `${c.sources.join(', ')} · ${c.netBasis ? BASIS_TXT[c.netBasis] : ''}` : 'No connected report. Tally only.'}</span>
                   </td>
                   <td className="py-1 pr-3 text-right">{c.net === null ? '–' : inr(c.net)}</td>
                   <td className="py-1 pr-3 text-right">{c.gmv === null ? '–' : inr(c.gmv)}</td>
                   <td className="py-1 pr-3 text-right">{inr(c.tally)}</td>
                   <td className="py-1 pr-3 text-right">{c.residual === null ? '–' : inr(c.residual, { sign: true })}</td>
-                  <td className="py-1 text-right">{c.judged === false ? 'not judged (orders estimate)' : pctOf(c.residual, tie.netRevenue)}</td>
+                  <td className="py-1 text-right">{c.judged === false ? 'Not checked (estimate)' : pctOf(c.residual, tie.netRevenue)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="text-slate-500">
-            Tally books sales ex-GST and net of returns; connector sales are by order date, so a timing or returns gap shows as a residual.
-            Residuals above {TIE_LIMIT_PCT}% of net revenue ({inr(tie.netRevenue)}) ask for a reason before the month can be locked.
-          </p>
-        </div>
-      )}
-
-      {(comp.bom || comp.factoryBasis) && (
-        <p className="text-slate-500">
-          {comp.bom && <>COGS priced with {comp.bom.exact ? <span className="text-slate-700">{comp.bom.note}</span> : <span className="text-amber-700">{comp.bom.note}</span>}. </>}
-          {comp.factoryBasis && (comp.factoryBasis === 'tally' ? 'Factory overhead is Tally’s booked amount.' : 'Factory overhead is the 10%-of-revenue fallback (no Tally actual for this month).')}
-        </p>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">Tally books sales without GST and after returns. Reports count sales on the order date. Thus timing and returns cause a difference.</p>
+        </Modal>
       )}
     </div>
   );

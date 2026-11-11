@@ -12,7 +12,9 @@ import { Modal } from '../../components/ui/overlays';
 import { getEmailTemplates, getWork, saveHeads, type EmailTemplate, type Head, type WorkState } from '../../data/work/workClient';
 import { EmailPreview, RemindersCard, RolesCard, TeamCard } from './SettingsCards';
 import { roleTokens } from './taskModel';
-import { Fold, TasksHeader, btnGhost, btnPrimary, focusRing } from './ui';
+import { btnGhost, btnPrimary, focusRing } from './ui';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { BTN } from '../../components/ui/states';
 
 const field = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100';
 
@@ -22,6 +24,7 @@ export function TasksSettingsPage() {
   const [preview, setPreview] = useState(false);
   const { hash } = useLocation();
   const target = hash.slice(1);
+  const [tab, setTab] = useState<string>(() => (TABS.some((t) => t.id === target) ? target : 'people'));
 
   const load = useCallback(async () => {
     try {
@@ -37,16 +40,15 @@ export function TasksSettingsPage() {
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not load.'));
   }, []);
 
-  useEffect(() => {
-    if (!state || !hash) return;
-    const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    return () => clearTimeout(t);
-  }, [state, hash]);
+  const [lastTarget, setLastTarget] = useState(target);
+  if (target !== lastTarget) { setLastTarget(target); if (TABS.some((t) => t.id === target)) setTab(target); }
 
   return (
     <div className="tasks-ui pb-16">
-      <TasksHeader title="People & reminders" sub="Who owns tasks, the heads you filter by, who covers each role, and the daily email." back={{ to: '/tasks', label: 'Tasks' }} />
-      <div className="mx-auto max-w-5xl px-4 pt-5 sm:px-6 lg:px-8">
+      <PageHeader title="People and reminders" description="Set the owners of tasks and the daily reminder email."
+        tabs={TABS} tab={tab} onTab={setTab}
+        actions={<Link to="/tasks" className={BTN}>Back to Tasks</Link>} />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {error && <p role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{error}</p>}
         {!state ? (
           <p className="py-16 text-center text-sm text-slate-600">Loading…</p>
@@ -56,46 +58,37 @@ export function TasksSettingsPage() {
             <Link to="/tasks" className={`rounded font-medium text-brand-700 hover:underline ${focusRing}`}>
               Tasks
             </Link>{' '}
-            once first to set up the task list.
+            1 time to make the task list.
           </p>
         ) : (
-          <div className="space-y-5">
-            <Section id="people" title="People" sub="The people who do the work. Pick them as owners on any task; they get the reminder emails." target={target}>
-              <TeamCard state={state} me="" onChanged={load} onError={setError} />
-            </Section>
-            <Section id="roles" title="Who does what" sub="Pick who covers each role. Tasks with no owner are assigned from their role automatically." target={target}>
-              <RolesCard state={state} onChanged={load} onError={setError} embedded />
-            </Section>
-            <Section id="emails" title="Daily reminder email" sub="Sent from hargun@heatronics.in for tasks not ticked by the send time." target={target}>
-              <RemindersCard state={state} onRan={load} onPreview={() => setPreview(true)} />
-            </Section>
-            <Section id="heads" title="Heads" sub="Groups you can filter by on the Tasks page (HR, CA, Accounts…). A task falls under a head by its role or its area." target={target}>
-              <HeadsCard state={state} onSaved={load} onError={setError} />
-            </Section>
-            <Section id="templates" title="Email templates" sub="Every email the Tasks pages send, filled with sample tasks. Nothing is sent from here." target={target} defaultOpen={false}>
-              <EmailTemplates />
-            </Section>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">{TAB_SUB[tab]}</p>
+            {tab === 'people' && <TeamCard state={state} me="" onChanged={load} onError={setError} />}
+            {tab === 'roles' && <RolesCard state={state} onChanged={load} onError={setError} embedded />}
+            {tab === 'emails' && <RemindersCard state={state} onRan={load} onPreview={() => setPreview(true)} />}
+            {tab === 'heads' && <HeadsCard state={state} onSaved={load} onError={setError} />}
+            {tab === 'templates' && <EmailTemplates />}
           </div>
         )}
       </div>
-      <Modal open={preview} onClose={() => setPreview(false)} title="Today’s emails" subtitle="A preview — nothing is sent from here." width={900}>
+      <Modal open={preview} onClose={() => setPreview(false)} title="Reminder emails for today" subtitle="Preview only. This does not send an email." width={900}>
         <EmailPreview embedded onClose={() => setPreview(false)} />
       </Modal>
     </div>
   );
 }
 
-/** A folding settings section; opens itself when the URL points at it (#people, #heads…). */
-function Section({ id, title, sub, target, defaultOpen = true, children }: { id: string; title: string; sub: string; target: string; defaultOpen?: boolean; children: React.ReactNode }) {
-  return (
-    <div id={id} className="scroll-mt-24">
-      <Fold id={`tasks-settings:${id}`} title={title} defaultOpen={defaultOpen} forceOpen={target === id}>
-        <p className="mb-2 px-1 text-sm text-slate-600">{sub}</p>
-        {children}
-      </Fold>
-    </div>
-  );
-}
+const TABS = [
+  { id: 'people', label: 'People' }, { id: 'roles', label: 'Roles' }, { id: 'emails', label: 'Reminder email' },
+  { id: 'heads', label: 'Heads' }, { id: 'templates', label: 'Email templates' },
+];
+const TAB_SUB: Record<string, string> = {
+  people: 'These persons do the tasks. Each owner gets the reminder email.',
+  roles: 'Select the person for each role. A task with no owner goes to the person of its role.',
+  emails: 'The email goes from hargun@heatronics.in for each task that is not ticked at the send time.',
+  heads: 'A head is a group of tasks (HR, CA, Accounts). Use heads to filter the Tasks page.',
+  templates: 'Each email with sample tasks. Preview only. This does not send an email.',
+};
 
 /** Gallery of every email format, rendered by the server with sample tasks. */
 function EmailTemplates() {
@@ -201,7 +194,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
               className={field}
               value={h.roles.join(', ')}
               onChange={(e) => set(i, { roles: e.target.value.split(',').map((r) => r.trim()).filter((r, k, a) => r || k === a.length - 1) })}
-              placeholder="Roles, comma-separated — e.g. CA, Statutory Auditor"
+              placeholder="Roles, comma-separated: e.g. CA, Statutory Auditor"
               aria-label="Roles"
             />
             <div className="flex flex-wrap gap-1">

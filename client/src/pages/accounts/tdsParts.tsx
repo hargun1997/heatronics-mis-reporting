@@ -3,11 +3,12 @@ import { useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { SECTIONS, dateLabel, type TdsReport } from '../../data/tds/tds';
 import { inr } from '../../data/tds/useTds';
+import { StepNo } from '../../components/ui/states';
 
 export function NoDayBook({ month }: { month: string }) {
   return (
     <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <b>Tally Day Book for {month} not copied yet.</b> Open TallyPrime, then go to <a className="font-semibold underline" href="/tally">Tally health</a> → <b>Pull Tally now</b>.
+      <b>No Tally Day Book for {month}.</b> Open TallyPrime. Then open <a className="font-semibold underline" href="/tally">Tally health</a> and select <b>Pull Tally now</b>.
     </div>
   );
 }
@@ -17,7 +18,7 @@ export function PayHeadline({ r }: { r: TdsReport }) {
   const tone = r.overdue ? 'border-red-200 bg-red-50' : 'border-accent-200 bg-accent-50';
   return (
     <div className={`rounded-xl border px-4 py-4 sm:px-5 ${tone}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">{r.overdue ? 'Late — pay now' : `Pay by ${dateLabel(r.dueDate)}`}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">{r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`}</div>
       <div className="mt-1 text-[32px] font-semibold leading-10 text-slate-900">{inr(r.totals.balance)}</div>
       <div className="mt-1 text-sm text-slate-700">
         TDS deducted in {r.monthLabel}: {inr(r.totals.deducted)} · already paid {inr(r.totals.paid)}
@@ -155,12 +156,12 @@ export function HowTo() {
     { title: 'Book the challan in Tally', body: (
       <ol className="list-[lower-alpha] space-y-1 pl-5">
         <li>Payment voucher: <b>Dr</b> the TDS ledger of that section, <b>Cr</b> the bank.</li>
-        <li>In the narration write: <b>BSR &lt;7 digits&gt; Challan &lt;5 digits&gt;</b> — this page reads it for the 26Q.</li>
+        <li>In the narration, write <b>BSR &lt;7 digits&gt; Challan &lt;5 digits&gt;</b>. This page reads it for the 26Q.</li>
       </ol>) },
     { title: 'Every quarter: file 26Q (and 24Q for salary)', body: (
       <ol className="list-[lower-alpha] space-y-1 pl-5">
         <li>Due: Q1 by <b>31 Jul</b>, Q2 by <b>31 Oct</b>, Q3 by <b>31 Jan</b>, Q4 by <b>31 May</b>.</li>
-        <li>Download this page → sheet <b>26Q prep</b>.</li>
+        <li>Select <b>Download Excel</b>. Open the sheet <b>26Q prep</b>.</li>
         <li>Open the <b>RPU</b> (Return Preparation Utility from Protean / tin-nsdl). Enter the challans, then the deductee rows.</li>
         <li>Check the file with the <b>FVU</b> (File Validation Utility). Fix every error it shows.</li>
         <li>Upload the .fvu file on <b>incometax.gov.in</b> → e-File → TDS → Upload TDS, with DSC or EVC.</li>
@@ -176,7 +177,7 @@ export function HowTo() {
     <ol className="space-y-3">
       {steps.map((s, i) => (
         <li key={s.title} className="flex gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-50 text-sm font-bold text-accent-700">{i + 1}</span>
+          <StepNo n={i + 1} />
           <div className="min-w-0 text-sm text-slate-700"><div className="mb-1 font-semibold text-slate-900">{s.title}</div>{s.body}</div>
         </li>
       ))}

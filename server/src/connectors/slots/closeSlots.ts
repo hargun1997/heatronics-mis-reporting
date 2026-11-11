@@ -42,9 +42,9 @@ export const CLOSE_SLOTS: CloseSlot[] = [
   { connectorId: 'amazon', slotId: 'business-report', label: 'Business Report (traffic, optional)', short: 'Business Report', required: false, edgeDays: null },
   { connectorId: 'flipkart', slotId: 'settlement', label: 'Settled Transactions', short: 'Settlement', required: true, edgeDays: 7 },
   { connectorId: 'flipkartads', slotId: 'ad-spend', label: 'Consolidated FSN ad report', short: 'Ad report', required: true, edgeDays: 5 },
-  { connectorId: 'blinkit', slotId: 'order-charges', label: 'Payout — order-level charges', short: 'Payout', required: true, edgeDays: 3 },
+  { connectorId: 'blinkit', slotId: 'order-charges', label: 'Payout · order-level charges', short: 'Payout', required: true, edgeDays: 3 },
   { connectorId: 'shopify', slotId: 'variant-sales', label: 'Sales by variant', short: 'Sales by variant', required: false, edgeDays: 3 },
-  { connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', short: 'Ad spend', required: true, edgeDays: 3 },
+  { connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend · campaign × ad set × product', short: 'Ad spend', required: true, edgeDays: 3 },
   { connectorId: 'googleads', slotId: 'ad-spend', label: 'Campaign report (total spend)', short: 'Campaign spend', required: true, edgeDays: 3 },
   { connectorId: 'googleads', slotId: 'shopping-products', label: 'Shopping products (per-item cost, optional)', short: 'Shopping products', required: false, edgeDays: null },
   { connectorId: 'amazonads', slotId: 'ad-spend', label: 'Advertised Product report', short: 'Ad spend', required: true, edgeDays: 3 },
@@ -105,14 +105,14 @@ export interface Coverage { kind: CoverageKind; /** Plain words, e.g. "only 5–
 /** Is one slot's stored report enough for a finished month? */
 export function slotCoverage(slot: CloseSlot, period: string, report: StoredSlotReport | undefined): Coverage {
   const m = monthLabel(period);
-  if (!report) return { kind: 'missing', detail: `${m} not loaded` };
-  if (report.rows === 0) return { kind: 'empty', detail: `${m} saved with 0 rows` };
+  if (!report) return { kind: 'missing', detail: `${m} missing` };
+  if (report.rows === 0) return { kind: 'empty', detail: `${m} has 0 rows` };
   if (slot.edgeDays != null && report.first && report.last) {
     const dim = daysInMonth(period);
     const a = Number(report.first.slice(8, 10));
     const b = Number(report.last.slice(8, 10));
     if (a > slot.edgeDays || b < dim - slot.edgeDays) {
-      return { kind: 'partial', detail: `${m} has only ${a}–${b} ${m.slice(0, 3)}` };
+      return { kind: 'partial', detail: `${m} covers ${a}–${b} ${m.slice(0, 3)} only` };
     }
   }
   return { kind: 'ok', detail: '' };

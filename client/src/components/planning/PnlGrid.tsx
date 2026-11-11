@@ -68,11 +68,11 @@ const GST: Row[] = [
   { label: 'Output GST @ 5%', get: (m) => m.outputGst, strong: true },
   { label: 'ITC on goods (refundable)', get: (m) => m.itcGoods },
   { label: 'ITC on services & capex (not refundable)', get: (m) => m.itcServices },
-  { label: 'Set off — services & capex first', get: (m) => m.gstSetOffServices },
-  { label: 'Set off — goods', get: (m) => m.gstSetOffGoods },
-  { label: 'Refund claimable — goods', get: (m) => m.gstClaimable },
+  { label: 'Set off: services & capex first', get: (m) => m.gstSetOffServices },
+  { label: 'Set off: goods', get: (m) => m.gstSetOffGoods },
+  { label: 'Refund claimable: goods', get: (m) => m.gstClaimable },
   { label: 'Refund received (lagged)', get: (m) => m.gstRefund },
-  { label: 'ITC stuck — services & capex', get: (m) => m.gstStuck },
+  { label: 'ITC stuck: services & capex', get: (m) => m.gstStuck },
   { label: 'Written off to P&L', get: (m) => m.gstWrittenOff },
   { label: 'Closing GST asset', get: (m) => m.gstAsset, kind: 'end', strong: true },
   { label: 'Inventory', get: () => 0, head: true },
@@ -107,7 +107,7 @@ export function PnlGrid({ r }: { r: PlanResult }) {
       <div className="flex flex-wrap items-center gap-3">
         <SegmentedControl options={[{ id: 'pnl', label: 'P&L' }, { id: 'cash', label: 'Cash & working capital' }, { id: 'gst', label: 'GST & inventory' }]} value={view} onChange={setView} size="sm" />
         <SegmentedControl options={[{ id: 'month', label: 'Months + FY' }, { id: 'fy', label: 'FY only' }]} value={grain} onChange={setGrain} size="sm" />
-        <span className="text-[12px] text-slate-500">₹ lakh · shaded months come from the levers (after the 18-month sheet) · *part year</span>
+        <span className="text-[12px] text-slate-600">₹ L · shaded = after the 18-month sheet · * part year</span>
       </div>
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-surface shadow-card">
         <table className="text-[12px] tabular-nums">
@@ -122,7 +122,7 @@ export function PnlGrid({ r }: { r: PlanResult }) {
           <tbody>
             {rows.map((row) => (
               <tr key={row.label} className={`border-t border-slate-100 ${row.strong ? 'font-semibold' : ''}`}>
-                <td className={`sticky left-0 z-10 whitespace-nowrap bg-surface px-3 py-1 ${row.head ? 'pt-3 text-xs sm:text-[11px] font-bold uppercase tracking-wide text-slate-500' : row.strong ? 'text-slate-900' : 'text-slate-600'}`}>{row.label}</td>
+                <td className={`sticky left-0 z-10 whitespace-nowrap bg-surface px-3 py-1 ${row.head ? 'pt-3 text-xs sm:text-[11px] font-bold text-slate-600' : row.strong ? 'text-slate-900' : 'text-slate-600'}`}>{row.label}</td>
                 {cols.map((c) => (
                   <Fragment key={c.key}>
                     {row.head ? <td className={c.fy ? 'bg-slate-50' : ''} /> : (

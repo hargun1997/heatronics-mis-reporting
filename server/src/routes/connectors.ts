@@ -128,7 +128,7 @@ router.post('/slots/:connectorId/:slotId/pull', h(async (req, res) => {
   if (!/^\d{4}-\d{2}$/.test(periodKey)) return res.status(400).json({ error: 'periodKey must be "YYYY-MM".' });
   const { creds, missing } = await slotCreds(def);
   if (missing.length) {
-    return res.json({ status: 'not_connected', detail: def.connectHint ?? `Not connected — missing ${missing.join(', ')}.` });
+    return res.json({ status: 'not_connected', detail: def.connectHint ?? `Not connected. Missing: ${missing.join(', ')}.` });
   }
   const waitMs = Math.max(0, Math.min(Number(req.body?.waitMs ?? 25_000) || 0, 25_000));
   const state = await runPull(def, creds, periodKey, { force: Boolean(req.body?.force), waitMs });

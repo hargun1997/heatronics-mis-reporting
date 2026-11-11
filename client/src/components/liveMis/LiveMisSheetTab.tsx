@@ -11,6 +11,7 @@
 // ----------------------------------------------------------------------------
 
 import { useMemo, useRef, useState } from 'react';
+import { BTN } from '../ui/states';
 import { SegmentedControl } from '../ui';
 import { useStatements } from './useStatements';
 import { MIS_SHEET_ROWS, MIS_SHEET_ROWS_NORMALISED, type MisEntity, type MisPoint } from '../../data/misDeck/misSheet';
@@ -127,10 +128,8 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
           <SegmentedControl size="sm" aria-label="COGM basis" value={basis} onChange={setBasis} options={BASIS_OPTIONS} />
         </div>
         <div className="flex flex-wrap gap-2 sm:ml-auto">
-          <button type="button" onClick={() => void onDownload()}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50">Download (this format)</button>
-          <button type="button" onClick={() => fileRef.current?.click()}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50">Import Excel</button>
+          <button type="button" onClick={() => void onDownload()} className={BTN}>Download this sheet</button>
+          <button type="button" onClick={() => fileRef.current?.click()} className={BTN}>Upload Excel</button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ''; }} />
         </div>
@@ -176,7 +175,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
       </Note>
 
       {imported && (
-        <Fold id="ms-imported" title="Imported MIS (P&L Summary)" meta="Parsed from the uploaded workbook — round-trips with a ₹ Lac download"
+        <Fold id="ms-imported" title="Imported MIS (P&L Summary)" meta="Parsed from the uploaded workbook: round-trips with a ₹ Lac download"
           actions={<button type="button" onClick={() => setImported(null)} className="text-xs text-slate-500 hover:text-slate-800">Clear</button>}>
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-xs whitespace-nowrap">

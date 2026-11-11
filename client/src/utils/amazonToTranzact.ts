@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { loadXlsx, xlsx } from './xlsxLazy';
 import { skuToFgMapping } from '../data/skuToFgMapping';
 import { fgMaster, FgMasterEntry } from '../data/fgMaster';
 
@@ -193,7 +193,8 @@ export const TRANZACT_HEADERS = [
 export const TRANZACT_SHEET_NAME = 'Stock Reconciliation';
 
 // STEP 4: Generate Excel matching Tranzact Physical Stock Reconciliation template
-export function generateTranzactExcel(rows: OutputRow[]): Blob {
+export async function generateTranzactExcel(rows: OutputRow[]): Promise<Blob> {
+  await loadXlsx();
   const wsData = [
     [...TRANZACT_HEADERS],
     ...rows.map(r => [
@@ -206,8 +207,8 @@ export function generateTranzactExcel(rows: OutputRow[]): Blob {
     ]),
   ];
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = xlsx().utils.book_new();
+  const ws = xlsx().utils.aoa_to_sheet(wsData);
 
   ws['!cols'] = [
     { wch: 12 },  // Item ID
@@ -218,8 +219,8 @@ export function generateTranzactExcel(rows: OutputRow[]): Blob {
     { wch: 60 },  // Comment
   ];
 
-  XLSX.utils.book_append_sheet(wb, ws, TRANZACT_SHEET_NAME);
-  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  xlsx().utils.book_append_sheet(wb, ws, TRANZACT_SHEET_NAME);
+  const buf = xlsx().write(wb, { type: 'array', bookType: 'xlsx' });
   return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
 

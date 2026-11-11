@@ -4,9 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Heatronics Round Planner</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@500&display=swap">
+<script>
+/* Ember theme (pass 2, 11 Nov 2026): follow the MIS theme picker (localStorage htx.theme.mis), live through the storage event. */
+(function(){function apply(){var t='ember';try{t=localStorage.getItem('htx.theme.mis')||'ember'}catch(e){}document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light')}
+apply();window.addEventListener('storage',function(e){if(!e.key||e.key==='htx.theme.mis')apply()});
+if(window.self!==window.top)document.documentElement.classList.add('embedded');})();
+</script>
 <style>
-/* Layout: three step cards for settings (join → round 1 → round 2), then ownership table, round maths, Aneesha's costs. Light only. */
+/* Layout: three step cards for settings (join → round 1 → round 2), then ownership table, round maths, Aneesha's costs. Ember tokens, light + dark (block at the end). */
 :root{--bg:#FAFAF8;--surface:#FFFFFF;--ink:#111113;--muted:#5A5650;--line:#E4E1DC;--soft:#F3F1EE;--accent:#C9541F;--ok:#2E7A52;--ok-soft:#E4F2EA;--bad:#B23B2E;--bad-soft:#F9E4E1;color-scheme:light;
 --display:"Archivo","Helvetica Neue",Arial,sans-serif;--body:"IBM Plex Sans","Segoe UI",Roboto,Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
 *{box-sizing:border-box}
@@ -180,28 +186,57 @@ details.blk>summary::after{content:"";width:6px;height:6px;border-right:2px soli
 details.blk:not([open])>summary::after{transform:rotate(-45deg)}
 details.blk:not([open]){padding-bottom:12px}
 details.blk:last-child:not([open]){padding-bottom:14px}
+
+/* ---- Ember (pass 2, 11 Nov 2026): one design system with the MIS. Tokens only; the maths and the layout above stay. ---- */
+:root{--bg:#F4F4F3;--surface:#FFFFFF;--ink:#141516;--muted:#5F6164;--line:#E6E6E4;--soft:#F0F0EF;--accent:#C2410C;--heat:#F36B21;
+ --ok:#15803D;--ok-soft:#E8F6ED;--bad:#B91C1C;--bad-soft:#FDECEC;--warn:#92400E;--warn-soft:#FDF3E2;--tint:#FFF4EC;
+ --display:"DM Sans","Segoe UI",Roboto,Arial,sans-serif;--body:"DM Sans","Segoe UI",Roboto,Arial,sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+html[data-theme="dark"]{--bg:#0C0D0E;--surface:#161719;--ink:#F2F2F2;--muted:#A6A8AB;--line:#2A2B2F;--soft:#1D1E21;--accent:#F7843F;--heat:#F7843F;
+ --ok:#4ADE80;--ok-soft:#10261A;--bad:#F87171;--bad-soft:#2E1111;--warn:#FBBF24;--warn-soft:#2B210D;--tint:#2A1A10;color-scheme:dark}
+@media print{html[data-theme="dark"]{--bg:#fff;--surface:#fff;--ink:#141516;--muted:#5F6164;--line:#E6E6E4;--soft:#F0F0EF;--accent:#C2410C;color-scheme:light}}
+body{font:14px/1.45 var(--body)}
+h1{font:600 22px var(--display);letter-spacing:-.01em}h2{font:600 15px var(--display)}.cs h3{font:600 14px var(--display)}
+.kpi .kv{font:600 17px/1.2 var(--display);font-variant-numeric:tabular-nums}
+html.embedded .head{display:none}
+.card{border-radius:14px;border-color:var(--line)}
+.step h2 span{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--surface);font:600 12px var(--body)}
+.blk.eq .bh,.blk.sc .bh,.blk.dt .bh,.blk.sf .bh,.blk.cv .bh,.blk.cn .bh,.blk.es .bh{color:var(--ink)}
+.blk.eq .bh::before{background:var(--heat)}.blk.sc .bh::before,.blk.dt .bh::before,.blk.sf .bh::before,.blk.cv .bh::before,.blk.cn .bh::before,.blk.es .bh::before{background:var(--muted)}
+.blk.sc,.blk.dt,.blk.sf,.blk.cv,.blk.cn,.blk.es{background:var(--soft)}
+.rows .r.k b{color:var(--ink)}.rows .r{border-bottom-color:var(--line)}
+.kpi.hi{background:var(--tint)}.kpi.hi .kv{color:var(--accent)}.kpi.rd.key{background:var(--soft)}
+#cmp th.cur,#cmp td.cur{background:var(--tint)}
+.tg.need{background:var(--warn-soft);color:var(--warn)}
+.seg button[aria-pressed=true],.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.btn,.reset,.seg button,.ctl .in,.cmpbar input{min-height:36px}
+.tools .lnk,.add{min-height:36px}
+input,button,select{font-family:var(--body)}
+.ctl input,.cmpbar input,.ctl .in{background:var(--surface);color:var(--ink)}
+@media (max-width:700px){.btn,.reset,.seg button,.tools .lnk,.add,.ctl .in{min-height:44px}}
+td .up{color:var(--ok)}td .dn{color:var(--bad)}
+td.tip:hover{background:var(--tint)}td.tip:hover::after{background:#161719;color:#F2F2F2;border:1px solid #2A2B2F}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div><h1>Heatronics Round Planner</h1><p class="sub">Cap table from today to Series A, checked against the signed SSSHA. Hover any cell in the tables to see what moved.</p></div>
+  <div class="head"><h1>Heatronics Round Planner</h1><p class="sub">Cap table from today to Series A, checked against the signed SSSHA. Point to a table cell to see what moved.</p></div>
 
   <div class="card kpis" id="kpis" aria-live="polite"></div>
-  <div class="bar"><span class="tools"><button type="button" class="lnk" id="openAll">Expand all</button><button type="button" class="lnk" id="closeAll">Collapse all</button></span><span class="acts"><span id="saveMsg" aria-live="polite"></span><button type="button" class="reset" id="reset">Reset</button><button type="button" class="btn" id="factory">Built-in values</button><button type="button" class="btn pri" id="save">Save as default</button></span></div>
+  <div class="bar"><span class="tools"><button type="button" class="lnk" id="openAll">Open all</button><button type="button" class="lnk" id="closeAll">Close all</button></span><span class="acts"><span id="saveMsg" aria-live="polite"></span><button type="button" class="reset" id="reset">Reset</button><button type="button" class="btn" id="factory">Built-in values</button><button type="button" class="btn pri" id="save">Save as default</button></span></div>
 
   <form class="steps" id="f" onsubmit="return false" autocomplete="off">
-    <details class="card step" data-k="st1" open><summary><h2><span>1</span>Pool resize + Aneesha</h2><span class="sv" id="sv1"></span></summary>
+    <details class="card step" data-k="st1" open><summary><h2><span>1</span>Pool resize and Aneesha</h2><span class="sv" id="sv1"></span></summary>
       <details class="blk es" data-k="b_es" open><summary class="bh">ESOP pool<span class="bv" id="bv_es"></span></summary><div class="ctls" id="s2e"></div><p class="note2" id="esopNote"></p></details>
       <div class="sub2">Aneesha joins</div><div class="mode"><span>Set her stake</span><span class="seg" id="modeSeg" role="group" aria-label="Set her stake"><button type="button" data-m="join" aria-pressed="true">At joining</button><button type="button" data-m="post" aria-pressed="false">After round</button></span></div><div class="ctls" id="s1"></div><label class="chk"><input type="checkbox" id="msop"> 2.5% of her stake from the ESOP pool (MSOP)</label><p class="note2" id="stkNote"></p></details>
     <details class="card step" data-k="st2" open><summary><h2><span>2</span>Hyperscale Round (Seed)</h2><span class="sv" id="sv2"></span></summary>
-      <details class="blk eq" data-k="b_eq" open><summary class="bh">Primary — cash in<span class="bv" id="bv_eq"></span></summary><div class="ctls" id="s2"></div>
-        <div class="sub2">Who puts in the equity raise · lead takes the rest</div><div class="inv fx"><span class="nm">Aneesha</span><span class="rest" id="aneAmt"></span><span></span></div><div id="invs"></div><button type="button" class="add" id="addInv">+ Add investor</button>
+      <details class="blk eq" data-k="b_eq" open><summary class="bh">Primary: cash in<span class="bv" id="bv_eq"></span></summary><div class="ctls" id="s2"></div>
+        <div class="sub2">Who puts in the equity · the lead takes the rest</div><div class="inv fx"><span class="nm">Aneesha</span><span class="rest" id="aneAmt"></span><span></span></div><div id="invs"></div><button type="button" class="add" id="addInv">+ Add investor</button>
         <div class="inv sum"><span class="nm">Total</span><span class="rest" id="invTot"></span><span></span></div>
         <div class="mode" style="border:0;padding:2px 0 0"><span style="font-size:13px;color:var(--muted)">Cap applies to</span><span class="seg" id="dbSeg" role="group" aria-label="Cap applies to"><button type="button" data-b="fdr" aria-pressed="true">Founders</button><button type="button" data-b="h" aria-pressed="false">Hargun</button><button type="button" data-b="all" aria-pressed="false">All new shares</button></span></div><p class="note2" id="priceNote"></p></details>
       <details class="blk cn" data-k="b_cn" open><summary class="bh">Angel notes convert<span class="bv" id="bv_cn"></span></summary><div class="rows" id="cnRows"></div><p class="note2" id="cnNote"></p></details>
-      <details class="blk sf" data-k="b_sf"><summary class="bh">Secondary — founders sell<span class="bv" id="bv_sf"></span></summary><div class="ctls" id="s2f"></div><p class="note2">Jagjit first (to his floor), then Hargun · bought by the lead at the round price.</p></details>
-      <details class="blk sc" data-k="b_sc"><summary class="bh">Secondary — angels &amp; VCs sell<span class="bv" id="bv_sc"></span></summary><div class="ctls" id="s2s"></div><p class="note2">Angels and Pre-Seed, pro rata · bought by the lead at the round price.</p></details>
-      <details class="blk dt" data-k="b_dt"><summary class="bh">Venture debt — loan + warrants<span class="bv" id="bv_dt"></span></summary><div class="ctls" id="s2d"></div></details></details>
+      <details class="blk sf" data-k="b_sf"><summary class="bh">Secondary: founders sell<span class="bv" id="bv_sf"></span></summary><div class="ctls" id="s2f"></div><p class="note2">Jagjit sells first, down to his floor. Then Hargun sells. The lead buys at the round price.</p></details>
+      <details class="blk sc" data-k="b_sc"><summary class="bh">Secondary: angels and VCs sell<span class="bv" id="bv_sc"></span></summary><div class="ctls" id="s2s"></div><p class="note2">Angels and Pre-Seed sell pro rata. The lead buys at the round price.</p></details>
+      <details class="blk dt" data-k="b_dt"><summary class="bh">Venture debt: loan and warrants<span class="bv" id="bv_dt"></span></summary><div class="ctls" id="s2d"></div></details></details>
     <details class="card step" data-k="st3" open><summary><h2><span>3</span>Feb 2027 → Series A</h2><span class="sv" id="sv3"></span></summary>
       <details class="blk cv" data-k="b_cv" open><summary class="bh">CCPS convert<span class="bv" id="bv_cv"></span></summary><div class="ctls" id="s3c"></div><p class="note2" id="convNote"></p></details>
       <details class="blk eq" data-k="b_r2" open><summary class="bh">Series A<span class="bv" id="bv_r2"></span></summary><div class="ctls" id="s3"></div></details></details>
@@ -211,7 +246,7 @@ details.blk:last-child:not([open]){padding-bottom:14px}
 
   <details class="card fold" data-k="t_own" open><summary><h2>Who owns what</h2><span class="seg" id="viewSeg" role="group" aria-label="Show"><button type="button" data-v="pct" aria-pressed="true">%</button><button type="button" data-v="sh" aria-pressed="false">Shares</button><button type="button" data-v="chg" aria-pressed="false">Change in %</button></span></summary><div class="tw"><table id="own"></table></div></details>
 
-  <details class="card fold" data-k="t_cmp" open><summary><h2>Compare valuations</h2><span class="hint2">Hyperscale pre-money side by side</span></summary>
+  <details class="card fold" data-k="t_cmp"><summary><h2>Compare valuations</h2><span class="hint2">Hyperscale pre-money, side by side</span></summary>
     <div class="cmpbar"><span class="seg" id="cmpSeg" role="group" aria-label="Cap table at" style="margin-left:0"><button type="button" data-s="hs" aria-pressed="true">After Hyperscale</button><button type="button" data-s="r2" aria-pressed="false">After Series A</button></span><span class="seg" id="cmpUnit" role="group" aria-label="Show" style="margin-left:0"><button type="button" data-u="pct" aria-pressed="true">%</button><button type="button" data-u="sh" aria-pressed="false">Shares</button></span><label for="cmpVals">Pre-money (₹ Cr)</label><input id="cmpVals" value="23, 30, 40, 50" inputmode="decimal" ><button type="button" class="btn" id="cmpAdd">+ Add current</button></div>
     <div class="tw"><table id="cmp"></table></div></details>
 
@@ -442,10 +477,10 @@ function render(){
   document.getElementById('convNote').textContent=M.ratio===1?`At ₹12.5 Cr revenue or less, CCPS convert 1:1 (₹23 Cr floor): ${fS(M.st.hs.P)} shares.`:`Converts at ₹${(M.Vconv/CR).toFixed(2)} Cr → ${fS(M.Pc)} shares instead of ${fS(M.st.hs.P)}.`;
   const FMIN=70, f1=(st.hs.H+st.hs.J+st.hs.A)/tot(st.hs), ok=f1>=FMIN/100-1e-9;
   document.getElementById('checks').innerHTML=
-   `<span class="pill ${ok?'ok':'bad'}">Founders after Hyperscale Round: ${fP(f1)} ${ok?'✓ meets':'— below'} ${FMIN}%</span>`+
+   `<span class="pill ${ok?'ok':'bad'}">Founders after Hyperscale Round: ${fP(f1)} ${ok?'✓ meets':'✕ below'} ${FMIN}%</span>`+
    (M.capInfo&&M.capInfo.cut?`<span class="pill bad">${DBASIS==='all'?'Round':DBASIS==='h'?"Hargun's":"Founders'"} dilution capped at ${M.capInfo.cap}% → raise ${fR(M.R1)} instead of ₹${M.capInfo.ask} Cr</span>`:'')+
-   (M.over?`<span class="pill bad">Aneesha's primary + other investors exceed the equity raise — lead gets nothing</span>`:'')+
-   (M.secCut?`<span class="pill bad">Angel/VC secondary is more than they hold — capped</span>`:'')+
+   (M.over?`<span class="pill bad">Aneesha's primary and the other investors are more than the raise: the lead gets nothing</span>`:'')+
+   (M.secCut?`<span class="pill bad">Angel and VC secondary is more than they hold: capped</span>`:'')+
    (M.fsCut?`<span class="pill bad">Founder secondary capped by Jagjit's floor and Hargun's holding</span>`:'')+
    (M.short||M.aShort?`<span class="pill bad">Not enough Hargun/Jagjit shares for this stake</span>`:'')+
    (M.Sh&&!M.short?`<span class="pill bad">Jagjit hits his ${M.I.jkeep}% floor — Hargun also transfers ${fS(M.Sh)} shares. Lower the floor or her stake to keep it Jagjit-only.</span>`:'')+

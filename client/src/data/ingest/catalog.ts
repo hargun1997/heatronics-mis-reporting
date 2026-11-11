@@ -17,7 +17,7 @@ const SLOTS: ReportSlot[] = [
       'Tally Prime → Gateway of Tally → Profit & Loss A/c',
       'F12 → Format of Report = Detailed (expands groups into ledgers)',
       'E: Export → File Format = Excel (Spreadsheet). Auto Column = Monthly gives every month in one file.',
-      'Export, then upload the .xlsx here — pick the month to ingest with the Period selector.',
+      'Export, then upload the .xlsx here. Pick the month to ingest with the Period selector.',
     ],
     note: 'Read exactly from the Excel (no OCR). Every ledger maps into the cascade and the close reconciles to the Nett Profit. A multi-month export carries each month; set the Period to choose which one to ingest.',
   },
@@ -25,7 +25,7 @@ const SLOTS: ReportSlot[] = [
     connectorId: 'tally', slotId: 'trial-balance', label: 'Trial Balance (optional)', required: false,
     accept: '.png,.jpg,.jpeg,.webp', kind: 'vision',
     exportSteps: [
-      'Pulled from Tally automatically with the P&L — no upload needed normally.',
+      'Pulled from Tally automatically with the P&L. Normally no upload is necessary.',
       'Fallback: Tally Prime → Gateway → Trial Balance',
       'Set period, F12 → Detailed',
       'Screenshot the screen (one per screen if it scrolls)',
@@ -37,13 +37,13 @@ const SLOTS: ReportSlot[] = [
     exportSteps: [
       'Tranzact → Production → Bill of Materials (link below)',
       'Actions ▸ Download All BOMs → Pricing Type = Default Price → Download All BOMs',
-      'The file is emailed to you — download it from the email, then upload it here',
+      'The file is emailed to you. Download it from the email, then upload it here',
     ],
     exportUrl: {
       label: 'Open Tranzact Bill of Materials',
       url: 'https://app.letstranzact.com/v3/production?section=bom',
     },
-    note: 'Standard cost per finished good — the "Total FG Cost" on each FG-#### row (SFG/RM sub-rows ignored) is the per-unit COGS behind SKU margin. Emailed as an Excel (Summary sheet); upload that file.',
+    note: 'Standard cost per finished good: the "Total FG Cost" on each FG-#### row (SFG/RM sub-rows ignored) is the per-unit COGS behind SKU margin. Emailed as an Excel (Summary sheet); upload that file.',
   },
   {
     connectorId: 'tranzact', slotId: 'sales', label: 'Sales Invoice Register (GT / B2B)', required: true,
@@ -57,7 +57,7 @@ const SLOTS: ReportSlot[] = [
       label: 'Open Tranzact Reports (Sales)',
       url: 'https://app.letstranzact.com/v3/reports-and-bi/?section=reports',
     },
-    note: 'The SKU-level source for GT (General Trade) and B2B (OEM) — the two channels with no platform connector. Channel from the invoice prefix (OEM/ → B2B; GTD/GTR/PHY → GT); Item ID is the FG; value before tax. GT ties to Tally Offline Sales, B2B to Tally OEM Sales.',
+    note: 'The SKU-level source for GT (General Trade) and B2B (OEM), the two channels with no platform connector. Channel from the invoice prefix (OEM/ → B2B; GTD/GTR/PHY → GT); Item ID is the FG; value before tax. GT ties to Tally Offline Sales, B2B to Tally OEM Sales.',
   },
 
   // ---- Marketplaces ----
@@ -73,7 +73,7 @@ const SLOTS: ReportSlot[] = [
       label: 'Open Amazon Reports Repository',
       url: 'https://sellercentral.amazon.in/payments/reports-repository?ref_=xx_rrepo_ttab_dash',
     },
-    note: 'Revenue, units, fees and ad spend — the fee-accurate money view.',
+    note: 'Revenue, units, fees and ad spend: the fee-accurate money view.',
   },
   {
     connectorId: 'amazon', slotId: 'business-report', label: 'Business Report (traffic, optional)', required: false,
@@ -86,7 +86,7 @@ const SLOTS: ReportSlot[] = [
       label: 'Open Amazon Business Reports (by child item)',
       url: 'https://sellercentral.amazon.in/business-reports/ref=xx_sitemetric_dnav_xx#/report?id=102%3ADetailSalesTrafficByChildItem&chartCols=&columns=0%2F1%2F2%2F3%2F8%2F9%2F14%2F15%2F20%2F21%2F26%2F27%2F28%2F29%2F30%2F31%2F32%2F33%2F34%2F35%2F36%2F37',
     },
-    note: 'Sessions / units by SKU. Gross of refunds, no fees — use for conversion, not the P&L.',
+    note: 'Sessions / units by SKU. Gross of refunds, no fees. Use it for conversion, not the P&L.',
   },
   {
     connectorId: 'flipkart', slotId: 'settlement', label: 'Settled Transactions', required: true,
@@ -108,21 +108,21 @@ const SLOTS: ReportSlot[] = [
     exportSteps: [
       'Flipkart Seller Hub → Ads → Other Reports (link below)',
       'Report Type = "Consolidated FSN Report", set the month (range up to 1 month)',
-      'Download for Ad Product = PLA — and PCA too if you run PCA ads — then upload here',
+      'Download for Ad Product = PLA (and PCA if you run PCA ads). Then upload here',
     ],
     exportUrl: {
-      label: 'Open Flipkart Ads — Other Reports',
+      label: 'Open Flipkart Ads: Other Reports',
       url: 'https://seller.flipkart.com/index.html#dashboard/ads/reports/others',
     },
     note: 'Per-product (Sku Id) Flipkart ad spend → Flipkart Sales & Marketing. Sku Ids map to finished goods via the Flipkart SKU map (same ids as the settlement Seller SKU).',
   },
   {
-    connectorId: 'blinkit', slotId: 'order-charges', label: 'Payout — order-level charges', required: true,
+    connectorId: 'blinkit', slotId: 'order-charges', label: 'Payout · order-level charges', required: true,
     accept: '.zip,.xlsx,.xls', kind: 'xlsx', parserId: 'blinkit',
     exportSteps: [
       'Blinkit Seller → Billing → Payout Details (link below)',
       'Click "Download monthly SoA" → pick the month → Download the ZIP',
-      'Upload the ZIP here as-is — we open it and read "A&B. Order_level_charges.xlsx" automatically (or upload just that file if you prefer)',
+      'Upload the ZIP here as it is. The MIS opens it and read "A&B. Order_level_charges.xlsx" automatically (or upload just that file if you prefer)',
     ],
     exportUrl: {
       label: 'Open Blinkit Payout Details',
@@ -136,18 +136,18 @@ const SLOTS: ReportSlot[] = [
     connectorId: 'shopify', slotId: 'variant-sales', label: 'Sales by variant', required: false,
     accept: '.csv', kind: 'xlsx',
     exportSteps: [
-      'Pulled from Shopify by API ("Pull now") — no upload needed normally.',
-      'Fallback: Analytics → Reports → Sales by product variant → export CSV',
+      'Click Pull: the MIS gets it from the Shopify API. Usually no upload is needed.',
+      'If the pull fails: Shopify Analytics → Reports → Sales by product variant → export the CSV',
     ],
-    note: 'Only needed if the live pull is unavailable.',
+    note: 'Upload only when the pull fails.',
   },
 
   // ---- Marketing ----
   {
-    connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend — campaign × ad set × product', required: true,
+    connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend · campaign × ad set × product', required: true,
     accept: '.csv,.xlsx', kind: 'xlsx', parserId: 'meta',
     exportSteps: [
-      'Open the saved "MIS Reporting" report (link below) — grouped Campaign → Ad set → Product ID with Amount spent',
+      'Open the saved "MIS Reporting" report (link below): grouped Campaign → Ad set → Product ID with Amount spent',
       'Set the date range to the SINGLE month you are ingesting (whole month, all campaigns)',
       'Export → download the CSV/XLSX, then upload it here',
     ],
@@ -193,10 +193,10 @@ const SLOTS: ReportSlot[] = [
       'Submit → download the CSV, then upload it here',
     ],
     exportUrl: {
-      label: 'Open Amazon Ads — Advertised product report',
+      label: 'Open Amazon Ads: Advertised product report',
       url: 'https://advertising.amazon.in/reporting/new?entityId=ENTITY6HS1BPYC5VNY&templateId=advertised_product',
     },
-    note: 'Per-SKU ad spend — splits Amazon marketing across products for true per-SKU CM2.',
+    note: 'Per-SKU ad spend. It splits Amazon marketing across products for true per-SKU CM2.',
   },
 
   // ---- Logistics ----
@@ -247,7 +247,7 @@ const SLOTS: ReportSlot[] = [
     accept: '.pdf,.png,.jpg,.jpeg,.webp', kind: 'invoice',
     exportSteps: [
       'Shopflo → Billing → Invoices / Billing History (link below)',
-      'Fastest: screenshot the whole "Billing History" table — Claude reads every month at once (amount incl. GST; each due date books to the prior month)',
+      'Fastest: screenshot the whole "Billing History" table. Claude reads every month at once (amount incl. GST; each due date books to the prior month)',
       'Or, per month: open an invoice and upload its PDF',
       'Upload the screenshot or PDF here (AI in use)',
     ],

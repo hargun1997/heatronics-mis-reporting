@@ -30,13 +30,13 @@ function ExportHelpModal({ slot, open, onClose }: { slot: ReportSlot; open: bool
           className="flex items-start justify-between gap-3 px-4 py-3 rounded-xl border border-brand-200 bg-brand-50 hover:bg-brand-100 transition-colors mb-4">
           <div>
             <div className="text-sm font-semibold text-brand-800">{slot.exportUrl.label}</div>
-            <div className="text-xs text-brand-700/80 mt-0.5">Fastest — opens the export screen. Set the month, then Export.</div>
+            <div className="text-xs text-brand-700/80 mt-0.5">Fastest: opens the export screen. Set the month, then Export.</div>
           </div>
           <span className="text-brand-600 text-lg leading-none" aria-hidden>↗</span>
         </a>
       ) : (
         <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
-          No saved-report link yet — follow the raw steps below. (We add a one-click link per source as its export URL is confirmed.)
+          No saved-report link yet: follow the raw steps below. (We add a one-click link per source as its export URL is confirmed.)
         </p>
       )}
 
@@ -51,7 +51,7 @@ function ExportHelpModal({ slot, open, onClose }: { slot: ReportSlot; open: bool
       </ol>
 
       <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
-        <span className="font-medium text-slate-600">Download &amp; upload:</span> accepts {slot.accept} — CSV or Excel are both fine, and you don't need to clean junk header rows. Download the file, then come back here and tap “Upload file”.
+        <span className="font-medium text-slate-600">Download &amp; upload:</span> accepts {slot.accept}: CSV or Excel are both fine, and you don't need to clean junk header rows. Download the file, then come back here and tap “Upload file”.
       </div>
       {slot.note && <p className="text-xs text-slate-500 mt-3"><span className="font-medium text-slate-600">What we do with it:</span> {slot.note}</p>}
     </Modal>
@@ -67,7 +67,7 @@ function AiWorking({ label }: { label: string }) {
         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-500" />
       </span>
       <span className="font-medium">Claude is working</span>
-      <span className="text-violet-500">— {label}</span>
+      <span className="text-violet-500">· {label}</span>
     </div>
   );
 }
@@ -188,7 +188,7 @@ export function IngestStepper({
       setPeriod(month);
       setStage(s.checks.overall === 'fail' ? 'failed' : 'review');
     } catch (e) {
-      setError(`Pull failed: ${e instanceof Error ? e.message : 'unknown error'} — upload the file instead.`);
+      setError(`Pull failed: ${e instanceof Error ? e.message : 'unknown error'}: upload the file instead.`);
       setStage(before);
     } finally {
       setPulling(null);
@@ -312,7 +312,7 @@ export function IngestStepper({
               title={source.connected ? `Pull ${monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())} from ${source.via}` : source.connectHint ?? 'Not connected'}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg bg-cta text-on-cta hover:bg-cta-hover disabled:opacity-40"
             >
-              Pull now · {monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())}
+              Pull {monthName(/^\d{4}-\d{2}$/.test(period) ? period : lastMonthKey())}
             </button>
           )}
           {canPull && source && !source.connected && (
@@ -354,7 +354,7 @@ export function IngestStepper({
 
         {!wired && (
           <p className="text-xs sm:text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
-            The reader for this report is being built — the export steps are ready (tap “How to export”). Upload opens next.
+            The reader for this report is being built: the export steps are ready (tap “How to export”). Upload opens next.
           </p>
         )}
 
@@ -394,11 +394,11 @@ export function IngestStepper({
               </p>
             )}
             {!autoMonths && !periodOk && (
-              <p className="text-xs sm:text-[11px] text-rose-500">Set the <span className="font-medium">Month</span> (top right) before saving — required.</p>
+              <p className="text-xs sm:text-[11px] text-rose-500">Set the <span className="font-medium">Month</span> (top right) before saving: required.</p>
             )}
             {tallyMonths && tallyMonths.length > 1 && (
               <p className="text-xs sm:text-[11px] text-slate-400">
-                Tally export carries {tallyMonths.length} months — all are ingested: {tallyMonths.map((m) => m.periodLabel).join(', ')}
+                Tally export carries {tallyMonths.length} months: all are ingested: {tallyMonths.map((m) => m.periodLabel).join(', ')}
               </p>
             )}
             {hasWarn && (
@@ -468,7 +468,7 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
           {checks.items.map((it) => (
             <li key={it.id} className="flex gap-2">
               <span className={`font-bold ${dot(it.status)}`}>{mark(it.status)}</span>
-              <span className="text-slate-600"><span className="font-medium text-slate-700">{it.label}</span>{it.detail ? ` — ${it.detail}` : ''}</span>
+              <span className="text-slate-600"><span className="font-medium text-slate-700">{it.label}</span>{it.detail ? `: ${it.detail}` : ''}</span>
             </li>
           ))}
         </ul>

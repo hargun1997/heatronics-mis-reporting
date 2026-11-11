@@ -22,7 +22,7 @@ import { Agenda, DailyEmailStrip } from './Agenda';
 import { AllTasks } from './AllTasks';
 import { MonthView } from './MonthView';
 import { EmailPreview } from './SettingsCards';
-import { TaskEditor } from './TaskEditor';
+import { TaskEditor } from './lazyParts';
 import { KINDS, NO_FILTERS, buildAgenda, inHead, readLS, unownedTasks, writeLS, type Filters, type Item, type View, type Who } from './taskModel';
 import { TasksToolbar } from './TasksToolbar';
 import { TasksHeader, btnPrimary, focusRing } from './ui';
@@ -176,16 +176,23 @@ export function TasksPage() {
   };
 
   const sub = !state
-    ? 'What’s due, who does it, and how.'
+    ? 'Tasks with a due date, and problems to fix in the books.'
     : [inbox.open.length ? `${inbox.open.length} to fix` : '', counts.late ? `${counts.late} late` : '', `${counts.today} due today`, `${counts.week} more this week`].filter(Boolean).join(' · ');
 
   const header = (
-    <TasksHeader title="Tasks" sub={sub}>
+    <TasksHeader title="Tasks" sub={sub}
+      help={<><p>To do: tasks with a due date.</p><p>Fix: problems found in the books, the reports and the MIS.</p><p>Done hides a Fix item until the item changes.</p></>}
+      status={state && unownedTasks(state).length > 0 && who !== 'unassigned' ? (
+        <button type="button" onClick={() => { setWhoRaw('unassigned'); setView('all'); }} title="A task with no owner gets no reminder. Select to see these tasks."
+          className={`inline-flex min-h-11 sm:min-h-7 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-800 ${focusRing}`}>
+          <ExclamationCircleIcon className="h-4 w-4" aria-hidden />{unownedTasks(state).length} with no owner
+        </button>
+      ) : undefined}>
       <MePicker me={me} members={members} onMe={chooseMe} />
       <Link
         to="/tasks/settings"
-        aria-label="People & reminders settings"
-        title="People & reminders"
+        aria-label="People and reminders"
+        title="People and reminders"
         className={`flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900 ${focusRing}`}
       >
         <Cog6ToothIcon className="h-5 w-5" />
@@ -200,20 +207,18 @@ export function TasksPage() {
     return (
       <div className="tasks-ui pb-16">
         {header}
-        <div className="mx-auto max-w-5xl px-4 py-16 text-center text-sm text-slate-600 sm:px-6 lg:px-8">
-          {error ? <span className="text-rose-700">{error}</span> : seeding ? 'Setting up — bringing over the tasks from the old Tasks & Compliance and Ownership pages…' : 'Loading tasks…'}
+        <div className="mx-auto max-w-7xl px-4 py-16 text-center text-sm text-slate-600 sm:px-6 lg:px-8">
+          {error ? <span className="text-rose-700">{error}</span> : seeding ? 'Setting up the task list…' : 'Loading…'}
         </div>
       </div>
     );
   }
 
-  const unowned = unownedTasks(state).length;
-
   return (
     <div className="tasks-ui pb-16">
       {header}
 
-      <div className="mx-auto max-w-5xl space-y-4 px-4 pt-5 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-3 px-4 sm:px-6 lg:px-8">
         {error && (
           <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
             {error}
@@ -243,29 +248,7 @@ export function TasksPage() {
           />
         </div>
 
-        {unowned > 0 && who !== 'unassigned' && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm">
-            <ExclamationCircleIcon className="h-5 w-5 shrink-0 text-amber-600" />
-            <span className="min-w-0 flex-1 basis-[calc(100%-2.5rem)] text-slate-800 sm:basis-auto">
-              {unowned} task{unowned > 1 ? 's have' : ' has'} no owner, so nobody gets reminded.
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setWhoRaw('unassigned');
-                setView('all');
-              }}
-              className={`min-h-[36px] rounded px-1 font-medium text-slate-700 hover:text-slate-950 hover:underline ${focusRing}`}
-            >
-              Show them
-            </button>
-            <Link to="/tasks/settings#roles" className={`min-h-[36px] content-center rounded px-1 font-semibold text-brand-700 hover:underline ${focusRing}`}>
-              Assign owners
-            </Link>
-          </div>
-        )}
-
-        {view === 'agenda' && <FixPreview inbox={inbox} onAll={() => setView('fix')} />}
+        {view === 'agenda' && <FixPreview inbox={inbox} onAll={() => setView('fix')} max={3} />}
 
         {view === 'fix' ? (
           <IssuesInbox inbox={inbox} />
@@ -329,7 +312,7 @@ export function TasksPage() {
       <Modal open={adding} onClose={() => setAdding(false)} title="Add a task" width={760}>
         <TaskEditor bare members={members} areas={areas} onSave={onSaveTask} onCancel={() => setAdding(false)} />
       </Modal>
-      <Modal open={preview} onClose={() => setPreview(false)} title="Today’s emails" subtitle="A preview — nothing is sent from here." width={900}>
+      <Modal open={preview} onClose={() => setPreview(false)} title="Reminder emails for today" subtitle="Preview only. This does not send an email." width={900}>
         <EmailPreview embedded onClose={() => setPreview(false)} />
       </Modal>
     </div>

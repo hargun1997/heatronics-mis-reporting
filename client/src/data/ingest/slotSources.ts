@@ -10,7 +10,7 @@
 // (commitReportMonths), and the close maths can't tell the difference.
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import { loadXlsx, xlsx } from '../../utils/xlsxLazy';
 import { UPLOAD_PARSERS } from '../liveMis/uploadParsers';
 import type { DailyFact } from '../liveMis/facts';
 import { commitReportMonths, stageTallyMonth } from './ingestClient';
@@ -108,11 +108,14 @@ export async function pullSlot(
     const r = await fetch(`/api/connectors/slots/${slot.connectorId}/${slot.slotId}/pull/${periodKey}`);
     ans = (await r.json().catch(() => ({ status: 'none' }))) as PullAnswer;
   }
-  if (ans.status === 'done') return { result: ans.result, pulledAt: ans.pulledAt, via: ans.via, parserId: ans.parserId };
+  if (ans.status === 'done') {
+    if (ans.result.rows) await loadXlsx(); // stagePull runs the sheet through an upload reader
+    return { result: ans.result, pulledAt: ans.pulledAt, via: ans.via, parserId: ans.parserId };
+  }
   if (ans.status === 'not_connected') throw new Error(ans.detail);
   if (ans.status === 'failed') throw new Error(ans.error);
-  if (ans.status === 'running') throw new Error('Still running on the server — Pull again in a minute.');
-  throw new Error('The pull was lost (the server restarted) — Pull again.');
+  if (ans.status === 'running') throw new Error('Still running on the server. Pull again in 1 minute.');
+  throw new Error('The pull stopped (the server restarted). Pull again.');
 }
 
 function toBase64Utf8(text: string): string {
@@ -142,8 +145,8 @@ export function stagePull(
     const parser = UPLOAD_PARSERS.find((p) => p.sourceId === (pull.parserId ?? slot.parserId));
     if (!parser) throw new Error('No reader for this sheet.');
     if (result.rows.length > 0) {
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(result.rows), 'Sheet1');
+      const wb = xlsx().utils.book_new();
+      xlsx().utils.book_append_sheet(wb, xlsx().utils.aoa_to_sheet(result.rows), 'Sheet1');
       const out = parser.parse(wb);
       facts = out.facts;
       trace = [...trace, ...(out.trace ?? [])];
@@ -216,7 +219,7 @@ export function stagePull(
     id: 'rows',
     label: facts.length > 0 ? 'Rows extracted' : 'No activity',
     status: facts.length > 0 || emptyOk ? 'pass' : 'fail',
-    detail: facts.length > 0 ? `${facts.length} facts for ${periodKey}` : emptyOk ? `empty month confirmed — ${periodKey} filed as covered` : 'nothing returned',
+    detail: facts.length > 0 ? `${facts.length} facts for ${periodKey}` : emptyOk ? `empty month confirmed: ${periodKey} filed as covered` : 'nothing returned',
   });
   for (const w of result.warnings.filter((w) => !blocking.includes(w))) items.push({ id: `w-${items.length}`, label: 'Source note', status: 'warn', detail: w });
 
@@ -260,7 +263,7 @@ export async function pullAndCommit(slot: ReportSlot, info: SlotSourceInfo, peri
     const staged = stagePull(slot, periodKey, pull, info.source);
     if (staged.checks.overall !== 'pass') {
       const why = staged.checks.items.filter((i) => i.status !== 'pass').map((i) => `${i.label}: ${i.detail ?? ''}`).join('; ');
-      return { ok: false, detail: `Pulled, needs review — ${why}` };
+      return { ok: false, detail: `Pulled, check it: ${why}` };
     }
     // Same commit path as a dropped file.
     const metas = await commitReportMonths(slot, staged, periodKey);

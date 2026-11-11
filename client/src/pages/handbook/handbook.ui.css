@@ -15,19 +15,19 @@
 .hb .hb-article > .opblock:first-child { padding-top: 0; }
 
 /* ---------------------------------------------------------------------------
-   Type: IBM Plex Sans / Mono across the handbook, set for reading.
+   Type: the Ember faces (DM Sans, JetBrains Mono for codes), set for reading.
    ------------------------------------------------------------------------- */
 .hbx {
-  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: 'DM Sans Variable', 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: rgb(var(--n-900));
   -webkit-font-smoothing: antialiased;
 }
-.hbx .font-mono { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+.hbx .font-mono { font-family: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace; }
 .hbx .hb {
-  --f-body: 'IBM Plex Sans', system-ui, sans-serif;
-  --f-head: 'IBM Plex Sans', system-ui, sans-serif;
-  --f-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --muted: #475569;
+  --f-body: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif;
+  --f-head: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --muted: rgb(var(--n-600));
   font-size: 16.5px;
   line-height: 1.6;
 }
@@ -52,16 +52,35 @@
 .hbx .hb svg { max-width: 100%; }
 .hbx .hb figure img { cursor: zoom-in; }
 
-/* Calmer task steps: a hairline instead of a boxed card. */
+/* Calmer task steps: a hairline instead of a boxed card. Step numbers are the
+   Ember step marker (obsidian circle, white number), not heat. */
 .hbx .hb .step {
   border-radius: 10px;
   padding: 16px 18px;
 }
 .hbx .hb .step > .no {
-  width: 30px;
-  height: 30px;
-  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgb(var(--n-900));
+  color: rgb(var(--surface));
 }
+
+/* Screenshots are detail: a thumbnail in the text (select = large, in the viewer). */
+.hbx .hb figure:not(.diagram) { align-items: flex-start; max-width: 100%; }
+.hbx .hb figure img {
+  width: auto;
+  max-width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  object-position: left top;
+  border-radius: 6px;
+  border: 1px solid rgb(var(--n-200));
+}
+.hbx .hb figure a { display: block; width: fit-content; max-width: 100%; }
+.hbx .hb figure a img { border: 0; border-radius: 0; }
+.hbx .hb .pair { gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
 
 /* ---------------------------------------------------------------------------
    Foldable sections (fold.ts adds .hbf-head + a chevron to each heading)
@@ -73,7 +92,7 @@
   padding-left: 30px;
   min-height: 28px;
 }
-.hbx .hb .hbf-head:hover { color: #93270c; }
+.hbx .hb .hbf-head:hover { color: rgb(var(--accent-700)); }
 .hbf-btn {
   position: absolute;
   left: -4px;
@@ -87,7 +106,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #64748b;
+  color: rgb(var(--n-500));
   cursor: pointer;
   /* Bigger tap target than it looks. */
   outline-offset: 0;
@@ -98,7 +117,7 @@
   inset: -6px;
 }
 .hbf-btn:hover { background: rgb(var(--n-100)); color: rgb(var(--n-900)); }
-.hbf-btn:focus-visible { outline: 2px solid #fe4705; }
+.hbf-btn:focus-visible { outline: 2px solid rgb(var(--accent-500)); }
 .hbf-btn svg { transition: transform 0.15s ease; }
 .hbx .hb .hbf-head[data-open='false'] .hbf-btn svg { transform: rotate(-90deg); }
 .hbx .hb .hbf-hide { display: none !important; }

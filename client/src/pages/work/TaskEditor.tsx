@@ -6,7 +6,8 @@ import { CheckIcon, PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/o
 import { getHandbook } from '../../data/handbook/handbook';
 import { addDays, describe, occurrences, ordinal, parseYmd, todayIST, ymd } from '../../data/work/schedule';
 import type { TeamMember, WorkTask } from '../../data/work/workClient';
-import { CADENCES, MN, WD, handbookAnchors, periodLabel } from './taskModel';
+import { CADENCES, MN, WD, periodLabel } from './taskModel';
+import { handbookAnchors } from './handbookAnchors';
 import { Avatar, btnGhost, btnPrimary, input, lbl } from './ui';
 
 const scheduleSel = 'min-h-[40px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[14px] font-medium text-slate-950 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
@@ -273,7 +274,7 @@ export function TaskEditor({
       <div>
         <label className={lbl}>How to do it (Accounts Handbook section)</label>
         <select className={input} value={f.howTo ?? ''} onChange={(e) => set({ howTo: e.target.value })}>
-          <option value="">— none —</option>
+          <option value="">None</option>
           {getHandbook().collections.map((c) => (
             <optgroup key={c.slug} label={c.title}>
               {anchors

@@ -7,7 +7,9 @@ import {
   type BatchRow, type MatchResult,
 } from '../../data/payments/batch';
 import { downloadPaymentFiles } from '../../data/payments/workbook';
-import { Note, Num, btnPrimary, btnSecondary, input } from './shared';
+import { Note, btnPrimary, btnSecondary, input } from './shared';
+import { Modal } from '../ui/overlays';
+import { InfoTip, Panel } from '../ui/states';
 import { readLocal, writeLocal } from './util';
 
 const DEBIT_KEY = 'mis.payments.debitAccount';
@@ -28,6 +30,7 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ tone: 'ok' | 'warn' | 'error'; text: string } | null>(null);
   const [tried, setTried] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
 
   const byId = useMemo(() => new Map(payees.map((p) => [p.id, p])), [payees]);
   const rows: BatchRow[] = Object.entries(sel).map(([payeeId, s]) => {
@@ -66,6 +69,7 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
     setMatches(null);
     setOk({});
     setPaste('');
+    setPasteOpen(false);
   }
 
   async function makeFile() {
@@ -85,7 +89,7 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
         });
         if (!res.ok) saved = false;
       } catch { saved = false; }
-      downloadPaymentFiles(out, id);
+      await downloadPaymentFiles(out, id);
       if (saved) onSaved();
       setResult(saved
         ? { tone: 'ok', text: `Batch ${id} saved: ${t.count} payments, ${inr(t.paise)}. Two files downloaded (.xlsx and .csv).` }
@@ -95,68 +99,40 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
     } finally { setBusy(false); }
   }
 
-  if (!payees.length) return <Note tone="info">Upload the payee list in step 1 first.</Note>;
+  if (!payees.length) return <Note tone="info">Upload the payee list in the Payees tab first.</Note>;
 
   return (
-    <div className="space-y-5">
-      <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
-        <li>Type the debit account and pick the payment date.</li>
-        <li>Tick each payee and type the amount (or paste a name + amount list).</li>
-        <li>Check the totals, then press <b>Download payment file</b>.</li>
-      </ol>
-
+    <Panel title="Make a payment batch" count={t.count || null}
+      action={<div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+          File layout not confirmed
+          <InfoTip label="About the payment file layout" align="right"><p>{PAYMENT_FORMAT.note}</p><p>Run Validate File for Upload in CIB before you upload the file.</p></InfoTip>
+        </span>
+        <InfoTip label="How to make a batch" align="right">
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>Type the debit account. Pick the payment date.</li>
+            <li>Tick each payee. Type the amount. Or select Paste a list.</li>
+            <li>Check the totals. Then select <b>Download payment file</b>.</li>
+          </ol>
+          <p>Mode: same bank = FT. ₹2 lakh or more = RTGS. All other = NEFT. You can change it.</p>
+        </InfoTip>
+      </div>}>
+    <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="block text-sm font-medium text-slate-700">Debit account (ours)
-          <input className={`${input} mt-1 font-mono`} inputMode="numeric" value={debitAccount} onChange={(e) => setDebit(e.target.value.replace(/\D/g, ''))} placeholder="Account number" />
-          <span className="mt-0.5 block text-xs font-normal text-slate-500">Remembered on this computer only.</span>
+          <input className={`${input} mt-1 font-mono`} inputMode="numeric" value={debitAccount} onChange={(e) => setDebit(e.target.value.replace(/\D/g, ''))} placeholder="Account number" aria-describedby="debit-hint" />
+          <span id="debit-hint" className="mt-0.5 block text-xs font-normal text-slate-600">Kept on this computer only.</span>
         </label>
         <label className="block text-sm font-medium text-slate-700">Payment date
           <input type="date" className={`${input} mt-1`} value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <label className="block text-sm font-medium text-slate-700">Remark for new rows
           <span className="mt-1 flex gap-2">
-            <input className={input} value={allRemark} maxLength={30} onChange={(e) => setAllRemark(e.target.value)} placeholder="e.g. Oct-26 invoices" />
+            <input className={input} value={allRemark} maxLength={30} onChange={(e) => setAllRemark(e.target.value)} placeholder="Oct-26 invoices" />
             <button type="button" className={`${btnSecondary} whitespace-nowrap`} onClick={() => setSel((x) => Object.fromEntries(Object.entries(x).map(([k, v]) => [k, { ...v, remark: allRemark }])))} disabled={!rows.length}>Apply to all</button>
           </span>
         </label>
       </div>
-
-      <details className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-800">Paste a list of names and amounts</summary>
-        <div className="mt-3 space-y-3">
-          <p className="text-sm text-slate-600">Copy two columns from Excel: name, then amount. One payee per line.</p>
-          <textarea className={`${input} min-h-[120px] py-2 font-mono`} value={paste} onChange={(e) => { setPaste(e.target.value); setMatches(null); }} aria-label="Names and amounts" />
-          <button type="button" className={btnSecondary} disabled={!paste.trim()} onClick={() => { setMatches(matchPaste(parsePasteList(paste), payees)); setOk({}); }}>Match names</button>
-          {matches && (
-            <div className="space-y-2">
-              {matches.map((m, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-                  <span className="min-w-[180px] font-medium text-slate-900">{m.line.name}</span>
-                  <span className="tabular-nums text-slate-700">{Number.isFinite(m.line.amountPaise) ? inr(m.line.amountPaise) : '—'}</span>
-                  {m.kind === 'exact' && <span className="text-emerald-700">Found: {m.payee?.name}</span>}
-                  {m.kind === 'bad_amount' && <span className="text-red-700">Amount not readable</span>}
-                  {m.kind === 'none' && <span className="text-red-700">No Active payee with this name</span>}
-                  {m.kind === 'fuzzy' && (
-                    <span className="flex flex-wrap items-center gap-2 text-amber-800">
-                      Is it
-                      {[m.payee!, ...(m.others ?? [])].map((p) => (
-                        <button key={p.id} type="button" aria-pressed={ok[i] === p.id}
-                          className={`min-h-[36px] rounded-lg border px-2 ${ok[i] === p.id ? 'border-accent-500 bg-accent-50 text-accent-700' : 'border-slate-200 bg-white text-slate-700'}`}
-                          onClick={() => setOk((x) => ({ ...x, [i]: x[i] === p.id ? '' : p.id }))}>{p.name} ({maskAccount(p.account)})</button>
-                      ))}
-                      ?
-                    </span>
-                  )}
-                </div>
-              ))}
-              <button type="button" className={btnSecondary} onClick={applyMatches}
-                disabled={!matches.some((m, i) => m.kind === 'exact' || ok[i])}>
-                Add {matches.filter((m, i) => m.kind === 'exact' || ok[i]).length} matched row(s)
-              </button>
-            </div>
-          )}
-        </div>
-      </details>
 
       <div className="flex flex-wrap items-center gap-3">
         <input className={`${input} max-w-xs`} placeholder="Search payee" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search payees to pay" />
@@ -164,12 +140,13 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
           <input type="checkbox" className="h-5 w-5 accent-accent-600" checked={onlyPicked} onChange={(e) => setOnlyPicked(e.target.checked)} />
           Picked only
         </label>
-        <span className="text-sm text-slate-500">{active.length} Active payees · {payees.length - active.length} not active (hidden)</span>
+        <span className="text-sm text-slate-600">{active.length} Active · {payees.length - active.length} not active (hidden)</span>
+        <button type="button" className={`${btnSecondary} sm:ml-auto`} onClick={() => setPasteOpen(true)}>Paste a list</button>
       </div>
 
-      <div className="max-h-[520px] overflow-auto rounded-lg border border-slate-200">
+      <div className="max-h-[400px] overflow-auto rounded-lg border border-slate-200">
         <table className="w-full min-w-[860px] text-[13px]">
-          <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold text-slate-600">
             <tr><th className="w-10 px-3 py-2"><span className="sr-only">Pick</span></th><th className="px-3 py-2">Payee</th><th className="px-3 py-2">Account</th><th className="w-36 px-3 py-2 text-right">Amount ₹</th><th className="w-28 px-3 py-2">Mode</th><th className="px-3 py-2">Remark</th></tr>
           </thead>
           <tbody>
@@ -203,22 +180,54 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
         </table>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Num label="Payments" value={t.count} />
-        <Num label="Total" value={inr(t.paise)} />
-        <Num label="By mode" value={<span className="text-base">{PAY_MODES.filter((m) => t.byMode[m].count).map((m) => `${m} ${t.byMode[m].count}`).join(' · ') || '—'}</span>}
-          sub={PAY_MODES.filter((m) => t.byMode[m].count).map((m) => `${m} ${inr(t.byMode[m].paise)}`).join(' · ')} />
-        <Num label="Pay on" value={<span className="text-base">{date ? date.split('-').reverse().join('-') : '—'}</span>} sub={debitAccount ? `From ${maskAccount(debitAccount)}` : 'Debit account not set'} />
-      </div>
-
-      <Note tone="warn">The payment file layout is <b>not confirmed</b> yet. {PAYMENT_FORMAT.note}</Note>
       {tried && problems.length > 0 && <Note tone="error">{problems.join(' · ')}</Note>}
       {result && <Note tone={result.tone}>{result.text}</Note>}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="button" className={btnPrimary} onClick={makeFile} disabled={busy}>{busy ? 'Making file…' : 'Download payment file'}</button>
-        <span className="text-sm text-slate-600">Gives .xlsx and .csv. Mode: same bank = FT, ₹2 lakh or more = RTGS, else NEFT (you can change it).</span>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+        <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <div><dt className="text-xs text-slate-600">Payments</dt><dd className="text-lg font-semibold tabular-nums text-slate-900">{t.count}</dd></div>
+          <div><dt className="text-xs text-slate-600">Total</dt><dd className="text-lg font-semibold tabular-nums text-slate-900">{inr(t.paise)}</dd></div>
+          <div><dt className="text-xs text-slate-600">By mode</dt><dd className="pt-1 tabular-nums text-slate-900">{PAY_MODES.filter((m) => t.byMode[m].count).map((m) => `${m} ${t.byMode[m].count} · ${inr(t.byMode[m].paise)}`).join('  ·  ') || 'None'}</dd></div>
+          <div><dt className="text-xs text-slate-600">Pay on</dt><dd className="pt-1 text-slate-900">{date ? date.split('-').reverse().join('-') : 'Not set'}{debitAccount ? ` · from ${maskAccount(debitAccount)}` : ''}</dd></div>
+        </dl>
+        <button type="button" className={`${btnPrimary} sm:ml-auto`} onClick={makeFile} disabled={busy}>{busy ? 'Making file…' : 'Download payment file'}</button>
       </div>
     </div>
+    <Modal open={pasteOpen} onClose={() => setPasteOpen(false)} title="Paste a list of names and amounts" width={640}>
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">Copy 2 columns from Excel: name, then amount. Put 1 payee on each line.</p>
+          <textarea className={`${input} min-h-[120px] py-2 font-mono`} value={paste} onChange={(e) => { setPaste(e.target.value); setMatches(null); }} aria-label="Names and amounts" />
+          <button type="button" className={btnSecondary} disabled={!paste.trim()} onClick={() => { setMatches(matchPaste(parsePasteList(paste), payees)); setOk({}); }}>Match names</button>
+          {matches && (
+            <div className="space-y-2">
+              {matches.map((m, i) => (
+                <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                  <span className="min-w-[180px] font-medium text-slate-900">{m.line.name}</span>
+                  <span className="tabular-nums text-slate-700">{Number.isFinite(m.line.amountPaise) ? inr(m.line.amountPaise) : '—'}</span>
+                  {m.kind === 'exact' && <span className="text-emerald-700">Found: {m.payee?.name}</span>}
+                  {m.kind === 'bad_amount' && <span className="text-red-700">Amount not readable</span>}
+                  {m.kind === 'none' && <span className="text-red-700">No Active payee with this name</span>}
+                  {m.kind === 'fuzzy' && (
+                    <span className="flex flex-wrap items-center gap-2 text-amber-800">
+                      Is it
+                      {[m.payee!, ...(m.others ?? [])].map((p) => (
+                        <button key={p.id} type="button" aria-pressed={ok[i] === p.id}
+                          className={`min-h-[36px] rounded-lg border px-2 ${ok[i] === p.id ? 'border-accent-500 bg-accent-50 text-accent-700' : 'border-slate-200 bg-white text-slate-700'}`}
+                          onClick={() => setOk((x) => ({ ...x, [i]: x[i] === p.id ? '' : p.id }))}>{p.name} ({maskAccount(p.account)})</button>
+                      ))}
+                      ?
+                    </span>
+                  )}
+                </div>
+              ))}
+              <button type="button" className={btnSecondary} onClick={applyMatches}
+                disabled={!matches.some((m, i) => m.kind === 'exact' || ok[i])}>
+                Add {matches.filter((m, i) => m.kind === 'exact' || ok[i]).length} matched row(s)
+              </button>
+            </div>
+          )}
+        </div>
+    </Modal>
+    </Panel>
   );
 }

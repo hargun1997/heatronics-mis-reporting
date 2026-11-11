@@ -2,11 +2,14 @@
 // to FY31, with levers and saved scenarios. Engine: data/planning/engine.ts.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { MoreHorizontal, SlidersHorizontal } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { Drawer, Popover } from '../../components/ui/overlays';
+import { BTN } from '../../components/ui/states';
 import { runPlan, type Plan, type PlanResult } from '../../data/planning/engine';
 import { basePlan, upgradePlan, BASE_SOURCE_URL } from '../../data/planning/basePlan';
-import { SetupPanel } from '../../components/planning/setup/SetupPanel';
+import { SetupPanel, panelSummary } from '../../components/planning/setup/SetupPanel';
 import { OverviewView } from '../../components/planning/outputs/Overview';
 import { BusinessPlanView } from '../../components/planning/outputs/BusinessPlan';
 import { RevenueView } from '../../components/planning/outputs/Revenue';
@@ -23,11 +26,9 @@ interface Saved { id: string; name: string; note: string; updatedAt: string; upd
 type View = 'overview' | 'business' | 'revenue' | 'costs' | 'monthly' | 'cash' | 'products' | 'actual';
 
 const DRAFT_KEY = 'planning-draft-v1';
-const icon = (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 15l4-4 3 3 6-7" />
-  </svg>
-);
+const VIEW_TABS = [{ id: 'overview', label: 'Overview' }, { id: 'business', label: 'Business plan' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash and funding' }, { id: 'products', label: 'Products and customers' }, { id: 'actual', label: 'Plan vs actual' }];
+const MENU = 'flex min-h-11 sm:min-h-9 w-full items-center rounded-lg px-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40';
+
 
 async function api<T>(url: string, body?: unknown, method?: string): Promise<T> {
   const res = await fetch(url, {
@@ -50,7 +51,7 @@ function loadDraft(): Draft | null {
   } catch { return null; }
 }
 function saveDraft(d: Draft) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage unavailable — the draft just isn't kept */ }
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage unavailable: the draft just isn't kept */ }
 }
 
 export function PlanningPage() {
@@ -60,6 +61,7 @@ export function PlanningPage() {
   const [cleanJson, setCleanJson] = useState<string>(() => draft?.clean ?? JSON.stringify(basePlan()));
   const [saved, setSaved] = useState<Saved[]>([]);
   const [view, setView] = useState<View>('overview');
+  const [setupOpen, setSetupOpen] = useState(false);
   const [compareId, setCompareId] = useState<string>('base');
   const [comparePlan, setComparePlan] = useState<Plan | null>(() => basePlan());
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -97,7 +99,7 @@ export function PlanningPage() {
   const flash = (text: string, bad = false) => { setMsg({ text, bad }); window.setTimeout(() => setMsg(null), 4000); };
 
   const open = async (id: string) => {
-    if (dirty && !window.confirm('Discard unsaved changes to this scenario?')) return;
+    if (dirty && !window.confirm('Changes are not saved. Open the other scenario and lose the changes?')) return;
     if (id === 'base') {
       const b = basePlan(); setPlan(b); setSelected('base'); setCleanJson(JSON.stringify(b)); return;
     }
@@ -119,7 +121,7 @@ export function PlanningPage() {
   const save = async (asNew: boolean) => {
     let name = plan.name;
     if (asNew || selected === 'base') {
-      const n = window.prompt('Name this scenario', selected === 'base' ? 'Plan — ' + new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : plan.name + ' (copy)');
+      const n = window.prompt('Name this scenario', selected === 'base' ? 'Plan: ' + new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : plan.name + ' (copy)');
       if (!n?.trim()) return;
       name = n.trim();
     }
@@ -148,47 +150,48 @@ export function PlanningPage() {
     <>
       <PageHeader
         title="5-year plan"
-        description="Your Projection & Deployment Plan, running live and extended to FY31. Everything you can change is in Setup; everything below it is the result."
-        icon={icon}
-        accent="brand"
-        actions={<a href={BASE_SOURCE_URL} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand-700 hover:underline">Source sheet ↗</a>}
-      />
-      <div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-        {/* scenario bar */}
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-surface px-4 py-3 shadow-card">
-          <label className="text-[12px] font-semibold text-slate-500" htmlFor="scn">Scenario</label>
-          <select id="scn" value={selected} onChange={(e) => open(e.target.value)} className="max-w-[260px] rounded-lg border border-slate-200 px-2 py-1.5 text-[13px] font-semibold">
-            <option value="base">Base — Projection & Deployment Plan</option>
+        description="The plan to FY31. Change the inputs in Setup. The tabs show the results."
+        status={<>
+          {dirty && <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Not saved</span>}
+          {msg && <span className={`text-xs ${msg.bad ? 'text-rose-700' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
+        </>}
+        tabs={VIEW_TABS} tab={view} onTab={(v) => setView(v as View)}
+        help={<>
+          <p>Base is the Projection and Deployment Plan sheet.</p>
+          <p>Each saved scenario is a copy with your changes. All persons see the saved scenarios.</p>
+          <p><a href={BASE_SOURCE_URL} target="_blank" rel="noreferrer" className="font-medium text-accent-600 hover:underline">Open the source sheet</a></p>
+        </>}
+        actions={<>
+          <label className="sr-only" htmlFor="scn">Scenario</label>
+          <select id="scn" value={selected} onChange={(e) => open(e.target.value)} className="min-h-11 sm:min-h-9 max-w-[220px] rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium">
+            <option value="base">Base plan</option>
             {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          {dirty && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-amber-700">Unsaved changes</span>}
-          <button disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+          <button type="button" disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className={BTN}>
             {selected === 'base' ? 'Save as scenario' : 'Save'}
           </button>
-          {selected !== 'base' && <button disabled={busy} onClick={() => save(true)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Save as new</button>}
-          <button onClick={() => { if (!dirty || window.confirm('Undo all changes since the last save?')) { setPlan(JSON.parse(cleanJson)); } }}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50" disabled={!dirty}>Undo changes</button>
-          {selected !== 'base' && <button onClick={remove} className="rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-400 hover:text-rose-600">Delete</button>}
-          <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
-          <label className="text-[12px] font-semibold text-slate-500" htmlFor="cmp">Compare with</label>
-          <select id="cmp" value={compareId} onChange={(e) => chooseCompare(e.target.value)} className="max-w-[220px] rounded-lg border border-slate-200 px-2 py-1.5 text-[13px]">
-            <option value="none">Nothing</option>
-            <option value="base">Base</option>
-            {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <button onClick={() => void import('../../utils/planningExport').then((m) => m.downloadPlanWorkbook(plan, result))} className="ml-auto rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Export Excel</button>
-          {msg && <span className={`w-full text-[12px] ${msg.bad ? 'text-rose-600' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
-        </div>
-
-        <SetupPanel plan={plan} update={update} result={result} />
-
-        <div className="-mx-1 overflow-x-auto px-1 [&_button]:whitespace-nowrap">
-          <SegmentedControl<View>
-            options={[{ id: 'overview', label: 'Overview' }, { id: 'business', label: 'Business plan' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash & funding' }, { id: 'products', label: 'Products & customers' }, { id: 'actual', label: 'Plan vs actual' }]}
-            value={view} onChange={setView} aria-label="Plan output"
-          />
-        </div>
-
+          <button type="button" onClick={() => setSetupOpen(true)} className={BTN}><SlidersHorizontal className="h-4 w-4" aria-hidden />Setup</button>
+          <Popover align="right" width={260} buttonClassName={BTN} buttonLabel="More actions" button={<MoreHorizontal className="h-4 w-4" aria-hidden />}>
+            <div className="space-y-1 p-2 text-sm">
+              <label className="block px-2 pt-1 text-xs font-medium text-slate-600" htmlFor="cmp">Compare with</label>
+              <select id="cmp" value={compareId} onChange={(e) => chooseCompare(e.target.value)} className="mx-2 mb-1 min-h-11 sm:min-h-9 w-[calc(100%-1rem)] rounded-lg border border-slate-200 px-2 text-sm">
+                <option value="none">No scenario</option>
+                <option value="base">Base plan</option>
+                {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              {selected !== 'base' && <button type="button" disabled={busy} onClick={() => save(true)} className={MENU}>Save as new scenario</button>}
+              <button type="button" disabled={!dirty} onClick={() => { if (window.confirm('Remove all changes made after the last save?')) setPlan(JSON.parse(cleanJson)); }} className={MENU}>Undo changes</button>
+              <button type="button" onClick={() => void import('../../utils/planningExport').then((m) => m.downloadPlanWorkbook(plan, result))} className={MENU}>Download Excel</button>
+              <Link to="/tools/round-planner" className={MENU}>Open Round planner</Link>
+              {selected !== 'base' && <button type="button" onClick={remove} className={MENU + ' text-rose-700'}>Delete this scenario</button>}
+            </div>
+          </Popover>
+        </>}
+      />
+      <Drawer open={setupOpen} onClose={() => setSetupOpen(false)} title="Setup" subtitle={panelSummary(plan)} width={920}>
+        <SetupPanel embedded plan={plan} update={update} result={result} />
+      </Drawer>
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
         {view === 'overview' && <OverviewView plan={plan} result={result} compare={compareId !== 'none' ? compareResult : null} compareName={compareName} />}
         {view === 'business' && <BusinessPlanView plan={plan} result={result} />}
         {view === 'revenue' && <RevenueView plan={plan} result={result} />}

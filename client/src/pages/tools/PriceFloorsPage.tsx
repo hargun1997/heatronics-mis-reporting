@@ -3,9 +3,9 @@
 // Seller Central "Revenue and fees" report uploaded here.
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Card, SectionCard } from '../../components/ui/Card';
-import { Disclosure } from '../../components/ui/Disclosure';
+import { HeaderMore, PageHeader } from '../../components/ui/PageHeader';
+import { KpiTile } from '../../components/ui/KpiTile';
+import { BTN, BTN_PRIMARY, ErrorBox, InfoTip, Panel } from '../../components/ui/states';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Modal } from '../../components/ui/overlays';
 import {
@@ -47,12 +47,6 @@ interface ApiState { settings: FloorSettings | null; costs: CostsSnapshot | null
 /** GET /api/price-floors/live: the fee-report shape built from Ops' stored Amazon data (last 30 full days). */
 interface LiveSnap { report: (FeeReport & { live: { from: string; to: string; notes: string[]; feesGst: 'itemised' | 'assumed' } }) | null; at: string; error: string | null }
 
-const icon = (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5a2 2 0 011.41.59l7 7a2 2 0 010 2.82l-7 7a2 2 0 01-2.82 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
-  </svg>
-);
-
 const when = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -64,7 +58,7 @@ const convLine = (c: NonNullable<CostsSnapshot['conversion']>) => {
   const ex = (c.types || []).filter((t) => t.perUnit).slice(0, 3).map((t) => `${t.type} ₹${Math.round(t.perUnit!)}`).join(' · ');
   return (
     <>
-      Overheads {lakh(c.total)} ({monthName(c.overheadsMonth)}) {pace}{ex ? ` · ${ex}` : ''}. Set in Production → Settings → Overheads &amp; pace.
+      Overheads {lakh(c.total)} ({monthName(c.overheadsMonth)}) {pace}{ex ? ` · ${ex}` : ''}. Change them in Production, Settings, Overheads &amp; pace.
     </>
   );
 };
@@ -170,69 +164,99 @@ export function PriceFloorsPage() {
   };
   const unmapped = rows.filter((r) => !r.p);
 
+  const [modal, setModal] = useState<null | 'settings' | 'reports' | 'upload'>(null);
+  const [detail, setDetail] = useState<Row | null>(null);
+  const rep = live?.report;
+  const latest = state?.reports[0];
+
   return (
     <>
       <PageHeader
-        title="Amazon price floors"
-        description="The lowest Amazon price per product that still leaves your target margin, from production's latest cost and live Amazon fees, prices and returns (last 30 days)."
-        icon={icon}
-        crumbs={[{ label: 'Tools', to: '/tools' }, { label: 'Amazon price floors' }]}
+        title="Price floors"
+        description="The lowest Amazon price for each product that gives your target margin."
+        help={
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>Select the ad spend you expect.</li>
+            <li>Read the Action column for each product.</li>
+            <li>Select a product to see its cost waterfall.</li>
+            <li>Select Download report to get the PDF.</li>
+          </ol>
+        }
         actions={
-          <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPicker(true)}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700"
-          >
-            Download report
-          </button>
-          <button
-            type="button"
-            onClick={refreshCosts}
-            disabled={busy === 'costs'}
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {busy === 'costs' ? 'Refreshing…' : 'Refresh costs'}
-          </button>
-          </div>
+          <>
+            <HeaderMore>
+              <button type="button" onClick={() => setModal('settings')} className={BTN}>Settings</button>
+              <button type="button" onClick={() => setModal('reports')} className={BTN}>Fee reports</button>
+            </HeaderMore>
+            <button type="button" onClick={() => setPicker(true)} className={BTN_PRIMARY}>Download report</button>
+          </>
         }
       />
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        {loadError && <Banner tone="bad">Couldn't load the price floors: {loadError}</Banner>}
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
+        {loadError && <ErrorBox onRetry={() => void load()}>Unable to load the price floors: {loadError}</ErrorBox>}
         {note && <Banner tone={note.tone} onClose={() => setNote(null)}>{note.text}</Banner>}
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <SourceCard
-            title="Product costs"
-            line={costs?.month ? `${monthName(costs.month)} · materials + ${fmtPct(buyGstOf(settings))} GST + conversion` : 'Not loaded yet'}
-            sub={
-              costs?.error
-                ? <span className="text-rose-700">Last refresh failed: {costs.error}{costs.month ? ' (showing the last good costs)' : ''}</span>
-                : costs?.conversion
-                  ? convLine(costs.conversion)
-                  : 'No overheads entered in production, so costs are materials only'
-            }
-            foot={<>From production.heatronics.in · fetched {when(costs?.fetchedAt)}</>}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <KpiTile
+            label="Selling below target"
+            value={priced.length ? <span className={below.length ? 'text-rose-700' : 'text-emerald-700'}>{below.length} of {priced.length}</span> : '—'}
+            sub={`At ${fmtPct(m)} margin, ${Math.round(t * 100)}% ads`}
           />
-          <LiveCard live={live} busy={liveBusy} onRefresh={() => void loadLive(true)}>
-            <UploadCard state={state} settings={settings} onSaved={(s, r) => {
-              setState((st) => (st ? { ...st, settings: s, reports: [r, ...st.reports.filter((x) => x.id !== r.id)] } : st));
-            }} setNote={setNote} />
-          </LiveCard>
-          <SourceCard
-            title="Selling below target"
-            line={priced.length ? <span className={below.length ? 'text-rose-700' : 'text-emerald-700'}>{below.length} of {priced.length}</span> : <span className="text-slate-400">—</span>}
-            sub={`At ${fmtPct(m)} margin and ${Math.round(t * 100)}% ad spend, ${u ? `${fmtPct(u)} of returns unsellable` : 'returns resellable'}`}
-            foot={!products.length ? 'Waiting for product costs' : unmapped.length ? <span className="text-amber-700">{unmapped.length} SKU{unmapped.length > 1 ? 's' : ''} not linked to a product cost</span> : 'Every SKU has a product cost'}
+          <KpiTile
+            label="Product costs"
+            value={costs?.month ? monthName(costs.month) : <span className="text-slate-600">Not loaded</span>}
+            sub={
+              <span className="flex flex-wrap items-center gap-x-2">
+                {costs?.error ? <span className="text-rose-700">Last refresh failed</span> : <span>Updated {when(costs?.fetchedAt)}</span>}
+                <button type="button" onClick={refreshCosts} disabled={busy === 'costs'} className="min-h-11 font-semibold text-accent-700 hover:underline disabled:opacity-60 sm:min-h-7">
+                  {busy === 'costs' ? 'Refreshing…' : 'Refresh'}
+                </button>
+                <InfoTip label="About product costs">
+                  <p>Cost = materials + {fmtPct(buyGstOf(settings))} GST + conversion, from production.heatronics.in.</p>
+                  <p>{costs?.conversion ? convLine(costs.conversion) : 'Production has no overheads, so the costs are materials only.'}</p>
+                  {costs?.error && <p className="text-rose-700">Last refresh failed: {costs.error}{costs.month ? '. The page shows the last good costs.' : ''}</p>}
+                </InfoTip>
+              </span>
+            }
+          />
+          <KpiTile
+            label="Amazon fees"
+            value={rep ? 'Live' : latest ? when(latest.uploadedAt) : liveBusy && !live ? 'Loading…' : 'Starting values'}
+            sub={
+              <span className="flex flex-wrap items-center gap-x-2">
+                <span>{rep ? `Last 30 days, ${rep.rows.length} products` : latest ? 'From an uploaded report' : 'From the 14 Oct fee report'}</span>
+                <button type="button" onClick={() => setModal('upload')} className="min-h-11 font-semibold text-accent-700 hover:underline sm:min-h-7">Upload</button>
+                {rep && <button type="button" onClick={() => void loadLive(true)} disabled={liveBusy} className="min-h-11 font-semibold text-accent-700 hover:underline disabled:opacity-60 sm:min-h-7">{liveBusy ? 'Refreshing…' : 'Refresh'}</button>}
+                <InfoTip label="About Amazon fees">
+                  {rep ? (
+                    <>
+                      <p>Live from Amazon through Ops, {rep.live.from.slice(5)} to {rep.live.to.slice(5)}: {rep.rows.length} products, {rep.totals.units.toLocaleString('en-IN')} units, {rs(rep.totals.sales)} sales.</p>
+                      {rep.live.notes.map((n) => <p key={n}>{n}</p>)}
+                      <p>Updated {when(live?.at)}.</p>
+                    </>
+                  ) : (
+                    <p>Live fees are not available{live?.error ? ` (${live.error})` : ''}. Upload a fee report from Seller Central.</p>
+                  )}
+                  {live?.error && rep && <p className="text-amber-800">Last refresh failed ({live.error}). The page shows the copy from {when(live.at)}.</p>}
+                </InfoTip>
+              </span>
+            }
+          />
+          <KpiTile
+            label="Products with a cost"
+            value={<span className={unmapped.length && products.length ? 'text-amber-700' : 'text-slate-900'}>{rows.length - unmapped.length} of {rows.length}</span>}
+            sub={!products.length ? 'Waiting for product costs' : unmapped.length ? 'Link the rest in Settings' : 'All products have a cost'}
           />
         </div>
 
-        <SectionCard
-          title="Pricing guide"
-          description={`Prices include ${assumptionsLine(settings)}. Never sell below break-even. Open a product below for its waterfall.`}
-          className="overflow-hidden"
-        >
-          <div className="-mt-1 mb-4 flex flex-wrap items-center gap-3">
+        <Panel title="Pricing guide" count={rows.length} flush
+          action={<InfoTip label="What the prices include" align="right">
+            <p>Prices include {assumptionsLine(settings)}.</p>
+            <p>{u ? `${fmtPct(u)} of returns cannot be resold (lost unit + removal fee counted).` : 'All returns are resold.'} Change it in Settings.</p>
+            <p>FBM products pay a courier for each order. They pay no FBA fees.</p>
+            <p>Do not sell below break-even.</p>
+          </InfoTip>}>
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
             <div className="overflow-x-auto">
               <SegmentedControl
                 size="sm"
@@ -259,23 +283,32 @@ export function PriceFloorsPage() {
               onToggle={(on) => saveGlobal({ packingOn: on }, on ? 'Packing on' : 'Packing off')}
               onSave={(v) => saveGlobal({ packing: v }, `Packing ${fmtPct(v)}`)}
             />
-            <label className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[14px] font-semibold text-slate-700">
+            <label className="flex min-h-[44px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
               <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={g.stuckOn !== false} onChange={(e) => saveGlobal({ stuckOn: e.target.checked }, e.target.checked ? 'GST stuck counted' : 'GST stuck ignored')} />
-              Count GST stuck on Amazon fees and ads
+              Count GST stuck on fees and ads
             </label>
           </div>
-          <SummaryTable rows={rows} settings={calc} t={t} hasCosts={products.length > 0} />
-        </SectionCard>
-
-        <div className="space-y-2">
-          <h2 className="text-sm font-bold text-slate-900">By product</h2>
-          {priced.map((r) => <SkuDetail key={r.x.asin} r={r} settings={calc} t={t} />)}
-          {!priced.length && <p className="text-sm text-slate-500">No product costs yet. Refresh costs, or link SKUs to products in Settings below.</p>}
-        </div>
-
-        <SettingsEditor settings={settings} products={products} onSaved={(s) => setState((st) => (st ? { ...st, settings: s } : st))} setNote={setNote} />
-        <History reports={state?.reports || []} onDeleted={(id) => setState((st) => (st ? { ...st, reports: st.reports.filter((r) => r.id !== id) } : st))} />
+          <SummaryTable rows={rows} settings={calc} t={t} hasCosts={products.length > 0} onOpen={(r) => r.c && setDetail(r)} />
+        </Panel>
       </div>
+
+      <Modal open={modal === 'settings'} onClose={() => setModal(null)} title="Settings" subtitle={settings.updatedAt ? `Last saved ${when(settings.updatedAt)}` : 'Starting values from the 14 Oct fee report'} width={1100}>
+        <SettingsEditor settings={settings} products={products} onSaved={(s) => setState((st) => (st ? { ...st, settings: s } : st))} setNote={setNote} />
+      </Modal>
+      <Modal open={modal === 'reports'} onClose={() => setModal(null)} title="Uploaded fee reports" subtitle={state?.reports.length ? `${state.reports.length} saved, newest ${when(state.reports[0].uploadedAt)}` : 'None yet'} width={640}>
+        <History reports={state?.reports || []} onDeleted={(id) => setState((st) => (st ? { ...st, reports: st.reports.filter((r) => r.id !== id) } : st))} />
+      </Modal>
+      <Modal open={modal === 'upload'} onClose={() => setModal(null)} title="Upload a fee report" subtitle="Live fees come from Ops. Upload a report only when live fees are missing or wrong." width={560}>
+        <UploadCard state={state} settings={settings} onSaved={(s, r) => {
+          setState((st) => (st ? { ...st, settings: s, reports: [r, ...st.reports.filter((x) => x.id !== r.id)] } : st));
+          setModal(null);
+        }} setNote={setNote} />
+      </Modal>
+      {detail?.c && (
+        <Modal open onClose={() => setDetail(null)} title={`${detail.x.name} · ${routeTag(detail.x, calc)}`} subtitle={`Selling at ${rs(detail.x.asp)} · ${Math.round(t * 100)}% ads`} width={620}>
+          <SkuDetail r={detail} settings={calc} t={t} />
+        </Modal>
+      )}
       {picker && <DownloadPicker
         open
         onClose={() => setPicker(false)}
@@ -284,7 +317,7 @@ export function PriceFloorsPage() {
           const { downloadFloorsReport } = await import('../../utils/priceFloorsExport'); // jspdf: loaded on click
           const r = downloadFloorsReport({ skus, settings: calc, products, costs, feeReport: state?.reports[0] || null, tacos: t });
           setPicker(false);
-          setNote({ tone: r.written ? 'good' : 'bad', text: r.written ? `PDF downloaded for ${r.written} product${r.written > 1 ? 's' : ''}.` : 'None of the picked products has a cost yet, so there was nothing to put in the report.' });
+          setNote({ tone: r.written ? 'good' : 'bad', text: r.written ? `PDF downloaded for ${r.written} product${r.written > 1 ? 's' : ''}.` : 'None of the selected products has a cost yet. The report is empty.' });
         }}
       />}
     </>
@@ -297,48 +330,6 @@ function Banner({ tone, children, onClose }: { tone: 'good' | 'bad'; children: R
       <span className="flex-1">{children}</span>
       {onClose && <button type="button" onClick={onClose} className="font-semibold" aria-label="Dismiss">×</button>}
     </div>
-  );
-}
-
-function SourceCard({ title, line, sub, foot }: { title: string; line: React.ReactNode; sub: React.ReactNode; foot: React.ReactNode }) {
-  return (
-    <Card className="flex flex-col p-5">
-      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{title}</div>
-      <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{line}</div>
-      <div className="mt-1.5 text-sm text-slate-600">{sub}</div>
-      <div className="mt-auto pt-3 text-xs text-slate-500">{foot}</div>
-    </Card>
-  );
-}
-
-/** Amazon fees card: live from Ops by default; the fee-report upload is only a fallback behind a link. */
-function LiveCard({ live, busy, onRefresh, children }: { live: LiveSnap | null; busy: boolean; onRefresh: () => void; children: React.ReactNode }) {
-  const [upload, setUpload] = useState(false);
-  const rep = live?.report;
-  if (upload || (live && !rep)) {
-    return (
-      <div className="flex flex-col">
-        {live?.error && !rep && <p className="mb-2 text-xs text-amber-800">Live fees unavailable: {live.error}. Upload a fee report meanwhile.</p>}
-        {children}
-        {rep && <button type="button" onClick={() => setUpload(false)} className="mt-1 min-h-[44px] text-left text-sm font-semibold text-brand-700 hover:underline">Back to live fees</button>}
-      </div>
-    );
-  }
-  return (
-    <Card className="flex flex-col p-5">
-      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amazon fees, prices &amp; returns</div>
-      <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{rep ? 'Live from Amazon' : 'Loading…'}</div>
-      <div className="mt-1.5 text-sm text-slate-600">
-        {rep ? <>Via Ops, last 30 days ({rep.live.from.slice(5)} → {rep.live.to.slice(5)}): {rep.rows.length} products, {rep.totals.units.toLocaleString('en-IN')} units, {rs(rep.totals.sales)} sales.</> : 'Reading Amazon Finances events from Ops…'}
-      </div>
-      {rep?.live.notes.map((n) => <p key={n} className="mt-1 text-xs text-slate-500">{n}</p>)}
-      {live?.error && rep && <p className="mt-1 text-xs text-amber-800">Last refresh failed ({live.error}); showing the copy from {when(live.at)}.</p>}
-      <div className="mt-auto flex flex-wrap items-center gap-x-3 pt-3 text-xs text-slate-500">
-        <span>Updated {when(live?.at)}</span>
-        <button type="button" onClick={onRefresh} disabled={busy} className="min-h-[44px] font-semibold text-brand-700 hover:underline disabled:opacity-60">{busy ? 'Refreshing…' : 'Refresh'}</button>
-        <button type="button" onClick={() => setUpload(true)} className="min-h-[44px] font-semibold text-slate-600 hover:underline">Upload a fee report instead</button>
-      </div>
-    </Card>
   );
 }
 
@@ -381,16 +372,15 @@ function UploadCard({ state, settings, onSaved, setNote }: {
     }
   };
   return (
-    <Card className="flex flex-col p-5">
-      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">Amazon fees</div>
+    <div className="flex flex-col">
       {preview ? (
         <>
-          <div className="mt-2 text-sm text-slate-700">
+          <div className="text-sm text-slate-700">
             <b>{preview.rep.fileName}</b>: {preview.rep.rows.length} products, {preview.rep.totals.units.toLocaleString('en-IN')} units, {rs(preview.rep.totals.sales)} sales.
             {' '}{preview.updated.length} match your SKUs{preview.added.length ? `, ${preview.added.length} are new` : ''}.
           </div>
           <div className="mt-auto flex flex-wrap gap-2 pt-3">
-            <button type="button" onClick={save} disabled={busy} className="h-11 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60">
+            <button type="button" onClick={save} disabled={busy} className={BTN_PRIMARY}>
               {busy ? 'Saving…' : 'Use this report'}
             </button>
             <button type="button" onClick={() => setPreview(null)} className="h-11 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
@@ -398,8 +388,7 @@ function UploadCard({ state, settings, onSaved, setNote }: {
         </>
       ) : (
         <>
-          <div className="mt-2 font-display text-xl font-extrabold text-slate-900">{latest ? when(latest.uploadedAt) : 'Starting values'}</div>
-          <div className="mb-3 mt-1.5 text-sm text-slate-600">{latest ? latest.fileName : 'From the 14 Oct fee report. Upload a fresh one to refresh fees, prices and returns.'}</div>
+          <p className="mb-3 text-sm text-slate-600">{latest ? `Last upload: ${latest.fileName}, ${when(latest.uploadedAt)}.` : 'No upload yet. The page uses the 14 Oct fee report.'}</p>
           <label
             onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}
@@ -407,7 +396,7 @@ function UploadCard({ state, settings, onSaved, setNote }: {
             className={`mt-auto flex min-h-[64px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-2 text-center text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-brand-400 ${drag ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-300 bg-brand-50/40 text-brand-700 hover:bg-brand-50'}`}
           >
             <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
-            {busy ? 'Reading…' : drag ? 'Drop it here' : 'Drop the fee report here, or click to choose'}
+            {busy ? 'Reading…' : drag ? 'Drop the file here' : 'Drop the fee report here, or select a file'}
           </label>
           <a
             href={settings.reportUrl || SELLER_CENTRAL_REPORTS}
@@ -417,10 +406,14 @@ function UploadCard({ state, settings, onSaved, setNote }: {
           >
             Open Seller Central to download it ↗
           </a>
-          <p className="text-xs text-slate-500">Reports → Revenue and fees, all ASINs, .xlsx. Change this link in Settings.</p>
+          <ol className="list-decimal space-y-0.5 pl-5 text-xs text-slate-600">
+            <li>In Seller Central, open Reports, Revenue and fees.</li>
+            <li>Select all ASINs and download the .xlsx file.</li>
+            <li>Drop the file in the box above.</li>
+          </ol>
         </>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -478,7 +471,7 @@ function ActionCell({ need, asp, band }: { need: number | null; asp: number; ban
 }
 
 /** Lowest price at the target margin for each ad-spend level, per product. */
-function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: FloorSettings; t: number; hasCosts: boolean }) {
+function SummaryTable({ rows, settings, t, hasCosts, onOpen }: { rows: Row[]; settings: FloorSettings; t: number; hasCosts: boolean; onOpen: (r: Row) => void }) {
   const u = unsellOf(settings);
   const out = rows.map((r) => {
     const prices = r.c ? LEVELS.map((lv) => solve(r.x, settings, r.c!, u, lv).price) : null;
@@ -491,14 +484,11 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
     `px-3 py-3 text-right tabular-nums ${p > asp ? 'bg-rose-50 text-rose-700' : on ? 'bg-brand-50 font-bold text-slate-900' : 'text-slate-700'}`;
   return (
     <>
-      <p className="-mt-1 mb-3 text-[14px] text-slate-600">
-        {u ? `${fmtPct(u)} of returns can't be resold (lost unit + removal fee counted).` : 'All returns are taken as resold.'} Change it in Settings below. FBM products pay a courier per order instead of FBA fees.
-      </p>
-      <ul className="-mx-5 -mb-5 divide-y border-t border-slate-100 divide-slate-100 md:hidden">
+      <ul className="divide-y divide-slate-100 md:hidden">
         {out.map((r) => (
-          <li key={r.x.asin} className="px-5 py-3">
+          <li key={r.x.asin} className="px-4 py-3">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[14px] font-semibold text-slate-900">{r.x.name} <span className="text-xs font-normal text-slate-500">{routeTag(r.x, settings)}</span></span>
+              <button type="button" onClick={() => onOpen(r)} disabled={!r.c} className="min-h-11 text-left text-[14px] font-semibold text-slate-900 hover:text-accent-700 disabled:hover:text-slate-900">{r.x.name} <span className="text-xs font-normal text-slate-600">{routeTag(r.x, settings)}</span></button>
               <span className="tabular-nums text-[15px] font-bold">{rs(r.ft)}</span>
             </div>
             {r.prices ? (
@@ -515,7 +505,7 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
           </li>
         ))}
       </ul>
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="-mx-5 -mb-5 hidden overflow-x-auto border-t border-slate-100 md:block">
+      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="hidden overflow-x-auto md:block">
         <table className="w-full text-[14px]">
           <thead className="bg-slate-50 text-left text-[12px] text-slate-500">
             <tr>
@@ -529,10 +519,10 @@ function SummaryTable({ rows, settings, t, hasCosts }: { rows: Row[]; settings: 
           <tbody className="divide-y divide-slate-100">
             {out.map((r) => (
               <tr key={r.x.asin} className="hover:bg-slate-50">
-                <td className="py-3 pl-5 pr-3">
-                  <span className="font-semibold text-slate-900">{r.x.name}</span>
+                <td className="py-2.5 pl-5 pr-3">
+                  <button type="button" onClick={() => onOpen(r)} disabled={!r.c} className="text-left font-semibold text-slate-900 hover:text-accent-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:hover:no-underline disabled:hover:text-slate-900">{r.x.name}</button>
                   {!r.p && hasCosts && <span className="ml-2 rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-700">not linked</span>}
-                  <span className="block text-xs text-slate-500">
+                  <span className="block text-xs text-slate-600">
                     {routeTag(r.x, settings)} · returns {pct(returnRate(r.x, settings))} · actual ads {pct(r.x.tacos)}
                   </span>
                 </td>
@@ -561,10 +551,11 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
   const d = detailLines(res.lines, r.x, settings, r.c!);
   const band = bandAdvice(r.x, settings, r.c!, u, t);
   return (
-    <Disclosure title={`${r.x.name} · ${routeTag(r.x, settings)}`} subtitle={`${rs(res.price)} at ${Math.round(t * 100)}% ads · selling at ${rs(r.x.asp)}`}>
+    <div>
+      <p className="mb-2 text-sm"><span className="text-slate-600">Lowest price at {Math.round(t * 100)}% ads: </span><span className="font-semibold tabular-nums text-slate-900">{rs(res.price)}</span></p>
       <p className={`mt-1 text-[14px] ${band.priceAtBelow ? 'font-semibold text-brand-700' : 'text-slate-600'}`}>
         {bandLine(band)}.{band.priceAtBelow ? ` Price at ${rs(band.below)}: it earns more than today's ${rs(r.x.asp)}.` : ''}
-        <span className="block text-xs text-slate-500">No referral fee below {rs(band.deadFrom)}; from {rs(band.deadFrom)} Amazon adds {pct(r.x.refPct)} referral and the higher closing fee.</span>
+        <span className="block text-xs text-slate-600">No referral fee below {rs(band.deadFrom)}. From {rs(band.deadFrom)}, Amazon adds {pct(r.x.refPct)} referral and the higher closing fee.</span>
       </p>
       {isFbm(r.x) && <p className="mt-1 text-xs text-slate-500">Ships FBM (Production specs): courier ₹{settings.global.fbmPerKg ?? DEFAULT_GLOBAL.fbmPerKg}/kg × {r.x.chargeKg ?? '—'} kg, min ₹{settings.global.fbmMin ?? DEFAULT_GLOBAL.fbmMin}, instead of FBA fee, storage and freight to FC.</p>}
       <table className="mt-2 w-full max-w-md text-[14px]">
@@ -591,27 +582,27 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
         </tbody>
       </table>
       <p className="mt-3 text-xs text-slate-500">Costs are before GST. {settings.global.stuckOn === false ? 'All input GST (materials, Amazon fees, ads) is taken as refunded, so no GST is a cost.' : `GST stuck = the part of the ${fmtPct(buyGstOf(settings))} GST on Amazon fees, ads and packing the 5% sale GST can't use; GST on materials comes back as the inverted-duty refund.`}</p>
-    </Disclosure>
+    </div>
   );
 }
 
 type NumKey = Exclude<keyof FloorSettings['global'], 'resellerOn' | 'packingOn' | 'stuckOn' | 'ownPays3p'>;
 const GLOBAL_FIELDS: [NumKey, string, string][] = [
-  ['margin', 'Target margin', '% of net sales (price without GST), after every cost'],
+  ['margin', 'Target margin', '% of net sales (price without GST), after all costs'],
   ['gst', 'GST on our sale', '% charged to the customer'],
   ['buyGst', 'GST on purchases', '% on materials, Amazon fees and ads'],
   ['reseller', 'Reseller margin', '% of net sales kept by the 3P seller'],
   ['packing', 'Packing', '% of net sales, before GST'],
-  ['placement', 'Inbound placement', '₹ per unit, when a SKU has no freight of its own'],
-  ['transport', 'Freight to FC (ATS)', '₹ per unit, when a SKU has no freight of its own; own transport is costed at the ATS rate'],
-  ['storage', 'Storage', '₹ per unit sold, when a SKU has none of its own (by box size)'],
+  ['placement', 'Inbound placement', '₹ per unit. Used when a SKU has no freight value'],
+  ['transport', 'Freight to FC (ATS)', '₹ per unit. Used when a SKU has no freight value. Own transport uses the ATS rate'],
+  ['storage', 'Storage', '₹ per unit sold. Used when a SKU has no storage value (by box size)'],
   ['closeLo', 'Closing fee below band', '₹'],
   ['closeHi', 'Closing fee above band', '₹'],
   ['band', 'Referral starts at', '₹ price'],
   ['removal', 'Removal fee', '₹ per unsellable return'],
   ['minSample', 'Average return rate below', 'units sold'],
-  ['unsell', "Share of returns that can't be resold, %", '% of returns lost (unit + removal fee); the pricing guide uses it'],
-  ['fbmPerKg', 'FBM courier ₹ per kg', '₹ per chargeable kg incl. GST, for products Production marks FBM'],
+  ['unsell', "Share of returns that can't be resold, %", '% of returns lost (unit + removal fee). The pricing guide uses it'],
+  ['fbmPerKg', 'FBM courier ₹ per kg', '₹ per chargeable kg incl. GST, for FBM products'],
   ['fbmMin', 'FBM courier minimum', '₹ per order incl. GST'],
 ];
 const PCT_FIELDS = new Set<NumKey>(['margin', 'gst', 'buyGst', 'reseller', 'packing', 'unsell']);
@@ -650,12 +641,12 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
     }
   };
   return (
-    <Disclosure title="Settings: product links and Amazon fee rates" subtitle={settings.updatedAt ? `Last saved ${when(settings.updatedAt)}` : 'Starting values from the 14 Oct fee report'}>
-      <div className="space-y-5 pt-2">
+    <div>
+      <div className="space-y-5">
         <label className="block max-w-2xl text-[13px] font-semibold text-slate-600">
           Seller Central link for the fee report
           <input className={inputCls.replace('tabular-nums', '')} value={s.reportUrl || ''} placeholder={SELLER_CENTRAL_REPORTS} onChange={(e) => setS({ ...s, reportUrl: e.target.value.trim() })} />
-          <span className="mt-1 block text-xs font-normal text-slate-500">Paste the address of the Revenue and fees report page; the upload card opens it.</span>
+          <span className="mt-1 block text-xs font-normal text-slate-500">Paste the address of the Revenue and fees report page. The upload window opens it.</span>
         </label>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {GLOBAL_FIELDS.map(([k, label, unit]) => (
@@ -674,7 +665,7 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
         <label className="flex min-h-[44px] max-w-2xl items-center gap-3 text-[14px] font-semibold text-slate-700">
           <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={s.global.ownPays3p !== false} onChange={(e) => setS({ ...s, global: { ...s.global, ownPays3p: e.target.checked } })} />
           Own-brand sales pay 3P margin
-          <span className="text-xs font-normal text-slate-500">Off = every SKU is sold by us (1P) unless ticked otherwise below.</span>
+          <span className="text-xs font-normal text-slate-500">When off, we sell every SKU (1P), unless you tick a SKU below.</span>
         </label>
         {s.skus.map((x, i) => (
           <fieldset key={x.asin} className="rounded-xl border border-slate-200 p-4">
@@ -736,17 +727,17 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
             {busy ? 'Saving…' : 'Save settings'}
           </button>
           {dirty && <button type="button" onClick={() => setS(settings)} className="h-11 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">Undo changes</button>}
-          <p className="text-xs text-slate-500">Referral % is of the GST-inclusive price and applies from the band up. Amazon fees include their GST; materials and ads get GST on purchases added.</p>
+          <p className="text-xs text-slate-500">Referral % is a % of the price with GST. It applies from the band price up. Amazon fees include their GST. Materials and ads get the purchase GST added.</p>
         </div>
       </div>
-    </Disclosure>
+    </div>
   );
 }
 
 function History({ reports, onDeleted }: { reports: ReportMeta[]; onDeleted: (id: string) => void }) {
   const [confirm, setConfirm] = useState<string | null>(null);
   return (
-    <Disclosure title="Uploaded fee reports" subtitle={reports.length ? `${reports.length} saved, newest ${when(reports[0].uploadedAt)}` : 'None yet'}>
+    <div>
       {reports.length ? (
         <ul className="divide-y divide-slate-100 pt-1">
           {reports.map((r) => (
@@ -757,7 +748,7 @@ function History({ reports, onDeleted }: { reports: ReportMeta[]; onDeleted: (id
               </span>
               {confirm === r.id ? (
                 <span className="flex items-center gap-2 text-xs">
-                  Remove from history? Settings stay as they are.
+                  Remove this report from the history? The settings do not change.
                   <button type="button" className="h-9 rounded-lg bg-rose-600 px-3 font-semibold text-white" onClick={async () => { await api(`/api/price-floors/report/${r.id}`, undefined, 'DELETE'); onDeleted(r.id); setConfirm(null); }}>Remove</button>
                   <button type="button" className="h-9 rounded-lg px-2 font-semibold text-slate-600" onClick={() => setConfirm(null)}>Keep</button>
                 </span>
@@ -768,9 +759,9 @@ function History({ reports, onDeleted }: { reports: ReportMeta[]; onDeleted: (id
           ))}
         </ul>
       ) : (
-        <p className="pt-1 text-sm text-slate-500">Upload a Seller Central fee report to start the history.</p>
+        <p className="text-sm text-slate-600">No reports yet. Upload a Seller Central fee report to start the history.</p>
       )}
-    </Disclosure>
+    </div>
   );
 }
 

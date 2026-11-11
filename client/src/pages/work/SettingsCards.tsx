@@ -199,7 +199,7 @@ export function RolesCard({
                   className="w-32 rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-sm text-slate-800"
                   aria-label={`Who covers ${n}`}
                 >
-                  <option value="">— default —</option>
+                  <option value="">Default</option>
                   {state.members.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name}
@@ -218,7 +218,7 @@ export function RolesCard({
               className="w-32 rounded-lg border border-slate-200 py-1 pl-2 pr-7 text-sm font-medium text-slate-800"
               aria-label="Owner for unmatched roles"
             >
-              <option value="">— nobody —</option>
+              <option value="">Nobody</option>
               {state.members.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -263,7 +263,7 @@ export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; o
   };
 
   const send = async () => {
-    if (!window.confirm(state.mailer.configured ? 'Send today’s task emails to every owner now?' : 'Email isn’t connected — this will be a dry run. Continue?')) return;
+    if (!window.confirm(state.mailer.configured ? 'Send today’s task emails to every owner now?' : 'Email isn’t connected: this will be a dry run. Continue?')) return;
     setBusy(true);
     setErr('');
     try {
@@ -319,7 +319,7 @@ export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; o
 
         <MailConnection state={state} onChanged={onRan} />
 
-        {unowned > 0 && <p className="text-sm text-amber-700">{unowned} active task{unowned > 1 ? 's have' : ' has'} no owner — they only show in the team summary.</p>}
+        {unowned > 0 && <p className="text-sm text-amber-700">{unowned} active task{unowned > 1 ? 's have' : ' has'} no owner: they only show in the team summary.</p>}
         <div className="text-sm text-slate-600">
           Last sent:{' '}
           {last
@@ -337,7 +337,7 @@ export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; o
         {run && (
           <p className="text-sm text-slate-600">
             {run.emails.length} email{run.emails.length === 1 ? '' : 's'}
-            {run.emails.some((e) => e.dryRun) ? ' (dry run — not sent)' : ` · ${run.emails.filter((e) => e.sent).length} sent`}
+            {run.emails.some((e) => e.dryRun) ? ' (dry run: not sent)' : ` · ${run.emails.filter((e) => e.sent).length} sent`}
             {run.emails.some((e) => e.error && !e.dryRun) ? ` · failed: ${run.emails.find((e) => e.error && !e.dryRun)!.error}` : ''}
           </p>
         )}
@@ -363,7 +363,7 @@ function MailConnection({ state, onChanged }: { state: WorkState; onChanged: () 
     try {
       const r = await connectMail({ pass, user });
       setPass('');
-      setMsg(r.check.ok ? { ok: true, text: 'Connected — Zoho accepted the login.' } : { ok: false, text: `Not saved — Zoho didn’t accept it: ${r.check.error ?? 'unknown error'}` });
+      setMsg(r.check.ok ? { ok: true, text: 'Connected: Zoho accepted the login.' } : { ok: false, text: `Not saved: Zoho didn’t accept it: ${r.check.error ?? 'unknown error'}` });
       if (r.check.ok) setEditing(false);
       await onChanged();
     } catch (e) {
@@ -394,7 +394,7 @@ function MailConnection({ state, onChanged }: { state: WorkState; onChanged: () 
             ? m.provider === 'smtp'
               ? `Email connected · Zoho (${m.user})`
               : `Email connected · ${m.provider}`
-            : 'Email not connected — sends are a dry run'}
+            : 'Email not connected: sends are a dry run'}
         </span>
         {m.configured && m.source !== 'env' && !editing && (
           <button type="button" onClick={() => setEditing(true)} className="text-sm font-medium text-slate-600 hover:text-slate-800">
@@ -450,7 +450,7 @@ export function EmailPreview({ onClose, embedded }: { onClose: () => void; embed
   return (
     <section className={embedded ? '-mx-6 -my-5' : 'overflow-hidden rounded-xl border border-slate-200 bg-white'}>
       <div className={embedded ? 'hidden' : 'flex items-center gap-2 border-b border-slate-100 px-4 py-3'}>
-        <h2 className="text-[15px] font-semibold text-slate-950">Today’s emails — preview</h2>
+        <h2 className="text-[15px] font-semibold text-slate-950">Today’s emails: preview</h2>
         <span className="text-sm text-slate-500">nothing is sent from here</span>
         <button type="button" onClick={onClose} className="ml-auto flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700" aria-label="Close preview">
           <XMarkIcon className="h-4 w-4" />
@@ -458,7 +458,7 @@ export function EmailPreview({ onClose, embedded }: { onClose: () => void; embed
       </div>
       {err && <p className="px-4 py-3 text-sm text-rose-600">{err}</p>}
       {!data && !err && <p className="px-4 py-6 text-sm text-slate-600">Building…</p>}
-      {data && !data.drafts.length && <p className="px-4 py-6 text-sm text-slate-600">Nothing to send today — no owner has a pending task and no team-summary address is set.</p>}
+      {data && !data.drafts.length && <p className="px-4 py-6 text-sm text-slate-600">Nothing to send today: no owner has a pending task and no team-summary address is set.</p>}
       {data && d && (
         <>
           <div className="flex gap-1.5 overflow-x-auto border-b border-slate-100 px-4 py-2">

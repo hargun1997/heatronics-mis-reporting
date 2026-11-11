@@ -9,7 +9,7 @@ const ROWS: Row[] = [
   { label: 'Revenue', get: (y) => y.revenueWithActuals, kind: 'cr', strong: true, hint: 'FY27 includes the Apr–Sep actuals you entered' },
   { label: 'GMV (incl. GST)', get: (y) => y.gmv, kind: 'cr', hint: 'Sales at the prices customers pay, before deductions. Plan months only' },
   { label: 'Revenue ex-GST', get: (y) => y.revenueExGst, kind: 'cr', hint: 'Net revenue with the output GST taken out. Plan months only' },
-  { label: 'Growth YoY', get: (y, i, a) => (i && (a[i - 1].months === 12 || a[i - 1].revenueWithActuals > a[i - 1].revenue) ? y.revenueWithActuals / a[i - 1].revenueWithActuals - 1 : NaN), kind: 'pct', hint: 'Blank when the year before is only part-plan — enter Apr–Sep ’26 actuals to see FY28 growth' },
+  { label: 'Growth YoY', get: (y, i, a) => (i && (a[i - 1].months === 12 || a[i - 1].revenueWithActuals > a[i - 1].revenue) ? y.revenueWithActuals / a[i - 1].revenueWithActuals - 1 : NaN), kind: 'pct', hint: 'Blank when the year before is only part-plan: enter Apr–Sep ’26 actuals to see FY28 growth' },
   { label: 'Units', get: (y) => y.units, kind: 'int' },
   { label: 'Gross margin', get: (y) => y.grossProfit / y.revenue, kind: 'pct' },
   { label: 'CM3 (after media)', get: (y) => y.cm3 / y.revenue, kind: 'pct' },
@@ -31,11 +31,11 @@ export function FyTable({ r, compare, compareName }: { r: PlanResult; compare?: 
     <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
       <table className="w-full min-w-[560px] text-[13px] tabular-nums">
         <thead>
-          <tr className="border-b border-slate-200 text-xs sm:text-[11px] uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-slate-200 text-xs text-slate-600">
             <th className="py-2 pr-3 text-left font-semibold">₹ Cr</th>
             {ys.map((y) => (
               <th key={y.fy} className="px-2 py-2 text-right font-semibold">
-                {y.fy}{y.months < 12 && <span className="block text-xs sm:text-[11px] font-normal normal-case text-slate-400">{y.months} mo plan</span>}
+                {y.fy}{y.months < 12 && <span className="block text-xs font-normal normal-case text-slate-600">{y.months} mo plan</span>}
               </th>
             ))}
           </tr>

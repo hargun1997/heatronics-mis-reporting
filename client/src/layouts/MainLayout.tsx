@@ -52,7 +52,7 @@ export function MainLayout() {
         </main>
       </div>
       <CommandPalette />
-      <Suspense fallback={null}>{path.startsWith('/handbook') ? <SopChat /> : <FloatingChat />}</Suspense>
+      <Suspense fallback={null}>{path.startsWith('/handbook') ? <SopChat /> : path.startsWith('/reporting/mis/insights') ? null : <FloatingChat />}</Suspense>
     </ShellContext.Provider>
   );
 }

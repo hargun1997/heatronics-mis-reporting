@@ -176,8 +176,8 @@ export type DlClient = ReturnType<typeof dlClient>;
 function need(creds: Credentials, key: 'apiToken' | 'feedToken'): string {
   const v = (creds[key] || '').trim();
   if (!v) throw new Error(key === 'apiToken'
-    ? 'Not connected — create secret delhivery-api-token.'
-    : 'Not connected — create secret warranty-feed-token (= FEED_TOKEN in warranty-manager-env).');
+    ? 'Not connected. Add the secret delhivery-api-token.'
+    : 'Not connected. Add the secret warranty-feed-token (= FEED_TOKEN in warranty-manager-env).');
   return v;
 }
 

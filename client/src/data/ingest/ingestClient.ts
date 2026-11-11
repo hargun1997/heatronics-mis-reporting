@@ -7,7 +7,8 @@
 // report for the same connector+slot+period).
 // ----------------------------------------------------------------------------
 
-import * as XLSX from 'xlsx';
+import type * as XLSX from 'xlsx';
+import { loadXlsx, xlsx } from '../../utils/xlsxLazy';
 import { unzipSync } from 'fflate';
 import { parseUpload, UPLOAD_PARSERS } from '../liveMis/uploadParsers';
 import { parseTallyPnl } from '../liveMis/tallyPnl';
@@ -436,7 +437,7 @@ export async function runTallyXlsxChecks(slot: ReportSlot, files: File[]): Promi
     // repeats), so a full year can be dropped in one or many files.
     const byPeriod = new Map<string, TallyMonthExtract>();
     for (const file of files) {
-      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const wb = (await loadXlsx()).read(await file.arrayBuffer(), { type: 'array' });
       for (const m of parseTallyPnl(wb).months) byPeriod.set(m.period, m);
     }
     const months = [...byPeriod.values()].sort((a, b) => a.period.localeCompare(b.period));
@@ -683,7 +684,7 @@ const bnum = (v: unknown) => {
 function bomSheetRows(wb: XLSX.WorkBook, name: string): unknown[][] {
   const ws = wb.Sheets[name];
   if (!ws) return [];
-  return XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
+  return xlsx().utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: null }) as unknown[][];
 }
 function bomHeader(rows: unknown[][], needles: string[], limit = 30): number {
   for (let i = 0; i < Math.min(rows.length, limit); i++) {
@@ -702,7 +703,7 @@ export async function runBomChecks(slot: ReportSlot, file: File): Promise<Staged
   };
   const items: CheckItem[] = [];
   try {
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const wb = (await loadXlsx()).read(await file.arrayBuffer(), { type: 'array' });
     const sheet = wb.SheetNames.find((n) => /summary/i.test(n)) ?? wb.SheetNames[0];
     const rows = bomSheetRows(wb, sheet);
     const hi = bomHeader(rows, ['fg item id', 'total fg cost']);

@@ -1,319 +1,240 @@
 // ----------------------------------------------------------------------------
-// Data Rulebook — the explicit, in-app statement of how every number in the MIS
-// gets there: the P&L cascade and who owns each line, the completeness rule,
-// the per-connector file→read→destination rules, and what feeds each sheet.
+// Data rulebook: how each number gets into the MIS. Three tabs in the header:
+//   Sources   one row per report source (status + next step); a row opens the
+//             full rule (files, what the MIS reads, the line each figure goes to)
+//   P&L lines the cascade and the source that owns each line, plus the
+//             completeness rule (numbered steps behind an "i")
+//   Sheets    each MIS tab and the data behind it
 // All content comes from client/src/data/ingest/rulebook.ts.
+// Simplification pass 2 (11 Nov 2026): Checklist + Sources & files merged into one list with a detail modal.
 // ----------------------------------------------------------------------------
 
 import { useMemo, useState, type ReactNode } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { KpiTile } from '../../components/ui/KpiTile';
+import { Modal } from '../../components/ui/overlays';
+import { InfoTip, Panel } from '../../components/ui/states';
 import {
   CASCADE, CONNECTOR_RULES, SHEET_RULES, COMPLETENESS_RULE,
   WIRING_LABEL, READY_LABEL, stepsReady, stepsFor,
   type LineOwner, type Wiring, type Ready, type ConnectorRule,
 } from '../../data/ingest/rulebook';
 
-const iconBook = (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-      d="M12 6.5C10.5 5.5 8 5 5.5 5.2 4.7 5.3 4 6 4 6.8v10.4c0 .9.8 1.6 1.7 1.5C8 18.5 10.5 19 12 20m0-13.5c1.5-1 4-1.5 6.5-1.3.8.1 1.5.8 1.5 1.6v10.4c0 .9-.8 1.6-1.7 1.5C16 18.5 13.5 19 12 20m0-13.5V20" />
-  </svg>
-);
-
 const OWNER_STYLE: Record<LineOwner, { label: string; cls: string }> = {
-  connectors: { label: 'Connectors', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
-  bom: { label: 'BOM', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
-  tally: { label: 'Tally', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  derived: { label: 'Computed', cls: 'bg-slate-50 text-slate-500 border-slate-200' },
+  connectors: { label: 'Reports', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
+  bom: { label: 'BOM', cls: 'bg-slate-900 text-white border-slate-900' },
+  tally: { label: 'Tally', cls: 'bg-accent-50 text-accent-700 border-accent-200' },
+  derived: { label: 'Computed', cls: 'bg-white text-slate-600 border-slate-300' },
 };
 
 const WIRING_STYLE: Record<Wiring, string> = {
   live: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  wired: 'bg-sky-50 text-sky-700 border-sky-200',
-  'fixture-ready': 'bg-violet-50 text-violet-700 border-violet-200',
+  wired: 'bg-slate-50 text-slate-700 border-slate-200',
+  'fixture-ready': 'bg-slate-50 text-slate-700 border-slate-200',
   'needs-sample': 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
-const READY_STYLE: Record<Ready, string> = {
-  done: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  partial: 'bg-amber-50 text-amber-700 border-amber-200',
-  todo: 'bg-slate-50 text-slate-400 border-slate-200',
-  na: 'bg-slate-50 text-slate-400 border-slate-200',
+type Status = 'ready' | 'partly' | 'todo';
+const STATUS: Record<Status, { label: string; glyph: string; cls: string }> = {
+  ready: { label: 'Ready', glyph: '✓', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  partly: { label: 'Check', glyph: '◐', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  todo: { label: 'To do', glyph: '○', cls: 'bg-slate-50 text-slate-600 border-slate-200' },
 };
-const READY_MARK: Record<Ready, string> = { done: '✓', partial: '◐', todo: '○', na: '—' };
+const READY_GLYPH: Record<Ready, string> = { done: '✓', partial: '◐', todo: '○', na: '·' };
 
-const GROUP_ORDER = ['Book of record', 'Marketplace', 'D2C', 'Marketing', 'Logistics', 'Payments & checkout'] as const;
+/** One status per source: ready when its ids are mapped and its upload steps (and link) exist. */
+function statusOf(c: ConnectorRule): Status {
+  const steps = stepsReady(c.connectorId);
+  if (c.mapping === 'done' && (steps === 'done' || steps === 'na')) return 'ready';
+  if (c.mapping === 'todo' && steps === 'todo') return 'todo';
+  return 'partly';
+}
 
-type RbTab = 'checklist' | 'cascade' | 'sources' | 'sheets';
+type RbTab = 'sources' | 'cascade' | 'sheets';
 
 function Badge({ children, cls }: { children: ReactNode; cls: string }) {
-  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-xs sm:text-[11px] font-medium whitespace-nowrap ${cls}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded border px-1.5 py-0.5 text-xs font-medium ${cls}`}>{children}</span>;
 }
 
 export function RulebookPage() {
-  const grouped = useMemo(() => {
-    const m = new Map<string, ConnectorRule[]>();
-    for (const c of CONNECTOR_RULES) {
-      const arr = m.get(c.group) ?? [];
-      arr.push(c);
-      m.set(c.group, arr);
-    }
-    return GROUP_ORDER.map((g) => [g, m.get(g) ?? []] as const).filter(([, a]) => a.length > 0);
-  }, []);
-
-  // Progress checklist — the ones we have wired, in the order we did them, then
-  // the queue. Three columns: mapping figured, steps added, what we do (rule).
-  const checklist = useMemo(() => {
+  // Sources in the order they were set up, then the ones still in the queue.
+  const sources = useMemo(() => {
     const done = CONNECTOR_RULES.filter((c) => c.seq != null).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
     const queued = CONNECTOR_RULES.filter((c) => c.seq == null);
     return [...done, ...queued];
   }, []);
+  const counts = useMemo(() => {
+    const st = sources.map(statusOf);
+    return {
+      ready: st.filter((x) => x === 'ready').length,
+      check: st.filter((x) => x !== 'ready').length,
+      live: sources.filter((c) => c.wiring === 'live').length,
+      files: sources.reduce((n, c) => n + c.files.length, 0),
+    };
+  }, [sources]);
 
-  const [tab, setTab] = useState<RbTab>('checklist');
+  const [tab, setTab] = useState<RbTab>('sources');
+  const [open, setOpen] = useState<ConnectorRule | null>(null);
 
   return (
     <>
       <PageHeader
-        title="Data Rulebook"
-        accent="brand"
-        icon={iconBook}
-        description="The rule for every number: which file it comes from, what we read, and exactly where it lands in the MIS. This is the contract the ingestion follows."
-        crumbs={[
-          { label: 'Reporting', to: '/reporting' },
-          { label: 'MIS Reporting', to: '/reporting/mis' },
-          { label: 'Data Rulebook' },
+        title="Data rulebook"
+        description="How each number gets into the MIS: the report, what the MIS reads, and the P&L line it goes to."
+        help={
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>Sources: select a source to see its files and rules.</li>
+            <li>P&amp;L lines: see the source of each P&amp;L line.</li>
+            <li>Sheets: see the data behind each MIS tab.</li>
+          </ol>
+        }
+        tabs={[
+          { id: 'sources', label: 'Sources', count: sources.length },
+          { id: 'cascade', label: 'P&L lines' },
+          { id: 'sheets', label: 'Sheets' },
         ]}
+        tab={tab}
+        onTab={(id) => setTab(id as RbTab)}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div className="mb-6 overflow-x-auto">
-          <SegmentedControl<RbTab>
-            options={[
-              { id: 'checklist', label: 'Checklist' },
-              { id: 'cascade', label: 'P&L cascade' },
-              { id: 'sources', label: 'Sources & files' },
-              { id: 'sheets', label: 'Sheets' },
-            ]}
-            value={tab}
-            onChange={setTab}
-            aria-label="Rulebook view"
-          />
-        </div>
+      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
+        {tab === 'sources' && (
+          <>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <KpiTile label="Sources" value={sources.length} sub={`${counts.files} report files`} />
+              <KpiTile label="Ready" value={<span className="text-emerald-700">{counts.ready}</span>} sub="Ids mapped, steps and link added" />
+              <KpiTile label="To check" value={<span className={counts.check ? 'text-amber-700' : 'text-slate-900'}>{counts.check}</span>} sub="A step or a link is missing" />
+              <KpiTile label="Live API" value={counts.live} sub="No upload needed" />
+            </div>
 
-        {tab === 'checklist' && (
-        <section>
-          <h2 className="text-base font-semibold text-slate-800 mb-1">Connector progress</h2>
-          <p className="text-sm text-slate-500 mb-3">
-            Each source needs three things: its ids mapped into the MIS, its export steps added, and its rule
-            (what we do with the data) defined. Done ones first, in the order we wired them, then the queue.
-          </p>
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs sm:text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
-                  <th className="px-3 py-2 font-semibold w-10">#</th>
-                  <th className="px-3 py-2 font-semibold">Source</th>
-                  <th className="px-3 py-2 font-semibold w-28">Mapping</th>
-                  <th className="px-3 py-2 font-semibold w-28">Steps</th>
-                  <th className="px-3 py-2 font-semibold">What we do with its data</th>
-                  <th className="px-3 py-2 font-semibold">Still to do</th>
-                </tr>
-              </thead>
-              <tbody>
-                {checklist.map((c, i) => {
-                  const firstQueued = c.seq == null && (checklist[i - 1]?.seq != null);
+            <Panel title="Sources" count={sources.length} flush
+              action={<InfoTip label="About this list">
+                <p>Each source needs 3 things:</p>
+                <ol className="list-decimal space-y-1 pl-4">
+                  <li>Its ids mapped into the MIS.</li>
+                  <li>Its upload steps and a direct link.</li>
+                  <li>Its rule: what the MIS does with the data.</li>
+                </ol>
+                <p>The list shows the sources in the order we set them up.</p>
+              </InfoTip>}>
+              <ul className="divide-y divide-slate-100">
+                {sources.map((c) => {
+                  const st = STATUS[statusOf(c)];
                   return (
-                    <tr key={c.connectorId}
-                      className={`align-top ${firstQueued ? 'border-t-2 border-slate-200' : 'border-t border-slate-100'}`}>
-                      <td className="px-3 py-2.5 tabular-nums text-slate-400">{c.seq ?? '·'}</td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-medium text-slate-800">{c.label}</span>
-                          {c.channel && <Badge cls="bg-slate-50 text-slate-500 border-slate-200">{c.channel}</Badge>}
-                        </div>
-                        <Badge cls={WIRING_STYLE[c.wiring]}>{WIRING_LABEL[c.wiring]}</Badge>
-                      </td>
-                      <td className="px-3 py-2.5"><Badge cls={READY_STYLE[c.mapping]}>{READY_MARK[c.mapping]} {READY_LABEL[c.mapping]}</Badge></td>
-                      <td className="px-3 py-2.5">
-                        {(() => {
-                          const r = stepsReady(c.connectorId);
-                          const s = stepsFor(c.connectorId);
-                          return (
-                            <div className="flex flex-col gap-0.5">
-                              <Badge cls={READY_STYLE[r]}>{READY_MARK[r]} {READY_LABEL[r]}</Badge>
-                              <span className="text-xs sm:text-[11px] text-slate-400 whitespace-nowrap">
-                                {s.steps ? '✓' : '○'} steps · {s.linkExpected ? `${s.link ? '✓' : '○'} link` : '— link'}
-                              </span>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-600 text-[13px] min-w-[16rem]">{c.summary}</td>
-                      <td className="px-3 py-2.5 text-[12px] min-w-[14rem]">
-                        {c.pending
-                          ? <span className="text-amber-700">{c.pending}</span>
-                          : <span className="text-emerald-600">✓ Nothing pending</span>}
-                      </td>
-                    </tr>
+                    <li key={c.connectorId}>
+                      <button type="button" onClick={() => setOpen(c)}
+                        className="group flex min-h-14 w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500 md:flex-nowrap">
+                        <span className="w-5 shrink-0 text-xs tabular-nums text-slate-600">{c.seq ?? '·'}</span>
+                        <span className="min-w-0 flex-1 md:w-60 md:flex-none">
+                          <span className="block text-sm font-medium text-slate-900 group-hover:text-accent-700">{c.label}</span>
+                          <span className="block text-xs text-slate-600">{[c.channel, WIRING_LABEL[c.wiring]].filter(Boolean).join(' · ')}</span>
+                        </span>
+                        <span className="shrink-0 md:w-24"><Badge cls={st.cls}><span aria-hidden>{st.glyph}</span>{st.label}</Badge></span>
+                        <span className="w-full pl-8 text-[13px] leading-snug text-slate-700 md:w-auto md:min-w-0 md:flex-1 md:pl-0">{c.pending ?? 'Nothing to do.'}</span>
+                        <ChevronRight className="hidden h-4 w-4 shrink-0 text-slate-400 group-hover:text-accent-600 md:block" aria-hidden />
+                      </button>
+                    </li>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs sm:text-[11px] text-slate-400 mt-2">
-            The queue (below the line) is the remaining one-by-one order. The full file→read→destination rule for
-            every source is in the “Sources &amp; files” tab.
-          </p>
-        </section>
+              </ul>
+            </Panel>
+          </>
         )}
 
         {tab === 'cascade' && (
-        <div className="space-y-8">
-        {/* 1 — The cascade and who owns each line */}
-        <section>
-          <h2 className="text-base font-semibold text-slate-800 mb-1">The P&amp;L cascade</h2>
-          <p className="text-sm text-slate-500 mb-3">
-            Every tab is a view of this one cascade. Each line is owned by a source — connectors feed the top,
-            BOM gives cost of goods, Tally owns everything below Contribution Margin, and the margins are computed.
-          </p>
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            {CASCADE.map((line, i) => {
-              const o = OWNER_STYLE[line.owner];
-              const isMargin = line.kind === 'margin';
-              return (
-                <div key={line.key}
-                  className={`flex items-start gap-3 px-4 py-2.5 ${i > 0 ? 'border-t border-slate-100' : ''} ${isMargin ? 'bg-slate-50/60' : ''}`}>
-                  <div className="w-44 flex-shrink-0">
-                    <span className={`text-sm ${isMargin ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
-                      {line.kind === 'cost' ? '− ' : ''}{line.label}
+          <Panel title="P&L lines and their source" count={CASCADE.length} flush
+            action={<InfoTip text="How far the MIS is complete" label={COMPLETENESS_RULE.headline} width={360}>
+              <ol className="list-decimal space-y-1 pl-4">{COMPLETENESS_RULE.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+            </InfoTip>}>
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-2 text-xs text-slate-600">
+              Source:
+              {(Object.keys(OWNER_STYLE) as LineOwner[]).map((k) => <Badge key={k} cls={OWNER_STYLE[k].cls}>{OWNER_STYLE[k].label}</Badge>)}
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {CASCADE.map((line) => {
+                const o = OWNER_STYLE[line.owner];
+                const isMargin = line.kind === 'margin';
+                return (
+                  <li key={line.key} className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 px-4 py-2 md:grid-cols-[14rem_6rem_minmax(0,1fr)] ${isMargin ? 'bg-slate-50' : ''}`}>
+                    <span className={`text-sm ${isMargin ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>{line.kind === 'cost' ? '− ' : ''}{line.label}</span>
+                    <span><Badge cls={o.cls}>{o.label}</Badge></span>
+                    <span className="col-span-2 min-w-0 text-xs text-slate-600 md:col-span-1">
+                      {line.formula}
+                      {line.note && <span className="block text-slate-600">{line.note}</span>}
                     </span>
-                  </div>
-                  <div className="flex-shrink-0 w-24"><Badge cls={o.cls}>{o.label}</Badge></div>
-                  <div className="flex-1 min-w-0">
-                    {line.formula && <p className="text-xs text-slate-500">{line.formula}</p>}
-                    {line.note && <p className="text-xs sm:text-[11px] text-slate-400 mt-0.5">{line.note}</p>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {(Object.keys(OWNER_STYLE) as LineOwner[]).map((k) => (
-              <Badge key={k} cls={OWNER_STYLE[k].cls}>{OWNER_STYLE[k].label}</Badge>
-            ))}
-          </div>
-        </section>
-
-        {/* 2 — Completeness rule */}
-        <section>
-          <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3.5">
-            <h2 className="text-sm font-semibold text-brand-800 mb-1">{COMPLETENESS_RULE.headline}</h2>
-            <p className="text-sm text-brand-900/80 leading-relaxed">{COMPLETENESS_RULE.body}</p>
-          </div>
-        </section>
-        </div>
-        )}
-
-        {tab === 'sources' && (
-        <section>
-          <h2 className="text-base font-semibold text-slate-800 mb-1">Every source, every file</h2>
-          <p className="text-sm text-slate-500 mb-3">
-            For each connector: the file you upload, what we read from it, and where each figure posts.
-          </p>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {(Object.keys(WIRING_LABEL) as Wiring[]).map((w) => (
-              <Badge key={w} cls={WIRING_STYLE[w]}>{WIRING_LABEL[w]}</Badge>
-            ))}
-          </div>
-
-          <div className="space-y-6">
-            {grouped.map(([group, connectors]) => (
-              <div key={group}>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">{group}</h3>
-                <div className="space-y-3">
-                  {connectors.map((c) => <ConnectorCard key={c.connectorId} c={c} />)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+                  </li>
+                );
+              })}
+            </ul>
+          </Panel>
         )}
 
         {tab === 'sheets' && (
-        <section>
-          <h2 className="text-base font-semibold text-slate-800 mb-1">What feeds each sheet</h2>
-          <p className="text-sm text-slate-500 mb-3">Every tab of the MIS and the data behind it.</p>
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            {SHEET_RULES.map((s, i) => (
-              <div key={s.sheet} className={`px-4 py-3 ${i > 0 ? 'border-t border-slate-100' : ''}`}>
-                <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4">
-                  <span className="w-32 flex-shrink-0 text-sm font-semibold text-slate-800">{s.sheet}</span>
-                  <div className="flex-1">
-                    <p className="text-sm text-slate-600">{s.what}</p>
-                    <p className="text-xs text-slate-400 mt-0.5"><span className="font-medium text-slate-500">Fed by:</span> {s.feeds}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+          <Panel title="What feeds each MIS tab" count={SHEET_RULES.length} flush>
+            <ul className="divide-y divide-slate-100">
+              {SHEET_RULES.map((s) => (
+                <li key={s.sheet} className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+                  <span className="text-sm font-semibold text-slate-900">{s.sheet}</span>
+                  <span>
+                    <span className="block text-sm text-slate-700">{s.what}</span>
+                    <span className="mt-0.5 block text-xs text-slate-600"><span className="font-medium">Data:</span> {s.feeds}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
         )}
       </div>
+
+      <SourceModal c={open} onClose={() => setOpen(null)} />
     </>
   );
 }
 
-function ConnectorCard({ c }: { c: ConnectorRule }) {
-  const [open, setOpen] = useState(false);
+/** Everything about one source: status, next step, and each file's read and destination rules. */
+function SourceModal({ c, onClose }: { c: ConnectorRule | null; onClose: () => void }) {
+  if (!c) return null;
+  const s = stepsFor(c.connectorId);
+  const steps = stepsReady(c.connectorId);
+  const st = STATUS[statusOf(c)];
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 transition-colors">
-        <svg className={`w-4 h-4 mt-0.5 text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-slate-800">{c.label}</span>
-            {c.channel && <Badge cls="bg-slate-50 text-slate-500 border-slate-200">{c.channel} channel</Badge>}
-            <Badge cls={WIRING_STYLE[c.wiring]}>{WIRING_LABEL[c.wiring]}</Badge>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">{c.summary}</p>
+    <Modal open onClose={onClose} title={c.label} subtitle={c.summary} width={760}>
+      <div className="space-y-4 text-sm">
+        <div className="flex flex-wrap gap-2">
+          <Badge cls={st.cls}><span aria-hidden>{st.glyph}</span>{st.label}</Badge>
+          {c.channel && <Badge cls="bg-slate-50 text-slate-700 border-slate-200">{c.channel} channel</Badge>}
+          <Badge cls={WIRING_STYLE[c.wiring]}>{WIRING_LABEL[c.wiring]}</Badge>
+          <Badge cls="bg-white text-slate-700 border-slate-200"><span aria-hidden>{READY_GLYPH[c.mapping]}</span>Ids mapped: {READY_LABEL[c.mapping]}</Badge>
+          <Badge cls="bg-white text-slate-700 border-slate-200"><span aria-hidden>{READY_GLYPH[steps]}</span>Steps: {s.steps ? 'Added' : 'To do'}{s.linkExpected ? `, link: ${s.link ? 'Added' : 'To do'}` : ''}</Badge>
         </div>
-      </button>
-
-      {open && (
-        <div className="border-t border-slate-100 divide-y divide-slate-100">
-          {c.files.map((f) => (
-            <div key={f.slotId} className="px-4 py-3 pl-11">
-              <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <span className="text-sm font-medium text-slate-700">{f.label}</span>
-                <Badge cls={f.required ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-400 border-slate-200'}>
-                  {f.required ? 'Required' : 'Optional'}
-                </Badge>
-                <span className="text-xs sm:text-[11px] text-slate-400">· {f.cadence}</span>
-              </div>
-              <p className="text-xs text-slate-500 mb-2"><span className="font-medium text-slate-600">We read:</span> {f.reads}</p>
-              {f.exclusions && (
-                <p className="text-xs text-slate-400 mb-2"><span className="font-medium text-slate-500">Excluded:</span> {f.exclusions}</p>
-              )}
-              <div className="space-y-1.5">
-                {f.destinations.map((d, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs">
-                    <span className="flex-shrink-0 mt-0.5 text-brand-500">→</span>
-                    <div>
-                      <span className="font-semibold text-slate-700">{d.line}</span>
-                      <span className="text-slate-400"> · {d.dimension}</span>
-                      <p className="text-slate-500">{d.rule}</p>
-                    </div>
-                  </div>
+        {c.pending && (
+          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"><span className="font-semibold text-slate-900">Next step: </span>{c.pending}</p>
+        )}
+        {c.files.map((f, i) => (
+          <section key={f.slotId} className="rounded-lg border border-slate-200">
+            <header className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-3 py-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold tabular-nums text-white" aria-hidden>{i + 1}</span>
+              <span className="font-semibold text-slate-900">{f.label}</span>
+              <Badge cls={f.required ? 'bg-accent-50 text-accent-700 border-accent-200' : 'bg-slate-50 text-slate-600 border-slate-200'}>{f.required ? 'Required' : 'Optional'}</Badge>
+              <span className="text-xs text-slate-600">{f.cadence}</span>
+            </header>
+            <div className="space-y-2 px-3 py-2">
+              <p className="text-slate-700"><span className="font-medium text-slate-900">The MIS reads: </span>{f.reads}</p>
+              {f.exclusions && <p className="text-slate-700"><span className="font-medium text-slate-900">Left out: </span>{f.exclusions}</p>}
+              <ul className="divide-y divide-slate-100 rounded-md bg-slate-50">
+                {f.destinations.map((d, j) => (
+                  <li key={j} className="px-3 py-1.5 text-xs">
+                    <span className="font-semibold text-slate-900">{d.line}</span>
+                    <span className="text-slate-600"> · {d.dimension}</span>
+                    <span className="block text-slate-700">{d.rule}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
+          </section>
+        ))}
+      </div>
+    </Modal>
   );
 }

@@ -5,7 +5,9 @@
 // ----------------------------------------------------------------------------
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../components/ui/PageHeader';
+import { Modal, Popover } from '../../components/ui/overlays';
+import { BTN } from '../../components/ui/states';
 import { SectionCard } from '../../components/ui/Card';
 import { Markdown } from '../../components/ui/Markdown';
 import { buildLiveMisContext } from '../../data/chat/misContext';
@@ -13,13 +15,6 @@ import { chatStatus, sendChat, type ChatMessage } from '../../data/chat/chatClie
 import { getUsage, usd, type UsageResponse } from '../../data/chat/usageClient';
 import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { monthLabel } from '../../data/misDeck/liveAnalytics';
-
-const iconSpark = (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-      d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-  </svg>
-);
 
 interface Preset { id: string; label: string; blurb: string; prompt: string; }
 const PRESETS: Preset[] = [
@@ -57,76 +52,67 @@ export function AiInsightsPage() {
   return (
     <>
       <PageHeader
-        title="AI Insights"
-        accent="brand"
-        icon={iconSpark}
-        description={`On-demand analysis of the MIS and a chat to ask anything — grounded in the live P&L (through ${throughLabel}). The AI reasons over the numbers; it can't change anything.`}
-        crumbs={[
-          { label: 'Reporting', to: '/reporting' },
-          { label: 'MIS Reporting', to: '/reporting/mis' },
-          { label: 'AI Insights' },
-        ]}
+        title="AI insights"
+        description={`Ask Claude about the P&L to ${throughLabel}. Claude reads the numbers. Claude does not change them.`}
+        status={configured === false ? (
+          <Popover align="left" width={300} buttonLabel="Claude not connected: details"
+            buttonClassName="inline-flex min-h-11 sm:min-h-7 items-center gap-1 rounded-full bg-amber-50 px-2.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+            button={<>Claude not connected</>}>
+            <p className="p-3.5 text-[13px] leading-5 text-slate-700">Analysis and chat do not run. Set <span className="font-mono">ANTHROPIC_API_KEY</span> on the service.</p>
+          </Popover>
+        ) : null}
+        actions={<SpendButton usage={usage} />}
+        help={deck ? (deck.completeThrough
+          ? <p>Claude reads the MIS, locked to {monthLabel(deck.completeThrough)}{deck.periods.length ? `, plus ${deck.periods.length} live month${deck.periods.length === 1 ? '' : 's'}` : ''}.</p>
+          : <p>Claude reads the published history and the live months uploaded so far.</p>) : undefined}
       />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {configured === false && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            The Claude API key isn't set on the server, so analysis and chat can't run. Set <span className="font-mono">ANTHROPIC_API_KEY</span> on the service.
-          </div>
-        )}
-        {deck && (
-          <p className="text-xs sm:text-[11px] text-slate-400">
-            {deck.completeThrough
-              ? <>Analysing the MIS, fully closed through <span className="text-emerald-700 font-medium">{monthLabel(deck.completeThrough)}</span>{deck.periods.length ? ` · ${deck.periods.length} live month${deck.periods.length === 1 ? '' : 's'}` : ''}.</>
-              : 'Analysing the published history plus any live months uploaded so far.'}
-          </p>
-        )}
-
-        <SpendCard usage={usage} />
-        <Analysis context={context} configured={configured} />
-        <AskChat context={context} configured={configured} />
-      </div>
+      <PageBody>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
+          <Analysis context={context} configured={configured} />
+          <AskChat context={context} configured={configured} />
+        </div>
+      </PageBody>
     </>
   );
 }
 
 // ---- Claude API spend ------------------------------------------------------
 
-function SpendCard({ usage }: { usage: UsageResponse | null }) {
+function SpendButton({ usage }: { usage: UsageResponse | null }) {
+  const [open, setOpen] = useState(false);
   if (!usage) return null;
   const models = [...new Set(usage.days.flatMap((d) => d.models))].join(', ') || 'claude-opus-5-5';
   return (
-    <SectionCard
-      title="Claude API spend"
-      description={`Priced from each response's exact token usage at Opus rates. Days are IST · model: ${models}`}
-      actions={
-        <div className="text-right text-xs">
-          <div className="text-slate-400">today <span className="text-slate-800 font-semibold tabular-nums">{usd(usage.today?.costUsd ?? 0)}</span> · {usage.today?.calls ?? 0} calls</div>
-          <div className="text-slate-400">{usage.windowDays}-day <span className="text-slate-700 font-medium tabular-nums">{usd(usage.totalUsd)}</span></div>
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={BTN}>
+        Claude spend <span className="tabular-nums text-slate-900">{usd(usage.today?.costUsd ?? 0)}</span> today
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Claude spend" width={560}>
+        <div className="space-y-3 text-sm">
+          <p className="text-slate-700">Today <b className="tabular-nums">{usd(usage.today?.costUsd ?? 0)}</b> · {usage.today?.calls ?? 0} calls · last {usage.windowDays} days <b className="tabular-nums">{usd(usage.totalUsd)}</b></p>
+          {usage.days.length === 0 ? <p className="text-slate-600">No calls yet.</p> : (
+            <table className="w-full text-[13px]">
+              <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-600">
+                <th className="py-1.5 pr-3 font-semibold">Day (IST)</th><th className="py-1.5 pr-3 text-right font-semibold">Calls</th>
+                <th className="py-1.5 pr-3 text-right font-semibold">Tokens in / out</th><th className="py-1.5 text-right font-semibold">Cost (USD)</th>
+              </tr></thead>
+              <tbody>
+                {usage.days.map((d) => (
+                  <tr key={d.date} className="border-b border-slate-100">
+                    <td className="py-1.5 pr-3 tabular-nums text-slate-700">{d.date}</td>
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{d.calls}</td>
+                    <td className="py-1.5 pr-3 text-right tabular-nums text-slate-600">{d.inputTokens.toLocaleString()} / {d.outputTokens.toLocaleString()}</td>
+                    <td className="py-1.5 text-right font-medium tabular-nums text-slate-900">${d.costUsd.toFixed(4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="text-xs text-slate-600">Cost = the tokens of each answer at Opus prices. Model: {models}.</p>
         </div>
-      }
-    >
-      {usage.days.length === 0 ? (
-        <p className="text-sm text-slate-400">No API calls recorded yet.</p>
-      ) : (
-        <table className="w-full text-xs sm:text-[11px]">
-          <thead><tr className="text-xs sm:text-[11px] text-slate-400 text-left border-b border-slate-200">
-            <th className="py-1 pr-3">Day (IST)</th><th className="py-1 pr-3 text-right">Calls</th>
-            <th className="py-1 pr-3 text-right">Tokens in/out</th><th className="py-1 text-right">Cost (USD)</th>
-          </tr></thead>
-          <tbody>
-            {usage.days.map((d) => (
-              <tr key={d.date} className="border-b border-slate-50">
-                <td className="py-1 pr-3 text-slate-600 tabular-nums">{d.date}</td>
-                <td className="py-1 pr-3 text-right tabular-nums text-slate-600">{d.calls}</td>
-                <td className="py-1 pr-3 text-right tabular-nums text-slate-400">{d.inputTokens.toLocaleString()} / {d.outputTokens.toLocaleString()}</td>
-                <td className="py-1 text-right tabular-nums text-slate-700 font-medium">${d.costUsd.toFixed(4)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </SectionCard>
+      </Modal>
+    </>
   );
 }
 
@@ -151,11 +137,11 @@ function Analysis({ context, configured }: { context: string; configured: boolea
   };
 
   return (
-    <SectionCard title="On-demand analysis" description="Pick an angle and the AI reads the whole MIS and writes it up.">
+    <SectionCard title="Analysis" description="Select a topic. Claude reads the whole MIS and writes a short report.">
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((p) => (
           <button key={p.id} onClick={() => void run(p)} disabled={!!running || configured === false}
-            className="group text-left rounded-xl border border-slate-200 px-3 py-2 hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-50 transition-colors">
+            className="group min-h-11 text-left rounded-xl border border-slate-200 px-3 py-2 hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-50 transition-colors">
             <div className="text-sm font-medium text-slate-700 group-hover:text-brand-700">{p.label}</div>
             <div className="text-xs sm:text-[11px] text-slate-400">{p.blurb}</div>
           </button>
@@ -218,12 +204,12 @@ function AskChat({ context, configured }: { context: string; configured: boolean
   };
 
   return (
-    <SectionCard title="Ask the MIS" description="Chat with Claude about the business, grounded in the same numbers.">
+    <SectionCard title="Ask the MIS" description="Claude answers from the same numbers as Live MIS.">
       <div className="flex flex-col" style={{ minHeight: '40vh' }}>
         <div className="flex-1 overflow-y-auto space-y-4 pb-3">
           {messages.length === 0 && (
             <div className="text-center text-slate-400 py-8">
-              <p className="text-sm mb-3">Ask anything about revenue, margins, channels, costs or the P&amp;L.</p>
+              <p className="text-sm mb-3 text-slate-600">Ask about sales, margins, channels or costs.</p>
               <div className="flex flex-wrap gap-2 justify-center max-w-2xl mx-auto">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} onClick={() => void ask(s)} disabled={configured === false}
@@ -244,7 +230,7 @@ function AskChat({ context, configured }: { context: string; configured: boolean
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm">Thinking through the numbers…</div>
+              <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm">Claude is reading the numbers…</div>
             </div>
           )}
           {error && <p className="text-xs text-rose-700 text-center">{error}</p>}
@@ -254,7 +240,7 @@ function AskChat({ context, configured }: { context: string; configured: boolean
           <div className="flex items-end gap-2">
             <textarea value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(input); } }}
-              rows={1} aria-label="Ask about the MIS" placeholder="Ask about the MIS…  (Enter to send, Shift+Enter for a new line)"
+              rows={1} aria-label="Ask about the MIS" placeholder="Ask about the MIS (Enter = send)"
               disabled={loading || configured === false}
               className="flex-1 resize-none px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-400 focus:outline-none disabled:bg-slate-50" />
             <button onClick={() => void ask(input)} disabled={loading || !input.trim() || configured === false}

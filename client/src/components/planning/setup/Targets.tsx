@@ -7,7 +7,7 @@ import { fitToTargets, setTargetMode, summary, targetMode, type TargetMode } fro
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import { NumInput } from '../inputs';
 import { money } from '../fmt';
-import { CR, Note, Row, ensureGrowth, replacePlan, td, th, thr, useBusy } from './shared';
+import { CR, Note, Row, Tip, ensureGrowth, replacePlan, td, th, thr, useBusy } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 
 export { summary };
@@ -24,7 +24,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   const sheet = !plan.fx || plan.fx.sheetParity;
   const G = plan.growth;
   const linesOn = plan.products.some((x) => x.growthLine && x.on);
-  const blocked = sheet ? 'Switch Starting point to My plan' : plan.growth && !plan.growth.on ? 'The products & growth layer is switched off (Starting point → Switch it on)' : !linesOn ? 'Add a product in Products & categories first' : null;
+  const blocked = sheet ? 'Select My plan in Starting point.' : plan.growth && !plan.growth.on ? 'The growth layer is off. Turn it on in Starting point.' : !linesOn ? 'Add a product in Products and categories.' : null;
   const set = (fn: (g: NonNullable<Plan['growth']>) => void) => update((p) => { fn(ensureGrowth(p)); });
 
   const arr = runRateArr(result);
@@ -41,7 +41,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
   return (
     <div className="space-y-4">
-      <Row label="Target type" hint="Revenue by year pushes the new lines' buyers each FY; Exit ARR scales their launch volumes.">
+      <Row label="Target type" hint="Revenue by year: increases the new buyers of the new lines in each FY. Exit ARR: changes their launch volumes.">
         <SegmentedControl<TargetMode> size="sm" aria-label="Target type" options={MODES} value={mode}
           onChange={(m) => { if (m !== mode) update((p) => setTargetMode(p, m, result)); }} />
       </Row>
@@ -71,36 +71,35 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                         onChange={(v) => set((g) => { g.path = { ...(g.path ?? {}) }; if (v > 0) g.path[y.fy] = v; else delete g.path[y.fy]; })} />
                     </td>
                     <td className={`${td} text-right text-slate-900`}>{money(y.revenue, 1)}</td>
-                    <td className={`${td} text-right ${off ? 'text-rose-600' : 'text-slate-500'}`}>{gap == null ? '–' : money(gap, 1)}</td>
+                    <td className={`${td} text-right ${off ? 'text-rose-700' : 'text-slate-600'}`}>{gap == null ? '–' : money(gap, 1)}</td>
                     <td className={`${td} text-right text-slate-700`}>{G?.push?.[y.fy] != null ? `${G.push[y.fy].toFixed(2)}×` : '1×'}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          <Note>A year with no target keeps its own pace. Clearing every year's target switches to an exit ARR target.</Note>
+          <Note>A year with no target keeps its pace. With no targets, the type changes to Exit ARR.</Note>
         </div>
       ) : (
         <div className="space-y-1.5">
-          <Row label="Exit ARR target" hint="Last 3 months' P&L revenue × 4 at the end of the horizon.">
+          <Row label="Exit ARR target" hint="P&L revenue of the last 3 months × 4, at the end of the plan.">
             <NumInput unit="cr" value={target} min={0} width="w-24" title="Exit ARR target" onChange={(v) => set((g) => { g.targetArr = v; })} />
           </Row>
           <Note>
-            Exit ARR now {money(arr, 0)} ({lastM?.label ?? 'last month'} run-rate){arr >= target ? ' — target reached.' : `, ${money(target - arr, 0)} short.`}
+            Exit ARR now: {money(arr, 0)} ({lastM?.label ?? 'last month'}){arr >= target ? '. Target met.' : `. ${money(target - arr, 0)} below target.`}
           </Note>
         </div>
       )}
 
       <div className="space-y-2 border-t border-slate-100 pt-4">
-        <button type="button" className="rounded-lg bg-cta px-3 py-1.5 text-xs font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-40"
+        <div className="flex flex-wrap items-center gap-1">
+        <button type="button" className="inline-flex min-h-11 sm:min-h-9 items-center rounded-lg bg-cta px-3.5 text-sm font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
           disabled={!!busy || !!blocked} title={blocked ?? undefined} onClick={fit}>
           {busy ?? 'Fit the plan to these targets'}
         </button>
-        {blocked && <span className="ml-2 text-[12px] text-amber-800">{blocked}</span>}
-        <Note>
-          Pushes the new lines' new buyers year by year until each year meets its target (or scales their launch volumes to the exit ARR), then
-          re-sizes the unconfirmed rounds so cash stays above the buffer.
-        </Note>
+        <Tip label="What Fit does"><p>Fit increases the new buyers of the new lines, 1 year at a time, until each year meets its target. For Exit ARR, it changes their launch volumes.</p><p>Then it changes the size of the rounds that are not confirmed, so cash stays above the buffer.</p></Tip>
+        </div>
+        {blocked && <span className="text-[12px] text-amber-800">{blocked}</span>}
         {notes.map((n, i) => <Note key={i} tone="amber">{n}</Note>)}
         {G?.note && <Note>{G.note}</Note>}
       </div>
@@ -111,7 +110,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 export const SECTION: SetupSectionDef = {
   id: 'targets',
   title: 'Targets',
-  blurb: 'Where the plan should land, and the one action that fits volumes and rounds to it.',
+  blurb: 'Where the plan must land. Fit sets volumes and rounds to it.',
   Section,
   summary,
 };

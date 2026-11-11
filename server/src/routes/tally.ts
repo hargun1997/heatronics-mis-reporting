@@ -164,7 +164,7 @@ router.get('/books/status', h(async (_req, res) => {
 
 router.post('/books/pull', h(async (req, res) => {
   const c = await creds();
-  if (!(c.host || '').trim()) return res.json({ status: 'not_connected', detail: 'Add the Tally host + port on Data sources (Tally card).' });
+  if (!(c.host || '').trim()) return res.json({ status: 'not_connected', detail: 'Enter the Tally host and port on Setup → Tally.' });
   const periods = Array.isArray(req.body?.periods) ? (req.body.periods as unknown[]).filter((p): p is string => typeof p === 'string' && PERIOD.test(p)).slice(0, 6) : undefined;
   const r = await pullBooks(c, { force: true, budgetMs: 150_000, periods });
   res.json({ status: r.error && !r.masters && !r.months.length ? 'down' : 'ok', ...r });

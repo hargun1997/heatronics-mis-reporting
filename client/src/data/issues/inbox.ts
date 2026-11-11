@@ -13,7 +13,7 @@ export interface InboxItem {
 export interface IssueStateEntry { status: 'done' | 'snoozed'; sig: string; until?: string; by: string; at: string; note?: string }
 export type IssueState = Record<string, IssueStateEntry>;
 
-export const AREA_LABEL: Record<InboxArea, string> = { books: 'Books (Tally)', mis: 'MIS numbers', feeds: 'Feeds', products: 'Products', close: 'Month close' };
+export const AREA_LABEL: Record<InboxArea, string> = { books: 'Books (Tally)', mis: 'MIS numbers', feeds: 'Reports', products: 'Products', close: 'Month lock' };
 export const SEV_RANK: Record<InboxSeverity, number> = { high: 0, medium: 1, low: 2 };
 
 /** Small stable hash for the browser's items (the server uses sha1). */
@@ -32,8 +32,8 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
   const feed = deck.liveFeed;
   const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);   // a feed problem marked Done comes back the next day if it still holds
   if (feed && !feed.ok) {
-    out.push({ id: 'feed:live', area: 'feeds', severity: 'high', title: 'Live sales feed did not load — Live MIS shows uploads only',
-      detail: feed.error ?? 'The connector pull failed.', fix: 'Press Refresh on Live MIS. If it fails again, open Setup and check the connector cards.',
+    out.push({ id: 'feed:live', area: 'feeds', severity: 'high', title: 'Live sales did not load: Live MIS shows uploads only',
+      detail: feed.error ?? 'The pull failed.', fix: '1. Click Refresh on Live MIS. 2. If it fails again, check the sources on Setup.',
       href: '/reporting/mis/connectors', sig: `down:${today}` });
   }
   for (const x of feed?.sources ?? []) {
@@ -41,10 +41,10 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
     if (x.id === 'flipkart' && x.error && /not in approved state|not approved|approval pending/i.test(x.error)) continue;
     if (!x.ok && x.error && x.error !== 'not connected' && !x.partial) {
       out.push({ id: `feed:${x.id}`, area: 'feeds', severity: 'medium', title: `${x.label}: live pull failed`, detail: x.error,
-        fix: 'Open Setup → this connector and press Pull now; fix the credentials if it says so.', href: `/reporting/mis/connectors?view=uploads#${x.id}`, sig: `${sig(x.error.slice(0, 60))}:${today}` });
+        fix: '1. Open this source on Setup. 2. Click Pull. 3. If the error names the login or token, correct it.', href: `/reporting/mis/connectors?view=uploads#${x.id}`, sig: `${sig(x.error.slice(0, 60))}:${today}` });
     } else if (x.partial) {
-      out.push({ id: `feed:${x.id}:partial`, area: 'feeds', severity: 'low', title: `${x.label}: numbers still loading (partial)`, detail: 'The source was still preparing data. It is pulled again within 5 minutes.',
-        fix: 'Refresh Live MIS in a few minutes.', href: '/reporting/mis/live', sig: `partial:${today}` });
+      out.push({ id: `feed:${x.id}:partial`, area: 'feeds', severity: 'low', title: `${x.label}: numbers not complete yet`, detail: 'The source still prepares the data. The MIS pulls again within 5 minutes.',
+        fix: 'Refresh Live MIS in 5 minutes.', href: '/reporting/mis/live', sig: `partial:${today}` });
     }
   }
   const thisMonth = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 7);
@@ -59,22 +59,22 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
     if (todo.length) {
       const hard = todo.some((b) => b.hard);
       out.push({ id: `close:${k}`, area: 'close', severity: hard ? 'high' : 'medium', period: k, count: todo.length,
-        title: `${monthName(k)} can't be closed yet: ${todo.length} thing${todo.length === 1 ? '' : 's'} to fix${c.tallyGaps?.length ? ' (Tally incomplete)' : c.missingChannels?.length ? ` (no data: ${c.missingChannels.map((x) => x.channel).join(', ')})` : ''}`,
+        title: `${monthName(k)} cannot be locked: ${todo.length} to fix${c.tallyGaps?.length ? ' (Tally incomplete)' : c.missingChannels?.length ? ` (no data: ${c.missingChannels.map((x) => x.channel).join(', ')})` : ''}`,
         detail: todo.slice(0, 4).map((b, i) => `${i + 1}. ${b.text}`).join(' '),
         fix: todo[0].fix, href: `/reporting/mis/live?month=${k}#close`, sig: sig(todo.map((b) => `${b.kind}:${b.text.replace(/₹[\d,]+/g, '₹')}`)) });
     }
     if (tie?.breach && !c.tallyGaps?.length) {
       out.push({ id: `tie:${k}`, area: 'close', severity: 'high', period: k,
-        title: `${monthName(k)} doesn't tie to Tally (worst ${tie.worstResidualPct?.toFixed(1) ?? '?'}% — ${tie.worstLabel ?? ''})`,
+        title: `${monthName(k)} does not tie to Tally (worst ${tie.worstResidualPct?.toFixed(1) ?? '?'}%: ${tie.worstLabel ?? ''})`,
         detail: tie.breaches.slice(0, 3).join(' '),
-        fix: 'Open the month on Live MIS → Month close: find the residual (a missing report, a ledger on the wrong line), fix, then lock.',
+        fix: '1. Open the month on Live MIS → Month close. 2. Find the gap: a missing report or a ledger on the wrong line. 3. Fix it. 4. Lock the month.',
         href: `/reporting/mis/live?month=${k}#close`, sig: sig(tie.breaches.map((b) => b.replace(/₹[\d,]+/g, '₹')), Math.round((tie.worstResidualPct ?? 0) * 2)) });
     } else if (c.ready) {
       out.push({ id: `lock:${k}`, area: 'close', severity: 'low', period: k, title: `${monthName(k)} is ready to lock`,
-        detail: `Tally is complete, it ties (worst ${tie?.worstResidualPct?.toFixed(1) ?? '0'}%) and stock is posted.`, fix: 'Review it once on Live MIS and press Close & lock.',
+        detail: `Tally is complete, it ties (worst ${tie?.worstResidualPct?.toFixed(1) ?? '0'}%) and stock is posted.`, fix: '1. Check the month on Live MIS. 2. Click Lock.',
         href: `/reporting/mis/live?month=${k}#close`, sig: 'ready' });
     }
-    if (c.bom && !c.bom.exact) out.push({ id: `bom:${k}`, area: 'products', severity: 'low', period: k, title: `${monthName(k)} is costed with another month's BOM`, detail: c.bom.note, fix: 'Pull the BOM pricing for the month (Production portal) on Setup.', href: `/reporting/mis/connectors?view=uploads#tranzact`, sig: sig(c.bom.month) });
+    if (c.bom && !c.bom.exact) out.push({ id: `bom:${k}`, area: 'products', severity: 'low', period: k, title: `${monthName(k)} uses the BOM of another month`, detail: c.bom.note, fix: 'Pull the BOM pricing report for the month on Setup.', href: `/reporting/mis/connectors?view=uploads#tranzact`, sig: sig(c.bom.month) });
   }
   // A month the published workbook had, now shown from Tally (10 Nov 2026): say how far the two differ, once.
   for (const [k, c] of Object.entries(deck.completeness ?? {})) {
@@ -82,9 +82,9 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
     if (!v || (Math.abs(v.dNetRevenue) < 10_000 && Math.abs(v.dNetIncome) < 10_000)) continue;
     const sgn = (n: number) => `${n >= 0 ? '+' : '−'}${inr(Math.abs(n))}`;
     out.push({ id: `published:${k}`, area: 'close', severity: 'low', period: k,
-      title: `${monthName(k)} now from Tally: net revenue ${sgn(v.dNetRevenue)}, net profit ${sgn(v.dNetIncome)} vs the published MIS`,
+      title: `${monthName(k)} from Tally: net revenue ${sgn(v.dNetRevenue)}, net profit ${sgn(v.dNetIncome)} vs published MIS`,
       detail: `Published MIS: net revenue ${inr(v.netRevenue)}, net profit ${inr(v.netIncome)}. Live MIS shows the Tally figures.`,
-      fix: 'Check the change is expected (late entries in Tally). Mark Done once reviewed.',
+      fix: '1. Check that the change is correct (late entries in Tally). 2. Click Done.',
       href: `/reporting/mis/live?month=${k}`, sig: sig(Math.round(v.dNetRevenue / 1000), Math.round(v.dNetIncome / 1000)) });
   }
   // A report says more cost than Tally booked on the line: the Channel P&L caps it at Tally's total; accounts check the booking.
@@ -92,9 +92,9 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
     const c = deck.completeness?.[o.month];
     if (c?.closed || c?.locked || o.month > thisMonth) continue;
     out.push({ id: `over:${o.month}:${o.lineKey}`, area: 'books', severity: o.excess >= 50_000 ? 'high' : 'medium', period: o.month,
-      title: `${monthName(o.month)}: ${o.channel} ${overKind(o.cascadeLine)} in the report exceed Tally by ${inr(o.excess)} — check the booking`,
+      title: `${monthName(o.month)}: ${o.channel} ${overKind(o.cascadeLine)} in the report exceed Tally by ${inr(o.excess)}: check the books`,
       detail: `Report ${inr(o.reported)} vs Tally "${o.label}" ${inr(o.tally)}. The Channel P&L uses Tally's total.`,
-      fix: 'In Tally, check this month\'s entries for the line: a bill not booked yet, booked in another month, or under another ledger.',
+      fix: '1. In Tally, open the entries of this month for the line. 2. Look for a missing bill, a bill in another month or a wrong ledger.',
       href: `/reporting/mis/live?month=${o.month}#close`, sig: sig(o.channel, Math.round(o.excess / 1000)) });
   }
   const g = deck.productGaps;
@@ -103,14 +103,14 @@ export function deckItems(deck: Pick<LiveDeckData, 'completeness' | 'productGaps
     out.push({ id: 'products:unmapped', area: 'products', severity: rev > 100_000 ? 'high' : 'medium', count: g.unmapped.length,
       title: `${g.unmapped.length} sales item${g.unmapped.length === 1 ? '' : 's'} not mapped to a product (${inr(rev)})`,
       detail: g.unmapped.slice(0, 4).map((u) => u.name || u.key).join(', '),
-      fix: 'Live MIS → Product gaps: confirm the suggested product (one click) or pick one.', href: '/reporting/mis/live#product-gaps', sig: sig(g.unmapped.map((u) => u.key).sort()) });
+      fix: '1. Open Live MIS → Product gaps. 2. Confirm the suggested product, or select one.', href: '/reporting/mis/live#product-gaps', sig: sig(g.unmapped.map((u) => u.key).sort()) });
   }
   const unconfirmed = (g?.noBom ?? []).filter((b) => !b.proxyConfirmed);
   if (unconfirmed.length) {
     out.push({ id: 'products:nobom', area: 'products', severity: 'medium', count: unconfirmed.length,
       title: `${unconfirmed.length} product${unconfirmed.length === 1 ? '' : 's'} sold without a BOM cost (estimated)`,
       detail: unconfirmed.slice(0, 4).map((b) => b.deckName).join(', '),
-      fix: 'Live MIS → Product gaps: confirm a cost proxy, or add the BOM in Tranzact.', href: '/reporting/mis/live#product-gaps', sig: sig(unconfirmed.map((b) => b.fgId).sort()) });
+      fix: '1. Open Live MIS → Product gaps. 2. Confirm a similar product for the cost, or add the BOM in Tranzact.', href: '/reporting/mis/live#product-gaps', sig: sig(unconfirmed.map((b) => b.fgId).sort()) });
   }
   return out;
 }

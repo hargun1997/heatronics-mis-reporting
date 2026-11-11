@@ -108,7 +108,7 @@ export function slotGaps(periodKey: string, reports: SlotReport[]): SlotGap[] {
     const first = mine.map((r) => r.periodKey).sort()[0];
     if (periodKey < first) continue;
     const everHadRows = mine.some((r) => (r.payload?.facts?.length ?? 0) > 0);
-    const label = `${CONNECTOR_NAME[s.connectorId] ?? `${s.connectorId[0].toUpperCase()}${s.connectorId.slice(1)}`} ${s.label.replace(/\s*\(.*\)$/, '').replace(/ — .*$/, '').toLowerCase()}`;
+    const label = `${CONNECTOR_NAME[s.connectorId] ?? `${s.connectorId[0].toUpperCase()}${s.connectorId.slice(1)}`} ${s.label.replace(/\s*\(.*\)$/, '').replace(/ [—·] .*$/, '').toLowerCase()}`;
     const base = { connectorId: s.connectorId, slotId: s.slotId, label };
     const here = mine.filter((r) => r.periodKey === periodKey);
     if (!here.length) { if (everHadRows) out.push({ ...base, state: 'missing', detail: 'not stored' }); continue; }
@@ -157,35 +157,35 @@ export function closeBlockers(a: {
   slots: SlotGap[];
 }): CloseBlocker[] {
   const out: CloseBlocker[] = [];
-  if (a.periodKey >= a.thisMonth) out.push({ kind: 'running', text: 'The month is not over yet.', fix: 'Close it after month end.', hard: true });
+  if (a.periodKey >= a.thisMonth) out.push({ kind: 'running', text: 'The month is not over yet.', fix: 'Lock it after month end.', hard: true });
   if (!a.hasTally) {
     out.push({ kind: 'no-tally', hard: true,
       text: a.tallyIgnored ?? 'Tally P&L is not in yet.',
-      fix: 'Finish the month in Tally, then Setup → Tally → Pull now.' });
+      fix: '1. Finish the month in Tally. 2. Go to Setup → Tally → Pull.' });
   } else if (!a.tallyHasSales) {
-    out.push({ kind: 'no-tally', hard: true, text: 'Tally has no sales booked for this month.', fix: 'Book the month’s sales in Tally, then Setup → Tally → Pull now.' });
+    out.push({ kind: 'no-tally', hard: true, text: 'Tally has no sales booked for this month.', fix: '1. Enter the sales of the month in Tally. 2. Go to Setup → Tally → Pull.' });
   }
   for (const g of a.gaps) {
     out.push({ kind: 'tally-incomplete', hard: true,
       text: `${g.channel}: ${inr(g.connector)} sold${BASIS_NOTE(g.basis)}, Tally has ${g.tally > 0 ? inr(g.tally) : g.tally < 0 ? `−${inr(g.tally)}` : 'no sales ledger'}.`,
-      fix: `Book the ${g.channel} sales in Tally, then pull Tally again.` });
+      fix: `1. Enter the ${g.channel} sales in Tally. 2. Pull Tally again.` });
   }
   if (a.hasTally && stockNotPosted(a.stock)) {
     out.push({ kind: 'stock', hard: true,
       text: `Closing stock = opening stock (${inr(a.stock!.closing)}) with ${a.stock!.purchases > 0 ? `${inr(a.stock!.purchases)} of purchases` : `${inr(a.stock!.sales ?? 0)} of sales`}: closing stock not posted, profit is wrong.`,
-      fix: 'Post the closing stock in Tally (Tasks → Closing stock into Tally), then pull Tally again.' });
+      fix: '1. Post the closing stock in Tally (Tasks → Closing stock into Tally). 2. Pull Tally again.' });
   }
   if (a.hasTally && a.tallyHasSales && !a.gaps.length) {
-    for (const b of a.tie?.breaches ?? []) out.push({ kind: 'tie', hard: false, text: `Does not tie: ${b}.`, fix: 'Find the gap (a missing report, a ledger on the wrong line) or lock with a written reason.' });
+    for (const b of a.tie?.breaches ?? []) out.push({ kind: 'tie', hard: false, text: `Does not tie: ${b}.`, fix: '1. Find the gap: a missing report or a ledger on the wrong line. 2. Fix it, or lock with a reason.' });
   }
   // Reports: one line per state so the list stays short (a running month is not judged: its reports are not due).
   if (a.periodKey < a.thisMonth) {
     const name = (list: SlotGap[]) => `${list.slice(0, 3).map((x) => x.label).join(', ')}${list.length > 3 ? ` +${list.length - 3} more` : ''}`;
     const missing = a.slots.filter((x) => x.state === 'missing');
     const empty = a.slots.filter((x) => x.state === 'empty');
-    if (missing.length) out.push({ kind: 'slot', hard: false, text: `${missing.length} report${missing.length === 1 ? '' : 's'} missing: ${name(missing)}.`, fix: 'Setup → Pull & save all for the month, then upload the manual ones.' });
-    if (empty.length) out.push({ kind: 'slot', hard: false, text: `${empty.length} report${empty.length === 1 ? '' : 's'} stored with no rows: ${name(empty)}.`, fix: 'Setup: upload the right file, or delete the empty one if there were no sales.' });
-    for (const x of a.slots.filter((y) => y.state === 'partial')) out.push({ kind: 'slot', hard: false, text: `${x.label} ${x.detail}.`, fix: 'Setup: pull or upload the full month.' });
+    if (missing.length) out.push({ kind: 'slot', hard: false, text: `${missing.length} report${missing.length === 1 ? '' : 's'} missing: ${name(missing)}.`, fix: '1. On Setup, click Pull all for the month. 2. Upload the reports that have no API.' });
+    if (empty.length) out.push({ kind: 'slot', hard: false, text: `${empty.length} report${empty.length === 1 ? '' : 's'} stored with no rows: ${name(empty)}.`, fix: 'On Setup, upload the correct file. If there were no sales, delete the empty report.' });
+    for (const x of a.slots.filter((y) => y.state === 'partial')) out.push({ kind: 'slot', hard: false, text: `${x.label} ${x.detail}.`, fix: 'On Setup, pull or upload the full month.' });
   }
   return out;
 }

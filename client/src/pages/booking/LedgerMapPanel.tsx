@@ -8,6 +8,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TO_CONFIRM, type ExpenseMapRow } from '../../data/bookingAssistant/bookingClient';
+import { Modal } from '../../components/ui/overlays';
+import { BTN, BTN_PRIMARY, InfoTip } from '../../components/ui/states';
 
 type Filter = 'all' | 'needs-info' | 'confirmed';
 
@@ -40,6 +42,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<ExpenseMapRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
 
   const all = useMemo(() => rows ?? [], [rows]);
   const needsInfo = all.filter((r) => r.status === 'needs-info').length;
@@ -57,6 +60,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
   }, [all, query, filter]);
 
   const startEdit = (r: ExpenseMapRow) => {
+    setViewing(null);
     setEditing(r.id);
     setDraft({ ...r, keywords: [...r.keywords] });
     setConfirmDelete(null);
@@ -93,61 +97,35 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
   };
 
   const isNewDraft = draft && editing && !all.some((r) => r.id === editing);
+  const viewRow = viewing ? all.find((r) => r.id === viewing) ?? null : null;
 
   return (
     <section aria-label="Ledger map" className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-card">
-      <header className="border-b border-slate-200 px-4 pb-3 pt-4">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-[15px] font-semibold text-slate-900">Ledger map</h2>
-          <span className="text-[13px] text-slate-600 tabular-nums">{all.length} vendors</span>
+      <header className="border-b border-slate-200 px-4 pb-3 pt-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-900">Ledger map</h2>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700">{all.length}</span>
+          <InfoTip label="About the ledger map"><p>Vendor → ledger rules from Hargun. The assistant follows each confirmed row exactly.</p><p>A change here goes to the next answer, for everyone.</p></InfoTip>
           {needsInfo > 0 && (
-            <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[12px] font-semibold text-amber-900 tabular-nums">
-              {needsInfo} need Hargun
-            </span>
+            <span className="ml-auto rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-800">{needsInfo} need Hargun</span>
           )}
         </div>
-        <p className="mt-1 text-[13px] leading-snug text-slate-600">
-          Hargun’s vendor → ledger rules. The assistant follows confirmed rows exactly.
-        </p>
-        <div className="mt-3 flex gap-2">
-          <label className="relative flex-1">
+        <div className="mt-2 flex gap-2">
+          <label className="relative min-w-0 flex-1">
             <span className="sr-only">Search the ledger map</span>
             <svg className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path strokeLinecap="round" d="M20 20l-3.5-3.5" />
             </svg>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search vendor, ledger, keyword…"
-              className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pl-8 pr-2 text-[13px] text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30"
-            />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Vendor, ledger or keyword"
+              className="min-h-11 sm:min-h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500" />
           </label>
-          <button
-            type="button"
-            onClick={startNew}
-            className="rounded-lg border border-slate-300 px-2.5 text-[13px] font-medium text-slate-900 hover:border-brand-400 hover:text-brand-700"
-          >
-            + Add
-          </button>
+          <button type="button" onClick={startNew} className={BTN}>Add vendor</button>
         </div>
-        <div className="mt-2 flex gap-1" role="tablist" aria-label="Filter rows">
-          {(
-            [
-              ['all', 'All'],
-              ['needs-info', 'Needs info'],
-              ['confirmed', 'Confirmed'],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              role="tab"
-              aria-selected={filter === key}
-              onClick={() => setFilter(key)}
-              className={`rounded-md px-2 py-1 text-[12.5px] font-medium ${
-                filter === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
+        <div className="mt-2 flex gap-1" role="group" aria-label="Filter rows">
+          {([['all', 'All'], ['needs-info', 'Needs info'], ['confirmed', 'Confirmed']] as const).map(([key, label]) => (
+            <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}
+              className={`min-h-11 sm:min-h-8 rounded-md px-2.5 text-[12.5px] font-medium ${filter === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
               {label}
             </button>
           ))}
@@ -156,123 +134,31 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loadError && <p className="m-4 rounded-lg bg-rose-50 p-3 text-[13px] text-rose-800">Couldn’t load the map: {loadError}</p>}
-        {!rows && !loadError && <p className="p-4 text-[13px] text-slate-600">Loading the map…</p>}
-
-        {isNewDraft && draft && (
-          <RowEditor draft={draft} setDraft={setDraft} onCancel={cancel} onSave={commit} saving={saving} isNew />
-        )}
+        {!rows && !loadError && <p role="status" className="p-4 text-[13px] text-slate-600">Loading the map…</p>}
 
         <ul className="divide-y divide-slate-100">
-          {shown.map((r) =>
-            editing === r.id && draft ? (
+          {shown.map((r) => {
+            const ledgers = r.ledger === TO_CONFIRM ? [] : r.ledger.split(' · ');
+            return (
               <li key={r.id}>
-                <RowEditor
-                  draft={draft}
-                  setDraft={setDraft}
-                  onCancel={cancel}
-                  onSave={commit}
-                  saving={saving}
-                  onDelete={() => setConfirmDelete(r.id)}
-                  confirmingDelete={confirmDelete === r.id}
-                  onConfirmDelete={() => void remove(r.id)}
-                  onCancelDelete={() => setConfirmDelete(null)}
-                />
+                <button type="button" onClick={() => setViewing(r.id)} aria-label={`Open ${r.vendor}`}
+                  className="block w-full px-4 py-2.5 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-[14px] font-semibold text-slate-900">{r.vendor}</span>
+                    <StatusTag r={r} />
+                  </span>
+                  <span className="mt-0.5 block truncate text-[12.5px] text-slate-600">
+                    <span className="font-semibold text-slate-500">Dr </span>
+                    {ledgers.length ? <><span className="font-mono text-slate-900">{ledgers[0]}</span>{ledgers.length > 1 ? ` +${ledgers.length - 1}` : ''}</> : <span className="font-medium text-amber-800">Ledger to confirm</span>}
+                    {r.voucherType ? ` · ${r.voucherType}` : ''}{r.tds ? ` · ${r.tds.split(' ')[0]}` : ''}
+                  </span>
+                </button>
               </li>
-            ) : (
-              <li key={r.id} className="group px-4 py-3 hover:bg-slate-50/70">
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-[14px] font-semibold text-slate-900">{r.vendor}</span>
-                      {r.status === 'out-of-scope' ? (
-                        <span className="rounded bg-slate-100 px-1.5 py-px text-xs sm:text-[11.5px] font-semibold text-slate-700 ring-1 ring-slate-200">Not in scope for now</span>
-                      ) : r.status === 'needs-info' ? (
-                        <span className="rounded bg-amber-100 px-1.5 py-px text-xs sm:text-[11.5px] font-semibold text-amber-900">Needs info</span>
-                      ) : (
-                        <span className="rounded bg-emerald-50 px-1.5 py-px text-xs sm:text-[11.5px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
-                          {r.evidence ? 'Confirmed · from books' : 'Confirmed'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 text-[13px] text-slate-600">
-                      <span className="inline-block w-6 font-semibold text-slate-500">Dr</span>
-                      {r.ledger === TO_CONFIRM ? (
-                        <span className="font-medium text-amber-900">ledger to confirm</span>
-                      ) : (
-                        r.ledger.split(' · ').map((l, li) => (
-                          <span key={li} className="mb-0.5 mr-1 inline-block rounded bg-slate-100 px-1 font-mono text-[12px] font-medium text-slate-900">{l}</span>
-                        ))
-                      )}
-                    </div>
-                    {r.party && (
-                      <div className="mt-0.5 text-[13px] text-slate-600">
-                        <span className="inline-block w-6 font-semibold text-slate-500">Cr</span>
-                        <span className="font-mono text-[12.5px] font-medium text-slate-900">{r.party}</span>
-                      </div>
-                    )}
-                    {r.status === 'needs-info' && r.suggestion && (
-                      <div className="mt-0.5 text-[12.5px] text-slate-600">
-                        Closest in Tally: <span className="font-mono text-[12px] text-slate-800">{r.suggestion}</span>
-                      </div>
-                    )}
-                    <dl className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-slate-600">
-                      {r.voucherType && <Fact k="Voucher" v={r.voucherType} />}
-                      {r.gst && <Fact k="GST" v={r.gst} />}
-                      {r.tds && <Fact k="TDS" v={r.tds} />}
-                    </dl>
-                    {r.notes && <p className="mt-1 text-[12.5px] leading-snug text-slate-600">{r.notes}</p>}
-                    {r.subRules && r.subRules.length > 0 && (
-                      <div className="mt-1.5 rounded-md border border-slate-200 px-2 py-1.5">
-                        <div className="text-xs sm:text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">Rules by document</div>
-                        <ul className="mt-1 space-y-1">
-                          {r.subRules.map((s, si) => (
-                            <li key={si} className="text-[12.5px] leading-snug text-slate-700">
-                              <span className="font-semibold text-slate-900">{s.when}</span> → {s.then}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {r.link && (
-                      <div className="mt-1.5 text-[12.5px] leading-snug">
-                        <a href={r.link} target="_blank" rel="noreferrer" className="font-semibold text-brand-700 hover:underline">
-                          Download invoices ↗
-                        </a>
-                        {r.linkNote && <span className="text-slate-600"> — {r.linkNote}</span>}
-                      </div>
-                    )}
-                    {r.evidence && (
-                      <details className="mt-1.5 rounded-md bg-slate-50 px-2 py-1 text-[12.5px] text-slate-700">
-                        <summary className="cursor-pointer font-medium text-slate-900">Evidence from the books</summary>
-                        <p className="mt-1 font-mono text-[12px] leading-relaxed text-slate-800">{r.evidence}</p>
-                      </details>
-                    )}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]">
-                      {r.anchor && (
-                        <Link to={`/handbook#${r.anchor}`} className="font-medium text-brand-700 hover:underline">
-                          Handbook ↗
-                        </Link>
-                      )}
-                      <button type="button" onClick={() => onAsk(`How do I book a ${r.vendor} invoice?`)} className="font-medium text-slate-700 hover:text-brand-700">
-                        Ask about this
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => startEdit(r)}
-                    aria-label={`Edit ${r.vendor}`}
-                    className="rounded-md border border-transparent px-2 py-1 text-[12.5px] font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                  >
-                    Edit
-                  </button>
-                </div>
-              </li>
-            ),
-          )}
+            );
+          })}
         </ul>
         {rows && shown.length === 0 && !isNewDraft && (
-          <p className="p-4 text-[13px] text-slate-600">No rows match. Clear the search or add the vendor.</p>
+          <p className="p-4 text-[13px] text-slate-600">No rows match. Clear the search, or add the vendor.</p>
         )}
       </div>
 
@@ -284,18 +170,81 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
         ) : savedAt ? (
           <>Saved {new Date(savedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</>
         ) : (
-          'Changes save to the server for everyone.'
+          'Changes save for everyone.'
         )}
       </footer>
+      {viewRow && !editing && (
+        <Modal open onClose={() => setViewing(null)} title={viewRow.vendor} subtitle={<StatusTag r={viewRow} />} width={620}
+          footer={<>
+            <button type="button" className={BTN} onClick={() => { setViewing(null); onAsk(`How do I book a ${viewRow.vendor} invoice?`); }}>Ask about this</button>
+            <button type="button" className={BTN} onClick={() => startEdit(viewRow)}>Edit</button>
+          </>}>
+          <RowDetail r={viewRow} />
+        </Modal>
+      )}
+      {editing && draft && (
+        <Modal open onClose={cancel} title={isNewDraft ? 'New vendor rule' : `Edit ${draft.vendor}`} width={620}>
+          {isNewDraft ? (
+            <RowEditor draft={draft} setDraft={setDraft} onCancel={cancel} onSave={commit} saving={saving} isNew />
+          ) : (
+            <RowEditor draft={draft} setDraft={setDraft} onCancel={cancel} onSave={commit} saving={saving}
+              onDelete={() => setConfirmDelete(editing)} confirmingDelete={confirmDelete === editing}
+              onConfirmDelete={() => void remove(editing)} onCancelDelete={() => setConfirmDelete(null)} />
+          )}
+          {saveError && <p role="alert" className="mt-2 text-sm text-red-700">Could not save: {saveError}</p>}
+        </Modal>
+      )}
     </section>
+  );
+}
+
+function StatusTag({ r }: { r: ExpenseMapRow }) {
+  if (r.status === 'out-of-scope') return <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-px text-xs font-semibold text-slate-700">Not in scope</span>;
+  if (r.status === 'needs-info') return <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-px text-xs font-semibold text-amber-800">Needs info</span>;
+  return <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-px text-xs font-semibold text-emerald-800">{r.evidence ? 'Confirmed · from books' : 'Confirmed'}</span>;
+}
+
+function RowDetail({ r }: { r: ExpenseMapRow }) {
+  return (
+    <div className="space-y-3 text-[13px] text-slate-700">
+      <div>
+        <p className="text-xs font-semibold text-slate-600">Dr ledger(s)</p>
+        {r.ledger === TO_CONFIRM ? <p className="font-medium text-amber-800">Ledger to confirm</p> : (
+          <p className="mt-1">{r.ledger.split(' · ').map((l, li) => <span key={li} className="mb-1 mr-1 inline-block rounded bg-slate-100 px-1.5 font-mono text-[12px] font-medium text-slate-900">{l}</span>)}</p>
+        )}
+        {r.status === 'needs-info' && r.suggestion && <p className="mt-1 text-slate-600">Closest in Tally: <span className="font-mono text-slate-900">{r.suggestion}</span></p>}
+      </div>
+      {r.party && <div><p className="text-xs font-semibold text-slate-600">Cr / party ledger</p><p className="font-mono text-slate-900">{r.party}</p></div>}
+      <dl className="grid gap-2 sm:grid-cols-3">
+        <Fact k="Voucher" v={r.voucherType || 'Not set'} />
+        <Fact k="GST" v={r.gst || 'Not set'} />
+        <Fact k="TDS" v={r.tds || 'Not set'} />
+      </dl>
+      {r.notes && <p className="leading-snug">{r.notes}</p>}
+      {r.subRules && r.subRules.length > 0 && (
+        <div className="rounded-md border border-slate-200 px-3 py-2">
+          <p className="text-xs font-semibold text-slate-600">Rules by document</p>
+          <ul className="mt-1 space-y-1">{r.subRules.map((x, i) => <li key={i}><span className="font-semibold text-slate-900">{x.when}</span> → {x.then}</li>)}</ul>
+        </div>
+      )}
+      {r.link && <p><a href={r.link} target="_blank" rel="noreferrer" className="font-semibold text-accent-700 hover:underline">Download invoices ↗</a>{r.linkNote && <span className="text-slate-600">: {r.linkNote}</span>}</p>}
+      {r.evidence && (
+        <details className="rounded-md bg-slate-50 px-3 py-2">
+          <summary className="cursor-pointer font-medium text-slate-900">Example from the books</summary>
+          <p className="mt-1 font-mono text-[12px] leading-relaxed text-slate-800">{r.evidence}</p>
+        </details>
+      )}
+      {r.anchor && <Link to={`/handbook#${r.anchor}`} className="inline-block font-medium text-accent-700 hover:underline">Open in the Handbook ↗</Link>}
+      {r.keywords.length > 0 && <p className="text-xs text-slate-600">Match words: {r.keywords.join(', ')}</p>}
+    </div>
   );
 }
 
 function Fact({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex min-w-0 max-w-full gap-1">
-      <dt className="flex-shrink-0 text-slate-500">{k}</dt>
-      <dd className="min-w-0 break-words text-slate-800">{v}</dd>
+    <div className="min-w-0">
+      <dt className="text-xs font-semibold text-slate-600">{k}</dt>
+      <dd className="min-w-0 break-words text-slate-900">{v}</dd>
     </div>
   );
 }
@@ -313,21 +262,20 @@ interface EditorProps {
   onCancelDelete?: () => void;
 }
 
-function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete }: EditorProps) {
+function RowEditor({ draft, setDraft, onCancel, onSave, saving, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete }: EditorProps) {
   const set = <K extends keyof ExpenseMapRow>(k: K, v: ExpenseMapRow[K]) => setDraft({ ...draft, [k]: v });
   // Kept as raw text while typing, so a half-written line isn't dropped.
   const [subRulesText, setSubRulesText] = useState(() => (draft.subRules ?? []).map((s) => `${s.when} → ${s.then}`).join('\n'));
-  const field = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30';
+  const field = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500';
   const label = 'block text-[12px] font-medium text-slate-700';
   return (
     <form
-      className="space-y-2.5 border-l-[3px] border-brand-500 bg-brand-50/40 px-4 py-3"
+      className="space-y-2.5"
       onSubmit={(e) => {
         e.preventDefault();
         onSave();
       }}
     >
-      <div className="text-[12px] font-semibold uppercase tracking-wide text-brand-800">{isNew ? 'New vendor rule' : `Editing · ${draft.vendor}`}</div>
       <label className={label}>
         Vendor / category
         <input className={field} value={draft.vendor} onChange={(e) => set('vendor', e.target.value)} required autoFocus />
@@ -409,22 +357,22 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, isNew, onDelete,
         </label>
       </div>
       <div className="flex items-center gap-2 pt-1">
-        <button type="submit" disabled={saving || !draft.vendor.trim()} className="rounded-md bg-brand-600 px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
+        <button type="submit" disabled={saving || !draft.vendor.trim()} className={BTN_PRIMARY}>
           {saving ? 'Saving…' : 'Save row'}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-slate-700 hover:bg-slate-100">
+        <button type="button" onClick={onCancel} className={BTN}>
           Cancel
         </button>
         {onDelete && !confirmingDelete && (
-          <button type="button" onClick={onDelete} className="ml-auto text-[12.5px] font-medium text-rose-700 hover:underline">
+          <button type="button" onClick={onDelete} className="ml-auto min-h-11 sm:min-h-8 rounded-md px-2 text-[12.5px] font-medium text-rose-700 hover:bg-rose-50">
             Delete
           </button>
         )}
         {confirmingDelete && (
           <span className="ml-auto flex items-center gap-2 text-[12.5px] text-rose-800">
             Delete this rule?
-            <button type="button" onClick={onConfirmDelete} className="font-semibold hover:underline">Yes</button>
-            <button type="button" onClick={onCancelDelete} className="text-slate-600 hover:underline">No</button>
+            <button type="button" onClick={onConfirmDelete} className="min-h-11 sm:min-h-8 rounded-md px-2 font-semibold hover:bg-rose-50">Delete rule</button>
+            <button type="button" onClick={onCancelDelete} className="min-h-11 sm:min-h-8 rounded-md px-2 text-slate-600 hover:bg-slate-100">Keep</button>
           </span>
         )}
       </div>

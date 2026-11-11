@@ -26,13 +26,15 @@ test('every page route belongs to a menu page', () => {
   for (const r of pageRoutes) assert.ok(whereIs(r.path), `${r.path} (${r.el}) is not in the menu`);
 });
 
-test('home is Live MIS; sub-routes and old addresses find their page', () => {
-  assert.equal(whereIs(HOME)?.page.id, 'live');
+test('home is Today; sub-routes and old addresses find their page', () => {
+  assert.equal(whereIs(HOME)?.page.id, 'today');
   assert.match(app, /<Route index element=\{<Navigate to=\{HOME\}/);
   assert.equal(whereIs('/reporting/mis/chat')?.page.id, 'insights');
   assert.equal(whereIs('/tasks')?.page.id, 'tasks');
   assert.equal(whereIs('/tasks/settings')?.page.id, 'people');
-  assert.equal(whereIs('/tools')?.page.id, 'toolshub');
+  assert.equal(whereIs('/tools'), null, 'the All tools hub is gone (redirects to Today)');
+  assert.match(app, /<Route path="tools" element=\{<Navigate/);
+  assert.match(app, /<Route path="reporting\/mis\/close" element=\{<Navigate/);
   assert.equal(whereIs('/tools/round-planner')?.page.id, 'rounds');
   assert.equal(whereIs('/tools/invoice-booking')?.page.id, 'booking');
   assert.equal(whereIs('/tools/amazon-to-tranzact')?.page.id, 'tranzact');
@@ -42,8 +44,8 @@ test('home is Live MIS; sub-routes and old addresses find their page', () => {
 });
 
 test('breadcrumbs: Section › Page', () => {
-  assert.deepEqual(breadcrumbsFor('/reporting/mis/insights'), [{ label: 'Reporting', href: '/reporting/mis/live' }, { label: 'AI insights', href: undefined }]);
-  assert.deepEqual(breadcrumbsFor('/booking-assistant'), [{ label: 'Tools', href: '/tools' }, { label: 'Book an invoice', href: undefined }]);
+  assert.deepEqual(breadcrumbsFor('/reporting/mis/insights'), [{ label: 'Reporting', href: '/today' }, { label: 'AI insights', href: undefined }]);
+  assert.deepEqual(breadcrumbsFor('/booking-assistant'), [{ label: 'Accounts', href: '/tasks' }, { label: 'Book an invoice', href: undefined }]);
   assert.deepEqual(breadcrumbsFor('/planning'), [{ label: 'Planning', href: undefined }, { label: '5-year plan', href: undefined }]);
 });
 
@@ -51,7 +53,8 @@ test('"More" pages (tasks, old pages …) stay out of the sidebar but are in the
   assert.ok(!sidebarSections().some((s) => s.id === 'more'));
   assert.ok(paletteIndex().some((i) => i.id === 'tasks'));
   const idx = paletteIndex();
-  assert.ok(idx.some((i) => i.id === 'close'));
+  assert.ok(!idx.some((i) => i.id === 'close'), 'the old Month close page is gone (redirects to Setup)');
+  for (const id of ['send', 'rounds', 'people', 'rulebook']) assert.ok(idx.some((i) => i.id === id), `${id} is in the palette`);
   assert.ok(!idx.some((i) => i.id === 'deck'), 'the old MIS deck is gone (redirects to Live MIS)');
   assert.equal(searchPalette(idx, 'connectors')[0]?.id, 'sources');
   assert.equal(searchPalette(idx, 'tally')[0]?.id, 'tally');
@@ -59,14 +62,16 @@ test('"More" pages (tasks, old pages …) stay out of the sidebar but are in the
   assert.equal(searchPalette(idx, 'tds')[0]?.id, 'tds');
 });
 
-test('sidebar stays small: ≤ 5 sections, ≤ 15 pages in all; every tool sits under Tools', () => {
-  // Tasks (to do + fix, live count) heads Accounts; Issues folded into it (founder, 3 Nov 2026)
+test('sidebar stays small: 4 sections, 14 pages; each tool sits with its job (no Tools section)', () => {
+  // Simplification, 11 Nov 2026: Send report opens from Live MIS, People from Tasks; Round planner sits under Planning (founder).
   const s = sidebarSections();
-  assert.ok(s.length <= 5);
-  assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 15);
-  assert.deepEqual(s.find((x) => x.id === 'tools')?.pages.map((p) => p.id), ['send', 'booking', 'rounds', 'floors', 'payments']);
+  assert.equal(s.length, 4);
+  assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 14);
+  assert.ok(!s.some((x) => x.id === 'tools'));
   assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['today', 'live', 'insights']);
-  assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'cash', 'tally', 'tds', 'handbook'], 'Tasks = the one place for to-do + fix');
+  assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'booking', 'payments', 'tds', 'cash', 'tally', 'handbook'], 'Tasks = the one place for to-do + fix');
+  assert.deepEqual(s.find((x) => x.id === 'planning')?.pages.map((p) => p.id), ['plan', 'rounds', 'floors']);
+  assert.deepEqual(s.find((x) => x.id === 'admin')?.pages.map((p) => p.id), ['sources']);
 });
 
 test('every sidebar page names its owner, how often and what to do', async () => {

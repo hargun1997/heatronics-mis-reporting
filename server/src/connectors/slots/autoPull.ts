@@ -39,8 +39,8 @@ export type Staged =
 export function stagePullServer(def: Pick<SlotSourceDef, 'connectorId' | 'slotId' | 'via'>, periodKey: string, result: SlotPull, pulledAt: string, currentMonth?: string): Staged {
   const slot = closeSlot(def.connectorId, def.slotId);
   if (!slot) return { kind: 'manual', why: 'Unknown slot.' };
-  if (result.rows) return { kind: 'manual', why: 'Sheet rows are read by the browser — press Pull now on Setup.' };
-  if (result.tallyMonth) return { kind: 'manual', why: 'The Tally P&L is checked in the browser — press Pull now on Setup.' };
+  if (result.rows) return { kind: 'manual', why: 'The browser reads sheet rows. Click Pull on Setup.' };
+  if (result.tallyMonth) return { kind: 'manual', why: 'The browser checks the Tally P&L. Click Pull on Setup.' };
 
   const fileName = `api-pull-${def.connectorId}-${def.slotId}-${periodKey}.json`;
   const raw = (body: Record<string, unknown>) => [{
@@ -53,7 +53,7 @@ export function stagePullServer(def: Pick<SlotSourceDef, 'connectorId' | 'slotId
 
   if (result.trialBalance) {
     const tb = result.trialBalance;
-    if (tb.rows.length === 0) return { kind: 'review', why: 'Trial Balance came back with no rows.' };
+    if (tb.rows.length === 0) return { kind: 'review', why: 'Trial Balance has 0 rows.' };
     if (Math.abs(tb.difference) >= 1) return { kind: 'review', why: `Trial Balance does not tie (difference ₹${Math.round(Math.abs(tb.difference)).toLocaleString('en-IN')}).` };
     if (warned) return { kind: 'review', why: whyWarn() };
     return { kind: 'save', detail: `Trial Balance saved (${tb.rows.length} rows)`, commit: {
@@ -63,7 +63,7 @@ export function stagePullServer(def: Pick<SlotSourceDef, 'connectorId' | 'slotId
   }
 
   if (result.bomCosts) {
-    if (result.bomCosts.length === 0) return { kind: 'review', why: 'No finished-good costs came back.' };
+    if (result.bomCosts.length === 0) return { kind: 'review', why: 'No finished-good costs in the pull.' };
     if (warned) return { kind: 'review', why: whyWarn() };
     return { kind: 'save', detail: `${result.bomCosts.length} finished-good costs saved`, commit: {
       ...base, rowCount: result.bomCosts.length, through: null, checks: { passed: 2, warned: 0, failed: 0 },
@@ -74,14 +74,14 @@ export function stagePullServer(def: Pick<SlotSourceDef, 'connectorId' | 'slotId
   const all: DailyFact[] = result.facts ?? [];
   const inMonth = all.filter((f) => !isISODate(f.date) || f.date.slice(0, 7) === periodKey);
   if (inMonth.length !== all.length) return { kind: 'review', why: `${all.length - inMonth.length} row(s) outside ${periodKey}.` };
-  if (inMonth.length === 0 && !result.emptyOk) return { kind: 'review', why: 'Nothing returned.' };
+  if (inMonth.length === 0 && !result.emptyOk) return { kind: 'review', why: 'The pull has 0 rows.' };
   if (warned) return { kind: 'review', why: whyWarn() };
   const dated = inMonth.filter((f) => isISODate(f.date));
   const dates = dated.map((f) => f.date).sort();
   // Date coverage of a finished month (audit A4: a 7–13 Oct pull was saved as a clean October). The running month is
   // to date by nature, so it is not judged here.
   const cov = periodKey === currentMonth ? { kind: 'ok' as const, detail: '' } : slotCoverage(slot, periodKey, { connectorId: def.connectorId, slotId: def.slotId, periodKey, rows: inMonth.length, first: dates[0] ?? null, last: dates[dates.length - 1] ?? null });
-  if (cov.kind === 'partial') return { kind: 'review', why: `${cov.detail} — check the source, then Pull now on Setup.` };
+  if (cov.kind === 'partial') return { kind: 'review', why: `${cov.detail}. Check the source, then click Pull on Setup.` };
   // Undated rows are stamped to the month only when no row carries a date (monthBreakdown).
   const facts = dated.length > 0 ? inMonth : inMonth.map((f) => (f.date ? f : { ...f, date: `${periodKey}-01` }));
   return { kind: 'save', detail: `${facts.length} facts saved`, commit: {
@@ -169,9 +169,9 @@ export function manualSlots(defs: SlotSourceDef[]): { connectorId: string; slotI
   return CLOSE_SLOTS.map((s) => {
     const d = defs.find((x) => x.connectorId === s.connectorId && x.slotId === s.slotId);
     if (d && serverSavable(d)) return null;
-    const why = !d || !d.pull || d.source === 'upload' ? 'Manual upload (no API).'
-      : d.connectorId === 'tally' ? 'Stored by the Tally check; saved to the close with Pull now (checked in the browser).'
-      : 'Read by the browser — Pull now / "Pull & save all" on Setup.';
+    const why = !d || !d.pull || d.source === 'upload' ? 'Upload (no API).'
+      : d.connectorId === 'tally' ? 'The Tally check stores it. Click Pull on Setup to save it for the month.'
+      : 'The browser reads it. Click Pull or Pull all on Setup.';
     return { connectorId: s.connectorId, slotId: s.slotId, why };
   }).filter((v): v is { connectorId: string; slotId: string; why: string } => v !== null);
 }
@@ -241,7 +241,7 @@ export async function runAutoPull(deps: AutoPullDeps, opts: { force?: boolean } 
       if (!def) return row('failed', 'No such slot.');
       try {
         const { creds, missing } = await deps.creds(def);
-        if (missing.length) return row('not_connected', def.connectHint ?? `Not connected — missing ${missing.join(', ')}.`);
+        if (missing.length) return row('not_connected', def.connectHint ?? `Not connected. Missing: ${missing.join(', ')}.`);
         const ans = await deps.pull(def, creds, t.periodKey);
         if (ans.status === 'running') return row('running', 'Still running — saved by the next run.');
         if (ans.status === 'failed') return row('failed', ans.error);

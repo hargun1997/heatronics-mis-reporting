@@ -111,10 +111,10 @@ test('missing reports: every slot for last month, automatic ones included, each 
   const feeds = Object.fromEntries(SLOT_SOURCES.map((d) => [`${d.connectorId}|${d.slotId}`, { source: d.source, connected: true }]));
   const items = slotItems({ today: '2026-11-12', reports, locked: new Set(['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09']), slotFeeds: feeds });
   const amz = items.find((i) => i.id === 'slot:amazon')!;
-  assert.match(amz.detail, /Settlement: Oct 26 not loaded/);
+  assert.match(amz.detail, /Settlement: Oct 26 missing/);
   assert.equal(amz.severity, 'high', 'required, past the 10th');
-  assert.match(amz.fix, /Pull now/);
-  assert.match(items.find((i) => i.id === 'slot:blinkit')!.detail, /only 5–23 Oct/);
+  assert.match(amz.fix, /Pull/);
+  assert.match(items.find((i) => i.id === 'slot:blinkit')!.detail, /covers 5–23 Oct only/);
   assert.match(items.find((i) => i.id === 'slot:flipkart')!.detail, /0 rows/);
   // serverItems uses the full check when reports are given (no old upload:* items).
   const all = serverItems({ today: '2026-11-12', health: null, chart: null, tb: null, tally: null, committed: new Set(), everUsed: new Set(['flipkart']), anomalies: [], reports, locked: new Set() });
@@ -209,7 +209,7 @@ test('missing reports start at each source\'s first stored month (Shopflo from A
   const items = slotItems({ today: '2026-11-12', reports, locked: new Set() });
   const sf = items.find((i) => i.id === 'slot:shopflo')!;
   assert.equal(sf.count, 1, 'only Sep (between Aug and Oct) is missing');
-  assert.match(sf.title, /1 month not complete \(Sep 26\)/);
+  assert.match(sf.title, /1 month incomplete \(Sep 26\)/);
   assert.ok(!items.some((i) => i.id === 'slot:flipkart'), 'Flipkart stored for Oct: nothing earlier flagged');
   // A connector never loaded still shows, low.
   assert.equal(items.find((i) => i.id === 'slot:snapmint')!.severity, 'low');

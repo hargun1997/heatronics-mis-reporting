@@ -56,8 +56,8 @@ export const SECTIONS: Record<SectionCode, SectionRule> = {
   '194C': { label: 'Contractors', rates: [{ pct: 1, when: 'individual / HUF' }, { pct: 2, when: 'company / firm / others' }], threshold: '₹30,000 a single bill, or ₹1,00,000 in the year per contractor', singleLimit: 30_000, yearLimit: 100_000, form: '26Q', noPanPct: 20 },
   '194H': { label: 'Commission / brokerage', rates: [{ pct: 2, when: 'commission' }], threshold: '₹20,000 a year per payee (was ₹15,000 before Apr 2025) — UNVERIFIED', yearLimit: 20_000, form: '26Q', noPanPct: 20 },
   '194I': { label: 'Rent (kind not in the ledger name)', rates: [{ pct: 2, when: 'plant & machinery' }, { pct: 10, when: 'land / building / furniture' }], threshold: '₹50,000 a month per payee (was ₹2,40,000 a year before Apr 2025) — UNVERIFIED', form: '26Q', noPanPct: 20 },
-  '194I(a)': { label: 'Rent — plant & machinery', rates: [{ pct: 2, when: 'plant & machinery' }], threshold: '₹50,000 a month per payee — UNVERIFIED', form: '26Q', noPanPct: 20 },
-  '194I(b)': { label: 'Rent — land / building / furniture', rates: [{ pct: 10, when: 'land / building / furniture' }], threshold: '₹50,000 a month per payee — UNVERIFIED', form: '26Q', noPanPct: 20 },
+  '194I(a)': { label: 'Rent: plant & machinery', rates: [{ pct: 2, when: 'plant & machinery' }], threshold: '₹50,000 a month per payee — UNVERIFIED', form: '26Q', noPanPct: 20 },
+  '194I(b)': { label: 'Rent: land / building / furniture', rates: [{ pct: 10, when: 'land / building / furniture' }], threshold: '₹50,000 a month per payee — UNVERIFIED', form: '26Q', noPanPct: 20 },
   '194J': { label: 'Professional / technical fees (kind not in the ledger name)', rates: [{ pct: 2, when: 'technical services' }, { pct: 10, when: 'professional services' }], threshold: '₹50,000 a year per payee (was ₹30,000 before Apr 2025); director fees have no limit — UNVERIFIED', yearLimit: 50_000, form: '26Q', noPanPct: 20 },
   '194J(a)': { label: 'Technical services', rates: [{ pct: 2, when: 'technical services' }], threshold: '₹50,000 a year per payee — UNVERIFIED', yearLimit: 50_000, form: '26Q', noPanPct: 20 },
   '194J(b)': { label: 'Professional services', rates: [{ pct: 10, when: 'professional services' }], threshold: '₹50,000 a year per payee; director fees have no limit — UNVERIFIED', yearLimit: 50_000, form: '26Q', noPanPct: 20 },
@@ -276,7 +276,7 @@ export function parseTds(vouchers: TdsVoucher[], ledgers: TdsLedger[]): Parsed {
       const party = (v.party || partyLine?.ledger || '').trim() || '(no party)';
       const pan = (L.get(party)?.pan || '').trim().toUpperCase();
       const multi = credits.length > 1;
-      if (multi) flags.push({ kind: 'multi', severity: 'low', text: `${vname(v)} (${dateLabel(v.date)}) has ${credits.length} TDS lines — the amount paid per section is estimated from the standard rate.`, party, voucher: vname(v) });
+      if (multi) flags.push({ kind: 'multi', severity: 'low', text: `${vname(v)} (${dateLabel(v.date)}) has ${credits.length} TDS lines: the amount paid per section is estimated from the standard rate.`, party, voucher: vname(v) });
       for (const c of credits) {
         const section = sectionOf(c.ledger);
         const tds = r2(-c.amount);
@@ -302,7 +302,7 @@ export function parseTds(vouchers: TdsVoucher[], ledgers: TdsLedger[]): Parsed {
       for (const d of debits) {
         const section = sectionOf(d.ledger);
         payments.push({ date: v.date, month, voucher: vname(v), section, tdsLedger: d.ledger, amount: r2(d.amount), kind: bank ? 'challan' : 'reversal', bsr, challanNo });
-        if (!bank) flags.push({ kind: 'reversal', severity: 'medium', text: `${vname(v)} (${dateLabel(v.date)}) debits ${d.ledger} without a bank line — treated as a reversal of TDS, not a payment. Check it.`, section, voucher: vname(v) });
+        if (!bank) flags.push({ kind: 'reversal', severity: 'medium', text: `${vname(v)} (${dateLabel(v.date)}) debits ${d.ledger} without a bank line: treated as a reversal of TDS, not a payment. Check it.`, section, voucher: vname(v) });
       }
     }
   }
@@ -358,14 +358,14 @@ export function buildTds(inp: BuildInput): TdsReport {
     d.ratePct = d.gross > 0 ? r2((d.tds / d.gross) * 100) : null;
     if (d.section === 'Other') {
       d.flags.push('Section not in the TDS ledger name');
-      flags.push({ kind: 'unknown', severity: 'medium', text: `TDS for ${d.party} sits on a ledger with no section in its name — rename the TDS ledger (e.g. "TDS Payable 194C") so the rate can be checked.`, section: d.section, party: d.party });
+      flags.push({ kind: 'unknown', severity: 'medium', text: `TDS for ${d.party} sits on a ledger with no section in its name. Rename the TDS ledger (e.g. "TDS Payable 194C") so the rate can be checked.`, section: d.section, party: d.party });
     }
     if (!validPan(d.pan)) {
       d.flags.push('No PAN in Tally');
       const at20 = d.ratePct != null && rule.noPanPct != null && Math.abs(d.ratePct - rule.noPanPct) < 0.5;
       flags.push({ kind: 'pan', severity: at20 ? 'low' : 'high', section: d.section, party: d.party,
         text: at20 ? `${d.party}: no PAN in Tally, TDS deducted at ${rule.noPanPct}% (206AA). Add the PAN to the ledger if they have one.`
-          : `${d.party}: no PAN in the Tally ledger. Without a PAN the rate is ${rule.noPanPct ?? 20}% (206AA) and the 26Q line fails — add the PAN to the ledger (Alter ledger → Statutory details).` });
+          : `${d.party}: no PAN in the Tally ledger. Without a PAN the rate is ${rule.noPanPct ?? 20}% (206AA) and the 26Q line fails. Add the PAN to the ledger (Alter ledger → Statutory details).` });
     }
     if (rule.rates.length && d.section !== 'Other') {
       const bad = entries.filter((e) => e.section === d.section && e.party === d.party && !e.grossEstimated && !rateMatches(rule, e.gross, e.tds, e.pan).ok);
@@ -375,7 +375,7 @@ export function buildTds(inp: BuildInput): TdsReport {
         const std = Math.min(...exp);
         const short = bad.reduce((a, e) => a + Math.max(0, (e.gross * std) / 100 - e.tds), 0);
         flags.push({ kind: 'rate', severity: 'high', section: d.section, party: d.party,
-          text: `${d.party} (${d.section}): TDS is ${d.ratePct ?? '?'}% of ₹${Math.round(d.gross).toLocaleString('en-IN')} — the standard rate is ${exp.join(' or ')}%. ${short > 1 ? `Short by about ₹${Math.round(short).toLocaleString('en-IN')} (interest 1% a month until deducted). ` : ''}Check the bill, or a lower-deduction certificate (197).` });
+          text: `${d.party} (${d.section}): TDS is ${d.ratePct ?? '?'}% of ₹${Math.round(d.gross).toLocaleString('en-IN')}. The standard rate is ${exp.join(' or ')}%. ${short > 1 ? `Short by about ₹${Math.round(short).toLocaleString('en-IN')} (interest 1% a month until deducted). ` : ''}Check the bill, or a lower-deduction certificate (197).` });
       }
     }
     if (rule.yearLimit && d.fyGross < rule.yearLimit && !(rule.singleLimit && entries.some((e) => e.section === d.section && e.party === d.party && e.gross > rule.singleLimit!))) {
@@ -409,12 +409,12 @@ export function buildTds(inp: BuildInput): TdsReport {
     interestBy.set(sec, interest);
     paidBy.set(sec, r2(paid));
     const late = pays.filter((p) => p.date > dueDate);
-    if (late.length) flags.push({ kind: 'late', severity: 'medium', section: sec, text: `${sec}: challan paid on ${dateLabel(late[0].date)}, after the due date ${dateLabel(dueDate)} — interest 1.5% a month is due (estimate below).` });
+    if (late.length) flags.push({ kind: 'late', severity: 'medium', section: sec, text: `${sec}: challan paid on ${dateLabel(late[0].date)}, after the due date ${dateLabel(dueDate)}. Interest 1.5% a month is due (estimate below).` });
     const extra = pays.reduce((a, p) => a + p.left, 0);
-    if (extra > 1) flags.push({ kind: 'late', severity: 'low', section: sec, text: `${sec}: ₹${Math.round(extra).toLocaleString('en-IN')} of challans booked in ${monthLabel(next)} is more than ${monthLabel(month)}'s TDS — probably an older month's dues.` });
+    if (extra > 1) flags.push({ kind: 'late', severity: 'low', section: sec, text: `${sec}: ₹${Math.round(extra).toLocaleString('en-IN')} of challans booked in ${monthLabel(next)} is more than ${monthLabel(month)}'s TDS. Probably an older month's dues.` });
   }
   for (const sec of new Set(challans.filter((p) => !bySec.has(p.section)).map((p) => p.section))) {
-    flags.push({ kind: 'late', severity: 'low', section: sec, text: `${sec}: a challan booked in ${monthLabel(next)} has no ${monthLabel(month)} deduction in that section — probably an older month's dues.` });
+    flags.push({ kind: 'late', severity: 'low', section: sec, text: `${sec}: a challan booked in ${monthLabel(next)} has no ${monthLabel(month)} deduction in that section. Probably an older month's dues.` });
   }
 
   // Pay rows: section × challan head (0020 company deductees, 0021 others).
@@ -469,12 +469,12 @@ export function buildTds(inp: BuildInput): TdsReport {
   flags.sort((a, b) => order[a.severity] - order[b.severity]);
 
   const notes = [
-    'Rates and limits are the Income-tax Act 1961 figures after the Finance Act 2025. From 1 Apr 2026 the Income-tax Act 2025 renumbers the TDS sections and may rename the forms — UNVERIFIED, confirm with the CA.',
+    'Rates and limits are the Income-tax Act 1961 figures after the Finance Act 2025. From 1 Apr 2026 the Income-tax Act 2025 renumbers the TDS sections and may rename the forms (UNVERIFIED), confirm with the CA.',
     `Challans booked in ${monthLabel(next)} are counted as paying ${monthLabel(month)}'s TDS.`,
     'Interest and late fees are estimates (1.5% a month or part from deduction to payment; ₹200 a day for a late return, capped at the TDS).',
     'Amount paid = the expense lines of the voucher before GST (CBDT circular 23/2017).',
   ];
-  if (!have.has(next)) notes.unshift(`${monthLabel(next)}'s Day Book is not copied yet, so challans paid in ${monthLabel(next)} are not seen — "Paid" may read 0.`);
+  if (!have.has(next)) notes.unshift(`${monthLabel(next)}'s Day Book is not copied yet, so challans paid in ${monthLabel(next)} are not seen. "Paid" may read 0.`);
 
   return {
     month, monthLabel: monthLabel(month), fy: fyLabel(month), dueDate, haveMonth: have.has(month), haveNextMonth: have.has(next), today,

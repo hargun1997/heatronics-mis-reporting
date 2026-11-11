@@ -12,12 +12,12 @@ import {
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import { int, pct } from '../fmt';
 import { NumInput } from '../inputs';
-import { Flag, Note, Row, SubHead, btn, ensureFx } from './shared';
+import { Flag, Note, Parts, Row, SubHead, Tip, btn, ensureFx, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 
 export { summary };
 
-const ghost = 'rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800';
+const ghost = 'min-h-11 sm:min-h-8 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900';
 type HistoryAnswer = { history: StoredHistory | null; job: HistoryJob };
 
 export function Section({ plan, update, result }: SetupSectionProps) {
@@ -64,30 +64,30 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   const cohortsOn = d.mode === 'cohorts';
   const lastFy = result.years[result.years.length - 1];
   const rows = seasonRows(plan);
+  const [part, setPart] = useParts<'customers' | 'season'>('customers');
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      <Parts value={part} onChange={setPart} label="D2C part" options={[{ id: 'customers', label: 'Customers and discounts' }, { id: 'season', label: 'Seasons' }]} />
       {/* ---- D2C customers ---- */}
-      <div className="space-y-2.5">
-        <SubHead>D2C customers</SubHead>
-        <Note>D2C revenue = new buyers × AOV + repeat orders from everyone who bought before. In the sheet's months, new buyers are back-solved from its D2C revenue; from FY29 they grow with the D2C growth lever and repeats build on top.</Note>
-        <Row label="Model" hint="Customers: new buyers × AOV + repeats by cohort. Units: the sheet's unit grid as typed.">
+      {part === 'customers' && <div className="space-y-2.5">
+        <SubHead info={<><p>D2C revenue = new buyers × AOV + repeat orders from earlier buyers.</p><p>In the sheet&apos;s months, new buyers come from the sheet&apos;s D2C revenue. From FY29, new buyers grow with the D2C growth lever.</p></>}>D2C customers</SubHead>
+        <Row label="Model" hint="Customers: new buyers × AOV + repeats by cohort. Units: the sheet's units as typed.">
           <SegmentedControl size="sm" value={d.mode} onChange={(v) => update((p) => { p.d2c.mode = v; })}
             options={[{ id: 'cohorts', label: 'Customers' }, { id: 'units', label: 'Units' }]} aria-label="D2C model" />
         </Row>
 
         <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
           <div className="min-w-0 flex-1">
-            <div><b className="text-slate-800">Learned from:</b> {d.source} · as of {d.asOf}{d.fit.r2 != null && <> · fits history at R² {d.fit.r2.toFixed(2)}</>}</div>
-            <div className="mt-0.5 text-slate-500">{d.fit.note}</div>
+            <div className="flex flex-wrap items-center gap-x-1"><b className="text-slate-800">From:</b> {d.source} · {d.asOf}{d.fit.r2 != null && <> · R² {d.fit.r2.toFixed(2)}</>}<Tip label="About the learned rates">{d.fit.note}</Tip></div>
             {stored && (
-              <div className="mt-1 text-slate-500">
-                Last Shopify refresh: {int(stored.orders)} orders, {int(stored.customers)} buyers, as of {stored.asOf}
-                {stored.skipped.outlier > 0 && ` · ${stored.skipped.outlier} order(s) over ₹2 lakh skipped`}
+              <div className="mt-0.5 text-slate-600">
+                Shopify: {int(stored.orders)} orders, {int(stored.customers)} buyers, {stored.asOf}
+                {stored.skipped.outlier > 0 && ` · ${stored.skipped.outlier} orders over ₹2 L not used`}
               </div>
             )}
-            {err && <div className="mt-1 text-rose-600">{err}</div>}
-            {job?.status === 'failed' && <div className="mt-1 text-rose-600">Refresh failed: {job.error}</div>}
+            {err && <div className="mt-1 text-rose-700">{err}</div>}
+            {job?.status === 'failed' && <div className="mt-1 text-rose-700">Refresh did not work: {job.error}</div>}
           </div>
           <div className="flex flex-wrap gap-2">
             {newer && stored && learned && (
@@ -96,76 +96,73 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               </button>
             )}
             <button type="button" onClick={refresh} disabled={job?.status === 'running'} className={btn}>
-              {job?.status === 'running' ? 'Reading Shopify orders…' : 'Refresh from Shopify orders'}
+              {job?.status === 'running' ? 'Reading Shopify orders' : 'Refresh from Shopify'}
             </button>
             <button type="button" onClick={() => update((p) => resetToLearned(p, stored))} className={ghost}>Reset to learned</button>
           </div>
         </div>
 
         <div className={`grid gap-x-8 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3 ${cohortsOn ? '' : 'pointer-events-none opacity-50'}`}>
-          <Row label="Same-month 2nd order" hint="Share of new buyers who order again that month (× season — higher in winter)">
+          <Row label="2nd order, same month" hint="Share of new buyers who order again in the same month. The season multiplies it: higher in winter.">
             <NumInput unit="pct" value={d.sameMonth} min={0} max={1} width="w-16" title="Same-month repeat" disabled={!cohortsOn} onChange={(v) => set('sameMonth', v)} />
           </Row>
-          <Row label="Next-month reorder" hint="Share reordering the month after">
+          <Row label="Reorder, next month" hint="Share of buyers who order again in the next month.">
             <NumInput unit="pct" value={d.nextMonth} min={0} max={1} width="w-16" title="Next-month repeat" disabled={!cohortsOn} onChange={(v) => set('nextMonth', v)} />
           </Row>
-          <Row label="Months 2–11, per month" hint={`≈ ${pct(avgYear(d.monthly), 1)} of buyers over that year`}>
+          <Row label="Months 2 to 11, a month" hint={`About ${pct(avgYear(d.monthly), 1)} of buyers in that year.`}>
             <NumInput unit="pct" value={d.monthly} min={0} max={0.2} width="w-16" title="Monthly repeat 2-11" disabled={!cohortsOn} onChange={(v) => set('monthly', v)} />
           </Row>
-          <Row label="Year 2+, per month" hint={`Winter re-buys, replacements. ≈ ${pct(avgYear(d.yearly), 1)} a year, fading each year`}>
+          <Row label="Year 2 and later, a month" hint={`Winter re-buys and replacements. About ${pct(avgYear(d.yearly), 1)} a year. It fades each year.`}>
             <NumInput unit="pct" value={d.yearly} min={0} max={0.2} width="w-16" title="Yearly repeat" disabled={!cohortsOn} onChange={(v) => set('yearly', v)} />
           </Row>
-          <Row label="Yearly fade" hint="Year-3 rate = year-2 × this, and so on">
+          <Row label="Fade a year" hint="Rate in year 3 = rate in year 2 × this, and so on.">
             <NumInput unit="x" value={d.yearlyFade} min={0} max={1.5} step={0.05} width="w-16" title="Yearly fade" disabled={!cohortsOn} onChange={(v) => set('yearlyFade', v)} />
           </Row>
-          <Row label="Repeat boost" hint="Scales every repeat rate — loyalty (hCoins), reminders, bundles. 1× = as learned">
+          <Row label="Repeat boost" hint="Multiplies all repeat rates: loyalty (hCoins), reminders, bundles. 1× = as learned.">
             <NumInput unit="x" value={d.repeatBoost} min={0} max={5} step={0.1} width="w-16" title="Repeat boost" disabled={!cohortsOn} onChange={(v) => update((p) => { p.d2c.repeatBoost = v; })} />
           </Row>
-          <Row label="AOV — new buyers" hint="At order time, before returns (sheet basis). Grows with the price lever.">
+          <Row label="AOV, new buyers (₹)" hint="At order time, before returns, as in the sheet. The price lever increases it.">
             <NumInput value={d.aovNew} min={0} width="w-24" title="AOV new" disabled={!cohortsOn} onChange={(v) => set('aovNew', v)} />
           </Row>
-          <Row label="AOV — repeat orders">
+          <Row label="AOV, repeat orders (₹)">
             <NumInput value={d.aovRepeat} min={0} width="w-24" title="AOV repeat" disabled={!cohortsOn} onChange={(v) => set('aovRepeat', v)} />
           </Row>
         </div>
         {cohortsOn && lastFy && (
           <Note>
-            {lastFy.fy}: ~{int(lastFy.d2cNewCustomers / (lastFy.months || 1))} new buyers a month · repeats {pct(lastFy.d2cRepeatRevenue / ((lastFy.d2cNewRevenue + lastFy.d2cRepeatRevenue) || 1), 0)} of D2C ₹ (detail under Products &amp; customers).
+            {lastFy.fy}: {int(lastFy.d2cNewCustomers / (lastFy.months || 1))} new buyers a month · repeats {pct(lastFy.d2cRepeatRevenue / ((lastFy.d2cNewRevenue + lastFy.d2cRepeatRevenue) || 1), 0)} of D2C revenue.
           </Note>
         )}
-      </div>
 
       {/* ---- D2C discounts & coupons (plan.fx.d2cDiscount) ---- */}
-      <div className="space-y-2.5">
-        <SubHead>D2C discounts &amp; coupons</SubHead>
+        <div className="pt-2"><SubHead>D2C discounts and coupons</SubHead></div>
         <div className={parity ? 'opacity-50' : ''}>
-          <Row label={<>Discounts as % of D2C list revenue{disc?.source === 'placeholder' && <Flag>Placeholder</Flag>}</>}
-            hint={`Taken off list revenue; AOV is grossed up so they are not counted twice.${d.discountPct != null ? ` Shopify says ${pct(d.discountPct)}.` : ''}`}>
+          <Row label={<>Discounts, % of D2C list revenue{disc?.source === 'placeholder' && <Flag>Placeholder</Flag>}</>}
+            hint={`Taken off list revenue. AOV goes up by the same amount, so discounts do not count twice.${d.discountPct != null ? ` Shopify: ${pct(d.discountPct)}.` : ''}`}>
             <input type="checkbox" aria-label="D2C discounts on" checked={disc?.on ?? false} disabled={parity}
               onChange={(e) => update((p) => { ensureFx(p).d2cDiscount.on = e.target.checked; })} className="h-4 w-4 accent-brand-600" />
             <NumInput unit="pct" value={disc?.pct ?? 0} min={0} max={0.5} width="w-14" title="D2C discount %" disabled={parity}
               onChange={(x) => update((p) => setDiscountPct(ensureFx(p), x))} />
             {d.discountPct != null && (
               <button type="button" disabled={parity} onClick={() => update((p) => { ensureFx(p); applyShopifyDiscount(p); })}
-                className="text-xs sm:text-[11px] font-semibold text-brand-700 hover:underline disabled:no-underline">Use Shopify's</button>
+                className="min-h-8 text-xs font-semibold text-accent-700 hover:underline disabled:no-underline">Use Shopify&apos;s</button>
             )}
           </Row>
         </div>
-        {parity && <Note>Sheet parity: discounts are not in the numbers (Starting point → My plan).</Note>}
-        {!parity && disc && disc.source !== 'placeholder' && <Note>{disc.source === 'shopify' ? `From Shopify total_discounts${disc.asOf ? `, as of ${disc.asOf}` : ''}.` : 'Typed in.'}</Note>}
-      </div>
+        {parity && <Note tone="amber">Sheet parity is on. Discounts are not in the numbers.</Note>}
+        {!parity && disc && disc.source !== 'placeholder' && <Note>{disc.source === 'shopify' ? `From Shopify${disc.asOf ? `, ${disc.asOf}` : ''}.` : 'Typed.'}</Note>}
+      </div>}
 
       {/* ---- Seasonality ---- */}
-      <div className="space-y-2.5">
+      {part === 'season' && <div className="space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <SubHead>Seasonality</SubHead>
-          <button type="button" onClick={() => update((p) => resetSkuSeason(p))} className={ghost} title="Every product's curve back to last year's actual units (the sheet)">Reset products</button>
+          <SubHead info={<><p>Each month against an average month (1.00 = average).</p><p>Products: last year&apos;s units, all channels (Oct-25 to Sep-26, from the sheet). D2C: new buyers on Shopify.</p><p>Select a cell to change it. Values do not have to average 1.</p><p>Products with little history (hGo, hBoots, hPulse) use the curve of the full range.</p><p>Select which shape FY29 and later use in Assumptions.</p></>}>Seasons</SubHead>
+          <button type="button" onClick={() => update((p) => resetSkuSeason(p))} className={ghost} title="Set each product's curve back to last year's units">Reset products</button>
         </div>
-        <Note>Each month's share of a normal month (1.0 = average). Products: last year's actual units, all channels (Oct-25 → Sep-26, from the sheet). D2C: new buyers on Shopify. Click a cell to change it. Which shape FY29+ follows is set under Assumptions.</Note>
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="text-[12px] tabular-nums">
             <thead>
-              <tr className="text-xs sm:text-[11px] text-slate-500">
+              <tr className="text-xs text-slate-600">
                 <th className="pr-3 text-left font-semibold">Product</th>
                 {SEASON_ORDER.map((i) => <th key={i} className="w-12 px-0.5 text-center font-semibold">{MON[i]}</th>)}
                 <th className="pl-3 text-right font-semibold">Peak</th>
@@ -192,23 +189,22 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                         </td>
                       );
                     })}
-                    <td className="whitespace-nowrap pl-3 text-right text-slate-500" title="Share of the year's volume in the top 3 months">{MON[peak]} · top-3 {pct(top3, 0)}</td>
+                    <td className="whitespace-nowrap pl-3 text-right text-slate-600" title="Share of the year's units in the top 3 months">{MON[peak]} · top 3 {pct(top3, 0)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-        <Note>Products with little history (hGo, hBoots, hPulse) borrow the whole range's curve. Values don't need to average 1 — the planner uses them as typed. New products pick the curve they follow under Products &amp; categories.</Note>
-      </div>
+      </div>}
     </div>
   );
 }
 
 export const SECTION: SetupSectionDef = {
   id: 'customers',
-  title: 'D2C customers & seasonality',
-  blurb: 'New buyers × AOV + repeats by cohort (learned from Shopify), discounts, and each product\'s month-by-month shape.',
+  title: 'D2C customers and seasonality',
+  blurb: 'Repeat rates and AOV from Shopify, discounts, and the season of each product.',
   Section,
   summary,
 };

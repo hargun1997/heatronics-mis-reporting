@@ -6,11 +6,9 @@ import { HOME } from './nav/config';
 // it is opened. MainLayout wraps the <Outlet /> in <Suspense>. `lazyPage` reloads once if a chunk from an older deploy is gone.
 import { lazyPage } from './lazyPage';
 
-const MonthClosePage = lazyPage(() => import('./pages/mis/MonthClosePage'), 'MonthClosePage');
 const ConnectorsPage = lazyPage(() => import('./pages/mis/ConnectorsPage'), 'ConnectorsPage');
 const LiveMisPage = lazyPage(() => import('./pages/mis/LiveMisPage'), 'LiveMisPage');
 const RulebookPage = lazyPage(() => import('./pages/mis/RulebookPage'), 'RulebookPage');
-const MisChatPage = lazyPage(() => import('./pages/mis/MisChatPage'), 'MisChatPage');
 const AiInsightsPage = lazyPage(() => import('./pages/mis/AiInsightsPage'), 'AiInsightsPage');
 const UploadsRedirect = lazyPage(() => import('./pages/mis/UploadsRedirect'), 'UploadsRedirect');
 const TasksPage = lazyPage(() => import('./pages/work/TasksPage'), 'TasksPage');
@@ -18,7 +16,6 @@ const TasksSettingsPage = lazyPage(() => import('./pages/work/TasksSettingsPage'
 const SendReportPage = lazyPage(() => import('./pages/mis/SendReportPage'), 'SendReportPage');
 const HandbookPage = lazyPage(() => import('./pages/handbook/HandbookPage'), 'HandbookPage');
 const HandbookRedirect = lazyPage(() => import('./pages/handbook/HandbookPage'), 'HandbookRedirect');
-const ToolsHome = lazyPage(() => import('./pages/guide/tools/ToolsHome'), 'ToolsHome');
 const InvoiceBookingSuggester = lazyPage(() => import('./pages/guide/tools/InvoiceBookingSuggester'), 'InvoiceBookingSuggester');
 const AmazonToTranzactTool = lazyPage(() => import('./pages/guide/tools/AmazonToTranzactTool'), 'AmazonToTranzactTool');
 const ExpenseBooking = lazyPage(() => import('./pages/tools/ExpenseBooking'), 'ExpenseBooking');
@@ -37,7 +34,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainLayout />}>
-          {/* Landing page → Live MIS (the menu lives in nav/config.ts; server/test/nav.test.ts checks it against these routes) */}
+          {/* Landing page → Today (the menu lives in nav/config.ts; server/test/nav.test.ts checks it against these routes) */}
           <Route index element={<Navigate to={HOME} replace />} />
           <Route path="home" element={<Navigate to={HOME} replace />} />
           <Route path="reporting" element={<Navigate to={HOME} replace />} />
@@ -45,13 +42,13 @@ function App() {
           {/* Old pages: out of the menu, still reachable from ⌘K */}
           {/* The old MIS deck is retired — Live MIS has every one of its reports */}
           <Route path="reporting/mis/deck" element={<Navigate to="/reporting/mis/live" replace />} />
-          <Route path="reporting/mis/close" element={<MonthClosePage />} />
+          <Route path="reporting/mis/close" element={<Navigate to="/reporting/mis/connectors" replace />} />
           <Route path="reporting/mis/connectors" element={<ConnectorsPage />} />
           <Route path="reporting/mis/ingest" element={<UploadsRedirect />} />
           <Route path="reporting/mis/rulebook" element={<RulebookPage />} />
           <Route path="reporting/mis/live" element={<LiveMisPage />} />
           <Route path="reporting/mis/insights" element={<AiInsightsPage />} />
-          <Route path="reporting/mis/chat" element={<MisChatPage />} />
+          <Route path="reporting/mis/chat" element={<Navigate to="/reporting/mis/insights" replace />} />
           <Route path="reporting/mis/issues" element={<Navigate to="/tasks?view=fix" replace />} />
           <Route path="reporting/mis/ownership" element={<Navigate to="/tasks/settings" replace />} />
           <Route path="reporting/mis/send" element={<SendReportPage />} />
@@ -101,7 +98,7 @@ function App() {
           <Route path="guide/sop/*" element={<Navigate to="/handbook" replace />} />
 
           {/* Tools (top-level) */}
-          <Route path="tools" element={<ToolsHome />} />
+          <Route path="tools" element={<Navigate to={HOME} replace />} />
           <Route path="tools/invoice-booking" element={<InvoiceBookingSuggester />} />
           <Route path="tools/amazon-to-tranzact" element={<AmazonToTranzactTool />} />
           <Route path="tools/expense-booking" element={<ExpenseBooking />} />
@@ -111,6 +108,13 @@ function App() {
           <Route path="tools/bulk-payments" element={<BulkPaymentsPage />} />
           <Route path="tools/round-planner" element={<RoundPlannerPage />} />
           <Route path="planning" element={<PlanningPage />} />
+          {/* Short addresses (11 Nov 2026) */}
+          <Route path="live" element={<Navigate to="/reporting/mis/live" replace />} />
+          <Route path="cash" element={<Navigate to="/accounts/cash-runway" replace />} />
+          <Route path="tds" element={<Navigate to="/accounts/tds" replace />} />
+          <Route path="payments" element={<Navigate to="/tools/bulk-payments" replace />} />
+          <Route path="booking" element={<Navigate to="/booking-assistant" replace />} />
+          <Route path="floors" element={<Navigate to="/tools/price-floors" replace />} />
           <Route path="setup" element={<Navigate to="/reporting/mis/connectors" replace />} />
           <Route path="tally" element={<TallyPage />} />
           <Route path="accounts/tds" element={<TdsPage />} />
