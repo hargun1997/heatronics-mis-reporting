@@ -106,7 +106,7 @@ async function pullTb(creds: Credentials, period: string, state: TallyState, kee
 /** One poll. `force` skips the 20-minute gap (signed-in Pull now). Never throws: the answer is a status. */
 export async function pollTally(creds: Credentials, opts: { force?: boolean; now?: number; skipBooks?: boolean } = {}): Promise<{ status: 'skipped' | 'down' | 'ok' | 'not_connected'; detail: string; months?: string[] }> {
   const now = opts.now ?? Date.now();
-  if (!(creds.host || '').trim()) return { status: 'not_connected', detail: 'Add the Tally host + port on the Connectors page (Tally card).' };
+  if (!(creds.host || '').trim()) return { status: 'not_connected', detail: 'Add the Tally host and port in Setup (Tally card).' };
   const state = await readTallyState();
   if (!opts.force) {
     const d = scheduledDue(now, state);

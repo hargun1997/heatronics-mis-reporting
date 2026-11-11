@@ -31,9 +31,46 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   drawer). `localStorage htx.theme.mis` (old `mis.theme` dark → dark, else ember); `client/index.html` boot script sets
   `<html data-htx-theme>` + `data-theme` (dark only for Dark) before paint; sidebar colours = `--nav-*` tokens per theme
   (`:root[data-htx-theme="light"]` in `index.css`); print stays light (`prefs.ts applyStoredTheme`).
-- Menu = `client/src/nav/config.ts` only (sidebar `components/shell/AppNav.tsx`, ⌘K `CommandPalette`, breadcrumbs in
-  `PageHeader`). Adding a page = a route in `App.tsx` + a line in nav/config; `server/test/nav.test.ts` checks both.
-- **Bundle:** every page is `lazyPage(() => import(...), 'Name')` in `App.tsx` (own chunk; `<Suspense>` around the `<Outlet />` in
+- Menu = `client/src/nav/config.ts` only (sidebar `components/shell/AppNav.tsx`, ⌘K `CommandPalette`). Adding a page = a route in
+  `App.tsx` + a line in nav/config; `server/test/nav.test.ts` checks both.
+- **Simplified structure (founder, 11 Nov 2026: "text overload… a page should not be more than 2 scrolls… modals, pills and menus";
+  plan `/home/claude/ember/simplify/MIS-PLAN.md`):** **Home = Today** (`HOME`). Sidebar = 4 sections, 13 pages, no Tools section:
+  Reporting (Today · Live MIS · AI insights) · Accounts (Tasks · Book an invoice · Bulk payments · TDS · Cash runway · Tally health ·
+  Handbook) · Planning (5-year plan · Price floors) · Admin (Setup). Not in the sidebar (palette + a button on the page they belong to):
+  Send report (Live MIS header), Round planner (5-year plan "…" menu), People and reminders (Tasks gear, Setup header), Data rulebook
+  (Live MIS About popover), Amazon to Tranzact. Removed: Month close (old) page (`/reporting/mis/close` → Setup), All tools hub
+  (`/tools` → Today), Ask the MIS page (`/reporting/mis/chat` → AI insights, which has the chat). Short addresses: `/live`, `/cash`,
+  `/tds`, `/payments`, `/booking`, `/floors`, `/setup`.
+- **Page template (every page):** `components/ui/PageHeader` = title · status pill · actions (ONE primary) · About "i" popover (owner,
+  how often, what to do from `PAGE_OWNER`, optional `help` = "How this works", Pin to sidebar) → ONE sentence (≤ 25 words) → optional
+  underline `tabs`. No breadcrumbs (only for palette-only pages), no icon tile, no owner line on the page. Body = `PageBody` (max-w-7xl,
+  same gutters). Shared pieces `components/ui/states.tsx`: `Loading`, `ErrorBox` (with Try again), `Empty`, `Panel` (the one titled card),
+  `InfoTip` (a note behind an "i"; `text` gives it visible words), `ShowAll` (first rows + modal), `StepNo`, `BTN` / `BTN_PRIMARY`.
+  KPI band = `KpiTile` (4–6 tiles, visible without scroll). Budget: ≤ 2 screens at 1440 × 900 in the default state (measured: every
+  page ≤ 1,670 px); detail goes into Modal / Drawer / Popover (`components/ui/overlays`), a tab, or a `Views` switch.
+- **Writing = ASD-STE100:** one instruction per sentence, steps ≤ 20 words, active voice, digits, no idioms, no em dashes in UI text,
+  one word per idea: Setup (not Connectors), Pull (API) vs Upload (file), Report (not slot), Lock (a month), Fix (a problem) vs Task
+  (work with a due date), Not connected, No data, Refresh, Download. Notes under charts / tables are `Note` popovers
+  (`components/liveMis/shared.tsx`), never paragraphs.
+- **Live MIS layout:** header pill "Locked to <month> · N ready" (popover = the old completeness banner), tabs in the header, one row
+  of period filters, Download menu (Excel / PDF), Send report. A stack of charts = ONE card with pills (`Views` wrapping the old
+  `Fold`s; `tab` = pill label; choice remembered in `livemis:views:<id>`). Month lock bar = one row: status pill, "Check with Tally"
+  (modal with the tie table), "Cost basis" note, `Lock <month>`; a lock with open items asks for the reason in a modal.
+- **Tasks:** shared header (pill "N with no owner"), Fix rows are one line (select a row for detail; Open · Done · 7 days), the Fix
+  list shows 12 then "Show all". People and reminders = header tabs (People · Roles · Reminder email · Heads · Email templates; old
+  `#roles` / `#emails` / `#heads` links select the tab).
+- **Setup:** two panels (Reports by month · Pull the reports for 1 month) then ONE list of sources grouped by type (row: name, reports,
+  API / Claude task / Manual upload pill, status pill, Open / Connect / Upload → the same drawer). The password-store notice is a pill
+  with a popover. `IngestWorkspace` component removed (only the two panels remain in that file).
+- **5-year plan:** views are header tabs; Setup (the 11 sections, unchanged) opens in a right drawer (`SetupPanel embedded`); scenario
+  select + Save in the header, the rest (Compare with, Save as new, Undo, Download Excel, Round planner, Delete) in the "…" menu.
+  Round planner's embedded page scrolls inside its frame (page = 1 screen).
+- **Bundle:** (loading pass 11 Nov 2026: `vite.config.ts` gives Rollup's CommonJS helpers their own `cjs-helpers` chunk — they sat
+  inside `xlsx-style-codepages`, so every page downloaded 433 kB; `FloatingChat` imports the deck + context on first open;
+  `pages/work/lazyParts.tsx` loads TaskPanel / TaskEditor (handbook, TDS parts, Excel writer) when a row or the Add task modal opens;
+  `handbookAnchors` split out of `taskModel`. Today 1,240 → 322 kB of JS, Tasks 1,784 → 613, Live MIS 1,430 → 743. Still eager: `xlsx`
+  (419 kB) on Setup, Price floors, Bulk payments, Book an invoice — their parsers import it statically.)
+  Every page is `lazyPage(() => import(...), 'Name')` in `App.tsx` (own chunk; `<Suspense>` around the `<Outlet />` in
   `MainLayout`; a missing chunk after a deploy reloads once). Keep `xlsx-js-style` / `jspdf` out of page chunks: import the
   builders (`liveMisExport`, `liveMisPdf`, `misFormatExport`, `planningExport`, `priceFloorsExport`) with `await import()` on
   click; the Live MIS page reads options / the MIS-format source from `utils/liveMisSource.ts`. `/assets/*` is served
@@ -567,11 +604,11 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   a saved scenario carries `summary` months written by the Planning page on Save (older scenarios: open + Save once); actuals = what the browser last
   stored (`POST /api/planning/actuals`, written when the view opens), because the deck is built client side. Tests `server/test/planVsActual.test.ts`.
 
-## Morning page (`/today`, 9 Nov 2026)
-`GET /api/today` (`routes/today.ts`, pure `services/morningBrief.ts`, test `test/morningBrief.test.ts`; manifest tool `mis_get_morning_brief`): status (act / watch / ok), 5 tiles (net cash, months of cash, sales, to fix, tasks late), "Needs you" (Tally watch items + open Fix items + late / due-today tasks, high first), "What changed" vs the last saved day, "Coming up". Stored data only, no AI. The first read of each IST day saves ONE small snapshot `morning/snap-<day>` (+ `morning/index`, last 45 days). Page `pages/today/TodayPage.tsx`; sidebar Reporting → Today (Live MIS stays the Reporting breadcrumb target).
+## Morning page (`/today`, 9 Nov 2026; home since 11 Nov 2026)
+`GET /api/today` (`routes/today.ts`, pure `services/morningBrief.ts`, test `test/morningBrief.test.ts`; manifest tool `mis_get_morning_brief`): status (act / watch / ok), 5 tiles (net cash, months of cash, sales, to fix, tasks late), "Needs you" (Tally watch items + open Fix items + late / due-today tasks, high first), "What changed" vs the last saved day, "Coming up". Stored data only, no AI. The first read of each IST day saves ONE small snapshot `morning/snap-<day>` (+ `morning/index`, last 45 days). Page `pages/today/TodayPage.tsx` (11 Nov 2026 layout: 5 KPI tiles, then "Do these first" as a numbered list beside "What changed" and "Due soon"; 1 screen).
 
 ## Cash runway (`/accounts/cash-runway`, 9 Nov 2026)
 `GET /api/cash/runway` (`routes/cash.ts`, pure `services/cashRunway.ts`, test `test/cashRunway.test.ts`; manifest tool `mis_get_cash_runway`): net cash now (newest TB, bank − overdraft) moved forward 13 weeks at the last ≤ 3 months' change in NET cash less new loans (`netCashFlows`, from consecutive stored TBs) — Usual (average), Worst month repeats, Best month repeats. GST / salaries / suppliers are inside that pattern (no extra lump). Week each case goes below zero / reaches the overdraft limit. `PUT /api/cash/settings {odLimit}` (store `cash/settings`). Stored books only; NOT a sales forecast (says so on the page).
 
 ## Page owners + sources (9 Nov 2026)
-Every sidebar page names its owner (role + person where known), how often and what to do: `PAGE_OWNER` in `client/src/nav/config.ts`, shown under the title by `PageHeader` (test: every sidebar page has one, `server/test/nav.test.ts`). Every number says where it comes from and when it last updated: `components/ui/SourceChip.tsx` (pill "Tally books · 3 h ago", popover with each source + notes; amber past `staleAfterH`). Notes and page status live in the chip / a header status pill, not in banners; inline boxes only for blocking errors.
+Every sidebar page names its owner (role + person where known), how often and what to do: `PAGE_OWNER` in `client/src/nav/config.ts`, shown in the page's About "i" popover by `PageHeader` (test: every sidebar page has one, `server/test/nav.test.ts`). Every number says where it comes from and when it last updated: `components/ui/SourceChip.tsx` (pill "Tally books · 3 h ago", popover with each source + notes; amber past `staleAfterH`). Notes and page status live in the chip / a header status pill, not in banners; inline boxes only for blocking errors.

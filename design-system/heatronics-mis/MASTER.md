@@ -71,21 +71,22 @@ All colour is CSS variables in `client/src/index.css` (Ember values, EMBER.md), 
   menu in a component. `server/test/nav.test.ts` fails when a page route is missing from the menu or a menu page has no
   route.
 - **Sidebar** (`components/shell/AppNav.tsx`): obsidian (white in the Light theme), 248px, text wordmark "Heatronics **MIS**" (MIS in heat, no logo mark), collapsible to a 64px icon rail
-  (remembered). **Two levels only — section → page, kept small (≤ 13 pages, test)**: Reporting (Live MIS, Month-end close,
-  AI insights) · Accounts (Tally health, Accounts Handbook) · Planning (5-year plan, Round planner) · Tools (Send report, Book an
-  invoice, Amazon price floors, Amazon → Tranzact — every tool lives here), and Admin at the bottom (Data sources, Data rulebook)
-  with the Theme picker, the Claude status pill and Compact. Everything else (Data issues, All tools, Tasks, People & reminders, old pages)
-  is in ⌘K under "More". "Search or jump to… ⌘K"
-  at the top, **Pinned** pages under it (pin from any page title). Active page: `#222326` fill + 3px heat bar on the rail's left edge +
+  (remembered). **Two levels only: section → page; 4 sections, 13 pages (test), no Tools section (simplification, 11 Nov 2026)**:
+  Reporting (Today, Live MIS, AI insights) · Accounts (Tasks, Book an invoice, Bulk payments, TDS, Cash runway, Tally health, Handbook) ·
+  Planning (5-year plan, Price floors) · Admin (Setup), then the Theme picker, the Claude status pill and Compact. Send report, Round planner,
+  People and reminders, Data rulebook open from the page they belong to and from ⌘K. "Search or jump to… ⌘K"
+  at the top, **Pinned** pages under it (pin from a page's About popover). Active page: `#222326` fill + 3px heat bar on the rail's left edge +
   heat icon + strong 600 text (`nav-*` tokens follow the theme). Group labels 11px uppercase 600, tracking .06em. Tasks count = heat pill when urgent.
   Keyboard: ↑ ↓ Home End.
 - **Phones / tablets (< 1024 px):** light top bar (Menu, brand, Claude, Search) + the same list in a modal drawer.
   `--app-top` (3.5rem / 0 on desktop) is the height of that bar for sticky page headers.
-- **Home** = Live MIS (`HOME` in nav/config). Old pages (Month close) are out of the sidebar, reachable from
-  ⌘K under "More" until they are deleted.
-- **Page template** (`components/ui/PageHeader`): breadcrumbs Section › Page (from the menu) · icon tile (accent-50) ·
-  title + Pin · optional `status` chip · one-line purpose (≤ 80ch) · actions (one primary). Then the content in
-  `max-w-7xl` (wide planners may break out).
+- **Home** = Today (`HOME` in nav/config).
+- **Page template** (`components/ui/PageHeader`, simplified 11 Nov 2026): title · status pill · actions (one primary) · About "i" popover
+  (owner, how often, what to do, "How this works", Pin) · ONE sentence · optional underline tabs. No breadcrumbs, icon tile or owner line on
+  the page. Then `PageBody` (`max-w-7xl`). **Budget: ≤ 2 screens at 1440 × 900**; the key numbers and the one action show without scroll.
+  Detail = Modal / Drawer / Popover, a tab, or a `Views` pill switch. Loading / error / empty = `components/ui/states.tsx`.
+- **Writing = ASD-STE100** (simple English for a 12th-pass reader): one instruction per sentence, ≤ 20 words, active voice, digits, one word per
+  idea (vocabulary list in CLAUDE.md "Design & menu"). A note is an "i" popover, never a paragraph under a chart.
 - **⌘K palette** (`components/shell/CommandPalette.tsx`): ⌘K / Ctrl K anywhere — pages, pinned, recent, commands
   (pin this page, theme, collapse sidebar).
 

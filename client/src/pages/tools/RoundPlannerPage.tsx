@@ -22,7 +22,7 @@ export function RoundPlannerPage() {
         src="/embed/round-planner.html"
         title="Round planner"
         className="block w-full border-0 border-t border-slate-200"
-        style={{ height: 'calc(100dvh - 104px - var(--app-top, 0px))', minHeight: 480 }}
+        style={{ height: 'calc(100dvh - 116px - var(--app-top, 0px))', minHeight: 480 }}
       />
     </>
   );

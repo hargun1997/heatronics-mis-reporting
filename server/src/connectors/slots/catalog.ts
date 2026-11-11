@@ -291,11 +291,11 @@ async function shopifyVariants(ctx: PullContext): Promise<SlotPull> {
 export const SLOT_SOURCES: SlotSourceDef[] = [
   // Book of record
   { connectorId: 'tally', slotId: 'pnl', source: 'api', via: 'Tally (cloud, read only)',
-    needs: ['host'], connectHint: 'Not connected — add the Tally host + port on the Connectors page (Tally card).',
+    needs: ['host'], connectHint: 'Not connected. Add the Tally host and port in Setup (Tally Prime).',
     line: "Read from Tally on the cloud machine whenever it is open (checked every 30 min in working hours from the 15th) and stored, so the close doesn't need Tally open. The Excel upload stays the fallback.",
     pull: tallyPnl },
   { connectorId: 'tally', slotId: 'trial-balance', source: 'api', via: 'Tally (cloud, read only)',
-    needs: ['host'], connectHint: 'Not connected — add the Tally host + port on the Connectors page (Tally card).',
+    needs: ['host'], connectHint: 'Not connected. Add the Tally host and port in Setup (Tally Prime).',
     line: 'Stored with the P&L by the same Tally check: closing Dr / Cr per group at the month end, checked that it ties. A record only — the close uses the P&L. The screenshot upload stays the fallback.',
     pull: tallyTb },
   { connectorId: 'tranzact', slotId: 'bom', source: 'api', via: 'Production portal', claudeTask: 'Portal feeds: Mac Chrome',
@@ -323,7 +323,7 @@ export const SLOT_SOURCES: SlotSourceDef[] = [
 
   // D2C
   { connectorId: 'shopify', slotId: 'variant-sales', source: 'api', via: 'Shopify Admin API',
-    needs: ['shopDomain'], connectHint: 'Not connected — add the Shopify store on the Connectors page.',
+    needs: ['shopDomain'], connectHint: 'Not connected. Add the Shopify store in Setup (Shopify).',
     line: 'The same live Shopify pull the Live MIS uses (orders by day × variant), saved for the month so the close is frozen. The CSV upload stays the fallback.',
     pull: shopifyVariants },
 
