@@ -63,14 +63,14 @@ test('"More" pages (tasks, old pages …) stay out of the sidebar but are in the
 });
 
 test('sidebar stays small: 4 sections, 14 pages; each tool sits with its job (no Tools section)', () => {
-  // Simplification, 11 Nov 2026: Send report opens from Live MIS, Round planner from the 5-year plan, People from Tasks.
+  // Simplification, 11 Nov 2026: Send report opens from Live MIS, People from Tasks; Round planner sits under Planning (founder).
   const s = sidebarSections();
   assert.equal(s.length, 4);
   assert.ok(s.reduce((a, x) => a + x.pages.length, 0) <= 14);
   assert.ok(!s.some((x) => x.id === 'tools'));
   assert.deepEqual(s.find((x) => x.id === 'reporting')?.pages.map((p) => p.id), ['today', 'live', 'insights']);
   assert.deepEqual(s.find((x) => x.id === 'accounts')?.pages.map((p) => p.id), ['tasks', 'booking', 'payments', 'tds', 'cash', 'tally', 'handbook'], 'Tasks = the one place for to-do + fix');
-  assert.deepEqual(s.find((x) => x.id === 'planning')?.pages.map((p) => p.id), ['plan', 'floors']);
+  assert.deepEqual(s.find((x) => x.id === 'planning')?.pages.map((p) => p.id), ['plan', 'rounds', 'floors']);
   assert.deepEqual(s.find((x) => x.id === 'admin')?.pages.map((p) => p.id), ['sources']);
 });
 
