@@ -24,8 +24,13 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 ## Design & menu
 - Heatronics "Ember" design system (spec `design-system/EMBER.md`, MIS rules `design-system/heatronics-mis/MASTER.md`; tokens in
   `client/src/index.css`, Tailwind names map onto them: slate/gray = Ember neutrals, white = surface, brand / accent / indigo = the
-  heat ramp, `bg-cta text-on-cta` = the one primary action, `chart-*` / `CHART` = obsidian + grey + one heat; obsidian sidebar;
-  DM Sans; light / dark / system theme). No indigo, no gradients, no raw hex in components, scrims `bg-scrim/x`.
+  heat ramp, `bg-cta text-on-cta` = the one primary action, `chart-*` / `CHART` = obsidian + grey + one heat; DM Sans).
+  No indigo, no gradients, no raw hex in components, scrims `bg-scrim/x`.
+- **Themes** (EMBER.md "Themes", 11 Nov 2026): Ember (default: obsidian sidebar, light pages, ignores system dark) · Light (white
+  sidebar) · Dark. Picker = segmented "Theme" control in the sidebar footer (always visible; icons on the collapsed rail; in the phone
+  drawer). `localStorage htx.theme.mis` (old `mis.theme` dark → dark, else ember); `client/index.html` boot script sets
+  `<html data-htx-theme>` + `data-theme` (dark only for Dark) before paint; sidebar colours = `--nav-*` tokens per theme
+  (`:root[data-htx-theme="light"]` in `index.css`); print stays light (`prefs.ts applyStoredTheme`).
 - Menu = `client/src/nav/config.ts` only (sidebar `components/shell/AppNav.tsx`, ⌘K `CommandPalette`, breadcrumbs in
   `PageHeader`). Adding a page = a route in `App.tsx` + a line in nav/config; `server/test/nav.test.ts` checks both.
 - **Bundle:** every page is `lazyPage(() => import(...), 'Name')` in `App.tsx` (own chunk; `<Suspense>` around the `<Outlet />` in

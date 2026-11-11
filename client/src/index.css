@@ -10,7 +10,8 @@
    Obsidian shell, calm light work area, ONE accent: heat orange. Every Tailwind colour the MIS uses
    (slate / gray = neutral, white = surface, brand / accent / indigo = the heat ramp, cta, red, amber,
    emerald, blue, violet, orange ...) reads an RGB triplet below, so one switch flips the whole app
-   between light and dark. Theme: system by default; [data-theme] (sidebar "Theme" button) overrides.
+   between light and dark. Themes (EMBER.md "Themes", sidebar picker): Ember (default) and Light set data-theme="light",
+   Dark sets data-theme="dark"; <html data-htx-theme> picks the side-menu colours. Print is always light.
    n-50 = canvas, n-100 = sunk, n-200 = lines, n-300 = strong line, n-500 = labels, n-600 = body, n-900 = ink.
    ============================================================================================ */
 :root {
@@ -364,7 +365,7 @@
 }
 
 :root {
-  /* Sidebar: obsidian in both themes */
+  /* Sidebar: obsidian in the Ember (default) and Dark themes; white in the Light theme (below) */
   --nav-bg: 12 13 14;          /* #0C0D0E */
   --nav-hover: 23 24 26;       /* #17181A */
   --nav-active: 34 35 38;      /* #222326 */
@@ -373,10 +374,27 @@
   --nav-fg-muted: 124 126 129; /* #7C7E81 group labels / icons */
   --nav-fg-strong: 244 244 244;/* #F4F4F4 */
   --nav-accent: 243 107 33;    /* #F36B21 heat bar + active icon */
+  --nav-brand: 243 107 33;     /* portal name in the wordmark */
+  --nav-hot: 243 107 33;       /* needs-you count pill */
+  --nav-on-hot: 12 13 14;
   --shadow-card: 0 1px 2px rgb(20 21 22 / 0.03);
   --radius-card: 14px;
 }
 :root[data-theme="dark"] { --nav-bg: 7 8 8; --nav-hover: 20 21 23; --nav-active: 34 35 38; --nav-border: 26 27 30; --nav-accent: 247 132 63; --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02); }
+/* Light theme (EMBER.md "Themes"): white side menu, light pages. Ember and Light both set data-theme="light". */
+:root[data-htx-theme="light"] {
+  --nav-bg: 255 255 255;       /* #FFFFFF, right border #E6E6E4 */
+  --nav-hover: 244 244 243;    /* #F4F4F3 */
+  --nav-active: 255 241 232;   /* #FFF1E8 */
+  --nav-border: 230 230 228;   /* #E6E6E4 */
+  --nav-fg: 74 76 79;          /* #4A4C4F */
+  --nav-fg-muted: 119 121 124; /* #77797C group labels / icons */
+  --nav-fg-strong: 20 21 22;   /* #141516 */
+  --nav-accent: 243 107 33;    /* #F36B21 heat bar + active icon */
+  --nav-brand: 194 65 12;      /* #C2410C heat text, AA on white */
+  --nav-hot: 194 65 12;
+  --nav-on-hot: 255 255 255;
+}
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) { --nav-bg: 7 8 8; --nav-hover: 20 21 23; --nav-active: 34 35 38; --nav-border: 26 27 30; --nav-accent: 247 132 63; --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02); }
 }

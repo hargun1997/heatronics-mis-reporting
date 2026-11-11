@@ -78,3 +78,19 @@ text, simple English for team pages. Keep all data, logic, APIs and tests untouc
 ## Mockups (look at the one for your portal before you start)
 `/home/claude/ember/mockups/htx-<portal>.png` (portal, ops, production, warranty, packing; mis when ready).
 They are page-level targets for the look, not exact layouts: keep each portal's existing pages, navigation and content.
+
+## Themes (founder, 11 Nov 2026: "Marketing feels too dark… multiple colour theme options in left panel always")
+Every portal offers THREE themes, picked from a control that is ALWAYS visible at the bottom of the left panel (desktop sidebar
+footer; on phones inside the menu drawer / bar, still one tap away). Each portal remembers its own choice (no cross-portal sync).
+- **Ember** (default): obsidian side menu + light pages (exactly today's light look). Ignores the system dark setting.
+- **Light**: white side menu + light pages. Side menu: background `#FFFFFF`, right border 1px `#E6E6E4`, item text `#4A4C4F`,
+  icons `#77797C`, group labels `#77797C`, hover `#F4F4F3`, active row = fill `#FFF1E8` + 3px heat bar + heat icon + ink `#141516`
+  600 text, wordmark "Heatronics" ink + portal name heat-text `#C2410C`, count pills sunk `#F0F0EF` / heat for needs-you.
+- **Dark**: the Ember dark tokens everywhere (canvas `#0C0D0E`, surface `#161719`, side menu `#070808`, CTA `#F36B21` with dark text).
+- Control: a 3-option segmented control labelled "Theme" with words Ember · Light · Dark (44px, visible label, keyboard, aria-pressed),
+  styled for the current side-menu colour. Replaces any old System/Light/Dark cycle button.
+- Storage: localStorage `htx.theme.<portal>` (`ember` | `light` | `dark`, try/catch, default `ember`), applied BEFORE first paint
+  (inline boot script) as `<html data-htx-theme="…">`; map it onto the repo's existing dark mechanism (e.g. `data-theme="dark"` /
+  `.dark` only for Dark; Ember and Light are both light pages). Print stays light.
+- Shared top bar (portal `header.js`) reads `document.documentElement.dataset.htxTheme`: Dark → dark bar (`#161719`, links
+  `#9C9EA1`, current `#F2F2F2` + heat underline); Ember / Light → today's white bar. It watches the attribute so a switch updates it live.

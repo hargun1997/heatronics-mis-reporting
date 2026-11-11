@@ -39,7 +39,7 @@ export default {
         blue: scale('blue'), sky: scale('blue'), cyan: scale('blue'),
         violet: scale('violet'), purple: scale('violet'), fuchsia: scale('violet'),
         orange: scale('orange'),
-        nav: { bg: v('nav-bg'), hover: v('nav-hover'), active: v('nav-active'), border: v('nav-border'), fg: v('nav-fg'), muted: v('nav-fg-muted'), strong: v('nav-fg-strong'), accent: v('nav-accent') },
+        nav: { bg: v('nav-bg'), hover: v('nav-hover'), active: v('nav-active'), border: v('nav-border'), fg: v('nav-fg'), muted: v('nav-fg-muted'), strong: v('nav-fg-strong'), accent: v('nav-accent'), brand: v('nav-brand'), hot: v('nav-hot'), onhot: v('nav-on-hot') },
         'mis-green': v('emerald-500'),
         'mis-yellow': v('amber-500'),
         'mis-red': v('red-500'),
