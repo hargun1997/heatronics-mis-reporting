@@ -11,6 +11,10 @@
 //   GET  /api/tally/books/ledgers?q=          ledger master (+ voucher count in the stored months)
 //   GET  /api/tally/books/opening?q=&group=&all=1  opening balance of every ledger, Dr/Cr, totals by primary group + difference
 //   GET  /api/tally/books/tb?period=YYYY-MM       stored Trial Balance (FY start to month end), ledger + group rows
+//   GET  /api/tally/books/ledger-statement?ledger=&from=YYYY-MM&to=YYYY-MM  one ledger's lines + running balance (stored Day Books)
+//   GET  /api/tally/books/register?kind=purchase|sales&from=&to=&class=     GST register; purchases classed Raw material / Capital goods / Services
+//   GET  /api/tally/books/tds-check?from=&to=&min=                          expense vouchers: party TDS nature vs TDS booked
+//   GET  /api/tally/books/stock-items?q=                                     stock item masters (group, unit, HSN, GST rate)
 //   GET  /api/tally/books/chart               groups → sub-groups → ledgers tree + hanging ledgers with where to move them
 //   GET  /api/tally/books/vouchers?period=&q= vouchers of a month, filtered
 //   POST /api/tally/books/ask {question, history?}  "Ask about Tally" (Claude, grounded in the stored books)
@@ -28,6 +32,7 @@ import { latestMonths, pullBooks, readBooks, readBooksState, readMasters, readVo
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport } from '../connectors/tally/books.js';
 import { buildChart, closingByLedger, type ChartReport } from '../connectors/tally/chart.js';
 import { openingReport } from '../connectors/tally/opening.js';
+import { ledgerStatement, monthsBetween, register, tdsCheck } from '../connectors/tally/audit.js';
 import { ceoSummary } from '../connectors/tally/ceoSummary.js';
 import { balanceOut, ceoSummaryV2, channelsOut, closeOut, costsOut, expensesOf, fyOut, ledgerTrend, watchOut } from '../connectors/tally/ceoSummaryV2.js';
 import { summaryInput } from '../connectors/tally/ceoSummaryLoad.js';
@@ -213,6 +218,54 @@ router.get('/books/tb', h(async (req, res) => {
   const level = String(req.query.level || '');
   const rows = tb.rows.filter((r) => !level || r.level === level);
   res.json({ period, asOf: tb.asOf, basis: tb.basis ?? 'month-start', totalDebit: tb.totalDebit, totalCredit: tb.totalCredit, difference: tb.difference, warnings: tb.warnings, stored, rows });
+}));
+
+const MONTH = /^\d{4}-\d{2}$/;
+/** from / to as YYYY-MM (default: FY start → newest stored month); only stored months are read. */
+async function monthRange(req: Request): Promise<{ months: string[]; missing: string[]; from: string; to: string }> {
+  const st = await readBooksState();
+  const stored = Object.keys(st.months ?? {}).sort();
+  const now = new Date();
+  const fy = `${now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1}-04`;
+  const from = MONTH.test(String(req.query.from || '')) ? String(req.query.from) : fy;
+  const to = MONTH.test(String(req.query.to || '')) ? String(req.query.to) : (stored[stored.length - 1] ?? from);
+  const want = monthsBetween(from, to);
+  return { months: want.filter((p) => stored.includes(p)), missing: want.filter((p) => !stored.includes(p)), from, to };
+}
+
+router.get('/books/ledger-statement', h(async (req, res) => {
+  const name = String(req.query.ledger || '').trim();
+  if (!name) return res.status(400).json({ error: 'ledger is required' });
+  const [m, r] = await Promise.all([readMasters(), monthRange(req)]);
+  const lower = name.toLowerCase();
+  const ledgers = m?.ledgers ?? [];
+  const ledger = ledgers.find((l) => l.name.toLowerCase() === lower) ?? ledgers.find((l) => l.name.toLowerCase().includes(lower));
+  const { vouchers } = await readVouchers(r.months);
+  const fyStart = r.from.endsWith('-04');
+  const st = ledgerStatement(vouchers, ledger, name, fyStart ? ledger?.opening ?? 0 : 0);
+  res.json({ ...st, openingNote: fyStart ? '1 April opening from the ledger master' : 'opening not carried: from is not April, balance starts at 0', months: r.months, missingMonths: r.missing, matches: ledger ? undefined : ledgers.filter((l) => l.name.toLowerCase().includes(lower.split(' ')[0])).slice(0, 10).map((l) => l.name), rows: st.rows.slice(-800) });
+}));
+
+router.get('/books/register', h(async (req, res) => {
+  const kind = req.query.kind === 'sales' ? 'sales' : 'purchase';
+  const [m, r] = await Promise.all([readMasters(), monthRange(req)]);
+  const { vouchers } = await readVouchers(r.months);
+  const reg = register(vouchers, m, kind, String(req.query.class || '') || undefined);
+  res.json({ ...reg, months: r.months, missingMonths: r.missing, total: reg.rows.length, rows: reg.rows.slice(0, 600) });
+}));
+
+router.get('/books/tds-check', h(async (req, res) => {
+  const [m, r] = await Promise.all([readMasters(), monthRange(req)]);
+  const { vouchers } = await readVouchers(r.months);
+  const out = tdsCheck(vouchers, m, Number(req.query.min) || 0);
+  res.json({ ...out, months: r.months, missingMonths: r.missing, total: out.rows.length, rows: out.rows.slice(0, 600) });
+}));
+
+router.get('/books/stock-items', h(async (req, res) => {
+  const q = String(req.query.q || '').toLowerCase().trim();
+  const m = await readMasters();
+  const items = (m?.stockItems ?? []).filter((i) => !q || `${i.name} ${i.group} ${i.hsn}`.toLowerCase().includes(q));
+  res.json({ asOf: m?.asOf ?? null, total: m?.stockItems?.length ?? 0, noHsn: (m?.stockItems ?? []).filter((i) => !i.hsn).length, rows: items.slice(0, 600) });
 }));
 
 /** The chart of accounts with closings from the newest stored Trial Balance (also read by /api/issues). */
