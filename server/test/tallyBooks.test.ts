@@ -169,5 +169,6 @@ test('parseDayBook: bill-wise and bank allocations are kept (Agst Ref, bank reco
   const [j, r] = parseDayBook(xml);
   assert.deepEqual(j.lines[0].bills, [{ name: 'HTR-1-D2C', type: 'Agst Ref', amount: -5000 }, { name: 'HTR-2-D2C', type: 'Agst Ref', amount: -3366.2 }]);
   assert.equal(j.lines[1].bills, undefined);
+  assert.equal(parseDayBook(`<ENVELOPE>${vch({ type: 'Journal', no: 'E', date: '20260501', body: le('A', '1.00', 'No', '<BANKALLOCATIONS.LIST> </BANKALLOCATIONS.LIST>') + le('B', '-1.00', 'Yes') })}</ENVELOPE>`)[0].lines[0].bank, undefined);
   assert.deepEqual(r.lines[1].bank, [{ bankDate: '2026-05-03', instrumentNo: 'YESF261216409678', instrumentDate: '2026-05-02', txnType: 'e-Fund Transfer', utr: 'U1', amount: 8192.71 }]);
 });

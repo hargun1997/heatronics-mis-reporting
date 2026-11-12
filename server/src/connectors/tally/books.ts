@@ -204,7 +204,7 @@ function ledgerLine(inner: string): VoucherLine | null {
       utr: field(o, 'UNIQUEREFERENCENUMBER', 'UTRNUMBER'),
       amount: Math.round(-tnum(field(o, 'AMOUNT')) * 100) / 100,
     };
-  });
+  }).filter((b) => b.bankDate || b.instrumentNo || b.utr || b.txnType || b.amount); // Tally sends an empty block on every line
   if (bank.length) line.bank = bank;
   return line;
 }
