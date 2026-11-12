@@ -17,6 +17,7 @@
 //   GET  /api/tally/books/stock-items?q=                                     stock item masters (group, unit, HSN, GST rate)
 //   GET  /api/tally/books/chart               groups → sub-groups → ledgers tree + hanging ledgers with where to move them
 //   GET  /api/tally/books/vouchers?period=&q=&offset=&limit= vouchers of a month, filtered, paged (limit ≤ 2,000)
+//   GET  /api/tally/books/raw-sample?tag=   up to 5 raw XML blocks of one tag from the last stored Day Book sample
 //   POST /api/tally/books/ask {question, history?}  "Ask about Tally" (Claude, grounded in the stored books)
 //   GET  /api/tally/summary             CEO summary (v1 months + v2 Cash Overwatch blocks); ?fresh=1 skips the 60 s cache
 //   GET  /api/tally/channel-pnl|cashflow|balance-sheet|close-status|ledger-trend?ledger=|expenses?month=|watchlist
@@ -281,6 +282,16 @@ router.get('/books/chart', h(async (_req, res) => {
   const r = await chartReport();
   if (!r) return res.json({ tree: [], hanging: [], emptyGroups: [], summary: null, mastersAt: null, tbPeriod: null });
   res.json(r);
+}));
+
+// Up to 5 raw XML blocks of one tag from the last stored Day Book sample (checks Tally's tag names, e.g. BANKALLOCATIONS.LIST).
+router.get('/books/raw-sample', h(async (req, res) => {
+  const tag = String(req.query.tag || 'VOUCHER');
+  if (!/^[A-Z0-9_.]{2,60}$/.test(tag)) return res.status(400).json({ error: 'tag=TAGNAME' });
+  const raw = await readJson<{ at?: string; daybook?: string } | null>('tally/raw-books', null);
+  const xml = raw?.daybook ?? '';
+  const re = new RegExp(`<${tag.replace(/\./g, '\\.')}(\\s[^>]*)?>[\\s\\S]*?</${tag.replace(/\./g, '\\.')}>`, 'g');
+  res.json({ at: raw?.at ?? null, bytes: xml.length, blocks: (xml.match(re) ?? []).slice(0, 5).map((b) => b.slice(0, 4_000)) });
 }));
 
 router.get('/books/vouchers', h(async (req, res) => {

@@ -18,7 +18,11 @@ import { decode, escapeXml, tallyDates } from '../sources/tally.js';
 
 // ---------------------------------------------------------------- types
 
-export interface VoucherLine { ledger: string; /** Dr positive, Cr negative (₹). */ amount: number }
+/** One bill-wise allocation on a party line: New Ref / Agst Ref / On Account / Advance, Dr positive (₹). */
+export interface BillAllocation { name: string; type: string; amount: number }
+/** One bank allocation on a bank line. `bankDate` = the date set in Tally's bank reconciliation (blank = not reconciled). */
+export interface BankAllocation { bankDate: string; instrumentNo: string; instrumentDate: string; txnType: string; utr: string; amount: number }
+export interface VoucherLine { ledger: string; /** Dr positive, Cr negative (₹). */ amount: number; bills?: BillAllocation[]; bank?: BankAllocation[] }
 export interface InventoryLine { item: string; qty: number | null; rate: string | null; amount: number }
 export interface TallyVoucher {
   guid: string;
@@ -183,7 +187,32 @@ function ledgerLine(inner: string): VoucherLine | null {
   // ledger usually sits on, so a TDS or round-off line inside a purchase (deemed Yes, positive amount = a credit) was
   // turned into a debit when the sign came from it: 1,306 of 23,975 vouchers (Apr–Nov 2026) did not balance.
   const amount = -raw;
-  return { ledger, amount: Math.round(amount * 100) / 100 };
+  const line: VoucherLine = { ledger, amount: Math.round(amount * 100) / 100 };
+  // Bill-wise and bank allocations (13 Nov 2026: open-bill and bank-reconciliation checks). Same sign rule as AMOUNT.
+  const bills = blocks(inner, 'BILLALLOCATIONS.LIST').map((b) => {
+    const o = stripLists(b.inner);
+    return { name: field(o, 'NAME'), type: field(o, 'BILLTYPE'), amount: Math.round(-tnum(field(o, 'AMOUNT')) * 100) / 100 };
+  }).filter((b) => b.name || b.type);
+  if (bills.length) line.bills = bills;
+  const bank = blocks(inner, 'BANKALLOCATIONS.LIST').map((b) => {
+    const o = stripLists(b.inner);
+    return {
+      bankDate: tdate(field(o, 'BANKERSDATE')),
+      instrumentNo: field(o, 'INSTRUMENTNUMBER'),
+      instrumentDate: tdate(field(o, 'INSTRUMENTDATE')),
+      txnType: field(o, 'TRANSACTIONTYPE'),
+      utr: field(o, 'UNIQUEREFERENCENUMBER', 'UTRNUMBER'),
+      amount: Math.round(-tnum(field(o, 'AMOUNT')) * 100) / 100,
+    };
+  });
+  if (bank.length) line.bank = bank;
+  return line;
+}
+
+/** Tally date YYYYMMDD → YYYY-MM-DD ('' when blank or not a date). */
+function tdate(x: string): string {
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec((x || '').trim());
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
 }
 
 export function parseDayBook(xml: string): TallyVoucher[] {
