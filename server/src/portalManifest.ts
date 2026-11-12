@@ -267,6 +267,47 @@ export const portalManifest = {
       }
     },
     {
+      "id": "tally-opening",
+      "method": "GET",
+      "path": "/api/tally/books/opening?q=<q>&group=<group>&all=<all>",
+      "auth": "session",
+      "purpose": "Tally opening balances per ledger",
+      "mcp": {
+        "tool": "mis_get_tally_opening",
+        "description": "Opening balance (1 April of the current books) of every Tally ledger with Dr / Cr side, group and primary group, biggest first; plus totals by primary group, total Dr, total Cr and the difference (Tally's 'Difference in opening balances'). Use for Busy → Tally tie-outs and 'what did we open X at'. From the stored ledger masters (see asOf).",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": { "type": "string", "description": "Search word in ledger name, group or GSTIN" },
+            "group": { "type": "string", "description": "Exact group or primary group name, e.g. Sundry Creditors" },
+            "all": { "type": "string", "enum": ["1"], "description": "1 = include ledgers with zero opening" }
+          }
+        },
+        "returns": "rows[] (ledger, group, primary, side, amount, gstin) + byPrimary[] + totalDr + totalCr + difference + asOf"
+      }
+    },
+    {
+      "id": "tally-tb",
+      "method": "GET",
+      "path": "/api/tally/books/tb?period=<period>&level=<level>",
+      "auth": "session",
+      "purpose": "Stored Tally Trial Balance for a month",
+      "mcp": {
+        "tool": "mis_get_tally_tb",
+        "description": "Tally Trial Balance stored for a month (FY start to that month's end): every group and ledger with debit and credit closing, total Dr, total Cr, difference, and which months are stored. Use for closing balances, tie-outs and 'what is X's balance at month end'.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "period": { "type": "string", "description": "YYYY-MM (default the newest stored month)" },
+            "level": { "type": "string", "enum": ["ledger", "group"], "description": "Only ledger rows or only group rows" }
+          }
+        },
+        "returns": "rows[] (name, level, debit, credit) + totals + difference + stored months + asOf"
+      }
+    },
+    {
       "id": "tally-health",
       "method": "GET",
       "path": "/api/tally/books/health?months=<months>",

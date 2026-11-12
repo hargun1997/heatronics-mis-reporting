@@ -9,6 +9,8 @@
 //   POST /api/tally/books/pull {periods?}     pull masters + Day Books now (≤ ~2.5 min)
 //   GET  /api/tally/books/health?months=3     Tally health checks over the newest stored months
 //   GET  /api/tally/books/ledgers?q=          ledger master (+ voucher count in the stored months)
+//   GET  /api/tally/books/opening?q=&group=&all=1  opening balance of every ledger, Dr/Cr, totals by primary group + difference
+//   GET  /api/tally/books/tb?period=YYYY-MM       stored Trial Balance (FY start to month end), ledger + group rows
 //   GET  /api/tally/books/chart               groups → sub-groups → ledgers tree + hanging ledgers with where to move them
 //   GET  /api/tally/books/vouchers?period=&q= vouchers of a month, filtered
 //   POST /api/tally/books/ask {question, history?}  "Ask about Tally" (Claude, grounded in the stored books)
@@ -25,6 +27,7 @@ import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../co
 import { latestMonths, pullBooks, readBooks, readBooksState, readMasters, readVouchers } from '../connectors/tally/bookStore.js';
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport } from '../connectors/tally/books.js';
 import { buildChart, closingByLedger, type ChartReport } from '../connectors/tally/chart.js';
+import { openingReport } from '../connectors/tally/opening.js';
 import { ceoSummary } from '../connectors/tally/ceoSummary.js';
 import { balanceOut, ceoSummaryV2, channelsOut, closeOut, costsOut, expensesOf, fyOut, ledgerTrend, watchOut } from '../connectors/tally/ceoSummaryV2.js';
 import { summaryInput } from '../connectors/tally/ceoSummaryLoad.js';
@@ -192,6 +195,24 @@ router.get('/books/ledgers', h(async (req, res) => {
     .filter((l) => !q || `${l.name} ${l.group} ${l.gstin}`.toLowerCase().includes(q))
     .map((l) => ({ ...l, vouchers: used.get(l.name) || 0 }));
   res.json({ asOf: m?.asOf ?? null, periods, total: m?.ledgers.length ?? 0, rows: rows.slice(0, 500) });
+}));
+
+router.get('/books/opening', h(async (req, res) => {
+  const m = await readMasters();
+  const r = openingReport(m?.ledgers ?? [], { q: String(req.query.q || ''), group: String(req.query.group || ''), all: req.query.all === '1' });
+  res.json({ asOf: m?.asOf ?? null, ...r });
+}));
+
+router.get('/books/tb', h(async (req, res) => {
+  const s = await readTallyState();
+  const stored = Object.keys(s.tbMonths ?? {}).sort();
+  const period = String(req.query.period || stored[stored.length - 1] || '');
+  if (!PERIOD.test(period)) return res.status(400).json({ error: 'period=YYYY-MM', stored });
+  const tb = await readTallyTb(period);
+  if (!tb) return res.status(404).json({ error: `No stored Trial Balance for ${period}.`, stored });
+  const level = String(req.query.level || '');
+  const rows = tb.rows.filter((r) => !level || r.level === level);
+  res.json({ period, asOf: tb.asOf, basis: tb.basis ?? 'month-start', totalDebit: tb.totalDebit, totalCredit: tb.totalCredit, difference: tb.difference, warnings: tb.warnings, stored, rows });
 }));
 
 /** The chart of accounts with closings from the newest stored Trial Balance (also read by /api/issues). */
