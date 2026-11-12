@@ -174,7 +174,7 @@ router.post('/books/pull', h(async (req, res) => {
   const c = await creds();
   if (!(c.host || '').trim()) return res.json({ status: 'not_connected', detail: 'Enter the Tally host and port on Setup → Tally.' });
   const periods = Array.isArray(req.body?.periods) ? (req.body.periods as unknown[]).filter((p): p is string => typeof p === 'string' && PERIOD.test(p)).slice(0, 6) : undefined;
-  const r = await pullBooks(c, { force: !periods, budgetMs: 95_000, periods }); // under the 120 s proxy limit; months resume
+  const r = await pullBooks(c, { force: !periods, budgetMs: 60_000, periods }); // well under the proxy cut (503 at ~90 s); every day is saved, months resume
   res.json({ status: r.error && !r.masters && !r.months.length && !/pull again/.test(r.error) ? 'down' : 'ok', ...r });
 }));
 
