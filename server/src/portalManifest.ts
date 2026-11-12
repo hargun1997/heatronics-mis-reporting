@@ -267,6 +267,178 @@ export const portalManifest = {
       }
     },
     {
+      "id": "tally-opening",
+      "method": "GET",
+      "path": "/api/tally/books/opening?q=<q>&group=<group>&all=<all>",
+      "auth": "session",
+      "purpose": "Tally opening balances per ledger",
+      "mcp": {
+        "tool": "mis_get_tally_opening",
+        "description": "Opening balance (1 April of the current books) of every Tally ledger with Dr / Cr side, group and primary group, biggest first; plus totals by primary group, total Dr, total Cr and the difference (Tally's 'Difference in opening balances'). Use for Busy → Tally tie-outs and 'what did we open X at'. From the stored ledger masters (see asOf).",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": { "type": "string", "description": "Search word in ledger name, group or GSTIN" },
+            "group": { "type": "string", "description": "Exact group or primary group name, e.g. Sundry Creditors" },
+            "all": { "type": "string", "enum": ["1"], "description": "1 = include ledgers with zero opening" }
+          }
+        },
+        "returns": "rows[] (ledger, group, primary, side, amount, gstin) + byPrimary[] + totalDr + totalCr + difference + asOf"
+      }
+    },
+    {
+      "id": "tally-tb",
+      "method": "GET",
+      "path": "/api/tally/books/tb?period=<period>&level=<level>",
+      "auth": "session",
+      "purpose": "Stored Tally Trial Balance for a month",
+      "mcp": {
+        "tool": "mis_get_tally_tb",
+        "description": "Tally Trial Balance stored for a month (FY start to that month's end): every group and ledger with debit and credit closing, total Dr, total Cr, difference, and which months are stored. Use for closing balances, tie-outs and 'what is X's balance at month end'.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "period": { "type": "string", "description": "YYYY-MM (default the newest stored month)" },
+            "level": { "type": "string", "enum": ["ledger", "group"], "description": "Only ledger rows or only group rows" }
+          }
+        },
+        "returns": "rows[] (name, level, debit, credit) + totals + difference + stored months + asOf"
+      }
+    },
+    {
+      "id": "tally-ledger-statement",
+      "method": "GET",
+      "path": "/api/tally/books/ledger-statement?ledger=<ledger>&from=<from>&to=<to>",
+      "auth": "session",
+      "purpose": "One Tally ledger's entries with running balance",
+      "mcp": {
+        "tool": "mis_get_tally_ledger_statement",
+        "description": "One Tally ledger's account statement from the stored Day Books: date, voucher type and number, party, reference, narration, the other ledgers, Dr, Cr and running balance (Dr positive), with the 1 April opening when from is April. Use for bank reconciliation, a party's account, loan accounts, 'show me all entries in X'. Lists missing months (Day Book not stored).",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "ledger": {
+              "type": "string",
+              "description": "Exact or partial ledger name"
+            },
+            "from": {
+              "type": "string",
+              "description": "YYYY-MM (default: April of this financial year)"
+            },
+            "to": {
+              "type": "string",
+              "description": "YYYY-MM (default: newest stored month)"
+            }
+          },
+          "required": [
+            "ledger"
+          ]
+        },
+        "returns": "rows[] + opening + totalDr + totalCr + closing + months + missingMonths"
+      }
+    },
+    {
+      "id": "tally-register",
+      "method": "GET",
+      "path": "/api/tally/books/register?kind=<kind>&from=<from>&to=<to>&class=<class>",
+      "auth": "session",
+      "purpose": "Purchase / sales register with GST split",
+      "mcp": {
+        "tool": "mis_get_tally_register",
+        "description": "Tally purchase or sales register from the stored Day Books: date, number, party, GSTIN, supplier invoice no. and date, taxable value, IGST, CGST, SGST, cess, TDS, total. Purchases are classed Raw material / Capital goods / Services / Mixed / Unclear from the ledgers used (for GST classification and GSTR-2B / 3B matching), with the reason. Totals by class.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "purchase",
+                "sales"
+              ],
+              "description": "Default purchase"
+            },
+            "from": {
+              "type": "string",
+              "description": "YYYY-MM (default: April of this financial year)"
+            },
+            "to": {
+              "type": "string",
+              "description": "YYYY-MM (default: newest stored month)"
+            },
+            "class": {
+              "type": "string",
+              "enum": [
+                "Raw material",
+                "Capital goods",
+                "Services",
+                "Mixed",
+                "Unclear"
+              ],
+              "description": "Only this purchase class"
+            }
+          }
+        },
+        "returns": "rows[] + totals + byClass[] + months + missingMonths"
+      }
+    },
+    {
+      "id": "tally-tds-check",
+      "method": "GET",
+      "path": "/api/tally/books/tds-check?from=<from>&to=<to>&min=<min>",
+      "auth": "session",
+      "purpose": "Expense vouchers: TDS nature vs TDS booked",
+      "mcp": {
+        "tool": "mis_get_tally_tds_check",
+        "description": "TDS check over the stored Day Books: every purchase / journal / payment voucher that books an expense or fixed asset against a party, with the party's TDS nature (ledger master), the expense, the TDS booked on the voucher and the implied rate; flags 'no TDS booked' and 'party has no TDS nature'. Lists, does not judge thresholds: apply 194C / 194J / 194I / 194H / 194Q limits when reading it.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "YYYY-MM (default: April of this financial year)"
+            },
+            "to": {
+              "type": "string",
+              "description": "YYYY-MM (default: newest stored month)"
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Skip vouchers below this expense ₹"
+            }
+          }
+        },
+        "returns": "rows[] + summary + months + missingMonths"
+      }
+    },
+    {
+      "id": "tally-stock-items",
+      "method": "GET",
+      "path": "/api/tally/books/stock-items?q=<q>",
+      "auth": "session",
+      "purpose": "Tally stock item masters",
+      "mcp": {
+        "tool": "mis_get_tally_stock_items",
+        "description": "Tally stock item masters: name, stock group, unit, HSN and GST rate, with a count of items with no HSN. Use for GST classification and stock / BOM checks.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "description": "Search word in name, group or HSN"
+            }
+          }
+        },
+        "returns": "rows[] + total + noHsn + asOf"
+      }
+    },
+    {
       "id": "tally-health",
       "method": "GET",
       "path": "/api/tally/books/health?months=<months>",
