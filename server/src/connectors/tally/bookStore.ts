@@ -95,7 +95,7 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; now
         if (deadline - Date.now() < 12_000) { complete = false; break; }
         let dx: string;
         try {
-          dx = await post(creds, dayBookDayEnvelope(day, creds.company), Math.min(deadline - Date.now() - 2_000, 45_000));
+          dx = await post(creds, dayBookDayEnvelope(day, creds.company), Math.min(deadline - Date.now() - 2_000, 78_000));
         } catch (e) {
           complete = false;
           dayError = `${day}: ${e instanceof Error ? e.message : String(e)}`;
