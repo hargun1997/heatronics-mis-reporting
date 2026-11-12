@@ -10,12 +10,15 @@ import type { Credentials } from '../types.js';
 import { readJson, writeJson } from '../../ingest/objectStore.js';
 import { post } from '../sources/tally.js';
 import {
-  dayBookMonthEnvelope, mastersEnvelope, parseDayBook, parseGroups, parseLedgers, parseStockItems,
-  type TallyMasters, type TallyVoucher,
+  dayBookDayEnvelope, dayBookMonthEnvelope, inRange, mastersEnvelope, monthDays, parseDayBook, parseGroups, parseLedgers,
+  parseStockItems, rangeIgnored, type TallyMasters, type TallyVoucher,
 } from './books.js';
+import { tallyDates } from '../sources/tally.js';
 
 export interface StoredMasters extends TallyMasters { asOf: string }
-export interface StoredBooks { period: string; asOf: string; vouchers: TallyVoucher[] }
+export interface StoredBooks { period: string; asOf: string; vouchers: TallyVoucher[]; mode?: 'range' | 'daily' }
+/** A month being read day by day across several pulls (Tally ignored the range). */
+interface PartialBooks { period: string; days: string[]; vouchers: TallyVoucher[] }
 export interface BooksState { mastersAt: string | null; months: Record<string, string>; lastError: string | null; lastTryAt: string | null }
 
 const EMPTY: BooksState = { mastersAt: null, months: {}, lastError: null, lastTryAt: null };
@@ -70,10 +73,36 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; now
     for (const period of opts.periods ?? booksToPull(now, s, opts.force)) {
       const left = deadline - Date.now();
       if (left < 15_000) break;
+      const { from, to } = tallyDates(period);
       const xml = await post(creds, dayBookMonthEnvelope(period, creds.company), Math.min(left, 150_000));
       if (!raw.daybook) raw.daybook = xml.slice(0, 300_000);
-      const vouchers = parseDayBook(xml);
-      await writeJson(`tally/books-${period}`, { period, asOf: s.lastTryAt, vouchers } satisfies StoredBooks);
+      let vouchers = parseDayBook(xml);
+      let mode: 'range' | 'daily' = 'range';
+      if (rangeIgnored(vouchers, from, to)) {
+        // Tally answered with its current date only: read the month one day at a time (resumable across pulls).
+        mode = 'daily';
+        const part = await readJson<PartialBooks | null>(`tally/books-partial-${period}`, null);
+        const done = new Set(part?.days ?? []);
+        const got: TallyVoucher[] = [...(part?.vouchers ?? [])];
+        let complete = true;
+        for (const day of monthDays(period)) {
+          if (done.has(day)) continue;
+          if (deadline - Date.now() < 10_000) { complete = false; break; }
+          const dx = await post(creds, dayBookDayEnvelope(day, creds.company), Math.min(deadline - Date.now(), 60_000));
+          got.push(...inRange(parseDayBook(dx), day, day));
+          done.add(day);
+        }
+        if (!complete) {
+          await writeJson(`tally/books-partial-${period}`, { period, days: [...done], vouchers: got } satisfies PartialBooks);
+          error = `Day Book ${period}: read ${done.size} of ${monthDays(period).length} days; pull again to finish.`;
+          break;
+        }
+        await writeJson(`tally/books-partial-${period}`, null);
+        vouchers = got;
+      } else {
+        vouchers = inRange(vouchers, from, to);
+      }
+      await writeJson(`tally/books-${period}`, { period, asOf: s.lastTryAt, vouchers, mode } satisfies StoredBooks);
       s.months[period] = s.lastTryAt;
       months.push(period);
     }

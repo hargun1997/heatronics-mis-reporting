@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assertTallyReadOnly } from '../src/connectors/sources/tally.js';
 import {
-  dayBookMonthEnvelope, mastersEnvelope, parseDayBook, parseGroups, parseLedgers, parseStockItems, stripLists,
+  dayBookMonthEnvelope, dayBookDayEnvelope, monthDays, rangeIgnored, inRange, mastersEnvelope, parseDayBook, parseGroups, parseLedgers, parseStockItems, stripLists,
   tallyHealth, gstinValid, findVouchers, voucherLine, type TallyVoucher,
 } from '../src/connectors/tally/books.js';
 import { booksToPull } from '../src/connectors/tally/bookStore.js';
@@ -13,7 +13,7 @@ test('book requests are read-only exports', () => {
   for (const x of [dayBookMonthEnvelope('2026-10', 'Heatronics Medical Devices Private Limited'), mastersEnvelope('Ledgers'), mastersEnvelope('Groups'), mastersEnvelope('Stock Items')]) {
     assert.doesNotThrow(() => assertTallyReadOnly(x));
   }
-  assert.match(dayBookMonthEnvelope('2026-02'), /<SVFROMDATE>20260201<\/SVFROMDATE>[\s\S]*<SVTODATE>20260228<\/SVTODATE>/);
+  assert.match(dayBookMonthEnvelope('2026-02'), /<SVFROMDATE TYPE="Date">20260201<\/SVFROMDATE>[\s\S]*<SVTODATE TYPE="Date">20260228<\/SVTODATE>/);
   assert.match(mastersEnvelope('Ledgers'), /<ACCOUNTTYPE>Ledgers<\/ACCOUNTTYPE>/);
 });
 
@@ -121,4 +121,21 @@ test('which Day Books a poll takes; voucher search for Ask about Tally', () => {
   const v = parseDayBook(DAYBOOK);
   assert.equal(findVouchers(v, 'how was acme freight booked?')[0].party, 'Acme Logistics Pvt Ltd');
   assert.deepEqual(findVouchers(v, 'what is this'), []);
+});
+
+
+test('Day Book range: detects Tally ignoring the dates, one-day fallback, month days', () => {
+  const oneDay = Array.from({ length: 54 }, () => ({ date: '2026-10-01' }));
+  assert.equal(rangeIgnored(oneDay, '20260401', '20260430'), true); // nothing inside April
+  assert.equal(rangeIgnored(oneDay, '20261001', '20261031'), true); // whole month on one date
+  assert.equal(rangeIgnored([{ date: '2026-10-01' }, { date: '2026-10-02' }], '20261001', '20261031'), false);
+  assert.equal(rangeIgnored([], '20260401', '20260430'), false);
+  assert.equal(rangeIgnored([{ date: '2026-10-05' }], '20261005', '20261005'), false); // one-day pull
+  assert.deepEqual(inRange([{ date: '2026-10-01' }, { date: '2026-04-03' }], '20260401', '20260430'), [{ date: '2026-04-03' }]);
+  assert.equal(monthDays('2026-02').length, 28);
+  assert.equal(monthDays('2026-04')[0], '20260401');
+  const d = dayBookDayEnvelope('20260403', 'Heatronics');
+  assert.match(d, /<SVFROMDATE TYPE="Date">20260403<\/SVFROMDATE>/);
+  assert.match(d, /<SVCURRENTDATE TYPE="Date">20260403<\/SVCURRENTDATE>/);
+  assertTallyReadOnly(d);
 });
