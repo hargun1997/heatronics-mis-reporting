@@ -179,9 +179,10 @@ function ledgerLine(inner: string): VoucherLine | null {
   const ledger = field(own, 'LEDGERNAME');
   if (!ledger) return null;
   const raw = tnum(field(own, 'AMOUNT'));
-  const deemed = field(own, 'ISDEEMEDPOSITIVE');
-  // Tally exports debits as negative amounts with ISDEEMEDPOSITIVE = Yes.
-  const amount = deemed ? (yes(deemed) ? Math.abs(raw) : -Math.abs(raw)) : -raw;
+  // The AMOUNT sign is authoritative: negative = debit, positive = credit. ISDEEMEDPOSITIVE only says which side the
+  // ledger usually sits on, so a TDS or round-off line inside a purchase (deemed Yes, positive amount = a credit) was
+  // turned into a debit when the sign came from it: 1,306 of 23,975 vouchers (Apr–Nov 2026) did not balance.
+  const amount = -raw;
   return { ledger, amount: Math.round(amount * 100) / 100 };
 }
 

@@ -139,3 +139,15 @@ test('Day Book range: detects Tally ignoring the dates, one-day fallback, month 
   assert.match(d, /<SVCURRENTDATE TYPE="Date">20260403<\/SVCURRENTDATE>/);
   assertTallyReadOnly(d);
 });
+
+test('parseDayBook: AMOUNT sign wins over ISDEEMEDPOSITIVE (TDS credit inside a purchase)', () => {
+  const xml = `<ENVELOPE>${vch({ type: 'Purchase-Expense', no: '52', date: '20260401', party: 'Vendor', ref: '3/26-27', body:
+    le('Vendor', '9314.00', 'No') + le('Repairs & Maintenance', '-8030.00', 'Yes') + le('CGST Input - 9%', '-722.70', 'Yes') +
+    le('SGST Input - 9%', '-722.70', 'Yes') + le('TDS Payable - 194C (Contractors)', '161.00', 'Yes') + le('Round-off - Purchase', '0.40', 'Yes') })}</ENVELOPE>`;
+  const [v] = parseDayBook(xml);
+  const by = Object.fromEntries(v.lines.map((l) => [l.ledger, l.amount]));
+  assert.equal(by['TDS Payable - 194C (Contractors)'], -161);
+  assert.equal(by['Round-off - Purchase'], -0.4);
+  assert.equal(by['Vendor'], -9314);
+  assert.ok(Math.abs(v.lines.reduce((a, l) => a + l.amount, 0)) < 0.005);
+});
