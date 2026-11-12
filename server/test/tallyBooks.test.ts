@@ -151,3 +151,12 @@ test('parseDayBook: AMOUNT sign wins over ISDEEMEDPOSITIVE (TDS credit inside a 
   assert.equal(by['Vendor'], -9314);
   assert.ok(Math.abs(v.lines.reduce((a, l) => a + l.amount, 0)) < 0.005);
 });
+
+test('emptiedDays: days the stored copy had but a new pull returned empty', async () => {
+  const { emptiedDays } = await import('../src/connectors/tally/bookStore.js');
+  const mk = (d: string, n: number) => Array.from({ length: n }, () => ({ date: d }));
+  const stored = [...mk('2026-05-01', 10), ...mk('2026-05-02', 3), ...mk('2026-05-22', 8)];
+  assert.deepEqual(emptiedDays(stored, mk('2026-05-22', 8)), ['2026-05-01']);
+  assert.deepEqual(emptiedDays(stored, [...mk('2026-05-01', 1), ...mk('2026-05-22', 1)]), []);
+  assert.deepEqual(emptiedDays([], mk('2026-05-22', 1)), []);
+});

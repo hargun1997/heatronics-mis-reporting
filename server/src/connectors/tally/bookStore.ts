@@ -121,6 +121,15 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; now
         break;
       }
       const stored = await readJson<StoredBooks | null>(`tally/books-${period}`, null);
+      const lostDays = emptiedDays(stored?.vouchers ?? [], got);
+      if (got.length && lostDays.length) {
+        // Days that Tally answered empty (e.g. while another company was active) can sit in the partial file as
+        // "done" and be kept when the pull resumes later (12-13 Nov 2026: May came back with only 22-31 May).
+        // Keep the stored month, drop the partial so the next pull reads every day again.
+        await writeJson(`tally/books-partial-${period}`, null);
+        error = `Day Book ${period}: ${lostDays.length} day(s) came back empty but the stored copy has vouchers on them (${lostDays.slice(0, 5).join(', ')}${lostDays.length > 5 ? ' …' : ''}); kept the stored copy. Pull again to read the month afresh.`;
+        break;
+      }
       if (!got.length && (stored?.vouchers.length ?? 0) > 0) {
         // A whole month with no vouchers while the stored copy has some = Tally answered empty (wrong company open,
         // or no company loaded). Keep the stored month; never replace good books with an empty month (12 Nov 2026).
@@ -153,4 +162,12 @@ export async function readVouchers(periods: string[]): Promise<{ vouchers: Tally
 export async function latestMonths(n = 3): Promise<string[]> {
   const s = await readBooksState();
   return Object.keys(s.months).sort().reverse().slice(0, n);
+}
+
+/** Days (YYYY-MM-DD) where the stored copy has at least `min` vouchers but the new pull has none. */
+export function emptiedDays(stored: { date: string }[], fresh: { date: string }[], min = 5): string[] {
+  const had = new Map<string, number>();
+  for (const v of stored) had.set(v.date, (had.get(v.date) || 0) + 1);
+  const now = new Set(fresh.map((v) => v.date));
+  return [...had].filter(([d, n]) => n >= min && !now.has(d)).map(([d]) => d).sort();
 }
