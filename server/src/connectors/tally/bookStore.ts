@@ -78,17 +78,29 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; now
       const got: TallyVoucher[] = [...(part?.vouchers ?? [])];
       const days = monthDays(period);
       let complete = true;
+      // Each day is saved as soon as it is read: a request cut by the proxy (it answered 503 at ~90 s on 12 Nov 2026)
+      // or a slow day that times out keeps every day read before it, and the next pull goes on from there.
+      const savePart = () => writeJson(`tally/books-partial-${period}`, { period, days: [...done], vouchers: got } satisfies PartialBooks);
+      let dayError: string | null = null;
       for (const day of days) {
         if (done.has(day)) continue;
         if (deadline - Date.now() < 12_000) { complete = false; break; }
-        const dx = await post(creds, dayBookDayEnvelope(day, creds.company), Math.min(deadline - Date.now() - 2_000, 60_000));
+        let dx: string;
+        try {
+          dx = await post(creds, dayBookDayEnvelope(day, creds.company), Math.min(deadline - Date.now() - 2_000, 45_000));
+        } catch (e) {
+          complete = false;
+          dayError = `${day}: ${e instanceof Error ? e.message : String(e)}`;
+          break;
+        }
         if (!raw.daybook) raw.daybook = dx.slice(0, 300_000);
         got.push(...inRange(parseDayBook(dx), day, day));
         done.add(day);
+        await savePart();
       }
       if (!complete) {
-        await writeJson(`tally/books-partial-${period}`, { period, days: [...done], vouchers: got } satisfies PartialBooks);
-        error = `Day Book ${period}: read ${done.size} of ${days.length} days; pull again to finish.`;
+        await savePart();
+        error = `Day Book ${period}: read ${done.size} of ${days.length} days${dayError ? ` (stopped at ${dayError})` : ''}; pull again to finish.`;
         break;
       }
       await writeJson(`tally/books-partial-${period}`, null);
