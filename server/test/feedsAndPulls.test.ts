@@ -223,3 +223,16 @@ test('missing-report sig is stable: same missing pairs → same sig (Done holds)
   assert.equal(sig('2026-11-12', [r('2026-08'), r('2026-10', 0)]), sig('2026-11-12', [r('2026-08'), r('2026-10', 0)]));
   assert.notEqual(sig('2026-12-12', [r('2026-08'), r('2026-10')]), a, 'Nov now missing too: comes back');
 });
+
+test('slotCoverage: month-total ad spend (dated the 1st) is complete, not "covers 1–1 only"', async () => {
+  const { slotCoverage, storedSlotReport } = await import('../src/connectors/slots/closeSlots.js');
+  for (const [connectorId, slotId] of [['meta', 'ad-spend'], ['googleads', 'ad-spend'], ['amazonads', 'ad-spend']] as const) {
+    const slot = CLOSE_SLOTS.find((s: { connectorId: string; slotId: string }) => s.connectorId === connectorId && s.slotId === slotId)!;
+    const rep = storedSlotReport({ connectorId, slotId, periodKey: '2026-10', payload: { facts: [{ date: '2026-10-01', spend: 5000 }] } });
+    assert.equal(slotCoverage(slot, '2026-10', rep).kind, 'ok', `${connectorId}/${slotId}`);
+  }
+  // a daily-dated slot still flags a short month
+  const shop = CLOSE_SLOTS.find((s: { connectorId: string; slotId: string }) => s.connectorId === 'shiprocket')!;
+  const short = storedSlotReport({ connectorId: 'shiprocket', slotId: 'passbook', periodKey: '2026-10', payload: { facts: [{ date: '2026-10-01' }, { date: '2026-10-12' }] } });
+  assert.equal(slotCoverage(shop, '2026-10', short).kind, 'partial');
+});
