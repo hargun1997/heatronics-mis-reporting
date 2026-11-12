@@ -16,7 +16,7 @@
 //   GET  /api/tally/books/tds-check?from=&to=&min=                          expense vouchers: party TDS nature vs TDS booked
 //   GET  /api/tally/books/stock-items?q=                                     stock item masters (group, unit, HSN, GST rate)
 //   GET  /api/tally/books/chart               groups → sub-groups → ledgers tree + hanging ledgers with where to move them
-//   GET  /api/tally/books/vouchers?period=&q= vouchers of a month, filtered
+//   GET  /api/tally/books/vouchers?period=&q=&offset=&limit= vouchers of a month, filtered, paged (limit ≤ 2,000)
 //   POST /api/tally/books/ask {question, history?}  "Ask about Tally" (Claude, grounded in the stored books)
 //   GET  /api/tally/summary             CEO summary (v1 months + v2 Cash Overwatch blocks); ?fresh=1 skips the 60 s cache
 //   GET  /api/tally/channel-pnl|cashflow|balance-sheet|close-status|ledger-trend?ledger=|expenses?month=|watchlist
@@ -290,7 +290,10 @@ router.get('/books/vouchers', h(async (req, res) => {
   const doc = await readBooks(period);
   const all = doc?.vouchers ?? [];
   const rows = q ? all.filter((v) => `${v.type} ${v.number} ${v.party} ${v.reference} ${v.narration} ${v.lines.map((l) => l.ledger).join(' ')}`.toLowerCase().includes(q)) : all;
-  res.json({ period, asOf: doc?.asOf ?? null, total: all.length, rows: rows.slice(0, 400) });
+  // ?offset=&limit= (≤ 2,000) pages through every stored voucher of the month (books audit export); default = the first 400.
+  const offset = Math.max(0, Number.parseInt(String(req.query.offset ?? '0'), 10) || 0);
+  const limit = Math.min(2_000, Math.max(1, Number.parseInt(String(req.query.limit ?? '400'), 10) || 400));
+  res.json({ period, asOf: doc?.asOf ?? null, total: all.length, matched: rows.length, offset, rows: rows.slice(offset, offset + limit) });
 }));
 
 router.post('/books/ask', h(async (req, res) => {
