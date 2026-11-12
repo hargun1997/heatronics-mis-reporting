@@ -10,10 +10,9 @@ import type { Credentials } from '../types.js';
 import { readJson, writeJson } from '../../ingest/objectStore.js';
 import { post } from '../sources/tally.js';
 import {
-  dayBookDayEnvelope, dayBookMonthEnvelope, inRange, mastersEnvelope, monthDays, parseDayBook, parseGroups, parseLedgers,
-  parseStockItems, rangeIgnored, type TallyMasters, type TallyVoucher,
+  dayBookDayEnvelope, inRange, mastersEnvelope, monthDays, parseDayBook, parseGroups, parseLedgers,
+  parseStockItems, type TallyMasters, type TallyVoucher,
 } from './books.js';
-import { tallyDates } from '../sources/tally.js';
 
 export interface StoredMasters extends TallyMasters { asOf: string }
 export interface StoredBooks { period: string; asOf: string; vouchers: TallyVoucher[]; mode?: 'range' | 'daily' }
@@ -71,38 +70,29 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; now
       masters = true;
     }
     for (const period of opts.periods ?? booksToPull(now, s, opts.force)) {
-      const left = deadline - Date.now();
-      if (left < 15_000) break;
-      const { from, to } = tallyDates(period);
-      const xml = await post(creds, dayBookMonthEnvelope(period, creds.company), Math.min(left, 150_000));
-      if (!raw.daybook) raw.daybook = xml.slice(0, 300_000);
-      let vouchers = parseDayBook(xml);
-      let mode: 'range' | 'daily' = 'range';
-      if (rangeIgnored(vouchers, from, to)) {
-        // Tally answered with its current date only: read the month one day at a time (resumable across pulls).
-        mode = 'daily';
-        const part = await readJson<PartialBooks | null>(`tally/books-partial-${period}`, null);
-        const done = new Set(part?.days ?? []);
-        const got: TallyVoucher[] = [...(part?.vouchers ?? [])];
-        let complete = true;
-        for (const day of monthDays(period)) {
-          if (done.has(day)) continue;
-          if (deadline - Date.now() < 10_000) { complete = false; break; }
-          const dx = await post(creds, dayBookDayEnvelope(day, creds.company), Math.min(deadline - Date.now(), 60_000));
-          got.push(...inRange(parseDayBook(dx), day, day));
-          done.add(day);
-        }
-        if (!complete) {
-          await writeJson(`tally/books-partial-${period}`, { period, days: [...done], vouchers: got } satisfies PartialBooks);
-          error = `Day Book ${period}: read ${done.size} of ${monthDays(period).length} days; pull again to finish.`;
-          break;
-        }
-        await writeJson(`tally/books-partial-${period}`, null);
-        vouchers = got;
-      } else {
-        vouchers = inRange(vouchers, from, to);
+      if (deadline - Date.now() < 15_000) break;
+      // One day at a time: a whole exploded month is too big for one Tally answer (it timed out behind the 120 s
+      // proxy), and Tally always honours the one-day range with SVCURRENTDATE. Resumable across pulls.
+      const part = await readJson<PartialBooks | null>(`tally/books-partial-${period}`, null);
+      const done = new Set(part?.days ?? []);
+      const got: TallyVoucher[] = [...(part?.vouchers ?? [])];
+      const days = monthDays(period);
+      let complete = true;
+      for (const day of days) {
+        if (done.has(day)) continue;
+        if (deadline - Date.now() < 12_000) { complete = false; break; }
+        const dx = await post(creds, dayBookDayEnvelope(day, creds.company), Math.min(deadline - Date.now() - 2_000, 60_000));
+        if (!raw.daybook) raw.daybook = dx.slice(0, 300_000);
+        got.push(...inRange(parseDayBook(dx), day, day));
+        done.add(day);
       }
-      await writeJson(`tally/books-${period}`, { period, asOf: s.lastTryAt, vouchers, mode } satisfies StoredBooks);
+      if (!complete) {
+        await writeJson(`tally/books-partial-${period}`, { period, days: [...done], vouchers: got } satisfies PartialBooks);
+        error = `Day Book ${period}: read ${done.size} of ${days.length} days; pull again to finish.`;
+        break;
+      }
+      await writeJson(`tally/books-partial-${period}`, null);
+      await writeJson(`tally/books-${period}`, { period, asOf: s.lastTryAt, vouchers: got, mode: 'daily' } satisfies StoredBooks);
       s.months[period] = s.lastTryAt;
       months.push(period);
     }
