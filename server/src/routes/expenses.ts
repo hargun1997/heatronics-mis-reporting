@@ -9,7 +9,8 @@
 // Each month: the P&L's expense lines as uploaded (Factory Overheads, Manufacturing
 // Costs, Employee Cost - Indirect, Admin & General Expenses…), amounts in ₹ as
 // printed in Tally. Sales, income, stock and purchase lines are left out.
-// Callers send `Authorization: Bearer <EXPENSES_API_TOKEN>` (on Cloud Run the token is required; see expensesAllowed).
+// Callers send `Authorization: Bearer <token>` (on Cloud Run the token is required; see expensesAllowed). The token is env
+// EXPENSES_API_TOKEN, else the shared Secret Manager entry `mis-expenses-token` (the same one Ops and Production send).
 // ----------------------------------------------------------------------------
 
 import { timingSafeEqual } from 'node:crypto';
@@ -17,6 +18,11 @@ import { Router, type Request, type Response } from 'express';
 import { readAllExtracted } from '../ingest/objectStore.js';
 /** Not running costs: revenue, other income, stock movement, purchases, group rows and totals (shared with the CEO summary). */
 import { NOT_EXPENSE } from '../connectors/tally/tbRows.js';
+import { sharedSecret } from '../connectors/sharedSecrets.js';
+
+/** Shared secret name: Ops (`lib/pnl/mis.ts`) and Production (`/api/tranzact/overheads/mis`) send this value. */
+export const EXPENSES_SECRET = 'mis-expenses-token';
+
 
 const router = Router();
 
@@ -40,9 +46,9 @@ export function expenseRows(p: PnlPayload): Row[] {
  * A signed-in person (req.htxAuthed, set by htxGate) may read it too. With no token configured the endpoint
  * stays open ONLY off Cloud Run (local dev) — on Cloud Run it fails closed, since the repo (and so this URL) is public.
  */
-export function expensesAllowed(req: Pick<Request, 'headers'> & { htxAuthed?: boolean }, env = process.env): boolean {
+export function expensesAllowed(req: Pick<Request, 'headers'> & { htxAuthed?: boolean }, env = process.env, shared: string | null = null): boolean {
   if (req.htxAuthed === true) return true;
-  const token = env.EXPENSES_API_TOKEN;
+  const token = env.EXPENSES_API_TOKEN || shared;
   if (!token) return !env.K_SERVICE;
   const got = Buffer.from(String(req.headers.authorization ?? ''));
   const want = Buffer.from(`Bearer ${token}`);
@@ -51,7 +57,8 @@ export function expensesAllowed(req: Pick<Request, 'headers'> & { htxAuthed?: bo
 
 router.get('/', (req: Request, res: Response) => {
   (async () => {
-    if (!expensesAllowed(req)) return res.status(401).json({ error: 'Not allowed' });
+    const shared = process.env.EXPENSES_API_TOKEN ? null : await sharedSecret(EXPENSES_SECRET);
+    if (!expensesAllowed(req, process.env, shared)) return res.status(401).json({ error: 'Not allowed' });
     const want = typeof req.query.month === 'string' && /^\d{4}-\d{2}$/.test(req.query.month) ? req.query.month : null;
     const all = await readAllExtracted();
     const months = all

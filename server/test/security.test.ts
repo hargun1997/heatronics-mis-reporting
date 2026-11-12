@@ -132,6 +132,11 @@ test('/api/expenses: token or sign-in on Cloud Run, never open without a token t
   assert.equal(expensesAllowed({ headers: {}, htxAuthed: true }, env), true);
   assert.equal(expensesAllowed({ headers: {} }, { K_SERVICE: 'x' } as NodeJS.ProcessEnv), false);
   assert.equal(expensesAllowed({ headers: {} }, {} as NodeJS.ProcessEnv), true); // local dev, no token
+  // shared secret mis-expenses-token (no env token): same rules
+  const cr = { K_SERVICE: 'x' } as NodeJS.ProcessEnv;
+  assert.equal(expensesAllowed({ headers: { authorization: 'Bearer shared-1' } }, cr, 'shared-1'), true);
+  assert.equal(expensesAllowed({ headers: { authorization: 'Bearer wrong' } }, cr, 'shared-1'), false);
+  assert.equal(expensesAllowed({ headers: {} }, cr, 'shared-1'), false);
 });
 
 test('local object store keys cannot leave the store folder', () => {
