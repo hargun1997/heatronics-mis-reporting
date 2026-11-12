@@ -37,7 +37,7 @@ ${vch({ type: 'Journal', no: '10', date: '20261008', narr: 'RCM on GTA', body: l
 test('Day Book: vouchers with Dr / Cr lines, nested lists ignored, invoice-mode ledgers and items read', () => {
   const v = parseDayBook(DAYBOOK);
   assert.equal(v.length, 6);
-  assert.deepEqual(v[0].lines, [{ ledger: 'Freight Charges', amount: 1000 }, { ledger: 'IGST Input - 18%', amount: 180 }, { ledger: 'Acme Logistics Pvt Ltd', amount: -1180 }]);
+  assert.deepEqual(v[0].lines, [{ ledger: 'Freight Charges', amount: 1000, bills: [{ name: 'x', type: '', amount: -99 }] }, { ledger: 'IGST Input - 18%', amount: 180 }, { ledger: 'Acme Logistics Pvt Ltd', amount: -1180 }]);
   assert.equal(v[0].date, '2026-10-03');
   assert.equal(v[0].type, 'Purchase-Expense');
   assert.equal(v[0].reference, 'INV-1');
@@ -159,4 +159,15 @@ test('emptiedDays: days the stored copy had but a new pull returned empty', asyn
   assert.deepEqual(emptiedDays(stored, mk('2026-05-22', 8)), ['2026-05-01']);
   assert.deepEqual(emptiedDays(stored, [...mk('2026-05-01', 1), ...mk('2026-05-22', 1)]), []);
   assert.deepEqual(emptiedDays([], mk('2026-05-22', 1)), []);
+});
+
+test('parseDayBook: bill-wise and bank allocations are kept (Agst Ref, bank reconciliation date)', () => {
+  const xml = `<ENVELOPE>${vch({ type: 'Journal', no: 'UTR1', date: '20260501', body:
+    le('Shopify Prepaid Receivable', '8366.20', 'No', '<BILLALLOCATIONS.LIST><NAME>HTR-1-D2C</NAME><BILLTYPE>Agst Ref</BILLTYPE><AMOUNT>5000.00</AMOUNT></BILLALLOCATIONS.LIST><BILLALLOCATIONS.LIST><NAME>HTR-2-D2C</NAME><BILLTYPE>Agst Ref</BILLTYPE><AMOUNT>3366.20</AMOUNT></BILLALLOCATIONS.LIST>') +
+    le('Easebuzz Collection A/c', '-8366.20', 'Yes') })}${vch({ type: 'Receipt', no: '5', date: '20260502', body:
+    le('Easebuzz Collection A/c', '8192.71', 'No') + le('Central Bank', '-8192.71', 'Yes', '<BANKALLOCATIONS.LIST><DATE>20260502</DATE><INSTRUMENTDATE>20260502</INSTRUMENTDATE><BANKERSDATE>20260503</BANKERSDATE><TRANSACTIONTYPE>e-Fund Transfer</TRANSACTIONTYPE><INSTRUMENTNUMBER>YESF261216409678</INSTRUMENTNUMBER><UNIQUEREFERENCENUMBER>U1</UNIQUEREFERENCENUMBER><AMOUNT>-8192.71</AMOUNT></BANKALLOCATIONS.LIST>') })}</ENVELOPE>`;
+  const [j, r] = parseDayBook(xml);
+  assert.deepEqual(j.lines[0].bills, [{ name: 'HTR-1-D2C', type: 'Agst Ref', amount: -5000 }, { name: 'HTR-2-D2C', type: 'Agst Ref', amount: -3366.2 }]);
+  assert.equal(j.lines[1].bills, undefined);
+  assert.deepEqual(r.lines[1].bank, [{ bankDate: '2026-05-03', instrumentNo: 'YESF261216409678', instrumentDate: '2026-05-02', txnType: 'e-Fund Transfer', utr: 'U1', amount: 8192.71 }]);
 });
