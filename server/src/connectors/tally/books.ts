@@ -58,22 +58,52 @@ export interface TallyMasters { ledgers: TallyLedger[]; groups: TallyGroup[]; st
 
 const companyVar = (company?: string) => ((company || '').trim() ? `<SVCURRENTCOMPANY>${escapeXml(company!.trim())}</SVCURRENTCOMPANY>` : '');
 
-/** Day Book for [from, to] (YYYYMMDD), exploded so every voucher carries its ledger and inventory lines. */
-export function dayBookEnvelope(from: string, to: string, company?: string): string {
+/** Day Book for [from, to] (YYYYMMDD), exploded so every voucher carries its ledger and inventory lines.
+ *  Dates carry TYPE="Date": without it TallyPrime ignores the range and answers with its current date only
+ *  (seen 12-Nov-26: every stored month held the same 1-Oct-26 Day Book). `current` also sets SVCURRENTDATE,
+ *  which the one-day fallback uses (Day Book always honours the current date). */
+export function dayBookEnvelope(from: string, to: string, company?: string, current?: string): string {
   return `<ENVELOPE>
   <HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER>
   <BODY><EXPORTDATA><REQUESTDESC>
     <REPORTNAME>Day Book</REPORTNAME>
     <STATICVARIABLES>
       <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
-      <SVFROMDATE>${from}</SVFROMDATE>
-      <SVTODATE>${to}</SVTODATE>
+      <SVFROMDATE TYPE="Date">${from}</SVFROMDATE>
+      <SVTODATE TYPE="Date">${to}</SVTODATE>
+      ${current ? `<SVCURRENTDATE TYPE="Date">${current}</SVCURRENTDATE>` : ''}
       <EXPLODEFLAG>Yes</EXPLODEFLAG>
       ${companyVar(company)}
     </STATICVARIABLES>
   </REQUESTDESC></EXPORTDATA></BODY>
 </ENVELOPE>`;
 }
+
+/** One day's Day Book (YYYYMMDD) — the fallback when Tally ignores a date range. */
+export const dayBookDayEnvelope = (day: string, company?: string) => dayBookEnvelope(day, day, company, day);
+
+/** Every day of a month as YYYYMMDD. */
+export function monthDays(period: string): string[] {
+  const [y, m] = period.split('-').map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return Array.from({ length: last }, (_, i) => `${y}${String(m).padStart(2, '0')}${String(i + 1).padStart(2, '0')}`);
+}
+
+/** True when Tally clearly ignored the asked range: vouchers came back but none falls in it, or a whole month came
+ *  back on one single date (Tally's current date). Dates in the vouchers are YYYY-MM-DD; from/to are YYYYMMDD. */
+export function rangeIgnored(vouchers: { date: string }[], from: string, to: string): boolean {
+  if (!vouchers.length) return false;
+  const d = (x: string) => x.replace(/-/g, '');
+  const inside = vouchers.filter((v) => d(v.date) >= from && d(v.date) <= to);
+  if (!inside.length) return true;
+  const dates = new Set(vouchers.map((v) => v.date));
+  return from !== to && dates.size === 1 && vouchers.length >= 20;
+}
+
+/** Keep only vouchers dated inside [from, to] (YYYYMMDD). */
+export const inRange = <T extends { date: string }>(vouchers: T[], from: string, to: string): T[] =>
+  vouchers.filter((v) => { const x = v.date.replace(/-/g, ''); return x >= from && x <= to; });
+
 export const dayBookMonthEnvelope = (period: string, company?: string) => {
   const { from, to } = tallyDates(period);
   return dayBookEnvelope(from, to, company);
