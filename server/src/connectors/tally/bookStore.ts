@@ -80,7 +80,15 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; now
       let complete = true;
       // Each day is saved as soon as it is read: a request cut by the proxy (it answered 503 at ~90 s on 12 Nov 2026)
       // or a slow day that times out keeps every day read before it, and the next pull goes on from there.
-      const savePart = () => writeJson(`tally/books-partial-${period}`, { period, days: [...done], vouchers: got } satisfies PartialBooks);
+      // GCS allows about one write a second to one object: a fast Tally answered days quicker than that (429 on
+      // 12 Nov 2026), so a day is saved at most every 2 s; the last days are always saved below.
+      let lastSave = 0;
+      const writePart = () => writeJson(`tally/books-partial-${period}`, { period, days: [...done], vouchers: got } satisfies PartialBooks);
+      const savePart = async (always = false) => {
+        if (!always && Date.now() - lastSave < 2_000) return;
+        lastSave = Date.now();
+        await writePart();
+      };
       let dayError: string | null = null;
       for (const day of days) {
         if (done.has(day)) continue;
@@ -94,13 +102,30 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; now
           break;
         }
         if (!raw.daybook) raw.daybook = dx.slice(0, 300_000);
-        got.push(...inRange(parseDayBook(dx), day, day));
+        const parsed = parseDayBook(dx);
+        const inside = inRange(parsed, day, day);
+        if (parsed.length && !inside.length) {
+          // Tally answered with another day's vouchers (range ignored): never count the day as empty.
+          raw.daybook = dx.slice(0, 300_000);
+          complete = false;
+          dayError = `${day}: Tally sent vouchers of other dates, not of this day`;
+          break;
+        }
+        got.push(...inside);
         done.add(day);
         await savePart();
       }
       if (!complete) {
-        await savePart();
+        await savePart(true);
         error = `Day Book ${period}: read ${done.size} of ${days.length} days${dayError ? ` (stopped at ${dayError})` : ''}; pull again to finish.`;
+        break;
+      }
+      const stored = await readJson<StoredBooks | null>(`tally/books-${period}`, null);
+      if (!got.length && (stored?.vouchers.length ?? 0) > 0) {
+        // A whole month with no vouchers while the stored copy has some = Tally answered empty (wrong company open,
+        // or no company loaded). Keep the stored month; never replace good books with an empty month (12 Nov 2026).
+        await writeJson(`tally/books-partial-${period}`, null);
+        error = `Day Book ${period}: Tally sent no vouchers for the whole month (the stored copy has ${stored!.vouchers.length}); kept the stored copy. Check that the right company is open in Tally, then pull again.`;
         break;
       }
       await writeJson(`tally/books-partial-${period}`, null);
