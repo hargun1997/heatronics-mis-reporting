@@ -23,6 +23,8 @@ export interface CloseSlot {
    * How many days at the start / end of a month may have no rows before the report counts as partial.
    * null = no date check (one row a month, undated rows, or a source that is quiet on most days).
    */
+  /** Days a dated report may miss at each month edge. null = not checked: Meta, Google campaign and Amazon Ads ad spend are
+   *  month totals dated the 1st by both the upload parsers and the pulls (slots/map/ads.ts), so their dates say nothing about coverage. */
   edgeDays: number | null;
 }
 
@@ -44,10 +46,10 @@ export const CLOSE_SLOTS: CloseSlot[] = [
   { connectorId: 'flipkartads', slotId: 'ad-spend', label: 'Consolidated FSN ad report', short: 'Ad report', required: true, edgeDays: 5 },
   { connectorId: 'blinkit', slotId: 'order-charges', label: 'Payout · order-level charges', short: 'Payout', required: true, edgeDays: 3 },
   { connectorId: 'shopify', slotId: 'variant-sales', label: 'Sales by variant', short: 'Sales by variant', required: false, edgeDays: 3 },
-  { connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend · campaign × ad set × product', short: 'Ad spend', required: true, edgeDays: 3 },
-  { connectorId: 'googleads', slotId: 'ad-spend', label: 'Campaign report (total spend)', short: 'Campaign spend', required: true, edgeDays: 3 },
+  { connectorId: 'meta', slotId: 'ad-spend', label: 'Ad spend · campaign × ad set × product', short: 'Ad spend', required: true, edgeDays: null },
+  { connectorId: 'googleads', slotId: 'ad-spend', label: 'Campaign report (total spend)', short: 'Campaign spend', required: true, edgeDays: null },
   { connectorId: 'googleads', slotId: 'shopping-products', label: 'Shopping products (per-item cost, optional)', short: 'Shopping products', required: false, edgeDays: null },
-  { connectorId: 'amazonads', slotId: 'ad-spend', label: 'Advertised Product report', short: 'Ad spend', required: true, edgeDays: 3 },
+  { connectorId: 'amazonads', slotId: 'ad-spend', label: 'Advertised Product report', short: 'Ad spend', required: true, edgeDays: null },
   { connectorId: 'shiprocket', slotId: 'passbook', label: 'Wallet passbook', short: 'Freight', required: true, edgeDays: 3 },
   { connectorId: 'delhivery', slotId: 'wallet', label: 'Wallet report (warranty/returns freight)', short: 'Freight', required: true, edgeDays: null },
   { connectorId: 'easebuzz', slotId: 'settlement', label: 'Settlement / MDR', short: 'Settlement', required: true, edgeDays: 5 },
