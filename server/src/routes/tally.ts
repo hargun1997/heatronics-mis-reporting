@@ -6,7 +6,7 @@
 //   POST /api/tally/pull          check now, skipping the 20-min gap (signed in)
 //   Books (connectors/tally/books.ts + bookStore.ts), all signed in:
 //   GET  /api/tally/books/status              what is stored (masters age, months)
-//   POST /api/tally/books/pull {periods?}     pull masters + Day Books now (≤ ~2.5 min)
+//   POST /api/tally/books/pull {periods?, masters?}  pull masters + Day Books now; {masters:true} = masters/openings only
 //   GET  /api/tally/books/health?months=3     Tally health checks over the newest stored months
 //   GET  /api/tally/books/ledgers?q=          ledger master (+ voucher count in the stored months)
 //   GET  /api/tally/books/opening?q=&group=&all=1  opening balance of every ledger, Dr/Cr, totals by primary group + difference
@@ -175,7 +175,8 @@ router.post('/books/pull', h(async (req, res) => {
   const c = await creds();
   if (!(c.host || '').trim()) return res.json({ status: 'not_connected', detail: 'Enter the Tally host and port on Setup → Tally.' });
   const periods = Array.isArray(req.body?.periods) ? (req.body.periods as unknown[]).filter((p): p is string => typeof p === 'string' && PERIOD.test(p)).slice(0, 6) : undefined;
-  const r = await pullBooks(c, { force: !periods, budgetMs: 82_000, periods }); // under the proxy cut (503 at ~90 s); a busy Tally took > 45 s for one day (13 Nov 2026), so a day may take up to 78 s; every day is saved, months resume
+  const masters = req.body?.masters === true; // {masters:true, periods:[]} = ledger masters + openings only
+  const r = await pullBooks(c, { force: !periods && !masters, masters, budgetMs: 82_000, periods: masters && !periods ? [] : periods }); // under the proxy cut (503 at ~90 s); a busy Tally took > 45 s for one day (13 Nov 2026), so a day may take up to 78 s; every day is saved, months resume
   res.json({ status: r.error && !r.masters && !r.months.length && !/pull again/.test(r.error) ? 'down' : 'ok', ...r });
 }));
 

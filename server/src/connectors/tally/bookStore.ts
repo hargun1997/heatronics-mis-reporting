@@ -42,7 +42,7 @@ export function booksToPull(now: number, s: BooksState, force = false): string[]
 }
 
 /** Masters (once a day, or forced) then Day Books until `budgetMs` runs out. Never throws. */
-export async function pullBooks(creds: Credentials, opts: { force?: boolean; now?: number; budgetMs?: number; periods?: string[] } = {}): Promise<{ masters: boolean; months: string[]; error: string | null }> {
+export async function pullBooks(creds: Credentials, opts: { force?: boolean; masters?: boolean; now?: number; budgetMs?: number; periods?: string[] } = {}): Promise<{ masters: boolean; months: string[]; error: string | null }> {
   const now = opts.now ?? Date.now();
   const deadline = Date.now() + (opts.budgetMs ?? 120_000);
   const s = await readBooksState();
@@ -52,7 +52,7 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; now
   const months: string[] = [];
   let error: string | null = null;
   try {
-    if (opts.force || !s.mastersAt || now - Date.parse(s.mastersAt) > 20 * H) {
+    if (opts.force || opts.masters || !s.mastersAt || now - Date.parse(s.mastersAt) > 20 * H) {
       const gx = await post(creds, mastersEnvelope('Groups', creds.company), 60_000);
       const lx = await post(creds, mastersEnvelope('Ledgers', creds.company), 90_000);
       let sx = '';
