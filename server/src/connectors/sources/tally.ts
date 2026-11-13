@@ -92,6 +92,14 @@ export function assertTallyReadOnly(xml: string): void {
   }
 }
 
+/** Tally's own error answer (e.g. "Could not set 'SVCurrentCompany' to '…'" when the company is not loaded): a short
+ *  RESPONSE holding only a LINEERROR. Read as data it looked like an empty day (14 Nov 2026). Returns the message, else null. */
+export function tallyLineError(text: string): string | null {
+  if (text.length > 4_000) return null;
+  const m = /<LINEERROR>([\s\S]*?)<\/LINEERROR>/i.exec(text);
+  return m ? decode(m[1]).trim() : null;
+}
+
 export async function post(creds: Credentials, xml: string, timeoutMs = 30000): Promise<string> {
   assertTallyReadOnly(xml);
   const controller = new AbortController();
@@ -105,6 +113,8 @@ export async function post(creds: Credentials, xml: string, timeoutMs = 30000): 
     });
     const text = await res.text();
     if (!res.ok) throw new Error(`Tally returned ${res.status}: ${text.slice(0, 200)}`);
+    const lineError = tallyLineError(text);
+    if (lineError) throw new Error(`Tally refused the request: ${lineError}. Open this company in the Tally the MIS connects to.`);
     return text;
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
