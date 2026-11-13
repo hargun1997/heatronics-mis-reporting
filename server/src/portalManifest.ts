@@ -246,6 +246,35 @@ export const portalManifest = {
       }
     },
     {
+      "id": "tally-day",
+      "method": "GET",
+      "path": "/api/tally/books/day?date=<date>&q=<q>",
+      "auth": "session",
+      "purpose": "One day of Tally vouchers, read live from Tally",
+      "mcp": {
+        "tool": "mis_get_tally_day",
+        "description": "One day's Tally Day Book read LIVE from Tally (Tally must be open; up to about 80 s), filtered by a search word (voucher number, party, ledger). Use to check a voucher just changed in Tally. Returns status ok / down / not_connected.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": "string",
+              "description": "YYYY-MM-DD"
+            },
+            "q": {
+              "type": "string",
+              "description": "Search word"
+            }
+          },
+          "required": [
+            "date"
+          ]
+        },
+        "returns": "Voucher rows of that day"
+      }
+    },
+    {
       "id": "tally-ledgers",
       "method": "GET",
       "path": "/api/tally/books/ledgers?q=<q>",

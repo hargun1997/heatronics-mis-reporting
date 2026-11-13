@@ -29,8 +29,8 @@
 import { Router, type Request, type Response } from 'express';
 import { getEffectiveCredentials } from '../connectors/credentialStore.js';
 import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../connectors/tally/snapshots.js';
-import { latestMonths, pullBooks, readBooks, readBooksState, readMasters, readVouchers } from '../connectors/tally/bookStore.js';
-import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport } from '../connectors/tally/books.js';
+import { addDayToPartial, latestMonths, mergePartial, pullBooks, pullDay, readBooks, readBooksState, readMasters, readPartial, readVouchers } from '../connectors/tally/bookStore.js';
+import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport, type TallyVoucher } from '../connectors/tally/books.js';
 import { buildChart, closingByLedger, type ChartReport } from '../connectors/tally/chart.js';
 import { openingReport } from '../connectors/tally/opening.js';
 import { ledgerStatement, monthsBetween, register, tdsCheck } from '../connectors/tally/audit.js';
@@ -295,17 +295,40 @@ router.get('/books/raw-sample', h(async (req, res) => {
   res.json({ at: raw?.at ?? null, bytes: xml.length, blocks: (xml.match(re) ?? []).slice(0, 5).map((b) => b.slice(0, 4_000)) });
 }));
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const matches = (v: TallyVoucher, q: string) => !q || `${v.type} ${v.number} ${v.party} ${v.reference} ${v.narration} ${v.lines.map((l) => l.ledger).join(' ')}`.toLowerCase().includes(q);
+
 router.get('/books/vouchers', h(async (req, res) => {
   const period = String(req.query.period || '');
   if (!PERIOD.test(period)) return res.status(400).json({ error: 'period=YYYY-MM' });
   const q = String(req.query.q || '').toLowerCase().trim();
-  const doc = await readBooks(period);
-  const all = doc?.vouchers ?? [];
-  const rows = q ? all.filter((v) => `${v.type} ${v.number} ${v.party} ${v.reference} ${v.narration} ${v.lines.map((l) => l.ledger).join(' ')}`.toLowerCase().includes(q)) : all;
+  const [doc, part] = await Promise.all([readBooks(period), readPartial(period)]);
+  // Days read since the stored copy (a pull that has not finished the month yet) are fresher: shown on top of it.
+  const { vouchers: all, freshDays } = mergePartial(doc?.vouchers ?? [], part);
+  const rows = all.filter((v) => matches(v, q));
   // ?offset=&limit= (≤ 2,000) pages through every stored voucher of the month (books audit export); default = the first 400.
   const offset = Math.max(0, Number.parseInt(String(req.query.offset ?? '0'), 10) || 0);
   const limit = Math.min(2_000, Math.max(1, Number.parseInt(String(req.query.limit ?? '400'), 10) || 400));
-  res.json({ period, asOf: doc?.asOf ?? null, total: all.length, matched: rows.length, offset, rows: rows.slice(offset, offset + limit) });
+  res.json({ period, asOf: doc?.asOf ?? null, freshDays: freshDays.length, total: all.length, matched: rows.length, offset, rows: rows.slice(offset, offset + limit) });
+}));
+
+// One day straight from Tally (READ ONLY export; Tally must be open). ?date=YYYY-MM-DD&q= . Also fills that day into a
+// month that is being read, so a heavy day can be fetched on its own.
+router.get('/books/day', h(async (req, res) => {
+  const date = String(req.query.date || '');
+  if (!DAY.test(date)) return res.status(400).json({ error: 'date=YYYY-MM-DD' });
+  const q = String(req.query.q || '').toLowerCase().trim();
+  const c = await creds();
+  if (!(c.host || '').trim()) return res.json({ status: 'not_connected', date, detail: 'Enter the Tally host and port on Setup → Tally.' });
+  let vouchers: TallyVoucher[];
+  try {
+    vouchers = await pullDay(c, date.replace(/-/g, ''), 78_000); // under the proxy cut (~90 s)
+  } catch (e) {
+    return res.json({ status: 'down', date, error: e instanceof Error ? e.message : String(e) });
+  }
+  const savedToPartial = await addDayToPartial(date.replace(/-/g, ''), vouchers);
+  const rows = vouchers.filter((v) => matches(v, q));
+  res.json({ status: 'ok', date, asOf: new Date().toISOString(), savedToPartial, total: vouchers.length, matched: rows.length, rows: rows.slice(0, 400) });
 }));
 
 router.post('/books/ask', h(async (req, res) => {
