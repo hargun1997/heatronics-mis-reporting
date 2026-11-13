@@ -326,6 +326,12 @@ router.get('/books/day', h(async (req, res) => {
   } catch (e) {
     return res.json({ status: 'down', date, error: e instanceof Error ? e.message : String(e) });
   }
+  // An empty answer is usually Tally with no company (or another company) loaded: never save it, say so.
+  if (!vouchers.length) {
+    const stored = mergePartial((await readBooks(date.slice(0, 7)))?.vouchers ?? [], await readPartial(date.slice(0, 7))).vouchers.filter((v) => v.date === date).length;
+    return res.json({ status: 'empty', date, total: 0, matched: 0, rows: [], storedThatDay: stored,
+      detail: stored ? `Tally sent no vouchers for ${date}, but the stored copy has ${stored}. Check that the company is open in Tally, then try again.` : `Tally sent no vouchers for ${date}.` });
+  }
   const savedToPartial = await addDayToPartial(date.replace(/-/g, ''), vouchers);
   const rows = vouchers.filter((v) => matches(v, q));
   res.json({ status: 'ok', date, asOf: new Date().toISOString(), savedToPartial, total: vouchers.length, matched: rows.length, rows: rows.slice(0, 400) });
