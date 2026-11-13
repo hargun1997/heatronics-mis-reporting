@@ -8,12 +8,13 @@ import { ArrowRight, CornerDownLeft, History, Moon, PanelLeft, Pin, Search } fro
 import { paletteIndex, searchPalette, whereIs } from '../../nav/config';
 import { THEMES, usePins, useRecents, useTheme } from './prefs';
 import { useShell } from './ShellContext';
+import { pageAllowed, useHtxPages } from './useHtxPages';
 import { useOverlay } from './useOverlay';
 import { cx } from './cx';
 
 interface Row { id: string; label: string; hint?: string; group: string; icon: 'page' | 'recent' | 'pin' | 'cmd'; run: (newTab?: boolean) => void }
 
-const INDEX = paletteIndex();
+const ALL = paletteIndex();
 
 export function CommandPalette() {
   const { paletteOpen: open, closePalette } = useShell();
@@ -39,7 +40,9 @@ function Palette({ close }: { close: () => void }) {
     navigate(href);
   };
 
+  const pages = useHtxPages();
   const rows: Row[] = useMemo(() => {
+    const INDEX = ALL.filter((i) => pageAllowed(pages, i.id));
     const out: Row[] = [];
     const here = whereIs(path);
     const commands: Row[] = [
@@ -58,7 +61,7 @@ function Palette({ close }: { close: () => void }) {
     out.push(...searchPalette(commands.map((c) => ({ ...c, words: c.label.toLowerCase() })), q, 3));
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, pins, recents, path, theme]);
+  }, [q, pins, recents, path, theme, pages]);
 
   useEffect(() => { listRef.current?.querySelector<HTMLElement>(`[data-i="${active}"]`)?.scrollIntoView({ block: 'nearest' }); }, [active]);
 

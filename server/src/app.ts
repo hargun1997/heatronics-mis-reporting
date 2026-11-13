@@ -37,6 +37,7 @@ import roundPlannerRoutes from './routes/roundPlanner.js';
 import planningRoutes from './routes/planning.js';
 import expensesRoutes from './routes/expenses.js';
 import { htxGate } from './htxGate.js';
+import { HTX_PAGES } from './htxPages.js';
 import { portalManifest } from './portalManifest.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,6 +57,7 @@ app.get('/.well-known/portal.json', (_req, res) => {
 app.use(htxGate({
   portal: 'mis',
   host: 'mis.heatronics.in',
+  catalog: HTX_PAGES, // People & teams on portal.heatronics.in: which pages each person may open
   openPaths: [
     '/api/work/reminders/run',      // hourly GitHub Actions cron (.github/workflows/task-reminders.yml)
     '/api/ownership/reminders/run', // reminder scheduler

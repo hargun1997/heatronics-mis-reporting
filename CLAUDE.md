@@ -5,7 +5,11 @@ Every page and API needs a Heatronics login. server/src/htxGate.ts (mounted in s
 (`https://portal.heatronics.in/api/auth/check?portal=mis`) whether the visitor's `htx_session`
 cookie may open this tool (cached 60s), and otherwise redirects to the portal's login or "no access"
 page (APIs get 401/403 JSON). The `.run.app` address redirects to mis.heatronics.in.
-Who has access is managed at https://portal.heatronics.in/admin (Hargun only).
+Who has access is managed at https://portal.heatronics.in/admin (Hargun only). **People & teams (13 Nov 2026):** the check may also send
+`pages` (menu page ids). `htxGate({catalog: HTX_PAGES})` refuses pages not granted (APIs stay open to anyone who can open the MIS; Today goes to
+the first granted page), serves `/.well-known/htx-pages.json` and `GET /api/htx/pages`; the sidebar, ⌘K and MainLayout (notice on a client-side
+move) read it (`client/src/components/shell/useHtxPages.ts`). `server/src/htxPages.ts` is GENERATED from `client/src/nav/config.ts`:
+`node --experimental-strip-types scripts/gen-htx-pages.mjs` (test `server/test/htxPages.test.ts`). No `pages` = everything opens.
 Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron), `/api/expenses` (read by production.heatronics.in, own token), `/api/tally/poll` and `/api/connectors/auto-pull/run` (GitHub Actions daily; Bearer = secret `mis-auto-pull-token` / env MIS_AUTO_PULL_TOKEN, repo secret MIS_AUTO_PULL_TOKEN; no token on Cloud Run = refused; a token call only starts the once-a-day run and answers counts). Never add pages there.
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 **Security rules (9 Nov 2026, `server/test/security.test.ts`):** the app is built in `server/src/app.ts` (index.ts only listens) so the test lists

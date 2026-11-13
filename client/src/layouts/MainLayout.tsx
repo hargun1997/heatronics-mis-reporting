@@ -8,6 +8,7 @@ import { ShellContext } from '../components/shell/ShellContext';
 import { pushRecent } from '../components/shell/prefs';
 import { PageErrorBoundary } from '../components/shell/PageErrorBoundary';
 import { whereIs } from '../nav/config';
+import { pageAllowed, useHtxPages } from '../components/shell/useHtxPages';
 
 // The chats pull in the Live MIS deck / the handbook: loaded after the shell, in their own chunks.
 const FloatingChat = lazy(() => import('../components/chat/FloatingChat').then((m) => ({ default: m.FloatingChat })));
@@ -19,6 +20,8 @@ function PageLoading() {
 
 export function MainLayout() {
   const path = useLocation().pathname;
+  const pages = useHtxPages();
+  const blocked = !pageAllowed(pages, whereIs(path)?.page.id);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const closePalette = useCallback(() => setPaletteOpen(false), []);
@@ -46,7 +49,12 @@ export function MainLayout() {
         <main id="main" tabIndex={-1} className="min-w-0 focus:outline-none">
           <PageErrorBoundary key={path}>
             <Suspense fallback={<PageLoading />}>
-              <Outlet />
+              {blocked ? (
+                <div className="mx-auto max-w-md p-6">
+                  <h1 className="text-lg font-semibold text-stone-900">You can&apos;t open this page</h1>
+                  <p className="mt-2 text-sm text-stone-600">Ask Hargun to give your team this page on portal.heatronics.in.</p>
+                </div>
+              ) : <Outlet />}
             </Suspense>
           </PageErrorBoundary>
         </main>
