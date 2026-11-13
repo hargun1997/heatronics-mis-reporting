@@ -171,3 +171,44 @@ export function emptiedDays(stored: { date: string }[], fresh: { date: string }[
   const now = new Set(fresh.map((v) => v.date));
   return [...had].filter(([d, n]) => n >= min && !now.has(d)).map(([d]) => d).sort();
 }
+
+// ---- One day on request + half-read months (14 Nov 2026: a heavy day such as 31-Aug kept a whole month out of reach).
+export const readPartial = (period: string) => readJson<PartialBooks | null>(`tally/books-partial-${period}`, null);
+
+/** One day's vouchers straight from Tally (READ ONLY export). day = YYYYMMDD. Throws when Tally does not answer. */
+export async function pullDay(creds: Credentials, day: string, timeoutMs = 78_000): Promise<TallyVoucher[]> {
+  const dx = await post(creds, dayBookDayEnvelope(day, creds.company), timeoutMs);
+  const parsed = parseDayBook(dx);
+  const inside = inRange(parsed, day, day);
+  if (parsed.length && !inside.length) throw new Error(`Tally sent vouchers of other dates, not of ${day}`);
+  return inside;
+}
+
+/** Adds a day pulled on request to the month's partial file, when that month is being read and the day is not in it yet.
+ *  Never touches a stored (complete) month. Best effort: errors are swallowed. */
+export async function addDayToPartial(day: string, vouchers: TallyVoucher[]): Promise<boolean> {
+  try {
+    const period = `${day.slice(0, 4)}-${day.slice(4, 6)}`;
+    const part = await readPartial(period);
+    if (!part || part.days.includes(day)) return false;
+    await writeJson(`tally/books-partial-${period}`, { period, days: [...part.days, day], vouchers: [...part.vouchers, ...vouchers] } satisfies PartialBooks);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Stored month + the days read since (pure). A half-read day replaces the stored copy of that day, except a day that came back
+ *  empty while the stored copy has vouchers on it (Tally answered empty: keep the stored day). */
+export function mergePartial(stored: TallyVoucher[], part: { days: string[]; vouchers: TallyVoucher[] } | null): { vouchers: TallyVoucher[]; freshDays: string[] } {
+  if (!part || !part.days.length) return { vouchers: stored, freshDays: [] };
+  const key = (d: string) => d.replace(/-/g, '');
+  const partDays = new Set(part.days);
+  const withPart = new Set(part.vouchers.map((v) => key(v.date)));
+  const storedDays = new Set(stored.map((v) => key(v.date)));
+  const fresh = [...partDays].filter((d) => withPart.has(d) || !storedDays.has(d));
+  const freshSet = new Set(fresh);
+  const out = [...stored.filter((v) => !freshSet.has(key(v.date))), ...part.vouchers.filter((v) => freshSet.has(key(v.date)))];
+  out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return { vouchers: out, freshDays: fresh.sort() };
+}
