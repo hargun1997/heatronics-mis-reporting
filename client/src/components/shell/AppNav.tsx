@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent } fro
 import { Link, useLocation } from 'react-router-dom';
 import { Flame, Menu, Moon, PanelLeftClose, PanelLeftOpen, Pin, Rows3, Search, Sun, X } from 'lucide-react';
 import { HOME, sidebarSections, whereIs, type NavPage } from '../../nav/config';
+import { pageAllowed, useHtxPages } from './useHtxPages';
 import { NAV_ICON } from './navIcons';
 import { K, store, THEMES, usePins, useTheme, type Theme } from './prefs';
 import { useShell } from './ShellContext';
@@ -45,7 +46,8 @@ export function AppNav() {
   }, []);
   useOverlay(open, drawer, () => setOpen(false), { initialFocus: closeBtn });
 
-  const sections = sidebarSections();
+  const pages = useHtxPages();
+  const sections = sidebarSections().map((s) => ({ ...s, pages: s.pages.filter((p) => pageAllowed(pages, p.id)) })).filter((s) => s.pages.length);
   const here = whereIs(path);
   const main = sections;
   const issues = useIssueCount();
