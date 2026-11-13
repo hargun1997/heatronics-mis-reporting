@@ -253,7 +253,7 @@ export const portalManifest = {
       "purpose": "One day of Tally vouchers, read live from Tally",
       "mcp": {
         "tool": "mis_get_tally_day",
-        "description": "One day's Tally Day Book read LIVE from Tally (Tally must be open; up to about 80 s), filtered by a search word (voucher number, party, ledger). Use to check a voucher just changed in Tally. Returns status ok / down / not_connected.",
+        "description": "One day's Tally Day Book read LIVE from Tally (Tally must be open; up to about 80 s), filtered by a search word (voucher number, party, ledger). Use to check a voucher just changed in Tally. Returns status ok / empty (Tally sent nothing: company not open) / down / not_connected.",
         "access": "read",
         "input": {
           "type": "object",
