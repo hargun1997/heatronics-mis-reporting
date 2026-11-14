@@ -85,13 +85,13 @@ function readCookie(header: string | undefined, name: string): string | null {
 }
 
 export function htxGate({ portal, host, openPaths = [], catalog }: Opts) {
-  const cache = new Map<string, { at: number; status: number; email?: string; pages?: PageGrant | null }>();
+  const cache = new Map<string, { at: number; status: number; email?: string; pages?: PageGrant | null; admin?: boolean }>();
   const open = new Set(["/api/health", "/health", ...openPaths]);
   const published = catalog
     ? JSON.stringify({ schema: 1, portal: catalog.portal, pages: catalog.pages.map(({ id, name, group, paths }) => ({ id, name, ...(group ? { group } : {}), paths })) })
     : null;
 
-  async function check(token: string): Promise<{ status: number; email?: string; pages?: PageGrant | null }> {
+  async function check(token: string): Promise<{ status: number; email?: string; pages?: PageGrant | null; admin?: boolean }> {
     const hit = cache.get(token);
     if (hit && Date.now() - hit.at < TTL) return hit;
     const r = await fetch(`${HUB}/api/auth/check?portal=${encodeURIComponent(portal)}`, {
@@ -102,15 +102,17 @@ export function htxGate({ portal, host, openPaths = [], catalog }: Opts) {
       // The portal may name the visitor (Ops forwards it too); used only for the audit trail of month locks.
       let email: string | undefined;
       let pages: PageGrant | null = null;
+      let admin = false;
       if (r.status === 200) {
         try {
-          const b = (await r.json()) as { email?: unknown; user?: { email?: unknown }; pages?: unknown };
+          const b = (await r.json()) as { email?: unknown; user?: { email?: unknown }; pages?: unknown; admin?: unknown };
           const e = b?.email ?? b?.user?.email;
           if (typeof e === "string" && e.includes("@")) email = e.slice(0, 120);
           pages = parsePages(b?.pages);
+          admin = b?.admin === true; // portal.heatronics.in: owner or a listed admin
         } catch { /* body is optional */ }
       }
-      const entry = { at: Date.now(), status: r.status, email, pages };
+      const entry = { at: Date.now(), status: r.status, email, pages, admin };
       cache.set(token, entry);
       return entry;
     }
@@ -141,7 +143,7 @@ export function htxGate({ portal, host, openPaths = [], catalog }: Opts) {
         if (t) {
           try {
             const c = await check(t);
-            if (c.status === 200) { req.htxAuthed = true; req.htxUser = c.email; }
+            if (c.status === 200) { req.htxAuthed = true; req.htxUser = c.email; req.htxAdmin = c.admin === true; }
           } catch { /* the open path still runs, as a machine call */ }
         }
       }
@@ -149,6 +151,7 @@ export function htxGate({ portal, host, openPaths = [], catalog }: Opts) {
     }
     if (localDev || gateOff()) {
       req.htxAuthed = true;
+      req.htxAdmin = true;
       if (pathname === "/api/htx/pages") return res.json({ pages: null });
       return next();
     }
@@ -165,6 +168,7 @@ export function htxGate({ portal, host, openPaths = [], catalog }: Opts) {
         const c = await check(token);
         status = c.status;
         req.htxUser = c.email;
+        req.htxAdmin = c.status === 200 && c.admin === true;
         pages = c.pages ?? null;
       } catch {
         status = 503;
@@ -194,4 +198,14 @@ export function htxGate({ portal, host, openPaths = [], catalog }: Opts) {
     if (status === 403) return res.redirect(302, `${HUB}/denied?portal=${encodeURIComponent(portal)}`);
     return res.redirect(302, `${HUB}/login?next=${encodeURIComponent(here)}`);
   };
+}
+
+/**
+ * Admin-only routes (14 Nov 2026): who is an admin comes from portal.heatronics.in (`admin` in /api/auth/check).
+ * Used on routes that change shared passwords (Connectors page), which Ops and Marketing also read.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function requireAdmin(req: any, res: any, next: any) {
+  if (req.htxAdmin === true) return next();
+  return res.status(403).json({ error: "Only an admin can change this. Ask an admin in portal.heatronics.in." });
 }

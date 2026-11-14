@@ -28,6 +28,7 @@ import { autoPullCaller, manualSlots, runAutoPull, runCounts, type AutoPullDeps,
 import { sharedSecret } from '../connectors/sharedSecrets.js';
 import { storedSlotReport } from '../connectors/slots/closeSlots.js';
 import { listReports, readAllExtracted, readJson, saveReport, writeJson } from '../ingest/objectStore.js';
+import { requireAdmin } from '../htxGate.js';
 import type { LockStore } from '../ingest/closeLocks.js';
 
 const router = Router();
@@ -210,7 +211,7 @@ router.get('/:id', h(async (req, res) => {
 }));
 
 // Save (merge) credentials. Only known field keys are stored.
-router.put('/:id/credentials', h(async (req, res) => {
+router.put('/:id/credentials', requireAdmin, h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
 
@@ -242,7 +243,7 @@ router.put('/:id/credentials', h(async (req, res) => {
   res.json({ connected: true });
 }));
 
-router.delete('/:id/credentials', h(async (req, res) => {
+router.delete('/:id/credentials', requireAdmin, h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
   await removeCredentials(c.id);
