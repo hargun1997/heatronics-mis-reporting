@@ -22,6 +22,14 @@ import { runRateArr } from '../../data/planning/growth';
 import { PnlGrid } from '../../components/planning/PnlGrid';
 import { monthBefore, openingFromTally } from '../../data/planning/opening';
 
+/** Excel download spans: months from the plan start (Oct-26); 0 = the whole plan. */
+const DOWNLOAD_SPANS = [
+  { months: 12, label: '1 year (to Sep-27)' },
+  { months: 18, label: '18 months (to Mar-28)' },
+  { months: 30, label: '3 years (to Mar-29)' },
+  { months: 0, label: '5 years (to Mar-31)' },
+];
+
 interface Saved { id: string; name: string; note: string; updatedAt: string; updatedBy: string | null }
 type View = 'overview' | 'business' | 'revenue' | 'costs' | 'monthly' | 'cash' | 'products' | 'actual';
 
@@ -181,7 +189,10 @@ export function PlanningPage() {
               </select>
               {selected !== 'base' && <button type="button" disabled={busy} onClick={() => save(true)} className={MENU}>Save as new scenario</button>}
               <button type="button" disabled={!dirty} onClick={() => { if (window.confirm('Remove all changes made after the last save?')) setPlan(JSON.parse(cleanJson)); }} className={MENU}>Undo changes</button>
-              <button type="button" onClick={() => void import('../../utils/planningExport').then((m) => m.downloadPlanWorkbook(plan, result))} className={MENU}>Download Excel</button>
+              <p className="px-2 pt-2 text-xs font-medium text-slate-600">Download Excel</p>
+              {DOWNLOAD_SPANS.map((d) => (
+                <button key={d.months} type="button" onClick={() => void import('../../utils/planningExport').then((m) => m.downloadPlanWorkbook(plan, result, d.months))} className={MENU}>{d.label}</button>
+              ))}
               <Link to="/tools/round-planner" className={MENU}>Open Round planner</Link>
               {selected !== 'base' && <button type="button" onClick={remove} className={MENU + ' text-rose-700'}>Delete this scenario</button>}
             </div>

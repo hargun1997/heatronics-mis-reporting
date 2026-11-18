@@ -4,7 +4,8 @@
 
 import XLSX from 'xlsx-js-style';
 import { saveAs } from 'file-saver';
-import { CHANNELS, CHANNEL_NAMES, EXPENSE_GROUP, type MonthResult, type Plan, type PlanResult } from '../data/planning/engine';
+import { CHANNELS, CHANNEL_NAMES, EXPENSE_GROUP, runPlan, type MonthResult, type Plan, type PlanResult } from '../data/planning/engine';
+import { capitalByYear, linesByYear } from '../data/planning/byYear';
 import { dilution, roundStats, runRateArr } from '../data/planning/growth';
 import { deployment, headline, theAsk } from '../data/planning/summary';
 
@@ -35,7 +36,10 @@ function sheet(rows: (string | number | null)[][], opts: { pctRows?: Set<number>
   return ws;
 }
 
-export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
+/** `months` cuts the plan at that many months from its start (the plan is re-run to that horizon); 0 / undefined = whole plan. */
+export function downloadPlanWorkbook(plan: Plan, full: PlanResult, months = 0) {
+  const cut = months > 0 && months < full.months.length;
+  const r = cut ? runPlan({ ...plan, levers: { ...plan.levers, horizon: months } }) : full;
   const wb = XLSX.utils.book_new();
 
   // ---- 5-year summary (₹ Cr) ----
@@ -76,6 +80,58 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
   sum.push(['Exit run-rate ARR, last 3 months × 4 (₹ Cr)', r2(runRateArr(r) / CRORE)]);
   sum.push(['Equity in the plan incl. seed and rounds (₹ Cr)', r2(r.equityPlanned / CRORE)]);
   XLSX.utils.book_append_sheet(wb, sheet(sum, { pctRows, boldRows: bold, widths: [44, 14, 14, 14, 14, 14] }), 'Overview');
+
+  // ---- products by year: revenue and units per line ----
+  {
+    const { fys: lf, lines } = linesByYear(plan, r);
+    const head = (y: string) => y + (r.years.find((x) => x.fy === y)!.months < 12 ? ` (${r.years.find((x) => x.fy === y)!.months} mo)` : '');
+    const rows: (string | number | null)[][] = [['Revenue by product line (₹ Cr, net)', ...lf.map(head)]];
+    const boldRows = new Set<number>(), pctRows = new Set<number>();
+    for (const l of lines) rows.push([l.line, ...lf.map((f) => r2(l.revenue[f] / CRORE))]);
+    rows.push(['Total', ...lf.map((f) => r2(lines.reduce((a, l) => a + l.revenue[f], 0) / CRORE))]); boldRows.add(rows.length - 1);
+    rows.push(['Growth YoY', ...lf.map((f, i) => {
+      if (!i) return null;
+      const a = lines.reduce((x, l) => x + l.revenue[lf[i - 1]], 0), b = lines.reduce((x, l) => x + l.revenue[f], 0);
+      return r.years[i - 1].months === 12 && a > 0 ? b / a - 1 : null;
+    })]); pctRows.add(rows.length - 1);
+    rows.push([]);
+    rows.push(['Units sold by product line', ...lf.map(head)]); boldRows.add(rows.length - 1);
+    for (const l of lines) rows.push([l.line, ...lf.map((f) => Math.round(l.units[f]))]);
+    rows.push(['Total', ...lf.map((f) => Math.round(lines.reduce((a, l) => a + l.units[f], 0)))]); boldRows.add(rows.length - 1);
+    rows.push([]);
+    rows.push(['Net revenue per unit (₹)', ...lf.map(head)]); boldRows.add(rows.length - 1);
+    for (const l of lines) rows.push([l.line, ...lf.map((f) => (l.units[f] > 0 ? Math.round(l.revenue[f] / l.units[f]) : null))]);
+    const ws = sheet(rows, { pctRows, boldRows, widths: [40, ...lf.map(() => 14)] });
+    const unitBlock = rows.findIndex((x) => x[0] === 'Units sold by product line');
+    for (const [ref, c] of Object.entries(ws)) if (!ref.startsWith('!') && (c as XLSX.CellObject).t === 'n' && XLSX.utils.decode_cell(ref).r > unitBlock) (c as XLSX.CellObject).z = '#,##0';
+    XLSX.utils.book_append_sheet(wb, ws, 'Products by year');
+  }
+
+  // ---- capital requirement by year ----
+  {
+    const cap = capitalByYear(r);
+    const rows: (string | number | null)[][] = [['₹ Cr', ...cap.map((c) => c.fy), 'Total']];
+    const boldRows = new Set<number>();
+    const line = (label: string, vals: number[], total = true, b = false) => {
+      rows.push([label, ...vals.map((v) => r2(v / CRORE)), total ? r2(vals.reduce((a, v) => a + v, 0) / CRORE) : null]);
+      if (b) boldRows.add(rows.length - 1);
+    };
+    line('EBITDA', cap.map((c) => c.ebitda));
+    line('Capex', cap.map((c) => -c.capex));
+    line('Net cash flow before funding (after tax, interest, working capital, capex)', cap.map((c) => c.operatingCash), true, true);
+    line('Equity raised (seed + rounds)', cap.map((c) => c.equity));
+    line('Debt drawn less repaid', cap.map((c) => c.debtNet));
+    line('Closing cash', cap.map((c) => c.closingCash), false, true);
+    line('Lowest month-end cash in the year', cap.map((c) => c.lowestCash), false);
+    rows.push([]);
+    rows.push(['Funding', 'Month', 'Amount (₹ Cr)', 'Pre-money (₹ Cr)', 'Status']); boldRows.add(rows.length - 1);
+    const seed = plan.fx?.seed;
+    if (seed?.on && !plan.fx?.sheetParity && seed.month <= r.months.length) rows.push(['Seed', r.months[seed.month - 1]?.label ?? '', r2(seed.amount / CRORE), null, seed.confirmed ? 'Confirmed' : 'Placeholder']);
+    const vd = plan.fx?.ventureDebt;
+    if (vd?.on && !plan.fx?.sheetParity && vd.drawMonth <= r.months.length) rows.push(['Venture debt', r.months[vd.drawMonth - 1]?.label ?? '', r2(vd.amount / CRORE), null, vd.confirmed ? 'Confirmed' : 'Placeholder']);
+    if (plan.growth?.on) for (const g of plan.growth.rounds.filter((x) => x.on && x.month <= r.months.length)) rows.push([g.name, r.months[g.month - 1]?.label ?? '', r2(g.amount / CRORE), g.preMoney ? r2(g.preMoney / CRORE) : null, g.confirmed ? 'Confirmed' : 'Placeholder']);
+    XLSX.utils.book_append_sheet(wb, sheet(rows, { boldRows, widths: [52, ...cap.map(() => 12), 12] }), 'Capital by year');
+  }
 
   // ---- business plan (the sheet's Business Plan tab) ----
   if (plan.business) {
@@ -354,5 +410,6 @@ export function downloadPlanWorkbook(plan: Plan, r: PlanResult) {
 
   const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   const safe = plan.name.replace(/[^\w\- ]+/g, '').trim() || 'Plan';
-  saveAs(new Blob([out], { type: 'application/octet-stream' }), `Heatronics 5-year plan — ${safe}.xlsx`);
+  const span = cut ? `${months} months to ${r.months[r.months.length - 1].label}` : `to ${r.months[r.months.length - 1].label}`;
+  saveAs(new Blob([out], { type: 'application/octet-stream' }), `Heatronics plan — ${safe} — ${span}.xlsx`);
 }

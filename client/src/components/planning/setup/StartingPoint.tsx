@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { monthLabel, type PlanFx } from '../../../data/planning/engine';
 import { founderFx } from '../../../data/planning/basePlan';
 import { buildPainCarePlan } from '../../../data/planning/painCare';
+import { buildBusinessPlan } from '../../../data/planning/businessPlan';
 import { build500Cr } from '../../../data/planning/growth';
 import { monthBefore, openingFromTally } from '../../../data/planning/opening';
 import { growthSwitchedOff, planMode, setPlanMode, summary, type PlanMode } from '../../../data/planning/setup/mode';
@@ -59,6 +60,10 @@ export function Section({ plan, update }: SetupSectionProps) {
     if (!window.confirm('Replace products, hires, capacity, rounds and targets with the example plan? All its numbers are placeholders.')) return;
     run('Building…', () => replacePlan(update, build500Cr));
   };
+  const loadBusinessPlan = () => {
+    if (!window.confirm('Replace products, hires, capacity, rounds and targets with the 5-year business plan?')) return;
+    run('Building…', () => replacePlan(update, buildBusinessPlan));
+  };
   const loadPainCare = () => {
     if (!window.confirm('Replace products, hires, capacity, rounds and targets with the pain-care plan?')) return;
     run('Building…', () => replacePlan(update, buildPainCarePlan));
@@ -83,8 +88,12 @@ export function Section({ plan, update }: SetupSectionProps) {
 
       {/* 2. example plans */}
       <div className="space-y-2">
-        <SubHead info={<><p>Example: ₹30 → 100 → 250 → 500 Cr in FY28 to FY31. All numbers are placeholders.</p><p>Pain-care (Nov 2026): online only for 12 months (Amazon, Flipkart, D2C), topicals and hGo. GT, pharmacy, physio and new devices start at the Jan-28 round. ₹100 → 250 → 500 Cr in FY29 to FY31.</p><p>A load replaces products, hires, capacity, rounds and targets. Then click &quot;Save as scenario&quot;.</p><p>Select &quot;My plan&quot; first.</p></>}>Start from a ready plan</SubHead>
+        <SubHead info={<><p>Example: ₹30 → 100 → 250 → 500 Cr in FY28 to FY31. All numbers are placeholders.</p><p>Pain-care (Nov 2026): online only for 12 months (Amazon, Flipkart, D2C), topicals and hGo. GT, pharmacy, physio and new devices start at the Jan-28 round. ₹100 → 250 → 500 Cr in FY29 to FY31.</p><p>Business plan (Nov 2026): the plan sent to investors. Devices, topicals, nutraceuticals and TENS by year; OEM stops after Sep-27; Series A ₹30 Cr Jan-28, Series B ₹100 Cr Jul-29.</p><p>A load replaces products, hires, capacity, rounds and targets. Then click &quot;Save as scenario&quot;.</p><p>Select &quot;My plan&quot; first.</p></>}>Start from a ready plan</SubHead>
         <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={btn} disabled={!!busy || mode === 'sheet'} onClick={loadBusinessPlan}
+            title={mode === 'sheet' ? 'Select My plan first' : undefined}>
+            {busy ?? 'Load the business plan'}
+          </button>
           <button type="button" className={btn} disabled={!!busy || mode === 'sheet'} onClick={loadExample}
             title={mode === 'sheet' ? 'Select My plan first' : undefined}>
             {busy ?? 'Load the example plan'}
