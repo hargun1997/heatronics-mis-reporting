@@ -54,3 +54,8 @@ test('a shorter download horizon re-runs the same plan to that month', () => {
   assert.equal(r30.months.at(-1)!.label, 'Mar-29');
   for (let i = 0; i < 30; i++) assert.ok(Math.abs(r30.months[i].netRevenue - R.months[i].netRevenue) < 1, `month ${i + 1}`);
 });
+
+test('business plan: production capacity covers every month', () => {
+  const over = R.months.filter((m) => m.utilisation > 1).map((m) => m.label);
+  assert.deepEqual(over, []);
+});
