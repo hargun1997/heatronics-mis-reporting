@@ -74,6 +74,12 @@ export function buildBusinessPlan(from: Plan): Plan {
   p.products = [...p.products.filter((x) => !x.growthLine && !ids.has(x.id) && !x.placeholder), ...mine];
   const G = p.growth!;
   G.retail = (G.retail ?? []).filter((t) => keep.has(t.id));
+  // capacity: today ~2,000 units a day × 26 days (founder, Oct 2026); a second shift for the FY30 winter, Plant 2 for FY31
+  G.baseCapacity = 52_000;
+  G.capacity = [
+    { id: 'bp-shift2', name: 'Second shift (current factory)', on: true, month: 31, leadMonths: 3, unitsPerMonth: 40_000, capex: 1.5 * CR, monthlyOpex: 8e5 },
+    { id: 'bp-plant2', name: 'Plant 2', on: true, month: 37, leadMonths: 6, unitsPerMonth: 60_000, capex: 10 * CR, monthlyOpex: 18e5 },
+  ];
   G.path = undefined; G.push = {};
   G.note = 'Business plan sent to investors (Nov 2026). Devices: sheet to FY28, then +100 % / +80 % / +56 %. Topicals, nutraceuticals and TENS sized to the yearly revenue in the plan; OEM stops after Sep-27. Series A ₹30 Cr Jan-28, Series B ₹100 Cr Jul-29 (pre-money placeholders).';
   G.rounds = [
