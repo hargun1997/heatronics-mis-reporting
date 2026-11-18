@@ -106,6 +106,8 @@ export interface NewProduct {
   /** Growth builder: NEW-buyer units per FY typed by hand (e.g. { FY29: 24000 }); a year set here replaces launch + ramp for that year
    *  (spread evenly over its months on sale × the product's season), and the revenue-path push leaves it alone */
   unitsByFy?: Record<string, number>;
+  /** last month on sale (e.g. a wound-down line); absent = to the end of the plan. Typed FY units spread over its months on sale. */
+  lastMonth?: number;
   /** Growth builder: this product's own costs (one-off launch / tooling, monthly fixed, % of its revenue) */
   expenses?: ProductExpense[];
 }
@@ -743,12 +745,12 @@ export function runPlan(plan: Plan): PlanResult {
 
   // new products: units by month (all channels)
   const baseProductUnits = (p: NewProduct, m: number): number => {
-    if (!p.on || m < p.launchMonth || (p.placeholder && parity)) return 0; // placeholder products stand aside in sheet-parity mode
+    if (!p.on || m < p.launchMonth || (p.lastMonth != null && m > p.lastMonth) || (p.placeholder && parity)) return 0; // placeholder products stand aside in sheet-parity mode
     const k = m - p.launchMonth; // 0 at launch
     const season = p.seasonRef && p.seasonRef !== 'flat' ? plan.skuSeason?.[p.seasonRef]?.[calOf(plan.startMonth, m)] ?? 1 : 1;
     const typed = G ? p.unitsByFy?.[fyOf(plan.startMonth, m)] : undefined;
     if (typed != null) {
-      const onSale = (fyMonths.get(fyOf(plan.startMonth, m)) ?? []).filter((mm) => mm >= p.launchMonth).length || 1;
+      const onSale = (fyMonths.get(fyOf(plan.startMonth, m)) ?? []).filter((mm) => mm >= p.launchMonth && (p.lastMonth == null || mm <= p.lastMonth)).length || 1;
       return (typed / onSale) * season;
     }
     if (k < 12) return p.launchUnits * Math.pow(1 + p.rampPct, k) * season;

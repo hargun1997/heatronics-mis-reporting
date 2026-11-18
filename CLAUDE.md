@@ -568,6 +568,14 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   (placeholder) + ₹17.5 L capex in Q1; path FY29 100 → FY30 250 → FY31 500 Cr (FY28 left to the launches: a target there makes `solvePath` zero
   the topicals); Series A `bench-a` ₹35 Cr at M16 priced at 3.5 × trailing-12-month net revenue (≥ ₹50 Cr), the rest by `fundTheGap`. Known: cash
   bottoms ≈ −₹6 Cr in Nov-27 before the round — needs a bridge / earlier close.
+- **Business plan (founder, 18 Nov 2026)** = `data/planning/businessPlan.ts buildBusinessPlan(base)` (Setup → Starting point → "Load the business plan",
+  then Save as scenario; test `server/test/businessPlan.test.ts`): the 5-year plan sent to investors, on top of the pain-care plan's team, capacity,
+  capex and outlets. Devices = sheet SKUs to FY28, then `DEVICE_GROWTH` per FY; topicals / nutra / TENS revenue per FY = `BUSINESS_PLAN_TARGETS`
+  (`fitLines` scales each line's `unitsByFy`, FY by FY, ±0.3 %); OEM line `bp-oem` stops after Sep-27 (`NewProduct.lastMonth`, new: units 0 after it,
+  typed FY units spread over the months on sale). Rounds Series A ₹30 Cr Jan-28, Series B ₹100 Cr Jul-29 (pre-money placeholders). FY27 H1 actuals are the
+  `fy27H1Revenue` lever (enter in Assumptions). Excel download (… menu) offers 1 year / 18 months / 3 years / 5 years (`downloadPlanWorkbook(plan, r, months)`
+  re-runs the plan to that horizon) and adds "Products by year" (revenue, units, ₹ per unit by line: `data/planning/byYear.ts linesByYear`) and
+  "Capital by year" (EBITDA, capex, net cash flow before funding, equity, debt, closing / lowest cash, the rounds: `capitalByYear`).
 - **Growth layer** (`plan.growth`, `data/planning/growth.ts` + hooks in `runPlan`; absent / off / sheet parity = no
   change, test `server/test/growth.test.ts`): new product lines are `plan.products` with `category` (device | topical | nutra), `inHouse`,
   `launchCost` / `launchCapex` (launch month), `marketingPct` and `growthLine`; `hires` (dept → Factory Payroll else Corporate Salaries,
