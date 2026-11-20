@@ -566,7 +566,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   volumes ×1.2 / hGo ×1.5 (`skuTweaks`); new lines' `chStart.G/P` and `retailStart` = `NEXT_ROUND_MONTH` (16 = Jan-28, the next round); GT /
   pharmacy+physio / MT outlets, new devices (TENS M22, massager M28, hot–cold M34), nutra and the offline team from that month; branding ₹50 L
   (placeholder) + ₹17.5 L capex in Q1; path FY29 100 → FY30 250 → FY31 500 Cr (FY28 left to the launches: a target there makes `solvePath` zero
-  the topicals); Series A `bench-a` ₹35 Cr at M16 priced at 3.5 × trailing-12-month net revenue (≥ ₹50 Cr), the rest by `fundTheGap`. Known: cash
+  the topicals); founder round sizes (7 Nov 2026): seed ₹8 Cr Jan-27 (`fx.seed`), Series A `bench-a` ₹30 Cr at M16 (3.5 × trailing-12-month net revenue, ≥ ₹50 Cr), Series B `bench-b` ₹100 Cr at M34 = Jul-29 (`SERIES_A_CR` / `SERIES_B_CR` / `SERIES_B_MONTH`; 4 × TTM, ≥ ₹150 Cr); any gap `fundTheGap` fills between them is named "Bridge (A extension)" (≈ ₹15 Cr Jul-28 on the base run). Known: cash
   bottoms ≈ −₹6 Cr in Nov-27 before the round — needs a bridge / earlier close.
 - **Business plan (founder, 18 Nov 2026)** = `data/planning/businessPlan.ts buildBusinessPlan(base)` (Setup → Starting point → "Load the business plan",
   then Save as scenario; test `server/test/businessPlan.test.ts`): the 5-year plan sent to investors, on top of the pain-care plan's team, capacity,
