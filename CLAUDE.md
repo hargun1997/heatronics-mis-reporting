@@ -384,7 +384,20 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   ledgers renamed to the legal party (`PARTY_NAMES`). **History tab** (`GET /api/tds/history`, `monthState`: ok / stale = copied before the
   7th of the next month / partial / missing / running; `fyMonths`): per month data state, TDS, compare with the filed report
   (`client/src/data/tds/filedReports.ts` FILED_REPORTS: block totals only, no party rows; `compareFiled` ±₹1 per block), Download per month
-  and Download all months (`historySheets`: one sheet per month, a "DATA STALE / NO DATA …" row under the title when not OK). **Styling** (founder, 22 Nov 2026: "bold headers and borders, matching Ashi's"): `utils/tdsReportExport.ts` (xlsx-js-style, loaded on
+  and Download all months (`historySheets`: one sheet per month, a "DATA STALE / NO DATA …" row under the title when not OK). **Filing rule (founder, 22 Nov 2026): a FILED month = the accounts team's report as filed, Tally only checks it; an unfiled month = Tally.**
+  History → "Upload filed report": the browser reads their .xlsx (`client/src/data/tds/filed.ts parseFiledWorkbook`: one doc per month from
+  the sheet name or title row; their quirks: blank / #REF! S.NO, serial or dd/mm/yyyy dates, extra columns, placeholder rows skipped and
+  counted, subtotal / Total rows skipped, the TDS PAYABLE lines kept as filed incl. hand adjustments) → confirm modal → `PUT
+  /api/tds/filed/:month` (`services/filedReports.ts sanitizeFiled`, store `tds/filed-<YYYY-MM>`, never the repo; `DELETE` = back to Tally;
+  `GET /api/tds/filed?month=`; history months carry `filed`). `matchFiled`: each filed bill takes one Tally bill (PAN or party name +
+  bill no. = Tally reference or voucher no., else amount ±₹1; same month first) → deviations per month: moved (Tally month ≠ filed month,
+  Tally date shown), not-in-tally, tds-differs (> ₹1), not-filed (Tally bill of a filed month no filing holds), filed-elsewhere (Tally bill of
+  an unfiled month already filed: left out of that month's report) + section totals filed vs Tally. Report download (month and all months,
+  also the header button) = `historyExportSheets`: per month the report sheet (filed rows + their summary via `buildReportSheet`, or Tally
+  rows) + a "Deviations from Tally" table sheet (`deviationsSheet`, styled by `styledTableSheet`); the team's sheet is never changed. History
+  columns: Source (Filed / Tally state), TDS (filed = NET PAYABLE), Tally check (deviation count; months without an upload keep the
+  `FILED_REPORTS` totals compare); a row opens a drawer with sections + deviations + Remove. Tests `server/test/filedReports.test.ts`.
+  **Styling** (founder, 22 Nov 2026: "bold headers and borders, matching Ashi's"): `utils/tdsReportExport.ts` (xlsx-js-style, loaded on
   click) styles every TDS report sheet by `reportRowKinds` (tdsFormats.ts): bold merged title rows, bold block titles, bold boxed header row,
   thin black borders on every block cell, bold Total / Grand Total, boxed summary with bold title and totals; no fills; #,##0.00, rate 0.00,
   dates dd-mm-yyyy. Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),

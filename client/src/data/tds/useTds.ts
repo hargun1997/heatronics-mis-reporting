@@ -1,7 +1,9 @@
 // Loads GET /api/tds?month= (stored Tally Day Books, READ ONLY) and runs the pure TDS engine in the browser.
 import { useEffect, useMemo, useState } from 'react';
 import { buildTds, type TdsLedger, type TdsReport, type TdsVoucher } from './tds';
-import { historySheets, monthSheets, reportSheetName } from './tdsFormats';
+import { STATE_WORDS, monthSheets, reportSheetName, type ReportCell } from './tdsFormats';
+import { deviationsSheet, matchFiled, monthReport, type FiledDoc } from './filed';
+import type { HistoryMonth } from './invoices';
 import type { InvoiceRow } from './invoices';
 
 export interface TdsApi { month: string; months: string[]; storedMonths: string[]; asOf: Record<string, string>; mastersAt: string | null; vouchers: TdsVoucher[]; ledgers: TdsLedger[] }
@@ -42,10 +44,30 @@ export async function downloadTds(month: string, r: TdsReport | null, invoices: 
   return true;
 }
 
-/** History download: the team's TDS report for each given month, one styled sheet per month (flagged when not OK). */
-export async function downloadHistory(fileTag: string, months: Parameters<typeof historySheets>[0]) {
+/**
+ * The months' sheets by the filing rule (founder, 22 Nov 2026): a FILED month = the team's report as filed; an unfiled
+ * month = Tally (without bills a filed month already holds). Each month is followed by its "Deviations from Tally" sheet.
+ * An unfiled month whose Tally data is not OK gets the "DATA …" flag row.
+ */
+export function historyExportSheets(all: HistoryMonth[], pick: string[]) {
+  const filed = all.map((m) => m.filed).filter((f): f is FiledDoc => !!f);
+  const { checks, usedKeys } = matchFiled(filed, new Map(all.map((m) => [m.month, m.rows])));
+  const out: ExportSheetLike[] = [];
+  for (const m of all.filter((x) => pick.includes(x.month))) {
+    const sh = monthReport(m.month, m.filed, m.rows, usedKeys);
+    const rows = !m.filed && m.state !== 'ok' ? [sh.rows[0], sh.rows[1], [`DATA ${STATE_WORDS[m.state]?.toUpperCase() ?? m.state}: ${m.note}`], ...sh.rows.slice(2)] : sh.rows;
+    out.push({ name: sh.name, rows });
+    const dev = deviationsSheet(checks.get(m.month), m.month);
+    out.push({ ...dev, name: pick.length > 1 ? `Deviations ${sh.name}` : dev.name });
+  }
+  return { sheets: out, checks, usedKeys };
+}
+type ExportSheetLike = { name: string; rows: ReportCell[][]; kind?: 'report' | 'table'; headerRows?: number[] };
+
+/** History download: the chosen months, each = its report sheet + its deviations sheet. */
+export async function downloadHistory(fileTag: string, all: HistoryMonth[], pick: string[]) {
   const { downloadStyledReport } = await import('../../utils/tdsReportExport');
-  downloadStyledReport(`Tds Report ${fileTag}.xlsx`, historySheets(months));
+  downloadStyledReport(`Tds Report ${fileTag}.xlsx`, historyExportSheets(all, pick).sheets);
 }
 
 export const tdsBtn =

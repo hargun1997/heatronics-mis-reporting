@@ -45,9 +45,42 @@ export function styledReportSheet(rows: ReportCell[][]) {
   return ws;
 }
 
-/** Workbook of report sheets (one per month), downloaded as `file`. */
-export function downloadStyledReport(file: string, sheets: { name: string; rows: ReportCell[][] }[]) {
+/** A plain table sheet (Deviations from Tally): bold title, bold boxed header rows, boxed body rows, dates dd-mm-yyyy. */
+export function styledTableSheet(rows: ReportCell[][], headerRows: number[]) {
+  const ws = XLSX.utils.aoa_to_sheet(rows, { cellDates: true, dateNF: 'dd-mm-yyyy' });
+  const heads = new Set(headerRows);
+  let inTable = false, width = 0;
+  rows.forEach((row, r) => {
+    if (heads.has(r)) { inTable = true; width = row.length; }
+    else if (!row.length) inTable = false;
+    const last = inTable ? width - 1 : row.length - 1;
+    for (let c = 0; c <= last; c++) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[addr] ?? (ws[addr] = { t: 's', v: '' });
+      const isDate = cell.v instanceof Date || cell.t === 'd';
+      cell.s = {
+        font: { ...FONT, bold: r === 0 || heads.has(r), sz: r === 0 ? 13 : 11 },
+        alignment: { vertical: 'center', wrapText: heads.has(r), horizontal: typeof cell.v === 'number' && !isDate ? 'right' : 'left' },
+        ...(inTable ? { border: BOX } : {}),
+        ...(isDate ? { numFmt: 'dd-mm-yyyy' } : typeof cell.v === 'number' && c > 0 ? { numFmt: '#,##0.00' } : {}),
+      };
+    }
+  });
+  ws['!cols'] = [{ wch: 5 }, { wch: 24 }, { wch: 38 }, { wch: 13 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 13 }, { wch: 13 }, { wch: 48 }];
+  return ws;
+}
+
+export type ExportSheet = { name: string; rows: ReportCell[][]; kind?: 'report' | 'table'; headerRows?: number[] };
+
+/** Workbook of report sheets (and "Deviations from Tally" table sheets), downloaded as `file`. */
+export function downloadStyledReport(file: string, sheets: ExportSheet[]) {
   const wb = XLSX.utils.book_new();
-  for (const s of sheets) XLSX.utils.book_append_sheet(wb, styledReportSheet(s.rows), s.name);
+  const names = new Set<string>();
+  for (const s of sheets) {
+    let name = s.name.slice(0, 31);
+    for (let i = 2; names.has(name); i++) name = `${s.name.slice(0, 27)} (${i})`.slice(0, 31);
+    names.add(name);
+    XLSX.utils.book_append_sheet(wb, s.kind === 'table' ? styledTableSheet(s.rows, s.headerRows ?? []) : styledReportSheet(s.rows), name);
+  }
   XLSX.writeFile(wb, file, { cellStyles: true });
 }
