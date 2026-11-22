@@ -11,6 +11,7 @@ import { BTN, ErrorBox, InfoTip, Loading, Panel } from '../../components/ui/stat
 import { addMonths, dateLabel, monthLabel } from '../../data/tds/tds';
 import { downloadTds, inr, lastMonth, useTds } from '../../data/tds/useTds';
 import { DeducteeList, FlagList, HowTo, NoDayBook, PayTable } from './tdsParts';
+import { StatusPill } from '../../components/ui/StatusPill';
 
 type View = 'pay' | 'check' | 'who' | 'quarter';
 
@@ -35,8 +36,8 @@ export function TdsPage() {
         title="TDS"
         description="The TDS to pay for 1 month, by section, from the Tally Day Book."
         status={ok ? (r!.overdue
-          ? <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-800">Late</span>
-          : <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700">Due {dateLabel(r!.dueDate)}</span>) : undefined}
+          ? <StatusPill toneName="critical" size="sm">Late</StatusPill>
+          : <StatusPill toneName="neutral" size="sm">Due {dateLabel(r!.dueDate)}</StatusPill>) : undefined}
         help={ok && r!.notes.length ? <ul className="space-y-1">{r!.notes.map((n) => <li key={n} className="!list-disc">{n}</li>)}</ul> : undefined}
         tabs={tabs} tab={view} onTab={(id) => setView(id as View)}
         actions={<>

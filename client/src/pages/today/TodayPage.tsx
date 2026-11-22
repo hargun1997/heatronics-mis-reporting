@@ -7,9 +7,11 @@ import { Link } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import { PageHeader, PageBody } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
-import { BTN, Empty, ErrorBox, Loading, Panel, StepNo } from '../../components/ui/states';
-import { SourceChip } from '../../components/ui/SourceChip';
+import { BTN, Empty, ErrorBox, Loading, Panel } from '../../components/ui/states';
+import { FreshnessPill } from '../../components/ui/FreshnessPill';
 import { StatusPill } from '../../components/ui/StatusPill';
+import { ItemRow } from '../../components/ui/ItemRow';
+import { firstStep } from '../../components/ui/itemText';
 import { useWorkCount, refreshWorkCount, type WorkCount } from '../../data/issues/useWorkCount';
 import { inrShort as inr, dayLabel } from '../../utils/money';
 
@@ -32,8 +34,6 @@ const PILL = { act: { tone: 'critical', text: 'Act now' }, watch: { tone: 'warni
 const TILE_HREF: Record<string, string> = {
   net_cash: '/reporting/mis/live?tab=statements', runway: '/accounts/cash-runway', sales: '/reporting/mis/live', fix: '/tasks?view=fix', late: '/tasks',
 };
-/** A Fix item's "why" is a numbered how-to. Today shows only step 1; the full steps open on the item. */
-const firstStep = (why: string) => why.replace(/^\s*1\.\s*/, '').split(/\s+2\.\s/)[0];
 /** Server lines say "since 2026-11-21": pages show "21 Nov". */
 const humanDates = (t: string) => t.replace(/\b\d{4}-\d{2}-\d{2}\b/g, (d) => dayLabel(d));
 
@@ -83,13 +83,8 @@ export function TodayPage() {
         status={pill ? <StatusPill toneName={pill.tone} dot>{pill.text}</StatusPill> : undefined}
         help={<><p>The 5 numbers come from the Tally books and the Tasks list.</p><p>"What changed" compares today with the last saved day.</p></>}
         actions={<>
-          {b && <SourceChip
-            items={[
-              { label: 'Tally books', asOf: b.freshness.tallyLastOkAt ?? null, staleAfterH: 48, note: 'Net cash, sales and watch items' },
-              { label: 'Tasks and Fix list', asOf: b.asOf, note: 'Read live' },
-            ]}
-            notes={b.notes}
-          />}
+          {b && <FreshnessPill label="Tally books" asOf={b.freshness.tallyLastOkAt} note="Net cash, sales and watch items"
+            more={[{ label: 'Tasks and Fix list', asOf: b.asOf, note: 'Read live' }]} notes={b.notes} />}
           <button type="button" onClick={() => { void load(true); void refreshWorkCount(true); }} disabled={busy} className={BTN}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden /> Refresh</button>
         </>}
       />
@@ -117,17 +112,10 @@ export function TodayPage() {
                 {b.needsYou.length === 0 ? <div className="p-4"><Empty title="Nothing to do now" hint="No late task. No open Fix item." /></div> : (
                   <ol className="divide-y divide-slate-100">
                     {b.needsYou.map((n, i) => (
-                      <li key={i}>
-                        <Link to={n.href} className="flex min-h-14 items-center gap-3 px-4 py-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500">
-                          <StepNo n={i + 1} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold text-slate-900">{n.title}</span>
-                            <span className="block truncate text-xs text-slate-600" title={n.why}>{n.kind === 'fix' ? firstStep(n.why) : n.why}</span>
-                          </span>
-                          {n.inr != null && <span className="shrink-0 text-sm tabular-nums text-slate-700">{inr(n.inr)}</span>}
-                          <StatusPill toneName={n.severity === 'high' ? 'critical' : 'warning'} className="shrink-0">{KIND[n.kind]}</StatusPill>
-                        </Link>
-                      </li>
+                      <ItemRow key={i} n={i + 1} href={n.href} title={n.title}
+                        sub={n.kind === 'fix' ? firstStep(n.why) : n.why}
+                        amount={n.inr != null ? inr(n.inr) : undefined}
+                        pill={<StatusPill toneName={n.severity === 'high' ? 'critical' : 'warning'}>{KIND[n.kind]}</StatusPill>} />
                     ))}
                   </ol>
                 )}

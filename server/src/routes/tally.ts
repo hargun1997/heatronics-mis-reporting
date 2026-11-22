@@ -42,6 +42,7 @@ import { readPnlCopies } from '../connectors/tally/pnlCopiesLoad.js';
 import { claudeChat, isClaudeConfigured } from '../services/claudeClient.js';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import { BUNDLED_HISTORY } from '../services/expenseMap.js';
+import { tallyReachedAt } from '../connectors/tally/freshness.js';
 
 const router = Router();
 const creds = () => getEffectiveCredentials('tally', ['host', 'port', 'company']);
@@ -161,6 +162,7 @@ router.get('/books/status', h(async (_req, res) => {
   res.json({
     connected: Boolean((c.host || '').trim()),
     mastersAt: m?.asOf ?? null,
+    reachedAt: await tallyReachedAt().catch(() => null),
     ledgers: m?.ledgers.length ?? 0,
     groups: m?.groups.length ?? 0,
     stockItems: m?.stockItems.length ?? 0,

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Info, Inbox, Loader2 } from 'lucide-react';
 import { Modal, Popover } from './overlays';
+import { CountPill } from './StatusPill';
 
 export function Loading({ label = 'Loading' }: { label?: string }) {
   return (
@@ -79,7 +80,7 @@ export function Panel({ title, count, action, children, className = '', flush }:
       <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-1.5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           {title}
-          {count != null && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700">{count}</span>}
+          {count != null && <CountPill n={count} />}
         </h2>
         {action}
       </div>

@@ -18,9 +18,10 @@ const SECTIONS: { id: Section; label: string }[] = [
 const IDS = SECTIONS.map((s) => s.id);
 const th = 'px-2 py-2 text-right text-xs font-semibold text-slate-600';
 
-export function CostsView({ plan, result }: Props) {
+export function CostsView({ plan, result, part }: Props & { part?: Section }) {
   const r = result;
-  const [section, setSection] = useSubTab<Section>('costs', IDS, 'revex');
+  const [own, setSection] = useSubTab<Section>('costs', IDS, 'revex');
+  const section = part ?? own;
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const fys = r.years.map((y) => y.fy);
   const label = (m: number) => r.months.find((x) => x.m === m)?.label ?? `M${m}`;
@@ -61,7 +62,7 @@ export function CostsView({ plan, result }: Props) {
       <PlanCard
         title="Cost groups, ₹ Cr"
         count={groups.length}
-        action={<SubTabs value={section} onChange={setSection} options={SECTIONS} label="Cost section" />}
+        action={part ? undefined : <SubTabs value={section} onChange={setSection} options={SECTIONS} label="Cost section" />}
         info={<>
           <p>Select a group to see its lines.</p>
           <p>Amount is ₹ for a monthly, quarterly, annual or one-time line. It is a % for a &quot;% of …&quot; line, and a multiple for a &quot;ROAS on …&quot; line.</p>

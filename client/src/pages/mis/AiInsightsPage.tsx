@@ -15,6 +15,7 @@ import { chatStatus, sendChat, type ChatMessage } from '../../data/chat/chatClie
 import { getUsage, usd, type UsageResponse } from '../../data/chat/usageClient';
 import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { monthLabel } from '../../data/misDeck/liveAnalytics';
+import { pillClass } from '../../components/ui/pill';
 
 interface Preset { id: string; label: string; blurb: string; prompt: string; }
 const PRESETS: Preset[] = [
@@ -56,7 +57,7 @@ export function AiInsightsPage() {
         description={`Ask Claude about the P&L to ${throughLabel}. Claude reads the numbers. Claude does not change them.`}
         status={configured === false ? (
           <Popover align="left" width={300} buttonLabel="Claude not connected: details"
-            buttonClassName="inline-flex min-h-11 sm:min-h-7 items-center gap-1 rounded-full bg-amber-50 px-2.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+            buttonClassName={pillClass('warning')}
             button={<>Claude not connected</>}>
             <p className="p-3.5 text-[13px] leading-5 text-slate-700">Analysis and chat do not run. Set <span className="font-mono">ANTHROPIC_API_KEY</span> on the service.</p>
           </Popover>

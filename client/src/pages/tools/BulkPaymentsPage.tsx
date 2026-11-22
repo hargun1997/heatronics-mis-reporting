@@ -14,6 +14,7 @@ import { fmtWhen } from '../../components/payments/util';
 import { isActive, maskAccount, type Payee, type PayeeList } from '../../data/payments/payees';
 import { buildPaymentRows, inr, type BatchRow } from '../../data/payments/batch';
 import type { PayMode } from '../../data/payments/iciciFormats';
+import { StatusPill } from '../../components/ui/StatusPill';
 
 /** ₹ in L / Cr for a tile (paise in). */
 const short = (paise: number) => { const r = paise / 100; return r >= 1e7 ? `₹${(r / 1e7).toFixed(2)} Cr` : r >= 1e5 ? `₹${(r / 1e5).toFixed(2)} L` : `₹${Math.round(r).toLocaleString('en-IN')}`; };
@@ -63,7 +64,7 @@ export function BulkPaymentsPage() {
       <PageHeader
         title="Bulk payments"
         description="Make the payee file and the payment file for ICICI. This page does not send money."
-        status={list && !payees.length ? <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">No payee list</span> : undefined}
+        status={list && !payees.length ? <StatusPill toneName="warning" size="sm">No payee list</StatusPill> : undefined}
         help={<><p>The page makes files only. It never calls the bank.</p><p>You upload the file in ICICI CIB. A second user authorises it there.</p></>}
         tabs={list ? [
           { id: 'pay', label: 'Make a batch' },

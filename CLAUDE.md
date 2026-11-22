@@ -55,6 +55,20 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   sits next to the title on phones. `Popover` renders in a portal with fixed coordinates (flips up, stays in the window, Esc closes only
   the popover), so drawers and scroll areas never clip an InfoTip. `SectionCard` = the `Panel` look; its `description` is an InfoTip. Budget: ≤ 2 screens at 1440 × 900 in the default state (measured: every
   page ≤ 1,670 px); detail goes into Modal / Drawer / Popover (`components/ui/overlays`), a tab, or a `Views` switch.
+- **Shared UI parts (UI pass, 22 Nov 2026; plan artifact "MIS UI plan"):** ONE count of open work `data/issues/useWorkCount.ts`
+  (Fix items server + Live MIS, still open + tasks late + due today, every person; urgent = high Fix + late) read by the sidebar badge
+  (`useIssueCount`), Today (line, To fix / Tasks late tiles, list count) and Tasks; Live MIS items persist 24 h in localStorage
+  `mis:deckItems`; a Done fires `mis:issues` / `mis:work`. ₹ and dates on pages = `utils/money.ts` (`inrShort`, `inrFull`, `dayLabel`; export
+  builders keep their own). Pills = `components/ui/StatusPill.tsx` (`StatusPill`, `CountPill`) + `pill.ts` (`PILL_TONE`, `pillClass` for a pill
+  that is a button / popover trigger); no hand-made `rounded-full bg-*-50` pills. To-do rows = `ItemRow` (+ `itemText.ts firstStep`: a Fix how-to
+  shows step 1 only). Plain number tables = `DataTable` (sticky head, right numbers, phone cards, total row). Overview tiles open their page
+  (`KpiTile href`). Tally age = ONE server time `connectors/tally/freshness.ts tallyReachedAt` (newest of the P&L poll, masters, Day Books),
+  said with `ageWords` = the client's `ago()` (test `server/test/tallyFreshness.test.ts`); pages show it with `FreshnessPill`.
+  Data rulebook = P&L lines + Sheets only; each source's files and rules sit in its Setup drawer (`components/ingest/SourceRules.tsx`).
+  5-year plan = 5 header tabs (Overview incl. Business plan parts · Revenue incl. Roll-out / D2C customers / Seasons · Costs and P&L incl.
+  Capacity / Monthly P&L · Cash and funding · Plan vs actual), one row of parts each (`components/planning/outputs/parts.ts`, views take `part`).
+  Tally health Chart of accounts = ONE tree; opens on "Hanging N" with Move to + why behind an "i". Round planner embed restyled to Ember
+  (pass 3 CSS block at the end of `public/embed/round-planner.html`; maths untouched).
 - **Writing = ASD-STE100:** one instruction per sentence, steps ≤ 20 words, active voice, digits, no idioms, no em dashes in UI text,
   one word per idea: Setup (not Connectors), Pull (API) vs Upload (file), Report (not slot), Lock (a month), Fix (a problem) vs Task
   (work with a due date), Not connected, No data, Refresh, Download. Notes under charts / tables are `Note` popovers

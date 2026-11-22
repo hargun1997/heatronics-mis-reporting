@@ -8,6 +8,7 @@ import { dilution, roundStats } from '../../../data/planning/growth';
 import { PlanCard as SectionCard, Stat as Box } from '../ui';
 import { CashCurve } from '../charts';
 import { cr, money, pct } from '../fmt';
+import { StatusPill } from '../../../components/ui/StatusPill';
 
 interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string }
 
@@ -106,7 +107,7 @@ export function CashFundingView({ plan, result }: Props) {
               <span className="w-16 text-slate-600">{label(e.month)}</span>
               <span className="w-24 text-right tabular-nums text-slate-900">{money(e.amount, 2)}</span>
               <span className="min-w-0 flex-1 basis-full text-slate-600 sm:basis-0">{e.note}</span>
-              {e.venture && ventureOn && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-slate-500">Venture-debt terms used</span>}
+              {e.venture && ventureOn && <StatusPill toneName="neutral" size="sm">Venture-debt terms used</StatusPill>}
             </div>
           ))}
         </div>
@@ -118,5 +119,5 @@ export function CashFundingView({ plan, result }: Props) {
 }
 
 function Flag({ children = 'Not confirmed' }: { children?: string }) {
-  return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs sm:text-[11px] font-semibold text-amber-800">{children}</span>;
+  return <StatusPill toneName="warning" size="sm">{children}</StatusPill>;
 }

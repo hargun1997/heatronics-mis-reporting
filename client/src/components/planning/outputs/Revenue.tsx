@@ -7,6 +7,7 @@ import { CATEGORY_NAMES, CHANNELS, CHANNEL_NAMES, type Plan, type PlanResult } f
 import { runRateArr } from '../../../data/planning/growth';
 import { PlanCard as SectionCard, SubTabs } from '../ui';
 import { useSubTab } from '../subTab';
+import { REV_TABS } from './parts';
 import { cr, int, lakh, money, pct } from '../fmt';
 
 interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string }
@@ -15,11 +16,8 @@ const th = 'px-2 py-2 text-left text-xs sm:text-[11px] font-semibold text-slate-
 const thr = th.replace('text-left', 'text-right');
 const td = 'px-2 py-1.5';
 const sum = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
-const REV_TABS: { id: 'year' | 'product' | 'month' | 'offline'; label: string }[] = [
-  { id: 'year', label: 'By year' }, { id: 'product', label: 'By product' }, { id: 'month', label: 'By month' }, { id: 'offline', label: 'Offline' },
-];
 
-export function RevenueView({ plan, result }: Props) {
+export function RevenueView({ plan, result, part }: Props & { part?: (typeof REV_TABS)[number]['id'] }) {
   const r = result;
   const months = r.months;
   const items = [...plan.skus.map((s) => ({ id: s.id, name: s.name })), ...plan.products.filter((p) => p.on).map((p) => ({ id: p.id, name: p.name + ' (new)' }))];
@@ -47,11 +45,12 @@ export function RevenueView({ plan, result }: Props) {
   const retail = growthOn ? (G?.retail ?? []).filter((t) => t.on) : [];
   const storesOn = growthOn && !!G?.stores.on;
   const lastM = months[months.length - 1];
-  const [tab, setTab] = useSubTab('revenue', REV_TABS.map((t) => t.id), 'year');
+  const [own, setTab] = useSubTab('revenue', REV_TABS.map((t) => t.id), 'year');
+  const tab = part ?? own;
 
   return (
     <div className="space-y-4">
-      <SubTabs value={tab} onChange={setTab} options={REV_TABS} label="Revenue part" />
+      {!part && <SubTabs value={tab} onChange={setTab} options={REV_TABS} label="Revenue part" />}
       {tab === 'month' && <RevenueSummary plan={plan} r={r} />}
 
       {tab === 'product' && <SectionCard title="Units and revenue by product" count={items.length} info="For each financial year: units, then revenue in ₹ Cr. * = part year. Add new products in Setup → Products and categories.">

@@ -8,6 +8,7 @@ import { AlertCircle, AlertTriangle, ArrowRight, Check, Clock, Info, Loader2, Re
 import { cx } from '../shell/cx';
 import { AREA_LABEL, statusOf, type InboxArea, type InboxItem, type InboxSeverity, type IssueState } from '../../data/issues/inbox';
 import type { Inbox } from '../../data/issues/useInbox';
+import { StatusPill } from '../../components/ui/StatusPill';
 
 const SEV: Record<InboxSeverity, { label: string; cls: string; bar: string; Icon: typeof Info }> = {
   high: { label: 'Urgent', cls: 'border-red-200 bg-red-50 text-red-800', bar: 'border-l-red-500', Icon: AlertCircle },
@@ -91,7 +92,7 @@ export function IssueRow({ i, st, view, act }: { i: InboxItem; st?: IssueState[s
         <button type="button" onClick={() => setMore(!more)} aria-expanded={more} className="min-w-0 flex-1 basis-64 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-slate-900">{i.title}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{AREA_LABEL[i.area]}</span>
+            <StatusPill toneName="neutral" size="sm">{AREA_LABEL[i.area]}</StatusPill>
           </span>
           <span className={cx('block text-[13px] text-slate-600', !more && 'truncate')}>{i.fix}</span>
         </button>

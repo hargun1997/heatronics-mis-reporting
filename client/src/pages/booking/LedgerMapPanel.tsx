@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { TO_CONFIRM, type ExpenseMapRow } from '../../data/bookingAssistant/bookingClient';
 import { Modal } from '../../components/ui/overlays';
 import { BTN, BTN_PRIMARY, InfoTip } from '../../components/ui/states';
+import { StatusPill, CountPill } from '../../components/ui/StatusPill';
 
 type Filter = 'all' | 'needs-info' | 'confirmed';
 
@@ -104,10 +105,10 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
       <header className="border-b border-slate-200 px-4 pb-3 pt-3">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Ledger map</h2>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700">{all.length}</span>
+          <CountPill n={all.length} />
           <InfoTip label="About the ledger map"><p>Vendor → ledger rules from Hargun. The assistant follows each confirmed row exactly.</p><p>A change here goes to the next answer, for everyone.</p></InfoTip>
           {needsInfo > 0 && (
-            <span className="ml-auto rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-800">{needsInfo} need Hargun</span>
+            <StatusPill toneName="warning" size="sm" className="ml-auto">{needsInfo} need Hargun</StatusPill>
           )}
         </div>
         <div className="mt-2 flex gap-2">
@@ -199,9 +200,9 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
 }
 
 function StatusTag({ r }: { r: ExpenseMapRow }) {
-  if (r.status === 'out-of-scope') return <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-px text-xs font-semibold text-slate-700">Not in scope</span>;
-  if (r.status === 'needs-info') return <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-px text-xs font-semibold text-amber-800">Needs info</span>;
-  return <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-px text-xs font-semibold text-emerald-800">{r.evidence ? 'Confirmed · from books' : 'Confirmed'}</span>;
+  if (r.status === 'out-of-scope') return <StatusPill toneName="neutral" size="sm">Not in scope</StatusPill>;
+  if (r.status === 'needs-info') return <StatusPill toneName="warning" size="sm">Needs info</StatusPill>;
+  return <StatusPill toneName="positive" size="sm">{r.evidence ? 'Confirmed · from books' : 'Confirmed'}</StatusPill>;
 }
 
 function RowDetail({ r }: { r: ExpenseMapRow }) {

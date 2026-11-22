@@ -23,6 +23,7 @@ import { SLOT_SOURCES } from '../connectors/slots/catalog.js';
 import { CONNECTORS, getConnector } from '../connectors/registry.js';
 import { liveFactsHealth } from '../connectors/factsCache.js';
 import type { LockStore } from '../ingest/closeLocks.js';
+import { newest, tallyReachedAt } from '../connectors/tally/freshness.js';
 
 const router = Router();
 const STATE = 'issues/state';
@@ -66,7 +67,8 @@ async function loadItems(): Promise<InboxItem[]> {
     pnlGaps,
     today: istDay(), health: hr, chart, committed, everUsed,
     tb: tb && tbPeriod ? { period: tbPeriod, difference: tb.difference } : null,
-    tally: ts ? { connected: !!(creds as { host?: string } | null)?.host, lastOkAt: ts.lastOkAt, lastError: ts.lastError } : null,
+    tally: ts ? { connected: !!(creds as { host?: string } | null)?.host, lastOkAt: newest(ts.lastOkAt, await safe(tallyReachedAt(), null)), lastError: ts.lastError } : null,
+    now: new Date().toISOString(),
     anomalies: scan.issues,
     reports: reports.map(storedSlotReport),
     locked: new Set(Object.keys(locks.locks ?? {})),

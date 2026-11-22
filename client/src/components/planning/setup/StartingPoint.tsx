@@ -12,6 +12,7 @@ import { SegmentedControl } from '../../ui/SegmentedControl';
 import { NumInput } from '../inputs';
 import { Note, Row, SubHead, Tip, btn, ensureFx, replacePlan, useBusy } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { StatusPill } from '../../../components/ui/StatusPill';
 
 export { summary };
 
@@ -111,12 +112,12 @@ export function Section({ plan, update }: SetupSectionProps) {
           <SubHead>Opening position, {startLabel} (₹ Cr)</SubHead>
           {mode === 'plan' ? (
             <>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{!o || o.source === 'sheet' ? 'Sheet values' : o.source === 'tally' ? `Tally, ${String(o.asOf ?? '').slice(0, 10)}` : 'Typed'}</span>
+              <StatusPill toneName="neutral" size="sm">{!o || o.source === 'sheet' ? 'Sheet values' : o.source === 'tally' ? `Tally, ${String(o.asOf ?? '').slice(0, 10)}` : 'Typed'}</StatusPill>
               <button type="button" className={btn} onClick={loadTally}>Load {priorLabel} from Tally</button>
               {msg && <span className="text-[12px] text-slate-600" role="status">{msg}</span>}
             </>
           ) : (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">Sheet values</span>
+            <StatusPill toneName="neutral" size="sm">Sheet values</StatusPill>
           )}
         </div>
         {mode === 'plan' && o ? (

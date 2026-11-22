@@ -7,21 +7,20 @@ import { calOf, monthLabel, type D2CModel, type Plan, type PlanResult } from '..
 import { predictRepeats } from '../../../data/planning/history';
 import { PlanCard as SectionCard, SubTabs } from '../ui';
 import { useSubTab } from '../subTab';
+import { PC_TABS } from './parts';
 import { cr, int, pct } from '../fmt';
 
-interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string }
+interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string; part?: (typeof PC_TABS)[number]['id'] }
 
-const PC_TABS: { id: 'products' | 'capacity' | 'd2c' | 'season'; label: string }[] = [
-  { id: 'products', label: 'Products' }, { id: 'capacity', label: 'Capacity' }, { id: 'd2c', label: 'D2C customers' }, { id: 'season', label: 'Seasons' },
-];
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export function ProductsCustomersView({ plan, result }: Props) {
+export function ProductsCustomersView({ plan, result, part }: Props) {
   const r = result;
-  const [tab, setTab] = useSubTab('products', PC_TABS.map((t) => t.id), 'products');
+  const [own, setTab] = useSubTab('products', PC_TABS.map((t) => t.id), 'products');
+  const tab = part ?? own;
   return (
     <div className="space-y-4">
-      <SubTabs value={tab} onChange={setTab} options={PC_TABS} label="Products and customers part" />
+      {!part && <SubTabs value={tab} onChange={setTab} options={PC_TABS} label="Products and customers part" />}
       {tab === 'products' && <RolloutCard plan={plan} r={r} />}
       {tab === 'capacity' && <CapacityCard plan={plan} r={r} />}
       {tab === 'd2c' && <D2CCard plan={plan} r={r} />}
