@@ -28,6 +28,7 @@ import { topChannel } from '../../data/misDeck/analytics';
 import { footCellsToChannels, NOT_MAPPED } from '../../data/misDeck/channelFoot';
 import type { CascadeLine } from '../../data/monthClose/schema';
 import { interBranchNote } from '../../data/misDeck/auditTie';
+import { tallyReason } from '../../data/misDeck/tallyReason';
 import { Empty as KitEmpty } from '../ui/states';
 import { Link } from 'react-router-dom';
 import {
@@ -58,12 +59,15 @@ export function yearAgoOf(p: PeriodAgg, all: PeriodAgg[]): PeriodAgg | null {
 // Overview
 // ============================================================================
 
-export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], isRange = false }: {
+export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], isRange = false, completeness }: {
   period: PeriodAgg; periods: PeriodAgg[]; allPeriods: PeriodAgg[]; gran: Granularity; traffic?: TrafficRow[]; isRange?: boolean;
+  /** Per month, to say WHY a number below CM2 is not read (tallyReason). */
+  completeness?: Record<string, PeriodCompleteness | undefined>;
 }) {
   const { chName, chColor } = useLiveView();
   const lvl = period.level;
   const real = (k: string) => isRealRow(lvl, k);
+  const needsTally = completeness ? tallyReason(period.members, completeness) : 'needs Tally';
   const idx = allPeriods.findIndex((p) => p.key === period.key);
   const prev = !isRange && idx > 0 ? allPeriods[idx - 1] : null;
   const yAgo = !isRange ? yearAgoOf(period, allPeriods) : null;
@@ -133,14 +137,14 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
         <KpiTile label="Gross Margin" value={real('gross_margin') && pct(period.grossMargin) != null ? pctStr(pct(period.grossMargin)) : '–'}
           sub={real('gross_margin') ? `Gross profit ${inr(period.grossMargin)}` : 'needs COGM'} />
         <KpiTile label="EBITDA" value={real('ebitda') ? inr(period.ebitda) : '–'}
-          sub={real('ebitda') ? `${pctStr(pct(period.ebitda))} of revenue` : 'needs Tally'} />
+          sub={real('ebitda') ? `${pctStr(pct(period.ebitda))} of revenue` : needsTally} />
         <KpiTile label="Net Income" value={real('net_income') ? inr(period.netIncome) : '–'}
-          sub={real('net_income') ? `${pctStr(pct(period.netIncome))} of revenue` : 'needs Tally'} />
+          sub={real('net_income') ? `${pctStr(pct(period.netIncome))} of revenue` : needsTally} />
         <KpiTile label="Contribution (CM2)" value={real('cm2') ? pctStr(pct(period.cm2)) : '–'}
           sub={real('cm2') ? `${inr(period.cm2)} after channel & marketing` : 'needs COGM'} />
         <KpiTile label="Top channel" value={totalMix > 0 ? `${chName(top.channel)}, ${pctStr(top.share, 0)}` : '–'} sub="of net revenue" />
         <KpiTile label="Period covers" value={n === 1 ? '1 month' : `${n} months`} sub={scopeOf(period).replace(/, \d+ months$/, '')} />
-        <KpiTile label="Costs" value={real('opex') ? inr(costs) : '–'} sub={real('opex') ? 'COGM + channel + S&M + platform + opex' : 'needs Tally'} />
+        <KpiTile label="Costs" value={real('opex') ? inr(costs) : '–'} sub={real('opex') ? 'COGM + channel + S&M + platform + opex' : needsTally} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

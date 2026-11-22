@@ -342,7 +342,7 @@ export function LiveMisPage() {
           <Sections label="Overview section">
             <Section id="ov-headline" title="Headline" defaultOpen
               meta={selLabel}>
-              {withPeriod((sel) => <OverviewTab period={sel} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} traffic={trafficRows} isRange={isRange} />)}
+              {withPeriod((sel) => <OverviewTab period={sel} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} traffic={trafficRows} isRange={isRange} completeness={completeness} />)}
             </Section>
             <Section id="ov-why" title="Why it moved" meta={whySummary(why)}>
               {withDeck(() => <WhyItMoved data={why} />)}
