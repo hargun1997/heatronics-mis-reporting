@@ -50,7 +50,7 @@ import { TEAM_VISUALS } from '../../data/handbook/teamVisuals';
 import { HandbookSearch } from './HandbookSearch';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { BTN, Panel } from '../../components/ui/states';
-import { Modal } from '../../components/ui/overlays';
+import { Drawer, Modal } from '../../components/ui/overlays';
 import { HandbookOpenContext } from './handbookNav';
 import { allFolds, enhanceArticle, getFold } from './fold';
 import './handbook.generated.css';
@@ -506,29 +506,10 @@ function ArticlePanel({
 // ---------------------------------------------------------------------------
 
 function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Screenshot" className="fixed inset-0 z-modal flex flex-col bg-scrim/85 p-3 sm:p-6" onClick={onClose}>
-      <div className="flex justify-end">
-        <button
-          ref={closeRef}
-          type="button"
-          onClick={onClose}
-          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-white px-3 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-        >
-          <XMarkIcon className="h-4 w-4" aria-hidden="true" /> Close
-        </button>
-      </div>
-      <div className="flex min-h-0 flex-1 items-center justify-center pt-3">
-        <img src={src} alt={alt} className="max-h-full max-w-full rounded-lg bg-white object-contain shadow-overlay" onClick={(e) => e.stopPropagation()} />
-      </div>
-    </div>
+    <Modal open width={1200} title={alt || 'Screenshot'} onClose={onClose}>
+      <img src={src} alt={alt} className="mx-auto max-h-[75vh] max-w-full rounded-lg bg-white object-contain" />
+    </Modal>
   );
 }
 
@@ -553,6 +534,13 @@ function Reader({
 }) {
   // Contents: shown by default only on wide screens; a drawer below 1024px.
   const [navOpen, setNavOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1280);
+  const [desktop, setDesktop] = useState(isDesktop);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const on = () => setDesktop(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   const [activeHeading, setActiveHeading] = useState<string | undefined>();
   const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
   const [wide, setWide] = useState(false);
@@ -613,14 +601,6 @@ function Reader({
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [a]);
-
-  // Esc closes the contents drawer on small screens.
-  useEffect(() => {
-    if (!navOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !isDesktop() && setNavOpen(false);
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [navOpen]);
 
   // Inside the handbook text: links (#c16, #s3 …) open their article here;
   // screenshots open large in the viewer.
@@ -709,16 +689,18 @@ function Reader({
       </div>
 
       <div className="flex">
-        {shown && navOpen && (
-          <>
-            <div className="fixed inset-0 top-[calc(var(--app-top)+3.5rem+var(--htx-bar-h,0px))] z-30 bg-scrim/30 lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />
-            <aside
-              id="hb-contents"
-              className="fixed bottom-0 left-0 top-[calc(var(--app-top)+3.5rem+var(--htx-bar-h,0px))] z-40 w-[min(300px,85vw)] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white shadow-drawer-left lg:sticky lg:z-0 lg:h-[calc(100vh-3.5rem-var(--htx-bar-h,0px))] lg:top-[calc(3.5rem+var(--htx-bar-h,0px))] lg:w-[268px] lg:flex-shrink-0 lg:self-start lg:bg-slate-50/60 lg:shadow-none"
-            >
-              <ReaderNav view={shown} open={openFromNav} />
-            </aside>
-          </>
+        {shown && navOpen && desktop && (
+          <aside
+            id="hb-contents"
+            className="sticky top-[calc(3.5rem+var(--htx-bar-h,0px))] h-[calc(100vh-3.5rem-var(--htx-bar-h,0px))] w-[268px] flex-shrink-0 self-start overflow-y-auto overscroll-contain border-r border-slate-200 bg-slate-50/60"
+          >
+            <ReaderNav view={shown} open={openFromNav} />
+          </aside>
+        )}
+        {shown && (
+          <Drawer open={navOpen && !desktop} onClose={() => setNavOpen(false)} side="left" width={300} title="Contents">
+            <ReaderNav view={shown} open={openFromNav} />
+          </Drawer>
         )}
         <div ref={mainRef} className="min-w-0 flex-1">
           {shown && !shown.a && <CollectionPanel c={shown.c} open={open} compact={compact} />}

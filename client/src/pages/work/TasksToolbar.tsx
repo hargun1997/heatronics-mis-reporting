@@ -1,7 +1,8 @@
 // The one control bar: view switch, whose tasks, search, and a Filters
 // popover (head, area, type, due) with an active count and Clear.
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { Drawer } from '../../components/ui/overlays';
 import { Link } from 'react-router-dom';
 import { AdjustmentsHorizontalIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { Head, TeamMember } from '../../data/work/workClient';
@@ -54,20 +55,7 @@ export function TasksToolbar({
   areas: string[];
 }) {
   const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+
 
   const set = (p: Partial<Filters>) => setFilters({ ...filters, ...p });
   const active = [filters.head, filters.area, filters.kind, filters.when].filter(Boolean).length;
@@ -129,7 +117,7 @@ export function TasksToolbar({
           />
         </label>
 
-        <div className="relative" ref={box}>
+        <div className="relative">
           <button
             type="button"
             onClick={() => setOpen(!open)}
@@ -143,13 +131,16 @@ export function TasksToolbar({
             Filters
             {active > 0 && <span className="rounded-full bg-slate-900 px-1.5 text-xs font-semibold leading-5 text-white">{active}</span>}
           </button>
-          {open && (
-            <div
-              role="dialog"
-              aria-label="Filters"
-              className="fixed inset-x-4 top-24 z-40 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-popover sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[340px]"
-            >
-              <div className="space-y-4">
+          <Drawer open={open} onClose={() => setOpen(false)} title="Filters" width={420}
+            footer={<div className="flex items-center justify-between">
+              <button type="button" disabled={!active} onClick={() => setFilters(NO_FILTERS)} className={btnGhost}>
+                Clear all
+              </button>
+              <button type="button" onClick={() => setOpen(false)} className={btnPrimary}>
+                Done
+              </button>
+            </div>}>
+              <div className="space-y-4 p-5">
                 <div>
                   <div className="mb-1 flex items-center justify-between">
                     <label htmlFor="f-head" className="text-sm font-semibold text-slate-900">
@@ -209,16 +200,7 @@ export function TasksToolbar({
                   </div>
                 </fieldset>
               </div>
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-                <button type="button" disabled={!active} onClick={() => setFilters(NO_FILTERS)} className={btnGhost}>
-                  Clear all
-                </button>
-                <button type="button" onClick={() => setOpen(false)} className={btnPrimary}>
-                  Done
-                </button>
-              </div>
-            </div>
-          )}
+          </Drawer>
         </div>
       </div>
 

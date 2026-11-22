@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom';
 import { MoreHorizontal, SlidersHorizontal } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Drawer, Popover } from '../../components/ui/overlays';
-import { BTN } from '../../components/ui/states';
+import { BTN, BTN_PRIMARY } from '../../components/ui/states';
+import { askText, confirmDialog, toast } from '../../components/ui/feedback';
 import { runPlan, type Plan, type PlanResult } from '../../data/planning/engine';
 import { basePlan, upgradePlan, BASE_SOURCE_URL } from '../../data/planning/basePlan';
 import { SetupPanel, panelSummary } from '../../components/planning/setup/SetupPanel';
@@ -87,7 +88,6 @@ export function PlanningPage() {
   const [setupOpen, setSetupOpen] = useState(false);
   const [compareId, setCompareId] = useState<string>('base');
   const [comparePlan, setComparePlan] = useState<Plan | null>(() => basePlan());
-  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const dirty = cleanJson !== JSON.stringify(plan);
@@ -119,10 +119,10 @@ export function PlanningPage() {
   const compareResult = useMemo(() => (comparePlan ? runPlan(comparePlan) : null), [comparePlan]);
   const compareName = compareId === 'base' ? 'Base' : saved.find((s) => s.id === compareId)?.name ?? '';
 
-  const flash = (text: string, bad = false) => { setMsg({ text, bad }); window.setTimeout(() => setMsg(null), 4000); };
+  const flash = (text: string, _bad = false) => { void _bad; toast(text); };
 
   const open = async (id: string) => {
-    if (dirty && !window.confirm('Changes are not saved. Open the other scenario and lose the changes?')) return;
+    if (dirty && !(await confirmDialog({ title: 'Open the other scenario?', body: 'Your changes are not saved. They are lost when the other scenario opens.', confirm: 'Open and discard changes', danger: true }))) return;
     if (id === 'base') {
       const b = basePlan(); setPlan(b); setSelected('base'); setCleanJson(JSON.stringify(b)); return;
     }
@@ -144,7 +144,7 @@ export function PlanningPage() {
   const save = async (asNew: boolean) => {
     let name = plan.name;
     if (asNew || selected === 'base') {
-      const n = window.prompt('Name this scenario', selected === 'base' ? 'Plan: ' + new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : plan.name + ' (copy)');
+      const n = await askText({ title: 'Name this scenario', label: 'Scenario name', confirm: 'Save', initial: selected === 'base' ? 'Plan: ' + new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : plan.name + ' (copy)' });
       if (!n?.trim()) return;
       name = n.trim();
     }
@@ -154,18 +154,18 @@ export function PlanningPage() {
       const row = await api<Saved>('/api/planning/scenarios', { id: asNew || selected === 'base' ? undefined : selected, name, plan: next, summary: planMonthsOf(result, next.startMonth, (e) => runRateArr(result, e)) });
       setPlan(next); setSelected(row.id); setCleanJson(JSON.stringify(next));
       await refreshList();
-      flash(`Saved “${name}”.`);
+      flash(`Saved “${name}”`);
     } catch (e) { flash((e as Error).message, true); }
     setBusy(false);
   };
 
   const remove = async () => {
-    if (selected === 'base' || !window.confirm(`Delete “${plan.name}” for everyone?`)) return;
+    if (selected === 'base' || !(await confirmDialog({ title: `Delete “${plan.name}”?`, body: 'The scenario goes for every person. You cannot undo this.', confirm: 'Delete', danger: true }))) return;
     try {
       await api(`/api/planning/scenarios/${selected}`, undefined, 'DELETE');
       await refreshList();
       const b = basePlan(); setPlan(b); setSelected('base'); setCleanJson(JSON.stringify(b));
-      flash('Deleted.');
+      flash('Deleted');
     } catch (e) { flash((e as Error).message, true); }
   };
 
@@ -176,7 +176,6 @@ export function PlanningPage() {
         description="The plan to FY31. Change the inputs in Setup. The tabs show the results."
         status={<>
           {dirty && <StatusPill toneName="warning" size="sm">Not saved</StatusPill>}
-          {msg && <span className={`text-xs ${msg.bad ? 'text-red-700' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
         </>}
         tabs={VIEW_TABS} tab={view} onTab={(v) => setView(v as View)}
         help={<>
@@ -190,7 +189,7 @@ export function PlanningPage() {
             <option value="base">Base plan</option>
             {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <button type="button" disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className={BTN}>
+          <button type="button" disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className={BTN_PRIMARY}>
             {selected === 'base' ? 'Save as scenario' : 'Save'}
           </button>
           <button type="button" onClick={() => setSetupOpen(true)} className={BTN}><SlidersHorizontal className="h-4 w-4" aria-hidden />Setup</button>
@@ -203,13 +202,13 @@ export function PlanningPage() {
                 {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               {selected !== 'base' && <button type="button" disabled={busy} onClick={() => save(true)} className={MENU}>Save as new scenario</button>}
-              <button type="button" disabled={!dirty} onClick={() => { if (window.confirm('Remove all changes made after the last save?')) setPlan(JSON.parse(cleanJson)); }} className={MENU}>Undo changes</button>
+              <button type="button" disabled={!dirty} onClick={() => { const before = plan; setPlan(JSON.parse(cleanJson)); toast('Changes removed', { undo: () => setPlan(before) }); }} className={MENU}>Undo changes</button>
               <p className="px-2 pt-2 text-xs font-medium text-slate-600">Download Excel</p>
               {DOWNLOAD_SPANS.map((d) => (
                 <button key={d.months} type="button" onClick={() => void import('../../utils/planningExport').then((m) => m.downloadPlanWorkbook(plan, result, d.months))} className={MENU}>{d.label}</button>
               ))}
               <Link to="/tools/round-planner" className={MENU}>Open Round planner</Link>
-              {selected !== 'base' && <button type="button" onClick={remove} className={MENU + ' text-red-700'}>Delete this scenario</button>}
+              {selected !== 'base' && <button type="button" onClick={remove} className={MENU + ' border-t border-slate-200 text-red-700'}>Delete this scenario</button>}
             </div>
           </Popover>
         </>}

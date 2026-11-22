@@ -15,6 +15,7 @@ import { TaskEditor } from './TaskEditor';
 import { TickBox, btnSecondary, focusRing } from './ui';
 import '../handbook/handbook.generated.css';
 import '../handbook/handbook.ui.css';
+import { askText } from '../../components/ui/feedback';
 
 /** "Do after": the tasks this one depends on, with their latest status. */
 function DependsOn({ task, state, today }: { task: WorkTask; state: WorkState; today: string }) {
@@ -276,7 +277,8 @@ export function TaskPanel({
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      window.prompt('Copy this link', url);
+      await askText({ title: 'Copy this link', label: 'Link to this task', initial: url, confirm: 'Close' });
+      return;
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);

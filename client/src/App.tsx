@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
 import { HOME } from './nav/config';
+import { FeedbackHost } from './components/ui/feedback';
 
 // Every page is its own chunk (React.lazy): the shell loads first, a page's code (and xlsx / jspdf / the handbook) only when
 // it is opened. MainLayout wraps the <Outlet /> in <Suspense>. `lazyPage` reloads once if a chunk from an older deploy is gone.
@@ -132,6 +133,7 @@ function App() {
           <Route path="*" element={<Navigate to={HOME} replace />} />
         </Route>
       </Routes>
+      <FeedbackHost />
     </BrowserRouter>
   );
 }

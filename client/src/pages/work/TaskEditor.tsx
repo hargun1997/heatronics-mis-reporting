@@ -9,6 +9,7 @@ import type { TeamMember, WorkTask } from '../../data/work/workClient';
 import { CADENCES, MN, WD, periodLabel } from './taskModel';
 import { handbookAnchors } from './handbookAnchors';
 import { Avatar, btnGhost, btnPrimary, input, lbl } from './ui';
+import { confirmDialog } from '../../components/ui/feedback';
 
 const scheduleSel = 'min-h-[40px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-950 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
 
@@ -343,10 +344,10 @@ export function TaskEditor({
         {task && onDelete && (
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm(`Delete “${task.title}” and its history?`)) void onDelete(task.id);
+            onClick={async () => {
+              if (await confirmDialog({ title: `Delete “${task.title}”?`, body: 'Its history goes too. You cannot undo this.', confirm: 'Delete', danger: true })) void onDelete(task.id);
             }}
-            className={`${btnGhost} hover:!bg-red-50 hover:!text-red-700`}
+            className={`${btnGhost} border-red-300 text-red-700 hover:!bg-red-50`}
           >
             <TrashIcon className="h-4 w-4" /> Delete
           </button>

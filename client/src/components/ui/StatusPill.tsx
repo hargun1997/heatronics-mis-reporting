@@ -4,7 +4,7 @@
 
 import React from 'react';
 
-import { PILL_TONE, type PillTone } from './pill';
+import { PILL_SIGN, PILL_TONE, type PillTone } from './pill';
 
 export type { PillTone } from './pill';
 
@@ -21,7 +21,7 @@ export function StatusPill({ children, toneName = 'neutral', dot = false, size =
   const t = PILL_TONE[toneName];
   return (
     <span {...rest} className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border text-xs font-semibold ${SIZE[size]} ${t.wrap} ${className}`}>
-      {dot && <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${t.dot}`} />}
+      {dot && <span aria-hidden className="font-bold leading-none">{PILL_SIGN[toneName]}</span>}
       {children}
     </span>
   );
@@ -29,5 +29,7 @@ export function StatusPill({ children, toneName = 'neutral', dot = false, size =
 
 /** A count beside a title ("Do these first 12"). No border, tabular digits. */
 export function CountPill({ n, className = '' }: { n: number | string; className?: string }) {
+  // GUIDE.md "Alerts": counts on badges stop at 99+.
+  if (typeof n === 'number' && n > 99) n = '99+';
   return <span className={`rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700 ${className}`}>{n}</span>;
 }

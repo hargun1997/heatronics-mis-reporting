@@ -9,6 +9,7 @@ import { readFold, writeFold } from '../../hooks/useDensity';
 import { ownerNames } from './taskModel';
 import { TaskPanel } from './lazyParts';
 import { btnGhost, btnSecondary, focusRing } from './ui';
+import { confirmDialog } from '../../components/ui/feedback';
 
 export function AllTasks({
   state,
@@ -50,7 +51,7 @@ export function AllTasks({
     });
   const allShownSelected = tasks.length > 0 && tasks.every((t) => sel.has(t.id));
   const removeSelected = async () => {
-    if (!sel.size || !window.confirm(`Delete ${sel.size} task${sel.size > 1 ? 's' : ''} and their history? This can’t be undone.`)) return;
+    if (!sel.size || !(await confirmDialog({ title: `Delete ${sel.size} task${sel.size > 1 ? 's' : ''}?`, body: 'Their history goes too. You cannot undo this.', confirm: `Delete ${sel.size} task${sel.size > 1 ? 's' : ''}`, danger: true }))) return;
     setDeleting(true);
     try {
       await onDeleteMany([...sel]);

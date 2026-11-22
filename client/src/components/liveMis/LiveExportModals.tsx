@@ -5,6 +5,8 @@
 // ----------------------------------------------------------------------------
 
 import { useMemo, useState } from 'react';
+import { toast } from '../ui/feedback';
+import { buttonClass } from '../ui/Button';
 import { Modal } from '../ui';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import { aggregatePeriods, monthLabel, type Granularity } from '../../data/misDeck/liveAnalytics';
@@ -35,9 +37,9 @@ const GRANS: { id: Granularity; label: string }[] = [
   { id: 'month', label: 'Monthly P&L' }, { id: 'quarter', label: 'Quarterly P&L' }, { id: 'year', label: 'FY P&L' },
 ];
 
-const chip = (on: boolean) => `px-3 py-1.5 rounded-lg text-xs border transition-colors ${on ? 'bg-brand-50 text-brand-700 border-brand-200 font-medium' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`;
-const btnPrimary = 'px-4 py-2 rounded-lg bg-cta text-on-cta text-sm font-medium hover:bg-cta-hover disabled:opacity-40';
-const btnGhost = 'px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800';
+const chip = (on: boolean) => `min-h-11 sm:min-h-8 px-3 rounded-full text-xs border transition-colors ${on ? 'bg-white text-slate-900 border-slate-900 font-semibold' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`;
+const btnPrimary = buttonClass('primary');
+const btnGhost = buttonClass('secondary');
 
 export function LiveExcelModal({ deck, open, onClose, basis, merged }: {
   deck: LiveDeckData; open: boolean; onClose: () => void; basis: CogmBasis; merged: boolean;
@@ -49,20 +51,20 @@ export function LiveExcelModal({ deck, open, onClose, basis, merged }: {
   const run = async (opts: LiveExportOptions) => {
     setBusy(true);
     try { const { exportLiveMis } = await import('../../utils/liveMisExport'); await exportLiveMis(deck, opts, stmts.built); setTimeout(onClose, 300); }
-    catch (e) { console.error('Live MIS export failed', e); alert('Failed to export the Excel file. Please try again.'); }
+    catch (e) { console.error('Live MIS export failed', e); toast('Download did not work. Try again.'); }
     finally { setBusy(false); }
   };
   return (
-    <Modal open={open} onClose={onClose} width={640} title="Export to Excel" subtitle="The Live MIS as a styled, multi-sheet workbook"
+    <Modal open={open} onClose={onClose} width={640} title="Download Excel" subtitle="The Live MIS as a workbook with one sheet for each part"
       footer={<>
         <span className="mr-auto text-xs text-slate-500">{n ? `${n} sheet${n === 1 ? '' : 's'} selected` : 'Nothing selected'}</span>
         <button type="button" onClick={onClose} className={btnGhost}>Cancel</button>
-        <button type="button" disabled={busy || !n} onClick={() => void run(o)} className={btnPrimary}>{busy ? 'Exporting…' : 'Export selected'}</button>
+        <button type="button" disabled={busy || !n} onClick={() => void run(o)} className={btnPrimary}>{busy ? 'Preparing' : 'Download selected'}</button>
       </>}>
       <div className="space-y-4">
         <button type="button" disabled={busy} onClick={() => void run({ ...LIVE_EXPORT_EVERYTHING, normaliseCogm: o.normaliseCogm, mergeChannels: o.mergeChannels })}
           className="w-full text-left rounded-xl bg-cta hover:bg-cta-hover text-on-cta px-4 py-3 disabled:opacity-60">
-          <span className="block font-semibold">Export Everything</span>
+          <span className="block font-semibold">Download everything</span>
           <span className="block text-xs text-white/80">Every month, quarter and FY, channel P&amp;L, SKU × channel, orders, repeats, discounts, COGM / OpEx detail, marketing, units and SKU cells</span>
         </button>
         <div className="flex items-center gap-3 text-xs text-slate-400"><div className="flex-1 h-px bg-slate-200" />or pick what you want<div className="flex-1 h-px bg-slate-200" /></div>
@@ -125,15 +127,15 @@ export function LivePdfModal({ deck, open, onClose, basis, merged }: {
   const run = async () => {
     setBusy(true);
     try { const { downloadLivePdf } = await import('../../utils/liveMisPdf'); downloadLivePdf(deck, { sections, fyKeys, monthKeys, normaliseCogm: basis === 'normalised', mergeChannels: merged }, stmts.built); setTimeout(onClose, 300); }
-    catch (e) { console.error('PDF export failed', e); alert('Failed to build the PDF. Please try again.'); }
+    catch (e) { console.error('PDF export failed', e); toast('PDF did not build. Try again.'); }
     finally { setBusy(false); }
   };
   return (
-    <Modal open={open} onClose={onClose} width={600} title="Export PDF" subtitle="A printable report built from the Live MIS"
+    <Modal open={open} onClose={onClose} width={600} title="Download PDF" subtitle="A report to print, made from the Live MIS"
       footer={<>
         <span className="mr-auto text-xs text-slate-500">{basis === 'normalised' ? 'Normalised' : 'Actual'} COGM · {merged ? 'continuous' : 'as-booked'} channels</span>
         <button type="button" onClick={onClose} className={btnGhost}>Cancel</button>
-        <button type="button" disabled={busy || sections.length === 0} onClick={() => void run()} className={btnPrimary}>{busy ? 'Building…' : 'Download PDF'}</button>
+        <button type="button" disabled={busy || sections.length === 0} onClick={() => void run()} className={btnPrimary}>{busy ? 'Preparing' : 'Download PDF'}</button>
       </>}>
       <div className="space-y-4">
         <div className="space-y-1.5">

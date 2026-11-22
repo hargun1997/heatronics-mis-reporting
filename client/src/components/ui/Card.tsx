@@ -1,6 +1,7 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { InfoTip } from './states';
+import { StatusPill } from './StatusPill';
+import type { PillTone } from './pill';
 
 interface CardProps {
   children: React.ReactNode;
@@ -42,75 +43,18 @@ export function SectionCard({ title, description, children, actions, className =
   );
 }
 
-interface NavCardProps {
-  to: string;
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  accent?: 'brand' | 'emerald' | 'violet' | 'amber' | 'sky' | 'rose';
-  badge?: string;
-}
-
-const accentMap: Record<NonNullable<NavCardProps['accent']>, { bg: string; icon: string; ring: string; text: string }> = {
-  brand:   { bg: 'bg-brand-50',   icon: 'bg-brand-100 text-brand-700',     ring: 'ring-brand-200',   text: 'text-brand-700' },
-  emerald: { bg: 'bg-emerald-50', icon: 'bg-emerald-100 text-emerald-700', ring: 'ring-emerald-200', text: 'text-emerald-700' },
-  violet:  { bg: 'bg-slate-50',  icon: 'bg-slate-100 text-slate-700',   ring: 'ring-slate-200',  text: 'text-slate-700' },
-  amber:   { bg: 'bg-amber-50',   icon: 'bg-amber-100 text-amber-700',     ring: 'ring-amber-200',   text: 'text-amber-700' },
-  sky:     { bg: 'bg-slate-50',     icon: 'bg-slate-100 text-slate-700',         ring: 'ring-slate-200',     text: 'text-slate-700' },
-  rose:    { bg: 'bg-red-50',    icon: 'bg-red-100 text-red-700',       ring: 'ring-red-200',    text: 'text-red-700' },
-};
-
-export function NavCard({ to, title, description, icon, accent = 'brand', badge }: NavCardProps) {
-  const c = accentMap[accent];
-  return (
-    <Link
-      to={to}
-      className={`group relative block rounded-xl border border-slate-200 bg-white p-5 card-lift hover:ring-1 ${c.ring}`}
-    >
-      <div className="flex items-start gap-4">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${c.icon} flex-shrink-0`}>
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-            {badge && (
-              <span className={`text-xs px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
-                {badge}
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-slate-500 leading-relaxed">{description}</p>
-        </div>
-        <svg className="h-4 w-4 text-slate-300 group-hover:text-slate-500 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </div>
-    </Link>
-  );
-}
-
 interface PillProps {
   children: React.ReactNode;
   color?: 'slate' | 'brand' | 'emerald' | 'amber' | 'rose' | 'sky' | 'violet';
   size?: 'xs' | 'sm';
 }
 
-const pillColorMap: Record<NonNullable<PillProps['color']>, string> = {
-  slate:   'bg-slate-100 text-slate-700 border-slate-200',
-  brand:   'bg-brand-50 text-brand-700 border-brand-100',
-  emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  amber:   'bg-amber-50 text-amber-700 border-amber-100',
-  rose:    'bg-red-50 text-red-700 border-red-100',
-  sky:     'bg-slate-50 text-slate-700 border-slate-100',
-  violet:  'bg-slate-50 text-slate-700 border-slate-100',
+// Old colour names point at the guide's meanings (GUIDE.md "Status and pills"): sky / violet were decoration, so grey.
+const TONE: Record<NonNullable<PillProps['color']>, PillTone> = {
+  slate: 'neutral', sky: 'neutral', violet: 'neutral', brand: 'brand', emerald: 'positive', amber: 'warning', rose: 'critical',
 };
 
+/** Kept for old callers; the pill itself is StatusPill. */
 export function Pill({ children, color = 'slate', size = 'sm' }: PillProps) {
-  const sizeCls = size === 'xs' ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-0.5';
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full border font-medium ${pillColorMap[color]} ${sizeCls}`}>
-      {children}
-    </span>
-  );
+  return <StatusPill toneName={TONE[color]} size={size === 'xs' ? 'sm' : 'md'}>{children}</StatusPill>;
 }

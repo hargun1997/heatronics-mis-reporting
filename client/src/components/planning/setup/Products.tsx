@@ -16,6 +16,7 @@ import { cr, int, money, pct } from '../fmt';
 import { btn, lbl, MonthSelect, monthsOf, Note, Parts, rm, SubHead, Tip, txt, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 import { pillClass } from '../../ui/pill';
+import { confirmDialog } from '../../ui/feedback';
 
 export { summary };
 
@@ -157,7 +158,7 @@ function ProductRow({ x, c, cats, skus, months, fys, byFy, open, onToggle, setPr
         <span className="text-xs text-slate-600">Price</span><NumInput value={x.asp} min={0} width="w-16" title="Price incl. GST" onChange={(v) => set((y) => { y.asp = v; })} />
         <span className="ml-auto text-xs tabular-nums text-slate-600">{fys.slice(-3).map((f) => `${f} ${cr(byFy[f]?.rev ?? 0, 1)} Cr`).join(' · ')}</span>
         <button type="button" className="min-h-8 rounded px-1.5 py-0.5 text-xs font-semibold text-accent-700 hover:underline" aria-expanded={open} onClick={onToggle}>{open ? 'Close' : 'Edit'}</button>
-        <button type="button" className={rm} aria-label={`Remove ${x.name}`} onClick={() => { if (window.confirm(`Remove ${x.name}?`)) remove(); }}>✕</button>
+        <button type="button" className={rm} aria-label={`Remove ${x.name}`} onClick={async () => { if (await confirmDialog({ title: `Delete ${x.name}?`, body: 'The product leaves this plan.', confirm: 'Delete', danger: true })) remove(); }}>✕</button>
       </div>
       {open && (
         <div className="grid gap-4 bg-surface-tint/40 px-4 py-4 lg:grid-cols-2">

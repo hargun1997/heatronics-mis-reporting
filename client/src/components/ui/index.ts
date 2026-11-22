@@ -1,12 +1,18 @@
-// Barrel for the Heatronics MIS design-system UI kit.
-export { Card, SectionCard, NavCard, Pill } from './Card';
+// Barrel for the Heatronics MIS UI kit. Names follow GUIDE.md "Build rules for code" (same part names in every portal);
+// the older names stay exported so nothing breaks.
+export { Card, SectionCard, Pill as LegacyPill } from './Card';
 export { PageHeader } from './PageHeader';
 export { Drawer, Modal, Popover } from './overlays';
-export { SegmentedControl } from './SegmentedControl';
-export { StatusPill } from './StatusPill';
+export { confirmDialog, askText, toast, FeedbackHost } from './feedback';
+export { Button, buttonClass } from './Button';
+export type { ButtonVariant, ButtonSize } from './Button';
+export { SegmentedControl, SegmentedControl as ViewSwitch } from './SegmentedControl';
+export { StatusPill, StatusPill as Pill, CountPill, CountPill as Count } from './StatusPill';
 export type { PillTone } from './StatusPill';
-export { KpiTile } from './KpiTile';
+export { KpiTile, KpiTile as NumberTile } from './KpiTile';
 export type { KpiTone, DeltaDir } from './KpiTile';
-export { HeaderMore, PageBody, PageTabs } from './PageHeader';
+export { HeaderMore, PageBody, PageTabs, PageTabs as Tabs } from './PageHeader';
 export type { PageTab } from './PageHeader';
-export { Loading, ErrorBox, Empty, InfoTip, ShowAll, Panel, StepNo, BTN, BTN_PRIMARY } from './states';
+export { DataTable } from './DataTable';
+export { SourceChip } from './SourceChip';
+export { Loading, Skeleton, ErrorBox, Empty, InfoTip, ShowAll, Panel, StepNo, BTN, BTN_PRIMARY } from './states';

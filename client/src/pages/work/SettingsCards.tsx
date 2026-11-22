@@ -21,6 +21,7 @@ import {
 } from '../../data/work/workClient';
 import { buildAgenda } from './taskModel';
 import { Avatar, input } from './ui';
+import { confirmDialog } from '../../components/ui/feedback';
 
 export function TeamCard({ state, me, onChanged, onError }: { state: WorkState; me: string; onChanged: () => Promise<void>; onError: (s: string) => void }) {
   const [adding, setAdding] = useState(false);
@@ -60,7 +61,7 @@ export function TeamCard({ state, me, onChanged, onError }: { state: WorkState; 
   };
 
   const remove = async (m: TeamMember) => {
-    if (!window.confirm(`Remove ${m.name}? Their tasks will have no owner.`)) return;
+    if (!(await confirmDialog({ title: `Delete ${m.name}?`, body: 'Their tasks will have no owner.', confirm: 'Delete', danger: true }))) return;
     try {
       await deleteMember(m.id);
       await onChanged();
@@ -263,7 +264,7 @@ export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; o
   };
 
   const send = async () => {
-    if (!window.confirm(state.mailer.configured ? 'Send today’s task emails to every owner now?' : 'Email isn’t connected: this will be a dry run. Continue?')) return;
+    if (!(await confirmDialog(state.mailer.configured ? { title: 'Send the task emails now?', body: 'Each owner gets today’s email with their tasks.', confirm: 'Send emails' } : { title: 'Email is not connected', body: 'This run is a test. No email goes out.', confirm: 'Run the test' }))) return;
     setBusy(true);
     setErr('');
     try {
