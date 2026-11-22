@@ -6,7 +6,8 @@
 //   PUT    /map          replace the map ({ rows, updatedBy? })
 //   POST   /history      keep a Tally Day Book / Ledger export as booking history
 //   DELETE /history      forget it
-//   POST   /chat         one turn: messages (+ attachments) → Claude's answer
+//   POST   /chat         one turn: messages (+ attachments) → Claude's answer, the invoice read, the evidence
+//                         used and the ledger check (23 Nov 2026: services/bookingEvidence.ts, bookingInvoice.ts)
 //
 // The chat is a stateless relay like /api/chat: the client sends the
 // conversation and the handbook text; the server adds the ledger map, the
@@ -17,6 +18,10 @@ import { Router, type Request, type Response } from 'express';
 import { claudeChat, isClaudeConfigured, type ChatTurn, type ClaudePart } from '../services/claudeClient.js';
 import { expenseMapForPrompt, readExpenseMap, writeExpenseMap } from '../services/expenseMap.js';
 import { bookingHistoryContext, clearHistory, readSavedHistory, saveHistory } from '../services/bookingHistory.js';
+import { buildEvidence, checkLedgers, evidenceSummary, evidenceText } from '../services/bookingEvidence.js';
+import { readInvoice } from '../services/bookingInvoice.js';
+import { latestMonths, readMasters, readVouchers } from '../connectors/tally/bookStore.js';
+import { ledgerListText } from '../connectors/tally/books.js';
 
 const router = Router();
 
@@ -78,7 +83,7 @@ const PREAMBLE = `You are the Heatronics booking assistant — you help the in-h
 1. The EXPENSE → LEDGER MAP below. It is Hargun's (the owner's) decision table. A row marked "Confirmed by Hargun" or "Confirmed (from books)" is binding (the "Evidence" column is a real voucher from the books — mirror its structure) — use that ledger verbatim. A row marked "NEEDS HARGUN" has no decided ledger yet: say so plainly, show the closest existing Tally ledger as a suggestion only, and mark the answer "To confirm with Hargun". A row marked "NOT IN SCOPE" (currently Shopify and Claude/Anthropic) is not booked at Heatronics for now: do not build a voucher — say it is not booked currently and ask the accountant to check with Hargun. Rows with sub-rules (e.g. Amazon invoice type → ledger, Shiprocket invoice series / credit notes) must be applied by matching the document type. When asked where to get an invoice, give the row's download link.
 2. The ACCOUNTS HANDBOOK excerpts below — the documented procedure for how these books are run. Follow it over textbook practice.
 3. BOOKING HISTORY (when present) — how similar bills were booked before. Prefer consistency with history unless the map or handbook says otherwise; point out if history contradicts the map.
-4. The TALLY MASTER ledger list (when present) — use ledger and voucher-type names EXACTLY as they appear there. If the name you need is not in the master, say "(not in Tally master — create or confirm)".
+4. The TALLY MASTER ledger list (when present) — use ledger and voucher-type names EXACTLY as they appear there. If the name you need is not in the master, write it as "<name> (new)" and add a New ledger needed block.
 5. Any invoice / report the accountant attached in this chat — read vendor, GSTIN, invoice no., date, taxable value, GST split, total, currency, place of supply.
 
 ## Answer format (always)
@@ -97,6 +102,26 @@ Then:
 - **Narration:** a ready-to-paste narration (vendor, invoice no., date, period, nature).
 - **Why:** 1–3 short bullets — cite the map row and/or the handbook section as a link, e.g. [Handbook · Shopflo](/handbook#c27-shopflo). Use the handbook "(open: …)" paths or the map's /handbook#… anchors exactly; do not invent anchors.
 - **To confirm with CA** / **To confirm with Hargun:** list anything uncertain (GST eligibility, TDS section, ledger not yet decided). Never guess silently — when unsure, say so here instead of presenting a guess as fact.
+
+## Each question also carries (in the user turn)
+- **INVOICE READ FROM THE ATTACHMENT**: the facts a first pass read from the photo / PDF. Check them against the image. If a figure is wrong or unreadable, say so and use the image.
+- **EVIDENCE FROM THE STORED TALLY BOOKS**: the party ledger found in Tally (by GSTIN or name), its last vouchers, its total this FY, the TDS ledgers used for it, and similar vouchers. When the party has past vouchers, mirror their voucher type, ledgers and TDS unless the map or the handbook says otherwise; say "Same as <date> <voucher no.>". When history and the map disagree, follow the map and point it out.
+
+## Invoice photos
+- Read every figure from the document. Do the GST check: taxable + taxes (+ round off) = total. If it does not add up, say so first.
+- Intra-UP supply (vendor GSTIN starts 09 and place of supply UP) = CGST + SGST; else IGST. A vendor with no GSTIN = no input GST (the tax is part of the cost).
+- Invoice date, number and the vendor GSTIN go into the narration and the reference field (Supplier Invoice No., date).
+
+## A case in words (no invoice)
+The accountant may describe a situation: an advance, a refund, a write-off, a reversal, a wrong entry to correct, a month-end provision, a stock transfer, a loan, a director payment. Then:
+- Give the ENTRIES IN ORDER as **Voucher 1**, **Voucher 2** … (each with its own voucher type, date rule and Dr/Cr table). Include the payment / adjustment entry when the case needs it.
+- For a correction: show how to alter or cancel the wrong voucher first (TallyPrime path), then the right entry. Never suggest deleting without "Ask Hargun first".
+- Ask at most 2 questions back, and only when the answer changes the entries. Otherwise state your assumption in one line and give the entries.
+
+## Ledgers: existing or new
+- Use a ledger from the TALLY MASTER list wherever one fits. Write its name exactly.
+- When none fits, add a **New ledger needed** block: Name · Under (the group from the TALLY GROUPS list, the most specific sub-group) · GST applicability / type of supply · TDS nature (if any) · why no existing ledger fits. In the voucher table write the ledger as "<name> (new)".
+- A party (vendor / customer) not found in the evidence = **New party ledger**: Name as on the invoice · Under Sundry Creditors (or the right sub-group) · GSTIN · State · Registration type · PAN (GSTIN characters 3 to 12) · Maintain balances bill-by-bill: Yes.
 
 ## Rules
 - Be decisive when the map, handbook or history settles it. Be explicit when they don't.
@@ -180,9 +205,26 @@ router.post('/chat', h(async (req, res) => {
     return res.status(400).json({ error: 'messages must be a non-empty list ending with a user turn.' });
   }
 
-  const [map, history] = await Promise.all([readExpenseMap(), bookingHistoryContext()]);
+  const periods = await latestMonths(12).catch(() => [] as string[]);
+  const last = turns[turns.length - 1];
+  const docParts = (last.parts ?? []).filter((p) => p.image || p.pdf || /^Attached (invoice|image)/.test(p.text ?? ''));
+  const [map, history, masters, books, invoice] = await Promise.all([
+    readExpenseMap(), bookingHistoryContext(), readMasters().catch(() => null),
+    readVouchers(periods).catch(() => ({ vouchers: [], periods: [] as string[] })),
+    readInvoice(docParts),
+  ]);
   const handbook = typeof body.handbook === 'string' ? body.handbook.slice(0, 400_000) : '';
-  const tallyLedgers = typeof body.tallyLedgers === 'string' ? body.tallyLedgers.slice(0, 60_000) : '';
+  // The live Tally masters (with groups, GSTIN, TDS) beat the bundled list the page sends.
+  const liveLedgers = masters?.ledgers?.length ? ledgerListText(masters, 2500) : '';
+  const tallyLedgers = liveLedgers
+    ? `Live Tally masters, taken ${masters?.asOf?.slice(0, 16) ?? '?'} (name | group | GSTIN | registration | state | TDS | tax):\n${liveLedgers}`
+    : typeof body.tallyLedgers === 'string' ? body.tallyLedgers.slice(0, 60_000) : '';
+  const groups = (masters?.groups ?? []).map((g) => `${g.name} | under ${g.parent || 'Primary'}`).join('\n');
+
+  // The question's own evidence goes into the user turn, so the big system prompt stays cached across questions.
+  const question = turns.filter((t) => t.role === 'user').slice(-3).map((t) => t.content).join(' ');
+  const ev = buildEvidence({ vouchers: books.vouchers, masters, periods: books.periods, question, invoice, today: new Date().toISOString().slice(0, 10) });
+  last.parts = [{ text: evidenceText(ev, invoice) }, ...(last.parts ?? [])];
 
   const system =
     PREAMBLE +
@@ -190,13 +232,15 @@ router.post('/chat', h(async (req, res) => {
     expenseMapForPrompt(map.rows) +
     `\n\n=== BOOKING HISTORY ===\n` +
     (history.text || 'No booking history is loaded yet (no ingested Tally reports and no saved Day Book). Say so if the answer would depend on how it was booked before.') +
-    `\n\n=== TALLY MASTER — LEDGERS (name | group) AND VOUCHER TYPES ===\n` +
+    `\n\n=== TALLY MASTER — LEDGERS ===\n` +
     (tallyLedgers || 'Not provided.') +
+    `\n\n=== TALLY GROUPS (name | under) ===\n` +
+    (groups || 'Not pulled yet.') +
     `\n\n=== ACCOUNTS HANDBOOK ===\n` +
     (handbook || 'Not provided.');
 
-  const reply = await claudeChat({ system, messages: turns, feature: 'booking-assistant', maxTokens: 8000 });
-  res.json({ reply, dropped });
+  const reply = await claudeChat({ system, messages: turns, feature: 'booking-assistant', maxTokens: 10000 });
+  res.json({ reply, dropped, invoice, evidence: evidenceSummary(ev), ledgerCheck: checkLedgers(reply, masters) });
 }));
 
 export default router;

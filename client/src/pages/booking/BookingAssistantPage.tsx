@@ -6,11 +6,17 @@
 //   · booking history (ingested Tally reports + a saved Day Book export),
 //   · the Tally master ledger list, and
 //   · whatever invoice / report is attached to the question.
+// Since 23 Nov 2026 the server also reads the invoice first (vendor, GSTIN, amounts), finds the party in the live Tally
+// masters and its past vouchers in the stored Day Books, and checks every ledger of the answer against the masters.
+// The page shows that as an "Invoice read" card and a "Based on" line above the answer. Phones: the Photo button opens
+// the back camera; photos are shrunk to 2000 px JPEG before they are sent.
 // Left: the conversation. Right: the ledger map. Everything is in-page.
 // ----------------------------------------------------------------------------
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Camera } from 'lucide-react';
+import { dayLabel, inrFull } from '../../utils/money';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Popover } from '../../components/ui/overlays';
 import { BTN, BTN_PRIMARY } from '../../components/ui/states';
@@ -27,18 +33,22 @@ import {
   saveMap,
   sendBookingChat,
   tallyLedgersForPrompt,
+  type AnswerMeta,
   type AssistantStatus,
   type BookingMessage,
+  type InvoiceRead,
   type ChatAttachment,
   type ExpenseMapRow,
 } from '../../data/bookingAssistant/bookingClient';
 import { LedgerMapPanel } from './LedgerMapPanel';
 import { StatusPill } from '../../components/ui/StatusPill';
+import { pillClass } from '../../components/ui/pill';
 
 const STARTERS = [
   { q: 'Which ledger for a Google Ads invoice?', hint: 'Ledger, GST, TDS' },
   { q: 'How do I book the Amazon monthly fees with TDS and TCS?', hint: 'Full voucher' },
-  { q: 'Shiprocket weekly bill: which voucher?', hint: 'Voucher type' },
+  { q: 'We paid a vendor an advance of ₹50,000 in October. The bill of ₹59,000 with GST came in November. Give each entry.', hint: 'A case: several entries' },
+  { q: 'A new software tool bills us in USD every month. Do we need a new ledger? Give the ledger settings.', hint: 'New ledger' },
 ];
 
 const CHAT_LS_KEY = 'heatronics.booking-assistant.chat.v1';
@@ -94,6 +104,7 @@ export function BookingAssistantPage() {
   const [mobileTab, setMobileTab] = useState<'chat' | 'map'>('chat');
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -144,6 +155,7 @@ export function BookingAssistantPage() {
       }
     }
     if (fileRef.current) fileRef.current.value = '';
+    if (photoRef.current) photoRef.current.value = '';
   };
 
   const ask = async (text: string, atts: ChatAttachment[] = pending, base: BookingMessage[] = messages) => {
@@ -161,9 +173,9 @@ export function BookingAssistantPage() {
     setLoading(true);
     setMobileTab('chat');
     try {
-      const { reply, dropped } = await sendBookingChat(thread, handbookChatContext(), tallyLedgersForPrompt(tally.master));
+      const { reply, dropped, meta } = await sendBookingChat(thread, handbookChatContext(), tallyLedgersForPrompt(tally.master));
       const note = dropped.length ? `\n\nNot read (too large or unsupported): ${dropped.join(', ')}.` : '';
-      setMessages((m) => [...m, { role: 'assistant', content: reply + note }]);
+      setMessages((m) => [...m, { role: 'assistant', content: reply + note, meta }]);
     } catch (e) {
       const err = e instanceof AssistantError ? e : new AssistantError(e instanceof Error ? e.message : 'The assistant failed.');
       setMessages((m) => [...m, { role: 'assistant', content: '', error: { message: err.message, code: err.code } }]);
@@ -215,7 +227,7 @@ export function BookingAssistantPage() {
         title="Book an invoice"
         description="Ask for the ledger, the voucher and the GST of an invoice."
         status={notConfigured ? <StatusPill toneName="warning" size="sm" title="Set ANTHROPIC_API_KEY on the server. The ledger map works.">Claude not connected</StatusPill> : undefined}
-        help={<><p>Each answer reads the ledger map, the Accounts Handbook, the Tally ledger list and your past entries.</p><p>To add past entries: export the Tally Day Book to Excel. Attach it. Select “Keep as booking history”.</p></>}
+        help={<><p>Each answer reads the ledger map, the Accounts Handbook, the live Tally ledgers and groups, and the party’s past vouchers in the stored Tally Day Books (12 months).</p><p>Invoice: select Photo on a phone, or Attach for a PDF. Take the whole page, flat, in good light. Add more pages to the same question.</p><p>A case with no invoice: write what happened. The answer gives each entry in order and any new ledger.</p></>}
         actions={<Link to="/tools/expense-booking" className={BTN}>Tally XML tool</Link>}
       />
 
@@ -256,14 +268,16 @@ export function BookingAssistantPage() {
                       }
                     } : undefined} />
                   ) : (
-                    <AssistantTurn text={m.content} />
+                    <AssistantTurn text={m.content} meta={m.meta} />
                   )}
                 </li>
               ))}
               {loading && (
                 <li className="flex items-center gap-2.5 text-label text-slate-700">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-accent-500 border-t-transparent motion-reduce:animate-none" aria-hidden="true" />
-                  Reading the ledger map, Handbook and history…
+                  {messages[messages.length - 1]?.attachments?.some((a) => a.kind !== 'text')
+                    ? 'Reading the invoice, then the Tally books…'
+                    : 'Reading the ledger map, Handbook and Tally books…'}
                 </li>
               )}
             </ol>
@@ -281,7 +295,24 @@ export function BookingAssistantPage() {
                 ))}
               </div>
             )}
-            <div className="flex items-end gap-2">
+            <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+              <input
+                ref={photoRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => void onPick(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => photoRef.current?.click()}
+                className={`${BTN} min-h-11 shrink-0 sm:hidden`}
+                aria-label="Take a photo of the invoice"
+              >
+                <Camera className="h-[18px] w-[18px]" aria-hidden="true" />
+                Photo
+              </button>
               <input
                 ref={fileRef}
                 type="file"
@@ -300,7 +331,7 @@ export function BookingAssistantPage() {
                 {iconClip}
                 <span className="hidden sm:inline">Attach</span>
               </button>
-              <label className="flex-1">
+              <label className="order-first basis-full sm:order-none sm:basis-auto sm:flex-1">
                 <span className="sr-only">Your question</span>
                 <textarea
                   ref={inputRef}
@@ -313,7 +344,7 @@ export function BookingAssistantPage() {
                     }
                   }}
                   rows={1}
-                  placeholder="Bitespeed invoice ₹11,800 with GST: which ledger and TDS?"
+                  placeholder="Type the bill, or write a case: what happened and the amounts"
                   className="block max-h-36 min-h-11 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-snug text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500"
                 />
               </label>
@@ -321,7 +352,7 @@ export function BookingAssistantPage() {
                 type="button"
                 onClick={() => void ask(input)}
                 disabled={loading || (!input.trim() && !pending.length)}
-                className={`${BTN_PRIMARY} min-h-11 shrink-0`}
+                className={`${BTN_PRIMARY} ml-auto min-h-11 shrink-0 sm:ml-0`}
               >
                 Ask {iconSend}
               </button>
@@ -379,8 +410,8 @@ function EmptyState({ onAsk, disabled }: { onAsk: (q: string) => void; disabled:
   return (
     <div className="mx-auto max-w-2xl py-6">
       <h2 className="text-lg font-semibold text-slate-900">What do you book?</h2>
-      <p className="mt-1 text-sm text-slate-600">Type the bill or attach the invoice. The answer gives the voucher, the Dr and Cr lines, GST and TDS.</p>
-      <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
+      <p className="mt-1 text-sm text-slate-600">Take a photo of the invoice, attach the PDF, or write a case. The answer gives each voucher, the Dr and Cr lines, GST, TDS and any new ledger.</p>
+      <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
         {STARTERS.map((s) => (
           <button
             key={s.q}
@@ -413,13 +444,114 @@ function UserTurn({ m, onKeep }: { m: BookingMessage; onKeep: (a: ChatAttachment
   );
 }
 
-function AssistantTurn({ text }: { text: string }) {
+function AssistantTurn({ text, meta }: { text: string; meta?: AnswerMeta }) {
+  const missing = meta?.ledgerCheck?.missing ?? [];
   return (
-    <article className="booking-answer rounded-xl border border-slate-200 border-l-[3px] border-l-accent-500 bg-white px-4 py-3 sm:px-5 [&_li]:text-sm [&_li]:text-slate-800 [&_p]:text-sm [&_p]:text-slate-800 [&_strong]:text-slate-900 [&_h4]:text-sm [&_h4]:text-slate-900 [&_td]:text-label [&_td]:text-slate-900">
-      <div className="mb-1 text-xs font-semibold text-accent-700">Booking advice</div>
-      <Markdown text={text} />
-      <CopyButton text={text} />
-    </article>
+    <div className="space-y-2">
+      {meta?.invoice && <InvoiceCard inv={meta.invoice} />}
+      <article className="booking-answer overflow-x-auto rounded-xl border border-slate-200 border-l-[3px] border-l-accent-500 bg-white px-4 py-3 sm:px-5 [&_li]:text-sm [&_li]:text-slate-800 [&_p]:text-sm [&_p]:text-slate-800 [&_strong]:text-slate-900 [&_h4]:text-sm [&_h4]:text-slate-900 [&_td]:text-label [&_td]:text-slate-900">
+        <div className="mb-1 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-semibold text-accent-700">Booking advice</span>
+          <BooksUsed meta={meta} />
+          {meta?.ledgerCheck && meta.ledgerCheck.checked > 0 && (
+            missing.length ? (
+              <Popover align="left" width={300} buttonLabel={`${missing.length} ledger names not in Tally`}
+                buttonClassName={pillClass('warning')}
+                button={<>! {missing.length} not in Tally</>}>
+                <div className="space-y-2 p-3.5 text-label text-slate-800">
+                  <p>These names are not in the Tally ledger list. Check the spelling, or create the ledger first.</p>
+                  <ul className="list-disc space-y-0.5 pl-4">{missing.map((n) => <li key={n}>{n}</li>)}</ul>
+                </div>
+              </Popover>
+            ) : (
+              <StatusPill toneName="positive" size="sm" dot title="Each ledger in the tables is in the Tally ledger list">Ledgers in Tally</StatusPill>
+            )
+          )}
+        </div>
+        <Markdown text={text} />
+        <CopyButton text={text} />
+      </article>
+    </div>
+  );
+}
+
+const gstOf = (inv: InvoiceRead) => (inv.cgst ?? 0) + (inv.sgst ?? 0) + (inv.igst ?? 0);
+
+/** The figures read from the photo / PDF, and whether they add up. */
+function InvoiceCard({ inv }: { inv: InvoiceRead }) {
+  const gst = gstOf(inv);
+  const parts = [inv.taxable, inv.cgst, inv.sgst, inv.igst].some((v) => typeof v === 'number');
+  const sum = (inv.taxable ?? 0) + gst + (inv.tcs ?? 0) + (inv.roundOff ?? 0);
+  const adds = typeof inv.total === 'number' && parts ? Math.abs(sum - inv.total) <= 2 : null;
+  const cells: [string, string][] = [
+    ['Vendor', inv.vendor || 'Not read'],
+    ['GSTIN', inv.vendorGstin || 'None'],
+    ['Invoice no.', inv.invoiceNo || 'Not read'],
+    ['Date', inv.invoiceDate ? dayWithYear(inv.invoiceDate) : 'Not read'],
+    ['Taxable', inv.taxable != null ? inrFull(inv.taxable) : 'Not read'],
+    [inv.igst ? 'IGST' : 'CGST + SGST', gst ? inrFull(gst) : '₹0'],
+    ['Total', inv.total != null ? inrFull(inv.total) : 'Not read'],
+  ];
+  return (
+    <section aria-label="Invoice read" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <span className="text-xs font-semibold text-slate-700">Invoice read</span>
+        {inv.docType && <StatusPill size="sm">{inv.docType}</StatusPill>}
+        {adds === true && <StatusPill toneName="positive" size="sm" dot>Adds up</StatusPill>}
+        {adds === false && <StatusPill toneName="warning" size="sm" dot title={`Taxable + GST + TCS + round off = ${inrFull(sum)}`}>Does not add up</StatusPill>}
+        {inv.reverseCharge && <StatusPill toneName="warning" size="sm">Reverse charge</StatusPill>}
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+        {cells.map(([k, v]) => (
+          <div key={k} className="min-w-0">
+            <dt className="text-xs text-slate-600">{k}</dt>
+            <dd className="truncate text-label font-medium tabular-nums text-slate-900" title={v}>{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {inv.nature && <p className="mt-2 text-label text-slate-700">{inv.nature}</p>}
+      {inv.notes && <p className="mt-1 text-label text-amber-800">{inv.notes}</p>}
+    </section>
+  );
+}
+
+/** "2026-11-21" → "21 Nov 2026" (vouchers span a year, so the year shows). */
+const dayWithYear = (iso: string) => (/^\d{4}-\d{2}-\d{2}/.test(iso) ? `${dayLabel(iso)} ${iso.slice(0, 4)}` : dayLabel(iso));
+
+/** "Based on: <party>, N past vouchers" with the list behind it. */
+function BooksUsed({ meta }: { meta?: AnswerMeta }) {
+  const e = meta?.evidence;
+  if (!e) return null;
+  const n = e.partyVouchers.length;
+  const label = e.party
+    ? `${e.party.name}: ${n ? `${n} past voucher${n === 1 ? '' : 's'}` : 'no past vouchers'}`
+    : meta?.invoice?.vendor ? 'Party not in Tally' : `${e.similar} similar voucher${e.similar === 1 ? '' : 's'}`;
+  const tone = e.party ? 'neutral' : meta?.invoice?.vendor ? 'warning' : 'neutral';
+  return (
+    <Popover align="left" width={360} buttonLabel={`Based on ${label}`} buttonClassName={pillClass(tone)} button={<>{label}</>}>
+      <div className="space-y-2 p-3.5 text-label text-slate-800">
+        {e.party ? (
+          <p>Party ledger <span className="font-semibold">{e.party.name}</span>, found by {e.party.how === 'gstin' ? 'GSTIN' : 'name'}{e.party.gstin ? ` (${e.party.gstin})` : ''}.</p>
+        ) : (
+          <p>{meta?.invoice?.vendor ? `No party ledger for ${meta.invoice.vendor}. The answer gives a new party ledger.` : 'No party named.'}</p>
+        )}
+        {e.fy && <p>This financial year: {inrFull(e.fy.total)} in {e.fy.count} bill{e.fy.count === 1 ? '' : 's'}.</p>}
+        {n > 0 && (
+          <ul className="max-h-56 space-y-1 overflow-y-auto">
+            {e.partyVouchers.map((v) => (
+              <li key={`${v.date}-${v.number}`} className="rounded-md bg-slate-50 px-2 py-1">
+                <span className="font-medium">{dayWithYear(v.date)} · {v.type} {v.number}</span>
+                <span className="block break-words text-xs text-slate-600">{v.line}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-slate-600">
+          {e.similar} similar voucher{e.similar === 1 ? '' : 's'} also read.
+          {e.periods.length ? ` Day Books ${dayLabel(e.periods[0])} to ${dayLabel(e.periods[e.periods.length - 1])}.` : ' No stored Day Books.'}
+        </p>
+      </div>
+    </Popover>
   );
 }
 
