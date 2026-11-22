@@ -283,7 +283,12 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   `{status: running}`, `GET` polls; budget 240 s). `withTallyLock` = one Tally request stream per instance (poll, Pull now, statements
   pull, slot refresh; Silver is single-user; the books pull is NOT in the lock). The TB-basis reset now runs only after Tally answers (a
   failed poll used to empty `tbMonths`). `GET /api/tally/statements` adds per month `tbAsOf` / `pnlAsOf` / `final`, and `lastTryAt`,
-  `lastError`, `reachedAt`, `due`, `pulling`. Note: Tally health "Pull Tally now" pulls the books only (masters + Day Books), not P&L / TB. `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
+  `lastError`, `reachedAt`, `due`, `pulling`. Note: Tally health "Pull Tally now" pulls the books only (masters + Day Books), not P&L / TB. **Statements status row (PR 2, 22 Nov
+  2026, `StatementsTabs.tsx StatementsStatus`, store `useStatements.ts`, test `server/test/statementsStatus.test.ts`):** one row above the
+  Balance sheet / Cash flow sections: "As of <newest month end with a TB>" (running month = today, "month so far"), "Tally last synced
+  <reachedAt>", Tally `FreshnessPill`, pills "Tally offline: stored copy" (`tallyOffline`) and "Last month not final", and the
+  "Pull from Tally" button (`pullFromTally`: POST then polls GET every 5 s, up to 6 min; toast `pullMessage`). One page-wide store, so
+  both sections and the row share the copy and the pull. Offline = the statements still show from the last stored TBs. `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
   depreciation, Nett Profit); pure builder `client/src/data/statements/statements.ts` (BS from Tally's primary groups + closing
   stock + FY profit to date; indirect cash flow from consecutive BSs, sections sum to Δ cash & bank; `misCashRows` fills the MIS
   Sheet cash rows). Tests `server/test/statements.test.ts`. The TB is asked from 1 April (`tbEnvelope`, snapshot `basis:

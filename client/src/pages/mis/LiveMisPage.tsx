@@ -20,7 +20,7 @@ import { ChevronDown, Lock, RefreshCw } from 'lucide-react';
 import { PageBody, PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
 import { inr } from '../../components/mis-deck/format';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
-import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
+import { BalanceSheetTab, CashFlowTab, StatementsStatus } from '../../components/liveMis/StatementsTabs';
 import {
   periodsIn, rollup, totals, type Dimension, type Granularity as RrGranularity, type MetricKey,
 } from '../../data/liveMis/facts';
@@ -404,6 +404,7 @@ export function LiveMisPage() {
         )}
 
         {/* ---- Statements ---- */}
+        {tab === 'statements' && <div className="mb-3"><StatementsStatus /></div>}
         {tab === 'statements' && (
           <Sections label="Statements section">
             <Section id="st-bs" title="Balance sheet" defaultOpen meta="Month end, last 12 months, ₹ lakh, from the Tally trial balance">

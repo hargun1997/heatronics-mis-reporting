@@ -1,11 +1,14 @@
 // Live MIS → Balance Sheet and Cash Flow tabs: month-end statements from Tally's stored Trial Balances
 // (GET /api/tally/statements, built by data/statements/statements.ts). Months appear as Tally is reached.
 import { Fragment, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, RefreshCw } from 'lucide-react';
 import { OTHER_WARN_INR, type BalanceSheet, type BsLine, type CashFlow } from '../../data/statements/statements';
-import { useStatements, type Resp } from './useStatements';
+import { pullFromTally, pullMessage, statementsAsOf, tallyOffline, useStatements, type Resp } from './useStatements';
 import { KpiTile } from '../ui/KpiTile';
+import { Button } from '../ui/Button';
+import { StatusPill } from '../ui/StatusPill';
+import { FreshnessPill } from '../ui/FreshnessPill';
+import { toast } from '../ui/feedback';
 
 /** ₹ lakh, 2 decimals; negatives with a real minus sign; below ₹500 shows as 0.00 (never "-0.00"). */
 const lakh = (n: number | null | undefined) => {
@@ -19,16 +22,42 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 const label = (p: string) => `${MON[Number(p.slice(5)) - 1]} ${p.slice(2, 4)}`;
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'never');
 
+const day = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const istToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+
+async function onPull() {
+  const r = await pullFromTally();
+  toast(pullMessage(r, r ? null : 'see the status line'));
+}
+
+/** Status row for the Statements tab: as of, Tally last synced, offline, Pull from Tally. Shown once, above both sections. */
+export function StatementsStatus() {
+  const { data, pulling, pullErr } = useStatements();
+  if (!data) return null;
+  const { asOf, running, provisional } = statementsAsOf(data, istToday());
+  const offline = tallyOffline(data);
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm">
+      <span className="font-semibold text-slate-900">{asOf ? `As of ${day(asOf)}${running ? ' (month so far)' : ''}` : 'No Trial Balance stored'}</span>
+      <span className="text-slate-600">Tally last synced {when(data.reachedAt ?? data.lastOkAt)}</span>
+      <FreshnessPill label="Tally books" asOf={data.reachedAt ?? data.lastOkAt}
+        notes={['Each pull reads the whole financial year from 1 April: P&L and Trial Balance of every month.']} />
+      {offline && <StatusPill toneName="warning">Tally offline: stored copy</StatusPill>}
+      {provisional && <StatusPill toneName="warning">Last month not final</StatusPill>}
+      {pullErr && !pulling && <span role="alert" className="text-xs text-red-700">{pullErr}</span>}
+      <span className="ml-auto" />
+      {data.connected
+        ? <Button size="sm" icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden />} busy={pulling} busyLabel="Pulling the FY (up to 4 min)" onClick={() => void onPull()}>Pull from Tally</Button>
+        : <span className="text-xs text-slate-500">Tally is not connected. Add the host on Setup, Tally.</span>}
+    </div>
+  );
+}
+
 function Empty({ data, what }: { data: Resp | null; what: string }) {
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">
       <p className="font-medium text-slate-800">No Trial Balance stored yet{what ? `: no ${what}` : ''}.</p>
-      <p className="mt-1 max-w-2xl mx-auto">
-        The MIS copies Tally's month-end Trial Balance whenever TallyPrime is open on the cloud machine (last reached {when(data?.lastOkAt)});
-        the scheduled copy runs from the 15th of each month, so before that: open TallyPrime, then{' '}
-        <Link className="underline underline-offset-2" to="/reporting/mis/connectors#tally">Setup, Tally, Pull</Link>.
-        {data && !data.connected && <> The Tally host is not set yet: add it on that card first.</>}
-      </p>
+      <p className="mt-1">Tally last answered {when(data?.reachedAt ?? data?.lastOkAt)}. Open TallyPrime on the cloud machine, then click Pull from Tally.</p>
     </div>
   );
 }
@@ -141,7 +170,7 @@ export function BalanceSheetTab() {
       </div>
       <p className="text-xs text-slate-500">
         From Tally's Trial Balance at each month end, asked from 1 April (read only); closing stock from that month's P&L replaces the
-        opening stock Tally's Trial Balance carries. Click a group to see its sub-groups and ledgers. Latest Tally copy: {when(b.asOf)}.
+        opening stock Tally's Trial Balance carries. Click a group to see its sub-groups and ledgers. Copy of {label(b.period)} taken {when(b.asOf)}.
       </p>
     </div>
   );
