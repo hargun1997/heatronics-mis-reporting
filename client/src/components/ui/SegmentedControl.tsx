@@ -1,6 +1,8 @@
 // ViewSwitch (GUIDE.md "Tabs and views"): changes how ONE part shows its data. The selected option is a white thumb on a
 // grey track (never a dark filled pill). Up to 5 options; more go into a select. ← → move between options. Toggle buttons (aria-pressed, MASTER.md),
-// 44px tall on phones so a thumb hits the right one.
+// 44px tall on phones so a thumb hits the right one. Phones: one row that scrolls sideways (edge fade), never 2 rows.
+import { useRef } from 'react';
+import { useScrollFade } from '../shell/usePhone';
 
 interface Option<T extends string> {
   id: T;
@@ -18,12 +20,15 @@ interface SegmentedControlProps<T extends string> {
 export function SegmentedControl<T extends string>({
   options, value, onChange, size = 'md', ...rest
 }: SegmentedControlProps<T>) {
+  const row = useRef<HTMLDivElement>(null);
+  useScrollFade(row, { active: '[aria-pressed="true"]', dep: value });
   const pad = size === 'sm' ? 'px-2.5 text-label sm:min-h-8' : 'px-3.5 text-sm sm:min-h-9';
   return (
     <div
+      ref={row}
       role="group"
       aria-label={rest['aria-label']}
-      className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-lg bg-slate-100 p-0.5"
+      className="no-scrollbar inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-lg bg-slate-100 p-0.5 max-sm:flex-nowrap max-sm:overflow-x-auto"
       onKeyDown={(e) => {
         if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
         const i = options.findIndex((o) => o.id === value);
@@ -42,7 +47,7 @@ export function SegmentedControl<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(o.id)}
             className={
-              `${pad} min-h-11 rounded-md font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ` +
+              `${pad} min-h-11 shrink-0 whitespace-nowrap rounded-md font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ` +
               (on ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900')
             }
           >

@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
 import { inrFull } from '../../utils/money';
 import { buttonClass } from '../ui/Button';
+import { ScrollBox } from '../ui/phone';
 
 const inr = (n: number) => inrFull(n);
 const btn = buttonClass('secondary', 'sm');
@@ -28,22 +29,28 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
   const norm = (k: string) => k.toUpperCase().replace(/[^A-Z0-9]+/g, '');
   return (
     <section aria-label="Products needing a decision" className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-2.5 space-y-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        <h3 className="text-sm font-semibold text-slate-900">Products needing a decision</h3>
-        <span className="text-slate-600">
+      {/* Phones: one line (title + Review); the counts show once it is open. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs max-sm:flex-nowrap">
+        <h3 className="text-sm font-semibold text-slate-900 max-sm:min-w-0 max-sm:flex-1">Products needing a decision</h3>
+        <span className="text-slate-600 max-sm:hidden">
           {um.length ? <>{um.length} unmapped item{um.length === 1 ? '' : 's'} ({inr(um.reduce((s, u) => s + u.revenue, 0))} of sales)</> : null}
           {um.length && nb.length ? ', ' : ''}
           {nb.length ? <>{nb.length} product{nb.length === 1 ? '' : 's'} with no BOM ({inr(nb.reduce((s, b) => s + b.revenue, 0))}, margin estimated)</> : null}
         </span>
         <span className="ml-auto flex items-center gap-2">
-          <Link to="/tasks?view=fix" className="font-medium text-accent-700 hover:underline">Also in Tasks, Fix</Link>
+          <Link to="/tasks?view=fix" className="font-medium text-accent-700 hover:underline max-sm:hidden">Also in Tasks, Fix</Link>
           <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={btn}>{open ? 'Hide' : 'Review here'}</button>
         </span>
       </div>
+      {open && <p className="text-xs text-slate-600 sm:hidden">
+          {um.length ? <>{um.length} unmapped item{um.length === 1 ? '' : 's'} ({inr(um.reduce((s, u) => s + u.revenue, 0))} of sales)</> : null}
+          {um.length && nb.length ? ', ' : ''}
+          {nb.length ? <>{nb.length} product{nb.length === 1 ? '' : 's'} with no BOM ({inr(nb.reduce((s, b) => s + b.revenue, 0))}, margin estimated)</> : null}
+          {'. '}<Link to="/tasks?view=fix" className="font-medium text-accent-700 hover:underline">Also in Tasks, Fix</Link></p>}
       {open && <p className="text-xs text-slate-600">Each row shows the closest product by name; one click confirms the mapping (nothing is applied until confirmed). Until then an unmapped item is left out of product margins and a no-BOM product is costed from its closest product, never at 100%.</p>}
       {err && <p role="alert" className="text-xs text-red-700">{err}</p>}
       {open && um.length > 0 && (
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto"><table className="w-full text-xs">
+        <ScrollBox><table className="w-full text-xs">
           <thead><tr className="text-left text-slate-500"><th className="py-1 pr-2">Item</th><th className="pr-2">From</th><th className="pr-2 text-right">Sales</th><th>Closest products (confirm one)</th></tr></thead>
           <tbody>{um.slice(0, 40).map((u) => (
             <tr key={`${u.platform}|${u.key}`} className="border-t border-amber-100 align-top">
@@ -56,10 +63,10 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
                   {s.deckName} <span className="text-slate-400">{Math.round(s.score * 100)}%</span></button>))
                 : <span className="text-slate-400">No close match: map it in Month close.</span>}</td>
             </tr>))}</tbody>
-        </table></div>
+        </table></ScrollBox>
       )}
       {open && nb.length > 0 && (
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto"><table className="w-full text-xs">
+        <ScrollBox><table className="w-full text-xs">
           <thead><tr className="text-left text-slate-500"><th className="py-1 pr-2">No BOM for</th><th className="pr-2 text-right">Sales</th><th>Use the BOM of</th></tr></thead>
           <tbody>{nb.slice(0, 40).map((b) => (
             <tr key={b.fgId} className="border-t border-amber-100">
@@ -70,7 +77,7 @@ export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDe
                   {b.suggested.deckName} ({b.suggested.fgId}) <span className="text-slate-400">{Math.round(b.suggested.score * 100)}%</span></button>
               ) : <span className="text-slate-400">No close costed product: add the BOM in Tranzact.</span>}</td>
             </tr>))}</tbody>
-        </table></div>
+        </table></ScrollBox>
       )}
     </section>
   );

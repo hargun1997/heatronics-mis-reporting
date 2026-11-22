@@ -14,6 +14,7 @@ import { int, pct } from '../fmt';
 import { NumInput } from '../inputs';
 import { Flag, Note, Parts, Row, SubHead, Tip, btn, ensureFx, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { ScrollBox } from '../../ui/phone';
 
 export { summary };
 
@@ -159,7 +160,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <SubHead info={<><p>Each month against an average month (1.00 = average).</p><p>Products: last year&apos;s units, all channels (Oct-25 to Sep-26, from the sheet). D2C: new buyers on Shopify.</p><p>Select a cell to change it. Values do not have to average 1.</p><p>Products with little history (hGo, hBoots, hPulse) use the curve of the full range.</p><p>Select which shape FY29 and later use in Assumptions.</p></>}>Seasons</SubHead>
           <button type="button" onClick={() => update((p) => resetSkuSeason(p))} className={ghost} title="Set each product's curve back to last year's units">Reset products</button>
         </div>
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <table className="text-xs tabular-nums">
             <thead>
               <tr className="text-xs text-slate-600">
@@ -195,7 +196,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       </div>}
     </div>
   );

@@ -9,6 +9,7 @@ import { PlanCard as SectionCard, SubTabs } from '../ui';
 import { useSubTab } from '../subTab';
 import { PC_TABS } from './parts';
 import { cr, int, pct } from '../fmt';
+import { ScrollBox } from '../../ui/phone';
 
 interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string; part?: (typeof PC_TABS)[number]['id'] }
 
@@ -50,7 +51,7 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
   const peak = ms.reduce((a, m, j) => (m.units > ms[a].units ? j : a), 0);
   return (
     <SectionCard title="Product roll-out" count={items.length} info={<><p>Units for each month of the plan: launches, ramps and seasons.</p><p>Peak month: {ms[peak].label}, {int(ms[peak].units)} units ({MON[calOf(plan.startMonth, peak + 1)]}). Compare it with factory capacity.</p><p>Set up products and their season in Setup, Products and categories.</p></>}>
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+      <ScrollBox>
         <table className="w-full min-w-[720px] text-xs tabular-nums">
           <thead>
             <tr className="text-xs text-slate-600">
@@ -78,7 +79,7 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </SectionCard>
   );
 }
@@ -105,7 +106,7 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
     <SectionCard title="Capacity use by FY" info={<><p>In-house units a month (the hCore range and in-house lines) against production capacity.</p><p>Over 100%: build stock before the peak, or add capacity earlier.</p><p>Set capacity in Setup, Capacity, sites and capex.</p></>}>
       {!hasCapacity && <p className="text-label text-slate-600">No capacity set. Set it in Setup, Capacity, sites and capex.</p>}
       {hasCapacity && (
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <table className="w-full min-w-[560px] text-label tabular-nums">
             <thead>
               <tr className="bg-surface-tint text-xs text-slate-600">
@@ -132,7 +133,7 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       )}
       {overMonths.length > 0 && <p className="mt-2 text-xs text-red-700">Over 100% in {overMonths.length} months, from {overMonths[0].label}.</p>}
       {G && (
@@ -176,7 +177,7 @@ function D2CCard({ plan, r }: { plan: Plan; r: PlanResult }) {
           <h4 className="mb-1 text-xs font-semibold text-slate-700">Repeat orders: actual and model</h4>
           <HistoryChart h={d.history} pred={pred} />
         </div>
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <h4 className="mb-1 text-xs font-semibold text-slate-700">Plan by year</h4>
           <table className="w-full text-label tabular-nums">
             <thead>
@@ -202,7 +203,7 @@ function D2CCard({ plan, r }: { plan: Plan; r: PlanResult }) {
           </table>
           {cohortsOn && <BaseCheck r={r} d={d} />}
           {!cohortsOn && <p className="mt-2 text-xs text-slate-600">The Units model is on. D2C uses the sheet&apos;s units, so there are no buyers or repeats.</p>}
-        </div>
+        </ScrollBox>
       </div>
     </SectionCard>
   );
@@ -265,7 +266,7 @@ function SeasonCard({ plan }: { plan: Plan }) {
       title="Seasonality"
       info={<><p>Each month against an average month (1.00 = average).</p><p>Products: last year&apos;s units, all channels. D2C: new buyers on Shopify.</p><p>From FY29 the plan {shape === 'history' ? 'uses these curves' : "uses the sheet's shape"} (Setup, Assumptions). Change the curves in Setup, D2C customers and seasonality.</p></>}
     >
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+      <ScrollBox>
         <table className="text-xs tabular-nums">
           <thead>
             <tr className="text-xs text-slate-500">
@@ -292,7 +293,7 @@ function SeasonCard({ plan }: { plan: Plan }) {
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </SectionCard>
   );
 }

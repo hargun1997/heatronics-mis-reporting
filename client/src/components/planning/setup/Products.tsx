@@ -17,6 +17,7 @@ import { btn, lbl, MonthSelect, monthsOf, Note, Parts, rm, SubHead, Tip, txt, us
 import type { SetupSectionDef, SetupSectionProps } from './types';
 import { pillClass } from '../../ui/pill';
 import { confirmDialog } from '../../ui/feedback';
+import { ScrollBox } from '../../ui/phone';
 
 export { summary };
 
@@ -64,7 +65,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       {/* today's range */}
       {part === 'range' && <section className="space-y-2" aria-label="Current range">
         <SubHead info={<><p>The SKUs of today, from the sheet.</p><p>Volume × multiplies the units of each month. 1 = as in the sheet.</p><p>Price replaces the selling price, with GST.</p></>}>Current range</SubHead>
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <table className="w-full min-w-[720px] text-label tabular-nums">
             <thead><tr className="bg-surface-tint text-left">
               <th className="px-3 py-2 font-semibold text-slate-600">SKU</th><th className="px-2 text-right font-semibold text-slate-600">Volume ×</th><th className="px-2 text-right font-semibold text-slate-600">Price ₹</th>
@@ -83,7 +84,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 </tr>);
             })}</tbody>
           </table>
-        </div>
+        </ScrollBox>
       </section>}
 
       {/* categories → products */}

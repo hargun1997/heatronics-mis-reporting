@@ -10,6 +10,7 @@ import { useSubTab } from '../subTab';
 import { BP_TABS } from './parts';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import { cr, int, lakh, pct } from '../fmt';
+import { ScrollBox } from '../../ui/phone';
 
 interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string; /** Set by the Overview tab: show this part, no sub-tab row. */ part?: (typeof BP_TABS)[number]['id'] }
 interface Span { n: number; label: string; sub: string }
@@ -109,7 +110,7 @@ function Empty() { return <span className="text-slate-400" title="Not read">–<
 
 function Table({ cols, rows }: { cols: Span[]; rows: [string, ReactNode[], boolean?][] }) {
   return (
-    <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+    <ScrollBox>
       <table className="w-full text-label tabular-nums">
         <thead>
           <tr className="border-b border-slate-200 text-xs text-slate-600">
@@ -126,7 +127,7 @@ function Table({ cols, rows }: { cols: Span[]; rows: [string, ReactNode[], boole
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollBox>
   );
 }
 
@@ -136,7 +137,7 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
   const tot = (d: ReturnType<typeof deployment>, th: string) => d.themes.find((t) => t.theme === th)?.total ?? 0;
   return (
     <SectionCard title="Use of funds" info={<><p>Spend on each theme, in ₹ Cr, and its share of the equity raise.</p><p>A cost line counts here when it has a milestone. Add milestones in Setup, Sheet lines.</p></>}>
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+      <ScrollBox>
         <table className="w-full min-w-[620px] text-label tabular-nums">
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-600">
@@ -164,7 +165,7 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
             </tr>
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </SectionCard>
   );
 }
@@ -188,7 +189,7 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
         </div>
       }
     >
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+      <ScrollBox>
         <table className="text-xs tabular-nums">
           <thead>
             <tr className="text-xs text-slate-500">
@@ -217,7 +218,7 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </SectionCard>
   );
 }
@@ -227,7 +228,7 @@ function Milestones({ plan }: { plan: Plan }) {
   return (
     <SectionCard title="Themes and milestones" count={plan.business.themes.length} info="Change milestones in Setup, Business plan text. Link cost lines to a milestone in Setup, Sheet lines.">
       {plan.business.themes.length === 0 && <p className="text-label text-slate-600">No milestones yet.</p>}
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+      <ScrollBox>
         <table className="w-full text-label">
           <thead>
             <tr className="text-xs text-slate-600">
@@ -246,7 +247,7 @@ function Milestones({ plan }: { plan: Plan }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </SectionCard>
   );
 }

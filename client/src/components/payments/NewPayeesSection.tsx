@@ -9,6 +9,7 @@ import { XLSX_MIME, downloadBlob, textWorkbook, workbookBytes } from '../../data
 import { loadXlsx } from '../../utils/xlsxLazy';
 import { Note, btnPrimary, btnSecondary, input } from './shared';
 import { InfoTip, Panel } from '../ui/states';
+import { ScrollBox } from '../ui/phone';
 
 const FIELDS: { k: keyof NewPayee; label: string; ph: string; mono?: boolean }[] = [
   { k: 'name', label: 'Name (as in bank)', ph: 'Payee name' },
@@ -61,7 +62,7 @@ export function NewPayeesSection({ saved }: { saved: Payee[] }) {
       </InfoTip>}>
     <div className="space-y-4">
 
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
+      <ScrollBox className="rounded-lg border border-slate-200">
         <table className="w-full min-w-[900px] text-label">
           <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-600">
             <tr><th className="w-8 px-2 py-2">#</th>{FIELDS.map((f) => <th key={f.k} className="px-2 py-2">{f.label}</th>)}<th className="w-10 px-2 py-2"><span className="sr-only">Remove</span></th></tr>
@@ -101,7 +102,7 @@ export function NewPayeesSection({ saved }: { saved: Payee[] }) {
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className={btnSecondary} onClick={() => setRows((r) => [...r, { ...BLANK_NEW_PAYEE }])}>Add row</button>

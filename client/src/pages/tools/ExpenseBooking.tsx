@@ -6,6 +6,7 @@ import type { TallyMaster } from '../../data/tally/useTallyMaster';
 import { buildTallyXml } from '../../data/tally/buildTallyXml';
 import type { ExportSummary } from '../../data/tally/buildTallyXml';
 import { MasterPanel } from './MasterPanel';
+import { ScrollBox } from '../../components/ui/phone';
 
 // Bumped from v4 → v5 because the saved scenario shape changed
 // (`expenseType` was replaced by a 3-way `category`, and `paymentTiming` /
@@ -1333,7 +1334,7 @@ function Note({ label, children }: { label: string; children: React.ReactNode })
 
 function LinesTable({ lines }: { lines: BookingLine[] }) {
   return (
-    <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+    <ScrollBox>
       <table className="w-full text-xs">
         <thead className="bg-white text-slate-500 text-xs border-b border-slate-100">
           <tr>
@@ -1367,6 +1368,6 @@ function LinesTable({ lines }: { lines: BookingLine[] }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollBox>
   );
 }

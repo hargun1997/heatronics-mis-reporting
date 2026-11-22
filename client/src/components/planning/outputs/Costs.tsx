@@ -9,6 +9,7 @@ import { Modal } from '../../ui/overlays';
 import { cr, int, money, pct } from '../fmt';
 import { PlanCard, Stat, SubTabs } from '../ui';
 import { useSubTab } from '../subTab';
+import { ScrollBox } from '../../ui/phone';
 
 interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string }
 
@@ -71,7 +72,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
         </>}
         flush
       >
-        <div tabIndex={0} role="region" aria-label="Cost groups, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox label="Cost groups, scroll sideways for more">
           <table className="w-full min-w-[640px] text-label tabular-nums">
             <thead>
               <tr className="border-b border-slate-200">
@@ -108,11 +109,11 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       </PlanCard>
 
       <Modal open={!!og} onClose={() => setOpenGroup(null)} title={og?.name} subtitle={`${ls.length} lines, ₹ Cr per FY`} width={1100}>
-        <div tabIndex={0} role="region" aria-label="Lines, scroll sideways for more" className="-mx-1 overflow-x-auto">
+        <ScrollBox label="Lines, scroll sideways for more" className="-mx-1">
           <table className="w-full min-w-[860px] text-label tabular-nums">
             <thead>
               <tr className="border-b border-slate-200 text-xs text-slate-600">
@@ -150,11 +151,11 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       </Modal>
 
       <PlanCard title="Opex and people by year" info="People added by the hiring plan. Opex includes every opex group. Change them in Setup, Team and hiring, and Setup, Capacity, sites and capex.">
-        <div tabIndex={0} role="region" aria-label="Opex by year, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox label="Opex by year, scroll sideways for more">
           <table className="w-full min-w-[520px] text-label tabular-nums">
             <thead><tr className="border-b border-slate-200"><th className="py-1.5 text-left text-xs font-semibold text-slate-600" />{r.years.map((y) => <th key={y.fy} className={th}>{y.fy}</th>)}</tr></thead>
             <tbody>
@@ -163,7 +164,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
               <tr className="border-t border-slate-100"><td className="py-1.5 text-slate-700">Opex, % of revenue</td>{r.years.map((y) => { const o = r.months.filter((m) => m.fy === y.fy).reduce((a, m) => a + m.opex, 0); return <td key={y.fy} className="px-2 text-right text-slate-600">{pct(o / (y.revenue || 1), 0)}</td>; })}</tr>
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       </PlanCard>
     </div>
   );

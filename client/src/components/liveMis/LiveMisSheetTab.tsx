@@ -12,7 +12,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { BTN } from '../ui/states';
-import { SegmentedControl } from '../ui';
+import { HeaderMore, SegmentedControl } from '../ui';
 import { useStatements } from './useStatements';
 import { MIS_SHEET_ROWS, MIS_SHEET_ROWS_NORMALISED, type MisEntity, type MisPoint } from '../../data/misDeck/misSheet';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
@@ -22,6 +22,7 @@ import { liveFiscalYears } from '../../data/misDeck/liveViews';
 import type { ImportedMis } from '../../utils/misFormatExport';
 import { liveMisFormatSource, misSourceWithCash } from '../../utils/liveMisSource';
 import { BASIS_OPTIONS, CogmBasisNote, Fold, Note, useLiveView } from './shared';
+import { FilterSheet, ScrollBox } from '../ui/phone';
 
 const LAC = 1e5;
 const fmtLac = (v: number | null) => (v === null || !isFinite(v) ? '–' : (v / LAC).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -103,40 +104,67 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <label className="text-xs text-slate-500">
-          <span className="block mb-1">Entity</span>
-          <select value={entity} onChange={(e) => setEntity(e.target.value as MisEntity)} aria-label="Entity"
-            className="px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700">
-            {entities.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
-          </select>
-        </label>
-        <label className="text-xs text-slate-500">
-          <span className="block mb-1">Fiscal year</span>
+      {(() => {
+        const entityCtl = (
+          <label className="text-xs text-slate-500 max-sm:text-sm">
+            <span className="block mb-1">Entity</span>
+            <select value={entity} onChange={(e) => setEntity(e.target.value as MisEntity)} aria-label="Entity"
+              className="px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700">
+              {entities.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+            </select>
+          </label>
+        );
+        const fySelect = (
           <select value={Math.min(fyIdx ?? defaultFy, fys.length - 1)} onChange={(e) => setFyIdx(Number(e.target.value))} aria-label="Fiscal year"
-            className="px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700">
+            className="px-2.5 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 max-sm:w-full">
             {fys.map((f, i) => <option key={f.key} value={i}>{f.name}</option>)}
           </select>
-        </label>
-        <div className="text-xs text-slate-500">
-          <span className="block mb-1">Show</span>
-          <SegmentedControl size="sm" aria-label="Show" value={show} onChange={setShow}
-            options={[{ id: 'lac', label: '₹ Lac' }, { id: 'pct', label: '% of net revenue' }]} />
-        </div>
-        <div className="text-xs text-slate-500">
-          <span className="block mb-1">Basis</span>
-          <SegmentedControl size="sm" aria-label="COGM basis" value={basis} onChange={setBasis} options={BASIS_OPTIONS} />
-        </div>
-        <div className="flex flex-wrap gap-2 sm:ml-auto">
-          <button type="button" onClick={() => void onDownload()} className={BTN}>Download this sheet</button>
-          <button type="button" onClick={() => fileRef.current?.click()} className={BTN}>Upload Excel</button>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ''; }} />
-        </div>
-      </div>
+        );
+        const showCtl = (
+          <div className="text-xs text-slate-500 max-sm:text-sm">
+            <span className="block mb-1">Show</span>
+            <SegmentedControl size="sm" aria-label="Show" value={show} onChange={setShow}
+              options={[{ id: 'lac', label: '₹ Lac' }, { id: 'pct', label: '% of net revenue' }]} />
+          </div>
+        );
+        const basisCtl = (
+          <div className="text-xs text-slate-500 max-sm:text-sm">
+            <span className="block mb-1">Basis</span>
+            <SegmentedControl size="sm" aria-label="COGM basis" value={basis} onChange={setBasis} options={BASIS_OPTIONS} />
+          </div>
+        );
+        const buttons = (
+          <>
+            <button type="button" onClick={() => void onDownload()} className={BTN}>Download this sheet</button>
+            <button type="button" onClick={() => fileRef.current?.click()} className={BTN}>Upload Excel</button>
+          </>
+        );
+        const changed = (entity !== 'company' ? 1 : 0) + (show !== 'lac' ? 1 : 0);
+        return (
+          <>
+            {/* Phones: the fiscal year stays; entity, show and basis go behind Filters; the two buttons behind "…". */}
+            <div className="flex items-center gap-2 sm:block">
+              <div className="min-w-0 flex-1">
+                <FilterSheet title="Options" count={changed} className="items-end gap-y-3" keep={fySelect}
+                  desktop={<>
+                    {entityCtl}
+                    <label className="text-xs text-slate-500"><span className="block mb-1">Fiscal year</span>{fySelect}</label>
+                    {showCtl}{basisCtl}
+                    <div className="flex flex-wrap gap-2 sm:ml-auto">{buttons}</div>
+                  </>}>
+                  {entityCtl}{showCtl}{basisCtl}
+                </FilterSheet>
+              </div>
+              <div className="sm:hidden"><HeaderMore>{buttons}</HeaderMore></div>
+              <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ''; }} />
+            </div>
+          </>
+        );
+      })()}
       {importError && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">{importError}</div>}
 
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
+      <ScrollBox className="rounded-lg border border-slate-200">
         <table className="w-full text-xs whitespace-nowrap">
           <caption className="sr-only">MIS, {entities.find((e) => e.id === entity)?.label}, {fy.name}, {unit}</caption>
           <thead>
@@ -158,7 +186,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
       <CogmBasisNote />
       <Note>
         {pct ? 'Every P&L ₹ line is shown as a % of that column’s Net Revenue; ratio rows (GM%, CM1% …), counts (Qty, Runway) and the cash rows (cash, funding, burn: ₹ Lac) are unchanged. ' : 'Costs positive, margins signed. '}
@@ -177,7 +205,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
       {imported && (
         <Fold id="ms-imported" title="Imported MIS (P&L Summary)" meta="Parsed from the uploaded workbook: round-trips with a ₹ Lac download"
           actions={<button type="button" onClick={() => setImported(null)} className="text-xs text-slate-500 hover:text-slate-800">Clear</button>}>
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
+          <ScrollBox className="rounded-lg border border-slate-200">
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
                 <tr className="text-xs text-slate-400 border-b border-slate-200">
@@ -194,7 +222,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollBox>
         </Fold>
       )}
     </div>

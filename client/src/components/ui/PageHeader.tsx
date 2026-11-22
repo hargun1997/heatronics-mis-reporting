@@ -2,11 +2,14 @@
 // title · status pill · actions (one primary) · About (i) popover, then ONE sentence, then optional underline tabs.
 // Owner / cadence / job, "How this works" and Pin live in the About popover, not on the page. Breadcrumbs show only for
 // pages that are not in the sidebar. `crumbs` / `accent` / `icon` are still accepted from older pages and ignored.
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Info, MoreHorizontal, Pin } from 'lucide-react';
 import { NAV, PAGE_OWNER, breadcrumbsFor, whereIs } from '../../nav/config';
 import { usePins } from '../shell/prefs';
+import { setPageTitle } from '../shell/ShellContext';
+import { useIsPhone, useScrollFade } from '../shell/usePhone';
 import { cx } from '../shell/cx';
 import { Popover } from './overlays';
 
@@ -32,8 +35,11 @@ interface PageHeaderProps {
 }
 
 export function PageTabs({ tabs, value, onChange, label = 'Views' }: { tabs: PageTab[]; value?: string; onChange?: (id: string) => void; label?: string }) {
+  // Phones: the row scrolls sideways with an edge fade, and the open tab scrolls into view.
+  const row = useRef<HTMLDivElement>(null);
+  useScrollFade(row, { active: '[aria-selected="true"]', dep: value });
   return (
-    <div role="tablist" aria-label={label} className="-mb-px flex gap-1 overflow-x-auto print:hidden">
+    <div ref={row} role="tablist" aria-label={label} className="no-scrollbar -mb-px flex gap-1 overflow-x-auto print:hidden">
       {tabs.map((t) => {
         const on = t.id === value;
         return (
@@ -57,12 +63,19 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
   const { isPinned, toggle } = usePins();
   const pinned = isPinned(path);
   const owner = w ? PAGE_OWNER[w.page.id] : undefined;
+  // Phones: the top bar shows the title (one bar, MOBILE-BRIEF rule 1); the heading here stays for screen readers.
+  useEffect(() => { setPageTitle(title); return () => setPageTitle(null); }, [title]);
+  // Phones: the About (i) button sits in the top bar, beside the title (AppNav renders the slot).
+  const phone = useIsPhone();
+  // The bar is on screen before any page (pages load lazily), so the slot can be read once.
+  const [slot] = useState<HTMLElement | null>(() => (typeof document === 'undefined' ? null : document.getElementById('app-bar-page-slot')));
   // About (i): next to the title on phones (so it never sits alone on a row), at the end of the actions from sm up.
-  const about = (owner || help || w) ? (
+  const about = (owner || help || w || description) ? (
 <Popover align="right" width={320} buttonLabel={`About ${title}`}
                 buttonClassName="inline-flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                 button={<Info className="h-[18px] w-[18px]" aria-hidden />}>
                 <div className="space-y-3 p-4 text-sm text-stone-700" data-testid="page-owner">
+                  {description && <p className="leading-5 text-stone-700 sm:hidden">{description}</p>}
                   {owner && (
                     <dl className="space-y-1.5">
                       <div className="flex gap-2"><dt className="w-20 shrink-0 text-stone-500">Owner</dt><dd className="font-medium text-stone-900">{owner.person ? `${owner.person} (${owner.role})` : owner.role}</dd></div>
@@ -84,7 +97,7 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
   return (
     <div className="bg-transparent">
     <div className={cx(tabs && 'border-b border-stone-200')}>
-      <div className="mx-auto max-w-page px-4 pt-4 sm:px-6">
+      <div className="mx-auto max-w-page px-4 pt-3 sm:px-6 sm:pt-4">
         {trail.length > 0 && (
           <nav aria-label="Breadcrumb" className="print:hidden">
             <ol className="flex flex-wrap items-center gap-x-1 text-label text-stone-600">
@@ -101,23 +114,27 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
             </ol>
           </nav>
         )}
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-            <h1 className="text-2xl font-[650] leading-7 tracking-[-0.015em] text-stone-900">{title}</h1>
+        {/* Desktop: title, status and i on the left, actions on the right. Phones: the title and the i are in the top bar,
+            so this row holds only the status pills and the actions; the lead sentence moves into the i. */}
+        <div className={cx('flex flex-wrap items-center justify-between gap-x-4 gap-y-2 max-sm:justify-start max-sm:gap-x-2', !status && !actions && 'max-sm:sr-only')}>
+          <div className={cx('flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1', !status && 'max-sm:contents')}>
+            <h1 className="text-2xl font-[650] leading-7 tracking-[-0.015em] text-stone-900 max-sm:sr-only">{title}</h1>
             {status}
-            {about && <span className="sm:hidden print:hidden">{about}</span>}
           </div>
-          <div className="flex flex-wrap items-center gap-2 print:hidden">
-            {actions}
-            {about && <span className="hidden sm:inline-flex">{about}</span>}
-          </div>
+          {(actions || about) && (
+            <div className={cx('flex flex-wrap items-center gap-2 print:hidden', !actions && 'max-sm:hidden')}>
+              {actions}
+              {about && <span className="hidden sm:inline-flex">{about}</span>}
+            </div>
+          )}
         </div>
-        {description && <p className="mt-0.5 max-w-[80ch] text-sm leading-5 text-stone-600">{description}</p>}
-        {tabs && <div className="mt-2"><PageTabs tabs={tabs} value={tab} onChange={onTab} /></div>}
+        {phone && about && slot && createPortal(about, slot)}
+        {description && <p className="mt-0.5 max-w-[80ch] text-sm leading-5 text-stone-600 max-sm:hidden">{description}</p>}
+        {tabs && <div className="mt-2 max-sm:-mx-4 max-sm:px-2"><PageTabs tabs={tabs} value={tab} onChange={onTab} /></div>}
       </div>
     </div>
     {/* One gap under the header on every page (with or without tabs), so bodies never add their own top padding. */}
-    <div className="h-4" aria-hidden />
+    <div className="h-3 sm:h-4" aria-hidden />
     </div>
   );
 }

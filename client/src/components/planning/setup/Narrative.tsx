@@ -5,6 +5,7 @@ import type { BusinessPlan } from '../../../data/planning/engine';
 import { addAssumption, addMilestone, addRisk, renameMilestone, rethemeMilestone, summary, taggedLines, themesOf } from '../../../data/planning/setup/narrative';
 import { btn, MonthSelect, monthsOf, Note, Parts, SubHead, th, thr, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { ScrollBox } from '../../ui/phone';
 
 export { summary };
 
@@ -60,7 +61,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             <AddBtn label="Add a milestone" onClick={() => update(addMilestone)} />
           </div>
           <datalist id="plan-themes">{themes.map((t) => <option key={t} value={t} />)}</datalist>
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+          <ScrollBox>
             <table className="w-full text-label">
               <thead>
                 <tr className="border-b border-slate-200">
@@ -95,7 +96,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollBox>
         </div>}
 
         {part === 'team' && <div className="space-y-2">

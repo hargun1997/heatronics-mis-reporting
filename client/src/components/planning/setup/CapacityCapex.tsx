@@ -8,6 +8,7 @@ import { NumInput } from '../inputs';
 import { CAPEX_GROUPS, baseCapacityOf, newBlock, newCapex, newExpense, newSite, overheadGroups, peakUseLine, summary } from '../../../data/planning/setup/capacity';
 import { Check, MonthSelect, Note, SubHead, btn, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { ScrollBox } from '../../ui/phone';
 
 export { summary };
 
@@ -42,7 +43,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           Capacity today <NumInput value={baseCapacityOf(plan)} min={0} width="w-20" title="Capacity today, units a month" onChange={(v) => set((g) => { g.baseCapacity = v; })} /> units a month
         </div>
         {capacity.length > 0 && (
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+          <ScrollBox>
             <table className="w-full min-w-[640px] text-label tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Block</th><th className={th}>Capex in</th><th className={thr}>Lead, months</th><th className={thr}>+ Units a month</th><th className={thr}>Capex</th><th className={thr}>Running a month</th><th className={th} /></tr></thead>
               <tbody>
@@ -63,7 +64,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollBox>
         )}
         <Note tone={over ? 'amber' : 'grey'}>{peak}{over ? '. Build stock before the peak, or add capacity earlier.' : ''}</Note>
       </section>
@@ -83,7 +84,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           </p>
         )}
         {overheads.length > 0 && (
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+          <ScrollBox>
             <table className="w-full min-w-[1100px] text-label tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Kind</th><th className={th}>Group</th><th className={th}>From</th><th className={th}>To</th><th className={thr}>₹ a month or %</th><th className={thr}>Sq ft</th><th className={thr}>Rent ₹ a sq ft</th><th className={thr}>Running a month</th><th className={thr}>Deposit, months</th><th className={thr}>Fit-out</th><th className={thr}>+ a year</th><th className={th} /></tr></thead>
               <tbody>
@@ -121,7 +122,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollBox>
         )}
       </section>
 
@@ -133,7 +134,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         </div>
         {capex.length === 0 && <p className="text-label text-slate-600">None yet.</p>}
         {capex.length > 0 && (
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+          <ScrollBox>
             <table className="w-full min-w-[560px] text-label tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Group</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={th} /></tr></thead>
               <tbody>
@@ -156,7 +157,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollBox>
         )}
       </section>
     </div>

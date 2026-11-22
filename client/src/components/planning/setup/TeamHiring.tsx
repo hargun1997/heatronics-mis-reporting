@@ -7,6 +7,7 @@ import { NumInput } from '../inputs';
 import { int, pct } from '../fmt';
 import { Check, MonthSelect, Note, Tip, btn, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { ScrollBox } from '../../ui/phone';
 
 export { summary };
 
@@ -32,7 +33,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       {G.hires.length === 0 ? (
         <Note>No roles yet. People costs come only from the sheet&apos;s lines. Add a role to add hires.</Note>
       ) : (
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <table className="w-full min-w-[820px] text-label tabular-nums">
             <thead>
               <tr className="bg-surface-tint">
@@ -75,7 +76,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       )}
 
       <div className="flex flex-wrap gap-x-6 text-xs text-slate-600">

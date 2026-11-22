@@ -544,3 +544,9 @@ svg.lucide { stroke-width: 1.8; }
   :is(button, [role="tab"], [role="button"]):not(.tap-exempt):not(.sr-only) { min-width: 44px; }
   input[type="checkbox"]:not(.sr-only), input[type="radio"]:not(.sr-only) { width: 20px; height: 20px; }
 }
+
+/* Sideways scrollers (components/ui/phone.tsx useScrollFade): a soft fade on the edge that hides more content. */
+[data-fade="r"] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+[data-fade="l"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); }
+[data-fade="l r"] { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent); }
+@media print { [data-fade] { -webkit-mask-image: none; mask-image: none; } }

@@ -12,6 +12,7 @@ import { commitReportMonths, monthBreakdown, restageTallyMonth, runChecks } from
 import type { IngestReportMeta, ReportSlot, StagedUpload } from '../../data/ingest/types';
 import { pulledFrom, pullSlot, slotSourceLine, stagePull, type SlotSourceInfo } from '../../data/ingest/slotSources';
 import { SlotSourceBadge } from './SlotSourceBadge';
+import { ScrollBox } from '../ui/phone';
 
 const iconSteps = (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -529,7 +530,7 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
         {extracted.rawPreview && extracted.rawPreview.length > 0 && (
           <details className="mt-2 text-xs text-slate-400">
             <summary className="cursor-pointer hover:text-slate-600">Raw file preview</summary>
-            <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="mt-1 overflow-x-auto border border-slate-100 rounded">
+            <ScrollBox className="mt-1 border border-slate-100 rounded">
               <table className="text-xs"><tbody>
                 {extracted.rawPreview.slice(0, 6).map((row, i) => (
                   <tr key={i} className={i === 0 ? 'bg-slate-50 font-medium' : ''}>
@@ -537,7 +538,7 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
                   </tr>
                 ))}
               </tbody></table>
-            </div>
+            </ScrollBox>
           </details>
         )}
       </div>

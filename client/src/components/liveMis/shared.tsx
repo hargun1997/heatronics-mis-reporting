@@ -7,10 +7,12 @@
 
 /* eslint-disable react-refresh/only-export-components */
 import { Children, createContext, isValidElement, useContext, useState, type ReactElement, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown as ChevronDownIcon, Info as InformationCircleIcon } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Popover } from '../ui/overlays';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { ScrollBox } from '../ui/phone';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { CHANNEL_COLORS, CHART, pctSigned } from '../mis-deck/format';
 import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
@@ -100,6 +102,31 @@ export function Fold({
 // Wrap a stack of <Fold> blocks in <Views>: the page shows ONE of them at a time, picked with pills, in place of a
 // long column of charts. Each Fold keeps its id / title / meta / actions; `tab` gives the short pill label.
 
+/** Phones: a card head's description goes behind an "i" (never cut with "…"); from 640 px up it shows as text. */
+function HeadMeta({ meta, label, cls = 'text-label' }: { meta: ReactNode; label: string; cls?: string }) {
+  return (
+    <>
+      <span className={`hidden min-w-0 flex-1 truncate ${cls} text-slate-500 sm:inline`}>{meta}</span>
+      <span className="min-w-0 flex-1 sm:hidden" aria-hidden />
+      <span className="max-sm:order-last sm:hidden">
+        <Popover align="right" width={300} buttonLabel={`About ${label}`}
+          buttonClassName="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+          button={<InformationCircleIcon className="h-4 w-4" aria-hidden />}>
+          <p className="p-3.5 text-label leading-5 text-slate-700">{meta}</p>
+        </Popover>
+      </span>
+    </>
+  );
+}
+
+/** A small pill (e.g. the month's close level) that belongs in the card head, not on a row of its own (MOBILE-BRIEF
+ *  rule 9). Inside <Sections> / <Views> it moves into the head; elsewhere it renders where it stands. */
+const AsideSlot = createContext<HTMLElement | null>(null);
+export function SectionAside({ children }: { children: ReactNode }) {
+  const slot = useContext(AsideSlot);
+  return slot ? createPortal(children, slot) : <div className="flex justify-end">{children}</div>;
+}
+
 type FoldProps = { id: string; title: ReactNode; meta?: ReactNode; actions?: ReactNode; tab?: string; children: ReactNode };
 
 export function Views({ id, label = 'View', children }: { id: string; label?: string; children: ReactNode }) {
@@ -110,8 +137,9 @@ export function Views({ id, label = 'View', children }: { id: string; label?: st
   const cur = folds.find((f) => f.props.id === pick) ?? folds[0];
   const choose = (v: string) => { setPick(v); try { localStorage.setItem(key, v); } catch { /* private mode */ } };
   return (
+    <ViewsCard>{(setSlot) => (
     <section className="rounded-xl border border-slate-200 bg-white">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-100 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-100 px-3 py-2 max-sm:flex-nowrap max-sm:gap-x-1">
         {folds.length <= 5 ? (
           <SegmentedControl size="sm" aria-label={label} value={cur.props.id} onChange={choose}
             options={folds.map((f) => ({ id: f.props.id, label: String(f.props.tab ?? f.props.title) }))} />
@@ -124,12 +152,20 @@ export function Views({ id, label = 'View', children }: { id: string; label?: st
             </select>
           </label>
         )}
-        {cur.props.meta != null && <span className="hidden min-w-0 flex-1 truncate text-xs text-slate-500 lg:inline">{cur.props.meta}</span>}
-        {cur.props.actions && <div className="ml-auto flex flex-wrap items-center gap-2">{cur.props.actions}</div>}
+        {cur.props.meta != null ? <HeadMeta meta={cur.props.meta} label={String(cur.props.tab ?? cur.props.title)} cls="text-xs" /> : <span className="min-w-0 flex-1" />}
+        <span ref={setSlot} className="contents" />
+        {cur.props.actions && <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">{cur.props.actions}</div>}
       </div>
       <div className="px-3 py-3 sm:px-4">{cur.props.children}</div>
     </section>
+    )}</ViewsCard>
   );
+}
+
+/** Gives a card head a slot element for <SectionAside>. */
+function ViewsCard({ children }: { children: (setSlot: (el: HTMLElement | null) => void) => ReactNode }) {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  return <AsideSlot.Provider value={slot}>{children(setSlot)}</AsideSlot.Provider>;
 }
 
 // ---- Top-level tab sections (GUIDE.md "Folds": a page with more than 3 blocks uses section pills, not a stack of folds) ----
@@ -156,7 +192,7 @@ export function Section({ id, title, meta, actions, children }: SectionProps) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
         <h2 className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5">
           <span className="text-section font-semibold text-slate-900">{title}</span>
-          {meta != null && <span className="min-w-0 truncate text-label text-slate-500">{meta}</span>}
+          {meta != null && <span className="min-w-0 text-label text-slate-500 sm:truncate">{meta}</span>}
         </h2>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
@@ -180,8 +216,9 @@ export function Sections({ label = 'Section', children }: { label?: string; chil
   }, { replace: true });
   const options = items.map((i) => ({ id: i.props.id, label: typeof i.props.title === 'string' ? i.props.title : i.props.id }));
   return (
+    <ViewsCard>{(setSlot) => (
     <section id={cur.props.id} className="min-w-0 rounded-xl border border-slate-200 bg-surface scroll-mt-24">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 max-sm:flex-nowrap max-sm:gap-x-1 max-sm:px-3">
         {items.length <= 5 ? (
           <SegmentedControl size="sm" aria-label={label} value={cur.props.id} onChange={choose} options={options} />
         ) : (
@@ -193,11 +230,13 @@ export function Sections({ label = 'Section', children }: { label?: string; chil
             </select>
           </label>
         )}
-        {cur.props.meta != null && <span className="min-w-0 flex-1 truncate text-label text-slate-500">{cur.props.meta}</span>}
-        {cur.props.actions && <div className="ml-auto flex flex-wrap items-center gap-2">{cur.props.actions}</div>}
+        {cur.props.meta != null ? <HeadMeta meta={cur.props.meta} label={options.find((o) => o.id === cur.props.id)?.label ?? ''} /> : <span className="min-w-0 flex-1" />}
+        <span ref={setSlot} className="contents" />
+        {cur.props.actions && <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">{cur.props.actions}</div>}
       </div>
-      <div className="border-t border-slate-200 px-4 py-4">{cur.props.children}</div>
+      <div className="border-t border-slate-200 px-4 py-4 max-sm:px-3">{cur.props.children}</div>
     </section>
+    )}</ViewsCard>
   );
 }
 
@@ -222,7 +261,7 @@ export function CogmBasisToggle() {
 export function CogmBasisNote() {
   const { basis, basisNote } = useLiveView();
   if (basis !== 'normalised' || !basisNote) return null;
-  return <span data-testid="basis-note"><Note label="What Normalised means">{basisNote}</Note></span>;
+  return <span data-testid="basis-note"><Note compact label="What Normalised means">{basisNote}</Note></span>;
 }
 
 // ---- Badges & chips --------------------------------------------------------
@@ -264,11 +303,12 @@ export function fairGrowth(cur: { v: number; n: number }, other: { v: number; n:
 export const ND = <span className="text-slate-400" title="Not read">–</span>;
 
 /** A note about a chart or table. It opens from a small "Note" button so the page shows numbers, not paragraphs. */
-export function Note({ children, label = 'Note' }: { children: ReactNode; label?: string }) {
+export function Note({ children, label = 'Note', compact }: { children: ReactNode; label?: string; compact?: boolean }) {
   return (
     <Popover align="left" width={360}
       buttonClassName="inline-flex min-h-11 sm:min-h-7 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
-      button={<><InformationCircleIcon className="h-4 w-4" aria-hidden />{label}</>}>
+      buttonLabel={compact ? label : undefined}
+      button={<><InformationCircleIcon className="h-4 w-4" aria-hidden />{compact ? <span className="max-sm:sr-only">{label}</span> : label}</>}>
       <div className="max-h-[60vh] overflow-y-auto p-3.5 text-label leading-5 text-slate-700">{children}</div>
     </Popover>
   );
@@ -277,5 +317,5 @@ export function Note({ children, label = 'Note' }: { children: ReactNode; label?
 /** Table shell: scrolls in its own box (never the page) with a sticky first column. */
 export function TableBox({ children, label = 'Table, scroll sideways for more' }: { children: ReactNode; label?: string }) {
   // Focusable so keyboard users can scroll it too (axe scrollable-region-focusable).
-  return <div tabIndex={0} role="region" aria-label={label} className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">{children}</div>;
+  return <ScrollBox label={label} className="-mx-3 px-3 sm:mx-0 sm:px-0">{children}</ScrollBox>;
 }
