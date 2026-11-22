@@ -47,9 +47,9 @@ export function RevenueGrowthTab({ monthly, periods, allPeriods, gran, completeT
       <p className="text-xs text-slate-500">
         Repeat purchase and cohorts live in{' '}
         <a href="https://ops.heatronics.in/d2c/customers" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-slate-800">
-          Ops → D2C → Customers
+          Ops, D2C, Customers
         </a>{' '}
-        (and Amazon → Customers).
+        (and Amazon, Customers).
       </p>
     </div>
   );
@@ -71,12 +71,12 @@ function ArrSection({ monthly, completeThrough }: { monthly: PeriodAgg[]; comple
   const projected = proj.points.map((p, i) => (p.projected ? p.value : i === split - 1 ? p.value : null));
   return (
     <Fold id="rg-arr" title="ARR & forward revenue projection"
-      meta={`Blends annualised MoM (last 3 months) with YoY, then grows the trailing 12 months · anchored on ${proj.lastMonthLabel} (latest fully closed month)`}>
+      meta={`Blends annualised MoM (last 3 months) with YoY, then grows the trailing 12 months. Starts from ${proj.lastMonthLabel}, the latest closed month.`}>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
         <KpiTile label="Forward ARR (projected)" value={inr(proj.forwardArr)} sub={`next 12 months @ ${pctSigned(proj.blendedAnnual)} blended`} />
         <KpiTile label="Run-rate ARR" value={inr(proj.runRateArr)} sub={`${proj.lastMonthLabel} × 12`} />
         <KpiTile label="TTM revenue (actual)" value={inr(proj.ttmRevenue)} sub="trailing 12 months" />
-        <KpiTile label="MoM growth · 3m" value={proj.momGrowth3m !== null ? `${pctSigned(proj.momGrowth3m)}/mo` : '–'}
+        <KpiTile label="MoM growth, 3 months" value={proj.momGrowth3m !== null ? `${pctSigned(proj.momGrowth3m)}/mo` : '–'}
           sub={proj.momAnnualised !== null ? `${pctSigned(proj.momAnnualised)} annualised` : undefined} />
         <KpiTile label="YoY growth (TTM)" value={proj.yoyGrowth !== null ? pctSigned(proj.yoyGrowth) : '–'} sub="vs prior 12 months" />
         <KpiTile label="Blended annual growth" value={proj.blendedAnnual !== null ? pctSigned(proj.blendedAnnual) : '–'} sub="avg of MoM (annualised) & YoY" />
@@ -104,7 +104,7 @@ function DiscountSection() {
   const first = data[0], last = data[data.length - 1];
   return (
     <Fold id="rg-discount" secondary title="Discount over time"
-      meta={`Storefront sales report · ${first.label}–${last.label} · static feed through ${last.label}`}
+      meta={`Storefront sales report, ${first.label} to ${last.label}. Static feed to ${last.label}.`}
       actions={<Pills label="Discount basis" value={basis} onChange={setBasis} options={[{ id: 'amount', label: '₹ Discount' }, { id: 'rate', label: '% of Sales' }]} />}>
       <div className="grid grid-cols-3 gap-3 mb-3">
         <KpiTile label="Total discounts" value={inr(totalDiscount)} sub={`over ${data.length} months`} />
@@ -144,7 +144,7 @@ function TrajectorySection({ periods, allPeriods, gran }: { periods: PeriodAgg[]
   return (
     <>
       <Views id="rg" label="Revenue view">
-      <Fold id="rg-stack" tab="By channel" title="Revenue trajectory" meta={`${scopeLine(periods, gran)} · net revenue by channel (net of returns & GST)`}>
+      <Fold id="rg-stack" tab="By channel" title="Revenue trajectory" meta={`${scopeLine(periods, gran)}. Net revenue by channel, after returns and GST.`}>
         <StackedBarChart labels={labels} keys={keys} colors={colors} data={data} />
         <div className="mt-2"><Legend items={keys.map((k) => ({ label: k, color: colors[k] }))} /></div>
       </Fold>
@@ -262,7 +262,7 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
         </ul>
       </div>
       <Views id="cm" label="Channel view">
-      <Fold id="cm-mix" tab="Mix %" title="Channel mix %" meta={`${scopeLine(periods, gran)} · share of net revenue`}>
+      <Fold id="cm-mix" tab="Mix %" title="Channel mix %" meta={`${scopeLine(periods, gran)}. Share of net revenue.`}>
         <StackedBarChart labels={labels} keys={names} colors={colors} data={mixData} asShare />
         <div className="mt-2"><Legend items={names.map((n) => ({ label: n, color: colors[n] }))} /></div>
       </Fold>
@@ -277,7 +277,7 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
         <Note>
           {anyActual && <>Periods with actual orders: {periods.filter((_, i) => orderRows[i].actual).map((p) => p.label).join(', ')}. </>}
           Estimates use a fixed AOV per channel, so an estimated trend tracks revenue. AOV assumed:{' '}
-          {aovChans.map((c) => `${c} ₹${CHANNEL_AOV[c].toLocaleString('en-IN')}`).join(' · ')} (D2C = Shopify storefront).
+          {aovChans.map((c) => `${c} ₹${CHANNEL_AOV[c].toLocaleString('en-IN')}`).join(', ')} (D2C = Shopify storefront).
           {merged && aovChans.some((c) => c === 'OEM' || c === 'Offline') && ' OEM / Offline history keeps its own AOV inside B2B (OEM) / GT (Offline).'}
         </Note>
       </Fold>
@@ -287,9 +287,9 @@ export function ChannelMixTab({ period, periods, months, monthly, quarterly, yea
         <LineChart labels={gSeries.map((p) => p.label)} series={growthLines} percent valueFormat={(v) => pctSigned(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
         <div className="mt-2"><Legend items={gChans.map((c) => ({ label: chName(c), color: chColor(c) }))} /></div>
       </Fold>
-      <Fold id="cm-lfl" tab="Like for like" title={`Channel growth · like-for-like ${gran === 'year' ? 'FY-to-date' : gran}`}
+      <Fold id="cm-lfl" tab="Like for like" title={`Channel growth, like for like ${gran === 'year' ? 'FY-to-date' : gran}`}
         meta={`${lfl.curScope} vs ${lfl.priorScope}: same calendar months a year earlier${lfl.priorComplete ? '' : ' (only months that have a prior-year month are compared)'}`}>
-        <p className="mb-2 text-sm text-slate-600">Total net revenue {inr(lfl.curRevenue)} vs {inr(lfl.priorRevenue)} · <Delta value={lfl.revenueGrowth} /></p>
+        <p className="mb-2 text-sm text-slate-600">Total net revenue {inr(lfl.curRevenue)} vs {inr(lfl.priorRevenue)}, <Delta value={lfl.revenueGrowth} /></p>
         <TableBox>
           <table className="w-full text-xs whitespace-nowrap">
             <thead>
@@ -382,12 +382,12 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
   return (
     <div className="space-y-4">
       <Views id="pr" label="Margin view">
-      <Fold id="pr-ladder" tab="Margin ladder" title="Margin ladder over time" meta="Gross margin → CM1 → CM2 → EBITDA → Net income (% of net revenue)"
+      <Fold id="pr-ladder" tab="Margin ladder" title="Margin ladder over time" meta="Gross margin, CM1, CM2, EBITDA and net income, as % of net revenue"
         actions={<label className="flex items-center gap-1.5 text-xs text-slate-500"><input type="checkbox" checked={cm3} onChange={(e) => setCm3(e.target.checked)} /> show CM3</label>}>
         <LineChart labels={periods.map((p) => p.label)} series={series} percent valueFormat={(v) => pctStr(v)} yFormat={(v) => `${Math.round(v * 100)}%`} />
         <div className="mt-2"><Legend items={series.map((s) => ({ label: s.name, color: s.color }))} /></div>
       </Fold>
-      <Fold id="pr-bridge" tab={`P&L bridge, ${lp.label}`} title={`P&L bridge · ${lp.label}`} meta="From net revenue to net income">
+      <Fold id="pr-bridge" tab={`P&L bridge, ${lp.label}`} title={`P&L bridge, ${lp.label}`} meta="From net revenue to net income">
         {full ? <WaterfallChart steps={steps} /> : <p className="text-xs text-slate-400 py-6 text-center">The full bridge needs a full close (Tally P&amp;L) for every month in {lp.label}.</p>}
       </Fold>
       <Fold id="pr-cost" tab="Cost structure" title="Cost structure (% of net revenue)" meta={GRAN_TITLE[gran]}>

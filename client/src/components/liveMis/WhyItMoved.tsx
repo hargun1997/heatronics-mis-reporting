@@ -44,7 +44,7 @@ function BridgeBlock({ r, title }: { r: BridgeResult | null; title: string }) {
         <div className="rounded-xl border border-slate-200 p-3">
           <div className="text-xs text-slate-500">{r.endLabel}, {r.curLabel} vs {r.baseLabel}</div>
           <div className="text-2xl font-semibold tabular-nums text-slate-900">{mv.arrow} {L(r.deltaLakh)}</div>
-          <div className="text-sm text-slate-600">{mv.words} · now ₹{r.endLakh.toFixed(2)} L</div>
+          <div className="text-sm text-slate-600">{mv.words}, now ₹{r.endLakh.toFixed(2)} L</div>
         </div>
         <div className="rounded-xl border border-slate-200 p-3">
           <div className="text-xs text-slate-500">Net revenue</div>

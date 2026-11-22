@@ -13,7 +13,7 @@ import { getEmailTemplates, getWork, saveHeads, type EmailTemplate, type Head, t
 import { EmailPreview, RemindersCard, RolesCard, TeamCard } from './SettingsCards';
 import { roleTokens } from './taskModel';
 import { btnGhost, btnPrimary, focusRing } from './ui';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { BTN } from '../../components/ui/states';
 
 const field = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100';
@@ -48,7 +48,7 @@ export function TasksSettingsPage() {
       <PageHeader title="People and reminders" description="Set the owners of tasks and the daily reminder email."
         tabs={TABS} tab={tab} onTab={setTab}
         actions={<Link to="/tasks" className={BTN}>Back to Tasks</Link>} />
-      <div className="mx-auto max-w-page px-4 sm:px-6">
+      <PageBody>
         {error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p>}
         {!state ? (
           <p className="py-16 text-center text-sm text-slate-600">Loading…</p>
@@ -70,7 +70,7 @@ export function TasksSettingsPage() {
             {tab === 'templates' && <EmailTemplates />}
           </div>
         )}
-      </div>
+      </PageBody>
       <Modal open={preview} onClose={() => setPreview(false)} title="Reminder emails for today" subtitle="Preview only. This does not send an email." width={900}>
         <EmailPreview embedded onClose={() => setPreview(false)} />
       </Modal>

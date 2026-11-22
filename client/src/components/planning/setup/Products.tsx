@@ -1,4 +1,4 @@
-// Setup → 3 Products & categories (docs/planning/ONE-SETUP.md §2.3): today's range with its volume / price tweaks, then
+// Setup, 3 Products & categories (docs/planning/ONE-SETUP.md §2.3): today's range with its volume / price tweaks, then
 // categories (with the defaults their products inherit) → products in each (launch, price, volumes by ramp or typed per year,
 // season, channels, economics, repeats, the product's own expenses). Orphan products (no category) wait at the bottom.
 // Engine: resolveProduct / unitsByFy / expenses in data/planning/engine.ts (needs growth on and sheet parity off: Starting point → My plan).
@@ -94,7 +94,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <section key={c.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white" aria-label={c.name}>
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
               <input className={`${txt} text-sm font-semibold`} value={c.name} aria-label="Category name" onChange={(e) => setCats((cs) => { cs[ci].name = e.target.value; })} />
-              <span className="text-xs tabular-nums text-slate-600">{prods.length} product{prods.length === 1 ? '' : 's'} · {fys.slice(-3).map((f) => `${f} ${money(rev(f), 1)}`).join(' · ')}</span>
+              <span className="text-xs tabular-nums text-slate-600">{prods.length} product{prods.length === 1 ? '' : 's'}, {fys.slice(-3).map((f) => `${f} ${money(rev(f), 1)}`).join(', ')}</span>
               <button type="button" className={`${btn} ml-auto`} onClick={() => onAddProduct(c)}>+ Add product</button>
               <button type="button" className={rm} title={prods.length ? 'Move or remove its products first' : 'Remove this category'} disabled={prods.length > 0}
                 onClick={() => update((p) => { removeCategory(p, c.id); })}>Remove</button>
@@ -127,8 +127,8 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <h3 className="flex items-center text-sm font-semibold text-slate-900">Not in a category<Tip>Older product lines from the sheet. Put each one in a category to change its volumes, costs and expenses.</Tip></h3>
           <ul className="mt-2 divide-y divide-slate-100">{orphans.map((x) => (
             <li key={x.id} className="flex flex-wrap items-center gap-3 py-2 text-label">
-              <span className="min-w-0 flex-1 text-slate-900">{x.name}{x.placeholder && !/placeholder/i.test(x.name) ? ' (placeholder)' : ''}{x.on ? '' : <span className="text-slate-600"> · Off</span>}</span>
-              <span className="text-xs tabular-nums text-slate-600">{fys.slice(-3).map((f) => `${f} ${money(byFy[x.id]?.[f]?.rev ?? 0, 1)}`).join(' · ')}</span>
+              <span className="min-w-0 flex-1 text-slate-900">{x.name}{x.placeholder && !/placeholder/i.test(x.name) ? ' (placeholder)' : ''}{x.on ? '' : <span className="text-slate-600">, Off</span>}</span>
+              <span className="text-xs tabular-nums text-slate-600">{fys.slice(-3).map((f) => `${f} ${money(byFy[x.id]?.[f]?.rev ?? 0, 1)}`).join(', ')}</span>
               <select className="min-h-[36px] rounded-lg border border-slate-200 bg-surface px-2 text-label" aria-label={`Category for ${x.name}`} value=""
                 onChange={(e) => { const id = e.target.value; if (id) setProd(x.id, (q) => { q.category = id; q.growthLine = true; }); }}>
                 <option value="">Put in a category</option>
@@ -156,7 +156,7 @@ function ProductRow({ x, c, cats, skus, months, fys, byFy, open, onToggle, setPr
         {x.placeholder && <button type="button" className={pillClass('warning')} title="Click when these numbers are yours" onClick={() => set((y) => { y.placeholder = false; })}>Placeholder</button>}
         <span className="text-xs text-slate-600">Launch</span><MonthSelect title="Launch month" value={x.launchMonth} months={months} onChange={(m) => set((y) => { y.launchMonth = m ?? 1; })} />
         <span className="text-xs text-slate-600">Price</span><NumInput value={x.asp} min={0} width="w-16" title="Price incl. GST" onChange={(v) => set((y) => { y.asp = v; })} />
-        <span className="ml-auto text-xs tabular-nums text-slate-600">{fys.slice(-3).map((f) => `${f} ${cr(byFy[f]?.rev ?? 0, 1)} Cr`).join(' · ')}</span>
+        <span className="ml-auto text-xs tabular-nums text-slate-600">{fys.slice(-3).map((f) => `${f} ${cr(byFy[f]?.rev ?? 0, 1)} Cr`).join(', ')}</span>
         <button type="button" className="min-h-8 rounded px-1.5 py-0.5 text-xs font-semibold text-accent-700 hover:underline" aria-expanded={open} onClick={onToggle}>{open ? 'Close' : 'Edit'}</button>
         <button type="button" className={rm} aria-label={`Remove ${x.name}`} onClick={async () => { if (await confirmDialog({ title: `Delete ${x.name}?`, body: 'The product leaves this plan.', confirm: 'Delete', danger: true })) remove(); }}>✕</button>
       </div>

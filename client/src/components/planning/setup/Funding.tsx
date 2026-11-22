@@ -1,4 +1,4 @@
-// Setup → Funding (docs/planning/ONE-SETUP.md §2.8): seed / venture debt / overdraft terms, the sheet's timeline events,
+// Setup, Funding (docs/planning/ONE-SETUP.md §2.8): seed / venture debt / overdraft terms, the sheet's timeline events,
 // how rounds are sized, the rounds themselves (inputs + Sold / holders-keep feedback) and the Indian D2C benchmarks with
 // "Add these rounds as a starting point". Sizing itself happens in Targets → Fit; nothing here runs the engine.
 
@@ -210,7 +210,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                   <tr key={d.name} className="border-t border-slate-100 align-top">
                     <td className={`${td} whitespace-nowrap font-semibold text-slate-700`}>{d.name}</td>
                     <td className={td}>
-                      <span className="whitespace-nowrap">{b ? monthLabel(plan.startMonth, b.month) : '–'} · ≈ ₹{d.timing.arrAtLeastCr ?? '–'} Cr ARR</span>
+                      <span className="whitespace-nowrap">{b ? monthLabel(plan.startMonth, b.month) : '–'}, ≈ ₹{d.timing.arrAtLeastCr ?? '–'} Cr ARR</span>
                       <span className="block text-xs text-slate-600">{d.timing.rule}</span>
                     </td>
                     <td className={`${td} whitespace-nowrap text-right`}>{range(d.sizeCr, crRange)}</td>

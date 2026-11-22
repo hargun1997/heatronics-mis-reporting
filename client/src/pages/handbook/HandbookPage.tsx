@@ -39,7 +39,7 @@ import {
 import { QUICK_TASKS } from '../../data/handbook/collections';
 import { TEAM_VISUALS } from '../../data/handbook/teamVisuals';
 import { HandbookSearch } from './HandbookSearch';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { BTN, Panel } from '../../components/ui/states';
 import { Drawer, Modal } from '../../components/ui/overlays';
 import { HandbookOpenContext } from './handbookNav';
@@ -187,7 +187,7 @@ function ReaderNav({ view, open }: { view: View; open: OpenFn }) {
                 type="button"
                 onClick={() => setExpanded((e) => ({ ...e, [c.slug]: !isOpen }))}
                 aria-expanded={isOpen}
-                className={`flex min-h-[40px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left ${focusRing} ${
+                className={`flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left ${focusRing} ${
                   isCurrent ? 'font-semibold text-slate-900' : 'text-slate-700 hover:bg-slate-100'
                 }`}
               >
@@ -378,7 +378,7 @@ function ArticlePanel({
                   type="button"
                   onClick={() => setOtp((o) => !o)}
                   aria-expanded={otp}
-                  className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-slate-700 hover:bg-slate-100 ${focusRing}`}
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-slate-700 hover:bg-slate-100 ${focusRing}`}
                 >
                   <ListBulletIcon className="h-4 w-4 text-slate-500" aria-hidden="true" />
                   <span className="hidden min-[400px]:inline">On this page</span>
@@ -391,20 +391,20 @@ function ArticlePanel({
                 <button
                   type="button"
                   onClick={() => setAll(true)}
-                  aria-label="Expand all"
-                  className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-slate-700 hover:bg-slate-100 ${focusRing}`}
+                  aria-label="Open all sections"
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-slate-700 hover:bg-slate-100 ${focusRing}`}
                 >
                   <ArrowsPointingOutIcon className="h-4 w-4 text-slate-500" aria-hidden="true" />
-                  Expand<span className="hidden sm:inline"> all</span>
+                  Open<span className="hidden sm:inline"> all</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setAll(false)}
-                  aria-label="Collapse all"
-                  className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-slate-700 hover:bg-slate-100 ${focusRing}`}
+                  aria-label="Close all sections"
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-slate-700 hover:bg-slate-100 ${focusRing}`}
                 >
                   <ArrowsPointingInIcon className="h-4 w-4 text-slate-500" aria-hidden="true" />
-                  Collapse<span className="hidden sm:inline"> all</span>
+                  Close<span className="hidden sm:inline"> all</span>
                 </button>
               </div>
             </div>
@@ -436,7 +436,7 @@ function ArticlePanel({
             <summary className={`flex min-h-[48px] cursor-pointer list-none items-center gap-2 rounded-xl px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 ${focusRing}`}>
               <ChevronRightIcon className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-90" aria-hidden="true" />
               Team screenshots ({visuals.length})
-              <span className="font-normal text-slate-600">Upload a current screen for a slot.</span>
+              <span className="font-normal text-slate-600">Upload a new screenshot for a slot.</span>
             </summary>
             <div className="grid grid-cols-1 gap-4 border-t border-slate-200 p-4 md:grid-cols-2">
               {visuals.map((v) => (
@@ -631,7 +631,7 @@ function Reader({
 
   const shown = view ?? null;
   const lastArticle = opened[opened.length - 1];
-  const barBtn = `inline-flex min-h-[40px] flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold ${focusRing}`;
+  const barBtn = `inline-flex min-h-11 flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold ${focusRing}`;
 
   return (
     <div className={isOpen ? 'min-h-[calc(100vh-var(--app-top))] bg-white' : 'hidden'} aria-label="Accounts Handbook reader">
@@ -808,7 +808,7 @@ function Home({ open, openHref }: { open: OpenFn; openHref: (href: string) => vo
         }
         actions={hb.coverHtml ? <button type="button" onClick={() => setHowOpen(true)} className={BTN}>About the handbook</button> : undefined}
       />
-      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
+      <PageBody>
         <div className="relative z-20">
           <HandbookSearch size="large" autoFocus examples={EXAMPLES} />
         </div>
@@ -820,7 +820,7 @@ function Home({ open, openHref }: { open: OpenFn; openHref: (href: string) => vo
             <TopicList open={open} />
           </Panel>
         </div>
-      </div>
+      </PageBody>
       {hb.coverHtml && (
         <Modal open={howOpen} onClose={() => setHowOpen(false)} title="About the handbook" width={760}>
           <div className="hb hb-cover" onClick={onCoverClick} dangerouslySetInnerHTML={{ __html: hb.coverHtml }} />

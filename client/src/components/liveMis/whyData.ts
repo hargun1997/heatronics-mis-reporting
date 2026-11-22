@@ -34,7 +34,7 @@ export function whySummary(d: WhyData): string {
   if (!d.selectedKey) return 'Pick one month to see why profit moved.';
   if (!r) return 'No earlier month to compare with.';
   if (r.status !== 'ok') return 'Not enough data yet.';
-  return r.reasons.length ? r.reasons.map((x, i) => `${i + 1}. ${x.text}`).join('  ·  ') : 'Little changed.';
+  return r.reasons.length ? `Main reason: ${r.reasons[0].text}${r.reasons.length > 1 ? `. ${r.reasons.length - 1} more below.` : '.'}` : 'Little changed.';
 }
 
 

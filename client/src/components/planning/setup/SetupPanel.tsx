@@ -38,7 +38,7 @@ export function panelSummary(plan: Plan): string {
   const hires = plan.growth?.hires.filter((h) => h.on !== false).length ?? 0;
   const rounds = plan.growth?.rounds.filter((r) => r.on).length ?? 0;
   const parity = !plan.fx || plan.fx.sheetParity;
-  return `${products} products · ${hires} hires · ${rounds} rounds · sheet parity ${parity ? 'on' : 'off'}`;
+  return `${products} products, ${hires} hires, ${rounds} rounds. Sheet parity ${parity ? 'on' : 'off'}.`;
 }
 
 export function SetupPanel({ plan, update, result, embedded }: { plan: Plan; update: Update; result: PlanResult; /** Inside the Setup drawer: no outer fold, always open. */ embedded?: boolean }) {

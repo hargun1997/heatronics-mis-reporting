@@ -1,6 +1,6 @@
 // Output view "Costs" (docs/planning/ONE-SETUP.md §3): one row for each Expense Calendar group with its total per FY;
 // select a group to see its lines in a modal. Plus what the growth layer adds (people, opex per FY). Read only: lines are
-// edited in Setup → Sheet lines. Pass 2 (11 Nov 2026): group table + modal in place of 12 stacked line tables.
+// edited in Setup, Sheet lines. Pass 2 (11 Nov 2026): group table + modal in place of 12 stacked line tables.
 
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
@@ -55,7 +55,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {SECTIONS.map((s) => {
           const v = plan.groups.filter((g) => g.section === s.id).reduce((a, g) => a + (groupFy[g.name]?.[last?.fy ?? ''] ?? 0), 0);
-          return <Stat key={s.id} label={`${s.label}, ${last?.fy}`} value={money(v, 1)} sub={s.id === 'opex' ? `${pct(opexLast / (last?.revenue || 1), 0)} of revenue · ${int(people)} people added` : `${pct(v / (last?.revenue || 1), 0)} of revenue`} />;
+          return <Stat key={s.id} label={`${s.label}, ${last?.fy}`} value={money(v, 1)} sub={s.id === 'opex' ? `${pct(opexLast / (last?.revenue || 1), 0)} of revenue, ${int(people)} people added` : `${pct(v / (last?.revenue || 1), 0)} of revenue`} />;
         })}
       </div>
 
@@ -67,7 +67,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
           <p>Select a group to see its lines.</p>
           <p>Amount is ₹ for a monthly, quarterly, annual or one-time line. It is a % for a &quot;% of …&quot; line, and a multiple for a &quot;ROAS on …&quot; line.</p>
           <p>A line that repeats runs after Mar-28 as in the same month of Apr-27 to Mar-28.</p>
-          <p>Change lines in Setup → Sheet lines.</p>
+          <p>Change lines in Setup, Sheet lines.</p>
         </>}
         flush
       >
@@ -111,7 +111,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
         </div>
       </PlanCard>
 
-      <Modal open={!!og} onClose={() => setOpenGroup(null)} title={og?.name} subtitle={`${ls.length} lines · ₹ Cr per FY`} width={1100}>
+      <Modal open={!!og} onClose={() => setOpenGroup(null)} title={og?.name} subtitle={`${ls.length} lines, ₹ Cr per FY`} width={1100}>
         <div tabIndex={0} role="region" aria-label="Lines, scroll sideways for more" className="-mx-1 overflow-x-auto">
           <table className="w-full min-w-[860px] text-label tabular-nums">
             <thead>
@@ -153,7 +153,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
         </div>
       </Modal>
 
-      <PlanCard title="Opex and people by year" info="People added by the hiring plan. Opex includes every opex group. Change them in Setup → Team and hiring, and Setup → Capacity, sites and capex.">
+      <PlanCard title="Opex and people by year" info="People added by the hiring plan. Opex includes every opex group. Change them in Setup, Team and hiring, and Setup, Capacity, sites and capex.">
         <div tabIndex={0} role="region" aria-label="Opex by year, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-label tabular-nums">
             <thead><tr className="border-b border-slate-200"><th className="py-1.5 text-left text-xs font-semibold text-slate-600" />{r.years.map((y) => <th key={y.fy} className={th}>{y.fy}</th>)}</tr></thead>

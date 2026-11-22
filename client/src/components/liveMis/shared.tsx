@@ -8,6 +8,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { Children, createContext, isValidElement, useContext, useState, type ReactElement, type ReactNode } from 'react';
 import { ChevronDown as ChevronDownIcon, Info as InformationCircleIcon } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { Popover } from '../ui/overlays';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { readFold, writeFold } from '../../hooks/useDensity';
@@ -56,39 +57,40 @@ export const VERTICAL_COLORS: Record<string, string> = {
  * compact density sections used to start folded; now every section starts open (legacy parity).
  */
 export function Fold({
-  id, title, meta, actions, children,
+  id, title, meta, actions, secondary, children,
 }: {
   id: string;
   title: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
-  /** Kept for callers; every section now starts open. */
+  /** Optional detail (GUIDE.md "Folds"): folds, closed until the viewer opens it. Main content never folds. */
   secondary?: boolean;
   /** Short label when this block is one view inside <Views>. */
   tab?: string;
   children: ReactNode;
 }) {
   const key = `livemis:${id}`;
-  // Every section starts open (as the legacy deck showed everything); a fold the viewer chose is remembered.
-  const [open, setOpen] = useState(() => readFold(key, true));
+  const [open, setOpen] = useState(() => (secondary ? readFold(key, false) : true));
   const flip = () => { setOpen(!open); writeFold(key, !open); };
+  const head = (
+    <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+      <span className="text-sm font-semibold text-slate-900">{title}</span>
+      {meta != null && <span className="min-w-0 truncate text-label text-slate-500">{meta}</span>}
+    </span>
+  );
   return (
-    <section className="rounded-xl border border-slate-200 bg-white">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 sm:px-4 py-2.5">
-        <button type="button" onClick={flip} aria-expanded={open}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left rounded-md hover:bg-slate-50 -mx-1 px-1 py-0.5">
-          <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? '' : '-rotate-90'}`} />
-          <span className="text-sm font-semibold text-slate-800">{title}</span>
-          {meta != null && <span className="hidden sm:inline text-xs text-slate-400 truncate">{meta}</span>}
-        </button>
+    <section className="min-w-0 rounded-xl border border-slate-200 bg-white">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 sm:px-4">
+        {secondary ? (
+          <button type="button" onClick={flip} aria-expanded={open}
+            className="-mx-1 flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md px-1 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 sm:min-h-9">
+            <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-500 transition ${open ? '' : '-rotate-90'}`} aria-hidden />
+            {head}
+          </button>
+        ) : <h3 className="flex min-w-0 flex-1">{head}</h3>}
         {open && actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {open && (
-        <div className="border-t border-slate-100 px-3 sm:px-4 py-3">
-          {meta != null && <p className="sm:hidden text-xs text-slate-400 mb-2">{meta}</p>}
-          {children}
-        </div>
-      )}
+      {open && <div className="border-t border-slate-100 px-3 py-3 sm:px-4">{children}</div>}
     </section>
   );
 }
@@ -130,52 +132,71 @@ export function Views({ id, label = 'View', children }: { id: string; label?: st
   );
 }
 
-// ---- Top-level tab section (Live MIS five-tab layout, founder 5 Nov 2026) ---
+// ---- Top-level tab sections (GUIDE.md "Folds": a page with more than 3 blocks uses section pills, not a stack of folds) ----
 //
-// Each Live MIS tab is a stack of these: a card with a title, a one-line meta
-// and a chevron; the body renders only when open. Open / closed is remembered
-// per section in ONE localStorage key (`mis-live-folds-v1`, a JSON map), so a
-// reset is one key. Defaults come from the caller (first section of a tab open).
+// Each Live MIS tab holds its blocks as <Section> children of ONE <Sections> card: a view switch in the card head picks the
+// block (in the URL as ?sec=<id>, so a link opens the same block; an old #<id> link opens it too). Only the open block renders.
+// A <Section> outside <Sections> renders as a plain card (no fold).
 
-const SECTION_KEY = 'mis-live-folds-v1';
-function readSections(): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem(SECTION_KEY);
-    const v: unknown = raw ? JSON.parse(raw) : null;
-    return v && typeof v === 'object' ? (v as Record<string, boolean>) : {};
-  } catch { return {}; }
-}
-function writeSection(id: string, open: boolean) {
-  try { localStorage.setItem(SECTION_KEY, JSON.stringify({ ...readSections(), [id]: open })); } catch { /* private mode */ }
-}
-
-export function Section({ id, title, meta, defaultOpen = false, actions, children }: {
+export interface SectionProps {
   id: string;
   title: ReactNode;
   /** One line under the title: what the section holds / its scope. */
   meta?: ReactNode;
+  /** The block that opens first. */
   defaultOpen?: boolean;
-  /** Shown in the header while open (toggles, small buttons). */
+  /** Shown in the card head (toggles, small buttons). */
   actions?: ReactNode;
   children: ReactNode;
-}) {
-  const [open, setOpen] = useState(() => readSections()[id] ?? defaultOpen);
-  const flip = () => { setOpen(!open); writeSection(id, !open); };
-  const bodyId = `section-${id}`;
+}
+
+export function Section({ id, title, meta, actions, children }: SectionProps) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-surface shadow-card">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
-        <h2 className="flex min-w-0 flex-1"><button type="button" onClick={flip} aria-expanded={open} aria-controls={bodyId}
-          className="flex min-w-0 flex-1 items-center gap-2.5 text-left rounded-lg -mx-1 px-1 py-1 hover:bg-slate-50 focus-visible:ring-2 ring-accent-500 outline-none">
-          <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? '' : '-rotate-90'}`} aria-hidden />
-          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5">
-            <span className="text-sm font-semibold leading-6 text-slate-900">{title}</span>
-            {meta != null && <span className="min-w-0 truncate text-xs text-slate-500">{meta}</span>}
-          </span>
-        </button></h2>
-        {open && actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    <section id={id} className="min-w-0 rounded-xl border border-slate-200 bg-surface scroll-mt-24">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+        <h2 className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5">
+          <span className="text-section font-semibold text-slate-900">{title}</span>
+          {meta != null && <span className="min-w-0 truncate text-label text-slate-500">{meta}</span>}
+        </h2>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {open && <div id={bodyId} className="border-t border-slate-200 px-4 py-4">{children}</div>}
+      <div className="border-t border-slate-200 px-4 py-4">{children}</div>
+    </section>
+  );
+}
+
+export function Sections({ label = 'Section', children }: { label?: string; children: ReactNode }) {
+  const items = Children.toArray(children).filter((c): c is ReactElement<SectionProps> => isValidElement(c) && !!(c.props as Partial<SectionProps>).id);
+  const [params, setParams] = useSearchParams();
+  const hash = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
+  const want = params.get('sec') ?? (items.some((i) => i.props.id === hash) ? hash : '');
+  const cur = items.find((i) => i.props.id === want) ?? items.find((i) => i.props.defaultOpen) ?? items[0];
+  if (!cur) return null;
+  const first = items.find((i) => i.props.defaultOpen) ?? items[0];
+  const choose = (id: string) => setParams((prev) => {
+    const n = new URLSearchParams(prev);
+    if (id === first.props.id) n.delete('sec'); else n.set('sec', id);
+    return n;
+  }, { replace: true });
+  const options = items.map((i) => ({ id: i.props.id, label: typeof i.props.title === 'string' ? i.props.title : i.props.id }));
+  return (
+    <section id={cur.props.id} className="min-w-0 rounded-xl border border-slate-200 bg-surface scroll-mt-24">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
+        {items.length <= 5 ? (
+          <SegmentedControl size="sm" aria-label={label} value={cur.props.id} onChange={choose} options={options} />
+        ) : (
+          <label className="flex items-center gap-2">
+            <span className="sr-only">{label}</span>
+            <select value={cur.props.id} onChange={(e) => choose(e.target.value)}
+              className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm font-medium text-slate-900 sm:min-h-9">
+              {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          </label>
+        )}
+        {cur.props.meta != null && <span className="min-w-0 flex-1 truncate text-label text-slate-500">{cur.props.meta}</span>}
+        {cur.props.actions && <div className="ml-auto flex flex-wrap items-center gap-2">{cur.props.actions}</div>}
+      </div>
+      <div className="border-t border-slate-200 px-4 py-4">{cur.props.children}</div>
     </section>
   );
 }

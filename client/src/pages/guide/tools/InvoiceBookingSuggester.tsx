@@ -1,6 +1,6 @@
 import { LabeledField } from '../../../components/ui/LabeledField';
 import { useMemo, useState } from 'react';
-import { PageHeader } from '../../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../../components/ui/PageHeader';
 import { Pill } from '../../../components/ui/Card';
 import { JournalTable } from '../../../components/ui/SopLayout';
 import {
@@ -68,7 +68,7 @@ export function InvoiceBookingSuggester() {
         accent="amber"
         icon={iconTool}
       />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <PageBody><div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* Input panel */}
         <div className="lg:col-span-2 space-y-4">
           <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -263,7 +263,7 @@ export function InvoiceBookingSuggester() {
             </div>
           )}
         </div>
-      </div>
+      </div></PageBody>
     </>
   );
 }

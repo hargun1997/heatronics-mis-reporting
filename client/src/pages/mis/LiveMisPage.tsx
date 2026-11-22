@@ -17,7 +17,7 @@ import { LabeledField } from '../../components/ui/LabeledField';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Lock, RefreshCw } from 'lucide-react';
-import { PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
+import { PageBody, PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
 import { inr } from '../../components/mis-deck/format';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
@@ -39,7 +39,7 @@ import { LiveMisSheetTab } from '../../components/liveMis/LiveMisSheetTab';
 import { MonthClosePanel } from '../../components/liveMis/MonthClosePanel';
 import { deckItems, rememberDeckItems } from '../../data/issues/inbox';
 import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExportModals';
-import { LiveViewProvider, Pills, Section, type CogmBasis } from '../../components/liveMis/shared';
+import { LiveViewProvider, Pills, Section, Sections, type CogmBasis } from '../../components/liveMis/shared';
 import { WhyItMoved } from '../../components/liveMis/WhyItMoved';
 import { useWhyData, useSaveBridge, whySummary } from '../../components/liveMis/whyData';
 
@@ -245,7 +245,7 @@ export function LiveMisPage() {
           <p><Link to="/reporting/mis/rulebook" className="font-medium text-accent-600 hover:underline">Read how each number is made</Link></p>
         </>}
         actions={<>
-          <Popover align="right" width={200} buttonClassName={BTN} button={<>Download<ChevronDown className="h-4 w-4" aria-hidden /></>}>
+          <Popover kind="menu" closeOnSelect align="right" width={200} buttonClassName={BTN} buttonLabel="Download" button={<>Download<ChevronDown className="h-4 w-4" aria-hidden /></>}>
             <div className="p-1.5">
               <button type="button" onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download Excel</button>
               <button type="button" onClick={() => setPdfOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download PDF</button>
@@ -263,7 +263,7 @@ export function LiveMisPage() {
       {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} />}
       {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
 
-      <div className="mx-auto max-w-page space-y-3 px-4 pb-10 sm:px-6">
+      <PageBody>
         {/* Product decisions are about products: Products tab only (they also sit in Tasks → Fix). Before 22 Nov 2026 this
             amber box sat above every tab. */}
         {tab === 'products' && deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
@@ -318,8 +318,8 @@ export function LiveMisPage() {
               {view.periods.map((k) => {
                 const on = custom.includes(k);
                 return (
-                  <button key={k} type="button" onClick={() => setCustom(on ? custom.filter((x) => x !== k) : [...custom, k])}
-                    className={`px-2 py-0.5 rounded-md text-xs border ${on ? 'bg-brand-50 text-brand-700 border-brand-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+                  <button key={k} type="button" aria-pressed={on} onClick={() => setCustom(on ? custom.filter((x) => x !== k) : [...custom, k])}
+                    className={`min-h-9 rounded-full border px-3 text-label ${on ? 'border-slate-900 bg-white font-semibold text-slate-900' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'}`}>
                     {monthLabel(k)}
                   </button>
                 );
@@ -336,7 +336,7 @@ export function LiveMisPage() {
 
         {/* ---- Overview ---- */}
         {tab === 'overview' && (
-          <>
+          <Sections label="Overview section">
             <Section id="ov-headline" title="Headline" defaultOpen
               meta={selLabel}>
               {withPeriod((sel) => <OverviewTab period={sel} periods={shownPeriods} allPeriods={allPeriods} gran={aggGran} traffic={trafficRows} isRange={isRange} />)}
@@ -352,12 +352,12 @@ export function LiveMisPage() {
               meta="Daily sales, ad spend and orders from the connected reports">
               <RunRateTab />
             </Section>
-          </>
+          </Sections>
         )}
 
         {/* ---- P&L (this IS the MIS) ---- */}
         {tab === 'pnl' && (
-          <>
+          <Sections label="P&L section">
             <Section id="pnl-sheet" title="MIS sheet" defaultOpen
               meta="Months of 1 fiscal year and the total">
               {withDeck(() => <LiveMisSheetTab deck={view!} normalisedMonths={normalised?.months ?? null} />)}
@@ -374,12 +374,12 @@ export function LiveMisPage() {
               meta={`Channel P&L, ${selLabel}`}>
               {withPeriod((sel, v) => <ChannelsTab period={sel} periods={shownPeriods} cells={v.skuCells} periodKeys={periodKeys} completeness={completeness} />)}
             </Section>
-          </>
+          </Sections>
         )}
 
         {/* ---- Channels ---- */}
         {tab === 'channels' && (
-          <>
+          <Sections label="Channels section">
             <Section id="ch-mix" title="Channel mix" defaultOpen
               meta={selLabel}>
               {withPeriod((sel, v) => <ChannelMixTab period={sel} periods={shownPeriods} months={v.months} monthly={monthly} quarterly={quarterly} yearly={yearly} gran={aggGran} />)}
@@ -388,33 +388,33 @@ export function LiveMisPage() {
               meta={`Products by channel, ${selLabel}`}>
               {withPeriod((sel, v) => <SkuChannelTab period={sel} cells={v.skuCells} periodKeys={periodKeys} completeness={completeness} />)}
             </Section>
-          </>
+          </Sections>
         )}
 
         {/* ---- Products ---- */}
         {tab === 'products' && (
-          <>
+          <Sections label="Products section">
             <Section id="pr-sku" title="SKU P&L" defaultOpen meta={`P&L per product, ${selLabel}`}>
               {withPeriod((sel, v) => <SkuTab period={sel} cells={v.skuCells} periodKeys={periodKeys} />)}
             </Section>
             <Section id="pr-units" title="Units sold" meta={`Units per product and channel, ${selLabel}`}>
               {withPeriod((sel, v) => <SkuUnitsTab period={sel} cells={v.skuCells} periodKeys={periodKeys} />)}
             </Section>
-          </>
+          </Sections>
         )}
 
         {/* ---- Statements ---- */}
         {tab === 'statements' && (
-          <>
+          <Sections label="Statements section">
             <Section id="st-bs" title="Balance sheet" defaultOpen meta="Month end, last 12 months, ₹ lakh, from the Tally trial balance">
               <BalanceSheetTab />
             </Section>
             <Section id="st-cf" title="Cash flow" meta="Month to month, ₹ lakh: operations, investing, financing">
               <CashFlowTab />
             </Section>
-          </>
+          </Sections>
         )}
-      </div>
+      </PageBody>
     </LiveViewProvider>
   );
 }
@@ -584,7 +584,7 @@ function RunRateTab() {
       <div>
         <p className="text-xs text-slate-500 mb-2">
           <span className="font-medium text-slate-700">{RR_GRAINS.find((g) => g.id === gran)!.label} {metricDef.label} by {RR_DIMS.find((d) => d.id === dim)!.label.toLowerCase()}</span>
-          {' '}· {from} to {to}{isRatio ? ' · a ratio, no total' : ''}
+          {', '}{from} to {to}{isRatio ? '. A ratio, so no total.' : ''}
         </p>
         {facts.length === 0 ? (
           <p className="text-sm text-slate-600">No data for these dates. Connect Shopify in <Link to="/reporting/mis/connectors" className="font-medium text-brand-600 underline">Setup</Link>.</p>

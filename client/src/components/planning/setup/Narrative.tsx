@@ -1,4 +1,4 @@
-// Setup → Business plan text (docs/planning/ONE-SETUP.md §2.10): the words next to the numbers — key assumptions,
+// Setup, Business plan text (docs/planning/ONE-SETUP.md §2.10): the words next to the numbers — key assumptions,
 // risks & mitigation, themes & milestones (renaming / re-theming keeps the tagged cost lines attached), team structure.
 // The read-only "From the numbers" checks live on the Business plan output view, not here.
 import type { BusinessPlan } from '../../../data/planning/engine';
@@ -56,7 +56,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
         {part === 'milestones' && <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <SubHead info={<><p>A new name or theme for a milestone changes all cost lines linked to it.</p><p>Link lines in Sheet lines. The spend shows in Business plan → Use of funds.</p></>}>Themes and milestones</SubHead>
+            <SubHead info={<><p>A new name or theme for a milestone changes all cost lines linked to it.</p><p>Link lines in Sheet lines. The spend shows in Business plan, Use of funds.</p></>}>Themes and milestones</SubHead>
             <AddBtn label="Add a milestone" onClick={() => update(addMilestone)} />
           </div>
           <datalist id="plan-themes">{themes.map((t) => <option key={t} value={t} />)}</datalist>

@@ -1,4 +1,4 @@
-// Setup → 7 "Capacity, sites & capex" (docs/planning/ONE-SETUP.md §2.7): production capacity blocks, warehouses / offices /
+// Setup, 7 "Capacity, sites & capex" (docs/planning/ONE-SETUP.md §2.7): production capacity blocks, warehouses / offices /
 // running costs and one-off capex, written into the growth layer through `ensureGrowth`. Feedback = one peak-use line; the
 // per-FY capacity table lives in the Products & customers output, opex per FY in the Costs output.
 

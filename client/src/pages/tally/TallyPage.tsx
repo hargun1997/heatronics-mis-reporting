@@ -13,6 +13,7 @@ import { LedgerRulesCard } from './LedgerRulesCard';
 import { ChartTab } from './ChartTab';
 import { inrFull } from '../../utils/money';
 import { Empty as KitEmpty } from '../../components/ui/states';
+import { DataTable } from '../../components/ui/DataTable';
 
 type Severity = 'error' | 'warn' | 'info';
 interface Sample { date?: string; type?: string; number?: string; party?: string; ledger?: string; amount?: number; detail: string }
@@ -156,16 +157,15 @@ function Ledgers() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, group or GSTIN" aria-label="Search ledgers" className="min-h-11 sm:min-h-9 w-full max-w-sm rounded-lg border border-slate-300 px-3 text-sm" />
         <span className="text-sm text-slate-500">{data ? `${data.rows.length} of ${data.total}` : ''}</span>
       </div>
-      <div className="max-h-[60vh] overflow-auto">
-        <table className="w-full text-label">
-          <thead className="sticky top-0 bg-slate-50 text-left text-xs text-slate-500"><tr><th className="px-3 py-2 font-semibold">Ledger</th><th className="px-3 font-semibold">Group</th><th className="px-3 font-semibold">GSTIN</th><th className="px-3 font-semibold">Registration · state</th><th className="px-3 font-semibold">TDS</th><th className="px-3 text-right font-semibold">Vouchers (3 mo)</th></tr></thead>
-          <tbody>{data?.rows.map((l) => (
-            <tr key={l.name} className="border-t border-slate-100">
-              <td className="px-3 py-1.5 text-slate-900">{l.name}</td><td className="px-3 text-slate-600">{l.group}{l.primary && l.primary !== l.group ? <span className="text-slate-400"> · {l.primary}</span> : null}</td>
-              <td className="px-3 font-mono text-xs">{l.gstin}</td><td className="px-3 text-slate-600">{[l.registration, l.state].filter(Boolean).join(' · ')}</td>
-              <td className="px-3 text-slate-600">{l.tds}</td><td className="px-3 text-right tabular-nums">{l.vouchers || ''}</td>
-            </tr>))}</tbody>
-        </table>
+      <div className="p-3">
+        {data && data.rows.length > 0 && <DataTable label="Ledgers" rows={data.rows} rowKey={(l) => l.name} minWidth={760} columns={[
+          { key: 'name', label: 'Ledger', main: true, cell: (l) => <span className="text-slate-900">{l.name}</span> },
+          { key: 'group', label: 'Group', quiet: true, cell: (l) => <>{l.group}{l.primary && l.primary !== l.group ? <span className="text-slate-500">, under {l.primary}</span> : null}</> },
+          { key: 'gstin', label: 'GSTIN', cell: (l) => <span className="font-mono text-xs">{l.gstin}</span> },
+          { key: 'reg', label: 'Registration and state', quiet: true, cell: (l) => [l.registration, l.state].filter(Boolean).join(', ') },
+          { key: 'tds', label: 'TDS', quiet: true, cell: (l) => l.tds },
+          { key: 'vouchers', label: 'Vouchers (3 months)', num: true, cell: (l) => l.vouchers || '' },
+        ]} />}
         {data && !data.total && <Empty text="No ledgers stored yet. Open TallyPrime, then select Pull Tally now." />}
       </div>
     </div>

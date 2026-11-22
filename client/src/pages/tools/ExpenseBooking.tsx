@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { useTallyMaster } from '../../data/tally/useTallyMaster';
 import type { TallyMaster } from '../../data/tally/useTallyMaster';
 import { buildTallyXml } from '../../data/tally/buildTallyXml';
@@ -378,7 +378,7 @@ export function ExpenseBooking() {
   return (
     <>
       <PageHeader title="Expense booking" accent="brand" icon={iconExpense} />
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+      <PageBody><div className="mx-auto max-w-2xl space-y-5">
         <Link
           to="/booking-assistant"
           className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm text-slate-900 hover:border-brand-400"
@@ -618,7 +618,7 @@ export function ExpenseBooking() {
         )}
           </>
         )}
-      </div>
+      </div></PageBody>
     </>
   );
 }

@@ -9,7 +9,7 @@
 // ----------------------------------------------------------------------------
 
 import { useState, type ReactNode } from 'react';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { InfoTip, Panel } from '../../components/ui/states';
 import { CASCADE, SHEET_RULES, COMPLETENESS_RULE, type LineOwner } from '../../data/ingest/rulebook';
 
@@ -49,7 +49,7 @@ export function RulebookPage() {
         onTab={(id) => setTab(id as RbTab)}
       />
 
-      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
+      <PageBody>
         {tab === 'cascade' && (
           <Panel title="P&L lines and their source" count={CASCADE.length} flush
             action={<InfoTip text="How far the MIS is complete" label={COMPLETENESS_RULE.headline} width={360}>
@@ -93,7 +93,7 @@ export function RulebookPage() {
             </ul>
           </Panel>
         )}
-      </div>
+      </PageBody>
 
     </>
   );

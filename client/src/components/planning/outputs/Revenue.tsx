@@ -1,6 +1,6 @@
 // Output view "Revenue" (docs/planning/ONE-SETUP.md §3): the sheet's revenue summary by month, units and revenue
 // by product per FY, revenue vs the FY targets, the exit run-rate by product family, and offline / store revenue.
-// Read only — the unit grid is in Setup → Sheet lines, growth in Assumptions, targets in Targets.
+// Read only — the unit grid is in Setup, Sheet lines, growth in Assumptions, targets in Targets.
 
 import { Fragment, useMemo } from 'react';
 import { CATEGORY_NAMES, CHANNELS, CHANNEL_NAMES, type Plan, type PlanResult } from '../../../data/planning/engine';
@@ -53,13 +53,13 @@ export function RevenueView({ plan, result, part }: Props & { part?: (typeof REV
       {!part && <SubTabs value={tab} onChange={setTab} options={REV_TABS} label="Revenue part" />}
       {tab === 'month' && <RevenueSummary plan={plan} r={r} />}
 
-      {tab === 'product' && <SectionCard title="Units and revenue by product" count={items.length} info="For each financial year: units, then revenue in ₹ Cr. * = part year. Add new products in Setup → Products and categories.">
+      {tab === 'product' && <SectionCard title="Units and revenue by product" count={items.length} info="For each financial year: units, then revenue in ₹ Cr. * = part year. Add new products in Setup, Products and categories.">
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-label tabular-nums">
             <thead>
               <tr className="border-b border-slate-200 text-xs text-slate-600">
                 <th className="py-1.5 pr-3 text-left font-semibold">Product</th>
-                {r.years.map((y) => <th key={y.fy} colSpan={2} className="px-2 py-1.5 text-right font-semibold">{y.fy}{y.months < 12 ? '*' : ''}<span className="block text-xs font-normal normal-case text-slate-600">units · ₹ Cr</span></th>)}
+                {r.years.map((y) => <th key={y.fy} colSpan={2} className="px-2 py-1.5 text-right font-semibold">{y.fy}{y.months < 12 ? '*' : ''}<span className="block text-xs font-normal normal-case text-slate-600">units, ₹ Cr</span></th>)}
               </tr>
             </thead>
             <tbody>
@@ -83,8 +83,8 @@ export function RevenueView({ plan, result, part }: Props & { part?: (typeof REV
       </SectionCard>}
 
       {tab === 'year' && <SectionCard title="Revenue against targets" info={growthOn
-        ? <><p>Set the target revenue for each FY in Setup → Targets.</p><p>&quot;Fit the plan to these targets&quot; increases the new buyers of the new lines until each target is met.</p><p>Push 1× = the volumes you typed.</p></>
-        : <><p>Targets work only in &quot;My plan&quot;. Select it in Setup → Starting point, then set Targets.</p><p>Revenue, EBITDA and closing cash show for each FY in all cases.</p></>}>
+        ? <><p>Set the target revenue for each FY in Setup, Targets.</p><p>&quot;Fit the plan to these targets&quot; increases the new buyers of the new lines until each target is met.</p><p>Push 1× = the volumes you typed.</p></>
+        : <><p>Targets work only in &quot;My plan&quot;. Select it in Setup, Starting point, then set Targets.</p><p>Revenue, EBITDA and closing cash show for each FY in all cases.</p></>}>
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-label tabular-nums">
             <thead><tr className="bg-surface-tint"><th className={th}>FY</th><th className={thr}>Target</th><th className={thr}>Plan revenue</th><th className={thr}>Gap</th><th className={thr}>Of which GT / MT / pharmacy</th><th className={thr}>New-buyer push</th><th className={thr}>EBITDA</th><th className={thr}>Closing cash</th></tr></thead>
@@ -132,13 +132,13 @@ export function RevenueView({ plan, result, part }: Props & { part?: (typeof REV
         )}
       </SectionCard>}
 
-      {tab === 'offline' && <SectionCard title="Offline revenue by channel type" info={<><p>General trade, modern trade and pharmacy: outlets at the end of each FY, and the invoiced amount (list price less the trade margin).</p><p>Own stores: revenue for each FY.</p><p>Set them up in Setup → Offline retail and stores.</p></>}>
-        {retail.length === 0 && !storesOn && <p className="text-label text-slate-600">{growthOn ? 'No offline channels or stores in this plan.' : 'No offline revenue. Offline channels work only in "My plan" (Setup → Starting point).'}</p>}
+      {tab === 'offline' && <SectionCard title="Offline revenue by channel type" info={<><p>General trade, modern trade and pharmacy: outlets at the end of each FY, and the invoiced amount (list price less the trade margin).</p><p>Own stores: revenue for each FY.</p><p>Set them up in Setup, Offline retail and stores.</p></>}>
+        {retail.length === 0 && !storesOn && <p className="text-label text-slate-600">{growthOn ? 'No offline channels or stores in this plan.' : 'No offline revenue. Offline channels work only in "My plan" (Setup, Starting point).'}</p>}
         {retail.length > 0 && (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-label tabular-nums">
               <thead>
-                <tr className="bg-surface-tint"><th className={th}>Channel</th>{r.years.map((y) => <th key={y.fy} className={thr}>{y.fy}<span className="block text-xs font-normal normal-case text-slate-600">outlets · invoiced</span></th>)}</tr>
+                <tr className="bg-surface-tint"><th className={th}>Channel</th>{r.years.map((y) => <th key={y.fy} className={thr}>{y.fy}<span className="block text-xs font-normal normal-case text-slate-600">outlets, invoiced</span></th>)}</tr>
               </thead>
               <tbody>
                 {retail.map((t) => (
@@ -158,7 +158,7 @@ export function RevenueView({ plan, result, part }: Props & { part?: (typeof REV
         )}
         {storesOn && (
           <p className={`text-label text-slate-600 ${retail.length ? 'mt-3' : ''}`}>
-            <b className="text-slate-700">Own stores:</b> {int(lastM?.stores ?? 0)} stores at {lastM?.label} · {r.years.map((y) => `${y.fy} ${money(y.storeRevenue, 1)}`).join(' · ')}
+            <b className="text-slate-700">Own stores:</b> {int(lastM?.stores ?? 0)} stores at {lastM?.label}, {r.years.map((y) => `${y.fy} ${money(y.storeRevenue, 1)}`).join(', ')}
           </p>
         )}
       </SectionCard>}
@@ -182,7 +182,7 @@ function RevenueSummary({ plan, r }: { plan: Plan; r: PlanResult }) {
     ['Blended ASP (₹)', (i) => int(ms[i].grossRevenue / (ms[i].units || 1))],
   ];
   return (
-    <SectionCard title="Revenue by month (the sheet's 18 months)" info={<><p>Revenue in ₹ L, the channel mix, and growth.</p><p>D2C uses the customer model when it is on. Change the units in Setup → Sheet lines.</p></>}>
+    <SectionCard title="Revenue by month (the sheet's 18 months)" info={<><p>Revenue in ₹ L, the channel mix, and growth.</p><p>D2C uses the customer model when it is on. Change the units in Setup, Sheet lines.</p></>}>
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="text-xs tabular-nums">
           <thead>

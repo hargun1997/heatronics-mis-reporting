@@ -24,7 +24,7 @@ export function OverviewView({ plan, result, compare, compareName }: Props) {
   const lowMonth = r.months[r.minClosingCashMonth - 1];
   const lastM = r.months[r.months.length - 1];
 
-  // exit ARR vs the Setup → Targets exit target (only meaningful when the growth layer is applied and the target type is Exit ARR;
+  // exit ARR vs the Setup, Targets exit target (only meaningful when the growth layer is applied and the target type is Exit ARR;
   // in "Revenue by year" mode `targetArr` is just the untouched default, so it is not a target)
   const G = plan.growth;
   const parity = !!plan.fx?.sheetParity;
@@ -32,7 +32,7 @@ export function OverviewView({ plan, result, compare, compareName }: Props) {
   const byYear = targetMode(plan) === 'path';
   const target = G && G.on && !parity && !byYear && G.targetArr > 0 ? G.targetArr : null;
 
-  // capacity use (Setup → Capacity); 0 everywhere = no capacity set
+  // capacity use (Setup, Capacity); 0 everywhere = no capacity set
   const peakUtil = Math.max(0, ...r.months.map((m) => m.utilisation));
   const overMonths = r.months.filter((m) => m.utilisation > 1);
   const hasCapacity = r.months.some((m) => m.capacity > 0);
@@ -41,7 +41,7 @@ export function OverviewView({ plan, result, compare, compareName }: Props) {
     <div className="min-w-0 space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <MiniStat label={`${last?.fy} revenue`} value={money(last?.revenueWithActuals ?? 0, 1)} sub={Number.isFinite(cagr) ? `${pct(cagr, 0)} CAGR from FY28` : undefined} />
-        <MiniStat label={`${last?.fy} EBITDA`} value={pct((last?.ebitdaWithActuals ?? 0) / (last?.revenueWithActuals || 1))} sub={`${money(last?.ebitdaWithActuals ?? 0)} · first profit ${firstPositive?.fy ?? 'none'}`} bad={(last?.ebitda ?? 0) < 0} />
+        <MiniStat label={`${last?.fy} EBITDA`} value={pct((last?.ebitdaWithActuals ?? 0) / (last?.revenueWithActuals || 1))} sub={`${money(last?.ebitdaWithActuals ?? 0)}, first profit ${firstPositive?.fy ?? 'none'}`} bad={(last?.ebitda ?? 0) < 0} />
         <MiniStat label="Funding need" value={money(r.fundingRequired, 1)} sub={`Deficit ${money(r.peakDeficit, 1)}, ${peakMonth?.label ?? ''}`} />
         <MiniStat label="Lowest cash" value={money(r.minClosingCash, 1)} sub={lowMonth?.label ?? ''} bad={r.minClosingCash < 0} />
         <MiniStat

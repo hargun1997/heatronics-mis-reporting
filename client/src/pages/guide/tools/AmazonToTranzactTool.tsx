@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
-import { PageHeader } from '../../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../../components/ui/PageHeader';
+import { ErrorBox, Panel, StepNo } from '../../../components/ui/states';
+import { Button } from '../../../components/ui/Button';
+import { DataTable } from '../../../components/ui/DataTable';
 import {
   transformAmazonToTranzact,
   generateTranzactExcel,
@@ -60,181 +63,117 @@ export function AmazonToTranzactTool() {
         accent="amber"
         icon={icon}
       />
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <PageBody>
         {/* How it works */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">How it works</h3>
-          <div className="mt-4 space-y-4">
+        <Panel title="How to do it">
+          <ol className="space-y-5">
             <Step n={1} title="Download the Inventory Ledger from Amazon">
-              <p>
-                Open{' '}
-                <a className="text-brand-600 hover:text-brand-700 underline underline-offset-2" href="https://sellercentral.amazon.in/reportcentral/LEDGER_REPORT/1" target="_blank" rel="noopener noreferrer">Reports → Fulfilment → Inventory Ledger</a>
-                {' '}and pick the <b>Download</b> tab. Set it up exactly like this:
-              </p>
-              <ul className="mt-1.5 space-y-0.5 list-disc pl-4">
-                <li>Type of report: <b>Summary view</b></li>
-                <li>Aggregate by location: <b>Country</b></li>
-                <li>Aggregate by time period: <b>Monthly</b></li>
-                <li>Date range: the month you are reconciling (leave ASIN/FNSKU/MSKU blank for all products)</li>
-                <li>Click <b>Request .txt Download</b>: <span className="text-red-700 font-medium">not .csv</span>. A .csv file loses the leading zeros in MSKUs and ASINs, so the SKUs do not match.</li>
+              <p>Open <a className="font-medium text-accent-700 underline underline-offset-2" href="https://sellercentral.amazon.in/reportcentral/LEDGER_REPORT/1" target="_blank" rel="noopener noreferrer">Reports, Fulfilment, Inventory Ledger</a>. Select the <b>Download</b> tab.</p>
+              <p>Set these 4 fields:</p>
+              <ul className="list-disc space-y-0.5 pl-5">
+                <li>Type of report: <b>Summary view</b>.</li>
+                <li>Aggregate by location: <b>Country</b>.</li>
+                <li>Aggregate by time period: <b>Monthly</b>.</li>
+                <li>Date range: the month to check. Keep ASIN, FNSKU and MSKU empty to get all products.</li>
               </ul>
-              <p className="mt-1.5">
-                When it appears in the list below with a <b>Download</b> button, grab the <code className="bg-slate-100 px-1 rounded">.txt</code> file.
-                (The older <b>Manage Inventory</b> snapshot also works: the tool auto-detects either. Both use the <b>SELLABLE</b> closing quantity.)
-              </p>
+              <p>Select <b>Request .txt Download</b>. Do not use .csv: a .csv file removes the first zeros of MSKUs and ASINs, and then the SKUs do not match.</p>
+              <p>When the report shows a <b>Download</b> button, download the <code className="rounded bg-slate-100 px-1">.txt</code> file.</p>
+              <p className="text-slate-600">The older <b>Manage Inventory</b> report also works. The tool finds which report it is. Both use the <b>SELLABLE</b> closing quantity.</p>
             </Step>
-            <Step n={2} title="Upload & transform here">
-              <p>Upload the .txt file below: SKUs are auto-mapped to FG Items. Review the output preview and then download the Excel.</p>
+            <Step n={2} title="Make the file here">
+              <p>Upload the .txt file below. The tool matches each SKU to its FG item. Check the preview, then download the Excel file.</p>
             </Step>
-            <Step n={3} title="Upload to Tranzact">
-              <p>
-                In Tranzact go to{' '}
-                <a className="text-brand-600 hover:text-brand-700 underline underline-offset-2" href="https://app.letstranzact.com/v3/inventory/?section=item_master" target="_blank" rel="noopener noreferrer">Inventory → Item Master</a>
-                {' '}→ Actions → <b>Physical Stock Reconciliation</b>. Ignore the <b>Download Template</b> block at the top: the file this tool produces already matches it.
-                (If you do want the blank template to check Item IDs, tick <b>With Items</b> and set Item Category to <b>Finished goods</b>.)
-              </p>
-              <p className="mt-1.5">Then set the four fields below the Download button:</p>
-              <ul className="mt-1.5 space-y-1 list-disc pl-4">
-                <li>
-                  <b>Store</b>: <b>Amazon (Pan-India)</b>.
-                  {' '}<span className="text-red-600 font-medium">It defaults to "Raw Material Store"</span>: change it, or you will write Amazon FBA stock onto the factory store.
-                </li>
-                <li><b>As on Date</b>: the last day of the month you are reconciling (for example 31/07/2026 for the July ledger). Do not use today's date.</li>
-                <li>
-                  <b>Final Stock Valuation</b>: <b>Use system price</b>. Tranzact then values the stock from its own item master.
-                  Choose "Use uploaded price" only when you want the prices in this file. They come from the FG list in this tool and can be old.
-                </li>
-                <li>
-                  <b>Allow Final Stock at 0 Price</b>: <b>No</b>. Tranzact then stops when an item has a zero value. It does not book that stock at ₹0, which makes the closing stock too low.
-                  Only switch to Yes once you have checked why an item has no price.
-                </li>
+            <Step n={3} title="Upload the file to Tranzact">
+              <p>In Tranzact, open <a className="font-medium text-accent-700 underline underline-offset-2" href="https://app.letstranzact.com/v3/inventory/?section=item_master" target="_blank" rel="noopener noreferrer">Inventory, Item Master</a>. Then open Actions, <b>Physical Stock Reconciliation</b>.</p>
+              <p>Do not use the <b>Download Template</b> part at the top. The file from this tool has the same columns.</p>
+              <p>Set these 4 fields:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li><b>Store</b>: <b>Amazon (Pan-India)</b>. <span className="font-medium text-red-700">The default is Raw Material Store. Change it, or the Amazon stock goes into the factory store.</span></li>
+                <li><b>As on Date</b>: the last day of the month (for example 31/07/2026 for the July ledger). Do not use the date of today.</li>
+                <li><b>Final Stock Valuation</b>: <b>Use system price</b>. Tranzact then uses the prices in its item master. Use &quot;Use uploaded price&quot; only for the prices in this file. These prices come from the FG list in this tool and can be old.</li>
+                <li><b>Allow Final Stock at 0 Price</b>: <b>No</b>. Tranzact then stops on an item with no price. It does not book that stock at ₹0, which makes the closing stock too low. Select Yes only after you find why an item has no price.</li>
               </ul>
-              <p className="mt-1.5">
-                Drop the file into <b>Update Stock Details</b> and submit. The file is the full SELLABLE count for the Amazon store, so anything Tranzact holds in that store but not listed here is genuinely zero.
-              </p>
+              <p>Put the file in <b>Update Stock Details</b> and submit it. The file has all the SELLABLE stock of the Amazon store. An item in that store that is not in the file has zero stock.</p>
             </Step>
-          </div>
-        </div>
+          </ol>
+        </Panel>
 
         {/* File Upload */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 max-w-md">
-          <label className="block text-sm font-medium text-slate-900 mb-2">Amazon FBA Inventory Report</label>
+        <Panel title="Amazon FBA Inventory Report" className="max-w-md">
           <input
             type="file"
             aria-label="Amazon FBA Inventory Report"
             accept=".txt,.tsv"
             onChange={handleAmazonFile}
-            className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 file:cursor-pointer cursor-pointer"
+            className="block w-full cursor-pointer text-sm text-slate-600 file:mr-3 file:min-h-11 file:cursor-pointer file:rounded-lg file:border file:border-slate-200 file:bg-white file:px-3 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-50"
           />
-          <p className="mt-1.5 text-xs text-slate-500">Tab-separated .txt file from Amazon Seller Central</p>
-          {amazonFile && <p className="mt-1.5 text-xs text-emerald-600">Selected: {amazonFile.name}</p>}
-        </div>
+          <p className="mt-1.5 text-xs text-slate-600">The .txt file from Amazon Seller Central (tab-separated).</p>
+          {amazonFile && <p className="mt-1.5 text-xs text-slate-700">✓ {amazonFile.name}</p>}
+          <Button className="mt-3" variant={result ? 'secondary' : 'primary'} onClick={handleTransform} disabled={!amazonFile || processing} busy={processing} busyLabel="Making the file">
+            Make the file
+          </Button>
+        </Panel>
 
-        {/* Transform */}
-        <div>
-          <button
-            onClick={handleTransform}
-            disabled={!amazonFile || processing}
-            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            {processing ? 'Processing…' : 'Transform'}
-          </button>
-        </div>
-
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-        )}
+        {error && <ErrorBox>{error}</ErrorBox>}
 
         {result && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-slate-900">Summary</h3>
-                {result.period && (
-                  <span className="text-xs font-medium text-brand-700 bg-brand-50 border border-brand-100 rounded px-2 py-0.5">
-                    Inventory Ledger · {result.period}
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <SummaryCard label="FG Items" value={result.totalFgItems} color="emerald" />
-                <SummaryCard label="Units Mapped" value={result.totalUnitsMapped} color="brand" />
-                <SummaryCard label="Unsellable (skipped)" value={result.totalUnsellable} color="slate" />
-                <SummaryCard label="FBM Skipped" value={result.skippedFbm} color="slate" />
+            <Panel title="Summary" action={result.period ? <span className="text-xs text-slate-600">Inventory Ledger, {result.period}</span> : undefined}>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <SummaryCard label="FG items" value={result.totalFgItems} />
+                <SummaryCard label="Units matched" value={result.totalUnitsMapped} />
+                <SummaryCard label="Unsellable (not counted)" value={result.totalUnsellable} />
+                <SummaryCard label="FBM (not counted)" value={result.skippedFbm} />
               </div>
               {result.unmatchedSkus.length > 0 && (
-                <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-100">
-                  <p className="text-xs font-medium text-amber-700">Unmatched Amazon SKUs ({result.unmatchedSkus.length})</p>
-                  <p className="mt-1 text-xs font-mono text-amber-700/80">{result.unmatchedSkus.join(', ')}</p>
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs font-medium text-amber-800">! Amazon SKUs with no FG item ({result.unmatchedSkus.length})</p>
+                  <p className="mt-1 font-mono text-xs text-amber-800">{result.unmatchedSkus.join(', ')}</p>
                 </div>
               )}
               {result.missingFgItems.length > 0 && (
-                <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-100">
-                  <p className="text-xs font-medium text-amber-700">FG Items missing from master ({result.missingFgItems.length})</p>
-                  <p className="mt-1 text-xs font-mono text-amber-700/80">{result.missingFgItems.join(', ')}</p>
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-xs font-medium text-amber-800">! FG items not in the master list ({result.missingFgItems.length})</p>
+                  <p className="mt-1 font-mono text-xs text-amber-800">{result.missingFgItems.join(', ')}</p>
                 </div>
               )}
-            </div>
+            </Panel>
 
             {result.outputRows.length > 0 && (
-              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-                  <h3 className="text-sm font-semibold text-slate-900">Output Preview ({result.outputRows.length} rows)</h3>
-                  <button onClick={() => void handleDownload()} className="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-medium rounded-lg transition-colors">
-                    Download Excel
-                  </button>
-                </div>
-                <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead className="bg-slate-50 text-slate-500 text-xs">
-                      <tr>
-                        <th className="text-left px-4 py-2 font-medium">Item ID</th>
-                        <th className="text-left px-4 py-2 font-medium">Item Name</th>
-                        <th className="text-left px-4 py-2 font-medium">UOM</th>
-                        <th className="text-right px-4 py-2 font-medium">Physical Stock</th>
-                        <th className="text-left px-4 py-2 font-medium">Comment</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {result.outputRows.map((row: OutputRow) => (
-                        <tr key={row.itemId} className="hover:bg-slate-50">
-                          <td className="px-4 py-2 text-slate-700 font-mono">{row.itemId}</td>
-                          <td className="px-4 py-2 text-slate-700">{row.itemName}</td>
-                          <td className="px-4 py-2 text-slate-500">{row.uom}</td>
-                          <td className="px-4 py-2 text-right text-slate-900 font-medium">{row.physicalStock}</td>
-                          <td className="px-4 py-2 text-slate-500 text-xs">{row.comment}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <Panel title="File preview" count={result.outputRows.length} action={<Button size="sm" onClick={() => void handleDownload()}>Download Excel</Button>}>
+                <DataTable label="File preview" rows={result.outputRows} rowKey={(r: OutputRow) => r.itemId} columns={[
+                  { key: 'itemId', label: 'Item ID', cell: (r: OutputRow) => <span className="font-mono">{r.itemId}</span> },
+                  { key: 'itemName', label: 'Item name', main: true, cell: (r: OutputRow) => r.itemName },
+                  { key: 'uom', label: 'UOM', quiet: true, cell: (r: OutputRow) => r.uom },
+                  { key: 'physicalStock', label: 'Physical stock', num: true, emph: true, cell: (r: OutputRow) => r.physicalStock },
+                  { key: 'comment', label: 'Comment', quiet: true, cell: (r: OutputRow) => r.comment },
+                ]} />
+              </Panel>
             )}
           </div>
         )}
-      </div>
+      </PageBody>
     </>
   );
 }
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">{n}</span>
-        <span className="text-sm font-medium text-slate-900">{title}</span>
+    <li className="flex gap-3">
+      <StepNo n={n} />
+      <div className="min-w-0 flex-1">
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <div className="mt-1 space-y-1.5 text-sm text-slate-700">{children}</div>
       </div>
-      <div className="ml-7 text-xs text-slate-600 leading-relaxed">{children}</div>
-    </div>
+    </li>
   );
 }
 
-function SummaryCard({ label, value, color }: { label: string; value: number; color: 'emerald' | 'brand' | 'amber' | 'slate' }) {
-  const m: Record<string, string> = { emerald: 'text-emerald-600', brand: 'text-brand-600', amber: 'text-amber-600', slate: 'text-slate-500' };
+function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-      <p className="text-xs text-slate-500 mb-0.5">{label}</p>
-      <p className={`text-lg font-semibold ${m[color]}`}>{value}</p>
+    <div className="rounded-lg border border-slate-200 p-3">
+      <p className="text-xs text-slate-600">{label}</p>
+      <p className="text-lg font-semibold tabular-nums text-slate-900">{value}</p>
     </div>
   );
 }

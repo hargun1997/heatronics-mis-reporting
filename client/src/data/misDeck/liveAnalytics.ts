@@ -145,7 +145,7 @@ export function scopeOf(p: { members: string[] }): string {
   const n = p.members.length;
   if (!n) return '';
   const a = monthLabel(p.members[0]);
-  return n === 1 ? a : `${a}–${monthLabel(p.members[n - 1])} · ${n}m`;
+  return n === 1 ? a : `${a} to ${monthLabel(p.members[n - 1])}, ${n} months`;
 }
 
 /** Aggregate months into month/quarter/year buckets, recomputing margins. */

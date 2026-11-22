@@ -1,6 +1,6 @@
 // Output view "Cash & funding" (docs/planning/ONE-SETUP.md §3): what the plan needs funded, the rounds with
 // dilution / runway, the timeline events and the GST asset note. Read only — terms, events, rounds and the
-// working-capital / GST / tax inputs live in Setup → Funding / Assumptions / Starting point.
+// working-capital / GST / tax inputs live in Setup, Funding / Assumptions / Starting point.
 
 import { useMemo } from 'react';
 import type { CashEvent, Plan, PlanResult } from '../../../data/planning/engine';
@@ -41,8 +41,8 @@ export function CashFundingView({ plan, result }: Props) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <Box label="Largest deficit" value={`₹${cr(r.peakDeficit)} Cr`} sub={peak ? `in ${peak.label}` : ''} />
         <Box label="Funding need" value={`₹${cr(r.fundingRequired)} Cr`} sub={`With ${pct(c.contingencyPct, 0)} buffer`} />
-        <Box label={r.seedEquity > 0 ? 'Still to raise after seed' : 'Equity after debt'} value={`₹${cr(Math.max(0, r.equityRequired - r.seedEquity))} Cr`} sub={`Equity ₹${cr(r.equityRequired)} Cr${r.seedEquity > 0 ? ` − seed ₹${cr(r.seedEquity)} Cr` : ''} · debt ₹${cr(r.debtDrawnTotal)} Cr`} />
-        <Box label="Lowest cash" value={money(r.minClosingCash)} sub={low ? `${low.label}${r.minClosingCash < 0 ? ' · add a raise in Setup → Funding' : ''}` : ''} bad={r.minClosingCash < 0} />
+        <Box label={r.seedEquity > 0 ? 'Still to raise after seed' : 'Equity after debt'} value={`₹${cr(Math.max(0, r.equityRequired - r.seedEquity))} Cr`} sub={`Equity ₹${cr(r.equityRequired)} Cr${r.seedEquity > 0 ? ` − seed ₹${cr(r.seedEquity)} Cr` : ''}, debt ₹${cr(r.debtDrawnTotal)} Cr`} />
+        <Box label="Lowest cash" value={money(r.minClosingCash)} sub={low ? `${low.label}${r.minClosingCash < 0 ? ', add a raise in Setup, Funding' : ''}` : ''} bad={r.minClosingCash < 0} />
         <Box label="Equity raised" value={money(r.equityPlanned, 0)} sub={`Today’s holders keep ${pct(keep, 0)} after ${dil.length} round${dil.length === 1 ? '' : 's'}`} />
         <Box label={`GST asset, ${gstEnd?.label ?? ''}`} value={`₹${cr(gstEnd?.gstAsset ?? 0)} Cr`} sub="Services ITC we cannot set off" />
       </div>
@@ -51,7 +51,7 @@ export function CashFundingView({ plan, result }: Props) {
         title="Rounds and dilution"
         count={rounds.length + (seedRow ? 1 : 0)}
         info={<>
-          <p>The seed{fx?.seed.on && !parity ? ` (₹${cr(fx.seed.amount, 0)} Cr in ${label(fx.seed.month)})` : ''} and the rounds from Setup → Funding.</p>
+          <p>The seed{fx?.seed.on && !parity ? ` (₹${cr(fx.seed.amount, 0)} Cr in ${label(fx.seed.month)})` : ''} and the rounds from Setup, Funding.</p>
           <p>Cash before = closing cash in the month before the round.</p>
           <p>Burn = average cash burn a month for the 12 months after the round.</p>
           <p>Runway = months until cash goes below the buffer again.</p>
@@ -90,7 +90,7 @@ export function CashFundingView({ plan, result }: Props) {
                   </tr>
                 );
               })}
-              {!seedRow && rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={11} className="px-2 py-2 text-xs text-slate-600">No seed or rounds yet. Add them in Setup → Funding.</td></tr>}
+              {!seedRow && rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={11} className="px-2 py-2 text-xs text-slate-600">No seed or rounds yet. Add them in Setup, Funding.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -98,7 +98,7 @@ export function CashFundingView({ plan, result }: Props) {
 
       <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
       <SectionCard title="Closing cash"><CashCurve r={r} compare={null} /></SectionCard>
-      <SectionCard title="The sheet's cash events" count={plan.events.length} info="Equity raises and debt on the sheet's own timeline. Change them in Setup → Funding.">
+      <SectionCard title="The sheet's cash events" count={plan.events.length} info="Equity raises and debt on the sheet's own timeline. Change them in Setup, Funding.">
         {plan.events.length === 0 && <p className="text-label text-slate-600">No events.</p>}
         <div className="space-y-1.5">
           {[...plan.events].sort((a, b) => a.month - b.month).map((e) => (

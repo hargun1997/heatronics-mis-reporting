@@ -1,4 +1,4 @@
-// Setup → 1 Starting point (docs/planning/ONE-SETUP.md §2.1): the plan basis (sheet parity or my plan), the example growth
+// Setup, 1 Starting point (docs/planning/ONE-SETUP.md §2.1): the plan basis (sheet parity or my plan), the example growth
 // plan, the opening balance sheet (Tally / typed / the sheet's) and the actuals already booked. Pure helpers: data/planning/setup/mode.ts.
 import { useState } from 'react';
 import { monthLabel, type PlanFx } from '../../../data/planning/engine';
@@ -90,7 +90,7 @@ export function Section({ plan, update }: SetupSectionProps) {
 
       {/* 2. example plans */}
       <div className="space-y-2">
-        <SubHead info={<><p>Example: ₹30 → 100 → 250 → 500 Cr in FY28 to FY31. All numbers are placeholders.</p><p>Pain-care (Nov 2026): online only for 12 months (Amazon, Flipkart, D2C), topicals and hGo. GT, pharmacy, physio and new devices start at the Jan-28 round. ₹100 → 250 → 500 Cr in FY29 to FY31.</p><p>Business plan (Nov 2026): the plan sent to investors. Devices, topicals, nutraceuticals and TENS by year; OEM stops after Sep-27; Series A ₹30 Cr Jan-28, Series B ₹100 Cr Jul-29.</p><p>A load replaces products, hires, capacity, rounds and targets. Then click &quot;Save as scenario&quot;.</p><p>Select &quot;My plan&quot; first.</p></>}>Start from a ready plan</SubHead>
+        <SubHead info={<><p>Example: ₹30, 100, 250, then 500 Cr in FY28 to FY31. All numbers are placeholders.</p><p>Pain-care (Nov 2026): online only for 12 months (Amazon, Flipkart, D2C), topicals and hGo. GT, pharmacy, physio and new devices start at the Jan-28 round. ₹100 → 250 → 500 Cr in FY29 to FY31.</p><p>Business plan (Nov 2026): the plan sent to investors. Devices, topicals, nutraceuticals and TENS by year; OEM stops after Sep-27; Series A ₹30 Cr Jan-28, Series B ₹100 Cr Jul-29.</p><p>A load replaces products, hires, capacity, rounds and targets. Then click &quot;Save as scenario&quot;.</p><p>Select &quot;My plan&quot; first.</p></>}>Start from a ready plan</SubHead>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className={btn} disabled={!!busy || mode === 'sheet'} onClick={loadBusinessPlan}
             title={mode === 'sheet' ? 'Select My plan first' : undefined}>

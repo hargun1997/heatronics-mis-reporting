@@ -1,6 +1,6 @@
 // Output view "Business plan" (docs/planning/ONE-SETUP.md §3; 4 sub-tabs since pass 2, 11 Nov 2026): the sheet's Business Plan + Overview tabs, live —
 // headline, The Ask, use of funds, capital deployment, and the plan's words (assumptions, risks, themes & milestones,
-// team) as read-only lists. The text is edited in Setup → Business plan text; the numbers in Starting point / Assumptions.
+// team) as read-only lists. The text is edited in Setup, Business plan text; the numbers in Starting point / Assumptions.
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { monthLabel, type Plan, type PlanResult } from '../../../data/planning/engine';
@@ -18,9 +18,9 @@ export function BusinessPlanView({ plan, result, part }: Props) {
   const r = result;
   const H = r.months.length;
   const spans: Span[] = [
-    { n: 12, label: `12 months`, sub: `${r.months[0].label} → ${r.months[11]?.label}` },
-    { n: 18, label: `18 months`, sub: `→ ${r.months[17]?.label}` },
-    ...(H > 18 ? [{ n: H, label: 'Full plan', sub: `→ ${r.months[H - 1].label}` }] : []),
+    { n: 12, label: `12 months`, sub: `${r.months[0].label} to ${r.months[11]?.label}` },
+    { n: 18, label: `18 months`, sub: `To ${r.months[17]?.label}` },
+    ...(H > 18 ? [{ n: H, label: 'Full plan', sub: `To ${r.months[H - 1].label}` }] : []),
   ];
   const heads = spans.map((s) => headline(plan, r, s.n));
   const contingencies = spans.map((s) => (s.n === 12 ? plan.business.contingency12 : plan.cash.contingencyPct));
@@ -33,7 +33,7 @@ export function BusinessPlanView({ plan, result, part }: Props) {
     <div className="space-y-4">
       {!part && <SubTabs value={tab} onChange={setTab} options={BP_TABS} label="Business plan part" />}
       {tab === 'money' && <div className="grid gap-4 xl:grid-cols-2">
-        <SectionCard title="Headline" info={<><p>Exit ARR = revenue of the last 12 months × growth of the last 3 months against 1 year before.</p><p>The growth is capped at {B.exitGrowthCap.toFixed(1)}×.</p><p>Jul to Sep 2026 actual revenue: ₹{cr(B.exitPriorL3M)} Cr. Change both in Setup → Starting point.</p></>}>
+        <SectionCard title="Headline" info={<><p>Exit ARR = revenue of the last 12 months × growth of the last 3 months against 1 year before.</p><p>The growth is capped at {B.exitGrowthCap.toFixed(1)}×.</p><p>Jul to Sep 2026 actual revenue: ₹{cr(B.exitPriorL3M)} Cr. Change both in Setup, Starting point.</p></>}>
           <Table cols={spans} rows={[
             ['Revenue (₹ Cr)', heads.map((h) => cr(h.revenue))],
             ['Units', heads.map((h) => int(h.units))],
@@ -46,9 +46,9 @@ export function BusinessPlanView({ plan, result, part }: Props) {
           ]} />
         </SectionCard>
 
-        <SectionCard title="The Ask" info={<><p>Equity required = largest cash deficit in the period × (1 + buffer) − venture debt.</p><p>The full-plan column uses the 18-month buffer.</p><p>Change the buffers in Setup → Assumptions. Change the debt in Setup → Funding.</p></>}>
+        <SectionCard title="The Ask" info={<><p>Equity required = largest cash deficit in the period × (1 + buffer) − venture debt.</p><p>The full-plan column uses the 18-month buffer.</p><p>Change the buffers in Setup, Assumptions. Change the debt in Setup, Funding.</p></>}>
           <Table cols={spans} rows={[
-            ['Largest cash deficit (₹ Cr)', asks.map((a) => `${cr(a.peakDeficit)} · ${r.months[a.peakMonth - 1]?.label ?? ''}`)],
+            ['Largest cash deficit (₹ Cr)', asks.map((a) => `${cr(a.peakDeficit)}, ${r.months[a.peakMonth - 1]?.label ?? ''}`)],
             ['Buffer', contingencies.map((c) => pct(c, 0))],
             ['Total funding need (₹ Cr)', asks.map((a) => cr(a.fundingNeed))], // net of any opening cash
             ['Less venture debt (₹ Cr)', asks.map((a) => cr(-a.ventureDebt))],
@@ -66,8 +66,8 @@ export function BusinessPlanView({ plan, result, part }: Props) {
       </>}
 
       {tab === 'words' && <div className="grid gap-4 xl:grid-cols-2">
-        <SectionCard title="Key assumptions" count={B.assumptions.length} info="Write and change these in Setup → Business plan text.">
-          {B.assumptions.length === 0 && <p className="text-label text-slate-600">No assumptions yet. Add them in Setup → Business plan text.</p>}
+        <SectionCard title="Key assumptions" count={B.assumptions.length} info="Write and change these in Setup, Business plan text.">
+          {B.assumptions.length === 0 && <p className="text-label text-slate-600">No assumptions yet. Add them in Setup, Business plan text.</p>}
           <div className="divide-y divide-slate-100">
             {B.assumptions.map((a) => (
               <div key={a.id} className="grid grid-cols-[1.3fr_1fr_1.3fr] gap-3 py-1.5 text-label">
@@ -80,8 +80,8 @@ export function BusinessPlanView({ plan, result, part }: Props) {
           <LiveChecks plan={plan} r={r} />
         </SectionCard>
 
-        <SectionCard title="Risks and what we do" count={B.risks.length} info="Write and change these in Setup → Business plan text.">
-          {B.risks.length === 0 && <p className="text-label text-slate-600">No risks yet. Add them in Setup → Business plan text.</p>}
+        <SectionCard title="Risks and what we do" count={B.risks.length} info="Write and change these in Setup, Business plan text.">
+          {B.risks.length === 0 && <p className="text-label text-slate-600">No risks yet. Add them in Setup, Business plan text.</p>}
           <div className="divide-y divide-slate-100">
             {B.risks.map((x) => (
               <div key={x.id} className="grid grid-cols-[1fr_1.4fr] gap-3 py-1.5 text-label">
@@ -95,8 +95,8 @@ export function BusinessPlanView({ plan, result, part }: Props) {
 
       {tab === 'milestones' && <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Milestones plan={plan} />
-        <SectionCard title="Team" info="One line for each role. An arrow (→) shows who reports to whom. Change it in Setup → Business plan text.">
-          {B.team.trim() ? <p className="whitespace-pre-wrap text-label leading-relaxed text-slate-700">{B.team}</p> : <p className="text-label text-slate-600">No team yet. Add it in Setup → Business plan text.</p>}
+        <SectionCard title="Team" info="One line for each role. An arrow (→) shows who reports to whom. Change it in Setup, Business plan text.">
+          {B.team.trim() ? <p className="whitespace-pre-wrap text-label leading-relaxed text-slate-700">{B.team}</p> : <p className="text-label text-slate-600">No team yet. Add it in Setup, Business plan text.</p>}
         </SectionCard>
       </div>}
     </div>
@@ -135,13 +135,13 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
   const themes = deps[deps.length - 1].themes.map((t) => t.theme);
   const tot = (d: ReturnType<typeof deployment>, th: string) => d.themes.find((t) => t.theme === th)?.total ?? 0;
   return (
-    <SectionCard title="Use of funds" info={<><p>Spend on each theme, in ₹ Cr, and its share of the equity raise.</p><p>A cost line counts here when it has a milestone. Add milestones in Setup → Sheet lines.</p></>}>
+    <SectionCard title="Use of funds" info={<><p>Spend on each theme, in ₹ Cr, and its share of the equity raise.</p><p>A cost line counts here when it has a milestone. Add milestones in Setup, Sheet lines.</p></>}>
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="w-full min-w-[620px] text-label tabular-nums">
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-600">
               <th className="py-1.5 text-left font-semibold">Theme</th>
-              {spans.map((s) => <th key={s.n} colSpan={2} className="px-2 py-1.5 text-right font-semibold">{s.label} · ₹ Cr / % of raise</th>)}
+              {spans.map((s) => <th key={s.n} colSpan={2} className="px-2 py-1.5 text-right font-semibold">{s.label}: ₹ Cr and % of raise</th>)}
             </tr>
           </thead>
           <tbody>
@@ -154,7 +154,7 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
                 ])}
               </tr>
             ))}
-            {themes.length === 0 && <tr><td colSpan={1 + 2 * spans.length} className="py-2 text-xs text-slate-500">No cost line has a milestone. Add one in Setup → Sheet lines.</td></tr>}
+            {themes.length === 0 && <tr><td colSpan={1 + 2 * spans.length} className="py-2 text-xs text-slate-500">No cost line has a milestone. Add one in Setup, Sheet lines.</td></tr>}
             <tr className="bg-slate-50 font-bold">
               <td className="py-1.5 pr-3">Total tagged deployment</td>
               {deps.map((d, i) => {
@@ -225,7 +225,7 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
 function Milestones({ plan }: { plan: Plan }) {
   const tagged = (ms: string) => plan.lines.filter((l) => l.milestone === ms).length;
   return (
-    <SectionCard title="Themes and milestones" count={plan.business.themes.length} info="Change milestones in Setup → Business plan text. Link cost lines to a milestone in Setup → Sheet lines.">
+    <SectionCard title="Themes and milestones" count={plan.business.themes.length} info="Change milestones in Setup, Business plan text. Link cost lines to a milestone in Setup, Sheet lines.">
       {plan.business.themes.length === 0 && <p className="text-label text-slate-600">No milestones yet.</p>}
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
         <table className="w-full text-label">
@@ -262,7 +262,7 @@ function LiveChecks({ plan, r }: { plan: Plan; r: PlanResult }) {
   return (
     <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
       <b className="text-slate-800">First 12 months:</b> Oct–Jan = {pct(octJan / (rev || 1), 0)} of revenue ·
-      Amazon fees and fulfilment = {pct(amzCost / (amz || 1))} of Amazon revenue · largest GST asset in 18 months ₹{cr(peak)} Cr.
+      Amazon fees and fulfilment = {pct(amzCost / (amz || 1))} of Amazon revenue, largest GST asset in 18 months ₹{cr(peak)} Cr.
     </p>
   );
 }

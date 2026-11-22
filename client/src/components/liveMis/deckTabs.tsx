@@ -40,11 +40,11 @@ export { LevelBadge } from './shared';
 const isRealRow = (level: CompletenessLevel, row: string) => REAL_ROWS[level].has(row);
 const GRAN_NOUN: Record<Granularity, string> = { month: 'month', quarter: 'quarter', year: 'fiscal year' };
 
-/** Scope line for a chart: "Monthly · Dec 23 → Jul 26 (32 periods)". */
+/** Scope line for a chart: "Monthly, Dec 23 to Jul 26 (32 periods)". */
 export function scopeLine(periods: PeriodAgg[], gran: Granularity): string {
   if (!periods.length) return '';
   const g = gran === 'month' ? 'Monthly' : gran === 'quarter' ? 'By fiscal quarter' : 'By fiscal year';
-  return `${g} · ${periods[0].label} → ${periods[periods.length - 1].label} (${periods.length} period${periods.length === 1 ? '' : 's'})`;
+  return `${g}, ${periods[0].label} to ${periods[periods.length - 1].label} (${periods.length} period${periods.length === 1 ? '' : 's'})`;
 }
 
 /** The same-length period one year earlier (fair YoY frame), found by member months. */
@@ -138,8 +138,8 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
           sub={real('net_income') ? `${pctStr(pct(period.netIncome))} of revenue` : 'needs Tally'} />
         <KpiTile label="Contribution (CM2)" value={real('cm2') ? pctStr(pct(period.cm2)) : '–'}
           sub={real('cm2') ? `${inr(period.cm2)} after channel & marketing` : 'needs COGM'} />
-        <KpiTile label="Top channel" value={totalMix > 0 ? `${chName(top.channel)} · ${pctStr(top.share, 0)}` : '–'} sub="of net revenue" />
-        <KpiTile label="Period covers" value={n === 1 ? '1 month' : `${n} months`} sub={scopeOf(period).replace(/ · \d+m$/, '')} />
+        <KpiTile label="Top channel" value={totalMix > 0 ? `${chName(top.channel)}, ${pctStr(top.share, 0)}` : '–'} sub="of net revenue" />
+        <KpiTile label="Period covers" value={n === 1 ? '1 month' : `${n} months`} sub={scopeOf(period).replace(/, \d+ months$/, '')} />
         <KpiTile label="Costs" value={real('opex') ? inr(costs) : '–'} sub={real('opex') ? 'COGM + channel + S&M + platform + opex' : 'needs Tally'} />
       </div>
 
@@ -155,7 +155,7 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Fold id="ov-mix" title={`Channel mix · ${period.label}`} meta="Share of net revenue">
+        <Fold id="ov-mix" title={`Channel mix, ${period.label}`} meta="Share of net revenue">
           {mix.length === 0 ? <p className="text-xs text-slate-400 py-6 text-center">No channel revenue.</p> : (
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <DonutChart data={mix} colors={mixColors} size={180} />
@@ -172,7 +172,7 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
             </div>
           )}
         </Fold>
-        <Fold id="ov-bridge" title={`P&L bridge · ${period.label}`} meta="Net revenue → net income">
+        <Fold id="ov-bridge" title={`P&L bridge, ${period.label}`} meta="From net revenue to net income">
           {steps.length >= 3 ? <WaterfallChart steps={steps} />
             : <p className="text-xs text-slate-400 py-6 text-center">Upload the month's Tally P&amp;L to see the full bridge.</p>}
         </Fold>
@@ -181,7 +181,7 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
       {traffic.length > 0 && <AmazonTraffic rows={traffic} label={period.label} />}
 
       <Note>
-        {period.label} · <LevelBadge level={period.level} published={period.published} />{' '}
+        {period.label}, <LevelBadge level={period.level} published={period.published} />{' '}
         {period.level === 'full'
           ? period.published ? 'shown from the published MIS (no full live close for it yet).' : 'every line is real and reconciled to Tally.'
           : period.level === 'contribution'
@@ -203,7 +203,7 @@ function AmazonTraffic({ rows, label }: { rows: TrafficRow[]; label: string }) {
   const top = [...rows].sort((a, b) => b.sessions - a.sessions).slice(0, 12);
   const n = (v: number) => v.toLocaleString('en-IN');
   return (
-    <Fold id="ov-traffic" secondary title={`Amazon traffic & conversion · ${label}`} meta="Sessions → units ordered (Business Report: not revenue)">
+    <Fold id="ov-traffic" secondary title={`Amazon traffic and conversion, ${label}`} meta="From sessions to units ordered. Business Report, not revenue.">
       <TableBox>
         <table className="w-full text-xs">
           <thead>
@@ -284,7 +284,7 @@ const MKT_ORDER = ['Google Ads', 'Meta (FB / Instagram)', 'Amazon Ads', 'Flipkar
 
 interface DrillLine { key: string; label: string; value: (p: PeriodAgg) => number | null; strong?: boolean; gate?: string }
 
-/** Column header scope: "Dec 23–Mar 24 · 4m (partial)" under quarter / year / range labels. */
+/** Column header scope: "Dec 23 to Mar 24, 4 months (partial)" under quarter / year / range labels. */
 function colScope(p: PeriodAgg, gran: Granularity): string | null {
   const n = p.members.length;
   if (gran === 'month' && n === 1) return null;
@@ -460,7 +460,7 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
         </table>
       </div>
       <Note>
-        ▸ Click a line to drill in: Net Revenue into its gross → returns → GST build-up (where the month’s source carries
+        ▸ Click a line to drill in: Net Revenue into its gross, returns and GST build-up (where the month’s source carries
         it), COGM and Operating Expenses into their ledger lines, Sales &amp; Marketing into the ad platforms, and the other
         cost lines into Tally’s own ledger buckets (live months). Non-Operating lists its Tally ledgers with an EBT subtotal.
         {basis === 'normalised' && ' Stock build / drawdown is a signed memo outside the cascade (material only: positive = Tally charged more material than the BOM cost of what was sold; factory, manufacturing and inward freight stay in COGM); Gross Margin + memo = Gross Margin as booked.'}
@@ -470,7 +470,7 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
 
       <Note>
         Net Revenue = external sales net of returns &amp; GST (excludes inter-branch transfers). COGM is derived so the Net
-        Revenue → Net Income bridge reconciles exactly. Depreciation is generally excluded from the EBITDA/Net-income basis,
+        revenue to net income bridge reconciles exactly. Depreciation is generally excluded from the EBITDA/Net-income basis,
         consistent with the source MIS. Percentages are each line’s share of that period’s net revenue.
       </Note>
       <Note>
@@ -633,7 +633,7 @@ function BasisNote({ slice, dim, hasTally }: { slice: SlicePnl; dim: string; has
       Each {dim} column is its own connector numbers to CM2 (channel-specific fees &amp; ad spend, BOM cost + factory overhead (Tally’s actual where booked, else 10%)); CM3,
       OPEX and finance are spread pro-rata by sales.{' '}
       {slice.tied ? (
-        <>The <span className="italic">Recon → Tally</span> column carries what the connectors do not see, so every line sums across the columns to the Tally <span className="font-medium text-slate-500">Total</span>.</>
+        <>The <span className="italic">Recon to Tally</span> column carries what the connectors do not see, so every line sums across the columns to the Tally <span className="font-medium text-slate-500">Total</span>.</>
       ) : hasTally ? 'Totals are for this slice.' : (
         <>Upload the month’s Tally P&amp;L on the <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</a> page to light up CM3 and below.</>
       )}
@@ -730,7 +730,7 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
         </div>
       )}
 
-      <Fold id="ch-table" title={`Channel P&L · ${period.label}`} meta="₹, costs negative · % of rev under each column">
+      <Fold id="ch-table" title={`Channel P&L, ${period.label}`} meta="In ₹. Costs are negative. The % of revenue is under each column.">
         {basis === 'anchored' && anchored.length === 0
           ? <Empty what="SKU × channel data" />
           : <FullPnlTable slice={slice} firstCol="Particulars" level={period.level} pctHeader />}
@@ -751,7 +751,7 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
               <StackedBarChart labels={tLabels} keys={names} colors={colors} data={revData} height={280} />
               <div className="mt-2"><Legend items={legend} /></div>
             </Fold>
-            <Fold id="ch-donut" tab={`Share, ${period.label}`} secondary title={`Revenue share · ${period.label}`}>
+            <Fold id="ch-donut" tab={`Share, ${period.label}`} secondary title={`Revenue share, ${period.label}`}>
               <div className="flex justify-center py-1"><DonutChart data={donut} colors={donutColors} size={180} /></div>
               <div className="mt-2"><Legend items={slice.columns.map((c) => ({ label: `${c.label} ${slice.total.rev ? pctStr(c.rev / slice.total.rev, 0) : ''}`, color: colorOf(c.key) }))} /></div>
             </Fold>
@@ -840,10 +840,10 @@ export function SkuChannelTab({ period, cells, periodKeys, completeness = {} }: 
               {options.map((o) => <option key={o.key} value={o.key}>{orient === 'channel' ? chName(o.label) : o.label}</option>)}
             </select>
           )}
-          {slice && <FullPnlTable slice={slice} firstCol={orient === 'sku' ? 'Line  (channels →)' : 'Line  (SKUs →)'} level={period.level} pctHeader />}
+          {slice && <FullPnlTable slice={slice} firstCol={orient === 'sku' ? 'Line (channels to the right)' : 'Line (SKUs to the right)'} level={period.level} pctHeader />}
           <Note>
             {orient === 'sku' ? `Full P&L for “${selected}” across every channel it sold in.` : `Full P&L for every SKU under ${chName(selected)}.`}{' '}
-            Net Revenue → CM2 is each column’s own connector numbers (channel-specific fees &amp; ad); CM3, OPEX and finance are
+            Net revenue to CM2 is each column’s own connector numbers (channel-specific fees &amp; ad); CM3, OPEX and finance are
             spread pro-rata by sales. Totals are for this slice, not the whole company.
           </Note>
         </>

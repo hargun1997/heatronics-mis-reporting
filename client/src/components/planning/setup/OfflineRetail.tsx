@@ -1,4 +1,4 @@
-// Setup → Offline retail & stores (docs/planning/ONE-SETUP.md §2.5): general trade / modern trade / pharmacy channel types
+// Setup, Offline retail & stores (docs/planning/ONE-SETUP.md §2.5): general trade / modern trade / pharmacy channel types
 // (outlets added by month, offtake per outlet, margins, fees) and own stores. Was GrowthTab's "General trade, modern trade &
 // pharmacy" and "Own stores / outlets" cards. Every write goes through ensureGrowth(p), so the section works before the plan
 // has a growth layer. Secondary buttons only; the per-FY lines are feedback, not output tables.
@@ -85,7 +85,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 <button type="button" className={btn} onClick={() => setT((x) => { x.outlets.push(nextOutletStep(x, horizon)); })}>+ Add outlets</button>
               </div>
               <div className="mt-2 flex flex-wrap gap-x-5 text-xs tabular-nums text-slate-600">
-                {fyRows.map((x) => <span key={x.fy}>{x.fy}: <b className="text-slate-700">{int(x.outlets)}</b> outlets · {money(x.invoiced, 1)}</span>)}
+                {fyRows.map((x) => <span key={x.fy}>{x.fy}: <b className="text-slate-700">{int(x.outlets)}</b> outlets, {money(x.invoiced, 1)}</span>)}
               </div>
             </div>
           );
@@ -123,7 +123,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 <button type="button" className={rm} aria-label="Remove openings" onClick={() => set((g) => { g.stores.openings.splice(i, 1); })}>✕</button>
               </div>
             ))}
-            <p className="mt-2 text-xs tabular-nums text-slate-600">{int(sf.stores)} stores at {sf.label} · {sf.byFy.map((y) => `${y.fy} ${money(y.revenue, 1)}`).join(' · ')}</p>
+            <p className="mt-2 text-xs tabular-nums text-slate-600">{int(sf.stores)} stores at {sf.label}, {sf.byFy.map((y) => `${y.fy} ${money(y.revenue, 1)}`).join(', ')}</p>
           </div>
         </div>
       </div>

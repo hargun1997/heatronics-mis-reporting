@@ -164,7 +164,7 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
                 <tr key={c.channel} className="border-t border-slate-100">
                   <td className="py-1 pr-3 text-slate-700">
                     {c.channel} sales
-                    <span className="block text-xs text-slate-400">{c.sources.length ? `${c.sources.join(', ')} · ${c.netBasis ? BASIS_TXT[c.netBasis] : ''}` : 'No connected report. Tally only.'}</span>
+                    <span className="block text-xs text-slate-400">{c.sources.length ? `${c.sources.join(', ')}, ${c.netBasis ? BASIS_TXT[c.netBasis] : ''}` : 'No connected report. Tally only.'}</span>
                   </td>
                   <td className="py-1 pr-3 text-right">{c.net === null ? '–' : inr(c.net)}</td>
                   <td className="py-1 pr-3 text-right">{c.gmv === null ? '–' : inr(c.gmv)}</td>

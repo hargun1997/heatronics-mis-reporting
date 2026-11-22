@@ -3,7 +3,7 @@
 // Seller Central "Revenue and fees" report uploaded here.
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { HeaderMore, PageHeader } from '../../components/ui/PageHeader';
+import { HeaderMore, PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
 import { BTN, BTN_PRIMARY, ErrorBox, InfoTip, Panel } from '../../components/ui/states';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
@@ -192,7 +192,7 @@ export function PriceFloorsPage() {
           </>
         }
       />
-      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
+      <PageBody>
         {loadError && <ErrorBox onRetry={() => void load()}>Unable to load the price floors: {loadError}</ErrorBox>}
         {note && <Banner tone={note.tone} onClose={() => setNote(null)}>{note.text}</Banner>}
 
@@ -290,7 +290,7 @@ export function PriceFloorsPage() {
           </div>
           <SummaryTable rows={rows} settings={calc} t={t} hasCosts={products.length > 0} onOpen={(r) => r.c && setDetail(r)} />
         </Panel>
-      </div>
+      </PageBody>
 
       <Modal open={modal === 'settings'} onClose={() => setModal(null)} title="Settings" subtitle={settings.updatedAt ? `Last saved ${when(settings.updatedAt)}` : 'Starting values from the 14 Oct fee report'} width={1100}>
         <SettingsEditor settings={settings} products={products} onSaved={(s) => setState((st) => (st ? { ...st, settings: s } : st))} setNote={setNote} />

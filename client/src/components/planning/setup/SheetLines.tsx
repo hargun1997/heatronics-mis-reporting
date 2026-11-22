@@ -1,4 +1,4 @@
-// Setup → 11 "Sheet lines (advanced)": the sheet itself — the unit grid by SKU × channel × month and every Expense
+// Setup, 11 "Sheet lines (advanced)": the sheet itself — the unit grid by SKU × channel × month and every Expense
 // Calendar line (docs/planning/ONE-SETUP.md §2.11). The revenue summary rows live in the Revenue output view.
 
 import { useMemo, useState } from 'react';
@@ -147,7 +147,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
                             onChange={(e) => set(l.id, (x, p) => tagMilestone(p, x, e.target.value))}
                             className={`max-w-[160px] rounded border px-1 py-0.5 text-xs ${l.milestone ? 'border-slate-300 bg-slate-50 text-slate-800' : 'border-transparent text-slate-600 hover:border-slate-200'}`} aria-label="Milestone">
                             <option value="">{l.milestone ? 'No milestone' : '+ Milestone'}</option>
-                            {plan.business.themes.map((t) => <option key={t.id} value={t.milestone}>{t.milestone} · {t.theme}</option>)}
+                            {plan.business.themes.map((t) => <option key={t.id} value={t.milestone}>{t.milestone}, {t.theme}</option>)}
                           </select>
                         </div>
                       </td>
