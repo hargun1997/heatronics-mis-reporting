@@ -68,3 +68,23 @@ export function useInvoices(month: string) {
   const cur = got && got.month === month ? got : null;
   return { api: cur?.api ?? null, error: cur?.error ?? null, loading: !cur, syncing, sync, reload };
 }
+
+export type MonthState = 'ok' | 'stale' | 'partial' | 'missing' | 'running';
+export interface HistoryMonth {
+  month: string; state: MonthState; note: string; booksAsOf: string | null; syncedAt: string | null;
+  summary: InvoicesApi['summary']; rows: InvoiceRow[];
+}
+export interface HistoryApi extends SyncInfo { fy: string | null; months: HistoryMonth[] }
+
+export function useHistory(enabled: boolean) {
+  const [got, setGot] = useState<{ api: HistoryApi | null; error: string | null } | null>(null);
+  useEffect(() => {
+    if (!enabled || got) return;
+    let live = true;
+    getJson<HistoryApi>('/api/tds/history')
+      .then((j) => { if (live) setGot({ api: j, error: null }); })
+      .catch((e: Error) => { if (live) setGot({ api: null, error: e.message }); });
+    return () => { live = false; };
+  }, [enabled, got]);
+  return { api: got?.api ?? null, error: got?.error ?? null, loading: enabled && !got };
+}
