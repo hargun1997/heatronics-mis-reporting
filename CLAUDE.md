@@ -369,12 +369,14 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   across syncs with firstSeen / lastSeen, a change log and 'removed' when a fresh COMPLETE month no longer has it; `duplicateBills`;
   `syncDue` / `syncMonths`) + `services/tdsSync.ts` (store `tds/invoices-<YYYY-MM>`, `tds/sync-state`; `memoryFor` merges a stored Day
   Book newer than the memory on every read, so Tally health pulls and the P&L poll reach it too). Sync = `bookStore.pullBooks` for the
-  months, then merge. Tally answers only while TallyPrime is open on the host, so every sync retries every 50 min (06:00–23:00 IST)
-  until it works and the next good sync also reads the months missed since the last good one (`syncMonths` catch-up, ≤ 3 back); the
-  page shows "Tally offline, showing last synced data as of <date>" + what is waiting (`tallyOffline`, `waitingFor`); an empty or cut
-  answer never replaces stored books. **daily** once a day (this month, + last month up to the 8th);
-  **month end** from the 5th until last month has a sync taken on / after the 5th (full re-read); **button** "Sync with Tally" (`POST
-  /api/tds/sync`, waits 25 s then the page polls `GET /api/tds/sync`). Scheduled caller: `POST /api/tds/sync/run` (open path, token
+  months, then merge. **Every sync (hourly and the button) re-reads the WHOLE financial year from 1 April** (founder, 22 Nov 2026: old
+  bills get edited or back-dated): `passMonths` = FY months not yet read since `state.passStartedAt`, this month first, then April up; a pass
+  spans runs (Tally answers one day per request, 240 s per run, `pullBooks` resumes partial months) and resumes 10 min after a good run
+  (`RESUME_MS`), 50 min after a failed one; it is a good sync only when every FY month was read after the pass began (then `lastOkDay`,
+  and `finalFor[last month]` when the pass began on / after the 5th). Tally answers only while TallyPrime is open on the host, so a failed
+  try retries every 50 min (06:00–23:00 IST); the page shows "Tally offline, showing last synced data as of <date>" + what is waiting
+  (`tallyOffline`, `waitingFor`, "full-year re-read: N month(s) left" from `passLeft`); an empty or cut answer never replaces stored books.
+  **button** "Sync with Tally" (`POST /api/tds/sync`, waits 25 s then the page polls `GET /api/tds/sync`). Scheduled caller: `POST /api/tds/sync/run` (open path, token
   `mis-auto-pull-token`, counts only), GitHub Actions hourly 06:37–22:37 IST. Page: TDS → Invoices tab (tiles, "Booked twice?", rows,
   drawer with the change log), Tally `FreshnessPill` in the header. **Download TDS report** = the accounts team's file layout ("Tds Report
   Oct 2026-27.xlsx", sheet "October-2026"; `tdsFormats.ts tdsReportSheet`): ONE sheet per month named `<Month>-<YYYY>`, title rows
