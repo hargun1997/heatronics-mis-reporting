@@ -3,6 +3,7 @@
 // sparkline. `tone` tints the whole tile for a line that needs attention.
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export type KpiTone = 'default' | 'warning' | 'critical';
 export type DeltaDir = 'up' | 'down' | 'flat';
@@ -17,6 +18,8 @@ interface KpiTileProps {
   sparkColor?: string;
   tone?: KpiTone;
   accent?: string; // top accent-bar colour (defaults to the tone's)
+  /** The tile opens its detail page (founder rule, Nov 2026: each overview tile clicks through). */
+  href?: string;
 }
 
 const toneWrap: Record<KpiTone, string> = {
@@ -54,7 +57,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'rgb(var(--accent-600))', tone = 'default', accent }: KpiTileProps) {
+export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'rgb(var(--accent-600))', tone = 'default', accent, href }: KpiTileProps) {
   const deltaColor = !delta
     ? ''
     : delta.good === undefined
@@ -65,8 +68,9 @@ export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'r
   const arrow = delta?.dir === 'up' ? '▲' : delta?.dir === 'down' ? '▼' : '▶';
   const bar = accent ?? toneAccent[tone];
 
-  return (
-    <div className={`relative overflow-hidden rounded-xl border px-4 py-3.5 shadow-card ${toneWrap[tone]}`}>
+  const box = `relative block overflow-hidden rounded-xl border px-4 py-3.5 shadow-card ${toneWrap[tone]}`;
+  const body = (
+    <>
       {bar && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px]" style={{ background: bar }} />}
       <div className="text-xs font-medium text-slate-500">{label}</div>
       <div className={`font-semibold tracking-[-0.02em] tabular-nums mt-2 text-[26px] leading-none ${toneValue[tone]}`}>
@@ -80,6 +84,9 @@ export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'r
         </div>
       )}
       {spark && <Sparkline data={spark} color={sparkColor} />}
-    </div>
+    </>
   );
+  return href
+    ? <Link to={href} className={`${box} hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500`}>{body}</Link>
+    : <div className={box}>{body}</div>;
 }

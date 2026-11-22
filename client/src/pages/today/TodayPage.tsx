@@ -1,12 +1,17 @@
 // Today — the page to open first. What needs you, five numbers, what moved since yesterday, what is coming.
 // Reads GET /api/today (stored data only). Numbers first, then the numbered list; all on one screen.
+// UI pass 22 Nov 2026: the work counts come from useWorkCount (same as the badge and Tasks); empty tiles fold into one;
+// every tile opens its page; "Due soon" left (it repeated Tasks; the Tasks late tile says what is due this week).
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, AlertTriangle, CircleAlert, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { PageHeader, PageBody } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
 import { BTN, Empty, ErrorBox, Loading, Panel, StepNo } from '../../components/ui/states';
 import { SourceChip } from '../../components/ui/SourceChip';
+import { StatusPill } from '../../components/ui/StatusPill';
+import { useWorkCount, refreshWorkCount, type WorkCount } from '../../data/issues/useWorkCount';
+import { inrShort as inr, dayLabel } from '../../utils/money';
 
 interface Tile { id: string; label: string; value: number | null; unit: 'inr' | 'months' | 'count'; sub: string; tone: 'ok' | 'watch' | 'act'; delta: number | null }
 interface Need { kind: 'watch' | 'fix' | 'task'; severity: 'high' | 'medium' | 'low'; title: string; why: string; href: string; inr: number | null }
@@ -17,23 +22,36 @@ interface Brief {
   dueSoon: Due[]; changed: Change[]; freshness: { line: string; stale: boolean; tallyLastOkAt?: string | null }; notes: string[];
 }
 
-function inr(n: number | null): string {
-  if (n == null) return '—';
-  const a = Math.abs(n), s = n < 0 ? '−' : '';
-  if (a >= 1e7) return `${s}₹${(a / 1e7).toFixed(2).replace(/\.?0+$/, '')} Cr`;
-  if (a >= 1e5) return `${s}₹${(a / 1e5).toFixed(1).replace(/\.0$/, '')} L`;
-  return `${s}₹${Math.round(a).toLocaleString('en-IN')}`;
-}
 const show = (t: Tile) => (t.value == null ? '—' : t.unit === 'inr' ? inr(t.value) : t.unit === 'months' ? `${t.value} mo` : String(t.value));
 const tileDelta = (t: Tile) => (t.delta == null || t.delta === 0 ? null : t.unit === 'inr' ? inr(Math.abs(t.delta)) : String(Math.abs(t.delta)));
 const TONE = {
   ok: 'text-emerald-700', watch: 'text-amber-700', act: 'text-red-700',
 } as const;
-const BAND = {
-  act: { box: 'bg-red-50 border-red-200 text-red-800', Icon: CircleAlert },
-  watch: { box: 'bg-amber-50 border-amber-200 text-amber-800', Icon: AlertTriangle },
-  ok: { box: 'bg-emerald-50 border-emerald-200 text-emerald-800', Icon: CheckCircle2 },
-} as const;
+const PILL = { act: { tone: 'critical', text: 'Act now' }, watch: { tone: 'warning', text: 'Watch' }, ok: { tone: 'positive', text: 'All clear' } } as const;
+/** Where each tile opens (every overview tile clicks through to its detail). */
+const TILE_HREF: Record<string, string> = {
+  net_cash: '/reporting/mis/live?tab=statements', runway: '/accounts/cash-runway', sales: '/reporting/mis/live', fix: '/tasks?view=fix', late: '/tasks',
+};
+/** A Fix item's "why" is a numbered how-to. Today shows only step 1; the full steps open on the item. */
+const firstStep = (why: string) => why.replace(/^\s*1\.\s*/, '').split(/\s+2\.\s/)[0];
+/** Server lines say "since 2026-11-21": pages show "21 Nov". */
+const humanDates = (t: string) => t.replace(/\b\d{4}-\d{2}-\d{2}\b/g, (d) => dayLabel(d));
+
+/** Today's 5 tiles, with the two work counts from the shared store so they match the badge and Tasks. Tiles with no
+ * data fold into 1 "Books" tile: 3 empty tiles with 3 long reasons said one thing 3 times. */
+function tilesFor(b: Brief, c: WorkCount | null): (Tile & { href?: string })[] {
+  const out: (Tile & { href?: string })[] = [];
+  const empty: string[] = [];
+  for (const t of b.tiles) {
+    let x: Tile = t;
+    if (c && t.id === 'fix') x = { ...t, value: c.fix, delta: null, sub: c.fix ? `${c.fixHigh} urgent` : 'No problems found', tone: c.fixHigh ? 'act' : c.fix ? 'watch' : 'ok' };
+    if (c && t.id === 'late') x = { ...t, value: c.late, delta: null, sub: `${c.dueToday} due today · ${c.dueWeek} this week`, tone: c.late ? 'act' : 'ok' };
+    if (x.value == null) { empty.push(x.label.replace(/ .*$/, '').toLowerCase()); continue; }
+    out.push({ ...x, href: TILE_HREF[x.id] });
+  }
+  if (empty.length) out.unshift({ id: 'books', label: 'Books', value: null, unit: 'count', tone: 'watch', delta: null, sub: `No ${empty.join(', ')} yet. Pull Tally on Setup.`, href: '/setup' });
+  return out;
+}
 const KIND = { watch: 'Watch', fix: 'Fix', task: 'Task' } as const;
 
 export function TodayPage() {
@@ -52,14 +70,17 @@ export function TodayPage() {
   };
   useEffect(() => { void load(); }, []);
 
-  const band = b ? BAND[b.status] : null;
-  const total = b ? b.needsYou.length + b.moreNeeds : 0;
+  const count = useWorkCount();
+  const pill = b ? PILL[b.status] : null;
+  // The one count (badge, Tasks, here). Before the store answers, the server's list length.
+  const total = count ? count.open : b ? b.needsYou.length + b.moreNeeds : 0;
+  const line = count ? (count.urgent ? `${count.urgent} urgent of ${count.open} open` : count.open ? `${count.open} open, none urgent` : 'Nothing needs you today') : b?.statusLine;
   return (
     <>
       <PageHeader
         title="Today"
-        description={b ? b.statusLine : 'Do the numbered items first.'}
-        status={b && band ? <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${band.box}`}><band.Icon className="h-3.5 w-3.5" aria-hidden />{b.status === 'act' ? 'Act now' : b.status === 'watch' ? 'Watch' : 'All clear'}</span> : undefined}
+        description={line ?? 'Do the numbered items first.'}
+        status={pill ? <StatusPill toneName={pill.tone} dot>{pill.text}</StatusPill> : undefined}
         help={<><p>The 5 numbers come from the Tally books and the Tasks list.</p><p>"What changed" compares today with the last saved day.</p></>}
         actions={<>
           {b && <SourceChip
@@ -69,7 +90,7 @@ export function TodayPage() {
             ]}
             notes={b.notes}
           />}
-          <button type="button" onClick={() => void load(true)} disabled={busy} className={BTN}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden /> Refresh</button>
+          <button type="button" onClick={() => { void load(true); void refreshWorkCount(true); }} disabled={busy} className={BTN}><RefreshCw className={`h-4 w-4 ${busy ? 'animate-spin motion-reduce:animate-none' : ''}`} aria-hidden /> Refresh</button>
         </>}
       />
       <PageBody>
@@ -77,13 +98,13 @@ export function TodayPage() {
         {!b && !err && <Loading />}
         {b && (
           <>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-              {b.tiles.map((t) => {
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-5">
+              {tilesFor(b, count).map((t) => {
                 const d = tileDelta(t);
                 // for cash and sales up is good; for fix / late counts up is bad
                 const good = t.unit === 'count' ? (t.delta ?? 0) < 0 : (t.delta ?? 0) > 0;
                 return (
-                  <KpiTile key={t.id} label={t.label} value={<span className={TONE[t.tone]}>{show(t)}</span>}
+                  <KpiTile key={t.id} label={t.label} href={t.href} value={<span className={TONE[t.tone]}>{t.id === 'books' ? 'No data' : show(t)}</span>}
                     delta={d ? { dir: (t.delta ?? 0) > 0 ? 'up' : 'down', text: d, good } : undefined}
                     sub={t.sub} />
                 );
@@ -101,16 +122,16 @@ export function TodayPage() {
                           <StepNo n={i + 1} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold text-slate-900">{n.title}</span>
-                            <span className="block truncate text-xs text-slate-600" title={n.why}>{n.why}</span>
+                            <span className="block truncate text-xs text-slate-600" title={n.why}>{n.kind === 'fix' ? firstStep(n.why) : n.why}</span>
                           </span>
                           {n.inr != null && <span className="shrink-0 text-sm tabular-nums text-slate-700">{inr(n.inr)}</span>}
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${n.severity === 'high' ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-800'}`}>{KIND[n.kind]}</span>
+                          <StatusPill toneName={n.severity === 'high' ? 'critical' : 'warning'} className="shrink-0">{KIND[n.kind]}</StatusPill>
                         </Link>
                       </li>
                     ))}
                   </ol>
                 )}
-                {b.moreNeeds > 0 && <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-600">{b.moreNeeds} more in <Link to="/tasks?view=fix" className="font-medium text-accent-600 hover:underline">Tasks, Fix list</Link></p>}
+                {total > b.needsYou.length && <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-600">{total - b.needsYou.length} more in <Link to="/tasks?view=fix" className="font-medium text-accent-600 hover:underline">Tasks, Fix list</Link></p>}
               </Panel>
 
               <div className="space-y-4">
@@ -119,22 +140,10 @@ export function TodayPage() {
                     {b.changed.map((c) => (
                       <li key={c.id} className="flex items-start gap-2">
                         <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${c.direction === 'better' ? 'bg-emerald-500' : c.direction === 'worse' ? 'bg-red-500' : 'bg-slate-300'}`} />
-                        <span>{c.text}<span className="sr-only"> ({c.direction})</span></span>
+                        <span>{humanDates(c.text)}<span className="sr-only"> ({c.direction})</span></span>
                       </li>
                     ))}
                   </ul>
-                </Panel>
-                <Panel title="Due soon" count={b.dueSoon.length} flush>
-                  {b.dueSoon.length === 0 ? <p className="p-4 text-sm text-slate-600">No task is due soon.</p> : (
-                    <ul className="divide-y divide-slate-100 text-sm">
-                      {b.dueSoon.slice(0, 5).map((d, i) => (
-                        <li key={i} className="flex items-center justify-between gap-3 px-4 py-2">
-                          <Link to={d.href} className="min-w-0 truncate text-slate-900 hover:underline">{d.title}</Link>
-                          <span className="shrink-0 text-xs text-slate-600">{d.inDays === 1 ? 'Tomorrow' : `${d.inDays} days`}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </Panel>
               </div>
             </div>

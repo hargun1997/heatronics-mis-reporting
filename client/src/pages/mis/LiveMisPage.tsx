@@ -264,7 +264,9 @@ export function LiveMisPage() {
       {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
 
       <div className="mx-auto max-w-7xl space-y-3 px-4 pb-10 sm:px-6 lg:px-8">
-        {deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
+        {/* Product decisions are about products: Products tab only (they also sit in Tasks → Fix). Before 22 Nov 2026 this
+            amber box sat above every tab. */}
+        {tab === 'products' && deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
         {deckError && <ErrorBox onRetry={() => void loadDeck(true)}>{deckError}</ErrorBox>}
 
         {/* Period controls (grain, year / range, period, channel naming) — once, for every tab but Statements */}

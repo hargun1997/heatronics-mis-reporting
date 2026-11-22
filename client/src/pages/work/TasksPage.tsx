@@ -177,7 +177,10 @@ export function TasksPage() {
 
   const sub = !state
     ? 'Tasks with a due date, and problems to fix in the books.'
-    : [inbox.open.length ? `${inbox.open.length} to fix` : '', counts.late ? `${counts.late} late` : '', `${counts.today} due today`, `${counts.week} more this week`].filter(Boolean).join(' · ');
+    : [inbox.open.length ? `${inbox.open.length} to fix` : '', counts.late ? `${counts.late} late` : '', `${counts.today} due today`, `${counts.week} more this week`].filter(Boolean).join(' · ')
+      // Say whose tasks these are: Today and the sidebar count every person, so "35 late" here must not look like a
+      // different number for the same thing (UI pass, 22 Nov 2026).
+      + (anyFilter ? ` · ${who === 'mine' ? `for ${memberById.get(me)?.name ?? 'me'}` : who === 'unassigned' ? 'with no owner' : who !== 'all' ? `for ${memberById.get(who)?.name ?? who}` : 'with filters'}` : '');
 
   const header = (
     <TasksHeader title="Tasks" sub={sub}

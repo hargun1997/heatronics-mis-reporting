@@ -19,7 +19,6 @@ export function TdsPage() {
   const [view, setView] = useState<View>('pay');
   const [howOpen, setHowOpen] = useState(false);
   const { report: r, error, loading } = useTds(month);
-  const high = r?.flags.filter((f) => f.severity === 'high').length ?? 0;
   const q = r?.quarter;
   const ok = !!r?.haveMonth;
 
@@ -60,12 +59,11 @@ export function TdsPage() {
         {r && !r.haveMonth && <NoDayBook month={monthLabel(month)} />}
         {r && ok && (
           <>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <KpiTile label={r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`} value={inr(r.totals.balance)} tone={r.overdue ? 'critical' : 'default'}
                 sub={r.totals.interest > 0 ? <span className="font-semibold text-red-700">Interest about {inr(r.totals.interest)}</span> : `For ${r.monthLabel}`} />
               <KpiTile label="TDS deducted" value={inr(r.totals.deducted)} sub={`${r.entries.length} bills · ${r.deductees.length} parties`} />
               <KpiTile label="Already paid" value={inr(r.totals.paid)} sub={r.haveNextMonth ? `Challans in ${monthLabel(addMonths(r.month, 1))}` : `${monthLabel(addMonths(r.month, 1))} not in the books yet`} />
-              <KpiTile label="To check" value={String(r.flags.length)} tone={high ? 'warning' : 'default'} sub={high ? `${high} to fix` : 'Nothing serious'} />
             </div>
 
             {view === 'pay' && (

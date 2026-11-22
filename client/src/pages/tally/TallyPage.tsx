@@ -10,6 +10,7 @@ import { BTN, BTN_PRIMARY } from '../../components/ui/states';
 import { Markdown } from '../../components/ui/Markdown';
 import { LedgerRulesCard } from './LedgerRulesCard';
 import { ChartTab } from './ChartTab';
+import { inrFull } from '../../utils/money';
 
 type Severity = 'error' | 'warn' | 'info';
 interface Sample { date?: string; type?: string; number?: string; party?: string; ledger?: string; amount?: number; detail: string }
@@ -20,7 +21,7 @@ interface Ledger { name: string; group: string; primary: string; gstin: string; 
 interface Line { ledger: string; amount: number }
 interface Voucher { guid: string; date: string; type: string; number: string; party: string; reference: string; narration: string; lines: Line[]; inventory: { item: string; qty: number | null }[] }
 
-const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`;
+const inr = (n: number) => inrFull(n, { abs: true });
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } });

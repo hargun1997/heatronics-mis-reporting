@@ -79,12 +79,13 @@ export function BulkPaymentsPage() {
         {!list && !err && <Loading />}
         {list && (
           <>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {/* No tiles before the first payee list: 4 zeros said "nothing yet" 4 times (UI pass, 22 Nov 2026). */}
+            {payees.length > 0 && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <KpiTile label="Payees saved" value={payees.length} sub={list.savedAt ? `List from ${fmtWhen(list.savedAt)}` : 'Upload the list from CIB'} />
               <KpiTile label="Active" value={active} sub="Only these can be paid" />
               <KpiTile label="Not active" value={payees.length - active} tone={payees.length - active > 0 ? 'warning' : 'default'} sub="Wait for ICICI to activate" />
               <KpiTile label="Last batch" value={last ? short(last.totalPaise) : 'None'} sub={last ? `${last.count} payments · ${fmtWhen(last.createdAt)}` : 'No batch made yet'} />
-            </div>
+            </div>}
             {cur === 'pay' && <BatchSection payees={payees} onSaved={loadBatches} />}
             {cur === 'payees' && <PayeesSection list={list} onSaved={setList} />}
             {cur === 'new' && <NewPayeesSection saved={payees} />}

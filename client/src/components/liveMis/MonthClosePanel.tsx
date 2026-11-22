@@ -11,7 +11,8 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Modal } from '../ui/overlays';
+import { Modal, Popover } from '../ui/overlays';
+import { ChevronDown } from 'lucide-react';
 import { BTN, BTN_PRIMARY } from '../ui/states';
 import { Note } from './shared';
 import { inr } from '../mis-deck/format';
@@ -66,7 +67,24 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm space-y-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="font-semibold text-slate-900">{monthLabel(periodKey)}</span>
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${status.tone}`}>{status.text}</span>
+        {/* The open items open from the pill (UI pass, 22 Nov 2026): the list used to sit open above every tab and
+            repeated Tasks → Fix. */}
+        {!legacy && !lock && n > 0 ? (
+          <Popover align="left" width={420} buttonLabel={`${n} to fix before lock: see the items`}
+            buttonClassName={`inline-flex min-h-11 sm:min-h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold ${status.tone} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500`}
+            button={<>{status.text}<ChevronDown className="h-3.5 w-3.5" aria-hidden /></>}>
+            <ol className="list-decimal space-y-1.5 p-3.5 pl-8 text-[13px] text-slate-700">
+              {blockers.slice(0, 6).map((b, i) => (
+                <li key={i}><span className={b.hard ? 'font-medium text-amber-700' : 'text-slate-800'}>{b.text}</span> <span className="text-slate-500">{b.fix}</span></li>
+              ))}
+            </ol>
+            <div className="border-t border-slate-100 px-3.5 py-2 text-xs">
+              <Link to="/tasks?view=fix" className="font-medium text-brand-600 hover:underline">Open the Fix list in Tasks</Link>
+            </div>
+          </Popover>
+        ) : (
+          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${status.tone}`}>{status.text}</span>
+        )}
         {tie && (
           <button type="button" onClick={() => setOpen(true)} className="min-h-11 sm:min-h-8 rounded-md px-1.5 text-xs font-medium text-brand-600 hover:underline">
             Check with Tally{tie.worstResidualPct !== null ? ` (largest difference ${tie.worstResidualPct.toFixed(1)}%)` : ''}
@@ -93,14 +111,6 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
         </span>
       </div>
 
-      {!legacy && !lock && n > 0 && (
-        <ol className="list-decimal space-y-0.5 pl-5 text-[13px] text-slate-700">
-          {blockers.slice(0, 3).map((b, i) => (
-            <li key={i}><span className={b.hard ? 'text-amber-700 font-medium' : 'text-slate-800'}>{b.text}</span> <span className="text-slate-500">{b.fix}</span></li>
-          ))}
-          {n > 3 && <li className="list-none"><Link to="/tasks?view=fix" className="font-medium text-brand-600 hover:underline">{n - 3} more in Tasks, Fix list</Link></li>}
-        </ol>
-      )}
       {error && <p role="alert" className="text-red-700">{error}</p>}
 
       <Modal open={!!asking} onClose={() => { setAsking(null); setReason(''); }}

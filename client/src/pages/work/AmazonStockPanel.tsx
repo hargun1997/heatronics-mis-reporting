@@ -9,9 +9,10 @@ import { fgMaster } from '../../data/fgMaster';
 import { generateTranzactExcel } from '../../utils/amazonToTranzact';
 import { periodLabel } from './taskModel';
 import { focusRing } from './ui';
+import { inrFull } from '../../utils/money';
 
 interface Api { month: string; rows: LedgerRow[]; costs: CostRow[]; costMonth: string | null; errors: string[]; at: string }
-const inr = (n: number | null) => (n == null ? '—' : `₹${Math.round(n).toLocaleString('en-IN')}`);
+const inr = (n: number | null) => inrFull(n);
 const num = (n: number) => n.toLocaleString('en-IN');
 
 export function AmazonStockPanel({ month }: { month: string }) {

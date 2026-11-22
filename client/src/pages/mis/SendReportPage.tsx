@@ -183,7 +183,7 @@ export function SendReportPage() {
             <button onClick={() => void doSend()} disabled={sendBusy || !deck || recipients.length === 0}
               className={`ml-auto ${BTN_PRIMARY}`}>
               {sendBusy ? <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-white/60 border-t-transparent animate-spin" /> : iconSend}
-              Send to {recipients.length || 'nobody'}
+              {recipients.length ? `Send to ${recipients.length}` : 'Select 1 recipient'}
             </button>
           </div>
           {sent && (

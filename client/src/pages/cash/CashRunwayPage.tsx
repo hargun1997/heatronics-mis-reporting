@@ -6,18 +6,12 @@ import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
 import { Modal } from '../../components/ui/overlays';
 import { BTN, BTN_PRIMARY, Empty, ErrorBox, Loading, Panel } from '../../components/ui/states';
+import { inrShort as inr } from '../../utils/money';
 
 interface Week { week: number; start: string; base: number; hard: number; easy: number }
 interface Case { id: 'base' | 'hard' | 'easy'; label: string; perMonth: number; zeroOn: string | null; limitOn: string | null; low: number; end: number }
 interface Runway { today: string; basis: string | null; netCash: number | null; odLimit: number | null; weeks: Week[]; cases: Case[]; status: 'act' | 'watch' | 'ok' | 'unknown'; line: string; notes: string[] }
 
-function inr(n: number | null): string {
-  if (n == null) return '—';
-  const a = Math.abs(n), s = n < 0 ? '−' : '';
-  if (a >= 1e7) return `${s}₹${(a / 1e7).toFixed(2).replace(/\.?0+$/, '')} Cr`;
-  if (a >= 1e5) return `${s}₹${(a / 1e5).toFixed(1).replace(/\.0$/, '')} L`;
-  return `${s}₹${Math.round(a).toLocaleString('en-IN')}`;
-}
 const nice = (d: string | null) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : 'Not in 13 weeks');
 const COLOR = { base: 'rgb(var(--chart-ink))', hard: 'rgb(var(--chart-heat))', easy: 'rgb(var(--chart-cmp))' } as const;
 const BAND = { act: 'bg-red-50 border-red-200 text-red-800', watch: 'bg-amber-50 border-amber-200 text-amber-800', ok: 'bg-emerald-50 border-emerald-200 text-emerald-800', unknown: 'bg-slate-50 border-slate-200 text-slate-700' } as const;
