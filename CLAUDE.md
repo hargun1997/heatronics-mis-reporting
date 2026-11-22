@@ -245,7 +245,9 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     sign (shown = value × sign of group; contras negative); no Nett Profit row → Σ group totals; Purchase Accounts collapsed → split
     into Stock Transfer (= Stock Transfers sale) + Raw Material Purchases like the Excel reader. The slot reads the snapshot (a forced
     poll if none), warns when the copy was taken < 5 days after month end. Host / port / company on the Connectors → Tally card (never
-    in the repo). `POST /api/tally/pull` = signed-in Pull now.
+    in the repo). `POST /api/tally/pull` = signed-in Pull now. **Slot pulls re-read Tally (22 Nov 2026):** a stored copy that is not
+    final (`isFinalCopy`: taken < 5 days after month end, or none) is pulled again for that month (P&L + TB, `pullStatements`); Tally
+    closed = the stored copy + a warning. Before, a stored copy was always returned, so the 2 Nov copies of Sep / Oct never changed.
   - Tally · Trial Balance → `api`, stored by the SAME poll after each month's P&L (`tally/tb.ts`: "Trial Balance" exploded,
     closing DSPCLDRAMTA / DSPCLCRAMTA per DSPACCNAME, checked live 2 Nov 2026; exploded ledgers come UNWRAPPED after their group, so the poll asks twice — EXPLODEFLAG No = group names + totals, Yes = groups + ledgers, a name in the groups set = group;
     Dr ≠ Cr or no rows = warning) as `tally/tb-<YYYY-MM>` (+ `tally/tb-raw-last`). A TB that doesn't
@@ -262,7 +264,14 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   `ask` (Claude grounded in health + matching vouchers + ledger list + Hargun's booking pattern). The XML shape of the Day Book /
   masters answers is UNVERIFIED until the first live pull — check `tally/raw-books`.
 - **Live Balance Sheet + Cash Flow** (Live MIS tabs, READ ONLY): the poll also back-fills a Trial Balance for up to 3 of
-  the last 13 months per run (`state.tbMonths`). `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
+  the last 13 months per run (`state.tbMonths`). **Statements pull (22 Nov 2026, test `server/test/tallyStatementsPull.test.ts`):**
+  `POST /api/tally/statements/pull {months?}` (signed in) = `snapshots.ts pullStatements`: P&L + TB per month, newest first, default
+  `statementMonthsDue` (last 13 months whose TB or P&L copy is missing or not final; the running month always), no P&L copy needed
+  first; stops between months (45 s left), the rest = `remaining`. Runs as ONE in-memory job (`tally/statementsJob.ts`: waits 25 s, then
+  `{status: running}`, `GET` polls; budget 240 s). `withTallyLock` = one Tally request stream per instance (poll, Pull now, statements
+  pull, slot refresh; Silver is single-user; the books pull is NOT in the lock). The TB-basis reset now runs only after Tally answers (a
+  failed poll used to empty `tbMonths`). `GET /api/tally/statements` adds per month `tbAsOf` / `pnlAsOf` / `final`, and `lastTryAt`,
+  `lastError`, `reachedAt`, `due`, `pulling`. Note: Tally health "Pull Tally now" pulls the books only (masters + Day Books), not P&L / TB. `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
   depreciation, Nett Profit); pure builder `client/src/data/statements/statements.ts` (BS from Tally's primary groups + closing
   stock + FY profit to date; indirect cash flow from consecutive BSs, sections sum to Δ cash & bank; `misCashRows` fills the MIS
   Sheet cash rows). Tests `server/test/statements.test.ts`. The TB is asked from 1 April (`tbEnvelope`, snapshot `basis:
