@@ -533,3 +533,14 @@ button:not(:disabled):active, [role="button"]:active { transform: scale(.97); tr
 
 /* GUIDE.md "Icons": one set, Lucide outline, stroke 1.8. */
 svg.lucide { stroke-width: 1.8; }
+
+/* GUIDE.md "Phones": every control is at least 44 × 44 at 390 wide. Unlayered and with :not() so it wins over
+   compact desktop sizes (h-8, min-h-[36px]); add .tap-exempt to a control that must stay small (a switch track). */
+@media (max-width: 639px) {
+  :is(button, select, textarea, summary, [role="tab"], [role="button"],
+      input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="file"])):not(.tap-exempt):not(.sr-only) {
+    min-height: 44px;
+  }
+  :is(button, [role="tab"], [role="button"]):not(.tap-exempt):not(.sr-only) { min-width: 44px; }
+  input[type="checkbox"]:not(.sr-only), input[type="radio"]:not(.sr-only) { width: 20px; height: 20px; }
+}
