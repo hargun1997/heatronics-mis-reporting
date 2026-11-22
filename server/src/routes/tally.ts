@@ -4,6 +4,8 @@
 //                                 at most every 20 min; answers a status only, never figures
 //   GET  /api/tally/status        last check / last success / stored months (signed in)
 //   POST /api/tally/pull          check now, skipping the 20-min gap (signed in)
+//   POST /api/tally/statements/pull {months?: YYYY-MM[]}  P&L + Trial Balance for the months (default: every month of the
+//                                 last 13 not final yet), as a job: waits 25 s, then {status: running}; GET = the job state
 //   Books (connectors/tally/books.ts + bookStore.ts), all signed in:
 //   GET  /api/tally/books/status              what is stored (masters age, months)
 //   POST /api/tally/books/pull {periods?, masters?}  pull masters + Day Books now; {masters:true} = masters/openings only
@@ -28,7 +30,8 @@
 
 import { Router, type Request, type Response } from 'express';
 import { getEffectiveCredentials } from '../connectors/credentialStore.js';
-import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../connectors/tally/snapshots.js';
+import { isFinalCopy, pollTally, readTallySnapshot, readTallyState, readTallyTb, statementMonthsDue } from '../connectors/tally/snapshots.js';
+import { startStatementsPull, statementsJob } from '../connectors/tally/statementsJob.js';
 import { addDayToPartial, latestMonths, mergePartial, pullBooks, pullDay, readBooks, readBooksState, readMasters, readPartial, readVouchers } from '../connectors/tally/bookStore.js';
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport, type TallyVoucher } from '../connectors/tally/books.js';
 import { buildChart, closingByLedger, type ChartReport } from '../connectors/tally/chart.js';
@@ -85,6 +88,10 @@ router.get('/statements', h(async (_req, res) => {
       period,
       asOf: tb?.asOf ?? pnl?.at ?? null,
       tb: tb ? { rows: tb.rows, difference: tb.difference, basis: tb.basis ?? null } : null,
+      tbAsOf: tb?.asOf ?? null,
+      pnlAsOf: pnl?.at ?? null,
+      // A copy taken 5+ days after month end holds the month's final books; earlier = provisional (pull again).
+      final: isFinalCopy(period, tb?.asOf) && isFinalCopy(period, pnl?.at),
       // Shown figures (pnl.ts): Closing Stock positive, an expense positive, a contra (write-back) negative → summed signed.
       closingStock: stock.length ? stock.reduce((a, r) => a + r.amount, 0) : null,
       depreciation: rows.filter((r) => /depreciat/i.test(r.name)).reduce((a, r) => a + r.amount, 0),
@@ -97,7 +104,27 @@ router.get('/statements', h(async (_req, res) => {
   const parents: Record<string, string> = {};
   for (const g of masters?.groups ?? []) if (g.parent) parents[g.name] = g.parent;
   for (const l of masters?.ledgers ?? []) if (names.has(l.name) && l.group) parents[l.name] = l.group;
-  res.json({ months, parents, lastOkAt: s.lastOkAt, connected: Boolean(((await creds()).host || '').trim()) });
+  const job = statementsJob();
+  res.json({
+    months, parents, lastOkAt: s.lastOkAt, lastTryAt: s.lastTryAt, lastError: s.lastError,
+    reachedAt: await tallyReachedAt().catch(() => null),
+    due: statementMonthsDue(Date.now(), s),
+    pulling: job.status === 'running',
+    connected: Boolean(((await creds()).host || '').trim()),
+  });
+}));
+
+router.post('/statements/pull', h(async (req, res) => {
+  const c = await creds();
+  if (!(c.host || '').trim()) return res.json({ status: 'not_connected', detail: 'Enter the Tally host and port on Setup → Tally.' });
+  const raw = Array.isArray(req.body?.months) ? (req.body.months as unknown[]) : null;
+  const months = raw ? raw.filter((p): p is string => typeof p === 'string' && PERIOD.test(p)).slice(0, 24) : undefined;
+  if (raw && !months?.length) return res.status(400).json({ error: 'months = YYYY-MM list' });
+  res.json(await startStatementsPull(c, months));
+}));
+
+router.get('/statements/pull', h(async (_req, res) => {
+  res.json(statementsJob());
 }));
 
 // ---------------------------------------------------------------- CEO summary (MCP gateway + Ops' CEO agent)
