@@ -46,7 +46,8 @@ export function MainLayout() {
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-toast focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow-card">Skip to content</a>
       <AppNav />
       <div className="app-content min-h-screen bg-stone-50 text-stone-900">
-        <main id="main" tabIndex={-1} className="min-w-0 focus:outline-none">
+        {/* pb-12 + PageBody pb-10 = 88 px: the floating chat button (48 high, 20 from the bottom) never covers the last row. */}
+        <main id="main" tabIndex={-1} className="min-w-0 pb-12 focus:outline-none print:pb-0">
           <PageErrorBoundary key={path}>
             <Suspense fallback={<PageLoading />}>
               {blocked ? (

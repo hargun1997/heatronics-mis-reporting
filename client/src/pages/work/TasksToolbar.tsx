@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { Drawer } from '../../components/ui/overlays';
+import { useIsPhone } from '../../components/shell/usePhone';
 import { Link } from 'react-router-dom';
 import { SlidersHorizontal as AdjustmentsHorizontalIcon, Search as MagnifyingGlassIcon, X as XMarkIcon } from 'lucide-react';
 import type { Head, TeamMember } from '../../data/work/workClient';
@@ -58,7 +59,8 @@ export function TasksToolbar({
 
 
   const set = (p: Partial<Filters>) => setFilters({ ...filters, ...p });
-  const active = [filters.head, filters.area, filters.kind, filters.when].filter(Boolean).length;
+  const phone = useIsPhone();
+  const active = [filters.head, filters.area, filters.kind, filters.when].filter(Boolean).length + (phone && who !== 'all' ? 1 : 0);
   const meName = members.find((m) => m.id === me)?.name;
   const headName = heads.find((h) => h.id === filters.head)?.name;
   const chips: { label: string; clear: () => void }[] = [
@@ -67,6 +69,21 @@ export function TasksToolbar({
     filters.area && { label: filters.area, clear: () => set({ area: '' }) },
     filters.kind && { label: KINDS.find((k) => k.k === filters.kind)!.l, clear: () => set({ kind: '' }) },
   ].filter((x): x is { label: string; clear: () => void } => !!x);
+
+  const whoSelect = (id?: string) => (
+    <select id={id} value={who} onChange={(e) => setWho(e.target.value)} className={selectCls}>
+      <option value="all">Everyone</option>
+      {me && <option value="mine">Me ({meName?.split(' ')[0]})</option>}
+      {members
+        .filter((m) => m.id !== me)
+        .map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name}
+          </option>
+        ))}
+      <option value="unassigned">No owner</option>
+    </select>
+  );
 
   return (
     <div className="space-y-2">
@@ -89,23 +106,15 @@ export function TasksToolbar({
           ))}
         </div>
 
-        <label className="min-w-0 flex-1 sm:max-w-[200px] sm:flex-none">
-          <span className="sr-only">Show tasks for</span>
-          <select value={who} onChange={(e) => setWho(e.target.value)} className={selectCls}>
-            <option value="all">Everyone</option>
-            {me && <option value="mine">Me ({meName?.split(' ')[0]})</option>}
-            {members
-              .filter((m) => m.id !== me)
-              .map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            <option value="unassigned">No owner</option>
-          </select>
-        </label>
+        {/* Phones: whose tasks moves into Filters, so search and Filters share one row. */}
+        {!phone && (
+          <label className="min-w-0 flex-1 sm:max-w-[200px] sm:flex-none">
+            <span className="sr-only">Show tasks for</span>
+            {whoSelect()}
+          </label>
+        )}
 
-        <label className="relative order-last w-full sm:order-none sm:w-auto sm:min-w-[180px] sm:flex-1">
+        <label className="relative min-w-0 flex-1 sm:min-w-[180px]">
           <span className="sr-only">Search tasks</span>
           <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
@@ -141,6 +150,12 @@ export function TasksToolbar({
               </button>
             </div>}>
               <div className="space-y-4 p-5">
+                {phone && (
+                  <div>
+                    <label htmlFor="f-who" className="mb-1 block text-sm font-semibold text-slate-900">Whose tasks</label>
+                    {whoSelect('f-who')}
+                  </div>
+                )}
                 <div>
                   <div className="mb-1 flex items-center justify-between">
                     <label htmlFor="f-head" className="text-sm font-semibold text-slate-900">

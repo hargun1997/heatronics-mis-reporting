@@ -6,6 +6,7 @@ import { OTHER_WARN_INR, type BalanceSheet, type BsLine, type CashFlow } from '.
 import { monthLabel, statementsForCols, type PeriodCol } from '../../data/statements/statementPeriods';
 import { pullFromTally, pullMessage, statementsAsOf, tallyOffline, useStatements, type Resp } from './useStatements';
 import { KpiTile } from '../ui/KpiTile';
+import { ScrollBox } from '../ui/phone';
 import { Button } from '../ui/Button';
 import { StatusPill } from '../ui/StatusPill';
 import { FreshnessPill } from '../ui/FreshnessPill';
@@ -168,7 +169,7 @@ export function BalanceSheetTab({ cols, selectedLabel }: { cols?: PeriodCol[]; s
         <Kpi k="Profit, FY to date" v={b.fyProfit} sub={head(b.period)} />
       </div>
       <Warnings items={warnings} />
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white" role="region" tabIndex={0} aria-label="Balance Sheet">
+      <ScrollBox label="Balance Sheet" className="rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-label">
           <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh, at period end</th>{sheets.map((s) => <th key={s.period} className={th}>{head(s.period)}</th>)}</tr></thead>
           <tbody>
@@ -178,7 +179,7 @@ export function BalanceSheetTab({ cols, selectedLabel }: { cols?: PeriodCol[]; s
             {section('Assets', (s) => s.assets, (s) => s.totalAssets)}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
       <p className="text-xs text-slate-500">
         From Tally's Trial Balance at each month end, asked from 1 April (read only); closing stock from that month's P&L replaces the
         opening stock Tally's Trial Balance carries. Click a group to see its sub-groups and ledgers. A quarter or year shows the position at its last month end. Copy of {head(b.period)} taken {when(b.asOf)}.
@@ -227,7 +228,7 @@ export function CashFlowTab({ cols, selectedLabel, total = true }: { cols?: Peri
         <Kpi k="Net change in cash" v={sel.netChange} sub={head(sel.period)} />
       </div>
       <Warnings items={warnings} />
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white" role="region" tabIndex={0} aria-label="Cash Flow">
+      <ScrollBox label="Cash Flow" className="rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-label">
           <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh</th>{flows.map((f) => <th key={f.period} className={th}>{head(f.period)}</th>)}{showTotal && <th className={`${th} bg-slate-50`}>Total</th>}</tr></thead>
           <tbody>
@@ -248,7 +249,7 @@ export function CashFlowTab({ cols, selectedLabel, total = true }: { cols?: Peri
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
       <p className="text-xs text-slate-500">
         Each month uses two month-end Balance Sheets from Tally. A quarter, year or range adds its months. Operating cash is profit plus depreciation, less the change in working capital.
         Capex is the change in fixed assets plus depreciation. Financing is the change in capital and loans (bank OD and CC are loans).

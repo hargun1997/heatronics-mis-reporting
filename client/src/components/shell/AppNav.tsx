@@ -14,7 +14,7 @@ import { HOME, sidebarSections, whereIs, type NavPage } from '../../nav/config';
 import { pageAllowed, useHtxPages } from './useHtxPages';
 import { NAV_ICON } from './navIcons';
 import { K, store, THEMES, usePins, useTheme, type Theme } from './prefs';
-import { useShell } from './ShellContext';
+import { usePageTitle, useShell } from './ShellContext';
 import { useOverlay } from './useOverlay';
 import { cx } from './cx';
 import { useDensity } from '../../hooks/useDensity';
@@ -49,6 +49,8 @@ export function AppNav() {
   const pages = useHtxPages();
   const sections = sidebarSections().map((s) => ({ ...s, pages: s.pages.filter((p) => pageAllowed(pages, p.id)) })).filter((s) => s.pages.length);
   const here = whereIs(path);
+  const shownTitle = usePageTitle();
+  const phoneTitle = shownTitle ?? here?.page.label ?? 'Heatronics MIS';
   const main = sections;
   const issues = useIssueCount();
   useEffect(() => {
@@ -220,11 +222,14 @@ export function AppNav() {
 
       <header className="sticky top-[var(--htx-bar-h,0px)] z-shell border-b border-stone-200 bg-white/90 backdrop-blur print:hidden lg:hidden">
         <div className="flex h-14 items-center gap-1 px-2 sm:px-4">
-          <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-stone-700 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="app-menu" aria-haspopup="dialog">
-            <Menu className="h-5 w-5" aria-hidden />Menu
+          <button type="button" className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium text-stone-700 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="app-menu" aria-haspopup="dialog" aria-label="Menu">
+            <Menu className="h-5 w-5" aria-hidden /><span className="max-sm:hidden">Menu</span>
           </button>
-          {brand(false, true)}
-          <div className="ml-auto flex items-center gap-1">
+          {/* Phones: the page title (the page's own heading is screen-reader only there). Tablets: the wordmark. */}
+          <p className="min-w-0 flex-1 text-base font-semibold leading-5 text-stone-900 sm:hidden" aria-hidden>{phoneTitle}</p>
+          <span className="max-sm:hidden">{brand(false, true)}</span>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <span id="app-bar-page-slot" className="contents sm:hidden" />
             <span className="max-sm:hidden"><ClaudeStatusPill compact /></span>
             <button type="button" onClick={openPalette} aria-label="Search or jump to a page" className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-stone-700 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
               <Search className="h-5 w-5" aria-hidden />

@@ -5,6 +5,7 @@ import { Fragment, useState } from 'react';
 import type { MonthResult, PlanResult } from '../../data/planning/engine';
 import { lakh, pct } from './fmt';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { ScrollBox } from '../ui/phone';
 
 type Kind = 'sum' | 'end' | 'pct';
 interface Row { label: string; get: (m: MonthResult) => number; kind?: Kind; strong?: boolean; of?: (m: MonthResult) => number; head?: boolean }
@@ -109,7 +110,7 @@ export function PnlGrid({ r }: { r: PlanResult }) {
         <SegmentedControl options={[{ id: 'month', label: 'Months + FY' }, { id: 'fy', label: 'FY only' }]} value={grain} onChange={setGrain} size="sm" />
         <span className="text-xs text-slate-600">₹ L. Shaded: after the 18-month sheet. *: part year.</span>
       </div>
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-xl border border-slate-200/80 bg-surface shadow-card">
+      <ScrollBox className="rounded-xl border border-slate-200/80 bg-surface shadow-card">
         <table className="text-xs tabular-nums">
           <thead>
             <tr className="text-xs text-slate-500">
@@ -134,7 +135,7 @@ export function PnlGrid({ r }: { r: PlanResult }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </div>
   );
 }

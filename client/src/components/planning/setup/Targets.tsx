@@ -9,6 +9,7 @@ import { NumInput } from '../inputs';
 import { money } from '../fmt';
 import { CR, Note, Row, Tip, ensureGrowth, replacePlan, td, th, thr, useBusy } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { ScrollBox } from '../../ui/phone';
 
 export { summary };
 
@@ -47,7 +48,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       </Row>
 
       {mode === 'path' ? (
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <table className="w-full min-w-[520px] text-label tabular-nums">
             <thead>
               <tr className="bg-surface-tint">
@@ -79,7 +80,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             </tbody>
           </table>
           <Note>A year with no target keeps its pace. With no targets, the type changes to Exit ARR.</Note>
-        </div>
+        </ScrollBox>
       ) : (
         <div className="space-y-1.5">
           <Row label="Exit ARR target" hint="P&L revenue of the last 3 months × 4, at the end of the plan.">

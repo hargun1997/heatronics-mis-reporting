@@ -41,6 +41,7 @@ import {
   type ProductCost,
 } from '../../utils/priceFloors';
 import { FeeReportError, parseFeeReport } from '../../utils/sellerCentralFees';
+import { ScrollBox } from '../../components/ui/phone';
 
 interface ReportMeta { id: string; fileName: string; uploadedAt: string; uploadedBy: string | null; skus: number }
 interface ApiState { settings: FloorSettings | null; costs: CostsSnapshot | null; reports: ReportMeta[] }
@@ -505,7 +506,7 @@ function SummaryTable({ rows, settings, t, hasCosts, onOpen }: { rows: Row[]; se
           </li>
         ))}
       </ul>
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="hidden overflow-x-auto md:block">
+      <ScrollBox className="hidden md:block">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -539,7 +540,7 @@ function SummaryTable({ rows, settings, t, hasCosts, onOpen }: { rows: Row[]; se
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </>
   );
 }

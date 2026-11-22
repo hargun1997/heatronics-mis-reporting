@@ -101,7 +101,7 @@ export function TdsPage() {
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <span className="sr-only sm:not-sr-only">Month</span>
             <input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} aria-label="Month of deduction"
-              className="min-h-11 sm:min-h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" />
+              className="min-h-11 w-[150px] sm:w-auto sm:min-h-9 rounded-lg border border-slate-300 bg-white px-2 sm:px-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" />
           </label>
           <Button variant="primary" busy={inv.syncing} busyLabel="Syncing" onClick={() => void sync()}>Sync with Tally</Button>
           <HeaderMore>

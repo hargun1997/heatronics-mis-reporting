@@ -10,6 +10,8 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { popovers, useOverlay } from '../shell/useOverlay';
+import { useSwipeDown } from '../shell/usePhone';
+
 
 const iconX = (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4} aria-hidden="true">
@@ -37,6 +39,11 @@ interface DrawerProps {
   children: React.ReactNode;
 }
 
+/** The grab handle at the top of a bottom sheet (phones only). */
+export function SheetGrab() {
+  return <div className="flex justify-center pb-1 pt-2 sm:hidden" aria-hidden><span className="h-1 w-10 rounded-full bg-slate-300" /></div>;
+}
+
 const CLOSE_BTN = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
 export function Drawer({
@@ -45,6 +52,7 @@ export function Drawer({
   const panel = useRef<HTMLElement>(null);
   const titleId = useId();
   useOverlay(open, panel, onClose);
+  const swipe = useSwipeDown(panel, onClose);
   if (!open) return null;
 
   const sideCls = side === 'right'
@@ -61,11 +69,13 @@ export function Drawer({
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         aria-label={title ? undefined : label}
-        className={`absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col overflow-hidden rounded-t-xl border border-slate-200 bg-white shadow-pop outline-none animate-sheet-in sm:inset-x-auto sm:bottom-3 sm:top-3 sm:max-h-none sm:w-[var(--dw)] sm:max-w-[calc(100vw-1.5rem)] sm:rounded-xl ${sideCls}`}
+        className={`absolute inset-x-0 bottom-0 flex max-h-[90vh] flex-col overflow-hidden rounded-t-xl border border-slate-200 bg-white shadow-pop outline-none animate-sheet-in sm:inset-x-auto sm:bottom-3 sm:top-3 sm:max-h-none sm:w-[var(--dw)] sm:max-w-[calc(100vw-1.5rem)] sm:rounded-xl ${sideCls}`}
         style={{ ['--dw' as string]: `${width}px` }}
       >
+        <div {...swipe}>
+        <SheetGrab />
         {(title || icon) && (
-          <div className="flex items-start gap-3 border-b border-slate-200 px-5 py-4">
+          <div className="flex items-start gap-3 border-b border-slate-200 px-5 py-4 max-sm:pt-2">
             {icon && (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
                 {icon}
@@ -79,6 +89,7 @@ export function Drawer({
             <button type="button" onClick={onClose} aria-label="Close" className={CLOSE_BTN}>{iconX}</button>
           </div>
         )}
+        </div>
         <div className="flex-1 overflow-y-auto">{children}</div>
         {footer && <div className="border-t border-slate-200 px-5 py-3.5">{footer}</div>}
       </aside>
@@ -110,6 +121,7 @@ export function Modal({ open, onClose, title, subtitle, icon, footer, width = 52
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useOverlay(open, panel, onClose);
+  const swipe = useSwipeDown(panel, onClose);
   if (!open) return null;
 
   return createPortal(
@@ -122,11 +134,13 @@ export function Modal({ open, onClose, title, subtitle, icon, footer, width = 52
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         aria-label={title ? undefined : label}
-        className="relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-xl border border-slate-200 bg-white shadow-pop outline-none animate-sheet-in sm:max-h-[calc(100vh-2rem)] sm:max-w-[var(--mw)] sm:rounded-xl sm:animate-scale-in"
+        className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-xl border border-slate-200 bg-white shadow-pop outline-none animate-sheet-in sm:max-h-[calc(100vh-2rem)] sm:max-w-[var(--mw)] sm:rounded-xl sm:animate-scale-in"
         style={{ ['--mw' as string]: `${width}px` }}
       >
+        <div {...swipe}>
+        <SheetGrab />
         {(title || icon) && (
-          <div className="flex items-start gap-3 border-b border-slate-200 px-6 py-4">
+          <div className="flex items-start gap-3 border-b border-slate-200 px-6 py-4 max-sm:px-5 max-sm:pt-2">
             {icon && (
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
                 {icon}
@@ -139,7 +153,8 @@ export function Modal({ open, onClose, title, subtitle, icon, footer, width = 52
             <button type="button" onClick={onClose} aria-label="Close" className={CLOSE_BTN}>{iconX}</button>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 max-sm:px-5">{children}</div>
         {footer && (
           <div className="flex flex-wrap items-center justify-end gap-2.5 border-t border-slate-200 px-6 py-3.5">
             {footer}

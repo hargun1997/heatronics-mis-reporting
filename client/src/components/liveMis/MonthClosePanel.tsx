@@ -23,6 +23,7 @@ import { TIE_LIMIT_PCT, type ChannelTie } from '../../data/misDeck/closeTies';
 import { gstRateLabel } from '../../data/misDeck/gstBasis';
 import { StatusPill } from '../ui/StatusPill';
 import { pillClass, type PillTone } from '../ui/pill';
+import { ScrollBox } from '../ui/phone';
 
 const BASIS_TXT: Record<NonNullable<ChannelTie['netBasis']>, string> = {
   reported: 'ex-GST as reported',
@@ -139,7 +140,7 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
       {tie && (
         <Modal open={open} onClose={() => setOpen(false)} title={`${monthLabel(periodKey)}: check with Tally`} width={860}
           subtitle={`A difference above ${TIE_LIMIT_PCT}% of net revenue (${inr(tie.netRevenue)}) needs a reason before lock.`}>
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+          <ScrollBox>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-slate-500">
@@ -175,7 +176,7 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
               ))}
             </tbody>
           </table>
-          </div>
+          </ScrollBox>
           <p className="mt-3 text-xs text-slate-500">Tally books sales without GST and after returns. Reports count sales on the order date. Thus timing and returns cause a difference.</p>
         </Modal>
       )}

@@ -33,8 +33,9 @@ import { Empty as KitEmpty } from '../ui/states';
 import { Link } from 'react-router-dom';
 import {
   Fold, Views, Pills, CogmBasisToggle, CogmBasisNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
-  useLiveView, VERTICAL_COLORS,
+  useLiveView, VERTICAL_COLORS, SectionAside,
 } from './shared';
+import { ScrollBox } from '../ui/phone';
 
 export { LevelBadge } from './shared';
 
@@ -125,7 +126,7 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 max-sm:flex-nowrap">
         {n > 1 && <p className="mr-auto text-xs text-slate-500">{scopeOf(period)}</p>}
         <CogmBasisNote />
         <CogmBasisToggle />
@@ -585,7 +586,7 @@ function FullPnlTable({ slice, firstCol, level, pctHeader = false }: { slice: Sl
   const colCls = (c: PnlColumn) =>
     c.kind === 'total' ? 'font-semibold text-slate-800' : c.kind === 'recon' ? 'text-slate-400 italic' : 'text-slate-600';
   return (
-    <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
+    <ScrollBox className="rounded-lg border border-slate-200">
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="text-xs text-slate-400 border-b border-slate-200">
@@ -627,7 +628,7 @@ function FullPnlTable({ slice, firstCol, level, pctHeader = false }: { slice: Sl
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollBox>
   );
 }
 
@@ -784,7 +785,7 @@ export function SkuTab({ period, cells, periodKeys }: { period: PeriodAgg; cells
   const notMapped = slice.columns.find((c) => c.key === NO_PRODUCT_LABEL);
   return (
     <div className="space-y-3">
-      <div className="flex justify-end"><LevelBadge level={period.level} published={period.published} /></div>
+      <SectionAside><LevelBadge level={period.level} published={period.published} /></SectionAside>
       <FullPnlTable slice={slice} firstCol="Line" level={period.level} pctHeader />
       <BasisNote slice={slice} dim="SKU" hasTally={period.hasTally} />
       {(modelled > 0 || notMapped) && (
@@ -893,7 +894,7 @@ function SkuMatrix({ period, cells, periodKeys, completeness }: { period: Period
         <Pills label="Orientation" value={transpose ? 't' : 'n'} onChange={(v) => setTranspose(v === 't')}
           options={[{ id: 'n', label: 'SKU × Channel' }, { id: 't', label: 'Channel × SKU' }]} />
       </div>
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
+      <ScrollBox className="rounded-lg border border-slate-200">
         <table className="w-full text-xs border-collapse whitespace-nowrap">
           <thead>
             <tr className="text-xs text-slate-400 border-b border-slate-200">
@@ -920,7 +921,7 @@ function SkuMatrix({ period, cells, periodKeys, completeness }: { period: Period
             </tr>
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
       <Note>
         CM2 = revenue − COGM − channel &amp; fulfilment − ads, footed to the Channel P&amp;L: each channel column = that channel’s CM2, the total = the company’s.
         Product cost = BOM material; factory, manufacturing, inward freight and sales with no BOM cost are allocated by material (estimated). Fees and ads follow
@@ -970,8 +971,8 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
   const n = (v: number) => Math.round(v).toLocaleString('en-IN');
   return (
     <div className="space-y-3">
-      <div className="flex justify-end"><LevelBadge level={period.level} published={period.published} /></div>
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
+      <SectionAside><LevelBadge level={period.level} published={period.published} /></SectionAside>
+      <ScrollBox className="rounded-lg border border-slate-200">
         <table className="min-w-full text-xs border-collapse">
           <thead>
             <tr className="text-xs text-slate-400 border-b border-slate-200">
@@ -1004,7 +1005,7 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
             </tr>
           </tfoot>
         </table>
-      </div>
+      </ScrollBox>
       <Note>
         Quantity sold per product, split by channel, for the selected period. Units are net of returns where the channel reports them.
         {estGrand > 0 && <> ≈ = estimated, not counted: {n(estGrand)} of {n(grand)} units are revenue ÷ an assumed price (old workbook OEM, Offline, Blinkit and early Amazon). Products are ranked by counted units.</>}

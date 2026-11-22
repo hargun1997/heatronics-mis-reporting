@@ -16,8 +16,8 @@ import { anchorMonth } from '../../data/misDeck/misPeriods';
 import { LabeledField } from '../../components/ui/LabeledField';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Lock, RefreshCw } from 'lucide-react';
-import { PageBody, PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
+import { ChevronDown, Download, Lock, RefreshCw } from 'lucide-react';
+import { PageBody, PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, ErrorBox, BTN, FilterSheet } from '../../components/ui';
 import { inr } from '../../components/mis-deck/format';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import { BalanceSheetTab, CashFlowTab, StatementsStatus } from '../../components/liveMis/StatementsTabs';
@@ -43,6 +43,7 @@ import { LiveExcelModal, LivePdfModal } from '../../components/liveMis/LiveExpor
 import { LiveViewProvider, Pills, Section, Sections, type CogmBasis } from '../../components/liveMis/shared';
 import { WhyItMoved } from '../../components/liveMis/WhyItMoved';
 import { useWhyData, useSaveBridge, whySummary } from '../../components/liveMis/whyData';
+import { ScrollBox } from '../../components/ui/phone';
 
 type Tab = 'overview' | 'pnl' | 'channels' | 'products' | 'statements';
 const TABS: { id: Tab; label: string }[] = [
@@ -110,8 +111,9 @@ function useTab(): [Tab, (t: Tab) => void] {
 }
 
 /** A control with its label on the same line (one row of filters under the tabs). */
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <LabeledField label={label} className="flex items-center gap-2 text-xs text-slate-600" captionClassName="font-medium">{children}</LabeledField>;
+function Field({ label, children, inline }: { label: string; children: ReactNode; inline?: boolean }) {
+  // In the phone Filters sheet the label sits above its control; `inline` keeps it beside (the one control left on the page).
+  return <LabeledField label={label} className={`flex items-center gap-2 text-xs text-slate-600 ${inline ? '' : 'max-sm:flex-col max-sm:items-stretch max-sm:gap-1.5 max-sm:text-sm'}`} captionClassName="font-medium">{children}</LabeledField>;
 }
 
 export function LiveMisPage() {
@@ -248,7 +250,7 @@ export function LiveMisPage() {
           <p><Link to="/reporting/mis/rulebook" className="font-medium text-accent-600 hover:underline">Read how each number is made</Link></p>
         </>}
         actions={<>
-          <Popover kind="menu" closeOnSelect align="right" width={200} buttonClassName={BTN} buttonLabel="Download" button={<>Download<ChevronDown className="h-4 w-4" aria-hidden /></>}>
+          <Popover kind="menu" closeOnSelect align="right" width={200} buttonClassName={BTN} buttonLabel="Download" button={<><Download className="h-4 w-4 sm:hidden" aria-hidden /><span className="max-sm:sr-only">Download</span><ChevronDown className="h-4 w-4" aria-hidden /></>}>
             <div className="p-1.5">
               <button type="button" onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download Excel</button>
               <button type="button" onClick={() => setPdfOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download PDF</button>
@@ -269,47 +271,56 @@ export function LiveMisPage() {
       <PageBody>
         {/* Product decisions are about products: Products tab only (they also sit in Tasks → Fix). Before 22 Nov 2026 this
             amber box sat above every tab. */}
-        {tab === 'products' && deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
+        {tab === 'products' && deck?.productGaps && (deck.productGaps.unmapped.length > 0 || deck.productGaps.noBom.some((b) => !b.proxyConfirmed)) && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
         {deckError && <ErrorBox onRetry={() => void loadDeck(true)}>{deckError}</ErrorBox>}
 
         {/* Period controls (grain, year / range, period, channel naming) — once, for every tab but Statements */}
-        {showControls && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {showControls && (() => {
+          // Phones: the period stays on the page; period type, year and channel names go behind one Filters button.
+          const periodCtl = isRange ? (view && (
+            <Field label="Range" inline>
+              <select value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)}
+                className="min-w-0 max-sm:flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
+                {RANGE_PRESETS.map((p) => <option key={p} value={p}>{rangePresetLabel(p, view.periods, anchor)}</option>)}
+              </select>
+            </Field>
+          )) : (
+            <Field label="Period" inline>
+              <select value={selected?.key ?? ''} onChange={(e) => setPeriodKey(e.target.value)}
+                className="min-w-0 max-sm:flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
+                {[...shownPeriods].reverse().map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+              </select>
+            </Field>
+          );
+          const changed = (gran !== 'month' ? 1 : 0) + (!isRange && fy !== 'all' ? 1 : 0) + (tab !== 'statements' && chanPref !== 'continuous' ? 1 : 0);
+          const typeCtl = (
             <Field label="Period type">
               <SegmentedControl size="sm" aria-label="Granularity" options={DECK_GRAINS}
                 value={gran} onChange={(v) => { setGran(v); setPeriodKey(''); }} />
             </Field>
-            {!isRange && fys.length > 1 && (
-              <Field label="Year">
-                <select value={fy} onChange={(e) => { setFy(e.target.value); setPeriodKey(''); }}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
-                  <option value="all">All years</option>
-                  {fys.map((y) => <option key={y} value={y}>{fyLabel(y)}</option>)}
-                </select>
-              </Field>
-            )}
-            {isRange && view && (
-              <Field label="Range">
-                <select value={preset} onChange={(e) => setPreset(e.target.value as RangePreset)}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
-                  {RANGE_PRESETS.map((p) => <option key={p} value={p}>{rangePresetLabel(p, view.periods, anchor)}</option>)}
-                </select>
-              </Field>
-            )}
-            {!isRange && (
-              <Field label="Period">
-                <select value={selected?.key ?? ''} onChange={(e) => setPeriodKey(e.target.value)}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
-                  {[...shownPeriods].reverse().map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-                </select>
-              </Field>
-            )}
-            {tab !== 'statements' && <Field label="Channel names">
+          );
+          const yearCtl = !isRange && fys.length > 1 && (
+            <Field label="Year">
+              <select value={fy} onChange={(e) => { setFy(e.target.value); setPeriodKey(''); }}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm">
+                <option value="all">All years</option>
+                {fys.map((y) => <option key={y} value={y}>{fyLabel(y)}</option>)}
+              </select>
+            </Field>
+          );
+          const chanCtl = tab !== 'statements' && (
+            <Field label="Channel names">
               <Pills label="Channel naming" value={chanPref} onChange={setChanPref}
                 options={[{ id: 'continuous', label: 'Merged' }, { id: 'booked', label: 'As booked' }]} />
-            </Field>}
-          </div>
-        )}
+            </Field>
+          );
+          return (
+            <FilterSheet count={changed} keep={<div className="flex [&>div]:w-full">{periodCtl}</div>}
+              desktop={<>{typeCtl}{yearCtl}{periodCtl}{chanCtl}</>}>
+              {typeCtl}{yearCtl}{chanCtl}
+            </FilterSheet>
+          );
+        })()}
         {showControls && isRange && view && preset === 'custom' && (
           <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
             <div className="flex items-center gap-3 mb-1.5 text-xs">
@@ -593,7 +604,7 @@ function RunRateTab() {
         {facts.length === 0 ? (
           <p className="text-sm text-slate-600">No data for these dates. Connect Shopify in <Link to="/reporting/mis/connectors" className="font-medium text-brand-600 underline">Setup</Link>.</p>
         ) : (
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
+          <ScrollBox className="rounded-lg border border-slate-200">
             <table className="w-full text-xs border-collapse">
               <thead><tr className="text-xs text-slate-400 border-b border-slate-200">
                 <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">{RR_DIMS.find((d) => d.id === dim)!.label}</th>
@@ -610,7 +621,7 @@ function RunRateTab() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollBox>
         )}
       </div>
 

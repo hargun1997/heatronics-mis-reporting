@@ -11,6 +11,7 @@ import { int, lakh, cr } from '../fmt';
 import { NumInput } from '../inputs';
 import { Parts, SubHead, monthsOf, newId, txt, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { ScrollBox } from '../../ui/phone';
 
 export { summary };
 
@@ -53,7 +54,7 @@ function UnitGrid({ plan, update, result: r }: SetupSectionProps) {
         <NumInput value={s.asp} min={0} width="w-24" title={`${s.name} price`} onChange={(v) => update((p) => { p.skus[skuI].asp = v; })} />
         <span className="text-xs text-slate-600">Same price on every channel, as in the sheet.</span>
       </div>
-      <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+      <ScrollBox>
         <table className="text-label tabular-nums">
           <thead>
             <tr className="text-xs text-slate-500">
@@ -84,7 +85,7 @@ function UnitGrid({ plan, update, result: r }: SetupSectionProps) {
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </div>
   );
 }
@@ -121,7 +122,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
               <span className="text-xs text-slate-600">{ls.length} lines</span>
               <span className="ml-auto tabular-nums text-slate-700">{lastFy} ₹{cr(groupTotal(r, g.name, lastFy))} Cr</span>
             </summary>
-          <div tabIndex={0} role="region" aria-label={`${g.name} lines, scroll sideways for more`} className="overflow-x-auto border-t border-slate-100">
+          <ScrollBox label={`${g.name} lines, scroll sideways for more`} className="border-t border-slate-100">
             <table className="w-full min-w-[980px] text-label tabular-nums">
               <thead>
                 <tr className="bg-surface-tint text-xs text-slate-600">
@@ -187,7 +188,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </ScrollBox>
           </details>
         );
       })}

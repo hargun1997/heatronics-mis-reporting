@@ -13,6 +13,7 @@ import { cr, money, pct } from '../fmt';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 import { CR, Check, Flag, MonthSelect, Note, Parts, Row, SubHead, btn, ensureFx, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt, useParts } from './shared';
 import { StatusPill } from '../../../components/ui/StatusPill';
+import { ScrollBox } from '../../ui/phone';
 
 // The §1 skeleton exports `summary` and `SECTION` beside the component (react-refresh accepts only components).
 export { summary };
@@ -143,7 +144,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <SubHead info="Ownership does not include ESOP pools and convertibles. Cash before, burn and runway for each round are in the Cash and funding view.">Rounds</SubHead>
           <button type="button" className={btn} onClick={() => setG((g) => { g.rounds.push({ id: newId('r'), name: 'New round', on: true, month: Math.min(horizon, 19), amount: 25 * CR, preMoney: 100 * CR, feePct: funding.feePct, confirmed: false }); })}>Add a round</button>
         </div>
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <table className="w-full min-w-[760px] text-label tabular-nums">
             <thead>
               <tr className="bg-surface-tint">
@@ -180,7 +181,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       </div>}
 
       {/* 5. benchmarks */}
@@ -196,7 +197,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             {hasBench ? 'Reset the benchmark rounds' : 'Add these rounds'}
           </button>
         </div>
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="bg-surface-tint">
@@ -222,7 +223,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       </div>}
     </div>
   );

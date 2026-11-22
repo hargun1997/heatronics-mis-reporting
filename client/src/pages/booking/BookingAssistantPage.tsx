@@ -111,8 +111,9 @@ export function BookingAssistantPage() {
       .catch((e: unknown) => setMapError(e instanceof Error ? e.message : 'Failed to load.'));
   }, [refreshStatus]);
 
-  useEffect(() => persistChat(messages), [messages]);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), [messages, loading]);
+  useEffect(() => { persistChat(messages); }, [messages]);
+  // Braces: newer Chrome returns a Promise from scrollIntoView, and an effect may only return a clean-up function.
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages, loading]);
 
   const onSaveMap = async (next: ExpenseMapRow[]): Promise<boolean> => {
     setMapSaving(true);

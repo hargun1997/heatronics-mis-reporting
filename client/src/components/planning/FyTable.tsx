@@ -2,6 +2,7 @@
 
 import type { PlanResult, YearResult } from '../../data/planning/engine';
 import { cr, pct } from './fmt';
+import { ScrollBox } from '../ui/phone';
 
 interface Row { label: string; get: (y: YearResult, i: number, all: YearResult[]) => number; kind: 'cr' | 'pct' | 'int'; strong?: boolean; hint?: string }
 
@@ -28,7 +29,7 @@ const show = (v: number, k: Row['kind']) => (k === 'pct' ? pct(v) : k === 'int' 
 export function FyTable({ r, compare, compareName }: { r: PlanResult; compare?: PlanResult | null; compareName?: string }) {
   const ys = r.years;
   return (
-    <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+    <ScrollBox>
       <table className="w-full min-w-[560px] text-label tabular-nums">
         <thead>
           <tr className="border-b border-slate-200 text-xs text-slate-600">
@@ -66,6 +67,6 @@ export function FyTable({ r, compare, compareName }: { r: PlanResult; compare?: 
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollBox>
   );
 }

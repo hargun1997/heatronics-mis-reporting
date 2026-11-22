@@ -185,22 +185,31 @@ export function PlanningPage() {
         </>}
         actions={<>
           <label className="sr-only" htmlFor="scn">Scenario</label>
-          <select id="scn" value={selected} onChange={(e) => open(e.target.value)} className="min-h-11 sm:min-h-9 max-w-[220px] rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium">
+          <select id="scn" value={selected} onChange={(e) => open(e.target.value)} className="min-h-11 sm:min-h-9 max-w-[140px] sm:max-w-[220px] rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium">
             <option value="base">Base plan</option>
             {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+          {/* Phones: Compare with lives in the "…" menu, so the header stays one row. */}
           <label className="sr-only" htmlFor="cmp">Compare with</label>
-          <select id="cmp" value={compareId} onChange={(e) => chooseCompare(e.target.value)} className="min-h-11 sm:min-h-9 max-w-[200px] rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700">
+          <select id="cmp" value={compareId} onChange={(e) => chooseCompare(e.target.value)} className="max-sm:hidden min-h-11 sm:min-h-9 max-w-[200px] rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700">
             <option value="none">Compare with: none</option>
             <option value="base">Compare with: Base plan</option>
             {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>Compare with: {s.name}</option>)}
           </select>
           <button type="button" disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className={BTN_PRIMARY}>
-            {selected === 'base' ? 'Save as scenario' : 'Save'}
+            {selected === 'base' ? <><span className="sm:hidden">Save</span><span className="max-sm:hidden">Save as scenario</span></> : 'Save'}
           </button>
-          <button type="button" onClick={() => setSetupOpen(true)} className={BTN}><SlidersHorizontal className="h-4 w-4" aria-hidden />Setup</button>
+          <button type="button" onClick={() => setSetupOpen(true)} className={BTN} aria-label="Setup"><SlidersHorizontal className="h-4 w-4" aria-hidden /><span className="max-sm:sr-only">Setup</span></button>
           <Popover kind="menu" closeOnSelect align="right" width={260} buttonClassName={BTN} buttonLabel="More actions" button={<MoreHorizontal className="h-4 w-4" aria-hidden />}>
             <div className="space-y-1 p-2 text-sm">
+              <label className="block px-2 pb-1 sm:hidden">
+                <span className="mb-1 block text-xs font-medium text-slate-600">Compare with</span>
+                <select value={compareId} onChange={(e) => chooseCompare(e.target.value)} className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700">
+                  <option value="none">None</option>
+                  <option value="base">Base plan</option>
+                  {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </label>
               {selected !== 'base' && <button type="button" disabled={busy} onClick={() => save(true)} className={MENU}>Save as new scenario</button>}
               <button type="button" disabled={!dirty} onClick={() => { const before = plan; setPlan(JSON.parse(cleanJson)); toast('Changes removed', { undo: () => setPlan(before) }); }} className={MENU}>Undo changes</button>
               <p className="px-2 pt-2 text-xs font-medium text-slate-600">Download Excel</p>

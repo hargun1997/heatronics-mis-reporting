@@ -9,6 +9,7 @@ import { PlanCard as SectionCard, Stat as Box } from '../ui';
 import { CashCurve } from '../charts';
 import { cr, money, pct } from '../fmt';
 import { StatusPill } from '../../../components/ui/StatusPill';
+import { ScrollBox } from '../../ui/phone';
 
 interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string }
 
@@ -59,7 +60,7 @@ export function CashFundingView({ plan, result }: Props) {
         </>}
       >
         {!growthOn && <p className="mb-3 text-xs text-amber-800">{parity ? 'Sheet parity is on. These rounds are not in the numbers. The sheet\'s own events are.' : 'The growth layer is off. These rounds are not in the numbers.'}</p>}
-        <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
+        <ScrollBox>
           <table className="w-full min-w-[900px] text-label tabular-nums">
             <thead><tr className="bg-surface-tint"><th className={th}>Round</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={thr}>Pre-money</th><th className={thr}>Fee</th><th className={th}>Agreed</th><th className={thr}>Cash before</th><th className={thr}>Burn a month</th><th className={thr}>Runway</th><th className={thr}>Sold</th><th className={thr}>Today's holders keep</th></tr></thead>
             <tbody>
@@ -93,7 +94,7 @@ export function CashFundingView({ plan, result }: Props) {
               {!seedRow && rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={11} className="px-2 py-2 text-xs text-slate-600">No seed or rounds yet. Add them in Setup, Funding.</td></tr>}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       </SectionCard>
 
       <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">

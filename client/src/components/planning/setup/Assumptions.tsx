@@ -11,6 +11,7 @@ import { cr } from '../fmt';
 import { Lever, NumInput } from '../inputs';
 import { CheckRow, Flag, MonthSelect, Note, Parts, Row, SubHead, ensureFx, monthsOf, td, th, thr, txt, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { ScrollBox } from '../../ui/phone';
 
 export { summary };
 
@@ -63,7 +64,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       {part === 'channels' && <div className="space-y-4">
         <div>
           <SubHead info="Growth against the same month 1 year before. FY27 and FY28 come from the 18-month sheet.">Unit growth by channel</SubHead>
-          <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="mt-1.5 overflow-x-auto">
+          <ScrollBox className="mt-1.5">
             <table className="text-label">
               <thead>
                 <tr>
@@ -87,7 +88,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollBox>
         </div>
 
         <div>
