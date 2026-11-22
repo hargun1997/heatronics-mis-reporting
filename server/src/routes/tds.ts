@@ -4,6 +4,9 @@
 //                                        (services/supplierInvoices.ts); a stored Day Book newer than the memory is merged first
 //   GET  /api/tds/history?fy=2026        FY months (April →): data state (ok / stale / partial / missing / running), bills, TDS,
 //                                        and the bills with TDS of each month (the client builds each month's TDS report)
+//   GET  /api/tds/filed?month=           the team's filed report for a month (null when not uploaded)
+//   PUT  /api/tds/filed/:month           store a filed report parsed in the browser (services/filedReports.ts); the month is "filed"
+//   DELETE /api/tds/filed/:month         remove a wrong upload (the month goes back to Tally)
 //   GET  /api/tds/sync                   last sync, next run, Tally freshness (signed in)
 //   POST /api/tds/sync {month?}          "Sync with Tally": Day Books → memory now (signed in); waits ≤ 25 s, then "running"
 //   POST /api/tds/sync/run               OPEN path with its own token (secret mis-auto-pull-token), hourly GitHub Actions
@@ -14,6 +17,8 @@ import { tdsFeed, tdsMonths } from '../services/tdsFeed.js';
 import { duplicateBills, fyMonths, memorySummary, monthState, syncDue, tallyOffline, waitingFor } from '../services/supplierInvoices.js';
 import { memoryFor, readSyncState, runTdsSync, scheduledSync, syncRunning } from '../services/tdsSync.js';
 import { tallyReachedAt } from '../connectors/tally/freshness.js';
+import { readJson, writeJson } from '../ingest/objectStore.js';
+import { sanitizeFiled, type StoredFiledDoc } from '../services/filedReports.js';
 import { autoPullCaller } from '../connectors/slots/autoPull.js';
 import { sharedSecret } from '../connectors/sharedSecrets.js';
 
@@ -66,6 +71,26 @@ router.get('/invoices', h(async (req, res) => {
 
 router.get('/sync', h(async (_req, res) => { res.json(await syncInfo()); }));
 
+const readFiled = (m: string) => readJson<StoredFiledDoc | null>(`tds/filed-${m}`, null);
+router.get('/filed', h(async (req, res) => {
+  const month = String(req.query.month || '');
+  if (!MONTH.test(month)) return void res.status(400).json({ error: 'month=YYYY-MM' });
+  res.json({ month, filed: await readFiled(month) });
+}));
+router.put('/filed/:month', h(async (req, res) => {
+  const month = String(req.params.month);
+  const doc = sanitizeFiled(req.body, month, (req as unknown as { htxUser?: string }).htxUser ?? null, new Date().toISOString());
+  if ('error' in doc) return void res.status(400).json(doc);
+  await writeJson(`tds/filed-${month}`, doc);
+  res.json({ ok: true, month, bills: doc.rows.length, netPayable: doc.netPayable });
+}));
+router.delete('/filed/:month', h(async (req, res) => {
+  const month = String(req.params.month);
+  if (!MONTH.test(month)) return void res.status(400).json({ error: 'Month must be YYYY-MM.' });
+  await writeJson(`tds/filed-${month}`, null); // an empty copy = not filed (readFiled answers null)
+  res.json({ ok: true, month });
+}));
+
 router.get('/history', h(async (req, res) => {
   const fy = req.query.fy ? Number(req.query.fy) : undefined;
   if (fy != null && !(fy >= 2020 && fy <= 2100)) return void res.status(400).json({ error: 'fy=YYYY (April year)' });
@@ -74,8 +99,9 @@ router.get('/history', h(async (req, res) => {
   const [info, ...docs] = await Promise.all([syncInfo(), ...months.map(async (m) => {
     const [mem, part] = await Promise.all([memoryFor(m), readPartial(m)]);
     const st = monthState(m, now, mem?.booksAsOf ?? null, part?.days.length ?? 0);
+    const filed = await readFiled(m);
     return {
-      month: m, ...st, booksAsOf: mem?.booksAsOf ?? null, syncedAt: mem?.syncedAt ?? null, summary: memorySummary(mem),
+      month: m, ...st, filed, booksAsOf: mem?.booksAsOf ?? null, syncedAt: mem?.syncedAt ?? null, summary: memorySummary(mem),
       // Bills with TDS only (what the TDS report lists); removed ones kept so the client can show them apart.
       rows: (mem?.rows ?? []).filter((r) => r.tds !== 0),
     };

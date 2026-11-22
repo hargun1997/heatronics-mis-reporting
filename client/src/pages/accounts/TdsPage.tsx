@@ -11,10 +11,10 @@ import { KpiTile } from '../../components/ui/KpiTile';
 import { Modal } from '../../components/ui/overlays';
 import { BTN, ErrorBox, InfoTip, Loading, Panel } from '../../components/ui/states';
 import { addMonths, dateLabel, monthLabel } from '../../data/tds/tds';
-import { downloadTds, inr, lastMonth, useTds } from '../../data/tds/useTds';
+import { downloadHistory, downloadTds, inr, lastMonth, useTds } from '../../data/tds/useTds';
 import { DeducteeList, FlagList, HowTo, NoDayBook, PayTable } from './tdsParts';
 import { InvoicesView } from './tdsInvoices';
-import { useHistory, useInvoices, type InvoicesApi } from '../../data/tds/invoices';
+import { loadHistory, useHistory, useInvoices, type InvoicesApi } from '../../data/tds/invoices';
 import { HistoryView } from './tdsHistory';
 import { FreshnessPill } from '../../components/ui/FreshnessPill';
 import { Button } from '../../components/ui/Button';
@@ -68,6 +68,13 @@ export function TdsPage() {
     toast(out.ok ? 'Synced with Tally.' : `Tally did not answer. ${out.error ?? ''}`.trim());
   };
   const download = async (working = false) => {
+    // The TDS report follows the filing rule: a filed month = the team's report, else Tally; with its deviations sheet.
+    if (!working) {
+      try {
+        const h = hist.api ?? await loadHistory();
+        if (h.months.some((x) => x.month === month)) { await downloadHistory(monthLabel(month), h.months, [month]); return; }
+      } catch { /* outside this FY or not loaded: the Tally-only report below */ }
+    }
     const done = await downloadTds(month, r, inv.api?.stored ? { rows: inv.api.rows, syncedAt: inv.api.syncedAt } : null, working);
     if (!done) toast(`No Tally Day Book for ${monthLabel(month)}. Select Sync with Tally first.`);
   };
@@ -114,7 +121,7 @@ export function TdsPage() {
             : inv.api ? <InvoicesView api={inv.api} month={month} onSync={() => void sync()} syncing={inv.syncing} />
               : r && !r.haveMonth ? <NoDayBook month={monthLabel(month)} /> : <Loading label="Reading the supplier bills" />
         )}
-        {shown === 'history' && (hist.error ? <ErrorBox>{hist.error}</ErrorBox> : hist.api ? <HistoryView api={hist.api} /> : <Loading label="Reading the months of this year" />)}
+        {shown === 'history' && (hist.error ? <ErrorBox>{hist.error}</ErrorBox> : hist.api ? <HistoryView api={hist.api} reload={hist.reload} /> : <Loading label="Reading the months of this year" />)}
         {r && ok && shown !== 'invoices' && shown !== 'history' && (
           <>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">

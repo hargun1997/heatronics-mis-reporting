@@ -3,6 +3,7 @@
 // Excel download for any month (layout in tdsFormats.ts INVOICE_COLUMNS).
 import { useCallback, useEffect, useState } from 'react';
 import { sectionOf } from './tds';
+import type { FiledDoc } from './filed';
 
 export interface InvoiceChange { at: string; field: string; from: string | number; to: string | number }
 export interface InvoiceRow {
@@ -73,18 +74,31 @@ export type MonthState = 'ok' | 'stale' | 'partial' | 'missing' | 'running';
 export interface HistoryMonth {
   month: string; state: MonthState; note: string; booksAsOf: string | null; syncedAt: string | null;
   summary: InvoicesApi['summary']; rows: InvoiceRow[];
+  /** The team's filed report for the month (the truth for a filed month); null = not uploaded. */
+  filed: FiledDoc | null;
 }
 export interface HistoryApi extends SyncInfo { fy: string | null; months: HistoryMonth[] }
 
+export const loadHistory = () => getJson<HistoryApi>('/api/tds/history');
+
 export function useHistory(enabled: boolean) {
   const [got, setGot] = useState<{ api: HistoryApi | null; error: string | null } | null>(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
-    if (!enabled || got) return;
+    if (!enabled) return;
     let live = true;
-    getJson<HistoryApi>('/api/tds/history')
+    loadHistory()
       .then((j) => { if (live) setGot({ api: j, error: null }); })
       .catch((e: Error) => { if (live) setGot({ api: null, error: e.message }); });
     return () => { live = false; };
-  }, [enabled, got]);
-  return { api: got?.api ?? null, error: got?.error ?? null, loading: enabled && !got };
+  }, [enabled, tick]);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+  return { api: got?.api ?? null, error: got?.error ?? null, loading: enabled && !got, reload };
 }
+
+/** Store one month's filed report (parsed in the browser). */
+export const saveFiled = (doc: FiledDoc) => getJson<{ ok: boolean; bills: number; netPayable: number }>(`/api/tds/filed/${doc.month}`, {
+  method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(doc),
+});
+/** Remove a month's filed report (the month goes back to Tally). */
+export const deleteFiled = (month: string) => getJson<{ ok: boolean }>(`/api/tds/filed/${month}`, { method: 'DELETE' });
