@@ -128,7 +128,7 @@ function EmailTemplates() {
               </div>
               <div>
                 <span className="inline-block w-16 font-semibold text-slate-600">To</span>
-                {t.to || '—'}
+                {t.to || '–'}
               </div>
               <div>
                 <span className="inline-block w-16 font-semibold text-slate-600">Subject</span>
@@ -177,7 +177,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
         {heads.map((h, i) => (
           <li key={h.id} className="space-y-2 px-4 py-3">
             <div className="flex items-center gap-2">
-              <input className={`${field} font-semibold`} value={h.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Head name, e.g. CA / Audit" aria-label="Head name" />
+              <input className={`${field} font-semibold`} value={h.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Head name, for example CA / Audit" aria-label="Head name" />
               <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-sm tabular-nums text-slate-600" title="Tasks under this head">
                 {count(h)}
               </span>
@@ -194,7 +194,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
               className={field}
               value={h.roles.join(', ')}
               onChange={(e) => set(i, { roles: e.target.value.split(',').map((r) => r.trim()).filter((r, k, a) => r || k === a.length - 1) })}
-              placeholder="Roles, comma-separated: e.g. CA, Statutory Auditor"
+              placeholder="Roles, comma-separated: for example CA, Statutory Auditor"
               aria-label="Roles"
             />
             <div className="flex flex-wrap gap-1">

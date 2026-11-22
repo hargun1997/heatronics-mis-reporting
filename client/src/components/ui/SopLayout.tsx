@@ -192,7 +192,7 @@ export function JournalTable({ lines }: { lines: { side: 'Dr' | 'Cr'; ledger: st
                 {l.ledger}
                 {l.note && <span className="block text-xs text-slate-400 italic mt-0.5">{l.note}</span>}
               </td>
-              <td className="px-3 py-2 text-right currency text-slate-900 font-medium">{l.amount || '—'}</td>
+              <td className="px-3 py-2 text-right currency text-slate-900 font-medium">{l.amount || '–'}</td>
             </tr>
           ))}
         </tbody>

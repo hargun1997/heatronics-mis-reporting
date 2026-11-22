@@ -79,7 +79,7 @@ export function DeducteeList({ r }: { r: TdsReport }) {
                         <td className="px-3 py-1.5 font-mono text-xs">{d.pan || <span className="font-sans text-red-700">missing</span>}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{inr(d.gross)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{inr(d.tds)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">{d.ratePct == null ? '—' : `${d.ratePct}%`}<span className="block text-xs text-slate-500">std {SECTIONS[d.section].rates.map((x) => `${x.pct}%`).join(' / ') || '—'}</span></td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{d.ratePct == null ? '–' : `${d.ratePct}%`}<span className="block text-xs text-slate-500">std {SECTIONS[d.section].rates.map((x) => `${x.pct}%`).join(' / ') || '–'}</span></td>
                         <td className="px-3 py-1.5 text-xs">{d.flags.length ? <ul className="space-y-0.5 text-amber-800">{d.flags.map((f) => <li key={f}>{f}</li>)}</ul> : <span className="text-emerald-700">OK</span>}</td>
                       </tr>
                     ))}

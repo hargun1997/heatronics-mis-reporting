@@ -146,7 +146,7 @@ function ScheduleBuilder({ f, set }: { f: Partial<WorkTask>; set: (p: Partial<Wo
       {cad === 'monthly' && (
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-800">
           <input type="checkbox" checked={!!f.arrears} onChange={(e) => set({ arrears: e.target.checked })} className="h-4 w-4 rounded border-slate-400 text-brand-600" />
-          It’s for the previous month (e.g. September’s report, due on the {ordinal(f.dueDay ?? 1)} of October)
+          It is for the previous month (for example September’s report, due on the {ordinal(f.dueDay ?? 1)} of October)
         </label>
       )}
 
@@ -224,7 +224,7 @@ export function TaskEditor({
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
         <div>
           <label className={lbl}>Task</label>
-          <input className={input} value={f.title ?? ''} onChange={(e) => set({ title: e.target.value })} placeholder="e.g. File GSTR-1" />
+          <input className={input} value={f.title ?? ''} onChange={(e) => set({ title: e.target.value })} placeholder="for example File GSTR-1" />
         </div>
         <div>
           <label className={lbl}>Area</label>
@@ -239,8 +239,8 @@ export function TaskEditor({
 
       <div>
         <label className={lbl}>Role</label>
-        <p className="-mt-0.5 mb-1.5 text-sm text-slate-600">e.g. Accountant, CA, HR. Separate several with “/”. Used by the head filter and Who does what.</p>
-        <input className={input} value={f.roleLabel ?? ''} onChange={(e) => set({ roleLabel: e.target.value })} placeholder="e.g. CA / Accounts Manager" />
+        <p className="-mt-0.5 mb-1.5 text-sm text-slate-600">for example Accountant, CA, HR. Separate several with “/”. Used by the head filter and Who does what.</p>
+        <input className={input} value={f.roleLabel ?? ''} onChange={(e) => set({ roleLabel: e.target.value })} placeholder="for example CA / Accounts Manager" />
       </div>
 
       <div>

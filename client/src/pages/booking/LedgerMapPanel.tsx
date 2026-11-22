@@ -134,7 +134,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {loadError && <p className="m-4 rounded-lg bg-red-50 p-3 text-label text-red-800">Couldn’t load the map: {loadError}</p>}
+        {loadError && <p className="m-4 rounded-lg bg-red-50 p-3 text-label text-red-800">Could not load the map: {loadError}</p>}
         {!rows && !loadError && <p role="status" className="p-4 text-label text-slate-600">Loading the map…</p>}
 
         <ul className="divide-y divide-slate-100">
@@ -265,7 +265,7 @@ interface EditorProps {
 
 function RowEditor({ draft, setDraft, onCancel, onSave, saving, onDelete, confirmingDelete, onConfirmDelete, onCancelDelete }: EditorProps) {
   const set = <K extends keyof ExpenseMapRow>(k: K, v: ExpenseMapRow[K]) => setDraft({ ...draft, [k]: v });
-  // Kept as raw text while typing, so a half-written line isn't dropped.
+  // Kept as raw text while typing, so a half-written line is not dropped.
   const [subRulesText, setSubRulesText] = useState(() => (draft.subRules ?? []).map((s) => `${s.when} → ${s.then}`).join('\n'));
   const field = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-label text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500';
   const label = 'block text-xs font-medium text-slate-700';
@@ -296,16 +296,16 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, onDelete, confir
       <div className="grid grid-cols-2 gap-2">
         <label className={label}>
           Voucher type
-          <input className={field} value={draft.voucherType} onChange={(e) => set('voucherType', e.target.value)} placeholder="e.g. Purchase-Services" />
+          <input className={field} value={draft.voucherType} onChange={(e) => set('voucherType', e.target.value)} placeholder="for example Purchase-Services" />
         </label>
         <label className={label}>
           TDS section
-          <input className={field} value={draft.tds} onChange={(e) => set('tds', e.target.value)} placeholder="e.g. 194J @ 10%" />
+          <input className={field} value={draft.tds} onChange={(e) => set('tds', e.target.value)} placeholder="for example 194J @ 10%" />
         </label>
       </div>
       <label className={label}>
         GST treatment
-        <input className={field} value={draft.gst} onChange={(e) => set('gst', e.target.value)} placeholder="e.g. Input IGST 18% / RCM" />
+        <input className={field} value={draft.gst} onChange={(e) => set('gst', e.target.value)} placeholder="for example Input IGST 18% / RCM" />
       </label>
       <label className={label}>
         Notes

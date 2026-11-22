@@ -69,7 +69,7 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
               return (
                 <tr key={it.id} className="border-t border-slate-100">
                   <td className="py-1 pr-3 text-slate-700">{it.name}{it.isNew && <span className="ml-1.5 rounded bg-slate-100 px-1 text-xs text-slate-700">New</span>}</td>
-                  <td className="px-2 text-slate-500">{firstIdx >= 0 ? monthLabel(plan.startMonth, firstIdx + 1) : '—'}</td>
+                  <td className="px-2 text-slate-500">{firstIdx >= 0 ? monthLabel(plan.startMonth, firstIdx + 1) : '–'}</td>
                   <td className="px-2"><Spark v={series} base={r.base} /></td>
                   <td className="px-2 text-right text-slate-800">{lastUnits ? int(lastUnits) : '–'}</td>
                   <td className="pl-2 text-slate-500">{seasonOf(it.id)}</td>

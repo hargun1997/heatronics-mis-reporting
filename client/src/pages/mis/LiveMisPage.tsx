@@ -61,7 +61,7 @@ const LEGACY_TABS: Record<string, Tab> = {
 };
 const isTab = (v: string | null | undefined): v is Tab => !!v && TABS.some((t) => t.id === v);
 const resolveTab = (v: string | null | undefined): Tab | null => (isTab(v) ? v : v && LEGACY_TABS[v] ? LEGACY_TABS[v] : null);
-// Tabs that don't use the period controls (Statements carries its own months).
+// Tabs that do not use the period controls (Statements carries its own months).
 const NO_PERIOD: Tab[] = ['statements'];
 // Tabs on which the Actual|Normalised COGM basis applies (Overview's headline, the whole P&L tab); the rest stay on actual COGM.
 const BASIS_TABS: Tab[] = ['overview', 'pnl'];
@@ -230,7 +230,7 @@ export function LiveMisPage() {
   const withPeriod = (render: (sel: PeriodAgg, v: LiveDeckData) => ReactNode) => withDeck(() => (
     selected ? render(selected, view!) : <p className="text-sm text-slate-400 py-6 text-center">{isRange ? 'Select 1 month or more.' : 'No period for this selection.'}</p>
   ));
-  const selLabel = selected ? selected.label : '—';
+  const selLabel = selected ? selected.label : '–';
 
   return (
     <LiveViewProvider value={ctx}>
@@ -576,7 +576,7 @@ function RunRateTab() {
         <KpiTile label="Revenue" value={inr(sum.revenue)} sub={`${days} days`} />
         <KpiTile label="MRR" value={inr(mrr)} sub="30 days at this rate" />
         <KpiTile label="Ad spend" value={inr(sum.spend)} />
-        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="Revenue ÷ ad spend" />
+        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '–'} sub="Revenue ÷ ad spend" />
         <KpiTile label="Net" value={inr(sum.net)} sub="Revenue less fees" />
         <KpiTile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
       </div>

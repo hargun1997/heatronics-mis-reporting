@@ -138,7 +138,7 @@ export function InvoiceBookingSuggester() {
               <Field label="Party / Vendor / Customer (optional)">
                 <input
                   type="text"
-                  placeholder={txnType === 'Sales' ? 'e.g. Blinkit Commerce Pvt Ltd' : 'e.g. ABC Materials Pvt Ltd'}
+                  placeholder={txnType === 'Sales' ? 'for example Blinkit Commerce Pvt Ltd' : 'for example ABC Materials Pvt Ltd'}
                   value={party}
                   onChange={(e) => setParty(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
@@ -148,7 +148,7 @@ export function InvoiceBookingSuggester() {
               <Field label="HSN / SAC (optional)">
                 <input
                   type="text"
-                  placeholder="e.g. 8481"
+                  placeholder="for example 8481"
                   value={hsn}
                   onChange={(e) => setHsn(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
@@ -224,11 +224,11 @@ export function InvoiceBookingSuggester() {
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               <Cell label="Voucher type" value={result.voucherType} />
-              <Cell label="Bill series" value={result.billSeries || '—'} mono />
+              <Cell label="Bill series" value={result.billSeries || '–'} mono />
               <Cell label="Master ledger" value={result.masterLedger} />
               {result.counterParty && <Cell label="Counter-party" value={result.counterParty} />}
               {result.bank && <Cell label="Settles to" value={result.bank} />}
-              <Cell label="GST ledgers" value={result.gstLedgers.length > 0 ? result.gstLedgers.join(' · ') : '—'} />
+              <Cell label="GST ledgers" value={result.gstLedgers.length > 0 ? result.gstLedgers.join(' · ') : '–'} />
             </div>
           </div>
 

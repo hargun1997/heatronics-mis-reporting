@@ -75,8 +75,8 @@ export function AmazonToTranzactTool() {
                 <li>Type of report: <b>Summary view</b></li>
                 <li>Aggregate by location: <b>Country</b></li>
                 <li>Aggregate by time period: <b>Monthly</b></li>
-                <li>Date range: the month you're reconciling (leave ASIN/FNSKU/MSKU blank for all products)</li>
-                <li>Click <b>Request .txt Download</b>: <span className="text-red-600 font-medium">not .csv</span> (csv drops the leading zeros in MSKUs/ASINs and breaks SKU matching)</li>
+                <li>Date range: the month you are reconciling (leave ASIN/FNSKU/MSKU blank for all products)</li>
+                <li>Click <b>Request .txt Download</b>: <span className="text-red-700 font-medium">not .csv</span>. A .csv file loses the leading zeros in MSKUs and ASINs, so the SKUs do not match.</li>
               </ul>
               <p className="mt-1.5">
                 When it appears in the list below with a <b>Download</b> button, grab the <code className="bg-slate-100 px-1 rounded">.txt</code> file.
@@ -99,14 +99,14 @@ export function AmazonToTranzactTool() {
                   <b>Store</b>: <b>Amazon (Pan-India)</b>.
                   {' '}<span className="text-red-600 font-medium">It defaults to "Raw Material Store"</span>: change it, or you will write Amazon FBA stock onto the factory store.
                 </li>
-                <li><b>As on Date</b>: the last day of the month you're reconciling (e.g. 31/07/2026 for the July ledger), <i>not</i> today's date.</li>
+                <li><b>As on Date</b>: the last day of the month you are reconciling (for example 31/07/2026 for the July ledger). Do not use today's date.</li>
                 <li>
                   <b>Final Stock Valuation</b>: <b>Use system price</b>. Tranzact then values the stock from its own item master.
-                  Choose "Use uploaded price" only if you deliberately want the prices in this file, which come from the tool's built-in FG master and can be out of date.
+                  Choose "Use uploaded price" only when you want the prices in this file. They come from the FG list in this tool and can be old.
                 </li>
                 <li>
-                  <b>Allow Final Stock at 0 Price</b>: <b>No</b>. This makes Tranzact stop if any item would be valued at zero, instead of silently booking that stock at ₹0 and understating closing stock.
-                  Only switch to Yes once you've checked why an item has no price.
+                  <b>Allow Final Stock at 0 Price</b>: <b>No</b>. Tranzact then stops when an item has a zero value. It does not book that stock at ₹0, which makes the closing stock too low.
+                  Only switch to Yes once you have checked why an item has no price.
                 </li>
               </ul>
               <p className="mt-1.5">

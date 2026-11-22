@@ -1,5 +1,5 @@
 // The "Fix" list inside Tasks (founder, 3 Nov 2026: Tasks is the one place). Everything in the MIS and the books that needs a
-// person — books (Tally health checks, hanging ledgers, a Trial Balance that doesn't tie), feeds (Tally not reached, a no-API
+// person — books (Tally health checks, hanging ledgers, a Trial Balance that does not tie), feeds (Tally not reached, a no-API
 // report not in), MIS numbers (cross-month scan) and the Live MIS's own items (tie breaches, unmapped products, products without
 // a BOM, months ready to lock). Each says what is wrong, how to fix it, and links to where. Done holds until the item changes.
 import { useState } from 'react';

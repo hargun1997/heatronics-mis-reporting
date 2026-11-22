@@ -53,7 +53,7 @@ export function TasksPage() {
   // Links from the daily emails: /tasks?task=<id> opens that task, /tasks?who=<memberId> filters.
   const linkTask = params.get('task');
   const linkWho = params.get('who');
-  // Runs whenever a link lands (also in-app ones, e.g. "Do this after"); the
+  // Runs whenever a link lands (also in-app ones, for example "Do this after"); the
   // params are cleared afterwards, so each link is handled once.
   useEffect(() => {
     if (!state || (!linkTask && !linkWho)) return;

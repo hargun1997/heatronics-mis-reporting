@@ -97,7 +97,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
       if (!parsed || parsed.rows.length === 0) { setImportError('Could not find a "P&L Summary" block in that file. Use a workbook exported from here.'); return; }
       setImported(parsed);
     } catch {
-      setImportError('Failed to read that file. Please upload a valid .xlsx exported from here.');
+      setImportError('The file did not open. Upload an .xlsx file that you downloaded from this page.');
     }
   };
 
@@ -167,7 +167,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
         closing cash ÷ (3 × the last 3 months’ average burn), in quarters; blank until both month ends are stored (FY total: the months
         that have them, named in the column header). EBITDA Burn for a total = the period’s EBITDA loss (0 when it made a profit),
         not the sum of its loss months. Payroll = payroll and salary ledgers, Professional Fee = professional fees and Legal &amp; CA;
-        blank when the month has no such line. Other blank rows aren’t tracked (Channel Margin, SS Claim) or aren’t real yet
+        blank when the month has no such line. Other blank rows are not tracked (Channel Margin, SS Claim) or are not real yet
         for that month (below its completeness level). Gross revenue, returns and GST come from the months whose source carries
         them (the published MIS); live-built months leave them blank. Qty = actual connector orders where every month reports
         them, else estimated (net revenue ÷ AOV). Channel columns use the MIS-anchored split; Brand Investment = Platform &amp;

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // Button (GUIDE.md "Buttons"): the ONE button for the MIS. Height 40, touch area 44 on phones, corner 10, verb first.
 //   primary   = the one orange action on a screen (#C2410C, white text)
 //   secondary = white, every other action (default)

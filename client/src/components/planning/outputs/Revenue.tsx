@@ -123,7 +123,7 @@ export function RevenueView({ plan, result, part }: Props & { part?: (typeof REV
               <li key={x.id} className={`flex flex-wrap items-center gap-3 py-1.5 ${x.on ? '' : 'opacity-50'}`}>
                 <span className="font-medium text-slate-900">{x.name}</span>
                 <span className="text-slate-500">{famName(x.category ?? 'other')}</span>
-                <span className="text-slate-600">From {months.find((m) => m.m === x.launchMonth)?.label ?? '—'}</span>
+                <span className="text-slate-600">From {months.find((m) => m.m === x.launchMonth)?.label ?? '–'}</span>
                 {!x.on && <span className="text-slate-600">Off</span>}
                 <span className="ml-auto tabular-nums text-slate-700">Exit ARR {cr(mix.byId[x.id] ?? 0, 0)} Cr</span>
               </li>

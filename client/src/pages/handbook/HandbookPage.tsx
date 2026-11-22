@@ -26,7 +26,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, Minimize2 as ArrowsPointingInIcon, Maximize2 as ArrowsPointingOutIcon, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, List as ListBulletIcon, X as XMarkIcon } from 'lucide-react';
+import { ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, Minimize2 as ArrowsPointingInIcon, Maximize2 as ArrowsPointingOutIcon, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, List as ListBulletIcon } from 'lucide-react';
 import { SopVisual } from '../../components/ui/SopVisual';
 import { useDensity } from '../../hooks/useDensity';
 import {
@@ -636,7 +636,7 @@ function Reader({
   return (
     <div className={isOpen ? 'min-h-[calc(100vh-var(--app-top))] bg-white' : 'hidden'} aria-label="Accounts Handbook reader">
       {/* Bar: Back · breadcrumb · search · contents (sticks under the app header) */}
-      <div className="sticky top-[calc(var(--app-top)+var(--htx-bar-h,0px))] z-30 flex h-14 items-center gap-1.5 border-b border-slate-200 bg-white/95 px-2 backdrop-blur sm:gap-2 sm:px-4">
+      <div className="sticky top-[calc(var(--app-top)+var(--htx-bar-h,0px))] z-sticky flex h-14 items-center gap-1.5 border-b border-slate-200 bg-white/95 px-2 backdrop-blur sm:gap-2 sm:px-4">
         <button type="button" onClick={back} className={`${barBtn} border border-slate-200 text-slate-800 hover:bg-slate-50`}>
           <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
           Back

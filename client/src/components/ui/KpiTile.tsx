@@ -67,18 +67,20 @@ export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'r
         : 'text-red-700';
   const arrow = delta?.dir === 'up' ? '▲' : delta?.dir === 'down' ? '▼' : '▶';
   const bar = accent ?? toneAccent[tone];
+  // GUIDE.md "Number tiles": no data shows "Not read", never 0 or a dash.
+  const notRead = value == null || value === '—' || value === '–' || value === '-';
 
   const box = `relative block overflow-hidden rounded-xl border px-4 py-3.5 shadow-card ${toneWrap[tone]}`;
   const body = (
     <>
       {bar && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px]" style={{ background: bar }} />}
-      <div className="text-xs font-medium text-slate-500">{label}</div>
-      <div className={`font-semibold tracking-[-0.02em] tabular-nums mt-2 text-2xl leading-none ${toneValue[tone]}`}>
-        {value}
-        {unit && <span className="text-base font-bold text-slate-400 ml-1">{unit}</span>}
+      <div className="text-label font-medium text-slate-500">{label}</div>
+      <div className={`mt-2 font-semibold tracking-[-0.02em] tabular-nums text-3xl ${notRead ? 'text-slate-400' : toneValue[tone]}`}>
+        {notRead ? <span className="text-lg font-medium" title="No data for this number">Not read</span> : value}
+        {unit && !notRead && <span className="ml-1 text-base font-semibold text-slate-500">{unit}</span>}
       </div>
       {(delta || sub) && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-label">
           {delta && <span className={`font-bold ${deltaColor}`}>{arrow} {delta.text}</span>}
           {sub && <span className="text-slate-500">{sub}</span>}
         </div>

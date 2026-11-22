@@ -204,7 +204,7 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
               {matches.map((m, i) => (
                 <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
                   <span className="min-w-[180px] font-medium text-slate-900">{m.line.name}</span>
-                  <span className="tabular-nums text-slate-700">{Number.isFinite(m.line.amountPaise) ? inr(m.line.amountPaise) : '—'}</span>
+                  <span className="tabular-nums text-slate-700">{Number.isFinite(m.line.amountPaise) ? inr(m.line.amountPaise) : '–'}</span>
                   {m.kind === 'exact' && <span className="text-emerald-700">Found: {m.payee?.name}</span>}
                   {m.kind === 'bad_amount' && <span className="text-red-700">Amount not readable</span>}
                   {m.kind === 'none' && <span className="text-red-700">No Active payee with this name</span>}

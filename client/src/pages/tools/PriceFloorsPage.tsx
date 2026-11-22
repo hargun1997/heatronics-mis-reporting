@@ -50,7 +50,7 @@ interface LiveSnap { report: (FeeReport & { live: { from: string; to: string; no
 const when = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const monthName = (m?: string) => (m ? `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}` : '—');
+const monthName = (m?: string) => (m ? `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}` : '–');
 /** Which overheads month and pace Production used, with a few ₹ per unit examples. */
 const convLine = (c: NonNullable<CostsSnapshot['conversion']>) => {
   const lakh = (v: number) => `₹${(v / 100000).toFixed(2)} L`;
@@ -137,7 +137,7 @@ export function PriceFloorsPage() {
     try {
       const r = await api<{ costs: CostsSnapshot }>('/api/price-floors/costs/refresh', {});
       setState((s) => (s ? { ...s, costs: r.costs } : s));
-      setNote(r.costs.error ? { tone: 'bad', text: `Couldn't refresh costs: ${r.costs.error}` } : { tone: 'good', text: `Costs refreshed from the production portal (${monthName(r.costs.month)}).` });
+      setNote(r.costs.error ? { tone: 'bad', text: `Could not refresh costs: ${r.costs.error}` } : { tone: 'good', text: `Costs refreshed from the production portal (${monthName(r.costs.month)}).` });
     } catch (e) {
       setNote({ tone: 'bad', text: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -159,7 +159,7 @@ export function PriceFloorsPage() {
       setState((st) => (st ? { ...st, settings: r.settings } : st));
       setNote({ tone: 'good', text: `${what} saved.` });
     } catch (e) {
-      setNote({ tone: 'bad', text: `Couldn't save: ${e instanceof Error ? e.message : String(e)}` });
+      setNote({ tone: 'bad', text: `Could not save: ${e instanceof Error ? e.message : String(e)}` });
     }
   };
   const unmapped = rows.filter((r) => !r.p);
@@ -352,7 +352,7 @@ function UploadCard({ state, settings, onSaved, setNote }: {
       const m = mergeReport(settings, rep);
       setPreview({ rep, next: m.settings, updated: m.updated, added: m.added });
     } catch (e) {
-      setNote({ tone: 'bad', text: e instanceof FeeReportError ? e.message : `Couldn't read that file: ${e instanceof Error ? e.message : String(e)}` });
+      setNote({ tone: 'bad', text: e instanceof FeeReportError ? e.message : `Could not read that file: ${e instanceof Error ? e.message : String(e)}` });
     } finally {
       setBusy(false);
     }
@@ -418,8 +418,8 @@ function UploadCard({ state, settings, onSaved, setNote }: {
 }
 
 const fmtPct = (v: number) => `${Math.round(v * 1000) / 10}%`;
-/** v as a share of the price, e.g. "53%". */
-const share = (v: number, price: number) => (price > 0 && Number.isFinite(price) && Number.isFinite(v) ? `${Math.round((v / price) * 100)}%` : '—');
+/** v as a share of the price, for example "53%". */
+const share = (v: number, price: number) => (price > 0 && Number.isFinite(price) && Number.isFinite(v) ? `${Math.round((v / price) * 100)}%` : '–');
 
 /** Target margin, typed as a percent; saves on Enter or when the field loses focus. */
 /** A percent input that saves on Enter or blur, with an optional on/off switch. */
@@ -461,7 +461,7 @@ const same = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 
 /** What to do with today's price, given the price needed at the selected ad spend. */
 function ActionCell({ need, asp, band }: { need: number | null; asp: number; band?: BandAdvice | null }) {
-  if (need == null || !Number.isFinite(need) || !asp) return <span className="text-slate-400">—</span>;
+  if (need == null || !Number.isFinite(need) || !asp) return <span className="text-slate-400" title="Not read">–</span>;
   if (band?.priceAtBelow) {
     return <span className="font-semibold text-brand-700">Price at {rs(band.below)}<span className="block text-xs font-normal">keeps {rs(band.belowMargin)} a unit, more than {rs(asp)}</span></span>;
   }
@@ -499,7 +499,7 @@ function SummaryTable({ rows, settings, t, hasCosts, onOpen }: { rows: Row[]; se
               <div className="mt-1 text-label text-slate-500">{hasCosts ? 'Not linked to a product cost' : 'Costs not loaded'}</div>
             )}
             <div className="mt-1 flex items-baseline justify-between gap-3 text-label text-slate-500">
-              <span>Selling at {rs(r.x.asp)} · don't go below {rs(r.be)}</span>
+              <span>Price now {rs(r.x.asp)}. Lowest price {rs(r.be)}.</span>
               <ActionCell need={r.ft} asp={r.x.asp} band={r.band} />
             </div>
           </li>
@@ -511,7 +511,7 @@ function SummaryTable({ rows, settings, t, hasCosts, onOpen }: { rows: Row[]; se
             <tr>
               <th className="py-3 pl-5 pr-3 font-semibold">Product</th>
               <th className="px-3 py-3 text-right font-semibold">Selling at today</th>
-              <th className="px-3 py-3 text-right font-semibold">Don't go below</th>
+              <th className="px-3 py-3 text-right font-semibold">Do not go below</th>
               {LEVELS.map((lv) => <th key={lv} className={`px-3 py-3 text-right font-semibold ${same(lv, t) ? 'text-brand-700' : ''}`}>At {Math.round(lv * 100)}% ads</th>)}
               <th className="py-3 pl-3 pr-5 text-right font-semibold">Action ({Math.round(t * 100)}% ads)</th>
             </tr>
@@ -530,7 +530,7 @@ function SummaryTable({ rows, settings, t, hasCosts, onOpen }: { rows: Row[]; se
                 <td className="px-3 py-3 text-right tabular-nums text-slate-600">{rs(r.be)}</td>
                 {LEVELS.map((lv, i) => (
                   <td key={lv} className={r.prices ? cell(r.prices[i], r.x.asp, same(lv, t)) : 'px-3 py-3 text-right text-slate-400'}>
-                    {r.prices ? rs(r.prices[i]) : '—'}
+                    {r.prices ? rs(r.prices[i]) : '–'}
                     {r.prices && r.prices[i] > r.x.asp && <span className="sr-only"> (above today's price)</span>}
                   </td>
                 ))}
@@ -557,7 +557,7 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
         {bandLine(band)}.{band.priceAtBelow ? ` Price at ${rs(band.below)}: it earns more than today's ${rs(r.x.asp)}.` : ''}
         <span className="block text-xs text-slate-600">No referral fee below {rs(band.deadFrom)}. From {rs(band.deadFrom)}, Amazon adds {pct(r.x.refPct)} referral and the higher closing fee.</span>
       </p>
-      {isFbm(r.x) && <p className="mt-1 text-xs text-slate-500">Ships FBM (Production specs): courier ₹{settings.global.fbmPerKg ?? DEFAULT_GLOBAL.fbmPerKg}/kg × {r.x.chargeKg ?? '—'} kg, min ₹{settings.global.fbmMin ?? DEFAULT_GLOBAL.fbmMin}, instead of FBA fee, storage and freight to FC.</p>}
+      {isFbm(r.x) && <p className="mt-1 text-xs text-slate-500">Ships FBM (Production specs): courier ₹{settings.global.fbmPerKg ?? DEFAULT_GLOBAL.fbmPerKg}/kg × {r.x.chargeKg ?? '–'} kg, min ₹{settings.global.fbmMin ?? DEFAULT_GLOBAL.fbmMin}, instead of FBA fee, storage and freight to FC.</p>}
       <table className="mt-2 w-full max-w-md text-sm">
         <thead className="text-right text-xs text-slate-500">
           <tr><th className="py-1.5 text-left font-semibold">Per unit, {Math.round(t * 100)}% ads</th><th className="py-1.5 font-semibold">₹</th><th className="py-1.5 font-semibold">% of net sales</th></tr>
@@ -581,7 +581,7 @@ function SkuDetail({ r, settings, t }: { r: Row; settings: FloorSettings; t: num
           ))}
         </tbody>
       </table>
-      <p className="mt-3 text-xs text-slate-500">Costs are before GST. {settings.global.stuckOn === false ? 'All input GST (materials, Amazon fees, ads) is taken as refunded, so no GST is a cost.' : `GST stuck = the part of the ${fmtPct(buyGstOf(settings))} GST on Amazon fees, ads and packing the 5% sale GST can't use; GST on materials comes back as the inverted-duty refund.`}</p>
+      <p className="mt-3 text-xs text-slate-500">Costs are before GST. {settings.global.stuckOn === false ? 'All input GST (materials, Amazon fees, ads) is taken as refunded, so no GST is a cost.' : `GST stuck = the part of the ${fmtPct(buyGstOf(settings))} GST on Amazon fees, ads and packing the 5% sale GST cannot use; GST on materials comes back as the inverted-duty refund.`}</p>
     </div>
   );
 }
@@ -601,7 +601,7 @@ const GLOBAL_FIELDS: [NumKey, string, string][] = [
   ['band', 'Referral starts at', '₹ price'],
   ['removal', 'Removal fee', '₹ per unsellable return'],
   ['minSample', 'Average return rate below', 'units sold'],
-  ['unsell', "Share of returns that can't be resold, %", '% of returns lost (unit + removal fee). The pricing guide uses it'],
+  ['unsell', "Share of returns that cannot be resold, %", '% of returns lost (unit and removal fee). The pricing guide uses it.'],
   ['fbmPerKg', 'FBM courier ₹ per kg', '₹ per chargeable kg incl. GST, for FBM products'],
   ['fbmMin', 'FBM courier minimum', '₹ per order incl. GST'],
 ];

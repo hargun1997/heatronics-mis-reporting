@@ -3,7 +3,7 @@
 // Growth (Overview), Channel Mix (Channels) and Profitability (P&L → Margin
 // ladder & cost structure). Each runs the legacy deck's own math (analytics.ts)
 // over the live periods via liveViews.toPeriodMIS, and respects completeness: a
-// line that isn't real for a period is left out (null point / "—"), never shown
+// line that is not real for a period is left out (null point / "—"), never shown
 // as 0. Repeat purchase / cohorts moved to Ops (D2C → Customers), founder 5 Nov 2026.
 // ----------------------------------------------------------------------------
 
@@ -117,7 +117,7 @@ function DiscountSection() {
       <Note>
         {basis === 'amount' ? 'Discount ₹ given each month (positive magnitude).' : 'Discount as a % of that month’s total sales.'}{' '}
         The report window is Jul 10, 2025 – Jul 10, 2026, so the first and last months are partial. Live Shopify discount facts
-        aren’t ingested yet: this is the published storefront feed.
+        are not ingested yet: this is the published storefront feed.
       </Note>
     </Fold>
   );
@@ -175,9 +175,9 @@ function TrajectorySection({ periods, allPeriods, gran }: { periods: PeriodAgg[]
                   <td className="py-1.5 px-2 text-right tabular-nums text-slate-700">{inr(p.netRevenue)}</td>
                   <td className="py-1.5 px-2 text-right"><Delta value={pop[i]} /></td>
                   <td className="py-1.5 px-2 text-right"><Delta value={yoy[i]} /></td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{real(p, 'gross_margin') && p.netRevenue ? pctStr(p.grossMargin / p.netRevenue) : '—'}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-700">{real(p, 'ebitda') ? inr(p.ebitda) : '—'}</td>
-                  <td className="py-1.5 pl-2 text-right tabular-nums text-slate-600">{real(p, 'ebitda') && p.netRevenue ? pctStr(p.ebitda / p.netRevenue) : '—'}</td>
+                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-600">{real(p, 'gross_margin') && p.netRevenue ? pctStr(p.grossMargin / p.netRevenue) : '–'}</td>
+                  <td className="py-1.5 px-2 text-right tabular-nums text-slate-700">{real(p, 'ebitda') ? inr(p.ebitda) : '–'}</td>
+                  <td className="py-1.5 pl-2 text-right tabular-nums text-slate-600">{real(p, 'ebitda') && p.netRevenue ? pctStr(p.ebitda / p.netRevenue) : '–'}</td>
                 </tr>
               ))}
             </tbody>
@@ -374,11 +374,11 @@ export function ProfitabilityTab({ period, periods, gran }: { period: PeriodAgg;
   ];
   const full = lp.level === 'full';
   const steps = WF.filter((s) => !(s.skipZero && s.value === 0)).map(({ label, value, type }) => ({ label, value, type }));
-  const c = (p: PeriodAgg, row: string, v: number) => (real(p, row) && p.netRevenue ? pctStr(v / p.netRevenue) : '—');
+  const c = (p: PeriodAgg, row: string, v: number) => (real(p, row) && p.netRevenue ? pctStr(v / p.netRevenue) : '–');
   const { basis } = useLiveView();
   const normalised = basis === 'normalised';
   // Normalised basis: the signed stock build / drawdown memo (% of net revenue), only where the period was restated.
-  const memo = (p: PeriodAgg) => (normalised && real(p, 'gross_margin') && p.normalisedMonths > 0 && p.netRevenue ? pctSigned(p.stockVariance / p.netRevenue) : '—');
+  const memo = (p: PeriodAgg) => (normalised && real(p, 'gross_margin') && p.normalisedMonths > 0 && p.netRevenue ? pctSigned(p.stockVariance / p.netRevenue) : '–');
   return (
     <div className="space-y-4">
       <Views id="pr" label="Margin view">

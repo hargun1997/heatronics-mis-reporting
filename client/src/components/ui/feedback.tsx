@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // Confirm, Ask (a one-field prompt) and Toast (GUIDE.md "Confirm and undo", "Menus, tips and toasts").
 // They replace the browser's alert / confirm / prompt everywhere. Call them from any handler:
 //   if (!(await confirmDialog({ title: 'Delete 3 tasks?', confirm: 'Delete', danger: true }))) return;

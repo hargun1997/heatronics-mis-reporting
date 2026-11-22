@@ -26,7 +26,7 @@ function Empty({ data, what }: { data: Resp | null; what: string }) {
         The MIS copies Tally's month-end Trial Balance whenever TallyPrime is open on the cloud machine (last reached {when(data?.lastOkAt)});
         the scheduled copy runs from the 15th of each month, so before that: open TallyPrime, then{' '}
         <Link className="underline underline-offset-2" to="/reporting/mis/connectors#tally">Setup → Tally → Pull</Link>.
-        {data && !data.connected && <> The Tally host isn't set yet: add it on that card first.</>}
+        {data && !data.connected && <> The Tally host is not set yet: add it on that card first.</>}
       </p>
     </div>
   );
@@ -58,7 +58,7 @@ const stick = 'sticky left-0 z-10 bg-white';
 export function BalanceSheetTab() {
   const { data, built, err } = useStatements();
   const [open, setOpen] = useState<Set<string>>(new Set());
-  if (err) return <p role="alert" className="text-sm text-red-700">Couldn't load the statements: {err}</p>;
+  if (err) return <p role="alert" className="text-sm text-red-700">Could not load the statements: {err}</p>;
   if (!data) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
   const sheets = (built?.sheets ?? []).slice(-12);
   if (!sheets.length) return <Empty data={data} what="Balance Sheet" />;
@@ -153,7 +153,7 @@ export function BalanceSheetTab() {
 
 export function CashFlowTab() {
   const { data, built, err } = useStatements();
-  if (err) return <p role="alert" className="text-sm text-red-700">Couldn't load the statements: {err}</p>;
+  if (err) return <p role="alert" className="text-sm text-red-700">Could not load the statements: {err}</p>;
   if (!data) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
   const flows = (built?.flows ?? []).slice(-12);
   if (!flows.length) return <Empty data={data} what="Cash Flow (it needs two month ends in a row)" />;
@@ -210,10 +210,10 @@ export function CashFlowTab() {
         </table>
       </div>
       <p className="text-xs text-slate-500">
-        Indirect method from two month-end Balance Sheets (Tally, read only): profit + depreciation − the change in working capital;
-        capex = change in fixed assets + depreciation; financing = change in capital and loans (bank OD / CC included, not netted
-        into cash). The sections add up to the change in cash & bank; "Unexplained" should stay near zero (highlighted from
-        ₹{OTHER_WARN_INR.toLocaleString('en-IN')}).
+        We use two month-end Balance Sheets from Tally. Operating cash is profit plus depreciation, less the change in working capital.
+        Capex is the change in fixed assets plus depreciation. Financing is the change in capital and loans (bank OD and CC are loans).
+        The sections add up to the change in cash and bank. "Unexplained" must stay near zero. We mark it from
+        ₹{OTHER_WARN_INR.toLocaleString('en-IN')}.
       </p>
     </div>
   );

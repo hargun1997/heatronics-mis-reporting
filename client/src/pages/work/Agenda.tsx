@@ -131,7 +131,7 @@ export function Agenda({
   if (!shown.length)
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
-        <p className="text-sm font-medium text-slate-900">{filtered ? 'Nothing matches these filters.' : 'Nothing due. You’re all caught up.'}</p>
+        <p className="text-sm font-medium text-slate-900">{filtered ? 'Nothing matches these filters.' : 'No tasks are due.'}</p>
         {filtered && onClearAll && (
           <button type="button" onClick={onClearAll} className="mt-3 inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
             Show everything
@@ -201,7 +201,7 @@ export function Agenda({
           </Fold>
         );
       })}
-      {diffDays(today, start) < 45 && <p className="px-1 text-sm text-slate-500">Tracking started {periodLabel(start)}. Anything due before that isn’t counted as late.</p>}
+      {diffDays(today, start) < 45 && <p className="px-1 text-sm text-slate-500">Tracking started {periodLabel(start)}. Anything due before that is not counted as late.</p>}
     </div>
   );
 }

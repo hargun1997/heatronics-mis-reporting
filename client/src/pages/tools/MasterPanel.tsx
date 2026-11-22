@@ -138,7 +138,7 @@ function ActiveTab({ state }: { state: MasterState }) {
           {(m.ledgers || []).map((l) => (
             <div key={l.name} className="flex justify-between gap-2">
               <span className="text-slate-900 truncate">{l.name}</span>
-              <span className="text-slate-500 truncate">{l.group || '—'}</span>
+              <span className="text-slate-500 truncate">{l.group || '–'}</span>
             </div>
           ))}
         </div>
@@ -149,7 +149,7 @@ function ActiveTab({ state }: { state: MasterState }) {
           {(m.voucherTypes || []).map((v) => (
             <div key={v.name} className="flex justify-between gap-2">
               <span className="text-slate-900 truncate">{v.name}</span>
-              <span className="text-slate-500 truncate">{v.parent || '—'}</span>
+              <span className="text-slate-500 truncate">{v.parent || '–'}</span>
             </div>
           ))}
         </div>
@@ -160,7 +160,7 @@ function ActiveTab({ state }: { state: MasterState }) {
           {(m.costCentres || []).map((c) => (
             <div key={`${c.category}-${c.name}`} className="flex justify-between gap-2">
               <span className="text-slate-900 truncate">{c.name}</span>
-              <span className="text-slate-500 truncate">{c.category || '—'}</span>
+              <span className="text-slate-500 truncate">{c.category || '–'}</span>
             </div>
           ))}
         </div>
@@ -213,7 +213,7 @@ function ReplaceTab({
       <p className="text-slate-600">
         Override the bundled master with your own export. Pick the JSON your
         Tally Prime exports (Gateway → Display More Reports → Masters → JSON
-        Export). The file may be UTF-16: that's fine. Reduction runs in this
+        Export). The file may be UTF-16: that is fine. Reduction runs in this
         browser; the override is saved to{' '}
         <code className="bg-slate-100 px-1 rounded">localStorage</code> and never
         leaves your device. Click <em>Revert to bundled</em> any time to drop

@@ -75,8 +75,8 @@ export function AmazonStockPanel({ month }: { month: string }) {
       {!v ? <p className="px-3 py-4 text-sm text-slate-500">{busy ? 'Reading Amazon’s balances…' : ''}</p> : (
         <div className="space-y-3 p-3">
           <div className="grid gap-2 sm:grid-cols-2">
-            <Total label={`Opening (${v.opening.date ?? '—'})`} s={v.opening} />
-            <Total label={`Closing (${v.closing.date ?? '—'})`} s={v.closing} strong />
+            <Total label={`Opening (${v.opening.date ?? '–'})`} s={v.opening} />
+            <Total label={`Closing (${v.closing.date ?? '–'})`} s={v.closing} strong />
           </div>
           {v.warnings.length > 0 && <ul className="list-disc space-y-0.5 pl-5 text-xs text-amber-800">{v.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
           {v.closing.lines.length > 0 && (
@@ -92,7 +92,7 @@ export function AmazonStockPanel({ month }: { month: string }) {
                       <td className="px-2 py-1"><span className="text-slate-900">{l.name}</span> <span className="text-xs text-slate-500">{l.fg ?? 'no FG map'}</span></td>
                       <td className="px-2 text-right tabular-nums">{num(l.sellable)}</td><td className="px-2 text-right tabular-nums">{num(l.unsellable)}</td>
                       <td className="px-2 text-right tabular-nums">{num(l.inTransit)}</td><td className="px-2 text-right tabular-nums">{inr(l.unitCost)}</td>
-                      <td className="px-2 text-right font-medium tabular-nums">{inr(l.value)}</td><td className="px-2 text-right tabular-nums text-slate-500">{o ? num(o.units) : '—'}</td>
+                      <td className="px-2 text-right font-medium tabular-nums">{inr(l.value)}</td><td className="px-2 text-right tabular-nums text-slate-500">{o ? num(o.units) : '–'}</td>
                     </tr>);
                 })}</tbody>
               </table>

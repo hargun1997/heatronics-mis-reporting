@@ -105,7 +105,7 @@ export function BusinessPlanView({ plan, result, part }: Props) {
 
 // ---- pieces --------------------------------------------------------------------
 
-function Empty() { return <span className="text-slate-300">—</span>; }
+function Empty() { return <span className="text-slate-400" title="Not read">–</span>; }
 
 function Table({ cols, rows }: { cols: Span[]; rows: [string, ReactNode[], boolean?][] }) {
   return (

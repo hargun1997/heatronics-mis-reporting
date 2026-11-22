@@ -315,7 +315,7 @@ export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; o
         />
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={st.includeDueSoon} onChange={(e) => void update({ includeDueSoon: e.target.checked })} className="rounded text-brand-600" />
-          Also list what’s coming up in the next few days
+          Also list what is coming up in the next few days
         </label>
 
         <MailConnection state={state} onChanged={onRan} />
@@ -364,7 +364,7 @@ function MailConnection({ state, onChanged }: { state: WorkState; onChanged: () 
     try {
       const r = await connectMail({ pass, user });
       setPass('');
-      setMsg(r.check.ok ? { ok: true, text: 'Connected: Zoho accepted the login.' } : { ok: false, text: `Not saved: Zoho didn’t accept it: ${r.check.error ?? 'unknown error'}` });
+      setMsg(r.check.ok ? { ok: true, text: 'Connected: Zoho accepted the login.' } : { ok: false, text: `Not saved: Zoho did not accept it: ${r.check.error ?? 'unknown error'}` });
       if (r.check.ok) setEditing(false);
       await onChanged();
     } catch (e) {

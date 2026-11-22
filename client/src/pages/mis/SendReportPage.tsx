@@ -189,7 +189,7 @@ export function SendReportPage() {
           </div>
           {sent && (
             <div className={`mt-3 text-xs rounded-lg px-3 py-2 border ${sent.sent ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : sent.dryRun ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
-              {sent.sent ? `Sent to ${sent.to.join(', ')}.` : sent.dryRun ? `Preview only (email not connected). It would go to ${sent.to.join(', ')}.` : `Failed: ${sent.error ?? 'unknown error'}`}
+              {sent.sent ? `Sent to ${sent.to.join(', ')}.` : sent.dryRun ? `Test only. Email is not connected. It goes to ${sent.to.join(', ')} when email is on.` : `The email did not go. ${sent.error ?? 'Try again.'}`}
             </div>
           )}
         </SectionCard>

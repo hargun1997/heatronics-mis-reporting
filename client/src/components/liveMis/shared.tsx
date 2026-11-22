@@ -35,7 +35,7 @@ export function useLiveView(): LiveView & { chName: (ch: string) => string; chCo
   return { ...v, chName: (ch) => channelName(ch, v.merged), chColor: (ch) => channelColor(ch, v.merged) };
 }
 
-// Channel colours: the legacy palette plus the channels it doesn't name. With
+// Channel colours: the legacy palette plus the channels it does not name. With
 // the continuous taxonomy on, B2B (OEM) keeps OEM's blue and GT (Offline)
 // keeps Offline's violet so the history reads as one line.
 const EXTRA: Record<string, string> = { Flipkart: CHART.c4, GT: CHART.c3, B2B: CHART.c2 };
@@ -247,8 +247,8 @@ export function fairGrowth(cur: { v: number; n: number }, other: { v: number; n:
   return (cur.v - other.v) / Math.abs(other.v);
 }
 
-/** Small "muted" placeholder for a number that isn't real yet. */
-export const ND = <span className="text-slate-300">—</span>;
+/** Small "muted" placeholder for a number that is not real yet. */
+export const ND = <span className="text-slate-400" title="Not read">–</span>;
 
 /** A note about a chart or table. It opens from a small "Note" button so the page shows numbers, not paragraphs. */
 export function Note({ children, label = 'Note' }: { children: ReactNode; label?: string }) {

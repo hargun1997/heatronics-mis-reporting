@@ -1,0 +1,8 @@
+{
+ "_comment": "Old lines not yet moved to design-system/GUIDE.md. A count may only go down; new files start at zero. Refresh with DESIGN_ALLOWLIST_WRITE=1 after a clean-up.",
+ "files": {
+  "components/ui/Markdown.tsx": {
+   "em-dash": 1
+  }
+ }
+}

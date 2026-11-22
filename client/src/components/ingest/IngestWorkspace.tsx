@@ -56,7 +56,7 @@ export function CoveragePanel({ reports, connectors }: { reports: IngestReportMe
   const months = monthRange(LIVE_BOUNDARY, end);
 
   // The required uploads for a complete month: every required slot on every
-  // connector that is uploaded (live-API sources pull themselves, so they don't
+  // connector that is uploaded (live-API sources pull themselves, so they do not
   // count). Each entry is `${connectorId}|${slotId}` with a label for tooltips.
   const expected = connectors
     .filter((c) => c.mode !== 'live-api')
@@ -138,7 +138,7 @@ export function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSo
   const run = async () => {
     setRunning(true); setResults([]);
     const out: { label: string; ok: boolean; detail: string }[] = [];
-    // Two at a time: Amazon's slow pulls don't hold up the quick ones.
+    // Two at a time: Amazon's slow pulls do not hold up the quick ones.
     for (let i = 0; i < ready.length; i += 2) {
       const batch = await Promise.all(ready.slice(i, i + 2).map(async (slot) => {
         const r = await pullAndCommit(slot, sources.get(slotKey(slot.connectorId, slot.slotId))!, month);

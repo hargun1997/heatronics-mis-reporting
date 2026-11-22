@@ -24,7 +24,7 @@ interface Brief {
   dueSoon: Due[]; changed: Change[]; freshness: { line: string; stale: boolean; tallyLastOkAt?: string | null }; notes: string[];
 }
 
-const show = (t: Tile) => (t.value == null ? '—' : t.unit === 'inr' ? inr(t.value) : t.unit === 'months' ? `${t.value} mo` : String(t.value));
+const show = (t: Tile) => (t.value == null ? '–' : t.unit === 'inr' ? inr(t.value) : t.unit === 'months' ? `${t.value} mo` : String(t.value));
 const tileDelta = (t: Tile) => (t.delta == null || t.delta === 0 ? null : t.unit === 'inr' ? inr(Math.abs(t.delta)) : String(Math.abs(t.delta)));
 const TONE = {
   ok: 'text-emerald-700', watch: 'text-amber-700', act: 'text-red-700',

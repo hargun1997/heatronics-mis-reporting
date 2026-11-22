@@ -51,7 +51,7 @@ export function MainLayout() {
             <Suspense fallback={<PageLoading />}>
               {blocked ? (
                 <div className="mx-auto max-w-md p-6">
-                  <h1 className="text-lg font-semibold text-stone-900">You can&apos;t open this page</h1>
+                  <h1 className="text-lg font-semibold text-stone-900">You cannot open this page</h1>
                   <p className="mt-2 text-sm text-stone-600">Ask Hargun to give your team this page on portal.heatronics.in.</p>
                 </div>
               ) : <Outlet />}

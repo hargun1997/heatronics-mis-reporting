@@ -178,7 +178,7 @@ export function ExpenseBooking() {
     setError(null);
   }
 
-  // When the operator changes category, sync the TDS default unless they've
+  // When the operator changes category, sync the TDS default unless they have
   // already overridden it. Services almost always have TDS; goods/capital
   // almost never do.
   function changeCategory(next: Category) {
@@ -439,10 +439,10 @@ export function ExpenseBooking() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={
                     category === 'Capital'
-                      ? 'e.g. "Heating gun for testing", "office laptop"'
+                      ? 'for example "Heating gun for testing", "office laptop"'
                       : category === 'Goods'
-                      ? 'e.g. "courier charges", "printing material"'
-                      : 'e.g. "AWS subscription", "CA fees", "office rent"'
+                      ? 'for example "courier charges", "printing material"'
+                      : 'for example "AWS subscription", "CA fees", "office rent"'
                   }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
@@ -1143,7 +1143,7 @@ function ImportInstructions() {
           For <strong>File path</strong> point to the folder where this XML was downloaded.
         </li>
         <li>
-          For <strong>File name</strong> enter the file name shown above (e.g.{' '}
+          For <strong>File name</strong> enter the file name shown above (for example{' '}
           <code className="bg-slate-100 px-1 rounded">tally-import-2026-04-29.xml</code>).
         </li>
         <li>
@@ -1361,7 +1361,7 @@ function LinesTable({ lines }: { lines: BookingLine[] }) {
                 {l.notes && <span className="block text-xs text-slate-500">{l.notes}</span>}
               </td>
               <td className="px-3 py-2 text-right tabular-nums text-slate-900">
-                {l.amount == null ? '—' : l.amount.toLocaleString('en-IN')}
+                {l.amount == null ? '–' : l.amount.toLocaleString('en-IN')}
               </td>
             </tr>
           ))}

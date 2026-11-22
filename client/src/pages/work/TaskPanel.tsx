@@ -135,7 +135,7 @@ function ReminderStrip({ task, state, members, onSave }: { task: WorkTask; state
         sent
           ? { ok: true, text: `Sent to ${owners.map((o) => o.name).join(', ')}.` }
           : r.emails.some((e) => e.dryRun)
-            ? { ok: false, text: 'Email isn’t connected: nothing was sent (see People & reminders).' }
+            ? { ok: false, text: 'Email is not connected: nothing was sent (see People & reminders).' }
             : { ok: false, text: err ?? 'Not sent.' },
       );
     } catch (e) {

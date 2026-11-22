@@ -51,7 +51,7 @@ function ExportHelpModal({ slot, open, onClose }: { slot: ReportSlot; open: bool
       </ol>
 
       <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-500">
-        <span className="font-medium text-slate-600">Download &amp; upload:</span> accepts {slot.accept}: CSV or Excel are both fine, and you don't need to clean junk header rows. Download the file, then come back here and tap “Upload file”.
+        <span className="font-medium text-slate-600">Download and upload:</span> this takes {slot.accept}. CSV and Excel both work. You do not need to remove extra header rows. Download the file, then select “Upload file” here.
       </div>
       {slot.note && <p className="text-xs text-slate-500 mt-3"><span className="font-medium text-slate-600">What we do with it:</span> {slot.note}</p>}
     </Modal>
@@ -206,7 +206,7 @@ export function IngestStepper({
   const tallyMonths = staged?.extracted.tallyMonths;
   // How this upload splits into months. When the months are read from the data
   // (dated facts, or a Tally export's own month columns) the Month input is just
-  // an override; when there's nothing dated (BOM, a screenshot) it's required.
+  // an override; when there is nothing dated (BOM, a screenshot) it is required.
   const breakdown = staged ? monthBreakdown(staged, period) : [];
   const autoMonths = breakdown.length > 0 && breakdown[0].basis !== 'single';
 
@@ -226,7 +226,7 @@ export function IngestStepper({
   };
 
   const hasWarn = staged?.checks.items.some((i) => i.status === 'warn') ?? false;
-  // The month is mandatory only when it can't be read from the data — that key is
+  // The month is mandatory only when it cannot be read from the data — that key is
   // what makes a re-upload overwrite the previous one for that month.
   const periodOk = /^\d{4}-\d{2}$/.test(period);
   const canSave = stage === 'review' && staged?.checks.overall !== 'fail' && (!hasWarn || ack) && (autoMonths || periodOk);
@@ -260,7 +260,7 @@ export function IngestStepper({
         </div>
         {/* Month this upload is for. When the data carries its own dates (facts or
             a Tally export's month columns) the months are read automatically and
-            this is just an override; otherwise (BOM, a screenshot) it's required. */}
+            this is just an override; otherwise (BOM, a screenshot) it is required. */}
         <div className="shrink-0 text-right">
           <label className="block text-xs font-medium text-slate-500 mb-0.5">
             Month {autoMonths ? <span className="text-slate-400 font-normal">(auto)</span> : <span className="text-red-500">*</span>}
@@ -404,7 +404,7 @@ export function IngestStepper({
             {hasWarn && (
               <label className="flex items-center gap-2 text-xs text-amber-700">
                 <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
-                I've reviewed the warnings above and want to save anyway.
+                I checked the warnings above. Save the file.
               </label>
             )}
             <button onClick={save} disabled={!canSave}
@@ -425,7 +425,7 @@ export function IngestStepper({
 }
 
 function InvoiceSummaryView({ invoice, trace }: { invoice: NonNullable<StagedUpload['extracted']['invoice']>; trace?: string[] }) {
-  const money = (n: number | null) => (n == null ? '—' : inr(n));
+  const money = (n: number | null) => (n == null ? '–' : inr(n));
   const taxable = invoice.taxableAmount ?? 0;
   const tax = invoice.taxAmount ?? 0;
   const fee = Math.round((taxable + tax) * 100) / 100;
@@ -441,7 +441,7 @@ function InvoiceSummaryView({ invoice, trace }: { invoice: NonNullable<StagedUpl
       {row('GST / IGST', money(invoice.taxAmount))}
       <div className="border-t border-slate-100 my-1" />
       {row('→ Platform & Payment cost', inr(fee), true)}
-      {row('TDS withheld (recoverable, excluded)', invoice.amountWithheld ? `(${money(invoice.amountWithheld)})` : '—')}
+      {row('TDS withheld (recoverable, excluded)', invoice.amountWithheld ? `(${money(invoice.amountWithheld)})` : '–')}
       {invoice.total != null && row('Invoice total / balance due', money(invoice.total))}
       {(invoice.periodStart || invoice.periodEnd) && (
         <div className="text-slate-400 mt-1">Billing cycle {invoice.periodStart ?? '?'} → {invoice.periodEnd ?? '?'}</div>
@@ -515,9 +515,9 @@ function ChecksAndReview({ staged }: { staged: StagedUpload }) {
                 {extracted.facts.slice(0, 40).map((f, i) => (
                   <tr key={i} className="border-b border-slate-50">
                     <td className="py-0.5 pr-2 tabular-nums text-slate-600">{f.date}</td>
-                    <td className="py-0.5 pr-2 text-right tabular-nums">{f.revenue ? inr(f.revenue) : '—'}</td>
-                    <td className="py-0.5 pr-2 text-right tabular-nums">{f.fees ? inr(f.fees) : '—'}</td>
-                    <td className="py-0.5 text-right tabular-nums">{f.units || '—'}</td>
+                    <td className="py-0.5 pr-2 text-right tabular-nums">{f.revenue ? inr(f.revenue) : '–'}</td>
+                    <td className="py-0.5 pr-2 text-right tabular-nums">{f.fees ? inr(f.fees) : '–'}</td>
+                    <td className="py-0.5 text-right tabular-nums">{f.units || '–'}</td>
                   </tr>
                 ))}
               </tbody>

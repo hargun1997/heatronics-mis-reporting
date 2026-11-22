@@ -72,7 +72,7 @@ function loadDraft(): Draft | null {
   } catch { return null; }
 }
 function saveDraft(d: Draft) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage unavailable: the draft just isn't kept */ }
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch { /* storage unavailable: the draft just is not kept */ }
 }
 
 export function PlanningPage() {
