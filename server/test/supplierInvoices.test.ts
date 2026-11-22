@@ -181,3 +181,87 @@ test('offline: retries until Tally answers, then catches up the missed months', 
   assert.deepEqual(syncMonths(at('2026-12-20T06:00:00Z'), false, '2026-12-19T06:00:00Z'), ['2026-12']);
   assert.deepEqual(syncMonths(at('2026-12-20T06:00:00Z'), false, '2026-01-01T06:00:00Z').length, 4); // at most 3 back + this month
 });
+
+test('history: month state and FY months; sheets flagged when the data is not OK', async () => {
+  const { monthState, fyMonths } = await import('../src/services/supplierInvoices.ts');
+  const { historySheets } = await import('../../client/src/data/tds/tdsFormats.ts');
+  const now = at('2026-11-22T06:00:00Z');
+  assert.deepEqual(fyMonths(now), ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']);
+  assert.deepEqual(fyMonths(at('2027-02-10T06:00:00Z')).at(-1), '2027-02');
+  assert.equal(fyMonths(at('2027-02-10T06:00:00Z'))[0], '2026-04');
+  assert.equal(monthState('2026-10', now, '2026-11-02T09:27:00Z').state, 'stale');      // copied before 7 Nov
+  assert.equal(monthState('2026-09', now, '2026-11-02T09:27:00Z').state, 'ok');
+  assert.equal(monthState('2026-08', now, null).state, 'missing');
+  assert.equal(monthState('2026-08', now, null, 12).state, 'partial');
+  assert.equal(monthState('2026-11', now, '2026-11-07T09:00:00Z').state, 'running');
+  const sheets = historySheets([
+    { month: '2026-09', state: 'ok', note: '', rows: [] },
+    { month: '2026-10', state: 'stale', note: 'Copied 2026-11-02.', rows: [] },
+  ]);
+  assert.deepEqual(sheets.map((s) => s.name), ['September-2026', 'October-2026']);
+  assert.equal(sheets[0].rows[2].length, 0); // OK month: the team's layout unchanged
+  assert.match(String(sheets[1].rows[2][0]), /^DATA STALE: Copied/);
+  assert.deepEqual(sheets[1].rows[1], ['Month October-26']);
+});
+
+test('real-books rules: TDS payable only, PAN from GSTIN, TDS journals, computed TDS, blocks', async () => {
+  const { tdsReportSheet, blockOf, reportTds, reportRate } = await import('../../client/src/data/tds/tdsFormats.ts');
+  const led = [
+    L('TDS Payable - 194C (Contractors)', 'Current Liabilities', { group: 'TDS Payable' }),
+    L('TDS Payable - 194J (Professional)', 'Current Liabilities', { group: 'TDS Payable' }),
+    L('TDS (Amazon)', 'Current Assets', { group: 'TDS Receivable' }),
+    L('Interest On TDS (Late Payment)', 'Indirect Expenses'),
+    L('Amazon Ads', 'Indirect Expenses'), L('Amazon Expenses (Creditors)', 'Sundry Creditors'),
+    L('Repairs & Maintenance', 'Indirect Expenses'), L('Checkout Fee - Shopflo', 'Indirect Expenses'),
+    L('Job Work Charges', 'Direct Expenses'), L('Demo Job Worker', 'Sundry Creditors', { gstin: '09ABCPK1234C1Z7' }),
+    L('Demo Landlord LLP', 'Sundry Creditors'), L('Demo Checkout Pvt Ltd', 'Sundry Creditors'),
+    L('IGST Input - 18%', 'Duties & Taxes'), L('SGST Input - 9%', 'Duties & Taxes'), L('CGST Input - 9%', 'Duties & Taxes'),
+  ];
+  const books: TallyVoucher[] = [
+    // Amazon ads bill with a TDS-receivable line next to the 194C line: only the 194C line is TDS we pay.
+    V('2026-09-30', 'Purchase-Expense', 'Amazon Expenses (Creditors)', [['Amazon Ads', 560_407.85], ['IGST Input - 18%', 100_873.41], ['TDS Payable - 194C (Contractors)', -11_208], ['TDS (Amazon)', -11_208], ['Amazon Expenses (Creditors)', -638_865.26]], { reference: 'ADS-1' }),
+    // 2 % maintenance bill (job work block), TDS rounded by Tally.
+    V('2026-09-03', 'Purchase-Expense', 'Demo Landlord LLP', [['Repairs & Maintenance', 9_230], ['CGST Input - 9%', 830.7], ['SGST Input - 9%', 830.7], ['TDS Payable - 194C (Contractors)', -185], ['Demo Landlord LLP', -10_706.4]], { reference: '49/26-27', partyGstin: '09AAQFD3835L1ZD' }),
+    // 194J technical 2 %, Tally rounded 229.74 → 230.
+    V('2026-09-02', 'Purchase-Expense', 'Demo Checkout Pvt Ltd', [['Checkout Fee - Shopflo', 11_486.85], ['IGST Input - 18%', 2_067.63], ['TDS Payable - 194J (Professional)', -230], ['Demo Checkout Pvt Ltd', -13_324.48]], { reference: 'INV-5584' }),
+    // Tranzact purchase + its TDS journal (party + TDS only).
+    V('2026-09-21', 'Purchase-RM', 'Demo Job Worker', [['Job Work Charges', 26_649.9], ['IGST Input - 18%', 4_796.98], ['Demo Job Worker', -31_446.88]], { reference: '3117' }),
+    V('2026-09-21', 'Journal', 'Demo Job Worker', [['Demo Job Worker', 266.5], ['TDS Payable - 194C (Contractors)', -266.5]], { reference: '', narration: 'Document Number: 3117 (PO: JW/26-27/00080) ; Value: INR 31447.00; TDS: 1.00 %' }),
+    V('2026-09-22', 'Journal', 'Demo Job Worker', [['Demo Job Worker', 44.4], ['TDS Payable - 194C (Contractors)', -44.4]], { reference: '', narration: 'Document Number: 090 (PO: JW/26-27/00068) ; Value: INR 5239.00; TDS: 1.00 %' }),
+  ];
+  const rows = invoiceRows(books, led);
+  const amz = rows.find((r) => r.invoiceNo === 'ADS-1')!;
+  assert.equal(amz.tds, 11_208); assert.equal(amz.taxable, 560_407.85);
+  const ll = rows.find((r) => r.invoiceNo === '49/26-27')!;
+  assert.equal(ll.pan, 'AAQFD3835L'); // from the GSTIN
+  const j1 = rows.find((r) => r.voucherType === 'Journal' && r.invoiceNo === '3117')!;
+  assert.equal(j1.taxable, 26_649.9); // matched to its purchase bill
+  assert.equal(j1.pan, 'ABCPK1234C');
+  const j2 = rows.find((r) => r.invoiceNo === '090')!;
+  assert.equal(j2.taxable, 4_440); assert.equal(j2.total, 5_239);
+  const mem = mergeMemory(null, '2026-09', rows, 't', null).rows as InvoiceRow[];
+  const byKey = (n: string) => mem.find((r) => r.invoiceNo === n && r.tds > 0)!;
+  assert.equal(reportRate(byKey('INV-5584')), 0.02); assert.equal(reportTds(byKey('INV-5584')), 229.74);
+  assert.equal(reportTds(byKey('ADS-1')), 11_208.16);
+  assert.deepEqual(['ADS-1', '49/26-27', 'INV-5584', '3117', '090'].map((n) => blockOf(byKey(n))), ['others', 'jobwork', 'professional', 'jobwork', 'jobwork']);
+  const sh = tdsReportSheet('2026-09', mem);
+  assert.equal(sh.totals.jobwork, 184.6 + 266.5 + 44.4);
+  assert.equal(sh.totals.others, 11_208.16);
+  assert.equal(sh.totals.professional, 229.74);
+  assert.ok(sh.rows.some((r) => r[1] === 'Amazon Seller Services Private Limited'));
+  // Job work block: 1 % rows first, then the 2 % bill.
+  const jw = sh.rows.slice(sh.rows.findIndex((r) => String(r[0]).startsWith('194 C  CONTACTORS')) + 2).slice(0, 3).map((r) => r[7]);
+  assert.deepEqual(jw, [0.01, 0.01, 0.02]);
+});
+
+test('filed reports: compare block totals', async () => {
+  const { compareFiled, filedFor, filedTotal } = await import('../../client/src/data/tds/filedReports.ts');
+  const sep = filedFor('2026-09')!;
+  assert.equal(filedTotal(sep), 79_484.87); // = the file's TOTAL PAYABLE
+  assert.equal(filedTotal(filedFor('2026-10')!), 62_090.92);
+  assert.ok(Math.abs(filedTotal(filedFor('2026-08')!) - 68_568.57) <= 0.01); // the file rounds its own total
+  const same = compareFiled({ jobwork: 3619.68, others: 32821.79, commission: 35.13, rent: 35000, professional: 8008.27, other: 0 }, sep);
+  assert.equal(same.matches, true);
+  const off = compareFiled({ jobwork: 3619.68, others: 32000, commission: 35.13, rent: 35000, professional: 8008.27, other: 0 }, sep);
+  assert.equal(off.matches, false); assert.equal(off.diff, -821.79);
+});

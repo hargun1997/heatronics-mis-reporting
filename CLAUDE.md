@@ -374,7 +374,17 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   headers S.NO | PARTY NAME | PAN NO | DATE | BILL NO | AMOUNT | TDS DEDUCT | INTREST 1.5% (spelled as theirs; holds the row's TDS rate
   0.01 / 0.02 / 0.1), AMOUNT = taxable, real date cells dd-mm-yyyy, Total per block, Grand Total, "TDS PAYABLE <Month-YY>" lines
   PROFESSIONAL · RENT · COMMISSION · ADVERTISEMENT · JOB WORK · TOTAL PAYABLE · NET PAYABLE (= total). "Download working file" (Quarter tab) =
-  Supplier invoices + the three planning sheets. MCP tool `mis_get_tds_invoices`. Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),
+  Supplier invoices + the three planning sheets. MCP tool `mis_get_tds_invoices`. **Rules checked against the team's filed Apr–Oct 2026 reports (22 Nov 2026):** TDS = TDS
+  PAYABLE ledgers only (not "TDS (Amazon)" / receivables / interest on TDS: an Amazon ads bill carries both); PAN from the master, else
+  GSTIN chars 3–12; a Journal with only party + TDS (Tranzact job-work TDS) = amount TDS ÷ rate from the narration ("Document Number:
+  090 … TDS: 1.00 %"), bill no. from the narration, matched to its purchase bill (same party + bill no.) for the exact amount; report
+  TDS DEDUCT = amount × rate to 2 decimals (`reportTds`; Tally books whole ₹, the team pays these figures), rate snapped to 0.1/1/2/5/10/20 %
+  (`reportRate`); ONE 194C ledger holds 1 % and 2 %, so `blockOf`: 194C at 1 %, or 2 % not ads / freight / courier / platform
+  (`OTHERS_194C`), = JOB WORK, else OTHERS; 194J keeps 2 % technical bills; rows of a block = headline rate first; platform collection
+  ledgers renamed to the legal party (`PARTY_NAMES`). **History tab** (`GET /api/tds/history`, `monthState`: ok / stale = copied before the
+  7th of the next month / partial / missing / running; `fyMonths`): per month data state, TDS, compare with the filed report
+  (`client/src/data/tds/filedReports.ts` FILED_REPORTS: block totals only, no party rows; `compareFiled` ±₹1 per block), Download per month
+  and Download all months (`historySheets`: one sheet per month, a "DATA STALE / NO DATA …" row under the title when not OK). Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),
   `cal-m04-tds-march` (30 Apr), both `live: 'tds'` → `pages/work/TdsTaskPanel.tsx`; `cal-q-tds-return` (31 Jan / May / Jul / Oct). Tests
   `server/test/tds.test.ts`.
 - **Live MIS = five tabs of expandable sections (founder, 5 Nov 2026: "expandable … declutter … the P&L is the MIS"):** `pages/mis/LiveMisPage.tsx`

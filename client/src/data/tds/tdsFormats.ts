@@ -157,20 +157,51 @@ export const reportMonth = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1]}-
 export const reportSheetName = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1]}-${m.slice(0, 4)}`;
 
 const r2x = (n: number) => Math.round(n * 100) / 100;
-/** 194C: 1 % = individual / HUF (PAN 4th letter P or H), else 2 %; no PAN = the booked rate decides. */
-export function blockOf(r: Pick<InvoiceRow, 'tdsLedger' | 'tds' | 'taxable' | 'pan'>): ReportBlockId {
+/** Standard TDS rates the report uses; the booked rate (Tally rounds TDS to whole ₹) snaps to the nearest. */
+const STD_RATES = [0.001, 0.01, 0.02, 0.05, 0.1, 0.2];
+export function reportRate(r: Pick<InvoiceRow, 'tds' | 'taxable'>): number | null {
+  if (!r.taxable || !r.tds) return null;
+  const x = Math.abs(r.tds) / r.taxable;
+  return STD_RATES.reduce((b, c) => (Math.abs(c - x) < Math.abs(b - x) ? c : b));
+}
+/** TDS DEDUCT as the accounts team works it: amount × rate, to 2 decimals (Tally books it rounded to whole ₹). */
+export const reportTds = (r: Pick<InvoiceRow, 'tds' | 'taxable'>) => {
+  const rate = reportRate(r);
+  return rate == null ? r2x(r.tds) : Math.sign(r.tds) * r2x(r.taxable * rate);
+};
+
+/** 194C bills that go to the "OTHERS @ 2%" block: ads, freight, couriers and platforms (by expense ledger or party). */
+export const OTHERS_194C = /\bads?\b|advert|marketing|meta|facebook|google|amazon|freight|courier|shipping|shiprocket|delhivery|porter|logistic|transport|blinkit|boost|listing|promotion/i;
+
+/**
+ * Block of a bill. Tally has ONE 194C ledger for 1 % and 2 %, so 194C goes by the expense: a 1 % bill, or a 2 % bill
+ * for job work / repairs / printing (not ads or freight), is JOB WORK (the team lists e.g. a 2 % maintenance bill there);
+ * ads, freight, couriers and platforms are OTHERS. 194J keeps 2 % (technical) bills in the professional block, as the team does.
+ */
+export function blockOf(r: Pick<InvoiceRow, 'tdsLedger' | 'tds' | 'taxable' | 'pan' | 'ledgers' | 'supplier'>): ReportBlockId {
   const sec = rowSection(r);
   if (sec === '194C') {
-    const k = (r.pan || '').toUpperCase()[3];
-    if (k) return k === 'P' || k === 'H' ? 'jobwork' : 'others';
-    const rt = rowRate(r);
-    return rt != null && rt < 1.5 ? 'jobwork' : 'others';
+    const rate = reportRate(r);
+    if (rate != null && rate <= 0.01) return 'jobwork';
+    return OTHERS_194C.test(`${r.ledgers} ${r.supplier}`) ? 'others' : 'jobwork';
   }
   if (sec === '194H') return 'commission';
   if (sec.startsWith('194I')) return 'rent';
   if (sec.startsWith('194J')) return 'professional';
   return 'other';
 }
+
+/** Tally party ledger → the party name in the team's report (platform collection ledgers carry another name). Edit here. */
+export const PARTY_NAMES: [RegExp, string][] = [
+  [/^shiprocket collection/i, 'SHIPROCKET PRIVATE LIMITED'],
+  [/^snapmint collection/i, 'SNAPMINT CREDIT ADVISORY PRIVATE LIMITED'],
+  [/^easebuzz collection/i, 'EASEBUZZ PRIVATE LIMITED'],
+  [/^amazon expenses \(creditors\)|^amazon ads/i, 'Amazon Seller Services Private Limited'],
+];
+export const reportParty = (name: string) => PARTY_NAMES.find(([re]) => re.test(name))?.[1] ?? name;
+
+/** Headline rate of each block: its rows come first, then the other rates (the team lists 1 % then 2 % job work, 10 % then 2 % professional). */
+const HEADLINE: Record<ReportBlockId, number> = { jobwork: 0.01, others: 0.02, commission: 0.02, rent: 0.1, professional: 0.1, other: 0 };
 
 /** Excel date (a real date cell; formatted dd-mm-yyyy on download). Local midnight: SheetJS writes dates in local time. */
 const xlDate = (iso: string): Date | string => (iso ? new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) : '');
@@ -183,14 +214,15 @@ export function tdsReportSheet(month: string, rows: InvoiceRow[]): { name: strin
   const totals = Object.fromEntries(REPORT_BLOCKS.map((b) => [b.id, 0])) as Record<ReportBlockId, number>;
   let gAmt = 0, gTds = 0;
   for (const b of REPORT_BLOCKS) {
-    const mine = live.filter((r) => blockOf(r) === b.id).sort((a, c) => a.supplier.localeCompare(c.supplier) || a.date.localeCompare(c.date));
+    const head = (r: InvoiceRow) => (reportRate(r) === HEADLINE[b.id] ? 0 : 1);
+    const mine = live.filter((r) => blockOf(r) === b.id)
+      .sort((a, c) => head(a) - head(c) || reportParty(a.supplier).localeCompare(reportParty(c.supplier)) || a.date.localeCompare(c.date));
     if (b.id === 'other' && !mine.length) continue;
     out.push([b.title], [...REPORT_HEADERS]);
     mine.forEach((r, i) => {
-      const rate = r.taxable ? Math.round((r.tds / r.taxable) * 1000) / 1000 : null;
-      out.push([i + 1, r.supplier, r.pan, xlDate(r.invoiceDate || r.date), r.invoiceNo || r.voucherNo, r2x(r.taxable), r2x(r.tds), rate]);
+      out.push([i + 1, reportParty(r.supplier), r.pan, xlDate(r.invoiceDate || r.date), r.invoiceNo || r.voucherNo, r2x(r.taxable), reportTds(r), reportRate(r)]);
     });
-    const amt = r2x(mine.reduce((s, r) => s + r.taxable, 0)), tds = r2x(mine.reduce((s, r) => s + r.tds, 0));
+    const amt = r2x(mine.reduce((s, r) => s + r.taxable, 0)), tds = r2x(mine.reduce((s, r) => s + reportTds(r), 0));
     totals[b.id] = tds; gAmt += amt; gTds += tds;
     out.push(['', 'Total', '', '', '', amt, tds, ''], []);
   }
@@ -202,4 +234,20 @@ export function tdsReportSheet(month: string, rows: InvoiceRow[]): { name: strin
   }
   out.push(['', 'TOTAL PAYABLE', grand], ['', 'NET PAYABLE', grand]);
   return { name: reportSheetName(month), rows: out, totals, grand };
+}
+
+/** State words for the history (sheet notes and the page). */
+export const STATE_WORDS: Record<string, string> = { ok: 'OK', stale: 'Stale', partial: 'Part read', missing: 'No data', running: 'Month running' };
+
+/**
+ * One workbook, one sheet per month in the team's layout (history download). A month whose data is not OK gets a
+ * flag row under the title rows, so the sheet never looks final when it is not. Months with no data still get a sheet.
+ */
+export function historySheets(months: { month: string; state: string; note: string; rows: InvoiceRow[] }[]): { name: string; rows: ReportCell[][] }[] {
+  return months.map((m) => {
+    const sh = tdsReportSheet(m.month, m.rows);
+    if (m.state === 'ok') return { name: sh.name, rows: sh.rows };
+    const flag: ReportCell[] = [`DATA ${STATE_WORDS[m.state]?.toUpperCase() ?? m.state}: ${m.note}`];
+    return { name: sh.name, rows: [sh.rows[0], sh.rows[1], flag, ...sh.rows.slice(2)] };
+  });
 }

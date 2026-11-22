@@ -1,7 +1,7 @@
 // Loads GET /api/tds?month= (stored Tally Day Books, READ ONLY) and runs the pure TDS engine in the browser.
 import { useEffect, useMemo, useState } from 'react';
 import { buildTds, type TdsLedger, type TdsReport, type TdsVoucher } from './tds';
-import { monthSheets, reportSheetName } from './tdsFormats';
+import { historySheets, monthSheets, reportSheetName } from './tdsFormats';
 import type { InvoiceRow } from './invoices';
 
 export interface TdsApi { month: string; months: string[]; storedMonths: string[]; asOf: Record<string, string>; mastersAt: string | null; vouchers: TdsVoucher[]; ledgers: TdsLedger[] }
@@ -25,6 +25,8 @@ export function useTds(month: string): { api: TdsApi | null; report: TdsReport |
   return { api, report, error: cur?.error ?? null, loading: !cur };
 }
 
+const REPORT_COLS = [{ wch: 6 }, { wch: 38 }, { wch: 13 }, { wch: 12 }, { wch: 16 }, { wch: 13 }, { wch: 12 }, { wch: 12 }];
+
 /** Excel download for any month. Default = the accounts team's TDS report; working = Supplier invoices + planning sheets. */
 export async function downloadTds(month: string, r: TdsReport | null, invoices: { rows: InvoiceRow[]; syncedAt: string | null } | null, working = false) {
   const sheets = monthSheets(month, r, invoices, { working });
@@ -33,11 +35,23 @@ export async function downloadTds(month: string, r: TdsReport | null, invoices: 
   const wb = XLSX.utils.book_new();
   for (const s of sheets) {
     const ws = XLSX.utils.aoa_to_sheet(s.rows, { cellDates: true, dateNF: 'dd-mm-yyyy' });
-    if (!working) ws['!cols'] = [{ wch: 6 }, { wch: 38 }, { wch: 13 }, { wch: 12 }, { wch: 16 }, { wch: 13 }, { wch: 12 }, { wch: 12 }];
+    if (!working) ws['!cols'] = REPORT_COLS;
     XLSX.utils.book_append_sheet(wb, ws, s.name);
   }
   XLSX.writeFile(wb, working ? `tds-working-${month}.xlsx` : `Tds Report ${reportSheetName(month)}.xlsx`);
   return true;
+}
+
+/** History download: the team's TDS report for each given month, one sheet per month (flagged when not OK). */
+export async function downloadHistory(fileTag: string, months: Parameters<typeof historySheets>[0]) {
+  const XLSX = await import('xlsx');
+  const wb = XLSX.utils.book_new();
+  for (const s of historySheets(months)) {
+    const ws = XLSX.utils.aoa_to_sheet(s.rows, { cellDates: true, dateNF: 'dd-mm-yyyy' });
+    ws['!cols'] = REPORT_COLS;
+    XLSX.utils.book_append_sheet(wb, ws, s.name);
+  }
+  XLSX.writeFile(wb, `Tds Report ${fileTag}.xlsx`);
 }
 
 export const tdsBtn =

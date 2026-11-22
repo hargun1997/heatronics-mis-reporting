@@ -14,7 +14,9 @@ import type { TallyLedger, TallyVoucher } from '../connectors/tally/books.js';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const TAX = (n: string) => /\b(igst|cgst|sgst|utgst|cess)\b/i.test(n);
-const TDS = (n: string) => /\btds\b|tax\s+deducted/i.test(n);
+const TDS_NAME = (n: string) => /\btds\b|tax\s+deducted/i.test(n);
+/** TDS we deducted (payable), not TDS deducted from us (Amazon / bank receivables), refunds or late-payment interest. */
+const NOT_PAYABLE = /receivable|\(amazon\)|refund|reimburs|interest|excess/i;
 const ROUND = (n: string) => /round/i.test(n);
 
 export interface SupplierInvoice {
@@ -54,13 +56,19 @@ const OTHER_TYPE = /journal|payment/i;
 export function invoiceRows(vouchers: TallyVoucher[], ledgers: TallyLedger[]): SupplierInvoice[] {
   const byName = new Map(ledgers.map((l) => [l.name.toLowerCase(), l]));
   const prim = (n: string) => (byName.get(n.toLowerCase())?.primary ?? '').toLowerCase();
+  const TDS = (n: string) => {
+    if (!TDS_NAME(n) || NOT_PAYABLE.test(n)) return false;
+    const m = byName.get(n.toLowerCase());
+    return !m || !/receivable|current assets|expense/i.test(`${m.group} ${m.primary}`);
+  };
+  const isTaxOrTds = (n: string) => TAX(n) || TDS_NAME(n);
   const isCost = (n: string) => /expense|purchase|fixed asset/.test(prim(n));
   const out: SupplierInvoice[] = [];
   for (const v of vouchers.filter(live)) {
     const supplierType = SUPPLIER_TYPE.test(v.type) && !/sales|credit note/i.test(v.type);
     if (!supplierType && !OTHER_TYPE.test(v.type)) continue;
     const tdsLines = v.lines.filter((l) => TDS(l.ledger));
-    const cost = v.lines.filter((l) => l.amount > 0 && !TAX(l.ledger) && !TDS(l.ledger) && !ROUND(l.ledger) && isCost(l.ledger));
+    const cost = v.lines.filter((l) => l.amount > 0 && !isTaxOrTds(l.ledger) && !ROUND(l.ledger) && isCost(l.ledger));
     if (!supplierType && !cost.length && !tdsLines.some((l) => l.amount < 0)) continue;
     const party = v.party || v.lines.find((l) => l.amount < 0 && /creditor|liabilit/.test(prim(l.ledger)))?.ledger || '';
     if (!party) continue;
@@ -68,19 +76,54 @@ export function invoiceRows(vouchers: TallyVoucher[], ledgers: TallyLedger[]): S
     const sum = (re: RegExp) => v.lines.filter((l) => re.test(l.ledger)).reduce((s, l) => s + Math.abs(l.amount), 0);
     const igst = sum(/\bigst\b/i), cgst = sum(/\bcgst\b/i), sgst = sum(/\b(sgst|utgst)\b/i), cess = sum(/\bcess\b/i);
     const tds = tdsLines.reduce((s, l) => s + Math.abs(l.amount), 0);
-    const partyLine = v.lines.find((l) => l.ledger === party);
-    const total = partyLine ? Math.abs(partyLine.amount) + tds : cost.reduce((s, l) => s + l.amount, 0) + igst + cgst + sgst + cess;
     const m = byName.get(party.toLowerCase());
+    const gstin = v.partyGstin || m?.gstin || '';
+    // PAN from the master, else from the GSTIN (characters 3 to 12 of a GSTIN are the PAN).
+    const pan = ((m?.pan ?? '') || (/^\d{2}[A-Z]{5}\d{4}[A-Z]/i.test(gstin) ? gstin.slice(2, 12) : '')).toUpperCase();
+    // A journal with only the party and the TDS line: TDS split out of a Tranzact purchase (job work). The bill no. and the
+    // rate are in the narration ("Document Number: 090 (PO: JW/…) ; Value: INR 5239.00; TDS: 1.00 %"); amount = TDS ÷ rate.
+    const others = v.lines.filter((l) => l.ledger !== party && !TDS(l.ledger) && !ROUND(l.ledger));
+    const tdsOnly = !supplierType && tds > 0 && !others.length;
+    let total: number, taxable: number, invoiceNo = v.reference, ledgerText: string;
+    if (tdsOnly) {
+      const pct = Number(/TDS:\s*([\d.]+)\s*%/i.exec(v.narration)?.[1]) || ('PH'.includes(pan[3] ?? '') && pan ? 1 : 2);
+      taxable = tds / (pct / 100);
+      total = Number(/Value:\s*INR\s*([\d,.]+)/i.exec(v.narration)?.[1]?.replace(/,/g, '')) || taxable;
+      invoiceNo = v.reference || /Document Number:\s*([^\s;(]+)/i.exec(v.narration)?.[1] || '';
+      ledgerText = /PO:\s*JW\//i.test(v.narration) ? 'Job work (TDS journal from Tranzact)' : 'TDS journal';
+    } else {
+      // Taxable = the expense / purchase lines when the masters name them (a bill can also carry a TDS-receivable line,
+      // e.g. Amazon ads, so the party line alone is not the bill); else bill total less GST.
+      const partyLine = v.lines.find((l) => l.ledger === party);
+      if (cost.length) {
+        taxable = cost.reduce((s, l) => s + l.amount, 0);
+        total = taxable + igst + cgst + sgst + cess;
+      } else {
+        total = partyLine ? Math.abs(partyLine.amount) + tds : igst + cgst + sgst + cess;
+        taxable = Math.max(0, total - igst - cgst - sgst - cess);
+      }
+      ledgerText = (cost.length ? cost : v.lines.filter((l) => l.ledger !== party && !isTaxOrTds(l.ledger) && !ROUND(l.ledger))).map((l) => l.ledger).slice(0, 4).join(', ');
+    }
     out.push({
       key: v.guid || `${v.type}|${v.number}|${v.date}`,
       month: v.date.slice(0, 7), date: v.date, voucherType: v.type, voucherNo: v.number,
-      supplier: party, pan: (m?.pan ?? '').toUpperCase(), gstin: v.partyGstin || m?.gstin || '',
-      invoiceNo: v.reference, invoiceDate: v.referenceDate,
-      ledgers: (cost.length ? cost : v.lines.filter((l) => l.ledger !== party && !TAX(l.ledger) && !TDS(l.ledger) && !ROUND(l.ledger))).map((l) => l.ledger).slice(0, 4).join(', '),
-      taxable: r2(Math.max(0, total - igst - cgst - sgst - cess)), igst: r2(igst), cgst: r2(cgst), sgst: r2(sgst), cess: r2(cess),
+      supplier: party, pan, gstin,
+      invoiceNo, invoiceDate: v.referenceDate,
+      ledgers: ledgerText,
+      taxable: r2(taxable), igst: r2(igst), cgst: r2(cgst), sgst: r2(sgst), cess: r2(cess),
       tdsLedger: tdsLines[0]?.ledger ?? '', tds: r2(tds), total: r2(total), payable: r2(total - tds),
       partyTds: m?.tds ?? '', narration: v.narration.slice(0, 200),
     });
+  }
+  // A TDS journal takes the exact amount of its purchase bill (same party, same bill no.) when the books have it:
+  // TDS ÷ rate loses paise (a 26,649.90 bill with ₹266.50 TDS reads back as 26,650).
+  const norm = (x: string) => x.trim().replace(/^0+(?=\d)/, '').toLowerCase();
+  const bills = new Map<string, SupplierInvoice>();
+  for (const r of out) if (r.tdsLedger === '' && r.invoiceNo) bills.set(`${r.supplier.toLowerCase()}|${norm(r.invoiceNo)}`, r);
+  for (const r of out) {
+    if (!r.ledgers.includes('TDS journal') || !r.invoiceNo) continue;
+    const b = bills.get(`${r.supplier.toLowerCase()}|${norm(r.invoiceNo)}`);
+    if (b && Math.abs(b.taxable - r.taxable) <= Math.max(1, r.taxable * 0.01)) { r.taxable = b.taxable; r.invoiceDate = r.invoiceDate || b.invoiceDate; }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || a.voucherNo.localeCompare(b.voucherNo, undefined, { numeric: true }));
 }
@@ -215,5 +258,33 @@ export function waitingFor(now: number, s: TdsSyncState): string[] {
   const out: string[] = [];
   if (d.getUTCDate() >= 5 && !(s.finalFor[last] && Date.parse(s.finalFor[last]) >= fifth)) out.push(`month-end sync of ${last}`);
   if (s.lastOkDay !== istDay(now)) out.push("today's sync");
+  return out;
+}
+
+// ---------------------------------------------------------------- history (FY months, founder 22 Nov 2026)
+
+export type MonthState = 'ok' | 'stale' | 'partial' | 'missing' | 'running';
+/**
+ * How far a stored month can be trusted for the TDS report:
+ *  running = the month is not over; missing = no Day Book stored; partial = only some days read (a pull was cut);
+ *  stale = the copy was taken before the 7th of the next month (TDS due date: bills booked late may be missing);
+ *  ok = copy taken on / after the 7th of the next month.
+ */
+export function monthState(month: string, now: number, booksAsOf: string | null, partialDays = 0): { state: MonthState; note: string } {
+  const cur = ist(now).toISOString().slice(0, 7);
+  if (month > cur) return { state: 'missing', note: 'Future month.' };
+  if (month === cur) return booksAsOf ? { state: 'running', note: 'Month not over yet.' } : { state: 'missing', note: 'No Day Book for this month yet.' };
+  if (!booksAsOf) return partialDays ? { state: 'partial', note: `Only ${partialDays} days read from Tally. Sync to finish.` } : { state: 'missing', note: 'No Day Book stored. Sync when Tally is open.' };
+  const cutoff = Date.parse(`${addMonth(month, 1)}-07T00:00:00+05:30`);
+  if (Date.parse(booksAsOf) < cutoff) return { state: 'stale', note: `Copied ${ist(Date.parse(booksAsOf)).toISOString().slice(0, 10)}, before the 7th of the next month. Late bills may be missing.` };
+  return { state: 'ok', note: '' };
+}
+
+/** FY months (April → this month), "YYYY-MM". fy = the April year; default = this FY. */
+export function fyMonths(now: number, fy?: number): string[] {
+  const cur = ist(now).toISOString().slice(0, 7);
+  const y = fy ?? (Number(cur.slice(5, 7)) >= 4 ? Number(cur.slice(0, 4)) : Number(cur.slice(0, 4)) - 1);
+  const out: string[] = [];
+  for (let p = `${y}-04`; p <= `${y + 1}-03` && p <= cur; p = addMonth(p, 1)) out.push(p);
   return out;
 }

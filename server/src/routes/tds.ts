@@ -2,14 +2,16 @@
 //   GET  /api/tds?month=YYYY-MM          what TDS planning needs, from the stored Tally Day Books + masters (services/tdsFeed.ts)
 //   GET  /api/tds/invoices?month=YYYY-MM supplier invoice register of the month, with its memory (first seen, edits, removed)
 //                                        (services/supplierInvoices.ts); a stored Day Book newer than the memory is merged first
+//   GET  /api/tds/history?fy=2026        FY months (April →): data state (ok / stale / partial / missing / running), bills, TDS,
+//                                        and the bills with TDS of each month (the client builds each month's TDS report)
 //   GET  /api/tds/sync                   last sync, next run, Tally freshness (signed in)
 //   POST /api/tds/sync {month?}          "Sync with Tally": Day Books → memory now (signed in); waits ≤ 25 s, then "running"
 //   POST /api/tds/sync/run               OPEN path with its own token (secret mis-auto-pull-token), hourly GitHub Actions
 //                                        (.github/workflows/tds-sync.yml): once a day + month-end from the 5th; counts only
 import { Router, type Request, type Response } from 'express';
-import { readBooks, readBooksState, readMasters } from '../connectors/tally/bookStore.js';
+import { readBooks, readBooksState, readMasters, readPartial } from '../connectors/tally/bookStore.js';
 import { tdsFeed, tdsMonths } from '../services/tdsFeed.js';
-import { duplicateBills, memorySummary, syncDue, tallyOffline, waitingFor } from '../services/supplierInvoices.js';
+import { duplicateBills, fyMonths, memorySummary, monthState, syncDue, tallyOffline, waitingFor } from '../services/supplierInvoices.js';
 import { memoryFor, readSyncState, runTdsSync, scheduledSync, syncRunning } from '../services/tdsSync.js';
 import { tallyReachedAt } from '../connectors/tally/freshness.js';
 import { autoPullCaller } from '../connectors/slots/autoPull.js';
@@ -63,6 +65,23 @@ router.get('/invoices', h(async (req, res) => {
 }));
 
 router.get('/sync', h(async (_req, res) => { res.json(await syncInfo()); }));
+
+router.get('/history', h(async (req, res) => {
+  const fy = req.query.fy ? Number(req.query.fy) : undefined;
+  if (fy != null && !(fy >= 2020 && fy <= 2100)) return void res.status(400).json({ error: 'fy=YYYY (April year)' });
+  const now = Date.now();
+  const months = fyMonths(now, fy);
+  const [info, ...docs] = await Promise.all([syncInfo(), ...months.map(async (m) => {
+    const [mem, part] = await Promise.all([memoryFor(m), readPartial(m)]);
+    const st = monthState(m, now, mem?.booksAsOf ?? null, part?.days.length ?? 0);
+    return {
+      month: m, ...st, booksAsOf: mem?.booksAsOf ?? null, syncedAt: mem?.syncedAt ?? null, summary: memorySummary(mem),
+      // Bills with TDS only (what the TDS report lists); removed ones kept so the client can show them apart.
+      rows: (mem?.rows ?? []).filter((r) => r.tds !== 0),
+    };
+  })]);
+  res.json({ fy: months[0]?.slice(0, 4) ?? null, months: docs, ...info });
+}));
 
 const SYNC_WAIT_MS = 25_000;
 router.post('/sync', h(async (req, res) => {
