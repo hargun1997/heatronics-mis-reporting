@@ -141,7 +141,7 @@ export function TasksToolbar({
           >
             <AdjustmentsHorizontalIcon className="h-4 w-4" />
             Filters
-            {active > 0 && <span className="rounded-full bg-slate-900 px-1.5 text-[12px] font-semibold leading-5 text-white">{active}</span>}
+            {active > 0 && <span className="rounded-full bg-slate-900 px-1.5 text-xs font-semibold leading-5 text-white">{active}</span>}
           </button>
           {open && (
             <div

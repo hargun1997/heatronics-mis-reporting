@@ -45,7 +45,7 @@ function Warnings({ items }: { items: string[] }) {
 function Kpi({ k, v, sub }: { k: string; v: number; sub: string }) {
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-card">
-      <div className="truncate text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500" title={`${k} · ${sub}`}>{k} · {sub}</div>
+      <div className="truncate text-xs font-semibold text-slate-500" title={`${k} · ${sub}`}>{k} · {sub}</div>
       <div className={`mt-1 text-lg font-semibold tabular-nums sm:text-xl ${v <= -500 ? 'text-red-700' : 'text-slate-900'}`}>₹{lakh(v)} L</div>
     </div>
   );
@@ -53,7 +53,7 @@ function Kpi({ k, v, sub }: { k: string; v: number; sub: string }) {
 
 const th = 'px-2 py-1.5 text-right font-semibold whitespace-nowrap';
 const td = 'px-2 py-1 text-right tabular-nums whitespace-nowrap';
-const stick = 'sticky left-0 z-[1] bg-white';
+const stick = 'sticky left-0 z-10 bg-white';
 
 export function BalanceSheetTab() {
   const { data, built, err } = useStatements();
@@ -73,7 +73,7 @@ export function BalanceSheetTab() {
   const toggle = (key: string) => setOpen((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const section = (title: string, pick: (b: BalanceSheet) => BsLine[], total: (b: BalanceSheet) => number) => (
     <>
-      <tr className="bg-slate-50"><td colSpan={sheets.length + 1} className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</td></tr>
+      <tr className="bg-slate-50"><td colSpan={sheets.length + 1} className="px-2 py-1.5 text-xs font-semibold text-slate-500">{title}</td></tr>
       {labels(pick).map((lab) => {
         // Children (sub-groups / ledgers) and, under a sub-group, its own ledgers — in first-seen order across months.
         const kids: string[] = [];
@@ -102,13 +102,13 @@ export function BalanceSheetTab() {
             {isOpen && kids.map((k) => (
               <Fragment key={k}>
                 <tr className="text-slate-500">
-                  <td className={`${stick} py-0.5 pl-9 pr-2 text-left text-[12px]`}>{k}</td>
-                  {sheets.map((b) => { const v = child(b, k)?.amount; return <td key={b.period} className={`${td} text-[12px] ${neg(v)}`}>{lakh(v)}</td>; })}
+                  <td className={`${stick} py-0.5 pl-9 pr-2 text-left text-xs`}>{k}</td>
+                  {sheets.map((b) => { const v = child(b, k)?.amount; return <td key={b.period} className={`${td} text-xs ${neg(v)}`}>{lakh(v)}</td>; })}
                 </tr>
                 {(grand.get(k) ?? []).map((gk) => (
                   <tr key={`${k}/${gk}`} className="text-slate-400">
-                    <td className={`${stick} py-0.5 pl-14 pr-2 text-left text-xs sm:text-[11px]`}>{gk}</td>
-                    {sheets.map((b) => { const v = child(b, k)?.children?.find((x) => x.label === gk)?.amount; return <td key={b.period} className={`${td} text-xs sm:text-[11px] ${neg(v)}`}>{lakh(v)}</td>; })}
+                    <td className={`${stick} py-0.5 pl-14 pr-2 text-left text-xs`}>{gk}</td>
+                    {sheets.map((b) => { const v = child(b, k)?.children?.find((x) => x.label === gk)?.amount; return <td key={b.period} className={`${td} text-xs ${neg(v)}`}>{lakh(v)}</td>; })}
                   </tr>
                 ))}
               </Fragment>
@@ -133,7 +133,7 @@ export function BalanceSheetTab() {
       </div>
       <Warnings items={warnings} />
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white" role="region" tabIndex={0} aria-label="Balance Sheet">
-        <table className="w-full text-[13px]">
+        <table className="w-full text-label">
           <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh, month end</th>{sheets.map((s) => <th key={s.period} className={th}>{label(s.period)}</th>)}</tr></thead>
           <tbody>
             {section('Equity', (s) => s.equity, (s) => sum(s.equity))}
@@ -188,7 +188,7 @@ export function CashFlowTab() {
       </div>
       <Warnings items={warnings} />
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white" role="region" tabIndex={0} aria-label="Cash Flow">
-        <table className="w-full text-[13px]">
+        <table className="w-full text-label">
           <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh</th>{flows.map((f) => <th key={f.period} className={th}>{label(f.period)}</th>)}<th className={`${th} bg-slate-50`}>Total</th></tr></thead>
           <tbody>
             {rows.map(([lab, get, kind]) => {

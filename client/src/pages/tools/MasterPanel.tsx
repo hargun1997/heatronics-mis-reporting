@@ -35,7 +35,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
             Tally master
             {!state.loading && hasMaster && (
               <span
-                className={`inline-block px-1.5 py-0.5 rounded text-xs sm:text-[11px] font-medium uppercase tracking-wider ${
+                className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
                   isOverride ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
                 }`}
               >
@@ -50,7 +50,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
                 ? `${ledgerCount} ledgers · ${voucherCount} voucher types · ${ccCount} cost centres`
                 : 'Not loaded: upload your Tally master to get started'}
             {savedFlash && (
-              <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-xs sm:text-[11px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-800">
+              <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
                 Override loaded · {savedFlash.ledgers} ledgers
               </span>
             )}
@@ -238,13 +238,13 @@ function ReplaceTab({
       >
         {busy ? 'Reducing…' : 'Pick a Tally export JSON'}
       </button>
-      <div className="text-center text-xs sm:text-[11px] uppercase tracking-wider text-slate-400">or paste</div>
+      <div className="text-center text-xs text-slate-400">or paste</div>
       <textarea
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
         placeholder='Paste raw Tally export {"tallymessage":[…]} or a slim master JSON'
         rows={5}
-        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs sm:text-[11px]"
+        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs"
       />
       <button
         type="button"
@@ -255,7 +255,7 @@ function ReplaceTab({
         Reduce and load
       </button>
       {state.error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-800">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
           {state.error}
         </div>
       )}
@@ -276,7 +276,7 @@ function ResetTab({ onReset }: { onReset: () => void }) {
       <button
         type="button"
         onClick={onReset}
-        className="w-full rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium py-2"
+        className="w-full rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium py-2"
       >
         Revert to bundled master
       </button>
@@ -289,7 +289,7 @@ function ResetTab({ onReset }: { onReset: () => void }) {
 function KV({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex justify-between gap-3">
-      <span className="text-slate-500 uppercase tracking-wider text-xs sm:text-[11px] font-semibold">{k}</span>
+      <span className="text-slate-500 text-xs font-semibold">{k}</span>
       <span className="text-slate-900 truncate">{v}</span>
     </div>
   );
@@ -298,7 +298,7 @@ function KV({ k, v }: { k: string; v: string }) {
 function Stat({ label, n }: { label: string; n: number }) {
   return (
     <div className="rounded-lg border border-slate-200 px-3 py-2">
-      <div className="text-xs sm:text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="text-xs text-slate-500">{label}</div>
       <div className="text-sm font-semibold text-slate-900 tabular-nums">{n}</div>
     </div>
   );

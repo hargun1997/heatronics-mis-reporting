@@ -29,7 +29,7 @@ export function FyTable({ r, compare, compareName }: { r: PlanResult; compare?: 
   const ys = r.years;
   return (
     <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-      <table className="w-full min-w-[560px] text-[13px] tabular-nums">
+      <table className="w-full min-w-[560px] text-label tabular-nums">
         <thead>
           <tr className="border-b border-slate-200 text-xs text-slate-600">
             <th className="py-2 pr-3 text-left font-semibold">₹ Cr</th>
@@ -52,10 +52,10 @@ export function FyTable({ r, compare, compareName }: { r: PlanResult; compare?: 
                 const d = v - cv;
                 const showDelta = compare && Number.isFinite(d) && Math.abs(d) > (row.kind === 'pct' ? 0.0005 : row.kind === 'int' ? 0.5 : 5e4);
                 return (
-                  <td key={y.fy} className={`px-2 py-1.5 text-right ${v < 0 ? 'text-rose-600' : row.strong ? 'font-bold text-slate-900' : 'text-slate-800'}`}>
+                  <td key={y.fy} className={`px-2 py-1.5 text-right ${v < 0 ? 'text-red-600' : row.strong ? 'font-bold text-slate-900' : 'text-slate-800'}`}>
                     {show(v, row.kind)}
                     {showDelta && (
-                      <span className={`block text-xs sm:text-[11px] ${d > 0 ? 'text-emerald-600' : 'text-rose-600'}`} title={`vs ${compareName}`}>
+                      <span className={`block text-xs ${d > 0 ? 'text-emerald-600' : 'text-red-600'}`} title={`vs ${compareName}`}>
                         {d > 0 ? '+' : '−'}{row.kind === 'pct' ? (Math.abs(d) * 100).toFixed(1) + ' pt' : row.kind === 'int' ? Math.round(Math.abs(d)).toLocaleString('en-IN') : cr(Math.abs(d))}
                       </span>
                     )}

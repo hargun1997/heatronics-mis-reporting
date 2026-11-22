@@ -140,7 +140,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
         <table className="w-full text-xs whitespace-nowrap">
           <caption className="sr-only">MIS · {entities.find((e) => e.id === entity)?.label} · {fy.name} · {unit}</caption>
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+            <tr className="text-xs text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">Particulars in {unit}</th>
               {columns.map((c) => <th key={c.label} className="py-1.5 px-2 text-right font-medium text-slate-600">{c.label}</th>)}
             </tr>
@@ -180,7 +180,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
-                <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+                <tr className="text-xs text-slate-400 border-b border-slate-200">
                   <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">Particulars</th>
                   {imported.columns.map((c, i) => <th key={`${c}-${i}`} className="py-1.5 px-2 text-right font-medium text-slate-600">{c}</th>)}
                 </tr>

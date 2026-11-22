@@ -45,18 +45,18 @@ function UnitGrid({ plan, update, result: r }: SetupSectionProps) {
       <div className="flex flex-wrap items-center gap-2">
         {plan.skus.map((x, i) => (
           <button key={x.id} type="button" onClick={() => setSku(i)} aria-pressed={i === skuI}
-            className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold ${i === skuI ? 'bg-brand-600 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>{x.name}</button>
+            className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${i === skuI ? 'bg-brand-600 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}>{x.name}</button>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-3 text-[13px] text-slate-600">
+      <div className="flex flex-wrap items-center gap-3 text-label text-slate-600">
         <span>Price (₹, incl. GST) for <b>{s.name}</b></span>
         <NumInput value={s.asp} min={0} width="w-24" title={`${s.name} price`} onChange={(v) => update((p) => { p.skus[skuI].asp = v; })} />
-        <span className="text-[12px] text-slate-600">Same price on every channel, as in the sheet.</span>
+        <span className="text-xs text-slate-600">Same price on every channel, as in the sheet.</span>
       </div>
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-        <table className="text-[12.5px] tabular-nums">
+        <table className="text-label tabular-nums">
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-500">
+            <tr className="text-xs text-slate-500">
               <th className="py-1.5 pr-3 text-left font-semibold">Month</th>
               {CHANNELS.map((c) => <th key={c} className="px-1 text-right font-semibold">{CHANNEL_NAMES[c]}</th>)}
               <th className="bg-slate-100 px-2 text-right font-semibold text-slate-800">Units</th>
@@ -100,7 +100,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
   const set = (id: string, fn: (l: (typeof plan.lines)[number], p: typeof plan) => void) =>
     update((p) => { const i = p.lines.findIndex((l) => l.id === id); if (i >= 0) fn(p.lines[i], p); });
   const add = (group: string) => update((p) => { addLine(p, section, group, newId('n')); });
-  const sel = 'rounded-md border border-slate-200 bg-white px-1 py-0.5 text-[12px]';
+  const sel = 'rounded-md border border-slate-200 bg-white px-1 py-0.5 text-xs';
 
   return (
     <div className="space-y-3">
@@ -115,14 +115,14 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
         const lastFy = fys[fys.length - 1];
         return (
           <details key={g.name + (q.trim() ? ':q' : '')} open={!!q.trim()} className="group rounded-xl border border-slate-200 bg-white">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-[13px] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-label hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 [&::-webkit-details-marker]:hidden">
               <span aria-hidden className="text-slate-400 transition-transform group-open:rotate-90">›</span>
               <span className="font-semibold text-slate-900">{g.name}</span>
               <span className="text-xs text-slate-600">{ls.length} lines</span>
               <span className="ml-auto tabular-nums text-slate-700">{lastFy} ₹{cr(groupTotal(r, g.name, lastFy))} Cr</span>
             </summary>
           <div tabIndex={0} role="region" aria-label={`${g.name} lines, scroll sideways for more`} className="overflow-x-auto border-t border-slate-100">
-            <table className="w-full min-w-[980px] text-[12.5px] tabular-nums">
+            <table className="w-full min-w-[980px] text-label tabular-nums">
               <thead>
                 <tr className="bg-surface-tint text-xs text-slate-600">
                   <th className="px-3 py-2 text-left font-semibold">Line</th>
@@ -180,7 +180,7 @@ function CostLines({ plan, update, result: r }: SetupSectionProps) {
                 })}
                 <tr className="border-t border-slate-200 bg-slate-50/70">
                   <td className="px-3 py-1.5" colSpan={6}>
-                    <button type="button" onClick={() => add(g.name)} className="min-h-8 text-[12px] font-semibold text-accent-700 hover:underline">+ Add line</button>
+                    <button type="button" onClick={() => add(g.name)} className="min-h-8 text-xs font-semibold text-accent-700 hover:underline">+ Add line</button>
                     <span className="ml-3 text-xs text-slate-600">Total, ₹ Cr</span>
                   </td>
                   {fys.map((fy) => <td key={fy} className="px-2 py-1.5 text-right font-bold text-slate-900">{cr(groupTotal(r, g.name, fy))}</td>)}

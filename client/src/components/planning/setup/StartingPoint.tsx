@@ -114,7 +114,7 @@ export function Section({ plan, update }: SetupSectionProps) {
             <>
               <StatusPill toneName="neutral" size="sm">{!o || o.source === 'sheet' ? 'Sheet values' : o.source === 'tally' ? `Tally, ${String(o.asOf ?? '').slice(0, 10)}` : 'Typed'}</StatusPill>
               <button type="button" className={btn} onClick={loadTally}>Load {priorLabel} from Tally</button>
-              {msg && <span className="text-[12px] text-slate-600" role="status">{msg}</span>}
+              {msg && <span className="text-xs text-slate-600" role="status">{msg}</span>}
             </>
           ) : (
             <StatusPill toneName="neutral" size="sm">Sheet values</StatusPill>
@@ -129,7 +129,7 @@ export function Section({ plan, update }: SetupSectionProps) {
                 </Row>
               ))}
             </div>
-            {o.note && <p className="flex items-center gap-1 text-[12px] text-slate-600">Note<Tip label="Note on the opening values">{o.note}</Tip></p>}
+            {o.note && <p className="flex items-center gap-1 text-xs text-slate-600">Note<Tip label="Note on the opening values">{o.note}</Tip></p>}
           </>
         ) : (
           <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">

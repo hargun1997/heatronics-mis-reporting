@@ -72,7 +72,7 @@ export function TeamCard({ state, me, onChanged, onError }: { state: WorkState; 
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-        <h3 className="text-[15px] font-semibold text-slate-950">{state.members.length} {state.members.length === 1 ? 'person' : 'people'}</h3>
+        <h3 className="text-sm font-semibold text-slate-950">{state.members.length} {state.members.length === 1 ? 'person' : 'people'}</h3>
         {!adding && (
           <button type="button" onClick={() => setAdding(true)} className="inline-flex min-h-[40px] items-center gap-1 rounded px-1 text-sm font-medium text-brand-700 hover:underline">
             <UserPlusIcon className="h-4 w-4" /> Add
@@ -91,13 +91,13 @@ export function TeamCard({ state, me, onChanged, onError }: { state: WorkState; 
               <div className="truncate text-sm text-slate-500">{m.email}</div>
               <div className="truncate text-sm text-slate-600">
                 {loads(m.id)} task{loads(m.id) === 1 ? '' : 's'} · {openCount(m.id)} due this week
-                {lateCount(m.id) ? <span className="text-rose-600"> · {lateCount(m.id)} late</span> : null}
+                {lateCount(m.id) ? <span className="text-red-600"> · {lateCount(m.id)} late</span> : null}
               </div>
             </div>
             <button type="button" onClick={() => startEdit(m)} className="min-h-[40px] rounded-lg px-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
               Edit
             </button>
-            <button type="button" onClick={() => void remove(m)} aria-label={`Remove ${m.name}`} className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700">
+            <button type="button" onClick={() => void remove(m)} aria-label={`Remove ${m.name}`} className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-700">
               <TrashIcon className="h-4 w-4" />
             </button>
           </li>
@@ -173,7 +173,7 @@ export function RolesCard({
     <div className="rounded-xl border border-slate-200 bg-white">
       <button type="button" onClick={() => setOpen(!open)} className={embedded ? 'hidden' : 'flex min-h-[48px] w-full items-center gap-2 px-4 py-3 text-left'}>
         <UserGroupIcon className="h-4 w-4 text-brand-600" />
-        <h3 className="text-[15px] font-semibold text-slate-950">Who does what</h3>
+        <h3 className="text-sm font-semibold text-slate-950">Who does what</h3>
         <span className="ml-auto text-sm text-slate-600">
           {mapped}/{names.length} roles{unowned ? <span className="text-amber-700"> · {unowned} no owner</span> : null}
         </span>
@@ -280,7 +280,7 @@ export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; o
     <div className="rounded-xl border border-slate-200 bg-white">
       <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
         <BellAlertIcon className="h-4 w-4 text-brand-600" />
-        <h3 className="text-[15px] font-semibold text-slate-950">Send daily emails</h3>
+        <h3 className="text-sm font-semibold text-slate-950">Send daily emails</h3>
         <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-600">
           <input type="checkbox" checked={st.enabled} onChange={(e) => void update({ enabled: e.target.checked })} className="rounded text-brand-600" />
           {st.enabled ? 'On' : 'Off'}
@@ -341,7 +341,7 @@ export function RemindersCard({ state, onRan, onPreview }: { state: WorkState; o
             {run.emails.some((e) => e.error && !e.dryRun) ? ` · failed: ${run.emails.find((e) => e.error && !e.dryRun)!.error}` : ''}
           </p>
         )}
-        {err && <p className="text-sm text-rose-600">{err}</p>}
+        {err && <p className="text-sm text-red-600">{err}</p>}
       </div>
     </div>
   );
@@ -430,7 +430,7 @@ function MailConnection({ state, onChanged }: { state: WorkState; onChanged: () 
           </button>
         </div>
       )}
-      {msg && <p className={`mt-1.5 text-sm ${msg.ok ? 'text-emerald-700' : 'text-rose-600'}`}>{msg.text}</p>}
+      {msg && <p className={`mt-1.5 text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.text}</p>}
     </div>
   );
 }
@@ -450,13 +450,13 @@ export function EmailPreview({ onClose, embedded }: { onClose: () => void; embed
   return (
     <section className={embedded ? '-mx-6 -my-5' : 'overflow-hidden rounded-xl border border-slate-200 bg-white'}>
       <div className={embedded ? 'hidden' : 'flex items-center gap-2 border-b border-slate-100 px-4 py-3'}>
-        <h2 className="text-[15px] font-semibold text-slate-950">Today’s emails: preview</h2>
+        <h2 className="text-sm font-semibold text-slate-950">Today’s emails: preview</h2>
         <span className="text-sm text-slate-500">nothing is sent from here</span>
         <button type="button" onClick={onClose} className="ml-auto flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700" aria-label="Close preview">
           <XMarkIcon className="h-4 w-4" />
         </button>
       </div>
-      {err && <p className="px-4 py-3 text-sm text-rose-600">{err}</p>}
+      {err && <p className="px-4 py-3 text-sm text-red-600">{err}</p>}
       {!data && !err && <p className="px-4 py-6 text-sm text-slate-600">Building…</p>}
       {data && !data.drafts.length && <p className="px-4 py-6 text-sm text-slate-600">Nothing to send today: no owner has a pending task and no team-summary address is set.</p>}
       {data && d && (

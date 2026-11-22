@@ -77,7 +77,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
             options={[{ id: 'cohorts', label: 'Customers' }, { id: 'units', label: 'Units' }]} aria-label="D2C model" />
         </Row>
 
-        <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-1"><b className="text-slate-800">From:</b> {d.source} · {d.asOf}{d.fit.r2 != null && <> · R² {d.fit.r2.toFixed(2)}</>}<Tip label="About the learned rates">{d.fit.note}</Tip></div>
             {stored && (
@@ -86,8 +86,8 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                 {stored.skipped.outlier > 0 && ` · ${stored.skipped.outlier} orders over ₹2 L not used`}
               </div>
             )}
-            {err && <div className="mt-1 text-rose-700">{err}</div>}
-            {job?.status === 'failed' && <div className="mt-1 text-rose-700">Refresh did not work: {job.error}</div>}
+            {err && <div className="mt-1 text-red-700">{err}</div>}
+            {job?.status === 'failed' && <div className="mt-1 text-red-700">Refresh did not work: {job.error}</div>}
           </div>
           <div className="flex flex-wrap gap-2">
             {newer && stored && learned && (
@@ -160,7 +160,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <button type="button" onClick={() => update((p) => resetSkuSeason(p))} className={ghost} title="Set each product's curve back to last year's units">Reset products</button>
         </div>
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-          <table className="text-[12px] tabular-nums">
+          <table className="text-xs tabular-nums">
             <thead>
               <tr className="text-xs text-slate-600">
                 <th className="pr-3 text-left font-semibold">Product</th>
@@ -184,7 +184,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                             type="number" step="0.1" min="0" aria-label={`${row.name} ${MON[i]}`}
                             defaultValue={v.toFixed(2)} key={v.toFixed(3)}
                             onBlur={(e) => { const x = seasonEdit(e.target.value, v); if (x != null) update((p) => setSeason(p, row, i, x)); }}
-                            className={`relative w-12 rounded border-0 bg-transparent px-1 py-1 text-center text-xs sm:text-[11.5px] font-semibold outline-none focus:ring-2 focus:ring-brand-300 ${v > 2 ? 'text-white' : 'text-slate-900'}`}
+                            className={`relative w-12 rounded border-0 bg-transparent px-1 py-1 text-center text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-300 ${v > 2 ? 'text-white' : 'text-slate-900'}`}
                           />
                         </td>
                       );

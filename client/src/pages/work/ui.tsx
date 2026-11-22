@@ -16,7 +16,7 @@ export function TasksHeader({ title, sub, status, help, children }: { title: str
   return <PageHeader title={title} description={sub} status={status} help={help} actions={children} />;
 }
 
-export function Avatar({ m, size = 'h-6 w-6 text-[12px]' }: { m: TeamMember; size?: string }) {
+export function Avatar({ m, size = 'h-6 w-6 text-xs' }: { m: TeamMember; size?: string }) {
   return (
     <span title={`${m.name} · ${m.email}`} className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${size} ${avatarTone(m.id)}`}>
       {initials(m.name)}
@@ -82,7 +82,7 @@ export function Fold({
         className={`flex min-h-[40px] w-full items-center gap-2 rounded-lg px-1 text-left hover:bg-slate-100/70 ${focusRing}`}
       >
         <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-500 transition ${isOpen ? '' : '-rotate-90'}`} />
-        <h2 className={`text-[15px] font-semibold ${tone === 'late' ? 'text-rose-700' : 'text-slate-900'}`}>{title}</h2>
+        <h2 className={`text-sm font-semibold ${tone === 'late' ? 'text-red-700' : 'text-slate-900'}`}>{title}</h2>
         {meta != null && <span className="text-sm text-slate-500">{meta}</span>}
       </button>
       {isOpen && <div className="mt-1.5">{children}</div>}
@@ -92,7 +92,7 @@ export function Fold({
 
 export const card = 'rounded-xl border border-slate-200 bg-white';
 export const input =
-  'w-full rounded-lg border border-slate-300 px-3 py-2 text-[14px] text-slate-950 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100';
+  'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-950 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100';
 export const lbl = 'mb-1 block text-sm font-semibold text-slate-800';
 export const btnPrimary = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 ${focusRing}`;
 export const btnSecondary = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-800 hover:border-slate-400 hover:bg-slate-50 disabled:opacity-50 ${focusRing}`;

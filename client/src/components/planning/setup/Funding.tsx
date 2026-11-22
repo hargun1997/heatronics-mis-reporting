@@ -59,7 +59,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
   const [part, setPart] = useParts<'terms' | 'rounds' | 'events' | 'bench'>('terms');
 
   return (
-    <div className="space-y-4 text-[13px] text-slate-600">
+    <div className="space-y-4 text-label text-slate-600">
       <Parts value={part} onChange={setPart} label="Funding part" options={[
         { id: 'terms', label: 'Seed and debt' }, { id: 'rounds', label: 'Rounds' }, { id: 'events', label: "Sheet's events" }, { id: 'bench', label: 'Benchmarks' },
       ]} />
@@ -82,7 +82,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <NumInput unit="cr" value={v.amount} min={0} width="w-16" title="Venture debt amount" onChange={(x) => setFx((f) => { f.ventureDebt.amount = x; f.ventureDebt.confirmed = false; })} />
         </Row>
         {v.on && (
-          <div className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-[12px] text-slate-600 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-600 sm:grid-cols-2">
             <Row label="Interest rate"><NumInput unit="pct" value={v.rate} min={0} max={0.4} width="w-14" title="Venture debt rate" onChange={(x) => setFx((f) => { f.ventureDebt.rate = x; })} /></Row>
             <Row label="Drawn in"><MonthSelect title="Draw month" value={v.drawMonth} months={months} onChange={(m) => setFx((f) => { f.ventureDebt.drawMonth = m ?? 1; })} /></Row>
             <Row label="Moratorium, months"><NumInput value={v.moratoriumMonths} min={0} max={36} width="w-12" title="Moratorium" onChange={(x) => setFx((f) => { f.ventureDebt.moratoriumMonths = Math.round(x); })} /></Row>
@@ -127,7 +127,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
       {/* 3. how rounds are sized */}
       {part === 'rounds' && <div className="space-y-2">
         <SubHead info="Fit (in Targets) sets the size of the rounds. It keeps rounds marked Agreed.">How rounds are sized</SubHead>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-label">
           <span>Keep cash above <NumInput unit="cr" value={funding.buffer} min={0} width="w-14" title="Cash buffer" onChange={(x) => setFunding('buffer', x)} /></span>
           <span>for the next <NumInput value={funding.runwayMonths} min={3} width="w-12" title="Runway months" onChange={(x) => setFunding('runwayMonths', Math.round(x))} /> months</span>
           <span>at least <NumInput unit="cr" value={funding.minRound} min={0} width="w-14" title="Minimum round" onChange={(x) => setFunding('minRound', x)} /> a round</span>
@@ -144,7 +144,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <button type="button" className={btn} onClick={() => setG((g) => { g.rounds.push({ id: newId('r'), name: 'New round', on: true, month: Math.min(horizon, 19), amount: 25 * CR, preMoney: 100 * CR, feePct: funding.feePct, confirmed: false }); })}>Add a round</button>
         </div>
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-[12.5px] tabular-nums">
+          <table className="w-full min-w-[760px] text-label tabular-nums">
             <thead>
               <tr className="bg-surface-tint">
                 <th className={th}>On</th><th className={th}>Round</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={thr}>Pre-money</th><th className={thr}>Fee</th>
@@ -197,7 +197,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           </button>
         </div>
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-[12px]">
+          <table className="w-full min-w-[760px] text-xs">
             <thead>
               <tr className="bg-surface-tint">
                 <th className={th}>Round</th><th className={th}>When</th><th className={thr}>Size</th><th className={thr} title="Pre-money ÷ run-rate ARR">Pre-money × ARR</th><th className={thr}>Dilution</th><th className={th}>Milestones</th>

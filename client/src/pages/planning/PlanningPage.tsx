@@ -176,7 +176,7 @@ export function PlanningPage() {
         description="The plan to FY31. Change the inputs in Setup. The tabs show the results."
         status={<>
           {dirty && <StatusPill toneName="warning" size="sm">Not saved</StatusPill>}
-          {msg && <span className={`text-xs ${msg.bad ? 'text-rose-700' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
+          {msg && <span className={`text-xs ${msg.bad ? 'text-red-700' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
         </>}
         tabs={VIEW_TABS} tab={view} onTab={(v) => setView(v as View)}
         help={<>
@@ -209,7 +209,7 @@ export function PlanningPage() {
                 <button key={d.months} type="button" onClick={() => void import('../../utils/planningExport').then((m) => m.downloadPlanWorkbook(plan, result, d.months))} className={MENU}>{d.label}</button>
               ))}
               <Link to="/tools/round-planner" className={MENU}>Open Round planner</Link>
-              {selected !== 'base' && <button type="button" onClick={remove} className={MENU + ' text-rose-700'}>Delete this scenario</button>}
+              {selected !== 'base' && <button type="button" onClick={remove} className={MENU + ' text-red-700'}>Delete this scenario</button>}
             </div>
           </Popover>
         </>}

@@ -43,7 +43,7 @@ export function MainLayout() {
 
   return (
     <ShellContext.Provider value={shell}>
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow-card">Skip to content</a>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-toast focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow-card">Skip to content</a>
       <AppNav />
       <div className="app-content min-h-screen bg-stone-50 text-stone-900">
         <main id="main" tabIndex={-1} className="min-w-0 focus:outline-none">

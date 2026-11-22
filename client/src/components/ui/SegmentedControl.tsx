@@ -18,7 +18,7 @@ interface SegmentedControlProps<T extends string> {
 export function SegmentedControl<T extends string>({
   options, value, onChange, size = 'md', ...rest
 }: SegmentedControlProps<T>) {
-  const pad = size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-1.5 text-[13px]';
+  const pad = size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-1.5 text-label';
   return (
     <div
       role="group"

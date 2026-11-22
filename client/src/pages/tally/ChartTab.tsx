@@ -55,7 +55,7 @@ export function ChartTab() {
     if (n.kind === 'ledger') {
       const h = hang.get(n.name);
       return (
-        <li key={path} className={cx('flex items-center gap-2 py-1 pr-3 text-[13px]', h && 'bg-amber-50')} style={{ paddingLeft: 12 + depth * 18 }}>
+        <li key={path} className={cx('flex items-center gap-2 py-1 pr-3 text-label', h && 'bg-amber-50')} style={{ paddingLeft: 12 + depth * 18 }}>
           <span className="min-w-0 flex-1 truncate text-slate-800">{n.name}</span>
           {h && <>
             <span className="shrink-0 text-xs text-slate-700">{h.suggest ? <>Move to <b className="font-semibold text-slate-900">{h.suggest.group}</b></> : 'Pick the group by hand'}</span>
@@ -73,7 +73,7 @@ export function ChartTab() {
     return (
       <li key={path}>
         <button type="button" onClick={() => toggle(path)} aria-expanded={isOpen}
-          className="flex w-full items-center gap-2 py-1.5 pr-3 text-left text-[13px] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" style={{ paddingLeft: 6 + depth * 18 }}>
+          className="flex w-full items-center gap-2 py-1.5 pr-3 text-left text-label hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" style={{ paddingLeft: 6 + depth * 18 }}>
           {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden /> : <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />}
           {isOpen ? <FolderOpen className="h-4 w-4 shrink-0 text-accent-600" aria-hidden /> : <Folder className="h-4 w-4 shrink-0 text-accent-600" aria-hidden />}
           <span className={cx('min-w-0 flex-1 truncate', depth === 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-800')}>{n.name}</span>

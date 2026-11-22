@@ -1,3 +1,5 @@
+The rules for pages, parts and words are in GUIDE.md. Where they differ, GUIDE.md wins.
+
 # Heatronics "Ember": the design system for every *.heatronics.in portal
 
 Founder-approved on 11 Nov 2026 ("i love it, follow the scheme across the board, across tools").

@@ -76,7 +76,7 @@ export function AmazonToTranzactTool() {
                 <li>Aggregate by location: <b>Country</b></li>
                 <li>Aggregate by time period: <b>Monthly</b></li>
                 <li>Date range: the month you're reconciling (leave ASIN/FNSKU/MSKU blank for all products)</li>
-                <li>Click <b>Request .txt Download</b>: <span className="text-rose-600 font-medium">not .csv</span> (csv drops the leading zeros in MSKUs/ASINs and breaks SKU matching)</li>
+                <li>Click <b>Request .txt Download</b>: <span className="text-red-600 font-medium">not .csv</span> (csv drops the leading zeros in MSKUs/ASINs and breaks SKU matching)</li>
               </ul>
               <p className="mt-1.5">
                 When it appears in the list below with a <b>Download</b> button, grab the <code className="bg-slate-100 px-1 rounded">.txt</code> file.
@@ -97,7 +97,7 @@ export function AmazonToTranzactTool() {
               <ul className="mt-1.5 space-y-1 list-disc pl-4">
                 <li>
                   <b>Store</b>: <b>Amazon (Pan-India)</b>.
-                  {' '}<span className="text-rose-600 font-medium">It defaults to "Raw Material Store"</span>: change it, or you will write Amazon FBA stock onto the factory store.
+                  {' '}<span className="text-red-600 font-medium">It defaults to "Raw Material Store"</span>: change it, or you will write Amazon FBA stock onto the factory store.
                 </li>
                 <li><b>As on Date</b>: the last day of the month you're reconciling (e.g. 31/07/2026 for the July ledger), <i>not</i> today's date.</li>
                 <li>
@@ -126,8 +126,8 @@ export function AmazonToTranzactTool() {
             onChange={handleAmazonFile}
             className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 file:cursor-pointer cursor-pointer"
           />
-          <p className="mt-1.5 text-xs sm:text-[11px] text-slate-500">Tab-separated .txt file from Amazon Seller Central</p>
-          {amazonFile && <p className="mt-1.5 text-xs sm:text-[11px] text-emerald-600">Selected: {amazonFile.name}</p>}
+          <p className="mt-1.5 text-xs text-slate-500">Tab-separated .txt file from Amazon Seller Central</p>
+          {amazonFile && <p className="mt-1.5 text-xs text-emerald-600">Selected: {amazonFile.name}</p>}
         </div>
 
         {/* Transform */}
@@ -142,7 +142,7 @@ export function AmazonToTranzactTool() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
         )}
 
         {result && (
@@ -151,7 +151,7 @@ export function AmazonToTranzactTool() {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-slate-900">Summary</h3>
                 {result.period && (
-                  <span className="text-xs sm:text-[11px] font-medium text-brand-700 bg-brand-50 border border-brand-100 rounded px-2 py-0.5">
+                  <span className="text-xs font-medium text-brand-700 bg-brand-50 border border-brand-100 rounded px-2 py-0.5">
                     Inventory Ledger · {result.period}
                   </span>
                 )}
@@ -169,9 +169,9 @@ export function AmazonToTranzactTool() {
                 </div>
               )}
               {result.missingFgItems.length > 0 && (
-                <div className="mt-3 p-3 rounded-lg bg-orange-50 border border-orange-100">
-                  <p className="text-xs font-medium text-orange-700">FG Items missing from master ({result.missingFgItems.length})</p>
-                  <p className="mt-1 text-xs font-mono text-orange-700/80">{result.missingFgItems.join(', ')}</p>
+                <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-100">
+                  <p className="text-xs font-medium text-amber-700">FG Items missing from master ({result.missingFgItems.length})</p>
+                  <p className="mt-1 text-xs font-mono text-amber-700/80">{result.missingFgItems.join(', ')}</p>
                 </div>
               )}
             </div>
@@ -186,7 +186,7 @@ export function AmazonToTranzactTool() {
                 </div>
                 <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
                   <table className="w-full text-xs">
-                    <thead className="bg-slate-50 text-slate-500 uppercase text-xs sm:text-[11px] tracking-wider">
+                    <thead className="bg-slate-50 text-slate-500 text-xs">
                       <tr>
                         <th className="text-left px-4 py-2 font-medium">Item ID</th>
                         <th className="text-left px-4 py-2 font-medium">Item Name</th>
@@ -202,7 +202,7 @@ export function AmazonToTranzactTool() {
                           <td className="px-4 py-2 text-slate-700">{row.itemName}</td>
                           <td className="px-4 py-2 text-slate-500">{row.uom}</td>
                           <td className="px-4 py-2 text-right text-slate-900 font-medium">{row.physicalStock}</td>
-                          <td className="px-4 py-2 text-slate-500 text-xs sm:text-[11px]">{row.comment}</td>
+                          <td className="px-4 py-2 text-slate-500 text-xs">{row.comment}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -221,7 +221,7 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   return (
     <div>
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs sm:text-[11px] font-bold">{n}</span>
+        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">{n}</span>
         <span className="text-sm font-medium text-slate-900">{title}</span>
       </div>
       <div className="ml-7 text-xs text-slate-600 leading-relaxed">{children}</div>
@@ -233,7 +233,7 @@ function SummaryCard({ label, value, color }: { label: string; value: number; co
   const m: Record<string, string> = { emerald: 'text-emerald-600', brand: 'text-brand-600', amber: 'text-amber-600', slate: 'text-slate-500' };
   return (
     <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-      <p className="text-xs sm:text-[11px] text-slate-500 mb-0.5">{label}</p>
+      <p className="text-xs text-slate-500 mb-0.5">{label}</p>
       <p className={`text-lg font-semibold ${m[color]}`}>{value}</p>
     </div>
   );

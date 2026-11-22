@@ -49,7 +49,7 @@ export function TasksSettingsPage() {
         tabs={TABS} tab={tab} onTab={setTab}
         actions={<Link to="/tasks" className={BTN}>Back to Tasks</Link>} />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {error && <p role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{error}</p>}
+        {error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p>}
         {!state ? (
           <p className="py-16 text-center text-sm text-slate-600">Loading…</p>
         ) : !state.seededAt ? (
@@ -103,8 +103,8 @@ function EmailTemplates() {
   const t = list?.[k];
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      {err && <p className="px-4 py-3 text-[14px] text-rose-700">{err}</p>}
-      {!list && !err && <p className="px-4 py-6 text-[14px] text-slate-600">Loading…</p>}
+      {err && <p className="px-4 py-3 text-sm text-red-700">{err}</p>}
+      {!list && !err && <p className="px-4 py-6 text-sm text-slate-600">Loading…</p>}
       {list && t && (
         <div className="grid lg:grid-cols-[280px_minmax(0,1fr)]">
           <ul className="border-b border-slate-200 lg:border-b-0 lg:border-r">
@@ -115,7 +115,7 @@ function EmailTemplates() {
                   onClick={() => setK(i)}
                   className={`block w-full border-l-4 px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 ${i === k ? 'border-brand-500 bg-brand-50/60' : 'border-transparent hover:bg-slate-50'}`}
                 >
-                  <span className="block text-[15px] font-medium text-slate-950">{x.name}</span>
+                  <span className="block text-sm font-medium text-slate-950">{x.name}</span>
                   <span className="mt-0.5 block text-sm leading-snug text-slate-600">{x.when}</span>
                 </button>
               </li>
@@ -184,7 +184,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
               <button
                 type="button"
                 onClick={() => setHeads((hs) => hs.filter((_, j) => j !== i))}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700 ${focusRing}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700 ${focusRing}`}
                 aria-label={`Delete ${h.name || 'head'}`}
               >
                 <TrashIcon className="h-4 w-4" />

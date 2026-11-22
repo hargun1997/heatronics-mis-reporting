@@ -59,7 +59,7 @@ export function AiInsightsPage() {
           <Popover align="left" width={300} buttonLabel="Claude not connected: details"
             buttonClassName={pillClass('warning')}
             button={<>Claude not connected</>}>
-            <p className="p-3.5 text-[13px] leading-5 text-slate-700">Analysis and chat do not run. Set <span className="font-mono">ANTHROPIC_API_KEY</span> on the service.</p>
+            <p className="p-3.5 text-label leading-5 text-slate-700">Analysis and chat do not run. Set <span className="font-mono">ANTHROPIC_API_KEY</span> on the service.</p>
           </Popover>
         ) : null}
         actions={<SpendButton usage={usage} />}
@@ -93,7 +93,7 @@ function SpendButton({ usage }: { usage: UsageResponse | null }) {
         <div className="space-y-3 text-sm">
           <p className="text-slate-700">Today <b className="tabular-nums">{usd(usage.today?.costUsd ?? 0)}</b> · {usage.today?.calls ?? 0} calls · last {usage.windowDays} days <b className="tabular-nums">{usd(usage.totalUsd)}</b></p>
           {usage.days.length === 0 ? <p className="text-slate-600">No calls yet.</p> : (
-            <table className="w-full text-[13px]">
+            <table className="w-full text-label">
               <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-600">
                 <th className="py-1.5 pr-3 font-semibold">Day (IST)</th><th className="py-1.5 pr-3 text-right font-semibold">Calls</th>
                 <th className="py-1.5 pr-3 text-right font-semibold">Tokens in / out</th><th className="py-1.5 text-right font-semibold">Cost (USD)</th>
@@ -144,7 +144,7 @@ function Analysis({ context, configured }: { context: string; configured: boolea
           <button key={p.id} onClick={() => void run(p)} disabled={!!running || configured === false}
             className="group min-h-11 text-left rounded-xl border border-slate-200 px-3 py-2 hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-50 transition-colors">
             <div className="text-sm font-medium text-slate-700 group-hover:text-brand-700">{p.label}</div>
-            <div className="text-xs sm:text-[11px] text-slate-400">{p.blurb}</div>
+            <div className="text-xs text-slate-400">{p.blurb}</div>
           </button>
         ))}
       </div>
@@ -155,13 +155,13 @@ function Analysis({ context, configured }: { context: string; configured: boolea
           Reading the MIS and writing the {PRESETS.find((p) => p.id === running)?.label.toLowerCase()}…
         </div>
       )}
-      {error && <p className="mt-3 text-xs text-rose-700">{error}</p>}
+      {error && <p className="mt-3 text-xs text-red-700">{error}</p>}
       {result && !running && (
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{result.label}</span>
+            <span className="text-xs font-semibold text-slate-500">{result.label}</span>
             <button onClick={() => navigator.clipboard?.writeText(result.text).catch(() => {})}
-              className="text-xs sm:text-[11px] text-slate-400 hover:text-slate-600">Copy</button>
+              className="text-xs text-slate-400 hover:text-slate-600">Copy</button>
           </div>
           <Markdown text={result.text} />
         </div>
@@ -223,7 +223,7 @@ function AskChat({ context, configured }: { context: string; configured: boolean
           )}
           {messages.map((m, i) => (
             <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-              <div className={'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ' +
+              <div className={'max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm ' +
                 (m.role === 'user' ? 'bg-brand-600 text-white rounded-br-sm' : 'bg-slate-100 text-slate-800 rounded-bl-sm')}>
                 {m.role === 'user' ? m.content : <Markdown text={m.content} />}
               </div>
@@ -231,10 +231,10 @@ function AskChat({ context, configured }: { context: string; configured: boolean
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm">Claude is reading the numbers…</div>
+              <div className="bg-slate-100 text-slate-500 rounded-xl rounded-bl-sm px-3.5 py-2.5 text-sm">Claude is reading the numbers…</div>
             </div>
           )}
-          {error && <p className="text-xs text-rose-700 text-center">{error}</p>}
+          {error && <p className="text-xs text-red-700 text-center">{error}</p>}
           <div ref={endRef} />
         </div>
         <div className="border-t border-slate-100 pt-3">
@@ -249,7 +249,7 @@ function AskChat({ context, configured }: { context: string; configured: boolean
           </div>
           {messages.length > 0 && (
             <button onClick={() => { setMessages([]); setError(null); }}
-              className="mt-2 text-xs sm:text-[11px] text-slate-400 hover:text-slate-600">Clear conversation</button>
+              className="mt-2 text-xs text-slate-400 hover:text-slate-600">Clear conversation</button>
           )}
         </div>
       </div>

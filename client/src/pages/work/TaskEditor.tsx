@@ -10,7 +10,7 @@ import { CADENCES, MN, WD, periodLabel } from './taskModel';
 import { handbookAnchors } from './handbookAnchors';
 import { Avatar, btnGhost, btnPrimary, input, lbl } from './ui';
 
-const scheduleSel = 'min-h-[40px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[14px] font-medium text-slate-950 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
+const scheduleSel = 'min-h-[40px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-950 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
 
 function DaySelect({ value, onChange }: { value?: number; onChange: (n: number) => void }) {
   return (
@@ -35,7 +35,7 @@ function ScheduleBuilder({ f, set }: { f: Partial<WorkTask>; set: (p: Partial<Wo
     f.dueDate ?? (f.dueMonth ? `${today.slice(0, 4)}-${pad(f.dueMonth)}-${pad(Math.min(f.dueDay ?? 1, 28))}` : '');
   const sel = scheduleSel;
   const chip = (on: boolean) =>
-    `min-h-[40px] rounded-lg border px-3 text-[14px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'}`;
+    `min-h-[40px] rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'}`;
 
   return (
     <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -61,7 +61,7 @@ function ScheduleBuilder({ f, set }: { f: Partial<WorkTask>; set: (p: Partial<Wo
         ))}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-[14px] text-slate-950">
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-slate-950">
         {cad === 'daily' && <span className="font-medium">Every working day, Monday to Saturday.</span>}
         {cad === 'weekly' && (
           <>
@@ -143,19 +143,19 @@ function ScheduleBuilder({ f, set }: { f: Partial<WorkTask>; set: (p: Partial<Wo
       </div>
 
       {cad === 'monthly' && (
-        <label className="mt-3 flex items-center gap-2 text-[14px] text-slate-800">
+        <label className="mt-3 flex items-center gap-2 text-sm text-slate-800">
           <input type="checkbox" checked={!!f.arrears} onChange={(e) => set({ arrears: e.target.checked })} className="h-4 w-4 rounded border-slate-400 text-brand-600" />
           It’s for the previous month (e.g. September’s report, due on the {ordinal(f.dueDay ?? 1)} of October)
         </label>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3 text-[14px]">
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3 text-sm">
         <span className="font-semibold text-slate-950">{describe(spec)}</span>
         <span className="text-slate-600">·</span>
         <span className="text-slate-700">Next due:</span>
         {next.length ? (
           next.map((o) => (
-            <span key={o.due} className="rounded-md bg-white px-2 py-0.5 text-[14px] text-slate-900 ring-1 ring-slate-300">
+            <span key={o.due} className="rounded-md bg-white px-2 py-0.5 text-sm text-slate-900 ring-1 ring-slate-300">
               {periodLabel(o.due)}
             </span>
           ))
@@ -257,7 +257,7 @@ export function TaskEditor({
                     on ? 'border-brand-500 bg-brand-50 text-brand-800' : 'border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  <Avatar m={m} size="h-6 w-6 text-xs sm:text-[11px]" />
+                  <Avatar m={m} size="h-6 w-6 text-xs" />
                   {m.name}
                   {on && <CheckIcon className="h-3 w-3" strokeWidth={3} />}
                 </button>
@@ -320,7 +320,7 @@ export function TaskEditor({
               <button
                 type="button"
                 onClick={() => set({ links: f.links!.filter((_, j) => j !== i) })}
-                className="flex w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700"
+                className="flex w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700"
                 aria-label="Remove reference"
               >
                 <XMarkIcon className="h-4 w-4" />
@@ -339,14 +339,14 @@ export function TaskEditor({
 
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
         <span className="mr-auto text-sm text-slate-600">{describe({ cadence: cad, ...f } as WorkTask)}</span>
-        {msg && <span className={`text-sm ${msg === 'Saved' ? 'text-emerald-700' : 'text-rose-700'}`}>{msg}</span>}
+        {msg && <span className={`text-sm ${msg === 'Saved' ? 'text-emerald-700' : 'text-red-700'}`}>{msg}</span>}
         {task && onDelete && (
           <button
             type="button"
             onClick={() => {
               if (window.confirm(`Delete “${task.title}” and its history?`)) void onDelete(task.id);
             }}
-            className={`${btnGhost} hover:!bg-rose-50 hover:!text-rose-700`}
+            className={`${btnGhost} hover:!bg-red-50 hover:!text-red-700`}
           >
             <TrashIcon className="h-4 w-4" /> Delete
           </button>

@@ -47,7 +47,7 @@ export function RevenueBars({ r, compare }: { r: PlanResult; compare?: PlanResul
           );
         })}
       </svg>
-      <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs sm:text-[11px] text-slate-500">
+      <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
         {CHANNELS.map((ch) => (
           <span key={ch} className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm" style={{ background: CH_COLOR[ch] }} />{CHANNEL_NAMES[ch]}</span>
         ))}
@@ -90,7 +90,7 @@ export function CashCurve({ r, compare }: { r: PlanResult; compare?: PlanResult 
           <circle key={m.m} cx={xOf(i)} cy={yOf(series[0][i])} r="4" fill="rgb(var(--emerald-500))"><title>{m.label}: equity ₹{cr(m.equity)} Cr</title></circle>
         ))}
       </svg>
-      <figcaption className="mt-1 flex flex-wrap gap-x-4 text-xs sm:text-[11px] text-slate-500">
+      <figcaption className="mt-1 flex flex-wrap gap-x-4 text-xs text-slate-500">
         <span className="inline-flex items-center gap-1"><span className="h-0.5 w-4 bg-brand-600" />Closing cash</span>
         <span className="inline-flex items-center gap-1"><span className="h-0.5 w-4 bg-slate-400" />Operating cash flow, running total</span>
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Equity in</span>
@@ -102,10 +102,10 @@ export function CashCurve({ r, compare }: { r: PlanResult; compare?: PlanResult 
 
 export function MiniStat({ label, value, sub, bad }: { label: string; value: string; sub?: string; bad?: boolean }) {
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${bad ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200/80 bg-surface'} shadow-card`}>
-      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={`mt-1 text-xl font-extrabold tabular-nums ${bad ? 'text-rose-700' : 'text-slate-900'}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-xs sm:text-[11px] text-slate-500">{sub}</div>}
+    <div className={`rounded-xl border px-4 py-3 ${bad ? 'border-red-200 bg-red-50/60' : 'border-slate-200/80 bg-surface'} shadow-card`}>
+      <div className="text-xs font-semibold text-slate-500">{label}</div>
+      <div className={`mt-1 text-xl font-semibold tabular-nums ${bad ? 'text-red-700' : 'text-slate-900'}`}>{value}</div>
+      {sub && <div className="mt-0.5 text-xs text-slate-500">{sub}</div>}
     </div>
   );
 }

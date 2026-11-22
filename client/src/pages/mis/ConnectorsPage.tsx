@@ -56,7 +56,7 @@ function statusOf(c: ConnectorInfo): { tone: PillTone; label: string } {
 function Monogram({ label }: { label: string }) {
   const abbr = label.replace(/[^A-Za-z0-9 ]/g, '').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   return (
-    <span className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
+    <span className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-semibold flex-shrink-0">
       {abbr}
     </span>
   );
@@ -146,7 +146,7 @@ function ConnectionsView() {
               <Popover align="right" width={380} buttonLabel="Where the passwords are kept"
                 buttonClassName={`inline-flex min-h-11 sm:min-h-8 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold ${store.durable ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}
                 button={<><KeyRound className="h-3.5 w-3.5" aria-hidden />{store.durable ? 'Passwords: safe store' : 'Passwords: temporary'}</>}>
-                <div className="space-y-2 p-4 text-[13px] text-slate-700">
+                <div className="space-y-2 p-4 text-label text-slate-700">
                   {store.durable ? <p>Passwords are in Secret Manager. They stay after a restart.</p> : <>
                     <p className="font-semibold text-slate-900">A restart removes the saved passwords.</p>
                     {store.grantHint ? <>
@@ -167,7 +167,7 @@ function ConnectionsView() {
           <ul>
             {GROUP_ORDER.filter((g) => grouped[g]?.length).map((g) => (
               <li key={g}>
-                <h3 className="border-b border-slate-200 bg-slate-100 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-600">{GROUP_LABEL[g]}</h3>
+                <h3 className="border-b border-slate-200 bg-slate-100 px-4 py-1.5 text-xs font-semibold tracking-[0.06em] text-slate-600">{GROUP_LABEL[g]}</h3>
                 <ul className="divide-y divide-slate-100">
                   {grouped[g].map((c) => (
                     <ConnectorCard key={c.id} connector={c} feed={feeds.get(c.id)!} sources={sources} latest={latest}
@@ -227,7 +227,7 @@ function ConnectorCard({
     setBusy(null);
   };
 
-  const msgColor = msg?.kind === 'ok' ? 'text-emerald-700' : msg?.kind === 'warn' ? 'text-amber-700' : 'text-rose-700';
+  const msgColor = msg?.kind === 'ok' ? 'text-emerald-700' : msg?.kind === 'warn' ? 'text-amber-700' : 'text-red-700';
 
   return (
     <>
@@ -282,7 +282,7 @@ function ConnectorCard({
                 }}
                 disabled={busy !== null}
                 aria-label="Remove the saved login"
-                className="px-3 py-2.5 text-sm font-semibold rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-40"
+                className="px-3 py-2.5 text-sm font-semibold rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40"
               >
                 Remove
               </button>
@@ -291,18 +291,18 @@ function ConnectorCard({
         }
       >
         <div className="px-5 py-5 space-y-4">
-          {connector.note && <p className="text-[13px] leading-relaxed text-slate-600">{connector.note}</p>}
+          {connector.note && <p className="text-label leading-relaxed text-slate-600">{connector.note}</p>}
 
           {manualSlots.length > 0 && (
             <div className="space-y-3">
-              <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Upload each month</div>
+              <div className="text-xs font-semibold text-slate-400">Upload each month</div>
               {manualSlots.map((x) => <IngestStepper key={x.slotId} slot={x} existing={latest.get(slotKey(connector.id, x.slotId))} onCommitted={onCommitted} source={sources.get(slotKey(connector.id, x.slotId))} />)}
             </div>
           )}
           {autoSlots.length > 0 && (
             <div className="space-y-3">
-              <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Automatic reports</div>
-              <p className="text-[12px] text-slate-500">Pull all saves these reports. Upload the file only if the pull fails.</p>
+              <div className="text-xs font-semibold text-slate-400">Automatic reports</div>
+              <p className="text-xs text-slate-500">Pull all saves these reports. Upload the file only if the pull fails.</p>
               {autoSlots.map((x) => <IngestStepper key={x.slotId} slot={x} existing={latest.get(slotKey(connector.id, x.slotId))} onCommitted={onCommitted} source={sources.get(slotKey(connector.id, x.slotId))} />)}
             </div>
           )}
@@ -310,7 +310,7 @@ function ConnectorCard({
           <SourceRules connectorId={connector.id} />
 
           {hasCreds && <div>
-            <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2.5">Login</div>
+            <div className="text-xs font-semibold text-slate-400 mb-2.5">Login</div>
             <div className="space-y-3">
               {connector.credentialFields.map((f) => (
                 <label key={f.key} className="block">
@@ -325,14 +325,14 @@ function ConnectorCard({
                     className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-slate-300 font-mono focus:border-brand-400 focus:outline-none"
                     autoComplete="off"
                   />
-                  {f.help && <span className="text-xs sm:text-[11px] text-slate-400">{f.help}</span>}
+                  {f.help && <span className="text-xs text-slate-400">{f.help}</span>}
                 </label>
               ))}
             </div>
-            <p className="text-xs sm:text-[11px] text-slate-400 mt-2">An empty field keeps its saved value. The page does not show saved passwords.</p>
+            <p className="text-xs text-slate-400 mt-2">An empty field keeps its saved value. The page does not show saved passwords.</p>
           </div>}
 
-          {hasCreds && <details className="text-xs sm:text-[11px] text-slate-500">
+          {hasCreds && <details className="text-xs text-slate-500">
             <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">
               Environment variable names
             </summary>

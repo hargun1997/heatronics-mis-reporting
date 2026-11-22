@@ -117,7 +117,7 @@ export function AppNav() {
     };
     return (
       <div className={mini ? 'mb-1' : 'mb-2 px-1'}>
-        {!mini && <div id="nav-theme-label" className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-nav-muted">Theme</div>}
+        {!mini && <div id="nav-theme-label" className="mb-1 px-2 text-xs font-semibold tracking-[0.06em] text-nav-muted">Theme</div>}
         <div role="group" aria-labelledby={mini ? undefined : 'nav-theme-label'} aria-label={mini ? 'Theme' : undefined} onKeyDown={onArrow}
           className={cx(mini ? 'flex flex-col gap-0.5' : 'grid grid-cols-3 gap-0.5 rounded-lg border border-nav-border bg-nav-hover/60 p-0.5')}>
           {THEMES.map((t) => {
@@ -152,7 +152,7 @@ export function AppNav() {
       <div className={cx('nav-scroll flex-1 space-y-4 px-2 py-2 lg:space-y-3', mini ? 'overflow-y-auto overflow-x-hidden' : 'overflow-y-auto')}>
         {pins.length > 0 && !mini && (
           <div>
-            <h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-nav-muted">Pinned</h2>
+            <h2 className="mb-1 px-3 text-xs font-semibold tracking-[0.06em] text-nav-muted">Pinned</h2>
             <ul className="space-y-0.5">
               {pins.map((p) => {
                 const on = path === p.href.split('?')[0];
@@ -175,7 +175,7 @@ export function AppNav() {
         )}
         {main.map((s) => (
           <div key={s.id}>
-            {mini ? <div className="mx-3 mb-2 border-t border-nav-border" aria-hidden /> : <h2 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-nav-muted">{s.label}</h2>}
+            {mini ? <div className="mx-3 mb-2 border-t border-nav-border" aria-hidden /> : <h2 className="mb-1 px-3 text-xs font-semibold tracking-[0.06em] text-nav-muted">{s.label}</h2>}
             <ul className="space-y-0.5" aria-label={mini ? s.label : undefined}>{s.pages.map((p) => row(p, mini))}</ul>
           </div>
         ))}
@@ -200,14 +200,14 @@ export function AppNav() {
 
   // Ember text wordmark: "Heatronics" + the portal name in heat (no logo mark).
   const brand = (mini: boolean, light = false) => (
-    <Link to={HOME} className={cx('inline-flex h-11 min-w-0 items-center whitespace-nowrap rounded-md text-[17px] font-semibold tracking-[-0.01em]', light ? 'text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500' : cx('text-nav-strong', ring), mini ? 'justify-center px-2' : 'px-1')}>
+    <Link to={HOME} className={cx('inline-flex h-11 min-w-0 items-center whitespace-nowrap rounded-md text-lg font-semibold tracking-[-0.01em]', light ? 'text-stone-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500' : cx('text-nav-strong', ring), mini ? 'justify-center px-2' : 'px-1')}>
       {mini ? <span className="sr-only">Heatronics MIS</span> : <span>Heatronics <span className={light ? 'text-heat-600' : 'text-nav-brand'}>MIS</span></span>}
     </Link>
   );
 
   return (
     <>
-      <aside className={cx('fixed bottom-0 left-0 top-[var(--htx-bar-h,0px)] z-[80] hidden flex-col border-r border-nav-border bg-nav-bg print:hidden lg:flex', collapsed ? 'w-16' : 'w-[248px]')}>
+      <aside className={cx('fixed bottom-0 left-0 top-[var(--htx-bar-h,0px)] z-shell hidden flex-col border-r border-nav-border bg-nav-bg print:hidden lg:flex', collapsed ? 'w-16' : 'w-[248px]')}>
         <div className={cx('flex h-14 shrink-0 items-center', collapsed ? 'justify-center px-1' : 'justify-between pl-3 pr-1.5')}>
           {!collapsed && brand(false)}
           <button type="button" onClick={toggleRail} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar to icons'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -218,7 +218,7 @@ export function AppNav() {
         <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col">{list(collapsed)}</nav>
       </aside>
 
-      <header className="sticky top-[var(--htx-bar-h,0px)] z-[80] border-b border-stone-200 bg-white/90 backdrop-blur print:hidden lg:hidden">
+      <header className="sticky top-[var(--htx-bar-h,0px)] z-shell border-b border-stone-200 bg-white/90 backdrop-blur print:hidden lg:hidden">
         <div className="flex h-14 items-center gap-1 px-2 sm:px-4">
           <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-stone-700 hover:bg-stone-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="app-menu" aria-haspopup="dialog">
             <Menu className="h-5 w-5" aria-hidden />Menu
@@ -234,7 +234,7 @@ export function AppNav() {
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-[95] lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+        <div className="fixed inset-0 z-drawer lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <button type="button" aria-label="Close menu" tabIndex={-1} className="absolute inset-0 animate-fade-in bg-scrim/50" onClick={() => setOpen(false)} />
           <div id="app-menu" ref={drawer} tabIndex={-1} className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[320px] flex-col bg-nav-bg shadow-2xl">
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-nav-border pl-3 pr-1">

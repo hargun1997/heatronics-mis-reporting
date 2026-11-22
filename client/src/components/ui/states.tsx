@@ -40,7 +40,7 @@ export function InfoTip({ children, label = 'How this number is made', text, ali
     <Popover align={align} width={width} buttonLabel={label}
       buttonClassName={`inline-flex min-h-11 sm:min-h-7 items-center justify-center gap-1 rounded-md align-middle text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${text ? 'px-1.5' : 'w-11 sm:w-7'}`}
       button={<><Info className="h-4 w-4" aria-hidden />{text}</>}>
-      <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3.5 text-[13px] font-normal normal-case leading-5 tracking-normal text-slate-700">{children}</div>
+      <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3.5 text-label font-normal normal-case leading-5 tracking-normal text-slate-700">{children}</div>
     </Popover>
   );
 }

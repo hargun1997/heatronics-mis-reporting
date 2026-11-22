@@ -15,7 +15,7 @@ function Waterfall({ b }: { b: Bridge }) {
     <ol className="space-y-1.5" aria-label="Waterfall of steps">
       {b.bars.filter((x) => x.kind === 'total' || Math.abs(x.lakh) >= 0.005).map((x, i) => {
         const left = pos(Math.min(x.from, x.to)), width = Math.max(pos(Math.max(x.from, x.to)) - left, 0.8);
-        const tone = x.kind === 'total' ? 'bg-brand-500' : x.kind === 'up' ? 'bg-emerald-500' : 'bg-rose-500';
+        const tone = x.kind === 'total' ? 'bg-brand-500' : x.kind === 'up' ? 'bg-emerald-500' : 'bg-red-500';
         const arrow = x.kind === 'total' ? '' : x.kind === 'up' ? '▲ ' : '▼ ';
         return (
           <li key={i} className="grid grid-cols-1 sm:grid-cols-[minmax(0,220px)_1fr_110px] items-center gap-x-3 gap-y-0.5 min-h-[44px]">
@@ -23,7 +23,7 @@ function Waterfall({ b }: { b: Bridge }) {
             <div className="relative h-5 rounded bg-slate-100" role="img" aria-label={`${x.label}: ${L(x.lakh)}`}>
               <div className={`absolute top-0 h-5 rounded ${tone}`} style={{ left: `${left}%`, width: `${width}%` }} />
             </div>
-            <span className={`text-sm tabular-nums sm:text-right font-medium ${x.kind === 'down' ? 'text-rose-700' : x.kind === 'up' ? 'text-emerald-700' : 'text-slate-900'}`}>
+            <span className={`text-sm tabular-nums sm:text-right font-medium ${x.kind === 'down' ? 'text-red-700' : x.kind === 'up' ? 'text-emerald-700' : 'text-slate-900'}`}>
               {arrow}{x.kind === 'total' ? `₹${x.lakh.toFixed(2)} L` : `${L(x.lakh)} ${x.lakh >= 0 ? 'helps' : 'hurts'}`}
             </span>
           </li>

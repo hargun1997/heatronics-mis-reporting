@@ -213,7 +213,7 @@ function ReaderNav({ view, open }: { view: View; open: OpenFn }) {
                         <Go
                           onClick={() => open({ c, a })}
                           current={active}
-                          className={`-ml-px block min-h-[36px] w-full border-l-2 py-2 pl-3.5 pr-2 text-[13.5px] leading-snug ${
+                          className={`-ml-px block min-h-[36px] w-full border-l-2 py-2 pl-3.5 pr-2 text-label leading-snug ${
                             active
                               ? 'border-brand-500 bg-brand-50/60 font-semibold text-brand-800'
                               : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
@@ -250,10 +250,10 @@ function ArticleRows({ c, open, compact }: { c: HbCollection; open: OpenFn; comp
               className={`group flex w-full items-center gap-3 px-4 hover:bg-slate-50 ${compact ? 'min-h-[44px] py-2' : 'min-h-[56px] py-3'}`}
             >
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-medium leading-snug text-slate-900 group-hover:text-brand-700">
+                <span className="block text-sm font-medium leading-snug text-slate-900 group-hover:text-brand-700">
                   <Title t={a.title} />
                 </span>
-                {!compact && a.summary && <span className="mt-0.5 block text-[13.5px] leading-snug text-slate-600">{a.summary}</span>}
+                {!compact && a.summary && <span className="mt-0.5 block text-label leading-snug text-slate-600">{a.summary}</span>}
               </span>
               {due && <span className="hidden flex-shrink-0 text-xs text-slate-500 sm:block">{due}</span>}
               <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-slate-400 group-hover:text-brand-600" aria-hidden="true" />
@@ -271,8 +271,8 @@ function CollectionPanel({ c, open, compact }: { c: HbCollection; open: OpenFn; 
       <div className="flex items-start gap-3">
         <TopicIcon c={c} className="mt-1 h-6 w-6" />
         <div>
-          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-slate-900">{c.title}</h1>
-          <p className="mt-1 text-[15.5px] leading-relaxed text-slate-600">{c.description}</p>
+          <h1 className="text-2xl font-bold leading-tight tracking-tight text-slate-900">{c.title}</h1>
+          <p className="mt-1 text-base leading-relaxed text-slate-600">{c.description}</p>
         </div>
       </div>
       <div className="mt-6">
@@ -314,7 +314,7 @@ function OnThisPage({ a, active, jump }: { a: HbArticle; active?: string; jump: 
         <li key={h.id}>
           <Go
             onClick={() => jump(h.id)}
-            className={`-ml-px block w-full border-l-2 py-1.5 pl-3 text-[13px] leading-snug ${
+            className={`-ml-px block w-full border-l-2 py-1.5 pl-3 text-label leading-snug ${
               active === h.id ? 'border-brand-500 font-medium text-brand-800' : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -360,7 +360,7 @@ function ArticlePanel({
     <div className="flex justify-center gap-10 px-4 py-6 sm:px-8 sm:py-8">
       <article className="hbx-col min-w-0 max-w-[46rem] flex-1">
         <header>
-          <p className="flex flex-wrap items-center gap-x-2 text-[13px] text-slate-600">
+          <p className="flex flex-wrap items-center gap-x-2 text-label text-slate-600">
             <span>{c.title}</span>
             <span aria-hidden="true">·</span>
             <span>
@@ -373,10 +373,10 @@ function ArticlePanel({
               </>
             )}
           </p>
-          <h1 className="mt-2 text-[28px] font-bold leading-[1.2] tracking-tight text-slate-900 sm:text-[30px]">
+          <h1 className="mt-2 text-3xl font-bold leading-[1.2] tracking-tight text-slate-900 sm:text-3xl">
             <Title t={a.title} preClass="text-slate-500" withWord />
           </h1>
-          {a.summary && <p className="mt-2 text-[17px] leading-relaxed text-slate-600">{a.summary}</p>}
+          {a.summary && <p className="mt-2 text-lg leading-relaxed text-slate-600">{a.summary}</p>}
         </header>
 
         {foldable && (
@@ -464,7 +464,7 @@ function ArticlePanel({
               <ArrowLeftIcon className="h-5 w-5 flex-shrink-0 text-slate-500 group-hover:text-brand-600" aria-hidden="true" />
               <span className="min-w-0">
                 <span className="block text-xs text-slate-600">Previous</span>
-                <span className="block text-[14.5px] font-semibold leading-snug text-slate-900 group-hover:text-brand-700">
+                <span className="block text-sm font-semibold leading-snug text-slate-900 group-hover:text-brand-700">
                   <Title t={prev.title} withWord />
                 </span>
               </span>
@@ -479,7 +479,7 @@ function ArticlePanel({
             >
               <span className="min-w-0">
                 <span className="block text-xs text-slate-600">Next{next.collection !== c ? ` · ${next.collection.title}` : ''}</span>
-                <span className="block text-[14.5px] font-semibold leading-snug text-slate-900 group-hover:text-brand-700">
+                <span className="block text-sm font-semibold leading-snug text-slate-900 group-hover:text-brand-700">
                   <Title t={next.title} withWord />
                 </span>
               </span>
@@ -492,7 +492,7 @@ function ArticlePanel({
       {hasToc && wide && (
         <aside className="w-[200px] flex-shrink-0" aria-label="On this page">
           <div className="sticky top-[calc(var(--app-top)+5rem+var(--htx-bar-h,0px))] max-h-[calc(100vh-10rem-var(--htx-bar-h,0px))] overflow-y-auto">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600">On this page</div>
+            <div className="mb-2 text-xs font-semibold text-slate-600">On this page</div>
             <OnThisPage a={a} active={activeHeading} jump={jump} />
           </div>
         </aside>
@@ -514,7 +514,7 @@ function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: ()
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Screenshot" className="fixed inset-0 z-[60] flex flex-col bg-scrim/85 p-3 sm:p-6" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label="Screenshot" className="fixed inset-0 z-modal flex flex-col bg-scrim/85 p-3 sm:p-6" onClick={onClose}>
       <div className="flex justify-end">
         <button
           ref={closeRef}

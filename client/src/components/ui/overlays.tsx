@@ -57,7 +57,7 @@ export function Drawer({
     : 'left-0 shadow-drawer-left animate-drawer-in-left';
 
   return createPortal(
-    <div className="fixed inset-0 z-[100]">
+    <div className="fixed inset-0 z-modal">
       <div className="absolute inset-0 bg-scrim/45 animate-fade-in" onClick={onClose} aria-hidden="true" />
       <aside
         role="dialog"
@@ -74,7 +74,7 @@ export function Drawer({
             )}
             <div className="flex-1 min-w-0">
               {subtitle && (
-                <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-400">{subtitle}</div>
+                <div className="text-xs font-semibold text-slate-400">{subtitle}</div>
               )}
               {title && <div className="font-display text-lg font-bold text-slate-900 tracking-tight truncate">{title}</div>}
               {badges && <div className="flex flex-wrap gap-1.5 mt-2">{badges}</div>}
@@ -116,12 +116,12 @@ export function Modal({ open, onClose, title, subtitle, icon, footer, width = 52
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-scrim/45 animate-fade-in" onClick={onClose} aria-hidden="true" />
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full bg-white rounded-2xl shadow-overlay overflow-hidden animate-scale-in max-h-[calc(100vh-2rem)] flex flex-col"
+        className="relative w-full bg-white rounded-xl shadow-overlay overflow-hidden animate-scale-in max-h-[calc(100vh-2rem)] flex flex-col"
         style={{ maxWidth: width }}
       >
         {(title || icon) && (
@@ -258,7 +258,7 @@ export function Popover({ button, children, align = 'right', width = 288, button
               btn.current?.focus();
             }
           }}
-          className="fixed z-[110] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-popover animate-pop-in"
+          className="fixed z-pop overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-popover animate-pop-in"
           style={{ width: Math.min(width, window.innerWidth - 16), top: pos?.top ?? -9999, left: pos?.left ?? -9999, maxHeight: pos?.maxH, visibility: pos ? 'visible' : 'hidden' }}
         >
           {children}

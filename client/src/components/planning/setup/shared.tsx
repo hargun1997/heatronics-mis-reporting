@@ -12,9 +12,9 @@ export const CR = 1e7;
 
 // ---- class strings -------------------------------------------------------------------------------------------------
 export const btn = 'rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40';
-export const rm = 'rounded px-1.5 py-0.5 text-[12px] font-semibold text-slate-400 hover:text-rose-600';
-export const txt = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-[13px]';
-export const lbl = 'text-xs font-semibold uppercase tracking-wide text-slate-600';
+export const rm = 'rounded px-1.5 py-0.5 text-xs font-semibold text-slate-400 hover:text-red-600';
+export const txt = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-label';
+export const lbl = 'text-xs font-semibold text-slate-600';
 export const th = 'px-2 py-2 text-left text-xs font-semibold text-slate-600';
 export const thr = th.replace('text-left', 'text-right');
 export const td = 'px-2 py-1.5';
@@ -44,7 +44,7 @@ export function Check({ checked, onChange, label }: { checked: boolean; onChange
 export function Row({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
   const id = useId();
   return (
-    <div role="group" aria-labelledby={id} className="flex min-h-9 items-center justify-between gap-3 text-[13px] text-slate-700">
+    <div role="group" aria-labelledby={id} className="flex min-h-9 items-center justify-between gap-3 text-label text-slate-700">
       <span className="flex min-w-0 items-center gap-0.5"><span id={id}>{label}</span>{hint && <Tip>{hint}</Tip>}</span>
       <span className="flex shrink-0 items-center gap-1.5">{children}</span>
     </div>
@@ -64,7 +64,7 @@ export function Flag({ children = 'Terms not confirmed' }: { children?: string }
 /** Group heading inside a Setup section, with an optional "i" for the how-to text. */
 export function SubHead({ children, info }: { children: ReactNode; info?: ReactNode }) {
   return (
-    <h4 className="flex items-center gap-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+    <h4 className="flex items-center gap-0.5 text-xs font-semibold text-slate-600">
       {children}{info && <Tip>{info}</Tip>}
     </h4>
   );
@@ -77,7 +77,7 @@ export function Tip({ children, label = 'How to use this' }: { children: ReactNo
 
 /** One grey line of explanation / feedback. */
 export function Note({ children, tone = 'grey' }: { children: ReactNode; tone?: 'grey' | 'amber' }) {
-  return <p className={tone === 'amber' ? 'text-[12px] text-amber-800' : 'text-[12px] text-slate-600'}>{children}</p>;
+  return <p className={tone === 'amber' ? 'text-xs text-amber-800' : 'text-xs text-slate-600'}>{children}</p>;
 }
 
 // ---- plan helpers --------------------------------------------------------------------------------------------------

@@ -32,7 +32,7 @@ function Tooltip({ state, width }: { state: TooltipState | null; width: number }
   const flip = state.x > width * 0.6;
   return (
     <div
-      className="pointer-events-none absolute z-20 rounded-lg bg-slate-900 text-white text-xs sm:text-[11px] leading-snug px-2.5 py-1.5 shadow-lg whitespace-nowrap"
+      className="pointer-events-none absolute z-20 rounded-lg bg-slate-900 text-white text-xs leading-snug px-2.5 py-1.5 shadow-lg whitespace-nowrap"
       style={{ left, top: state.y, transform: `translate(${flip ? '-100%' : '0'}, -50%)`, marginLeft: flip ? -8 : 8 }}
     >
       {state.content}

@@ -1,4 +1,4 @@
-// KpiTile — the redesign's headline stat tile: an uppercase label, a large
+// KpiTile — the redesign's headline stat tile: a sentence-case label, a large
 // tabular value, an optional delta (direction-coloured) and an optional
 // sparkline. `tone` tints the whole tile for a line that needs attention.
 
@@ -25,13 +25,13 @@ interface KpiTileProps {
 const toneWrap: Record<KpiTone, string> = {
   default:  'border-slate-200/80 bg-surface',
   warning:  'border-amber-200 bg-amber-50/40',
-  critical: 'border-rose-200 bg-rose-50/40',
+  critical: 'border-red-200 bg-red-50/40',
 };
 
 const toneValue: Record<KpiTone, string> = {
   default:  'text-slate-900',
   warning:  'text-amber-700',
-  critical: 'text-rose-700',
+  critical: 'text-red-700',
 };
 
 const toneAccent: Record<KpiTone, string> = {
@@ -64,7 +64,7 @@ export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'r
       ? 'text-slate-500'
       : delta.good
         ? 'text-emerald-700'
-        : 'text-rose-700';
+        : 'text-red-700';
   const arrow = delta?.dir === 'up' ? '▲' : delta?.dir === 'down' ? '▼' : '▶';
   const bar = accent ?? toneAccent[tone];
 
@@ -73,7 +73,7 @@ export function KpiTile({ label, value, unit, sub, delta, spark, sparkColor = 'r
     <>
       {bar && <span aria-hidden="true" className="absolute inset-x-0 top-0 h-[3px]" style={{ background: bar }} />}
       <div className="text-xs font-medium text-slate-500">{label}</div>
-      <div className={`font-semibold tracking-[-0.02em] tabular-nums mt-2 text-[26px] leading-none ${toneValue[tone]}`}>
+      <div className={`font-semibold tracking-[-0.02em] tabular-nums mt-2 text-2xl leading-none ${toneValue[tone]}`}>
         {value}
         {unit && <span className="text-base font-bold text-slate-400 ml-1">{unit}</span>}
       </div>

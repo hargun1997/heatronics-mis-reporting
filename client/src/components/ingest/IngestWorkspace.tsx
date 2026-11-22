@@ -83,7 +83,7 @@ export function CoveragePanel({ reports, connectors }: { reports: IngestReportMe
   const CHIP: Record<MonthState, string> = {
     complete: 'bg-emerald-500 text-white border-emerald-500',
     partial: 'bg-amber-100 text-amber-800 border-amber-300',
-    none: 'bg-rose-50 text-rose-700 border-rose-200',
+    none: 'bg-red-50 text-red-700 border-red-200',
   };
   const tip = (r: typeof rows[number]) => {
     if (r.state === 'complete') return `${monthName(r.mk)}: complete · all ${expected.length} required reports in`;

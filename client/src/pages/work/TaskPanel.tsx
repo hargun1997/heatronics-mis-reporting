@@ -106,7 +106,7 @@ function Checklist({ task, state, period, reload }: { task: WorkTask; state: Wor
           );
         })}
       </ul>
-      {err && <p className="mt-1 text-sm text-rose-700">{err}</p>}
+      {err && <p className="mt-1 text-sm text-red-700">{err}</p>}
       <p className="mt-1 text-sm text-slate-500">Tick every item and the task is marked done.</p>
     </div>
   );
@@ -174,7 +174,7 @@ function ReminderStrip({ task, state, members, onSave }: { task: WorkTask; state
           {on ? 'Turn reminders off' : 'Turn reminders on'}
         </button>
       </div>
-      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-emerald-700' : 'text-rose-700'}`}>{msg.text}</p>}
+      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</p>}
     </div>
   );
 }

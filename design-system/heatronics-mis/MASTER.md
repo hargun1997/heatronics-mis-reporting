@@ -1,3 +1,5 @@
+The rules for pages, parts and words are in ../GUIDE.md. Where they differ, GUIDE.md wins.
+
 # Heatronics MIS — Design System (MASTER, v2 — Ember)
 
 Source of truth for every page in `mis.heatronics.in`. Since 11 Nov 2026 the MIS follows **Heatronics "Ember"**, the

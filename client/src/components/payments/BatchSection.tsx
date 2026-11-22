@@ -146,7 +146,7 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
       </div>
 
       <div className="max-h-[400px] overflow-auto rounded-lg border border-slate-200">
-        <table className="w-full min-w-[860px] text-[13px]">
+        <table className="w-full min-w-[860px] text-label">
           <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold text-slate-600">
             <tr><th className="w-10 px-3 py-2"><span className="sr-only">Pick</span></th><th className="px-3 py-2">Payee</th><th className="px-3 py-2">Account</th><th className="w-36 px-3 py-2 text-right">Amount ₹</th><th className="w-28 px-3 py-2">Mode</th><th className="px-3 py-2">Remark</th></tr>
           </thead>

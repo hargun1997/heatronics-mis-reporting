@@ -54,10 +54,10 @@ interface NavCardProps {
 const accentMap: Record<NonNullable<NavCardProps['accent']>, { bg: string; icon: string; ring: string; text: string }> = {
   brand:   { bg: 'bg-brand-50',   icon: 'bg-brand-100 text-brand-700',     ring: 'ring-brand-200',   text: 'text-brand-700' },
   emerald: { bg: 'bg-emerald-50', icon: 'bg-emerald-100 text-emerald-700', ring: 'ring-emerald-200', text: 'text-emerald-700' },
-  violet:  { bg: 'bg-violet-50',  icon: 'bg-violet-100 text-violet-700',   ring: 'ring-violet-200',  text: 'text-violet-700' },
+  violet:  { bg: 'bg-slate-50',  icon: 'bg-slate-100 text-slate-700',   ring: 'ring-slate-200',  text: 'text-slate-700' },
   amber:   { bg: 'bg-amber-50',   icon: 'bg-amber-100 text-amber-700',     ring: 'ring-amber-200',   text: 'text-amber-700' },
-  sky:     { bg: 'bg-sky-50',     icon: 'bg-sky-100 text-sky-700',         ring: 'ring-sky-200',     text: 'text-sky-700' },
-  rose:    { bg: 'bg-rose-50',    icon: 'bg-rose-100 text-rose-700',       ring: 'ring-rose-200',    text: 'text-rose-700' },
+  sky:     { bg: 'bg-slate-50',     icon: 'bg-slate-100 text-slate-700',         ring: 'ring-slate-200',     text: 'text-slate-700' },
+  rose:    { bg: 'bg-red-50',    icon: 'bg-red-100 text-red-700',       ring: 'ring-red-200',    text: 'text-red-700' },
 };
 
 export function NavCard({ to, title, description, icon, accent = 'brand', badge }: NavCardProps) {
@@ -75,7 +75,7 @@ export function NavCard({ to, title, description, icon, accent = 'brand', badge 
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
             {badge && (
-              <span className={`text-xs sm:text-[11px] uppercase tracking-wider px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
+              <span className={`text-xs px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
                 {badge}
               </span>
             )}
@@ -101,13 +101,13 @@ const pillColorMap: Record<NonNullable<PillProps['color']>, string> = {
   brand:   'bg-brand-50 text-brand-700 border-brand-100',
   emerald: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   amber:   'bg-amber-50 text-amber-700 border-amber-100',
-  rose:    'bg-rose-50 text-rose-700 border-rose-100',
-  sky:     'bg-sky-50 text-sky-700 border-sky-100',
-  violet:  'bg-violet-50 text-violet-700 border-violet-100',
+  rose:    'bg-red-50 text-red-700 border-red-100',
+  sky:     'bg-slate-50 text-slate-700 border-slate-100',
+  violet:  'bg-slate-50 text-slate-700 border-slate-100',
 };
 
 export function Pill({ children, color = 'slate', size = 'sm' }: PillProps) {
-  const sizeCls = size === 'xs' ? 'text-xs sm:text-[11px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5';
+  const sizeCls = size === 'xs' ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-0.5';
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border font-medium ${pillColorMap[color]} ${sizeCls}`}>
       {children}

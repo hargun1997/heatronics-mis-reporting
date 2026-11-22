@@ -70,7 +70,7 @@ export function AmazonStockPanel({ month }: { month: string }) {
             <ArrowDownTrayIcon className="h-4 w-4" />Tranzact file</button>
         </div>
       </div>
-      {err && <p className="px-3 py-2 text-sm text-rose-700">{err}</p>}
+      {err && <p className="px-3 py-2 text-sm text-red-700">{err}</p>}
       {data?.errors.map((e) => <p key={e} className="px-3 pt-2 text-sm text-amber-800">{e}</p>)}
       {!v ? <p className="px-3 py-4 text-sm text-slate-500">{busy ? 'Reading Amazon’s balances…' : ''}</p> : (
         <div className="space-y-3 p-3">
@@ -81,7 +81,7 @@ export function AmazonStockPanel({ month }: { month: string }) {
           {v.warnings.length > 0 && <ul className="list-disc space-y-0.5 pl-5 text-xs text-amber-800">{v.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
           {v.closing.lines.length > 0 && (
             <div className="max-h-[50vh] overflow-auto rounded-md border border-slate-100">
-              <table className="w-full text-[13px]">
+              <table className="w-full text-label">
                 <thead className="sticky top-0 bg-slate-50 text-left text-xs text-slate-500"><tr>
                   <th className="px-2 py-1.5 font-semibold">Product</th><th className="px-2 text-right font-semibold">Sellable</th><th className="px-2 text-right font-semibold">Unsellable</th>
                   <th className="px-2 text-right font-semibold">In transit</th><th className="px-2 text-right font-semibold">Cost / unit</th><th className="px-2 text-right font-semibold">Closing value</th><th className="px-2 text-right font-semibold">Opening units</th></tr></thead>

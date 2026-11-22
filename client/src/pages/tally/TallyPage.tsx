@@ -156,7 +156,7 @@ function Ledgers() {
         <span className="text-sm text-slate-500">{data ? `${data.rows.length} of ${data.total}` : ''}</span>
       </div>
       <div className="max-h-[60vh] overflow-auto">
-        <table className="w-full text-[13px]">
+        <table className="w-full text-label">
           <thead className="sticky top-0 bg-slate-50 text-left text-xs text-slate-500"><tr><th className="px-3 py-2 font-semibold">Ledger</th><th className="px-3 font-semibold">Group</th><th className="px-3 font-semibold">GSTIN</th><th className="px-3 font-semibold">Registration · state</th><th className="px-3 font-semibold">TDS</th><th className="px-3 text-right font-semibold">Vouchers (3 mo)</th></tr></thead>
           <tbody>{data?.rows.map((l) => (
             <tr key={l.name} className="border-t border-slate-100">
@@ -190,7 +190,7 @@ function Vouchers({ months }: { months: string[] }) {
       </div>
       <ul className="max-h-[60vh] divide-y divide-slate-100 overflow-auto">
         {data?.rows.map((v) => (
-          <li key={v.guid || `${v.type}-${v.number}`} className="px-3 py-2 text-[13px]">
+          <li key={v.guid || `${v.type}-${v.number}`} className="px-3 py-2 text-label">
             <div className="flex flex-wrap gap-x-3"><span className="font-mono text-xs text-slate-500">{v.date}</span><span className="font-medium text-slate-900">{v.type} {v.number}</span><span className="text-slate-700">{v.party}</span>{v.reference && <span className="text-slate-500">ref {v.reference}</span>}</div>
             <div className="mt-0.5 text-slate-600">{v.lines.map((l, k) => <span key={k} className="mr-3"><span className={l.amount >= 0 ? 'text-slate-500' : 'text-slate-400'}>{l.amount >= 0 ? 'Dr' : 'Cr'}</span> {l.ledger} <span className="tabular-nums">{inr(l.amount)}</span></span>)}</div>
             {v.narration && <div className="text-xs text-slate-500">{v.narration}</div>}

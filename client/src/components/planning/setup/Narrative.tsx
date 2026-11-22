@@ -61,7 +61,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           </div>
           <datalist id="plan-themes">{themes.map((t) => <option key={t} value={t} />)}</datalist>
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-label">
               <thead>
                 <tr className="border-b border-slate-200">
                   <th className={th}>Theme</th>
@@ -73,7 +73,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               </thead>
               <tbody>
                 {plan.business.themes.length === 0 && (
-                  <tr><td colSpan={5} className="px-2 py-2 text-[12px] text-slate-600">No milestones yet.</td></tr>
+                  <tr><td colSpan={5} className="px-2 py-2 text-xs text-slate-600">No milestones yet.</td></tr>
                 )}
                 {plan.business.themes.map((t, i) => (
                   <tr key={t.id} className="border-t border-slate-100">
@@ -101,7 +101,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         {part === 'team' && <div className="space-y-2">
           <SubHead info="From the Overview tab of the sheet. One line for each role. An arrow (→) shows who reports to whom.">Team</SubHead>
           <textarea value={plan.business.team} onChange={(e) => setB((b) => { b.team = e.target.value; })} rows={10}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] leading-relaxed" aria-label="Team structure" />
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-label leading-relaxed" aria-label="Team structure" />
         </div>}
     </div>
   );
@@ -120,7 +120,7 @@ export const SECTION: SetupSectionDef = {
 function Txt({ value, onChange, placeholder, bold, muted, area }: {
   value: string; onChange: (v: string) => void; placeholder: string; bold?: boolean; muted?: boolean; area?: boolean;
 }) {
-  const cls = `w-full rounded border border-slate-200 bg-white px-2 py-1 text-[12.5px] ${bold ? 'font-semibold text-slate-800' : muted ? 'text-slate-500' : 'text-slate-700'}`;
+  const cls = `w-full rounded border border-slate-200 bg-white px-2 py-1 text-label ${bold ? 'font-semibold text-slate-800' : muted ? 'text-slate-500' : 'text-slate-700'}`;
   return area
     ? <textarea value={value} placeholder={placeholder} rows={2} onChange={(e) => onChange(e.target.value)} className={cls} aria-label={placeholder} />
     : <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={cls} aria-label={placeholder} />;
@@ -131,5 +131,5 @@ function AddBtn({ onClick, label }: { onClick: () => void; label: string }) {
 }
 
 function Del({ onClick }: { onClick: () => void }) {
-  return <button type="button" onClick={onClick} className="px-1 text-[12px] text-slate-400 hover:text-rose-600" aria-label="Remove" title="Remove">✕</button>;
+  return <button type="button" onClick={onClick} className="px-1 text-xs text-slate-400 hover:text-red-600" aria-label="Remove" title="Remove">✕</button>;
 }

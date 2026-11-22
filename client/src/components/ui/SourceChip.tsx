@@ -23,7 +23,7 @@ export function SourceChip({ items, notes = [] }: { items: SourceItem[]; notes?:
       button={<><Database className="h-3.5 w-3.5" aria-hidden />{first ? `${first.label} · ${ago(first.asOf, now)}${stale && first.asOf ? ' · old' : ''}` : 'Sources'}{items.length > 1 ? ` +${items.length - 1}` : ''}</>}
     >
       <div className="p-3 text-sm">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">Where these numbers come from</p>
+        <p className="mb-2 text-xs font-semibold text-slate-600">Where these numbers come from</p>
         <ul className="space-y-1.5">
           {items.map((s) => (
             <li key={s.label} className="flex items-start justify-between gap-3">

@@ -39,8 +39,8 @@ export function Step({ n, title, summary, defaultOpen = false, children, id }: {
 export function Num({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1 text-[26px] font-semibold leading-8 text-slate-900">{value}</div>
+      <div className="text-xs font-semibold text-slate-500">{label}</div>
+      <div className="mt-1 text-2xl font-semibold leading-8 text-slate-900">{value}</div>
       {sub && <div className="mt-0.5 text-xs text-slate-600">{sub}</div>}
     </div>
   );
@@ -48,7 +48,7 @@ export function Num({ label, value, sub }: { label: string; value: React.ReactNo
 
 export function Note({ tone = 'info', children }: { tone?: 'info' | 'ok' | 'warn' | 'error'; children: React.ReactNode }) {
   const cls = {
-    info: 'border-blue-200 bg-blue-50 text-blue-800',
+    info: 'border-slate-200 bg-slate-50 text-slate-800',
     ok: 'border-emerald-200 bg-emerald-50 text-emerald-800',
     warn: 'border-amber-200 bg-amber-50 text-amber-800',
     error: 'border-red-200 bg-red-50 text-red-800',

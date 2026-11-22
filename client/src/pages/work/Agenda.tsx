@@ -42,7 +42,7 @@ function TaskRow({
   const total = task.checklist?.length ?? 0;
   const ticked = checks?.length ?? 0;
   const dueText = done ? (auto ? 'Done · file uploaded' : 'Done') : due.text;
-  const dueCls = done ? 'text-emerald-700' : due.late ? 'font-medium text-rose-700' : '';
+  const dueCls = done ? 'text-emerald-700' : due.late ? 'font-medium text-red-700' : '';
   return (
     <li>
       <div className={`flex items-center gap-2 pl-3 sm:gap-3 sm:pl-4 ${compact ? 'min-h-[40px]' : 'min-h-[60px]'}`}>
@@ -61,7 +61,7 @@ function TaskRow({
           className={`flex min-w-0 flex-1 items-center gap-3 self-stretch pr-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 sm:pr-4 ${compact ? 'py-1' : 'py-2'}`}
         >
           <span className="min-w-0 flex-1">
-            <span className={`block text-[15px] font-medium ${open ? '' : 'truncate'} ${done ? 'text-slate-500 line-through' : 'text-slate-950'}`} title={task.title}>
+            <span className={`block text-sm font-medium ${open ? '' : 'truncate'} ${done ? 'text-slate-500 line-through' : 'text-slate-950'}`} title={task.title}>
               {task.title}
             </span>
             {!compact && (
@@ -131,7 +131,7 @@ export function Agenda({
   if (!shown.length)
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
-        <p className="text-[15px] font-medium text-slate-900">{filtered ? 'Nothing matches these filters.' : 'Nothing due. You’re all caught up.'}</p>
+        <p className="text-sm font-medium text-slate-900">{filtered ? 'Nothing matches these filters.' : 'Nothing due. You’re all caught up.'}</p>
         {filtered && onClearAll && (
           <button type="button" onClick={onClearAll} className="mt-3 inline-flex min-h-[40px] items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
             Show everything
@@ -147,7 +147,7 @@ export function Agenda({
         if (!list.length) {
           if (g.key !== 'today' || when) return null;
           return (
-            <div key={g.key} className="flex min-h-[40px] items-center gap-2 px-1 text-[15px]">
+            <div key={g.key} className="flex min-h-[40px] items-center gap-2 px-1 text-sm">
               <span className="w-4" />
               <span className="font-semibold text-slate-900">Today</span>
               <span className="text-sm text-slate-500">Nothing due today.</span>
@@ -258,11 +258,11 @@ export function DailyEmailStrip({ state, agenda, today, onPreview }: { state: Wo
             <ul className="grid gap-2 sm:grid-cols-2">
               {people.map((p) => (
                 <li key={p.m.id} className="flex items-center gap-2.5">
-                  <Avatar m={p.m} size="h-7 w-7 text-[12px]" />
+                  <Avatar m={p.m} size="h-7 w-7 text-xs" />
                   <span className="min-w-0 flex-1 truncate font-medium text-slate-900">{p.m.name}</span>
                   <span className="text-slate-600">
                     {p.n} task{p.n > 1 ? 's' : ''}
-                    {p.late ? <span className="text-rose-700"> · {p.late} late</span> : null}
+                    {p.late ? <span className="text-red-700"> · {p.late} late</span> : null}
                   </span>
                 </li>
               ))}

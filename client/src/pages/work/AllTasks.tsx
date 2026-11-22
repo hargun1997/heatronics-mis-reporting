@@ -108,7 +108,7 @@ export function AllTasks({
               type="button"
               disabled={!sel.size || deleting}
               onClick={() => void removeSelected()}
-              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-rose-600 px-3.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-40 ${focusRing}`}
+              className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-red-600 px-3.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 ${focusRing}`}
             >
               <TrashIcon className="h-4 w-4" /> {deleting ? 'Deleting…' : `Delete ${sel.size || ''}`.trim()}
             </button>
@@ -142,7 +142,7 @@ export function AllTasks({
               className={`flex min-h-[40px] w-full items-center gap-2 rounded-lg px-1 text-left enabled:hover:bg-slate-100/70 ${focusRing}`}
             >
               {!autoOpen && <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-500 transition ${open ? '' : '-rotate-90'}`} />}
-              <h2 className="text-[15px] font-semibold text-slate-900">{a}</h2>
+              <h2 className="text-sm font-semibold text-slate-900">{a}</h2>
               <span className="text-sm text-slate-500">{list.length}</span>
             </button>
             {open && (
@@ -152,14 +152,14 @@ export function AllTasks({
                   const rowOpen = openKey === key;
                   const owners = ownerNames(t.ownerIds, memberById);
                   return (
-                    <li key={t.id} id={`task-${t.id}`} className={`scroll-mt-24 ${sel.has(t.id) ? 'bg-rose-50/60' : ''}`}>
+                    <li key={t.id} id={`task-${t.id}`} className={`scroll-mt-24 ${sel.has(t.id) ? 'bg-red-50/60' : ''}`}>
                       <div className="flex items-center">
                         {selecting && (
                           <input
                             type="checkbox"
                             checked={sel.has(t.id)}
                             onChange={() => toggleSel(t.id)}
-                            className="ml-4 h-5 w-5 shrink-0 rounded border-slate-400 text-rose-600"
+                            className="ml-4 h-5 w-5 shrink-0 rounded border-slate-400 text-red-600"
                             aria-label={`Select ${t.title}`}
                           />
                         )}
@@ -170,7 +170,7 @@ export function AllTasks({
                           className={`flex w-full min-w-0 items-center gap-3 px-4 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 ${compact ? 'min-h-[40px] py-1.5' : 'min-h-[56px] py-2.5'}`}
                         >
                           <div className="min-w-0 flex-1">
-                            <div className={`text-[15px] font-medium ${rowOpen ? '' : 'truncate'} ${t.active ? 'text-slate-950' : 'text-slate-500 line-through'}`}>{t.title}</div>
+                            <div className={`text-sm font-medium ${rowOpen ? '' : 'truncate'} ${t.active ? 'text-slate-950' : 'text-slate-500 line-through'}`}>{t.title}</div>
                             {!compact && (
                               <div className="truncate text-sm text-slate-600">
                                 {describe(t)}

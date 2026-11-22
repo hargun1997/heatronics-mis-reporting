@@ -94,7 +94,7 @@ export function IssueRow({ i, st, view, act }: { i: InboxItem; st?: IssueState[s
             <span className="text-sm font-semibold text-slate-900">{i.title}</span>
             <StatusPill toneName="neutral" size="sm">{AREA_LABEL[i.area]}</StatusPill>
           </span>
-          <span className={cx('block text-[13px] text-slate-600', !more && 'truncate')}>{i.fix}</span>
+          <span className={cx('block text-label text-slate-600', !more && 'truncate')}>{i.fix}</span>
         </button>
         <div className="flex items-center gap-1.5">
           {i.href.startsWith('/') && <Link to={i.href} className={cx(btn, 'border-accent-200 text-accent-700')}>Open<ArrowRight className="h-4 w-4" aria-hidden /></Link>}
@@ -105,7 +105,7 @@ export function IssueRow({ i, st, view, act }: { i: InboxItem; st?: IssueState[s
         </div>
       </div>
       {more && (i.detail || st) && (
-        <div className="mt-1.5 border-t border-slate-100 pl-8 pt-1.5 text-[13px] text-slate-600">
+        <div className="mt-1.5 border-t border-slate-100 pl-8 pt-1.5 text-label text-slate-600">
           {i.detail && <p>{i.detail}</p>}
           {st && <p className="text-xs text-slate-500">{st.status === 'done' ? 'Done' : `Hidden until ${new Date(st.until!).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}, by {st.by}</p>}
         </div>

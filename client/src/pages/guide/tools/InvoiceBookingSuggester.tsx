@@ -275,7 +275,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Cell({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-      <div className="text-xs sm:text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="text-xs text-slate-500">{label}</div>
       <div className={`mt-0.5 text-sm font-medium text-slate-900 ${mono ? 'font-mono text-xs' : ''}`}>{value}</div>
     </div>
   );

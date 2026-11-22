@@ -23,7 +23,7 @@ const WORD: Record<Status, string> = { on_track: 'On track', behind: 'Behind pla
 const ARROW: Record<Status, string> = { on_track: '►', behind: '▼', ahead: '▲' };
 const TONE: Record<Status, { text: string; bg: string; bar: string }> = {
   on_track: { text: 'text-slate-700', bg: 'bg-slate-100', bar: 'rgb(var(--chart-ink))' },
-  behind: { text: 'text-rose-700', bg: 'bg-rose-50', bar: 'rgb(var(--red-600))' },
+  behind: { text: 'text-red-700', bg: 'bg-red-50', bar: 'rgb(var(--red-600))' },
   ahead: { text: 'text-emerald-700', bg: 'bg-emerald-50', bar: 'rgb(var(--emerald-600))' },
 };
 /** ₹ in lakh below 1 Cr, else Cr. */
@@ -40,23 +40,23 @@ const pctWords = (c: Pick<MetricCmp, 'gapPct' | 'status'>) => (c.status == null 
 function Pill({ status }: { status: Status | null }) {
   if (!status) return <StatusPill toneName="neutral" size="sm" className="min-h-[28px]">No data yet</StatusPill>;
   const t = TONE[status];
-  return <span className={`inline-flex min-h-[28px] items-center gap-1 rounded-full px-2.5 text-[12px] font-bold ${t.bg} ${t.text}`}><span aria-hidden>{ARROW[status]}</span>{WORD[status]}</span>;
+  return <span className={`inline-flex min-h-[28px] items-center gap-1 rounded-full px-2.5 text-xs font-bold ${t.bg} ${t.text}`}><span aria-hidden>{ARROW[status]}</span>{WORD[status]}</span>;
 }
 
 function BigNumber({ n, label, value, c, sub }: { n: number; label: string; value: string | null; c: Pick<MetricCmp, 'gapPct' | 'status'> | null; sub: string }) {
   const st = c?.status ?? null;
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-surface p-4 shadow-card" data-testid={`pva-big-${n}`}>
-      <div className="flex items-center gap-2 text-[12px] font-bold text-slate-600">
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-900 text-[12px] text-white">{n}</span>{label}
+    <div className="rounded-xl border border-slate-200/80 bg-surface p-4 shadow-card" data-testid={`pva-big-${n}`}>
+      <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-900 text-xs text-white">{n}</span>{label}
       </div>
-      <div className="mt-2 text-[28px] font-extrabold leading-tight tabular-nums text-slate-900">{value ?? 'No data yet'}</div>
+      <div className="mt-2 text-3xl font-semibold leading-tight tabular-nums text-slate-900">{value ?? 'No data yet'}</div>
       {st && c ? (
-        <div className={`mt-1 text-[14px] font-bold ${TONE[st].text}`}><span aria-hidden>{ARROW[st]}</span> {pctWords(c)}</div>
+        <div className={`mt-1 text-sm font-bold ${TONE[st].text}`}><span aria-hidden>{ARROW[st]}</span> {pctWords(c)}</div>
       ) : (
-        <div className="mt-1 text-[14px] font-semibold text-slate-600">Waiting for the books</div>
+        <div className="mt-1 text-sm font-semibold text-slate-600">Waiting for the books</div>
       )}
-      <div className="mt-1 text-[12px] text-slate-500">{sub}</div>
+      <div className="mt-1 text-xs text-slate-500">{sub}</div>
     </div>
   );
 }
@@ -98,7 +98,7 @@ function Chart({ months, metric }: { months: MonthCmp[]; metric: MetricId }) {
           );
         })}
       </svg>
-      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-slate-600">
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
         <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: 'rgb(var(--chart-cmp))' }} />Plan</span>
         <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TONE.on_track.bar }} />Actual: on track</span>
         <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TONE.behind.bar }} />Actual: behind</span>
@@ -155,7 +155,7 @@ export function PlanVsActualView({ saved }: Props) {
   return (
     <div className="min-w-0 space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="pva-scn" className="text-[13px] font-medium text-slate-600">Compare with</label>
+        <label htmlFor="pva-scn" className="text-label font-medium text-slate-600">Compare with</label>
         <select id="pva-scn" value={scn} onChange={(e) => choose(e.target.value)} className="min-h-11 sm:min-h-9 max-w-full rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium">
           <option value="base">Base plan</option>
           {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -196,32 +196,32 @@ export function PlanVsActualView({ saved }: Props) {
                 {METRICS.map((id) => <option key={id} value={id}>{METRIC_NAME[id]}</option>)}
               </select>
             }>
-            {r.months.length ? <Chart months={r.months} metric={metric} /> : <p className="text-[14px] text-slate-600">{r.notes[0] ?? 'No data yet.'}</p>}
+            {r.months.length ? <Chart months={r.months} metric={metric} /> : <p className="text-sm text-slate-600">{r.notes[0] ?? 'No data yet.'}</p>}
           </PlanCard>
 
           <Disclosure
             title="1. Behind plan"
-            badge={<span className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${r.behind.length ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{r.behind.length}</span>}
+            badge={<span className={`rounded-full px-2 py-0.5 text-xs font-bold ${r.behind.length ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>{r.behind.length}</span>}
             subtitle={r.behind.length ? `Biggest gap: ${r.behind[0].label} ${METRIC_NAME[r.behind[0].metric]}, ${inr(r.behind[0].gap, true)}.` : 'No closed month is behind plan.'}>
             {r.behind.length ? (
               <ol className="space-y-2">
                 {r.behind.map((b, i) => (
-                  <li key={b.key + b.metric} className="flex min-h-[44px] items-start gap-3 rounded-lg bg-rose-50/50 px-3 py-2">
-                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-900 text-[12px] font-bold text-white">{i + 1}</span>
-                    <span className="text-[14px] text-slate-800"><b>{b.label} {METRIC_NAME[b.metric]}</b><br />
-                      <span className="font-bold text-rose-700"><span aria-hidden>▼</span> {inr(Math.abs(b.gap))} behind plan{b.gapPct != null ? ` (${Math.abs(b.gapPct * 100).toFixed(1)}% below)` : ''}</span></span>
+                  <li key={b.key + b.metric} className="flex min-h-[44px] items-start gap-3 rounded-lg bg-red-50/50 px-3 py-2">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-900 text-xs font-bold text-white">{i + 1}</span>
+                    <span className="text-sm text-slate-800"><b>{b.label} {METRIC_NAME[b.metric]}</b><br />
+                      <span className="font-bold text-red-700"><span aria-hidden>▼</span> {inr(Math.abs(b.gap))} behind plan{b.gapPct != null ? ` (${Math.abs(b.gapPct * 100).toFixed(1)}% below)` : ''}</span></span>
                   </li>
                 ))}
               </ol>
-            ) : <p className="text-[14px] text-slate-600">Nothing to fix here.</p>}
+            ) : <p className="text-sm text-slate-600">Nothing to fix here.</p>}
           </Disclosure>
 
           <Disclosure
             title="2. All months"
             subtitle={monthsSubtitle(r)}>
             <div className="hidden overflow-x-auto sm:block">
-              <table className="w-full text-[13px] tabular-nums">
-                <thead><tr className="border-b border-slate-200 text-left text-[12px] text-slate-500"><th className="py-2 pr-3">Month</th><th className="pr-3 text-right">Plan</th><th className="pr-3 text-right">Actual</th><th className="pr-3 text-right">Gap</th><th>Status</th></tr></thead>
+              <table className="w-full text-label tabular-nums">
+                <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-500"><th className="py-2 pr-3">Month</th><th className="pr-3 text-right">Plan</th><th className="pr-3 text-right">Actual</th><th className="pr-3 text-right">Gap</th><th>Status</th></tr></thead>
                 <tbody>
                   {r.months.map((m) => { const c = m.metrics.revenue; return (
                     <tr key={m.key} className="border-b border-slate-100">
@@ -229,17 +229,17 @@ export function PlanVsActualView({ saved }: Props) {
                       <td className="pr-3 text-right">{inr(c.plan)}</td>
                       <td className="pr-3 text-right">{c.actual == null ? 'No data yet' : inr(c.actual)}</td>
                       <td className="pr-3 text-right">{c.gap == null ? '–' : `${inr(c.gap, true)} (${c.gapPct == null ? '–' : (c.gapPct * 100).toFixed(1) + '%'})`}</td>
-                      <td>{m.state === 'running' ? <span className="text-[12px] font-semibold text-slate-500">Month not finished</span> : m.state === 'partial' ? <span className="text-[12px] font-semibold text-slate-500">Books not complete</span> : <Pill status={m.status} />}</td>
+                      <td>{m.state === 'running' ? <span className="text-xs font-semibold text-slate-500">Month not finished</span> : m.state === 'partial' ? <span className="text-xs font-semibold text-slate-500">Books not complete</span> : <Pill status={m.status} />}</td>
                     </tr>); })}
                 </tbody>
               </table>
-              <p className="mt-2 text-[12px] text-slate-600">Net revenue.</p>
+              <p className="mt-2 text-xs text-slate-600">Net revenue.</p>
             </div>
             <ul className="space-y-2 sm:hidden">
               {r.months.map((m) => { const c = m.metrics.revenue; return (
                 <li key={m.key} className="rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-center justify-between gap-2"><b className="text-[14px]">{m.label}</b>{m.state === 'running' ? <span className="text-[12px] font-semibold text-slate-500">Month not finished</span> : m.state === 'partial' ? <span className="text-[12px] font-semibold text-slate-500">Books not complete</span> : <Pill status={m.status} />}</div>
-                  <div className="mt-1 grid grid-cols-2 gap-1 text-[13px] text-slate-700">
+                  <div className="flex items-center justify-between gap-2"><b className="text-sm">{m.label}</b>{m.state === 'running' ? <span className="text-xs font-semibold text-slate-500">Month not finished</span> : m.state === 'partial' ? <span className="text-xs font-semibold text-slate-500">Books not complete</span> : <Pill status={m.status} />}</div>
+                  <div className="mt-1 grid grid-cols-2 gap-1 text-label text-slate-700">
                     <span>Plan</span><span className="text-right font-semibold">{inr(c.plan)}</span>
                     <span>Actual</span><span className="text-right font-semibold">{c.actual == null ? 'No data yet' : inr(c.actual)}</span>
                     <span>Gap</span><span className="text-right font-semibold">{c.gap == null ? '–' : inr(c.gap, true)}</span>

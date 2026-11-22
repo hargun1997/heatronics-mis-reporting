@@ -101,7 +101,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
   const viewRow = viewing ? all.find((r) => r.id === viewing) ?? null : null;
 
   return (
-    <section aria-label="Ledger map" className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-card">
+    <section aria-label="Ledger map" className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-card">
       <header className="border-b border-slate-200 px-4 pb-3 pt-3">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Ledger map</h2>
@@ -119,14 +119,14 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
               <path strokeLinecap="round" d="M20 20l-3.5-3.5" />
             </svg>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Vendor, ledger or keyword"
-              className="min-h-11 sm:min-h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-2 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500" />
+              className="min-h-11 sm:min-h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-2 text-label text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500" />
           </label>
           <button type="button" onClick={startNew} className={BTN}>Add vendor</button>
         </div>
         <div className="mt-2 flex gap-1" role="group" aria-label="Filter rows">
           {([['all', 'All'], ['needs-info', 'Needs info'], ['confirmed', 'Confirmed']] as const).map(([key, label]) => (
             <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}
-              className={`min-h-11 sm:min-h-8 rounded-md px-2.5 text-[12.5px] font-medium ${filter === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+              className={`min-h-11 sm:min-h-8 rounded-md px-2.5 text-label font-medium ${filter === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
               {label}
             </button>
           ))}
@@ -134,8 +134,8 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {loadError && <p className="m-4 rounded-lg bg-rose-50 p-3 text-[13px] text-rose-800">Couldn’t load the map: {loadError}</p>}
-        {!rows && !loadError && <p role="status" className="p-4 text-[13px] text-slate-600">Loading the map…</p>}
+        {loadError && <p className="m-4 rounded-lg bg-red-50 p-3 text-label text-red-800">Couldn’t load the map: {loadError}</p>}
+        {!rows && !loadError && <p role="status" className="p-4 text-label text-slate-600">Loading the map…</p>}
 
         <ul className="divide-y divide-slate-100">
           {shown.map((r) => {
@@ -145,10 +145,10 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
                 <button type="button" onClick={() => setViewing(r.id)} aria-label={`Open ${r.vendor}`}
                   className="block w-full px-4 py-2.5 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="text-[14px] font-semibold text-slate-900">{r.vendor}</span>
+                    <span className="text-sm font-semibold text-slate-900">{r.vendor}</span>
                     <StatusTag r={r} />
                   </span>
-                  <span className="mt-0.5 block truncate text-[12.5px] text-slate-600">
+                  <span className="mt-0.5 block truncate text-label text-slate-600">
                     <span className="font-semibold text-slate-500">Dr </span>
                     {ledgers.length ? <><span className="font-mono text-slate-900">{ledgers[0]}</span>{ledgers.length > 1 ? ` +${ledgers.length - 1}` : ''}</> : <span className="font-medium text-amber-800">Ledger to confirm</span>}
                     {r.voucherType ? ` · ${r.voucherType}` : ''}{r.tds ? ` · ${r.tds.split(' ')[0]}` : ''}
@@ -159,13 +159,13 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
           })}
         </ul>
         {rows && shown.length === 0 && !isNewDraft && (
-          <p className="p-4 text-[13px] text-slate-600">No rows match. Clear the search, or add the vendor.</p>
+          <p className="p-4 text-label text-slate-600">No rows match. Clear the search, or add the vendor.</p>
         )}
       </div>
 
-      <footer className="border-t border-slate-200 py-2.5 pl-4 pr-20 text-[12.5px] text-slate-600">
+      <footer className="border-t border-slate-200 py-2.5 pl-4 pr-20 text-label text-slate-600">
         {saveError ? (
-          <span className="text-rose-700">Save failed: {saveError}</span>
+          <span className="text-red-700">Save failed: {saveError}</span>
         ) : saving ? (
           'Saving…'
         ) : savedAt ? (
@@ -207,11 +207,11 @@ function StatusTag({ r }: { r: ExpenseMapRow }) {
 
 function RowDetail({ r }: { r: ExpenseMapRow }) {
   return (
-    <div className="space-y-3 text-[13px] text-slate-700">
+    <div className="space-y-3 text-label text-slate-700">
       <div>
         <p className="text-xs font-semibold text-slate-600">Dr ledger(s)</p>
         {r.ledger === TO_CONFIRM ? <p className="font-medium text-amber-800">Ledger to confirm</p> : (
-          <p className="mt-1">{r.ledger.split(' · ').map((l, li) => <span key={li} className="mb-1 mr-1 inline-block rounded bg-slate-100 px-1.5 font-mono text-[12px] font-medium text-slate-900">{l}</span>)}</p>
+          <p className="mt-1">{r.ledger.split(' · ').map((l, li) => <span key={li} className="mb-1 mr-1 inline-block rounded bg-slate-100 px-1.5 font-mono text-xs font-medium text-slate-900">{l}</span>)}</p>
         )}
         {r.status === 'needs-info' && r.suggestion && <p className="mt-1 text-slate-600">Closest in Tally: <span className="font-mono text-slate-900">{r.suggestion}</span></p>}
       </div>
@@ -232,7 +232,7 @@ function RowDetail({ r }: { r: ExpenseMapRow }) {
       {r.evidence && (
         <details className="rounded-md bg-slate-50 px-3 py-2">
           <summary className="cursor-pointer font-medium text-slate-900">Example from the books</summary>
-          <p className="mt-1 font-mono text-[12px] leading-relaxed text-slate-800">{r.evidence}</p>
+          <p className="mt-1 font-mono text-xs leading-relaxed text-slate-800">{r.evidence}</p>
         </details>
       )}
       {r.anchor && <Link to={`/handbook#${r.anchor}`} className="inline-block font-medium text-accent-700 hover:underline">Open in the Handbook ↗</Link>}
@@ -267,8 +267,8 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, onDelete, confir
   const set = <K extends keyof ExpenseMapRow>(k: K, v: ExpenseMapRow[K]) => setDraft({ ...draft, [k]: v });
   // Kept as raw text while typing, so a half-written line isn't dropped.
   const [subRulesText, setSubRulesText] = useState(() => (draft.subRules ?? []).map((s) => `${s.when} → ${s.then}`).join('\n'));
-  const field = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500';
-  const label = 'block text-[12px] font-medium text-slate-700';
+  const field = 'w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-label text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500';
+  const label = 'block text-xs font-medium text-slate-700';
   return (
     <form
       className="space-y-2.5"
@@ -365,14 +365,14 @@ function RowEditor({ draft, setDraft, onCancel, onSave, saving, onDelete, confir
           Cancel
         </button>
         {onDelete && !confirmingDelete && (
-          <button type="button" onClick={onDelete} className="ml-auto min-h-11 sm:min-h-8 rounded-md px-2 text-[12.5px] font-medium text-rose-700 hover:bg-rose-50">
+          <button type="button" onClick={onDelete} className="ml-auto min-h-11 sm:min-h-8 rounded-md px-2 text-label font-medium text-red-700 hover:bg-red-50">
             Delete
           </button>
         )}
         {confirmingDelete && (
-          <span className="ml-auto flex items-center gap-2 text-[12.5px] text-rose-800">
+          <span className="ml-auto flex items-center gap-2 text-label text-red-800">
             Delete this rule?
-            <button type="button" onClick={onConfirmDelete} className="min-h-11 sm:min-h-8 rounded-md px-2 font-semibold hover:bg-rose-50">Delete rule</button>
+            <button type="button" onClick={onConfirmDelete} className="min-h-11 sm:min-h-8 rounded-md px-2 font-semibold hover:bg-red-50">Delete rule</button>
             <button type="button" onClick={onCancelDelete} className="min-h-11 sm:min-h-8 rounded-md px-2 text-slate-600 hover:bg-slate-100">Keep</button>
           </span>
         )}

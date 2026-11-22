@@ -67,10 +67,10 @@ export function BusinessPlanView({ plan, result, part }: Props) {
 
       {tab === 'words' && <div className="grid gap-4 xl:grid-cols-2">
         <SectionCard title="Key assumptions" count={B.assumptions.length} info="Write and change these in Setup → Business plan text.">
-          {B.assumptions.length === 0 && <p className="text-[13px] text-slate-600">No assumptions yet. Add them in Setup → Business plan text.</p>}
+          {B.assumptions.length === 0 && <p className="text-label text-slate-600">No assumptions yet. Add them in Setup → Business plan text.</p>}
           <div className="divide-y divide-slate-100">
             {B.assumptions.map((a) => (
-              <div key={a.id} className="grid grid-cols-[1.3fr_1fr_1.3fr] gap-3 py-1.5 text-[12.5px]">
+              <div key={a.id} className="grid grid-cols-[1.3fr_1fr_1.3fr] gap-3 py-1.5 text-label">
                 <span className="font-semibold text-slate-800">{a.assumption || <Empty />}</span>
                 <span className="text-slate-700">{a.value || <Empty />}</span>
                 <span className="text-slate-500">{a.basis || <Empty />}</span>
@@ -81,10 +81,10 @@ export function BusinessPlanView({ plan, result, part }: Props) {
         </SectionCard>
 
         <SectionCard title="Risks and what we do" count={B.risks.length} info="Write and change these in Setup → Business plan text.">
-          {B.risks.length === 0 && <p className="text-[13px] text-slate-600">No risks yet. Add them in Setup → Business plan text.</p>}
+          {B.risks.length === 0 && <p className="text-label text-slate-600">No risks yet. Add them in Setup → Business plan text.</p>}
           <div className="divide-y divide-slate-100">
             {B.risks.map((x) => (
-              <div key={x.id} className="grid grid-cols-[1fr_1.4fr] gap-3 py-1.5 text-[12.5px]">
+              <div key={x.id} className="grid grid-cols-[1fr_1.4fr] gap-3 py-1.5 text-label">
                 <span className="font-semibold text-slate-800">{x.risk || <Empty />}</span>
                 <span className="text-slate-700">{x.mitigation || <Empty />}</span>
               </div>
@@ -96,7 +96,7 @@ export function BusinessPlanView({ plan, result, part }: Props) {
       {tab === 'milestones' && <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Milestones plan={plan} />
         <SectionCard title="Team" info="One line for each role. An arrow (→) shows who reports to whom. Change it in Setup → Business plan text.">
-          {B.team.trim() ? <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{B.team}</p> : <p className="text-[13px] text-slate-600">No team yet. Add it in Setup → Business plan text.</p>}
+          {B.team.trim() ? <p className="whitespace-pre-wrap text-label leading-relaxed text-slate-700">{B.team}</p> : <p className="text-label text-slate-600">No team yet. Add it in Setup → Business plan text.</p>}
         </SectionCard>
       </div>}
     </div>
@@ -110,7 +110,7 @@ function Empty() { return <span className="text-slate-300">—</span>; }
 function Table({ cols, rows }: { cols: Span[]; rows: [string, ReactNode[], boolean?][] }) {
   return (
     <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-      <table className="w-full text-[13px] tabular-nums">
+      <table className="w-full text-label tabular-nums">
         <thead>
           <tr className="border-b border-slate-200 text-xs text-slate-600">
             <th />
@@ -137,7 +137,7 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
   return (
     <SectionCard title="Use of funds" info={<><p>Spend on each theme, in ₹ Cr, and its share of the equity raise.</p><p>A cost line counts here when it has a milestone. Add milestones in Setup → Sheet lines.</p></>}>
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-        <table className="w-full min-w-[620px] text-[13px] tabular-nums">
+        <table className="w-full min-w-[620px] text-label tabular-nums">
           <thead>
             <tr className="border-b border-slate-200 text-xs text-slate-600">
               <th className="py-1.5 text-left font-semibold">Theme</th>
@@ -154,7 +154,7 @@ function UseOfFunds({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
                 ])}
               </tr>
             ))}
-            {themes.length === 0 && <tr><td colSpan={1 + 2 * spans.length} className="py-2 text-[12px] text-slate-500">No cost line has a milestone. Add one in Setup → Sheet lines.</td></tr>}
+            {themes.length === 0 && <tr><td colSpan={1 + 2 * spans.length} className="py-2 text-xs text-slate-500">No cost line has a milestone. Add one in Setup → Sheet lines.</td></tr>}
             <tr className="bg-slate-50 font-bold">
               <td className="py-1.5 pr-3">Total tagged deployment</td>
               {deps.map((d, i) => {
@@ -189,9 +189,9 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
       }
     >
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-        <table className="text-[12px] tabular-nums">
+        <table className="text-xs tabular-nums">
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-500">
+            <tr className="text-xs text-slate-500">
               <th className="sticky left-0 z-10 bg-surface py-1.5 pr-3 text-left font-semibold">{by === 'milestone' ? 'Milestone' : 'Theme'}</th>
               {d.months.map((m) => <th key={m} className="whitespace-nowrap px-1.5 py-1.5 text-right font-semibold">{m}</th>)}
               <th className="bg-slate-100 px-2 text-right font-semibold text-slate-800">Total</th>
@@ -201,7 +201,7 @@ function Deployment({ plan, r, asks, spans }: { plan: Plan; r: PlanResult; asks:
           <tbody>
             {rows.map((x) => (
               <tr key={x.key} className="border-t border-slate-100">
-                <td className="sticky left-0 z-10 whitespace-nowrap bg-surface py-1 pr-3 text-slate-700">{x.key}{by === 'milestone' && <span className="ml-1.5 text-xs sm:text-[11px] text-slate-400">{x.theme}</span>}</td>
+                <td className="sticky left-0 z-10 whitespace-nowrap bg-surface py-1 pr-3 text-slate-700">{x.key}{by === 'milestone' && <span className="ml-1.5 text-xs text-slate-400">{x.theme}</span>}</td>
                 {x.byMonth.map((v, i) => <td key={i} className="px-1.5 text-right text-slate-700">{lakh(v)}</td>)}
                 <td className="bg-slate-50 px-2 text-right font-semibold">{lakh(x.total)}</td>
                 <td className="bg-slate-50 px-2 text-right text-slate-500">{pct(x.total / (ask?.equityRequired || 1))}</td>
@@ -226,9 +226,9 @@ function Milestones({ plan }: { plan: Plan }) {
   const tagged = (ms: string) => plan.lines.filter((l) => l.milestone === ms).length;
   return (
     <SectionCard title="Themes and milestones" count={plan.business.themes.length} info="Change milestones in Setup → Business plan text. Link cost lines to a milestone in Setup → Sheet lines.">
-      {plan.business.themes.length === 0 && <p className="text-[13px] text-slate-600">No milestones yet.</p>}
+      {plan.business.themes.length === 0 && <p className="text-label text-slate-600">No milestones yet.</p>}
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-        <table className="w-full text-[13px]">
+        <table className="w-full text-label">
           <thead>
             <tr className="text-xs text-slate-600">
               <th className="py-1 pr-3 text-left font-semibold">Theme</th><th className="pr-3 text-left font-semibold">Milestone</th>
@@ -260,7 +260,7 @@ function LiveChecks({ plan, r }: { plan: Plan; r: PlanResult }) {
   const amzCost = first12.reduce((a, m) => a + plan.lines.filter((l) => /Amazon/.test(l.name) && (l.group === 'Channel Commission' || l.group === 'Fulfilment & Delivery')).reduce((s, l) => s + (m.lines[l.id] ?? 0), 0), 0);
   const peak = r.months.slice(0, 18).reduce((a, m) => Math.max(a, m.gstAsset), 0);
   return (
-    <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+    <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
       <b className="text-slate-800">First 12 months:</b> Oct–Jan = {pct(octJan / (rev || 1), 0)} of revenue ·
       Amazon fees and fulfilment = {pct(amzCost / (amz || 1))} of Amazon revenue · largest GST asset in 18 months ₹{cr(peak)} Cr.
     </p>

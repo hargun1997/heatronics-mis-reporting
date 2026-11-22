@@ -19,8 +19,8 @@ export function PayHeadline({ r }: { r: TdsReport }) {
   const tone = r.overdue ? 'border-red-200 bg-red-50' : 'border-accent-200 bg-accent-50';
   return (
     <div className={`rounded-xl border px-4 py-4 sm:px-5 ${tone}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">{r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`}</div>
-      <div className="mt-1 text-[32px] font-semibold leading-10 text-slate-900">{inr(r.totals.balance)}</div>
+      <div className="text-xs font-semibold text-slate-600">{r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`}</div>
+      <div className="mt-1 text-3xl font-semibold leading-10 text-slate-900">{inr(r.totals.balance)}</div>
       <div className="mt-1 text-sm text-slate-700">
         TDS deducted in {r.monthLabel}: {inr(r.totals.deducted)} · already paid {inr(r.totals.paid)}
         {r.totals.interest > 0 && <> · <span className="font-semibold text-red-700">interest about {inr(r.totals.interest)}</span></>}
@@ -66,7 +66,7 @@ export function DeducteeList({ r }: { r: TdsReport }) {
             </button>
             {isOpen && (
               <div className="overflow-x-auto border-t border-slate-100">
-                <table className="w-full min-w-[620px] text-[13px]">
+                <table className="w-full min-w-[620px] text-label">
                   <thead className="bg-slate-50 text-left text-xs text-slate-600"><tr>
                     <th className="px-3 py-1.5 font-semibold">Party</th><th className="px-3 py-1.5 font-semibold">PAN</th>
                     <th className="px-3 py-1.5 text-right font-semibold">Paid to them</th><th className="px-3 py-1.5 text-right font-semibold">TDS</th>
