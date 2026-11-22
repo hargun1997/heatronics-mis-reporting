@@ -49,7 +49,7 @@ export function RulebookPage() {
         onTab={(id) => setTab(id as RbTab)}
       />
 
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
         {tab === 'cascade' && (
           <Panel title="P&L lines and their source" count={CASCADE.length} flush
             action={<InfoTip text="How far the MIS is complete" label={COMPLETENESS_RULE.headline} width={360}>

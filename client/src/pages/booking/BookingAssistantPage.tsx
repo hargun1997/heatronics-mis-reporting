@@ -219,7 +219,7 @@ export function BookingAssistantPage() {
       />
 
       {/* Phones: switch between the two panes */}
-      <div className="mx-auto flex max-w-7xl gap-1 px-4 sm:px-6 lg:hidden" role="group" aria-label="Pane">
+      <div className="mx-auto flex max-w-page gap-1 px-4 sm:px-6 lg:hidden" role="group" aria-label="Pane">
         {(['chat', 'map'] as const).map((t) => (
           <button key={t} type="button" aria-pressed={mobileTab === t} onClick={() => setMobileTab(t)}
             className={`min-h-11 flex-1 rounded-lg text-label font-semibold ${mobileTab === t ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-300' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>
@@ -228,7 +228,7 @@ export function BookingAssistantPage() {
         ))}
       </div>
 
-      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 sm:px-6 lg:h-[calc(100vh-7.5rem)] lg:min-h-[560px] lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8 lg:pt-0">
+      <div className="mx-auto grid max-w-page gap-4 px-4 py-4 sm:px-6 lg:h-[calc(100vh-7.5rem)] lg:min-h-[560px] lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8 lg:pt-0">
         {/* ---------------- chat ---------------- */}
         <section
           aria-label="Ask the booking assistant"

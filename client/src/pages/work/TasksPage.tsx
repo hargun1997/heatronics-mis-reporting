@@ -211,7 +211,7 @@ export function TasksPage() {
     return (
       <div className="tasks-ui pb-16">
         {header}
-        <div className="mx-auto max-w-7xl px-4 py-16 text-center text-sm text-slate-600 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-page px-4 py-16 text-center text-sm text-slate-600 sm:px-6">
           {error ? <span className="text-red-700">{error}</span> : seeding ? 'Setting up the task list…' : 'Loading…'}
         </div>
       </div>
@@ -222,7 +222,7 @@ export function TasksPage() {
     <div className="tasks-ui pb-16">
       {header}
 
-      <div className="mx-auto max-w-7xl space-y-3 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-3 px-4 sm:px-6">
         {error && (
           <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
             {error}

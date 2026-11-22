@@ -263,7 +263,7 @@ export function LiveMisPage() {
       {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} />}
       {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
 
-      <div className="mx-auto max-w-7xl space-y-3 px-4 pb-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-3 px-4 pb-10 sm:px-6">
         {/* Product decisions are about products: Products tab only (they also sit in Tasks → Fix). Before 22 Nov 2026 this
             amber box sat above every tab. */}
         {tab === 'products' && deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}

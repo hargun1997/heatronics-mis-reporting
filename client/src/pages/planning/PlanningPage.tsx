@@ -216,7 +216,7 @@ export function PlanningPage() {
       <Drawer open={setupOpen} onClose={() => setSetupOpen(false)} title="Setup" subtitle={panelSummary(plan)} width={920}>
         <SetupPanel embedded plan={plan} update={update} result={result} />
       </Drawer>
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
         {view === 'overview' && <>
           <SubTabs value={ovPart} onChange={setOvPart} options={OV_PARTS} label="Overview part" />
           {ovPart === 'summary' ? <OverviewView plan={plan} result={result} compare={compareId !== 'none' ? compareResult : null} compareName={compareName} />

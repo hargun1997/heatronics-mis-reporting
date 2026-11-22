@@ -104,6 +104,8 @@ export default {
         'ink-panel': 'linear-gradient(rgb(var(--n-900)), rgb(var(--n-900)))',
       },
       // Ember shape: buttons / inputs 10px (rounded-lg), cards 14px (rounded-xl), nav rows 6px (rounded-md), pills full.
+      // GUIDE.md "Space": the page fills the space up to 1440, then centres.
+      maxWidth: { page: '1440px' },
       borderRadius: { lg: '10px', xl: '14px', '2xl': '14px', '3xl': '14px' },
       transitionDuration: { DEFAULT: '150ms' },
       transitionTimingFunction: { settle: 'cubic-bezier(.2,.8,.2,1)' },

@@ -84,7 +84,7 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
   return (
     <div className="bg-transparent">
     <div className={cx(tabs && 'border-b border-stone-200')}>
-      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page px-4 pt-4 sm:px-6">
         {trail.length > 0 && (
           <nav aria-label="Breadcrumb" className="print:hidden">
             <ol className="flex flex-wrap items-center gap-x-1 text-label text-stone-600">
@@ -124,7 +124,7 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
 
 /** The page column under the header: same width and gutters on every page. */
 export function PageBody({ children, className, wide }: { children: React.ReactNode; className?: string; wide?: boolean }) {
-  return <div className={cx('mx-auto space-y-4 px-4 pb-10 sm:px-6 lg:px-8', wide ? 'max-w-none' : 'max-w-7xl', className)}>{children}</div>;
+  return <div className={cx('mx-auto space-y-4 px-4 pb-10 sm:px-6', wide ? 'max-w-none' : 'max-w-page', className)}>{children}</div>;
 }
 
 /** Secondary header buttons: in the row from `sm` up; behind a "More" (…) menu on phones, so the header never wraps

@@ -192,7 +192,7 @@ export function PriceFloorsPage() {
           </>
         }
       />
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
         {loadError && <ErrorBox onRetry={() => void load()}>Unable to load the price floors: {loadError}</ErrorBox>}
         {note && <Banner tone={note.tone} onClose={() => setNote(null)}>{note.text}</Banner>}
 

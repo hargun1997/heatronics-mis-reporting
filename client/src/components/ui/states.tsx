@@ -88,7 +88,7 @@ export function Panel({ title, count, action, children, className = '', flush }:
   title: React.ReactNode; count?: number | null; action?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean;
 }) {
   return (
-    <section className={`rounded-xl border border-slate-200 bg-white shadow-card ${className}`}>
+    <section className={`min-w-0 rounded-xl border border-slate-200 bg-white ${className}`}>
       <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-1.5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           {title}

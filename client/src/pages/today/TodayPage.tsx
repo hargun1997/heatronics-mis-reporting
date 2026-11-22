@@ -99,7 +99,7 @@ export function TodayPage() {
                 // for cash and sales up is good; for fix / late counts up is bad
                 const good = t.unit === 'count' ? (t.delta ?? 0) < 0 : (t.delta ?? 0) > 0;
                 return (
-                  <KpiTile key={t.id} label={t.label} href={t.href} value={<span className={TONE[t.tone]}>{t.id === 'books' ? 'No data' : show(t)}</span>}
+                  <KpiTile key={t.id} label={t.label} href={t.href} value={t.id === 'books' ? null : <span className={TONE[t.tone]}>{show(t)}</span>}
                     delta={d ? { dir: (t.delta ?? 0) > 0 ? 'up' : 'down', text: d, good } : undefined}
                     sub={t.sub} />
                 );
