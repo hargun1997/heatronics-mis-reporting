@@ -26,16 +26,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowsPointingInIcon,
-  ArrowsPointingOutIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ListBulletIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+import { ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, Minimize2 as ArrowsPointingInIcon, Maximize2 as ArrowsPointingOutIcon, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, List as ListBulletIcon, X as XMarkIcon } from 'lucide-react';
 import { SopVisual } from '../../components/ui/SopVisual';
 import { useDensity } from '../../hooks/useDensity';
 import {

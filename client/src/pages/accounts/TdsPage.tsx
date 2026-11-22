@@ -3,7 +3,7 @@
 // Layout (simplification pass 2): 4 numbers, then ONE view picked by the header tabs (Pay · Check · Parties · Quarter).
 // "How to pay and file" opens in a modal. Engine: data/tds/tds.ts · export: data/tds/tdsFormats.ts · data: GET /api/tds.
 import { useState } from 'react';
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { Download as ArrowDownTrayIcon } from 'lucide-react';
 import { HeaderMore, PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
 import { Modal } from '../../components/ui/overlays';

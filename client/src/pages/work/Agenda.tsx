@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BellAlertIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { BellRing as BellAlertIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import { diffDays } from '../../data/work/schedule';
 import type { TeamMember, WorkState, WorkTask } from '../../data/work/workClient';
 import { readFold, writeFold } from '../../hooks/useDensity';

@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Plus as PlusIcon, Trash2 as TrashIcon, X as XMarkIcon } from 'lucide-react';
 import { Modal } from '../../components/ui/overlays';
 import { getEmailTemplates, getWork, saveHeads, type EmailTemplate, type Head, type WorkState } from '../../data/work/workClient';
 import { EmailPreview, RemindersCard, RolesCard, TeamCard } from './SettingsCards';

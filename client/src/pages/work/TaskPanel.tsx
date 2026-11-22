@@ -6,7 +6,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { AmazonStockPanel } from './AmazonStockPanel';
 import { TdsTaskPanel } from './TdsTaskPanel';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowTopRightOnSquareIcon, BellAlertIcon, BookOpenIcon, CloudArrowUpIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { ExternalLink as ArrowTopRightOnSquareIcon, BellRing as BellAlertIcon, BookOpen as BookOpenIcon, CloudUpload as CloudArrowUpIcon, Link as LinkIcon } from 'lucide-react';
 import { getHandbook } from '../../data/handbook/handbook';
 import { addDays, describe, occurrences, parseYmd, todayIST, ymd } from '../../data/work/schedule';
 import { remindTask, setTaskCheck, type TeamMember, type WorkState, type WorkTask } from '../../data/work/workClient';

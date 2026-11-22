@@ -2,7 +2,7 @@
 // builder, how-to link, notes and references. Used for add and edit.
 
 import { useMemo, useState } from 'react';
-import { CheckIcon, PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Check as CheckIcon, Plus as PlusIcon, Trash2 as TrashIcon, X as XMarkIcon } from 'lucide-react';
 import { getHandbook } from '../../data/handbook/handbook';
 import { addDays, describe, occurrences, ordinal, parseYmd, todayIST, ymd } from '../../data/work/schedule';
 import type { TeamMember, WorkTask } from '../../data/work/workClient';

@@ -2,7 +2,7 @@
 // the daily reminder email with its Zoho connection, and the email preview.
 
 import { useEffect, useMemo, useState } from 'react';
-import { BellAlertIcon, ChevronDownIcon, TrashIcon, UserGroupIcon, UserPlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { BellRing as BellAlertIcon, ChevronDown as ChevronDownIcon, Trash2 as TrashIcon, Users as UserGroupIcon, UserPlus as UserPlusIcon, X as XMarkIcon } from 'lucide-react';
 import { diffDays, todayIST } from '../../data/work/schedule';
 import {
   connectMail,

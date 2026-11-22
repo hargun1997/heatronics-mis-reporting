@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Cog6ToothIcon, ExclamationCircleIcon, PlusIcon, UserCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Settings as Cog6ToothIcon, CircleAlert as ExclamationCircleIcon, Plus as PlusIcon, CircleUser as UserCircleIcon, X as XMarkIcon } from 'lucide-react';
 import { Modal } from '../../components/ui/overlays';
 import { diffDays, todayIST } from '../../data/work/schedule';
 import { deleteTask, deleteTasks, getWork, importSeed, saveTask, setTaskDone, type TeamMember, type WorkState, type WorkTask } from '../../data/work/workClient';

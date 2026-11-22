@@ -2,7 +2,7 @@
 // select-and-delete. Every row opens the same task panel as the agenda.
 
 import { useState } from 'react';
-import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ChevronDown as ChevronDownIcon, Trash2 as TrashIcon } from 'lucide-react';
 import { describe } from '../../data/work/schedule';
 import type { TeamMember, WorkState, WorkTask } from '../../data/work/workClient';
 import { readFold, writeFold } from '../../hooks/useDensity';

@@ -2,7 +2,7 @@
 // before) and closing (last day of the task's month) FBA stock per product, valued at Production's cost, ready to enter in Tally.
 // Data: GET /api/stock/amazon?month= (Ops ledger balances + Production costs); maths: data/stock/amazonStock.ts (pure).
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { Download as ArrowDownTrayIcon, RefreshCw as ArrowPathIcon } from 'lucide-react';
 import { buildValuation, prevMonth, tranzactRows, type CostRow, type LedgerRow, type StockSide } from '../../data/stock/amazonStock';
 import { skuToFgMapping } from '../../data/skuToFgMapping';
 import { fgMaster } from '../../data/fgMaster';

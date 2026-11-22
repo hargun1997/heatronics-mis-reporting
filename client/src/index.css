@@ -530,3 +530,6 @@ button:not(:disabled):active, [role="button"]:active { transform: scale(.97); tr
 /* Tasks pages: same face as the rest of the app now (DM Sans); class kept for tabular figures. */
 .tasks-ui { font-feature-settings: 'tnum' 1, 'lnum' 1; }
 .tasks-ui input::placeholder, .tasks-ui textarea::placeholder { color: rgb(var(--n-500)); }
+
+/* GUIDE.md "Icons": one set, Lucide outline, stroke 1.8. */
+svg.lucide { stroke-width: 1.8; }

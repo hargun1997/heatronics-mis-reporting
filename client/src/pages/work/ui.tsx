@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { CheckIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Check as CheckIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import type { TeamMember } from '../../data/work/workClient';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { avatarTone, initials } from './taskModel';

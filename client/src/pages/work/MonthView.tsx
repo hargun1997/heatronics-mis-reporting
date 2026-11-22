@@ -2,7 +2,7 @@
 // above the grid).
 
 import { useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { describe, occurrences, parseYmd } from '../../data/work/schedule';
 import type { TeamMember, WorkState, WorkTask } from '../../data/work/workClient';
 import { MN, ownerNames, periodLabel } from './taskModel';

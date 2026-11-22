@@ -7,7 +7,7 @@
 
 /* eslint-disable react-refresh/only-export-components */
 import { Children, createContext, isValidElement, useContext, useState, type ReactElement, type ReactNode } from 'react';
-import { ChevronDownIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { ChevronDown as ChevronDownIcon, Info as InformationCircleIcon } from 'lucide-react';
 import { Popover } from '../ui/overlays';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { CHANNEL_COLORS, CHART, pctSigned } from '../mis-deck/format';

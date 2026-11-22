@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Drawer } from '../../components/ui/overlays';
 import { Link } from 'react-router-dom';
-import { AdjustmentsHorizontalIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { SlidersHorizontal as AdjustmentsHorizontalIcon, Search as MagnifyingGlassIcon, X as XMarkIcon } from 'lucide-react';
 import type { Head, TeamMember } from '../../data/work/workClient';
 import { KINDS, NO_FILTERS, WHENS, type Filters, type View, type Who } from './taskModel';
 import { btnGhost, btnPrimary, focusRing } from './ui';
