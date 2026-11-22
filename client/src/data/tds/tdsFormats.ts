@@ -251,3 +251,24 @@ export function historySheets(months: { month: string; state: string; note: stri
     return { name: sh.name, rows: [sh.rows[0], sh.rows[1], flag, ...sh.rows.slice(2)] };
   });
 }
+
+/** What each row of a TDS report sheet is, for the Excel styling (utils/tdsReportExport.ts). Pure, tested. */
+export type ReportRowKind = 'company' | 'month' | 'flag' | 'block' | 'header' | 'data' | 'total' | 'grand' | 'summaryTitle' | 'summary' | 'summaryTotal' | 'blank';
+export function reportRowKinds(rows: ReportCell[][]): ReportRowKind[] {
+  const titles = new Set(REPORT_BLOCKS.map((b) => b.title));
+  let inSummary = false;
+  return rows.map((r, i) => {
+    const a = r[0], b = r[1];
+    if (!r.length || r.every((c) => c === '' || c == null)) return 'blank';
+    if (i === 0) return 'company';
+    if (i === 1) return 'month';
+    if (typeof a === 'string' && a.startsWith('DATA ')) return 'flag';
+    if (typeof a === 'string' && titles.has(a)) return 'block';
+    if (a === REPORT_HEADERS[0]) return 'header';
+    if (b === 'Grand Total') return 'grand';
+    if (b === 'Total') return 'total';
+    if (typeof b === 'string' && b.startsWith('TDS PAYABLE')) { inSummary = true; return 'summaryTitle'; }
+    if (inSummary) return b === 'TOTAL PAYABLE' || b === 'NET PAYABLE' ? 'summaryTotal' : 'summary';
+    return 'data';
+  });
+}

@@ -265,3 +265,25 @@ test('filed reports: compare block totals', async () => {
   const off = compareFiled({ jobwork: 3619.68, others: 32000, commission: 35.13, rent: 35000, professional: 8008.27, other: 0 }, sep);
   assert.equal(off.matches, false); assert.equal(off.diff, -821.79);
 });
+
+test('report styling: row kinds and a styled sheet (bold headers, borders, number formats)', async () => {
+  const { tdsReportSheet, reportRowKinds, historySheets } = await import('../../client/src/data/tds/tdsFormats.ts');
+  const { styledReportSheet } = await import('../../client/src/utils/tdsReportExport.ts');
+  const row = (supplier: string, pan: string, tdsLedger: string, taxable: number, tds: number): InvoiceRow => ({
+    key: supplier, month: '2026-09', date: '2026-09-04', voucherType: 'Journal', voucherNo: '1', supplier, pan, gstin: '', invoiceNo: '90', invoiceDate: '2026-09-04', ledgers: 'Job Work Charges',
+    taxable, igst: 0, cgst: 0, sgst: 0, cess: 0, tdsLedger, tds, total: taxable, payable: taxable - tds, partyTds: '', narration: '', firstSeen: '', lastSeen: '', status: 'active', changes: [],
+  });
+  const sh = tdsReportSheet('2026-09', [row('Demo Job Worker', 'ABCPK1234C', 'TDS Payable - 194C (Contractors)', 4440, 44.4)]);
+  const kinds = reportRowKinds(sh.rows);
+  assert.deepEqual(kinds.slice(0, 7), ['company', 'month', 'blank', 'block', 'header', 'data', 'total']);
+  assert.ok(kinds.includes('grand') && kinds.includes('summaryTitle') && kinds.includes('summaryTotal'));
+  const flagged = historySheets([{ month: '2026-10', state: 'stale', note: 'x', rows: [] }])[0];
+  assert.equal(reportRowKinds(flagged.rows)[2], 'flag');
+  const ws = styledReportSheet(sh.rows) as Record<string, any>;
+  assert.equal(ws.A1.s.font.bold, true);                       // company title
+  assert.equal(ws.A5.v, 'S.NO'); assert.equal(ws.A5.s.font.bold, true); assert.equal(ws.H5.s.border.left.style, 'thin');
+  assert.equal(ws.B6.s.font.bold, false); assert.ok(ws.B6.s.border);          // data row boxed, not bold
+  assert.equal(ws.D6.s.numFmt, 'dd-mm-yyyy'); assert.equal(ws.F6.s.numFmt, '#,##0.00'); assert.equal(ws.H6.s.numFmt, '0.00');
+  assert.equal(ws.B7.v, 'Total'); assert.equal(ws.B7.s.font.bold, true);
+  assert.ok((ws['!merges'] as unknown[]).length >= 3);
+});
