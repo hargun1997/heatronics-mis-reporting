@@ -16,7 +16,7 @@ export interface SyncState {
   lastTryAt: string | null; lastOkAt: string | null; lastOkDay: string | null; lastError: string | null; finalFor: Record<string, string>;
   lastRun?: { at: string; trigger: string; months: string[]; bills: number; error: string | null };
 }
-export interface SyncInfo { sync: SyncState; running: boolean; reachedAt: string | null; nextWhy: string; offline: boolean; waiting: string[] }
+export interface SyncInfo { sync: SyncState; running: boolean; reachedAt: string | null; nextWhy: string; offline: boolean; waiting: string[]; passLeft?: string[] }
 export interface InvoicesApi extends SyncInfo {
   month: string; stored: boolean; booksAsOf: string | null; syncedAt: string | null;
   summary: { bills: number; suppliers: number; taxable: number; tds: number; withTds: number; edited: number; removed: number };
@@ -52,7 +52,7 @@ export function useInvoices(month: string) {
   const sync = useCallback(async (): Promise<{ ok: boolean; error: string | null }> => {
     setSyncing(true);
     try {
-      let r = await getJson<SyncInfo & { status: string }>('/api/tds/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ month }) });
+      let r = await getJson<SyncInfo & { status: string }>('/api/tds/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       for (let i = 0; r.running && i < 24; i++) {
         await new Promise((ok) => setTimeout(ok, 15_000));
         r = { status: 'running', ...(await getJson<SyncInfo>('/api/tds/sync')) };

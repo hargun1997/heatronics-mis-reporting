@@ -2,7 +2,7 @@
 // (client/src/data/tds/tdsFormats.ts invoiceSheet / monthSheets). Synthetic parties only (the repo is public).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addMonth, duplicateBills, invoiceRows, memoryStale, memorySummary, mergeMemory, syncDue, syncMonths, tallyOffline, waitingFor, EMPTY_SYNC, type TdsSyncState } from '../src/services/supplierInvoices.ts';
+import { addMonth, duplicateBills, invoiceRows, memoryStale, memorySummary, mergeMemory, syncDue, passMonths, tallyOffline, waitingFor, EMPTY_SYNC, type TdsSyncState } from '../src/services/supplierInvoices.ts';
 import { INVOICE_COLUMNS, SHEET_NAMES, invoiceSheet, monthSheets } from '../../client/src/data/tds/tdsFormats.ts';
 import { rowRate, rowSection, type InvoiceRow } from '../../client/src/data/tds/invoices.ts';
 import type { TallyLedger, TallyVoucher } from '../src/connectors/tally/books.ts';
@@ -104,10 +104,20 @@ test('syncDue: daily once after 10:00 IST, retry after 50 min, month end from th
   assert.equal(addMonth('2026-01', -1), '2025-12');
 });
 
-test('syncMonths: month end = last month first; daily = this month (+ last up to the 8th)', () => {
-  assert.deepEqual(syncMonths(at('2026-12-05T06:00:00Z'), true), ['2026-11', '2026-12']);
-  assert.deepEqual(syncMonths(at('2026-12-03T06:00:00Z'), false), ['2026-12', '2026-11']);
-  assert.deepEqual(syncMonths(at('2026-11-22T06:00:00Z'), false), ['2026-11']);
+test('passMonths: the whole FY from April, this month first, only months not read since the pass began', () => {
+  const now = at('2026-11-22T06:00:00Z');
+  const start = '2026-11-22T05:00:00Z';
+  assert.deepEqual(passMonths(now, {}, start), ['2026-11', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']);
+  // Nov and Apr read after the pass began; May read before it (old copy) → still to read.
+  const asOf = { '2026-11': '2026-11-22T05:10:00Z', '2026-04': '2026-11-22T05:20:00Z', '2026-05': '2026-11-20T09:00:00Z' };
+  assert.deepEqual(passMonths(now, asOf, start), ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']);
+  const all = Object.fromEntries(['04', '05', '06', '07', '08', '09', '10', '11'].map((m) => [`2026-${m}`, '2026-11-22T05:30:00Z']));
+  assert.deepEqual(passMonths(now, all, start), []);
+  // A pass in progress resumes 10 min after a good run, 50 min after a failed one, even after today's good sync.
+  const p: TdsSyncState = { ...EMPTY_SYNC, lastOkDay: '2026-11-22', lastTryAt: '2026-11-22T05:50:00Z', passStartedAt: start, finalFor: { '2026-10': '2026-11-05T06:00:00Z' } };
+  assert.equal(syncDue(now, p).due, true);
+  assert.equal(syncDue(at('2026-11-22T05:55:00Z'), p).due, false);
+  assert.equal(syncDue(now, { ...p, lastError: 'fetch failed' }).due, false);
 });
 
 test('invoiceSheet / monthSheets: header, totals, removed bills apart', () => {
@@ -175,11 +185,6 @@ test('offline: retries until Tally answers, then catches up the missed months', 
   assert.deepEqual([due.due, due.monthEnd], [true, true]);
   assert.equal(syncDue(at('2026-12-09T06:30:00Z'), down).due, false);
   assert.deepEqual(waitingFor(at('2026-12-09T07:00:00Z'), down), ['month-end sync of 2026-11', "today's sync"]);
-  // Daily sync after a gap reads the missed months too (Oct last good → Oct, Nov caught up; Dec first).
-  assert.deepEqual(syncMonths(at('2026-12-20T06:00:00Z'), false, '2026-10-28T06:00:00Z'), ['2026-12', '2026-10', '2026-11']);
-  assert.deepEqual(syncMonths(at('2026-12-05T06:00:00Z'), true, '2026-10-28T06:00:00Z'), ['2026-11', '2026-10', '2026-12']);
-  assert.deepEqual(syncMonths(at('2026-12-20T06:00:00Z'), false, '2026-12-19T06:00:00Z'), ['2026-12']);
-  assert.deepEqual(syncMonths(at('2026-12-20T06:00:00Z'), false, '2026-01-01T06:00:00Z').length, 4); // at most 3 back + this month
 });
 
 test('history: month state and FY months; sheets flagged when the data is not OK', async () => {

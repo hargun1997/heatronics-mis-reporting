@@ -8,14 +8,14 @@
 //   PUT  /api/tds/filed/:month           store a filed report parsed in the browser (services/filedReports.ts); the month is "filed"
 //   DELETE /api/tds/filed/:month         remove a wrong upload (the month goes back to Tally)
 //   GET  /api/tds/sync                   last sync, next run, Tally freshness (signed in)
-//   POST /api/tds/sync {month?}          "Sync with Tally": Day Books → memory now (signed in); waits ≤ 25 s, then "running"
+//   POST /api/tds/sync                   "Sync with Tally": re-reads the whole FY (Day Books → memory; signed in); waits ≤ 25 s, then "running"
 //   POST /api/tds/sync/run               OPEN path with its own token (secret mis-auto-pull-token), hourly GitHub Actions
 //                                        (.github/workflows/tds-sync.yml): once a day + month-end from the 5th; counts only
 import { Router, type Request, type Response } from 'express';
 import { readBooks, readBooksState, readMasters, readPartial } from '../connectors/tally/bookStore.js';
 import { tdsFeed, tdsMonths } from '../services/tdsFeed.js';
 import { duplicateBills, fyMonths, memorySummary, monthState, syncDue, tallyOffline, waitingFor } from '../services/supplierInvoices.js';
-import { memoryFor, readSyncState, runTdsSync, scheduledSync, syncRunning } from '../services/tdsSync.js';
+import { memoryFor, passLeft, readSyncState, runTdsSync, scheduledSync, syncRunning } from '../services/tdsSync.js';
 import { tallyReachedAt } from '../connectors/tally/freshness.js';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import { sanitizeFiled, type StoredFiledDoc } from '../services/filedReports.js';
@@ -49,7 +49,8 @@ const syncInfo = async () => {
   const [s, reachedAt] = await Promise.all([readSyncState(), tallyReachedAt()]);
   const now = Date.now();
   const due = syncDue(now, s);
-  return { sync: s, running: syncRunning(), reachedAt, nextWhy: due.why, offline: tallyOffline(s), waiting: waitingFor(now, s) };
+  const left = await passLeft(s);
+  return { sync: s, running: syncRunning(), reachedAt, nextWhy: due.why, offline: tallyOffline(s), waiting: [...waitingFor(now, s), ...(left.length ? [`full-year re-read: ${left.length} month(s) left`] : [])], passLeft: left };
 };
 
 router.get('/invoices', h(async (req, res) => {
@@ -111,9 +112,8 @@ router.get('/history', h(async (req, res) => {
 
 const SYNC_WAIT_MS = 25_000;
 router.post('/sync', h(async (req, res) => {
-  const month = String(req.body?.month || '');
-  const months = MONTH.test(month) ? [month] : undefined;
-  const p = runTdsSync('button', { months });
+  // The button re-reads the whole financial year too (founder, 22 Nov 2026); a pass already running goes on.
+  const p = runTdsSync('button');
   let t: NodeJS.Timeout | undefined;
   const out = await Promise.race([p, new Promise<'waiting'>((r) => { t = setTimeout(() => r('waiting'), SYNC_WAIT_MS); })]).finally(() => clearTimeout(t));
   // The sync goes on after the answer (Cloud Run --no-cpu-throttling); the page polls GET /api/tds/sync.
