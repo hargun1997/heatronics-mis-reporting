@@ -1,4 +1,4 @@
-// Setup → 2 Assumptions (docs/planning/ONE-SETUP.md §2.2): the levers every product sits on, the accounting
+// Setup, 2 Assumptions (docs/planning/ONE-SETUP.md §2.2): the levers every product sits on, the accounting
 // switches, and working capital / GST / tax / interest. Absorbs LeverPanel, the Revenue tab's channel × FY growth
 // table, the seasonality-shape choice, the Founder-panel switches and the Cash tab's inputs (minus the opening values).
 

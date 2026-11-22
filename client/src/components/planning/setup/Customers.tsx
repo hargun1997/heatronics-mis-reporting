@@ -1,4 +1,4 @@
-// Setup → D2C customers & seasonality (docs/planning/ONE-SETUP.md §2.4): the customer model's inputs (mode, the
+// Setup, D2C customers & seasonality (docs/planning/ONE-SETUP.md §2.4): the customer model's inputs (mode, the
 // learned cohort rates and AOVs, the Shopify history refresh), D2C discounts, and the seasonality heatmap editor.
 // The "Plan by year" table, the base check and the history chart are output views (outputs/ProductsCustomers.tsx).
 
@@ -79,11 +79,11 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
         <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-1"><b className="text-slate-800">From:</b> {d.source} · {d.asOf}{d.fit.r2 != null && <> · R² {d.fit.r2.toFixed(2)}</>}<Tip label="About the learned rates">{d.fit.note}</Tip></div>
+            <div className="flex flex-wrap items-center gap-x-1"><b className="text-slate-800">From:</b> {d.source}, {d.asOf}{d.fit.r2 != null && <>, R² {d.fit.r2.toFixed(2)}</>}<Tip label="About the learned rates">{d.fit.note}</Tip></div>
             {stored && (
               <div className="mt-0.5 text-slate-600">
                 Shopify: {int(stored.orders)} orders, {int(stored.customers)} buyers, {stored.asOf}
-                {stored.skipped.outlier > 0 && ` · ${stored.skipped.outlier} orders over ₹2 L not used`}
+                {stored.skipped.outlier > 0 && `, ${stored.skipped.outlier} orders over ₹2 L not used`}
               </div>
             )}
             {err && <div className="mt-1 text-red-700">{err}</div>}
@@ -130,7 +130,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         </div>
         {cohortsOn && lastFy && (
           <Note>
-            {lastFy.fy}: {int(lastFy.d2cNewCustomers / (lastFy.months || 1))} new buyers a month · repeats {pct(lastFy.d2cRepeatRevenue / ((lastFy.d2cNewRevenue + lastFy.d2cRepeatRevenue) || 1), 0)} of D2C revenue.
+            {lastFy.fy}: {int(lastFy.d2cNewCustomers / (lastFy.months || 1))} new buyers a month, repeats {pct(lastFy.d2cRepeatRevenue / ((lastFy.d2cNewRevenue + lastFy.d2cRepeatRevenue) || 1), 0)} of D2C revenue.
           </Note>
         )}
 
@@ -189,7 +189,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                         </td>
                       );
                     })}
-                    <td className="whitespace-nowrap pl-3 text-right text-slate-600" title="Share of the year's units in the top 3 months">{MON[peak]} · top 3 {pct(top3, 0)}</td>
+                    <td className="whitespace-nowrap pl-3 text-right text-slate-600" title="Share of the year's units in the top 3 months">{MON[peak]}, top 3 {pct(top3, 0)}</td>
                   </tr>
                 );
               })}

@@ -54,7 +54,7 @@ export function RevenueBars({ r, compare }: { r: PlanResult; compare?: PlanResul
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-300" />Apr–Sep '26 actuals</span>
         {years.some((y) => y.storeRevenue > 0) && <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-500" />Own stores</span>}
         {compare && <span>– – other scenario</span>}
-        <span>₹ Cr · *part year</span>
+        <span>₹ Cr. *: part year.</span>
       </figcaption>
     </figure>
   );
@@ -94,7 +94,7 @@ export function CashCurve({ r, compare }: { r: PlanResult; compare?: PlanResult 
         <span className="inline-flex items-center gap-1"><span className="h-0.5 w-4 bg-brand-600" />Closing cash</span>
         <span className="inline-flex items-center gap-1"><span className="h-0.5 w-4 bg-slate-400" />Operating cash flow, running total</span>
         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />Equity in</span>
-        <span>Dotted line = end of the sheet · ₹ Cr</span>
+        <span>Dotted line: end of the sheet. ₹ Cr.</span>
       </figcaption>
     </figure>
   );

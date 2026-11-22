@@ -1,4 +1,4 @@
-// Setup → 9 Targets (docs/planning/ONE-SETUP.md §2.9): where the plan should land (revenue by year, or an exit ARR) and the
+// Setup, 9 Targets (docs/planning/ONE-SETUP.md §2.9): where the plan should land (revenue by year, or an exit ARR) and the
 // ONE action of the whole planning page — "Fit the plan to these targets" — which is also its only primary button.
 import { useState } from 'react';
 import type { Plan } from '../../../data/planning/engine';

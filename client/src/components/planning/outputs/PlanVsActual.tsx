@@ -180,17 +180,17 @@ export function PlanVsActualView({ saved }: Props) {
         <>
           <section aria-label="Big numbers" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <BigNumber n={1} label="Revenue vs plan" value={t?.revenue ? inr(t.revenue.actual as number) : null} c={t?.revenue ?? null}
-              sub={t?.revenue ? `Plan ${inr(t.revenue.plan)} · gap ${inr(t.revenue.gap as number, true)} · ${r.ytd?.fromLabel} to ${r.ytd?.toLabel}` : 'No closed month yet'} />
+              sub={t?.revenue ? `Plan ${inr(t.revenue.plan)}, gap ${inr(t.revenue.gap as number, true)}, ${r.ytd?.fromLabel} to ${r.ytd?.toLabel}` : 'No closed month yet'} />
             <BigNumber n={2} label="EBITDA vs plan" value={t?.ebitda ? inr(t.ebitda.actual as number) : null} c={t?.ebitda ?? null}
-              sub={t?.ebitda ? `Plan ${inr(t.ebitda.plan)} · gap ${inr(t.ebitda.gap as number, true)}` : 'Waiting for the Tally P&L'} />
+              sub={t?.ebitda ? `Plan ${inr(t.ebitda.plan)}, gap ${inr(t.ebitda.gap as number, true)}` : 'Waiting for the Tally P&L'} />
             <BigNumber n={3} label="Units vs plan" value={t?.units ? units(t.units.actual as number) : null} c={t?.units ?? null}
-              sub={t?.units ? `Plan ${units(t.units.plan)} · gap ${units(t.units.gap as number, true)}` : 'No units yet'} />
+              sub={t?.units ? `Plan ${units(t.units.plan)}, gap ${units(t.units.gap as number, true)}` : 'No units yet'} />
             <BigNumber n={4} label="Exit ARR pace" value={arr?.projectedExitArr != null ? inr(arr.projectedExitArr) : null}
               c={arr?.status ? { status: arr.status, gapPct: arr.planExitArr ? (arr.gap as number) / Math.abs(arr.planExitArr) : null } : null}
-              sub={arr ? `Plan for ${arr.fyEndLabel}: ${inr(arr.planExitArr)} · now ${inr(arr.actualArr)} a year` : 'Needs one closed month'} />
+              sub={arr ? `Plan for ${arr.fyEndLabel}: ${inr(arr.planExitArr)}, now ${inr(arr.actualArr)} a year` : 'Needs one closed month'} />
           </section>
 
-          <PlanCard title={`Month by month · ${scnName}`} info="Left bar = plan. Right bar = actual."
+          <PlanCard title={`Month by month, ${scnName}`} info="Left bar = plan. Right bar = actual."
             action={
               <select aria-label="What to show" value={metric} onChange={(e) => setMetric(e.target.value as MetricId)} className="min-h-11 sm:min-h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm font-medium">
                 {METRICS.map((id) => <option key={id} value={id}>{METRIC_NAME[id]}</option>)}

@@ -82,7 +82,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
     const source = {
       ...misSourceWithCash(src, flows),
       percent: pct,
-      title: `HEATRONICS LIVE MIS · Company P&L (${pct ? '% of net revenue' : '₹ Lac'}${normalised ? ', normalised COGM' : ''})`,
+      title: `HEATRONICS LIVE MIS, Company P&L (${pct ? '% of net revenue' : '₹ Lac'}${normalised ? ', normalised COGM' : ''})`,
       fileName: `Heatronics_Live_MIS_Sheet_${pct ? 'pct' : 'lac'}_${normalised ? 'normalised' : 'actual'}_${new Date().toISOString().slice(0, 10)}.xlsx`,
     };
     const { downloadMisFormat } = await import('../../utils/misFormatExport');
@@ -138,7 +138,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
 
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-xs whitespace-nowrap">
-          <caption className="sr-only">MIS · {entities.find((e) => e.id === entity)?.label} · {fy.name} · {unit}</caption>
+          <caption className="sr-only">MIS, {entities.find((e) => e.id === entity)?.label}, {fy.name}, {unit}</caption>
           <thead>
             <tr className="text-xs text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">Particulars in {unit}</th>

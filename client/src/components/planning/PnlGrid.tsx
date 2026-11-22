@@ -107,7 +107,7 @@ export function PnlGrid({ r }: { r: PlanResult }) {
       <div className="flex flex-wrap items-center gap-3">
         <SegmentedControl options={[{ id: 'pnl', label: 'P&L' }, { id: 'cash', label: 'Cash & working capital' }, { id: 'gst', label: 'GST & inventory' }]} value={view} onChange={setView} size="sm" />
         <SegmentedControl options={[{ id: 'month', label: 'Months + FY' }, { id: 'fy', label: 'FY only' }]} value={grain} onChange={setGrain} size="sm" />
-        <span className="text-xs text-slate-600">₹ L · shaded = after the 18-month sheet · * part year</span>
+        <span className="text-xs text-slate-600">₹ L. Shaded: after the 18-month sheet. *: part year.</span>
       </div>
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-xl border border-slate-200/80 bg-surface shadow-card">
         <table className="text-xs tabular-nums">

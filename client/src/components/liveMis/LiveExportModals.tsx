@@ -71,7 +71,7 @@ export function LiveExcelModal({ deck, open, onClose, basis, merged }: {
         <div className="rounded-lg bg-slate-50 p-3 space-y-3">
           <div>
             <p className="text-sm font-medium text-slate-800">P&amp;L cascade sheets</p>
-            <p className="text-xs text-slate-500 mb-2">Net Revenue → Net Income, every line with its % of net revenue, a Total column, CoF split from Non-op, scope and completeness rows. Lines below a period’s completeness are blank.</p>
+            <p className="text-xs text-slate-500 mb-2">Net revenue to net income, every line with its % of net revenue, a Total column, CoF split from Non-op, scope and completeness rows. Lines below a period’s completeness are blank.</p>
             <div className="flex flex-wrap gap-2">
               {GRANS.map((g) => {
                 const on = o.granularities.includes(g.id);
@@ -133,7 +133,7 @@ export function LivePdfModal({ deck, open, onClose, basis, merged }: {
   return (
     <Modal open={open} onClose={onClose} width={600} title="Download PDF" subtitle="A report to print, made from the Live MIS"
       footer={<>
-        <span className="mr-auto text-xs text-slate-500">{basis === 'normalised' ? 'Normalised' : 'Actual'} COGM · {merged ? 'continuous' : 'as-booked'} channels</span>
+        <span className="mr-auto text-xs text-slate-500">{basis === 'normalised' ? 'Normalised' : 'Actual'} COGM, {merged ? 'continuous' : 'as-booked'} channels</span>
         <button type="button" onClick={onClose} className={btnGhost}>Cancel</button>
         <button type="button" disabled={busy || sections.length === 0} onClick={() => void run()} className={btnPrimary}>{busy ? 'Preparing' : 'Download PDF'}</button>
       </>}>

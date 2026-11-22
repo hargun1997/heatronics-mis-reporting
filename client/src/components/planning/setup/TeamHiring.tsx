@@ -1,4 +1,4 @@
-// Setup → 6 Team & hiring (docs/planning/ONE-SETUP.md §2.6): GrowthTab's "Hiring plan" card as a Setup section — benefits /
+// Setup, 6 Team & hiring (docs/planning/ONE-SETUP.md §2.6): GrowthTab's "Hiring plan" card as a Setup section — benefits /
 // hiring / increment %, "Add a role", the hires table, and "People added" per FY as feedback. Writes go through `ensureGrowth`
 // so the section works even when the plan has no growth layer yet; the maths lives in data/planning/setup/team.ts.
 import { DEPT_NAMES, type Dept, type GrowthPlan } from '../../../data/planning/engine';
