@@ -622,6 +622,18 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   scan: cost spike (≥ 3× the 3-month median and ≥ ₹1 L), negative sales ledger, "sales ledger" wording; the inbox skips the running month.
   Monthly email labels its figure "Sales in stored reports" (no live Shopify).
 
+## Book an invoice (`/booking`, 23 Nov 2026)
+`POST /api/booking-assistant/chat` (`routes/bookingAssistant.ts`). Step 1: with a photo / PDF attached, `services/bookingInvoice.ts readInvoice` (Claude,
+effort low) reads vendor, GSTIN, invoice no., date, taxable, GST, total; `normaliseInvoice` keeps typed fields only. Step 2: pure
+`services/bookingEvidence.ts buildEvidence` on the STORED Tally books: party ledger by GSTIN (exact) else name (`findParty`), or named in a typed
+case (`partyInText`); its last 15 vouchers from 12 months of Day Books, its FY bill total (TDS limits), TDS ledgers used, 25 similar vouchers.
+The evidence goes into the LAST user turn (the system prompt stays cached). The system prompt carries the live Tally masters (`ledgerListText`,
+else the bundled list the page sends) + Tally groups, and rules for cases in words (Voucher 1, 2 …), "New ledger needed" / "New party ledger"
+blocks and "<name> (new)". After the answer `checkLedgers` lists table ledgers not in the masters. Response adds `invoice`, `evidence`,
+`ledgerCheck`; the page shows an "Invoice read" card (adds up or not), a "Based on" pill (party, past vouchers) and "N not in Tally".
+Phones: Photo button (`capture="environment"`); every photo is drawn upright at ≤ 2000 px JPEG 0.85 before it is sent (`bookingClient.ts
+shrinkImage`; Claude's image limit is 5 MB). Test `server/test/bookingEvidence.test.ts` (synthetic data).
+
 ## 5-year plan (`/planning`)
 - Port of the Google Sheet "Heatronics Projection and Deployment Plan" (1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE), run live
   and extended Oct-26 → Mar-31. Engine `client/src/data/planning/engine.ts` (pure); Base = `base-plan.json`, written by

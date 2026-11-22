@@ -68,10 +68,51 @@ export interface ChatAttachment {
   isTallyExport?: boolean;
 }
 
+/** What the server read from an attached invoice (server/src/services/bookingInvoice.ts). */
+export interface InvoiceRead {
+  docType?: string;
+  vendor?: string;
+  vendorGstin?: string;
+  invoiceNo?: string;
+  invoiceDate?: string;
+  nature?: string;
+  taxable?: number | null;
+  cgst?: number | null;
+  sgst?: number | null;
+  igst?: number | null;
+  tcs?: number | null;
+  roundOff?: number | null;
+  total?: number | null;
+  reverseCharge?: boolean | null;
+  notes?: string;
+}
+
+/** The stored Tally books the answer used (server/src/services/bookingEvidence.ts evidenceSummary). */
+export interface EvidenceRead {
+  party: { name: string; how: 'gstin' | 'name'; gstin: string } | null;
+  partyVouchers: { date: string; type: string; number: string; line: string }[];
+  similar: number;
+  fy: { from: string; total: number; count: number } | null;
+  periods: string[];
+}
+
+export interface LedgerCheck {
+  missing: string[];
+  checked: number;
+}
+
+export interface AnswerMeta {
+  invoice?: InvoiceRead | null;
+  evidence?: EvidenceRead | null;
+  ledgerCheck?: LedgerCheck | null;
+}
+
 export interface BookingMessage {
   role: 'user' | 'assistant';
   content: string;
   attachments?: ChatAttachment[];
+  /** Assistant side: the invoice read, the books used and the ledger check. */
+  meta?: AnswerMeta;
   /** Assistant-side error shown in place of an answer. */
   error?: { message: string; code?: string };
 }
@@ -128,7 +169,7 @@ export async function sendBookingChat(
   messages: BookingMessage[],
   handbook: string,
   tallyLedgers: string,
-): Promise<{ reply: string; dropped: string[] }> {
+): Promise<{ reply: string; dropped: string[]; meta: AnswerMeta }> {
   const payload = messages
     .filter((m) => !m.error)
     .map((m) => ({
@@ -146,9 +187,16 @@ export async function sendBookingChat(
   } catch {
     throw new AssistantError('Could not reach the server. Check your connection and try again.', 'network');
   }
-  const body = (await res.json().catch(() => ({}))) as { reply?: string; dropped?: string[]; error?: string; code?: string };
+  const body = (await res.json().catch(() => ({}))) as {
+    reply?: string; dropped?: string[]; error?: string; code?: string;
+    invoice?: InvoiceRead | null; evidence?: EvidenceRead | null; ledgerCheck?: LedgerCheck | null;
+  };
   if (!res.ok) throw new AssistantError(body.error || `The assistant failed (${res.status}).`, body.code);
-  return { reply: body.reply || '', dropped: body.dropped ?? [] };
+  return {
+    reply: body.reply || '',
+    dropped: body.dropped ?? [],
+    meta: { invoice: body.invoice ?? null, evidence: body.evidence ?? null, ledgerCheck: body.ledgerCheck ?? null },
+  };
 }
 
 // ---- attachments ------------------------------------------------------------
@@ -165,6 +213,48 @@ function readDataUrl(file: File): Promise<string> {
   });
 }
 
+/** Longest side of a photo sent to Claude. Enough to read a full A4 invoice; a 12 MP phone photo shrinks from about 4 MB to about 400 KB. */
+const PHOTO_MAX_SIDE = 2000;
+const PHOTO_QUALITY = 0.85;
+
+/**
+ * Phone photos are large (often > 5 MB, Claude's image limit) and may be rotated by EXIF. Draw the photo on a canvas,
+ * upright and at most PHOTO_MAX_SIDE px, and send a JPEG. A small image that is already a PNG / JPEG is sent as it is.
+ */
+async function shrinkImage(file: File): Promise<{ data: string; mime: string; bytes: number }> {
+  const small = file.size < 1.5 * 1024 * 1024 && /^image\/(png|jpeg)$/.test(file.type);
+  if (!small && typeof createImageBitmap === 'function') {
+    let bmp: ImageBitmap;
+    try {
+      bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } catch {
+      if (/heic|heif/i.test(file.type) || /\.hei[cf]$/i.test(file.name)) {
+        throw new Error(`${file.name}: this browser cannot open HEIC photos. Use the Photo button, or set the camera to "Most compatible" (JPEG).`);
+      }
+      bmp = null as unknown as ImageBitmap;
+    }
+    if (bmp) {
+      const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(bmp.width, bmp.height));
+      const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = 'white'; // a transparent PNG would turn black as a JPEG
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(bmp, 0, 0, w, h);
+        bmp.close?.();
+        const url = canvas.toDataURL('image/jpeg', PHOTO_QUALITY);
+        const data = url.split(',')[1] ?? '';
+        return { data, mime: 'image/jpeg', bytes: Math.round((data.length * 3) / 4) };
+      }
+    }
+  }
+  const url = await readDataUrl(file);
+  return { data: url.split(',')[1] ?? '', mime: file.type || 'image/jpeg', bytes: file.size };
+}
+
 /**
  * Turn a picked file into a chat attachment. Invoices (PDF / image) go as
  * base64 for Claude to read; spreadsheets and CSV/XML are converted to text
@@ -177,10 +267,10 @@ export async function fileToAttachment(file: File): Promise<ChatAttachment> {
     const url = await readDataUrl(file);
     return { id, name: file.name, kind: 'pdf', mime: 'application/pdf', data: url.split(',')[1] ?? '', meta: kb(file.size) };
   }
-  if (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/.test(lower)) {
-    const url = await readDataUrl(file);
-    const mime = file.type || (lower.endsWith('.png') ? 'image/png' : 'image/jpeg');
-    return { id, name: file.name, kind: 'image', mime, data: url.split(',')[1] ?? '', meta: kb(file.size) };
+  if (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|hei[cf])$/.test(lower)) {
+    const img = await shrinkImage(file);
+    const name = img.mime === 'image/jpeg' && !/\.jpe?g$/.test(lower) ? file.name.replace(/\.[^.]+$/, '') + '.jpg' : file.name;
+    return { id, name, kind: 'image', mime: img.mime, data: img.data, meta: kb(img.bytes) };
   }
   if (/\.(xlsx|xls|xlsm)$/.test(lower)) {
     const wb = (await loadXlsx()).read(await file.arrayBuffer(), { type: 'array', cellDates: true });
