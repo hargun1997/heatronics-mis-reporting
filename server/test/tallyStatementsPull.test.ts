@@ -51,18 +51,19 @@ test('final copy = taken 5+ days after month end (IST)', () => {
   assert.equal(isFinalCopy('2026-11', '2026-11-22T15:00:00Z'), false); // running month: never final
 });
 
-test('months due: missing or provisional TB / P&L, newest first, running month always', () => {
+test('months due: the whole FY every time (stored + final included), then older months not final, newest first', () => {
   const now = Date.parse('2026-11-22T16:00:00Z');
   const late = '2026-11-20T06:00:00Z';
-  const due = statementMonthsDue(now, { months: { '2026-10': late, '2026-09': late }, tbMonths: { '2026-10': late, '2026-09': '2026-10-02T06:00:00Z' } }, 4);
-  assert.deepEqual(due, ['2026-11', '2026-09', '2026-08']); // Oct final both; Sep TB provisional; Aug nothing
+  const due = statementMonthsDue(now, { months: { '2026-10': late, '2026-03': late }, tbMonths: { '2026-10': late, '2026-03': late } });
+  assert.deepEqual(due.slice(0, 8), ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']);
+  assert.deepEqual(due.slice(8), ['2026-02', '2026-01', '2025-12', '2025-11']); // Mar 26 final → kept
 });
 
-test('pull: P&L + both TB requests per month, newest first; stored and indexed; read only', async () => {
+test('pull: P&L + both TB requests per month, in the order asked; stored and indexed; read only', async () => {
   const r = await pullStatements(creds, { months: ['2026-09', '2026-10'], now: Date.parse('2026-11-22T16:00:00Z') });
   assert.equal(r.status, 'ok');
-  assert.deepEqual(r.done, ['2026-10', '2026-09']);
-  assert.deepEqual(calls, ['companies', 'pnl:202610', 'tb-groups:202610', 'tb-full:202610', 'pnl:202609', 'tb-groups:202609', 'tb-full:202609']);
+  assert.deepEqual(r.done, ['2026-09', '2026-10']);
+  assert.deepEqual(calls, ['companies', 'pnl:202609', 'tb-groups:202609', 'tb-full:202609', 'pnl:202610', 'tb-groups:202610', 'tb-full:202610']);
   const tb = await readTallyTb('2026-10');
   assert.ok(tb);
   assert.equal(tb.rows.find((x) => x.name === 'HDFC Bank')?.level, 'ledger');
@@ -89,7 +90,7 @@ test('Tally closed: status down, TB index and copies kept (the old poll wiped th
 });
 
 test('budget: stops between months, never halfway; the rest is "remaining"', async () => {
-  const r = await pullStatements(creds, { months: ['2026-10', '2026-09'], budgetMs: 10_000 });
+  const r = await pullStatements(creds, { months: ['2026-10', '2026-09'], budgetMs: 10_000 }); // order kept as asked
   assert.deepEqual(r.done, []);
   assert.deepEqual(r.remaining, ['2026-10', '2026-09']);
   assert.deepEqual(calls, ['companies']);
@@ -128,4 +129,35 @@ test('Tally refuses "List of Companies" (live 22 Nov 2026): still reachable, P&L
   assert.ok((p.months ?? []).includes('2026-11'));
   tallyOpen = false; // a network failure is still "down"
   assert.equal((await pullStatements(creds, { months: ['2026-10'] })).status, 'down');
+});
+
+test('Day Books FY sweep end to end: a back-dated edit in a stored month is caught by the next pass', async () => {
+  const { pullBooksSweep, readBooks, readSweep } = await import('../src/connectors/tally/bookStore.js');
+  let aprAmount = '100.00';
+  const vch = (day: string, amt: string) => `<TALLYMESSAGE><VOUCHER REMOTEID="r-${day}" VCHTYPE="Payment" ACTION="Create"><DATE>${day}</DATE><GUID>g-${day}</GUID><NARRATION>n</NARRATION><VOUCHERTYPENAME>Payment</VOUCHERTYPENAME><VOUCHERNUMBER>${day}</VOUCHERNUMBER><PARTYLEDGERNAME>Cash</PARTYLEDGERNAME><ALLLEDGERENTRIES.LIST><LEDGERNAME>Office Rent</LEDGERNAME><ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE><AMOUNT>-${amt}</AMOUNT></ALLLEDGERENTRIES.LIST><ALLLEDGERENTRIES.LIST><LEDGERNAME>Cash</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>${amt}</AMOUNT></ALLLEDGERENTRIES.LIST></VOUCHER></TALLYMESSAGE>`;
+  const days: string[] = [];
+  globalThis.fetch = (async (_url: string, init: { body: string }) => {
+    const body = String(init.body);
+    const day = /<SVFROMDATE[^>]*>(\d{8})</.exec(body)?.[1];
+    if (/Day Book/i.test(body) && day) {
+      days.push(day);
+      // One voucher every day (so no day reads as "emptied"); 10 April carries the amount that gets edited.
+      return new Response(`<ENVELOPE><BODY><IMPORTDATA><REQUESTDATA>${vch(day, day === '20260410' ? aprAmount : '50.00')}</REQUESTDATA></IMPORTDATA></BODY></ENVELOPE>`, { status: 200 });
+    }
+    return new Response('<ENVELOPE></ENVELOPE>', { status: 200 }); // masters: empty is fine here
+  }) as unknown as typeof fetch;
+  const now = Date.parse('2026-05-03T06:00:00Z'); // FY to date = April + May
+  const first = await pullBooksSweep(creds, { now });
+  assert.deepEqual(first.months, ['2026-04', '2026-05']);
+  assert.equal(first.sweep.next, null, 'whole FY read in one run here');
+  assert.ok(days.includes('20260401') && days.includes('20260531'));
+  const amt = async () => (await readBooks('2026-04'))!.vouchers.find((v) => v.date === '2026-04-10')!.lines[0].amount;
+  assert.equal(await amt(), 100);
+  aprAmount = '999.00'; // back-dated edit in Tally
+  days.length = 0;
+  const second = await pullBooksSweep(creds, { now: now + 3_600_000 });
+  assert.deepEqual(second.asked, ['2026-04', '2026-05'], 'the next pass starts at April again; stored months are not skipped');
+  assert.equal(await amt(), 999);
+  assert.equal(days.length, 61);
+  assert.ok((await readSweep()).lastPassDoneAt);
 });

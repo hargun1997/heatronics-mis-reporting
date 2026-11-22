@@ -7,7 +7,7 @@ import {
   dayBookMonthEnvelope, dayBookDayEnvelope, monthDays, rangeIgnored, inRange, mastersEnvelope, parseDayBook, parseGroups, parseLedgers, parseStockItems, stripLists,
   tallyHealth, gstinValid, findVouchers, voucherLine, type TallyVoucher,
 } from '../src/connectors/tally/books.js';
-import { booksToPull } from '../src/connectors/tally/bookStore.js';
+import { advanceSweep, EMPTY_SWEEP, fyMonthsTo, SWEEP_MAX_TRIES, sweepOrder } from '../src/connectors/tally/bookStore.js';
 
 test('book requests are read-only exports', () => {
   for (const x of [dayBookMonthEnvelope('2026-10', 'Heatronics Medical Devices Private Limited'), mastersEnvelope('Ledgers'), mastersEnvelope('Groups'), mastersEnvelope('Stock Items')]) {
@@ -113,11 +113,49 @@ test('health: the rules find what is wrong and say how to fix it in Tally', () =
   for (const i of rep.issues) { assert.ok(i.fix.length > 20, i.id); assert.ok(i.why.length > 20, i.id); }
 });
 
-test('which Day Books a poll takes; voucher search for Ask about Tally', () => {
-  const now = Date.parse('2026-11-02T06:00:00Z');
-  assert.deepEqual(booksToPull(now, { mastersAt: null, months: {}, lastError: null, lastTryAt: null }), ['2026-11', '2026-10', '2026-09', '2026-08']);
-  const fresh = new Date(now - 3_600_000).toISOString();
-  assert.deepEqual(booksToPull(now, { mastersAt: null, months: { '2026-11': fresh, '2026-10': fresh, '2026-09': fresh }, lastError: null, lastTryAt: null }), ['2026-08', '2026-07', '2026-06', '2026-05']);
+test('Day Books FY sweep: April → this month in order, resumes where it stopped, new pass after the last month', () => {
+  const now = Date.parse('2026-11-22T06:00:00Z');
+  const fy = fyMonthsTo(now);
+  assert.deepEqual(fy, ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']);
+  // First run: new pass from April; cut in June (Apr, May done, June read partly).
+  let o = sweepOrder(now, EMPTY_SWEEP);
+  assert.equal(o.newPass, true);
+  assert.deepEqual(o.months, fy);
+  let sw = advanceSweep(EMPTY_SWEEP, now, o.months, o.newPass, ['2026-04', '2026-05'], ['2026-04', '2026-05', '2026-06'], 'cut');
+  assert.equal(sw.next, '2026-06');
+  assert.equal(sw.fy, '2026-04');
+  // Next run resumes at June, then finishes the FY: pass done, next run starts again at April (stored months re-read).
+  o = sweepOrder(now, sw);
+  assert.equal(o.newPass, false);
+  assert.deepEqual(o.months[0], '2026-06');
+  sw = advanceSweep(sw, now, o.months, o.newPass, o.months, o.months, null);
+  assert.equal(sw.next, null);
+  assert.equal(sw.lastPassDoneAt, new Date(now).toISOString());
+  assert.deepEqual(sweepOrder(now, sw).months, fy);
+  // A new FY (April) restarts the pass even mid-way.
+  const april = Date.parse('2027-04-02T06:00:00Z');
+  assert.deepEqual(sweepOrder(april, { ...sw, next: '2026-09' }).months, ['2027-04']);
+});
+
+test('Day Books FY sweep: a month with no progress for 4 runs is skipped (stored copy kept), a cut month with progress is not', () => {
+  const now = Date.parse('2026-11-22T06:00:00Z');
+  let sw = { ...EMPTY_SWEEP, fy: '2026-04', next: '2026-08', passStartedAt: 'x' };
+  const asked = ['2026-08', '2026-09', '2026-10', '2026-11'];
+  for (let i = 1; i < SWEEP_MAX_TRIES; i++) {
+    sw = advanceSweep(sw, now, asked, false, [], [], 'Tally sent no vouchers');
+    assert.equal(sw.next, '2026-08');
+    assert.equal(sw.tries['2026-08'], i);
+  }
+  sw = advanceSweep(sw, now, asked, false, [], [], 'Tally sent no vouchers');
+  assert.equal(sw.next, '2026-09');
+  assert.match(sw.skipped['2026-08'], /no vouchers/);
+  // Progress (new days read) never counts as a try.
+  const cut = advanceSweep({ ...sw, tries: { '2026-09': 3 } }, now, asked.slice(1), false, [], ['2026-09'], 'cut');
+  assert.equal(cut.next, '2026-09');
+  assert.equal(cut.tries['2026-09'], undefined);
+});
+
+test('voucher search for Ask about Tally', () => {
   const v = parseDayBook(DAYBOOK);
   assert.equal(findVouchers(v, 'how was acme freight booked?')[0].party, 'Acme Logistics Pvt Ltd');
   assert.deepEqual(findVouchers(v, 'what is this'), []);

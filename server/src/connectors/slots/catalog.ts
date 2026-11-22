@@ -10,6 +10,7 @@
 import { downloadReportDocument, spapiCreateReport, spapiGet } from '../sources/amazon.js';
 import { productionCosts } from '../sources/production.js';
 import { isFinalCopy, pullStatements, readTallySnapshot, readTallyState, readTallyTb } from '../tally/snapshots.js';
+import { fyMonthsTo } from '../tally/bookStore.js';
 import shopifyConnector from '../sources/shopify.js';
 import { pullAdvertisedProduct } from '../sources/amazonAds.js';
 import { opsAdsMonth, type OpsAdsMonth } from '../sources/opsAdsStore.js';
@@ -222,16 +223,22 @@ async function amazonBusinessReport(ctx: PullContext): Promise<SlotPull> {
 // ---- Tally P&L (stored snapshot; Tally answers only while open on the cloud machine) -------------
 
 /**
- * A stored Tally copy that is not final (none, or taken < 5 days after month end) is read again from Tally for that
- * month (P&L + Trial Balance together). Before 22 Nov 2026 a stored copy was always returned, so a copy taken the day
- * after month end never changed. Tally closed = the stored copy, with a warning.
+ * Every Tally slot pull re-reads the WHOLE financial year (P&L + Trial Balance, April → this month; founder,
+ * 22 Nov 2026: back-dated entries). A FY read finished in the last 2 min is reused (the P&L and TB slots of one
+ * "Pull & save all" share it). A month before April is read on its own when its copy is not final. Tally closed = the
+ * stored copy, with a warning.
  */
+const REUSE_FY_MS = 2 * 60_000;
 async function refreshFromTally(ctx: PullContext, asOf: string | null | undefined): Promise<{ pulled: boolean; warnings: string[] }> {
-  if (isFinalCopy(ctx.periodKey, asOf)) return { pulled: false, warnings: [] };
+  const inFy = fyMonthsTo(Date.now()).includes(ctx.periodKey);
+  if (!inFy && isFinalCopy(ctx.periodKey, asOf)) return { pulled: false, warnings: [] };
+  if (inFy && asOf && Date.now() - Date.parse(asOf) < REUSE_FY_MS) return { pulled: false, warnings: [] };
   const budgetMs = Math.max(60_000, ctx.deadline - Date.now() - 15_000);
-  const r = await pullStatements(ctx.creds, { months: [ctx.periodKey], budgetMs });
+  const r = await pullStatements(ctx.creds, { months: inFy ? fyMonthsTo(Date.now()) : [ctx.periodKey], budgetMs });
   if (r.status === 'down' || r.status === 'not_connected') return { pulled: false, warnings: asOf ? [`Tally did not answer (${r.detail}) This is the stored copy.`] : [] };
-  return { pulled: true, warnings: r.failed.filter((f) => f.period === ctx.periodKey).map((f) => `Tally: ${f.error}`) };
+  const w = r.failed.filter((f) => f.period === ctx.periodKey).map((f) => `Tally: ${f.error}`);
+  if (r.remaining.includes(ctx.periodKey)) w.push('Tally was slow: this month was not read again. Pull again.');
+  return { pulled: true, warnings: w };
 }
 
 async function tallyPnl(ctx: PullContext): Promise<SlotPull> {

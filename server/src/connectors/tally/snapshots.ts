@@ -15,7 +15,7 @@ import type { Credentials } from '../types.js';
 import { readJson, writeJson } from '../../ingest/objectStore.js';
 import { companyListEnvelope, decode, post } from '../sources/tally.js';
 import { parsePnlXml, pnlEnvelope, type TallyPnlMonth } from './pnl.js';
-import { pullBooks } from './bookStore.js';
+import { fyMonthsTo, pullBooksSweep, readSweep, sweepInProgress, type BooksSweep } from './bookStore.js';
 import { parseTbXml, TB_BASIS, tbEnvelope, type TallyTbMonth } from './tb.js';
 
 export interface TallySnapshot extends TallyPnlMonth { asOf: string }
@@ -46,36 +46,34 @@ function addMonths(p: string, n: number): string {
   return d.toISOString().slice(0, 7);
 }
 
-/** Months to pull this time: this month + last month always; then up to 2 of the last 12 not stored yet. */
-export function monthsToPull(now: number, stored: Record<string, string>): string[] {
-  const cur = istMonth(now);
-  const out = [cur, addMonths(cur, -1)];
-  for (let i = 2; i <= 12 && out.length < 4; i++) {
-    const p = addMonths(cur, -i);
-    if (!stored[p]) out.push(p);
-  }
-  return out;
+/**
+ * Months every poll pulls (founder, 22 Nov 2026): the WHOLE financial year, April → this month, oldest first, each
+ * one read again even when a copy is stored (back-dated / edited entries). A P&L + TB month is ~3 Tally answers
+ * (≈ 3 s live), so 12 months fit easily in one run. Months before April keep their copies (the TB back-fill still
+ * fills missing ones, for the 13-month Balance Sheet).
+ */
+export function monthsToPull(now: number): string[] {
+  return fyMonthsTo(now);
 }
 
+/** After a finished FY pass the scheduled poll waits this long before starting the next one (Tally load). */
+export const PASS_GAP_MS = 2 * 3_600_000;
+
 /**
- * When a scheduled check may run (founder, 2 Nov 2026): from the 15th of the month (books for last month are final by then),
- * Monday–Saturday, 10:00–19:00 IST (working hours, when Tally is likely open). Every 20 min until last month has a copy taken
- * on or after this month's 15th; after that once a day (to refresh this month so far). "Pull now" ignores all of this.
+ * When a scheduled check may run (22 Nov 2026; was "from the 15th only"): any day Monday–Saturday, 10:00–19:00 IST,
+ * at most every 20 min. While a books FY pass is running every check continues it; after a finished pass the next one
+ * starts PASS_GAP_MS later. "Pull now" and the buttons ignore all of this.
  */
-export function scheduledDue(now: number, state: TallyState): { due: boolean; why: string } {
+export function scheduledDue(now: number, state: TallyState, sweep: BooksSweep = { fy: null, next: null, passStartedAt: null, lastPassDoneAt: null, tries: {}, skipped: {} }): { due: boolean; why: string } {
   const ist = new Date(now + 5.5 * 3_600_000);
-  const day = ist.getUTCDate(), hour = ist.getUTCHours(), dow = ist.getUTCDay();
-  if (day < 15) return { due: false, why: 'Before the 15th: last month is not final yet.' };
+  const hour = ist.getUTCHours(), dow = ist.getUTCDay();
   if (dow === 0) return { due: false, why: 'Sunday.' };
   if (hour < 10 || hour >= 19) return { due: false, why: 'Outside 10:00–19:00 IST.' };
-  const cur = istMonth(now);
-  const cutoff = Date.parse(`${cur}-15T00:00:00+05:30`);
-  const lastAsOf = state.months[addMonths(cur, -1)];
-  const finalTaken = lastAsOf != null && Date.parse(lastAsOf) >= cutoff;
   const since = state.lastTryAt ? now - Date.parse(state.lastTryAt) : Infinity;
-  if (!finalTaken) return since >= MIN_GAP_MS ? { due: true, why: 'Last month not taken since the 15th.' } : { due: false, why: 'Checked less than 20 min ago.' };
-  const okDay = state.lastOkAt ? new Date(Date.parse(state.lastOkAt) + 5.5 * 3_600_000).toISOString().slice(0, 10) : null;
-  return okDay === ist.toISOString().slice(0, 10) ? { due: false, why: 'Already taken today.' } : since >= MIN_GAP_MS ? { due: true, why: 'Daily refresh.' } : { due: false, why: 'Checked less than 20 min ago.' };
+  if (since < MIN_GAP_MS) return { due: false, why: 'Checked less than 20 min ago.' };
+  if (sweepInProgress(sweep)) return { due: true, why: 'FY pass running: continue it.' };
+  const done = sweep.lastPassDoneAt ? now - Date.parse(sweep.lastPassDoneAt) : Infinity;
+  return done < PASS_GAP_MS ? { due: false, why: 'Whole FY read less than 2 h ago.' } : { due: true, why: 'Start a new FY pass.' };
 }
 
 /** A Tally answer is stored only when it carries rows: an empty answer (Tally busy, company closing) keeps the old copy. */
@@ -158,7 +156,7 @@ async function pollTallyNow(creds: Credentials, opts: { force?: boolean; now?: n
   if (!(creds.host || '').trim()) return { status: 'not_connected', detail: 'Add the Tally host and port in Setup (Tally card).' };
   const state = await readTallyState();
   if (!opts.force) {
-    const d = scheduledDue(now, state);
+    const d = scheduledDue(now, state, await readSweep());
     if (!d.due) return { status: 'skipped', detail: d.why };
   }
   state.lastTryAt = new Date(now).toISOString();
@@ -173,7 +171,7 @@ async function pollTallyNow(creds: Credentials, opts: { force?: boolean; now?: n
   let failed: string | null = null;
   let tbFailed: string | null = null;
   const empty: string[] = [];
-  for (const period of monthsToPull(now, state.months)) {
+  for (const period of monthsToPull(now)) {
     try {
       const r = await pullMonth(creds, period, state, !done.length && !empty.length);
       if (r.pnl) done.push(period); else empty.push(period);
@@ -196,8 +194,8 @@ async function pollTallyNow(creds: Credentials, opts: { force?: boolean; now?: n
   // While Tally is open, also refresh the stored books (masters daily, Day Books) in what is left of ~4 min.
   let books = '';
   if (done.length && !failed && !opts.skipBooks) {
-    const b = await pullBooks(creds, { now, budgetMs: 230_000 - (Date.now() - now) });
-    books = b.masters || b.months.length ? `; books: ${[b.masters ? 'masters' : '', ...b.months].filter(Boolean).join(', ')}` : '';
+    const b = await pullBooksSweep(creds, { now, budgetMs: 230_000 - (Date.now() - now) });
+    books = `; books: ${[b.masters ? 'masters' : '', ...b.months].filter(Boolean).join(', ') || 'none finished'}${b.sweep.next ? ` (FY pass continues at ${b.sweep.next})` : ' (FY pass done)'}`;
   }
   return { status: done.length ? 'ok' : 'down', detail: done.length ? `Stored P&L + Trial Balance for ${done.join(', ')}${tbFailed ? ` (Trial Balance failed: ${tbFailed})` : ''}${failed ? ` (stopped: ${failed})` : ''}${books}` : `Tally answered the check but not the P&L: ${failed ?? state.lastError}`, months: done };
 }
@@ -215,13 +213,16 @@ export function isFinalCopy(period: string, asOf: string | null | undefined): bo
 }
 
 /**
- * Months the statements pull takes, newest first: of the last `span` months (this month included), every month with no
- * stored TB, or whose TB or P&L copy is not final (this month is never final, so it is always refreshed).
+ * Months the statements pull takes, in order: the WHOLE financial year April → this month, every time (stored copies
+ * are read again: back-dated entries), then months before April among the last `span` whose TB or P&L copy is missing
+ * or not final, newest first (they fill the 13-month Balance Sheet).
  */
 export function statementMonthsDue(now: number, state: Pick<TallyState, 'months' | 'tbMonths'>, span = 13): string[] {
+  const fy = fyMonthsTo(now);
   const cur = istMonth(now);
-  return Array.from({ length: span }, (_, i) => addMonths(cur, -i))
-    .filter((p) => !isFinalCopy(p, state.tbMonths?.[p]) || !isFinalCopy(p, state.months[p]));
+  const older = Array.from({ length: span }, (_, i) => addMonths(cur, -i))
+    .filter((p) => p < fy[0] && (!isFinalCopy(p, state.tbMonths?.[p]) || !isFinalCopy(p, state.months[p])));
+  return [...fy, ...older];
 }
 
 const PERIOD_RE = /^\d{4}-\d{2}$/;
@@ -238,7 +239,7 @@ export interface StatementsPullResult {
 }
 
 /**
- * Pull P&L + Trial Balance for the given months (default: `statementMonthsDue`), newest first, until `budgetMs` is
+ * Pull P&L + Trial Balance for the given months (default: `statementMonthsDue`), in the order given, until `budgetMs` is
  * spent. READ ONLY (every request is an Export). Months are never skipped because a P&L copy is missing (the old
  * backfill only took months that already had one).
  */
@@ -260,7 +261,7 @@ async function pullStatementsNow(creds: Credentials, opts: { months?: string[]; 
     await writeJson('tally/state', state);
     return { status: 'down', done: [], remaining: opts.months ?? [], failed: [], detail: `Tally not reachable: ${state.lastError}`, at };
   }
-  const want = [...new Set((opts.months ?? statementMonthsDue(now, state)).filter((p) => PERIOD_RE.test(p)))].sort().reverse();
+  const want = [...new Set((opts.months ?? statementMonthsDue(now, state)).filter((p) => PERIOD_RE.test(p)))];
   const done: string[] = [];
   const failed: { period: string; error: string }[] = [];
   let i = 0;
