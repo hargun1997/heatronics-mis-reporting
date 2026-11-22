@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { PageHeader } from '../../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../../components/ui/PageHeader';
 import {
   transformAmazonToTranzact,
   generateTranzactExcel,
@@ -60,7 +60,7 @@ export function AmazonToTranzactTool() {
         accent="amber"
         icon={icon}
       />
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <PageBody>
         {/* How it works */}
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <h3 className="text-sm font-semibold text-slate-900">How it works</h3>
@@ -212,7 +212,7 @@ export function AmazonToTranzactTool() {
             )}
           </div>
         )}
-      </div>
+      </PageBody>
     </>
   );
 }

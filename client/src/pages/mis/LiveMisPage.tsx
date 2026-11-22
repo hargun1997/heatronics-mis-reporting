@@ -17,7 +17,7 @@ import { LabeledField } from '../../components/ui/LabeledField';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Lock, RefreshCw } from 'lucide-react';
-import { PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
+import { PageBody, PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, ErrorBox, BTN } from '../../components/ui';
 import { inr } from '../../components/mis-deck/format';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import { BalanceSheetTab, CashFlowTab } from '../../components/liveMis/StatementsTabs';
@@ -263,7 +263,7 @@ export function LiveMisPage() {
       {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} />}
       {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
 
-      <div className="mx-auto max-w-page space-y-3 px-4 pb-10 sm:px-6">
+      <PageBody>
         {/* Product decisions are about products: Products tab only (they also sit in Tasks → Fix). Before 22 Nov 2026 this
             amber box sat above every tab. */}
         {tab === 'products' && deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
@@ -414,7 +414,7 @@ export function LiveMisPage() {
             </Section>
           </Sections>
         )}
-      </div>
+      </PageBody>
     </LiveViewProvider>
   );
 }

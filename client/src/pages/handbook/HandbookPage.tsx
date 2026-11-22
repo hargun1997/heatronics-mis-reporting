@@ -39,7 +39,7 @@ import {
 import { QUICK_TASKS } from '../../data/handbook/collections';
 import { TEAM_VISUALS } from '../../data/handbook/teamVisuals';
 import { HandbookSearch } from './HandbookSearch';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { BTN, Panel } from '../../components/ui/states';
 import { Drawer, Modal } from '../../components/ui/overlays';
 import { HandbookOpenContext } from './handbookNav';
@@ -808,7 +808,7 @@ function Home({ open, openHref }: { open: OpenFn; openHref: (href: string) => vo
         }
         actions={hb.coverHtml ? <button type="button" onClick={() => setHowOpen(true)} className={BTN}>About the handbook</button> : undefined}
       />
-      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
+      <PageBody>
         <div className="relative z-20">
           <HandbookSearch size="large" autoFocus examples={EXAMPLES} />
         </div>
@@ -820,7 +820,7 @@ function Home({ open, openHref }: { open: OpenFn; openHref: (href: string) => vo
             <TopicList open={open} />
           </Panel>
         </div>
-      </div>
+      </PageBody>
       {hb.coverHtml && (
         <Modal open={howOpen} onClose={() => setHowOpen(false)} title="About the handbook" width={760}>
           <div className="hb hb-cover" onClick={onCoverClick} dangerouslySetInnerHTML={{ __html: hb.coverHtml }} />

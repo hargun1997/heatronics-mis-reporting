@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Settings as Cog6ToothIcon, CircleAlert as ExclamationCircleIcon, Plus as PlusIcon, CircleUser as UserCircleIcon, X as XMarkIcon } from 'lucide-react';
 import { Modal } from '../../components/ui/overlays';
+import { PageBody } from '../../components/ui/PageHeader';
 import { diffDays, todayIST } from '../../data/work/schedule';
 import { deleteTask, deleteTasks, getWork, importSeed, saveTask, setTaskDone, type TeamMember, type WorkState, type WorkTask } from '../../data/work/workClient';
 import { buildSeed } from '../../data/work/seed';
@@ -211,9 +212,9 @@ export function TasksPage() {
     return (
       <div className="tasks-ui pb-16">
         {header}
-        <div className="mx-auto max-w-page px-4 py-16 text-center text-sm text-slate-600 sm:px-6">
+        <PageBody className="pt-16 text-center text-sm text-slate-600">
           {error ? <span className="text-red-700">{error}</span> : seeding ? 'Setting up the task list…' : 'Loading…'}
-        </div>
+        </PageBody>
       </div>
     );
   }
@@ -222,7 +223,7 @@ export function TasksPage() {
     <div className="tasks-ui pb-16">
       {header}
 
-      <div className="mx-auto max-w-page space-y-3 px-4 sm:px-6">
+      <PageBody>
         {error && (
           <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
             {error}
@@ -311,7 +312,7 @@ export function TasksPage() {
         <div className="pt-4">
           <DailyEmailStrip state={state} agenda={agenda} today={today} onPreview={() => setPreview(true)} />
         </div>
-      </div>
+      </PageBody>
 
       <Modal open={adding} onClose={() => setAdding(false)} title="Add a task" width={760}>
         <TaskEditor bare members={members} areas={areas} onSave={onSaveTask} onCancel={() => setAdding(false)} />

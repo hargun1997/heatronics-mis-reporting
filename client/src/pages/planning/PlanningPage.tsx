@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MoreHorizontal, SlidersHorizontal } from 'lucide-react';
-import { PageHeader } from '../../components/ui/PageHeader';
+import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { Drawer, Popover } from '../../components/ui/overlays';
 import { BTN, BTN_PRIMARY } from '../../components/ui/states';
 import { askText, confirmDialog, toast } from '../../components/ui/feedback';
@@ -216,7 +216,7 @@ export function PlanningPage() {
       <Drawer open={setupOpen} onClose={() => setSetupOpen(false)} title="Setup" subtitle={panelSummary(plan)} width={920}>
         <SetupPanel embedded plan={plan} update={update} result={result} />
       </Drawer>
-      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
+      <PageBody>
         {view === 'overview' && <>
           <SubTabs value={ovPart} onChange={setOvPart} options={OV_PARTS} label="Overview part" />
           {ovPart === 'summary' ? <OverviewView plan={plan} result={result} compare={compareId !== 'none' ? compareResult : null} compareName={compareName} />
@@ -235,7 +235,7 @@ export function PlanningPage() {
         </>}
         {view === 'cash' && <CashFundingView plan={plan} result={result} />}
         {view === 'actual' && <PlanVsActualView saved={saved} />}
-      </div>
+      </PageBody>
     </>
   );
 }
