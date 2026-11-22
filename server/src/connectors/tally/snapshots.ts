@@ -124,9 +124,16 @@ async function pullMonth(creds: Credentials, period: string, state: TallyState, 
 
 /** Ask Tally which company is loaded. Throws when Tally is not reachable (closed on the host). */
 async function reach(creds: Credentials, state: TallyState): Promise<void> {
-  const list = await post(creds, companyListEnvelope(), 10_000);
-  const loaded = /<SVCURRENTCOMPANY>([\s\S]*?)<\/SVCURRENTCOMPANY>/i.exec(list)?.[1];
-  if (loaded) state.company = decode(loaded);
+  try {
+    const list = await post(creds, companyListEnvelope(), 10_000);
+    const loaded = /<SVCURRENTCOMPANY>([\s\S]*?)<\/SVCURRENTCOMPANY>/i.exec(list)?.[1];
+    if (loaded) state.company = decode(loaded);
+  } catch (e) {
+    // Heatronics' TallyPrime answers "Could not find Report 'List of Companies'!" (seen live 22 Nov 2026). Since post()
+    // reads LINEERROR answers as errors (14 Nov 2026), that refusal stopped every P&L / TB poll here although Tally
+    // was open. A refusal is an answer: Tally is reachable; the P&L request names the company itself.
+    if (!/Tally refused the request/.test(e instanceof Error ? e.message : String(e))) throw e;
+  }
   // Only after Tally answered: a basis change empties the TB index so every TB is pulled again. Done before the
   // check, a failed poll wiped the index of TBs that are still stored (22 Nov 2026).
   if (state.tbBasis !== TB_BASIS) { state.tbMonths = {}; state.tbBasis = TB_BASIS; }
