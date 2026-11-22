@@ -25,7 +25,7 @@ import type { SlotSourceDef } from '../connectors/slots/types.js';
 import { endpoint as tallyEndpoint } from '../connectors/sources/tally.js';
 import { feedOrigin } from '../connectors/sources/delhivery.js';
 import { autoPullCaller, manualSlots, runAutoPull, runCounts, type AutoPullDeps, type AutoPullState } from '../connectors/slots/autoPull.js';
-import { sharedSecret } from '../connectors/sharedSecrets.js';
+import { SHARED_ONLY, sharedSecret } from '../connectors/sharedSecrets.js';
 import { storedSlotReport } from '../connectors/slots/closeSlots.js';
 import { listReports, readAllExtracted, readJson, saveReport, writeJson } from '../ingest/objectStore.js';
 import { requireAdmin } from '../htxGate.js';
@@ -215,6 +215,9 @@ router.put('/:id/credentials', requireAdmin, h(async (req, res) => {
   const c = getConnector(req.params.id);
   if (!c) return res.status(404).json({ error: 'No such connector.' });
 
+  if (SHARED_ONLY.has(c.id)) {
+    return res.status(400).json({ error: `${c.label} uses the shared Secret Manager values only. Change them in Secret Manager, not here.` });
+  }
   const incoming = (req.body?.credentials ?? {}) as Record<string, unknown>;
   const known = new Set(c.credentialFields.map((f) => f.key));
   const existing = (await getCredentials(c.id)) ?? {};
