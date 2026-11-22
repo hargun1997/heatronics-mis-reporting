@@ -207,33 +207,54 @@ const HEADLINE: Record<ReportBlockId, number> = { jobwork: 0.01, others: 0.02, c
 const xlDate = (iso: string): Date | string => (iso ? new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) : '');
 
 export type ReportCell = string | number | Date | null;
-/** The team's monthly TDS report for one month, from the bills with TDS (live rows of the memory). Pure. */
-export function tdsReportSheet(month: string, rows: InvoiceRow[]): { name: string; rows: ReportCell[][]; totals: Record<ReportBlockId, number>; grand: number } {
-  const live = rows.filter((r) => r.status === 'active' && r.tds !== 0);
+/** One row of the team's report (from a Tally bill, or from a filed report). */
+export interface ReportItem { block: ReportBlockId; party: string; pan: string; date: string; dateText?: string; billNo: string; amount: number; tds: number; rate: number | null; headline?: boolean }
+
+/** A Tally bill as a report row (amount = taxable, TDS = amount × rate as the team works it). */
+export const itemOfBill = (r: InvoiceRow): ReportItem => {
+  const block = blockOf(r);
+  return { block, party: reportParty(r.supplier), pan: r.pan, date: r.invoiceDate || r.date, billNo: r.invoiceNo || r.voucherNo, amount: r2x(r.taxable), tds: reportTds(r), rate: reportRate(r), headline: reportRate(r) === HEADLINE[block] };
+};
+
+/**
+ * The team's report sheet from report rows. Rows keep their order inside a block (Tally rows are sorted by the caller).
+ * `summary` (a filed report's own lines) replaces the computed TDS PAYABLE lines; TOTAL / NET PAYABLE are added if missing.
+ */
+export function buildReportSheet(month: string, items: ReportItem[], summary?: { label: string; value: number }[]): { name: string; rows: ReportCell[][]; totals: Record<ReportBlockId, number>; grand: number } {
   const out: ReportCell[][] = [[REPORT_COMPANY], [`Month ${reportMonth(month)}`], []];
   const totals = Object.fromEntries(REPORT_BLOCKS.map((b) => [b.id, 0])) as Record<ReportBlockId, number>;
   let gAmt = 0, gTds = 0;
   for (const b of REPORT_BLOCKS) {
-    const head = (r: InvoiceRow) => (reportRate(r) === HEADLINE[b.id] ? 0 : 1);
-    const mine = live.filter((r) => blockOf(r) === b.id)
-      .sort((a, c) => head(a) - head(c) || reportParty(a.supplier).localeCompare(reportParty(c.supplier)) || a.date.localeCompare(c.date));
+    const mine = items.filter((r) => r.block === b.id);
     if (b.id === 'other' && !mine.length) continue;
     out.push([b.title], [...REPORT_HEADERS]);
-    mine.forEach((r, i) => {
-      out.push([i + 1, reportParty(r.supplier), r.pan, xlDate(r.invoiceDate || r.date), r.invoiceNo || r.voucherNo, r2x(r.taxable), reportTds(r), reportRate(r)]);
-    });
-    const amt = r2x(mine.reduce((s, r) => s + r.taxable, 0)), tds = r2x(mine.reduce((s, r) => s + reportTds(r), 0));
+    mine.forEach((r, i) => out.push([i + 1, r.party, r.pan, r.date ? xlDate(r.date) : (r.dateText ?? ''), r.billNo, r2x(r.amount), r2x(r.tds), r.rate]));
+    const amt = r2x(mine.reduce((s, r) => s + r.amount, 0)), tds = r2x(mine.reduce((s, r) => s + r.tds, 0));
     totals[b.id] = tds; gAmt += amt; gTds += tds;
     out.push(['', 'Total', '', '', '', amt, tds, ''], []);
   }
   const grand = r2x(gTds);
   out.push(['', 'Grand Total', '', '', '', r2x(gAmt), grand, ''], [], ['', `TDS PAYABLE ${reportMonth(month)}`]);
-  for (const id of SUMMARY_ORDER) {
-    if (id === 'other' && !totals.other) continue;
-    out.push(['', REPORT_BLOCKS.find((b) => b.id === id)!.summary, totals[id]]);
+  if (summary?.length) {
+    for (const l of summary) out.push(['', l.label, l.value]);
+    if (!summary.some((l) => /^TOTAL PAYABLE$/i.test(l.label))) out.push(['', 'TOTAL PAYABLE', grand]);
+    if (!summary.some((l) => /^NET PAYABLE$/i.test(l.label))) out.push(['', 'NET PAYABLE', summary.find((l) => /PAYABLE AMT/i.test(l.label))?.value ?? summary.find((l) => /^TOTAL PAYABLE$/i.test(l.label))?.value ?? grand]);
+  } else {
+    for (const id of SUMMARY_ORDER) {
+      if (id === 'other' && !totals.other) continue;
+      out.push(['', REPORT_BLOCKS.find((b) => b.id === id)!.summary, totals[id]]);
+    }
+    out.push(['', 'TOTAL PAYABLE', grand], ['', 'NET PAYABLE', grand]);
   }
-  out.push(['', 'TOTAL PAYABLE', grand], ['', 'NET PAYABLE', grand]);
   return { name: reportSheetName(month), rows: out, totals, grand };
+}
+
+/** The team's monthly TDS report for one month, from the Tally bills with TDS (live rows of the memory). Pure. */
+export function tdsReportSheet(month: string, rows: InvoiceRow[]) {
+  const live = rows.filter((r) => r.status === 'active' && r.tds !== 0);
+  const items = REPORT_BLOCKS.flatMap((b) => live.map(itemOfBill).filter((it) => it.block === b.id)
+    .sort((a, c) => Number(!a.headline) - Number(!c.headline) || a.party.localeCompare(c.party) || a.date.localeCompare(c.date)));
+  return buildReportSheet(month, items);
 }
 
 /** State words for the history (sheet notes and the page). */
