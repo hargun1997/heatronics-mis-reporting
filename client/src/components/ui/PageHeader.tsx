@@ -92,7 +92,7 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
                 const last = i === trail.length - 1;
                 return (
                   <li key={`${c.label}-${i}`} className="flex min-h-[24px] items-center gap-1">
-                    {c.to ? <Link to={c.to} className="rounded px-0.5 hover:text-accent-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">{c.label}</Link>
+                    {c.to ? <Link to={c.to} className="inline-flex min-h-[44px] items-center rounded px-0.5 sm:min-h-0 hover:text-accent-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">{c.label}</Link>
                       : <span aria-current={last ? 'page' : undefined}>{c.label}</span>}
                     {!last && <ChevronRight className="h-3.5 w-3.5 text-stone-400" aria-hidden />}
                   </li>

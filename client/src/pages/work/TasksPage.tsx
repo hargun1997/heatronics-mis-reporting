@@ -198,7 +198,7 @@ export function TasksPage() {
         to="/tasks/settings"
         aria-label="People and reminders"
         title="People and reminders"
-        className={`flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900 ${focusRing}`}
+        className={`flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900 ${focusRing}`}
       >
         <Cog6ToothIcon className="h-5 w-5" />
       </Link>

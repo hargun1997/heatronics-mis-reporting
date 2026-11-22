@@ -119,7 +119,7 @@ export function TodayPage() {
                     ))}
                   </ol>
                 )}
-                {total > b.needsYou.length && <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-600">{total - b.needsYou.length} more in <Link to="/tasks?view=fix" className="font-medium text-accent-600 hover:underline">Tasks, Fix list</Link></p>}
+                {total > b.needsYou.length && <p className="border-t border-slate-100 px-4 py-2.5 text-xs text-slate-600">{total - b.needsYou.length} more in <Link to="/tasks?view=fix" className="inline-flex min-h-[44px] items-center font-medium text-accent-600 hover:underline">Tasks, Fix list</Link></p>}
               </Panel>
 
               <div className="space-y-4">
