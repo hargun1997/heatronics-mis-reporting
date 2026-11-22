@@ -117,7 +117,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   (project gen-lang-client-0101319357, read with the Cloud Run identity, 5-min cache): Amazon `spapi-lwa-client-id|secret`,
   `spapi-refresh-token-in`; Amazon Ads `adsapi-lwa-client-id|secret`, `adsapi-refresh-token-in`; Google Ads `google-ads-*`
   (customer default 4927002413); Meta `meta-access-token`, `meta-ad-account-id`; Flipkart `flipkart-app-id|secret`;
-  Shiprocket `shiprocket-email|password`; Easebuzz `easebuzz-merchant-key|salt|merchant-email` (optional); Delhivery `delhivery-api-token` +
+  Shiprocket `shiprocket-email|password` (**shared only**: `SHARED_ONLY` in sharedSecrets.ts, a value saved on the Connectors page is ignored and a save is refused;  a refused login pauses Shiprocket logins with that password for 6 h (`shiprocketLoginGuard.ts`, same file in Ops, MIS, Warranty, Packing Hub; a new secret value is tried at once): Shiprocket locks the account after a few refused logins, which happened daily from 12 Nov 2026. Never log a Shiprocket request (body = password).); Easebuzz `easebuzz-merchant-key|salt|merchant-email` (optional); Delhivery `delhivery-api-token` +
   `warranty-feed-token` (optional; = the Warranty Manager's DELHIVERY_API_TOKEN / FEED_TOKEN). Precedence: saved on the Connectors page < shared < `CONNECTOR_<ID>_<FIELD>` env (shared wins so a stale saved token never masks it).
   Never put values in code — this repo is public.
 - Amazon Ads (`sources/amazonAds.ts`) and Flipkart (`sources/flipkart.ts`) are ports of Ops' clients and are READ ONLY

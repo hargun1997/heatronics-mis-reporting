@@ -19,7 +19,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { Credentials } from './types.js';
-import { sharedCredentials } from './sharedSecrets.js';
+import { SHARED_ONLY, sharedCredentials } from './sharedSecrets.js';
 
 const LOCAL_FILE =
   process.env.CONNECTOR_STORE_FILE ||
@@ -260,7 +260,8 @@ export function envCredentials(id: string, fieldKeys: string[]): Credentials {
  * What a connector actually runs with: values saved on the Connectors page <
  * shared Heatronics secrets (the ones Ops uses, see sharedSecrets.ts) < env.
  * The shared secrets are the one source of truth across portals, so an old
- * token saved here can never mask the working one Ops uses.
+ * token saved here can never mask the working one Ops uses. For SHARED_ONLY
+ * connectors the saved value is not used at all.
  */
 export async function getEffectiveCredentials(
   id: string,
@@ -271,7 +272,8 @@ export async function getEffectiveCredentials(
     getCredentials(id).catch(() => null),
   ]);
   const stored: Credentials = {};
-  for (const [k, v] of Object.entries(storedRaw ?? {})) if ((v ?? '').trim()) stored[k] = v;
+  // Shared-only connectors (Shiprocket) never use a copy saved on the Connectors page.
+  if (!SHARED_ONLY.has(id)) for (const [k, v] of Object.entries(storedRaw ?? {})) if ((v ?? '').trim()) stored[k] = v;
   return { ...stored, ...shared, ...envCredentials(id, fieldKeys) };
 }
 

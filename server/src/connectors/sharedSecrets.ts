@@ -65,6 +65,13 @@ const SHARED: Record<string, Record<string, { secret?: string; fallback?: string
   },
 };
 
+/**
+ * Connectors that run ONLY on the shared secrets: a value saved on the Connectors page is ignored and a new one
+ * is refused. Shiprocket locks its account after a few refused logins, and a stale password saved here locked it
+ * every day (Nov 2026). One copy of the password, in Secret Manager, means a password change can't leave one behind.
+ */
+export const SHARED_ONLY = new Set<string>(['shiprocket']);
+
 /** Which connectors can be fed from shared secrets (for the console badge). */
 export const hasSharedSource = (id: string) => id in SHARED;
 

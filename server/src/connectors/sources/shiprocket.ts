@@ -19,6 +19,7 @@ import type { ConnectorSource } from '../schema.js';
 import type { SlotPull } from '../slots/types.js';
 import { shiprocketChargeFacts, shiprocketChargeLines } from '../slots/map/shiprocket.js';
 import { addDays, monthDays, rangeEnd } from '../slots/map/common.js';
+import { ShiprocketLoginGuard, credentialFingerprint } from './shiprocketLoginGuard.js';
 
 const SR = 'https://apiv2.shiprocket.in/v1/external';
 const PER_PAGE = 100;
@@ -34,6 +35,8 @@ export function assertShiprocketReadOnly(method: string, url: string): void {
 }
 
 const tokens = new Map<string, { token: string; exp: number }>();
+/** A refused login stops logins with the same password for 6 h (Shiprocket locks the account otherwise). */
+const guard = new ShiprocketLoginGuard();
 
 async function login(creds: Credentials): Promise<string> {
   const email = (creds.email || '').trim();
@@ -41,11 +44,20 @@ async function login(creds: Credentials): Promise<string> {
   if (!email || !password) throw new Error('Shiprocket needs the API user email + password (shared secrets shiprocket-email / -password).');
   const hit = tokens.get(email);
   if (hit && Date.now() < hit.exp) return hit.token;
+  const fp = credentialFingerprint(email, password);
+  const block = guard.blocked(fp);
+  if (block) throw new Error(ShiprocketLoginGuard.describe(block));
   const url = `${SR}/auth/login`;
   assertShiprocketReadOnly('POST', url);
-  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  } catch (e) {
+    throw new Error(guard.failed(fp, 0, e instanceof Error ? e.message : 'network error').reason);
+  }
   const j = (await res.json().catch(() => ({}))) as { token?: string; message?: string };
-  if (!res.ok || !j.token) throw new Error(`Shiprocket login failed (${res.status}${j.message ? `: ${j.message}` : ''}).`);
+  if (!res.ok || !j.token) throw new Error(`${guard.failed(fp, res.status, j.message).reason}.`);
+  guard.succeeded();
   tokens.set(email, { token: j.token, exp: Date.now() + 9 * 86_400_000 }); // JWT lasts 10 days
   return j.token;
 }
@@ -99,10 +111,10 @@ const shiprocket: ConnectorDef = {
   mode: 'manual-upload',
   implemented: true,
   credentialFields: [
-    { key: 'email', label: 'API user email', type: 'text', help: 'Filled from the shared shiprocket-email secret when blank.' },
-    { key: 'password', label: 'API user password', type: 'password' },
+    { key: 'email', label: 'API user email', type: 'text', help: 'Read from the shared secret shiprocket-email only. Not saved here.' },
+    { key: 'password', label: 'API user password', type: 'password', help: 'Read from the shared secret shiprocket-password only. Not saved here.' },
   ],
-  note: 'Shipment charges for the close, computed from the orders list (freight + COD + RTO by day), not the wallet statement. Read only. Same API user as Ops.',
+  note: 'Shipment charges for the close, computed from the orders list (freight + COD + RTO by day), not the wallet statement. Read only. Same API user as Ops, from the shared secrets only (a refused login pauses logins for 6 hours).',
 
   async test(creds: Credentials): Promise<TestResult> {
     await login(creds);
