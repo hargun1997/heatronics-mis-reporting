@@ -384,7 +384,10 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   ledgers renamed to the legal party (`PARTY_NAMES`). **History tab** (`GET /api/tds/history`, `monthState`: ok / stale = copied before the
   7th of the next month / partial / missing / running; `fyMonths`): per month data state, TDS, compare with the filed report
   (`client/src/data/tds/filedReports.ts` FILED_REPORTS: block totals only, no party rows; `compareFiled` ±₹1 per block), Download per month
-  and Download all months (`historySheets`: one sheet per month, a "DATA STALE / NO DATA …" row under the title when not OK). Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),
+  and Download all months (`historySheets`: one sheet per month, a "DATA STALE / NO DATA …" row under the title when not OK). **Styling** (founder, 22 Nov 2026: "bold headers and borders, matching Ashi's"): `utils/tdsReportExport.ts` (xlsx-js-style, loaded on
+  click) styles every TDS report sheet by `reportRowKinds` (tdsFormats.ts): bold merged title rows, bold block titles, bold boxed header row,
+  thin black borders on every block cell, bold Total / Grand Total, boxed summary with bold title and totals; no fills; #,##0.00, rate 0.00,
+  dates dd-mm-yyyy. Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),
   `cal-m04-tds-march` (30 Apr), both `live: 'tds'` → `pages/work/TdsTaskPanel.tsx`; `cal-q-tds-return` (31 Jan / May / Jul / Oct). Tests
   `server/test/tds.test.ts`.
 - **Live MIS = five tabs of expandable sections (founder, 5 Nov 2026: "expandable … declutter … the P&L is the MIS"):** `pages/mis/LiveMisPage.tsx`

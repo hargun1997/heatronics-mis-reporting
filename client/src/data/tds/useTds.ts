@@ -25,33 +25,27 @@ export function useTds(month: string): { api: TdsApi | null; report: TdsReport |
   return { api, report, error: cur?.error ?? null, loading: !cur };
 }
 
-const REPORT_COLS = [{ wch: 6 }, { wch: 38 }, { wch: 13 }, { wch: 12 }, { wch: 16 }, { wch: 13 }, { wch: 12 }, { wch: 12 }];
 
-/** Excel download for any month. Default = the accounts team's TDS report; working = Supplier invoices + planning sheets. */
+/** Excel download for any month. Default = the accounts team's TDS report (styled as theirs); working = Supplier invoices + planning sheets. */
 export async function downloadTds(month: string, r: TdsReport | null, invoices: { rows: InvoiceRow[]; syncedAt: string | null } | null, working = false) {
   const sheets = monthSheets(month, r, invoices, { working });
   if (!sheets.length) return false;
+  if (!working) {
+    const { downloadStyledReport } = await import('../../utils/tdsReportExport');
+    downloadStyledReport(`Tds Report ${reportSheetName(month)}.xlsx`, sheets);
+    return true;
+  }
   const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
-  for (const s of sheets) {
-    const ws = XLSX.utils.aoa_to_sheet(s.rows, { cellDates: true, dateNF: 'dd-mm-yyyy' });
-    if (!working) ws['!cols'] = REPORT_COLS;
-    XLSX.utils.book_append_sheet(wb, ws, s.name);
-  }
-  XLSX.writeFile(wb, working ? `tds-working-${month}.xlsx` : `Tds Report ${reportSheetName(month)}.xlsx`);
+  for (const s of sheets) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s.rows, { cellDates: true, dateNF: 'dd-mm-yyyy' }), s.name);
+  XLSX.writeFile(wb, `tds-working-${month}.xlsx`);
   return true;
 }
 
-/** History download: the team's TDS report for each given month, one sheet per month (flagged when not OK). */
+/** History download: the team's TDS report for each given month, one styled sheet per month (flagged when not OK). */
 export async function downloadHistory(fileTag: string, months: Parameters<typeof historySheets>[0]) {
-  const XLSX = await import('xlsx');
-  const wb = XLSX.utils.book_new();
-  for (const s of historySheets(months)) {
-    const ws = XLSX.utils.aoa_to_sheet(s.rows, { cellDates: true, dateNF: 'dd-mm-yyyy' });
-    ws['!cols'] = REPORT_COLS;
-    XLSX.utils.book_append_sheet(wb, ws, s.name);
-  }
-  XLSX.writeFile(wb, `Tds Report ${fileTag}.xlsx`);
+  const { downloadStyledReport } = await import('../../utils/tdsReportExport');
+  downloadStyledReport(`Tds Report ${fileTag}.xlsx`, historySheets(months));
 }
 
 export const tdsBtn =
