@@ -41,15 +41,15 @@ const humanDates = (t: string) => t.replace(/\b\d{4}-\d{2}-\d{2}\b/g, (d) => day
  * data fold into 1 "Books" tile: 3 empty tiles with 3 long reasons said one thing 3 times. */
 function tilesFor(b: Brief, c: WorkCount | null): (Tile & { href?: string })[] {
   const out: (Tile & { href?: string })[] = [];
-  const empty: string[] = [];
+  let empty = 0;
   for (const t of b.tiles) {
     let x: Tile = t;
     if (c && t.id === 'fix') x = { ...t, value: c.fix, delta: null, sub: c.fix ? `${c.fixHigh} urgent` : 'No problems found', tone: c.fixHigh ? 'act' : c.fix ? 'watch' : 'ok' };
     if (c && t.id === 'late') x = { ...t, value: c.late, delta: null, sub: `${c.dueToday} due today · ${c.dueWeek} this week`, tone: c.late ? 'act' : 'ok' };
-    if (x.value == null) { empty.push(x.label.replace(/ .*$/, '').toLowerCase()); continue; }
+    if (x.value == null) { empty += 1; continue; }
     out.push({ ...x, href: TILE_HREF[x.id] });
   }
-  if (empty.length) out.unshift({ id: 'books', label: 'Books', value: null, unit: 'count', tone: 'watch', delta: null, sub: `No ${empty.join(', ')} yet. Pull Tally on Setup.`, href: '/setup' });
+  if (empty) out.unshift({ id: 'books', label: 'Books', value: null, unit: 'count', tone: 'watch', delta: null, sub: 'No Tally books yet. Pull Tally on Setup.', href: '/setup' });
   return out;
 }
 const KIND = { watch: 'Watch', fix: 'Fix', task: 'Task' } as const;
