@@ -1,12 +1,13 @@
-# Tally P&L snapshots. Tally (TallyPrime on Thakur Hardsoft's cloud machine) only answers while it is open,
-# so the MIS checks it every 30 min in working hours (Mon–Sat 10:00–19:00 IST) from the 15th of each month — when
-# last month's books are final — and, when it answers, stores last month's and this month's P&L (read only).
+# Tally snapshots. Tally (TallyPrime on Thakur Hardsoft's cloud machine) only answers while it is open, so the MIS
+# checks it every 30 min in working hours (Mon–Sat 10:00–19:00 IST, any day of the month since 22 Nov 2026) and, when
+# it answers, re-reads the WHOLE financial year: P&L + Trial Balance April → this month, then continues the Day Books
+# FY sweep (resumable across runs; a finished pass waits 2 h). Read only.
 # The endpoint answers a status only (no figures); the app applies the same gate (snapshots.ts scheduledDue).
 name: Tally snapshot
 
 on:
   schedule:
-    - cron: '13,43 4-13 * * 1-6'   # UTC = 09:43–19:13 IST, Mon–Sat; the app skips days before the 15th
+    - cron: '13,43 4-13 * * 1-6'   # UTC = 09:43–19:13 IST, Mon–Sat; the app applies scheduledDue
   workflow_dispatch:
 
 jobs:

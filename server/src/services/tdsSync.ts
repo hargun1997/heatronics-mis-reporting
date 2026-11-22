@@ -13,10 +13,10 @@
 // ----------------------------------------------------------------------------
 
 import { getEffectiveCredentials } from '../connectors/credentialStore.js';
-import { pullBooks, readBooks, readBooksState, readMasters } from '../connectors/tally/bookStore.js';
+import { fyMonthsTo, pullBooks, pullBooksSweep, readBooks, readBooksState, readMasters, readSweep, sweepInProgress } from '../connectors/tally/bookStore.js';
 import { readJson, writeJson } from '../ingest/objectStore.js';
 import {
-  EMPTY_SYNC, invoiceRows, istDay, memoryStale, memorySummary, mergeMemory, syncDue, syncMonths,
+  EMPTY_SYNC, invoiceRows, istDay, memoryStale, memorySummary, mergeMemory, syncDue,
   type InvoiceMemory, type TdsSyncState,
 } from './supplierInvoices.js';
 
@@ -47,29 +47,39 @@ export function runTdsSync(trigger: 'schedule' | 'button', opts: { monthEnd?: bo
     const at = new Date(now).toISOString();
     s.lastTryAt = at;
     await writeSyncState(s);
-    const months = opts.months ?? syncMonths(now, !!opts.monthEnd, s.lastOkAt);
+    // Founder, 22 Nov 2026: every sync re-reads the WHOLE financial year (back-dated entries). Without `months` the
+    // sync continues the shared FY sweep (bookStore.pullBooksSweep, April → this month, resumable across runs).
+    const fy = fyMonthsTo(now);
+    let months = opts.months ?? fy;
     let error: string | null = null;
     try {
       const creds = await getEffectiveCredentials('tally', ['host', 'port', 'company']);
       if (!String(creds.host ?? '').trim()) error = 'Tally is not connected. Add the host on Setup → Tally.';
-      else {
-        const r = await pullBooks(creds, { periods: months, budgetMs: opts.budgetMs ?? 240_000 });
+      else if (opts.months) {
+        error = (await pullBooks(creds, { periods: opts.months, budgetMs: opts.budgetMs ?? 240_000 })).error;
+      } else {
+        const r = await pullBooksSweep(creds, { now, budgetMs: opts.budgetMs ?? 240_000 });
         error = r.error;
+        months = r.asked;
       }
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }
-    // Merge whatever is stored now (also the months read before an error).
+    // Merge whatever is stored now for every FY month (also months read before an error, or by another caller).
     let bills = 0;
-    for (const m of months) bills += memorySummary(await memoryFor(m, at)).bills;
+    for (const m of [...new Set([...fy, ...months])]) bills += memorySummary(await memoryFor(m, at)).bills;
     const st = await readBooksState();
-    const fresh = (m: string) => !!st.months[m] && Date.parse(st.months[m]) >= now - 60_000;
-    const ok = !error && months.every(fresh);
     s.lastError = error;
-    if (ok) {
+    if (!error) {
       s.lastOkAt = at;
       s.lastOkDay = istDay(now);
-      if (opts.monthEnd) s.finalFor = { ...s.finalFor, [months[0]]: at };
+    }
+    // Month-end: last month counts as final once its Day Book was read again on / after the 5th (by any caller).
+    const cur = fy[fy.length - 1];
+    const lastMonth = new Date(Date.UTC(Number(cur.slice(0, 4)), Number(cur.slice(5)) - 2, 1)).toISOString().slice(0, 7);
+    const fifth = Date.parse(`${cur}-05T00:00:00+05:30`);
+    if (st.months[lastMonth] && Date.parse(st.months[lastMonth]) >= fifth && !(s.finalFor[lastMonth] && Date.parse(s.finalFor[lastMonth]) >= fifth)) {
+      s.finalFor = { ...s.finalFor, [lastMonth]: st.months[lastMonth] };
     }
     s.lastRun = { at, trigger, months, bills, error };
     await writeSyncState(s);
@@ -82,7 +92,14 @@ export function runTdsSync(trigger: 'schedule' | 'button', opts: { monthEnd?: bo
 /** The scheduled call: runs only when due (syncDue). */
 export async function scheduledSync(): Promise<{ status: 'not_due' | 'started' | 'done' | 'failed'; why: string; state?: TdsSyncState; promise?: Promise<TdsSyncState> }> {
   const s = await readSyncState();
-  const due = syncDue(Date.now(), s);
-  if (!due.due) return { status: 'not_due', why: due.why };
+  const now = Date.now();
+  const due = syncDue(now, s);
+  if (!due.due) {
+    // While a FY pass is running, every hourly call continues it (inside 06:00–23:00, 50 min apart).
+    const hour = new Date(now + 5.5 * 3_600_000).getUTCHours();
+    const since = s.lastTryAt ? now - Date.parse(s.lastTryAt) : Infinity;
+    if (!(sweepInProgress(await readSweep()) && hour >= 6 && hour < 23 && since >= 50 * 60_000)) return { status: 'not_due', why: due.why };
+    return { status: 'started', why: 'FY pass running: continue it.', promise: runTdsSync('schedule') };
+  }
   return { status: 'started', why: due.why, promise: runTdsSync('schedule', { monthEnd: due.monthEnd }) };
 }
