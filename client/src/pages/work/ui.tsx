@@ -3,12 +3,13 @@
 
 import { useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { CheckIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { Check as CheckIcon, ChevronDown as ChevronDownIcon } from 'lucide-react';
 import type { TeamMember } from '../../data/work/workClient';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { avatarTone, initials } from './taskModel';
+import { buttonClass } from '../../components/ui/Button';
 
-export const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1';
+export const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2';
 
 /** One-line page header: title + subtitle on the left, actions on the right. */
 /** The Tasks pages use the shared page header (same title row, About popover and gutters as every page). */
@@ -16,7 +17,7 @@ export function TasksHeader({ title, sub, status, help, children }: { title: str
   return <PageHeader title={title} description={sub} status={status} help={help} actions={children} />;
 }
 
-export function Avatar({ m, size = 'h-6 w-6 text-[12px]' }: { m: TeamMember; size?: string }) {
+export function Avatar({ m, size = 'h-6 w-6 text-xs' }: { m: TeamMember; size?: string }) {
   return (
     <span title={`${m.name} · ${m.email}`} className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${size} ${avatarTone(m.id)}`}>
       {initials(m.name)}
@@ -82,7 +83,7 @@ export function Fold({
         className={`flex min-h-[40px] w-full items-center gap-2 rounded-lg px-1 text-left hover:bg-slate-100/70 ${focusRing}`}
       >
         <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-500 transition ${isOpen ? '' : '-rotate-90'}`} />
-        <h2 className={`text-[15px] font-semibold ${tone === 'late' ? 'text-rose-700' : 'text-slate-900'}`}>{title}</h2>
+        <h2 className={`text-sm font-semibold ${tone === 'late' ? 'text-red-700' : 'text-slate-900'}`}>{title}</h2>
         {meta != null && <span className="text-sm text-slate-500">{meta}</span>}
       </button>
       {isOpen && <div className="mt-1.5">{children}</div>}
@@ -92,8 +93,11 @@ export function Fold({
 
 export const card = 'rounded-xl border border-slate-200 bg-white';
 export const input =
-  'w-full rounded-lg border border-slate-300 px-3 py-2 text-[14px] text-slate-950 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100';
+  'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 export const lbl = 'mb-1 block text-sm font-semibold text-slate-800';
-export const btnPrimary = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 ${focusRing}`;
-export const btnSecondary = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-800 hover:border-slate-400 hover:bg-slate-50 disabled:opacity-50 ${focusRing}`;
-export const btnGhost = `inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-950 disabled:opacity-50 ${focusRing}`;
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
+export const btnPrimary = buttonClass('primary');
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
+export const btnSecondary = buttonClass('secondary');
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
+export const btnGhost = buttonClass('secondary');

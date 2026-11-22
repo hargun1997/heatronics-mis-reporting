@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Plus as PlusIcon, Trash2 as TrashIcon, X as XMarkIcon } from 'lucide-react';
 import { Modal } from '../../components/ui/overlays';
 import { getEmailTemplates, getWork, saveHeads, type EmailTemplate, type Head, type WorkState } from '../../data/work/workClient';
 import { EmailPreview, RemindersCard, RolesCard, TeamCard } from './SettingsCards';
@@ -48,8 +48,8 @@ export function TasksSettingsPage() {
       <PageHeader title="People and reminders" description="Set the owners of tasks and the daily reminder email."
         tabs={TABS} tab={tab} onTab={setTab}
         actions={<Link to="/tasks" className={BTN}>Back to Tasks</Link>} />
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {error && <p role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{error}</p>}
+      <div className="mx-auto max-w-page px-4 sm:px-6">
+        {error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p>}
         {!state ? (
           <p className="py-16 text-center text-sm text-slate-600">Loading…</p>
         ) : !state.seededAt ? (
@@ -103,8 +103,8 @@ function EmailTemplates() {
   const t = list?.[k];
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      {err && <p className="px-4 py-3 text-[14px] text-rose-700">{err}</p>}
-      {!list && !err && <p className="px-4 py-6 text-[14px] text-slate-600">Loading…</p>}
+      {err && <p className="px-4 py-3 text-sm text-red-700">{err}</p>}
+      {!list && !err && <p className="px-4 py-6 text-sm text-slate-600">Loading…</p>}
       {list && t && (
         <div className="grid lg:grid-cols-[280px_minmax(0,1fr)]">
           <ul className="border-b border-slate-200 lg:border-b-0 lg:border-r">
@@ -115,7 +115,7 @@ function EmailTemplates() {
                   onClick={() => setK(i)}
                   className={`block w-full border-l-4 px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 ${i === k ? 'border-brand-500 bg-brand-50/60' : 'border-transparent hover:bg-slate-50'}`}
                 >
-                  <span className="block text-[15px] font-medium text-slate-950">{x.name}</span>
+                  <span className="block text-sm font-medium text-slate-950">{x.name}</span>
                   <span className="mt-0.5 block text-sm leading-snug text-slate-600">{x.when}</span>
                 </button>
               </li>
@@ -128,7 +128,7 @@ function EmailTemplates() {
               </div>
               <div>
                 <span className="inline-block w-16 font-semibold text-slate-600">To</span>
-                {t.to || '—'}
+                {t.to || '–'}
               </div>
               <div>
                 <span className="inline-block w-16 font-semibold text-slate-600">Subject</span>
@@ -177,14 +177,14 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
         {heads.map((h, i) => (
           <li key={h.id} className="space-y-2 px-4 py-3">
             <div className="flex items-center gap-2">
-              <input className={`${field} font-semibold`} value={h.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Head name, e.g. CA / Audit" aria-label="Head name" />
+              <input className={`${field} font-semibold`} value={h.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Head name, for example CA / Audit" aria-label="Head name" />
               <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-sm tabular-nums text-slate-600" title="Tasks under this head">
                 {count(h)}
               </span>
               <button
                 type="button"
                 onClick={() => setHeads((hs) => hs.filter((_, j) => j !== i))}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700 ${focusRing}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700 ${focusRing}`}
                 aria-label={`Delete ${h.name || 'head'}`}
               >
                 <TrashIcon className="h-4 w-4" />
@@ -194,7 +194,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
               className={field}
               value={h.roles.join(', ')}
               onChange={(e) => set(i, { roles: e.target.value.split(',').map((r) => r.trim()).filter((r, k, a) => r || k === a.length - 1) })}
-              placeholder="Roles, comma-separated: e.g. CA, Statutory Auditor"
+              placeholder="Roles, comma-separated: for example CA, Statutory Auditor"
               aria-label="Roles"
             />
             <div className="flex flex-wrap gap-1">
@@ -205,7 +205,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
                     key={a}
                     type="button"
                     onClick={() => set(i, { areas: on ? h.areas.filter((x) => x !== a) : [...h.areas, a] })}
-                    className={`min-h-[32px] rounded-full border px-3 text-sm font-medium ${focusRing} ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700 hover:border-slate-400'}`}
+                    className={`min-h-[32px] rounded-full border px-3 text-sm font-medium ${focusRing} ${on ? 'border-slate-900 bg-white font-semibold text-slate-900' : 'border-slate-300 text-slate-700 hover:border-slate-400'}`}
                   >
                     {a}
                   </button>

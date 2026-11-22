@@ -15,7 +15,7 @@ import { CASCADE, SHEET_RULES, COMPLETENESS_RULE, type LineOwner } from '../../d
 
 const OWNER_STYLE: Record<LineOwner, { label: string; cls: string }> = {
   connectors: { label: 'Reports', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
-  bom: { label: 'BOM', cls: 'bg-slate-900 text-white border-slate-900' },
+  bom: { label: 'BOM', cls: 'bg-white text-slate-900 border-slate-400' },
   tally: { label: 'Tally', cls: 'bg-accent-50 text-accent-700 border-accent-200' },
   derived: { label: 'Computed', cls: 'bg-white text-slate-600 border-slate-300' },
 };
@@ -49,7 +49,7 @@ export function RulebookPage() {
         onTab={(id) => setTab(id as RbTab)}
       />
 
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
         {tab === 'cascade' && (
           <Panel title="P&L lines and their source" count={CASCADE.length} flush
             action={<InfoTip text="How far the MIS is complete" label={COMPLETENESS_RULE.headline} width={360}>

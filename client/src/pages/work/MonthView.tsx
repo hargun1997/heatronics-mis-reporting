@@ -2,7 +2,7 @@
 // above the grid).
 
 import { useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { describe, occurrences, parseYmd } from '../../data/work/schedule';
 import type { TeamMember, WorkState, WorkTask } from '../../data/work/workClient';
 import { MN, ownerNames, periodLabel } from './taskModel';
@@ -56,7 +56,7 @@ export function MonthView({
         <button type="button" onClick={() => shift(-1)} className={`flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 ${focusRing}`} aria-label="Previous month">
           <ChevronLeftIcon className="h-5 w-5" />
         </button>
-        <h2 className="min-w-[110px] text-center text-[15px] font-semibold text-slate-950">
+        <h2 className="min-w-[110px] text-center text-sm font-semibold text-slate-950">
           {MN[m]} {y}
         </h2>
         <button type="button" onClick={() => shift(1)} className={`flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 ${focusRing}`} aria-label="Next month">
@@ -74,7 +74,7 @@ export function MonthView({
           <span className="font-medium text-slate-900">Every working day:</span> {daily.map((t) => t.title).join(' · ')}
         </div>
       )}
-      <div className="grid grid-cols-7 border-b border-slate-200 text-center text-[12px] font-medium text-slate-600">
+      <div className="grid grid-cols-7 border-b border-slate-200 text-center text-xs font-medium text-slate-600">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
           <div key={d} className="py-1.5">
             {d}
@@ -98,14 +98,14 @@ export function MonthView({
             >
               <div className="mb-1 flex flex-wrap items-center justify-between gap-x-1">
                 <span
-                  className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[13px] font-medium tabular-nums ${
-                    isToday ? 'bg-brand-600 text-white' : late ? 'text-rose-700' : 'text-slate-900'
+                  className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-label font-medium tabular-nums ${
+                    isToday ? 'bg-brand-600 text-white' : late ? 'text-red-700' : 'text-slate-900'
                   }`}
                 >
                   {Number(d.slice(8))}
                 </span>
                 {list.length > 0 && (
-                  <span className={`text-[12px] font-medium ${late ? 'text-rose-700' : 'text-slate-600'}`}>
+                  <span className={`text-xs font-medium ${late ? 'text-red-700' : 'text-slate-600'}`}>
                     {open.length ? open.length : <span className="text-emerald-700">done</span>}
                     <span className="hidden sm:inline">{open.length ? ' open' : ''}</span>
                   </span>
@@ -115,15 +115,15 @@ export function MonthView({
                 {list.slice(0, 3).map((x) => (
                   <div
                     key={x.t.id + x.period}
-                    className={`truncate rounded px-1 py-0.5 text-[12px] leading-tight ${
-                      x.done ? 'text-slate-500 line-through' : late ? 'bg-rose-50 text-rose-800' : 'bg-slate-100 text-slate-900'
+                    className={`truncate rounded px-1 py-0.5 text-xs leading-tight ${
+                      x.done ? 'text-slate-500 line-through' : late ? 'bg-red-50 text-red-800' : 'bg-slate-100 text-slate-900'
                     }`}
                     title={x.t.title}
                   >
                     {x.t.title}
                   </div>
                 ))}
-                {list.length > 3 && <div className="px-1 text-[12px] font-medium text-slate-600">+{list.length - 3} more</div>}
+                {list.length > 3 && <div className="px-1 text-xs font-medium text-slate-600">+{list.length - 3} more</div>}
               </div>
             </button>
           );
@@ -131,15 +131,15 @@ export function MonthView({
       </div>
       {picked && (
         <div className="border-t border-slate-200 bg-slate-50/70 px-3 py-3 sm:px-4">
-          <h3 className="mb-2 text-[15px] font-semibold text-slate-950">Due {periodLabel(picked)}</h3>
+          <h3 className="mb-2 text-sm font-semibold text-slate-950">Due {periodLabel(picked)}</h3>
           {pickedList.length ? (
             <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
               {pickedList.map((x) => (
                 <li key={x.t.id + x.period}>
                   <button type="button" onClick={() => onOpenTask(x.t.id)} className={`flex min-h-[48px] w-full items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 ${focusRing}`}>
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${x.done ? 'bg-emerald-500' : picked < today ? 'bg-rose-500' : 'bg-brand-500'}`} />
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${x.done ? 'bg-emerald-500' : picked < today ? 'bg-red-500' : 'bg-brand-500'}`} />
                     <span className="min-w-0 flex-1">
-                      <span className={`block truncate text-[15px] font-medium ${x.done ? 'text-slate-500 line-through' : 'text-slate-950'}`}>{x.t.title}</span>
+                      <span className={`block truncate text-sm font-medium ${x.done ? 'text-slate-500 line-through' : 'text-slate-950'}`}>{x.t.title}</span>
                       <span className="block truncate text-sm text-slate-600">
                         {ownerNames(x.t.ownerIds, memberById) || 'No owner'} · {describe(x.t)}
                       </span>

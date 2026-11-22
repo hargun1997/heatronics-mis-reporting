@@ -1,4 +1,4 @@
-// Catches a page that throws while loading or rendering (e.g. a lazy chunk that is gone after a deploy and could not
+// Catches a page that throws while loading or rendering (for example a lazy chunk that is gone after a deploy and could not
 // reload itself: lazyPage.ts) so the shell stays usable. MainLayout keys it by path: moving to another page resets it.
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 

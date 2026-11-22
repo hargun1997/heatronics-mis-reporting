@@ -15,7 +15,7 @@ interface Runway { today: string; basis: string | null; netCash: number | null; 
 const nice = (d: string | null) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : 'Not in 13 weeks');
 const COLOR = { base: 'rgb(var(--chart-ink))', hard: 'rgb(var(--chart-heat))', easy: 'rgb(var(--chart-cmp))' } as const;
 const BAND = { act: 'bg-red-50 border-red-200 text-red-800', watch: 'bg-amber-50 border-amber-200 text-amber-800', ok: 'bg-emerald-50 border-emerald-200 text-emerald-800', unknown: 'bg-slate-50 border-slate-200 text-slate-700' } as const;
-const WORD = { act: 'Act now', watch: 'Watch', ok: 'OK', unknown: 'No data' } as const;
+const WORD = { act: 'Act now', watch: 'Watch', ok: 'OK', unknown: 'Not read' } as const;
 
 function Chart({ r }: { r: Runway }) {
   const W = 720, H = 240, P = { l: 56, r: 12, t: 12, b: 26 };

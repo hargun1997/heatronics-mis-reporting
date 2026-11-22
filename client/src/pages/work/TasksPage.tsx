@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Cog6ToothIcon, ExclamationCircleIcon, PlusIcon, UserCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Settings as Cog6ToothIcon, CircleAlert as ExclamationCircleIcon, Plus as PlusIcon, CircleUser as UserCircleIcon, X as XMarkIcon } from 'lucide-react';
 import { Modal } from '../../components/ui/overlays';
 import { diffDays, todayIST } from '../../data/work/schedule';
 import { deleteTask, deleteTasks, getWork, importSeed, saveTask, setTaskDone, type TeamMember, type WorkState, type WorkTask } from '../../data/work/workClient';
@@ -53,7 +53,7 @@ export function TasksPage() {
   // Links from the daily emails: /tasks?task=<id> opens that task, /tasks?who=<memberId> filters.
   const linkTask = params.get('task');
   const linkWho = params.get('who');
-  // Runs whenever a link lands (also in-app ones, e.g. "Do this after"); the
+  // Runs whenever a link lands (also in-app ones, for example "Do this after"); the
   // params are cleared afterwards, so each link is handled once.
   useEffect(() => {
     if (!state || (!linkTask && !linkWho)) return;
@@ -211,8 +211,8 @@ export function TasksPage() {
     return (
       <div className="tasks-ui pb-16">
         {header}
-        <div className="mx-auto max-w-7xl px-4 py-16 text-center text-sm text-slate-600 sm:px-6 lg:px-8">
-          {error ? <span className="text-rose-700">{error}</span> : seeding ? 'Setting up the task list…' : 'Loading…'}
+        <div className="mx-auto max-w-page px-4 py-16 text-center text-sm text-slate-600 sm:px-6">
+          {error ? <span className="text-red-700">{error}</span> : seeding ? 'Setting up the task list…' : 'Loading…'}
         </div>
       </div>
     );
@@ -222,9 +222,9 @@ export function TasksPage() {
     <div className="tasks-ui pb-16">
       {header}
 
-      <div className="mx-auto max-w-7xl space-y-3 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-3 px-4 sm:px-6">
         {error && (
-          <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
+          <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
             {error}
             <button type="button" onClick={() => setError('')} aria-label="Dismiss" className={`flex h-8 w-8 items-center justify-center rounded ${focusRing}`}>
               <XMarkIcon className="h-4 w-4" />

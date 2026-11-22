@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { MasterState } from '../../data/tally/useTallyMaster';
 import type { ReduceStats } from '../../data/tally/reduceTallyExport';
+import { KpiTile } from '../../components/ui/KpiTile';
 
 type Tab = 'active' | 'replace' | 'reset';
 
@@ -35,7 +36,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
             Tally master
             {!state.loading && hasMaster && (
               <span
-                className={`inline-block px-1.5 py-0.5 rounded text-xs sm:text-[11px] font-medium uppercase tracking-wider ${
+                className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
                   isOverride ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
                 }`}
               >
@@ -50,7 +51,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
                 ? `${ledgerCount} ledgers · ${voucherCount} voucher types · ${ccCount} cost centres`
                 : 'Not loaded: upload your Tally master to get started'}
             {savedFlash && (
-              <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-xs sm:text-[11px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-800">
+              <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
                 Override loaded · {savedFlash.ledgers} ledgers
               </span>
             )}
@@ -80,7 +81,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
                   onClick={() => setTab(t)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     tab === t
-                      ? 'bg-slate-900 text-white'
+                      ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-300'
                       : disabled
                         ? 'text-slate-300 cursor-not-allowed'
                         : 'text-slate-600 hover:bg-slate-100'
@@ -138,7 +139,7 @@ function ActiveTab({ state }: { state: MasterState }) {
           {(m.ledgers || []).map((l) => (
             <div key={l.name} className="flex justify-between gap-2">
               <span className="text-slate-900 truncate">{l.name}</span>
-              <span className="text-slate-500 truncate">{l.group || '—'}</span>
+              <span className="text-slate-500 truncate">{l.group || '–'}</span>
             </div>
           ))}
         </div>
@@ -149,7 +150,7 @@ function ActiveTab({ state }: { state: MasterState }) {
           {(m.voucherTypes || []).map((v) => (
             <div key={v.name} className="flex justify-between gap-2">
               <span className="text-slate-900 truncate">{v.name}</span>
-              <span className="text-slate-500 truncate">{v.parent || '—'}</span>
+              <span className="text-slate-500 truncate">{v.parent || '–'}</span>
             </div>
           ))}
         </div>
@@ -160,7 +161,7 @@ function ActiveTab({ state }: { state: MasterState }) {
           {(m.costCentres || []).map((c) => (
             <div key={`${c.category}-${c.name}`} className="flex justify-between gap-2">
               <span className="text-slate-900 truncate">{c.name}</span>
-              <span className="text-slate-500 truncate">{c.category || '—'}</span>
+              <span className="text-slate-500 truncate">{c.category || '–'}</span>
             </div>
           ))}
         </div>
@@ -213,7 +214,7 @@ function ReplaceTab({
       <p className="text-slate-600">
         Override the bundled master with your own export. Pick the JSON your
         Tally Prime exports (Gateway → Display More Reports → Masters → JSON
-        Export). The file may be UTF-16: that's fine. Reduction runs in this
+        Export). The file may be UTF-16: that is fine. Reduction runs in this
         browser; the override is saved to{' '}
         <code className="bg-slate-100 px-1 rounded">localStorage</code> and never
         leaves your device. Click <em>Revert to bundled</em> any time to drop
@@ -238,13 +239,13 @@ function ReplaceTab({
       >
         {busy ? 'Reducing…' : 'Pick a Tally export JSON'}
       </button>
-      <div className="text-center text-xs sm:text-[11px] uppercase tracking-wider text-slate-400">or paste</div>
+      <div className="text-center text-xs text-slate-400">or paste</div>
       <textarea
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
         placeholder='Paste raw Tally export {"tallymessage":[…]} or a slim master JSON'
         rows={5}
-        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs sm:text-[11px]"
+        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs"
       />
       <button
         type="button"
@@ -255,7 +256,7 @@ function ReplaceTab({
         Reduce and load
       </button>
       {state.error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-800">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
           {state.error}
         </div>
       )}
@@ -276,7 +277,7 @@ function ResetTab({ onReset }: { onReset: () => void }) {
       <button
         type="button"
         onClick={onReset}
-        className="w-full rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium py-2"
+        className="w-full rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium py-2"
       >
         Revert to bundled master
       </button>
@@ -289,17 +290,12 @@ function ResetTab({ onReset }: { onReset: () => void }) {
 function KV({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex justify-between gap-3">
-      <span className="text-slate-500 uppercase tracking-wider text-xs sm:text-[11px] font-semibold">{k}</span>
+      <span className="text-slate-500 text-xs font-semibold">{k}</span>
       <span className="text-slate-900 truncate">{v}</span>
     </div>
   );
 }
 
 function Stat({ label, n }: { label: string; n: number }) {
-  return (
-    <div className="rounded-lg border border-slate-200 px-3 py-2">
-      <div className="text-xs sm:text-[11px] uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="text-sm font-semibold text-slate-900 tabular-nums">{n}</div>
-    </div>
-  );
+  return <KpiTile label={label} value={n.toLocaleString('en-IN')} />;
 }

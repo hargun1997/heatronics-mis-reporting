@@ -51,7 +51,7 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
   return (
     <SectionCard title="Product roll-out" count={items.length} info={<><p>Units for each month of the plan: launches, ramps and seasons.</p><p>Peak month: {ms[peak].label}, {int(ms[peak].units)} units ({MON[calOf(plan.startMonth, peak + 1)]}). Compare it with factory capacity.</p><p>Set up products and their season in Setup → Products and categories.</p></>}>
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-[12px] tabular-nums">
+        <table className="w-full min-w-[720px] text-xs tabular-nums">
           <thead>
             <tr className="text-xs text-slate-600">
               <th className="py-1 pr-3 text-left font-semibold">Product</th>
@@ -69,7 +69,7 @@ function RolloutCard({ plan, r }: { plan: Plan; r: PlanResult }) {
               return (
                 <tr key={it.id} className="border-t border-slate-100">
                   <td className="py-1 pr-3 text-slate-700">{it.name}{it.isNew && <span className="ml-1.5 rounded bg-slate-100 px-1 text-xs text-slate-700">New</span>}</td>
-                  <td className="px-2 text-slate-500">{firstIdx >= 0 ? monthLabel(plan.startMonth, firstIdx + 1) : '—'}</td>
+                  <td className="px-2 text-slate-500">{firstIdx >= 0 ? monthLabel(plan.startMonth, firstIdx + 1) : '–'}</td>
                   <td className="px-2"><Spark v={series} base={r.base} /></td>
                   <td className="px-2 text-right text-slate-800">{lastUnits ? int(lastUnits) : '–'}</td>
                   <td className="pl-2 text-slate-500">{seasonOf(it.id)}</td>
@@ -103,10 +103,10 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
   const label = (m: number) => r.months.find((x) => x.m === m)?.label ?? `M${m}`;
   return (
     <SectionCard title="Capacity use by FY" info={<><p>In-house units a month (the hCore range and in-house lines) against production capacity.</p><p>Over 100%: build stock before the peak, or add capacity earlier.</p><p>Set capacity in Setup → Capacity, sites and capex.</p></>}>
-      {!hasCapacity && <p className="text-[13px] text-slate-600">No capacity set. Set it in Setup → Capacity, sites and capex.</p>}
+      {!hasCapacity && <p className="text-label text-slate-600">No capacity set. Set it in Setup → Capacity, sites and capex.</p>}
       {hasCapacity && (
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[12.5px] tabular-nums">
+          <table className="w-full min-w-[560px] text-label tabular-nums">
             <thead>
               <tr className="bg-surface-tint text-xs text-slate-600">
                 <th className="px-2 py-2 text-left font-semibold">FY</th><th className="px-2 py-2 text-left font-semibold">Peak month</th>
@@ -120,7 +120,7 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
                 const pk = ms.reduce((a, m) => (m.utilisation > a.utilisation ? m : a), ms[0]);
                 const over = ms.filter((m) => m.utilisation > 1).length;
                 return (
-                  <tr key={y.fy} className={`border-t border-slate-100 ${pk && pk.utilisation > 1 ? 'text-rose-600' : 'text-slate-700'}`}>
+                  <tr key={y.fy} className={`border-t border-slate-100 ${pk && pk.utilisation > 1 ? 'text-red-600' : 'text-slate-700'}`}>
                     <td className="px-2 py-1.5 font-semibold">{y.fy}</td>
                     <td className="px-2 py-1.5">{pk?.label}</td>
                     <td className="px-2 py-1.5 text-right">{pct(pk?.utilisation ?? 0, 0)}</td>
@@ -134,9 +134,9 @@ function CapacityCard({ plan, r }: { plan: Plan; r: PlanResult }) {
           </table>
         </div>
       )}
-      {overMonths.length > 0 && <p className="mt-2 text-[12px] text-rose-700">Over 100% in {overMonths.length} months, from {overMonths[0].label}.</p>}
+      {overMonths.length > 0 && <p className="mt-2 text-xs text-red-700">Over 100% in {overMonths.length} months, from {overMonths[0].label}.</p>}
       {G && (
-        <p className="mt-2 text-[12px] text-slate-600">
+        <p className="mt-2 text-xs text-slate-600">
           Capacity today {int(G.baseCapacity)} units / month{blocks.length ? ` · added: ${blocks.map((b) => `${b.name} +${int(b.unitsPerMonth)} from ${label(b.month + b.leadMonths)}`).join(', ')}` : ' · nothing added'}.
         </p>
       )}
@@ -156,7 +156,7 @@ function D2CCard({ plan, r }: { plan: Plan; r: PlanResult }) {
       title="D2C customers"
       info={<><p>D2C revenue = new buyers × AOV + repeat orders from earlier buyers.</p><p>In the sheet&apos;s months, new buyers come from the sheet&apos;s D2C revenue. From FY29, new buyers grow with the D2C growth lever.</p><p>Change the rates in Setup → D2C customers and seasonality.</p></>}
     >
-      <div className="rounded-xl bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+      <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
         <div><b className="text-slate-800">Model:</b> {cohortsOn ? 'Customers (new buyers × AOV + repeats by cohort)' : 'Units (the sheet\'s unit grid, no cohorts)'} · <b className="text-slate-800">From:</b> {d.source} · as of {d.asOf}{d.fit.r2 != null && <> · fits history at R² {d.fit.r2.toFixed(2)}</>}</div>
         <div className="mt-0.5 text-slate-600">{d.fit.note}</div>
         {cohortsOn && (
@@ -173,12 +173,12 @@ function D2CCard({ plan, r }: { plan: Plan; r: PlanResult }) {
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
         <div>
-          <h4 className="mb-1 text-[12px] font-semibold text-slate-700">Repeat orders: actual and model</h4>
+          <h4 className="mb-1 text-xs font-semibold text-slate-700">Repeat orders: actual and model</h4>
           <HistoryChart h={d.history} pred={pred} />
         </div>
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-          <h4 className="mb-1 text-[12px] font-semibold text-slate-700">Plan by year</h4>
-          <table className="w-full text-[12.5px] tabular-nums">
+          <h4 className="mb-1 text-xs font-semibold text-slate-700">Plan by year</h4>
+          <table className="w-full text-label tabular-nums">
             <thead>
               <tr className="border-b border-slate-200 text-xs text-slate-600">
                 <th className="py-1.5 text-left font-semibold" />
@@ -201,7 +201,7 @@ function D2CCard({ plan, r }: { plan: Plan; r: PlanResult }) {
             </tbody>
           </table>
           {cohortsOn && <BaseCheck r={r} d={d} />}
-          {!cohortsOn && <p className="mt-2 text-[12px] text-slate-600">The Units model is on. D2C uses the sheet&apos;s units, so there are no buyers or repeats.</p>}
+          {!cohortsOn && <p className="mt-2 text-xs text-slate-600">The Units model is on. D2C uses the sheet&apos;s units, so there are no buyers or repeats.</p>}
         </div>
       </div>
     </SectionCard>
@@ -216,7 +216,7 @@ function BaseCheck({ r, d }: { r: PlanResult; d: D2CModel }) {
   if (!fy28) return null;
   const need = fy28.d2cNewCustomers / fy28.months;
   return (
-    <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+    <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
       FY28 needs {int(need)} new buyers a month. The last 12 months had {int(actualPerMonth)} a month ({(need / (actualPerMonth || 1)).toFixed(1)}×).
     </p>
   );
@@ -224,7 +224,7 @@ function BaseCheck({ r, d }: { r: PlanResult; d: D2CModel }) {
 
 function HistoryChart({ h, pred }: { h: D2CModel['history']; pred: number[] }) {
   const rows = h.map((x, i) => ({ ...x, pred: pred[i] })).filter((x, i, a) => i >= a.findIndex((y) => y.newCustomers > 50));
-  if (!rows.length) return <p className="text-[12px] text-slate-500">No history yet.</p>;
+  if (!rows.length) return <p className="text-xs text-slate-500">No history yet.</p>;
   const W = 560, H = 170, pl = 34, pb = 20, pt = 8;
   const max = Math.max(...rows.map((x) => Math.max(x.repeatOrders, x.pred)), 1);
   const bw = (W - pl - 6) / rows.length;
@@ -266,9 +266,9 @@ function SeasonCard({ plan }: { plan: Plan }) {
       info={<><p>Each month against an average month (1.00 = average).</p><p>Products: last year&apos;s units, all channels. D2C: new buyers on Shopify.</p><p>From FY29 the plan {shape === 'history' ? 'uses these curves' : "uses the sheet's shape"} (Setup → Assumptions). Change the curves in Setup → D2C customers and seasonality.</p></>}
     >
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-        <table className="text-[12px] tabular-nums">
+        <table className="text-xs tabular-nums">
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-500">
+            <tr className="text-xs text-slate-500">
               <th className="pr-3 text-left font-semibold">Product</th>
               {order.map((i) => <th key={i} className="w-12 px-0.5 text-center font-semibold">{MON[i]}</th>)}
               <th className="pl-3 text-right font-semibold">Peak</th>
@@ -283,7 +283,7 @@ function SeasonCard({ plan }: { plan: Plan }) {
                   <td className="whitespace-nowrap py-0.5 pr-3 text-slate-700">{row.name}</td>
                   {order.map((i) => (
                     <td key={i} className="px-0.5 py-0.5">
-                      <span className={`block w-12 rounded px-1 py-1 text-center text-xs sm:text-[11.5px] font-semibold ${row.v[i] > 2 ? 'text-white' : 'text-slate-900'}`} style={{ background: tint(row.v[i]) }} title={`${row.name} ${MON[i]}`}>{row.v[i].toFixed(2)}</span>
+                      <span className={`block w-12 rounded px-1 py-1 text-center text-xs font-semibold ${row.v[i] > 2 ? 'text-white' : 'text-slate-900'}`} style={{ background: tint(row.v[i]) }} title={`${row.name} ${MON[i]}`}>{row.v[i].toFixed(2)}</span>
                     </td>
                   ))}
                   <td className="whitespace-nowrap pl-3 text-right text-slate-500" title="Share of the year's units in the top 3 months">{MON[peak]} · top 3 {pct(top3, 0)}</td>

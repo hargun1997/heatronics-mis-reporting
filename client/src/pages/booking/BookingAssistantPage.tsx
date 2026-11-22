@@ -219,16 +219,16 @@ export function BookingAssistantPage() {
       />
 
       {/* Phones: switch between the two panes */}
-      <div className="mx-auto flex max-w-7xl gap-1 px-4 sm:px-6 lg:hidden" role="group" aria-label="Pane">
+      <div className="mx-auto flex max-w-page gap-1 px-4 sm:px-6 lg:hidden" role="group" aria-label="Pane">
         {(['chat', 'map'] as const).map((t) => (
           <button key={t} type="button" aria-pressed={mobileTab === t} onClick={() => setMobileTab(t)}
-            className={`min-h-11 flex-1 rounded-lg text-[13.5px] font-semibold ${mobileTab === t ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>
+            className={`min-h-11 flex-1 rounded-lg text-label font-semibold ${mobileTab === t ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-300' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>
             {t === 'chat' ? 'Ask' : `Ledger map${status?.needsInfo ? ` · ${status.needsInfo} need info` : ''}`}
           </button>
         ))}
       </div>
 
-      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 sm:px-6 lg:h-[calc(100vh-7.5rem)] lg:min-h-[560px] lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8 lg:pt-0">
+      <div className="mx-auto grid max-w-page gap-4 px-4 py-4 sm:px-6 lg:h-[calc(100vh-7.5rem)] lg:min-h-[560px] lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8 lg:pt-0">
         {/* ---------------- chat ---------------- */}
         <section
           aria-label="Ask the booking assistant"
@@ -260,7 +260,7 @@ export function BookingAssistantPage() {
                 </li>
               ))}
               {loading && (
-                <li className="flex items-center gap-2.5 text-[13.5px] text-slate-700">
+                <li className="flex items-center gap-2.5 text-label text-slate-700">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-accent-500 border-t-transparent motion-reduce:animate-none" aria-hidden="true" />
                   Reading the ledger map, Handbook and history…
                 </li>
@@ -271,8 +271,8 @@ export function BookingAssistantPage() {
 
           {/* composer */}
           <div className="border-t border-slate-200 px-3 py-3 sm:px-4">
-            {historyNote && <p className="mb-2 text-[12.5px] text-slate-700">{historyNote}</p>}
-            {attachError && <p className="mb-2 text-[12.5px] text-rose-700">{attachError}</p>}
+            {historyNote && <p className="mb-2 text-label text-slate-700">{historyNote}</p>}
+            {attachError && <p className="mb-2 text-label text-red-700">{attachError}</p>}
             {pending.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {pending.map((a) => (
@@ -313,7 +313,7 @@ export function BookingAssistantPage() {
                   }}
                   rows={1}
                   placeholder="Bitespeed invoice ₹11,800 with GST: which ledger and TDS?"
-                  className="block max-h-36 min-h-11 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-[14px] leading-snug text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500"
+                  className="block max-h-36 min-h-11 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-snug text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500"
                 />
               </label>
               <button
@@ -325,7 +325,7 @@ export function BookingAssistantPage() {
                 Ask {iconSend}
               </button>
             </div>
-            <p className="mt-1.5 hidden text-[12px] text-slate-600 sm:block">Enter = ask · Shift+Enter = new line</p>
+            <p className="mt-1.5 hidden text-xs text-slate-600 sm:block">Enter = ask · Shift+Enter = new line</p>
           </div>
         </section>
 
@@ -361,7 +361,7 @@ function ContextPill({ status, tallyLabel, onForget }: { status: AssistantStatus
     <Popover align="left" width={320} buttonLabel={`Answers read ${on} of ${items.length} sources`}
       buttonClassName="inline-flex min-h-11 sm:min-h-8 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
       button={<><span className={`h-1.5 w-1.5 rounded-full ${on === items.length ? 'bg-emerald-600' : 'bg-amber-500'}`} aria-hidden="true" />Reads {on} of {items.length} sources</>}>
-      <ul className="space-y-2 p-3.5 text-[13px]">
+      <ul className="space-y-2 p-3.5 text-label">
         {items.map((i) => (
           <li key={i.label} className="flex items-start gap-2">
             <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${i.on ? 'bg-emerald-600' : 'bg-slate-300'}`} aria-hidden="true" />
@@ -389,7 +389,7 @@ function EmptyState({ onAsk, disabled }: { onAsk: (q: string) => void; disabled:
             className="group rounded-xl border border-slate-200 bg-white p-3.5 text-left hover:border-accent-500 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           >
             <span className="block text-xs font-semibold text-accent-700">{s.hint}</span>
-            <span className="mt-1 block text-[14px] font-medium leading-snug text-slate-900">{s.q}</span>
+            <span className="mt-1 block text-sm font-medium leading-snug text-slate-900">{s.q}</span>
           </button>
         ))}
       </div>
@@ -400,7 +400,7 @@ function EmptyState({ onAsk, disabled }: { onAsk: (q: string) => void; disabled:
 function UserTurn({ m, onKeep }: { m: BookingMessage; onKeep: (a: ChatAttachment) => void }) {
   return (
     <div className="flex flex-col items-end">
-      <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-slate-900 px-4 py-2.5 text-[14px] leading-relaxed text-white">{m.content}</div>
+      <div className="max-w-[85%] whitespace-pre-wrap rounded-xl rounded-br-md bg-slate-900 px-4 py-2.5 text-sm leading-relaxed text-white">{m.content}</div>
       {m.attachments && m.attachments.length > 0 && (
         <div className="mt-1.5 flex max-w-[85%] flex-wrap justify-end gap-1.5">
           {m.attachments.map((a) => (
@@ -414,7 +414,7 @@ function UserTurn({ m, onKeep }: { m: BookingMessage; onKeep: (a: ChatAttachment
 
 function AssistantTurn({ text }: { text: string }) {
   return (
-    <article className="booking-answer rounded-xl border border-slate-200 border-l-[3px] border-l-accent-500 bg-white px-4 py-3 sm:px-5 [&_li]:text-[14px] [&_li]:text-slate-800 [&_p]:text-[14px] [&_p]:text-slate-800 [&_strong]:text-slate-900 [&_h4]:text-[14px] [&_h4]:text-slate-900 [&_td]:text-[13.5px] [&_td]:text-slate-900">
+    <article className="booking-answer rounded-xl border border-slate-200 border-l-[3px] border-l-accent-500 bg-white px-4 py-3 sm:px-5 [&_li]:text-sm [&_li]:text-slate-800 [&_p]:text-sm [&_p]:text-slate-800 [&_strong]:text-slate-900 [&_h4]:text-sm [&_h4]:text-slate-900 [&_td]:text-label [&_td]:text-slate-900">
       <div className="mb-1 text-xs font-semibold text-accent-700">Booking advice</div>
       <Markdown text={text} />
       <CopyButton text={text} />
@@ -433,7 +433,7 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="mt-2 min-h-11 sm:min-h-8 rounded-md px-1 text-[12.5px] font-medium text-slate-600 hover:text-slate-900"
+      className="mt-2 min-h-11 sm:min-h-8 rounded-md px-1 text-label font-medium text-slate-600 hover:text-slate-900"
     >
       {copied ? 'Copied' : 'Copy answer'}
     </button>
@@ -443,19 +443,19 @@ function CopyButton({ text }: { text: string }) {
 function ErrorTurn({ error, onRetry }: { error: { message: string; code?: string }; onRetry?: () => void }) {
   const noKey = error.code === 'no_api_key';
   return (
-    <div className={`rounded-xl border px-4 py-3 ${noKey ? 'border-amber-300 bg-amber-50' : 'border-rose-200 bg-rose-50'}`}>
-      <div className={`text-[14px] font-semibold ${noKey ? 'text-amber-950' : 'text-rose-900'}`}>
+    <div className={`rounded-xl border px-4 py-3 ${noKey ? 'border-amber-300 bg-amber-50' : 'border-red-200 bg-red-50'}`}>
+      <div className={`text-sm font-semibold ${noKey ? 'text-amber-950' : 'text-red-900'}`}>
         {noKey ? 'Claude is not connected' : 'Unable to get an answer'}
       </div>
-      <p className={`mt-1 text-[13.5px] leading-relaxed ${noKey ? 'text-amber-950' : 'text-rose-900'}`}>{error.message}</p>
+      <p className={`mt-1 text-label leading-relaxed ${noKey ? 'text-amber-950' : 'text-red-900'}`}>{error.message}</p>
       {noKey && (
-        <p className="mt-1.5 text-[13px] text-amber-900">
+        <p className="mt-1.5 text-label text-amber-900">
           Until then, use the ledger map, or open the{' '}
           <Link to="/handbook" className="font-medium underline">Accounts Handbook</Link>.
         </p>
       )}
       {onRetry && !noKey && (
-        <button type="button" onClick={onRetry} className="mt-2 min-h-11 sm:min-h-8 rounded-md bg-white px-2.5 text-[13px] font-medium text-rose-900 ring-1 ring-rose-200 hover:bg-rose-100">
+        <button type="button" onClick={onRetry} className="mt-2 min-h-11 sm:min-h-8 rounded-md bg-white px-2.5 text-label font-medium text-red-900 ring-1 ring-red-200 hover:bg-red-100">
           Try again
         </button>
       )}
@@ -466,8 +466,8 @@ function ErrorTurn({ error, onRetry }: { error: { message: string; code?: string
 function AttachmentChip({ a, onRemove, onKeep }: { a: ChatAttachment; onRemove?: () => void; onKeep?: () => void }) {
   const tag = a.kind === 'pdf' ? 'PDF' : a.kind === 'image' ? 'IMG' : a.isTallyExport ? 'TALLY' : 'DATA';
   return (
-    <span className="inline-flex max-w-full items-center gap-2 rounded-lg border border-slate-300 bg-white py-1 pl-1.5 pr-2 text-[12.5px] text-slate-900">
-      <span className={`rounded px-1 py-px text-xs sm:text-[11px] font-bold tracking-wide ${a.kind === 'text' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-700'}`}>{tag}</span>
+    <span className="inline-flex max-w-full items-center gap-2 rounded-lg border border-slate-300 bg-white py-1 pl-1.5 pr-2 text-label text-slate-900">
+      <span className={`rounded px-1 py-px text-xs font-bold ${a.kind === 'text' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-700'}`}>{tag}</span>
       <span className="max-w-[180px] truncate font-medium" title={a.name}>{a.name}</span>
       <span className="text-slate-500">{a.meta}</span>
       {onKeep && (
@@ -476,7 +476,7 @@ function AttachmentChip({ a, onRemove, onKeep }: { a: ChatAttachment; onRemove?:
         </button>
       )}
       {onRemove && (
-        <button type="button" onClick={onRemove} aria-label={`Remove ${a.name}`} className="text-slate-500 hover:text-rose-700">
+        <button type="button" onClick={onRemove} aria-label={`Remove ${a.name}`} className="text-slate-500 hover:text-red-700">
           ✕
         </button>
       )}

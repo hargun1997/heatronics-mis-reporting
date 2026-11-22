@@ -13,6 +13,7 @@ import { NumInput } from '../inputs';
 import { Note, Row, SubHead, Tip, btn, ensureFx, replacePlan, useBusy } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 import { StatusPill } from '../../../components/ui/StatusPill';
+import { confirmDialog } from '../../ui/feedback';
 
 export { summary };
 
@@ -57,16 +58,16 @@ export function Section({ plan, update }: SetupSectionProps) {
     } catch (e) { setMsg((e as Error).message); }
   };
 
-  const loadExample = () => {
-    if (!window.confirm('Replace products, hires, capacity, rounds and targets with the example plan? All its numbers are placeholders.')) return;
+  const loadExample = async () => {
+    if (!(await confirmDialog({ title: 'Load the example plan?', body: 'It replaces products, hires, capacity, rounds and targets. All its numbers are placeholders.', confirm: 'Load the plan' }))) return;
     run('Building…', () => replacePlan(update, build500Cr));
   };
-  const loadBusinessPlan = () => {
-    if (!window.confirm('Replace products, hires, capacity, rounds and targets with the 5-year business plan?')) return;
+  const loadBusinessPlan = async () => {
+    if (!(await confirmDialog({ title: 'Load the 5-year business plan?', body: 'It replaces products, hires, capacity, rounds and targets.', confirm: 'Load the plan' }))) return;
     run('Building…', () => replacePlan(update, buildBusinessPlan));
   };
-  const loadPainCare = () => {
-    if (!window.confirm('Replace products, hires, capacity, rounds and targets with the pain-care plan?')) return;
+  const loadPainCare = async () => {
+    if (!(await confirmDialog({ title: 'Load the pain-care plan?', body: 'It replaces products, hires, capacity, rounds and targets.', confirm: 'Load the plan' }))) return;
     run('Building…', () => replacePlan(update, buildPainCarePlan));
   };
 
@@ -114,7 +115,7 @@ export function Section({ plan, update }: SetupSectionProps) {
             <>
               <StatusPill toneName="neutral" size="sm">{!o || o.source === 'sheet' ? 'Sheet values' : o.source === 'tally' ? `Tally, ${String(o.asOf ?? '').slice(0, 10)}` : 'Typed'}</StatusPill>
               <button type="button" className={btn} onClick={loadTally}>Load {priorLabel} from Tally</button>
-              {msg && <span className="text-[12px] text-slate-600" role="status">{msg}</span>}
+              {msg && <span className="text-xs text-slate-600" role="status">{msg}</span>}
             </>
           ) : (
             <StatusPill toneName="neutral" size="sm">Sheet values</StatusPill>
@@ -129,7 +130,7 @@ export function Section({ plan, update }: SetupSectionProps) {
                 </Row>
               ))}
             </div>
-            {o.note && <p className="flex items-center gap-1 text-[12px] text-slate-600">Note<Tip label="Note on the opening values">{o.note}</Tip></p>}
+            {o.note && <p className="flex items-center gap-1 text-xs text-slate-600">Note<Tip label="Note on the opening values">{o.note}</Tip></p>}
           </>
         ) : (
           <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">

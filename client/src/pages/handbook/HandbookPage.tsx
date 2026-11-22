@@ -26,16 +26,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ArrowsPointingInIcon,
-  ArrowsPointingOutIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ListBulletIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+import { ArrowLeft as ArrowLeftIcon, ArrowRight as ArrowRightIcon, Minimize2 as ArrowsPointingInIcon, Maximize2 as ArrowsPointingOutIcon, ChevronDown as ChevronDownIcon, ChevronRight as ChevronRightIcon, List as ListBulletIcon } from 'lucide-react';
 import { SopVisual } from '../../components/ui/SopVisual';
 import { useDensity } from '../../hooks/useDensity';
 import {
@@ -50,7 +41,7 @@ import { TEAM_VISUALS } from '../../data/handbook/teamVisuals';
 import { HandbookSearch } from './HandbookSearch';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { BTN, Panel } from '../../components/ui/states';
-import { Modal } from '../../components/ui/overlays';
+import { Drawer, Modal } from '../../components/ui/overlays';
 import { HandbookOpenContext } from './handbookNav';
 import { allFolds, enhanceArticle, getFold } from './fold';
 import './handbook.generated.css';
@@ -146,7 +137,7 @@ function TopicIcon({ c, className = 'h-5 w-5', active }: { c: HbCollection; clas
   );
 }
 
-const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1';
+const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2';
 
 /** A button that looks like a link — every "page" move is in-place. */
 function Go({
@@ -213,7 +204,7 @@ function ReaderNav({ view, open }: { view: View; open: OpenFn }) {
                         <Go
                           onClick={() => open({ c, a })}
                           current={active}
-                          className={`-ml-px block min-h-[36px] w-full border-l-2 py-2 pl-3.5 pr-2 text-[13.5px] leading-snug ${
+                          className={`-ml-px block min-h-[36px] w-full border-l-2 py-2 pl-3.5 pr-2 text-label leading-snug ${
                             active
                               ? 'border-brand-500 bg-brand-50/60 font-semibold text-brand-800'
                               : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
@@ -250,10 +241,10 @@ function ArticleRows({ c, open, compact }: { c: HbCollection; open: OpenFn; comp
               className={`group flex w-full items-center gap-3 px-4 hover:bg-slate-50 ${compact ? 'min-h-[44px] py-2' : 'min-h-[56px] py-3'}`}
             >
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-medium leading-snug text-slate-900 group-hover:text-brand-700">
+                <span className="block text-sm font-medium leading-snug text-slate-900 group-hover:text-brand-700">
                   <Title t={a.title} />
                 </span>
-                {!compact && a.summary && <span className="mt-0.5 block text-[13.5px] leading-snug text-slate-600">{a.summary}</span>}
+                {!compact && a.summary && <span className="mt-0.5 block text-label leading-snug text-slate-600">{a.summary}</span>}
               </span>
               {due && <span className="hidden flex-shrink-0 text-xs text-slate-500 sm:block">{due}</span>}
               <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-slate-400 group-hover:text-brand-600" aria-hidden="true" />
@@ -271,8 +262,8 @@ function CollectionPanel({ c, open, compact }: { c: HbCollection; open: OpenFn; 
       <div className="flex items-start gap-3">
         <TopicIcon c={c} className="mt-1 h-6 w-6" />
         <div>
-          <h1 className="text-[26px] font-bold leading-tight tracking-tight text-slate-900">{c.title}</h1>
-          <p className="mt-1 text-[15.5px] leading-relaxed text-slate-600">{c.description}</p>
+          <h1 className="text-2xl font-bold leading-tight tracking-tight text-slate-900">{c.title}</h1>
+          <p className="mt-1 text-base leading-relaxed text-slate-600">{c.description}</p>
         </div>
       </div>
       <div className="mt-6">
@@ -314,7 +305,7 @@ function OnThisPage({ a, active, jump }: { a: HbArticle; active?: string; jump: 
         <li key={h.id}>
           <Go
             onClick={() => jump(h.id)}
-            className={`-ml-px block w-full border-l-2 py-1.5 pl-3 text-[13px] leading-snug ${
+            className={`-ml-px block w-full border-l-2 py-1.5 pl-3 text-label leading-snug ${
               active === h.id ? 'border-brand-500 font-medium text-brand-800' : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -360,7 +351,7 @@ function ArticlePanel({
     <div className="flex justify-center gap-10 px-4 py-6 sm:px-8 sm:py-8">
       <article className="hbx-col min-w-0 max-w-[46rem] flex-1">
         <header>
-          <p className="flex flex-wrap items-center gap-x-2 text-[13px] text-slate-600">
+          <p className="flex flex-wrap items-center gap-x-2 text-label text-slate-600">
             <span>{c.title}</span>
             <span aria-hidden="true">·</span>
             <span>
@@ -373,10 +364,10 @@ function ArticlePanel({
               </>
             )}
           </p>
-          <h1 className="mt-2 text-[28px] font-bold leading-[1.2] tracking-tight text-slate-900 sm:text-[30px]">
+          <h1 className="mt-2 text-3xl font-bold leading-[1.2] tracking-tight text-slate-900 sm:text-3xl">
             <Title t={a.title} preClass="text-slate-500" withWord />
           </h1>
-          {a.summary && <p className="mt-2 text-[17px] leading-relaxed text-slate-600">{a.summary}</p>}
+          {a.summary && <p className="mt-2 text-lg leading-relaxed text-slate-600">{a.summary}</p>}
         </header>
 
         {foldable && (
@@ -464,7 +455,7 @@ function ArticlePanel({
               <ArrowLeftIcon className="h-5 w-5 flex-shrink-0 text-slate-500 group-hover:text-brand-600" aria-hidden="true" />
               <span className="min-w-0">
                 <span className="block text-xs text-slate-600">Previous</span>
-                <span className="block text-[14.5px] font-semibold leading-snug text-slate-900 group-hover:text-brand-700">
+                <span className="block text-sm font-semibold leading-snug text-slate-900 group-hover:text-brand-700">
                   <Title t={prev.title} withWord />
                 </span>
               </span>
@@ -479,7 +470,7 @@ function ArticlePanel({
             >
               <span className="min-w-0">
                 <span className="block text-xs text-slate-600">Next{next.collection !== c ? ` · ${next.collection.title}` : ''}</span>
-                <span className="block text-[14.5px] font-semibold leading-snug text-slate-900 group-hover:text-brand-700">
+                <span className="block text-sm font-semibold leading-snug text-slate-900 group-hover:text-brand-700">
                   <Title t={next.title} withWord />
                 </span>
               </span>
@@ -492,7 +483,7 @@ function ArticlePanel({
       {hasToc && wide && (
         <aside className="w-[200px] flex-shrink-0" aria-label="On this page">
           <div className="sticky top-[calc(var(--app-top)+5rem+var(--htx-bar-h,0px))] max-h-[calc(100vh-10rem-var(--htx-bar-h,0px))] overflow-y-auto">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600">On this page</div>
+            <div className="mb-2 text-xs font-semibold text-slate-600">On this page</div>
             <OnThisPage a={a} active={activeHeading} jump={jump} />
           </div>
         </aside>
@@ -506,29 +497,10 @@ function ArticlePanel({
 // ---------------------------------------------------------------------------
 
 function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
   return (
-    <div role="dialog" aria-modal="true" aria-label="Screenshot" className="fixed inset-0 z-[60] flex flex-col bg-scrim/85 p-3 sm:p-6" onClick={onClose}>
-      <div className="flex justify-end">
-        <button
-          ref={closeRef}
-          type="button"
-          onClick={onClose}
-          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-white px-3 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-        >
-          <XMarkIcon className="h-4 w-4" aria-hidden="true" /> Close
-        </button>
-      </div>
-      <div className="flex min-h-0 flex-1 items-center justify-center pt-3">
-        <img src={src} alt={alt} className="max-h-full max-w-full rounded-lg bg-white object-contain shadow-overlay" onClick={(e) => e.stopPropagation()} />
-      </div>
-    </div>
+    <Modal open width={1200} title={alt || 'Screenshot'} onClose={onClose}>
+      <img src={src} alt={alt} className="mx-auto max-h-[75vh] max-w-full rounded-lg bg-white object-contain" />
+    </Modal>
   );
 }
 
@@ -553,6 +525,13 @@ function Reader({
 }) {
   // Contents: shown by default only on wide screens; a drawer below 1024px.
   const [navOpen, setNavOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1280);
+  const [desktop, setDesktop] = useState(isDesktop);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const on = () => setDesktop(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   const [activeHeading, setActiveHeading] = useState<string | undefined>();
   const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
   const [wide, setWide] = useState(false);
@@ -614,14 +593,6 @@ function Reader({
     return () => window.removeEventListener('scroll', onScroll);
   }, [a]);
 
-  // Esc closes the contents drawer on small screens.
-  useEffect(() => {
-    if (!navOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !isDesktop() && setNavOpen(false);
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [navOpen]);
-
   // Inside the handbook text: links (#c16, #s3 …) open their article here;
   // screenshots open large in the viewer.
   const onContentClick = useCallback(
@@ -665,7 +636,7 @@ function Reader({
   return (
     <div className={isOpen ? 'min-h-[calc(100vh-var(--app-top))] bg-white' : 'hidden'} aria-label="Accounts Handbook reader">
       {/* Bar: Back · breadcrumb · search · contents (sticks under the app header) */}
-      <div className="sticky top-[calc(var(--app-top)+var(--htx-bar-h,0px))] z-30 flex h-14 items-center gap-1.5 border-b border-slate-200 bg-white/95 px-2 backdrop-blur sm:gap-2 sm:px-4">
+      <div className="sticky top-[calc(var(--app-top)+var(--htx-bar-h,0px))] z-sticky flex h-14 items-center gap-1.5 border-b border-slate-200 bg-white/95 px-2 backdrop-blur sm:gap-2 sm:px-4">
         <button type="button" onClick={back} className={`${barBtn} border border-slate-200 text-slate-800 hover:bg-slate-50`}>
           <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
           Back
@@ -709,16 +680,18 @@ function Reader({
       </div>
 
       <div className="flex">
-        {shown && navOpen && (
-          <>
-            <div className="fixed inset-0 top-[calc(var(--app-top)+3.5rem+var(--htx-bar-h,0px))] z-30 bg-scrim/30 lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />
-            <aside
-              id="hb-contents"
-              className="fixed bottom-0 left-0 top-[calc(var(--app-top)+3.5rem+var(--htx-bar-h,0px))] z-40 w-[min(300px,85vw)] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white shadow-drawer-left lg:sticky lg:z-0 lg:h-[calc(100vh-3.5rem-var(--htx-bar-h,0px))] lg:top-[calc(3.5rem+var(--htx-bar-h,0px))] lg:w-[268px] lg:flex-shrink-0 lg:self-start lg:bg-slate-50/60 lg:shadow-none"
-            >
-              <ReaderNav view={shown} open={openFromNav} />
-            </aside>
-          </>
+        {shown && navOpen && desktop && (
+          <aside
+            id="hb-contents"
+            className="sticky top-[calc(3.5rem+var(--htx-bar-h,0px))] h-[calc(100vh-3.5rem-var(--htx-bar-h,0px))] w-[268px] flex-shrink-0 self-start overflow-y-auto overscroll-contain border-r border-slate-200 bg-slate-50/60"
+          >
+            <ReaderNav view={shown} open={openFromNav} />
+          </aside>
+        )}
+        {shown && (
+          <Drawer open={navOpen && !desktop} onClose={() => setNavOpen(false)} side="left" width={300} title="Contents">
+            <ReaderNav view={shown} open={openFromNav} />
+          </Drawer>
         )}
         <div ref={mainRef} className="min-w-0 flex-1">
           {shown && !shown.a && <CollectionPanel c={shown.c} open={open} compact={compact} />}
@@ -835,7 +808,7 @@ function Home({ open, openHref }: { open: OpenFn; openHref: (href: string) => vo
         }
         actions={hb.coverHtml ? <button type="button" onClick={() => setHowOpen(true)} className={BTN}>About the handbook</button> : undefined}
       />
-      <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-4 px-4 pb-10 sm:px-6">
         <div className="relative z-20">
           <HandbookSearch size="large" autoFocus examples={EXAMPLES} />
         </div>

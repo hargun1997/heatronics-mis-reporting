@@ -1,14 +1,27 @@
 // One look for loading, error and empty on every page, plus InfoTip (a note behind an "i") and ShowAll (a long list
 // shows its first rows; the rest opens in a modal). Simplification pass, 11 Nov 2026.
 import React, { useState } from 'react';
-import { AlertTriangle, Info, Inbox, Loader2 } from 'lucide-react';
-import { Modal, Popover } from './overlays';
+import { AlertTriangle, Info, Inbox } from 'lucide-react';
+import { buttonClass } from './Button';
+import { Drawer, Popover } from './overlays';
 import { CountPill } from './StatusPill';
+
+/** Grey shapes at the size of the content (GUIDE.md "Loading, empty and error": no spinner for page data). */
+export function Skeleton({ lines = 3, className = '' }: { lines?: number; className?: string }) {
+  return (
+    <div aria-hidden className={`space-y-2.5 ${className}`}>
+      {Array.from({ length: lines }, (_, i) => (
+        <div key={i} className="h-4 animate-pulse rounded-md bg-slate-100 motion-reduce:animate-none" style={{ width: `${92 - ((i * 17) % 40)}%` }} />
+      ))}
+    </div>
+  );
+}
 
 export function Loading({ label = 'Loading' }: { label?: string }) {
   return (
-    <div role="status" aria-live="polite" className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600">
-      <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />{label}…
+    <div role="status" aria-live="polite" className="rounded-xl border border-slate-200 bg-white px-4 py-5">
+      <span className="sr-only">{label}</span>
+      <Skeleton lines={3} />
     </div>
   );
 }
@@ -18,7 +31,7 @@ export function ErrorBox({ children, onRetry }: { children: React.ReactNode; onR
     <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
       <div className="min-w-0 flex-1">{children}</div>
-      {onRetry && <button type="button" onClick={onRetry} className="min-h-11 sm:min-h-9 rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-800 hover:bg-red-50">Try again</button>}
+      {onRetry && <button type="button" onClick={onRetry} className={buttonClass('secondary', 'sm')}>Try again</button>}
     </div>
   );
 }
@@ -40,12 +53,12 @@ export function InfoTip({ children, label = 'How this number is made', text, ali
     <Popover align={align} width={width} buttonLabel={label}
       buttonClassName={`inline-flex min-h-11 sm:min-h-7 items-center justify-center gap-1 rounded-md align-middle text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${text ? 'px-1.5' : 'w-11 sm:w-7'}`}
       button={<><Info className="h-4 w-4" aria-hidden />{text}</>}>
-      <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3.5 text-[13px] font-normal normal-case leading-5 tracking-normal text-slate-700">{children}</div>
+      <div className="max-h-[60vh] space-y-2 overflow-y-auto p-3.5 text-label font-normal normal-case text-slate-700">{children}</div>
     </Popover>
   );
 }
 
-/** Shows the first `max` items; "Show all N" opens the full list in a modal. */
+/** Shows the first `max` items; "Show all N" opens the full list in a drawer (GUIDE.md "Show and hide"). */
 export function ShowAll<T>({ items, max = 5, title, render, className, width = 760 }: {
   items: T[]; max?: number; title: string; render: (item: T, index: number) => React.ReactNode; className?: string; width?: number;
 }) {
@@ -55,28 +68,27 @@ export function ShowAll<T>({ items, max = 5, title, render, className, width = 7
     <>
       <div className={className}>{head.map(render)}</div>
       {items.length > max && (
-        <button type="button" onClick={() => setOpen(true)}
-          className="mt-2 inline-flex min-h-11 sm:min-h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
+        <button type="button" onClick={() => setOpen(true)} className={buttonClass('text', 'md', 'mt-2')}>
           Show all {items.length}
         </button>
       )}
-      <Modal open={open} onClose={() => setOpen(false)} title={`${title} (${items.length})`} width={width}>
-        <div className={className}>{items.map(render)}</div>
-      </Modal>
+      <Drawer open={open} onClose={() => setOpen(false)} title={`${title} (${items.length})`} width={width > 600 ? 720 : 420}>
+        <div className={`p-4 ${className ?? ''}`}>{items.map(render)}</div>
+      </Drawer>
     </>
   );
 }
 
 /** Button looks: one primary per screen (BTN_PRIMARY), the rest secondary. 44px on phones. */
-export const BTN = 'inline-flex min-h-11 sm:min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
-export const BTN_PRIMARY = 'inline-flex min-h-11 sm:min-h-9 items-center justify-center gap-1.5 rounded-lg bg-cta px-3.5 text-sm font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2';
+export const BTN = buttonClass('secondary');
+export const BTN_PRIMARY = buttonClass('primary');
 
 /** A titled card: title · count · action on one row, then the content. The one section card for every page. */
 export function Panel({ title, count, action, children, className = '', flush }: {
   title: React.ReactNode; count?: number | null; action?: React.ReactNode; children: React.ReactNode; className?: string; flush?: boolean;
 }) {
   return (
-    <section className={`rounded-xl border border-slate-200 bg-white shadow-card ${className}`}>
+    <section className={`min-w-0 rounded-xl border border-slate-200 bg-white ${className}`}>
       <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-1.5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           {title}

@@ -43,7 +43,7 @@ export function MainLayout() {
 
   return (
     <ShellContext.Provider value={shell}>
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow-card">Skip to content</a>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-toast focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow-card">Skip to content</a>
       <AppNav />
       <div className="app-content min-h-screen bg-stone-50 text-stone-900">
         <main id="main" tabIndex={-1} className="min-w-0 focus:outline-none">
@@ -51,7 +51,7 @@ export function MainLayout() {
             <Suspense fallback={<PageLoading />}>
               {blocked ? (
                 <div className="mx-auto max-w-md p-6">
-                  <h1 className="text-lg font-semibold text-stone-900">You can&apos;t open this page</h1>
+                  <h1 className="text-lg font-semibold text-stone-900">You cannot open this page</h1>
                   <p className="mt-2 text-sm text-stone-600">Ask Hargun to give your team this page on portal.heatronics.in.</p>
                 </div>
               ) : <Outlet />}

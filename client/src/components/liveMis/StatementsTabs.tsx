@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { OTHER_WARN_INR, type BalanceSheet, type BsLine, type CashFlow } from '../../data/statements/statements';
 import { useStatements, type Resp } from './useStatements';
+import { KpiTile } from '../ui/KpiTile';
 
 /** ₹ lakh, 2 decimals; negatives with a real minus sign; below ₹500 shows as 0.00 (never "-0.00"). */
 const lakh = (n: number | null | undefined) => {
@@ -26,7 +27,7 @@ function Empty({ data, what }: { data: Resp | null; what: string }) {
         The MIS copies Tally's month-end Trial Balance whenever TallyPrime is open on the cloud machine (last reached {when(data?.lastOkAt)});
         the scheduled copy runs from the 15th of each month, so before that: open TallyPrime, then{' '}
         <Link className="underline underline-offset-2" to="/reporting/mis/connectors#tally">Setup → Tally → Pull</Link>.
-        {data && !data.connected && <> The Tally host isn't set yet: add it on that card first.</>}
+        {data && !data.connected && <> The Tally host is not set yet: add it on that card first.</>}
       </p>
     </div>
   );
@@ -43,22 +44,17 @@ function Warnings({ items }: { items: string[] }) {
 }
 
 function Kpi({ k, v, sub }: { k: string; v: number; sub: string }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-card">
-      <div className="truncate text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500" title={`${k} · ${sub}`}>{k} · {sub}</div>
-      <div className={`mt-1 text-lg font-semibold tabular-nums sm:text-xl ${v <= -500 ? 'text-red-700' : 'text-slate-900'}`}>₹{lakh(v)} L</div>
-    </div>
-  );
+  return <KpiTile label={k} sub={sub} value={<span className={v <= -500 ? 'text-red-700' : undefined}>₹{lakh(v)} L</span>} />;
 }
 
 const th = 'px-2 py-1.5 text-right font-semibold whitespace-nowrap';
 const td = 'px-2 py-1 text-right tabular-nums whitespace-nowrap';
-const stick = 'sticky left-0 z-[1] bg-white';
+const stick = 'sticky left-0 z-10 bg-white';
 
 export function BalanceSheetTab() {
   const { data, built, err } = useStatements();
   const [open, setOpen] = useState<Set<string>>(new Set());
-  if (err) return <p role="alert" className="text-sm text-red-700">Couldn't load the statements: {err}</p>;
+  if (err) return <p role="alert" className="text-sm text-red-700">Could not load the statements: {err}</p>;
   if (!data) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
   const sheets = (built?.sheets ?? []).slice(-12);
   if (!sheets.length) return <Empty data={data} what="Balance Sheet" />;
@@ -73,7 +69,7 @@ export function BalanceSheetTab() {
   const toggle = (key: string) => setOpen((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const section = (title: string, pick: (b: BalanceSheet) => BsLine[], total: (b: BalanceSheet) => number) => (
     <>
-      <tr className="bg-slate-50"><td colSpan={sheets.length + 1} className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</td></tr>
+      <tr className="bg-slate-50"><td colSpan={sheets.length + 1} className="px-2 py-1.5 text-xs font-semibold text-slate-500">{title}</td></tr>
       {labels(pick).map((lab) => {
         // Children (sub-groups / ledgers) and, under a sub-group, its own ledgers — in first-seen order across months.
         const kids: string[] = [];
@@ -102,13 +98,13 @@ export function BalanceSheetTab() {
             {isOpen && kids.map((k) => (
               <Fragment key={k}>
                 <tr className="text-slate-500">
-                  <td className={`${stick} py-0.5 pl-9 pr-2 text-left text-[12px]`}>{k}</td>
-                  {sheets.map((b) => { const v = child(b, k)?.amount; return <td key={b.period} className={`${td} text-[12px] ${neg(v)}`}>{lakh(v)}</td>; })}
+                  <td className={`${stick} py-0.5 pl-9 pr-2 text-left text-xs`}>{k}</td>
+                  {sheets.map((b) => { const v = child(b, k)?.amount; return <td key={b.period} className={`${td} text-xs ${neg(v)}`}>{lakh(v)}</td>; })}
                 </tr>
                 {(grand.get(k) ?? []).map((gk) => (
                   <tr key={`${k}/${gk}`} className="text-slate-400">
-                    <td className={`${stick} py-0.5 pl-14 pr-2 text-left text-xs sm:text-[11px]`}>{gk}</td>
-                    {sheets.map((b) => { const v = child(b, k)?.children?.find((x) => x.label === gk)?.amount; return <td key={b.period} className={`${td} text-xs sm:text-[11px] ${neg(v)}`}>{lakh(v)}</td>; })}
+                    <td className={`${stick} py-0.5 pl-14 pr-2 text-left text-xs`}>{gk}</td>
+                    {sheets.map((b) => { const v = child(b, k)?.children?.find((x) => x.label === gk)?.amount; return <td key={b.period} className={`${td} text-xs ${neg(v)}`}>{lakh(v)}</td>; })}
                   </tr>
                 ))}
               </Fragment>
@@ -133,7 +129,7 @@ export function BalanceSheetTab() {
       </div>
       <Warnings items={warnings} />
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white" role="region" tabIndex={0} aria-label="Balance Sheet">
-        <table className="w-full text-[13px]">
+        <table className="w-full text-label">
           <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh, month end</th>{sheets.map((s) => <th key={s.period} className={th}>{label(s.period)}</th>)}</tr></thead>
           <tbody>
             {section('Equity', (s) => s.equity, (s) => sum(s.equity))}
@@ -153,7 +149,7 @@ export function BalanceSheetTab() {
 
 export function CashFlowTab() {
   const { data, built, err } = useStatements();
-  if (err) return <p role="alert" className="text-sm text-red-700">Couldn't load the statements: {err}</p>;
+  if (err) return <p role="alert" className="text-sm text-red-700">Could not load the statements: {err}</p>;
   if (!data) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
   const flows = (built?.flows ?? []).slice(-12);
   if (!flows.length) return <Empty data={data} what="Cash Flow (it needs two month ends in a row)" />;
@@ -188,7 +184,7 @@ export function CashFlowTab() {
       </div>
       <Warnings items={warnings} />
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white" role="region" tabIndex={0} aria-label="Cash Flow">
-        <table className="w-full text-[13px]">
+        <table className="w-full text-label">
           <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh</th>{flows.map((f) => <th key={f.period} className={th}>{label(f.period)}</th>)}<th className={`${th} bg-slate-50`}>Total</th></tr></thead>
           <tbody>
             {rows.map(([lab, get, kind]) => {
@@ -210,10 +206,10 @@ export function CashFlowTab() {
         </table>
       </div>
       <p className="text-xs text-slate-500">
-        Indirect method from two month-end Balance Sheets (Tally, read only): profit + depreciation − the change in working capital;
-        capex = change in fixed assets + depreciation; financing = change in capital and loans (bank OD / CC included, not netted
-        into cash). The sections add up to the change in cash & bank; "Unexplained" should stay near zero (highlighted from
-        ₹{OTHER_WARN_INR.toLocaleString('en-IN')}).
+        We use two month-end Balance Sheets from Tally. Operating cash is profit plus depreciation, less the change in working capital.
+        Capex is the change in fixed assets plus depreciation. Financing is the change in capital and loans (bank OD and CC are loans).
+        The sections add up to the change in cash and bank. "Unexplained" must stay near zero. We mark it from
+        ₹{OTHER_WARN_INR.toLocaleString('en-IN')}.
       </p>
     </div>
   );

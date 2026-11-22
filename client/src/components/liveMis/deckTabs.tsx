@@ -28,6 +28,8 @@ import { topChannel } from '../../data/misDeck/analytics';
 import { footCellsToChannels, NOT_MAPPED } from '../../data/misDeck/channelFoot';
 import type { CascadeLine } from '../../data/monthClose/schema';
 import { interBranchNote } from '../../data/misDeck/auditTie';
+import { Empty as KitEmpty } from '../ui/states';
+import { Link } from 'react-router-dom';
 import {
   Fold, Views, Pills, CogmBasisToggle, CogmBasisNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
   useLiveView, VERTICAL_COLORS,
@@ -74,7 +76,7 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
   const pct = (v: number) => marginPct(v, period.netRevenue);
   const costs = period.cogm + period.channelFulfillment + period.salesMarketing + period.platformCosts + period.opex;
 
-  // Trend series across the shown history (muted where a period isn't real yet); monthly = the last 24 months,
+  // Trend series across the shown history (muted where a period is not real yet); monthly = the last 24 months,
   // as the legacy deck, so "All years" stays readable.
   const trend = periods.length > 24 && periods.every((p) => p.members.length === 1) ? periods.slice(-24) : periods;
   const labels = trend.map((p) => p.label);
@@ -128,17 +130,17 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile label="Net Revenue" value={inr(period.netRevenue)}
           sub={<span className="inline-flex flex-wrap gap-x-2">{!isRange && <span>{seqLabel} <Delta value={seq} /></span>}{!isRange && gran !== 'year' && <span>YoY <Delta value={yoy} /></span>}</span>} />
-        <KpiTile label="Gross Margin" value={real('gross_margin') && pct(period.grossMargin) != null ? pctStr(pct(period.grossMargin)) : '—'}
+        <KpiTile label="Gross Margin" value={real('gross_margin') && pct(period.grossMargin) != null ? pctStr(pct(period.grossMargin)) : '–'}
           sub={real('gross_margin') ? `Gross profit ${inr(period.grossMargin)}` : 'needs COGM'} />
-        <KpiTile label="EBITDA" value={real('ebitda') ? inr(period.ebitda) : '—'}
+        <KpiTile label="EBITDA" value={real('ebitda') ? inr(period.ebitda) : '–'}
           sub={real('ebitda') ? `${pctStr(pct(period.ebitda))} of revenue` : 'needs Tally'} />
-        <KpiTile label="Net Income" value={real('net_income') ? inr(period.netIncome) : '—'}
+        <KpiTile label="Net Income" value={real('net_income') ? inr(period.netIncome) : '–'}
           sub={real('net_income') ? `${pctStr(pct(period.netIncome))} of revenue` : 'needs Tally'} />
-        <KpiTile label="Contribution (CM2)" value={real('cm2') ? pctStr(pct(period.cm2)) : '—'}
+        <KpiTile label="Contribution (CM2)" value={real('cm2') ? pctStr(pct(period.cm2)) : '–'}
           sub={real('cm2') ? `${inr(period.cm2)} after channel & marketing` : 'needs COGM'} />
-        <KpiTile label="Top channel" value={totalMix > 0 ? `${chName(top.channel)} · ${pctStr(top.share, 0)}` : '—'} sub="of net revenue" />
+        <KpiTile label="Top channel" value={totalMix > 0 ? `${chName(top.channel)} · ${pctStr(top.share, 0)}` : '–'} sub="of net revenue" />
         <KpiTile label="Period covers" value={n === 1 ? '1 month' : `${n} months`} sub={scopeOf(period).replace(/ · \d+m$/, '')} />
-        <KpiTile label="Costs" value={real('opex') ? inr(costs) : '—'} sub={real('opex') ? 'COGM + channel + S&M + platform + opex' : 'needs Tally'} />
+        <KpiTile label="Costs" value={real('opex') ? inr(costs) : '–'} sub={real('opex') ? 'COGM + channel + S&M + platform + opex' : 'needs Tally'} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -186,7 +188,7 @@ export function OverviewTab({ period, periods, allPeriods, gran, traffic = [], i
             ? 'real through Contribution Margin; OPEX, EBITDA and Net Income need the Tally P&L for this month.'
             : 'top line only; upload the BOM and Tally P&L to complete the cascade.'}{' '}
         {!isRange && <>{seqLabel} compares with the previous {GRAN_NOUN[gran]}; YoY with the same {GRAN_NOUN[gran]} a year earlier. Growth is
-        only shown when both periods cover the same number of months, so partial periods (e.g. a fiscal year still in progress) aren’t compared unfairly.</>}
+        only shown when both periods cover the same number of months, so partial periods (for example a fiscal year still in progress) are not compared unfairly.</>}
       </Note>
     </div>
   );
@@ -197,15 +199,15 @@ function AmazonTraffic({ rows, label }: { rows: TrafficRow[]; label: string }) {
   const totS = rows.reduce((s, r) => s + r.sessions, 0);
   const totP = rows.reduce((s, r) => s + r.pageViews, 0);
   const totU = rows.reduce((s, r) => s + r.units, 0);
-  const conv = (u: number, s: number) => (s > 0 ? `${((100 * u) / s).toFixed(1)}%` : '—');
+  const conv = (u: number, s: number) => (s > 0 ? `${((100 * u) / s).toFixed(1)}%` : '–');
   const top = [...rows].sort((a, b) => b.sessions - a.sessions).slice(0, 12);
   const n = (v: number) => v.toLocaleString('en-IN');
   return (
     <Fold id="ov-traffic" secondary title={`Amazon traffic & conversion · ${label}`} meta="Sessions → units ordered (Business Report: not revenue)">
       <TableBox>
-        <table className="w-full text-xs sm:text-[11px]">
+        <table className="w-full text-xs">
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-400 text-left border-b border-slate-200 bg-slate-50">
+            <tr className="text-xs text-slate-400 text-left border-b border-slate-200 bg-slate-50">
               <th className="py-1.5 px-2">Product</th>
               <th className="py-1.5 px-2 text-right">Sessions</th>
               <th className="py-1.5 px-2 text-right">Page views</th>
@@ -374,13 +376,13 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
   }, [cols, chName]);
 
   const cell = (v: number | null, p: PeriodAgg, strong: boolean, small = false) => {
-    if (v == null) return <span className="text-slate-300">—</span>;
+    if (v == null) return <span className="text-slate-400" title="Not read">–</span>;
     const share = p.netRevenue ? v / p.netRevenue : null;
     return (
       <>
         {display !== 'percent' && <div>{inr(v)}</div>}
         {display !== 'amount' && (
-          <div className={display === 'both' ? `text-xs sm:text-[11px] ${strong ? 'font-medium' : 'font-normal'} text-slate-400 mt-0.5` : ''}>{pctStr(share)}</div>
+          <div className={display === 'both' ? `text-xs ${strong ? 'font-medium' : 'font-normal'} text-slate-400 mt-0.5` : ''}>{pctStr(share)}</div>
         )}
         {small && null}
       </>
@@ -404,7 +406,7 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
       <div ref={scrollRef} tabIndex={0} role="region" aria-label="Table, scroll sideways for more"  className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-xs border-collapse">
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+            <tr className="text-xs text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white z-10 min-w-[150px]">Particulars</th>
               {cols.map((p) => {
                 const sc = colScope(p, gran);
@@ -437,16 +439,16 @@ export function PnlTab({ periods, months, completeness, gran, display, setDispla
                     </td>
                     {cols.map((p) => (
                       <td key={p.key} className={`py-1.5 px-2 text-right tabular-nums align-top ${strong ? 'font-semibold text-slate-800' : row.kind === 'memo' ? 'text-slate-500' : 'text-slate-600'}`}>
-                        {rowReal(p, row) ? cell(row.get(p), p, strong) : <span className="text-slate-300">—</span>}
+                        {rowReal(p, row) ? cell(row.get(p), p, strong) : <span className="text-slate-400" title="Not read">–</span>}
                       </td>
                     ))}
                   </tr>
                   {isOpen && lines.map((ln) => (
                     <tr key={`${row.k}:${ln.key}`} className={`border-b border-slate-50 ${ln.strong ? 'bg-slate-50/40' : ''}`}>
-                      <td className={`py-1 pr-3 pl-7 sticky left-0 bg-white text-xs sm:text-[11px] whitespace-pre ${ln.strong ? 'font-medium text-slate-600' : 'text-slate-500'}`}>{ln.label}</td>
+                      <td className={`py-1 pr-3 pl-7 sticky left-0 bg-white text-xs whitespace-pre ${ln.strong ? 'font-medium text-slate-600' : 'text-slate-500'}`}>{ln.label}</td>
                       {cols.map((p) => (
-                        <td key={p.key} className="py-1 px-2 text-right tabular-nums text-xs sm:text-[11px] text-slate-500 align-top">
-                          {ln.gate && !isRealRow(p.level, ln.gate) ? <span className="text-slate-300">—</span> : cell(ln.value(p), p, !!ln.strong)}
+                        <td key={p.key} className="py-1 px-2 text-right tabular-nums text-xs text-slate-500 align-top">
+                          {ln.gate && !isRealRow(p.level, ln.gate) ? <span className="text-slate-400" title="Not read">–</span> : cell(ln.value(p), p, !!ln.strong)}
                         </td>
                       ))}
                     </tr>
@@ -582,7 +584,7 @@ function FullPnlTable({ slice, firstCol, level, pctHeader = false }: { slice: Sl
     <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="w-full text-xs border-collapse">
         <thead>
-          <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+          <tr className="text-xs text-slate-400 border-b border-slate-200">
             <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white z-10">{firstCol}</th>
             {cols.map((c) => (
               <th key={c.key} title={c.label}
@@ -602,7 +604,7 @@ function FullPnlTable({ slice, firstCol, level, pctHeader = false }: { slice: Sl
                   {row.kind === 'cost' ? '− ' : ''}{row.label}
                 </td>
                 {cols.map((c) => {
-                  if (!isReal) return <td key={c.key} className="py-1.5 px-2 text-right text-slate-300">—</td>;
+                  if (!isReal) return <td key={c.key} className="py-1.5 px-2 text-right text-slate-400" title="Not read">–</td>;
                   const raw = c[row.k] as number;
                   return <td key={c.key} className={`py-1.5 px-2 text-right tabular-nums ${colCls(c)}`}>{inr(row.kind === 'cost' ? -raw : raw)}</td>;
                 })}
@@ -611,10 +613,10 @@ function FullPnlTable({ slice, firstCol, level, pctHeader = false }: { slice: Sl
           })}
           {MARGIN_ROWS.map((row, i) => (
             <tr key={`pct:${row.label}`} className={`text-slate-500 ${i === 0 ? 'border-t border-slate-200' : ''}`}>
-              <td className="py-1 px-3 sticky left-0 bg-white text-xs sm:text-[11px] italic">{row.label}</td>
+              <td className="py-1 px-3 sticky left-0 bg-white text-xs italic">{row.label}</td>
               {cols.map((c) => (
-                <td key={c.key} className="py-1 px-2 text-right tabular-nums text-xs sm:text-[11px]">
-                  {!real.has(row.real) || c.kind === 'recon' || !c.rev ? <span className="text-slate-300">—</span> : pctStr((c[row.k] as number) / c.rev)}
+                <td key={c.key} className="py-1 px-2 text-right tabular-nums text-xs">
+                  {!real.has(row.real) || c.kind === 'recon' || !c.rev ? <span className="text-slate-400" title="Not read">–</span> : pctStr((c[row.k] as number) / c.rev)}
                 </td>
               ))}
             </tr>
@@ -631,7 +633,7 @@ function BasisNote({ slice, dim, hasTally }: { slice: SlicePnl; dim: string; has
       Each {dim} column is its own connector numbers to CM2 (channel-specific fees &amp; ad spend, BOM cost + factory overhead (Tally’s actual where booked, else 10%)); CM3,
       OPEX and finance are spread pro-rata by sales.{' '}
       {slice.tied ? (
-        <>The <span className="italic">Recon → Tally</span> column carries what the connectors don’t see, so every line sums across the columns to the Tally <span className="font-medium text-slate-500">Total</span>.</>
+        <>The <span className="italic">Recon → Tally</span> column carries what the connectors do not see, so every line sums across the columns to the Tally <span className="font-medium text-slate-500">Total</span>.</>
       ) : hasTally ? 'Totals are for this slice.' : (
         <>Upload the month’s Tally P&amp;L on the <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</a> page to light up CM3 and below.</>
       )}
@@ -723,8 +725,8 @@ export function ChannelsTab({ period, periods, cells, periodKeys, completeness }
       {slice.columns.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           <KpiTile label="Net Revenue" value={inr(period.netRevenue)} />
-          <KpiTile label="EBITDA" value={real('ebitda') ? inr(period.ebitda) : '—'} sub={`across ${slice.columns.length} ${by === 'vertical' ? 'vertical' : 'channel'}${slice.columns.length === 1 ? '' : 's'}`} />
-          <KpiTile label="Net margin %" value={real('net_income') ? pctStr(nm) : '—'} />
+          <KpiTile label="EBITDA" value={real('ebitda') ? inr(period.ebitda) : '–'} sub={`across ${slice.columns.length} ${by === 'vertical' ? 'vertical' : 'channel'}${slice.columns.length === 1 ? '' : 's'}`} />
+          <KpiTile label="Net margin %" value={real('net_income') ? pctStr(nm) : '–'} />
         </div>
       )}
 
@@ -878,8 +880,8 @@ function SkuMatrix({ period, cells, periodKeys, completeness }: { period: Period
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
         <KpiTile label="Revenue" value={inr(mx.grand.rev)} />
-        <KpiTile label="Contribution" value={cm2Real ? inr(mx.grand.con) : '—'} sub={`${nonAcc} products × ${mx.channels.length} channels`} />
-        <KpiTile label="Overall CM %" value={cm2Real && mx.grand.rev > 0 ? pctStr(mx.grand.con / mx.grand.rev) : '—'} />
+        <KpiTile label="Contribution" value={cm2Real ? inr(mx.grand.con) : '–'} sub={`${nonAcc} products × ${mx.channels.length} channels`} />
+        <KpiTile label="Overall CM %" value={cm2Real && mx.grand.rev > 0 ? pctStr(mx.grand.con / mx.grand.rev) : '–'} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Pills label="Metric" value={metric} onChange={setMetric}
@@ -890,7 +892,7 @@ function SkuMatrix({ period, cells, periodKeys, completeness }: { period: Period
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-xs border-collapse whitespace-nowrap">
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+            <tr className="text-xs text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white z-10">{transpose ? 'Channel' : 'Product'}</th>
               {colKeys.map((c) => <th key={c} className="py-1.5 px-2 text-right font-medium text-slate-600">{label(c, !transpose)}</th>)}
               <th className="py-1.5 px-3 text-right font-semibold text-slate-700">Total</th>
@@ -968,7 +970,7 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="min-w-full text-xs border-collapse">
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+            <tr className="text-xs text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white z-10">Product</th>
               {channels.map((ch) => <th key={ch} className="py-1.5 px-2 text-right font-medium whitespace-nowrap">{chName(ch)}</th>)}
               <th className="py-1.5 px-3 text-right font-semibold text-slate-500">Total</th>
@@ -983,7 +985,7 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
                   {channels.map((ch) => {
                     const v = row.get(ch) ?? 0;
                     const e = est.get(`${p}||${ch}`) ?? 0;
-                    return <td key={ch} className="py-1.5 px-2 text-right tabular-nums text-slate-600">{v ? (e >= 0.5 * v ? <span title="Estimated: revenue ÷ an assumed price, not counted">≈{n(v)}</span> : n(v)) : <span className="text-slate-300">—</span>}</td>;
+                    return <td key={ch} className="py-1.5 px-2 text-right tabular-nums text-slate-600">{v ? (e >= 0.5 * v ? <span title="Estimated: revenue ÷ an assumed price, not counted">≈{n(v)}</span> : n(v)) : <span className="text-slate-400" title="Not read">–</span>}</td>;
                   })}
                   <td className="py-1.5 px-3 text-right tabular-nums font-semibold text-slate-800">{(rowEst.get(p) ?? 0) >= 0.5 * (rowTotal.get(p) ?? 0) ? '≈' : ''}{n(rowTotal.get(p) ?? 0)}</td>
                 </tr>
@@ -1009,9 +1011,7 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
 
 export function Empty({ what }: { what: string }) {
   return (
-    <p className="text-sm text-slate-400 py-6 text-center">
-      No {what} for this period yet. Upload marketplace settlements and the Tranzact BOM on the{' '}
-      <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</a> page.
-    </p>
+    <KitEmpty title={`No ${what} for this period yet`}
+      hint={<>Upload the marketplace settlements and the Tranzact BOM. <Link to="/reporting/mis/connectors?view=uploads" className="font-medium text-accent-600 hover:underline">Open Setup</Link></>} />
   );
 }

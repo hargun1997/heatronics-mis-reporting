@@ -1,5 +1,5 @@
-// Segmented control — a single-choice toggle group (grain, slice, density).
-// The selected option sits on a raised white chip over a slate track. Toggle buttons (aria-pressed, MASTER.md),
+// ViewSwitch (GUIDE.md "Tabs and views"): changes how ONE part shows its data. The selected option is a white thumb on a
+// grey track (never a dark filled pill). Up to 5 options; more go into a select. ← → move between options. Toggle buttons (aria-pressed, MASTER.md),
 // 44px tall on phones so a thumb hits the right one.
 
 interface Option<T extends string> {
@@ -18,12 +18,20 @@ interface SegmentedControlProps<T extends string> {
 export function SegmentedControl<T extends string>({
   options, value, onChange, size = 'md', ...rest
 }: SegmentedControlProps<T>) {
-  const pad = size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-1.5 text-[13px]';
+  const pad = size === 'sm' ? 'px-2.5 text-label sm:min-h-8' : 'px-3.5 text-sm sm:min-h-9';
   return (
     <div
       role="group"
       aria-label={rest['aria-label']}
-      className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-100 p-1"
+      className="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-lg bg-slate-100 p-0.5"
+      onKeyDown={(e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const i = options.findIndex((o) => o.id === value);
+        const n = options[(i + (e.key === 'ArrowRight' ? 1 : -1) + options.length) % options.length];
+        e.preventDefault();
+        onChange(n.id);
+        (e.currentTarget.querySelectorAll('button')[options.indexOf(n)] as HTMLButtonElement | undefined)?.focus();
+      }}
     >
       {options.map((o) => {
         const on = o.id === value;
@@ -34,8 +42,8 @@ export function SegmentedControl<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(o.id)}
             className={
-              `${pad} min-h-11 sm:min-h-0 rounded-lg font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ` +
-              (on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800')
+              `${pad} min-h-11 rounded-md font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ` +
+              (on ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-200' : 'text-slate-600 hover:text-slate-900')
             }
           >
             {o.label}

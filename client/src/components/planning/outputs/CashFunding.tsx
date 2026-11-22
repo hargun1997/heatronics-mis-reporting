@@ -58,9 +58,9 @@ export function CashFundingView({ plan, result }: Props) {
           <p>Ownership does not include ESOP pools and convertibles.</p>
         </>}
       >
-        {!growthOn && <p className="mb-3 text-[12px] text-amber-800">{parity ? 'Sheet parity is on. These rounds are not in the numbers. The sheet\'s own events are.' : 'The growth layer is off. These rounds are not in the numbers.'}</p>}
+        {!growthOn && <p className="mb-3 text-xs text-amber-800">{parity ? 'Sheet parity is on. These rounds are not in the numbers. The sheet\'s own events are.' : 'The growth layer is off. These rounds are not in the numbers.'}</p>}
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-[12.5px] tabular-nums">
+          <table className="w-full min-w-[900px] text-label tabular-nums">
             <thead><tr className="bg-surface-tint"><th className={th}>Round</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={thr}>Pre-money</th><th className={thr}>Fee</th><th className={th}>Agreed</th><th className={thr}>Cash before</th><th className={thr}>Burn a month</th><th className={thr}>Runway</th><th className={thr}>Sold</th><th className={thr}>Today's holders keep</th></tr></thead>
             <tbody>
               {seedRow && (
@@ -82,7 +82,7 @@ export function CashFundingView({ plan, result }: Props) {
                     <td className={`${td} text-right`}>{money(x.preMoney, 0)}</td>
                     <td className={`${td} text-right`}>{pct(x.feePct, 1)}</td>
                     <td className={td}>{x.confirmed ? '✓' : <Flag>Placeholder</Flag>}</td>
-                    <td className={`${td} text-right ${st && st.cashBefore < 0 ? 'text-rose-600' : ''}`}>{st ? money(st.cashBefore, 1) : '–'}</td>
+                    <td className={`${td} text-right ${st && st.cashBefore < 0 ? 'text-red-600' : ''}`}>{st ? money(st.cashBefore, 1) : '–'}</td>
                     <td className={`${td} text-right`}>{st ? money(st.burn, 2) : '–'}</td>
                     <td className={`${td} text-right`}>{st ? (st.runway == null ? 'To the end' : `${st.runway} months`) : '–'}</td>
                     <td className={`${td} text-right`}>{d ? pct(d.sold) : '–'}</td>
@@ -90,7 +90,7 @@ export function CashFundingView({ plan, result }: Props) {
                   </tr>
                 );
               })}
-              {!seedRow && rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={11} className="px-2 py-2 text-[12px] text-slate-600">No seed or rounds yet. Add them in Setup → Funding.</td></tr>}
+              {!seedRow && rounds.length === 0 && <tr className="border-t border-slate-100"><td colSpan={11} className="px-2 py-2 text-xs text-slate-600">No seed or rounds yet. Add them in Setup → Funding.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -99,11 +99,11 @@ export function CashFundingView({ plan, result }: Props) {
       <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
       <SectionCard title="Closing cash"><CashCurve r={r} compare={null} /></SectionCard>
       <SectionCard title="The sheet's cash events" count={plan.events.length} info="Equity raises and debt on the sheet's own timeline. Change them in Setup → Funding.">
-        {plan.events.length === 0 && <p className="text-[13px] text-slate-600">No events.</p>}
+        {plan.events.length === 0 && <p className="text-label text-slate-600">No events.</p>}
         <div className="space-y-1.5">
           {[...plan.events].sort((a, b) => a.month - b.month).map((e) => (
-            <div key={e.id} className="flex flex-wrap items-center gap-3 text-[13px]">
-              <span className={`w-28 rounded-md px-2 py-0.5 text-center text-xs sm:text-[11px] font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>{KIND[e.kind]}</span>
+            <div key={e.id} className="flex flex-wrap items-center gap-3 text-label">
+              <span className={`w-28 rounded-md px-2 py-0.5 text-center text-xs font-semibold ${e.kind === 'equity' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>{KIND[e.kind]}</span>
               <span className="w-16 text-slate-600">{label(e.month)}</span>
               <span className="w-24 text-right tabular-nums text-slate-900">{money(e.amount, 2)}</span>
               <span className="min-w-0 flex-1 basis-full text-slate-600 sm:basis-0">{e.note}</span>

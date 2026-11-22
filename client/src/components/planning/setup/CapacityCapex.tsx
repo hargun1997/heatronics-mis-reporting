@@ -12,7 +12,7 @@ import type { SetupSectionDef, SetupSectionProps } from './types';
 export { summary };
 
 type Growth = NonNullable<Plan['growth']>;
-const sel = 'rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[13px]';
+const sel = 'rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-label';
 const name = `${txt} w-full min-w-[140px]`;
 
 export function Section({ plan, update, result }: SetupSectionProps) {
@@ -38,12 +38,12 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <SubHead info={<><p>In-house units a month: the hCore range and in-house lines.</p><p>The capex of a block is booked in its month. The block adds capacity and running cost after its lead time.</p></>}>Production capacity</SubHead>
           <button type="button" className={btn} onClick={() => set((g) => { g.capacity.push(newBlock(newId('c'), startMonth)); })}>Add capacity</button>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+        <div className="flex flex-wrap items-center gap-2 text-label text-slate-600">
           Capacity today <NumInput value={baseCapacityOf(plan)} min={0} width="w-20" title="Capacity today, units a month" onChange={(v) => set((g) => { g.baseCapacity = v; })} /> units a month
         </div>
         {capacity.length > 0 && (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-[12.5px] tabular-nums">
+            <table className="w-full min-w-[640px] text-label tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Block</th><th className={th}>Capex in</th><th className={thr}>Lead, months</th><th className={thr}>+ Units a month</th><th className={thr}>Capex</th><th className={thr}>Running a month</th><th className={th} /></tr></thead>
               <tbody>
                 {capacity.map((b: CapacityBlock, i) => {
@@ -78,13 +78,13 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           </div>
         </div>
         {overheads.length === 0 && (
-          <p className="text-[13px] text-slate-600">
+          <p className="text-label text-slate-600">
             None yet. <button type="button" className="font-semibold text-accent-700 underline" onClick={() => set((g) => { g.overheads = defaultOverheads(); })}>Add warehouses, office and running costs</button>
           </p>
         )}
         {overheads.length > 0 && (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-[12.5px] tabular-nums">
+            <table className="w-full min-w-[1100px] text-label tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Kind</th><th className={th}>Group</th><th className={th}>From</th><th className={th}>To</th><th className={thr}>₹ a month or %</th><th className={thr}>Sq ft</th><th className={thr}>Rent ₹ a sq ft</th><th className={thr}>Running a month</th><th className={thr}>Deposit, months</th><th className={thr}>Fit-out</th><th className={thr}>+ a year</th><th className={th} /></tr></thead>
               <tbody>
                 {overheads.map((o: Overhead, i) => {
@@ -131,10 +131,10 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           <SubHead info="One-off spends, booked in their month. They are depreciated when that switch is on in Assumptions.">Other capex</SubHead>
           <button type="button" className={btn} onClick={() => set((g) => { g.capex.push(newCapex(newId('x'), startMonth)); })}>Add capex</button>
         </div>
-        {capex.length === 0 && <p className="text-[13px] text-slate-600">None yet.</p>}
+        {capex.length === 0 && <p className="text-label text-slate-600">None yet.</p>}
         {capex.length > 0 && (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-[12.5px] tabular-nums">
+            <table className="w-full min-w-[560px] text-label tabular-nums">
               <thead><tr className="bg-surface-tint"><th className={th}>On</th><th className={th}>Item</th><th className={th}>Group</th><th className={th}>Month</th><th className={thr}>Amount</th><th className={th} /></tr></thead>
               <tbody>
                 {capex.map((x: CapexItem, i) => {

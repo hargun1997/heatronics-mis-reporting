@@ -12,7 +12,7 @@ export const lakh = (v: number) => {
 };
 export const pct = (v: number, d = 1) => (Number.isFinite(v) ? (v * 100).toFixed(d) + '%' : '–');
 export const int = (v: number) => Math.round(v).toLocaleString('en-IN');
-export const tone = (v: number) => (v < 0 ? 'text-rose-600' : 'text-slate-900');
+export const tone = (v: number) => (v < 0 ? 'text-red-600' : 'text-slate-900');
 
 export const CH_COLOR: Record<Channel, string> = {
   // Ember chart palette (theme tokens): Amazon = the one heat series, the rest obsidian tints.

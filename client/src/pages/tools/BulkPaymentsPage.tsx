@@ -94,7 +94,7 @@ export function BulkPaymentsPage() {
               <Panel title="Past batches" count={batches.length} flush>
                 {batches.length ? (
                   <div tabIndex={0} role="region" aria-label="Past batches, scroll sideways for more" className="overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-[13px]">
+                    <table className="w-full min-w-[760px] text-label">
                       <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-600">
                         <tr><th className="px-4 py-2">Batch</th><th className="px-3 py-2">Made</th><th className="px-3 py-2">By</th><th className="px-3 py-2">Pay on</th><th className="px-3 py-2 text-right">Payments</th><th className="px-3 py-2 text-right">Total</th><th className="px-3 py-2">From</th><th className="px-3 py-2"><span className="sr-only">Files</span></th></tr>
                       </thead>

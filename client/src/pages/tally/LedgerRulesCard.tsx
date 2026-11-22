@@ -6,11 +6,12 @@ import { DEFAULT_LEDGER_RULES, RULE_LINES, exactNameRule, ledgerRulesReport, san
 import { exactLineOf } from '../../data/monthClose/ledgerMap';
 import { InfoTip, Loading } from '../../components/ui/states';
 import { inrFull } from '../../utils/money';
+import { buttonClass } from '../../components/ui/Button';
 
 interface Wire { rules: LedgerRule[] | null; ledgers: { name: string; group: string; primary: string }[]; pnl: { period: string; rows: { name: string; amount: number }[] }[]; narrations: { date: string; type: string; number: string; ledger: string; amount: number; narration: string }[]; mastersAt: string | null }
 const inr = (n: number | null) => inrFull(n, { abs: true, empty: '' });
 const label = (l: RuleLine) => RULE_LINES.find((x) => x.id === l)!.label;
-const btn = 'min-h-11 sm:min-h-7 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50';
+const btn = buttonClass('secondary', 'sm');
 
 export function LedgerRulesCard() {
   const [w, setW] = useState<Wire | null>(null);

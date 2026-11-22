@@ -97,7 +97,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
       if (!parsed || parsed.rows.length === 0) { setImportError('Could not find a "P&L Summary" block in that file. Use a workbook exported from here.'); return; }
       setImported(parsed);
     } catch {
-      setImportError('Failed to read that file. Please upload a valid .xlsx exported from here.');
+      setImportError('The file did not open. Upload an .xlsx file that you downloaded from this page.');
     }
   };
 
@@ -140,7 +140,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
         <table className="w-full text-xs whitespace-nowrap">
           <caption className="sr-only">MIS · {entities.find((e) => e.id === entity)?.label} · {fy.name} · {unit}</caption>
           <thead>
-            <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+            <tr className="text-xs text-slate-400 border-b border-slate-200">
               <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">Particulars in {unit}</th>
               {columns.map((c) => <th key={c.label} className="py-1.5 px-2 text-right font-medium text-slate-600">{c.label}</th>)}
             </tr>
@@ -167,7 +167,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
         closing cash ÷ (3 × the last 3 months’ average burn), in quarters; blank until both month ends are stored (FY total: the months
         that have them, named in the column header). EBITDA Burn for a total = the period’s EBITDA loss (0 when it made a profit),
         not the sum of its loss months. Payroll = payroll and salary ledgers, Professional Fee = professional fees and Legal &amp; CA;
-        blank when the month has no such line. Other blank rows aren’t tracked (Channel Margin, SS Claim) or aren’t real yet
+        blank when the month has no such line. Other blank rows are not tracked (Channel Margin, SS Claim) or are not real yet
         for that month (below its completeness level). Gross revenue, returns and GST come from the months whose source carries
         them (the published MIS); live-built months leave them blank. Qty = actual connector orders where every month reports
         them, else estimated (net revenue ÷ AOV). Channel columns use the MIS-anchored split; Brand Investment = Platform &amp;
@@ -180,7 +180,7 @@ export function LiveMisSheetTab({ deck, normalisedMonths }: {
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-xs whitespace-nowrap">
               <thead>
-                <tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+                <tr className="text-xs text-slate-400 border-b border-slate-200">
                   <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">Particulars</th>
                   {imported.columns.map((c, i) => <th key={`${c}-${i}`} className="py-1.5 px-2 text-right font-medium text-slate-600">{c}</th>)}
                 </tr>

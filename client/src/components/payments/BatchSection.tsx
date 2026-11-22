@@ -146,7 +146,7 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
       </div>
 
       <div className="max-h-[400px] overflow-auto rounded-lg border border-slate-200">
-        <table className="w-full min-w-[860px] text-[13px]">
+        <table className="w-full min-w-[860px] text-label">
           <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold text-slate-600">
             <tr><th className="w-10 px-3 py-2"><span className="sr-only">Pick</span></th><th className="px-3 py-2">Payee</th><th className="px-3 py-2">Account</th><th className="w-36 px-3 py-2 text-right">Amount ₹</th><th className="w-28 px-3 py-2">Mode</th><th className="px-3 py-2">Remark</th></tr>
           </thead>
@@ -204,7 +204,7 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
               {matches.map((m, i) => (
                 <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
                   <span className="min-w-[180px] font-medium text-slate-900">{m.line.name}</span>
-                  <span className="tabular-nums text-slate-700">{Number.isFinite(m.line.amountPaise) ? inr(m.line.amountPaise) : '—'}</span>
+                  <span className="tabular-nums text-slate-700">{Number.isFinite(m.line.amountPaise) ? inr(m.line.amountPaise) : '–'}</span>
                   {m.kind === 'exact' && <span className="text-emerald-700">Found: {m.payee?.name}</span>}
                   {m.kind === 'bad_amount' && <span className="text-red-700">Amount not readable</span>}
                   {m.kind === 'none' && <span className="text-red-700">No Active payee with this name</span>}

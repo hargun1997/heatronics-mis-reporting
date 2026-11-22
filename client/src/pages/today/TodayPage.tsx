@@ -24,7 +24,7 @@ interface Brief {
   dueSoon: Due[]; changed: Change[]; freshness: { line: string; stale: boolean; tallyLastOkAt?: string | null }; notes: string[];
 }
 
-const show = (t: Tile) => (t.value == null ? '—' : t.unit === 'inr' ? inr(t.value) : t.unit === 'months' ? `${t.value} mo` : String(t.value));
+const show = (t: Tile) => (t.value == null ? '–' : t.unit === 'inr' ? inr(t.value) : t.unit === 'months' ? `${t.value} mo` : String(t.value));
 const tileDelta = (t: Tile) => (t.delta == null || t.delta === 0 ? null : t.unit === 'inr' ? inr(Math.abs(t.delta)) : String(Math.abs(t.delta)));
 const TONE = {
   ok: 'text-emerald-700', watch: 'text-amber-700', act: 'text-red-700',
@@ -99,7 +99,7 @@ export function TodayPage() {
                 // for cash and sales up is good; for fix / late counts up is bad
                 const good = t.unit === 'count' ? (t.delta ?? 0) < 0 : (t.delta ?? 0) > 0;
                 return (
-                  <KpiTile key={t.id} label={t.label} href={t.href} value={<span className={TONE[t.tone]}>{t.id === 'books' ? 'No data' : show(t)}</span>}
+                  <KpiTile key={t.id} label={t.label} href={t.href} value={t.id === 'books' ? null : <span className={TONE[t.tone]}>{show(t)}</span>}
                     delta={d ? { dir: (t.delta ?? 0) > 0 ? 'up' : 'down', text: d, good } : undefined}
                     sub={t.sub} />
                 );

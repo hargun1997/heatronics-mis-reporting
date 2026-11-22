@@ -5,11 +5,14 @@ import { SECTIONS, dateLabel, type TdsReport } from '../../data/tds/tds';
 import { inr } from '../../data/tds/useTds';
 import { StepNo } from '../../components/ui/states';
 import { DataTable } from '../../components/ui/DataTable';
+import { Empty, BTN } from '../../components/ui/states';
+import { Link } from 'react-router-dom';
 
 export function NoDayBook({ month }: { month: string }) {
   return (
-    <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <b>No Tally Day Book for {month}.</b> Open TallyPrime. Then open <a className="font-semibold underline" href="/tally">Tally health</a> and select <b>Pull Tally now</b>.
+    <div role="status">
+      <Empty title={`No Tally Day Book for ${month}`} hint="Open TallyPrime. Then open Tally health and select Pull Tally now."
+        action={<Link to="/tally" className={BTN}>Open Tally health</Link>} />
     </div>
   );
 }
@@ -19,8 +22,8 @@ export function PayHeadline({ r }: { r: TdsReport }) {
   const tone = r.overdue ? 'border-red-200 bg-red-50' : 'border-accent-200 bg-accent-50';
   return (
     <div className={`rounded-xl border px-4 py-4 sm:px-5 ${tone}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">{r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`}</div>
-      <div className="mt-1 text-[32px] font-semibold leading-10 text-slate-900">{inr(r.totals.balance)}</div>
+      <div className="text-xs font-semibold text-slate-600">{r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`}</div>
+      <div className="mt-1 text-3xl font-semibold leading-10 text-slate-900">{inr(r.totals.balance)}</div>
       <div className="mt-1 text-sm text-slate-700">
         TDS deducted in {r.monthLabel}: {inr(r.totals.deducted)} · already paid {inr(r.totals.paid)}
         {r.totals.interest > 0 && <> · <span className="font-semibold text-red-700">interest about {inr(r.totals.interest)}</span></>}
@@ -66,7 +69,7 @@ export function DeducteeList({ r }: { r: TdsReport }) {
             </button>
             {isOpen && (
               <div className="overflow-x-auto border-t border-slate-100">
-                <table className="w-full min-w-[620px] text-[13px]">
+                <table className="w-full min-w-[620px] text-label">
                   <thead className="bg-slate-50 text-left text-xs text-slate-600"><tr>
                     <th className="px-3 py-1.5 font-semibold">Party</th><th className="px-3 py-1.5 font-semibold">PAN</th>
                     <th className="px-3 py-1.5 text-right font-semibold">Paid to them</th><th className="px-3 py-1.5 text-right font-semibold">TDS</th>
@@ -79,7 +82,7 @@ export function DeducteeList({ r }: { r: TdsReport }) {
                         <td className="px-3 py-1.5 font-mono text-xs">{d.pan || <span className="font-sans text-red-700">missing</span>}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{inr(d.gross)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums">{inr(d.tds)}</td>
-                        <td className="px-3 py-1.5 text-right tabular-nums">{d.ratePct == null ? '—' : `${d.ratePct}%`}<span className="block text-xs text-slate-500">std {SECTIONS[d.section].rates.map((x) => `${x.pct}%`).join(' / ') || '—'}</span></td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{d.ratePct == null ? '–' : `${d.ratePct}%`}<span className="block text-xs text-slate-500">std {SECTIONS[d.section].rates.map((x) => `${x.pct}%`).join(' / ') || '–'}</span></td>
                         <td className="px-3 py-1.5 text-xs">{d.flags.length ? <ul className="space-y-0.5 text-amber-800">{d.flags.map((f) => <li key={f}>{f}</li>)}</ul> : <span className="text-emerald-700">OK</span>}</td>
                       </tr>
                     ))}

@@ -70,7 +70,7 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
                       <div className="flex gap-2"><dt className="w-20 shrink-0 text-stone-500">What to do</dt><dd>{owner.job}</dd></div>
                     </dl>
                   )}
-                  {help && <div className="space-y-1.5 border-t border-stone-200 pt-3 text-[13px] leading-5 text-stone-600 [&_li]:ml-4 [&_li]:list-decimal">{help}</div>}
+                  {help && <div className="space-y-1.5 border-t border-stone-200 pt-3 text-label leading-5 text-stone-600 [&_li]:ml-4 [&_li]:list-decimal">{help}</div>}
                   {w && (
                     <button type="button" aria-pressed={pinned} onClick={() => toggle({ href: path, label: w.page.label, context: w.section.label })}
                       className="inline-flex min-h-11 sm:min-h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-stone-200 px-3 text-sm font-medium text-stone-700 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500">
@@ -84,10 +84,10 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
   return (
     <div className="bg-transparent">
     <div className={cx(tabs && 'border-b border-stone-200')}>
-      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page px-4 pt-4 sm:px-6">
         {trail.length > 0 && (
           <nav aria-label="Breadcrumb" className="print:hidden">
-            <ol className="flex flex-wrap items-center gap-x-1 text-[13px] text-stone-600">
+            <ol className="flex flex-wrap items-center gap-x-1 text-label text-stone-600">
               {trail.map((c, i) => {
                 const last = i === trail.length - 1;
                 return (
@@ -103,7 +103,7 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
         )}
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-            <h1 className="text-[22px] font-[650] leading-7 tracking-[-0.015em] text-stone-900">{title}</h1>
+            <h1 className="text-2xl font-[650] leading-7 tracking-[-0.015em] text-stone-900">{title}</h1>
             {status}
             {about && <span className="sm:hidden print:hidden">{about}</span>}
           </div>
@@ -124,7 +124,7 @@ export function PageHeader({ title, description, actions, status, help, tabs, ta
 
 /** The page column under the header: same width and gutters on every page. */
 export function PageBody({ children, className, wide }: { children: React.ReactNode; className?: string; wide?: boolean }) {
-  return <div className={cx('mx-auto space-y-4 px-4 pb-10 sm:px-6 lg:px-8', wide ? 'max-w-none' : 'max-w-7xl', className)}>{children}</div>;
+  return <div className={cx('mx-auto space-y-4 px-4 pb-10 sm:px-6', wide ? 'max-w-none' : 'max-w-page', className)}>{children}</div>;
 }
 
 /** Secondary header buttons: in the row from `sm` up; behind a "More" (…) menu on phones, so the header never wraps

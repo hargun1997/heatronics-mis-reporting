@@ -64,7 +64,7 @@ function Table({ rows, keyBase }: { rows: string[][]; keyBase: number }) {
         <thead>
           <tr className="bg-slate-50">
             {head.map((h, ci) => (
-              <th key={ci} className={`border-b border-slate-200 px-3 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 ${numericCol[ci] ? 'text-right' : ''}`}>
+              <th key={ci} className={`border-b border-slate-200 px-3 py-1.5 text-left text-xs font-semibold text-slate-600 ${numericCol[ci] ? 'text-right' : ''}`}>
                 {inlineMarkdown(h)}
               </th>
             ))}

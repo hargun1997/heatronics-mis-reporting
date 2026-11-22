@@ -1,11 +1,12 @@
 // Small shared pieces for the Bulk payments (ICICI) page: numbered expandable steps, number tiles, notes.
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { buttonClass } from '../ui/Button';
 
-export const btnSecondary =
-  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
-export const btnPrimary =
-  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-cta px-5 text-sm font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
+export const btnSecondary = buttonClass('secondary');
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
+export const btnPrimary = buttonClass('primary');
 export const input =
   'min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
@@ -39,8 +40,8 @@ export function Step({ n, title, summary, defaultOpen = false, children, id }: {
 export function Num({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <div className="text-xs sm:text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1 text-[26px] font-semibold leading-8 text-slate-900">{value}</div>
+      <div className="text-xs font-semibold text-slate-500">{label}</div>
+      <div className="mt-1 text-2xl font-semibold leading-8 text-slate-900">{value}</div>
       {sub && <div className="mt-0.5 text-xs text-slate-600">{sub}</div>}
     </div>
   );
@@ -48,7 +49,7 @@ export function Num({ label, value, sub }: { label: string; value: React.ReactNo
 
 export function Note({ tone = 'info', children }: { tone?: 'info' | 'ok' | 'warn' | 'error'; children: React.ReactNode }) {
   const cls = {
-    info: 'border-blue-200 bg-blue-50 text-blue-800',
+    info: 'border-slate-200 bg-slate-50 text-slate-800',
     ok: 'border-emerald-200 bg-emerald-50 text-emerald-800',
     warn: 'border-amber-200 bg-amber-50 text-amber-800',
     error: 'border-red-200 bg-red-50 text-red-800',

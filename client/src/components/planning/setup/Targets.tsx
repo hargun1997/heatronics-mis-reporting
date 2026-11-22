@@ -48,7 +48,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
       {mode === 'path' ? (
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-[12.5px] tabular-nums">
+          <table className="w-full min-w-[520px] text-label tabular-nums">
             <thead>
               <tr className="bg-surface-tint">
                 <th className={th}>FY</th>
@@ -71,7 +71,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
                         onChange={(v) => set((g) => { g.path = { ...(g.path ?? {}) }; if (v > 0) g.path[y.fy] = v; else delete g.path[y.fy]; })} />
                     </td>
                     <td className={`${td} text-right text-slate-900`}>{money(y.revenue, 1)}</td>
-                    <td className={`${td} text-right ${off ? 'text-rose-700' : 'text-slate-600'}`}>{gap == null ? '–' : money(gap, 1)}</td>
+                    <td className={`${td} text-right ${off ? 'text-red-700' : 'text-slate-600'}`}>{gap == null ? '–' : money(gap, 1)}</td>
                     <td className={`${td} text-right text-slate-700`}>{G?.push?.[y.fy] != null ? `${G.push[y.fy].toFixed(2)}×` : '1×'}</td>
                   </tr>
                 );
@@ -99,7 +99,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         </button>
         <Tip label="What Fit does"><p>Fit increases the new buyers of the new lines, 1 year at a time, until each year meets its target. For Exit ARR, it changes their launch volumes.</p><p>Then it changes the size of the rounds that are not confirmed, so cash stays above the buffer.</p></Tip>
         </div>
-        {blocked && <span className="text-[12px] text-amber-800">{blocked}</span>}
+        {blocked && <span className="text-xs text-amber-800">{blocked}</span>}
         {notes.map((n, i) => <Note key={i} tone="amber">{n}</Note>)}
         {G?.note && <Note>{G.note}</Note>}
       </div>

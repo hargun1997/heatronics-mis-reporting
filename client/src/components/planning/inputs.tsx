@@ -40,7 +40,7 @@ export function NumInput({
         onChange={(e) => setEdit(e.target.value)}
         onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); }}
-        className={`${width} bg-transparent px-2 py-1 text-right text-[13px] tabular-nums outline-none`}
+        className={`${width} bg-transparent px-2 py-1 text-right text-label tabular-nums outline-none`}
       />
       {suffix[unit] && <span className="pr-2 text-xs text-slate-400">{suffix[unit]}</span>}
     </span>
@@ -56,7 +56,7 @@ export function Lever({
   return (
     <div className="py-2">
       <div className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-0.5 text-[13px] font-medium text-slate-700">{label}{hint && <InfoTip label={`About ${label}`} width={300}>{hint}</InfoTip>}</span>
+        <span className="flex items-center gap-0.5 text-label font-medium text-slate-700">{label}{hint && <InfoTip label={`About ${label}`} width={300}>{hint}</InfoTip>}</span>
         <NumInput value={value} onChange={onChange} unit={unit} min={min} max={max} step={step * scale[unit]} title={label} />
       </div>
       <input

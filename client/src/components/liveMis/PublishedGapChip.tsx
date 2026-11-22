@@ -22,7 +22,7 @@ export function PublishedGapChip({ deck }: { deck: Pick<LiveDeckData, 'completen
       button={<><Database className="h-3.5 w-3.5" aria-hidden />{span} now from Tally</>}
     >
       <div className="p-3 text-sm">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">Tally vs the earlier published workbook</p>
+        <p className="mb-2 text-xs font-semibold text-slate-600">Tally vs the earlier published workbook</p>
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-slate-500">

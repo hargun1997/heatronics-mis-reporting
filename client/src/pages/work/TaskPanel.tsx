@@ -6,7 +6,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { AmazonStockPanel } from './AmazonStockPanel';
 import { TdsTaskPanel } from './TdsTaskPanel';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowTopRightOnSquareIcon, BellAlertIcon, BookOpenIcon, CloudArrowUpIcon, LinkIcon } from '@heroicons/react/24/outline';
+import { ExternalLink as ArrowTopRightOnSquareIcon, BellRing as BellAlertIcon, BookOpen as BookOpenIcon, CloudUpload as CloudArrowUpIcon, Link as LinkIcon } from 'lucide-react';
 import { getHandbook } from '../../data/handbook/handbook';
 import { addDays, describe, occurrences, parseYmd, todayIST, ymd } from '../../data/work/schedule';
 import { remindTask, setTaskCheck, type TeamMember, type WorkState, type WorkTask } from '../../data/work/workClient';
@@ -15,6 +15,7 @@ import { TaskEditor } from './TaskEditor';
 import { TickBox, btnSecondary, focusRing } from './ui';
 import '../handbook/handbook.generated.css';
 import '../handbook/handbook.ui.css';
+import { askText } from '../../components/ui/feedback';
 
 /** "Do after": the tasks this one depends on, with their latest status. */
 function DependsOn({ task, state, today }: { task: WorkTask; state: WorkState; today: string }) {
@@ -106,7 +107,7 @@ function Checklist({ task, state, period, reload }: { task: WorkTask; state: Wor
           );
         })}
       </ul>
-      {err && <p className="mt-1 text-sm text-rose-700">{err}</p>}
+      {err && <p className="mt-1 text-sm text-red-700">{err}</p>}
       <p className="mt-1 text-sm text-slate-500">Tick every item and the task is marked done.</p>
     </div>
   );
@@ -134,7 +135,7 @@ function ReminderStrip({ task, state, members, onSave }: { task: WorkTask; state
         sent
           ? { ok: true, text: `Sent to ${owners.map((o) => o.name).join(', ')}.` }
           : r.emails.some((e) => e.dryRun)
-            ? { ok: false, text: 'Email isn’t connected: nothing was sent (see People & reminders).' }
+            ? { ok: false, text: 'Email is not connected: nothing was sent (see People & reminders).' }
             : { ok: false, text: err ?? 'Not sent.' },
       );
     } catch (e) {
@@ -174,7 +175,7 @@ function ReminderStrip({ task, state, members, onSave }: { task: WorkTask; state
           {on ? 'Turn reminders off' : 'Turn reminders on'}
         </button>
       </div>
-      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-emerald-700' : 'text-rose-700'}`}>{msg.text}</p>}
+      {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-emerald-700' : 'text-red-700'}`}>{msg.text}</p>}
     </div>
   );
 }
@@ -276,7 +277,8 @@ export function TaskPanel({
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      window.prompt('Copy this link', url);
+      await askText({ title: 'Copy this link', label: 'Link to this task', initial: url, confirm: 'Close' });
+      return;
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);

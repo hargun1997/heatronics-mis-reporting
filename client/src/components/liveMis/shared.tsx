@@ -7,8 +7,9 @@
 
 /* eslint-disable react-refresh/only-export-components */
 import { Children, createContext, isValidElement, useContext, useState, type ReactElement, type ReactNode } from 'react';
-import { ChevronDownIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { ChevronDown as ChevronDownIcon, Info as InformationCircleIcon } from 'lucide-react';
 import { Popover } from '../ui/overlays';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { readFold, writeFold } from '../../hooks/useDensity';
 import { CHANNEL_COLORS, CHART, pctSigned } from '../mis-deck/format';
 import type { CompletenessLevel } from '../../data/misDeck/liveDeck';
@@ -35,7 +36,7 @@ export function useLiveView(): LiveView & { chName: (ch: string) => string; chCo
   return { ...v, chName: (ch) => channelName(ch, v.merged), chColor: (ch) => channelColor(ch, v.merged) };
 }
 
-// Channel colours: the legacy palette plus the channels it doesn't name. With
+// Channel colours: the legacy palette plus the channels it does not name. With
 // the continuous taxonomy on, B2B (OEM) keeps OEM's blue and GT (Offline)
 // keeps Offline's violet so the history reads as one line.
 const EXTRA: Record<string, string> = { Flipkart: CHART.c4, GT: CHART.c3, B2B: CHART.c2 };
@@ -84,7 +85,7 @@ export function Fold({
       </div>
       {open && (
         <div className="border-t border-slate-100 px-3 sm:px-4 py-3">
-          {meta != null && <p className="sm:hidden text-xs sm:text-[11px] text-slate-400 mb-2">{meta}</p>}
+          {meta != null && <p className="sm:hidden text-xs text-slate-400 mb-2">{meta}</p>}
           {children}
         </div>
       )}
@@ -109,17 +110,18 @@ export function Views({ id, label = 'View', children }: { id: string; label?: st
   return (
     <section className="rounded-xl border border-slate-200 bg-white">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-slate-100 px-3 py-2">
-        <div role="group" aria-label={label} className="flex max-w-full flex-wrap gap-1">
-          {folds.map((f) => {
-            const on = f === cur;
-            return (
-              <button key={f.props.id} type="button" aria-pressed={on} onClick={() => choose(f.props.id)}
-                className={`min-h-11 sm:min-h-8 rounded-full border px-3 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent-500 ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900'}`}>
-                {f.props.tab ?? f.props.title}
-              </button>
-            );
-          })}
-        </div>
+        {folds.length <= 5 ? (
+          <SegmentedControl size="sm" aria-label={label} value={cur.props.id} onChange={choose}
+            options={folds.map((f) => ({ id: f.props.id, label: String(f.props.tab ?? f.props.title) }))} />
+        ) : (
+          <label className="flex items-center gap-2 text-label text-slate-600">
+            <span className="sr-only">{label}</span>
+            <select value={cur.props.id} onChange={(e) => choose(e.target.value)}
+              className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm font-medium text-slate-900 sm:min-h-9">
+              {folds.map((f) => <option key={f.props.id} value={f.props.id}>{String(f.props.tab ?? f.props.title)}</option>)}
+            </select>
+          </label>
+        )}
         {cur.props.meta != null && <span className="hidden min-w-0 flex-1 truncate text-xs text-slate-500 lg:inline">{cur.props.meta}</span>}
         {cur.props.actions && <div className="ml-auto flex flex-wrap items-center gap-2">{cur.props.actions}</div>}
       </div>
@@ -167,7 +169,7 @@ export function Section({ id, title, meta, defaultOpen = false, actions, childre
           className="flex min-w-0 flex-1 items-center gap-2.5 text-left rounded-lg -mx-1 px-1 py-1 hover:bg-slate-50 focus-visible:ring-2 ring-accent-500 outline-none">
           <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? '' : '-rotate-90'}`} aria-hidden />
           <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5">
-            <span className="text-[15px] font-semibold leading-6 text-slate-900">{title}</span>
+            <span className="text-sm font-semibold leading-6 text-slate-900">{title}</span>
             {meta != null && <span className="min-w-0 truncate text-xs text-slate-500">{meta}</span>}
           </span>
         </button></h2>
@@ -180,21 +182,11 @@ export function Section({ id, title, meta, defaultOpen = false, actions, childre
 
 // ---- Toggles ---------------------------------------------------------------
 
-/** Compact pill toggle (slate track, white chip) — used inside section headers. */
+/** Compact view switch inside section headers: the kit ViewSwitch (white thumb on a grey track). */
 export function Pills<T extends string>({ value, onChange, options, label }: {
   value: T; onChange: (v: T) => void; options: { id: T; label: string }[]; label?: string;
 }) {
-  return (
-    <div className="inline-flex bg-slate-100 rounded-lg p-0.5" role="group" aria-label={label}>
-      {options.map((o) => (
-        <button key={o.id} type="button" onClick={() => onChange(o.id)} aria-pressed={value === o.id}
-          className={`px-2.5 py-1 min-h-10 sm:min-h-0 text-xs font-medium rounded-md transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${
-            value === o.id ? 'bg-white font-semibold text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'}`}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
+  return <SegmentedControl size="sm" aria-label={label} value={value} onChange={onChange} options={options} />;
 }
 
 export const BASIS_OPTIONS: { id: CogmBasis; label: string }[] = [{ id: 'actual', label: 'Actual' }, { id: 'normalised', label: 'Normalised' }];
@@ -224,10 +216,10 @@ const LEVEL_BADGE: Record<CompletenessLevel, { label: string; cls: string }> = {
 export function LevelBadge({ level, published }: { level: CompletenessLevel; published?: boolean }) {
   if (published && level === 'full') {
     return <span title="From the published MIS: no full live close for this month yet"
-      className="inline-flex items-center px-1.5 py-0.5 rounded border text-xs sm:text-[11px] font-medium bg-brand-50 text-brand-700 border-brand-100">Published</span>;
+      className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-xs font-medium bg-white text-slate-700 border-slate-300">Published</span>;
   }
   const b = LEVEL_BADGE[level];
-  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded border text-xs sm:text-[11px] font-medium ${b.cls}`}>{b.label}</span>;
+  return <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-xs font-medium ${b.cls}`}>{b.label}</span>;
 }
 
 /** ▲/▼ growth, coloured brand (up) / slate (down) — never red/green. */
@@ -247,8 +239,8 @@ export function fairGrowth(cur: { v: number; n: number }, other: { v: number; n:
   return (cur.v - other.v) / Math.abs(other.v);
 }
 
-/** Small "muted" placeholder for a number that isn't real yet. */
-export const ND = <span className="text-slate-300">—</span>;
+/** Small "muted" placeholder for a number that is not real yet. */
+export const ND = <span className="text-slate-400" title="Not read">–</span>;
 
 /** A note about a chart or table. It opens from a small "Note" button so the page shows numbers, not paragraphs. */
 export function Note({ children, label = 'Note' }: { children: ReactNode; label?: string }) {
@@ -256,7 +248,7 @@ export function Note({ children, label = 'Note' }: { children: ReactNode; label?
     <Popover align="left" width={360}
       buttonClassName="inline-flex min-h-11 sm:min-h-7 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
       button={<><InformationCircleIcon className="h-4 w-4" aria-hidden />{label}</>}>
-      <div className="max-h-[60vh] overflow-y-auto p-3.5 text-[13px] leading-5 text-slate-700">{children}</div>
+      <div className="max-h-[60vh] overflow-y-auto p-3.5 text-label leading-5 text-slate-700">{children}</div>
     </Popover>
   );
 }

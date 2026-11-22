@@ -25,6 +25,21 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 **AI usage feed** `GET /api/ai/usage?months=<n>` (`routes/aiUsage.ts`, pure `services/aiUsageFeed.ts`, test `test/aiUsageFeed.test.ts`; manifest tool `mis_get_ai_usage`): schema 1 of `heatronics-portal/mcp/ai-usage-feed.md` from the stored `usage/<day>/<id>.json` records (`recordApiUsage`), per IST month newest first, vendor = gemini-* → gemini else claude, purposes = feature, ₹ at `USD_INR` 88. Login only (the MIS has no roles). The MIS makes no Gemini calls any more (`ledgerVision` runs on Claude).
 
 
+## Design: follow design-system/GUIDE.md
+- `design-system/GUIDE.md` (the Heatronics portal guide, v5, 22 Nov 2026) is the rule book for pages, parts and words; where EMBER.md or
+  MASTER.md differ, GUIDE.md wins. Tokens: `client/src/index.css` + `client/tailwind.config.js` (8 text sizes `text-xs|label|sm|base|lg|2xl|3xl|5xl`
+  = 12/13/14/16/18/24/28/44; z levels `z-sticky|shell|scrim|drawer|modal|pop|toast` = 40/50/80/90/100/110/130; ONE `shadow-pop`, cards flat;
+  `max-w-page` 1440; motion `settle`; old blue / violet / indigo names render grey, orange renders amber).
+- Kit (`client/src/components/ui/index.ts`, guide names): `Button` / `buttonClass` (Button.tsx; `BTN` / `BTN_PRIMARY` are its looks), `Modal`,
+  `Drawer`, `Popover` (`kind="menu"` = Menu) in overlays.tsx on `components/shell/useOverlay.ts` (stack, Esc, focus trap + return, scroll lock,
+  phone bottom sheet), `confirmDialog` / `askText` / `toast` (feedback.tsx, `<FeedbackHost />` in App.tsx; never window.alert / confirm /
+  prompt), `ViewSwitch` (= SegmentedControl, white thumb), `Tabs` (= PageTabs), `Pill` / `Count` (= StatusPill / CountPill; `dot` shows the sign
+  ✓ ! × •), `NumberTile` (= KpiTile; no value = "Not read"), `DataTable`, `SourceChip`, `Empty`, `ErrorBox`, `Skeleton` / `Loading`. The AI
+  assistant = `components/chat/ChatPanel.tsx` (FloatingChat, SopChat wrap it). Icons: Lucide only.
+- `server/test/designGuide.test.ts` (in `npm test`) fails on raw hex / rgb in components, `text-[Npx]`, z-index off the scale, `uppercase`,
+  old colour names, browser dialogs, `fixed inset-0` outside the kit, and contractions / em dashes / "please" / "successfully" / "e.g." in UI
+  text. Old lines sit in `server/test/design-allowlist.json` (counts may only go down).
+
 ## Design & menu
 - Heatronics "Ember" design system (spec `design-system/EMBER.md`, MIS rules `design-system/heatronics-mis/MASTER.md`; tokens in
   `client/src/index.css`, Tailwind names map onto them: slate/gray = Ember neutrals, white = surface, brand / accent / indigo = the
@@ -47,7 +62,7 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   `/tds`, `/payments`, `/booking`, `/floors`, `/setup`.
 - **Page template (every page):** `components/ui/PageHeader` = title · status pill · actions (ONE primary) · About "i" popover (owner,
   how often, what to do from `PAGE_OWNER`, optional `help` = "How this works", Pin to sidebar) → ONE sentence (≤ 25 words) → optional
-  underline `tabs`. No breadcrumbs (only for palette-only pages), no icon tile, no owner line on the page. Body = `PageBody` (max-w-7xl,
+  underline `tabs`. No breadcrumbs (only for palette-only pages), no icon tile, no owner line on the page. Body = `PageBody` (max-w-page = 1440,
   same gutters). Shared pieces `components/ui/states.tsx`: `Loading`, `ErrorBox` (with Try again), `Empty`, `Panel` (the one titled card),
   `InfoTip` (a note behind an "i"; `text` gives it visible words), `ShowAll` (first rows + modal), `StepNo`, `BTN` / `BTN_PRIMARY`.
   KPI band = `KpiTile` (4–6 tiles, visible without scroll; the plan's `Stat` wraps it). `PageHeader` ends with ONE 16 px gap (with or without tabs):

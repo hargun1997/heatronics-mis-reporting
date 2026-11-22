@@ -2,7 +2,7 @@
 // before) and closing (last day of the task's month) FBA stock per product, valued at Production's cost, ready to enter in Tally.
 // Data: GET /api/stock/amazon?month= (Ops ledger balances + Production costs); maths: data/stock/amazonStock.ts (pure).
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { Download as ArrowDownTrayIcon, RefreshCw as ArrowPathIcon } from 'lucide-react';
 import { buildValuation, prevMonth, tranzactRows, type CostRow, type LedgerRow, type StockSide } from '../../data/stock/amazonStock';
 import { skuToFgMapping } from '../../data/skuToFgMapping';
 import { fgMaster } from '../../data/fgMaster';
@@ -70,18 +70,18 @@ export function AmazonStockPanel({ month }: { month: string }) {
             <ArrowDownTrayIcon className="h-4 w-4" />Tranzact file</button>
         </div>
       </div>
-      {err && <p className="px-3 py-2 text-sm text-rose-700">{err}</p>}
+      {err && <p className="px-3 py-2 text-sm text-red-700">{err}</p>}
       {data?.errors.map((e) => <p key={e} className="px-3 pt-2 text-sm text-amber-800">{e}</p>)}
       {!v ? <p className="px-3 py-4 text-sm text-slate-500">{busy ? 'Reading Amazon’s balances…' : ''}</p> : (
         <div className="space-y-3 p-3">
           <div className="grid gap-2 sm:grid-cols-2">
-            <Total label={`Opening (${v.opening.date ?? '—'})`} s={v.opening} />
-            <Total label={`Closing (${v.closing.date ?? '—'})`} s={v.closing} strong />
+            <Total label={`Opening (${v.opening.date ?? '–'})`} s={v.opening} />
+            <Total label={`Closing (${v.closing.date ?? '–'})`} s={v.closing} strong />
           </div>
           {v.warnings.length > 0 && <ul className="list-disc space-y-0.5 pl-5 text-xs text-amber-800">{v.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
           {v.closing.lines.length > 0 && (
             <div className="max-h-[50vh] overflow-auto rounded-md border border-slate-100">
-              <table className="w-full text-[13px]">
+              <table className="w-full text-label">
                 <thead className="sticky top-0 bg-slate-50 text-left text-xs text-slate-500"><tr>
                   <th className="px-2 py-1.5 font-semibold">Product</th><th className="px-2 text-right font-semibold">Sellable</th><th className="px-2 text-right font-semibold">Unsellable</th>
                   <th className="px-2 text-right font-semibold">In transit</th><th className="px-2 text-right font-semibold">Cost / unit</th><th className="px-2 text-right font-semibold">Closing value</th><th className="px-2 text-right font-semibold">Opening units</th></tr></thead>
@@ -92,7 +92,7 @@ export function AmazonStockPanel({ month }: { month: string }) {
                       <td className="px-2 py-1"><span className="text-slate-900">{l.name}</span> <span className="text-xs text-slate-500">{l.fg ?? 'no FG map'}</span></td>
                       <td className="px-2 text-right tabular-nums">{num(l.sellable)}</td><td className="px-2 text-right tabular-nums">{num(l.unsellable)}</td>
                       <td className="px-2 text-right tabular-nums">{num(l.inTransit)}</td><td className="px-2 text-right tabular-nums">{inr(l.unitCost)}</td>
-                      <td className="px-2 text-right font-medium tabular-nums">{inr(l.value)}</td><td className="px-2 text-right tabular-nums text-slate-500">{o ? num(o.units) : '—'}</td>
+                      <td className="px-2 text-right font-medium tabular-nums">{inr(l.value)}</td><td className="px-2 text-right tabular-nums text-slate-500">{o ? num(o.units) : '–'}</td>
                     </tr>);
                 })}</tbody>
               </table>

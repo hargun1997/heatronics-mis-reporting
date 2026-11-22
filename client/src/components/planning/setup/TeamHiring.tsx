@@ -21,7 +21,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-slate-600">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
         <Tip label="How hires are costed"><p>A fixed role hires its people in the From month.</p><p>A role that grows with the business adds 1 person for each step of revenue, units or outlets. It never has fewer than People.</p><p>CTC is a month for each person. Benefits ({pct(G.benefitsPct, 0)}) are added. Hiring cost = {pct(G.recruitPct, 0)} of 1 year&apos;s CTC, one time. Increment = {pct(G.incrementPct, 0)} a year.</p><p>Factory roles go to COGS.</p></Tip>
         <label className="flex items-center gap-1.5">Benefits <NumInput unit="pct" value={G.benefitsPct} min={0} width="w-12" title="Benefits %" onChange={(v) => set((g) => { g.benefitsPct = v; })} /></label>
         <label className="flex items-center gap-1.5">Hiring cost <NumInput unit="pct" value={G.recruitPct} min={0} width="w-12" title="Hiring cost %" onChange={(v) => set((g) => { g.recruitPct = v; })} /></label>
@@ -33,7 +33,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         <Note>No roles yet. People costs come only from the sheet&apos;s lines. Add a role to add hires.</Note>
       ) : (
         <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-[12.5px] tabular-nums">
+          <table className="w-full min-w-[820px] text-label tabular-nums">
             <thead>
               <tr className="bg-surface-tint">
                 <th className={th}>On</th><th className={th}>Role</th><th className={th}>Team</th><th className={thr}>People</th>
@@ -78,7 +78,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-x-6 text-[12px] text-slate-600">
+      <div className="flex flex-wrap gap-x-6 text-xs text-slate-600">
         {added.map((y) => <span key={y.fy}>{y.fy}: <b>{int(y.people)}</b> people added</span>)}
       </div>
     </div>

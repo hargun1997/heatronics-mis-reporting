@@ -72,7 +72,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
         flush
       >
         <div tabIndex={0} role="region" aria-label="Cost groups, scroll sideways for more" className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-[13px] tabular-nums">
+          <table className="w-full min-w-[640px] text-label tabular-nums">
             <thead>
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-2 text-left text-xs font-semibold text-slate-600">Group</th>
@@ -98,7 +98,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
                   </tr>
                 );
               })}
-              {groups.length === 0 && <tr><td colSpan={3 + fys.length} className="px-4 py-3 text-[13px] text-slate-600">No cost groups in this section.</td></tr>}
+              {groups.length === 0 && <tr><td colSpan={3 + fys.length} className="px-4 py-3 text-label text-slate-600">No cost groups in this section.</td></tr>}
               {groups.length > 0 && (
                 <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold text-slate-900">
                   <td className="px-4 py-2">Total</td><td />
@@ -113,7 +113,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
 
       <Modal open={!!og} onClose={() => setOpenGroup(null)} title={og?.name} subtitle={`${ls.length} lines · ₹ Cr per FY`} width={1100}>
         <div tabIndex={0} role="region" aria-label="Lines, scroll sideways for more" className="-mx-1 overflow-x-auto">
-          <table className="w-full min-w-[860px] text-[12.5px] tabular-nums">
+          <table className="w-full min-w-[860px] text-label tabular-nums">
             <thead>
               <tr className="border-b border-slate-200 text-xs text-slate-600">
                 <th className="px-2 py-2 text-left font-semibold">Line</th>
@@ -141,7 +141,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
                   {fys.map((fy) => <td key={fy} className="px-2 py-1.5 text-right text-slate-700">{cr(totals[l.id]?.[fy] ?? 0)}</td>)}
                 </tr>
               ))}
-              {ls.length === 0 && <tr><td colSpan={6 + fys.length} className="px-2 py-3 text-[13px] text-slate-600">No lines in this group.</td></tr>}
+              {ls.length === 0 && <tr><td colSpan={6 + fys.length} className="px-2 py-3 text-label text-slate-600">No lines in this group.</td></tr>}
               {og && (
                 <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold">
                   <td className="px-2 py-1.5" colSpan={6}>Total</td>
@@ -155,7 +155,7 @@ export function CostsView({ plan, result, part }: Props & { part?: Section }) {
 
       <PlanCard title="Opex and people by year" info="People added by the hiring plan. Opex includes every opex group. Change them in Setup → Team and hiring, and Setup → Capacity, sites and capex.">
         <div tabIndex={0} role="region" aria-label="Opex by year, scroll sideways for more" className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-[13px] tabular-nums">
+          <table className="w-full min-w-[520px] text-label tabular-nums">
             <thead><tr className="border-b border-slate-200"><th className="py-1.5 text-left text-xs font-semibold text-slate-600" />{r.years.map((y) => <th key={y.fy} className={th}>{y.fy}</th>)}</tr></thead>
             <tbody>
               <tr className="border-t border-slate-100"><td className="py-1.5 text-slate-700">People added</td>{r.years.map((y) => { const ms = r.months.filter((m) => m.fy === y.fy); return <td key={y.fy} className="px-2 text-right">{int(ms[ms.length - 1]?.growthHeadcount ?? 0)}</td>; })}</tr>

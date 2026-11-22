@@ -68,8 +68,8 @@ export function DataTable<R>({ columns, rows, rowKey, total, label, minWidth = 5
 
       {/* sm and up: the table, scrolling inside its own box */}
       <div tabIndex={0} role="region" aria-label={label} className="hidden max-h-[70vh] overflow-auto rounded-lg border border-slate-200 sm:block">
-        <table className="w-full text-[13px]" style={{ minWidth }}>
-          <thead className="sticky top-0 z-[1] bg-slate-50 text-left text-xs text-slate-600">
+        <table className="w-full text-label" style={{ minWidth }}>
+          <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs text-slate-600">
             <tr>{columns.map((c) => <th key={c.key} scope="col" className={`px-3 py-2 font-semibold ${c.num ? 'text-right' : ''}`}>{c.label}</th>)}</tr>
           </thead>
           <tbody>

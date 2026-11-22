@@ -64,7 +64,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
         <div>
           <SubHead info="Growth against the same month 1 year before. FY27 and FY28 come from the 18-month sheet.">Unit growth by channel</SubHead>
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="mt-1.5 overflow-x-auto">
-            <table className="text-[13px]">
+            <table className="text-label">
               <thead>
                 <tr>
                   <th className={th}>Channel</th>
@@ -152,7 +152,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
           </Row>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-slate-600">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-label text-slate-600">
           <span className="font-semibold text-slate-700">Interest rate</span>
           <span>{(plan.cash.interestRate * 100).toFixed(2)}% from {months[0]?.label}</span>
           {(plan.cash.interestSteps ?? []).map((st, i) => (
@@ -161,10 +161,10 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               <NumInput unit="pct" value={st.rate} min={0} max={1} width="w-16" title={`Interest rate step ${i + 1}`} onChange={(v) => update((p) => { p.cash.interestSteps[i].rate = v; })} />
               from
               <MonthSelect title={`Interest rate step ${i + 1} from`} value={st.month} months={months} onChange={(m) => update((p) => { p.cash.interestSteps[i].month = m ?? 1; })} />
-              <button type="button" onClick={() => update((p) => { p.cash.interestSteps.splice(i, 1); })} className="text-slate-400 hover:text-rose-600" aria-label={`Remove rate step ${i + 1}`}>✕</button>
+              <button type="button" onClick={() => update((p) => { p.cash.interestSteps.splice(i, 1); })} className="text-slate-400 hover:text-red-600" aria-label={`Remove rate step ${i + 1}`}>✕</button>
             </span>
           ))}
-          <button type="button" onClick={() => update((p) => addInterestStep(p))} className="min-h-11 sm:min-h-8 text-[12px] font-semibold text-accent-700 hover:underline">+ Add rate change</button>
+          <button type="button" onClick={() => update((p) => addInterestStep(p))} className="min-h-11 sm:min-h-8 text-xs font-semibold text-accent-700 hover:underline">+ Add rate change</button>
         </div>
       </div>}
     </div>

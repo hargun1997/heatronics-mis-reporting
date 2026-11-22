@@ -122,7 +122,7 @@ export function SendReportPage() {
           <Popover align="left" width={320} buttonLabel="Email not connected: details"
             buttonClassName={pillClass('warning')}
             button={<>Email not connected</>}>
-            <div className="space-y-1.5 p-3.5 text-[13px] leading-5 text-slate-700">
+            <div className="space-y-1.5 p-3.5 text-label leading-5 text-slate-700">
               <p>Send makes a preview only. No email goes out.</p>
               <p>Preview and Download still work.</p>
               <p>To send: set <span className="font-mono">RESEND_API_KEY</span> and <span className="font-mono">MAIL_FROM</span> (or Mailgun) on the server.</p>
@@ -153,8 +153,8 @@ export function SendReportPage() {
               type="email" placeholder="add an email…" className="min-w-0 flex-1 sm:flex-none rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/40" />
             <button onClick={addAdhoc} className="rounded-lg border border-slate-200 text-sm px-3 py-1.5 text-slate-600 hover:bg-slate-50">Add</button>
             <button onClick={saveList} className="rounded-lg border border-slate-200 text-sm px-3 py-1.5 text-slate-600 hover:bg-slate-50">Save list</button>
-            {savedNote && <span className="text-xs sm:text-[11px] text-emerald-600">saved</span>}
-            <span className="ml-auto text-xs sm:text-[11px] text-slate-400">{recipients.length} selected</span>
+            {savedNote && <span className="text-xs text-emerald-600">saved</span>}
+            <span className="ml-auto text-xs text-slate-400">{recipients.length} selected</span>
           </div>
         </SectionCard>
 
@@ -188,8 +188,8 @@ export function SendReportPage() {
             </button>
           </div>
           {sent && (
-            <div className={`mt-3 text-xs rounded-lg px-3 py-2 border ${sent.sent ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : sent.dryRun ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
-              {sent.sent ? `Sent to ${sent.to.join(', ')}.` : sent.dryRun ? `Preview only (email not connected). It would go to ${sent.to.join(', ')}.` : `Failed: ${sent.error ?? 'unknown error'}`}
+            <div className={`mt-3 text-xs rounded-lg px-3 py-2 border ${sent.sent ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : sent.dryRun ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+              {sent.sent ? `Sent to ${sent.to.join(', ')}.` : sent.dryRun ? `Test only. Email is not connected. It goes to ${sent.to.join(', ')} when email is on.` : `The email did not go. ${sent.error ?? 'Try again.'}`}
             </div>
           )}
         </SectionCard>

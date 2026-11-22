@@ -61,7 +61,7 @@ const LEGACY_TABS: Record<string, Tab> = {
 };
 const isTab = (v: string | null | undefined): v is Tab => !!v && TABS.some((t) => t.id === v);
 const resolveTab = (v: string | null | undefined): Tab | null => (isTab(v) ? v : v && LEGACY_TABS[v] ? LEGACY_TABS[v] : null);
-// Tabs that don't use the period controls (Statements carries its own months).
+// Tabs that do not use the period controls (Statements carries its own months).
 const NO_PERIOD: Tab[] = ['statements'];
 // Tabs on which the Actual|Normalised COGM basis applies (Overview's headline, the whole P&L tab); the rest stay on actual COGM.
 const BASIS_TABS: Tab[] = ['overview', 'pnl'];
@@ -230,7 +230,7 @@ export function LiveMisPage() {
   const withPeriod = (render: (sel: PeriodAgg, v: LiveDeckData) => ReactNode) => withDeck(() => (
     selected ? render(selected, view!) : <p className="text-sm text-slate-400 py-6 text-center">{isRange ? 'Select 1 month or more.' : 'No period for this selection.'}</p>
   ));
-  const selLabel = selected ? selected.label : '—';
+  const selLabel = selected ? selected.label : '–';
 
   return (
     <LiveViewProvider value={ctx}>
@@ -263,7 +263,7 @@ export function LiveMisPage() {
       {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} />}
       {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
 
-      <div className="mx-auto max-w-7xl space-y-3 px-4 pb-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-page space-y-3 px-4 pb-10 sm:px-6">
         {/* Product decisions are about products: Products tab only (they also sit in Tasks → Fix). Before 22 Nov 2026 this
             amber box sat above every tab. */}
         {tab === 'products' && deck?.productGaps && <div id="product-gaps" className="scroll-mt-24"><ProductGapsPanel gaps={deck.productGaps} onChanged={() => void loadDeck(true)} /></div>}
@@ -319,7 +319,7 @@ export function LiveMisPage() {
                 const on = custom.includes(k);
                 return (
                   <button key={k} type="button" onClick={() => setCustom(on ? custom.filter((x) => x !== k) : [...custom, k])}
-                    className={`px-2 py-0.5 rounded-md text-xs sm:text-[11px] border ${on ? 'bg-brand-50 text-brand-700 border-brand-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+                    className={`px-2 py-0.5 rounded-md text-xs border ${on ? 'bg-brand-50 text-brand-700 border-brand-200' : 'bg-white text-slate-500 border-slate-200'}`}>
                     {monthLabel(k)}
                   </button>
                 );
@@ -432,7 +432,7 @@ function CompletenessBanner({ deck, raw, showLive, setShowLive }: {
     <Popover align="left" width={340} buttonLabel="Month status"
       buttonClassName={`inline-flex min-h-11 sm:min-h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold ${through ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}
       button={<><Lock className="h-3.5 w-3.5" aria-hidden />{through ? `Locked to ${monthLabel(through)}` : 'No month locked'}{ready.length > 0 && <span className="rounded-full bg-white/70 px-1.5 text-accent-700">{ready.length} ready</span>}</>}>
-      <dl className="space-y-2 p-4 text-[13px] font-normal text-slate-700">
+      <dl className="space-y-2 p-4 text-label font-normal text-slate-700">
         <div className="flex justify-between gap-3"><dt className="text-slate-500">Locked to</dt><dd className="font-semibold text-slate-900">{through ? monthLabel(through) : 'No month'}</dd></div>
         {ready.length > 0 && <div className="flex justify-between gap-3"><dt className="text-slate-500">Ready to lock</dt><dd className="text-right font-medium text-accent-700">{ready.map(monthLabel).join(', ')}</dd></div>}
         {latest && latest !== through && <div className="flex items-center justify-between gap-3"><dt className="text-slate-500">Newest data</dt><dd className="flex items-center gap-1.5">{monthLabel(latest)} <LevelBadge level={deck.completeness[latest]?.level ?? 'topline'} /></dd></div>}
@@ -563,20 +563,20 @@ function RunRateTab() {
             {RR_METRICS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
         </Field>
-        <div className="flex items-center gap-3 text-xs sm:text-[11px] text-slate-400 sm:ml-auto pb-1">
+        <div className="flex items-center gap-3 text-xs text-slate-400 sm:ml-auto pb-1">
           {fetchedAt && <span>updated {fetchedAt.toLocaleTimeString()}</span>}
           <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> auto</label>
           <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40">{loading ? 'Refreshing…' : 'Refresh'}</button>
         </div>
       </div>
 
-      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiTile label="Revenue" value={inr(sum.revenue)} sub={`${days} days`} />
         <KpiTile label="MRR" value={inr(mrr)} sub="30 days at this rate" />
         <KpiTile label="Ad spend" value={inr(sum.spend)} />
-        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '—'} sub="Revenue ÷ ad spend" />
+        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '–'} sub="Revenue ÷ ad spend" />
         <KpiTile label="Net" value={inr(sum.net)} sub="Revenue less fees" />
         <KpiTile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
       </div>
@@ -591,7 +591,7 @@ function RunRateTab() {
         ) : (
           <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-xs border-collapse">
-              <thead><tr className="text-xs sm:text-[11px] text-slate-400 border-b border-slate-200">
+              <thead><tr className="text-xs text-slate-400 border-b border-slate-200">
                 <th className="py-1.5 px-3 text-left font-medium sticky left-0 bg-white">{RR_DIMS.find((d) => d.id === dim)!.label}</th>
                 {periods.map((p) => <th key={p} className="py-1.5 px-2 text-right font-medium whitespace-nowrap">{p}</th>)}
                 {!isRatio && <th className="py-1.5 pl-3 pr-3 text-right font-semibold">Total</th>}

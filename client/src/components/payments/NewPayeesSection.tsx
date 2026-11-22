@@ -62,7 +62,7 @@ export function NewPayeesSection({ saved }: { saved: Payee[] }) {
     <div className="space-y-4">
 
       <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full min-w-[900px] text-[13px]">
+        <table className="w-full min-w-[900px] text-label">
           <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-600">
             <tr><th className="w-8 px-2 py-2">#</th>{FIELDS.map((f) => <th key={f.k} className="px-2 py-2">{f.label}</th>)}<th className="w-10 px-2 py-2"><span className="sr-only">Remove</span></th></tr>
           </thead>

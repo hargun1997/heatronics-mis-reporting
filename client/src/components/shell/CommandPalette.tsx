@@ -74,7 +74,7 @@ function Palette({ close }: { close: () => void }) {
   let lastGroup = '';
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-start justify-center bg-scrim/50 px-3 pt-[10vh] backdrop-blur-[2px] sm:pt-[14vh]" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+    <div className="fixed inset-0 z-modal flex items-start justify-center bg-scrim/50 px-3 pt-[10vh] backdrop-blur-[2px] sm:pt-[14vh]" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Search or jump to" className="w-full max-w-xl overflow-hidden rounded-xl border border-stone-200 bg-white shadow-2xl" onKeyDown={onKey}>
         <div className="flex items-center gap-2 border-b border-stone-200 px-3">
           <Search className="h-5 w-5 shrink-0 text-stone-500" aria-hidden />
@@ -90,7 +90,7 @@ function Palette({ close }: { close: () => void }) {
             const Icon = r.icon === 'recent' ? History : r.icon === 'pin' ? Pin : r.icon === 'cmd' ? (r.id === 'cmd-theme' ? Moon : r.id === 'cmd-rail' ? PanelLeft : Pin) : ArrowRight;
             return (
               <li key={r.id} role="presentation">
-                {head && <div role="presentation" className="px-3 pb-1 pt-2.5 text-xs font-semibold uppercase tracking-wider text-stone-500">{head}</div>}
+                {head && <div role="presentation" className="px-3 pb-1 pt-2.5 text-xs font-semibold text-stone-500">{head}</div>}
                 <div id={optId(i)} data-i={i} role="option" aria-selected={i === active} onMouseMove={() => setActive(i)} onClick={(e) => r.run(e.metaKey || e.ctrlKey)}
                   className={cx('flex min-h-[44px] cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm', i === active ? 'bg-accent-50 text-stone-900' : 'text-stone-700')}>
                   <Icon className={cx('h-4 w-4 shrink-0', i === active ? 'text-accent-600' : 'text-stone-500')} aria-hidden />

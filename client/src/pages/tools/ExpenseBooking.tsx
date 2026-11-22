@@ -178,7 +178,7 @@ export function ExpenseBooking() {
     setError(null);
   }
 
-  // When the operator changes category, sync the TDS default unless they've
+  // When the operator changes category, sync the TDS default unless they have
   // already overridden it. Services almost always have TDS; goods/capital
   // almost never do.
   function changeCategory(next: Category) {
@@ -392,7 +392,7 @@ export function ExpenseBooking() {
         <MasterPanel state={masterState} />
 
         {!master && !masterState.loading && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
             <div className="font-semibold">Tally master could not be loaded</div>
             <p className="text-xs mt-1">
               {masterState.error
@@ -439,10 +439,10 @@ export function ExpenseBooking() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={
                     category === 'Capital'
-                      ? 'e.g. "Heating gun for testing", "office laptop"'
+                      ? 'for example "Heating gun for testing", "office laptop"'
                       : category === 'Goods'
-                      ? 'e.g. "courier charges", "printing material"'
-                      : 'e.g. "AWS subscription", "CA fees", "office rent"'
+                      ? 'for example "courier charges", "printing material"'
+                      : 'for example "AWS subscription", "CA fees", "office rent"'
                   }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                 />
@@ -693,7 +693,7 @@ function CategoryPicker({
             >
               {o.label}
             </div>
-            <div className="text-xs sm:text-[11px] text-slate-500 mt-0.5">{o.caption}</div>
+            <div className="text-xs text-slate-500 mt-0.5">{o.caption}</div>
           </button>
         );
       })}
@@ -746,7 +746,7 @@ function Banner({
   children: React.ReactNode;
 }) {
   const map: Record<string, string> = {
-    rose: 'bg-rose-50 border-rose-200 text-rose-800',
+    rose: 'bg-red-50 border-red-200 text-red-800',
     amber: 'bg-amber-50 border-amber-200 text-amber-800',
     emerald: 'bg-emerald-50 border-emerald-200 text-emerald-800',
   };
@@ -833,13 +833,13 @@ function ImageEntry({
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                       />
                     </svg>
-                    <span className="text-xs sm:text-[11px] font-medium uppercase tracking-wider">PDF</span>
-                    <span className="text-xs sm:text-[11px] truncate w-full text-center px-1">{a.fileName}</span>
+                    <span className="text-xs font-medium">PDF</span>
+                    <span className="text-xs truncate w-full text-center px-1">{a.fileName}</span>
                   </div>
                 ) : (
                   <img src={a.previewUrl} alt={`page ${i + 1}`} className="w-full h-full object-cover" />
                 )}
-                <span className="absolute bottom-1 left-1 text-xs sm:text-[11px] font-semibold bg-white/90 rounded px-1.5 py-0.5 text-slate-700">
+                <span className="absolute bottom-1 left-1 text-xs font-semibold bg-white/90 rounded px-1.5 py-0.5 text-slate-700">
                   {i + 1}
                 </span>
                 <button
@@ -896,7 +896,7 @@ function QueueCard({
           <button
             type="button"
             onClick={() => setConfirmClear(true)}
-            className="text-xs text-slate-500 hover:text-rose-700"
+            className="text-xs text-slate-500 hover:text-red-700"
           >
             Clear all
           </button>
@@ -908,7 +908,7 @@ function QueueCard({
                 onClearAll();
                 setConfirmClear(false);
               }}
-              className="text-xs font-semibold text-rose-700 hover:text-rose-800"
+              className="text-xs font-semibold text-red-700 hover:text-red-800"
             >
               Confirm
             </button>
@@ -941,7 +941,7 @@ function QueueCard({
                 onClick={() => setOpenId(open ? null : q.id)}
                 className="w-full text-left px-4 sm:px-5 py-3 hover:bg-slate-50 flex items-center gap-3"
               >
-                <span className="text-xs sm:text-[11px] uppercase tracking-wider w-6 flex-shrink-0 font-bold text-slate-400">
+                <span className="text-xs w-6 flex-shrink-0 font-bold text-slate-400">
                   #{i + 1}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -977,7 +977,7 @@ function QueueCard({
                   <button
                     type="button"
                     onClick={() => onRemove(q.id)}
-                    className="text-xs text-rose-700 hover:text-rose-800 underline underline-offset-2"
+                    className="text-xs text-red-700 hover:text-red-800 underline underline-offset-2"
                   >
                     Remove from queue
                   </button>
@@ -1065,7 +1065,7 @@ function ExportSummaryView({ summary }: { summary: ExportSummary }) {
         className={`rounded-lg border px-3 py-2 ${
           summary.vouchersExported > 0
             ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-            : 'border-rose-200 bg-rose-50 text-rose-900'
+            : 'border-red-200 bg-red-50 text-red-900'
         }`}
       >
         <span className="font-semibold">{summary.vouchersExported}</span> voucher
@@ -1078,11 +1078,11 @@ function ExportSummaryView({ summary }: { summary: ExportSummary }) {
         .
       </div>
       {hasErrors && (
-        <details className="rounded-lg border border-rose-200 bg-rose-50">
-          <summary className="px-3 py-1.5 cursor-pointer text-rose-900 font-medium">
+        <details className="rounded-lg border border-red-200 bg-red-50">
+          <summary className="px-3 py-1.5 cursor-pointer text-red-900 font-medium">
             Skipped invoices ({summary.itemsSkipped.length})
           </summary>
-          <ul className="px-3 py-2 space-y-0.5 text-rose-900 list-disc list-inside">
+          <ul className="px-3 py-2 space-y-0.5 text-red-900 list-disc list-inside">
             {summary.itemsSkipped.map((e, i) => (
               <li key={i}>
                 <span className="font-medium">{e.vendor || e.itemId}</span>: {e.reason}
@@ -1143,7 +1143,7 @@ function ImportInstructions() {
           For <strong>File path</strong> point to the folder where this XML was downloaded.
         </li>
         <li>
-          For <strong>File name</strong> enter the file name shown above (e.g.{' '}
+          For <strong>File name</strong> enter the file name shown above (for example{' '}
           <code className="bg-slate-100 px-1 rounded">tally-import-2026-04-29.xml</code>).
         </li>
         <li>
@@ -1168,7 +1168,7 @@ function AdviceView({ advice }: { advice: ExpenseAdvice }) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 sm:p-5">
-        <div className="text-xs sm:text-[11px] uppercase tracking-wider text-emerald-700 font-semibold">
+        <div className="text-xs text-emerald-700 font-semibold">
           Booking summary
         </div>
         <div className="text-sm font-medium text-slate-900 mt-0.5">{advice.summary}</div>
@@ -1184,7 +1184,7 @@ function AdviceView({ advice }: { advice: ExpenseAdvice }) {
 
       {advice.warnings && advice.warnings.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div className="text-xs sm:text-[11px] uppercase tracking-wider text-amber-800 font-semibold">
+          <div className="text-xs text-amber-800 font-semibold">
             Check before posting
           </div>
           <ul className="mt-1 list-disc list-inside text-xs text-amber-900 space-y-0.5">
@@ -1229,12 +1229,12 @@ function StageCard({ stage }: { stage: BookingStage }) {
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`text-xs sm:text-[11px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${tone.chipBg} ${tone.chipText}`}
+              className={`text-xs font-bold px-1.5 py-0.5 rounded ${tone.chipBg} ${tone.chipText}`}
             >
               {stage.voucherType}
             </span>
             {stage.costCentre && (
-              <span className="text-xs sm:text-[11px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
                 {stage.costCentre}
               </span>
             )}
@@ -1264,12 +1264,12 @@ function voucherTone(voucher: string): {
   const v = voucher.toLowerCase();
   if (v.startsWith('payment')) {
     return {
-      border: 'border-sky-200',
-      bg: 'bg-sky-50',
-      badgeBg: 'bg-sky-600',
+      border: 'border-slate-200',
+      bg: 'bg-slate-50',
+      badgeBg: 'bg-slate-600',
       badgeText: 'text-white',
-      chipBg: 'bg-sky-100',
-      chipText: 'text-sky-800',
+      chipBg: 'bg-slate-100',
+      chipText: 'text-slate-800',
     };
   }
   if (v.startsWith('purchase')) {
@@ -1284,12 +1284,12 @@ function voucherTone(voucher: string): {
   }
   if (v.startsWith('journal')) {
     return {
-      border: 'border-violet-200',
-      bg: 'bg-violet-50',
-      badgeBg: 'bg-violet-600',
+      border: 'border-slate-200',
+      bg: 'bg-slate-50',
+      badgeBg: 'bg-slate-600',
       badgeText: 'text-white',
-      chipBg: 'bg-violet-100',
-      chipText: 'text-violet-800',
+      chipBg: 'bg-slate-100',
+      chipText: 'text-slate-800',
     };
   }
   if (v.startsWith('receipt')) {
@@ -1304,12 +1304,12 @@ function voucherTone(voucher: string): {
   }
   if (v.startsWith('contra')) {
     return {
-      border: 'border-rose-200',
-      bg: 'bg-rose-50',
-      badgeBg: 'bg-rose-600',
+      border: 'border-red-200',
+      bg: 'bg-red-50',
+      badgeBg: 'bg-red-600',
       badgeText: 'text-white',
-      chipBg: 'bg-rose-100',
-      chipText: 'text-rose-800',
+      chipBg: 'bg-red-100',
+      chipText: 'text-red-800',
     };
   }
   return {
@@ -1325,7 +1325,7 @@ function voucherTone(voucher: string): {
 function Note({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="text-xs">
-      <span className="uppercase tracking-wider text-slate-500 font-semibold">{label}: </span>
+      <span className=" text-slate-500 font-semibold">{label}: </span>
       <span className="text-slate-700">{children}</span>
     </div>
   );
@@ -1335,7 +1335,7 @@ function LinesTable({ lines }: { lines: BookingLine[] }) {
   return (
     <div tabIndex={0} role="region" aria-label="Table, scroll sideways for more" className="overflow-x-auto">
       <table className="w-full text-xs">
-        <thead className="bg-white text-slate-500 uppercase tracking-wider text-xs sm:text-[11px] border-b border-slate-100">
+        <thead className="bg-white text-slate-500 text-xs border-b border-slate-100">
           <tr>
             <th className="text-left px-3 py-2 w-10">Dr/Cr</th>
             <th className="text-left px-3 py-2">Ledger</th>
@@ -1347,10 +1347,10 @@ function LinesTable({ lines }: { lines: BookingLine[] }) {
             <tr key={i} className="border-t border-slate-100">
               <td className="px-3 py-2">
                 <span
-                  className={`inline-block w-7 text-center font-semibold rounded text-xs sm:text-[11px] py-0.5 ${
+                  className={`inline-block w-7 text-center font-semibold rounded text-xs py-0.5 ${
                     l.dr_or_cr === 'Dr'
                       ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-rose-100 text-rose-800'
+                      : 'bg-red-100 text-red-800'
                   }`}
                 >
                   {l.dr_or_cr}
@@ -1358,10 +1358,10 @@ function LinesTable({ lines }: { lines: BookingLine[] }) {
               </td>
               <td className="px-3 py-2 text-slate-900">
                 {l.ledger}
-                {l.notes && <span className="block text-xs sm:text-[11px] text-slate-500">{l.notes}</span>}
+                {l.notes && <span className="block text-xs text-slate-500">{l.notes}</span>}
               </td>
               <td className="px-3 py-2 text-right tabular-nums text-slate-900">
-                {l.amount == null ? '—' : l.amount.toLocaleString('en-IN')}
+                {l.amount == null ? '–' : l.amount.toLocaleString('en-IN')}
               </td>
             </tr>
           ))}
