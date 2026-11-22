@@ -196,6 +196,7 @@ export interface TdsSyncState {
   lastOkDay: string | null;   // IST day of the last good daily sync
   lastError: string | null;
   finalFor: Record<string, string>; // month → time of the month-end sync taken on or after the 5th of the next month
+  passStartedAt?: string | null;    // a full-year re-read in progress since then (null = none); done when every FY month is read after it
   lastRun?: { at: string; trigger: 'schedule' | 'button' | 'books'; months: string[]; bills: number; error: string | null };
 }
 export const EMPTY_SYNC: TdsSyncState = { lastTryAt: null, lastOkAt: null, lastOkDay: null, lastError: null, finalFor: {} };
@@ -208,12 +209,13 @@ export function addMonth(p: string, n: number): string {
   return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7);
 }
 export const RETRY_MS = 50 * 60_000;
+export const RESUME_MS = 10 * 60_000;
 
 /**
  * When the scheduled call should sync (the caller fires hourly, 06:37–22:37 IST). Tally answers only while TallyPrime is
  * open on the host machine, so every kind of sync keeps retrying until Tally answers:
  *  - Month end: from the 5th, until last month has a sync taken on/after the 5th → re-read last month in full.
- *  - Daily: once a day (bills booked that day); a day Tally stayed closed is caught up by the next good sync (syncMonths).
+ *  - Daily: once a day. Every sync re-reads the WHOLE financial year from 1 April (passMonths), in parts across runs.
  *  - A failed try (Tally closed) waits 50 min, then tries again, on any day, until it works.
  */
 export function syncDue(now: number, s: TdsSyncState): { due: boolean; monthEnd: boolean; why: string } {
@@ -226,25 +228,26 @@ export function syncDue(now: number, s: TdsSyncState): { due: boolean; monthEnd:
   const last = addMonth(cur, -1);
   const fifth = Date.parse(`${cur}-05T00:00:00+05:30`);
   const monthEnd = d.getUTCDate() >= 5 && !(s.finalFor[last] && Date.parse(s.finalFor[last]) >= fifth);
+  // A full-year re-read in progress goes on 10 min after the last run (50 min after a failed one), not once a day.
+  if (s.passStartedAt) {
+    const wait = s.lastError ? RETRY_MS : RESUME_MS;
+    return since < wait ? { due: false, monthEnd, why: 'Full-year re-read: next part soon.' } : { due: true, monthEnd, why: 'Full-year re-read: next part.' };
+  }
   if (monthEnd) return tooSoon ? { due: false, monthEnd, why: 'Tried less than 50 min ago.' } : { due: true, monthEnd, why: `Month-end sync of ${last} (from the 5th).` };
   if (s.lastOkDay === istDay(now)) return { due: false, monthEnd: false, why: 'Already synced today.' };
   return tooSoon ? { due: false, monthEnd: false, why: 'Tried less than 50 min ago.' } : { due: true, monthEnd: false, why: 'Daily sync.' };
 }
 
 /**
- * Months a sync reads from Tally: month-end = last month first; daily = this month (+ last month up to the 8th).
- * Catch-up: every month since the last good sync is read too (Tally closed for days across a month end), oldest
- * first after the month-end month, at most 3 months back.
+ * Months a sync reads (founder, 22 Nov 2026: "every sync re-reads the whole financial year from 1 April": older bills get
+ * edited or back-dated in Tally). = every FY month from April to this month NOT yet read since the pass started, this
+ * month first, then April upward. Empty = the pass is done. A pass spans runs (Tally answers one day at a time).
  */
-export function syncMonths(now: number, monthEnd: boolean, lastOkAt: string | null = null): string[] {
-  const d = ist(now);
-  const cur = d.toISOString().slice(0, 7), last = addMonth(cur, -1);
-  const base = monthEnd ? [last, cur] : d.getUTCDate() <= 8 ? [cur, last] : [cur];
-  if (!lastOkAt) return base;
-  const from = ist(Date.parse(lastOkAt)).toISOString().slice(0, 7);
-  const gap: string[] = [];
-  for (let p = from < addMonth(cur, -3) ? addMonth(cur, -3) : from; p < cur; p = addMonth(p, 1)) if (!base.includes(p)) gap.push(p);
-  return monthEnd ? [base[0], ...gap, cur] : [...gap, ...base].sort((a, b) => (a === cur ? -1 : b === cur ? 1 : a.localeCompare(b)));
+export function passMonths(now: number, booksAsOf: Record<string, string>, passStartedAt: string): string[] {
+  const cur = ist(now).toISOString().slice(0, 7);
+  const since = Date.parse(passStartedAt);
+  const left = fyMonths(now).filter((m) => !(booksAsOf[m] && Date.parse(booksAsOf[m]) >= since));
+  return [...left.filter((m) => m === cur), ...left.filter((m) => m !== cur)];
 }
 
 /** Tally offline = the newest try failed (no good sync since). The page shows the last synced data with its date. */
