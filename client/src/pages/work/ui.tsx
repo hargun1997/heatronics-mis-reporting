@@ -95,6 +95,9 @@ export const card = 'rounded-xl border border-slate-200 bg-white';
 export const input =
   'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 export const lbl = 'mb-1 block text-sm font-semibold text-slate-800';
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
 export const btnPrimary = buttonClass('primary');
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
 export const btnSecondary = buttonClass('secondary');
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
 export const btnGhost = buttonClass('secondary');

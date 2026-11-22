@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { buttonClass } from '../ui/Button';
 
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
 export const btnSecondary = buttonClass('secondary');
+// eslint-disable-next-line react-refresh/only-export-components -- a class string from the kit Button
 export const btnPrimary = buttonClass('primary');
 export const input =
   'min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { MasterState } from '../../data/tally/useTallyMaster';
 import type { ReduceStats } from '../../data/tally/reduceTallyExport';
+import { KpiTile } from '../../components/ui/KpiTile';
 
 type Tab = 'active' | 'replace' | 'reset';
 
@@ -296,10 +297,5 @@ function KV({ k, v }: { k: string; v: string }) {
 }
 
 function Stat({ label, n }: { label: string; n: number }) {
-  return (
-    <div className="rounded-lg border border-slate-200 px-3 py-2">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="text-sm font-semibold text-slate-900 tabular-nums">{n}</div>
-    </div>
-  );
+  return <KpiTile label={label} value={n.toLocaleString('en-IN')} />;
 }

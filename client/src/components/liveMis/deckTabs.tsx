@@ -28,6 +28,8 @@ import { topChannel } from '../../data/misDeck/analytics';
 import { footCellsToChannels, NOT_MAPPED } from '../../data/misDeck/channelFoot';
 import type { CascadeLine } from '../../data/monthClose/schema';
 import { interBranchNote } from '../../data/misDeck/auditTie';
+import { Empty as KitEmpty } from '../ui/states';
+import { Link } from 'react-router-dom';
 import {
   Fold, Views, Pills, CogmBasisToggle, CogmBasisNote, LevelBadge, Delta, fairGrowth, ND, Note, TableBox,
   useLiveView, VERTICAL_COLORS,
@@ -1009,9 +1011,7 @@ export function SkuUnitsTab({ period, cells, periodKeys }: { period: PeriodAgg; 
 
 export function Empty({ what }: { what: string }) {
   return (
-    <p className="text-sm text-slate-400 py-6 text-center">
-      No {what} for this period yet. Upload marketplace settlements and the Tranzact BOM on the{' '}
-      <a href="/reporting/mis/connectors?view=uploads" className="text-brand-600 underline">Setup</a> page.
-    </p>
+    <KitEmpty title={`No ${what} for this period yet`}
+      hint={<>Upload the marketplace settlements and the Tranzact BOM. <Link to="/reporting/mis/connectors?view=uploads" className="font-medium text-accent-600 hover:underline">Open Setup</Link></>} />
   );
 }

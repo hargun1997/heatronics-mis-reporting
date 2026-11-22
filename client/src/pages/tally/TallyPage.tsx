@@ -12,6 +12,7 @@ import { Markdown } from '../../components/ui/Markdown';
 import { LedgerRulesCard } from './LedgerRulesCard';
 import { ChartTab } from './ChartTab';
 import { inrFull } from '../../utils/money';
+import { Empty as KitEmpty } from '../../components/ui/states';
 
 type Severity = 'error' | 'warn' | 'info';
 interface Sample { date?: string; type?: string; number?: string; party?: string; ledger?: string; amount?: number; detail: string }
@@ -100,7 +101,7 @@ export function TallyPage() {
   );
 }
 
-const Empty = ({ text }: { text: string }) => <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">{text}</p>;
+const Empty = ({ text }: { text: string }) => <KitEmpty title={text} />;
 
 function Ask() {
   const [q, setQ] = useState('');

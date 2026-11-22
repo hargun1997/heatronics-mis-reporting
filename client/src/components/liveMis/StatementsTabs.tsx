@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { OTHER_WARN_INR, type BalanceSheet, type BsLine, type CashFlow } from '../../data/statements/statements';
 import { useStatements, type Resp } from './useStatements';
+import { KpiTile } from '../ui/KpiTile';
 
 /** ₹ lakh, 2 decimals; negatives with a real minus sign; below ₹500 shows as 0.00 (never "-0.00"). */
 const lakh = (n: number | null | undefined) => {
@@ -43,12 +44,7 @@ function Warnings({ items }: { items: string[] }) {
 }
 
 function Kpi({ k, v, sub }: { k: string; v: number; sub: string }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-card">
-      <div className="truncate text-xs font-semibold text-slate-500" title={`${k} · ${sub}`}>{k} · {sub}</div>
-      <div className={`mt-1 text-lg font-semibold tabular-nums sm:text-xl ${v <= -500 ? 'text-red-700' : 'text-slate-900'}`}>₹{lakh(v)} L</div>
-    </div>
-  );
+  return <KpiTile label={k} sub={sub} value={<span className={v <= -500 ? 'text-red-700' : undefined}>₹{lakh(v)} L</span>} />;
 }
 
 const th = 'px-2 py-1.5 text-right font-semibold whitespace-nowrap';
