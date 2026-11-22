@@ -21,6 +21,7 @@ import { PageBody, PageHeader, HeaderMore, KpiTile, SegmentedControl, Popover, E
 import { inr } from '../../components/mis-deck/format';
 import { fetchFacts, type FactsResponse } from '../../data/liveMis/client';
 import { BalanceSheetTab, CashFlowTab, StatementsStatus } from '../../components/liveMis/StatementsTabs';
+import type { PeriodCol } from '../../data/statements/statementPeriods';
 import {
   periodsIn, rollup, totals, type Dimension, type Granularity as RrGranularity, type MetricKey,
 } from '../../data/liveMis/facts';
@@ -61,8 +62,8 @@ const LEGACY_TABS: Record<string, Tab> = {
 };
 const isTab = (v: string | null | undefined): v is Tab => !!v && TABS.some((t) => t.id === v);
 const resolveTab = (v: string | null | undefined): Tab | null => (isTab(v) ? v : v && LEGACY_TABS[v] ? LEGACY_TABS[v] : null);
-// Tabs that do not use the period controls (Statements carries its own months).
-const NO_PERIOD: Tab[] = ['statements'];
+// Tabs that do not use the period controls (none since PR 3, 22 Nov 2026: Statements follow the same period row as the P&L).
+const NO_PERIOD: Tab[] = [];
 // Tabs on which the Actual|Normalised COGM basis applies (Overview's headline, the whole P&L tab); the rest stay on actual COGM.
 const BASIS_TABS: Tab[] = ['overview', 'pnl'];
 
@@ -197,6 +198,8 @@ export function LiveMisPage() {
   );
   const periodKeys = useMemo(() => new Set(selected?.members ?? []), [selected]);
   const pnlCols = useMemo(() => (isRange && rangeAgg ? [...shownPeriods, rangeAgg] : shownPeriods), [isRange, rangeAgg, shownPeriods]);
+  // Statements (Balance sheet / Cash flow) take the same columns: a Balance sheet at each period end, a Cash flow summed over it.
+  const stmtCols = useMemo<PeriodCol[]>(() => pnlCols.map((p) => ({ key: p.key, label: p.label, members: p.members })), [pnlCols]);
   // Amazon traffic (Business Report) for the selected period — aggregated per SKU
   // across the period's months. Overview-only; never part of the P&L.
   const trafficRows = useMemo(() => {
@@ -260,8 +263,8 @@ export function LiveMisPage() {
         </>}
       />
 
-      {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} />}
-      {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} />}
+      {view && excelOpen && <LiveExcelModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setExcelOpen(false)} basis={basis} merged={merged} stmtCols={stmtCols} />}
+      {view && pdfOpen && <LivePdfModal deck={showLive ? swapAlternates(deck!) : deck!} open onClose={() => setPdfOpen(false)} basis={basis} merged={merged} stmtCols={stmtCols} />}
 
       <PageBody>
         {/* Product decisions are about products: Products tab only (they also sit in Tasks → Fix). Before 22 Nov 2026 this
@@ -301,10 +304,10 @@ export function LiveMisPage() {
                 </select>
               </Field>
             )}
-            <Field label="Channel names">
+            {tab !== 'statements' && <Field label="Channel names">
               <Pills label="Channel naming" value={chanPref} onChange={setChanPref}
                 options={[{ id: 'continuous', label: 'Merged' }, { id: 'booked', label: 'As booked' }]} />
-            </Field>
+            </Field>}
           </div>
         )}
         {showControls && isRange && view && preset === 'custom' && (
@@ -407,11 +410,11 @@ export function LiveMisPage() {
         {tab === 'statements' && <div className="mb-3"><StatementsStatus /></div>}
         {tab === 'statements' && (
           <Sections label="Statements section">
-            <Section id="st-bs" title="Balance sheet" defaultOpen meta="Month end, last 12 months, ₹ lakh, from the Tally trial balance">
-              <BalanceSheetTab />
+            <Section id="st-bs" title="Balance sheet" defaultOpen meta={`Position at each period end, ${selLabel}, ₹ lakh, from the Tally trial balance`}>
+              <BalanceSheetTab cols={stmtCols} selectedLabel={selected?.label} />
             </Section>
-            <Section id="st-cf" title="Cash flow" meta="Month to month, ₹ lakh: operations, investing, financing">
-              <CashFlowTab />
+            <Section id="st-cf" title="Cash flow" meta={`Operations, investing, financing over each period, ${selLabel}, ₹ lakh`}>
+              <CashFlowTab cols={stmtCols} selectedLabel={selected?.label} total={!isRange} />
             </Section>
           </Sections>
         )}

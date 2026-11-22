@@ -435,7 +435,12 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   Overview (Headline · Revenue & growth · Run-rate — whole business) · **P&L** (the MIS sheet `LiveMisSheetTab` with Show ₹ Lac | % of net
   revenue and **Basis Actual | Normalised** — ONE basis switch (`LiveView.basis`, default normalised) drives the Margin ladder & cost structure,
   Detailed P&L and By channel sections below it; "Download (this format)" writes what is shown, `MisFormatSource.percent` / `rows`) · Channels
-  (Channel mix · SKU × channel) · Products (SKU P&L · Units sold) · Statements (Balance sheet · Cash flow; no period bar). `Section` in
+  (Channel mix · SKU × channel) · Products (SKU P&L · Units sold) · Statements (Balance sheet · Cash flow; **same period row as the P&L since PR 3,
+  22 Nov 2026**: Monthly / Quarterly / Yearly / Range incl. custom months; pure `data/statements/statementPeriods.ts statementsForCols`
+  (test `server/test/statementPeriods.test.ts`): Balance sheet = position at each column's last month end with a TB (later member without a
+  TB named in a note), Cash flow = Σ its months' flows (opening = first, closing = last; a member with no flow is named), columns with no data
+  dropped; KPI tiles = the selected period; Excel / PDF Balance Sheet + Cash Flow follow the same columns, the MIS Sheet cash rows keep the
+  monthly flows (`LiveStatements.monthFlows`); the Channel names control is hidden on Statements). `Section` in
   `components/liveMis/shared.tsx` (open state in localStorage `mis-live-folds-v1`, first section of a tab open). Old tab ids (`?tab=missheet` …)
   map in `LEGACY_TABS`; `/reporting/mis/deck` redirects here (MISDeck.tsx deleted). Data freshness + uploads live on Setup only; repeat purchase /
   cohorts live in Ops → D2C → Customers (one link line).
