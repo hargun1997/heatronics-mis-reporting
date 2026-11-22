@@ -237,8 +237,11 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 - **Claude task (indirect):** the BOM costs Production serves come from the "Portal feeds: Mac Chrome" Claude task (its Tranzact part runs on the 18th).
   - Tally · P&L → `api`, READ ONLY, from STORED snapshots (Tally answers only while TallyPrime is open on Thakur Hardsoft's cloud
     with the company loaded). `.github/workflows/tally-poll.yml` POSTs `/api/tally/poll` (open path, status only) every 30 min Mon–Sat;
-    `tally/snapshots.ts scheduledDue` lets it run only from the 15th, 10:00–19:00 IST, every 20 min until last month has a copy taken on /
-    after the 15th, then once a day. Each poll stores this month, last month and ≤ 2 older unstored months (last 12) as
+    **WHOLE-FY RULE (founder, 22 Nov 2026): every Tally pull re-reads the financial year from 1 April to this month, stored months
+    included (back-dated / edited entries); a fresh answer replaces the stored month, an empty answer never does.**
+    `tally/snapshots.ts scheduledDue`: any day Mon–Sat 10:00–19:00 IST, ≥ 20 min apart; while a Day Books FY pass runs every check
+    continues it, after a finished pass the next starts 2 h later (`PASS_GAP_MS`). Each poll stores the P&L + TB of EVERY FY month
+    (`monthsToPull` = `fyMonthsTo`, April → this month, oldest first; ≈ 3 s a month live) as
     `tally/pnl-<YYYY-MM>` (+ `tally/state`, `tally/raw-last`). Request = Tally's "Profit and Loss" report exploded
     (`tally/pnl.ts`); every request passes `assertTallyReadOnly` (Export only). Real answer shape (checked on July 2026): group =
     DSPACCNAME + PLAMT/BSMAINAMT, line = DSPACCNAME + PLAMT/PLSUBAMT, ledger = BSNAME + BSAMT/BSSUBAMT; amounts carry the group's
@@ -256,6 +259,14 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     included, so a TB never enters the P&L cascade).
   - Shopify · Sales by variant → `api`: the connector's own `fetchFacts` (orders by day × variant, read only) for the month,
     committed so the close is frozen (an upload / pull for source+month wins over the live facts in `buildLiveDeck`).
+- **Day Books FY sweep (22 Nov 2026, `bookStore.ts pullBooksSweep` / `sweepOrder` / `advanceSweep`, store `tally/books-sweep`, tests
+  `tallyBooks.test.ts` + `tallyStatementsPull.test.ts`):** one Day Book request per day (5–11 s live), so a FY (~240 days) = 20–45 min of
+  Tally time = several runs. ONE pass shared by the poll (books in what is left of 230 s), "Pull Tally now" (82 s) and the TDS sync (240 s;
+  `runTdsSync` without `months`; `scheduledSync` also runs hourly while a pass is in progress): April → this month in order, a cut month
+  resumes from `tally/books-partial-<m>`, a finished month replaces `tally/books-<m>` (emptied-day / empty-month guards unchanged), after
+  the last month the next pass starts at April. A month with no new day read for `SWEEP_MAX_TRIES` (4) runs is skipped this pass
+  (`sweep.skipped`, stored copy kept). `GET /api/tally/books/status` returns `sweep`. `booksToPull` and the TDS `syncMonths` windows are
+  no longer used by any caller (syncMonths kept, pure + tested). TDS month-end `finalFor[last]` = last month's Day Book re-read on / after the 5th.
 - **Tally books (Tally health page `/tally`, READ ONLY):** `connectors/tally/books.ts` (pure: Day Book + "List of Accounts"
   Ledgers / Groups / Stock Items envelopes — Export Data only, `assertTallyReadOnly`; tolerant parsers; `tallyHealth` rules with
   "how to fix in TallyPrime"; voucher search) + `bookStore.ts` (`tally/masters`, `tally/books-<YYYY-MM>`, `tally/books-state`,
@@ -265,9 +276,10 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   masters answers is UNVERIFIED until the first live pull — check `tally/raw-books`.
 - **Live Balance Sheet + Cash Flow** (Live MIS tabs, READ ONLY): the poll also back-fills a Trial Balance for up to 3 of
   the last 13 months per run (`state.tbMonths`). **Statements pull (22 Nov 2026, test `server/test/tallyStatementsPull.test.ts`):**
-  `POST /api/tally/statements/pull {months?}` (signed in) = `snapshots.ts pullStatements`: P&L + TB per month, newest first, default
-  `statementMonthsDue` (last 13 months whose TB or P&L copy is missing or not final; the running month always), no P&L copy needed
-  first; stops between months (45 s left), the rest = `remaining`. Runs as ONE in-memory job (`tally/statementsJob.ts`: waits 25 s, then
+  `POST /api/tally/statements/pull {months?}` (signed in) = `snapshots.ts pullStatements`: P&L + TB per month in the order given, default
+  `statementMonthsDue` (the whole FY April → this month every time, then months before April in the last 13 that are missing or not
+  final, newest first), no P&L copy needed first; Setup slot pulls of Tally P&L / TB re-read the whole FY (a FY read < 2 min old is
+  reused); stops between months (45 s left), the rest = `remaining`. Runs as ONE in-memory job (`tally/statementsJob.ts`: waits 25 s, then
   `{status: running}`, `GET` polls; budget 240 s). `withTallyLock` = one Tally request stream per instance (poll, Pull now, statements
   pull, slot refresh; Silver is single-user; the books pull is NOT in the lock). The TB-basis reset now runs only after Tally answers (a
   failed poll used to empty `tbMonths`). `GET /api/tally/statements` adds per month `tbAsOf` / `pnlAsOf` / `final`, and `lastTryAt`,
