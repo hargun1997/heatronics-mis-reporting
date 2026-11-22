@@ -2,7 +2,9 @@
 // scroll box, an optional total row, and on phones one card per row (the `main` column is the card title, the `emph`
 // column sits on the right in bold, the rest show as "label value" lines). Pages pass columns + rows; no page
 // builds its own <table> markup for a plain list of numbers.
-import React from 'react';
+import React, { useState } from 'react';
+import { Drawer } from './overlays';
+import { buttonClass } from './Button';
 
 export interface Column<R> {
   key: string;
@@ -22,7 +24,7 @@ export interface Column<R> {
   className?: string;
 }
 
-export function DataTable<R>({ columns, rows, rowKey, total, label, minWidth = 560, onRow, empty = 'No rows.' }: {
+interface TableProps<R> {
   columns: Column<R>[];
   rows: R[];
   rowKey: (row: R, i: number) => string;
@@ -33,8 +35,31 @@ export function DataTable<R>({ columns, rows, rowKey, total, label, minWidth = 5
   minWidth?: number;
   onRow?: (row: R) => void;
   empty?: React.ReactNode;
-}) {
+  /** Rows shown before "Show all N" (the rest open in a drawer). Default 15; 0 = show every row. */
+  limit?: number;
+}
+
+export function DataTable<R>(props: TableProps<R>) {
+  const { rows, label, limit = 15, empty = 'No rows.' } = props;
+  const [all, setAll] = useState(false);
   if (!rows.length) return <p className="text-sm text-slate-600">{empty}</p>;
+  const cut = limit > 0 && rows.length > limit;
+  return (
+    <>
+      <TableBody {...props} rows={cut ? rows.slice(0, limit) : rows} total={cut ? undefined : props.total} />
+      {cut && (
+        <>
+          <button type="button" onClick={() => setAll(true)} className={buttonClass('text', 'md', 'mt-2')}>Show all {rows.length}</button>
+          <Drawer open={all} onClose={() => setAll(false)} title={`${label} (${rows.length})`} width={720}>
+            <div className="p-4"><TableBody {...props} wide /></div>
+          </Drawer>
+        </>
+      )}
+    </>
+  );
+}
+
+function TableBody<R>({ columns, rows, rowKey, total, label, minWidth = 560, onRow, wide }: TableProps<R> & { wide?: boolean }) {
   const cell = (c: Column<R>, r: R) => (c.cell ? c.cell(r) : String((r as Record<string, unknown>)[c.key] ?? ''));
   const main = columns.find((c) => c.main) ?? columns[0];
   const emph = columns.find((c) => c.emph);
@@ -67,7 +92,7 @@ export function DataTable<R>({ columns, rows, rowKey, total, label, minWidth = 5
       </ul>
 
       {/* sm and up: the table, scrolling inside its own box */}
-      <div tabIndex={0} role="region" aria-label={label} className="hidden max-h-[70vh] overflow-auto rounded-lg border border-slate-200 sm:block">
+      <div tabIndex={0} role="region" aria-label={label} className={`hidden overflow-auto rounded-lg border border-slate-200 sm:block ${wide ? 'max-h-[calc(100vh-9rem)]' : 'max-h-[480px]'}`}>
         <table className="w-full text-label" style={{ minWidth }}>
           <thead className="sticky top-0 z-10 bg-slate-50 text-left text-xs text-slate-600">
             <tr>{columns.map((c) => <th key={c.key} scope="col" className={`px-3 py-2 font-semibold ${c.num ? 'text-right' : ''}`}>{c.label}</th>)}</tr>

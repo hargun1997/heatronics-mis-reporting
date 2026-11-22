@@ -16,6 +16,7 @@ import { getUsage, usd, type UsageResponse } from '../../data/chat/usageClient';
 import { loadLiveDeck, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { monthLabel } from '../../data/misDeck/liveAnalytics';
 import { pillClass } from '../../components/ui/pill';
+import { DataTable } from '../../components/ui/DataTable';
 
 interface Preset { id: string; label: string; blurb: string; prompt: string; }
 const PRESETS: Preset[] = [
@@ -93,22 +94,12 @@ function SpendButton({ usage }: { usage: UsageResponse | null }) {
         <div className="space-y-3 text-sm">
           <p className="text-slate-700">Today <b className="tabular-nums">{usd(usage.today?.costUsd ?? 0)}</b> · {usage.today?.calls ?? 0} calls · last {usage.windowDays} days <b className="tabular-nums">{usd(usage.totalUsd)}</b></p>
           {usage.days.length === 0 ? <p className="text-slate-600">No calls yet.</p> : (
-            <table className="w-full text-label">
-              <thead><tr className="border-b border-slate-200 text-left text-xs text-slate-600">
-                <th className="py-1.5 pr-3 font-semibold">Day (IST)</th><th className="py-1.5 pr-3 text-right font-semibold">Calls</th>
-                <th className="py-1.5 pr-3 text-right font-semibold">Tokens in / out</th><th className="py-1.5 text-right font-semibold">Cost (USD)</th>
-              </tr></thead>
-              <tbody>
-                {usage.days.map((d) => (
-                  <tr key={d.date} className="border-b border-slate-100">
-                    <td className="py-1.5 pr-3 tabular-nums text-slate-700">{d.date}</td>
-                    <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{d.calls}</td>
-                    <td className="py-1.5 pr-3 text-right tabular-nums text-slate-600">{d.inputTokens.toLocaleString()} / {d.outputTokens.toLocaleString()}</td>
-                    <td className="py-1.5 text-right font-medium tabular-nums text-slate-900">${d.costUsd.toFixed(4)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable label="Calls by day" minWidth={420} rows={usage.days} rowKey={(d) => d.date} columns={[
+              { key: 'date', label: 'Day (IST)', main: true, cell: (d) => <span className="tabular-nums">{d.date}</span> },
+              { key: 'calls', label: 'Calls', num: true, cell: (d) => d.calls },
+              { key: 'tokens', label: 'Tokens in / out', num: true, quiet: true, cell: (d) => `${d.inputTokens.toLocaleString()} / ${d.outputTokens.toLocaleString()}` },
+              { key: 'cost', label: 'Cost (USD)', num: true, emph: true, cell: (d) => `$${d.costUsd.toFixed(4)}` },
+            ]} />
           )}
           <p className="text-xs text-slate-600">Cost = the tokens of each answer at Opus prices. Model: {models}.</p>
         </div>

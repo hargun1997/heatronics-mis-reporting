@@ -15,6 +15,7 @@ import { isActive, maskAccount, type Payee, type PayeeList } from '../../data/pa
 import { buildPaymentRows, inr, type BatchRow } from '../../data/payments/batch';
 import type { PayMode } from '../../data/payments/iciciFormats';
 import { StatusPill } from '../../components/ui/StatusPill';
+import { DataTable } from '../../components/ui/DataTable';
 
 /** ₹ in L / Cr for a tile (paise in). */
 const short = (paise: number) => { const r = paise / 100; return r >= 1e7 ? `₹${(r / 1e7).toFixed(2)} Cr` : r >= 1e5 ? `₹${(r / 1e5).toFixed(2)} L` : `₹${Math.round(r).toLocaleString('en-IN')}`; };
@@ -93,27 +94,16 @@ export function BulkPaymentsPage() {
             {cur === 'past' && (
               <Panel title="Past batches" count={batches.length} flush>
                 {batches.length ? (
-                  <div tabIndex={0} role="region" aria-label="Past batches, scroll sideways for more" className="overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-label">
-                      <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-600">
-                        <tr><th className="px-4 py-2">Batch</th><th className="px-3 py-2">Made</th><th className="px-3 py-2">By</th><th className="px-3 py-2">Pay on</th><th className="px-3 py-2 text-right">Payments</th><th className="px-3 py-2 text-right">Total</th><th className="px-3 py-2">From</th><th className="px-3 py-2"><span className="sr-only">Files</span></th></tr>
-                      </thead>
-                      <tbody>
-                        {batches.map((b) => (
-                          <tr key={b.id} className="border-t border-slate-100">
-                            <td className="px-4 py-2 font-mono">{b.id}</td>
-                            <td className="px-3 py-2">{fmtWhen(b.createdAt)}</td>
-                            <td className="px-3 py-2">{b.by}{!b.byVerified && <span className="text-xs text-slate-600"> (not signed in)</span>}</td>
-                            <td className="px-3 py-2">{b.date.split('-').reverse().join('-')}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{b.count}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">{inr(b.totalPaise)}</td>
-                            <td className="px-3 py-2 font-mono">{maskAccount(b.debitLast4)}</td>
-                            <td className="px-3 py-2"><button type="button" className={btnSecondary} onClick={() => again(b.id)}>Download again</button></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <div className="p-4"><DataTable label="Past batches" minWidth={760} rows={batches} rowKey={(b) => b.id} columns={[
+                    { key: 'id', label: 'Batch', main: true, cell: (b) => <span className="font-mono">{b.id}</span> },
+                    { key: 'made', label: 'Made', cell: (b) => fmtWhen(b.createdAt) },
+                    { key: 'by', label: 'By', cell: (b) => <>{b.by}{!b.byVerified && <span className="text-xs text-slate-600"> (not signed in)</span>}</> },
+                    { key: 'date', label: 'Pay on', cell: (b) => b.date.split('-').reverse().join('-') },
+                    { key: 'count', label: 'Payments', num: true, cell: (b) => b.count },
+                    { key: 'total', label: 'Total', num: true, emph: true, cell: (b) => inr(b.totalPaise) },
+                    { key: 'from', label: 'From', cell: (b) => <span className="font-mono">{maskAccount(b.debitLast4)}</span> },
+                    { key: 'files', label: 'Files', cell: (b) => <button type="button" className={btnSecondary} onClick={() => again(b.id)}>Download again</button> },
+                  ]} /></div>
                 ) : <div className="p-4"><Empty title="No batches yet" hint="Each payment file you download is saved here as a record. The page does not show the bank status." /></div>}
               </Panel>
             )}
