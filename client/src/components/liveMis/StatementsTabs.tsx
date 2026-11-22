@@ -1,12 +1,16 @@
 // Live MIS → Balance Sheet and Cash Flow tabs: month-end statements from Tally's stored Trial Balances
 // (GET /api/tally/statements, built by data/statements/statements.ts). Months appear as Tally is reached.
 import { Fragment, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, RefreshCw } from 'lucide-react';
 import { OTHER_WARN_INR, type BalanceSheet, type BsLine, type CashFlow } from '../../data/statements/statements';
-import { useStatements, type Resp } from './useStatements';
+import { monthLabel, statementsForCols, type PeriodCol } from '../../data/statements/statementPeriods';
+import { pullFromTally, pullMessage, statementsAsOf, tallyOffline, useStatements, type Resp } from './useStatements';
 import { KpiTile } from '../ui/KpiTile';
 import { ScrollBox } from '../ui/phone';
+import { Button } from '../ui/Button';
+import { StatusPill } from '../ui/StatusPill';
+import { FreshnessPill } from '../ui/FreshnessPill';
+import { toast } from '../ui/feedback';
 
 /** ₹ lakh, 2 decimals; negatives with a real minus sign; below ₹500 shows as 0.00 (never "-0.00"). */
 const lakh = (n: number | null | undefined) => {
@@ -20,16 +24,50 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 const label = (p: string) => `${MON[Number(p.slice(5)) - 1]} ${p.slice(2, 4)}`;
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'never');
 
-function Empty({ data, what }: { data: Resp | null; what: string }) {
+const day = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const istToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+
+async function onPull() {
+  const r = await pullFromTally();
+  toast(pullMessage(r, r ? null : 'see the status line'));
+}
+
+/** Status row for the Statements tab: as of, Tally last synced, offline, Pull from Tally. Shown once, above both sections. */
+export function StatementsStatus() {
+  const { data, pulling, pullErr } = useStatements();
+  if (!data) return null;
+  const { asOf, running, provisional } = statementsAsOf(data, istToday());
+  const offline = tallyOffline(data);
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm">
+      <span className="font-semibold text-slate-900">{asOf ? `As of ${day(asOf)}${running ? ' (month so far)' : ''}` : 'No Trial Balance stored'}</span>
+      <span className="text-slate-600">Tally last synced {when(data.reachedAt ?? data.lastOkAt)}</span>
+      <FreshnessPill label="Tally books" asOf={data.reachedAt ?? data.lastOkAt}
+        notes={['Each pull reads the whole financial year from 1 April: P&L and Trial Balance of every month.']} />
+      {offline && <StatusPill toneName="warning">Tally offline: stored copy</StatusPill>}
+      {provisional && <StatusPill toneName="warning">Last month not final</StatusPill>}
+      {pullErr && !pulling && <span role="alert" className="text-xs text-red-700">{pullErr}</span>}
+      <span className="ml-auto" />
+      {data.connected
+        ? <Button size="sm" icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden />} busy={pulling} busyLabel="Pulling the FY (up to 4 min)" onClick={() => void onPull()}>Pull from Tally</Button>
+        : <span className="text-xs text-slate-500">Tally is not connected. Add the host on Setup, Tally.</span>}
+    </div>
+  );
+}
+
+function Empty({ data, what, first, hasAny }: { data: Resp | null; what: string; first?: string; hasAny?: boolean }) {
+  if (hasAny) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">
+        <p className="font-medium text-slate-800">No data for this period.</p>
+        <p className="mt-1">Stored Trial Balances start at {first ? monthLabel(first) : 'a later month'}. Select a later period.</p>
+      </div>
+    );
+  }
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">
       <p className="font-medium text-slate-800">No Trial Balance stored yet{what ? `: no ${what}` : ''}.</p>
-      <p className="mt-1 max-w-2xl mx-auto">
-        The MIS copies Tally's month-end Trial Balance whenever TallyPrime is open on the cloud machine (last reached {when(data?.lastOkAt)});
-        the scheduled copy runs from the 15th of each month, so before that: open TallyPrime, then{' '}
-        <Link className="underline underline-offset-2" to="/reporting/mis/connectors#tally">Setup, Tally, Pull</Link>.
-        {data && !data.connected && <> The Tally host is not set yet: add it on that card first.</>}
-      </p>
+      <p className="mt-1">Tally last answered {when(data?.reachedAt ?? data?.lastOkAt)}. Open TallyPrime on the cloud machine, then click Pull from Tally.</p>
     </div>
   );
 }
@@ -52,13 +90,14 @@ const th = 'px-2 py-1.5 text-right font-semibold whitespace-nowrap';
 const td = 'px-2 py-1 text-right tabular-nums whitespace-nowrap';
 const stick = 'sticky left-0 z-10 bg-white';
 
-export function BalanceSheetTab() {
+/** Columns from the page's period row (Monthly, Quarterly, Yearly, Range); none = the last 12 month ends. */
+export function BalanceSheetTab({ cols, selectedLabel }: { cols?: PeriodCol[]; selectedLabel?: string }) {
   const { data, built, err } = useStatements();
   const [open, setOpen] = useState<Set<string>>(new Set());
   if (err) return <p role="alert" className="text-sm text-red-700">Could not load the statements: {err}</p>;
   if (!data) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
-  const sheets = (built?.sheets ?? []).slice(-12);
-  if (!sheets.length) return <Empty data={data} what="Balance Sheet" />;
+  const sheets = cols ? statementsForCols(built, cols).sheets : (built?.sheets ?? []).slice(-12);
+  if (!sheets.length) return <Empty data={data} what="Balance Sheet" first={built?.sheets[0]?.period} hasAny={!!built?.sheets.length} />;
 
   // Row labels in order, per section, across every month shown.
   const labels = (pick: (b: BalanceSheet) => BsLine[]) => {
@@ -117,21 +156,22 @@ export function BalanceSheetTab() {
     </>
   );
   const sum = (ls: BsLine[]) => ls.reduce((s, l) => s + l.amount, 0);
-  const warnings = [...new Set(sheets.flatMap((b) => b.warnings.map((w) => `${label(b.period)}: ${w}`)))];
-  const b = sheets[sheets.length - 1];
+  const warnings = [...new Set(sheets.flatMap((b) => b.warnings.map((w) => `${/^\d{4}-\d{2}$/.test(b.period) ? label(b.period) : b.period}: ${w}`)))];
+  const b = sheets.find((x) => x.period === selectedLabel) ?? sheets[sheets.length - 1];
+  const head = (p: string) => (/^\d{4}-\d{2}$/.test(p) ? label(p) : p);
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi k="Cash & bank" v={b.cash} sub={label(b.period)} />
-        <Kpi k="Bank OD / CC owed" v={b.bankOd} sub={label(b.period)} />
-        <Kpi k="Working capital" v={b.workingCapital} sub={label(b.period)} />
-        <Kpi k="Profit, FY to date" v={b.fyProfit} sub={label(b.period)} />
+        <Kpi k="Cash & bank" v={b.cash} sub={head(b.period)} />
+        <Kpi k="Bank OD / CC owed" v={b.bankOd} sub={head(b.period)} />
+        <Kpi k="Working capital" v={b.workingCapital} sub={head(b.period)} />
+        <Kpi k="Profit, FY to date" v={b.fyProfit} sub={head(b.period)} />
       </div>
       <Warnings items={warnings} />
       <ScrollBox label="Balance Sheet" className="rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-label">
-          <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh, month end</th>{sheets.map((s) => <th key={s.period} className={th}>{label(s.period)}</th>)}</tr></thead>
+          <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh, at period end</th>{sheets.map((s) => <th key={s.period} className={th}>{head(s.period)}</th>)}</tr></thead>
           <tbody>
             {section('Equity', (s) => s.equity, (s) => sum(s.equity))}
             {section('Liabilities', (s) => s.liabilities, (s) => sum(s.liabilities))}
@@ -142,21 +182,24 @@ export function BalanceSheetTab() {
       </ScrollBox>
       <p className="text-xs text-slate-500">
         From Tally's Trial Balance at each month end, asked from 1 April (read only); closing stock from that month's P&L replaces the
-        opening stock Tally's Trial Balance carries. Click a group to see its sub-groups and ledgers. Latest Tally copy: {when(b.asOf)}.
+        opening stock Tally's Trial Balance carries. Click a group to see its sub-groups and ledgers. A quarter or year shows the position at its last month end. Copy of {head(b.period)} taken {when(b.asOf)}.
       </p>
     </div>
   );
 }
 
-export function CashFlowTab() {
+/** Columns from the page's period row; a column = the sum of its months. `total` adds a Total column over the shown columns. */
+export function CashFlowTab({ cols, selectedLabel, total = true }: { cols?: PeriodCol[]; selectedLabel?: string; total?: boolean }) {
   const { data, built, err } = useStatements();
   if (err) return <p role="alert" className="text-sm text-red-700">Could not load the statements: {err}</p>;
   if (!data) return <p className="py-8 text-center text-sm text-slate-400">Loading…</p>;
-  const flows = (built?.flows ?? []).slice(-12);
-  if (!flows.length) return <Empty data={data} what="Cash Flow (it needs two month ends in a row)" />;
+  const flows = cols ? statementsForCols(built, cols).flows : (built?.flows ?? []).slice(-12);
+  if (!flows.length) return <Empty data={data} what="Cash Flow (it needs two month ends in a row)" first={built?.flows[0]?.period} hasAny={!!built?.flows.length} />;
+  const head = (p: string) => (/^\d{4}-\d{2}$/.test(p) ? label(p) : p);
+  const showTotal = total && flows.length > 1;
   type Kind = 'bold' | 'sub' | 'memo' | '';
   const rows: [string, (f: CashFlow) => number | null, Kind][] = [
-    ['Profit for the month', (f) => f.profit, ''],
+    ['Profit for the period', (f) => f.profit, ''],
     ['Add: depreciation', (f) => f.depreciation, 'sub'],
     ...flows[0].workingCapital.map((w, i) => [w.label, (f: CashFlow) => f.workingCapital[i].amount, 'sub'] as [string, (f: CashFlow) => number, Kind]),
     ['Cash from operations', (f) => f.operating, 'bold'],
@@ -171,27 +214,28 @@ export function CashFlowTab() {
     ['Net change in cash & bank', (f) => f.netChange, 'bold'],
     ['Opening cash & bank', (f) => f.openingCash, ''],
     ['Closing cash & bank', (f) => f.closingCash, 'bold'],
-    ['Memo: profit per the month\'s P&L copy', (f) => f.pnlProfit, 'memo'],
+    ['Memo: profit per the P&L copies', (f) => f.pnlProfit, 'memo'],
   ];
   const last = flows[flows.length - 1];
-  const warnings = [...new Set(flows.flatMap((f) => f.warnings.map((w) => `${label(f.period)}: ${w}`)))];
+  const sel = flows.find((f) => f.period === selectedLabel) ?? last;
+  const warnings = [...new Set(flows.flatMap((f) => f.warnings.map((w) => `${head(f.period)}: ${w}`)))];
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi k="Cash from operations" v={last.operating} sub={label(last.period)} />
-        <Kpi k="Capex" v={last.capex} sub={label(last.period)} />
-        <Kpi k="Equity + loans" v={last.financing} sub={label(last.period)} />
-        <Kpi k="Net change in cash" v={last.netChange} sub={label(last.period)} />
+        <Kpi k="Cash from operations" v={sel.operating} sub={head(sel.period)} />
+        <Kpi k="Capex" v={sel.capex} sub={head(sel.period)} />
+        <Kpi k="Equity + loans" v={sel.financing} sub={head(sel.period)} />
+        <Kpi k="Net change in cash" v={sel.netChange} sub={head(sel.period)} />
       </div>
       <Warnings items={warnings} />
       <ScrollBox label="Cash Flow" className="rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-label">
-          <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh</th>{flows.map((f) => <th key={f.period} className={th}>{label(f.period)}</th>)}<th className={`${th} bg-slate-50`}>Total</th></tr></thead>
+          <thead><tr className="text-xs text-slate-500"><th className={`${stick} px-2 py-1.5 text-left font-semibold`}>₹ lakh</th>{flows.map((f) => <th key={f.period} className={th}>{head(f.period)}</th>)}{showTotal && <th className={`${th} bg-slate-50`}>Total</th>}</tr></thead>
           <tbody>
             {rows.map(([lab, get, kind]) => {
               const isBal = /^(opening|closing)/i.test(lab);
               const vals = flows.map(get);
-              const total = isBal ? (/^opening/i.test(lab) ? flows[0].openingCash : last.closingCash) : vals.some((v) => v == null) ? null : vals.reduce<number>((s, v) => s + (v ?? 0), 0);
+              const sum = isBal ? (/^opening/i.test(lab) ? flows[0].openingCash : last.closingCash) : vals.some((v) => v == null) ? null : vals.reduce<number>((s, v) => s + (v ?? 0), 0);
               const isOther = /^unexplained/i.test(lab);
               return (
                 <tr key={lab} className={`border-t border-slate-100 ${kind === 'bold' ? 'font-semibold' : ''} ${kind === 'memo' ? 'text-slate-400 italic' : ''}`}>
@@ -199,7 +243,7 @@ export function CashFlowTab() {
                   {vals.map((v, i) => (
                     <td key={flows[i].period} className={`${td} ${neg(v)} ${isOther && v != null && Math.abs(v) >= OTHER_WARN_INR ? 'bg-amber-50 font-semibold text-amber-800' : ''}`}>{lakh(v)}</td>
                   ))}
-                  <td className={`${td} bg-slate-50 ${neg(total)}`}>{lakh(total)}</td>
+                  {showTotal && <td className={`${td} bg-slate-50 ${neg(sum)}`}>{lakh(sum)}</td>}
                 </tr>
               );
             })}
@@ -207,7 +251,7 @@ export function CashFlowTab() {
         </table>
       </ScrollBox>
       <p className="text-xs text-slate-500">
-        We use two month-end Balance Sheets from Tally. Operating cash is profit plus depreciation, less the change in working capital.
+        Each month uses two month-end Balance Sheets from Tally. A quarter, year or range adds its months. Operating cash is profit plus depreciation, less the change in working capital.
         Capex is the change in fixed assets plus depreciation. Financing is the change in capital and loans (bank OD and CC are loans).
         The sections add up to the change in cash and bank. "Unexplained" must stay near zero. We mark it from
         ₹{OTHER_WARN_INR.toLocaleString('en-IN')}.

@@ -13,6 +13,7 @@ import { aggregatePeriods, monthLabel, type Granularity } from '../../data/misDe
 // The Excel / PDF builders (xlsx-js-style, jspdf) are imported when a download is clicked, not with the page.
 import { liveSheetCount, LIVE_EXPORT_EVERYTHING, type LiveExportOptions } from '../../utils/liveMisSource';
 import { useStatements } from './useStatements';
+import { statementsForCols, type PeriodCol } from '../../data/statements/statementPeriods';
 import type { PdfSection } from '../../utils/liveMisPdf';
 import type { CogmBasis } from './shared';
 
@@ -41,16 +42,19 @@ const chip = (on: boolean) => `min-h-11 sm:min-h-8 px-3 rounded-full text-xs bor
 const btnPrimary = buttonClass('primary');
 const btnGhost = buttonClass('secondary');
 
-export function LiveExcelModal({ deck, open, onClose, basis, merged }: {
+export function LiveExcelModal({ deck, open, onClose, basis, merged, stmtCols }: {
   deck: LiveDeckData; open: boolean; onClose: () => void; basis: CogmBasis; merged: boolean;
+  /** The Live MIS period row: the Balance Sheet / Cash Flow sheets follow it (PR 3). None = the last 12 months. */
+  stmtCols?: PeriodCol[];
 }) {
   const [busy, setBusy] = useState(false);
   const stmts = useStatements();
+  const stmtBuilt = useMemo(() => (stmtCols && stmts.built ? { ...statementsForCols(stmts.built, stmtCols), monthFlows: stmts.built.flows } : stmts.built), [stmtCols, stmts.built]);
   const [o, setO] = useState<LiveExportOptions>(() => ({ ...LIVE_EXPORT_EVERYTHING, normaliseCogm: basis === 'normalised', mergeChannels: merged }));
   const n = liveSheetCount(o);
   const run = async (opts: LiveExportOptions) => {
     setBusy(true);
-    try { const { exportLiveMis } = await import('../../utils/liveMisExport'); await exportLiveMis(deck, opts, stmts.built); setTimeout(onClose, 300); }
+    try { const { exportLiveMis } = await import('../../utils/liveMisExport'); await exportLiveMis(deck, opts, stmtBuilt); setTimeout(onClose, 300); }
     catch (e) { console.error('Live MIS export failed', e); toast('Download did not work. Try again.'); }
     finally { setBusy(false); }
   };
@@ -114,8 +118,8 @@ const SECTIONS: { id: PdfSection; title: string; desc: string }[] = [
   { id: 'misSheet', title: 'MIS Sheet', desc: 'The standard MIS Sheet per fiscal year selected, with the Tally cash rows' },
 ];
 
-export function LivePdfModal({ deck, open, onClose, basis, merged }: {
-  deck: LiveDeckData; open: boolean; onClose: () => void; basis: CogmBasis; merged: boolean;
+export function LivePdfModal({ deck, open, onClose, basis, merged, stmtCols }: {
+  deck: LiveDeckData; open: boolean; onClose: () => void; basis: CogmBasis; merged: boolean; stmtCols?: PeriodCol[];
 }) {
   const years = useMemo(() => aggregatePeriods(deck.months, deck.completeness, 'year'), [deck]);
   const [sections, setSections] = useState<PdfSection[]>(['trends', 'fyPnl']);
@@ -123,10 +127,11 @@ export function LivePdfModal({ deck, open, onClose, basis, merged }: {
   const [monthKeys, setMonthKeys] = useState<string[]>(() => deck.periods.slice(-1));
   const [busy, setBusy] = useState(false);
   const stmts = useStatements();
+  const stmtBuilt = useMemo(() => (stmtCols && stmts.built ? { ...statementsForCols(stmts.built, stmtCols), monthFlows: stmts.built.flows } : stmts.built), [stmtCols, stmts.built]);
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const run = async () => {
     setBusy(true);
-    try { const { downloadLivePdf } = await import('../../utils/liveMisPdf'); downloadLivePdf(deck, { sections, fyKeys, monthKeys, normaliseCogm: basis === 'normalised', mergeChannels: merged }, stmts.built); setTimeout(onClose, 300); }
+    try { const { downloadLivePdf } = await import('../../utils/liveMisPdf'); downloadLivePdf(deck, { sections, fyKeys, monthKeys, normaliseCogm: basis === 'normalised', mergeChannels: merged }, stmtBuilt); setTimeout(onClose, 300); }
     catch (e) { console.error('PDF export failed', e); toast('PDF did not build. Try again.'); }
     finally { setBusy(false); }
   };

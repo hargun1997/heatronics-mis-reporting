@@ -32,7 +32,7 @@ import { Router, type Request, type Response } from 'express';
 import { getEffectiveCredentials } from '../connectors/credentialStore.js';
 import { isFinalCopy, pollTally, readTallySnapshot, readTallyState, readTallyTb, statementMonthsDue } from '../connectors/tally/snapshots.js';
 import { startStatementsPull, statementsJob } from '../connectors/tally/statementsJob.js';
-import { addDayToPartial, latestMonths, mergePartial, pullBooks, pullDay, readBooks, readBooksState, readMasters, readPartial, readVouchers } from '../connectors/tally/bookStore.js';
+import { addDayToPartial, latestMonths, mergePartial, pullBooks, pullBooksSweep, pullDay, readBooks, readBooksState, readMasters, readPartial, readSweep, readVouchers } from '../connectors/tally/bookStore.js';
 import { findVouchers, ledgerListText, tallyHealth, voucherLine, type HealthReport, type TallyVoucher } from '../connectors/tally/books.js';
 import { buildChart, closingByLedger, type ChartReport } from '../connectors/tally/chart.js';
 import { openingReport } from '../connectors/tally/opening.js';
@@ -197,6 +197,7 @@ router.get('/books/status', h(async (_req, res) => {
     months: s.months,
     lastTryAt: s.lastTryAt,
     lastError: s.lastError,
+    sweep: await readSweep(),
   });
 }));
 
@@ -205,8 +206,12 @@ router.post('/books/pull', h(async (req, res) => {
   if (!(c.host || '').trim()) return res.json({ status: 'not_connected', detail: 'Enter the Tally host and port on Setup → Tally.' });
   const periods = Array.isArray(req.body?.periods) ? (req.body.periods as unknown[]).filter((p): p is string => typeof p === 'string' && PERIOD.test(p)).slice(0, 6) : undefined;
   const masters = req.body?.masters === true; // {masters:true, periods:[]} = ledger masters + openings only
-  const r = await pullBooks(c, { force: !periods && !masters, masters, budgetMs: 82_000, periods: masters && !periods ? [] : periods }); // under the proxy cut (503 at ~90 s); a busy Tally took > 45 s for one day (13 Nov 2026), so a day may take up to 78 s; every day is saved, months resume
-  res.json({ status: r.error && !r.masters && !r.months.length && !/pull again/.test(r.error) ? 'down' : 'ok', ...r });
+  // Budget 82 s: under the proxy cut (503 at ~90 s); a busy Tally took > 45 s for one day (13 Nov 2026). Every day is saved,
+  // months resume. No periods = continue the FY sweep (April → this month, stored months read again; 22 Nov 2026).
+  const r = periods || masters
+    ? await pullBooks(c, { force: !periods && !masters, masters, budgetMs: 82_000, periods: masters && !periods ? [] : periods })
+    : await pullBooksSweep(c, { budgetMs: 82_000 });
+  res.json({ status: r.error && !r.masters && !r.months.length && !/pull again/i.test(r.error) ? 'down' : 'ok', ...r });
 }));
 
 export async function health(months: number): Promise<HealthReport & { asOf: Record<string, string>; mastersAt: string | null }> {

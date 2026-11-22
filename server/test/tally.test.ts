@@ -51,26 +51,24 @@ test('P&L XML (real Tally shape) → ledger rows as the Excel shows them + Nett 
   assert.ok(parsePnlXml('<ENVELOPE><X/></ENVELOPE>', '2026-07').warnings[0].includes('raw answer was kept'));
 });
 
-test('poll months: this + last month always, then up to 2 older ones not stored', () => {
-  const now = Date.parse('2026-11-02T14:00:00Z');
-  assert.deepEqual(monthsToPull(now, {}), ['2026-11', '2026-10', '2026-09', '2026-08']);
-  assert.deepEqual(monthsToPull(now, { '2026-09': 'x', '2026-08': 'x' }), ['2026-11', '2026-10', '2026-07', '2026-06']);
+test('poll months: the whole FY, April → this month, stored months included (22 Nov 2026)', () => {
+  assert.deepEqual(monthsToPull(Date.parse('2026-11-02T14:00:00Z')), ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']);
+  assert.deepEqual(monthsToPull(Date.parse('2027-02-10T06:00:00Z')).slice(-3), ['2026-12', '2027-01', '2027-02']);
+  assert.deepEqual(monthsToPull(Date.parse('2027-04-03T06:00:00Z')), ['2027-04']); // a new FY starts on 1 April
 });
 
-test('schedule: from the 15th, Mon–Sat 10:00–19:00 IST; every 20 min until last month is final, then daily', () => {
+test('schedule: any day Mon–Sat 10:00–19:00 IST, 20 min apart; a running FY pass continues, a done one waits 2 h', () => {
   const st = (o = {}) => ({ lastTryAt: null, lastOkAt: null, lastError: null, company: null, months: {}, ...o });
+  const sw = (o = {}) => ({ fy: '2026-04', next: null, passStartedAt: null, lastPassDoneAt: null, tries: {}, skipped: {}, ...o });
   const at = (iso: string) => Date.parse(iso);
-  assert.equal(scheduledDue(at('2026-11-02T08:00:00+05:30'), st()).due, false); // before 10:00 and before the 15th
-  assert.equal(scheduledDue(at('2026-11-12T12:00:00+05:30'), st()).due, false); // the 12th: too early
+  assert.equal(scheduledDue(at('2026-11-02T08:00:00+05:30'), st()).due, false); // before 10:00
+  assert.equal(scheduledDue(at('2026-11-12T12:00:00+05:30'), st()).due, true);  // the 12th: no longer too early
   assert.equal(scheduledDue(at('2026-11-22T12:00:00+05:30'), st()).due, false); // Sunday
   assert.equal(scheduledDue(at('2026-11-16T19:30:00+05:30'), st()).due, false); // after 19:00
-  assert.equal(scheduledDue(at('2026-11-16T11:00:00+05:30'), st()).due, true);
   assert.equal(scheduledDue(at('2026-11-16T11:00:00+05:30'), st({ lastTryAt: '2026-11-16T05:20:00Z' })).due, false); // 10:50 IST
-  const final = st({ months: { '2026-10': '2026-11-16T05:30:00Z' }, lastOkAt: '2026-11-16T05:30:00Z', lastTryAt: '2026-11-16T05:30:00Z' });
-  assert.equal(scheduledDue(at('2026-11-16T16:00:00+05:30'), final).due, false); // already taken today
-  assert.equal(scheduledDue(at('2026-11-17T11:00:00+05:30'), final).due, true);  // daily refresh
-  const early = st({ months: { '2026-10': '2026-11-10T06:00:00Z' } }); // taken before the 15th → not final
-  assert.equal(scheduledDue(at('2026-11-16T11:00:00+05:30'), early).due, true);
+  assert.equal(scheduledDue(at('2026-11-16T11:00:00+05:30'), st(), sw({ next: '2026-07' })).due, true);
+  assert.equal(scheduledDue(at('2026-11-16T11:00:00+05:30'), st(), sw({ lastPassDoneAt: '2026-11-16T04:30:00Z' })).due, false); // done 1 h ago
+  assert.equal(scheduledDue(at('2026-11-16T13:00:00+05:30'), st(), sw({ lastPassDoneAt: '2026-11-16T04:30:00Z' })).due, true);  // 3 h ago
 });
 
 test('Trial Balance XML → closing Dr / Cr per group, ledgers kept apart, ties checked (made-up figures)', async () => {

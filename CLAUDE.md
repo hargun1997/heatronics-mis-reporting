@@ -237,8 +237,11 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 - **Claude task (indirect):** the BOM costs Production serves come from the "Portal feeds: Mac Chrome" Claude task (its Tranzact part runs on the 18th).
   - Tally · P&L → `api`, READ ONLY, from STORED snapshots (Tally answers only while TallyPrime is open on Thakur Hardsoft's cloud
     with the company loaded). `.github/workflows/tally-poll.yml` POSTs `/api/tally/poll` (open path, status only) every 30 min Mon–Sat;
-    `tally/snapshots.ts scheduledDue` lets it run only from the 15th, 10:00–19:00 IST, every 20 min until last month has a copy taken on /
-    after the 15th, then once a day. Each poll stores this month, last month and ≤ 2 older unstored months (last 12) as
+    **WHOLE-FY RULE (founder, 22 Nov 2026): every Tally pull re-reads the financial year from 1 April to this month, stored months
+    included (back-dated / edited entries); a fresh answer replaces the stored month, an empty answer never does.**
+    `tally/snapshots.ts scheduledDue`: any day Mon–Sat 10:00–19:00 IST, ≥ 20 min apart; while a Day Books FY pass runs every check
+    continues it, after a finished pass the next starts 2 h later (`PASS_GAP_MS`). Each poll stores the P&L + TB of EVERY FY month
+    (`monthsToPull` = `fyMonthsTo`, April → this month, oldest first; ≈ 3 s a month live) as
     `tally/pnl-<YYYY-MM>` (+ `tally/state`, `tally/raw-last`). Request = Tally's "Profit and Loss" report exploded
     (`tally/pnl.ts`); every request passes `assertTallyReadOnly` (Export only). Real answer shape (checked on July 2026): group =
     DSPACCNAME + PLAMT/BSMAINAMT, line = DSPACCNAME + PLAMT/PLSUBAMT, ledger = BSNAME + BSAMT/BSSUBAMT; amounts carry the group's
@@ -256,6 +259,14 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
     included, so a TB never enters the P&L cascade).
   - Shopify · Sales by variant → `api`: the connector's own `fetchFacts` (orders by day × variant, read only) for the month,
     committed so the close is frozen (an upload / pull for source+month wins over the live facts in `buildLiveDeck`).
+- **Day Books FY sweep (22 Nov 2026, `bookStore.ts pullBooksSweep` / `sweepOrder` / `advanceSweep`, store `tally/books-sweep`, tests
+  `tallyBooks.test.ts` + `tallyStatementsPull.test.ts`):** one Day Book request per day (5–11 s live), so a FY (~240 days) = 20–45 min of
+  Tally time = several runs. ONE pass shared by the poll (books in what is left of 230 s) and "Pull Tally now" (82 s): April → this month in order, a cut month
+  resumes from `tally/books-partial-<m>`, a finished month replaces `tally/books-<m>` (emptied-day / empty-month guards unchanged), after
+  the last month the next pass starts at April. A month with no new day read for `SWEEP_MAX_TRIES` (4) runs is skipped this pass
+  (`sweep.skipped`, stored copy kept). `GET /api/tally/books/status` returns `sweep`. `booksToPull` is gone. The TDS sync runs its OWN whole-FY
+  pass (`supplierInvoices.passMonths`, this month first, #447); both passes write the same `tally/books-*` store, so a month either one
+  reads counts as fresh for the other (the poll's sweep may re-read a month the TDS sync just read: extra Tally time, no harm).
 - **Tally books (Tally health page `/tally`, READ ONLY):** `connectors/tally/books.ts` (pure: Day Book + "List of Accounts"
   Ledgers / Groups / Stock Items envelopes — Export Data only, `assertTallyReadOnly`; tolerant parsers; `tallyHealth` rules with
   "how to fix in TallyPrime"; voucher search) + `bookStore.ts` (`tally/masters`, `tally/books-<YYYY-MM>`, `tally/books-state`,
@@ -265,13 +276,19 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   masters answers is UNVERIFIED until the first live pull — check `tally/raw-books`.
 - **Live Balance Sheet + Cash Flow** (Live MIS tabs, READ ONLY): the poll also back-fills a Trial Balance for up to 3 of
   the last 13 months per run (`state.tbMonths`). **Statements pull (22 Nov 2026, test `server/test/tallyStatementsPull.test.ts`):**
-  `POST /api/tally/statements/pull {months?}` (signed in) = `snapshots.ts pullStatements`: P&L + TB per month, newest first, default
-  `statementMonthsDue` (last 13 months whose TB or P&L copy is missing or not final; the running month always), no P&L copy needed
-  first; stops between months (45 s left), the rest = `remaining`. Runs as ONE in-memory job (`tally/statementsJob.ts`: waits 25 s, then
+  `POST /api/tally/statements/pull {months?}` (signed in) = `snapshots.ts pullStatements`: P&L + TB per month in the order given, default
+  `statementMonthsDue` (the whole FY April → this month every time, then months before April in the last 13 that are missing or not
+  final, newest first), no P&L copy needed first; Setup slot pulls of Tally P&L / TB re-read the whole FY (a FY read < 2 min old is
+  reused); stops between months (45 s left), the rest = `remaining`. Runs as ONE in-memory job (`tally/statementsJob.ts`: waits 25 s, then
   `{status: running}`, `GET` polls; budget 240 s). `withTallyLock` = one Tally request stream per instance (poll, Pull now, statements
   pull, slot refresh; Silver is single-user; the books pull is NOT in the lock). The TB-basis reset now runs only after Tally answers (a
   failed poll used to empty `tbMonths`). `GET /api/tally/statements` adds per month `tbAsOf` / `pnlAsOf` / `final`, and `lastTryAt`,
-  `lastError`, `reachedAt`, `due`, `pulling`. Note: Tally health "Pull Tally now" pulls the books only (masters + Day Books), not P&L / TB. `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
+  `lastError`, `reachedAt`, `due`, `pulling`. Note: Tally health "Pull Tally now" pulls the books only (masters + Day Books), not P&L / TB. **Statements status row (PR 2, 22 Nov
+  2026, `StatementsTabs.tsx StatementsStatus`, store `useStatements.ts`, test `server/test/statementsStatus.test.ts`):** one row above the
+  Balance sheet / Cash flow sections: "As of <newest month end with a TB>" (running month = today, "month so far"), "Tally last synced
+  <reachedAt>", Tally `FreshnessPill`, pills "Tally offline: stored copy" (`tallyOffline`) and "Last month not final", and the
+  "Pull from Tally" button (`pullFromTally`: POST then polls GET every 5 s, up to 6 min; toast `pullMessage`). One page-wide store, so
+  both sections and the row share the copy and the pull. Offline = the statements still show from the last stored TBs. `GET /api/tally/statements` = stored TBs + each month's P&L copy (closing stock,
   depreciation, Nett Profit); pure builder `client/src/data/statements/statements.ts` (BS from Tally's primary groups + closing
   stock + FY profit to date; indirect cash flow from consecutive BSs, sections sum to Δ cash & bank; `misCashRows` fills the MIS
   Sheet cash rows). Tests `server/test/statements.test.ts`. The TB is asked from 1 April (`tbEnvelope`, snapshot `basis:
@@ -418,7 +435,12 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   Overview (Headline · Revenue & growth · Run-rate — whole business) · **P&L** (the MIS sheet `LiveMisSheetTab` with Show ₹ Lac | % of net
   revenue and **Basis Actual | Normalised** — ONE basis switch (`LiveView.basis`, default normalised) drives the Margin ladder & cost structure,
   Detailed P&L and By channel sections below it; "Download (this format)" writes what is shown, `MisFormatSource.percent` / `rows`) · Channels
-  (Channel mix · SKU × channel) · Products (SKU P&L · Units sold) · Statements (Balance sheet · Cash flow; no period bar). `Section` in
+  (Channel mix · SKU × channel) · Products (SKU P&L · Units sold) · Statements (Balance sheet · Cash flow; **same period row as the P&L since PR 3,
+  22 Nov 2026**: Monthly / Quarterly / Yearly / Range incl. custom months; pure `data/statements/statementPeriods.ts statementsForCols`
+  (test `server/test/statementPeriods.test.ts`): Balance sheet = position at each column's last month end with a TB (later member without a
+  TB named in a note), Cash flow = Σ its months' flows (opening = first, closing = last; a member with no flow is named), columns with no data
+  dropped; KPI tiles = the selected period; Excel / PDF Balance Sheet + Cash Flow follow the same columns, the MIS Sheet cash rows keep the
+  monthly flows (`LiveStatements.monthFlows`); the Channel names control is hidden on Statements). `Section` in
   `components/liveMis/shared.tsx` (open state in localStorage `mis-live-folds-v1`, first section of a tab open). Old tab ids (`?tab=missheet` …)
   map in `LEGACY_TABS`; `/reporting/mis/deck` redirects here (MISDeck.tsx deleted). Data freshness + uploads live on Setup only; repeat purchase /
   cohorts live in Ops → D2C → Customers (one link line).

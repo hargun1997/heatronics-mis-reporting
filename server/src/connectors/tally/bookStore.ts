@@ -32,13 +32,84 @@ export function addMonths(p: string, n: number): string {
   return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7);
 }
 
-/** Day Books to take: this + last month when older than 6 h (always when forced), then the newest unstored of the last 12. */
-export function booksToPull(now: number, s: BooksState, force = false): string[] {
+/** Months of the Indian financial year `now` falls in: April → this month (IST), oldest first. */
+export function fyMonthsTo(now: number): string[] {
   const cur = istMonth(now);
-  const stale = (p: string) => force || !s.months[p] || now - Date.parse(s.months[p]) > 6 * H;
-  const out = [cur, addMonths(cur, -1)].filter(stale);
-  for (let i = 2; i <= 12; i++) { const p = addMonths(cur, -i); if (!s.months[p]) { out.push(p); if (out.length >= 4) break; } }
+  const [y, m] = cur.split('-').map(Number);
+  const start = `${m >= 4 ? y : y - 1}-04`;
+  const out: string[] = [];
+  for (let p = start; p <= cur; p = addMonths(p, 1)) out.push(p);
   return out;
+}
+
+// ---- FY sweep (founder, 22 Nov 2026: "every Tally pull must re-read the WHOLE financial year from 1 April": older
+// entries get edited or back-dated, and the stored copy must catch it). One Day Book request per day (Tally ignores a
+// range), 5–11 s a day, so a whole FY (~240 days) is 20–45 min of Tally time: far more than one run. Every caller (the
+// scheduled poll, "Pull Tally now", the TDS sync) continues ONE pass: April → this month in order, a cut month resumes
+// from its partial file (days already read are kept), a finished month replaces its stored copy (same guards as
+// before: an empty or half-empty answer never replaces good books). After the last month the next pass starts at April.
+export interface BooksSweep {
+  fy: string | null;          // FY start month of the pass, YYYY-04
+  next: string | null;        // month the next run starts at; null = start a new pass at April
+  passStartedAt: string | null;
+  lastPassDoneAt: string | null;
+  /** Runs in a row where a month made no progress (no new day read): after SWEEP_MAX_TRIES it is skipped this pass. */
+  tries: Record<string, number>;
+  /** Months skipped in the current pass (stored copy kept), with the reason. Cleared when a new pass starts. */
+  skipped: Record<string, string>;
+}
+export const EMPTY_SWEEP: BooksSweep = { fy: null, next: null, passStartedAt: null, lastPassDoneAt: null, tries: {}, skipped: {} };
+export const SWEEP_MAX_TRIES = 4;
+export const readSweep = () => readJson<BooksSweep>('tally/books-sweep', EMPTY_SWEEP);
+
+/** Months this run reads, in order: from the sweep's `next` to this month; a new pass (or a new FY) starts at April. */
+export function sweepOrder(now: number, sw: BooksSweep): { months: string[]; newPass: boolean } {
+  const fy = fyMonthsTo(now);
+  const i = sw.fy === fy[0] && sw.next ? fy.indexOf(sw.next) : -1;
+  return i < 0 ? { months: fy, newPass: true } : { months: fy.slice(i), newPass: false };
+}
+
+/** A pass is running (started, not finished): the scheduled callers keep going every run until it ends. */
+export const sweepInProgress = (sw: BooksSweep) => !!sw.next;
+
+/**
+ * Pure bookkeeping after a run: `asked` = months in order, `completed` = months whose copy was replaced, `progress` =
+ * months where at least one new day was read. Returns the next sweep state.
+ */
+export function advanceSweep(sw: BooksSweep, now: number, asked: string[], newPass: boolean, completed: string[], progress: string[], error: string | null): BooksSweep {
+  const at = new Date(now).toISOString();
+  const fy = fyMonthsTo(now)[0];
+  const next: BooksSweep = newPass
+    ? { fy, next: asked[0] ?? null, passStartedAt: at, lastPassDoneAt: sw.lastPassDoneAt, tries: {}, skipped: {} }
+    : { ...sw, tries: { ...sw.tries }, skipped: { ...sw.skipped } };
+  let k = 0;
+  while (k < asked.length && completed.includes(asked[k])) { delete next.tries[asked[k]]; k++; }
+  if (k >= asked.length) return { ...next, next: null, lastPassDoneAt: at };
+  const stuck = asked[k];
+  if (progress.includes(stuck)) delete next.tries[stuck];
+  else next.tries[stuck] = (next.tries[stuck] ?? 0) + 1;
+  if ((next.tries[stuck] ?? 0) >= SWEEP_MAX_TRIES) {
+    // Tally keeps failing on this month (an empty answer, a day that never answers): keep its stored copy, go on.
+    next.skipped[stuck] = error ?? 'no progress';
+    delete next.tries[stuck];
+    const after = asked[k + 1];
+    return after ? { ...next, next: after } : { ...next, next: null, lastPassDoneAt: at };
+  }
+  return { ...next, next: stuck };
+}
+
+/** One run of the FY sweep (masters first when older than 20 h, or `masters`). Never throws. */
+export async function pullBooksSweep(creds: Credentials, opts: { now?: number; budgetMs?: number; masters?: boolean } = {}): Promise<{ masters: boolean; months: string[]; error: string | null; sweep: BooksSweep; asked: string[] }> {
+  const now = opts.now ?? Date.now();
+  const sw = await readSweep();
+  const { months: asked, newPass } = sweepOrder(now, sw);
+  const before = await Promise.all(asked.map(async (p) => (await readPartial(p))?.days.length ?? 0));
+  const r = await pullBooks(creds, { now, budgetMs: opts.budgetMs, masters: opts.masters, periods: asked });
+  const after = await Promise.all(asked.map(async (p) => (await readPartial(p))?.days.length ?? 0));
+  const progress = asked.filter((p, i) => r.months.includes(p) || after[i] > before[i]);
+  const next = advanceSweep(sw, now, asked, newPass, r.months, progress, r.error);
+  await writeJson('tally/books-sweep', next);
+  return { ...r, sweep: next, asked };
 }
 
 /** Masters (once a day, or forced) then Day Books until `budgetMs` runs out. Never throws. */
@@ -69,7 +140,7 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; mas
       s.mastersAt = s.lastTryAt;
       masters = true;
     }
-    for (const period of opts.periods ?? booksToPull(now, s, opts.force)) {
+    for (const period of opts.periods ?? fyMonthsTo(now)) {
       if (deadline - Date.now() < 15_000) break;
       // One day at a time: a whole exploded month is too big for one Tally answer (it timed out behind the 120 s
       // proxy), and Tally always honours the one-day range with SVCURRENTDATE. Resumable across pulls.
