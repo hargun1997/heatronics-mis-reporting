@@ -15,6 +15,7 @@ import { NumInput } from '../inputs';
 import { cr, int, money, pct } from '../fmt';
 import { btn, lbl, MonthSelect, monthsOf, Note, Parts, rm, SubHead, Tip, txt, useParts } from './shared';
 import type { SetupSectionDef, SetupSectionProps } from './types';
+import { pillClass } from '../../ui/pill';
 
 export { summary };
 
@@ -151,7 +152,7 @@ function ProductRow({ x, c, cats, skus, months, fys, byFy, open, onToggle, setPr
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={x.on} aria-label={`${x.name} on`} onChange={(e) => set((y) => { y.on = e.target.checked; })} />
         <input className={`${txt} min-w-[180px] font-medium`} value={x.name} aria-label="Product name" onChange={(e) => set((y) => { y.name = e.target.value; })} />
-        {x.placeholder && <button type="button" className="rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-semibold text-amber-800" title="Click when these numbers are yours" onClick={() => set((y) => { y.placeholder = false; })}>Placeholder</button>}
+        {x.placeholder && <button type="button" className={pillClass('warning')} title="Click when these numbers are yours" onClick={() => set((y) => { y.placeholder = false; })}>Placeholder</button>}
         <span className="text-[12px] text-slate-600">Launch</span><MonthSelect title="Launch month" value={x.launchMonth} months={months} onChange={(m) => set((y) => { y.launchMonth = m ?? 1; })} />
         <span className="text-[12px] text-slate-600">Price</span><NumInput value={x.asp} min={0} width="w-16" title="Price incl. GST" onChange={(v) => set((y) => { y.asp = v; })} />
         <span className="ml-auto text-[12px] tabular-nums text-slate-600">{fys.slice(-3).map((f) => `${f} ${cr(byFy[f]?.rev ?? 0, 1)} Cr`).join(' · ')}</span>

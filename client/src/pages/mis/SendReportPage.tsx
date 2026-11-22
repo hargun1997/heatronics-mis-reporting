@@ -19,6 +19,7 @@ import { chatStatus, sendChat } from '../../data/chat/chatClient';
 import { buildPresentationHtml } from '../../data/report/presentation';
 import { getRecipients, saveRecipients, sendReport, type MailerStatus, type SendResult } from '../../data/report/reportClient';
 import { getOverview } from '../../data/ownership/ownershipClient';
+import { pillClass } from '../../components/ui/pill';
 
 const iconSend = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -119,7 +120,7 @@ export function SendReportPage() {
         description="Email the MIS to your list now, or each month."
         status={mailer && !mailer.configured ? (
           <Popover align="left" width={320} buttonLabel="Email not connected: details"
-            buttonClassName="inline-flex min-h-11 sm:min-h-7 items-center rounded-full bg-amber-50 px-2.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+            buttonClassName={pillClass('warning')}
             button={<>Email not connected</>}>
             <div className="space-y-1.5 p-3.5 text-[13px] leading-5 text-slate-700">
               <p>Send makes a preview only. No email goes out.</p>
@@ -183,7 +184,7 @@ export function SendReportPage() {
             <button onClick={() => void doSend()} disabled={sendBusy || !deck || recipients.length === 0}
               className={`ml-auto ${BTN_PRIMARY}`}>
               {sendBusy ? <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-white/60 border-t-transparent animate-spin" /> : iconSend}
-              Send to {recipients.length || 'nobody'}
+              {recipients.length ? `Send to ${recipients.length}` : 'Select 1 recipient'}
             </button>
           </div>
           {sent && (

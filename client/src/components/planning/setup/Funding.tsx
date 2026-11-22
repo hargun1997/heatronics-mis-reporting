@@ -12,6 +12,7 @@ import { NumInput } from '../inputs';
 import { cr, money, pct } from '../fmt';
 import type { SetupSectionDef, SetupSectionProps } from './types';
 import { CR, Check, Flag, MonthSelect, Note, Parts, Row, SubHead, btn, ensureFx, ensureGrowth, monthsOf, newId, rm, td, th, thr, txt, useParts } from './shared';
+import { StatusPill } from '../../../components/ui/StatusPill';
 
 // The §1 skeleton exports `summary` and `SECTION` beside the component (react-refresh accepts only components).
 export { summary };
@@ -116,7 +117,7 @@ export function Section({ plan, update, result }: SetupSectionProps) {
               <MonthSelect title={`${KIND[e.kind]} month`} value={e.month} months={months} onChange={(m) => update((p) => { p.events[i].month = m ?? 1; })} />
               <NumInput unit="cr" value={e.amount} min={0} width="w-20" title="Amount" onChange={(x) => update((p) => { p.events[i].amount = x; })} />
               <input value={e.note} placeholder="Seed: Hyperscale lead" aria-label="Note" onChange={(ev) => update((p) => { p.events[i].note = ev.target.value; })} className={`${txt} min-w-[200px] flex-1`} />
-              {replaced && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Venture-debt terms used</span>}
+              {replaced && <StatusPill toneName="neutral" size="sm">Venture-debt terms used</StatusPill>}
               <button type="button" className={rm} aria-label={`Remove ${KIND[e.kind]} in ${e.month}`} onClick={() => update((p) => { p.events.splice(i, 1); })}>Remove</button>
             </div>
           );

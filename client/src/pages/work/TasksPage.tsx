@@ -28,6 +28,7 @@ import { TasksToolbar } from './TasksToolbar';
 import { TasksHeader, btnPrimary, focusRing } from './ui';
 import { useInbox } from '../../data/issues/useInbox';
 import { FixPreview, IssuesInbox } from '../../components/issues/IssuesInbox';
+import { pillClass } from '../../components/ui/pill';
 
 export function TasksPage() {
   const [state, setState] = useState<WorkState | null>(null);
@@ -177,14 +178,17 @@ export function TasksPage() {
 
   const sub = !state
     ? 'Tasks with a due date, and problems to fix in the books.'
-    : [inbox.open.length ? `${inbox.open.length} to fix` : '', counts.late ? `${counts.late} late` : '', `${counts.today} due today`, `${counts.week} more this week`].filter(Boolean).join(' · ');
+    : [inbox.open.length ? `${inbox.open.length} to fix` : '', counts.late ? `${counts.late} late` : '', `${counts.today} due today`, `${counts.week} more this week`].filter(Boolean).join(' · ')
+      // Say whose tasks these are: Today and the sidebar count every person, so "35 late" here must not look like a
+      // different number for the same thing (UI pass, 22 Nov 2026).
+      + (anyFilter ? ` · ${who === 'mine' ? `for ${memberById.get(me)?.name ?? 'me'}` : who === 'unassigned' ? 'with no owner' : who !== 'all' ? `for ${memberById.get(who)?.name ?? who}` : 'with filters'}` : '');
 
   const header = (
     <TasksHeader title="Tasks" sub={sub}
       help={<><p>To do: tasks with a due date.</p><p>Fix: problems found in the books, the reports and the MIS.</p><p>Done hides a Fix item until the item changes.</p></>}
       status={state && unownedTasks(state).length > 0 && who !== 'unassigned' ? (
         <button type="button" onClick={() => { setWhoRaw('unassigned'); setView('all'); }} title="A task with no owner gets no reminder. Select to see these tasks."
-          className={`inline-flex min-h-11 sm:min-h-7 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 text-xs font-semibold text-amber-800 ${focusRing}`}>
+          className={pillClass('warning')}>
           <ExclamationCircleIcon className="h-4 w-4" aria-hidden />{unownedTasks(state).length} with no owner
         </button>
       ) : undefined}>

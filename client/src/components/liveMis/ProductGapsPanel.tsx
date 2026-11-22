@@ -4,8 +4,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { LiveDeckData } from '../../data/misDeck/liveDeck';
+import { inrFull } from '../../utils/money';
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+const inr = (n: number) => inrFull(n);
 const btn = 'rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50';
 
 export function ProductGapsPanel({ gaps, onChanged }: { gaps: NonNullable<LiveDeckData['productGaps']>; onChanged: () => void }) {

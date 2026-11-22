@@ -11,6 +11,7 @@ import { BTN, ErrorBox, InfoTip, Loading, Panel } from '../../components/ui/stat
 import { addMonths, dateLabel, monthLabel } from '../../data/tds/tds';
 import { downloadTds, inr, lastMonth, useTds } from '../../data/tds/useTds';
 import { DeducteeList, FlagList, HowTo, NoDayBook, PayTable } from './tdsParts';
+import { StatusPill } from '../../components/ui/StatusPill';
 
 type View = 'pay' | 'check' | 'who' | 'quarter';
 
@@ -19,7 +20,6 @@ export function TdsPage() {
   const [view, setView] = useState<View>('pay');
   const [howOpen, setHowOpen] = useState(false);
   const { report: r, error, loading } = useTds(month);
-  const high = r?.flags.filter((f) => f.severity === 'high').length ?? 0;
   const q = r?.quarter;
   const ok = !!r?.haveMonth;
 
@@ -36,8 +36,8 @@ export function TdsPage() {
         title="TDS"
         description="The TDS to pay for 1 month, by section, from the Tally Day Book."
         status={ok ? (r!.overdue
-          ? <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-800">Late</span>
-          : <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-700">Due {dateLabel(r!.dueDate)}</span>) : undefined}
+          ? <StatusPill toneName="critical" size="sm">Late</StatusPill>
+          : <StatusPill toneName="neutral" size="sm">Due {dateLabel(r!.dueDate)}</StatusPill>) : undefined}
         help={ok && r!.notes.length ? <ul className="space-y-1">{r!.notes.map((n) => <li key={n} className="!list-disc">{n}</li>)}</ul> : undefined}
         tabs={tabs} tab={view} onTab={(id) => setView(id as View)}
         actions={<>
@@ -60,12 +60,11 @@ export function TdsPage() {
         {r && !r.haveMonth && <NoDayBook month={monthLabel(month)} />}
         {r && ok && (
           <>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <KpiTile label={r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`} value={inr(r.totals.balance)} tone={r.overdue ? 'critical' : 'default'}
                 sub={r.totals.interest > 0 ? <span className="font-semibold text-red-700">Interest about {inr(r.totals.interest)}</span> : `For ${r.monthLabel}`} />
               <KpiTile label="TDS deducted" value={inr(r.totals.deducted)} sub={`${r.entries.length} bills · ${r.deductees.length} parties`} />
               <KpiTile label="Already paid" value={inr(r.totals.paid)} sub={r.haveNextMonth ? `Challans in ${monthLabel(addMonths(r.month, 1))}` : `${monthLabel(addMonths(r.month, 1))} not in the books yet`} />
-              <KpiTile label="To check" value={String(r.flags.length)} tone={high ? 'warning' : 'default'} sub={high ? `${high} to fix` : 'Nothing serious'} />
             </div>
 
             {view === 'pay' && (

@@ -12,6 +12,7 @@ import { loadLiveDeck } from '../../../data/misDeck/liveDeck';
 import { PlanCard } from '../ui';
 import { ErrorBox, InfoTip, Loading } from '../../ui/states';
 import { Disclosure } from '../../ui/Disclosure';
+import { StatusPill } from '../../../components/ui/StatusPill';
 
 interface Props { saved: { id: string; name: string }[] }
 
@@ -37,7 +38,7 @@ const fmt = (id: MetricId, v: number, signed = false) => (id === 'units' ? units
 const pctWords = (c: Pick<MetricCmp, 'gapPct' | 'status'>) => (c.status == null ? '' : c.gapPct == null ? WORD[c.status] : `${Math.abs(c.gapPct * 100).toFixed(1)}% ${c.status === 'behind' ? 'below plan' : c.status === 'ahead' ? 'above plan' : 'from plan'}`);
 
 function Pill({ status }: { status: Status | null }) {
-  if (!status) return <span className="inline-flex min-h-[28px] items-center rounded-full bg-slate-100 px-2.5 text-[12px] font-semibold text-slate-500">No data yet</span>;
+  if (!status) return <StatusPill toneName="neutral" size="sm" className="min-h-[28px]">No data yet</StatusPill>;
   const t = TONE[status];
   return <span className={`inline-flex min-h-[28px] items-center gap-1 rounded-full px-2.5 text-[12px] font-bold ${t.bg} ${t.text}`}><span aria-hidden>{ARROW[status]}</span>{WORD[status]}</span>;
 }

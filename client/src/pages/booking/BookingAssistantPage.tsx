@@ -33,6 +33,7 @@ import {
   type ExpenseMapRow,
 } from '../../data/bookingAssistant/bookingClient';
 import { LedgerMapPanel } from './LedgerMapPanel';
+import { StatusPill } from '../../components/ui/StatusPill';
 
 const STARTERS = [
   { q: 'Which ledger for a Google Ads invoice?', hint: 'Ledger, GST, TDS' },
@@ -212,7 +213,7 @@ export function BookingAssistantPage() {
       <PageHeader
         title="Book an invoice"
         description="Ask for the ledger, the voucher and the GST of an invoice."
-        status={notConfigured ? <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800" title="Set ANTHROPIC_API_KEY on the server. The ledger map works.">Claude not connected</span> : undefined}
+        status={notConfigured ? <StatusPill toneName="warning" size="sm" title="Set ANTHROPIC_API_KEY on the server. The ledger map works.">Claude not connected</StatusPill> : undefined}
         help={<><p>Each answer reads the ledger map, the Accounts Handbook, the Tally ledger list and your past entries.</p><p>To add past entries: export the Tally Day Book to Excel. Attach it. Select “Keep as booking history”.</p></>}
         actions={<Link to="/tools/expense-booking" className={BTN}>Tally XML tool</Link>}
       />

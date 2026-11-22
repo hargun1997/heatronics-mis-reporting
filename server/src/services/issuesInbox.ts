@@ -8,6 +8,7 @@ import type { ChartReport, HangKind } from '../connectors/tally/chart.js';
 import { HANG_LABEL } from '../connectors/tally/chart.js';
 import type { HealthReport } from '../connectors/tally/books.js';
 import { CONNECTOR_NAME, monthLabel, prevMonthOf, slotProblems, type SlotProblem, type StoredSlotReport } from '../connectors/slots/closeSlots.js';
+import { ageWords } from '../connectors/tally/freshness.js';
 
 export type InboxArea = 'books' | 'mis' | 'feeds' | 'products' | 'close';
 export type InboxSeverity = 'high' | 'medium' | 'low';
@@ -47,6 +48,8 @@ export const prevMonth = (istDay: string) => { const [y, m] = istDay.split('-').
 export interface InboxInputs {
   /** YYYY-MM-DD in IST. */
   today: string;
+  /** Now (ISO). Tally's age is counted from it, in the same words as the pages. Missing = noon IST today. */
+  now?: string;
   health: HealthReport | null;
   chart: ChartReport | null;
   /** Newest stored Trial Balance (Dr − Cr difference). */
@@ -196,9 +199,11 @@ export function serverItems(x: InboxInputs): InboxItem[] {
   }
   // Feeds: Tally not reached lately (it only answers while TallyPrime is open on the cloud machine)
   if (x.tally?.connected) {
-    const age = x.tally.lastOkAt ? (Date.parse(`${x.today}T12:00:00+05:30`) - Date.parse(x.tally.lastOkAt)) / 86_400_000 : Infinity;
+    const nowMs = x.now ? Date.parse(x.now) : Date.parse(`${x.today}T12:00:00+05:30`);
+    const age = x.tally.lastOkAt ? (nowMs - Date.parse(x.tally.lastOkAt)) / 86_400_000 : Infinity;
     if (age > 3) out.push({ id: 'feed:tally', area: 'feeds', severity: age > 10 ? 'high' : 'medium',
-      title: Number.isFinite(age) ? `Tally not reached for ${Math.floor(age)} days` : 'Tally never reached',
+      // Same words as every page's Tally pill (connectors/tally/freshness.ts ageWords)
+      title: Number.isFinite(age) ? `Tally last reached ${ageWords(x.tally.lastOkAt, nowMs)}` : 'Tally never reached',
       detail: x.tally.lastError ? `Last try: ${x.tally.lastError.slice(0, 160)}` : 'The cloud machine does not answer.',
       fix: '1. Open TallyPrime on the cloud machine. 2. Load the company. 3. Wait for the next check (every 30 minutes), or click Pull Tally now on Tally health.',
       href: '/tally', sig: sigOf(Math.floor(age / 7)) });

@@ -114,7 +114,8 @@ export const getWork = () => fetch('/api/work').then((r) => json<WorkState>(r));
 export const saveTask = (t: Partial<WorkTask>) => post('/api/work/tasks', t).then((r) => json<WorkTask>(r));
 export const deleteTask = (id: string) => fetch(`/api/work/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' }).then((r) => json<{ ok: true }>(r));
 export const setTaskDone = (id: string, period: string, done: boolean, by?: string, note?: string) =>
-  post(`/api/work/tasks/${encodeURIComponent(id)}/done`, { period, done, by, note }).then((r) => json<{ ok: true }>(r));
+  post(`/api/work/tasks/${encodeURIComponent(id)}/done`, { period, done, by, note }).then((r) => json<{ ok: true }>(r))
+    .then((x) => { window.dispatchEvent(new Event('mis:work')); return x; }); // the shared count (useWorkCount) loads again
 export const importSeed = (tasks: Partial<WorkTask>[], done: WorkState['done']) =>
   post('/api/work/import', { tasks, done }).then((r) => json<{ imported: number; skipped: boolean }>(r));
 export const runWorkReminders = () => post('/api/work/reminders/run', {}).then((r) => json<ReminderRun>(r));

@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 import { SECTIONS, dateLabel, type TdsReport } from '../../data/tds/tds';
 import { inr } from '../../data/tds/useTds';
 import { StepNo } from '../../components/ui/states';
+import { DataTable } from '../../components/ui/DataTable';
 
 export function NoDayBook({ month }: { month: string }) {
   return (
@@ -29,53 +30,17 @@ export function PayHeadline({ r }: { r: TdsReport }) {
 }
 
 export function PayTable({ r }: { r: TdsReport }) {
-  if (!r.pay.length) return <p className="text-sm text-slate-600">No TDS was deducted in {r.monthLabel} (no voucher credits a TDS ledger).</p>;
   return (
-    <>
-    {/* Phones: one card per challan, the amount to pay on the right. */}
-    <ul className="space-y-2 sm:hidden">
-      {r.pay.map((p) => (
-        <li key={`${p.section}-${p.head}`} className="flex items-start gap-3 rounded-lg border border-slate-200 px-3 py-2">
-          <div className="min-w-0 flex-1 text-sm">
-            <div><span className="font-semibold text-slate-900">{p.section}</span> <span className="text-slate-600">{p.label}</span></div>
-            <div className="text-xs text-slate-600">Head <span className="font-mono">{p.head}</span> · deducted {inr(p.deducted)} · paid {inr(p.paid)}</div>
-          </div>
-          <div className="text-right text-base font-semibold tabular-nums text-slate-900">{inr(p.balance)}</div>
-        </li>
-      ))}
-      <li className="flex justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold"><span>Total to pay</span><span className="tabular-nums">{inr(r.totals.balance)}</span></li>
-    </ul>
-    <div className="hidden overflow-x-auto rounded-lg border border-slate-200 sm:block">
-      <table className="w-full min-w-[560px] text-[13px]">
-        <thead className="bg-slate-50 text-left text-xs text-slate-600">
-          <tr>
-            <th className="px-3 py-2 font-semibold">Section</th>
-            <th className="px-3 py-2 font-semibold">Challan head</th>
-            <th className="px-3 py-2 text-right font-semibold">Deducted</th>
-            <th className="px-3 py-2 text-right font-semibold">Paid</th>
-            <th className="px-3 py-2 text-right font-semibold">To pay</th>
-          </tr>
-        </thead>
-        <tbody>
-          {r.pay.map((p) => (
-            <tr key={`${p.section}-${p.head}`} className="border-t border-slate-100">
-              <td className="px-3 py-2"><span className="font-semibold text-slate-900">{p.section}</span> <span className="text-slate-600">{p.label}</span></td>
-              <td className="px-3 py-2 text-slate-700"><span className="font-mono">{p.head}</span> · {p.headLabel}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{inr(p.deducted)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-slate-600">{inr(p.paid)}</td>
-              <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">{inr(p.balance)}</td>
-            </tr>
-          ))}
-          <tr className="border-t border-slate-200 bg-slate-50">
-            <td className="px-3 py-2 font-semibold" colSpan={2}>Total</td>
-            <td className="px-3 py-2 text-right font-semibold tabular-nums">{inr(r.totals.deducted)}</td>
-            <td className="px-3 py-2 text-right tabular-nums">{inr(r.totals.paid)}</td>
-            <td className="px-3 py-2 text-right font-semibold tabular-nums">{inr(r.totals.balance)}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    </>
+    <DataTable label={`TDS to pay for ${r.monthLabel}`} rows={r.pay} rowKey={(p) => `${p.section}-${p.head}`}
+      empty={`No TDS was deducted in ${r.monthLabel} (no voucher credits a TDS ledger).`}
+      columns={[
+        { key: 'section', label: 'Section', main: true, cell: (p) => <><span className="font-semibold text-slate-900">{p.section}</span> <span className="text-slate-600">{p.label}</span></> },
+        { key: 'head', label: 'Challan head', cell: (p) => <><span className="font-mono">{p.head}</span> · {p.headLabel}</> },
+        { key: 'deducted', label: 'Deducted', num: true, cell: (p) => inr(p.deducted) },
+        { key: 'paid', label: 'Paid', num: true, quiet: true, cell: (p) => inr(p.paid) },
+        { key: 'balance', label: 'To pay', num: true, emph: true, cell: (p) => inr(p.balance) },
+      ]}
+      total={{ section: 'Total to pay', deducted: inr(r.totals.deducted), paid: inr(r.totals.paid), balance: inr(r.totals.balance) }} />
   );
 }
 

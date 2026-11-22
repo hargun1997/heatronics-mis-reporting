@@ -19,7 +19,8 @@ import { KeyRound } from 'lucide-react';
 import { PageHeader, PageBody } from '../../components/ui/PageHeader';
 import { Drawer, Popover } from '../../components/ui/overlays';
 import { BTN, Empty, ErrorBox, Loading, Panel } from '../../components/ui/states';
-import { StatusPill, type PillTone } from '../../components/ui/StatusPill';
+import { StatusPill } from '../../components/ui/StatusPill';
+import { type PillTone } from '../../components/ui/pill';
 import {
   clearCredentials,
   envVarName,
@@ -36,6 +37,8 @@ import { slotsFor } from '../../data/ingest/catalog';
 import { listIngestReports } from '../../data/ingest/ingestClient';
 import type { IngestReportMeta } from '../../data/ingest/types';
 import { listSlotSources, slotKey, type SlotSourceInfo } from '../../data/ingest/slotSources';
+import { SourceRules } from '../../components/ingest/SourceRules';
+import { dayLabel } from '../../utils/money';
 
 
 const GROUP_ORDER: ConnectorGroup[] = ['book', 'marketplace', 'd2c', 'marketing', 'logistics', 'payments'];
@@ -233,7 +236,7 @@ function ConnectorCard({
         <div className="min-w-0 flex-1 basis-48">
           <h4 className="truncate text-sm font-semibold text-slate-900">{connector.label}</h4>
           <p className="truncate text-xs text-slate-600" title={lines.map((l) => l.slot.label).join(', ')}>
-            {lines.length ? lines.map(({ slot, got }) => `${slot.label}${got ? ` (${got.periodKey})` : ''}`).join(' · ') : connector.note ?? 'No monthly report'}
+            {lines.length ? lines.map(({ slot, got }) => `${slot.label}${got ? ` (${dayLabel(got.periodKey)})` : ''}`).join(' · ') : connector.note ?? 'No monthly report'}
           </p>
         </div>
         <StatusPill toneName={FEED_TONE[feed]} className="whitespace-nowrap">{FEED_LABEL[feed]}</StatusPill>
@@ -303,6 +306,8 @@ function ConnectorCard({
               {autoSlots.map((x) => <IngestStepper key={x.slotId} slot={x} existing={latest.get(slotKey(connector.id, x.slotId))} onCommitted={onCommitted} source={sources.get(slotKey(connector.id, x.slotId))} />)}
             </div>
           )}
+
+          <SourceRules connectorId={connector.id} />
 
           {hasCreds && <div>
             <div className="text-xs sm:text-[11px] font-extrabold uppercase tracking-wide text-slate-400 mb-2.5">Login</div>

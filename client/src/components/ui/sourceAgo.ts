@@ -8,3 +8,6 @@ export function ago(iso: string | null, now = Date.now()): string {
   if (h < 48) return `${h} h ago`;
   return `${Math.round(h / 24)} days ago`;
 }
+
+/** Tally numbers count as old after 48 h (every page's Tally pill). */
+export const TALLY_STALE_H = 48;

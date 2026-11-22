@@ -14,6 +14,7 @@ import { openFixItems } from './issues.js';
 import { openItems } from '../services/workStore.js';
 import { listMembers } from '../services/ownershipStore.js';
 import { buildMorningBrief, previousDay, withDay, type FixIn, type MorningSnapshot, type TaskIn } from '../services/morningBrief.js';
+import { newest, tallyReachedAt } from '../connectors/tally/freshness.js';
 
 const router = Router();
 const INDEX = 'morning/index';
@@ -43,7 +44,7 @@ router.get('/', (req: Request, res: Response) => {
     const prev = pd ? await safe(readJson<MorningSnapshot | null>(snapKey(pd), null), null) : null;
     const brief = buildMorningBrief({
       today, now: now.toISOString(), balance: v2.balance, months: v1.months, watch: v2.watch, close: v2.close,
-      fix, tasks, tallyLastOkAt: x.lastOkAt, prev,
+      fix, tasks, tallyLastOkAt: newest(x.lastOkAt, await safe(tallyReachedAt(), null)), prev,
     });
     // One snapshot per IST day, written on the first read only (idempotent; a failed write never fails the page).
     if (!days.includes(today)) {

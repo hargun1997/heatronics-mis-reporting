@@ -11,14 +11,18 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Modal } from '../ui/overlays';
+import { Modal, Popover } from '../ui/overlays';
+import { ChevronDown } from 'lucide-react';
 import { BTN, BTN_PRIMARY } from '../ui/states';
 import { Note } from './shared';
+import { ItemRow } from '../ui/ItemRow';
 import { inr } from '../mis-deck/format';
 import { monthLabel } from '../../data/misDeck/liveAnalytics';
 import { setMonthLock, type PeriodCompleteness } from '../../data/misDeck/liveDeck';
 import { TIE_LIMIT_PCT, type ChannelTie } from '../../data/misDeck/closeTies';
 import { gstRateLabel } from '../../data/misDeck/gstBasis';
+import { StatusPill } from '../ui/StatusPill';
+import { pillClass, type PillTone } from '../ui/pill';
 
 const BASIS_TXT: Record<NonNullable<ChannelTie['netBasis']>, string> = {
   reported: 'ex-GST as reported',
@@ -58,15 +62,33 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
   const onLock = () => (needReason ? setAsking('lock') : void run('lock'));
 
   const n = blockers.length;
-  const status = legacy ? { tone: 'bg-slate-100 text-slate-700 border-slate-200', text: 'Locked (old history)' }
-    : lock ? { tone: 'bg-emerald-50 text-emerald-800 border-emerald-200', text: `Locked by ${lock.lockedBy}${lock.verifiedUser ? '' : ' (name not verified)'}, ${when(lock.lockedAt)}` }
-    : comp.ready ? { tone: 'bg-brand-50 text-brand-700 border-brand-100', text: 'Ready to lock' }
-    : { tone: 'bg-amber-50 text-amber-800 border-amber-200', text: n ? `${n} to fix before lock` : comp.hasTally ? 'Tally has no sales for this month' : 'No Tally P&L for this month' };
+  const status = legacy ? { tone: 'neutral' as PillTone, text: 'Locked (old history)' }
+    : lock ? { tone: 'positive' as PillTone, text: `Locked by ${lock.lockedBy}${lock.verifiedUser ? '' : ' (name not verified)'}, ${when(lock.lockedAt)}` }
+    : comp.ready ? { tone: 'brand' as PillTone, text: 'Ready to lock' }
+    : { tone: 'warning' as PillTone, text: n ? `${n} to fix before lock` : comp.hasTally ? 'Tally has no sales for this month' : 'No Tally P&L for this month' };
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm space-y-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="font-semibold text-slate-900">{monthLabel(periodKey)}</span>
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${status.tone}`}>{status.text}</span>
+        {/* The open items open from the pill (UI pass, 22 Nov 2026): the list used to sit open above every tab and
+            repeated Tasks → Fix. */}
+        {!legacy && !lock && n > 0 ? (
+          <Popover align="left" width={420} buttonLabel={`${n} to fix before lock: see the items`}
+            buttonClassName={pillClass(status.tone)}
+            button={<>{status.text}<ChevronDown className="h-3.5 w-3.5" aria-hidden /></>}>
+            <ol className="divide-y divide-slate-100 py-1">
+              {blockers.slice(0, 6).map((b, i) => (
+                <ItemRow key={i} n={i + 1} compact title={b.text} sub={b.fix}
+                  pill={b.hard ? <StatusPill toneName="warning" size="sm">Must fix</StatusPill> : undefined} />
+              ))}
+            </ol>
+            <div className="border-t border-slate-100 px-3.5 py-2 text-xs">
+              <Link to="/tasks?view=fix" className="font-medium text-brand-600 hover:underline">Open the Fix list in Tasks</Link>
+            </div>
+          </Popover>
+        ) : (
+          <StatusPill toneName={status.tone}>{status.text}</StatusPill>
+        )}
         {tie && (
           <button type="button" onClick={() => setOpen(true)} className="min-h-11 sm:min-h-8 rounded-md px-1.5 text-xs font-medium text-brand-600 hover:underline">
             Check with Tally{tie.worstResidualPct !== null ? ` (largest difference ${tie.worstResidualPct.toFixed(1)}%)` : ''}
@@ -93,14 +115,6 @@ export function MonthClosePanel({ periodKey, comp, onChanged }: { periodKey: str
         </span>
       </div>
 
-      {!legacy && !lock && n > 0 && (
-        <ol className="list-decimal space-y-0.5 pl-5 text-[13px] text-slate-700">
-          {blockers.slice(0, 3).map((b, i) => (
-            <li key={i}><span className={b.hard ? 'text-amber-700 font-medium' : 'text-slate-800'}>{b.text}</span> <span className="text-slate-500">{b.fix}</span></li>
-          ))}
-          {n > 3 && <li className="list-none"><Link to="/tasks?view=fix" className="font-medium text-brand-600 hover:underline">{n - 3} more in Tasks, Fix list</Link></li>}
-        </ol>
-      )}
       {error && <p role="alert" className="text-red-700">{error}</p>}
 
       <Modal open={!!asking} onClose={() => { setAsking(null); setReason(''); }}

@@ -21,6 +21,10 @@ import { planMonthsOf } from '../../data/planning/planVsActual';
 import { runRateArr } from '../../data/planning/growth';
 import { PnlGrid } from '../../components/planning/PnlGrid';
 import { monthBefore, openingFromTally } from '../../data/planning/opening';
+import { StatusPill } from '../../components/ui/StatusPill';
+import { BP_TABS, COST_TABS, PC_TABS, REV_TABS, type CostSection } from '../../components/planning/outputs/parts';
+import { SubTabs } from '../../components/planning/ui';
+import { useSubTab } from '../../components/planning/subTab';
 
 /** Excel download spans: months from the plan start (Oct-26); 0 = the whole plan. */
 const DOWNLOAD_SPANS = [
@@ -31,10 +35,18 @@ const DOWNLOAD_SPANS = [
 ];
 
 interface Saved { id: string; name: string; note: string; updatedAt: string; updatedBy: string | null }
-type View = 'overview' | 'business' | 'revenue' | 'costs' | 'monthly' | 'cash' | 'products' | 'actual';
+type View = 'overview' | 'revenue' | 'costs' | 'cash' | 'actual';
 
 const DRAFT_KEY = 'planning-draft-v1';
-const VIEW_TABS = [{ id: 'overview', label: 'Overview' }, { id: 'business', label: 'Business plan' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs' }, { id: 'monthly', label: 'Monthly P&L' }, { id: 'cash', label: 'Cash and funding' }, { id: 'products', label: 'Products and customers' }, { id: 'actual', label: 'Plan vs actual' }];
+// 5 tabs (22 Nov 2026, was 8): Business plan → Overview parts, Products and customers → Revenue parts,
+// Capacity + Monthly P&L → Costs and P&L parts. One row of parts under the header tabs; no nested sub-tabs.
+const VIEW_TABS = [{ id: 'overview', label: 'Overview' }, { id: 'revenue', label: 'Revenue' }, { id: 'costs', label: 'Costs and P&L' }, { id: 'cash', label: 'Cash and funding' }, { id: 'actual', label: 'Plan vs actual' }];
+type OvPart = 'summary' | (typeof BP_TABS)[number]['id'];
+const OV_PARTS: { id: OvPart; label: string }[] = [{ id: 'summary', label: 'Summary' }, ...BP_TABS];
+type RevPart = (typeof REV_TABS)[number]['id'] | 'products' | 'd2c' | 'season';
+const REV_PARTS: { id: RevPart; label: string }[] = [...REV_TABS, ...PC_TABS.filter((t) => t.id !== 'capacity') as { id: RevPart; label: string }[]];
+type CostPart = CostSection | 'capacity' | 'monthly';
+const COST_PARTS: { id: CostPart; label: string }[] = [...COST_TABS, { id: 'capacity', label: 'Capacity' }, { id: 'monthly', label: 'Monthly P&L' }];
 const MENU = 'flex min-h-11 sm:min-h-9 w-full items-center rounded-lg px-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40';
 
 
@@ -69,6 +81,9 @@ export function PlanningPage() {
   const [cleanJson, setCleanJson] = useState<string>(() => draft?.clean ?? JSON.stringify(basePlan()));
   const [saved, setSaved] = useState<Saved[]>([]);
   const [view, setView] = useState<View>('overview');
+  const [ovPart, setOvPart] = useSubTab<OvPart>('overview', OV_PARTS.map((t) => t.id), 'summary');
+  const [revPart, setRevPart] = useSubTab<RevPart>('revenue-parts', REV_PARTS.map((t) => t.id), 'year');
+  const [costPart, setCostPart] = useSubTab<CostPart>('costs-parts', COST_PARTS.map((t) => t.id), 'revex');
   const [setupOpen, setSetupOpen] = useState(false);
   const [compareId, setCompareId] = useState<string>('base');
   const [comparePlan, setComparePlan] = useState<Plan | null>(() => basePlan());
@@ -160,7 +175,7 @@ export function PlanningPage() {
         title="5-year plan"
         description="The plan to FY31. Change the inputs in Setup. The tabs show the results."
         status={<>
-          {dirty && <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Not saved</span>}
+          {dirty && <StatusPill toneName="warning" size="sm">Not saved</StatusPill>}
           {msg && <span className={`text-xs ${msg.bad ? 'text-rose-700' : 'text-emerald-700'}`} role="status">{msg.text}</span>}
         </>}
         tabs={VIEW_TABS} tab={view} onTab={(v) => setView(v as View)}
@@ -203,13 +218,23 @@ export function PlanningPage() {
         <SetupPanel embedded plan={plan} update={update} result={result} />
       </Drawer>
       <div className="mx-auto max-w-7xl space-y-4 px-4 pb-10 sm:px-6 lg:px-8">
-        {view === 'overview' && <OverviewView plan={plan} result={result} compare={compareId !== 'none' ? compareResult : null} compareName={compareName} />}
-        {view === 'business' && <BusinessPlanView plan={plan} result={result} />}
-        {view === 'revenue' && <RevenueView plan={plan} result={result} />}
-        {view === 'costs' && <CostsView plan={plan} result={result} />}
-        {view === 'monthly' && <PnlGrid r={result} />}
+        {view === 'overview' && <>
+          <SubTabs value={ovPart} onChange={setOvPart} options={OV_PARTS} label="Overview part" />
+          {ovPart === 'summary' ? <OverviewView plan={plan} result={result} compare={compareId !== 'none' ? compareResult : null} compareName={compareName} />
+            : <BusinessPlanView plan={plan} result={result} part={ovPart} />}
+        </>}
+        {view === 'revenue' && <>
+          <SubTabs value={revPart} onChange={setRevPart} options={REV_PARTS} label="Revenue part" />
+          {revPart === 'products' || revPart === 'd2c' || revPart === 'season' ? <ProductsCustomersView plan={plan} result={result} part={revPart} />
+            : <RevenueView plan={plan} result={result} part={revPart} />}
+        </>}
+        {view === 'costs' && <>
+          <SubTabs value={costPart} onChange={setCostPart} options={COST_PARTS} label="Costs and P&L part" />
+          {costPart === 'monthly' ? <PnlGrid r={result} />
+            : costPart === 'capacity' ? <ProductsCustomersView plan={plan} result={result} part="capacity" />
+            : <CostsView plan={plan} result={result} part={costPart} />}
+        </>}
         {view === 'cash' && <CashFundingView plan={plan} result={result} />}
-        {view === 'products' && <ProductsCustomersView plan={plan} result={result} />}
         {view === 'actual' && <PlanVsActualView saved={saved} />}
       </div>
     </>

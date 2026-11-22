@@ -5,22 +5,24 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, RefreshCw, Send } from 'lucide-react';
 import { PageBody, PageHeader } from '../../components/ui/PageHeader';
-import { SourceChip } from '../../components/ui/SourceChip';
+import { FreshnessPill } from '../../components/ui/FreshnessPill';
+import { TALLY_STALE_H } from '../../components/ui/sourceAgo';
 import { BTN, BTN_PRIMARY } from '../../components/ui/states';
 import { Markdown } from '../../components/ui/Markdown';
 import { LedgerRulesCard } from './LedgerRulesCard';
 import { ChartTab } from './ChartTab';
+import { inrFull } from '../../utils/money';
 
 type Severity = 'error' | 'warn' | 'info';
 interface Sample { date?: string; type?: string; number?: string; party?: string; ledger?: string; amount?: number; detail: string }
 interface Issue { id: string; severity: Severity; title: string; why: string; fix: string; count: number; samples: Sample[] }
 interface Health { periods: string[]; vouchers: number; ledgers: number; issues: Issue[]; mastersAt: string | null }
-interface BooksStatus { connected: boolean; mastersAt: string | null; ledgers: number; months: Record<string, string>; lastTryAt: string | null; lastError: string | null; warnings: string[] }
+interface BooksStatus { connected: boolean; mastersAt: string | null; reachedAt?: string | null; ledgers: number; months: Record<string, string>; lastTryAt: string | null; lastError: string | null; warnings: string[] }
 interface Ledger { name: string; group: string; primary: string; gstin: string; registration: string; state: string; tds: string; vouchers: number }
 interface Line { ledger: string; amount: number }
 interface Voucher { guid: string; date: string; type: string; number: string; party: string; reference: string; narration: string; lines: Line[]; inventory: { item: string; qty: number | null }[] }
 
-const inr = (n: number) => `₹${Math.round(Math.abs(n)).toLocaleString('en-IN')}`;
+const inr = (n: number) => inrFull(n, { abs: true });
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } });
@@ -82,7 +84,7 @@ export function TallyPage() {
         tabs={[{ id: 'chart', label: 'Chart of accounts' }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers', count: status?.ledgers || null }, { id: 'vouchers', label: 'Vouchers' }, { id: 'rules', label: 'Ledger rules' }]}
         tab={tab} onTab={(id) => setTab(id as Tab)}
         actions={<>
-          {status && <SourceChip items={[{ label: 'Tally books', asOf: status.mastersAt, staleAfterH: 48, note: `${status.ledgers || 0} ledgers` }, ...stored.slice(0, 1).map((p) => ({ label: `Day Book ${p}`, asOf: status.months[p], staleAfterH: 48 }))]} notes={notes} />}
+          {status && <FreshnessPill label="Tally books" asOf={status.reachedAt ?? status.mastersAt} note={`${status.ledgers || 0} ledgers`} more={stored.slice(0, 1).map((p) => ({ label: `Day Book ${p}`, asOf: status.months[p], staleAfterH: TALLY_STALE_H }))} notes={notes} />}
           <button type="button" onClick={pull} disabled={pulling} className={BTN}>
             {pulling ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}{pulling ? 'Pulling (up to 2 min)…' : 'Pull Tally now'}</button>
         </>} />

@@ -55,6 +55,7 @@ import { HandbookOpenContext } from './handbookNav';
 import { allFolds, enhanceArticle, getFold } from './fold';
 import './handbook.generated.css';
 import './handbook.ui.css';
+import { CountPill } from '../../components/ui/StatusPill';
 
 // ---------------------------------------------------------------------------
 // Reader state
@@ -799,7 +800,7 @@ function TopicList({ open }: { open: OpenFn }) {
               <span className="block text-sm font-medium leading-snug text-slate-900 group-hover:text-accent-700">{c.title}</span>
               <span className="block truncate text-xs leading-snug text-slate-600">{c.description}</span>
             </span>
-            <span className="flex-shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700">{c.articles.length}</span>
+            <CountPill n={c.articles.length} />
             <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-slate-400 group-hover:text-accent-600" aria-hidden="true" />
           </Go>
         </li>

@@ -6,6 +6,7 @@ import type { Plan, PlanResult } from '../../../data/planning/engine';
 import { applyFounderDecisions } from '../../../data/planning/basePlan';
 import { emptyGrowth, ensureGrowthGroups } from '../../../data/planning/growth';
 import type { Update } from './types';
+import { StatusPill } from '../../../components/ui/StatusPill';
 
 export const CR = 1e7;
 
@@ -57,7 +58,7 @@ export function CheckRow({ on, set, label, hint }: { on: boolean; set: (v: boole
 }
 
 export function Flag({ children = 'Terms not confirmed' }: { children?: string }) {
-  return <span className="ml-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">{children}</span>;
+  return <StatusPill toneName="warning" size="sm" className="ml-1.5">{children}</StatusPill>;
 }
 
 /** Group heading inside a Setup section, with an optional "i" for the how-to text. */

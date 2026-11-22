@@ -7,16 +7,14 @@ import { monthLabel, type Plan, type PlanResult } from '../../../data/planning/e
 import { deployment, headline, theAsk } from '../../../data/planning/summary';
 import { PlanCard as SectionCard, SubTabs } from '../ui';
 import { useSubTab } from '../subTab';
+import { BP_TABS } from './parts';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import { cr, int, lakh, pct } from '../fmt';
 
-interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string }
+interface Props { plan: Plan; result: PlanResult; compare?: PlanResult | null; compareName?: string; /** Set by the Overview tab: show this part, no sub-tab row. */ part?: (typeof BP_TABS)[number]['id'] }
 interface Span { n: number; label: string; sub: string }
-const BP_TABS: { id: 'money' | 'funds' | 'words' | 'milestones'; label: string }[] = [
-  { id: 'money', label: 'Headline and Ask' }, { id: 'funds', label: 'Use of funds' }, { id: 'words', label: 'Assumptions and risks' }, { id: 'milestones', label: 'Milestones and team' },
-];
 
-export function BusinessPlanView({ plan, result }: Props) {
+export function BusinessPlanView({ plan, result, part }: Props) {
   const r = result;
   const H = r.months.length;
   const spans: Span[] = [
@@ -28,11 +26,12 @@ export function BusinessPlanView({ plan, result }: Props) {
   const contingencies = spans.map((s) => (s.n === 12 ? plan.business.contingency12 : plan.cash.contingencyPct));
   const asks = spans.map((s, i) => theAsk(plan, r, s.n, contingencies[i]));
   const B = plan.business;
-  const [tab, setTab] = useSubTab('business', BP_TABS.map((t) => t.id), 'money');
+  const [own, setTab] = useSubTab('business', BP_TABS.map((t) => t.id), 'money');
+  const tab = part ?? own;
 
   return (
     <div className="space-y-4">
-      <SubTabs value={tab} onChange={setTab} options={BP_TABS} label="Business plan part" />
+      {!part && <SubTabs value={tab} onChange={setTab} options={BP_TABS} label="Business plan part" />}
       {tab === 'money' && <div className="grid gap-4 xl:grid-cols-2">
         <SectionCard title="Headline" info={<><p>Exit ARR = revenue of the last 12 months × growth of the last 3 months against 1 year before.</p><p>The growth is capped at {B.exitGrowthCap.toFixed(1)}×.</p><p>Jul to Sep 2026 actual revenue: ₹{cr(B.exitPriorL3M)} Cr. Change both in Setup → Starting point.</p></>}>
           <Table cols={spans} rows={[

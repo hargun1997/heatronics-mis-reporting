@@ -142,7 +142,20 @@ export async function postIssueState(body: { op: 'done' | 'snooze' | 'reopen'; i
   return j.state ?? {};
 }
 
-/** Deck items counted for the badge: cached per tab after any deck load (Live MIS is home, so it is usually loaded). */
+/** Live MIS items (tie breaches, product gaps) counted with the server's Fix items. Kept in localStorage for 24 h
+ * (UI pass, 22 Nov 2026): before, they lived 10 minutes in one tab, so the Tasks badge jumped between 80 and 110
+ * depending on whether Live MIS was open. Now every page and tab counts the same items until the next deck load. */
+const DECK_KEY = 'mis:deckItems';
+const DECK_TTL = 24 * 3_600_000;
 let deckCount: { at: number; items: InboxItem[] } | null = null;
-export function rememberDeckItems(items: InboxItem[]) { deckCount = { at: Date.now(), items }; window.dispatchEvent(new Event('mis:issues')); }
-export function cachedDeckItems(): InboxItem[] { return deckCount && Date.now() - deckCount.at < 10 * 60_000 ? deckCount.items : []; }
+export function rememberDeckItems(items: InboxItem[]) {
+  deckCount = { at: Date.now(), items };
+  try { localStorage.setItem(DECK_KEY, JSON.stringify(deckCount)); } catch { /* storage full or blocked: memory copy still works */ }
+  window.dispatchEvent(new Event('mis:issues'));
+}
+export function cachedDeckItems(): InboxItem[] {
+  if (!deckCount) {
+    try { const raw = localStorage.getItem(DECK_KEY); if (raw) deckCount = JSON.parse(raw) as { at: number; items: InboxItem[] }; } catch { /* ignore */ }
+  }
+  return deckCount && Array.isArray(deckCount.items) && Date.now() - deckCount.at < DECK_TTL ? deckCount.items : [];
+}

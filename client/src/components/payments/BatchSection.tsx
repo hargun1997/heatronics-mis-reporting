@@ -11,6 +11,7 @@ import { Note, btnPrimary, btnSecondary, input } from './shared';
 import { Modal } from '../ui/overlays';
 import { InfoTip, Panel } from '../ui/states';
 import { readLocal, writeLocal } from './util';
+import { StatusPill } from '../../components/ui/StatusPill';
 
 const DEBIT_KEY = 'mis.payments.debitAccount';
 interface Sel { amount: string; remark: string; mode?: PayMode }
@@ -104,10 +105,10 @@ export function BatchSection({ payees, onSaved }: { payees: Payee[]; onSaved: ()
   return (
     <Panel title="Make a payment batch" count={t.count || null}
       action={<div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+        <StatusPill toneName="warning" size="sm">
           File layout not confirmed
           <InfoTip label="About the payment file layout" align="right"><p>{PAYMENT_FORMAT.note}</p><p>Run Validate File for Upload in CIB before you upload the file.</p></InfoTip>
-        </span>
+        </StatusPill>
         <InfoTip label="How to make a batch" align="right">
           <ol className="list-decimal space-y-1 pl-4">
             <li>Type the debit account. Pick the payment date.</li>
