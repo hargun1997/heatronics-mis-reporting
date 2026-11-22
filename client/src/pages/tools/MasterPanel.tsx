@@ -80,7 +80,7 @@ export function MasterPanel({ state }: { state: MasterState }) {
                   onClick={() => setTab(t)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     tab === t
-                      ? 'bg-slate-900 text-white'
+                      ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-300'
                       : disabled
                         ? 'text-slate-300 cursor-not-allowed'
                         : 'text-slate-600 hover:bg-slate-100'

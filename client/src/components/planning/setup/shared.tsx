@@ -7,11 +7,12 @@ import { applyFounderDecisions } from '../../../data/planning/basePlan';
 import { emptyGrowth, ensureGrowthGroups } from '../../../data/planning/growth';
 import type { Update } from './types';
 import { StatusPill } from '../../../components/ui/StatusPill';
+import { buttonClass } from '../../ui/Button';
 
 export const CR = 1e7;
 
 // ---- class strings -------------------------------------------------------------------------------------------------
-export const btn = 'rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40';
+export const btn = buttonClass('secondary', 'sm');
 export const rm = 'rounded px-1.5 py-0.5 text-xs font-semibold text-slate-400 hover:text-red-600';
 export const txt = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-label';
 export const lbl = 'text-xs font-semibold text-slate-600';

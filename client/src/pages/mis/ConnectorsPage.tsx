@@ -123,7 +123,7 @@ function ConnectionsView() {
 
   const chip = (id: Feed | 'all', label: string, n: number) => (
     <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}
-      className={'min-h-11 sm:min-h-8 rounded-full border px-3 text-xs font-semibold ' + (filter === id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900')}>
+      className={'min-h-11 sm:min-h-8 rounded-full border px-3 text-xs font-semibold ' + (filter === id ? 'border-slate-900 bg-white font-semibold text-slate-900' : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900')}>
       {label} <span className="tabular-nums opacity-70">{n}</span>
     </button>
   );

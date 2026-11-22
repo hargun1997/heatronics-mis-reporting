@@ -9,13 +9,14 @@ import { cx } from '../shell/cx';
 import { AREA_LABEL, statusOf, type InboxArea, type InboxItem, type InboxSeverity, type IssueState } from '../../data/issues/inbox';
 import type { Inbox } from '../../data/issues/useInbox';
 import { StatusPill } from '../../components/ui/StatusPill';
+import { buttonClass } from '../ui/Button';
 
 const SEV: Record<InboxSeverity, { label: string; cls: string; bar: string; Icon: typeof Info }> = {
   high: { label: 'Urgent', cls: 'border-red-200 bg-red-50 text-red-800', bar: 'border-l-red-500', Icon: AlertCircle },
   medium: { label: 'Check', cls: 'border-amber-200 bg-amber-50 text-amber-900', bar: 'border-l-amber-500', Icon: AlertTriangle },
   low: { label: 'Low', cls: 'border-slate-200 bg-slate-100 text-slate-700', bar: 'border-l-slate-300', Icon: Info },
 };
-const btn = 'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:opacity-50';
+const btn = buttonClass('secondary', 'sm');
 type View = 'open' | 'snoozed' | 'done';
 /** Rows shown before "Show all" (page budget: 2 screens). */
 const PAGE = 12;
@@ -45,7 +46,7 @@ export function IssuesInbox({ inbox }: { inbox: Inbox }) {
       <div className="flex flex-wrap items-center gap-1.5">
         {(['open', 'snoozed', 'done'] as View[]).map((v) => (
           <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-            className={cx('min-h-[36px] rounded-full border px-3 text-sm', view === v ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400')}>
+            className={cx('min-h-[36px] rounded-full border px-3 text-sm', view === v ? 'border-slate-900 bg-white font-semibold text-slate-900' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400')}>
             {v === 'open' ? 'Open' : v === 'snoozed' ? 'Hidden for 7 days' : 'Done'} {by(v).length}</button>
         ))}
         <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden />

@@ -36,7 +36,7 @@ function ScheduleBuilder({ f, set }: { f: Partial<WorkTask>; set: (p: Partial<Wo
     f.dueDate ?? (f.dueMonth ? `${today.slice(0, 4)}-${pad(f.dueMonth)}-${pad(Math.min(f.dueDay ?? 1, 28))}` : '');
   const sel = scheduleSel;
   const chip = (on: boolean) =>
-    `min-h-[40px] rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'}`;
+    `min-h-[40px] rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${on ? 'border-slate-900 bg-white font-semibold text-slate-900' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'}`;
 
   return (
     <fieldset className="rounded-lg border border-slate-200 bg-slate-50 p-4">

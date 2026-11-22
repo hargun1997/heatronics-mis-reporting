@@ -137,7 +137,7 @@ function TopicIcon({ c, className = 'h-5 w-5', active }: { c: HbCollection; clas
   );
 }
 
-const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1';
+const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2';
 
 /** A button that looks like a link — every "page" move is in-place. */
 function Go({

@@ -18,7 +18,7 @@ const VIEWS: { v: View; l: string }[] = [
 
 const selectCls = `min-h-[40px] w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-900 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100`;
 const chipCls = (on: boolean) =>
-  `min-h-[36px] rounded-full border px-3 text-sm font-medium transition ${focusRing} ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'}`;
+  `min-h-[36px] rounded-full border px-3 text-sm font-medium transition ${focusRing} ${on ? 'border-slate-900 bg-white font-semibold text-slate-900' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'}`;
 
 export function TasksToolbar({
   view,

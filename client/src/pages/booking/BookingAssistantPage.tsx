@@ -222,7 +222,7 @@ export function BookingAssistantPage() {
       <div className="mx-auto flex max-w-7xl gap-1 px-4 sm:px-6 lg:hidden" role="group" aria-label="Pane">
         {(['chat', 'map'] as const).map((t) => (
           <button key={t} type="button" aria-pressed={mobileTab === t} onClick={() => setMobileTab(t)}
-            className={`min-h-11 flex-1 rounded-lg text-label font-semibold ${mobileTab === t ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>
+            className={`min-h-11 flex-1 rounded-lg text-label font-semibold ${mobileTab === t ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-300' : 'bg-white text-slate-700 ring-1 ring-slate-200'}`}>
             {t === 'chat' ? 'Ask' : `Ledger map${status?.needsInfo ? ` · ${status.needsInfo} need info` : ''}`}
           </button>
         ))}

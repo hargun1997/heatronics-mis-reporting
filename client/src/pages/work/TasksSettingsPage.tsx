@@ -205,7 +205,7 @@ function HeadsCard({ state, onSaved, onError }: { state: WorkState; onSaved: () 
                     key={a}
                     type="button"
                     onClick={() => set(i, { areas: on ? h.areas.filter((x) => x !== a) : [...h.areas, a] })}
-                    className={`min-h-[32px] rounded-full border px-3 text-sm font-medium ${focusRing} ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700 hover:border-slate-400'}`}
+                    className={`min-h-[32px] rounded-full border px-3 text-sm font-medium ${focusRing} ${on ? 'border-slate-900 bg-white font-semibold text-slate-900' : 'border-slate-300 text-slate-700 hover:border-slate-400'}`}
                   >
                     {a}
                   </button>

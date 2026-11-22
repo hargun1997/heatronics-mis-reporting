@@ -126,7 +126,7 @@ export function LedgerMapPanel({ rows, loadError, saving, saveError, savedAt, on
         <div className="mt-2 flex gap-1" role="group" aria-label="Filter rows">
           {([['all', 'All'], ['needs-info', 'Needs info'], ['confirmed', 'Confirmed']] as const).map(([key, label]) => (
             <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)}
-              className={`min-h-11 sm:min-h-8 rounded-md px-2.5 text-label font-medium ${filter === key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+              className={`min-h-11 sm:min-h-8 rounded-md px-2.5 text-label font-medium ${filter === key ? 'bg-white font-semibold text-slate-900 ring-1 ring-slate-300' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
               {label}
             </button>
           ))}

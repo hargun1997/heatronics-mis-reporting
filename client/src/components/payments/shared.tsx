@@ -1,11 +1,10 @@
 // Small shared pieces for the Bulk payments (ICICI) page: numbered expandable steps, number tiles, notes.
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { buttonClass } from '../ui/Button';
 
-export const btnSecondary =
-  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
-export const btnPrimary =
-  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-cta px-5 text-sm font-semibold text-on-cta hover:bg-cta-hover disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
+export const btnSecondary = buttonClass('secondary');
+export const btnPrimary = buttonClass('primary');
 export const input =
   'min-h-[40px] w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
