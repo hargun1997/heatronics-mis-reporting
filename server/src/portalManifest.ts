@@ -446,6 +446,29 @@ export const portalManifest = {
       }
     },
     {
+      "id": "tds-invoices",
+      "method": "GET",
+      "path": "/api/tds/invoices?month=<month>",
+      "auth": "session",
+      "purpose": "Supplier invoice register of a month with its memory (TDS page → Invoices)",
+      "mcp": {
+        "tool": "mis_get_tds_invoices",
+        "description": "Every supplier bill of a month from the stored Tally Day Books, kept across syncs: date, voucher type and no., supplier, PAN, GSTIN, supplier bill no. and date, taxable, GST, TDS ledger and amount, net payable, first seen, edits in Tally and bills removed in Tally; plus bills booked twice, the last sync and when Tally was last reached.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "month": {
+              "type": "string",
+              "description": "YYYY-MM"
+            }
+          },
+          "required": ["month"]
+        },
+        "returns": "rows[] + summary + duplicates[] + sync + reachedAt"
+      }
+    },
+    {
       "id": "tally-stock-items",
       "method": "GET",
       "path": "/api/tally/books/stock-items?q=<q>",

@@ -1,0 +1,27 @@
+# TDS invoice sync. Every hour from 06:37 to 22:37 IST the MIS is asked to read the Tally Day Books and move the supplier
+# invoice memory forward (server/src/services/tdsSync.ts). Tally answers only while TallyPrime is open on the host, so the
+# app (syncDue) retries every 50 min until it answers: the daily sync, and from the 5th the full re-read of last month
+# (month-end sync); the next good sync also reads the months missed while Tally was closed. Extra runs are harmless.
+# Open path with its own token (repo secret MIS_AUTO_PULL_TOKEN = Secret Manager mis-auto-pull-token); counts only.
+name: TDS invoice sync
+
+on:
+  schedule:
+    - cron: '7 1-17 * * *'   # UTC = 06:37–22:37 IST every day, hourly
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Ask the MIS to sync the TDS invoices with Tally
+        env:
+          APP_URL: ${{ vars.MIS_APP_URL || 'https://heatronics-mis-tool-559416687588.europe-west1.run.app' }}
+          TOKEN: ${{ secrets.MIS_AUTO_PULL_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "Repo secret MIS_AUTO_PULL_TOKEN is not set"; exit 1; fi
+          curl -fsS --retry 1 --retry-delay 30 --max-time 290 \
+            -X POST "$APP_URL/api/tds/sync/run" -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $TOKEN" -d '{}'
+          echo

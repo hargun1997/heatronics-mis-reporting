@@ -10,7 +10,7 @@ Who has access is managed at https://portal.heatronics.in/admin (Hargun only). *
 the first granted page), serves `/.well-known/htx-pages.json` and `GET /api/htx/pages`; the sidebar, ⌘K and MainLayout (notice on a client-side
 move) read it (`client/src/components/shell/useHtxPages.ts`). `server/src/htxPages.ts` is GENERATED from `client/src/nav/config.ts`:
 `node --experimental-strip-types scripts/gen-htx-pages.mjs` (test `server/test/htxPages.test.ts`). No `pages` = everything opens.
-Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron), `/api/expenses` (read by production.heatronics.in, own token), `/api/tally/poll` and `/api/connectors/auto-pull/run` (GitHub Actions daily; Bearer = secret `mis-auto-pull-token` / env MIS_AUTO_PULL_TOKEN, repo secret MIS_AUTO_PULL_TOKEN; no token on Cloud Run = refused; a token call only starts the once-a-day run and answers counts). Never add pages there.
+Endpoints that skip the login (machine callers with their own token): `/api/work/reminders/run`, `/api/ownership/reminders/run` (cron), `/api/expenses` (read by production.heatronics.in, own token), `/api/tally/poll`, `/api/tds/sync/run` (TDS invoice sync, same token, hourly `.github/workflows/tds-sync.yml`) and `/api/connectors/auto-pull/run` (GitHub Actions daily; Bearer = secret `mis-auto-pull-token` / env MIS_AUTO_PULL_TOKEN, repo secret MIS_AUTO_PULL_TOKEN; no token on Cloud Run = refused; a token call only starts the once-a-day run and answers counts). Never add pages there.
 Set `HTX_GATE=off` only for local testing; never on Cloud Run.
 **Security rules (9 Nov 2026, `server/test/security.test.ts`):** the app is built in `server/src/app.ts` (index.ts only listens) so the test lists
 EVERY registered route and asserts a 401 without a login (also with a forged `Host` / `X-Forwarded-Host: localhost`); a new open path fails it
@@ -354,7 +354,27 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   due 7th (March → 30 Apr), quarter 26Q / 24Q / 27Q rows (BSR / serial read from the challan narration "BSR 1234567 Challan 12345").
   Rates / limits = 1961 Act after Finance Act 2025 — UNVERIFIED for FY 2026-27 (Income-tax Act 2025 renumbers sections). Excel layout in ONE
   place `client/src/data/tds/tdsFormats.ts` (Pay this month · Deductee detail · 26Q prep) — **match to Heatronics' existing TDS file when the
-  founder sends it**. Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),
+  founder sends it**. **Supplier invoices + the accounts team's TDS report (22 Nov 2026, test `server/test/supplierInvoices.test.ts`):**
+  pure `services/supplierInvoices.ts` (`invoiceRows` = every live supplier bill of the stored Day Books: Purchase / Purchase-Expense /
+  Debit Note, plus Journal / Payment vouchers booking an expense / asset against a party or crediting TDS; `mergeMemory` keeps each bill
+  across syncs with firstSeen / lastSeen, a change log and 'removed' when a fresh COMPLETE month no longer has it; `duplicateBills`;
+  `syncDue` / `syncMonths`) + `services/tdsSync.ts` (store `tds/invoices-<YYYY-MM>`, `tds/sync-state`; `memoryFor` merges a stored Day
+  Book newer than the memory on every read, so Tally health pulls and the P&L poll reach it too). Sync = `bookStore.pullBooks` for the
+  months, then merge. Tally answers only while TallyPrime is open on the host, so every sync retries every 50 min (06:00–23:00 IST)
+  until it works and the next good sync also reads the months missed since the last good one (`syncMonths` catch-up, ≤ 3 back); the
+  page shows "Tally offline, showing last synced data as of <date>" + what is waiting (`tallyOffline`, `waitingFor`); an empty or cut
+  answer never replaces stored books. **daily** once a day (this month, + last month up to the 8th);
+  **month end** from the 5th until last month has a sync taken on / after the 5th (full re-read); **button** "Sync with Tally" (`POST
+  /api/tds/sync`, waits 25 s then the page polls `GET /api/tds/sync`). Scheduled caller: `POST /api/tds/sync/run` (open path, token
+  `mis-auto-pull-token`, counts only), GitHub Actions hourly 06:37–22:37 IST. Page: TDS → Invoices tab (tiles, "Booked twice?", rows,
+  drawer with the change log), Tally `FreshnessPill` in the header. **Download TDS report** = the accounts team's file layout ("Tds Report
+  Oct 2026-27.xlsx", sheet "October-2026"; `tdsFormats.ts tdsReportSheet`): ONE sheet per month named `<Month>-<YYYY>`, title rows
+  "HEATRONICS MEDICAL DEVICES (P) LTD" / "Month <Month-YY>", blocks in order 194C job work @1 % (PAN 4th letter P / H, else booked rate
+  < 1.5 %) · 194C others @2 % · 194H · 194I rent · 194J professional (+ "OTHER SECTIONS" only when a month has 194Q / 194A / 192 …),
+  headers S.NO | PARTY NAME | PAN NO | DATE | BILL NO | AMOUNT | TDS DEDUCT | INTREST 1.5% (spelled as theirs; holds the row's TDS rate
+  0.01 / 0.02 / 0.1), AMOUNT = taxable, real date cells dd-mm-yyyy, Total per block, Grand Total, "TDS PAYABLE <Month-YY>" lines
+  PROFESSIONAL · RENT · COMMISSION · ADVERTISEMENT · JOB WORK · TOTAL PAYABLE · NET PAYABLE (= total). "Download working file" (Quarter tab) =
+  Supplier invoices + the three planning sheets. MCP tool `mis_get_tds_invoices`. Calendar v3: `cal-m07-tds-pay` (7th, every month but April; `cadence: 'quarterly'` + `months` = those months),
   `cal-m04-tds-march` (30 Apr), both `live: 'tds'` → `pages/work/TdsTaskPanel.tsx`; `cal-q-tds-return` (31 Jan / May / Jul / Oct). Tests
   `server/test/tds.test.ts`.
 - **Live MIS = five tabs of expandable sections (founder, 5 Nov 2026: "expandable … declutter … the P&L is the MIS"):** `pages/mis/LiveMisPage.tsx`

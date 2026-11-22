@@ -1,7 +1,8 @@
 // Loads GET /api/tds?month= (stored Tally Day Books, READ ONLY) and runs the pure TDS engine in the browser.
 import { useEffect, useMemo, useState } from 'react';
 import { buildTds, type TdsLedger, type TdsReport, type TdsVoucher } from './tds';
-import { tdsSheets } from './tdsFormats';
+import { monthSheets, reportSheetName } from './tdsFormats';
+import type { InvoiceRow } from './invoices';
 
 export interface TdsApi { month: string; months: string[]; storedMonths: string[]; asOf: Record<string, string>; mastersAt: string | null; vouchers: TdsVoucher[]; ledgers: TdsLedger[] }
 
@@ -24,12 +25,19 @@ export function useTds(month: string): { api: TdsApi | null; report: TdsReport |
   return { api, report, error: cur?.error ?? null, loading: !cur };
 }
 
-/** Excel download: the three sheets of tdsFormats.ts. */
-export async function downloadTds(r: TdsReport) {
+/** Excel download for any month. Default = the accounts team's TDS report; working = Supplier invoices + planning sheets. */
+export async function downloadTds(month: string, r: TdsReport | null, invoices: { rows: InvoiceRow[]; syncedAt: string | null } | null, working = false) {
+  const sheets = monthSheets(month, r, invoices, { working });
+  if (!sheets.length) return false;
   const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
-  for (const s of tdsSheets(r)) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s.rows), s.name);
-  XLSX.writeFile(wb, `tds-${r.month}.xlsx`);
+  for (const s of sheets) {
+    const ws = XLSX.utils.aoa_to_sheet(s.rows, { cellDates: true, dateNF: 'dd-mm-yyyy' });
+    if (!working) ws['!cols'] = [{ wch: 6 }, { wch: 38 }, { wch: 13 }, { wch: 12 }, { wch: 16 }, { wch: 13 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, s.name);
+  }
+  XLSX.writeFile(wb, working ? `tds-working-${month}.xlsx` : `Tds Report ${reportSheetName(month)}.xlsx`);
+  return true;
 }
 
 export const tdsBtn =

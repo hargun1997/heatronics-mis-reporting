@@ -129,7 +129,7 @@ export function HowTo() {
     { title: 'Every quarter: file 26Q (and 24Q for salary)', body: (
       <ol className="list-[lower-alpha] space-y-1 pl-5">
         <li>Due: Q1 by <b>31 Jul</b>, Q2 by <b>31 Oct</b>, Q3 by <b>31 Jan</b>, Q4 by <b>31 May</b>.</li>
-        <li>Select <b>Download Excel</b>. Open the sheet <b>26Q prep</b>.</li>
+        <li>Open the <b>Quarter</b> tab. Select <b>Download working file</b>. Open the sheet <b>26Q prep</b>.</li>
         <li>Open the <b>RPU</b> (Return Preparation Utility from Protean / tin-nsdl). Enter the challans, then the deductee rows.</li>
         <li>Check the file with the <b>FVU</b> (File Validation Utility). Fix every error it shows.</li>
         <li>Upload the .fvu file on <b>incometax.gov.in</b> → e-File → TDS → Upload TDS, with DSC or EVC.</li>
