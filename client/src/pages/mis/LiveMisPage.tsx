@@ -245,7 +245,7 @@ export function LiveMisPage() {
           <p><Link to="/reporting/mis/rulebook" className="font-medium text-accent-600 hover:underline">Read how each number is made</Link></p>
         </>}
         actions={<>
-          <Popover align="right" width={200} buttonClassName={BTN} button={<>Download<ChevronDown className="h-4 w-4" aria-hidden /></>}>
+          <Popover kind="menu" closeOnSelect align="right" width={200} buttonClassName={BTN} buttonLabel="Download" button={<>Download<ChevronDown className="h-4 w-4" aria-hidden /></>}>
             <div className="p-1.5">
               <button type="button" onClick={() => setExcelOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download Excel</button>
               <button type="button" onClick={() => setPdfOpen(true)} disabled={!deck || deckLoading} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">Download PDF</button>

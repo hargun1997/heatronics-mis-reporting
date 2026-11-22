@@ -189,18 +189,18 @@ export function PlanningPage() {
             <option value="base">Base plan</option>
             {saved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+          <label className="sr-only" htmlFor="cmp">Compare with</label>
+          <select id="cmp" value={compareId} onChange={(e) => chooseCompare(e.target.value)} className="min-h-11 sm:min-h-9 max-w-[200px] rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700">
+            <option value="none">Compare with: none</option>
+            <option value="base">Compare with: Base plan</option>
+            {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>Compare with: {s.name}</option>)}
+          </select>
           <button type="button" disabled={busy || (!dirty && selected !== 'base')} onClick={() => save(false)} className={BTN_PRIMARY}>
             {selected === 'base' ? 'Save as scenario' : 'Save'}
           </button>
           <button type="button" onClick={() => setSetupOpen(true)} className={BTN}><SlidersHorizontal className="h-4 w-4" aria-hidden />Setup</button>
-          <Popover align="right" width={260} buttonClassName={BTN} buttonLabel="More actions" button={<MoreHorizontal className="h-4 w-4" aria-hidden />}>
+          <Popover kind="menu" closeOnSelect align="right" width={260} buttonClassName={BTN} buttonLabel="More actions" button={<MoreHorizontal className="h-4 w-4" aria-hidden />}>
             <div className="space-y-1 p-2 text-sm">
-              <label className="block px-2 pt-1 text-xs font-medium text-slate-600" htmlFor="cmp">Compare with</label>
-              <select id="cmp" value={compareId} onChange={(e) => chooseCompare(e.target.value)} className="mx-2 mb-1 min-h-11 sm:min-h-9 w-[calc(100%-1rem)] rounded-lg border border-slate-200 px-2 text-sm">
-                <option value="none">No scenario</option>
-                <option value="base">Base plan</option>
-                {saved.filter((s) => s.id !== selected).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
               {selected !== 'base' && <button type="button" disabled={busy} onClick={() => save(true)} className={MENU}>Save as new scenario</button>}
               <button type="button" disabled={!dirty} onClick={() => { const before = plan; setPlan(JSON.parse(cleanJson)); toast('Changes removed', { undo: () => setPlan(before) }); }} className={MENU}>Undo changes</button>
               <p className="px-2 pt-2 text-xs font-medium text-slate-600">Download Excel</p>

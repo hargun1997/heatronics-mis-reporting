@@ -134,7 +134,7 @@ export function HeaderMore({ children }: { children: React.ReactNode }) {
     <>
       <div className="hidden sm:contents">{children}</div>
       <div className="sm:hidden">
-        <Popover align="right" width={240} buttonLabel="More actions" closeOnSelect
+        <Popover kind="menu" align="right" width={240} buttonLabel="More actions" closeOnSelect
           buttonClassName="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           button={<MoreHorizontal className="h-5 w-5" aria-hidden />}>
           <div className="flex flex-col gap-1 p-2 [&>*]:w-full [&>*]:justify-start">{children}</div>
