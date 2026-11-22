@@ -25,6 +25,7 @@ const TB_FULL = `<ENVELOPE>${tbRow('Capital Account', '', '500.00')}${tbRow('Ban
 
 let calls: string[] = [];
 let tallyOpen = true;
+let companiesRefused = false;
 function fakeTally(): void {
   globalThis.fetch = (async (_url: string, init: { body: string }) => {
     const body = String(init.body);
@@ -32,13 +33,14 @@ function fakeTally(): void {
     const kind = /List of Companies/i.test(body) ? 'companies' : /Profit and Loss/i.test(body) ? 'pnl' : /Trial Balance/i.test(body) ? (/<EXPLODEFLAG>Yes/.test(body) ? 'tb-full' : 'tb-groups') : 'other';
     const to = /<SVTODATE>(\d{6})/.exec(body)?.[1];
     calls.push(to ? `${kind}:${to}` : kind);
+    if (kind === 'companies' && companiesRefused) return new Response(`<RESPONSE><LINEERROR>Could not find Report 'List of Companies'!</LINEERROR></RESPONSE>`, { status: 200 });
     const text = kind === 'companies' ? '<ENVELOPE><SVCURRENTCOMPANY>Test Co</SVCURRENTCOMPANY></ENVELOPE>' : kind === 'pnl' ? PNL : kind === 'tb-full' ? TB_FULL : kind === 'tb-groups' ? TB_GROUPS : '<ENVELOPE/>';
     return new Response(text, { status: 200 });
   }) as unknown as typeof fetch;
 }
 
 beforeEach(async () => {
-  calls = []; tallyOpen = true; fakeTally(); resetStatementsJob();
+  calls = []; tallyOpen = true; companiesRefused = false; fakeTally(); resetStatementsJob();
   await writeJson('tally/state', { lastTryAt: null, lastOkAt: null, lastError: null, company: null, months: {} });
 });
 
@@ -114,4 +116,16 @@ test('job: answers done within the wait; a second start joins the running job', 
   assert.equal(ja.status === 'running' || ja.status === 'done', true);
   assert.equal(jb.status, 'done');
   assert.equal(calls.filter((c) => c.startsWith('pnl:202608')).length, 0, 'joined, not a second pull');
+});
+
+test('Tally refuses "List of Companies" (live 22 Nov 2026): still reachable, P&L + TB pulled; poll too', async () => {
+  companiesRefused = true;
+  const r = await pullStatements(creds, { months: ['2026-10'] });
+  assert.equal(r.status, 'ok');
+  assert.deepEqual(r.done, ['2026-10']);
+  const p = await pollTally(creds, { force: true, skipBooks: true, now: Date.parse('2026-11-22T16:00:00Z') });
+  assert.equal(p.status, 'ok');
+  assert.ok((p.months ?? []).includes('2026-11'));
+  tallyOpen = false; // a network failure is still "down"
+  assert.equal((await pullStatements(creds, { months: ['2026-10'] })).status, 'down');
 });
