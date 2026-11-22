@@ -103,8 +103,57 @@ async function pullTb(creds: Credentials, period: string, state: TallyState, kee
   state.tbMonths = { ...(state.tbMonths ?? {}), [period]: state.lastTryAt! };
 }
 
+/**
+ * One month: the P&L copy, then its Trial Balance (closing stock comes from the P&L copy, so they are taken together).
+ * A Tally error on the P&L request is thrown (Tally closed mid-run); an empty P&L answer keeps the old copy and still
+ * tries the TB; a TB failure never undoes the P&L copy.
+ */
+async function pullMonth(creds: Credentials, period: string, state: TallyState, keepRaw: boolean): Promise<{ pnl: boolean; tbError: string | null }> {
+  const xml = await post(creds, pnlEnvelope(period, creds.company), 60_000);
+  const month = parsePnlXml(xml, period);
+  if (keepRaw) await writeJson('tally/raw-last', { period, at: state.lastTryAt, xml: xml.slice(0, 400_000) });
+  const pnl = keepCopy(month.ledgerRows.length); // empty answer: keep the stored copy; not a success
+  if (pnl) {
+    await writeJson(`tally/pnl-${period}`, { ...month, asOf: state.lastTryAt! } satisfies TallySnapshot);
+    state.months[period] = state.lastTryAt!;
+  }
+  let tbError: string | null = null;
+  try { await pullTb(creds, period, state, keepRaw); } catch (e) { tbError = e instanceof Error ? e.message : String(e); }
+  return { pnl, tbError };
+}
+
+/** Ask Tally which company is loaded. Throws when Tally is not reachable (closed on the host). */
+async function reach(creds: Credentials, state: TallyState): Promise<void> {
+  try {
+    const list = await post(creds, companyListEnvelope(), 10_000);
+    const loaded = /<SVCURRENTCOMPANY>([\s\S]*?)<\/SVCURRENTCOMPANY>/i.exec(list)?.[1];
+    if (loaded) state.company = decode(loaded);
+  } catch (e) {
+    // Heatronics' TallyPrime answers "Could not find Report 'List of Companies'!" (seen live 22 Nov 2026). Since post()
+    // reads LINEERROR answers as errors (14 Nov 2026), that refusal stopped every P&L / TB poll here although Tally
+    // was open. A refusal is an answer: Tally is reachable; the P&L request names the company itself.
+    if (!/Tally refused the request/.test(e instanceof Error ? e.message : String(e))) throw e;
+  }
+  // Only after Tally answered: a basis change empties the TB index so every TB is pulled again. Done before the
+  // check, a failed poll wiped the index of TBs that are still stored (22 Nov 2026).
+  if (state.tbBasis !== TB_BASIS) { state.tbMonths = {}; state.tbBasis = TB_BASIS; }
+}
+
+// One Tally request stream at a time (TallyPrime Silver is single-user): the scheduled poll, Pull now and the
+// statements pull queue behind each other in this instance.
+let chain: Promise<unknown> = Promise.resolve();
+export function withTallyLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = chain.then(fn, fn);
+  chain = run.catch(() => undefined);
+  return run;
+}
+
 /** One poll. `force` skips the 20-minute gap (signed-in Pull now). Never throws: the answer is a status. */
-export async function pollTally(creds: Credentials, opts: { force?: boolean; now?: number; skipBooks?: boolean } = {}): Promise<{ status: 'skipped' | 'down' | 'ok' | 'not_connected'; detail: string; months?: string[] }> {
+export function pollTally(creds: Credentials, opts: { force?: boolean; now?: number; skipBooks?: boolean } = {}): Promise<{ status: 'skipped' | 'down' | 'ok' | 'not_connected'; detail: string; months?: string[] }> {
+  return withTallyLock(() => pollTallyNow(creds, opts));
+}
+
+async function pollTallyNow(creds: Credentials, opts: { force?: boolean; now?: number; skipBooks?: boolean }): Promise<{ status: 'skipped' | 'down' | 'ok' | 'not_connected'; detail: string; months?: string[] }> {
   const now = opts.now ?? Date.now();
   if (!(creds.host || '').trim()) return { status: 'not_connected', detail: 'Add the Tally host and port in Setup (Tally card).' };
   const state = await readTallyState();
@@ -113,11 +162,8 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
     if (!d.due) return { status: 'skipped', detail: d.why };
   }
   state.lastTryAt = new Date(now).toISOString();
-  if (state.tbBasis !== TB_BASIS) { state.tbMonths = {}; state.tbBasis = TB_BASIS; } // month-start copies → pull again
   try {
-    const list = await post(creds, companyListEnvelope(), 10_000);
-    const loaded = /<SVCURRENTCOMPANY>([\s\S]*?)<\/SVCURRENTCOMPANY>/i.exec(list)?.[1];
-    if (loaded) state.company = decode(loaded);
+    await reach(creds, state);
   } catch (e) {
     state.lastError = e instanceof Error ? e.message : String(e);
     await writeJson('tally/state', state);
@@ -129,20 +175,9 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
   const empty: string[] = [];
   for (const period of monthsToPull(now, state.months)) {
     try {
-      const xml = await post(creds, pnlEnvelope(period, creds.company), 60_000);
-      const month = parsePnlXml(xml, period);
-      if (!done.length) await writeJson('tally/raw-last', { period, at: state.lastTryAt, xml: xml.slice(0, 400_000) });
-      if (!keepCopy(month.ledgerRows.length)) { empty.push(period); continue; } // keep the stored copy; not a success
-      const snap: TallySnapshot = { ...month, asOf: state.lastTryAt };
-      await writeJson(`tally/pnl-${period}`, snap);
-      state.months[period] = state.lastTryAt;
-      done.push(period);
-      // Trial Balance for the same month: a failure here never undoes the P&L copy.
-      try {
-        await pullTb(creds, period, state, done.length === 1);
-      } catch (e) {
-        tbFailed = `${period}: ${e instanceof Error ? e.message : String(e)}`;
-      }
+      const r = await pullMonth(creds, period, state, !done.length && !empty.length);
+      if (r.pnl) done.push(period); else empty.push(period);
+      if (r.tbError) tbFailed = `${period}: ${r.tbError}`;
     } catch (e) {
       failed = `${period}: ${e instanceof Error ? e.message : String(e)}`;
       break; // Tally closed mid-run: keep what we have
@@ -165,4 +200,94 @@ export async function pollTally(creds: Credentials, opts: { force?: boolean; now
     books = b.masters || b.months.length ? `; books: ${[b.masters ? 'masters' : '', ...b.months].filter(Boolean).join(', ')}` : '';
   }
   return { status: done.length ? 'ok' : 'down', detail: done.length ? `Stored P&L + Trial Balance for ${done.join(', ')}${tbFailed ? ` (Trial Balance failed: ${tbFailed})` : ''}${failed ? ` (stopped: ${failed})` : ''}${books}` : `Tally answered the check but not the P&L: ${failed ?? state.lastError}`, months: done };
+}
+
+// ---------------------------------------------------------------- statements pull (Balance Sheet / Cash Flow)
+
+/** Days after month end a copy must be taken on to count as final (books for the month closed). Same 5 days as the P&L slot. */
+export const FINAL_AFTER_DAYS = 5;
+
+/** True when a copy taken at `asOf` is late enough to hold the month's final books. */
+export function isFinalCopy(period: string, asOf: string | null | undefined): boolean {
+  if (!asOf) return false;
+  const end = Date.parse(`${addMonths(period, 1)}-01T00:00:00+05:30`);
+  return Date.parse(asOf) >= end + FINAL_AFTER_DAYS * 86_400_000;
+}
+
+/**
+ * Months the statements pull takes, newest first: of the last `span` months (this month included), every month with no
+ * stored TB, or whose TB or P&L copy is not final (this month is never final, so it is always refreshed).
+ */
+export function statementMonthsDue(now: number, state: Pick<TallyState, 'months' | 'tbMonths'>, span = 13): string[] {
+  const cur = istMonth(now);
+  return Array.from({ length: span }, (_, i) => addMonths(cur, -i))
+    .filter((p) => !isFinalCopy(p, state.tbMonths?.[p]) || !isFinalCopy(p, state.months[p]));
+}
+
+const PERIOD_RE = /^\d{4}-\d{2}$/;
+
+export interface StatementsPullResult {
+  status: 'ok' | 'partial' | 'down' | 'not_connected';
+  /** Months whose P&L + TB were stored this run. */
+  done: string[];
+  /** Months asked for but not reached in the time budget (pull again). */
+  remaining: string[];
+  failed: { period: string; error: string }[];
+  detail: string;
+  at: string;
+}
+
+/**
+ * Pull P&L + Trial Balance for the given months (default: `statementMonthsDue`), newest first, until `budgetMs` is
+ * spent. READ ONLY (every request is an Export). Months are never skipped because a P&L copy is missing (the old
+ * backfill only took months that already had one).
+ */
+export function pullStatements(creds: Credentials, opts: { months?: string[]; now?: number; budgetMs?: number } = {}): Promise<StatementsPullResult> {
+  return withTallyLock(() => pullStatementsNow(creds, opts));
+}
+
+async function pullStatementsNow(creds: Credentials, opts: { months?: string[]; now?: number; budgetMs?: number }): Promise<StatementsPullResult> {
+  const now = opts.now ?? Date.now();
+  const at = new Date(now).toISOString();
+  const deadline = Date.now() + (opts.budgetMs ?? 230_000);
+  if (!(creds.host || '').trim()) return { status: 'not_connected', done: [], remaining: [], failed: [], detail: 'Add the Tally host and port in Setup (Tally card).', at };
+  const state = await readTallyState();
+  state.lastTryAt = at;
+  try {
+    await reach(creds, state);
+  } catch (e) {
+    state.lastError = e instanceof Error ? e.message : String(e);
+    await writeJson('tally/state', state);
+    return { status: 'down', done: [], remaining: opts.months ?? [], failed: [], detail: `Tally not reachable: ${state.lastError}`, at };
+  }
+  const want = [...new Set((opts.months ?? statementMonthsDue(now, state)).filter((p) => PERIOD_RE.test(p)))].sort().reverse();
+  const done: string[] = [];
+  const failed: { period: string; error: string }[] = [];
+  let i = 0;
+  for (; i < want.length; i++) {
+    if (deadline - Date.now() < 45_000) break; // one month = 3 Tally answers; leave room so a month is never cut halfway
+    const period = want[i];
+    try {
+      const r = await pullMonth(creds, period, state, i === 0);
+      if (r.tbError) failed.push({ period, error: r.tbError });
+      else done.push(period);
+      if (!r.pnl) failed.push({ period, error: 'Tally answered without P&L rows; the stored P&L copy was kept' });
+    } catch (e) {
+      failed.push({ period, error: e instanceof Error ? e.message : String(e) });
+      i++;
+      break; // Tally closed mid-run: keep what we have
+    }
+    await writeJson('tally/state', state); // each month counts as soon as it is stored
+  }
+  const remaining = want.slice(i);
+  if (done.length) state.lastOkAt = at;
+  state.lastError = failed.length ? `${failed[0].period}: ${failed[0].error}` : null;
+  await writeJson('tally/state', state);
+  const status = !done.length ? (failed.length ? 'down' : 'ok') : failed.length || remaining.length ? 'partial' : 'ok';
+  const detail = [
+    done.length ? `Stored P&L + Trial Balance for ${done.join(', ')}.` : want.length ? 'Nothing stored.' : 'Every month is already final.',
+    remaining.length ? `${remaining.length} month(s) left: pull again.` : '',
+    failed.length ? `Failed: ${failed.map((f) => `${f.period} (${f.error})`).join('; ')}.` : '',
+  ].filter(Boolean).join(' ');
+  return { status, done, remaining, failed, detail, at };
 }

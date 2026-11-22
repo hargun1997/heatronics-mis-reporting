@@ -9,7 +9,7 @@
 
 import { downloadReportDocument, spapiCreateReport, spapiGet } from '../sources/amazon.js';
 import { productionCosts } from '../sources/production.js';
-import { pollTally, readTallySnapshot, readTallyState, readTallyTb } from '../tally/snapshots.js';
+import { isFinalCopy, pullStatements, readTallySnapshot, readTallyState, readTallyTb } from '../tally/snapshots.js';
 import shopifyConnector from '../sources/shopify.js';
 import { pullAdvertisedProduct } from '../sources/amazonAds.js';
 import { opsAdsMonth, type OpsAdsMonth } from '../sources/opsAdsStore.js';
@@ -221,19 +221,30 @@ async function amazonBusinessReport(ctx: PullContext): Promise<SlotPull> {
 
 // ---- Tally P&L (stored snapshot; Tally answers only while open on the cloud machine) -------------
 
+/**
+ * A stored Tally copy that is not final (none, or taken < 5 days after month end) is read again from Tally for that
+ * month (P&L + Trial Balance together). Before 22 Nov 2026 a stored copy was always returned, so a copy taken the day
+ * after month end never changed. Tally closed = the stored copy, with a warning.
+ */
+async function refreshFromTally(ctx: PullContext, asOf: string | null | undefined): Promise<{ pulled: boolean; warnings: string[] }> {
+  if (isFinalCopy(ctx.periodKey, asOf)) return { pulled: false, warnings: [] };
+  const budgetMs = Math.max(60_000, ctx.deadline - Date.now() - 15_000);
+  const r = await pullStatements(ctx.creds, { months: [ctx.periodKey], budgetMs });
+  if (r.status === 'down' || r.status === 'not_connected') return { pulled: false, warnings: asOf ? [`Tally did not answer (${r.detail}) This is the stored copy.`] : [] };
+  return { pulled: true, warnings: r.failed.filter((f) => f.period === ctx.periodKey).map((f) => `Tally: ${f.error}`) };
+}
+
 async function tallyPnl(ctx: PullContext): Promise<SlotPull> {
   let snap = await readTallySnapshot(ctx.periodKey);
-  if (!snap) {
-    await pollTally(ctx.creds, { force: true, skipBooks: true });
-    snap = await readTallySnapshot(ctx.periodKey);
-  }
+  const refresh = await refreshFromTally(ctx, snap?.asOf);
+  if (refresh.pulled) snap = await readTallySnapshot(ctx.periodKey);
   if (!snap) {
     const st = await readTallyState();
     const seen = st.lastOkAt ? new Date(st.lastOkAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'never';
     throw new Error(`No Tally P&L for ${ctx.periodKey}. Tally is not open on the cloud machine (last reached: ${seen}). Open Tally, or upload the P&L Excel.`);
   }
   const age = new Date(snap.asOf).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-  const warnings = [...snap.warnings];
+  const warnings = [...snap.warnings, ...refresh.warnings];
   const end = Date.parse(`${ctx.periodKey}-01T00:00:00+05:30`);
   const monthEnd = new Date(end); monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
   if (Date.parse(snap.asOf) < monthEnd.getTime() + 5 * 86_400_000) warnings.push(`Tally copy from ${age}. Later entries are not in it. Pull again when the books are final.`);
@@ -249,10 +260,8 @@ async function tallyPnl(ctx: PullContext): Promise<SlotPull> {
 
 async function tallyTb(ctx: PullContext): Promise<SlotPull> {
   let tb = await readTallyTb(ctx.periodKey);
-  if (!tb) {
-    await pollTally(ctx.creds, { force: true });
-    tb = await readTallyTb(ctx.periodKey);
-  }
+  const refresh = await refreshFromTally(ctx, tb?.asOf);
+  if (refresh.pulled) tb = await readTallyTb(ctx.periodKey);
   if (!tb) {
     const st = await readTallyState();
     const seen = st.lastOkAt ? new Date(st.lastOkAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : 'never';
@@ -264,7 +273,7 @@ async function tallyTb(ctx: PullContext): Promise<SlotPull> {
     trialBalance: { period: tb.period, rows: tb.rows, totalDebit: tb.totalDebit, totalCredit: tb.totalCredit, difference: tb.difference, asOf: tb.asOf },
     rowCount: tb.rows.length,
     trace: [`Tally Trial Balance ${ctx.periodKey} as of ${age} (read only, stored copy)`, `${tb.rows.filter((r) => r.level === 'group').length} groups, ${tb.rows.filter((r) => r.level === 'ledger').length} ledgers · Dr ${inr(tb.totalDebit)} · Cr ${inr(tb.totalCredit)}`],
-    warnings: [...tb.warnings],
+    warnings: [...tb.warnings, ...refresh.warnings],
   };
 }
 
