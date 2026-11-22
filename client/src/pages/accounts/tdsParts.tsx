@@ -5,11 +5,14 @@ import { SECTIONS, dateLabel, type TdsReport } from '../../data/tds/tds';
 import { inr } from '../../data/tds/useTds';
 import { StepNo } from '../../components/ui/states';
 import { DataTable } from '../../components/ui/DataTable';
+import { Empty, BTN } from '../../components/ui/states';
+import { Link } from 'react-router-dom';
 
 export function NoDayBook({ month }: { month: string }) {
   return (
-    <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <b>No Tally Day Book for {month}.</b> Open TallyPrime. Then open <a className="font-semibold underline" href="/tally">Tally health</a> and select <b>Pull Tally now</b>.
+    <div role="status">
+      <Empty title={`No Tally Day Book for ${month}`} hint="Open TallyPrime. Then open Tally health and select Pull Tally now."
+        action={<Link to="/tally" className={BTN}>Open Tally health</Link>} />
     </div>
   );
 }
