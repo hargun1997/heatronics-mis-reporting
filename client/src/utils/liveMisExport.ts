@@ -653,7 +653,7 @@ export function buildLiveWorkbook(rawDeck: LiveDeckData, o: LiveExportOptions, s
     // normalised basis the months are restated and the Stock build / drawdown memo line sits under GM%.
     const misDeck = norm ? { ...rawDeck, months: normaliseLiveMonths(rawDeck.months, rawDeck.completeness, rawDeck).months } : rawDeck;
     const misSrc = liveMisFormatSource(misDeck, o.mergeChannels);
-    const mis = buildMisFormatWorkbook(misSourceWithCash(norm ? { ...misSrc, rows: MIS_SHEET_ROWS_NORMALISED, title: 'HEATRONICS LIVE MIS · Company P&L (₹ Lac, normalised COGM)' } : misSrc, st?.flows ?? []));
+    const mis = buildMisFormatWorkbook(misSourceWithCash(norm ? { ...misSrc, rows: MIS_SHEET_ROWS_NORMALISED, title: 'HEATRONICS LIVE MIS · Company P&L (₹ Lac, normalised COGM)' } : misSrc, st?.monthFlows ?? st?.flows ?? []));
     const name = mis.SheetNames[0];
     if (name) XLSX.utils.book_append_sheet(wb, mis.Sheets[name], 'MIS Sheet');
   }

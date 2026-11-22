@@ -60,7 +60,9 @@ export function liveSheetCount(o: LiveExportOptions): number {
 
 // ---- Statements + cash rows ------------------------------------------------
 
-export interface LiveStatements { sheets: BalanceSheet[]; flows: CashFlow[] }
+/** `sheets` / `flows` = what the Balance Sheet / Cash Flow sheets show (month ends, or the Live MIS period columns since PR 3);
+ *  `monthFlows` = the monthly flows by YYYY-MM for the MIS Sheet cash rows (defaults to `flows`). */
+export interface LiveStatements { sheets: BalanceSheet[]; flows: CashFlow[]; monthFlows?: CashFlow[] }
 
 
 /**

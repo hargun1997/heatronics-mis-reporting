@@ -233,7 +233,7 @@ export function buildLivePdf(rawDeck: LiveDeckData, o: LivePdfOptions, st?: Live
   }
 
   if (o.sections.includes('misSheet')) {
-    const src = misSourceWithCash(liveMisFormatSource(norm ? { ...deck, months } : deck, o.mergeChannels), st?.flows ?? []);
+    const src = misSourceWithCash(liveMisFormatSource(norm ? { ...deck, months } : deck, o.mergeChannels), st?.monthFlows ?? st?.flows ?? []);
     const rows = norm ? MIS_SHEET_ROWS_NORMALISED : MIS_SHEET_ROWS;
     const fys = src.fiscalYears.filter((f) => o.fyKeys.length === 0 || o.fyKeys.some((k) => k.replace(/^FY(\d\d)-(\d\d)$/, 'FY 20$1-$2') === f.name));
     for (const fy of fys.length ? fys : src.fiscalYears.slice(-1)) {
