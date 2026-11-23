@@ -469,6 +469,17 @@ export function tallyHealth(vouchers: TallyVoucher[], masters: TallyMasters | nu
   ledgers.filter((l) => /(\b[cis]gst\b|\bigst\b|gst input|gst output|tds payable|\btcs\b)/i.test(l.name) && !/duties\s*&?\s*taxes/i.test(l.primary) && !/duties\s*&?\s*taxes/i.test(l.group) && !/receivable|current assets|loans & advances/i.test(l.primary))
     .map((l) => ({ ledger: l.name, detail: `Under ${l.group}` })));
 
+  // 12b. Supernode (Amazon 3P) sales booked to GT / offline sales ledgers.
+  // Tranzact's Ecom series = sales to Supernode. With no Tranzact ledger rule for that series the voucher lands on a
+  // GT ledger, so the MIS shows Amazon 3P sales as GT (Oct 2026: Ecom/26-27/0001-0004, about Rs 6.56 lakh).
+  const GT_SALES = /\bgt\b|dealer sales|retailer sales|cnf sales|c&f sales|offline sales|physio.*sales|\bmt sales/i;
+  const isSupernodeSale = (v: TallyVoucher) => /^ecom\s*\//i.test(v.number.trim()) || /supernode/i.test(v.party);
+  add({ id: 'ecom-on-gt', severity: 'error', title: 'Supernode (Amazon 3P) sales booked to GT ledgers',
+    why: 'Tranzact Ecom-series invoices are sales to Supernode for Amazon. On a GT ledger the MIS shows them as GT sales and Amazon 3P sales are too low.',
+    fix: '1. In Tranzact, add a Tally ledger rule: Ecom series → the Amazon 3P / Supernode sales ledger. 2. In Tally, open each voucher below (Alt+G › Day Book). 3. Change the GT sales line to the Amazon 3P / Supernode sales ledger. 4. Press Ctrl+A. 5. Pull Tally again in the MIS.' },
+  live.filter(isSupernodeSale).flatMap((v) => v.lines.filter((l) => l.amount < 0 && GT_SALES.test(l.ledger))
+    .map((l) => ({ ...vs(v, `${l.ledger} ${money(-l.amount)}`, -l.amount), ledger: l.ledger }))));
+
   // 13. Vouchers with no narration (info)
   add({ id: 'no-narration', severity: 'info', title: 'Journals and payments with no narration',
     why: 'The narration is the audit trail. It tells what the entry is and which document it comes from.',

@@ -113,6 +113,22 @@ test('health: the rules find what is wrong and say how to fix it in Tally', () =
   for (const i of rep.issues) { assert.ok(i.fix.length > 20, i.id); assert.ok(i.why.length > 20, i.id); }
 });
 
+test('health: Supernode Ecom invoices on a GT sales ledger are flagged, other sales are not', () => {
+  const base = { guid: '', type: 'Sales', reference: '', referenceDate: '', narration: '', partyGstin: '', cancelled: false, optional: false, inventory: [] };
+  const vs: TallyVoucher[] = [
+    { ...base, guid: 'a', date: '2026-10-05', number: 'Ecom/26-27/0001', party: 'Test Retail Ventures', lines: [{ ledger: 'Test Retail Ventures', amount: 105000 }, { ledger: 'GT - Dealer Sales', amount: -100000 }, { ledger: 'IGST Output', amount: -5000 }] },
+    { ...base, guid: 'b', date: '2026-10-06', number: 'S-12', party: 'Supernode Test Pvt Ltd', lines: [{ ledger: 'Supernode Test Pvt Ltd', amount: 52500 }, { ledger: 'GT - Retailer Sales', amount: -50000 }, { ledger: 'IGST Output', amount: -2500 }] },
+    { ...base, guid: 'c', date: '2026-10-07', number: 'Ecom/26-27/0002', party: 'Test Retail Ventures', lines: [{ ledger: 'Test Retail Ventures', amount: 21000 }, { ledger: 'Amazon 3P Sales', amount: -20000 }, { ledger: 'IGST Output', amount: -1000 }] },
+    { ...base, guid: 'd', date: '2026-10-08', number: 'GTD/26-27/0040', party: 'Test Dealer', lines: [{ ledger: 'Test Dealer', amount: 10500 }, { ledger: 'GT - Dealer Sales', amount: -10000 }, { ledger: 'IGST Output', amount: -500 }] },
+    { ...base, guid: 'e', date: '2026-10-09', number: 'Ecom/26-27/0003', party: 'Test Retail Ventures', cancelled: true, lines: [{ ledger: 'GT - Dealer Sales', amount: -9000 }] },
+  ];
+  const rep = tallyHealth(vs, null, ['2026-10'], '2026-11-23');
+  const i = rep.issues.find((x) => x.id === 'ecom-on-gt');
+  assert.equal(i?.count, 2);
+  assert.equal(i?.severity, 'error');
+  assert.deepEqual(i?.samples.map((s) => s.amount), [100000, 50000]);
+});
+
 test('Day Books FY sweep: April → this month in order, resumes where it stopped, new pass after the last month', () => {
   const now = Date.parse('2026-11-22T06:00:00Z');
   const fy = fyMonthsTo(now);
