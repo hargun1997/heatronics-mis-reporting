@@ -652,7 +652,8 @@ shrinkImage`; Claude's image limit is 5 MB). Test `server/test/bookingEvidence.t
 Inverted duty refund (section 54(3)(ii), Rule 89(5) as substituted by Notification 05/2026-CT, in force 1 Nov 2026), one month at a time,
 READ ONLY from the STORED Day Books (the hourly TDS sync re-reads the whole FY, so the claim recalculates live). Pure engine
 `server/src/services/gstRefund.ts buildRefundMonth` (test `server/test/gstRefund.test.ts`): home GSTIN only (a voucher type or GST ledger
-ending "-<STATE>" belongs to that state's GSTIN; settings `gst-refund/settings` homeState UTTAR PRADESH + GSTIN); bills sorted by signals
+ending "-<STATE>" belongs to that state's GSTIN; settings `gst-refund/settings` homeState UTTAR PRADESH + GSTIN, default = the factory's
+UP GSTIN 09AAGCH6109J1ZE (founder, 23 Nov 2026; NOT 29… Karnataka or 06… Haryana, those are warehouse registrations; a saved empty GSTIN never hides it)); bills sorted by signals
 (saved rule bill / party / ledger → stock items, Purchase Accounts / Fixed Assets ledger → goods word in an expense ledger, Tranzact PO in
 the narration → voucher type; capital / blocked win; doubts go to Check); left out with the reason: capital goods (until ITC from 1 Apr 2027),
 blocked 17(5) words, RCM, unregistered, no GST, own stock transfers (Purchase-STR-<home>, Circular 135), input services before 1 Nov 2026,
@@ -668,6 +669,23 @@ the portal offline utility's columns (RFD_STMT01A v2.0: inward row beside outwar
 Credit Note types, 10,000 rows per sheet) + Working + Left out + Checks (`statementSheets`, test `server/test/gstRefundClient.test.ts`). MCP
 tool `mis_get_gst_refund`. UNVERIFIED: RFD-01 Declaration A still says no input service credit for inverted refunds (CA to confirm); 2B Excel
 headers taken from the portal's current layout.
+
+## TDS claim back (TDS page → "Claim back" tab, founder 23 Nov 2026)
+Pure `server/src/services/tdsClaims.ts buildClaims` (test `server/test/tdsClaims.test.ts`) over the FY's STORED Day Books: (1) **reimburse** =
+TDS we deducted on bills of platforms that take the full amount (`PLATFORMS`: Amazon, Meta, Google, Porter, Shiprocket, Flipkart by party name;
+any other party whose FY payments ≥ bills − TDS + 80 % of the TDS = "paid in full"), same bills / amounts as the TDS page (`invoiceRows`), per
+FY quarter; received = refunds booked in Tally (narration TDS + refund / reimburse, or a credit to a "TDS Reimbursement" ledger) or marked
+received; state wait (before the certificate date: Q1 15 Aug, Q2 15 Nov, Q3 15 Feb, Q4 15 Jun) / ready / claimed / received. (2) **credit** = TDS
+deducted FROM us (Dr to a TDS receivable ledger outside purchases, e.g. "Amazon TDS-TCS" 194-O) = credit in the tax return, never claimed from
+the platform. `older` = 1 April balances of "TDS Reimbursement From Parties" / year-named receivable ledgers (not split by party). Routes
+`GET /api/tds/claims?fy=` (adds company name / GSTIN / PAN from the GST refund GSTIN), `PUT /api/tds/claims/:platform|YYYY-Qn` (claimed /
+received / clear, store `tds/claims`), `GET/PUT /api/tds/claims-settings` (TAN, Meta ad account, Google customer ID, Porter account, contact;
+store only). Client `client/src/data/tds/claims.ts`: `playbookFor` (where, steps, refund form, attachments; researched 23 Nov 2026: Meta Business
+Help Centre TDS refund form → ad credits; Google `tds.certificates@google.com` → ad credits (UNVERIFIED against Google's own help page);
+Amazon Seller Central case "TDS reimbursement"; Porter Enterprise dashboard Help & Support → wallet; others UNVERIFIED), `claimMessage`
+(subject + body with PAN / GSTIN / TAN / period / invoices / TDS), `billListRows` (Excel). View `pages/accounts/tdsClaims.tsx` (4 tiles, party
+table, How to claim modal with copy buttons, quarters with Mark as claimed / received). Certificate = Form No. 131 (old 16A), quarter return
+Form No. 140 (old 26Q) under the Income-tax Act 2025. MCP tool `mis_get_tds_claims`. Test `server/test/tdsClaimsClient.test.ts`.
 
 ## 5-year plan (`/planning`)
 - Port of the Google Sheet "Heatronics Projection and Deployment Plan" (1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE), run live

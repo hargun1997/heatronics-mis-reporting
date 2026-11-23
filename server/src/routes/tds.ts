@@ -9,10 +9,15 @@
 //   DELETE /api/tds/filed/:month         remove a wrong upload (the month goes back to Tally)
 //   GET  /api/tds/sync                   last sync, next run, Tally freshness (signed in)
 //   POST /api/tds/sync                   "Sync with Tally": re-reads the whole FY (Day Books → memory; signed in); waits ≤ 25 s, then "running"
+//   GET  /api/tds/claims?fy=2026          TDS to claim back from platforms (services/tdsClaims.ts) + TDS deducted from us
+//   PUT  /api/tds/claims/:key            { status: claimed | received | clear, on, ref, amount } for "<platform>|<YYYY>-Q<n>"
+//   GET / PUT /api/tds/claims-settings   TAN, ad account / customer ids, contact for the claim emails
 //   POST /api/tds/sync/run               OPEN path with its own token (secret mis-auto-pull-token), hourly GitHub Actions
 //                                        (.github/workflows/tds-sync.yml): once a day + month-end from the 5th; counts only
 import { Router, type Request, type Response } from 'express';
-import { readBooks, readBooksState, readMasters, readPartial } from '../connectors/tally/bookStore.js';
+import { addMonths, mergePartial, readBooks, readBooksState, readMasters, readPartial } from '../connectors/tally/bookStore.js';
+import { DEFAULT_SETTINGS as GST_DEFAULTS } from '../services/gstRefund.js';
+import { buildClaims, EMPTY_CLAIM_SETTINGS, sanitizeClaim, sanitizeClaimSettings, type ClaimRecords, type ClaimSettings } from '../services/tdsClaims.js';
 import { tdsFeed, tdsMonths } from '../services/tdsFeed.js';
 import { duplicateBills, fyMonths, memorySummary, monthState, syncDue, tallyOffline, waitingFor } from '../services/supplierInvoices.js';
 import { memoryFor, passLeft, readSyncState, runTdsSync, scheduledSync, syncRunning } from '../services/tdsSync.js';
@@ -130,6 +135,47 @@ router.post('/sync/run', h(async (req, res) => {
   if (out === 'waiting') return void res.json({ status: 'started', why: r.why });
   // Counts only: no figures, no names (the repo and this URL are public).
   res.json({ status: out.lastError ? 'failed' : 'done', why: r.why, months: out.lastRun?.months ?? [], bills: out.lastRun?.bills ?? 0, tallyDown: !!out.lastError });
+}));
+
+// ---- TDS to claim back (founder, 23 Nov 2026)
+const readClaims = () => readJson<ClaimRecords>('tds/claims', {});
+const readClaimSettings = async () => ({ ...EMPTY_CLAIM_SETTINGS, ...(await readJson<Partial<ClaimSettings>>('tds/claims-settings', {})) });
+const CLAIM_KEY = /^[a-z0-9:._ &()'-]{1,140}\|\d{4}-Q[1-4]$/i;
+router.get('/claims', h(async (req, res) => {
+  const now = new Date(Date.now() + 5.5 * 3_600_000);
+  const curFy = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  const fy = Number(req.query.fy) || curFy;
+  if (fy < 2020 || fy > curFy) return void res.status(400).json({ error: 'fy=YYYY (April of the year)' });
+  const last = fy === curFy ? now.toISOString().slice(0, 7) : `${fy + 1}-03`;
+  const months: string[] = [];
+  for (let m = `${fy}-04`; m <= last; m = addMonths(m, 1)) months.push(m);
+  const [docs, parts, masters, records, settings, state, reachedAt] = await Promise.all([
+    Promise.all(months.map(readBooks)), Promise.all(months.map(readPartial)), readMasters(), readClaims(), readClaimSettings(), readBooksState(), tallyReachedAt(),
+  ]);
+  const vouchers = months.flatMap((m, i) => mergePartial(docs[i]?.vouchers ?? [], parts[i]).vouchers);
+  const report = buildClaims({ fy, vouchers, ledgers: masters?.ledgers ?? [], records, today: now.toISOString().slice(0, 10) });
+  const gst = await readJson<{ gstin?: string }>('gst-refund/settings', {});
+  const gstin = gst.gstin || GST_DEFAULTS.gstin;
+  res.json({ ...report, settings, company: { name: 'HEATRONICS MEDICAL DEVICES (P) LTD', gstin, pan: gstin.slice(2, 12) }, stored: months.filter((_, i) => docs[i] || parts[i]), missing: months.filter((_, i) => !docs[i] && !parts[i]), booksAsOf: Object.fromEntries(months.map((m) => [m, state.months[m] ?? null])), reachedAt });
+}));
+
+router.put('/claims/:key', h(async (req, res) => {
+  const key = String(req.params.key);
+  if (!CLAIM_KEY.test(key)) return void res.status(400).json({ error: 'key = <platform>|<YYYY>-Q<n>' });
+  const rec = sanitizeClaim(req.body, (req as unknown as { htxUser?: string }).htxUser ?? null, new Date().toISOString());
+  if (rec && 'error' in rec) return void res.status(400).json(rec);
+  const all = await readClaims();
+  if (rec) all[key] = rec; else delete all[key];
+  await writeJson('tds/claims', all);
+  res.json({ ok: true, record: rec });
+}));
+
+router.get('/claims-settings', h(async (_req, res) => { res.json(await readClaimSettings()); }));
+router.put('/claims-settings', h(async (req, res) => {
+  const s = sanitizeClaimSettings(req.body);
+  if (s.tan && !/^[A-Z]{4}\d{5}[A-Z]$/.test(s.tan)) return void res.status(400).json({ error: 'TAN has 10 characters: 4 letters, 5 digits, 1 letter.' });
+  await writeJson('tds/claims-settings', s);
+  res.json({ ok: true, settings: s });
 }));
 
 export default router;

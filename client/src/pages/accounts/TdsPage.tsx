@@ -17,12 +17,13 @@ import { DeducteeList, FlagList, HowTo, NoDayBook, PayTable } from './tdsParts';
 import { InvoicesView } from './tdsInvoices';
 import { loadHistory, useHistory, useInvoices, type InvoicesApi } from '../../data/tds/invoices';
 import { HistoryView } from './tdsHistory';
+import { ClaimsView } from './tdsClaims';
 import { FreshnessPill } from '../../components/ui/FreshnessPill';
 import { Button } from '../../components/ui/Button';
 import { toast } from '../../components/ui/feedback';
 import { StatusPill } from '../../components/ui/StatusPill';
 
-type View = 'pay' | 'check' | 'who' | 'quarter' | 'invoices' | 'history';
+type View = 'pay' | 'check' | 'who' | 'quarter' | 'invoices' | 'history' | 'claims';
 
 /** IST date and time, "7 Nov 2026, 14:57". */
 const istStamp = (iso: string) => {
@@ -50,7 +51,7 @@ export function TdsPage() {
   const q = r?.quarter;
   const ok = !!r?.haveMonth;
   // A month with no TDS books opens on Invoices (it can still have supplier bills, or none yet).
-  const shown: View = ok || view === 'history' ? view : 'invoices';
+  const shown: View = ok || view === 'history' || view === 'claims' ? view : 'invoices';
   const hist = useHistory(shown === 'history');
 
   const tabs = [
@@ -62,6 +63,7 @@ export function TdsPage() {
     ] : []),
     { id: 'invoices', label: 'Invoices', count: inv.api?.summary.bills },
     { id: 'history', label: 'History' },
+    { id: 'claims', label: 'Claim back' },
   ];
 
   const sync = async () => {
@@ -124,7 +126,8 @@ export function TdsPage() {
               : r && !r.haveMonth ? <NoDayBook month={monthLabel(month)} /> : <Loading label="Reading the supplier bills" />
         )}
         {shown === 'history' && (hist.error ? <ErrorBox>{hist.error}</ErrorBox> : hist.api ? <HistoryView api={hist.api} reload={hist.reload} /> : <Loading label="Reading the months of this year" />)}
-        {r && ok && shown !== 'invoices' && shown !== 'history' && (
+        {shown === 'claims' && <ClaimsView />}
+        {r && ok && shown !== 'invoices' && shown !== 'history' && shown !== 'claims' && (
           <>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <KpiTile label={r.overdue ? 'Late: pay now' : `Pay by ${dateLabel(r.dueDate)}`} value={inr(r.totals.balance)} tone={r.overdue ? 'critical' : 'default'}

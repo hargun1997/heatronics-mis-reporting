@@ -28,7 +28,8 @@ const who = (req: Request) => (req as unknown as { htxUser?: string }).htxUser ?
 const EMPTY_MONTH: MonthRecord = { ecl: null, filed: null };
 
 const readRules = () => readJson<RefundRules>('gst-refund/rules', EMPTY_RULES);
-const readSettings = async () => ({ ...DEFAULT_SETTINGS, ...(await readJson<Partial<RefundSettings>>('gst-refund/settings', {})) });
+// A saved empty GSTIN never hides the default (founder, 23 Nov 2026: factory GSTIN 09AAGCH6109J1ZE).
+const readSettings = async () => { const s = await readJson<Partial<RefundSettings>>('gst-refund/settings', {}); return { ...DEFAULT_SETTINGS, ...s, gstin: s.gstin || DEFAULT_SETTINGS.gstin }; };
 const readTwoB = (m: string) => readJson<StoredTwoB | null>(`gst-refund/2b-${m}`, null);
 const readMonth = (m: string) => readJson<MonthRecord>(`gst-refund/month-${m}`, EMPTY_MONTH);
 

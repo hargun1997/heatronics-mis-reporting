@@ -469,6 +469,28 @@ export const portalManifest = {
       }
     },
     {
+      "id": "tds-claims",
+      "method": "GET",
+      "path": "/api/tds/claims?fy=<fy>",
+      "auth": "session",
+      "purpose": "TDS to claim back from platforms (TDS page → Claim back)",
+      "mcp": {
+        "tool": "mis_get_tds_claims",
+        "description": "TDS we deducted and paid on bills that platforms charged in full (Amazon ads / fees, Meta, Google Ads, Porter, Shiprocket, and any party paid in full), per party and quarter from the stored Tally Day Books: TDS deducted, received (refunds booked in Tally or marked received), to get back, state (wait for certificate / claim now / claimed / received) and the bills; plus TDS deducted from us (Amazon 194-O), which is credit in the tax return, and the older TDS receivable balances.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "fy": {
+              "type": "number",
+              "description": "Financial year by its April (2026 = FY 2026-27). Default: this year."
+            }
+          }
+        },
+        "returns": "platforms[] (quarters[], bills[]) + totals + older[] + notes"
+      }
+    },
+    {
       "id": "gst-refund",
       "method": "GET",
       "path": "/api/gst-refund?month=<month>",
