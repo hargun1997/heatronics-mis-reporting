@@ -14,6 +14,7 @@
 import { balanceSheet } from './statementsCore.js';
 import { bucketOfLedger } from './ceoSummaryV2.js';
 import { booksComplete, primaryDr, salesPurchases, subTotal, type ParentMap } from './tbRows.js';
+import { TALLY_BOOKS_START } from './publishedMonths.js';
 
 export interface TbRowIn { name: string; level: 'group' | 'ledger'; debit: number; credit: number }
 export interface SummaryMonthIn {
@@ -33,6 +34,8 @@ export interface SummaryMonth {
   tbDiff: number | null;
   /** Stock transfers taken out of sales and purchases (₹, null = no TB flow). */
   stockTransfers: number | null;
+  /** Internal transfers taken out of sales (₹, null = no TB flow): transfers, not sales (23 Nov 2026). */
+  internalTransfers: number | null;
   /** Books final for the whole month (ended, copy ≥ 5 days after month end); null = today not given. */
   complete: boolean | null;
 }
@@ -60,7 +63,9 @@ export function ceoSummary(input: SummaryMonthIn[], keep = 13, opts: { parents?:
   const byP = new Map(input.map((m) => [m.period, m]));
   const months: SummaryMonth[] = [];
   for (const m of [...input].sort((a, b) => a.period.localeCompare(b.period))) {
-    const rows = m.tb?.rows ?? [];
+    // Before the Tally books start (1 Apr 2026) Tally answers every date with the same opening balances: not that month's books.
+    const beforeBooks = m.period < TALLY_BOOKS_START;
+    const rows = beforeBooks ? [] : m.tb?.rows ?? [];
     const has = rows.length > 0;
     const fytd = has && m.tb?.basis === 'fy-to-date';
     const prev = byP.get(prevPeriod(m.period));
@@ -92,14 +97,17 @@ export function ceoSummary(input: SummaryMonthIn[], keep = 13, opts: { parents?:
       cashBank: sheet ? r0(sheet.cash) : null, overdraft: sheet ? r0(sheet.bankOd) : null, netCash: sheet ? r0(sheet.cash - sheet.bankOd) : null,
       debtors: bal(/^sundry debtors$/i, 1), creditors: bal(/^sundry creditors$/i, -1),
       loans: loans == null ? null : r0(-loans), gstNet: bal(/^duties & taxes$/i, -1),
-      tbDiff: m.tb ? r0(m.tb.difference) : null,
+      tbDiff: m.tb && !beforeBooks ? r0(m.tb.difference) : null,
       stockTransfers: flowOf((rs) => sp(rs).stockTransfers, 1),
+      internalTransfers: flowOf((rs) => sp(rs).internalTransfers, 1),
       complete: today ? booksComplete(m.period, m.tbAsOf ?? m.pnlAsOf ?? null, today) : null,
     });
   }
   const out = months.slice(-keep);
+  if (out.some((m) => m.period < TALLY_BOOKS_START)) notes.push(`Months before ${TALLY_BOOKS_START} are blank: they are not in this Tally company (its books start 1 April 2026). Last year's figures come from the published MIS (fy.lastFy).`);
   if (out.some((m) => m.tbDiff)) notes.push('A Trial Balance does not tie (tbDiff ≠ 0): its balances are approximate.');
   if (out.some((m) => m.stockTransfers)) notes.push('Sales and purchases exclude Stock Transfers (stockTransfers): the same basis as the MIS net revenue.');
+  if (out.some((m) => m.internalTransfers)) notes.push('Sales exclude Internal Transfer Sales (internalTransfers): these are transfers, not sales.');
   if (out.some((m) => m.complete === false)) notes.push('Months with complete = false are still open or their books were copied < 5 days after month end: not a whole month.');
   if (out.some((m) => m.sales == null && m.cashBank != null)) notes.push('Monthly P&L flows need two FY-to-date Trial Balances in a row: blank where one is missing.');
   const last = [...input].sort((a, b) => b.period.localeCompare(a.period)).find((m) => m.pnl?.ledgerRows.length);

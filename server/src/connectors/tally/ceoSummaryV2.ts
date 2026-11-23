@@ -15,7 +15,8 @@
 
 import type { SummaryMonthIn, TbRowIn } from './ceoSummary.js';
 import { balanceSheet, statements, type BalanceSheet, type BsLine, type CashFlow, type Parents, type StatementMonthIn } from './statementsCore.js';
-import { booksComplete, leafDr, NOT_EXPENSE, primaryDr, salesPurchases, subTotal } from './tbRows.js';
+import { BOOKS_SETTLE_DAYS, booksComplete, leafDr, NOT_EXPENSE, primaryDr, salesPurchases, subTotal } from './tbRows.js';
+import { PUBLISHED_MONTHS, type PublishedMonth } from './publishedMonths.js';
 import { netCashFlows, type BalMonth } from '../../services/cashRunway.js';
 
 export type Channel = 'Amazon' | 'D2C' | 'Flipkart' | 'Blinkit' | 'GT' | 'B2B' | 'Export' | 'Other';
@@ -58,11 +59,15 @@ export interface FyBlock {
   grossMargin: number | null; grossMarginPct: number | null;
   ebitda: number | null; ebitdaPct: number | null; depreciation: number | null; financeCost: number | null;
   netProfit: number | null; netProfitPct: number | null;
+  /** Where the figures come from: the stored Tally TB, or the published MIS (months before the Tally books start). */
+  source?: 'tally' | 'published';
 }
 export interface FyOut { current: FyBlock | null; lastFy: FyBlock | null; yoyPct: { sales: number | null; grossMargin: number | null; netProfit: number | null } | null }
-export interface ChannelMonth { period: string; sales: Partial<Record<Channel, number>>; total: number | null; unmatchedSalesLedgers: string[] }
+/** Channel ₹ also sit flat on the row (Amazon, D2C …): the MCP gateway turns rows into a table and drops nested objects. */
+export type ChannelMonth = { period: string; sales: Partial<Record<Channel, number>>; total: number | null; unmatchedSalesLedgers: string[] } & Partial<Record<Channel, number>>;
 export interface ChannelsOut { months: ChannelMonth[]; momPct: Partial<Record<Channel, number | null>> & { total?: number | null }; sharePct: Partial<Record<Channel, number>>; ledgers: Record<string, Channel> }
-export interface CostMonth { period: string; sales: number | null; buckets: Record<CostBucket, number | null>; total: number | null; pctOfSales: Record<CostBucket, number | null> }
+/** Bucket ₹ also sit flat on the row (employee, marketing …), for the same reason as ChannelMonth. */
+export type CostMonth = { period: string; sales: number | null; buckets: Record<CostBucket, number | null>; total: number | null; pctOfSales: Record<CostBucket, number | null> } & Partial<Record<CostBucket, number | null>>;
 export interface CostsOut { months: CostMonth[]; momPct: Record<CostBucket, number | null>; ledgers: Record<string, CostBucket> }
 export interface BalanceOut {
   period: string; asOf: string | null;
@@ -78,6 +83,8 @@ export interface CloseMonth {
   channelGap: { channel: Channel; tally: number; connector: number; gap: number }[]; channelGapTotal: number | null;
   missingUploads: string[];
   pnlCopyAt: string | null; daysAfterMonthEnd: number | null; tbTies: boolean | null;
+  /** Why an unlocked month is not ready to lock (empty for a ready or locked month). */
+  blockers: string[];
 }
 export interface WatchItem { id: string; severity: 'high' | 'medium' | 'low'; title: string; reason: string; period?: string; inr?: number | null; pct?: number | null }
 export interface CeoSummaryV2 {
@@ -208,12 +215,41 @@ function fyBlock(m: V2MonthIn | undefined, parents?: Parents): FyBlock | null {
   };
 }
 
-export function fyOut(months: V2MonthIn[], parents?: Parents): FyOut | null {
+/**
+ * Last year from the published MIS (live basis, tied to the audited accounts) for the same months: FY25-26 is not in this
+ * Tally company (its books start 1 Apr 2026), so a stored TB for those months holds opening balances and no P&L movement
+ * (founder, 23 Nov 2026: "fix last year comparison"). null = the published history does not cover every month.
+ */
+export function publishedFyBlock(through: string): FyBlock | null {
+  const y = Number(through.slice(0, 4)), mo = Number(through.slice(5, 7));
+  const start = `${mo >= 4 ? y : y - 1}-04`;
+  const want = mo >= 4 ? mo - 3 : mo + 9;
+  const ms = PUBLISHED_MONTHS.filter((m) => m.period >= start && m.period <= through);
+  if (ms.length !== want) return null;
+  const sum = (f: (m: PublishedMonth) => number) => r0(ms.reduce((a, m) => a + f(m), 0));
+  const sales = sum((m) => m.netRevenue), cogs = sum((m) => m.cogm), gm = sum((m) => m.grossMargin);
+  const ebitda = sum((m) => m.ebitda), net = sum((m) => m.netIncome);
+  return {
+    fy: fyLabel(through), through, monthsCovered: want,
+    sales, otherIncome: null, cogs, grossMargin: gm, grossMarginPct: pct(gm, sales),
+    ebitda, ebitdaPct: pct(ebitda, sales), depreciation: null, financeCost: null,
+    netProfit: net, netProfitPct: pct(net, sales), source: 'published',
+  };
+}
+
+export function fyOut(months: V2MonthIn[], parents?: Parents, today?: string): FyOut | null {
   const sorted = [...months].sort((a, b) => a.period.localeCompare(b.period));
-  const newest = [...sorted].reverse().find((m) => m.tb?.basis === 'fy-to-date' && m.tb.rows.length);
+  const withTb = [...sorted].reverse().filter((m) => m.tb?.basis === 'fy-to-date' && m.tb.rows.length);
+  // FY to date ends on the newest WHOLE month (a running month has sales but few costs booked), so this year and last year
+  // cover the same months. No whole month yet = the newest copy.
+  const newest = (today ? withTb.find((m) => booksComplete(m.period, m.tbAsOf ?? m.pnlAsOf ?? null, today)) : undefined) ?? withTb[0];
   if (!newest) return null;
   const current = fyBlock(newest, parents);
-  const lastFy = fyBlock(sorted.find((m) => m.period === sameMonthLastYear(newest.period)), parents);
+  if (current) current.source = 'tally';
+  const lyPeriod = sameMonthLastYear(newest.period);
+  const lyTally = fyBlock(sorted.find((m) => m.period === lyPeriod), parents);
+  // A TB with no sales movement is not last year's books: use the published MIS, else nothing (never ₹0).
+  const lastFy = lyTally?.sales ? { ...lyTally, source: 'tally' as const } : publishedFyBlock(lyPeriod);
   return {
     current, lastFy,
     yoyPct: current && lastFy ? { sales: change(current.sales, lastFy.sales), grossMargin: change(current.grossMargin, lastFy.grossMargin), netProfit: change(current.netProfit, lastFy.netProfit) } : null,
@@ -236,7 +272,7 @@ export function channelsOut(months: V2MonthIn[], rules: LedgerRuleIn[] | null = 
       if (ch === 'Other') unmatched.push(r.name);
     }
     const vals = Object.values(sales) as number[];
-    return { period: m.period, sales, total: vals.length ? r0(vals.reduce((a, b) => a + b, 0)) : null, unmatchedSalesLedgers: [...new Set(unmatched)] };
+    return { period: m.period, ...sales, sales, total: vals.length ? r0(vals.reduce((a, b) => a + b, 0)) : null, unmatchedSalesLedgers: [...new Set(unmatched)] };
   });
   const out = all.slice(-keep);
   const last = out[out.length - 1], prev = out.length > 1 ? out[out.length - 2] : null;
@@ -269,7 +305,7 @@ export function costsOut(months: V2MonthIn[], rules: LedgerRuleIn[] | null = nul
     const vals = COST_BUCKETS.map((b) => buckets[b]).filter((v): v is number => v != null);
     const s = haveSales ? r0(sales) : null;
     return {
-      period: m.period, sales: s, buckets, total: vals.length ? r0(vals.reduce((a, b) => a + b, 0)) : null,
+      period: m.period, ...buckets, sales: s, buckets, total: vals.length ? r0(vals.reduce((a, b) => a + b, 0)) : null,
       pctOfSales: Object.fromEntries(COST_BUCKETS.map((b) => [b, pct(buckets[b], s)])) as Record<CostBucket, number | null>,
     };
   });
@@ -339,6 +375,9 @@ export function netCashMonths(months: V2MonthIn[], parents: Parents | undefined,
 }
 
 // ---------------------------------------------------------------- close status
+/** Channel sales: Tally vs the reports may differ by at most this share of Tally sales before a month is ready to lock. */
+export const CLOSE_GAP_PCT = 5;
+
 export function closeOut(x: V2Input, keep = 4): CloseMonth[] {
   const thisMonth = x.today.slice(0, 7);
   const periods = [...new Set(x.months.map((m) => m.period))].filter((p) => p <= thisMonth).sort().slice(-keep);
@@ -365,12 +404,31 @@ export function closeOut(x: V2Input, keep = 4): CloseMonth[] {
     const asOf = m?.pnlAsOf ?? null;
     const days = asOf ? Math.floor((Date.parse(asOf) - Date.parse(monthEndIso(p))) / 86_400_000) : null;
     const pctV = lock?.worstResidualPct ?? null;
+    const tbTies = m?.tb ? Math.abs(m.tb.difference) < 1 : null;
+    const gapTotal = channelGap.length ? r0(channelGap.reduce((a, g) => a + Math.abs(g.gap), 0)) : null;
+    // Ready to lock = the month is over and every check the server can see passes (founder, 23 Nov 2026: a running month and
+    // months with gaps were shown "ready"). The Live MIS month panel adds the profit tie and closing stock.
+    const blockers: string[] = [];
+    if (!lock) {
+      if (!ended) blockers.push('The month is still running.');
+      else {
+        if (!tallySales || tallySales <= 0) blockers.push('No sales booked in Tally.');
+        if (days == null) blockers.push('No Tally P&L copy.');
+        else if (days < BOOKS_SETTLE_DAYS) blockers.push(`The Tally copy was taken ${Math.max(0, days)} days after month end. Pull it again from day ${BOOKS_SETTLE_DAYS}.`);
+        if (tbTies === false) blockers.push('The Trial Balance does not tie.');
+        if (missingUploads.length) blockers.push(`${missingUploads.length} report${missingUploads.length === 1 ? '' : 's'} not uploaded: ${missingUploads.join(', ')}.`);
+        if (tallySales && gapTotal != null && gapTotal > CLOSE_GAP_PCT / 100 * tallySales) {
+          const worst = [...channelGap].sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))[0];
+          blockers.push(`Tally and report sales differ by ${inr(gapTotal)} (${r1(gapTotal / tallySales * 100)}%); most in ${worst.channel}.`);
+        }
+      }
+    }
     return {
-      period: p, status: lock ? 'locked' : tallySales && tallySales > 0 ? 'ready' : 'open',
+      period: p, status: lock ? 'locked' : blockers.length ? 'open' : 'ready', blockers,
       lockedAt: lock?.lockedAt ?? null, lockedBy: lock?.lockedBy ?? null, tieResidualPct: pctV, breach: pctV == null ? null : Math.abs(pctV) > 1, overrideReason: lock?.overrideReason ?? null,
       tallySales, connectorSales: connTotal,
-      channelGap, channelGapTotal: channelGap.length ? r0(channelGap.reduce((a, g) => a + Math.abs(g.gap), 0)) : null,
-      missingUploads, pnlCopyAt: asOf, daysAfterMonthEnd: days, tbTies: m?.tb ? Math.abs(m.tb.difference) < 1 : null,
+      channelGap, channelGapTotal: gapTotal,
+      missingUploads, pnlCopyAt: asOf, daysAfterMonthEnd: days, tbTies,
     };
   });
 }
@@ -451,7 +509,8 @@ export function watchOut(x: V2Input, parts: { channels: ChannelsOut | null; bala
 
 // ---------------------------------------------------------------- per-ledger tools
 /** Monthly amounts of every P&L ledger whose name contains `query` (case-insensitive). */
-export function ledgerTrend(months: V2MonthIn[], query: string, keep = 13): { ledger: string; months: { period: string; amount: number }[]; total: number }[] {
+/** Each row also carries one flat column per month ("2026-10": ₹), for the MCP table view. */
+export function ledgerTrend(months: V2MonthIn[], query: string, keep = 13): ({ ledger: string; months: { period: string; amount: number }[]; total: number } & Record<string, unknown>)[] {
   const q = norm(query);
   if (!q) return [];
   const sorted = [...months].filter((m) => m.pnl?.ledgerRows.length).sort((a, b) => a.period.localeCompare(b.period)).slice(-keep);
@@ -464,7 +523,7 @@ export function ledgerTrend(months: V2MonthIn[], query: string, keep = 13): { le
   }
   return [...by].map(([ledger, row]) => {
     const ms = sorted.map((m) => ({ period: m.period, amount: r0(row.get(m.period) ?? 0) }));
-    return { ledger, months: ms, total: r0(ms.reduce((a, x) => a + x.amount, 0)) };
+    return { ledger, ...Object.fromEntries(ms.map((x) => [x.period, x.amount])), months: ms, total: r0(ms.reduce((a, x) => a + x.amount, 0)) };
   }).sort((a, b) => Math.abs(b.total) - Math.abs(a.total)).slice(0, 25);
 }
 
@@ -484,14 +543,15 @@ export function expensesOf(months: V2MonthIn[], period: string, top = 25): { per
 // ---------------------------------------------------------------- all together
 export function ceoSummaryV2(x: V2Input): CeoSummaryV2 {
   const notes: string[] = [];
-  const fy = fyOut(x.months, x.parents);
+  const fy = fyOut(x.months, x.parents, x.today);
   const channels = channelsOut(x.months, x.rules ?? null);
   const costs = costsOut(x.months, x.rules ?? null);
   const { balance, cashflow } = balanceOut(x.months, x.parents);
   const close = closeOut(x);
   const watch = watchOut(x, { channels, balance, cashflow, close, costs });
   if (!fy) notes.push('FY to date needs an FY-to-date Trial Balance (taken since 2 Nov 2026): none stored yet.');
-  else if (!fy.lastFy) notes.push(`Last FY to date needs the Trial Balance of ${sameMonthLastYear(fy.current?.through ?? '')}: not stored, so YoY is blank.`);
+  else if (!fy.lastFy) notes.push(`Last FY to date: no Tally books and no published MIS for ${sameMonthLastYear(fy.current?.through ?? '')}, so YoY is blank.`);
+  else if (fy.lastFy.source === 'published') notes.push(`Last FY to date comes from the published MIS (tied to the audited accounts): FY25-26 is not in this Tally company. Both years run to ${fy.current?.through ?? '?'} (the newest whole month); depreciation, finance cost and other income are blank for last year.`);
   if (fy?.current && fy.current.ebitda == null) notes.push('EBITDA needs the exploded ledgers of the Trial Balance (depreciation, finance cost): blank on a groups-only copy.');
   if (channels?.months.some((m) => m.unmatchedSalesLedgers.length)) notes.push(`Sales ledgers not named for a channel are shown as "Other": ${[...new Set(channels.months.flatMap((m) => m.unmatchedSalesLedgers))].slice(0, 6).join(', ')}.`);
   if (!x.connectorSales || !Object.keys(x.connectorSales).length) notes.push('Channel sales vs connectors needs committed reports or a facts-cache month: none found, so channelGap is empty.');
