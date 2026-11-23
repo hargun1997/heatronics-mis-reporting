@@ -137,6 +137,14 @@ export const HTX_PAGES: HtxCatalog = {
       ]
     },
     {
+      "id": "gstrefund",
+      "name": "GST refund",
+      "group": "More",
+      "paths": [
+        "/accounts/gst-refund"
+      ]
+    },
+    {
       "id": "people",
       "name": "People and reminders",
       "group": "More",

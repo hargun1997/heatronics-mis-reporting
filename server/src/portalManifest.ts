@@ -469,6 +469,29 @@ export const portalManifest = {
       }
     },
     {
+      "id": "gst-refund",
+      "method": "GET",
+      "path": "/api/gst-refund?month=<month>",
+      "auth": "session",
+      "purpose": "GST inverted duty refund for a month (GST refund page)",
+      "mcp": {
+        "tool": "mis_get_gst_refund",
+        "description": "GST refund of a month (ITC accumulated due to inverted duty, Rule 89(5) as amended from 1 Nov 2026) from the stored Tally Day Books of the home GSTIN: Statement 1A inward rows (supplier GSTIN, invoice no. and date, taxable, IGST / CGST / SGST, class goods / service / capital / blocked, eligible or the reason left out, in GSTR-2B or not) and outward rows (B2B / B2C-Large / B2C-Small), scanner issues with the fix for each, the calculation (Net ITC, inverted turnover, adjusted total turnover, tax payable, maximum refund, claim), ties to the GST ledgers, ready or what is missing, and the filed record (ARN) with what moved in Tally since.",
+        "access": "read",
+        "input": {
+          "type": "object",
+          "properties": {
+            "month": {
+              "type": "string",
+              "description": "YYYY-MM (claims from 2026-11)"
+            }
+          },
+          "required": ["month"]
+        },
+        "returns": "calc + inward[] + outward[] + issues[] + ties[] + twoB + ready + notReady[] + record + drift"
+      }
+    },
+    {
       "id": "tally-stock-items",
       "method": "GET",
       "path": "/api/tally/books/stock-items?q=<q>",

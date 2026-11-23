@@ -5,6 +5,7 @@
 // Invoices tab (22 Nov 2026): every supplier bill of the month from Tally, kept across syncs (data/tds/invoices.ts);
 // "Sync with Tally" reads the Day Book now; the Excel download works for any month with books.
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Download as ArrowDownTrayIcon } from 'lucide-react';
 import { HeaderMore, PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
@@ -106,6 +107,7 @@ export function TdsPage() {
           <Button variant="primary" busy={inv.syncing} busyLabel="Syncing" onClick={() => void sync()}>Sync with Tally</Button>
           <HeaderMore>
             <button type="button" className={BTN} onClick={() => setHowOpen(true)}>How to pay</button>
+            <Link to="/accounts/gst-refund" className={BTN}>GST refund</Link>
             <button type="button" className={BTN} disabled={loading || inv.loading} onClick={() => void download()}>
               <ArrowDownTrayIcon className="h-4 w-4" aria-hidden />Download TDS report
             </button>
