@@ -35,7 +35,9 @@ export interface RefundRules {
 export const EMPTY_RULES: RefundRules = { bills: {}, parties: {}, ledgers: {} };
 
 export interface RefundSettings { homeState: string; gstin: string; }
-export const DEFAULT_SETTINGS: RefundSettings = { homeState: 'UTTAR PRADESH', gstin: '' };
+// The company's own UP registration (factory, principal place of business on GST REG-06; printed on every invoice: not party data).
+// Not the Karnataka or Haryana registrations (warehouse / Amazon-state GSTINs). Settings on the page can override it.
+export const DEFAULT_SETTINGS: RefundSettings = { homeState: 'UTTAR PRADESH', gstin: '09AAGCH6109J1ZE' };
 
 export interface TwoBRow { gstin: string; invoice: string; date: string; taxable: number; igst: number; cgst: number; sgst: number; type?: string }
 export interface StoredTwoB { month: string; rows: TwoBRow[]; uploadedAt: string; by: string | null; file: string }
