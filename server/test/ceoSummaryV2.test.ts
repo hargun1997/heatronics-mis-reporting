@@ -160,7 +160,13 @@ test('close: lock → locked + tie; P&L copy → ready; missing manual uploads o
   const [, aug, sep, oct] = close;
   assert.equal(aug.status, 'locked'); assert.equal(aug.breach, false);
   assert.equal(sep.status, 'locked'); assert.equal(sep.breach, true); assert.equal(sep.overrideReason, 'Flipkart settlement late');
-  assert.equal(oct.status, 'ready'); assert.equal(oct.tieResidualPct, null); assert.equal(oct.breach, null);
+  // Oct is over but not ready (23 Nov 2026): copied 2 days after month end, 2 reports missing, report sales 14.7 % off Tally.
+  assert.equal(oct.status, 'open'); assert.equal(oct.tieResidualPct, null); assert.equal(oct.breach, null);
+  assert.equal(oct.blockers.length, 3);
+  assert.match(oct.blockers[0], /2 days after month end/);
+  assert.match(oct.blockers[1], /2 reports not uploaded/);
+  assert.match(oct.blockers[2], /differ by ₹2,20,000 \(14\.7%\); most in Flipkart/);
+  assert.deepEqual(aug.blockers, []);
   assert.deepEqual(sep.missingUploads, ['Blinkit payout']); // snapmint never used → not nagged
   assert.deepEqual(oct.missingUploads, ['Flipkart settled transactions', 'Blinkit payout']);
   assert.equal(oct.tallySales, 1_500_000);

@@ -5,7 +5,8 @@
 //     child counts a sub-group twice, so sums of ledgers use LEAF rows only (masters `parents` when stored, else "a row
 //     followed by rows that add up to it is a sub-group").
 //   - Stock Transfers (branch / Supernode transfers) sit inside Sales Accounts and Purchase Accounts in Tally. They are
-//     not sales: the MIS removes them from both sides (audit round 7 #1, round 10 A5).
+//     not sales: the MIS removes them from both sides (audit round 7 #1, round 10 A5). Internal Transfer Sales are not sales
+//     either (23 Nov 2026): out of sales only (no inward leg), reported as `internalTransfers`.
 //   - A month's books are "complete" only after the month has ended and the copy was taken ≥ 5 days after month end.
 // ----------------------------------------------------------------------------
 
@@ -83,6 +84,7 @@ export function subTotal(rows: TbRow[], re: RegExp, parents?: ParentMap): number
 
 const SALES_GROUP = /^sales accounts$/i;
 const STOCK_TRANSFER = /stock transfers?/i;
+const INTERNAL_TRANSFER = /internal transfer/i;
 
 /**
  * Stock transfers booked inside Sales Accounts (Cr, returned positive): the TB's own leaf ledgers named "Stock
@@ -96,14 +98,33 @@ export function stockTransfers(rows: TbRow[], parents?: ParentMap): number | nul
 }
 
 /**
- * Sales (positive) and purchases (positive) of a TB with stock transfers taken out of BOTH (the inward leg sits in
- * Purchase Accounts), so gross margin ₹ is unchanged and sales match the MIS (channel ledgers only).
+ * Internal transfer "sales" inside Sales Accounts (Cr, returned positive; founder, 23 Nov 2026: "internal transfers are not
+ * sales and should be marked as transfers"). Tally keeps a group "Internal Transfer Sales" with a ledger of the SAME name, so
+ * the rows are counted once per name, and a transfer row that sits under another listed transfer row (masters) is left out.
+ * Unlike Stock Transfers there is no inward leg in Purchase Accounts, so purchases are not touched. 0 = none; null = no
+ * Sales Accounts group.
  */
-export function salesPurchases(rows: TbRow[], parents?: ParentMap): { sales: number | null; purchases: number | null; stockTransfers: number } {
+export function internalTransfers(rows: TbRow[], parents?: ParentMap): number | null {
+  const s = tbSections(rows).find((x) => SALES_GROUP.test(x.group.name));
+  if (!s) return null;
+  const seen = new Set<string>();
+  const hits = s.kids.filter((r) => INTERNAL_TRANSFER.test(r.name) && !seen.has(r.name) && (seen.add(r.name), true));
+  const names = new Set(hits.map((r) => r.name));
+  const top = hits.filter((r) => !chainOf(r.name, parents).some((a) => a !== r.name && names.has(a)));
+  return Math.round(-top.reduce((a, r) => a + bal(r), 0) * 100) / 100;
+}
+
+/**
+ * Sales (positive) and purchases (positive) of a TB with stock transfers taken out of BOTH (the inward leg sits in
+ * Purchase Accounts), so gross margin ₹ is unchanged, and internal transfers taken out of sales; sales then match the MIS
+ * (channel ledgers only).
+ */
+export function salesPurchases(rows: TbRow[], parents?: ParentMap): { sales: number | null; purchases: number | null; stockTransfers: number; internalTransfers: number } {
   const st = stockTransfers(rows, parents) ?? 0;
+  const it = internalTransfers(rows, parents) ?? 0;
   const s = primaryDr(rows, SALES_GROUP);
   const p = primaryDr(rows, /^purchase accounts$/i);
-  return { sales: s == null ? null : -s - st, purchases: p == null ? null : p - st, stockTransfers: st };
+  return { sales: s == null ? null : -s - st - it, purchases: p == null ? null : p - st, stockTransfers: st, internalTransfers: it };
 }
 
 /** Month end 23:59:59 IST as epoch ms. */

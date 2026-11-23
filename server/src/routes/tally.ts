@@ -152,7 +152,7 @@ router.get('/cashflow', h(async (_req, res) => {
 router.get('/balance-sheet', h(async (_req, res) => {
   const x = await summaryInput();
   const { balance } = balanceOut(x.months, x.parents);
-  res.json({ balance, fy: fyOut(x.months, x.parents), lastOkAt: x.lastOkAt, unit: 'INR' });
+  res.json({ balance, fy: fyOut(x.months, x.parents, x.today), lastOkAt: x.lastOkAt, unit: 'INR' });
 }));
 router.get('/close-status', h(async (req, res) => {
   const x = await summaryInput();
