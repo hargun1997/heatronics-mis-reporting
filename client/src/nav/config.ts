@@ -4,7 +4,7 @@
 
 export type NavIconName =
   | 'live' | 'upload' | 'issues' | 'ai' | 'send' | 'tasks' | 'booking' | 'book' | 'tools'
-  | 'today' | 'cash' | 'plan' | 'rounds' | 'floors' | 'payments' | 'sources' | 'rules' | 'people' | 'tally' | 'tds' | 'old';
+  | 'today' | 'cash' | 'plan' | 'rounds' | 'floors' | 'payments' | 'sources' | 'rules' | 'people' | 'tally' | 'tds' | 'refund' | 'old';
 
 export interface NavPage {
   id: string;
@@ -42,6 +42,7 @@ export const PAGE_OWNER: Record<string, PageOwner> = {
   booking: { role: 'Accounts executive', cadence: 'Daily', job: 'Check the ledger, voucher and GST before you book an invoice.' },
   payments: { role: 'Accounts executive', cadence: 'Weekly', job: 'Make the ICICI payment file. A second person approves it in the bank.' },
   tds: { role: 'Accounts executive', cadence: 'Monthly', job: 'Pay TDS by the 7th. Prepare the quarter return.' },
+  gstrefund: { role: 'Accounts executive', cadence: 'Monthly', job: 'Upload GSTR-2B. Clear the Check list. Download Statement 1A and file RFD-01.' },
   cash: { role: 'Founder', person: 'Hargun', cadence: 'Weekly', job: 'Find the week when net cash goes below 0 or reaches the overdraft limit.' },
   tally: { role: 'Accounts executive', cadence: 'Weekly', job: 'Move each hanging ledger to its correct group in TallyPrime.' },
   handbook: { role: 'Accounts executive', cadence: 'When needed', job: 'Read the SOP before you book something new.' },
@@ -105,6 +106,7 @@ export const NAV: NavSection[] = [
     href: HOME,
     pages: [
       { id: 'send', label: 'Send report', href: '/reporting/mis/send', icon: 'send', hint: 'Email the monthly MIS (opens from Live MIS)', words: 'email investors board' },
+      { id: 'gstrefund', label: 'GST refund', href: '/accounts/gst-refund', icon: 'refund', hint: 'Inverted duty refund and Statement 1A (opens from TDS)', words: 'gst refund rfd-01 rfd01 statement 1a inverted duty itc input services rule 89 gstr-2b 2b' },
       { id: 'people', label: 'People and reminders', href: '/tasks/settings', icon: 'people', also: ['/reporting/mis/ownership'], hint: 'Owners and reminder emails (opens from Tasks)', words: 'team owners settings' },
       { id: 'rulebook', label: 'Data rulebook', href: '/reporting/mis/rulebook', icon: 'rules', hint: 'How each number is made', words: 'rules mapping definitions' },
       { id: 'tranzact', label: 'Amazon to Tranzact (manual)', href: '/tools/amazon-to-tranzact', icon: 'tools', hint: 'Old manual converter', words: 'fba inventory ledger stock reconciliation converter' },

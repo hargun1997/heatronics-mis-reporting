@@ -29,6 +29,7 @@ const RoundPlannerPage = lazyPage(() => import('./pages/tools/RoundPlannerPage')
 const PlanningPage = lazyPage(() => import('./pages/planning/PlanningPage'), 'PlanningPage');
 const TallyPage = lazyPage(() => import('./pages/tally/TallyPage'), 'TallyPage');
 const TdsPage = lazyPage(() => import('./pages/accounts/TdsPage'), 'TdsPage');
+const GstRefundPage = lazyPage(() => import('./pages/accounts/GstRefundPage'), 'GstRefundPage');
 
 function App() {
   return (
@@ -119,6 +120,8 @@ function App() {
           <Route path="setup" element={<Navigate to="/reporting/mis/connectors" replace />} />
           <Route path="tally" element={<TallyPage />} />
           <Route path="accounts/tds" element={<TdsPage />} />
+          <Route path="accounts/gst-refund" element={<GstRefundPage />} />
+          <Route path="gst-refund" element={<Navigate to="/accounts/gst-refund" replace />} />
 
           {/* Back-compat redirects from old routes */}
           <Route path="business-guide" element={<Navigate to="/guide" replace />} />

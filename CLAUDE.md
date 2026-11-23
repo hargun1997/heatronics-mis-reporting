@@ -648,6 +648,27 @@ blocks and "<name> (new)". After the answer `checkLedgers` lists table ledgers n
 Phones: Photo button (`capture="environment"`); every photo is drawn upright at ≤ 2000 px JPEG 0.85 before it is sent (`bookingClient.ts
 shrinkImage`; Claude's image limit is 5 MB). Test `server/test/bookingEvidence.test.ts` (synthetic data).
 
+## GST refund (`/accounts/gst-refund`, founder 23 Nov 2026; opens from TDS → "GST refund", palette-only)
+Inverted duty refund (section 54(3)(ii), Rule 89(5) as substituted by Notification 05/2026-CT, in force 1 Nov 2026), one month at a time,
+READ ONLY from the STORED Day Books (the hourly TDS sync re-reads the whole FY, so the claim recalculates live). Pure engine
+`server/src/services/gstRefund.ts buildRefundMonth` (test `server/test/gstRefund.test.ts`): home GSTIN only (a voucher type or GST ledger
+ending "-<STATE>" belongs to that state's GSTIN; settings `gst-refund/settings` homeState UTTAR PRADESH + GSTIN); bills sorted by signals
+(saved rule bill / party / ledger → stock items, Purchase Accounts / Fixed Assets ledger → goods word in an expense ledger, Tranzact PO in
+the narration → voucher type; capital / blocked win; doubts go to Check); left out with the reason: capital goods (until ITC from 1 Apr 2027),
+blocked 17(5) words, RCM, unregistered, no GST, own stock transfers (Purchase-STR-<home>, Circular 135), input services before 1 Nov 2026,
+not in GSTR-2B, a row with an error. Formula: max refund = inverted turnover × Net ITC ÷ adjusted total turnover − tax payable (an output
+rate is inverted when goods ITC carries a higher rate); claim = min(max, credit ledger balance entered). Scanner (each issue has a fix in
+ASD-STE100): GSTIN check digit, IGST vs CGST + SGST by supplier state, missing / future invoice no. or date, tax ≥ taxable (portal refuses),
+rate vs ledger rate, duplicates, 2B differs / not in 2B / in 2B not booked, input GST outside purchase vouchers. Ties: GST Input / Output
+ledgers = the rows. AI second opinion `services/gstRefundAi.ts` (Claude, feature `gst-refund`, suggestions only; acceptance saves a rule).
+Routes `routes/gstRefund.ts`: `GET /api/gst-refund?month=`, `GET/PUT /rules`, `PUT /settings`, `PUT/DELETE /2b/:month` (rows read in the
+browser by `client/src/data/gstRefund/gstRefund.ts gstr2bRows`: sheets B2B + B2B-CDNR, 2-row header), `PUT /month/:month` ({ecl}, {filed:
+{arn}} snapshot → `drift` after filing, {unfile}), `POST /ai/:month`. Store `gst-refund/*` only (never the repo). Download = Statement 1A in
+the portal offline utility's columns (RFD_STMT01A v2.0: inward row beside outward row, dd-mm-yyyy text dates, positive values with Debit /
+Credit Note types, 10,000 rows per sheet) + Working + Left out + Checks (`statementSheets`, test `server/test/gstRefundClient.test.ts`). MCP
+tool `mis_get_gst_refund`. UNVERIFIED: RFD-01 Declaration A still says no input service credit for inverted refunds (CA to confirm); 2B Excel
+headers taken from the portal's current layout.
+
 ## 5-year plan (`/planning`)
 - Port of the Google Sheet "Heatronics Projection and Deployment Plan" (1j75EvRvD5mX-SSBNiwr_Lu2uhjmD-21SOpIRQz3RVUE), run live
   and extended Oct-26 → Mar-31. Engine `client/src/data/planning/engine.ts` (pure); Base = `base-plan.json`, written by
