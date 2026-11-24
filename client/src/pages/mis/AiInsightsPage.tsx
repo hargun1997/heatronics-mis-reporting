@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { Modal, Popover } from '../../components/ui/overlays';
-import { BTN } from '../../components/ui/states';
+import { BTN, ErrorBox } from '../../components/ui/states';
 import { SectionCard } from '../../components/ui/Card';
 import { Markdown } from '../../components/ui/Markdown';
 import { buildLiveMisContext } from '../../data/chat/misContext';
@@ -40,16 +40,22 @@ const PRESETS: Preset[] = [
 
 export function AiInsightsPage() {
   const [deck, setDeck] = useState<LiveDeckData | null>(null);
+  const [deckState, setDeckState] = useState<'loading' | 'ok' | 'error'>('loading');
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
+  // Claude must never analyse an empty MIS: the buttons stay off until the deck is in.
+  const fetchDeck = (force = false) => loadLiveDeck({ force }).then((d) => { setDeck(d); setDeckState('ok'); }).catch(() => { setDeck(null); setDeckState('error'); });
+  const loadDeck = (force = false) => { setDeckState('loading'); void fetchDeck(force); };
 
   useEffect(() => {
-    loadLiveDeck().then(setDeck).catch(() => setDeck(null));
+    void fetchDeck();
     chatStatus().then((s) => setConfigured(s.configured)).catch(() => setConfigured(false));
     getUsage(7).then(setUsage).catch(() => {});
   }, []);
 
   const { context, throughLabel } = useMemo(() => buildLiveMisContext(deck), [deck]);
+  // Months after the lock (deck.periods also holds every history month).
+  const liveCount = deck?.completeThrough ? deck.periods.filter((p) => /^\d{4}-\d{2}$/.test(p) && p > deck.completeThrough!).length : 0;
 
   return (
     <>
@@ -65,14 +71,16 @@ export function AiInsightsPage() {
         ) : null}
         actions={<SpendButton usage={usage} />}
         help={deck ? (deck.completeThrough
-          ? <p>Claude reads the MIS, locked to {monthLabel(deck.completeThrough)}{deck.periods.length ? `, plus ${deck.periods.length} live month${deck.periods.length === 1 ? '' : 's'}` : ''}.</p>
+          ? <p>Claude reads the MIS, locked to {monthLabel(deck.completeThrough)}{liveCount ? `, plus ${liveCount} live month${liveCount === 1 ? '' : 's'}` : ''}.</p>
           : <p>Claude reads the published history and the live months uploaded so far.</p>) : undefined}
       />
 
       <PageBody>
+        {deckState === 'error' && <div className="mb-4"><ErrorBox onRetry={() => loadDeck(true)}>Could not load the MIS numbers. Claude cannot read them yet.</ErrorBox></div>}
+        {deckState === 'loading' && <p role="status" className="mb-4 text-sm text-slate-500">Loading the MIS numbers for Claude…</p>}
         <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
-          <Analysis context={context} configured={configured} />
-          <AskChat context={context} configured={configured} />
+          <Analysis context={context} configured={deckState === 'ok' ? configured : false} />
+          <AskChat context={context} configured={deckState === 'ok' ? configured : false} />
         </div>
       </PageBody>
     </>

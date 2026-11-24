@@ -173,13 +173,16 @@ function Ledgers() {
 }
 
 function Vouchers({ months }: { months: string[] }) {
-  const [period, setPeriod] = useState(months[0] || '');
+  const [picked, setPeriod] = useState('');
+  // Opened from a link before the status loaded, months was empty: the newest month once it arrives.
+  const period = picked || months[0] || '';
   const [q, setQ] = useState('');
   const [data, setData] = useState<{ total: number; rows: Voucher[] } | null>(null);
   useEffect(() => {
     if (!period) return;
-    const t = setTimeout(() => { api<{ total: number; rows: Voucher[] }>(`/api/tally/books/vouchers?period=${period}&q=${encodeURIComponent(q)}`).then(setData).catch(() => setData(null)); }, 250);
-    return () => clearTimeout(t);
+    let live = true; // a slower old search never replaces a newer one
+    const t = setTimeout(() => { api<{ total: number; rows: Voucher[] }>(`/api/tally/books/vouchers?period=${period}&q=${encodeURIComponent(q)}`).then((d) => { if (live) setData(d); }).catch(() => { if (live) setData(null); }); }, 250);
+    return () => { live = false; clearTimeout(t); };
   }, [period, q]);
   if (!months.length) return <Empty text="No Day Book stored yet. Open TallyPrime, then select Pull Tally now." />;
   return (

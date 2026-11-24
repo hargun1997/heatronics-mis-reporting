@@ -48,6 +48,9 @@ steps:
       - '0'
       - '--max-instances'
       - '10'
+      # Pull / sync jobs and the 60 s caches live in one instance's memory: polls from the same browser should reach
+      # the same instance (best effort cookie), or the page says the pull stopped.
+      - '--session-affinity'
       - '--port'
       - '8080'
 

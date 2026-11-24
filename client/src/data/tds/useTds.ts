@@ -1,5 +1,5 @@
 // Loads GET /api/tds?month= (stored Tally Day Books, READ ONLY) and runs the pure TDS engine in the browser.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildTds, type TdsLedger, type TdsReport, type TdsVoucher } from './tds';
 import { STATE_WORDS, monthSheets, reportSheetName, type ReportCell } from './tdsFormats';
 import { deviationsSheet, matchFiled, monthReport, type FiledDoc } from './filed';
@@ -11,8 +11,10 @@ export interface TdsApi { month: string; months: string[]; storedMonths: string[
 export const istToday = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
 export const lastMonth = () => { const d = new Date(Date.now() + 5.5 * 3_600_000); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7); };
 
-export function useTds(month: string): { api: TdsApi | null; report: TdsReport | null; error: string | null; loading: boolean } {
+export function useTds(month: string): { api: TdsApi | null; report: TdsReport | null; error: string | null; loading: boolean; reload: () => void } {
   const [got, setGot] = useState<{ month: string; api: TdsApi | null; error: string | null } | null>(null);
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => {
     let live = true;
     fetch(`/api/tds?month=${month}`, { credentials: 'include' })
@@ -20,11 +22,11 @@ export function useTds(month: string): { api: TdsApi | null; report: TdsReport |
       .then((j) => { if (live) setGot({ month, api: j, error: null }); })
       .catch((e: Error) => { if (live) setGot({ month, api: null, error: e.message }); });
     return () => { live = false; };
-  }, [month]);
+  }, [month, tick]);
   const cur = got && got.month === month ? got : null;
   const api = cur?.api ?? null;
   const report = useMemo(() => (api ? buildTds({ month: api.month, vouchers: api.vouchers, ledgers: api.ledgers, storedMonths: api.storedMonths, today: istToday() }) : null), [api]);
-  return { api, report, error: cur?.error ?? null, loading: !cur };
+  return { api, report, error: cur?.error ?? null, loading: !cur, reload };
 }
 
 

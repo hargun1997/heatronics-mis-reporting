@@ -49,7 +49,7 @@ export function useInvoices(month: string) {
   }, [month, tick]);
 
   /** Sync with Tally now: the server answers within 25 s or says "running"; then poll every 15 s until it is done. */
-  const sync = useCallback(async (): Promise<{ ok: boolean; error: string | null }> => {
+  const sync = useCallback(async (): Promise<{ ok: boolean; error: string | null; running?: boolean }> => {
     setSyncing(true);
     try {
       let r = await getJson<SyncInfo & { status: string }>('/api/tds/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
@@ -58,7 +58,7 @@ export function useInvoices(month: string) {
         r = { status: 'running', ...(await getJson<SyncInfo>('/api/tds/sync')) };
       }
       reload();
-      return { ok: !r.sync.lastError, error: r.sync.lastError };
+      return { ok: !r.sync.lastError, error: r.sync.lastError, running: !!r.running };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : 'Sync failed' };
     } finally {

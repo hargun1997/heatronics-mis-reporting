@@ -140,7 +140,9 @@ router.post('/sync/run', h(async (req, res) => {
 // ---- TDS to claim back (founder, 23 Nov 2026)
 const readClaims = () => readJson<ClaimRecords>('tds/claims', {});
 const readClaimSettings = async () => ({ ...EMPTY_CLAIM_SETTINGS, ...(await readJson<Partial<ClaimSettings>>('tds/claims-settings', {})) });
-const CLAIM_KEY = /^[a-z0-9:._ &()'-]{1,140}\|\d{4}-Q[1-4]$/i;
+// The platform part holds supplier names ("other:<name>") with "/", "," or "@": any printable text but "|".
+// The key is a field of one JSON doc, never a store path.
+export const CLAIM_KEY = { test: (k: string) => { const m = /^([^|]{1,140})\|\d{4}-Q[1-4]$/.exec(k); return !!m && ![...m[1]].some((c) => c.charCodeAt(0) < 32); } };
 router.get('/claims', h(async (req, res) => {
   const now = new Date(Date.now() + 5.5 * 3_600_000);
   const curFy = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
