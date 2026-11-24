@@ -1,12 +1,12 @@
 // 5-year plan — the Projection & Deployment Plan sheet, run live in the MIS and extended
 // to FY31, with levers and saved scenarios. Engine: data/planning/engine.ts.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MoreHorizontal, SlidersHorizontal } from 'lucide-react';
 import { PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { Drawer, Popover } from '../../components/ui/overlays';
-import { BTN, BTN_PRIMARY } from '../../components/ui/states';
+import { BTN, BTN_PRIMARY, Loading } from '../../components/ui/states';
 import { askText, confirmDialog, toast } from '../../components/ui/feedback';
 import { runPlan, type Plan, type PlanResult } from '../../data/planning/engine';
 import { basePlan, upgradePlan, BASE_SOURCE_URL } from '../../data/planning/basePlan';
@@ -17,8 +17,9 @@ import { RevenueView } from '../../components/planning/outputs/Revenue';
 import { CostsView } from '../../components/planning/outputs/Costs';
 import { CashFundingView } from '../../components/planning/outputs/CashFunding';
 import { ProductsCustomersView } from '../../components/planning/outputs/ProductsCustomers';
-import { PlanVsActualView } from '../../components/planning/outputs/PlanVsActual';
 import { planMonthsOf } from '../../data/planning/planVsActual';
+// Plan vs actual loads the Live MIS deck (222 kB): only when its tab opens.
+const PlanVsActualView = lazy(() => import('../../components/planning/outputs/PlanVsActual').then((m) => ({ default: m.PlanVsActualView })));
 import { runRateArr } from '../../data/planning/growth';
 import { PnlGrid } from '../../components/planning/PnlGrid';
 import { monthBefore, openingFromTally } from '../../data/planning/opening';
@@ -243,7 +244,7 @@ export function PlanningPage() {
             : <CostsView plan={plan} result={result} part={costPart} />}
         </>}
         {view === 'cash' && <CashFundingView plan={plan} result={result} />}
-        {view === 'actual' && <PlanVsActualView saved={saved} />}
+        {view === 'actual' && <Suspense fallback={<Loading />}><PlanVsActualView saved={saved} /></Suspense>}
       </PageBody>
     </>
   );

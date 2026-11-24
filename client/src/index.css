@@ -550,3 +550,8 @@ svg.lucide { stroke-width: 1.8; }
 [data-fade="l"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); }
 [data-fade="l r"] { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent); }
 @media print { [data-fade] { -webkit-mask-image: none; mask-image: none; } }
+
+/* Route change: the top bar grows while a page chunk loads (MainLayout PageLoading). Waits 120 ms so fast loads show nothing. */
+.route-bar { transform-origin: left; transform: scaleX(0); animation: route-bar 2.5s cubic-bezier(.2,.7,.3,1) 120ms forwards; }
+@keyframes route-bar { from { transform: scaleX(0); } to { transform: scaleX(.85); } }
+@media (prefers-reduced-motion: reduce) { .route-bar { animation: none; transform: scaleX(.5); } }

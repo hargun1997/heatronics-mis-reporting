@@ -117,7 +117,9 @@ export interface PeriodCompleteness {
 // The seam: months before this are frozen legacy (the published static deck);
 // this month and after are rebuilt live from uploads. FY26-27 starts Apr 2026,
 // so everything through Mar 2026 is locked history and the rebuild owns Apr 2026+.
-export const LIVE_BOUNDARY = '2026-04';
+import { LIVE_BOUNDARY } from './boundary';
+import { istDay, istMonth } from '../../utils/ist';
+export { LIVE_BOUNDARY };
 
 /** One product's Amazon traffic for a month (from the Business Report). */
 export interface TrafficRow {
@@ -987,8 +989,8 @@ function nextMonthKey(pk: string): string {
 
 /** Live connector facts over a window covering the uploaded months (Shopify D2C today). */
 async function fetchLiveFacts(reports: ExtractedReport[], force = false): Promise<{ facts: DailyFact[]; feed: LiveFeedStatus }> {
-  const today = new Date().toISOString().slice(0, 10);
-  let from = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
+  const today = istDay();
+  let from = istDay(-180);
   const months = reports.map((r) => r.periodKey).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
   if (months.length) {
     const earliest = `${months[0]}-01`;
@@ -1001,7 +1003,7 @@ async function fetchLiveFacts(reports: ExtractedReport[], force = false): Promis
 
 /** Current month in IST, 'YYYY-MM'. */
 function currentIstMonth(): string {
-  return new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 7);
+  return istMonth();
 }
 
 // One load per browser tab, shared by every page that needs the deck (Live MIS, the floating chat, AI insights,
@@ -1025,14 +1027,19 @@ async function loadLiveDeckNow(opts: BuildLiveDeckOptions, force: boolean): Prom
   // months the business has had, so they never enter the deck — otherwise Live
   // MIS, Send report and AI insights open on a future month showing ₹0.
   const thisMonth = currentIstMonth();
-  const reports = (await fetchExtractedReports()).filter((r) => !/^\d{4}-\d{2}$/.test(r.periodKey) || r.periodKey <= thisMonth);
-  // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck; served from the server's
-  // per-month facts cache (stale months refresh in the background). Never fail the whole load on it.
-  const [liveFacts, locks, rules, pmap] = await Promise.all([
-    fetchLiveFacts(reports, force).catch((e: unknown) => ({ facts: [] as DailyFact[], feed: { ok: false, error: e instanceof Error ? e.message : 'Live sales pull failed', sources: [] } as LiveFeedStatus })),
+  // Locks, ledger rules and the product map do not depend on the reports: start them with the reports call, so only
+  // the facts call waits for it (it needs the report months). Saves one round trip on every deck load.
+  const side = Promise.all([
     fetchLocks().catch(() => ({} as Record<string, MonthLock>)),
     fetch('/api/tally/ledger-rules').then((r) => (r.ok ? r.json() : null)).catch(() => null),
     fetch('/api/mis/product-map').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ]);
+  const reports = (await fetchExtractedReports()).filter((r) => !/^\d{4}-\d{2}$/.test(r.periodKey) || r.periodKey <= thisMonth);
+  // Pull live-API channels (Shopify) so D2C revenue and SKUs reach the deck; served from the server's
+  // per-month facts cache (stale months refresh in the background). Never fail the whole load on it.
+  const [liveFacts, [locks, rules, pmap]] = await Promise.all([
+    fetchLiveFacts(reports, force).catch((e: unknown) => ({ facts: [] as DailyFact[], feed: { ok: false, error: e instanceof Error ? e.message : 'Live sales pull failed', sources: [] } as LiveFeedStatus })),
+    side,
   ]);
   setLedgerRules(Array.isArray(rules?.rules) ? rules.rules : null);
   setProductMap(pmap);

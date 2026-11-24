@@ -28,6 +28,7 @@ import {
 import { ProductGapsPanel } from '../../components/liveMis/ProductGapsPanel';
 import { PublishedGapChip } from '../../components/liveMis/PublishedGapChip';
 import { loadLiveDeck, swapAlternates, LIVE_BOUNDARY, type LiveDeckData } from '../../data/misDeck/liveDeck';
+import { istDay } from '../../utils/ist';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran, type PeriodAgg } from '../../data/misDeck/liveAnalytics';
 import {
   normaliseLiveMonths, unifyChannels, rangeKeys, rangePresetLabel, aggregateRange, type RangePreset,
@@ -505,12 +506,11 @@ const RR_METRICS: { id: MetricKey; label: string; money: boolean }[] = [
   { id: 'mer', label: 'MER (revenue ÷ ad spend)', money: false },
 ];
 const AUTO_MS = 120_000;
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 const daysBetween = (from: string, to: string) => Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1);
 
 function RunRateTab() {
-  const today = iso(new Date());
-  const monthAgo = iso(new Date(Date.now() - 29 * 86400000));
+  const today = istDay();
+  const monthAgo = istDay(-29);
   const [from, setFrom] = useState(monthAgo);
   const [to, setTo] = useState(today);
   const [gran, setGran] = useState<RrGranularity>('day');
