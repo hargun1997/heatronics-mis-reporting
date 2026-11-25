@@ -41,8 +41,8 @@ function ClaimModal({ p, api, onClose, reload }: { p: ClaimPlatform; api: Claims
       if (got == null) return;
       ref = got;
     }
-    await markClaim(p.id, q.quarter, { status, ref });
-    toast('Saved.'); reload();
+    try { await markClaim(p.id, q.quarter, { status, ref }); toast('Saved.'); reload(); }
+    catch (e) { toast(`Could not save: ${e instanceof Error ? e.message : 'try again'}`); }
   };
   const downloadList = async () => {
     const { downloadStyledReport } = await import('../../utils/tdsReportExport');

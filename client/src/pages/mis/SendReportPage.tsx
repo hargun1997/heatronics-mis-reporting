@@ -20,6 +20,7 @@ import { buildPresentationHtml } from '../../data/report/presentation';
 import { getRecipients, saveRecipients, sendReport, type MailerStatus, type SendResult } from '../../data/report/reportClient';
 import { getOverview } from '../../data/ownership/ownershipClient';
 import { pillClass } from '../../components/ui/pill';
+import { confirmDialog } from '../../components/ui/feedback';
 
 const iconSend = (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -43,7 +44,7 @@ export function SendReportPage() {
   const [savedNote, setSavedNote] = useState(false);
 
   useEffect(() => {
-    loadLiveDeck().then(setDeck).catch(() => setDeck(null));
+    loadLiveDeck().then(setDeck).catch(() => { setDeck(null); setError('Could not load the MIS numbers. Reload the page to try again.'); });
     chatStatus().then((s) => setConfigured(s.configured)).catch(() => setConfigured(false));
     getRecipients().then((r) => { setRecipients(r.emails); setMailer(r.mailer); }).catch(() => {});
     getOverview().then((o) => setTeamEmails(o.members.map((m) => m.email))).catch(() => {});
@@ -99,10 +100,19 @@ export function SendReportPage() {
 
   const doSend = async () => {
     if (sendBusy || !html || recipients.length === 0) return;
+    // The subject names the month the numbers are locked to, not today's month (a report sent on 2 Dec is November's).
+    const month = deck?.completeThrough ? new Date(`${deck.completeThrough}-01T00:00:00Z`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : null;
+    const subject = month ? `${title}: ${month}` : title;
+    const yes = await confirmDialog({
+      title: `Send the MIS to ${recipients.length} ${recipients.length === 1 ? 'person' : 'people'}?`,
+      body: `Subject: ${subject}. The email goes out at once.`,
+      confirm: `Send ${recipients.length} ${recipients.length === 1 ? 'email' : 'emails'}`,
+    });
+    if (!yes) return;
     setSendBusy(true); setError(null); setSent(null);
     try {
       await saveRecipients(recipients); // persist whoever is selected
-      const { result } = await sendReport(`${title}: ${new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`, html, recipients);
+      const { result } = await sendReport(subject, html, recipients);
       setSent(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Send failed.');

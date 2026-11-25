@@ -196,8 +196,12 @@ export function LiveMisPage() {
     return allPeriods.filter((p) => p.members.some((mk) => isMonthKey(mk) && fyStartOf(mk) === start));
   }, [isRange, monthly, selKeys, allPeriods, fy]);
   const selected = useMemo(
-    () => (isRange ? rangeAgg ?? undefined : shownPeriods.find((p) => p.key === periodKey) ?? shownPeriods[shownPeriods.length - 1]),
-    [isRange, rangeAgg, shownPeriods, periodKey],
+    // No month picked: open on the newest COMPLETE month (anchor), not the running one. The running month is top line
+    // only and its growth compared part of a month with a whole one.
+    () => (isRange ? rangeAgg ?? undefined : shownPeriods.find((p) => p.key === periodKey)
+      ?? (gran === 'month' && anchor ? shownPeriods.find((p) => p.key === anchor) : undefined)
+      ?? shownPeriods[shownPeriods.length - 1]),
+    [isRange, rangeAgg, shownPeriods, periodKey, gran, anchor],
   );
   const periodKeys = useMemo(() => new Set(selected?.members ?? []), [selected]);
   const pnlCols = useMemo(() => (isRange && rangeAgg ? [...shownPeriods, rangeAgg] : shownPeriods), [isRange, rangeAgg, shownPeriods]);

@@ -24,7 +24,7 @@ interface Brief {
   dueSoon: Due[]; changed: Change[]; freshness: { line: string; stale: boolean; tallyLastOkAt?: string | null }; notes: string[];
 }
 
-const show = (t: Tile) => (t.value == null ? '–' : t.unit === 'inr' ? inr(t.value) : t.unit === 'months' ? `${t.value} mo` : String(t.value));
+const show = (t: Tile) => (t.value == null ? (t.id === 'runway' ? 'Not falling' : '–') : t.unit === 'inr' ? inr(t.value) : t.unit === 'months' ? `${t.value} mo` : String(t.value));
 const tileDelta = (t: Tile) => (t.delta == null || t.delta === 0 ? null : t.unit === 'inr' ? inr(Math.abs(t.delta)) : String(Math.abs(t.delta)));
 const TONE = {
   ok: 'text-emerald-700', watch: 'text-amber-700', act: 'text-red-700',
@@ -42,8 +42,11 @@ const humanDates = (t: string) => t.replace(/\b\d{4}-\d{2}-\d{2}\b/g, (d) => day
 function tilesFor(b: Brief, c: WorkCount | null): (Tile & { href?: string })[] {
   const out: (Tile & { href?: string })[] = [];
   let empty = 0;
+  const hasBooks = b.tiles.some((t) => t.id === 'net_cash' && t.value != null);
   for (const t of b.tiles) {
     let x: Tile = t;
+    // No runway number with books in = net cash is not falling. It is not "no books" (that tile said so wrongly).
+    if (t.id === 'runway' && t.value == null && hasBooks) { out.push({ ...t, href: TILE_HREF[t.id] }); continue; }
     if (c && t.id === 'fix') x = { ...t, value: c.fix, delta: null, sub: c.fix ? `${c.fixHigh} urgent` : 'No problems found', tone: c.fixHigh ? 'act' : c.fix ? 'watch' : 'ok' };
     if (c && t.id === 'late') x = { ...t, value: c.late, delta: null, sub: `${c.dueToday} due today · ${c.dueWeek} this week`, tone: c.late ? 'act' : 'ok' };
     if (x.value == null) { empty += 1; continue; }

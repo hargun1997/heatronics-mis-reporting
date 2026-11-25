@@ -46,7 +46,7 @@ export function TdsPage() {
   const [month, setMonth] = useState(lastMonth);
   const [view, setView] = useState<View>('pay');
   const [howOpen, setHowOpen] = useState(false);
-  const { report: r, error, loading } = useTds(month);
+  const { report: r, error, loading, reload: reloadTds } = useTds(month);
   const inv = useInvoices(month);
   const q = r?.quarter;
   const ok = !!r?.haveMonth;
@@ -68,7 +68,9 @@ export function TdsPage() {
 
   const sync = async () => {
     const out = await inv.sync();
-    toast(out.ok ? 'Synced with Tally.' : `Tally did not answer. ${out.error ?? ''}`.trim());
+    // Every tab reads the same books: reload them all, not only Invoices.
+    reloadTds(); hist.reload();
+    toast(out.running ? 'Tally is still syncing. The numbers update when it ends.' : out.ok ? 'Synced with Tally.' : `Tally did not answer. ${out.error ?? ''}`.trim());
   };
   const download = async (working = false) => {
     // The TDS report follows the filing rule: a filed month = the team's report, else Tally; with its deviations sheet.
