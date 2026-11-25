@@ -110,7 +110,8 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   `MainLayout`; a missing chunk after a deploy reloads once). Keep `xlsx-js-style` / `jspdf` out of page chunks: import the
   builders (`liveMisExport`, `liveMisPdf`, `misFormatExport`, `planningExport`, `priceFloorsExport`) with `await import()` on
   click; the Live MIS page reads options / the MIS-format source from `utils/liveMisSource.ts`. `/assets/*` is served
-  `immutable, max-age=1y`, `index.html` `no-cache` (`server/src/index.ts`).
+  `immutable, max-age=1y`, `index.html` `no-cache` (`server/src/index.ts`). Every response over 1 KB goes out gzipped (`compression` in `server/src/app.ts`, test
+  `server/test/compression.test.ts`): before 25 Nov 2026 nothing was compressed (Live MIS = 1.2 MB raw JSON + 0.7 MB raw JS).
 
 ## Live connectors & shared secrets
 - `server/src/connectors/sharedSecrets.ts`: connectors fill blank fields from the SAME Secret Manager entries Ops uses

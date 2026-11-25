@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -47,6 +48,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Middleware
+// gzip every response over 1 KB (JSON APIs and the built JS / CSS): Live MIS loaded 1.2 MB of raw JSON and 0.7 MB of raw JS.
+app.use(compression({ threshold: 1024 }));
 app.use(helmet({
   contentSecurityPolicy: false // Disable for development with React
 }));
