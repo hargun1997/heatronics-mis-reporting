@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { applyStoredTheme } from './components/shell/prefs'
+import { installSessionGuard } from './utils/sessionGuard'
 
 applyStoredTheme()
+installSessionGuard()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

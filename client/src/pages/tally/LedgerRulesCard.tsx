@@ -48,7 +48,7 @@ export function LedgerRulesCard() {
     <div className="space-y-4">
       <p className="flex flex-wrap items-center gap-1 text-sm text-slate-600">The Tally ledgers that feed each MIS line.
         <InfoTip label="About ledger rules"><p>The seed map is exact. The rules catch ledgers booked under other names.</p><p>Nothing here changes Tally.</p></InfoTip>
-        {stale && <span className="text-amber-800">No ledger list stored. Select Pull Tally now. Until then the match uses the newest P&amp;L rows only.</span>}</p>
+        {stale && <span className="text-amber-800">No ledger list stored. Select Pull ledgers and vouchers. Until then the match uses the newest P&amp;L rows only.</span>}</p>
       {msg && <p role="status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">{msg}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         {RULE_LINES.map((l) => {

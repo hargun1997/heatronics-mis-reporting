@@ -2,7 +2,7 @@
 // Product cost comes from production.heatronics.in; Amazon economics from the
 // Seller Central "Revenue and fees" report uploaded here.
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HeaderMore, PageBody, PageHeader } from '../../components/ui/PageHeader';
 import { KpiTile } from '../../components/ui/KpiTile';
 import { BTN, BTN_PRIMARY, ErrorBox, InfoTip, Panel } from '../../components/ui/states';
@@ -71,9 +71,11 @@ async function api<T>(url: string, body?: unknown, method?: string): Promise<T> 
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((j as { error?: string }).error || `Request failed (${res.status})`);
+  if (!res.ok) throw Object.assign(new Error((j as { error?: string }).error || `Request failed (${res.status})`), { status: res.status, body: j });
   return j as T;
 }
+/** The server's current settings, when a save was refused as stale (409). */
+const staleSettings = (e: unknown): FloorSettings | null => ((e as { status?: number }).status === 409 ? ((e as { body?: { settings?: FloorSettings } }).body?.settings ?? null) : null);
 
 /** cost = product cost incl. the GST paid on materials; c = the split solve() needs. */
 interface Row { x: FloorSku; p: ProductCost | null; c: CostIn | null; cost: number | null }
@@ -114,9 +116,9 @@ export function PriceFloorsPage() {
     if (!fresh) return;
     const merged = mergeReport(cur, rep).settings;
     setState((st) => (st ? { ...st, settings: merged } : st));
-    api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: merged, by: 'live' })
+    api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: merged, by: 'live', ifUpdatedAt: cur.updatedAt ?? undefined })
       .then((r) => setState((st) => (st ? { ...st, settings: r.settings } : st)))
-      .catch(() => { /* the merged numbers still show; saved on the next load */ });
+      .catch((e) => { const srv = staleSettings(e); if (srv) setState((st) => (st ? { ...st, settings: srv } : st)); /* else the merged numbers still show; saved on the next load */ });
   }, [live, state]);
 
   const settings = state?.settings || DEFAULT_SETTINGS;
@@ -153,13 +155,17 @@ export function PriceFloorsPage() {
   const below = priced.filter((r) => solve(r.x, calc, r.c!, u, t).price > r.x.asp);
   const g = settings.global;
   const saveGlobal = async (patch: Partial<FloorSettings['global']>, what: string) => {
+    const before = settings;
     const next = { ...settings, global: { ...settings.global, ...patch } };
     setState((st) => (st ? { ...st, settings: next } : st));
     try {
-      const r = await api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: next });
+      const r = await api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: next, ifUpdatedAt: before.updatedAt ?? undefined });
       setState((st) => (st ? { ...st, settings: r.settings } : st));
       setNote({ tone: 'good', text: `${what} saved.` });
     } catch (e) {
+      // A failed save never leaves the new value on screen: put back the saved copy (theirs when the save was stale).
+      const srv = staleSettings(e);
+      setState((st) => (st ? { ...st, settings: srv ?? before } : st));
       setNote({ tone: 'bad', text: `Could not save: ${e instanceof Error ? e.message : String(e)}` });
     }
   };
@@ -625,17 +631,23 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
 }) {
   const [s, setS] = useState(settings);
   const [busy, setBusy] = useState(false);
-  useEffect(() => setS(settings), [settings]);
+  // A save from elsewhere (the live fee merge) must not erase what is being typed here: follow it only with no edits.
+  const edited = useRef(false);
+  useEffect(() => { if (!edited.current) setS(settings); }, [settings]);
   const dirty = JSON.stringify(s) !== JSON.stringify(settings);
   const num = (v: string) => Number(v.replace(/[^\d.]/g, '')) || 0;
-  const setSku = (i: number, k: keyof FloorSku, v: string | number | boolean | null) => setS({ ...s, skus: s.skus.map((x, j) => (j === i ? { ...x, [k]: v } : x)) });
+  const edit = (v: FloorSettings) => { edited.current = true; setS(v); };
+  const setSku = (i: number, k: keyof FloorSku, v: string | number | boolean | null) => edit({ ...s, skus: s.skus.map((x, j) => (j === i ? { ...x, [k]: v } : x)) });
   const save = async () => {
     setBusy(true);
     try {
-      const r = await api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: s });
+      const r = await api<{ settings: FloorSettings }>('/api/price-floors/settings', { settings: s, ifUpdatedAt: s.updatedAt ?? undefined });
+      edited.current = false;
       onSaved(r.settings);
       setNote({ tone: 'good', text: 'Settings saved.' });
     } catch (e) {
+      const srv = staleSettings(e);
+      if (srv) { edited.current = false; onSaved(srv); }
       setNote({ tone: 'bad', text: e instanceof Error ? e.message : String(e) });
     } finally {
       setBusy(false);
@@ -646,7 +658,7 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
       <div className="space-y-5">
         <label className="block max-w-2xl text-label font-semibold text-slate-600">
           Seller Central link for the fee report
-          <input className={inputCls.replace('tabular-nums', '')} value={s.reportUrl || ''} placeholder={SELLER_CENTRAL_REPORTS} onChange={(e) => setS({ ...s, reportUrl: e.target.value.trim() })} />
+          <input className={inputCls.replace('tabular-nums', '')} value={s.reportUrl || ''} placeholder={SELLER_CENTRAL_REPORTS} onChange={(e) => edit({ ...s, reportUrl: e.target.value.trim() })} />
           <span className="mt-1 block text-xs font-normal text-slate-500">Paste the address of the Revenue and fees report page. The upload window opens it.</span>
         </label>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -657,14 +669,14 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
                 inputMode="decimal"
                 className={inputCls}
                 value={PCT_FIELDS.has(k) ? Math.round((k === 'margin' ? marginOf(s) : k === 'buyGst' ? buyGstOf(s) : (s.global[k] ?? DEFAULT_GLOBAL[k] ?? 0)) * 1000) / 10 : (s.global[k] ?? DEFAULT_GLOBAL[k] ?? '')}
-                onChange={(e) => setS({ ...s, global: { ...s.global, [k]: PCT_FIELDS.has(k) ? num(e.target.value) / 100 : num(e.target.value) } })}
+                onChange={(e) => edit({ ...s, global: { ...s.global, [k]: PCT_FIELDS.has(k) ? num(e.target.value) / 100 : num(e.target.value) } })}
               />
               <span className="mt-1 block text-xs font-normal text-slate-500">{unit}</span>
             </label>
           ))}
         </div>
         <label className="flex min-h-[44px] max-w-2xl items-center gap-3 text-sm font-semibold text-slate-700">
-          <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={s.global.ownPays3p !== false} onChange={(e) => setS({ ...s, global: { ...s.global, ownPays3p: e.target.checked } })} />
+          <input type="checkbox" className="h-5 w-5 accent-brand-500" checked={s.global.ownPays3p !== false} onChange={(e) => edit({ ...s, global: { ...s.global, ownPays3p: e.target.checked } })} />
           Own-brand sales pay 3P margin
           <span className="text-xs font-normal text-slate-500">When off, we sell every SKU (1P), unless you tick a SKU below.</span>
         </label>
@@ -727,7 +739,7 @@ function SettingsEditor({ settings, products, onSaved, setNote }: {
           <button type="button" onClick={save} disabled={!dirty || busy} className="h-11 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
             {busy ? 'Saving…' : 'Save settings'}
           </button>
-          {dirty && <button type="button" onClick={() => setS(settings)} className="h-11 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">Undo changes</button>}
+          {dirty && <button type="button" onClick={() => { edited.current = false; setS(settings); }} className="h-11 rounded-xl px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">Undo changes</button>}
           <p className="text-xs text-slate-500">Referral % is a % of the price with GST. It applies from the band price up. Amazon fees include their GST. Materials and ads get the purchase GST added.</p>
         </div>
       </div>

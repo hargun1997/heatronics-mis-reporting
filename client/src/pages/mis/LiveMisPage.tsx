@@ -169,10 +169,10 @@ export function LiveMisPage() {
   const completeness = useMemo(() => view?.completeness ?? {}, [view]);
 
   const aggGran: DeckGran = gran === 'range' ? 'month' : gran;
-  const allPeriods = useMemo(() => aggregatePeriods(months, completeness, aggGran), [months, completeness, aggGran]);
-  const monthly = useMemo(() => aggregatePeriods(months, completeness, 'month'), [months, completeness]);
-  const quarterly = useMemo(() => aggregatePeriods(months, completeness, 'quarter'), [months, completeness]);
-  const yearly = useMemo(() => aggregatePeriods(months, completeness, 'year'), [months, completeness]);
+  const allPeriods = useMemo(() => cachedAgg(months, completeness, aggGran), [months, completeness, aggGran]);
+  const monthly = useMemo(() => cachedAgg(months, completeness, 'month'), [months, completeness]);
+  const quarterly = useMemo(() => cachedAgg(months, completeness, 'quarter'), [months, completeness]);
+  const yearly = useMemo(() => cachedAgg(months, completeness, 'year'), [months, completeness]);
   // Fiscal years present in the data, newest first — drives the Year filter.
   const fys = useMemo(() => {
     const ys = new Set<number>();
@@ -515,6 +515,20 @@ const RR_METRICS: { id: MetricKey; label: string; money: boolean }[] = [
   { id: 'mer', label: 'MER (revenue ÷ ad spend)', money: false },
 ];
 const AUTO_MS = 120_000;
+
+// Totals per month set and grain. Going Overview → Channels swaps actual / normalised months; coming back reuses
+// the totals already built instead of 4 more aggregatePeriods passes.
+const AGG_CACHE = new WeakMap<object, Map<string, PeriodAgg[]>>();
+function cachedAgg(months: Parameters<typeof aggregatePeriods>[0], completeness: Parameters<typeof aggregatePeriods>[1], g: DeckGran): PeriodAgg[] {
+  let byGran = AGG_CACHE.get(months);
+  if (!byGran) { byGran = new Map(); AGG_CACHE.set(months, byGran); }
+  const key = String(g);
+  const hit = byGran.get(key);
+  if (hit) return hit;
+  const out = aggregatePeriods(months, completeness, g);
+  byGran.set(key, out);
+  return out;
+}
 const daysBetween = (from: string, to: string) => Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1);
 
 function RunRateTab() {
@@ -569,7 +583,9 @@ function RunRateTab() {
   }, [buckets, dim, metric, isRatio]);
 
   const days = daysBetween(from, to);
-  const mrr = (sum.revenue / days) * 30;
+  // No facts back = "Not read", never ₹0.
+  const hasFacts = facts.length > 0;
+  const runRate = hasFacts ? (sum.revenue / days) * 30 : null;
 
   return (
     <div className="space-y-4">
@@ -588,21 +604,21 @@ function RunRateTab() {
           </select>
         </Field>
         <div className="flex items-center gap-3 text-xs text-slate-400 sm:ml-auto pb-1">
-          {fetchedAt && <span>updated {fetchedAt.toLocaleTimeString()}</span>}
-          <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> auto</label>
+          {fetchedAt && <span>Updated {fetchedAt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}</span>}
+          <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Refresh every 2 min</label>
           <button onClick={() => void load()} disabled={loading} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40">{loading ? 'Refreshing…' : 'Refresh'}</button>
         </div>
       </div>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+      {error && <ErrorBox onRetry={() => void load()}>{error}</ErrorBox>}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiTile label="Revenue" value={inr(sum.revenue)} sub={`${days} days`} />
-        <KpiTile label="MRR" value={inr(mrr)} sub="30 days at this rate" />
-        <KpiTile label="Ad spend" value={inr(sum.spend)} />
-        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : '–'} sub="Revenue ÷ ad spend" />
-        <KpiTile label="Net" value={inr(sum.net)} sub="Revenue less fees" />
-        <KpiTile label="Orders" value={sum.orders.toLocaleString('en-IN')} />
+        <KpiTile label="Revenue" value={hasFacts ? inr(sum.revenue) : null} sub={`${days} days`} />
+        <KpiTile label="30-day run-rate" value={runRate == null ? null : inr(runRate)} sub="30 days at this rate" />
+        <KpiTile label="Ad spend" value={hasFacts ? inr(sum.spend) : null} />
+        <KpiTile label="MER" value={sum.mer ? `${sum.mer.toFixed(2)}×` : null} sub="Revenue ÷ ad spend" />
+        <KpiTile label="Net" value={hasFacts ? inr(sum.net) : null} sub="Revenue less fees" />
+        <KpiTile label="Orders" value={hasFacts ? sum.orders.toLocaleString('en-IN') : null} />
       </div>
 
       <div>

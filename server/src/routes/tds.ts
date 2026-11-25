@@ -15,7 +15,7 @@
 //   POST /api/tds/sync/run               OPEN path with its own token (secret mis-auto-pull-token), hourly GitHub Actions
 //                                        (.github/workflows/tds-sync.yml): once a day + month-end from the 5th; counts only
 import { Router, type Request, type Response } from 'express';
-import { addMonths, mergePartial, readBooks, readBooksState, readMasters, readPartial } from '../connectors/tally/bookStore.js';
+import { addMonths, readBooks, readBooksState, readMasters, readPartial } from '../connectors/tally/bookStore.js';
 import { DEFAULT_SETTINGS as GST_DEFAULTS } from '../services/gstRefund.js';
 import { buildClaims, EMPTY_CLAIM_SETTINGS, sanitizeClaim, sanitizeClaimSettings, type ClaimRecords, type ClaimSettings } from '../services/tdsClaims.js';
 import { tdsFeed, tdsMonths } from '../services/tdsFeed.js';
@@ -148,17 +148,20 @@ router.get('/claims', h(async (req, res) => {
   const curFy = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
   const fy = Number(req.query.fy) || curFy;
   if (fy < 2020 || fy > curFy) return void res.status(400).json({ error: 'fy=YYYY (April of the year)' });
-  const last = fy === curFy ? now.toISOString().slice(0, 7) : `${fy + 1}-03`;
+  const istToday = new Date(now.getTime() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+  const last = fy === curFy ? istToday.slice(0, 7) : `${fy + 1}-03`;
   const months: string[] = [];
   for (let m = `${fy}-04`; m <= last; m = addMonths(m, 1)) months.push(m);
-  const [docs, parts, masters, records, settings, state, reachedAt] = await Promise.all([
-    Promise.all(months.map(readBooks)), Promise.all(months.map(readPartial)), readMasters(), readClaims(), readClaimSettings(), readBooksState(), tallyReachedAt(),
+  // Same books as What to pay and Invoices: the stored complete copy of each month (a half-read month during a sweep
+  // used to show different bills on this tab).
+  const [docs, masters, records, settings, state, reachedAt] = await Promise.all([
+    Promise.all(months.map(readBooks)), readMasters(), readClaims(), readClaimSettings(), readBooksState(), tallyReachedAt(),
   ]);
-  const vouchers = months.flatMap((m, i) => mergePartial(docs[i]?.vouchers ?? [], parts[i]).vouchers);
-  const report = buildClaims({ fy, vouchers, ledgers: masters?.ledgers ?? [], records, today: now.toISOString().slice(0, 10) });
+  const vouchers = months.flatMap((_m, i) => docs[i]?.vouchers ?? []);
+  const report = buildClaims({ fy, vouchers, ledgers: masters?.ledgers ?? [], records, today: istToday });
   const gst = await readJson<{ gstin?: string }>('gst-refund/settings', {});
   const gstin = gst.gstin || GST_DEFAULTS.gstin;
-  res.json({ ...report, settings, company: { name: 'HEATRONICS MEDICAL DEVICES (P) LTD', gstin, pan: gstin.slice(2, 12) }, stored: months.filter((_, i) => docs[i] || parts[i]), missing: months.filter((_, i) => !docs[i] && !parts[i]), booksAsOf: Object.fromEntries(months.map((m) => [m, state.months[m] ?? null])), reachedAt });
+  res.json({ ...report, settings, company: { name: 'HEATRONICS MEDICAL DEVICES (P) LTD', gstin, pan: gstin.slice(2, 12) }, stored: months.filter((_, i) => docs[i]), missing: months.filter((_, i) => !docs[i]), booksAsOf: Object.fromEntries(months.map((m) => [m, state.months[m] ?? null])), reachedAt });
 }));
 
 router.put('/claims/:key', h(async (req, res) => {

@@ -15,10 +15,6 @@ import { inrFull } from '../../utils/money';
 import { Empty as KitEmpty } from '../../components/ui/states';
 import { DataTable } from '../../components/ui/DataTable';
 
-type Severity = 'error' | 'warn' | 'info';
-interface Sample { date?: string; type?: string; number?: string; party?: string; ledger?: string; amount?: number; detail: string }
-interface Issue { id: string; severity: Severity; title: string; why: string; fix: string; count: number; samples: Sample[] }
-interface Health { periods: string[]; vouchers: number; ledgers: number; issues: Issue[]; mastersAt: string | null }
 interface BooksStatus { connected: boolean; mastersAt: string | null; reachedAt?: string | null; ledgers: number; months: Record<string, string>; lastTryAt: string | null; lastError: string | null; warnings: string[] }
 interface Ledger { name: string; group: string; primary: string; gstin: string; registration: string; state: string; tds: string; vouchers: number }
 interface Line { ledger: string; amount: number }
@@ -40,15 +36,13 @@ export function TallyPage() {
   // ?tab= (links from Issues) opens a view
   const [tab, setTab] = useState<Tab>(() => { try { const t = new URLSearchParams(window.location.search).get('tab') as Tab; return TABS.includes(t) ? t : 'chart'; } catch { return 'chart'; } });
   const [status, setStatus] = useState<BooksStatus | null>(null);
-  const [health, setHealth] = useState<Health | null>(null);
-  const months = 3; // Tally health checks over the newest 3 stored months (the list itself is in Tasks → Fix)
   const [pulling, setPulling] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [s, h] = await Promise.all([api<BooksStatus>('/api/tally/books/status'), api<Health>(`/api/tally/books/health?months=${months}`)]);
-    setStatus(s); setHealth(h);
-  }, [months]);
+    // The problem list itself is in Tasks → Fix (no second count here).
+    setStatus(await api<BooksStatus>('/api/tally/books/status'));
+  }, []);
   useEffect(() => { load().catch((e) => setMsg(e.message)); }, [load]);
 
   const pull = async () => {
@@ -63,15 +57,12 @@ export function TallyPage() {
   };
 
   const stored = Object.keys(status?.months || {}).sort().reverse();
-  const counts = { error: 0, warn: 0, info: 0 } as Record<Severity, number>;
-  for (const i of health?.issues || []) counts[i.severity] += i.count;
 
   const notes = [
     ...(stored.length ? [`Day Books stored: ${stored.slice(0, 6).join(', ')}${stored.length > 6 ? ` +${stored.length - 6}` : ''}.`] : ['No Day Book stored yet.']),
     ...(status?.lastError ? [`Last pull stopped: ${status.lastError.slice(0, 160)}`] : []),
     ...(status?.warnings ?? []),
   ];
-  const problems = health?.issues.length ?? 0;
   const pill = 'inline-flex min-h-11 sm:min-h-8 items-center rounded-full border px-2.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500';
 
   return (
@@ -80,7 +71,6 @@ export function TallyPage() {
         description="The chart of accounts, ledgers and vouchers that the MIS reads from Tally."
         status={<>
           {status && !status.connected && <Link to="/reporting/mis/connectors" className={`${pill} border-amber-200 bg-amber-50 text-amber-800`}>Not connected · open Setup</Link>}
-          {problems > 0 && <Link to="/tasks?view=fix" className={`${pill} border-red-200 bg-red-50 text-red-800`} title={`${counts.error} to fix, ${counts.warn} to check`}>{problems} problems · open Fix list</Link>}
         </>}
         help={<><p>The MIS reads Tally. It never writes to Tally.</p><p>Problems found in the books are in Tasks → Fix, with how to fix each.</p><p>Tally answers only while TallyPrime is open on the cloud machine with the company loaded.</p></>}
         tabs={[{ id: 'chart', label: 'Chart of accounts' }, { id: 'ask', label: 'Ask about Tally' }, { id: 'ledgers', label: 'Ledgers', count: status?.ledgers || null }, { id: 'vouchers', label: 'Vouchers' }, { id: 'rules', label: 'Ledger rules' }]}
@@ -88,7 +78,7 @@ export function TallyPage() {
         actions={<>
           {status && <FreshnessPill label="Tally books" asOf={status.reachedAt ?? status.mastersAt} note={`${status.ledgers || 0} ledgers`} more={stored.slice(0, 1).map((p) => ({ label: `Day Book ${p}`, asOf: status.months[p], staleAfterH: TALLY_STALE_H }))} notes={notes} />}
           <button type="button" onClick={pull} disabled={pulling} className={BTN}>
-            {pulling ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}{pulling ? 'Pulling (up to 2 min)…' : 'Pull Tally now'}</button>
+            {pulling ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}{pulling ? 'Pulling (up to 2 min)…' : 'Pull ledgers and vouchers'}</button>
         </>} />
       <PageBody>
         {msg && <p role="status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{msg}</p>}
@@ -166,7 +156,7 @@ function Ledgers() {
           { key: 'tds', label: 'TDS', quiet: true, cell: (l) => l.tds },
           { key: 'vouchers', label: 'Vouchers (3 months)', num: true, cell: (l) => l.vouchers || '' },
         ]} />}
-        {data && !data.total && <Empty text="No ledgers stored yet. Open TallyPrime, then select Pull Tally now." />}
+        {data && !data.total && <Empty text="No ledgers stored yet. Open TallyPrime, then select Pull ledgers and vouchers." />}
       </div>
     </div>
   );
@@ -184,7 +174,7 @@ function Vouchers({ months }: { months: string[] }) {
     const t = setTimeout(() => { api<{ total: number; rows: Voucher[] }>(`/api/tally/books/vouchers?period=${period}&q=${encodeURIComponent(q)}`).then((d) => { if (live) setData(d); }).catch(() => { if (live) setData(null); }); }, 250);
     return () => { live = false; clearTimeout(t); };
   }, [period, q]);
-  if (!months.length) return <Empty text="No Day Book stored yet. Open TallyPrime, then select Pull Tally now." />;
+  if (!months.length) return <Empty text="No Day Book stored yet. Open TallyPrime, then select Pull ledgers and vouchers." />;
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-card">
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-3">

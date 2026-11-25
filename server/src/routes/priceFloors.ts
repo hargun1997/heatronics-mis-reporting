@@ -98,6 +98,16 @@ router.post('/settings', h(async (req, res) => {
     res.status(400).json({ error: 'Send { settings: { global, skus } }.' });
     return;
   }
+  // Stale save check: a save made on an older copy (someone else saved in between, or the live merge landed) is refused
+  // with the current settings, so it never overwrites the other change. Saves without ifUpdatedAt (old pages) still pass.
+  const ifUpdatedAt = typeof req.body?.ifUpdatedAt === 'string' ? req.body.ifUpdatedAt : undefined;
+  if (ifUpdatedAt !== undefined) {
+    const cur = await readJson<{ updatedAt?: string | null } | null>('price-floors-settings', null);
+    if (cur?.updatedAt && cur.updatedAt !== ifUpdatedAt) {
+      res.status(409).json({ error: 'Someone saved the settings after you opened them. The page now shows their copy. Make your change again.', settings: cur });
+      return;
+    }
+  }
   const saved = { ...settings, skus: settings.skus.slice(0, 200), updatedAt: new Date().toISOString(), updatedBy: clean(req.body?.by) || null };
   await writeJson('price-floors-settings', saved);
   res.json({ settings: saved });

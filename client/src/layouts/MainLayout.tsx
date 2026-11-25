@@ -8,6 +8,7 @@ import { ShellContext } from '../components/shell/ShellContext';
 import { pushRecent } from '../components/shell/prefs';
 import { PageErrorBoundary } from '../components/shell/PageErrorBoundary';
 import { Skeleton } from '../components/ui/states';
+import { PartBoundary } from '../components/ui/PartBoundary';
 import { whereIs } from '../nav/config';
 import { pageAllowed, useHtxPages } from '../components/shell/useHtxPages';
 
@@ -73,8 +74,8 @@ export function MainLayout() {
           </PageErrorBoundary>
         </main>
       </div>
-      <CommandPalette />
-      <Suspense fallback={null}>{path.startsWith('/handbook') ? <SopChat /> : (path.startsWith('/reporting/mis/insights') || path.startsWith('/booking-assistant')) ? null /* pages with their own chat get no second one */ : <FloatingChat />}</Suspense>
+      <PartBoundary name="Search" quiet><CommandPalette /></PartBoundary>
+      <PartBoundary name="Chat" quiet><Suspense fallback={null}>{path.startsWith('/handbook') ? <SopChat /> : (path.startsWith('/reporting/mis/insights') || path.startsWith('/booking-assistant')) ? null /* pages with their own chat get no second one */ : <FloatingChat />}</Suspense></PartBoundary>
     </ShellContext.Provider>
   );
 }
