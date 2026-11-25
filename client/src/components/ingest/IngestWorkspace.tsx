@@ -7,7 +7,8 @@ import type { ConnectorInfo } from '../../data/monthClose/connectorsClient';
 import { ALL_SLOTS, slotsFor } from '../../data/ingest/catalog';
 import { pullAndCommit, slotKey, type SlotSourceInfo } from '../../data/ingest/slotSources';
 import type { IngestReportMeta } from '../../data/ingest/types';
-import { LIVE_BOUNDARY } from '../../data/misDeck/liveDeck';
+import { LIVE_BOUNDARY } from '../../data/misDeck/boundary';
+import { istMonth } from '../../utils/ist';
 
 const MONTH_ABBR = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function monthName(mk: string): string {
@@ -24,8 +25,7 @@ function nextMonth(mk: string): string {
   return `${y}-${String(m).padStart(2, '0')}`;
 }
 function currentMonthKey(): string {
-  const d = new Date();
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  return istMonth();
 }
 /** Month keys from `start` to `end` inclusive (calendar-walked). */
 function monthRange(start: string, end: string): string[] {
@@ -36,9 +36,7 @@ function monthRange(start: string, end: string): string[] {
 }
 
 function lastMonth(): string {
-  const d = new Date();
-  const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
-  return `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, '0')}`;
+  return istMonth(-1);
 }
 
 type MonthState = 'complete' | 'partial' | 'none';

@@ -7,6 +7,7 @@ import { CommandPalette } from '../components/shell/CommandPalette';
 import { ShellContext } from '../components/shell/ShellContext';
 import { pushRecent } from '../components/shell/prefs';
 import { PageErrorBoundary } from '../components/shell/PageErrorBoundary';
+import { Skeleton } from '../components/ui/states';
 import { whereIs } from '../nav/config';
 import { pageAllowed, useHtxPages } from '../components/shell/useHtxPages';
 
@@ -14,8 +15,18 @@ import { pageAllowed, useHtxPages } from '../components/shell/useHtxPages';
 const FloatingChat = lazy(() => import('../components/chat/FloatingChat').then((m) => ({ default: m.FloatingChat })));
 const SopChat = lazy(() => import('../components/chat/SopChat').then((m) => ({ default: m.SopChat })));
 
+/** While a page's chunk loads: a thin bar at the top (the click landed) and a skeleton in the page's shape, not text. */
 function PageLoading() {
-  return <div role="status" aria-live="polite" className="p-6 text-sm text-slate-500">Loading…</div>;
+  return (
+    <div role="status" aria-live="polite" aria-label="Loading">
+      <div className="route-bar fixed left-0 right-0 top-0 z-toast h-0.5 bg-cta" aria-hidden />
+      <div className="mx-auto max-w-page px-4 py-6 sm:px-6">
+        <div className="mb-6 h-7 w-48 animate-pulse rounded bg-stone-200" />
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-stone-200" />)}</div>
+        <Skeleton lines={6} />
+      </div>
+    </div>
+  );
 }
 
 export function MainLayout() {
@@ -39,6 +50,8 @@ export function MainLayout() {
     const w = whereIs(path);
     if (w) pushRecent({ href: path, label: w.page.label, context: w.section.label });
     document.title = w ? `${w.page.label} · Heatronics MIS` : 'Heatronics MIS';
+    // A new page opens at the top (it used to keep the last page's scroll position).
+    window.scrollTo(0, 0);
   }, [path]);
 
   return (

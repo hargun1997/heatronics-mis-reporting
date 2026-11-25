@@ -92,11 +92,16 @@ async function slotFeedStatus() {
   return out;
 }
 
-let cache: { at: number; items: InboxItem[] } | null = null;
-async function items(force = false) {
+// 60 s cache with in-flight dedupe: the sidebar badge (/count) and Today (openFixItems) ask at the same moment on a cold
+// load, and loadItems reads reports, 3 months of Day Books, the chart and the TB (about 5 s).
+let cache: { at: number; items: Promise<InboxItem[]> } | null = null;
+function items(force = false): Promise<InboxItem[]> {
   if (!force && cache && Date.now() - cache.at < 60_000) return cache.items;
-  cache = { at: Date.now(), items: await loadItems() };
-  return cache.items;
+  const p = loadItems();
+  const entry = { at: Date.now(), items: p };
+  cache = entry;
+  p.catch(() => { if (cache === entry) cache = null; });
+  return p;
 }
 
 /** Server Fix items still open (not done / snoozed). Shared with the Morning page. */

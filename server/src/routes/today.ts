@@ -21,12 +21,32 @@ const INDEX = 'morning/index';
 const snapKey = (d: string) => `morning/snap-${d}`;
 const safe = async <T>(p: Promise<T>, fallback: T): Promise<T> => { try { return await p; } catch { return fallback; } };
 
+type Brief = ReturnType<typeof buildMorningBrief>;
+// 60 s cache with in-flight dedupe (one brief per IST day): the brief reads 14 months of books, the Fix list and tasks
+// (about 4 to 5 s). Refresh (?fresh=1) always rebuilds.
+let memo: { day: string; at: number; p: Promise<Brief> } | null = null;
+
 router.get('/', (req: Request, res: Response) => {
-  (async () => {
+  const fresh = req.query.fresh === '1';
+  const day = istToday(Date.now());
+  if (fresh || !memo || memo.day !== day || Date.now() - memo.at > 60_000) {
+    const p = buildBrief(fresh);
+    const entry = { day, at: Date.now(), p };
+    memo = entry;
+    p.catch(() => { if (memo === entry) memo = null; });
+  }
+  memo.p.then((brief) => res.set('Cache-Control', 'no-store').json(brief)).catch((err: unknown) => {
+    console.error('today route error:', err);
+    if (!res.headersSent) res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error.' });
+  });
+});
+
+async function buildBrief(fresh: boolean): Promise<Brief> {
+  {
     const now = new Date();
     const today = istToday(now.getTime());
     const [x, fixRaw, taskRaw, members, days] = await Promise.all([
-      summaryInput(req.query.fresh === '1'),
+      summaryInput(fresh),
       safe(openFixItems(), []),
       safe(openItems(now), []),
       safe(listMembers(), []),
@@ -50,11 +70,8 @@ router.get('/', (req: Request, res: Response) => {
     if (!days.includes(today)) {
       await safe((async () => { await writeJson(snapKey(today), brief.snapshot); await writeJson(INDEX, withDay(days, today)); })(), undefined);
     }
-    res.set('Cache-Control', 'no-store').json(brief);
-  })().catch((err: unknown) => {
-    console.error('today route error:', err);
-    if (!res.headersSent) res.status(500).json({ error: err instanceof Error ? err.message : 'Internal error.' });
-  });
-});
+    return brief;
+  }
+}
 
 export default router;
