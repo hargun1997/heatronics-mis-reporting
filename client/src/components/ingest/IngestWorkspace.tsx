@@ -2,11 +2,10 @@
 // (one button for every connected automatic report). The old Uploads workspace is gone: each source's drawer holds its uploads.
 
 import { BTN_PRIMARY, InfoTip, Panel } from '../ui/states';
-import { useState } from 'react';
-import type { ConnectorInfo } from '../../data/monthClose/connectorsClient';
-import { ALL_SLOTS, slotsFor } from '../../data/ingest/catalog';
+import { useEffect, useState } from 'react';
+import { StatusPill } from '../ui/StatusPill';
+import { ALL_SLOTS } from '../../data/ingest/catalog';
 import { pullAndCommit, slotKey, type SlotSourceInfo } from '../../data/ingest/slotSources';
-import type { IngestReportMeta } from '../../data/ingest/types';
 import { LIVE_BOUNDARY } from '../../data/misDeck/boundary';
 import { istMonth } from '../../utils/ist';
 
@@ -19,99 +18,79 @@ function shortMonth(mk: string): string {
   const [y, m] = mk.split('-');
   return `${MONTH_ABBR[Number(m)] ?? m} '${y.slice(2)}`;
 }
-function nextMonth(mk: string): string {
-  let [y, m] = mk.split('-').map(Number);
-  m += 1; if (m > 12) { m = 1; y += 1; }
-  return `${y}-${String(m).padStart(2, '0')}`;
-}
-function currentMonthKey(): string {
-  return istMonth();
-}
-/** Month keys from `start` to `end` inclusive (calendar-walked). */
-function monthRange(start: string, end: string): string[] {
-  const out: string[] = [];
-  let cur = start;
-  while (cur <= end && out.length < 120) { out.push(cur); cur = nextMonth(cur); }
-  return out;
-}
 
 function lastMonth(): string {
   return istMonth(-1);
 }
 
-type MonthState = 'complete' | 'partial' | 'none';
+interface MonthCov { period: string; state: 'complete' | 'partial' | 'none' | 'running' | 'locked'; expected: number; present: number; missing: { label: string; detail: string; required: boolean }[] }
 
 /**
- * "Where we are" — the live window (from the Apr-2026 boundary to the current
- * month) laid out month by month. A month is scored against the FULL set of
- * required reports (every required slot across every upload connector), not
- * just Tally: all required sources in → green, some in → amber, none → red.
- * History before the boundary is locked legacy.
+ * Reports by month: the SAME check as Tasks → Fix (server closeSlots.monthCoverage: every report slot, missing, empty or
+ * part of the month). Tap a month to see what is missing (the old hover tooltip did not work on phones).
  */
-export function CoveragePanel({ reports, connectors }: { reports: IngestReportMeta[]; connectors: ConnectorInfo[] }) {
-  const today = currentMonthKey();
-  const end = today > LIVE_BOUNDARY ? today : LIVE_BOUNDARY;
-  const months = monthRange(LIVE_BOUNDARY, end);
+export function CoveragePanel({ refreshKey }: { refreshKey?: unknown }) {
+  const [months, setMonths] = useState<MonthCov[] | null>(null);
+  const [error, setError] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch('/api/ingest/coverage').then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: { months: MonthCov[] }) => { if (live) { setMonths(j.months); setError(false); } })
+      .catch(() => { if (live) setError(true); });
+    return () => { live = false; };
+  }, [refreshKey]);
 
-  // The required uploads for a complete month: every required slot on every
-  // connector that is uploaded (live-API sources pull themselves, so they do not
-  // count). Each entry is `${connectorId}|${slotId}` with a label for tooltips.
-  const expected = connectors
-    .filter((c) => c.mode !== 'live-api')
-    .flatMap((c) => slotsFor(c.id).filter((s) => s.required).map((s) => ({ key: `${c.id}|${s.slotId}`, label: `${c.label} · ${s.label}` })));
-
-  const stateOf = (mk: string): { state: MonthState; present: number; missing: string[] } => {
-    const have = new Set(reports.filter((r) => r.periodKey === mk).map((r) => `${r.connectorId}|${r.slotId}`));
-    const present = expected.filter((e) => have.has(e.key));
-    const missing = expected.filter((e) => !have.has(e.key)).map((e) => e.label);
-    const anyHere = reports.some((r) => r.periodKey === mk);
-    // Guard before connectors load (expected empty): fall back to any-data.
-    if (expected.length === 0) return { state: anyHere ? 'partial' : 'none', present: anyHere ? 1 : 0, missing: [] };
-    if (present.length === expected.length) return { state: 'complete', present: present.length, missing: [] };
-    if (present.length > 0 || anyHere) return { state: 'partial', present: present.length, missing };
-    return { state: 'none', present: 0, missing };
-  };
-  const rows = months.map((mk) => ({ mk, ...stateOf(mk) }));
-
-  // Complete-through = the contiguous run of fully-complete months from the start.
   let completeThrough: string | null = null;
-  for (const r of rows) { if (r.state === 'complete') completeThrough = r.mk; else break; }
-  const completeCount = rows.filter((r) => r.state === 'complete').length;
-
-  const CHIP: Record<MonthState, string> = {
+  for (const r of months ?? []) { if (r.state === 'complete' || r.state === 'locked') completeThrough = r.period; else if (r.state !== 'running') break; }
+  const closed = (months ?? []).filter((r) => r.state !== 'running');
+  const completeCount = closed.filter((r) => r.state === 'complete' || r.state === 'locked').length;
+  const CHIP: Record<MonthCov['state'], string> = {
     complete: 'bg-emerald-500 text-white border-emerald-500',
+    locked: 'bg-emerald-500 text-white border-emerald-500',
     partial: 'bg-amber-100 text-amber-800 border-amber-300',
     none: 'bg-red-50 text-red-700 border-red-200',
+    running: 'bg-white text-slate-600 border-slate-300',
   };
-  const tip = (r: typeof rows[number]) => {
-    if (r.state === 'complete') return `${monthName(r.mk)}: complete · all ${expected.length} required reports in`;
-    if (r.state === 'none') return `${monthName(r.mk)}: nothing uploaded · ${expected.length} required`;
-    return `${monthName(r.mk)}: partial · ${r.present}/${expected.length} in · missing: ${r.missing.join(', ')}`;
-  };
-
-  const GLYPH: Record<MonthState, string> = { complete: '✓', partial: '', none: '✕' };
+  const GLYPH: Record<MonthCov['state'], string> = { complete: '✓', locked: '✓', partial: '', none: '✕', running: '' };
+  const sel = (months ?? []).find((m) => m.period === open) ?? null;
   return (
     <Panel title="Reports by month"
-      action={<span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${completeThrough ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
-        {completeThrough ? `Complete to ${monthName(completeThrough)}` : 'No complete month'} · {completeCount} of {rows.length}
-      </span>}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {rows.map((r) => (
-          <div key={r.mk} title={tip(r)}
-            className={`rounded-md border px-2 py-1 text-xs font-medium tabular-nums ${CHIP[r.state]}`}>
-            {GLYPH[r.state] && <span aria-hidden className="mr-1">{GLYPH[r.state]}</span>}{shortMonth(r.mk)}
-            {r.state === 'partial' && expected.length > 0 && <span className="ml-1 opacity-70">{r.present}/{expected.length}</span>}
-            <span className="sr-only">: {r.state === 'complete' ? 'complete' : r.state === 'partial' ? 'some reports missing' : 'no reports'}</span>
-          </div>
-        ))}
-        <InfoTip label="What the colours mean" text="Key">
-          <p>Green ✓: all necessary uploads are in.</p>
-          <p>Amber 2/5: some uploads are in.</p>
-          <p>Red ✕: no upload is in.</p>
-          <p>Point at a month to see the missing reports.</p>
-          <p>Months before {monthName(LIVE_BOUNDARY)} are old history. They do not change.</p>
-        </InfoTip>
-      </div>
+      action={months ? <StatusPill size="sm" toneName={completeThrough ? 'positive' : 'warning'}>
+        {completeThrough ? `Complete to ${monthName(completeThrough)}` : 'No complete month'} · {completeCount} of {closed.length}
+      </StatusPill> : null}>
+      {error && <p className="text-sm text-slate-600">Could not load the months. Reload the page.</p>}
+      {!months && !error && <p role="status" className="text-sm text-slate-500">Loading…</p>}
+      {months && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {months.map((r) => (
+            <button key={r.period} type="button" aria-pressed={open === r.period} onClick={() => setOpen(open === r.period ? null : r.period)}
+              className={`min-h-11 sm:min-h-8 rounded-md border px-2 text-xs font-medium tabular-nums ${CHIP[r.state]} ${open === r.period ? 'ring-2 ring-slate-900 ring-offset-1' : ''}`}>
+              {GLYPH[r.state] && <span aria-hidden className="mr-1">{GLYPH[r.state]}</span>}{shortMonth(r.period)}
+              {r.state === 'partial' && r.expected > 0 && <span className="ml-1 opacity-70">{r.present}/{r.expected}</span>}
+              <span className="sr-only">: {r.state === 'complete' ? 'complete' : r.state === 'locked' ? 'locked' : r.state === 'running' ? 'this month, still running' : r.state === 'partial' ? 'some reports missing' : 'no reports'}</span>
+            </button>
+          ))}
+          <InfoTip label="What the colours mean" text="Key">
+            <p>Green ✓: every necessary report is in (or the month is locked).</p>
+            <p>Amber 2/5: some reports are in.</p>
+            <p>Red ✕: no report is in.</p>
+            <p>White: this month. It is still running.</p>
+            <p>Tap a month to see what is missing. Tasks → Fix uses the same check.</p>
+            <p>Months before {monthName(LIVE_BOUNDARY)} are old history. They do not change.</p>
+          </InfoTip>
+        </div>
+      )}
+      {sel && (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm">
+          <p className="font-semibold text-slate-900">{monthName(sel.period)}: {sel.state === 'complete' || sel.state === 'locked' ? 'every necessary report is in' : `${sel.present} of ${sel.expected} necessary reports in`}</p>
+          {sel.missing.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5 text-label text-slate-700">
+              {sel.missing.map((m) => <li key={m.label}>{m.label}: {m.detail}{m.required ? '' : ' (optional)'}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
     </Panel>
   );
 }
@@ -125,6 +104,13 @@ export function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSo
   const [month, setMonth] = useState(lastMonth());
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<{ label: string; ok: boolean; detail: string }[]>([]);
+  // Pulled reports are saved from this page: leaving it while Pull all runs loses the ones not saved yet. Warn.
+  useEffect(() => {
+    if (!running) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [running]);
   const auto = ALL_SLOTS.filter((s) => sources.get(slotKey(s.connectorId, s.slotId))?.pullable);
   const ready = auto.filter((s) => sources.get(slotKey(s.connectorId, s.slotId))?.connected);
   const manual = ALL_SLOTS.filter((s) => {
@@ -156,7 +142,7 @@ export function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSo
       <div className="flex flex-wrap items-center gap-2">
         <input type="month" aria-label="Month to pull" value={month} onChange={(e) => setMonth(e.target.value)} className="min-h-11 sm:min-h-9 rounded-lg border border-slate-300 px-2 text-sm" />
         <button type="button" onClick={() => void run()} disabled={running || ready.length === 0 || !/^\d{4}-\d{2}$/.test(month)} className={BTN_PRIMARY}>
-          {running ? 'Pulling…' : `Pull all for ${monthName(month)}`}
+          {running ? `Pulling ${results.length} of ${ready.length}…` : `Pull all for ${monthName(month)}`}
         </button>
         {off.length > 0 && (
           <InfoTip label={`${off.length} reports not connected`} text={`${off.length} not connected`}>
@@ -168,6 +154,7 @@ export function AutoPullPanel({ sources, onDone }: { sources: Map<string, SlotSo
           <p>Pull all gets each connected report for the month.</p>
           <p>It saves a report only when all checks pass.</p>
           <p>If a check fails, open the source below. Then review the report or upload the file.</p>
+          <p>Stay on this page until it ends. The page saves each report.</p>
         </InfoTip>
       </div>
       {results.length > 0 && (

@@ -138,8 +138,9 @@ export function buildMorningBrief(x: MorningInput): MorningBrief {
 
   const high = needs.filter((n) => n.severity === 'high').length;
   const status: MorningBrief['status'] = high ? 'act' : needs.length ? 'watch' : 'ok';
+  // One sentence with the same total the "Do these first" list counts (sweep fix, 25 Nov 2026).
   const statusLine = high
-    ? `${high} thing${high === 1 ? '' : 's'} need${high === 1 ? 's' : ''} you today`
+    ? `${high} thing${high === 1 ? '' : 's'} need${high === 1 ? 's' : ''} you today, ${needs.length} open in all`
     : needs.length ? `${needs.length} to watch, none urgent` : 'Nothing needs you today';
 
   // ---- numbers

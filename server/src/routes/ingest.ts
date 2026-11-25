@@ -23,6 +23,7 @@ import {
   type RawFile,
 } from '../ingest/objectStore.js';
 import { applyLockRequest, LockError, type AuditStore, type LockStore } from '../ingest/closeLocks.js';
+import { monthCoverage, storedSlotReport } from '../connectors/slots/closeSlots.js';
 import { ledgerVision } from '../services/ledgerVision.js';
 import { invoiceVision } from '../services/invoiceVision.js';
 import { shopfloHistoryVision } from '../services/shopfloHistoryVision.js';
@@ -172,6 +173,15 @@ router.delete('/reports/:connectorId/:slotId/:periodKey', h(async (req, res) => 
 // ---- Month close locks (manual "Close & lock") ------------------------------
 const LOCKS = 'close-locks';
 const LOCK_AUDIT = 'close-locks-audit';
+
+// Reports by month for Setup: the same slot rule as Tasks → Fix (closeSlots.monthCoverage).
+router.get('/coverage', h(async (_req, res) => {
+  const [extracted, metas, store] = await Promise.all([readAllExtracted(), listReports(), readJson<LockStore>(LOCKS, { locks: {} })]);
+  const meta = new Map(metas.map((m) => [`${m.connectorId}|${m.slotId}|${m.periodKey}`, m]));
+  const reports = extracted.map((r) => ({ ...storedSlotReport(r), fileName: meta.get(`${r.connectorId}|${r.slotId}|${r.periodKey}`)?.fileName }));
+  const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+  res.json({ months: monthCoverage({ today, reports, locked: new Set(Object.keys(store.locks ?? {})) }) });
+}));
 
 router.get('/locks', h(async (_req, res) => {
   const store = await readJson<LockStore>(LOCKS, { locks: {} });

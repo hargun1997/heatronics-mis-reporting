@@ -156,3 +156,38 @@ export function slotProblems(x: { today: string; reports: StoredSlotReport[]; lo
   }
   return out;
 }
+
+// ---- Coverage by month (Setup → Reports by month) -----------------------------------
+// ONE rule for "which reports are missing" (sweep fix, 25 Nov 2026): Setup used its own count (uploads only, required
+// slots, no empty / partial check) and could say a month was complete while Tasks → Fix listed it. This is the same
+// slot × month check as slotProblems, laid out per month.
+
+export interface MonthCoverage {
+  period: string;
+  state: 'complete' | 'partial' | 'none' | 'running' | 'locked';
+  /** Required slots checked this month (slots start at their first stored month). */
+  expected: number;
+  present: number;
+  /** "Amazon · Payout: Oct 26 covers 5–23 Oct only" — required and optional. */
+  missing: { label: string; detail: string; required: boolean }[];
+}
+
+export function monthCoverage(x: { today: string; reports: StoredSlotReport[]; locked?: Set<string>; from?: string }): MonthCoverage[] {
+  const thisMonth = x.today.slice(0, 7);
+  const from = x.from ?? LIVE_BOUNDARY;
+  const end = thisMonth > from ? thisMonth : from;
+  const by = new Map(x.reports.map((r) => [`${r.connectorId}|${r.slotId}|${r.periodKey}`, r]));
+  const startOf = slotStarts(x.reports);
+  return monthRange(from, end).map((period) => {
+    const slots = CLOSE_SLOTS.filter((s) => { const st = startOf(s); return !st || period >= st; });
+    const req = slots.filter((s) => s.required);
+    const covers = slots.map((s) => ({ s, c: slotCoverage(s, period, by.get(`${s.connectorId}|${s.slotId}|${period}`)) }));
+    const present = covers.filter((v) => v.s.required && v.c.kind === 'ok').length;
+    const missing = covers.filter((v) => v.c.kind !== 'ok').map((v) => ({ label: `${CONNECTOR_NAME[v.s.connectorId] ?? v.s.connectorId} · ${v.s.short}`, detail: v.c.detail, required: v.s.required }));
+    const state: MonthCoverage['state'] = x.locked?.has(period) ? 'locked'
+      : period === thisMonth ? 'running'
+        : present === req.length ? 'complete'
+          : present > 0 || x.reports.some((r) => r.periodKey === period) ? 'partial' : 'none';
+    return { period, state, expected: req.length, present, missing };
+  });
+}
