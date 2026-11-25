@@ -29,6 +29,7 @@ import { ProductGapsPanel } from '../../components/liveMis/ProductGapsPanel';
 import { PublishedGapChip } from '../../components/liveMis/PublishedGapChip';
 import { loadLiveDeck, swapAlternates, LIVE_BOUNDARY, type LiveDeckData } from '../../data/misDeck/liveDeck';
 import { istDay } from '../../utils/ist';
+import { MarketingEfficiency } from '../../components/liveMis/MarketingEfficiency';
 import { aggregatePeriods, monthLabel, type Granularity as DeckGran, type PeriodAgg } from '../../data/misDeck/liveAnalytics';
 import {
   normaliseLiveMonths, unifyChannels, rangeKeys, rangePresetLabel, aggregateRange, type RangePreset,
@@ -388,6 +389,10 @@ export function LiveMisPage() {
             <Section id="pnl-detail" title="Detailed P&L"
               meta="1 column per period. Select a line to see its ledgers.">
               {withDeck(() => <PnlTab periods={pnlCols} months={months} completeness={completeness} gran={isRange ? 'month' : aggGran} display={display} setDisplay={setDisplay} />)}
+            </Section>
+            <Section id="pnl-marketing" title="Marketing efficiency"
+              meta="MER and CAC per period. Ad detail is in Ops.">
+              {withDeck(() => <MarketingEfficiency periods={pnlCols} />)}
             </Section>
             <Section id="pnl-channels" title="By channel"
               meta={`Channel P&L, ${selLabel}`}>
