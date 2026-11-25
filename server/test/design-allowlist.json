@@ -1,8 +1,232 @@
 {
  "_comment": "Old lines not yet moved to design-system/GUIDE.md. A count may only go down; new files start at zero. Refresh with DESIGN_ALLOWLIST_WRITE=1 after a clean-up.",
  "files": {
+  "components/ingest/IngestStepper.tsx": {
+   "hand-button": 2,
+   "hand-table": 3
+  },
+  "components/issues/IssuesInbox.tsx": {
+   "hand-button": 5,
+   "card-shadow": 1
+  },
+  "components/liveMis/LiveExportModals.tsx": {
+   "hand-button": 7
+  },
+  "components/liveMis/LiveMisSheetTab.tsx": {
+   "hand-table": 2
+  },
+  "components/liveMis/MonthClosePanel.tsx": {
+   "hand-button": 2,
+   "hand-table": 1
+  },
+  "components/liveMis/ProductGapsPanel.tsx": {
+   "hand-button": 2,
+   "hand-table": 2
+  },
+  "components/liveMis/PublishedGapChip.tsx": {
+   "hand-table": 1
+  },
+  "components/liveMis/StatementsTabs.tsx": {
+   "hand-table": 2
+  },
+  "components/liveMis/WhyItMoved.tsx": {
+   "card-shadow": 1
+  },
+  "components/liveMis/deckTabs.tsx": {
+   "hand-table": 5
+  },
+  "components/liveMis/reportTabs.tsx": {
+   "hand-table": 4
+  },
+  "components/liveMis/shared.tsx": {
+   "hand-button": 1
+  },
+  "components/mis-deck/charts.tsx": {
+   "card-shadow": 1
+  },
+  "components/payments/BatchSection.tsx": {
+   "hand-button": 6,
+   "hand-table": 1
+  },
+  "components/payments/NewPayeesSection.tsx": {
+   "hand-button": 3,
+   "hand-table": 1
+  },
+  "components/payments/PayeesSection.tsx": {
+   "hand-table": 1
+  },
+  "components/payments/shared.tsx": {
+   "card-shadow": 1
+  },
+  "components/planning/FyTable.tsx": {
+   "hand-table": 1
+  },
+  "components/planning/PnlGrid.tsx": {
+   "hand-table": 1,
+   "card-shadow": 1
+  },
+  "components/planning/charts.tsx": {
+   "card-shadow": 1
+  },
+  "components/planning/outputs/BusinessPlan.tsx": {
+   "hand-table": 4
+  },
+  "components/planning/outputs/CashFunding.tsx": {
+   "hand-table": 1
+  },
+  "components/planning/outputs/Costs.tsx": {
+   "hand-table": 3
+  },
+  "components/planning/outputs/PlanVsActual.tsx": {
+   "hand-table": 1,
+   "card-shadow": 1
+  },
+  "components/planning/outputs/ProductsCustomers.tsx": {
+   "hand-table": 4
+  },
+  "components/planning/outputs/Revenue.tsx": {
+   "hand-table": 4
+  },
+  "components/planning/setup/Assumptions.tsx": {
+   "hand-table": 1
+  },
+  "components/planning/setup/CapacityCapex.tsx": {
+   "hand-button": 8,
+   "hand-table": 3
+  },
+  "components/planning/setup/Customers.tsx": {
+   "hand-button": 1,
+   "hand-table": 1
+  },
+  "components/planning/setup/Funding.tsx": {
+   "hand-button": 5,
+   "hand-table": 2
+  },
+  "components/planning/setup/Narrative.tsx": {
+   "hand-button": 2,
+   "hand-table": 1
+  },
+  "components/planning/setup/OfflineRetail.tsx": {
+   "hand-button": 7
+  },
+  "components/planning/setup/Products.tsx": {
+   "hand-button": 9,
+   "hand-table": 2
+  },
+  "components/planning/setup/SetupPanel.tsx": {
+   "card-shadow": 1
+  },
+  "components/planning/setup/SheetLines.tsx": {
+   "hand-table": 2
+  },
+  "components/planning/setup/StartingPoint.tsx": {
+   "hand-button": 5
+  },
+  "components/planning/setup/Targets.tsx": {
+   "hand-button": 1,
+   "hand-table": 1
+  },
+  "components/planning/setup/TeamHiring.tsx": {
+   "hand-button": 2,
+   "hand-table": 1
+  },
+  "components/shell/AppNav.tsx": {
+   "hand-button": 6,
+   "card-shadow": 2
+  },
+  "components/shell/CommandPalette.tsx": {
+   "card-shadow": 1
+  },
   "components/ui/Markdown.tsx": {
    "em-dash": 1
+  },
+  "layouts/MainLayout.tsx": {
+   "card-shadow": 1
+  },
+  "pages/accounts/GstRefundPage.tsx": {
+   "hand-button": 4,
+   "hand-table": 1
+  },
+  "pages/accounts/TdsPage.tsx": {
+   "hand-button": 3
+  },
+  "pages/accounts/tdsClaims.tsx": {
+   "hand-button": 2,
+   "hand-table": 1
+  },
+  "pages/accounts/tdsParts.tsx": {
+   "hand-table": 1
+  },
+  "pages/booking/BookingAssistantPage.tsx": {
+   "hand-button": 5,
+   "card-shadow": 1
+  },
+  "pages/booking/LedgerMapPanel.tsx": {
+   "hand-button": 8,
+   "card-shadow": 1
+  },
+  "pages/handbook/HandbookPage.tsx": {
+   "hand-button": 2
+  },
+  "pages/mis/ConnectorsPage.tsx": {
+   "hand-button": 2
+  },
+  "pages/mis/LiveMisPage.tsx": {
+   "hand-button": 2,
+   "hand-table": 1
+  },
+  "pages/mis/SendReportPage.tsx": {
+   "hand-button": 4
+  },
+  "pages/planning/PlanningPage.tsx": {
+   "hand-button": 1
+  },
+  "pages/tally/ChartTab.tsx": {
+   "card-shadow": 1
+  },
+  "pages/tally/LedgerRulesCard.tsx": {
+   "hand-button": 4
+  },
+  "pages/tally/TallyPage.tsx": {
+   "hand-button": 2,
+   "card-shadow": 3
+  },
+  "pages/tools/BulkPaymentsPage.tsx": {
+   "hand-button": 2
+  },
+  "pages/tools/ExpenseBooking.tsx": {
+   "hand-button": 5,
+   "hand-table": 1,
+   "card-shadow": 1
+  },
+  "pages/tools/MasterPanel.tsx": {
+   "hand-button": 2
+  },
+  "pages/tools/PriceFloorsPage.tsx": {
+   "hand-button": 8,
+   "hand-table": 2
+  },
+  "pages/work/Agenda.tsx": {
+   "hand-button": 4
+  },
+  "pages/work/AmazonStockPanel.tsx": {
+   "hand-table": 1
+  },
+  "pages/work/SettingsCards.tsx": {
+   "hand-button": 3
+  },
+  "pages/work/TaskEditor.tsx": {
+   "hand-button": 1
+  },
+  "pages/work/TaskPanel.tsx": {
+   "hand-button": 1
+  },
+  "pages/work/TasksToolbar.tsx": {
+   "hand-button": 1,
+   "card-shadow": 1
+  },
+  "pages/work/ui.tsx": {
+   "hand-button": 2
   }
  }
 }
