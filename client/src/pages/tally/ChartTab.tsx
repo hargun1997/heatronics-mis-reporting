@@ -48,7 +48,7 @@ export function ChartTab() {
 
   if (err) return <ErrorBox>{err}</ErrorBox>;
   if (!data) return <Loading label="Reading the chart" />;
-  if (!data.summary) return <Empty title="No Tally groups stored yet" hint="Open TallyPrime. Then select Pull Tally now." />;
+  if (!data.summary) return <Empty title="No Tally groups stored yet" hint="Open TallyPrime. Then select Pull ledgers and vouchers." />;
 
   const render = (n: Node, path: string, depth: number): React.ReactNode => {
     if (filtering && !match(n)) return null;
@@ -98,7 +98,7 @@ export function ChartTab() {
             <li>In TallyPrime, press Alt+G. Select Alter → Ledger.</li>
             <li>Pick the ledger. Change <b>Under</b> to the group in “Move to”.</li>
             <li>Press Ctrl+A to save. Old vouchers move with the ledger.</li>
-            <li>Select Pull Tally now on this page.</li>
+            <li>Select Pull ledgers and vouchers on this page.</li>
           </ol>
           <p>The MIS never writes to Tally.</p>
         </InfoTip>

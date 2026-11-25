@@ -95,9 +95,9 @@ export function TdsPage() {
             : <StatusPill toneName="neutral" size="sm">Due {dateLabel(r!.dueDate)}</StatusPill>)}
           <FreshnessPill label="Tally" asOf={inv.api?.reachedAt}
             notes={inv.api ? [
-              inv.api.syncedAt ? `Bills of this month synced ${inv.api.syncedAt.slice(0, 16).replace('T', ' ')} UTC.` : 'This month is not synced yet.',
+              inv.api.syncedAt ? `Bills of this month synced ${new Date(inv.api.syncedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}.` : 'This month is not synced yet.',
               inv.api.sync.lastError ? `Last sync: ${inv.api.sync.lastError}` : 'Last sync worked.',
-              'Syncs by itself every day, and in full on the 5th for last month.',
+              'Syncs by itself every hour. Each sync reads the whole financial year again from 1 April.',
             ] : []} />
         </span>}
         help={ok && r!.notes.length ? <ul className="space-y-1">{r!.notes.map((n) => <li key={n} className="!list-disc">{n}</li>)}</ul> : undefined}

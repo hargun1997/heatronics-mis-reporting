@@ -11,7 +11,7 @@ import { Link } from 'react-router-dom';
 export function NoDayBook({ month }: { month: string }) {
   return (
     <div role="status">
-      <Empty title={`No Tally Day Book for ${month}`} hint="Open TallyPrime. Then open Tally health and select Pull Tally now."
+      <Empty title={`No Tally Day Book for ${month}`} hint="Open TallyPrime. Then open Tally health and select Pull ledgers and vouchers."
         action={<Link to="/tally" className={BTN}>Open Tally health</Link>} />
     </div>
   );

@@ -6,6 +6,7 @@
 // ----------------------------------------------------------------------------
 
 /* eslint-disable react-refresh/only-export-components */
+import { PartBoundary } from '../ui/PartBoundary';
 import { Children, createContext, isValidElement, useContext, useState, type ReactElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown as ChevronDownIcon, Info as InformationCircleIcon } from 'lucide-react';
@@ -196,7 +197,7 @@ export function Section({ id, title, meta, actions, children }: SectionProps) {
         </h2>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      <div className="border-t border-slate-200 px-4 py-4">{children}</div>
+      <div className="border-t border-slate-200 px-4 py-4"><PartBoundary name={typeof title === 'string' ? title : 'This section'}>{children}</PartBoundary></div>
     </section>
   );
 }
@@ -234,7 +235,7 @@ export function Sections({ label = 'Section', children }: { label?: string; chil
         <span ref={setSlot} className="contents" />
         {cur.props.actions && <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">{cur.props.actions}</div>}
       </div>
-      <div className="border-t border-slate-200 px-4 py-4 max-sm:px-3">{cur.props.children}</div>
+      <div className="border-t border-slate-200 px-4 py-4 max-sm:px-3"><PartBoundary key={cur.props.id} name={options.find((o) => o.id === cur.props.id)?.label ?? 'This section'}>{cur.props.children}</PartBoundary></div>
     </section>
     )}</ViewsCard>
   );
