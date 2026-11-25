@@ -84,6 +84,14 @@ interface Backend {
   getText(key: string): Promise<string | null>;
   list(prefix: string): Promise<string[]>;
   deletePrefix(prefix: string): Promise<void>;
+  /** Text + a version token ('0' = absent). */
+  getTextGen?(key: string): Promise<{ text: string | null; gen: string }>;
+  /** Write only when the stored version is still `gen`; throws PreconditionFailed otherwise. */
+  putTextIfGen?(key: string, text: string, gen: string): Promise<void>;
+}
+
+export class PreconditionFailed extends Error {
+  constructor() { super('The document changed while it was being saved.'); }
 }
 
 // ---- Local directory backend -----------------------------------------------
@@ -195,6 +203,28 @@ function gcsBackend(bucketName: string): { backend: Backend; ensure: () => Promi
         return buf.toString('utf8');
       } catch {
         return null;
+      }
+    },
+    async getTextGen(key) {
+      const b = await getBucket();
+      const f = b.file(key);
+      try {
+        const [meta] = await f.getMetadata();
+        const gen = String(meta.generation ?? '0');
+        const [buf] = await f.download({ generation: meta.generation });
+        return { text: buf.toString('utf8'), gen };
+      } catch (e) {
+        if ((e as { code?: number }).code === 404) return { text: null, gen: '0' };
+        throw e;
+      }
+    },
+    async putTextIfGen(key, text, gen) {
+      const b = await getBucket();
+      try {
+        await b.file(key).save(Buffer.from(text, 'utf8'), { contentType: 'application/json', resumable: false, preconditionOpts: { ifGenerationMatch: Number(gen) } });
+      } catch (e) {
+        if ((e as { code?: number }).code === 412) throw new PreconditionFailed();
+        throw e;
       }
     },
     async list(prefix) {
@@ -350,10 +380,44 @@ export async function readJson<T>(name: string, fallback: T): Promise<T> {
   }
 }
 
-/** Write a JSON document under config/. */
+/** Write a JSON document under config/ (compact: Day Books were stored pretty-printed, about 2× the bytes). */
 export async function writeJson(name: string, value: unknown): Promise<void> {
   const r = await resolveStore();
-  await r.backend.putText(`config/${name}.json`, JSON.stringify(value, null, 2));
+  await r.backend.putText(`config/${name}.json`, JSON.stringify(value));
+}
+
+// Read-change-write of one JSON document without losing a parallel change (sweep fix, 25 Nov 2026: two quick ticks on
+// Tasks, or two people, could each read the old doc and the second write dropped the first). Per instance: one change at
+// a time per document. Across instances (GCS): the write carries the version it read and is retried on a conflict.
+const docLocks = new Map<string, Promise<unknown>>();
+export async function updateJson<T>(name: string, fallback: T, change: (cur: T) => T | Promise<T>, tries = 4): Promise<T> {
+  const prev = docLocks.get(name) ?? Promise.resolve();
+  const run = prev.catch(() => undefined).then(async () => {
+    const r = await resolveStore();
+    const key = `config/${name}.json`;
+    for (let i = 0; ; i++) {
+      if (!r.backend.getTextGen || !r.backend.putTextIfGen) {
+        const cur = await readJson<T>(name, fallback);
+        const next = await change(cur);
+        await r.backend.putText(key, JSON.stringify(next));
+        return next;
+      }
+      const { text, gen } = await r.backend.getTextGen(key);
+      let cur = fallback;
+      if (text) { try { cur = JSON.parse(text) as T; } catch { cur = fallback; } }
+      const next = await change(cur);
+      try {
+        await r.backend.putTextIfGen(key, JSON.stringify(next), gen);
+        return next;
+      } catch (e) {
+        if (!(e instanceof PreconditionFailed) || i + 1 >= tries) throw e;
+        await new Promise((res) => setTimeout(res, 50 * (i + 1) + Math.random() * 50));
+      }
+    }
+  });
+  docLocks.set(name, run);
+  run.finally(() => { if (docLocks.get(name) === run) docLocks.delete(name); }).catch(() => undefined);
+  return run;
 }
 
 export async function listReports(): Promise<IngestReportMeta[]> {

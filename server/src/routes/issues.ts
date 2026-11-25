@@ -10,7 +10,7 @@
 // ----------------------------------------------------------------------------
 
 import { Router, type Request, type Response } from 'express';
-import { readAllExtracted, readJson, writeJson } from '../ingest/objectStore.js';
+import { readAllExtracted, readJson, updateJson } from '../ingest/objectStore.js';
 import { scanIssues } from '../services/anomalyScan.js';
 import { pnlCopyGaps } from '../connectors/tally/pnlCopies.js';
 import { readPnlCopies } from '../connectors/tally/pnlCopiesLoad.js';
@@ -129,9 +129,8 @@ router.post('/state', h(async (req, res) => {
   if (!op || !id) return res.status(400).json({ error: 'op (done|snooze|reopen) and id are required.' });
   const email = (req as unknown as { htxUser?: string }).htxUser;
   const by = email || (typeof b.by === 'string' ? `${b.by.slice(0, 60)} (unverified)` : 'unknown');
-  const state = await readJson<IssueState>(STATE, {});
-  const next = applyIssueOp(state, { op, id, sig, days: Number(b.days) || undefined, note: typeof b.note === 'string' ? b.note : undefined }, by, new Date().toISOString());
-  await writeJson(STATE, next);
+  // updateJson: two quick Done clicks (or two people) never drop each other's change.
+  const next = await updateJson<IssueState>(STATE, {}, (state) => applyIssueOp(state, { op, id, sig, days: Number(b.days) || undefined, note: typeof b.note === 'string' ? b.note : undefined }, by, new Date().toISOString()));
   res.json({ ok: true, state: next });
 }));
 

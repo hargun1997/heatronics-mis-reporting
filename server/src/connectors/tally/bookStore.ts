@@ -22,8 +22,38 @@ export interface BooksState { mastersAt: string | null; months: Record<string, s
 
 const EMPTY: BooksState = { mastersAt: null, months: {}, lastError: null, lastTryAt: null };
 export const readBooksState = () => readJson<BooksState>('tally/books-state', EMPTY);
-export const readMasters = () => readJson<StoredMasters | null>('tally/masters', null);
-export const readBooks = (period: string) => readJson<StoredBooks | null>(`tally/books-${period}`, null);
+
+// Per-instance cache of the big Day Book / masters files (sweep fix, 25 Nov 2026): Tally health, TDS, Book an invoice and
+// the GST refund re-downloaded and re-parsed 3 to 16 months of Day Books from storage on every request. A copy is kept
+// with the version books-state gives it (the month's asOf, mastersAt); a newer version (any instance's pull) reads the
+// file again. books-state itself (small) is read at most every 15 s. Writes in this module drop the cached copy.
+const STATE_TTL_MS = 15_000;
+let stateMemo: { at: number; p: Promise<BooksState> } | null = null;
+function cachedState(): Promise<BooksState> {
+  if (stateMemo && Date.now() - stateMemo.at < STATE_TTL_MS) return stateMemo.p;
+  const p = readBooksState();
+  const entry = { at: Date.now(), p };
+  stateMemo = entry;
+  p.catch(() => { if (stateMemo === entry) stateMemo = null; });
+  return p;
+}
+const fileMemo = new Map<string, { version: string; p: Promise<unknown> }>();
+async function versioned<T>(key: string, version: string | null | undefined, load: () => Promise<T>): Promise<T> {
+  if (!version) return load(); // no version known: always read
+  const hit = fileMemo.get(key);
+  if (hit && hit.version === version) return hit.p as Promise<T>;
+  const p = load();
+  fileMemo.set(key, { version, p });
+  p.catch(() => { if (fileMemo.get(key)?.p === p) fileMemo.delete(key); });
+  return p;
+}
+/** Drop cached copies after a write here (the version in books-state changes too, this only makes it at once). */
+function forget(key: string) { fileMemo.delete(key); stateMemo = null; }
+/** Tests only. */
+export function _resetBookCache() { fileMemo.clear(); stateMemo = null; }
+
+export const readMasters = async () => versioned('tally/masters', (await cachedState()).mastersAt, () => readJson<StoredMasters | null>('tally/masters', null));
+export const readBooks = async (period: string) => versioned(`tally/books-${period}`, (await cachedState()).months[period], () => readJson<StoredBooks | null>(`tally/books-${period}`, null));
 
 const H = 3_600_000;
 const istMonth = (now: number) => new Date(now + 5.5 * H).toISOString().slice(0, 7);
@@ -137,6 +167,7 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; mas
       if (!groups.length) warnings.push('No groups recognised — primary groups fall back to the ledger\'s own group.');
       const doc: StoredMasters = { asOf: s.lastTryAt, ledgers, groups, stockItems, warnings };
       await writeJson('tally/masters', doc);
+      forget('tally/masters');
       s.mastersAt = s.lastTryAt;
       masters = true;
     }
@@ -210,6 +241,7 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; mas
       }
       await writeJson(`tally/books-partial-${period}`, null);
       await writeJson(`tally/books-${period}`, { period, asOf: s.lastTryAt, vouchers: got, mode: 'daily' } satisfies StoredBooks);
+      forget(`tally/books-${period}`);
       s.months[period] = s.lastTryAt;
       months.push(period);
     }
@@ -218,6 +250,7 @@ export async function pullBooks(creds: Credentials, opts: { force?: boolean; mas
   }
   s.lastError = error;
   await writeJson('tally/books-state', s);
+  stateMemo = null;
   if (Object.keys(raw).length) await writeJson('tally/raw-books', { at: s.lastTryAt, ...raw });
   return { masters, months, error };
 }
