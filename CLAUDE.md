@@ -104,8 +104,8 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
 - **Bundle:** (loading pass 11 Nov 2026: `vite.config.ts` gives Rollup's CommonJS helpers their own `cjs-helpers` chunk — they sat
   inside `xlsx-style-codepages`, so every page downloaded 433 kB; `FloatingChat` imports the deck + context on first open;
   `pages/work/lazyParts.tsx` loads TaskPanel / TaskEditor (handbook, TDS parts, Excel writer) when a row or the Add task modal opens;
-  `handbookAnchors` split out of `taskModel`. Today 1,240 → 322 kB of JS, Tasks 1,784 → 613, Live MIS 1,430 → 743. Still eager: `xlsx`
-  (419 kB) on Setup, Price floors, Bulk payments, Book an invoice — their parsers import it statically.)
+  `handbookAnchors` split out of `taskModel`. Today 1,240 → 322 kB of JS, Tasks 1,784 → 613, Live MIS 1,430 → 743. `xlsx` loads on demand everywhere
+  (`utils/xlsxLazy.ts`); Tasks, Setup and the 5-year plan do not load the `liveDeck` chunk at open (25 Nov 2026).)
   Every page is `lazyPage(() => import(...), 'Name')` in `App.tsx` (own chunk; `<Suspense>` around the `<Outlet />` in
   `MainLayout`; a missing chunk after a deploy reloads once). Keep `xlsx-js-style` / `jspdf` out of page chunks: import the
   builders (`liveMisExport`, `liveMisPdf`, `misFormatExport`, `planningExport`, `priceFloorsExport`) with `await import()` on
@@ -630,6 +630,22 @@ SSRF (`connectors/safeUrl.ts`): the Tally host may not be internal (metadata ser
   marketing; Direct / Indirect Expenses group rows not added to their ledgers); "After-Sales & Warranty" is not a sales ledger. Anomaly
   scan: cost spike (≥ 3× the 3-month median and ≥ ₹1 L), negative sales ledger, "sales ledger" wording; the inbox skips the running month.
   Monthly email labels its figure "Sales in stored reports" (no live Shopify).
+
+## Page sweep fixes (25 Nov 2026; findings doc "MIS page sweep: findings and fixes")
+- **Speed:** gzip on every response (`compression`); `/api/today` and the Fix inbox cached 60 s with in-flight dedupe; chat status /
+  usage memoised per tab; Live MIS side calls start with the reports call; Day Books / masters cached per instance by the
+  `tally/books-state` version (`bookStore.versioned`, 15 s state cache, writes drop the copy); `writeJson` writes compact JSON; Live MIS
+  period totals cached per month set (`cachedAgg`); Book an invoice sends the handbook once per server copy (`handbookHash`, 409
+  `needHandbook`) and only the newest file's bytes.
+- **Safe saves:** `objectStore.updateJson(name, fallback, change)` = per-instance lock per doc + GCS `ifGenerationMatch` retry; used by
+  Tasks (save / delete / Done), Fix list state, TDS claims. Price floors settings send `ifUpdatedAt` (409 + current copy when stale).
+- **Feel:** route change scrolls to top, top bar after 120 ms + page skeleton; `PartBoundary` around Live MIS sections, chat and ⌘K;
+  `utils/sessionGuard.ts` (401 from our API → "Your login ended", reload ≤ once a minute; offline / online toasts); IST helpers
+  `utils/ist.ts`; Fix list Done is optimistic.
+- **One rule each:** Setup → Reports by month = `closeSlots.monthCoverage` via `GET /api/ingest/coverage` (same check as Tasks → Fix);
+  Today's list, "N more" and header line count the server brief; TDS tabs read the stored complete books only.
+- **Design guard:** `designGuide.test.ts` also counts `hand-button` (`<button className=` outside `components/ui/`), `hand-table`,
+  `card-shadow`; baseline in `design-allowlist.json` (may only go down).
 
 ## Summary truth fixes (23 Nov 2026, founder; test `server/test/misSummaryTruth.test.ts`)
 - **Internal transfers are transfers, not sales:** `tbRows.internalTransfers` (Internal Transfer Sales inside Sales Accounts; group and

@@ -170,20 +170,31 @@ export async function sendBookingChat(
   handbook: string,
   tallyLedgers: string,
 ): Promise<{ reply: string; dropped: string[]; meta: AnswerMeta }> {
-  const payload = messages
-    .filter((m) => !m.error)
-    .map((m) => ({
-      role: m.role,
-      content: m.content,
-      attachments: m.attachments?.map((a) => ({ kind: a.kind, name: a.name, mime: a.mime, data: a.data, text: a.text })),
-    }));
+  const kept = messages.filter((m) => !m.error);
+  // Only the newest user turn with a file keeps its photo / PDF bytes (a follow-up question still sees that invoice);
+  // older files go as their names and text only. Before, every earlier photo went up again with each question.
+  let newestWithFile = -1;
+  kept.forEach((m, i) => { if (m.role === 'user' && m.attachments?.some((a) => a.data)) newestWithFile = i; });
+  const payload = kept.map((m, i) => ({
+    role: m.role,
+    content: m.content,
+    attachments: m.attachments?.map((a) => ({ kind: a.kind, name: a.name, mime: a.mime, data: i === newestWithFile ? a.data : undefined, text: a.text })),
+  }));
+  // The handbook (about 236 kB) goes up once per server copy: the request names it by hash; the server answers
+  // needHandbook when it does not hold that copy yet, and the page sends it once.
+  const handbookHash = textHash(handbook);
+  const post = (withHandbook: boolean) => fetch('/api/booking-assistant/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: payload, handbookHash, ...(withHandbook ? { handbook } : {}), tallyLedgers }),
+  });
   let res: Response;
   try {
-    res = await fetch('/api/booking-assistant/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: payload, handbook, tallyLedgers }),
-    });
+    res = await post(false);
+    if (res.status === 409) {
+      const j = (await res.clone().json().catch(() => ({}))) as { needHandbook?: boolean };
+      if (j.needHandbook) res = await post(true);
+    }
   } catch {
     throw new AssistantError('Could not reach the server. Check your connection and try again.', 'network');
   }
@@ -297,4 +308,11 @@ export function tallyLedgersForPrompt(master: TallyMaster | null): string {
   const ledgers = (master.ledgers ?? []).map((l) => `${l.name} | ${l.group ?? ''}`).join('\n');
   const vts = (master.voucherTypes ?? []).map((v) => v.name).join(', ');
   return `Company: ${master.company ?? 'Heatronics'} · master generated ${master.generatedAt?.slice(0, 10) ?? 'unknown'}\n\nLEDGERS (name | group):\n${ledgers}\n\nVOUCHER TYPES: ${vts}`;
+}
+
+/** FNV-1a 32-bit hash of a text, as 8 hex digits (names the handbook copy; not a security check). */
+export function textHash(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, '0') + text.length.toString(16);
 }

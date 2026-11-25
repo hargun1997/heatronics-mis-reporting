@@ -176,14 +176,29 @@ function toParts(raw: unknown, budget: { binary: number }): { parts: ClaudePart[
   return { parts, dropped };
 }
 
+/** Handbook texts by the page's hash (newest 4): the page sends the 236 kB handbook once per server copy. */
+const HANDBOOKS = new Map<string, string>();
+
 router.post('/chat', h(async (req, res) => {
   if (!isClaudeConfigured()) {
     return res.status(503).json({
       code: 'no_api_key',
-      error: 'Claude is not connected on this server — ANTHROPIC_API_KEY is not set. Ask Hargun to add it (Cloud Run → Secret Manager) and restart. The ledger map still works.',
+      error: 'The assistant is not connected. Tell the admin to add the Claude key. The ledger map still works.',
     });
   }
-  const body = (req.body ?? {}) as { messages?: unknown; handbook?: unknown; tallyLedgers?: unknown };
+  const body = (req.body ?? {}) as { messages?: unknown; handbook?: unknown; handbookHash?: unknown; tallyLedgers?: unknown };
+  // The page names its handbook by hash and sends the text only when this server copy does not hold it yet (409).
+  const hash = typeof body.handbookHash === 'string' && /^[0-9a-f]{8,20}$/.test(body.handbookHash) ? body.handbookHash : null;
+  let handbook = typeof body.handbook === 'string' ? body.handbook.slice(0, 400_000) : '';
+  if (hash) {
+    if (handbook) HANDBOOKS.set(hash, handbook);
+    else {
+      const got = HANDBOOKS.get(hash);
+      if (!got) return res.status(409).json({ needHandbook: true });
+      handbook = got;
+    }
+    while (HANDBOOKS.size > 4) HANDBOOKS.delete(HANDBOOKS.keys().next().value!);
+  }
   const rawMessages = Array.isArray(body.messages) ? body.messages.slice(-30) : [];
 
   // Newest attachments first get the binary budget, so walk backwards.
@@ -213,7 +228,7 @@ router.post('/chat', h(async (req, res) => {
     readVouchers(periods).catch(() => ({ vouchers: [], periods: [] as string[] })),
     readInvoice(docParts),
   ]);
-  const handbook = typeof body.handbook === 'string' ? body.handbook.slice(0, 400_000) : '';
+
   // The live Tally masters (with groups, GSTIN, TDS) beat the bundled list the page sends.
   const liveLedgers = masters?.ledgers?.length ? ledgerListText(masters, 2500) : '';
   const tallyLedgers = liveLedgers

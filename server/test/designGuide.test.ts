@@ -68,6 +68,13 @@ function scan(): Counts {
     add(rel, 'old-colour', (code.match(/(?<![\w-])(?:[a-z]+:)*(?:bg|text|border|ring|fill|stroke|from|to|via|divide|outline|shadow|decoration)-(?:blue|sky|cyan|violet|purple|fuchsia|indigo|pink|orange)-\d{2,3}\b/g) ?? []).length);
     add(rel, 'browser-dialog', (code.match(/\bwindow\.(?:alert|confirm|prompt)\s*\(|(?<![.\w])(?:alert|prompt)\s*\(\s*['"`]/g) ?? []).length);
     if (ui && !OVERLAY_KIT.has(rel)) add(rel, 'hand-overlay', (code.match(/\bfixed inset-0\b/g) ?? []).length);
+    // Sweep fix (25 Nov 2026): hand-made buttons (317), tables (64) and card shadows (21) were the source of uneven
+    // padding and looks. Baseline counts sit in the allowlist; new code uses Button / buttonClass, DataTable, flat cards.
+    if (ui && !rel.startsWith('components/ui/')) {
+      add(rel, 'hand-button', (code.match(/<button\b[^>]*\bclassName=/g) ?? []).length);
+      add(rel, 'hand-table', (code.match(/<table\b/g) ?? []).length);
+      add(rel, 'card-shadow', (code.match(/(?<![\w-])shadow-(?:sm|md|lg|xl|2xl|card|inner)\b/g) ?? []).length);
+    }
     if (ui) {
       const words = uiStrings(code);
       add(rel, 'contraction', words.filter((w) => CONTRACTION.test(w)).length);
@@ -79,7 +86,7 @@ function scan(): Counts {
   return counts;
 }
 
-test('design guide: no new raw colours, one-off sizes, caps labels, browser dialogs, hand-built overlays or copy breaks (contractions, em dashes, please, successfully, e.g., sorry)', () => {
+test('design guide: no new raw colours, one-off sizes, caps labels, browser dialogs, hand-built overlays, hand-made buttons / tables / shadows or copy breaks (contractions, em dashes, please, successfully, e.g., sorry)', () => {
   const now = scan();
   if (process.env.DESIGN_ALLOWLIST_WRITE) {
     const sorted = Object.fromEntries(Object.keys(now).sort().map((k) => [k, now[k]]));
