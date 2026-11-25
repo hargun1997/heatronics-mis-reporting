@@ -10,9 +10,7 @@
 import { Router, type Request, type Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { readJson, writeJson } from '../ingest/objectStore.js';
-import { getConnector } from '../connectors/registry.js';
-import { getEffectiveCredentials } from '../connectors/credentialStore.js';
-import { pullShopifyHistory, type D2CHistory } from '../planning/shopifyHistory.js';
+import { historyJobState, readHistory, startHistoryRefresh } from '../planning/historyJob.js';
 import { cleanActuals, cleanPlanRows, composeVsActual, type ActualsSnapshot } from '../planning/vsActual.js';
 import { BASE_PLAN_MONTHS } from '../planning/basePlanMonths.js';
 import type { PlanMonthRow } from '../planning/planVsActual.js';
@@ -133,38 +131,19 @@ router.get('/vs-actual', h(async (req, res) => {
 }));
 
 // ---- D2C history (Shopify orders → cohorts) --------------------------------------
-// One refresh at a time per instance. The route waits ≤ 25 s, then the page polls.
-const HISTORY_KEY = 'planning-d2c-history';
+// The job lives in planning/historyJob.ts (also run once a day by the auto-pull run). The route waits ≤ 25 s, then the page polls.
 const WAIT_MS = 25_000;
-const BUDGET_MS = 8 * 60_000;
-type HistJob = { status: 'running'; startedAt: string } | { status: 'done'; startedAt: string; finishedAt: string } | { status: 'failed'; startedAt: string; error: string };
-let histJob: { state: HistJob; promise: Promise<void> } | null = null;
 
 router.get('/history', h(async (_req, res) => {
-  const stored = await readJson<D2CHistory | null>(HISTORY_KEY, null);
-  res.json({ history: stored, job: histJob?.state ?? null });
+  res.json({ history: await readHistory(), job: historyJobState() });
 }));
 
 router.post('/history/refresh', h(async (_req, res) => {
-  const c = getConnector('shopify');
-  if (!c) { res.status(500).json({ error: 'Shopify connector missing.' }); return; }
-  const creds = await getEffectiveCredentials('shopify', c.credentialFields.map((f) => f.key));
-  if (!creds.shopDomain || !(creds.accessToken || (creds.clientId && creds.clientSecret))) {
-    res.status(400).json({ error: 'Shopify is not connected. Add it on Setup → Shopify.' });
-    return;
-  }
-  const stale = histJob?.state.status === 'running' && Date.now() - Date.parse(histJob.state.startedAt) > BUDGET_MS + 60_000;
-  if (!histJob || histJob.state.status !== 'running' || stale) {
-    const startedAt = new Date().toISOString();
-    const job: { state: HistJob; promise: Promise<void> } = { state: { status: 'running', startedAt }, promise: Promise.resolve() };
-    job.promise = pullShopifyHistory(creds, Date.now() + BUDGET_MS)
-      .then(async (hist) => { await writeJson(HISTORY_KEY, hist); job.state = { status: 'done', startedAt, finishedAt: new Date().toISOString() }; })
-      .catch((err: unknown) => { job.state = { status: 'failed', startedAt, error: err instanceof Error ? err.message : String(err) }; });
-    histJob = job;
-  }
-  await Promise.race([histJob.promise, new Promise((r) => setTimeout(r, WAIT_MS))]);
-  const stored = histJob.state.status === 'done' ? await readJson<D2CHistory | null>(HISTORY_KEY, null) : null;
-  res.json({ job: histJob.state, history: stored });
+  const job = await startHistoryRefresh();
+  if (!job) { res.status(400).json({ error: 'Shopify is not connected. Add it on Setup → Shopify.' }); return; }
+  await Promise.race([job.promise, new Promise((r) => setTimeout(r, WAIT_MS))]);
+  const stored = job.state.status === 'done' ? await readHistory() : null;
+  res.json({ job: job.state, history: stored });
 }));
 
 export default router;

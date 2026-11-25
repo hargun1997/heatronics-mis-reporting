@@ -30,6 +30,7 @@ import { storedSlotReport } from '../connectors/slots/closeSlots.js';
 import { listReports, readAllExtracted, readJson, saveReport, writeJson } from '../ingest/objectStore.js';
 import { requireAdmin } from '../htxGate.js';
 import type { LockStore } from '../ingest/closeLocks.js';
+import { refreshHistoryIfDue } from '../planning/historyJob.js';
 
 const router = Router();
 
@@ -180,6 +181,8 @@ router.post('/auto-pull/run', h(async (req, res) => {
   if (!caller) return res.status(401).json({ error: 'Not allowed' });
   const signedIn = caller === 'person';
   const force = signedIn && req.body?.force === true;
+  // The Shopify new-buyer history (CAC on Live MIS) rides the same daily call: refreshed once a day, in the background.
+  void refreshHistoryIfDue();
   if (!autoRunning) {
     const p = runAutoPull(autoDeps(), { force }).finally(() => { if (autoRunning === p) autoRunning = null; });
     p.catch((e: unknown) => console.error('auto-pull failed:', e instanceof Error ? e.message : e));
