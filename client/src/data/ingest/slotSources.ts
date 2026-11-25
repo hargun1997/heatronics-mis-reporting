@@ -106,6 +106,9 @@ export async function pullSlot(
     opts.onWait?.(Math.round((Date.now() - t0) / 1000));
     await sleep(4000);
     const r = await fetch(`/api/connectors/slots/${slot.connectorId}/${slot.slotId}/pull/${periodKey}`);
+    // An ended login or a server error is not "the server restarted": say what it is.
+    if (r.status === 401) throw new Error('Your login ended. Sign in again, then pull again.');
+    if (!r.ok && r.status !== 404) throw new Error(`The server answered ${r.status}. Pull again in 1 minute.`);
     ans = (await r.json().catch(() => ({ status: 'none' }))) as PullAnswer;
   }
   if (ans.status === 'done') {

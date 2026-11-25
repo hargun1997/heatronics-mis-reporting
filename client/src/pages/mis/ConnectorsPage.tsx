@@ -131,7 +131,7 @@ function ConnectionsView() {
   return (
     <PageBody>
       <div className="grid gap-4 lg:grid-cols-2">
-        <CoveragePanel reports={reports} connectors={connectors} />
+        <CoveragePanel refreshKey={reports} />
         <AutoPullPanel sources={sources} onDone={reloadReports} />
       </div>
 

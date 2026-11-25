@@ -75,9 +75,10 @@ export function TodayPage() {
 
   const count = useWorkCount();
   const pill = b ? PILL[b.status] : null;
-  // The one count (badge, Tasks, here). Before the store answers, the server's list length.
-  const total = count ? count.open : b ? b.needsYou.length + b.moreNeeds : 0;
-  const line = count ? (count.urgent ? `${count.urgent} urgent of ${count.open} open` : count.open ? `${count.open} open, none urgent` : 'Nothing needs you today') : b?.statusLine;
+  // "Do these first" lists the server's brief (watch items + Fix items + late tasks), so its count, its "N more" and the
+  // header line all come from that same list. The To fix / Tasks late tiles keep the badge's count (useWorkCount).
+  const total = b ? b.needsYou.length + b.moreNeeds : 0;
+  const line = b?.statusLine;
   return (
     <>
       <PageHeader
