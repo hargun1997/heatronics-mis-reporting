@@ -11,7 +11,7 @@
 // ============================================================================
 
 import { randomUUID } from 'node:crypto';
-import { readJson, writeJson, listReports } from '../ingest/objectStore.js';
+import { readJson, updateJson, writeJson, listReports } from '../ingest/objectStore.js';
 import { listAssignments, listMembers, type TeamMember } from './ownershipStore.js';
 import { CALENDAR_TASKS, CALENDAR_VERSION, REPLACED_TASK_IDS } from './closeCalendar.js';
 import type { Cadence, ScheduleSpec } from './workSchedule.js';
@@ -272,6 +272,18 @@ async function writeWork(doc: WorkDoc): Promise<void> {
   await writeJson('work', doc);
 }
 
+/** Change the work doc without losing a parallel change (two quick ticks, or two people): updateJson locks per instance
+ * and retries on a storage version conflict across instances. `fn` changes the doc in place and returns its answer. */
+async function mutateWork<R>(fn: (doc: WorkDoc) => R): Promise<R> {
+  let out!: R;
+  await updateJson<WorkDoc>('work', EMPTY, (raw) => {
+    const doc: WorkDoc = { ...EMPTY, ...raw, tasks: raw.tasks ?? [], done: raw.done ?? {} };
+    out = fn(doc);
+    return doc;
+  });
+  return out;
+}
+
 const num = (v: unknown, lo: number, hi: number): number | undefined => {
   const n = Number(v);
   return Number.isFinite(n) && n >= lo && n <= hi ? Math.round(n) : undefined;
@@ -330,30 +342,30 @@ function clean(input: Partial<WorkTask>, prev?: WorkTask): WorkTask {
 }
 
 export async function saveTask(input: Partial<WorkTask>): Promise<WorkTask> {
-  const doc = await readWork();
-  const i = input.id ? doc.tasks.findIndex((t) => t.id === input.id) : -1;
-  const task = clean(input, i >= 0 ? doc.tasks[i] : undefined);
-  if (i >= 0) doc.tasks[i] = task;
-  else doc.tasks.push(task);
-  await writeWork(doc);
-  return task;
+  return mutateWork((doc) => {
+    const i = input.id ? doc.tasks.findIndex((t) => t.id === input.id) : -1;
+    const task = clean(input, i >= 0 ? doc.tasks[i] : undefined);
+    if (i >= 0) doc.tasks[i] = task;
+    else doc.tasks.push(task);
+    return task;
+  });
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  const doc = await readWork();
-  doc.tasks = doc.tasks.filter((t) => t.id !== id);
-  delete doc.done[id];
-  await writeWork(doc);
+  await mutateWork((doc) => {
+    doc.tasks = doc.tasks.filter((t) => t.id !== id);
+    delete doc.done[id];
+  });
 }
 
 export async function setDone(id: string, period: string, done: boolean, by?: string, note?: string): Promise<void> {
-  const doc = await readWork();
-  if (!doc.tasks.some((t) => t.id === id)) throw new Error('Unknown task.');
   if (!/^(\d{4}(-\d{2}(-\d{2})?|-W\d{2})?|once)$/.test(period)) throw new Error('Bad period.');
-  const map = (doc.done[id] ??= {});
-  if (done) map[period] = { at: new Date().toISOString(), by, note };
-  else delete map[period];
-  await writeWork(doc);
+  await mutateWork((doc) => {
+    if (!doc.tasks.some((t) => t.id === id)) throw new Error('Unknown task.');
+    const map = (doc.done[id] ??= {});
+    if (done) map[period] = { at: new Date().toISOString(), by, note };
+    else delete map[period];
+  });
 }
 
 export async function saveSettings(input: Partial<ReminderSettings>): Promise<ReminderSettings> {

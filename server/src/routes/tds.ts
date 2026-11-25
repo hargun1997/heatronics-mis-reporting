@@ -22,7 +22,7 @@ import { tdsFeed, tdsMonths } from '../services/tdsFeed.js';
 import { duplicateBills, fyMonths, memorySummary, monthState, syncDue, tallyOffline, waitingFor } from '../services/supplierInvoices.js';
 import { memoryFor, passLeft, readSyncState, runTdsSync, scheduledSync, syncRunning } from '../services/tdsSync.js';
 import { tallyReachedAt } from '../connectors/tally/freshness.js';
-import { readJson, writeJson } from '../ingest/objectStore.js';
+import { readJson, writeJson, updateJson } from '../ingest/objectStore.js';
 import { sanitizeFiled, type StoredFiledDoc } from '../services/filedReports.js';
 import { autoPullCaller } from '../connectors/slots/autoPull.js';
 import { sharedSecret } from '../connectors/sharedSecrets.js';
@@ -166,9 +166,7 @@ router.put('/claims/:key', h(async (req, res) => {
   if (!CLAIM_KEY.test(key)) return void res.status(400).json({ error: 'key = <platform>|<YYYY>-Q<n>' });
   const rec = sanitizeClaim(req.body, (req as unknown as { htxUser?: string }).htxUser ?? null, new Date().toISOString());
   if (rec && 'error' in rec) return void res.status(400).json(rec);
-  const all = await readClaims();
-  if (rec) all[key] = rec; else delete all[key];
-  await writeJson('tds/claims', all);
+  await updateJson<ClaimRecords>('tds/claims', {}, (all) => { const next = { ...all }; if (rec) next[key] = rec; else delete next[key]; return next; });
   res.json({ ok: true, record: rec });
 }));
 
